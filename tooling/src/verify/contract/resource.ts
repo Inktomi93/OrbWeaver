@@ -30,10 +30,16 @@ export interface ResourceTreeEntry {
   readonly origin: "disk" | "overlay";
 }
 
+/** Internal byte-preserving view of one invocation's complete authored transaction. */
+export type ResourceFileSnapshot =
+  | { readonly path: string; readonly kind: "file"; readonly bytes: Uint8Array; readonly origin: "disk" | "overlay" }
+  | { readonly path: string; readonly kind: "symlink"; readonly targetPath: string; readonly origin: "disk" };
+
 /** Internal provider input, never supplied to a gate or exposed by ResourceHost. */
 export interface ResourceReader {
   readonly read: (path: string) => ResourceLoad<string>;
   readonly tree: (path: string) => ResourceLoad<readonly ResourceTreeEntry[]>;
+  readonly snapshot: (paths: readonly string[]) => ResourceLoad<readonly ResourceFileSnapshot[]>;
 }
 
 /** The same normalized file map can be applied to the shared AST workspace by the fixture runner. */

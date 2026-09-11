@@ -1,9 +1,10 @@
 // Native-loader proof for config-snapshot: executable Vitest config is observed after functions, imports,
 // and derived arrays resolve, while absent optional fields remain absence and malformed selectors refuse.
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import process from "node:process";
 import { ESLint } from "eslint";
 import { createVitest } from "vitest/node";
 import { readConfigSnapshot } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
@@ -104,6 +105,27 @@ test("loads the effective dependency-cruiser chain but snapshots only repository
   expect(snapshot.selectors).toEqual([{ owner: "config.forbidden[0].from", field: "path", position: 0, value: "^packages/kit/src/" }]);
 });
 
+test("dependency-cruiser evaluates required helper bytes from the overlay transaction", ({ scratch }) => {
+  writeFileSync(join(scratch, DEPCRUISE_CONFIG_REL), 'module.exports = { forbidden: [{ name: "disk", from: { path: "^disk/" }, to: {} }] };\n');
+  execFileSync("git", ["init", "-q"], { cwd: scratch });
+  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  const read = readConfigSnapshot(scratch, "depcruise", DEPCRUISE_CONFIG_REL, {
+    overlay: {
+      [DEPCRUISE_CONFIG_REL]:
+        'const { PATH } = require("./depcruise-helper.cjs");\nmodule.exports = { forbidden: [{ name: "overlay", from: { path: PATH }, to: {} }] };\n',
+      "depcruise-helper.cjs": 'exports.PATH = "^overlay/";\n',
+    },
+  });
+
+  expect(read.kind === "ok" ? read.snapshot.selectors : []).toContainEqual({
+    owner: "config.forbidden[0].from",
+    field: "path",
+    position: 0,
+    value: "^overlay/",
+  });
+  expect(readFileSync(join(scratch, DEPCRUISE_CONFIG_REL), "utf8")).toContain('name: "disk"');
+});
+
 test("the process boundary observes rewritten CommonJS config instead of a stale module cache", async ({ scratch }) => {
   await writeFile(
     join(scratch, DEPCRUISE_CONFIG_REL),
@@ -120,6 +142,130 @@ test("the process boundary observes rewritten CommonJS config instead of a stale
   );
   const second = readConfigSnapshot(scratch, "depcruise", DEPCRUISE_CONFIG_REL);
   expect(second.kind === "ok" ? second.snapshot.selectors[0]?.value : second.detail).toBe("^packages/second/");
+});
+
+test("materialization failures stay unreadable and private ESLint population input refuses another runner", ({ scratch, repoRoot }) => {
+  writeFileSync(join(scratch, CONFIG_REL), 'export default { test: { include: ["tests/live.test.ts"] } };\n');
+  execFileSync("git", ["init", "-q"], { cwd: scratch });
+  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  expect(readConfigSnapshot(scratch, "vitest", CONFIG_REL, { overlay: { "node_modules/forged.js": "x" } })).toMatchObject({
+    kind: "unreadable",
+    detail: expect.stringContaining("non-authored"),
+  });
+
+  const manifest = join(scratch, "population.json");
+  writeFileSync(manifest, "[]\n");
+  expect(() =>
+    execFileSync(process.execPath, [join(repoRoot, "tooling/src/verify/ops/config-snapshot-entry.ts"), "vitest", CONFIG_REL, "--eslint-population", manifest], {
+      cwd: scratch,
+      stdio: "pipe",
+    }),
+  ).toThrow();
+});
+
+test("the process boundary evaluates config and relative filesystem sidecars from one overlay transaction", ({ scratch }) => {
+  writeFileSync(join(scratch, CONFIG_REL), 'export default { test: { include: ["tests/disk.test.ts"] } };\n');
+  writeFileSync(join(scratch, "selector.txt"), "tests/disk.test.ts\n");
+  execFileSync("git", ["init", "-q"], { cwd: scratch });
+  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  const config = `import { readFileSync } from "node:fs";\nimport { join } from "node:path";\nconst value = readFileSync(join(import.meta.dirname, "selector.txt"), "utf8").trim();\nexport default { test: { include: [value] } };\n`;
+
+  const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
+    overlay: { [CONFIG_REL]: config, "selector.txt": "tests/overlay.test.ts\n" },
+  });
+
+  expect(read.kind === "ok" ? read.snapshot.selectors : []).toContainEqual({
+    owner: "root",
+    field: "test.include",
+    values: ["tests/overlay.test.ts"],
+  });
+  expect(readFileSync(join(scratch, CONFIG_REL), "utf8")).toContain("tests/disk.test.ts");
+  expect(readFileSync(join(scratch, "selector.txt"), "utf8")).toBe("tests/disk.test.ts\n");
+  const cache = join(scratch, ".cache");
+  expect(existsSync(cache) ? readdirSync(cache).filter((entry) => entry.startsWith("config-snapshot-")) : []).toEqual([]);
+});
+
+test("a contained absolute symlink resolves to staged target bytes", ({ scratch }) => {
+  writeFileSync(join(scratch, "selector.ts"), 'export const SELECTOR = "tests/disk.test.ts";\n');
+  symlinkSync(join(scratch, "selector.ts"), join(scratch, "selector-link.ts"));
+  writeFileSync(join(scratch, CONFIG_REL), 'import { SELECTOR } from "./selector-link.ts";\nexport default { test: { include: [SELECTOR] } };\n');
+  execFileSync("git", ["init", "-q"], { cwd: scratch });
+  execFileSync("git", ["add", "-A"], { cwd: scratch });
+
+  const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
+    overlay: { "selector.ts": 'export const SELECTOR = "tests/staged.test.ts";\n' },
+  });
+
+  expect(read.kind === "ok" ? read.snapshot.selectors : []).toContainEqual({
+    owner: "root",
+    field: "test.include",
+    values: ["tests/staged.test.ts"],
+  });
+  expect(readFileSync(join(scratch, "selector.ts"), "utf8")).toContain("tests/disk.test.ts");
+});
+
+test("the overlay transaction resolves @orb workspace imports from staged bytes", ({ repoRoot }) => {
+  const helper = "tooling/src/_shared/config-snapshot-overlay-control.ts";
+  const config = `import { SELECTOR } from "@orb/tooling/_shared/config-snapshot-overlay-control";\nexport default { test: { include: [SELECTOR] } };\n`;
+  const overlaid = readConfigSnapshot(repoRoot, "vitest", CONFIG_REL, {
+    overlay: { [CONFIG_REL]: config, [helper]: 'export const SELECTOR = "tests/staged.test.ts";\n' },
+  });
+  expect(overlaid.kind === "ok" ? overlaid.snapshot.selectors : []).toContainEqual({
+    owner: "root",
+    field: "test.include",
+    values: ["tests/staged.test.ts"],
+  });
+  expect(existsSync(join(repoRoot, helper))).toBe(false);
+});
+
+test("the overlay transaction refuses a deleted workspace target instead of resolving the original package", ({ repoRoot }) => {
+  const config =
+    'import { VITEST_TYPECHECK_GROUP_PREFIX } from "@orb/tooling/_shared/test-kinds";\nexport default { test: { include: [VITEST_TYPECHECK_GROUP_PREFIX + "*.test.ts"] } };\n';
+  const deleted = readConfigSnapshot(repoRoot, "vitest", CONFIG_REL, {
+    overlay: { [CONFIG_REL]: config, tooling: null },
+  });
+  expect(deleted).toMatchObject({ kind: "unreadable" });
+  expect(deleted.kind === "unreadable" ? deleted.detail : "").toContain('Missing "./_shared/test-kinds" specifier');
+});
+
+test("an overlaid workspace manifest cannot redirect a package link outside the owned stage", ({ scratch }) => {
+  mkdirSync(join(scratch, "tooling"));
+  writeFileSync(join(scratch, "tooling/package.json"), JSON.stringify({ name: "@orb/tooling", private: true }));
+  writeFileSync(join(scratch, CONFIG_REL), 'export default { test: { include: ["tests/live.test.ts"] } };\n');
+  execFileSync("git", ["init", "-q"], { cwd: scratch });
+  execFileSync("git", ["add", "-A"], { cwd: scratch });
+  const escaped = join(scratch, "escaped-link");
+  const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
+    overlay: { "tooling/package.json": JSON.stringify({ name: "../../../escaped-link", private: true }) },
+  });
+  const leaked = lstatSync(escaped, { throwIfNoEntry: false });
+
+  expect(read).toMatchObject({ kind: "unreadable" });
+  expect(leaked).toBeUndefined();
+});
+
+test("a symlinked workspace manifest keeps its staged target bytes instead of receiving a tombstone", ({ scratch }) => {
+  mkdirSync(join(scratch, "tooling/src"), { recursive: true });
+  writeFileSync(join(scratch, "tooling/src/disk.ts"), 'export const SELECTOR = "tests/disk.test.ts";\n');
+  writeFileSync(join(scratch, "tooling/src/overlay.ts"), 'export const SELECTOR = "tests/overlay.test.ts";\n');
+  const diskManifest = { name: "@orb/tooling", private: true, exports: { "./x": "./src/disk.ts" } };
+  const overlayManifest = { name: "@orb/tooling", private: true, exports: { "./x": "./src/overlay.ts" } };
+  writeFileSync(join(scratch, "tooling-manifest.json"), `${JSON.stringify(diskManifest)}\n`);
+  symlinkSync("../tooling-manifest.json", join(scratch, "tooling/package.json"));
+  writeFileSync(join(scratch, CONFIG_REL), 'import { SELECTOR } from "@orb/tooling/x";\nexport default { test: { include: [SELECTOR] } };\n');
+  execFileSync("git", ["init", "-q"], { cwd: scratch });
+  execFileSync("git", ["add", "-A"], { cwd: scratch });
+
+  const read = readConfigSnapshot(scratch, "vitest", CONFIG_REL, {
+    overlay: { "tooling-manifest.json": `${JSON.stringify(overlayManifest)}\n` },
+  });
+
+  expect(read.kind === "ok" ? read.snapshot.selectors : []).toContainEqual({
+    owner: "root",
+    field: "test.include",
+    values: ["tests/overlay.test.ts"],
+  });
+  expect(JSON.parse(readFileSync(join(scratch, "tooling-manifest.json"), "utf8"))).toEqual(diskManifest);
 });
 
 test("refuses malformed dependency-cruiser selector values after native evaluation", async ({ scratch }) => {
@@ -196,6 +342,30 @@ test("evaluates imported and derived ESLint selectors with entry-local populatio
     { owner: "config[0]:derived", field: "files", position: 0, value: "src/**/*.js", scope: "files", members: 1 },
     { owner: "config[0]:derived", field: "ignores", position: 0, value: "**/*.test.js", scope: "local-ignore", members: 1 },
   ]);
+});
+
+test("overlay ESLint evaluation uses staged helpers and the original tracked population minus deletions", async ({ scratch }) => {
+  await plantEslintRepo(scratch, {
+    [ESLINT_CONFIG_REL]: 'export default [{ files: ["disk/**/*.js"] }];\n',
+    "src/live.js": "export const live = 1;\n",
+  });
+  const read = readConfigSnapshot(scratch, "eslint", ESLINT_CONFIG_REL, {
+    overlay: {
+      [ESLINT_CONFIG_REL]: 'import { FILES } from "./selector-values.js";\nexport default [{ name: "overlay", files: FILES }];\n',
+      "selector-values.js": 'export const FILES = ["src/**/*.js"];\n',
+      "src/live.js": null,
+    },
+  });
+
+  expect(read.kind === "ok" ? read.snapshot.selectors : []).toContainEqual({
+    owner: "config[0]:overlay",
+    field: "files",
+    position: 0,
+    value: "src/**/*.js",
+    scope: "files",
+    members: 0,
+  });
+  expect(existsSync(join(scratch, "src/live.js"))).toBe(true);
 });
 
 test("preserves global directory/negation/dotfile and local basePath/AND semantics", async ({ scratch }) => {

@@ -1,16 +1,50 @@
 // Invocation-local disk/overlay acquisition. This internal reader is never part of a policy context.
 
 import type { Dirent } from "node:fs";
-import { lstatSync, readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ResourceLoad, ResourceReader, ResourceReaderOptions, ResourceTreeEntry } from "../contract/resource.ts";
+import type { ResourceFileSnapshot, ResourceLoad, ResourceReader, ResourceReaderOptions, ResourceTreeEntry } from "../contract/resource.ts";
 import { assertRepoPathIdentity } from "../lib/policy-validation.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
 // Installed and generated trees are separate resource families, never authored-tree members.
 const NON_AUTHORED_DIRECTORIES = new Set(["node_modules", ".git", "dist", ".cache"]);
+
+function childPath(directory: string, name: string): string {
+  return directory === "" ? name : `${directory}/${name}`;
+}
+
+function isDescendant(path: string, child: string): boolean {
+  return path === "" || child.startsWith(`${path}/`);
+}
+
+function isAuthoredOverlayChild(path: string, child: string, value: string | null): value is string {
+  return (
+    value !== null &&
+    isDescendant(path, child) &&
+    !child
+      .split("/")
+      .slice(0, -1)
+      .some((segment) => NON_AUTHORED_DIRECTORIES.has(segment))
+  );
+}
+
+function firstOverlayParentIndex(path: string): number {
+  return path === "" ? 1 : path.split("/").length + 1;
+}
+
+function comparePath(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+  return left < right ? -1 : 1;
+}
+
+function hasNonAuthoredSegment(path: string): boolean {
+  return path.split("/").some((segment) => NON_AUTHORED_DIRECTORIES.has(segment));
+}
 
 function unavailable(status: "missing" | "empty" | "unresolved", path: string, reason: string): ResourceLoad<never> {
   return { status, paths: [path], members: 0, reason };
@@ -32,6 +66,9 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
   const overlay = new Map(Object.entries(options.overlay ?? {}));
   for (const [path, value] of overlay) {
     assertRepoPathIdentity(path, "resource overlay path");
+    if (hasNonAuthoredSegment(path)) {
+      throw new Error(`resource overlay cannot mutate a non-authored tree: ${path}`);
+    }
     if (value !== null && typeof value !== "string") {
       throw new Error(`resource overlay must contain text or a deletion: ${path}`);
     }
@@ -176,7 +213,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
       throw new Error(listing.reason);
     }
     for (const entry of listing.value) {
-      const child = `${directory}/${entry.name}`;
+      const child = childPath(directory, entry.name);
       if (hidden(child) || (entry.isDirectory() && NON_AUTHORED_DIRECTORIES.has(entry.name))) {
         continue;
       }
@@ -190,19 +227,12 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
   };
   const mergeOverlay = (entries: Map<string, ResourceTreeEntry>, path: string): void => {
     for (const [child, value] of overlay) {
-      if (
-        value === null ||
-        !child.startsWith(`${path}/`) ||
-        child
-          .split("/")
-          .slice(0, -1)
-          .some((segment) => NON_AUTHORED_DIRECTORIES.has(segment))
-      ) {
+      if (!isAuthoredOverlayChild(path, child, value)) {
         continue;
       }
       entries.set(child, fileEntry(child));
       const segments = child.split("/");
-      for (let index = path.split("/").length + 1; index < segments.length; index += 1) {
+      for (let index = firstOverlayParentIndex(path); index < segments.length; index += 1) {
         const directory = segments.slice(0, index).join("/");
         if (entries.get(directory)?.kind === "file") {
           throw new Error(`overlay child is beneath a file: ${child}`);
@@ -257,5 +287,38 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
     trees.set(path, freezeLoad(load));
     return load;
   };
-  return Object.freeze({ read, tree });
+  const snapshotFile = (path: string): ResourceFileSnapshot => {
+    assertRepoPathIdentity(path, "resource snapshot path");
+    if (hasNonAuthoredSegment(path)) {
+      throw new Error(`resource snapshot cannot include a non-authored tree: ${path}`);
+    }
+    const target = join(root, path);
+    if (!overlay.has(path) && lstatSync(target).isSymbolicLink()) {
+      const canonical = realpathSync(target);
+      const rel = relative(root, canonical);
+      if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+        throw new Error(`authored resource symlink resolves outside the invocation root: ${path}`);
+      }
+      return Object.freeze({ path, kind: "symlink", targetPath: rel.split(sep).join("/"), origin: "disk" });
+    }
+    const loaded = readBytes(path);
+    if (loaded.status !== "ready") {
+      throw new Error(loaded.reason);
+    }
+    return Object.freeze({
+      path,
+      kind: "file",
+      bytes: new Uint8Array(loaded.value),
+      origin: overlay.has(path) ? "overlay" : "disk",
+    });
+  };
+  const snapshot = (paths: readonly string[]): ResourceLoad<readonly ResourceFileSnapshot[]> => {
+    try {
+      const files = [...new Set(paths)].toSorted(comparePath).map(snapshotFile);
+      return freezeLoad({ status: "ready", value: Object.freeze(files), paths: files.map((entry) => entry.path), members: files.length });
+    } catch (error) {
+      return freezeLoad(unavailable("unresolved", "", error instanceof Error ? error.message : String(error)));
+    }
+  };
+  return Object.freeze({ read, tree, snapshot });
 }

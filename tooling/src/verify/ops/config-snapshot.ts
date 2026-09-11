@@ -1,6 +1,7 @@
 // Native config observation for synchronous structural gates. The private worker process is the async
 // boundary; the public verify CLI delegates here too. Each runner loads through its public API, then emits data only.
-import { resolve } from "node:path";
+import { existsSync, realpathSync, statSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { ConfigArray } from "@eslint/config-array";
@@ -21,7 +22,7 @@ import type {
   VitestConfigSnapshotField,
 } from "../contract/config-snapshot.ts";
 import { CONFIG_SNAPSHOT_RUNNERS } from "../contract/config-snapshot.ts";
-import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
+import { assertPolicyRepoPath, readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.ts config-snapshot <vitest|eslint|depcruise> <repo-relative-config>");
 
@@ -567,10 +568,29 @@ function localSelectorSnapshots(root: string, trackedPaths: readonly string[], m
   return [...files, ...ignores];
 }
 
-export async function snapshotEslintConfig(root: string, config: string): Promise<EslintConfigSnapshot> {
+function eslintTrackedPaths(root: string, supplied?: readonly string[]): readonly string[] {
+  if (supplied === undefined) {
+    return readPolicyRepositoryInventory(root).trackedPaths;
+  }
+  return supplied.map((path) => {
+    assertPolicyRepoPath(path, "config-snapshot ESLint tracked path");
+    const target = resolve(root, path);
+    if (!existsSync(target)) {
+      throw new Error(`config-snapshot ESLint tracked path is absent from the transaction: ${path}`);
+    }
+    const canonical = realpathSync(target);
+    const rel = relative(root, canonical);
+    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel) || !statSync(canonical).isFile()) {
+      throw new Error(`config-snapshot ESLint tracked path is not a contained transaction file: ${path}`);
+    }
+    return path;
+  });
+}
+
+export async function snapshotEslintConfig(root: string, config: string, suppliedTrackedPaths?: readonly string[]): Promise<EslintConfigSnapshot> {
   const [loaded, defaultConfig] = await Promise.all([loadEslintConfig(root, config), loadEslintDefaultConfig()]);
   const model = nativeEslintModel(root, loaded, defaultConfig, config);
-  const trackedPaths = readPolicyRepositoryInventory(root).trackedPaths;
+  const trackedPaths = eslintTrackedPaths(root, suppliedTrackedPaths);
   if (trackedPaths.length === 0) {
     throw new Error("ESLint selector population has zero tracked files");
   }
@@ -589,7 +609,7 @@ export async function eslintConfiguredPaths(root: string, config: string, paths:
   return paths.filter((path) => selection.getConfig(resolve(root, path)) !== undefined);
 }
 
-export async function runConfigSnapshot(root: string, rest: readonly string[]): Promise<number> {
+export async function runConfigSnapshot(root: string, rest: readonly string[], eslintPopulation?: readonly string[]): Promise<number> {
   const [runner, config, ...unknown] = rest;
   if (runner === undefined || !isRunner(runner) || config === undefined || unknown.length > 0) {
     throw new UsageError(CONFIG_SNAPSHOT_HELP);
@@ -599,7 +619,7 @@ export async function runConfigSnapshot(root: string, rest: readonly string[]): 
   if (runner === "vitest") {
     snapshot = await snapshotVitestConfig(root, safeConfig);
   } else if (runner === "eslint") {
-    snapshot = await snapshotEslintConfig(root, safeConfig);
+    snapshot = await snapshotEslintConfig(root, safeConfig, eslintPopulation);
   } else {
     snapshot = await snapshotDepcruiseConfig(root, safeConfig);
   }
