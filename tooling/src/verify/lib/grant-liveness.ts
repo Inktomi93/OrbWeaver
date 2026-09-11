@@ -27,6 +27,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, matchesGlob } from "node:path";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
 import type { ExemptionTable, Finding } from "../contract/gate.ts";
+import type { PackageDependencyFacts } from "../contract/resource-config.ts";
 
 /** Glob metacharacters the include/override syntaxes understand. A path carrying none of these is
  *  FILE-EXACT (mirrors biome-grant-liveness's own classifier so the four gates agree on the boundary). */
@@ -66,7 +67,13 @@ export interface LivenessMessages {
 }
 
 export interface LivenessInput {
-  readonly root: string;
+  /** Disk root for the default `existsSync` check. Omit when `exists` is supplied — a resource-fed caller
+   *  (GatePolicyContext carries no root/filesystem at all) has no disk root to hand back. */
+  readonly root?: string;
+  /** The path-existence oracle. Defaults to `existsSync(join(root, path))` for the pre-ResourceHost callers
+   *  (`runner-config-path-liveness`, `tsconfig-entry-liveness`); a ResourceHost-backed caller supplies its
+   *  own predicate over a resource fact (e.g. `trackedFiles()`'s `repoPaths`) instead. */
+  readonly exists?: (path: string) => boolean;
   readonly exact: readonly ExactRow[];
   readonly exempt: ExemptionTable<GrantExemption>;
   /** Which config file the GLOBAL exemption-table findings anchor at (a registry can span several config
@@ -78,16 +85,21 @@ export interface LivenessInput {
   readonly messages: LivenessMessages;
 }
 
+function existenceOracle(input: Pick<LivenessInput, "root" | "exists">): (path: string) => boolean {
+  return input.exists ?? ((path): boolean => existsSync(join(input.root ?? "", path)));
+}
+
 /** The two-sided EXEMPT arms — runs only when the caller's real-tree anchor holds (`input.anchorOk`). */
 function exemptionArms(input: LivenessInput, exactPaths: ReadonlySet<string>): Finding[] {
-  const { root, exemptAnchorFile, exempt, messages } = input;
+  const { exemptAnchorFile, exempt, messages } = input;
+  const exists = existenceOracle(input);
   const out: Finding[] = [];
   for (const [path, row] of Object.entries(exempt)) {
     if (!exactPaths.has(path)) {
       out.push({ file: exemptAnchorFile, line: 0, column: 0, token: path, message: messages.staleExempt });
       continue;
     }
-    if (!existsSync(join(root, row.cite))) {
+    if (!exists(row.cite)) {
       out.push({ file: exemptAnchorFile, line: 0, column: 0, token: row.cite, message: messages.deadCite });
     }
   }
@@ -99,10 +111,11 @@ function exemptionArms(input: LivenessInput, exactPaths: ReadonlySet<string>): F
  *  the dead path, anchored at its OWN config file + source line. The exemption table is judged GLOBALLY
  *  against the whole exact set (a row exact in ANY scanned config keeps its exemption live). */
 export function livenessFindings(input: LivenessInput): Finding[] {
-  const { root, exact, exempt, anchorOk, messages } = input;
+  const { exact, exempt, anchorOk, messages } = input;
+  const exists = existenceOracle(input);
   const exactPaths = new Set(exact.map((r) => r.path));
   const dead: Finding[] = exact
-    .filter((r) => exempt[r.path] === undefined && !existsSync(join(root, r.path)))
+    .filter((r) => exempt[r.path] === undefined && !exists(r.path))
     .map((r) => ({ file: r.file, line: r.line, column: 0, token: r.path, message: messages.dead }));
   return [...dead, ...(anchorOk ? exemptionArms(input, exactPaths) : [])];
 }
@@ -183,7 +196,11 @@ export interface PatternLivenessMessages {
 }
 
 export interface PatternLivenessInput {
-  readonly root: string;
+  /** Disk root for the default `existsSync` cite check. Omit when `exists` is supplied. */
+  readonly root?: string;
+  /** The path-existence oracle for the RATIFIED cite check. Defaults to `existsSync(join(root, path))`;
+   *  a ResourceHost-backed caller supplies its own predicate instead (no root/filesystem on that context). */
+  readonly exists?: (path: string) => boolean;
   readonly rows: readonly PatternRow[];
   readonly sources: MemberSources;
   /** Patterns whose liveness is NOT decidable from the tree, each with its `why` + END CONDITION and a
@@ -264,6 +281,28 @@ export function memberSources(root: string): MemberSources {
   return { repoPaths, dependencyModules: declaredDependencyModules(root, repoPaths) };
 }
 
+/** The dependency-module half of `MemberSources`, derived from already-acquired `PackageDependencyFacts`
+ *  (a ResourceHost `packageMetadata` fact per package) instead of a disk walk — a GatePolicyContext carries
+ *  no root/filesystem to walk `git ls-files` or `readFileSync` a manifest itself. Same rendering as
+ *  `declaredDependencyModules`: every declared name as both `node_modules/<name>/…` and the bare specifier. */
+export function dependencyModulesFromManifests(manifests: readonly PackageDependencyFacts[]): readonly string[] {
+  const names = new Set<string>();
+  for (const facts of manifests) {
+    for (const block of [facts.runtime, facts.development, facts.peer, facts.optional]) {
+      for (const name of Object.keys(block)) {
+        names.add(name);
+      }
+    }
+  }
+  return [...names].flatMap((name) => [`node_modules/${name}/index.js`, `${name}/index.js`]);
+}
+
+/** `MemberSources` for a ResourceHost-backed caller: `repoPaths` from a `trackedFiles()` fact, dependency
+ *  modules from already-acquired `packageMetadata()` facts. */
+export function memberSourcesFromResources(repoPaths: readonly string[], manifests: readonly PackageDependencyFacts[]): MemberSources {
+  return { repoPaths, dependencyModules: dependencyModulesFromManifests(manifests) };
+}
+
 /** The rows that still have NO member, after one sweep of `members`.
  *
  *  MEMBER-MAJOR, not pattern-major, and that is a measured decision: the naive shape (for each pattern,
@@ -294,7 +333,8 @@ function ratifiedArms(input: PatternLivenessInput, carried: ReadonlySet<string>)
       out.push({ file: input.ratifiedAnchorFile, line: 0, column: 0, token: pattern, message: input.messages.staleRatified });
       continue;
     }
-    if (!existsSync(join(input.root, row.cite))) {
+    const exists = input.exists ?? ((path: string): boolean => existsSync(join(input.root ?? "", path)));
+    if (!exists(row.cite)) {
       out.push({ file: input.ratifiedAnchorFile, line: 0, column: 0, token: row.cite, message: input.messages.deadCite });
     }
   }
