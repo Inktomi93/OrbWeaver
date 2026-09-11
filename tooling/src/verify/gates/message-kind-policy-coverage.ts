@@ -16,6 +16,25 @@
 // The two blindness arms are the runtime's own refusal instead of findings this policy must remember to
 // raise: a missing home, a renamed record or interface, and an empty axis set all take the receipt to zero
 // members and withhold the verdict. No real-tree anchor file decides which substrate a proof receives.
+//
+// FAMILY: SINGLETON under its own id. `lib/reference-fact.ts` (`resolveModuleMemberOrigin`) is a shared
+// PRIMITIVE, not a family key — fifteen policies in thirteen unrelated families resolve references through
+// it (`drizzle-schema`, `registry-definitions`, `zod-modern-spellings`, `sole-env-reader`, `no-raw-egress`
+// and eight more) — and no sibling policy judges whether a policy RECORD's axis has a production reader,
+// which is this policy's subject. The other two contracts-side `*_POLICY` records are structurally excluded
+// rather than merely absent, which is why a generic `*_POLICY` coverage policy is not the family here:
+// `MODE_POLICY` (contracts/rpg/mode.ts) is read through ONE dynamic capability door, so its per-axis reads
+// are invisible to any reader test and its full-mode axes are legitimately reader-less pre-graft, and
+// `CONTENT_CLASS_POLICY` (contracts/chat/content-classes.ts) has its totality enforced by tsc's parallel
+// dispatch. A naive shared reader test would red both ruled designs.
+//
+// POPULATION PORT: an INTENTIONAL NARROWING, and lossless. The legacy descriptor was
+// `scopeSafety: "whole-project"` and walked `ctx.project.getSourceFiles()` (307640dae^), but it reached a
+// verdict from nothing outside `READER_SCOPE_RE` (`packages/{server,client}/src/`) and the home file under
+// `packages/contracts/src` — so `in: ["@contracts", "@server", "@client"]` admits exactly the files the
+// legacy walk could judge, and `@client` is HALF THE LEGACY READER SCOPE rather than a new third root. The
+// one legacy-visited file now outside the population is `packages/db/src/schema/index.ts`, the mode-B
+// REAL-TREE ANCHOR; it left with the mode-B arm, whose successor is the zero-member receipt above.
 import type { InterfaceDeclaration, Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
