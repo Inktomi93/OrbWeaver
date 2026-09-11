@@ -133,6 +133,27 @@ tree tells you the moment a fix breaks a row.
 
 **Phase C — settle the capability set before spending it. Forge. A design pass, not an executor lane.**
 
+**MEASURED 2026-09-11, and it shrinks this phase a lot: C gates only the RESOURCE-BACKED families, not the corpus.**
+Structural census over all 105 legacy modules (does the module import `node:fs`, reference `node_modules`, or import
+one of the 21 `lib/` readers that touch fs — the one-hop trace guide §8.2 requires):
+
+| Legacy modules | Count | What they need from #1930 |
+| - | -: | - |
+| no filesystem at all — pure AST, no fs, no fs-touching `lib/` hop | **59** | **NOTHING. Convertible today against the shipped contract.** |
+| reach fs through exactly TWO shared readers | 7 | `baseui-read` (6: the `baseui-*` set plus `surface-a11y-focus`, `surface-in-a-container`) and the css-family census (`css-family-ownership`). Candidates for `defineFact` PROVIDERS over existing kinds, not new kinds |
+| direct fs read in the module | 36 | unknown — see the warning below |
+| reference `node_modules` | 11 | the one genuinely open capability question (traversal declarable at all?) |
+
+**So the 59 are blocked on lane time, nothing else.** Guide §7's dependency law says only that no gate converts on a
+resource kind *before that kind lands*; a module needing no kind has no such dependency, and Phase D's own first
+bucket is exactly this set. Run them in PARALLEL with the C design pass rather than behind it.
+
+**The 36 need a READING lane, not a script.** Three mechanical attempts to classify their read targets each returned a
+false clean: extensions matched in header comments, then again inside `message`/`fix` STRING LITERALS (nearly every
+gate cites a `.md` law doc in its message, so `.md` scored 36/36 three times running). What a module READS is only
+visible by reading the call, which is why step 1 below is a lane and why `gate:contract`'s simple tier was never the
+oracle. Do not quote a read-target census that a grep produced.
+
 Standing principle this serves (owner, 2026-09-11, general — not a mandate for any particular structure): *do not take
 the easy or short way just because the right way is more work.* The analysis below is the orchestrator's, and the
 implementation shape is open; what is NOT open is deriving the requirement from whoever happened to trip over it.
