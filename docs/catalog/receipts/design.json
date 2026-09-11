@@ -2475,9 +2475,9 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "db1309cdd9c1273f2192afdf41057ebbdc0d0f9a562bf3af3b4958d5b2e4c2a0",
-      "verifiedCommit": "dc5da295de58fadad9ae368027cd9f3d626f7dcb",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "5a990560e14bf0376d59a0c8f57963c8538efc91084247b804a5843a67adf97e",
+      "verifiedCommit": "dc252f52d7293aabf07f414a7438b1bf97b088d1",
+      "verifiedAt": "2026-09-11",
       "claims": [
         {
           "claim": "The active gate-runtime design requires atomic descriptor cutover and preservation of world-program semantics, native observations, performance and regression proofs.",
@@ -2495,6 +2495,7 @@
       ],
       "summary": "Active gate-runtime migration design with world-program carry-forward obligations; historical wave receipts do not establish current whole-corpus completion.",
       "evidence": [
+        "Full document read by the orchestrator at the 2026-09-11 wake, before and after editing: resume step 3 now states that the gate:contract census measures descriptor shape only and that convertibility is traced against the shipped GateResourceRequest kinds (the unshipped kinds are #1930, this step's deliverable); the lane paragraph gains the family decision duty and the program-row tracking rule. Every other section re-read unchanged. Edit committed at dc252f52d7293aabf07f414a7438b1bf97b088d1; the receipt re-attests against that commit's bytes.",
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred.",
         "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
