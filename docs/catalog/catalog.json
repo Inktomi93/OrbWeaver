@@ -12702,8 +12702,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 520,
-      "bytes": 52865,
-      "sha256": "f51f426557d77cd93e8d20d764c2930fe7c414648528cd07f0422ba91168a8c3",
+      "bytes": 52754,
+      "sha256": "67c312f5cefd60f1f075352e2b633171cf1aa12ec65a01c302a730adbd3dce2a",
       "frontmatter": {
         "present": true,
         "malformed": false,
