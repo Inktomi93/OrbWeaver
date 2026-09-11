@@ -310,6 +310,32 @@ test("an edited symlink that escapes the trusted checkout is refused", ({ scratc
   expect(existsSync(log)).toBe(false);
 });
 
+test("an edit to a file OUTSIDE the checkout (scratchpad, bridge note, /tmp probe) is a silent no-op — exit 0, no stderr, nothing spawned", ({
+  scratch,
+  repoRoot,
+}) => {
+  const checkout = plantCheckout(scratch);
+  const bin = join(scratch, "stub bin");
+  const log = join(scratch, "pnpm.log");
+  stubPnpm(bin);
+  const scratchpad = join(scratch, "session scratchpad");
+  mkdirSync(scratchpad, { recursive: true });
+  const outside = join(scratchpad, "branch-audit.sh");
+  writeFileSync(outside, "#!/usr/bin/env bash\nexit 0\n");
+  const result = runHook({
+    hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+    project: checkout.main,
+    cwd: checkout.worktree,
+    file: outside,
+    bin,
+    log,
+    runtime: join(scratch, "runtime"),
+  });
+  expect(result.status).toBe(0);
+  expect(result.stderr).toBe("");
+  expect(existsSync(log)).toBe(false);
+});
+
 test("hostile admission directories and lock symlinks are refused without touching their targets", ({ scratch, repoRoot }) => {
   const checkout = plantCheckout(scratch);
   const bin = join(scratch, "stub bin");
