@@ -492,10 +492,25 @@ dependencies that constrain ANY sequence, because they are law rather than sched
    current = grep -c '@orb-waive <policy-id>' <path>
    ```
 
-   Any file where the two differ is **DEAD** (listed, never waived), **MULTI/UNWAIVABLE** (N findings need N distinct
-   tokens; two findings sharing a carrier AND a token are unwaivable and get a comment, not a marker), or a **LOST
-   SUPPRESSION**. A lane's "N pre-existing debt" line CANNOT distinguish the third from the first — which is the whole
-   reason this is arithmetic and not judgement.
+   **THE ALARM CONDITION IS DIRECTIONAL** (measured 2026-09-11 by the reconciliation lane; this is the refined form —
+   an earlier version of this paragraph said "any file where the two differ", which over-reports badly):
+
+   - **`current > legacy`** → an expected **MULTI** split: one legacy marker became N markers with distinct tokens.
+     This is the rule working. Confirm each new token binds, then move on. On the caught-failure conversion **four of
+     the five mismatches were this**, so a wave of correct splits would otherwise read as forty suspected drops.
+   - **`current == legacy`** → clean.
+   - **`current < legacy`** → **the only shape that can be a LOST SUPPRESSION.** Classify every one: **DEAD** (the
+     legacy marker named a site the converted policy no longer flags — list it, never invent a waiver), **UNWAIVABLE**
+     (two findings share a carrier AND a token, so every marker is `over-broad` and suppresses neither — that site
+     gets a comment stating the measured placements, not a marker), or a real drop to repair.
+
+   A lane's "N pre-existing debt" line CANNOT distinguish a real drop from a dead marker — which is the whole reason
+   this is arithmetic and not judgement.
+
+   **Close the arithmetic, do not just diff the files.** The reconciliation is complete when total real legacy markers
+   equals total real waives equals the census's `deliberate-absorb` count. On the caught-failure conversion that was
+   572 = 572 = 572, with zero unbound or dead markers, every residual hit accounted for as prose. A per-file diff finds
+   the drop; only the closed total proves nothing else is hiding.
 
    **Why it is mandatory and why a position sample does not substitute:** a WRONG position alarms loudly through the
    central engine (`AUTHORITY ALARM … names a dead position`); a DELETED marker is silent in BOTH directions, because
