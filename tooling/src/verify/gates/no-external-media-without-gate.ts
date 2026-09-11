@@ -69,5 +69,14 @@ export const gate = defineGate({
       files: { "packages/client/src/features/x/member.tsx": "export const G = <Media.img />;\nexport const H = <svg:image />;\n" },
       why: "member and namespace component names are declared near-misses, not raw intrinsic tags",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/x.tsx":
+          "// @orb-waive no-external-media-without-gate(img): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          'export const G = <img src="bad" />;\n',
+      },
+      why: "POSITIONAL IDENTITY: this report passes NO token, so the runtime DERIVES the position — the first identifier/literal/keyword in the reported element's text carrying no paren or newline, which is the TAG NAME `img` rather than the element or its src literal. Built on the founding mustFlag row — a ONE-finding fixture",
+    },
   ],
 });

@@ -113,5 +113,14 @@ export const gate = defineGate({
       },
       why: "declared limit: inherited and intersection-provided props have no local asChild PropertySignature for this syntax policy to report",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/menu/probe-menu.tsx":
+          "// @orb-waive baseui-render-prop-composition(asChild): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          'export const G = <Menu.Trigger asChild><button type="button">x</button></Menu.Trigger>;\n',
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the JSX attribute but positions at the token `asChild`, so that — not the tag, not the whole attribute — is what a marker must name. Built on the founding mustFlag row because it is a ONE-finding fixture and one marker consumes one occurrence; it ends if that row stops flagging",
+    },
   ],
 });
