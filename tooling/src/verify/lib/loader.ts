@@ -1,10 +1,38 @@
-// Fail-closed auto-loader: a gate module that exports `gate: GateDescriptor` is discovered from the
-// gates dir — the loader IS the registry. A discovered module whose export isn't a valid descriptor is a
-// hard error at load; "valid" includes the self-proof (≥1 mustFlag + ≥1 mustPass), so an un-proven gate
-// cannot register. Deterministic order: sorted repo-relative path.
+// THE loader IS the registry, for BOTH descriptor contracts (docs/design/gate-runtime-standardization.md §1/§5):
+// one discovery of `tooling/src/verify/gates/*.ts`, one sequential import loop, one classification by EXACT
+// contract identity, three views. Deterministic order: sorted repo-relative path.
+//
+// Classification of one module, in this order — never by filename, never by a property name, never "try the
+// legacy loader and catch":
+//   1. `mod.gate` is BRANDED (`isDefinedGatePolicy`, the WeakSet `defineGate` mints) → FINAL. The final rules then
+//      apply unchanged (lib/policy-module.ts): exactly one branded export and it is `gate`, the descriptor validates,
+//      `id === basename`, ids unique, singleton families equal their id.
+//   2. `mod.gate` is an unbranded object → it must validate as a LEGACY `GateDescriptor` (fail-closed: the
+//      metadata arm, the behavior arm, the self-proof arm). A legacy module genuinely missing `name` still refuses
+//      here, loudly, with its path.
+//   3. an unbranded object that is NOT a valid legacy descriptor → TOOL ERROR at load. When it carries the final
+//      contract's required keys the message says so (a spread/clone lost the brand) — wording only, never dispatch.
+//   4. no `gate` but a branded export under another name → TOOL ERROR (the final rule "exactly one … named `gate`").
+//   5. no `gate`, nothing branded → UNREGISTERED: recorded on the roster (#410), reconciled by the run manifest.
+//   6. an import-time throw stays FATAL and attributes to its file in sorted order.
+// A duplicate id/name refuses (uniqueness is judged before `id === basename`, the final loader's pinned order);
+// "the same descriptor object reached through two files" is impossible by construction (both ids equal their
+// basenames), so no identity set is kept — a re-export shim refuses as a duplicate or a filename mismatch, naming the id.
 import { globSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import type { GateDescriptor } from "../contract/gate.ts";
+import type { GateCorpus, GateRosterEntry, MixedGateCorpus } from "../contract/gate-corpus.ts";
+import type { GatePolicy } from "../contract/policy.ts";
+import { isDefinedGatePolicy } from "../contract/policy.ts";
+import type { LoadedPolicy } from "./policy-module.ts";
+import {
+  assertPolicyFilenameId,
+  assertPolicyModuleExport,
+  assertUniquePolicyIds,
+  brandedExportsOf,
+  looksFinalShaped,
+  policyFamilyNames,
+} from "./policy-module.ts";
 
 const D_TS_RE = /\.d\.ts$/u;
 const BASENAME_RE = /([^/]+)\.ts$/u;
@@ -18,7 +46,7 @@ function nonEmptyArray(v: unknown): boolean {
   return Array.isArray(v) && v.length > 0;
 }
 
-/** The metadata arm of the shape check (name/docRow/status/scopeSafety). */
+/** The metadata arm of the legacy shape check (name/docRow/status/scopeSafety). */
 function assertMeta(g: Record<string, unknown>, rel: string): void {
   const base = BASENAME_RE.exec(rel)?.[1];
   if (typeof g["name"] !== "string" || g["name"] !== base) {
@@ -38,7 +66,7 @@ function assertMeta(g: Record<string, unknown>, rel: string): void {
   }
 }
 
-/** The behavior + self-proof arm of the shape check (a visit/visitFile/run family + mustFlag/mustPass). */
+/** The behavior + self-proof arm of the legacy shape check (a visit/visitFile/run family + mustFlag/mustPass). */
 function assertBehavior(g: Record<string, unknown>, rel: string): void {
   const hasVisit = typeof g["visit"] === "function";
   if (hasVisit && !nonEmptyArray(g["kinds"])) {
@@ -55,7 +83,7 @@ function assertBehavior(g: Record<string, unknown>, rel: string): void {
   }
 }
 
-/** Runtime shape check (tsx runs type-stripped, so this is the enforcement that actually fires). */
+/** Runtime shape check for a LEGACY descriptor (tsx runs type-stripped, so this is the enforcement that fires). */
 function assertDescriptor(gate: unknown, rel: string): asserts gate is GateDescriptor {
   if (gate === undefined || gate === null || typeof gate !== "object") {
     throw new Error(`gate module ${rel} does not export a \`gate\` descriptor object`);
@@ -65,46 +93,100 @@ function assertDescriptor(gate: unknown, rel: string): asserts gate is GateDescr
   assertBehavior(g, rel);
 }
 
-/** What one corpus load SAW, not only what it produced (#410). The counts are the denominator the run
- *  manifest reconciles against; without them a corpus file that stopped registering just makes the report
- *  one entry shorter, and nothing anywhere notices. */
-export interface GateCorpus {
-  readonly gates: readonly GateDescriptor[];
-  /** Every `.ts` in the corpus dir the loader considered. */
-  readonly files: readonly string[];
-  /** The files that exported no `gate` — the loader's silent `continue`, made visible. */
-  readonly unregistered: readonly string[];
+/** Rule 2/3: an unbranded `gate` object is a legacy descriptor or a refusal — never a silent skip. */
+function assertLegacyOrRefuse(gate: unknown, rel: string, module: Readonly<Record<string, unknown>>): asserts gate is GateDescriptor {
+  try {
+    assertDescriptor(gate, rel);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    const branded = brandedExportsOf(module);
+    if (branded.length > 0) {
+      throw new Error(
+        `gate module ${rel}: \`gate\` is not a valid legacy descriptor (${reason}) and the module exports a branded defineGate descriptor under ${branded.map(([name]) => `\`${name}\``).join(", ")} — the final policy must be exported as \`gate\``,
+        { cause: error },
+      );
+    }
+    if (looksFinalShaped(gate)) {
+      throw new Error(
+        `gate module ${rel}: \`gate\` is neither branded by defineGate nor a valid legacy descriptor (${reason}) — it has the final contract's shape but was not created through defineGate (a spread, clone or copy loses the brand)`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
 }
 
-/** Discover every contract-form gate in the gates dir, sorted by path, with fail-closed validation —
- *  and REPORT what it walked (#410). */
-export async function loadGateCorpus(root: string): Promise<GateCorpus> {
-  const files = globSync("tooling/src/verify/gates/*.ts", { cwd: root })
+type Classified =
+  | { readonly kind: "final"; readonly gate: GatePolicy }
+  | { readonly kind: "legacy"; readonly gate: GateDescriptor }
+  | { readonly kind: "unregistered" };
+
+/** ONE module, ONE verdict. The order of the checks is the identity law in the header. */
+function classify(module: Readonly<Record<string, unknown>>, rel: string): Classified {
+  const gate = module["gate"];
+  if (isDefinedGatePolicy(gate)) {
+    // `id === basename` is asserted AFTER the loop, behind id uniqueness (the final loader's pinned order): two
+    // modules sharing one id refuse as a duplicate first, naming both paths.
+    return { kind: "final", gate: assertPolicyModuleExport(module, rel) };
+  }
+  if (gate !== undefined) {
+    assertLegacyOrRefuse(gate, rel, module);
+    return { kind: "legacy", gate };
+  }
+  if (brandedExportsOf(module).length > 0) {
+    // Rule 4 — the final loader's own wording: a branded descriptor exists but is not the `gate` export.
+    assertPolicyModuleExport(module, rel);
+  }
+  return { kind: "unregistered" };
+}
+
+function corpusFiles(root: string): readonly string[] {
+  return globSync("tooling/src/verify/gates/*.ts", { cwd: root })
     .filter((f) => !(D_TS_RE.test(f) || PROBE_GATE_FILE_RE.test(f)))
     .sort();
-  const gates: GateDescriptor[] = [];
+}
+
+/** Discover and classify every corpus module, fail-closed, with the roster every view derives from. */
+export async function loadMixedGateCorpus(root: string): Promise<MixedGateCorpus> {
+  const files = corpusFiles(root);
+  const legacy: GateDescriptor[] = [];
+  const loaded: LoadedPolicy[] = [];
   const unregistered: string[] = [];
-  const seen = new Set<string>();
+  const roster: GateRosterEntry[] = [];
   for (const rel of files) {
     // Sequential-deterministic: a load/parse failure must attribute to its file, in sorted order — never
     // a Promise.all race that loses which module threw.
-    const mod = (await import(pathToFileURL(`${root}/${rel}`).href)) as { gate?: unknown };
-    if (mod.gate === undefined) {
-      unregistered.push(rel); // not yet ported to the contract — RECORDED, not swallowed (#410)
+    const module = (await import(pathToFileURL(`${root}/${rel}`).href)) as Record<string, unknown>;
+    const verdict = classify(module, rel);
+    if (verdict.kind === "unregistered") {
+      unregistered.push(rel); // not yet ported to either contract — RECORDED, not swallowed (#410)
+      roster.push({ path: rel, contract: "unregistered", id: null });
       continue;
     }
-    assertDescriptor(mod.gate, rel);
-    if (seen.has(mod.gate.name)) {
-      throw new Error(`duplicate gate name ${mod.gate.name} (${rel})`);
+    if (verdict.kind === "legacy") {
+      // No duplicate-name set on this side either: `assertMeta` requires `name === basename`, and two modules in
+      // one directory cannot share a basename, so a duplicate legacy name is unreachable by construction.
+      legacy.push(verdict.gate);
+    } else {
+      loaded.push({ gate: verdict.gate, rel });
     }
-    seen.add(mod.gate.name);
-    gates.push(mod.gate);
+    roster.push({ path: rel, contract: verdict.kind, id: verdict.kind === "legacy" ? verdict.gate.name : verdict.gate.id });
   }
-  return { gates, files, unregistered };
+  assertUniquePolicyIds(loaded);
+  for (const { gate, rel } of loaded) {
+    assertPolicyFilenameId(gate, rel);
+  }
+  const final = loaded.map(({ gate }) => gate);
+  return { files, legacy, final, families: policyFamilyNames(final), unregistered, roster };
 }
 
-/** The descriptor list alone — every caller that does not reconcile counts (conformance, the scoped run,
- *  the suites). The real-tree structure entrypoint uses {@link loadGateCorpus}. */
+/** The LEGACY view: every caller that consumes descriptors keeps this shape and no longer throws on a final module. */
+export async function loadGateCorpus(root: string): Promise<GateCorpus> {
+  const corpus = await loadMixedGateCorpus(root);
+  return { gates: corpus.legacy, files: corpus.files, unregistered: corpus.unregistered };
+}
+
+/** The legacy descriptor list alone — conformance, the scoped run, the suites. */
 export async function loadGates(root: string): Promise<readonly GateDescriptor[]> {
-  return (await loadGateCorpus(root)).gates;
+  return (await loadMixedGateCorpus(root)).legacy;
 }

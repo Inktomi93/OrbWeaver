@@ -14,10 +14,10 @@ import { checkoutName, openRunSlot, publishRunSlot } from "@orb/tooling/_shared/
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { GateDescriptor } from "../contract/gate.ts";
+import type { GateCorpus } from "../contract/gate-corpus.ts";
 import type { GateResult, Violation } from "../contract/harness.ts";
 import type { PassResult, PassTiming, PopulationAlarm, ToolError } from "../contract/pass.ts";
 import type { RunManifest } from "../contract/run-manifest.ts";
-import type { GateCorpus } from "../lib/loader.ts";
 import { loadGateCorpus } from "../lib/loader.ts";
 import { projectCtx, runPass, stripProbeFindings, zeroScanGates } from "../lib/pass.ts";
 import { populationAlarms } from "../lib/population.ts";
