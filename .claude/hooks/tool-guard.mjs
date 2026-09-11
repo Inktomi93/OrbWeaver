@@ -26,6 +26,28 @@
 //   F5 a heavy tool reached through a spelling with NO HEAP FLOOR is denied WITH the floored door.
 //   F6 the CT rewrite refuses (naming the `=`-joined spelling) when a space-form flag value is
 //      path-shaped, because `scoped-test`'s preflight would read it as a path claim and kill the run.
+// FIVE RESIDUALS CLOSED 2026-09-11 (#1946, from the Opus verifier's replay of 167,097 distinct real
+// commands against #1943 — it found zero loosenings there and these five pre-existing holes beside them;
+// each fix carries its WHY at the code it changed, and all five are proven in BOTH directions by
+// tests/tooling/tool-guard.int.test.ts):
+//   R1 THE FOUR HEAD DETECTORS NOW SHARE ONE WRAPPER VOCABULARY (COMMAND_WRAPPERS + wrapperPrefixEnd +
+//      the derived WRAP_PREFIX). Each used to carry its own partial list, so each had a different hole:
+//      `env -C <dir> ./node_modules/.bin/playwright test …` ran un-floored, `nice -n 19 bash -c "git
+//      stash"` and `env -C /tmp bash -c …` passed a LITERAL `git stash`, and `env -C <wt> npx eslint …`
+//      escaped the heap floor — while the `timeout`/`FOO=1` spellings of all three bit. `env -C <dir>` is
+//      the spelling lane-standing-facts.md ORDERS every lane to use, so the guard was blind to the house
+//      idiom. 110 rows of a 171,473-command replay moved, every one toward a stricter or equal verdict.
+//   R2 A BACKGROUNDING `&` GLUED TO A SCRIPT OPERAND is stripped like a group closer (OPERAND_TAIL_NOISE,
+//      which no longer requires a closer FIRST): `bash /tmp/x.sh&` — no subshell at all — resolved
+//      `/tmp/x.sh&`, ENOENT'd and PASSED with the destructive body never read.
+//   R3 A SINGLE-QUOTED VAR-ONLY `-c` OPERAND is resolved from the CHILD's environment, not the parent's
+//      shell-local assignments (childEnvVars). `CMD='git stash'; bash -c '$CMD'` runs the EMPTY STRING and
+//      was being denied; `CMD='git stash' bash -c '$CMD'` really does stash and was only an ask. `eval` is
+//      excluded — it re-parses in the same shell, so its single-quoted `$CMD` genuinely expands.
+//   R4 THE CT REWRITE HEAD reads the same vocabulary, so a wrapper-prefixed raw CT run is rewritten into
+//      `<prefix> pnpm test:ct <paths>` (cwd and port preserved) instead of losing the lane its turn.
+//   R5 `lint:hook-syntax` (tooling/src/verify/lib/registry.ts) now has a committed red-first pin: its
+//      shipped argv is run against a planted broken hook, a good one, and this tree.
 // PreToolUse guard for Bash — catches command shapes that destroy signal, and REWRITES the ones with
 // exactly one correct fix so the agent never even loses the turn.
 //
@@ -371,7 +393,89 @@ export function parseStructure(blank) {
 // HEAD-anchored: the harness must BE the command at the head of a pipeline stage (env-assignment /
 // timeout / nice wrappers allowed). Anchoring is the structural fix for exposed-quote false positives —
 // text merely mentioning `pnpm check | tail` mid-command can never fire this.
-const WRAP_PREFIX = String.raw`(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*(?:timeout\s+\d+[a-z]?\s+|nice\s+(?:-n\s*\d+\s+)?)*`;
+// ── THE ONE WRAPPER VOCABULARY (2026-09-11, #1946) ──
+// A WRAPPER is a command word that PREFIXES another command. FOUR head detectors have to step over the
+// same set — the CT anchor (PW_ANCHOR), the harness head (HARNESS_HEAD), and the inline-shell and
+// heavy-tool heads (both through `execHead`) — and until this object existed each carried its OWN partial
+// list, so each had a DIFFERENT hole. Measured on the shipped guard (#1946, from the verifier replay of
+// 167,097 real commands against #1943):
+//   · `env -C <dir> ./node_modules/.bin/playwright test …` PASSED un-floored, while the `npx` and `pnpm`
+//     spellings of the same run were caught — and `env -C <dir>` is the spelling
+//     `.claude/rules/lane-standing-facts.md` ORDERS every lane to use, so the guard was blind to the
+//     house idiom and caught only the shapes nobody was told to type.
+//   · `nice -n 19 bash -c "git stash"` and `env -C /tmp bash -c "$CMD"` PASSED a literal `git stash`,
+//     while `timeout 60 bash -c …`, `FOO=1 bash -c …` and `env bash -c …` denied. One wrapper flag apart.
+// Patching the four call sites separately would have recreated the class, which is why the vocabulary is
+// DATA with two derived readers: `WRAP_PREFIX` (regex half, below) and `wrapperPrefixEnd` (token half).
+// `arg` names the flags that consume a SEPARATE value word. A bare flag (`env -i`, `setsid -f`), a
+// `--flag=value`, and a bare duration (`timeout 60`, `timeout 1m`) need no entry — see the two readers.
+const COMMAND_WRAPPERS = {
+  timeout: { arg: ["-s", "-k", "--signal", "--kill-after"] },
+  nice: { arg: ["-n", "--adjustment"] },
+  env: { arg: ["-u", "-C", "-S", "--unset", "--chdir", "--split-string"] },
+  setsid: { arg: [] },
+  nohup: { arg: [] },
+  exec: { arg: ["-a"] },
+};
+// Longest-first so `--signal` can never be shadowed by a `-s` arm that then fails the whole alternation.
+const WRAPPER_ARG_ALT = Object.values(COMMAND_WRAPPERS)
+  .flatMap((w) => w.arg)
+  .sort((a, b) => b.length - a.length)
+  .join("|");
+const WRAPPER_NAME_ALT = Object.keys(COMMAND_WRAPPERS).join("|");
+// A bare number is prefix noise for both readers (`timeout 60`, `timeout 1m`) — the pre-#1946 vocabulary
+// tolerated it after ANY wrapper, and keeping that tolerance is what makes this change widening-only.
+const WRAP_NUMBER = /^\d+[a-z]?$/;
+const ASSIGN_PREFIX = /^[A-Za-z_][A-Za-z0-9_]*=/;
+// ONE prefix WORD: an arg-flag WITH its value, any other flag, an env assignment, a bare duration, or a
+// wrapper name. The negative lookahead on the generic-flag arm makes the alternatives MUTUALLY EXCLUSIVE
+// — without it `-n 19` decomposes two ways and an N-flag prefix costs 2^N backtracks on a near miss.
+const WRAP_WORD = String.raw`(?:(?:${WRAPPER_ARG_ALT})\s+\S+|(?!(?:${WRAPPER_ARG_ALT})\s)--?[A-Za-z]\S*|[A-Za-z_][A-Za-z0-9_]*=\S*|\d+[a-z]?|(?:${WRAPPER_NAME_ALT}))`;
+const WRAP_PREFIX = String.raw`(?:${WRAP_WORD}\s+)*`;
+
+/** Advance past the wrapper prefix starting at `words[start]` — env assignments and any stack of
+ *  COMMAND_WRAPPERS with their own flags — and return the index of the REAL exec head. The TOKEN half of
+ *  the vocabulary above; `WRAP_PREFIX` is the regex half, and both are derived from the one object so a
+ *  wrapper added to it can never reach three detectors and miss the fourth.
+ *
+ *  WIDENING ONLY, by construction: a head found DEEPER can only make a rule fire where it did not. Every
+ *  head this newly resolves was previously a FLAG or a flag VALUE (`-n`, `-C`, `/wt`), and none of those
+ *  is an npx, a `.bin/<tool>`, a node, or a shell — so every changed cell is a MISS becoming a catch. */
+export function wrapperPrefixEnd(words, start = 0) {
+  let i = start;
+  for (;;) {
+    // A bare number is skipped HERE as well as inside a wrapper's own flag run, which looks redundant and
+    // is not: the pre-#1946 vocabulary tolerated one ANYWHERE in the prefix, and dropping that tolerance
+    // LOOSENED one real corpus row (`out=$(timeout 150 node_modules/.bin/tsc --noEmit …` — `$(` is not
+    // word-initial so `ungroup` leaves it, the whole `out=$(timeout` reads as ONE assignment token, and
+    // the `150` is then all that stands between the walk and the un-floored `.bin/tsc`). Parity with the
+    // old reader is what makes this change provably widening-only.
+    while (words[i] !== undefined && (ASSIGN_PREFIX.test(words[i]) || WRAP_NUMBER.test(words[i]))) {
+      i += 1;
+    }
+    const name = words[i];
+    const spec = name === undefined ? undefined : COMMAND_WRAPPERS[name.replace(/^.*\//, "")];
+    if (spec === undefined) {
+      return i;
+    }
+    i += 1;
+    while (words[i] !== undefined) {
+      const word = words[i];
+      if (ASSIGN_PREFIX.test(word) || WRAP_NUMBER.test(word)) {
+        i += 1; // `env FOO=1 bash …` (the wrapper's own environment) and `timeout 60 …`
+        continue;
+      }
+      if (word.startsWith("-") && word !== "-") {
+        i += 1;
+        if (spec.arg.includes(word)) {
+          i += 1; // the flag's value is a SEPARATE word: `-C /wt`, `-n 19`, `-k 5`
+        }
+        continue;
+      }
+      break;
+    }
+  }
+}
 const HARNESS_HEAD = new RegExp(
   `^\\s*${WRAP_PREFIX}(?:(?:pnpm|npm|turbo)\\s+(?:run\\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\\w-]+)?\\b|pnpm\\s+(?:exec\\s+)?vitest\\b|pnpm\\s+snap\\b)`,
 );
@@ -617,6 +721,11 @@ const RM_SAFE_TARGET = /\/tmp\/|scratchpad|playwright\/\.cache|node_modules|repo
 // not assign stays unresolved and therefore unsafe. A blanket "$ means scratch" rule was rejected outright
 // — it would wave `rm -rf "$REPO"` through.
 const ASSIGN_HEAD = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=/;
+// …and the EXPORT half of the same question (#1946, childEnvVars): which names reach a CHILD's environment.
+const EXPORT_CLAUSE = /^\s*export\s/;
+const EXPORT_NAME_WORD = /^([A-Za-z_][A-Za-z0-9_]*)(?:=|$)/;
+// A shell WORD that is an assignment, split — the value keeps its spaces (`CMD="git stash"` is one word).
+const ASSIGN_WORD_SPLIT = /^([A-Za-z_][A-Za-z0-9_]*)=([\s\S]*)$/;
 const VAR_REF = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g;
 // A value that still carries an expansion after substitution is NOT recorded: `SP=$(mktemp -d)` tells the
 // guard nothing about where SP points, and a half-resolved string must never be able to match a safe hint.
@@ -684,8 +793,8 @@ const HOME_PREFIX = /^~(?=\/)/;
 // …and `$HOME`/`${HOME}` is the same variable spelled the long way (see resolveScriptOperand).
 const HOME_VAR = /^\$\{?HOME\}?(?=\/)/;
 const HOME_DIR = process.env.HOME ?? null;
-const SCRIPT_WRAPPER_TOKEN = /^(?:timeout|nice|setsid|nohup|env|exec)$/;
-const SCRIPT_WRAPPER_ARG = /^(?:-n\s*)?\d+[a-z]?$/;
+// (the wrapper vocabulary that used to be duplicated here as SCRIPT_WRAPPER_TOKEN/SCRIPT_WRAPPER_ARG is
+//  COMMAND_WRAPPERS + wrapperPrefixEnd, up in the vocab section — one home, four detectors; #1946)
 const SCRIPT_MAX_BYTES = 64 * 1024;
 // Depth of the OUTER command is 1; a body classified from it runs at 2, a body reached from THAT at 3 ==
 // the cap, where a further script invocation is `ask` instead of another read. So: two levels of body are
@@ -991,9 +1100,12 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
 // match LENGTH is now what the argument slice is taken from (see playwrightRewrite): the `cli.js` form
 // carries no `playwright test` substring to search for, and a length-based slice is the one that reads the
 // same for all four.
-const PW_CLAUSE_HEAD = new RegExp(
-  String.raw`^\s*(timeout\s+\d+[a-z]?\s+)?(?:(?:npx|pnpm(?:\s+exec)?)\s+)?(?:(?:\S*\/)?playwright|node\s+\S*@playwright\/test\/cli\.js)\s+test\b`,
-);
+// THE WRAPPER GROUP IS THE SHARED VOCABULARY (2026-09-11, #1946) — it named `timeout N` alone, so an
+// `env -C <wt> …` or `nice -n 19 …` raw CT run reached rule 6 and DENIED for want of a rewrite it should
+// have got. Capturing the whole prefix carries it verbatim into the sanctioned call, which is how
+// `env -C <wt> ./node_modules/.bin/playwright test <paths>` becomes `env -C <wt> pnpm test:ct <paths>` —
+// the exact spelling lane-standing-facts.md prescribes. Always matches (possibly empty).
+const PW_CLAUSE_HEAD = new RegExp(String.raw`^\s*(${WRAP_PREFIX})(?:(?:npx|pnpm(?:\s+exec)?)\s+)?(?:(?:\S*\/)?playwright|node\s+\S*@playwright\/test\/cli\.js)\s+test\b`);
 // Playwright flags that take their value as a SEPARATE word. Load-bearing for the rewrite (#1943 F6): the
 // rewritten `pnpm test:ct` runs `scoped-test`, whose preflight reads every non-flag operand carrying a `/`
 // (or a test-file extension) as a PATH CLAIM (`_shared/scoped-run-paths.ts` isPathShaped) — so a forwarded
@@ -1310,23 +1422,32 @@ function ungroup(text) {
  *  "the command would fail anyway" silence, i.e. the body is never read. Every operand this guard resolves
  *  goes through `resolveScriptOperand`, so the strip lives there and `commandWrites` keys its map by the
  *  same stripped path (the write-then-run pair `(printf … > w.sh); bash w.sh` needs both sides to agree).
- *  Stripped only when the VALUE ends in the same closers the RAW word does — a quoted `"/tmp/a)b"` ends its
- *  raw word with the QUOTE, so its `)` is part of the path and survives. */
-const GROUP_CLOSER_TAIL = /[)}]+(?:[&;]|\d*>>?&?\d*|>+\S*)*$/;
+ *  Stripped only when the VALUE ends in the same noise the RAW word does — a quoted `"/tmp/a)b"` ends its
+ *  raw word with the QUOTE, so its `)` is part of the path and survives.
+ *
+ *  A CLOSER IS NOT REQUIRED, since #1946. The pattern used to be `[)}]+…`, i.e. a group closer had to come
+ *  FIRST, so a BACKGROUNDING `&` glued to the operand was never stripped and `bash /tmp/x.sh&` — no
+ *  subshell anywhere — resolved `/tmp/x.sh&`, ENOENT'd, and PASSED with the body unread. `(bash
+ *  /tmp/x.sh&)` reached only the grouped `ask` for the same reason, one character from the `( … .sh &)`
+ *  that denies. `&` is the single commonest thing a lane glues to a scratch script (it is how work is
+ *  backgrounded), which made this the widest remaining hole in the destroy-uncommitted ban. Every
+ *  alternative consumes at least one character, so the `+` cannot loop on an empty match, and none of the
+ *  classes appears in an ordinary path — a word with no trailing noise does not match at all. */
+const OPERAND_TAIL_NOISE = /(?:[)}]|[&;]|\d*>>?&?\d*|>+\S*)+$/;
 // The opener half of the same word problem: `ungroup` blanks a word-initial `(` in the BLANKED view, which
 // is what lets `execHead` find the head of `(/tmp/x.sh)` — but the RAW word is still `(/tmp/x.sh)`, and for
 // a bare `.sh` head that word IS the operand.
 const GROUP_OPENER_HEAD = /^[({]+/;
 
-function stripGroupClosers(word) {
+function stripOperandTail(word) {
   let { value, raw } = word;
   const opener = raw.match(GROUP_OPENER_HEAD);
   if (opener !== null && GROUP_OPENER_HEAD.test(value)) {
     raw = raw.slice(opener[0].length);
     value = value.replace(GROUP_OPENER_HEAD, "");
   }
-  const rawTail = raw.match(GROUP_CLOSER_TAIL);
-  const valueTail = value.match(GROUP_CLOSER_TAIL);
+  const rawTail = raw.match(OPERAND_TAIL_NOISE);
+  const valueTail = value.match(OPERAND_TAIL_NOISE);
   if (rawTail === null || valueTail === null || raw[rawTail.index - 1] === "\\") {
     return { ...word, value, raw };
   }
@@ -1334,16 +1455,14 @@ function stripGroupClosers(word) {
 }
 
 /** The executable token of a stage, read off the BLANKED text (so a shell name in a comment, a heredoc
- *  body or a quoted argument is never mistaken for one) with leading env assignments,
- *  timeout/nice/setsid/nohup/env/exec wrappers and subshell openers skipped. Returns the token list too,
- *  so a caller can look at the flags that follow. */
+ *  body or a quoted argument is never mistaken for one) with subshell openers and the whole WRAPPER PREFIX
+ *  skipped — env assignments plus any stack of COMMAND_WRAPPERS and their own flags, through the one
+ *  shared reader (`wrapperPrefixEnd`, #1946). Returns the token list too, so a caller can look at the
+ *  flags that follow. */
 function execHead(text) {
   const tokens = [...ungroup(text).matchAll(/\S+/g)];
-  let i = 0;
-  while (tokens[i] !== undefined && (SELF_ENV_ASSIGN.test(tokens[i][0]) || SCRIPT_WRAPPER_TOKEN.test(tokens[i][0]) || SCRIPT_WRAPPER_ARG.test(tokens[i][0]))) {
-    i += 1;
-  }
-  return { tokens, index: i, exec: tokens[i] };
+  const index = wrapperPrefixEnd(tokens.map((t) => t[0]));
+  return { tokens, index, exec: tokens[index] };
 }
 
 /** Raw text split into SHELL WORDS: quotes stripped and adjacent segments joined exactly as the shell joins
@@ -1439,8 +1558,9 @@ function resolveScriptOperand(rawWord, vars) {
   if (rawWord.unterminated) {
     return { path: null, spelling: rawWord.raw };
   }
-  // A GROUP CLOSER GLUED TO THE OPERAND IS NOT PART OF THE PATH (#1943 F2) — see stripGroupClosers.
-  const word = stripGroupClosers(rawWord);
+  // A GROUP CLOSER OR A BACKGROUNDING `&` GLUED TO THE OPERAND IS NOT PART OF THE PATH (#1943 F2,
+  // widened past the closer-first requirement by #1946) — see stripOperandTail.
+  const word = stripOperandTail(rawWord);
   const expanded = expandAssigned(word.value, vars);
   // `$HOME`/`${HOME}` resolve exactly like the `~/` this already expanded — same variable, same value, and
   // the comment beside HOME_PREFIX has always SAID they are the same file. They were not: `. "$HOME/.cargo/
@@ -1903,6 +2023,48 @@ function scriptBodyVerdict(command, blank, clauses, ctx) {
 // classifier, merge strictest-wins. The difference is only where the command hides — in a `-c` operand or
 // a `$( … )`, both of which quote-blanking erased before any rule could see them.
 
+/** What a CHILD PROCESS this command starts can see of its variables, as `{env, shellLocal}` (#1946).
+ *  `env` = name → value for the names that actually REACH the child: an `export NAME[=…]` in an earlier
+ *  clause (its value comes from `assignedVars`, whose ASSIGN_HEAD already reads the `export ` form), and
+ *  the stage's OWN assignment prefix — `CMD=… bash -c …`, `env CMD=… bash …` — which bash places in that
+ *  one command's environment and nowhere else. The prefix is walked with the shared wrapper reader, so it
+ *  steps over `env`/`nice`/`timeout` exactly like every other head detector.
+ *  `shellLocal` = the names this command assigns WITHOUT exporting. A child's `$NAME` is UNSET for those.
+ *  Anything neither exported nor assigned here is in neither set, and stays unknowable on purpose — a
+ *  `declare -x` or an ambient session export is invisible to this guard, so its names fall through to the
+ *  `inline-unresolved-operand` ask rather than to a silent pass. */
+function childEnvVars(command, blank, clauses, stage) {
+  const assigned = assignedVars(command, blank, clauses, stage.start);
+  const env = new Map();
+  for (const clause of clauses) {
+    if (clause.start >= stage.start) {
+      break;
+    }
+    if (!EXPORT_CLAUSE.test(blank.slice(clause.start, clause.end))) {
+      continue;
+    }
+    // `export A B`, `export CMD="…"` — names run until a word that is not one.
+    for (const word of shellWords(command.slice(clause.start, clause.end)).slice(1)) {
+      const name = word.value.match(EXPORT_NAME_WORD);
+      if (name === null) {
+        break;
+      }
+      const value = assigned.get(name[1]);
+      if (value !== undefined) {
+        env.set(name[1], value);
+      }
+    }
+  }
+  const words = shellWords(command.slice(stage.start, stage.end));
+  for (const word of words.slice(0, wrapperPrefixEnd(words.map((w) => w.value)))) {
+    const assign = word.value.match(ASSIGN_WORD_SPLIT);
+    if (assign !== null) {
+      env.set(assign[1], assign[2]);
+    }
+  }
+  return { env, shellLocal: new Set([...assigned.keys()].filter((name) => !env.has(name))) };
+}
+
 /** The inline command strings a command would execute: the operand of a `sh -c` / `bash -c` stage. The
  *  exec head and the flag are read off the BLANKED text (a shell name in a comment or a heredoc body is
  *  never one), the operand off the RAW — it is quoted by construction, which is the entire gap. */
@@ -1932,6 +2094,9 @@ export function inlineShellCommands(command, blank, clauses) {
       // runs "-x"), so this reads the next word rather than skipping flags.
       const operand = command.slice(stage.start + flag.index + flag[0].length, stage.end).match(INLINE_OPERAND);
       const inner = operand === null ? null : (operand[1] ?? operand[2]?.replace(INLINE_DQ_ESCAPE, "$1") ?? operand[3]);
+      // WHICH QUOTE held the operand — group 1 is the single-quoted arm, the one the parent shell does not
+      // expand. Load-bearing for the var-only branch below, and for nothing else.
+      const single = operand !== null && operand[1] !== undefined;
       if (inner === null || inner === undefined || inner.trim().length === 0) {
         continue;
       }
@@ -1939,8 +2104,34 @@ export function inlineShellCommands(command, blank, clauses) {
         found.push({ inner });
         continue;
       }
-      const resolved = expandAssigned(inner, assignedVars(command, blank, clauses, stage.start));
-      found.push(UNRESOLVED_VALUE.test(resolved) || resolved.trim().length === 0 ? { unresolved: inner } : { inner: resolved });
+      // A VAR-ONLY operand: the question is WHO EXPANDS IT, and the answer is the quoting (#1946).
+      //   · `eval '$CMD'` re-parses in the SAME shell, so even a single-quoted `$CMD` expands from the
+      //     shell's own variables. Unchanged: the command's assignments are the right source.
+      //   · `bash -c "$CMD"` / `bash -c $CMD`: the PARENT expands before the child exists. Same source.
+      //   · `bash -c '$CMD'`: the parent expands NOTHING. The child expands `$CMD` from its ENVIRONMENT,
+      //     which carries only what this command EXPORTED — and a bare `CMD='git stash'` is shell-LOCAL,
+      //     so the child's `$CMD` is unset and the command it runs is the EMPTY STRING. Resolving it from
+      //     the parent's assignments made `CMD="git stash"; bash -c '$CMD'` a DENY: an over-refusal of a
+      //     command that does nothing, and a guard that refuses inert commands is one lanes route around.
+      //     The same read fixes the opposite error, because an assignment PREFIX (`CMD=… bash -c '$CMD'`)
+      //     DOES reach the child and used to be a mere `inline-unresolved-operand` ask.
+      const parentExpands = isEval || !single;
+      const child = parentExpands ? null : childEnvVars(command, blank, clauses, stage);
+      const resolved = expandAssigned(inner, parentExpands ? assignedVars(command, blank, clauses, stage.start) : child.env);
+      if (!UNRESOLVED_VALUE.test(resolved) && resolved.trim().length > 0) {
+        found.push({ inner: resolved });
+        continue;
+      }
+      // Unresolvable. When EVERY name in it is one this command assigned but kept shell-local, that is not
+      // "the guard could not see it" — the guard sees exactly what the child will: nothing. Contribute no
+      // target rather than an ask, which for a lane is a deny. Any other unknown name stays an ask: a
+      // variable this command never mentions may well be exported in the session, and `allow` bypasses the
+      // permission flow, so "I did not look" must never read as "I have no objection".
+      const names = [...inner.matchAll(VAR_REF)].map((m) => m[1] ?? m[2]);
+      if (child !== null && names.length > 0 && names.every((n) => child.shellLocal.has(n))) {
+        continue;
+      }
+      found.push({ unresolved: inner });
     }
   }
   return found;
