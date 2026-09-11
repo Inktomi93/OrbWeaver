@@ -162,7 +162,8 @@ idle composed-pass remeasurement; catalog re-attest.
   After a lockfile changes on `main`, `pnpm install --frozen-lockfile`. The verifier's probes on `main` are untracked
   and prefixed; stage by pathspec only.
 
-## 6. Open owner decisions (do not build around them)
+## 6. Open owner decisions
 
-\#1939 (six owner-ratified ratchet rows in `duplicate-action-doors`: per-file grants, a ratchet primitive, or retire),
-\#1921 (a third receipt kind for observability counters). Everything else in this program has a ruling in the guide §11.
+None. Every decision this program needed has a dated ruling in the guide §11; #1939 and #1921 were ruled on 2026-09-11
+(hard cardinality policy plus exact grants; no third receipt kind). A new fork goes to Needs owner with a stated
+default and deadline, never built around.

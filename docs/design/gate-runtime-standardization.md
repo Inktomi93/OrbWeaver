@@ -279,6 +279,11 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
 - 2026-09-06: sanctioned homes convert as exact reviewed grants with liveness, never population subtraction; the
   `chatsChanged` conditional publisher is modeled, not parked; a compact map is written only when a sentinel fires.
 - 2026-09-10: `--dod` is optional; red instruments are expected mid-migration and are baselined, never laundered.
+- 2026-09-11 (night): #1939 — `duplicate-action-doors` converts as a HARD cardinality policy (the algorithm owns
+  "one door per action per surface"); its six ratified surfaces become exact `(surface, action)` reviewed grants and
+  the ratchet JSON is deleted. #1921 — no third receipt kind; a counter is a field on a ready fact/resource receipt.
+  The lefthook hooks come back on when the mixed `check:structure` is green on `main`, not before and not later.
+  \#1948 (`schema-fact-health` proof red) is fixed inside the phase A runtime lane.
 - 2026-09-11 (evening): forge runs the mixed-runtime lane alone, and forge runs the 13 mixed-hook splits (#1950 ruled);
   conversion lanes translate their own markers in-commit and the pre-existing 370-marker backlog is one resumed
   mech-executor lane; the #1947 lane's two real-tree zero-findings arms stay until the mixed front door lands, then are
