@@ -28,17 +28,14 @@ const WRITE_VERBS = new Set(["update", "delete"]);
  *  id/unbounded arms even though its token (the binding itself) can collide with theirs. */
 const UNRESOLVABLE = "unresolvable-target";
 
-// UNTRANSLATED MARKER CENSUS (re-derived 2026-09-11, #1934): this conversion dropped the legacy
-// function-level `@owner-scope-write-ok` comment marker for the central `@orb-waive` grammar and
-// translated NONE of the live markers. `grep -rn "@owner-scope-write-ok" packages` finds 32 occurrences
-// across 8 files (the sibling `@owner-scope-ok` — `owner-scoped-reads`' own marker — finds 23 across 16
-// files; the union across both spellings is 21 distinct files under `packages/`). The central
-// `@orb-waive` engine does not recognize the legacy spelling under any grammar, so every one of those 32
-// markers is dead text with no suppressive effect against this gate. A fresh-context verifier's real run
-// over the tenancy family (2026-09-11) reported 32 blocking findings for this policy and 26 for
-// `owner-scoped-reads` — 58 combined, 0 waived. This policy REDS the live tree until the marker-
-// translation lane (#1944) rewrites the 32 `@owner-scope-write-ok` sites into `@orb-waive owner-scoped-
-// writes(<ident>): <reason>`.
+// MARKER TRANSLATION COMPLETE (#1944, 2026-09-11): this conversion dropped the legacy function-level
+// `@owner-scope-write-ok` comment marker and the translation lane rewrote every live site into the
+// central `@orb-waive owner-scoped-writes(<table>): <reason>` grammar, with the reported TABLE
+// identifier as the position. A real run over the current population reports 0 blocking findings and 32
+// waived, and the central authority reports no unused, malformed, unknown-policy or over-broad marker.
+// The only `@owner-scope-write-ok` text left on the tree is PROSE inside explanatory comments; no live
+// marker carries it. Ends if a new site is authored with the legacy spelling — the central engine does
+// not recognize it under any grammar, so it would suppress nothing silently.
 
 const MESSAGE =
   "an update/delete of an ownerId-scoped table with NO owner predicate — this is the cross-tenant WRITE " +

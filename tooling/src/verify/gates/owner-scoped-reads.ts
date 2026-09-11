@@ -9,17 +9,14 @@
 // when a rejecting guard compares that exact result (or a one-hop alias) with the caller's owner binding; a
 // self-comparison, unrelated owner, or unused comparison is RED.
 //
-// UNTRANSLATED MARKER CENSUS (re-derived 2026-09-11, #1934): this conversion dropped the legacy
-// function-level `@owner-scope-ok` / `@owner-scope-write-ok` comment markers for the central `@orb-waive`
-// grammar and translated NONE of the live markers. `grep -rn "@owner-scope-ok" packages` finds 23
-// occurrences across 16 files; the sibling `@owner-scope-write-ok` finds 32 occurrences across 8 files
-// (owner-scoped-writes.ts carries that count); the union is 21 distinct files under `packages/`, every
-// one of which carries at least one marker of either spelling. The central `@orb-waive` engine does not
-// recognize either legacy spelling under any grammar, so every one of those markers is dead text with no
-// suppressive effect against this gate. A fresh-context verifier's real run over the tenancy family
-// (2026-09-11) reported 26 blocking findings for this policy and 32 for `owner-scoped-writes` — 58
-// combined, 0 waived. This policy REDS the live tree until the marker-translation lane (#1944) rewrites
-// the 23 `@owner-scope-ok` sites into `@orb-waive owner-scoped-reads(<ident>): <reason>`.
+// MARKER TRANSLATION COMPLETE (#1944, 2026-09-11): this conversion dropped the legacy function-level
+// `@owner-scope-ok` comment marker and the translation lane rewrote every live site into the central
+// `@orb-waive owner-scoped-reads(<table>): <reason>` grammar, with the reported TABLE identifier as the
+// position. A real run over the current population reports 0 blocking findings and 26 waived, and the
+// central authority reports no unused, malformed, unknown-policy or over-broad marker. The only
+// `@owner-scope-ok` text left on the tree is PROSE inside explanatory comments (it names the retired
+// spelling); no live marker carries it. Ends if a new site is authored with the legacy spelling — the
+// central engine does not recognize it under any grammar, so it would suppress nothing silently.
 import type { Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

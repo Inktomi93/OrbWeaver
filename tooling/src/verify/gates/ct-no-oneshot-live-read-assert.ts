@@ -37,19 +37,19 @@
 // carried an escape door (`// ONESHOT-OK: <reason>`) for a provably-settled read — mechanically that is
 // `authority: "ordinary"`, not `"hard"` (hard has no suppression door at all).
 //
-// UNTRANSLATED MARKER CENSUS (re-derived 2026-09-11, #1935): this conversion retired the private
-// `ONESHOT-OK` parser for the central `@orb-waive` engine and translated NONE of the live markers — the
-// central engine binds only `// @orb-waive ct-no-oneshot-live-read-assert(<position>): <reason>`, and
-// every legacy marker on the real tree is still the OLD `// ONESHOT-OK: <reason>` spelling, which the
-// central engine does not recognize under any grammar. A real run over the current population (491
-// `*.ct.tsx` candidate files) reports 315 blocking findings and 0 waived. All 315 sit on a
-// legacy-exempted position: 305 are `// ONESHOT-OK: <reason>` on the line ABOVE the guarded
-// `expect(...)`, and 10 are TRAILING same-line comments (`expect(...); // ONESHOT-OK: <reason>`) — the
-// central engine's node-anchored resolver reads LEADING trivia only, so it cannot bind a same-line
-// trailing comment either. The 315 markers are spread across 105 distinct `.ct.tsx` files. This policy
-// REDS the live tree until the marker-translation lane (#1260) rewrites all 315 sites into the
-// `@orb-waive` grammar; until then every one of those 315 reasoned comments is dead text with no
-// suppressive effect.
+// MARKER TRANSLATION COMPLETE (#1260, 2026-09-11): this conversion retired the private `ONESHOT-OK`
+// parser for the central `@orb-waive` engine, and the translation lane rewrote every live marker into
+// `// @orb-waive ct-no-oneshot-live-read-assert(expect): <reason>`. A real run over the current
+// population (491 `*.ct.tsx` candidate files) reports 0 blocking findings and 315 waived across 106
+// files, and the central authority reports no unused, malformed, unknown-policy or over-broad marker.
+// CARRIER NOTE: 10 of those 315 were TRAILING same-line comments before the translation. The central
+// engine DOES bind a same-line trailing line comment for a node finding (pinned by
+// `tests/tooling/verify/lib/ordinary-waiver.test.ts` "line comments bind in leading and same-line
+// trailing trivia"), so the relocation was not a binding fix — it was a DURABILITY fix: a trailing
+// marker keys on the expression-start line, and a biome reflow that splits the statement moves the
+// marker off the node it guards (`tests/e2e/support/README.md`). All 315 now sit on the line above
+// their `expect(...)`. Ends if a new site is authored with the legacy `ONESHOT-OK` spelling — the
+// central engine does not recognize it under any grammar, so it would suppress nothing silently.
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
