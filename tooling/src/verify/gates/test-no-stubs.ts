@@ -11,7 +11,15 @@
 // assertion list by node-RANGE containment. Per-file indexing (not one shared list) is load-bearing: a
 // pass over a narrowed OR whole-tree subset visits many files, and two different SourceFiles' local
 // offsets can numerically overlap — an assertion in file B must never satisfy a stub test in file A
-// (mustFlag row below proves the guard).
+// (the CROSS-FILE LEAK CONTROL mustFlag row below proves the guard, with a planted-break receipt: a
+// shared-list `evaluate` reads that row as 0 findings).
+//
+// THE ROW'S `files` PATHS ARE POPULATION COORDINATES, NOT LOCATIONS (gate-runtime-standardization.md
+// §4.8). `mode: "source"` fixtures are created in memory under a synthetic root and never written to
+// disk; this gate's `@tests` population admits them only because their paths sit under `tests/`. Move
+// the ASSERTION file out of `tests/` and the policy stops seeing it — the stub still flags, the row
+// still reads `count: 1`, and the cross-file claim becomes vacuous while staying green. That is why the
+// paths are load-bearing and not decoration.
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -110,7 +118,9 @@ export const gate = defineGate({
         "tests/tooling/a.test.ts": 'test("empty", () => {\n  const x = 1;\n  const y = 2;\n  const z = 3;\n  const w = 4;\n  const v = 5;\n});\n',
         "tests/tooling/b.test.ts": "expect(1).toBe(1);\n",
       },
-      expect: { count: 1 },
+      // `token`/`line` pin WHICH node flags, as the `why` claims: file a's `test` callee at its line 1.
+      // The assertion file contributes no test declaration, so one finding is the whole expected set.
+      expect: { count: 1, line: 1, token: "test" },
       // DISCRIMINATING BY DESIGN (#1935, planted-break receipt in the report): file b's assertion node-range
       // is chosen so its NUMERIC offsets fall inside file a's test-call range once the two files' local
       // offsets are read off a SHARED list rather than a PER-FILE one — the prior fixture (a bare `const x = 1`
