@@ -1,8 +1,17 @@
 // Closed, JSON-ready resource requests. Descriptors name facts; only ResourceHost owns their paths.
+import type { ConfigSnapshotRunner } from "./config-snapshot.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "./resource-config.ts";
 import type { AuthoredTreeId } from "./resource-tree.ts";
 
-export const GATE_RESOURCE_REQUEST_KINDS = ["authored-tree", "authored-css", "product-css", "package-metadata", "static-config", "tracked-files"] as const;
+export const GATE_RESOURCE_REQUEST_KINDS = [
+  "authored-tree",
+  "authored-css",
+  "product-css",
+  "package-metadata",
+  "static-config",
+  "native-config",
+  "tracked-files",
+] as const;
 
 export type GateResourceRequest =
   | { readonly kind: "authored-tree"; readonly id: AuthoredTreeId }
@@ -10,4 +19,5 @@ export type GateResourceRequest =
   | { readonly kind: "product-css" }
   | { readonly kind: "package-metadata"; readonly id: PackageResourceId }
   | { readonly kind: "static-config"; readonly id: StaticConfigResourceId }
+  | { readonly kind: "native-config"; readonly id: ConfigSnapshotRunner }
   | { readonly kind: "tracked-files" };

@@ -47,6 +47,7 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
         : accept({ kind: "product-css" }, () => host.cssInventory(request)),
     packageMetadata: (id) => accept({ kind: "package-metadata", id }, () => host.packageMetadata(id)),
     staticConfig: (id) => accept({ kind: "static-config", id }, () => host.staticConfig(id)),
+    nativeConfig: (id) => accept({ kind: "native-config", id }, () => host.nativeConfig(id)),
     trackedFiles: () => accept({ kind: "tracked-files" }, () => host.trackedFiles()),
   };
   return Object.freeze(bound);

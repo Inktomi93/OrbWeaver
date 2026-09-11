@@ -9,7 +9,7 @@ import { GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "../contract/pol
 import type { GatePolicyAnalysis } from "../contract/policy-primitives.ts";
 import { GATE_POLICY_ANALYSES } from "../contract/policy-primitives.ts";
 import type { PopulationExpr } from "../contract/population.ts";
-import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
+import { NATIVE_CONFIG_RESOURCE_PATHS, PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { GATE_RESOURCE_REQUEST_KINDS } from "../contract/resource-declaration.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
@@ -203,6 +203,8 @@ function resourceIds(kind: GateResourceRequest["kind"]): Readonly<Record<string,
     ids = PACKAGE_RESOURCE_PATHS;
   } else if (kind === "static-config") {
     ids = STATIC_CONFIG_RESOURCE_PATHS;
+  } else if (kind === "native-config") {
+    ids = NATIVE_CONFIG_RESOURCE_PATHS;
   }
   return ids;
 }

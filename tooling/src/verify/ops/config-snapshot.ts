@@ -562,7 +562,10 @@ function observedPopulations(
 
 function localSelectorSnapshots(root: string, trackedPaths: readonly string[], model: NativeEslintModel): readonly EslintSelectorSnapshot[] {
   const plan = localPlan(model);
-  const base = [...model.globals, ...model.baseSelection];
+  const baseConfig = new ConfigArray([...model.globals, ...model.baseSelection], { basePath: root }).normalizeSync();
+  const selected = new Set(trackedPaths.map((path) => resolve(root, path)).filter((path) => baseConfig.getConfig(path) !== undefined));
+  // Native selection is invariant across local counterfactuals; keep each counterfactual's own rows separate.
+  const base: readonly NativeEslintConfig[] = [...model.globals, { files: [(path: string): boolean => selected.has(path)] }];
   const files = observedPopulations(root, trackedPaths, [...base, ...plan.fileRows], plan.fileObservations);
   const ignores = plan.ignorePlans.flatMap(({ observation, rows }) => observedPopulations(root, trackedPaths, [...base, ...rows], [observation]));
   return [...files, ...ignores];

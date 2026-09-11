@@ -1,5 +1,6 @@
 import { Project, SyntaxKind } from "ts-morph";
 import { loadPackageMetadata, loadStaticConfig } from "../../../../tooling/src/verify/ops/resource-config.ts";
+import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -164,7 +165,10 @@ test("the current showcase package produces typed facts", ({ repoRoot }) => {
 for (const id of ["eslint", "depcruise", "vitest", "playwright", "ct"] as const) {
   test(`the current ${id} config produces nonempty typed facts`, ({ repoRoot }) => {
     const reader = createResourceReader({ root: repoRoot });
-    const result = loadStaticConfig(reader, id, parser());
+    const result =
+      id === "eslint" || id === "depcruise" || id === "vitest"
+        ? createResourceHost({ root: repoRoot }).host.nativeConfig(id)
+        : loadStaticConfig(reader, id, parser());
     expect(result.status, id).toBe("ready");
     expect(result.members, id).toBeGreaterThan(0);
   });

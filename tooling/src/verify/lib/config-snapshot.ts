@@ -189,9 +189,12 @@ function parseSnapshot(text: string, runner: ConfigSnapshotRunner, config: strin
   return parseDepcruiseSnapshot(snapshot, config);
 }
 
-export function readConfigSnapshot(root: string, runner: "vitest", config: string, options?: ConfigSnapshotReadOptions): ConfigSnapshotRead<"vitest">;
-export function readConfigSnapshot(root: string, runner: "eslint", config: string, options?: ConfigSnapshotReadOptions): ConfigSnapshotRead<"eslint">;
-export function readConfigSnapshot(root: string, runner: "depcruise", config: string, options?: ConfigSnapshotReadOptions): ConfigSnapshotRead<"depcruise">;
+export function readConfigSnapshot<R extends ConfigSnapshotRunner>(
+  root: string,
+  runner: R,
+  config: string,
+  options?: ConfigSnapshotReadOptions,
+): ConfigSnapshotRead<R>;
 export function readConfigSnapshot(
   root: string,
   runner: ConfigSnapshotRunner,

@@ -1,6 +1,8 @@
 import type { SourceFile } from "ts-morph";
 import type { PackageName } from "../../_shared/project-worlds.ts";
 import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";
+import type { ConfigSnapshotRunner } from "./config-snapshot.ts";
+import { CONFIG_SNAPSHOT_RUNNERS } from "./config-snapshot.ts";
 
 const WORKSPACE_PACKAGE_RESOURCE_PATHS = Object.fromEntries(
   PACKAGE_NAMES.map((packageName) => [packageName, `packages/${packageName}/package.json`] as const),
@@ -23,6 +25,10 @@ export const STATIC_CONFIG_RESOURCE_PATHS = {
 } as const;
 
 export type StaticConfigResourceId = keyof typeof STATIC_CONFIG_RESOURCE_PATHS;
+
+export const NATIVE_CONFIG_RESOURCE_PATHS = Object.freeze(
+  Object.fromEntries(CONFIG_SNAPSHOT_RUNNERS.map((id) => [id, STATIC_CONFIG_RESOURCE_PATHS[id]])),
+) as Readonly<Record<ConfigSnapshotRunner, string>>;
 
 export type PackageStringMap = Readonly<Record<string, string>>;
 

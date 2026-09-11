@@ -344,6 +344,18 @@ test("evaluates imported and derived ESLint selectors with entry-local populatio
   ]);
 });
 
+test("identical ESLint selection predicates retain separate owner observations", async ({ scratch }) => {
+  await plantEslintRepo(scratch, {
+    [ESLINT_CONFIG_REL]: 'export default [{ name: "first", files: ["src/**/*.js"] }, { name: "second", files: ["src/**/*.js"] }];\n',
+    "src/live.js": "export const live = 1;\n",
+  });
+  const snapshot = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL);
+  const rows = snapshot.selectors.filter((row) => row.field === "files");
+  expect(rows.map((row) => row.owner)).toEqual(["config[0]:first", "config[1]:second"]);
+  expect(rows[0]?.members).toBeGreaterThan(0);
+  expect(rows[1]?.members).toBe(rows[0]?.members);
+});
+
 test("overlay ESLint evaluation uses staged helpers and the original tracked population minus deletions", async ({ scratch }) => {
   await plantEslintRepo(scratch, {
     [ESLINT_CONFIG_REL]: 'export default [{ files: ["disk/**/*.js"] }];\n',

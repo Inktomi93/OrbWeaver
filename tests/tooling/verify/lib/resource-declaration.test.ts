@@ -37,6 +37,9 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
         exports: {},
       }),
     staticConfig: (id) => fact(`static-config:${id}`, [`${id}.config.ts`], { id, path: `${id}.config.ts`, rows: [{ key: "include", value: "src", line: 1 }] }),
+    nativeConfig: (): never => {
+      throw new Error("native config requires an explicit fixture");
+    },
     trackedFiles: () => fact("tracked-files", ["z.ts", "a.ts"], { repoPaths: ["z.ts", "a.ts"] }),
     ...overrides,
   };
