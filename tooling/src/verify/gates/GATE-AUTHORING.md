@@ -6,7 +6,18 @@ updated: 2026-09-08
 
 # Authoring a structural gate
 
-> THE law for `tooling/src/verify/gates/**`. Read this IN FULL before adding, editing, renaming, or deleting a
+> **LEGACY UNTIL THE GATE-RUNTIME CUTOVER (owner, 2026-09-11).** This document describes the PRE-cutover
+> descriptor runtime: `scanRoot`, `scopeSafety`, `run`/`begin`/`finalize` hooks, typed `ExemptionRow` tables
+> with stale arms, `check-gates.int` fixtures, the registered-gates count. None of that exists in the final
+> `defineGate` contract, and this file never mentions `defineGate`. **A lane CONVERTING a gate reads, in this
+> order: [`docs/design/gate-runtime-standardization.md`](../../../../docs/design/gate-runtime-standardization.md)
+> in full, [`docs/reviews/gate-runtime/exemplars-2026-09-11.md`](../../../../docs/reviews/gate-runtime/exemplars-2026-09-11.md)
+> ("copy these shapes"), and `tooling/src/verify/contract/policy.ts`. It reads THIS file only to understand
+> what the legacy descriptor it is replacing meant, and never copies a shape or satisfies a coupled-site
+> checklist from it.** This file is rewritten against `defineGate` in the cutover commit (design doc,
+> "Existing machinery we retain"). Until then it remains the law for a gate that is still a legacy descriptor.
+
+> THE law for `tooling/src/verify/gates/**` (legacy descriptors; see the banner above). Read this IN FULL before adding, editing, renaming, or deleting a
 > gate. It is the amnesiac-agent transfer of lessons that were paid for in silent-green gates, dead
 > allowlists, and red conformance runs — every rule below is a defect that already happened.
 > Indexed from `docs/architecture/core/AGENTS.md` §7. Supersedes `UI-Gates-and-Lessons.md` §12 (that
