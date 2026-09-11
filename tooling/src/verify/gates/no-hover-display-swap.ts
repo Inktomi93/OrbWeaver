@@ -30,14 +30,20 @@
 // matchable token in its source, and a hover-keyed display swap written in hand-authored CSS
 // (`.x:hover { display: none }`) is out of scope — `sanctioned-css-homes` already path-closes product CSS, and the
 // ui/client stylesheets are `motion-token-purity`'s scan surface, not this one.
+//
+// FINAL-CONTRACT CONVERSION (#1584): the legacy ALLOWLIST/stale-arm ratchet retired with NO ROWS TO
+// PORT — it had been EMPTY since the gate's own landing commit migrated every live instance onto the
+// reserved-box posture. A future legitimate hover-keyed display swap is suppressed with `@orb-waive
+// no-hover-display-swap(<position>): <reason>` at the exact offending token, not a re-grown file table.
+// FAMILY: singleton — this policy owns its own local variant/token classifier
+// (`isHoverVariant`/`splitVariants`/`isHoverDisplaySwap`); it shares no `lib/` reader with any sibling
+// gate today. `no-off-token-radius-shadow` and `ui-size-via-variant` repeat the same "split a
+// class-string node into whitespace tokens, strip the variant chain, classify the terminal segment"
+// SHAPE with their own regex vocabularies — a real MERGE candidate for a future lane, not forced here
+// (each classifies a disjoint token vocabulary and `ui-size-via-variant` is blocked on the `packages/**`
+// fence — see this lane's report).
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
-
-/** Legitimate hover-keyed display swaps → the reason each cannot oscillate. Both-ways ratchet: a stale row
- *  (the file no longer carries one) is RED, so a migrated file can't keep a standing exemption. EMPTY —
- *  every live instance was migrated onto the reserved-box posture in the gate's own landing commit. */
-const ALLOWLIST: ExemptionTable = {};
+import { defineGate } from "../contract/policy.ts";
 
 const MESSAGE =
   "hover-keyed DISPLAY utility — a hit-test oscillator. A display swap driven by hover removes a box from " +
@@ -50,13 +56,6 @@ const FIX =
   "`opacity-0` → `opacity-100`, per ROW_REVEAL / ROW_REVEAL_SWAP in packages/client/src/components/row-reveal.ts. " +
   "A device-class swap (`pointer-coarse:hidden`, `pointer-fine:flex`, a breakpoint) stays legal — it cannot " +
   "change while the pointer moves.";
-
-const STALE_ENTRY_MESSAGE_PREFIX =
-  "ALLOWLIST entry carries NO hover-keyed display utility any more — the file was migrated onto the " +
-  "reserved-box posture (ratchet down): delete the stale row in no-hover-display-swap.ts: ";
-
-/** GATE_SELF is where a stale-allowlist finding points (the gate file itself). */
-const GATE_SELF = "tooling/src/verify/gates/no-hover-display-swap.ts";
 
 /** Every Tailwind utility that sets `display` — the ones that move a box in or out of layout. Exact
  *  terminal match, never a prefix: `table-auto`/`table-fixed` are table-LAYOUT (not display) and must pass,
@@ -164,150 +163,129 @@ function swapTokens(nodeText: string): SwapToken[] {
   return out;
 }
 
-function packageRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
-}
-
-const passSeenAllowlisted = new Set<string>();
-
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
- *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
- *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
-const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
-
-export const gate: GateDescriptor = {
-  name: "no-hover-display-swap",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "no-hover-display-swap",
+  family: "no-hover-display-swap",
+  authority: "ordinary",
+  severity: "error",
+  population: ["@client", "@ui"],
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  // Sanctioned homes are SCANNED, not scoped out (the macro-resolution-home precedent): the ONLY exemption
-  // is a cited ALLOWLIST row, so a moved/renamed file goes RED instead of silently carrying its exemption.
-  scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/"),
-
-  kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral, SyntaxKind.TemplateHead, SyntaxKind.TemplateMiddle, SyntaxKind.TemplateTail],
-
-  begin: () => {
-    passSeenAllowlisted.clear();
-  },
-
-  visit: (node, sf, ctx) => {
-    const hits = swapTokens(node.getText());
-    if (hits.length === 0) {
-      return;
-    }
-    const rel = packageRel(sf.getFilePath());
-    if (rel in ALLOWLIST) {
-      passSeenAllowlisted.add(rel);
-      return;
-    }
-    for (const hit of hits) {
-      ctx.report(node, hit);
-    }
-  },
-
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
-      return; // the stale arm is a whole-tree claim — never fire it below project scope (§4.4)
-    }
-    for (const rel of Object.keys(ALLOWLIST)) {
-      if (!passSeenAllowlisted.has(rel)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          // The stale-arm text genuinely varies per dead entry → a per-occurrence message override.
-          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — tooling/src/verify/gates/no-hover-display-swap.ts`,
-        });
-      }
-    }
-  },
-
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [
+          SyntaxKind.StringLiteral,
+          SyntaxKind.NoSubstitutionTemplateLiteral,
+          SyntaxKind.TemplateHead,
+          SyntaxKind.TemplateMiddle,
+          SyntaxKind.TemplateTail,
+        ],
+        visit: (node) => {
+          for (const hit of swapTokens(node.getText())) {
+            ctx.report.node(node, hit);
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: `export const G = <div className="group-hover/row:hidden" />;\n`,
-      at: "packages/client/src/features/x/row.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/row.tsx": `export const G = <div className="group-hover/row:hidden" />;\n` },
       expect: { count: 1 },
       why: "the P0 itself — a NAMED-group hover key removing a box from layout (ROW_REVEAL_SWAP's founding defect)",
     },
     {
-      files: `export const G = <div className="hidden group-hover:flex" />;\n`,
-      at: "packages/client/src/features/x/cluster.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/cluster.tsx": `export const G = <div className="hidden group-hover:flex" />;\n` },
       expect: { count: 1 },
       why: "the TWO-token spelling: the base hides, the hover arm re-displays — caught through the hover-keyed token",
     },
     {
-      files: `export const G = <div className="pointer-fine:group-hover/member:flex" />;\n`,
-      at: "packages/client/src/features/x/member.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/member.tsx": `export const G = <div className="pointer-fine:group-hover/member:flex" />;\n` },
       expect: { count: 1 },
       why: "a media variant STACKED on a hover key still oscillates for the fine pointer it scopes to",
     },
     {
-      files: `export const G = <div className="hover:hidden peer-hover:block" />;\n`,
-      at: "packages/ui/src/x/x.tsx",
+      mode: "source",
+      files: { "packages/ui/src/x/x.tsx": `export const G = <div className="hover:hidden peer-hover:block" />;\n` },
       expect: { count: 2 },
       why: "bare `hover:` and `peer-hover:` are the same oscillator; PER-TOKEN reporting gives two findings",
     },
     {
-      // biome-ignore lint/suspicious/noTemplateCurlyInString: gate self-proof fixture, not a template.
-      files: "export const v = tv({ base: `group-hover:hidden \\${MOTION}` });\n",
-      at: "packages/ui/src/x/variants.ts",
+      mode: "source",
+      files: {
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: gate self-proof fixture, not a template.
+        "packages/ui/src/x/variants.ts": "export const v = tv({ base: `group-hover:hidden \\${MOTION}` });\n",
+      },
       why: "an interpolated template PART inside tv() — the variants-file carrier a plain-string scan misses",
     },
     {
-      files: `export const G = <div className="not-hover:hidden" />;\n`,
-      at: "packages/client/src/features/x/negated.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/negated.tsx": `export const G = <div className="not-hover:hidden" />;\n` },
       why: "the negation reads the same pointer state — `not-hover:hidden` swaps display on hover just as hard",
     },
     {
-      files: `export const G = <div className="[&:hover]:hidden" />;\n`,
-      at: "packages/ui/src/x/arbitrary.tsx",
+      mode: "source",
+      files: { "packages/ui/src/x/arbitrary.tsx": `export const G = <div className="[&:hover]:hidden" />;\n` },
       why: "the ARBITRARY-variant escape hatch: a hand-written `:hover` selector — proves the bracket-aware colon splitter",
     },
     {
-      files: `const swap = "group-hover:hidden";\nexport const G = <div className={swap} />;\n`,
-      at: "packages/client/src/features/x/indirect.tsx",
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/indirect.tsx": `const swap = "group-hover:hidden";\nexport const G = <div className={swap} />;\n`,
+      },
       expect: { count: 1 },
       why: "the UNFENCED arm: a class string assigned to a variable before it reaches the element is still read — this is the live list-row.tsx offender a className/cn() carrier fence measurably missed",
     },
   ],
   mustPass: [
     {
-      files: `export const G = <div className="group-hover/row:invisible group-focus-within/row:invisible pointer-coarse:hidden" />;\n`,
-      at: "packages/client/src/features/x/fixed.tsx",
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/fixed.tsx": `export const G = <div className="group-hover/row:invisible group-focus-within/row:invisible pointer-coarse:hidden" />;\n`,
+      },
       why: "ROW_REVEAL_SWAP itself — visibility reserves the box, and the coarse arm is a DEVICE class that cannot change under a moving pointer",
     },
     {
-      files: `export const G = <div className="opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100" />;\n`,
-      at: "packages/client/src/features/x/reveal.tsx",
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/reveal.tsx": `export const G = <div className="opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100" />;\n`,
+      },
       why: "ROW_REVEAL — an opacity reveal never touches layout",
     },
     {
-      files: `export const G = <div className="hidden pointer-fine:flex sm:block" />;\n`,
-      at: "packages/client/src/features/x/media.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/x/media.tsx": `export const G = <div className="hidden pointer-fine:flex sm:block" />;\n` },
       why: "device-class + breakpoint display swaps are legal by construction — they key on the DEVICE, not the pointer's position",
     },
     {
-      files: `export const G = <div className="group-hover:bg-accent group-focus-within:flex hover:opacity-100" />;\n`,
-      at: "packages/client/src/features/x/paint.tsx",
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/paint.tsx": `export const G = <div className="group-hover:bg-accent group-focus-within:flex hover:opacity-100" />;\n`,
+      },
       why: "a hover-keyed PAINT utility, and a focus-within-keyed display swap (keyboard focus does not slide under a stationary pointer) — neither is this gate's class",
     },
     {
-      files: `export const G = <div className="group-hover:table-auto flex-1 grid-cols-3" />;\n`,
-      at: "packages/ui/src/x/near-miss.tsx",
+      mode: "source",
+      files: { "packages/ui/src/x/near-miss.tsx": `export const G = <div className="group-hover:table-auto flex-1 grid-cols-3" />;\n` },
       why: "`table-auto` is table-LAYOUT and `flex-1`/`grid-cols-3` are not display utilities — the exact-terminal fence holds",
     },
     {
-      files: `export const G = <div className="[@media(hover:hover)]:flex" />;\n`,
-      at: "packages/ui/src/x/media-query.tsx",
+      mode: "source",
+      files: { "packages/ui/src/x/media-query.tsx": `export const G = <div className="[@media(hover:hover)]:flex" />;\n` },
       why: "`@media (hover: hover)` is a DEVICE-capability query, not a pointer-position state — the arbitrary-variant fence keys on the `[&…:hover]` SELECTOR form only",
     },
     {
-      files: `export const copy = "hidden on hover";\n`,
-      at: "packages/client/src/features/x/copy.ts",
+      mode: "source",
+      files: { "packages/client/src/features/x/copy.ts": `export const copy = "hidden on hover";\n` },
       why: "UI prose — an unfenced scan is safe precisely because the flagged shape needs a hover VARIANT prefix, which no sentence carries",
     },
   ],
-};
+});

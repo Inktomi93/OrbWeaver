@@ -3,33 +3,28 @@
 // JSX `style={{...}}` literal or an imperative `.style`/`setProperty` call bypasses both. A RATCHET —
 // currently EMPTY drift surface (class lane + CSS are 100% on-token); catches the first future
 // raw-literal inline style. Scope: packages/{ui,client}/src, and only a static literal value.
+//
+// FINAL-CONTRACT CONVERSION (#1584): the legacy ALLOWLIST/stale-arm ratchet retired with NO ROWS TO
+// PORT — it was always EMPTY (the header's own claim: no known off-Tailwind inline-style sink exists in
+// this gate's carrier shape). A future legitimate raw inline style is suppressed with `@orb-waive
+// no-off-token-inline-style(<position>): <reason>` at the exact offending property, not a re-grown file
+// table. FAMILY: singleton — this policy's own logic is intent (which token-backed property, which
+// carrier), and it consumes three already-shared `lib/` readers for identity (`unwrapExpression`,
+// `readMemberAccess`, `readNumericConstant`, `readStringConstant` — `lib/ast-read.ts` +
+// `lib/symbol-reference.ts`), which is exactly the shared-reader boundary the final contract asks for;
+// it has no sibling gate reusing those SAME readers for a related off-token-style intent, so it is not
+// merged with anything.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { fileLoaded } from "../lib/pass.ts";
 import { readMemberAccess, readNumericConstant, readStringConstant } from "../lib/symbol-reference.ts";
-
-/** Legit off-Tailwind inline-style sinks → reason. EMPTY: the two known off-Tailwind radius sinks (ECharts
- *  canvas + CodeMirror decoration) are framework-config OBJECT PROPERTIES, not JSX `style={{…}}`/imperative
- *  `.style` sites, so they fall outside this gate's scope entirely — no allowlist entry needed. A NEW
- *  raw-literal JSX/imperative inline style is RED on sight. */
-const ALLOWLIST: ExemptionTable = {};
 
 const MESSAGE =
   "off-token raw-literal inline style (design-enforcement.md §3) — a token-backed CSS property " +
   "(radius/shadow/color/background/motion/spacing) written as a raw literal in a JSX `style={{…}}` or an " +
   "imperative `.style`/`setProperty` bypasses the className + CSS token gates: use a Tailwind token " +
   "utility, or (if inline is required) reference a `var(--…)` token, per tokens.json.";
-
-const STALE_ENTRY_MESSAGE_PREFIX =
-  "ALLOWLIST entry has NO off-token raw-literal inline style any more — the offender was moved onto a " +
-  "token (ratchet down): delete the stale row in no-off-token-inline-style.ts: ";
-
-function clientRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
-}
 
 /** The token-backed CSS properties this gate owns — the axes tokens.json defines a closed vocabulary for.
  *  Stored in BOTH the camelCase (JSX object-literal / `el.style.x`) and kebab-case (`setProperty("x",…)`)
@@ -145,12 +140,6 @@ function isStyleTokenTarget(lhs: Node): boolean {
   return read !== undefined && isStyleAccess(read.receiver) && TOKEN_BACKED_PROPS.has(read.name);
 }
 
-// Three carriers, ONE gate: a JSX `style={{ <prop>: <raw> }}` PropertyAssignment, an imperative
-// `<expr>.style.<prop> = <raw>` BinaryExpression, and a `.style.setProperty("<prop>", <raw>)`
-// CallExpression. The empty ALLOWLIST's stale arm is finalize-guarded to project scope.
-const GATE_SELF = "tooling/src/verify/gates/no-off-token-inline-style.ts";
-const passSeenAllowlisted = new Set<string>();
-
 /** Is this JSX `style={{…}}` PropertyAssignment a token-backed prop written with a raw literal value? */
 function isRawStyleProp(prop: Node): boolean {
   if (!prop.isKind(SyntaxKind.PropertyAssignment)) {
@@ -161,7 +150,9 @@ function isRawStyleProp(prop: Node): boolean {
 }
 
 /** The first offending PropertyAssignment inside a JSX `style={{…}}` attribute, or undefined. A trailing
- *  return EXPRESSION (no fall-off-end) so tsc noImplicitReturns is satisfied. */
+ *  return EXPRESSION (no fall-off-end) so tsc noImplicitReturns is satisfied. Both traversals here are
+ *  bounded to the ATTRIBUTE NODE DELIVERED TO THE VISITOR — `getChildrenOfKind` reads only the object
+ *  literal's direct property children, never a deep subtree. */
 function jsxStyleOffender(attr: Node): Node | undefined {
   return styleObjectLiterals(attr)
     .flatMap((obj) => obj.getChildrenOfKind(SyntaxKind.PropertyAssignment))
@@ -181,141 +172,129 @@ function isSetPropertyOffender(call: Node): boolean {
   return TOKEN_BACKED_PROPS.has(staticLiteral(propArg)) && isRawLiteralValue(staticLiteral(valueArg));
 }
 
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
- *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
- *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
-const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
-
-export const gate: GateDescriptor = {
-  name: "no-off-token-inline-style",
-  docRow: "design-enforcement.md §3 (inline/imperative arm)",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "no-off-token-inline-style",
+  family: "no-off-token-inline-style",
+  authority: "ordinary",
+  severity: "error",
+  population: ["@client", "@ui"],
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: MESSAGE,
   fix: "use a Tailwind token utility, or (if inline is required) reference a `var(--…)` token, per tokens.json.",
-  scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/"),
-  kinds: [SyntaxKind.JsxAttribute, SyntaxKind.BinaryExpression, SyntaxKind.CallExpression],
-  begin: () => {
-    passSeenAllowlisted.clear();
-  },
-  visit: (node, sf, ctx) => {
-    const rel = clientRel(sf.getFilePath());
-    let offender: Node | undefined;
-    if (node.isKind(SyntaxKind.JsxAttribute)) {
-      offender = jsxStyleOffender(node);
-    } else if (
-      node.isKind(SyntaxKind.BinaryExpression) &&
-      node.getOperatorToken().getKind() === SyntaxKind.EqualsToken &&
-      isStyleTokenTarget(node.getLeft()) &&
-      isRawLiteralValue(staticLiteral(node.getRight()))
-    ) {
-      offender = node;
-    } else if (isSetPropertyOffender(node)) {
-      offender = node;
-    }
-    if (offender === undefined) {
-      return;
-    }
-    if (rel in ALLOWLIST) {
-      passSeenAllowlisted.add(rel);
-      return;
-    }
-    ctx.report(offender);
-  },
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
-      return;
-    }
-    for (const rel of Object.keys(ALLOWLIST)) {
-      if (!passSeenAllowlisted.has(rel)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — tooling/src/verify/gates/no-off-token-inline-style.ts`,
-        });
-      }
-    }
-  },
-  // NOTE: the ALLOWLIST ratchet/stale arms are guarded to the real full tree — their coverage moves to
-  // the live `pnpm check:structure` run. Only the pure FLAG/PASS branches port as examples below.
+  create: (ctx) => ({
+    // Three carriers, ONE gate: a JSX `style={{ <prop>: <raw> }}` PropertyAssignment, an imperative
+    // `<expr>.style.<prop> = <raw>` BinaryExpression, and a `.style.setProperty("<prop>", <raw>)`
+    // CallExpression.
+    visitors: [
+      {
+        kinds: [SyntaxKind.JsxAttribute, SyntaxKind.BinaryExpression, SyntaxKind.CallExpression],
+        visit: (node) => {
+          let offender: Node | undefined;
+          if (node.isKind(SyntaxKind.JsxAttribute)) {
+            offender = jsxStyleOffender(node);
+          } else if (
+            node.isKind(SyntaxKind.BinaryExpression) &&
+            node.getOperatorToken().getKind() === SyntaxKind.EqualsToken &&
+            isStyleTokenTarget(node.getLeft()) &&
+            isRawLiteralValue(staticLiteral(node.getRight()))
+          ) {
+            offender = node;
+          } else if (isSetPropertyOffender(node)) {
+            offender = node;
+          }
+          if (offender !== undefined) {
+            ctx.report.node(offender);
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: 'export const G = <div style={{ borderRadius: "8px" }} />;\n',
-      at: "packages/client/src/features/demo/components/thing.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/components/thing.tsx": 'export const G = <div style={{ borderRadius: "8px" }} />;\n' },
       why: "a raw-literal JSX inline style (borderRadius: '8px') — bypasses the className + CSS token gates",
     },
     {
-      files: "export const G = <div style={{ margin: -8 }} />;\n",
-      at: "packages/client/src/features/demo/negative.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/negative.tsx": "export const G = <div style={{ margin: -8 }} />;\n" },
       why: "#1506: a NEGATIVE off-token number. `-8` is a PrefixUnaryExpression, not a NumericLiteral, so this produced ZERO findings while `margin: 8` flagged — every negative offset was invisible",
     },
     {
-      files: "const GAP = 12;\nexport const G = <div style={{ gap: GAP }} />;\n",
-      at: "packages/client/src/features/demo/named-number.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/named-number.tsx": "const GAP = 12;\nexport const G = <div style={{ gap: GAP }} />;\n" },
       why: "#1506: an identifier standing for the raw number — the rendered result is the same off-token gap",
     },
     {
-      files: 'export function f(el: HTMLElement): void {\n  el.style["borderRadius"] = "8px";\n}\n',
-      at: "packages/client/src/features/demo/bracket-target.tsx",
+      mode: "source",
+      files: {
+        "packages/client/src/features/demo/bracket-target.tsx": 'export function f(el: HTMLElement): void {\n  el.style["borderRadius"] = "8px";\n}\n',
+      },
       why: '#1506: the bracket spelling of the imperative assignment target — `el.style["borderRadius"]` sets the same declaration as `el.style.borderRadius`',
     },
     {
-      files: 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "8px";\n}\n',
-      at: "packages/ui/src/primitives/demo/demo.ts",
+      mode: "source",
+      files: { "packages/ui/src/primitives/demo/demo.ts": 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "8px";\n}\n' },
       why: "an imperative `.style.x = 'raw'` assignment — the second carrier the class gates can't see",
     },
     {
-      files: 'export const G = <div style={{ color: "#fff" }} />;\n',
-      at: "packages/client/src/features/demo/components/hex.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/components/hex.tsx": 'export const G = <div style={{ color: "#fff" }} />;\n' },
       why: "a raw hex color in a JSX inline style — a token-backed color axis written off-token",
     },
     {
-      files: 'export const G = <div style={{ borderRadius: "8px" as string }} />;\n',
-      at: "packages/client/src/features/demo/components/cast.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/components/cast.tsx": 'export const G = <div style={{ borderRadius: "8px" as string }} />;\n' },
       why: 'a raw-literal inline style value wrapped in an AsExpression (`"8px" as string`) — the wrapped-literal shape the plain-literal reader silently PASSED before hardening',
     },
     {
-      files: 'export function f(el: HTMLElement): void {\n  el.style.setProperty("gap", "12px");\n}\n',
-      at: "packages/ui/src/primitives/demo/setprop.ts",
+      mode: "source",
+      files: { "packages/ui/src/primitives/demo/setprop.ts": 'export function f(el: HTMLElement): void {\n  el.style.setProperty("gap", "12px");\n}\n' },
       why: "an imperative `.style.setProperty('gap','12px')` — the third carrier, a token-backed spacing axis",
     },
   ],
   mustPass: [
     {
-      files: 'export const G = <div style={{ borderRadius: "var(--radius-card)" }} />;\n',
-      at: "packages/client/src/features/demo/components/ok.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/components/ok.tsx": 'export const G = <div style={{ borderRadius: "var(--radius-card)" }} />;\n' },
       why: "a var(--…) inline value is on-token (just inline) — always passes",
     },
     {
-      files: 'export const G = <div style={{ left: "8px" }} />;\n',
-      at: "packages/client/src/features/demo/components/np.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/components/np.tsx": 'export const G = <div style={{ left: "8px" }} />;\n' },
       why: "a non-token property (left) is out of scope — this gate owns only tokens.json's axes",
     },
     {
-      files: "export const G = (props: { gap: number }) => <div style={{ gap: props.gap }} />;\n",
-      at: "packages/client/src/features/demo/dynamic-number.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/dynamic-number.tsx": "export const G = (props: { gap: number }) => <div style={{ gap: props.gap }} />;\n" },
       why: "#1506's NEGATIVE control: a genuinely dynamic number is UNREADABLE and is never accused — the widening resolves names and signs, it does not guess",
     },
     {
-      files: "export const G = <div style={{ margin: -0 }} />;\n",
-      at: "packages/client/src/features/demo/negative-zero.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/negative-zero.tsx": "export const G = <div style={{ margin: -0 }} />;\n" },
       why: "#1506: `-0` is still the no-op ZERO keyword, not a magic value — the sign reader must not turn a legal zero into a finding",
     },
     {
-      files: 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "var(--radius-card)";\n}\n',
-      at: "packages/ui/src/primitives/demo/imp-var.ts",
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/demo/imp-var.ts": 'export function f(el: HTMLElement): void {\n  el.style.borderRadius = "var(--radius-card)";\n}\n',
+      },
       why: "an imperative `.style.x = 'var(--…)'` is on-token (just inline) — passes",
     },
     {
-      files: "export const G = <div style={{ margin: 0 }} />;\n",
-      at: "packages/client/src/features/demo/components/zero.tsx",
+      mode: "source",
+      files: { "packages/client/src/features/demo/components/zero.tsx": "export const G = <div style={{ margin: 0 }} />;\n" },
       why: "a bare `0` no-op inline value is not a magic value — passes",
     },
     {
-      files: "export const G = ({ r }: { r: string }) => <div style={{ borderRadius: r }} />;\n",
-      at: "packages/client/src/features/demo/components/dynamic.tsx",
+      mode: "source",
+      files: {
+        "packages/client/src/features/demo/components/dynamic.tsx": "export const G = ({ r }: { r: string }) => <div style={{ borderRadius: r }} />;\n",
+      },
       why: "a DYNAMIC inline value (identifier) is conservatively not chased — passes",
     },
   ],
-};
+});
