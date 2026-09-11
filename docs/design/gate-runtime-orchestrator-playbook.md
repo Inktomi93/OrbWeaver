@@ -199,6 +199,8 @@ idle composed-pass remeasurement; catalog re-attest.
 ## 5. Lessons that bind (each paid for at least once; the incidents are in the memory hub)
 
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
+- A SCOPED suite red is never baseline. The posture's red-by-construction list is exhaustive and covers nothing
+  adjacent; re-derive any scoped family-test red on a clean tree and date it against the commit that broke it.
 - Grep the docs for the governing rule BEFORE recommending a contract change: guide §12.3 and
   `resource-gate-access-patterns.md:126` already rule the absence-versus-unresolved question, and a provider is atomic
   by §12.2, so per-subject failure means per-subject PROVIDERS.

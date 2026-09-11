@@ -27,7 +27,12 @@ paths:
     replacing; never copy its shapes or satisfy its coupled-site checklist in a `defineGate` module.
   - **Whole-tree checks are RED by construction mid-migration** (`pnpm check`/`verify`/`check:structure`,
     the lefthook hooks, `check-gates.repo.int.test.ts` throwing in setup). That red is baseline, never your
-    defect, never laundered. Your verdict is the SCOPED floor: the family tests you name, `pnpm gate:contract`
+    defect, never laundered. **That list is EXHAUSTIVE: a SCOPED suite red is never baseline — re-derive it.** A scoped
+    family test is the verdict this posture promises stays trustworthy, so a red there is a real regression until you
+    prove otherwise on a clean tree, dated against the commit that broke it. Paid 2026-09-11:
+    `tests/tooling/verify/gates/registry-family.test.ts` sat at 4 failed / 4 passed on main for five days (95 refused
+    proof rows across eight policies, broken by `ab675b23b` on 2026-09-10, #1953) because `tests/tooling/**` is
+    `--full`-only (#1842) and any red near the migration read as ambient noise. Your verdict is the SCOPED floor: the family tests you name, `pnpm gate:contract`
     before/after (the corpus total must not rise; zero for each converted module), biome/eslint on touched
     files, `pnpm typecheck --config tsconfig.json`. Commit with `git -c core.hooksPath=/dev/null` and name
     the floor in the message.
