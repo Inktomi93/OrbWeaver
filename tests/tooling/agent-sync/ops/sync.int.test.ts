@@ -66,6 +66,11 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   }
   expect(projectInstructions).not.toContain("@.codex/rules/");
 
+  // The Codex mirror registers NO hooks, and that is a RULING, not an oversight — owner, 2026-09-11:
+  // "it's fine, Codex is a lot more cautious than our side so I haven't had to use the tool guard."
+  // JSON holds no comments, so this assertion is the reason's home: do not "repair" the empty object by
+  // mirroring the Claude PreToolUse entry. `.codex/hooks` symlinks to `.claude/hooks`, so the guard is
+  // already on that side if the ruling ever changes.
   const hookConfig = JSON.parse(readFileSync(join(ROOT, ".codex", "hooks.json"), "utf8")) as { readonly hooks: Readonly<Record<string, unknown>> };
   expect(hookConfig.hooks).toEqual({});
 
@@ -87,8 +92,8 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   const claudeHookConfig = readFileSync(join(ROOT, ".claude", "settings.json"), "utf8");
   // Re-registered 2026-09-11 by owner ruling, superseding the #1898 archival that made this a `not`:
   // the Bash guard is the only enforcement of the destroy-uncommitted ban, and its day unregistered cost
-  // five lanes their uncommitted files to one `git stash -u`. The Codex half below stays empty — that
-  // loader cannot be exercised from here, and an unverifiable registration is worse than none.
+  // five lanes their uncommitted files to one `git stash -u`. The Codex half stays empty by the separate
+  // owner ruling recorded above — this is a Claude-side registration, deliberately.
   expect(claudeHookConfig).toContain("/.claude/hooks/tool-guard.mjs");
   expect(claudeHookConfig).toContain("/.claude/hooks/biome-check.sh");
   expect(claudeHookConfig).toContain("/.claude/hooks/session-onboard.sh");
