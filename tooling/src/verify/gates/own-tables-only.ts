@@ -19,32 +19,44 @@
 //     (the doc-sanctioned bulk-serializer / analytics posture) or the file carries a FILE_ALLOWLIST row.
 //   • WRITE — a foreign table in a drizzle `insert(T)`/`update(T)`/`delete(T)` position is RED
 //     UNCONDITIONALLY. No class exemption and no file row buys a foreign write: the ONLY way to write a
-//     table is to own it. This is already the tree's convention — `domain/import` writes canon into six
-//     other domains' tables and imports `@orb/db` ZERO times, routing every write through the owning
-//     domain's own `persistence/import-write.ts`.
+//     table is to own it.
 //
-// THE OWNERSHIP MAP IS DERIVED, NOT HAND-WRITTEN. `packages/db/src/schema/<file>.ts` maps ~1:1 to
-// `domain/<file>/` (the producer-names-the-schema rule the `db-structure` gate enforces), so the map is read
-// off the schema files at run time: every `export const X = sqliteTable(` in `schema/<f>.ts` is owned by
-// domain `<f>`. Only the schema files whose producer is NOT a same-named domain need a hand row, and the map
-// is TOTAL — a schema file with tables, no same-named domain, and no row is RED at the map itself
-// (`SCHEMA_OWNERS`), so a new non-domain schema file forces the classification instead of silently making
-// its tables un-ownable. Per-TABLE producer overrides live in `TABLE_OWNERS`.
+// THE OWNERSHIP MAP IS DERIVED, NOT HAND-WRITTEN, from the shared `drizzleSchemaFact` (the same schema
+// reader `ownerid-registry` consumes — FAMILY "drizzle-schema": two DISTINCT policies, one governing
+// cross-domain table ACCESS and one governing ownerId STAMPING, reusing one computation). Every
+// `export const X = sqliteTable(…)` a schema source declares is owned by the same-named domain unless a
+// SCHEMA_OWNERS/TABLE_OWNERS row overrides it. Only schema files whose producer is NOT a same-named domain
+// need a hand row, and the map is TOTAL — a schema file with tables, no same-named domain, and no row is RED
+// at the map itself.
+//
+// SPLIT FROM THE LEGACY MODULE (authority is HARD, not the central ordinary/reviewed-grant vocabulary):
+// SCHEMA_OWNERS/TABLE_OWNERS/BULK_READERS/FILE_ALLOWLIST are RULING DATA — like `ownerid-registry`'s
+// OWNERID_CLASSIFICATIONS, they decide whether a touch IS a violation at all, never suppress one that
+// already fired. There is no comment-marker escape; the only way to change the verdict is a reviewed edit
+// to this file's tables.
+//
+// INTENTIONAL CORRECTION AT CONVERSION: the legacy module reported the READ/WRITE token as `"read <table>"`
+// / `"write <table>"`, which is not a literal substring of the reported node's own text — the new contract's
+// node-anchored report requires the token to be an EXACT SLICE of `node.getText()` at `offset`
+// (`policy-pass-context.ts`). The token is now the bare table identifier (still an exact anchor either way:
+// a plain or aliased ImportSpecifier's text always starts with the original name), and read/write are now
+// distinguished by the per-finding `message` text instead of a token prefix.
 //
 // DECLARED LIMITS (measured, each with a mustPass row):
 //   • A table reached through a namespace import (`import * as schema from "@orb/db"; schema.characters`) is
 //     invisible here — the gate keys on the named ImportSpecifier, the same literal-shape limit as
-//     `no-direct-users-read` and `discovery-no-stats-rollups` (zero namespace imports of `@orb/db` exist
-//     under `domain/`).
+//     `no-direct-users-read` and `discovery-no-stats-rollups`.
 //   • A write through an ALIASED binding (`const t = characters; db.insert(t)`) is seen as a READ, not a
 //     write — the write arm matches the imported identifier at the call site.
-//   • `persistence/` (including `chat/memory/persistence/`) is scoped out entirely, by design: it is the
-//     sanctioned cross-domain read home, and its ownership-safety is enforced by the owner-predicate
-//     convention + `no-direct-users-read` + `discovery-no-stats-rollups`, not by this gate.
-import type { ImportDeclaration, ImportSpecifier, Node, SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { ExemptionRow, ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+//   • `persistence/` (including `chat/memory/persistence/`) is scoped out of every finding, by design: it is
+//     the sanctioned cross-domain read home. Its population is STILL WALKED (unlike the legacy `scanRoot`
+//     exclusion) so a domain whose only files sit under `persistence/` is still detected as existing.
+import { Node, SyntaxKind } from "ts-morph";
+import type { GatePolicyContext } from "../contract/policy.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
+import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 const DOMAIN_ROOT = "packages/server/src/domain/";
 const PERSISTENCE_SEG = "/persistence/";
@@ -52,16 +64,22 @@ const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const DB_SPECIFIER_RE = /^@orb\/db(?:\/(?:schema|index))?$/u;
 const DOMAIN_OF_RE = /packages\/server\/src\/domain\/(?<name>[^/]+)\//u;
 const SCHEMA_FILE_RE = /packages\/db\/src\/schema\/(?<name>[^/]+)\.ts$/u;
-const SQLITE_TABLE_RE = /^sqliteTable\s*\(/u;
-const LEADING_SLASH_RE = /^\/+/u;
 const WRITE_METHODS = new Set(["insert", "update", "delete"]);
+const GATE_SELF = "tooling/src/verify/gates/own-tables-only.ts";
+
+/** One ruling row. Deliberately not a reusable "exemption" shape (§ header): these decide whether a touch
+ *  IS a violation, never whether an existing one is suppressed. */
+interface OwnershipRuling {
+  readonly owners: readonly string[];
+  readonly why: string;
+}
 
 /** Schema files whose producer is NOT a same-named domain. The map is TOTAL over table-bearing schema
  *  files: no row + no `domain/<name>/` ⇒ RED here, so a new non-domain schema file is classified
  *  deliberately instead of silently becoming un-ownable. Empty owners = "no DOMAIN owns this" (the producer
  *  lives outside `domain/`), which makes every domain-side import of its tables RED — the intended verdict.
  *  Both-ways ratchet: a row naming a schema file that no longer exists is RED. */
-const SCHEMA_OWNERS: ExemptionTable<ExemptionRow & { readonly owners: readonly string[] }> = {
+const SCHEMA_OWNERS: Readonly<Record<string, OwnershipRuling>> = {
   users: {
     owners: ["sessions", "admin"],
     why:
@@ -99,7 +117,7 @@ const SCHEMA_OWNERS: ExemptionTable<ExemptionRow & { readonly owners: readonly s
 
 /** Per-TABLE producer overrides — a table whose FILE home and whose PRODUCER differ. Both-ways ratchet: a
  *  row naming a table no schema file declares any more is RED. */
-const TABLE_OWNERS: ExemptionTable<ExemptionRow & { readonly owners: readonly string[] }> = {
+const TABLE_OWNERS: Readonly<Record<string, OwnershipRuling>> = {
   characterPersonas: {
     owners: ["persona"],
     why:
@@ -112,11 +130,8 @@ const TABLE_OWNERS: ExemptionTable<ExemptionRow & { readonly owners: readonly st
 
 /** Domains whose foreign READS are doc-sanctioned in bulk — the Tier-1-DB.md §"Cross-tier composition" #2
  *  posture. READ-ONLY: the write arm ignores this table entirely. Both-ways ratchet: a domain listed here
- *  with no foreign read left in scanned scope is RED (the sanction died — delete the row).
- *  NOT listed, deliberately: `search` and `import`. They are the SAME doc class, but every foreign table
- *  they touch today is reached from `persistence/` (import touches `@orb/db` zero times) — so they need no
- *  sanction, and the day one moves a foreign read out of `persistence/` that becomes a reviewed act. */
-const BULK_READERS: ExemptionTable = {
+ *  with no foreign read left in scanned scope is RED (the sanction died — delete the row). */
+const BULK_READERS: Readonly<Record<string, { readonly why: string }>> = {
   discovery: {
     why:
       "library-analytics (AGENTS §6 domain map): themes / duplicates / hubness / distillation are computed BY " +
@@ -137,7 +152,7 @@ const BULK_READERS: ExemptionTable = {
 /** Individually-sanctioned files. READ-ONLY, same as BULK_READERS. Both-ways ratchet: a row whose file has
  *  no foreign table import left is RED. Keep this list SHORT — a second file wanting the same reason is the
  *  signal that the reason belongs in the law, not in a row. */
-const FILE_ALLOWLIST: ExemptionTable = {
+const FILE_ALLOWLIST: Readonly<Record<string, { readonly why: string }>> = {
   "packages/server/src/domain/chat/assembly/world-info/pool.ts": {
     why:
       "the doc-NAMED read-only-join pattern — Tier-1-DB.md §Cross-tier composition #3 calls it 'the pool.ts " +
@@ -146,23 +161,6 @@ const FILE_ALLOWLIST: ExemptionTable = {
       "writes nothing. Ends if the doc drops the named pattern, or if the pool ever writes.",
   },
 };
-
-// THE ONE REASON, carrying BOTH source arms by token (`read <table>` / `write <table>`); their per-finding
-// messages folded in here when they stopped riding the Finding overload, which bypasses `hasGateIgnore`
-// (GATE-AUTHORING §1) so every marker on them was inert. The NO-OWNER arm and the stale arms keep the
-// overload: the first is genuinely file-level (there is no node — the file simply has no owner) and the
-// second anchors on the gate file.
-const MESSAGE =
-  "cross-domain table access outside `persistence/`. A `read <table>` token: the table is imported by a " +
-  "domain that does not own it. A `write <table>` token: a drizzle insert/update/delete into a table this " +
-  "domain does not own — no bulk-serializer class and no allowlist row buys a foreign WRITE; route it " +
-  "through the owning domain's persistence helper (the shape `domain/import` already uses for six domains' " +
-  "canon) or an injected op. " +
-  "A domain touches its OWN tables directly and reaches " +
-  "another domain's DATA through an injected op (AGENTS §2: cross-feature dependency is never a sideways " +
-  "import). Tier-1-DB.md §'Cross-tier composition': `persistence/` is the home for reusable READ helpers and " +
-  "cross-domain ownership checks; verbs/substrate/subsystems write their own domain's tables. The ownership " +
-  "map is derived from `packages/db/src/schema/<domain>.ts` (producer-names-the-schema).";
 
 const FIX =
   "pick the smallest honest home: (1) if it is an ownership check or a reusable read, move the query into " +
@@ -173,7 +171,25 @@ const FIX =
   "times. A genuine bulk-serializer/analytics reader takes a BULK_READERS row and a doc-named view takes a " +
   "FILE_ALLOWLIST row, each WITH its reason — neither buys a foreign WRITE.";
 
-const GATE_SELF = "tooling/src/verify/gates/own-tables-only.ts";
+const readMessage = (table: string): string =>
+  `cross-domain READ of \`${table}\` outside \`persistence/\` — this table is imported by a domain that does ` +
+  "not own it. A domain touches its OWN tables directly and reaches another domain's DATA through an " +
+  "injected op (AGENTS §2). Tier-1-DB.md §'Cross-tier composition': `persistence/` is the sanctioned home " +
+  "for reusable cross-domain reads. " +
+  FIX;
+
+const writeMessage = (table: string): string =>
+  `cross-domain WRITE into \`${table}\` — a drizzle insert/update/delete into a table this domain does not ` +
+  "own. No bulk-serializer class and no allowlist row buys a foreign WRITE; route it through the owning " +
+  "domain's persistence helper (the shape `domain/import` already uses for six domains' canon) or an " +
+  `injected op. ${FIX}`;
+
+const MESSAGE =
+  "a domain touches its OWN tables directly and reaches another domain's DATA through an injected op " +
+  "(AGENTS §2: cross-feature dependency is never a sideways import). Tier-1-DB.md §'Cross-tier composition': " +
+  "`persistence/` is the home for reusable READ helpers and cross-domain ownership checks; verbs/substrate/" +
+  "subsystems write their own domain's tables. The ownership map is derived from `packages/db/src/schema/" +
+  "<domain>.ts` (producer-names-the-schema) via the shared `drizzle-schema` fact.";
 
 const STALE_SCHEMA_PREFIX = "SCHEMA_OWNERS row names a schema file that no longer exists (ratchet down) — delete it in own-tables-only.ts: ";
 const STALE_TABLE_PREFIX = "TABLE_OWNERS row names a table no schema file declares any more (ratchet down) — delete it in own-tables-only.ts: ";
@@ -181,102 +197,75 @@ const STALE_BULK_PREFIX =
   "BULK_READERS row for a domain with NO foreign table read left outside persistence/ (ratchet down) — the bulk-serializer sanction is unused; delete it in own-tables-only.ts: ";
 const STALE_FILE_PREFIX = "FILE_ALLOWLIST row for a file with NO foreign table import left (ratchet down) — delete it in own-tables-only.ts: ";
 
-function repoRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path.replace(LEADING_SLASH_RE, "") : path.slice(idx + 1);
-}
-
 function domainOf(rel: string): string | undefined {
   return DOMAIN_OF_RE.exec(rel)?.groups?.["name"];
 }
 
-// ---- the derived ownership map ------------------------------------------------------------------
-/** table name → the domains that may touch it. Rebuilt in `begin` from the schema sources. */
-const tableOwners = new Map<string, readonly string[]>();
-/** every table name the schema declares (the TABLE_OWNERS stale arm's truth set). */
-const declaredTables = new Set<string>();
-/** schema file basenames present in the project (the SCHEMA_OWNERS stale arm's truth set). */
-const schemaFiles = new Set<string>();
+/** Every schema table grouped by its declaring source file (repo-relative). */
+function tablesByFile(model: SchemaModel): ReadonlyMap<string, readonly SchemaTable[]> {
+  const byFile = new Map<string, SchemaTable[]>();
+  for (const table of model.tables) {
+    const list = byFile.get(table.identity.sourcePath) ?? [];
+    list.push(table);
+    byFile.set(table.identity.sourcePath, list);
+  }
+  return byFile;
+}
 
-/** The tables a schema source declares: `export const X = sqliteTable(…)`. */
-function tablesIn(sf: SourceFile): string[] {
-  const out: string[] = [];
-  for (const stmt of sf.getVariableStatements()) {
-    if (!stmt.isExported()) {
-      continue;
-    }
-    for (const decl of stmt.getDeclarations()) {
-      if (SQLITE_TABLE_RE.test(decl.getInitializer()?.getText() ?? "")) {
-        out.push(decl.getName());
-      }
+interface Ownership {
+  readonly tableOwners: ReadonlyMap<string, readonly string[]>;
+  readonly schemaFiles: ReadonlySet<string>;
+  readonly declaredTables: ReadonlySet<string>;
+}
+
+/** Build table→owners from the schema sources, reporting the map's own totality violation (a table-bearing
+ *  schema file with neither a same-named domain nor a SCHEMA_OWNERS row). `anchor` is a real member of THIS
+ *  policy's own effective population (`report.file` validates against it) — the schema file itself lives
+ *  only in the drizzle-schema FACT's population, so a whole-schema-derivation finding like this one cannot
+ *  anchor there. */
+function deriveOwnership(ctx: GatePolicyContext, model: SchemaModel, anchor: string): Ownership {
+  const domainRoots = new Set<string>();
+  for (const sf of ctx.files) {
+    const name = domainOf(ctx.relativePath(sf));
+    if (name !== undefined) {
+      domainRoots.add(name);
     }
   }
-  return out;
-}
-
-/** Does `domain/<name>/` exist in this project? (Producer-mirror: the default owner of `schema/<name>.ts`.) */
-function domainExists(ctx: GateRunCtx, name: string): boolean {
-  const prefix = `${DOMAIN_ROOT}${name}/`;
-  return ctx.project.getSourceFiles().some((sf) => repoRel(sf.getFilePath()).startsWith(prefix));
-}
-
-/** Build table→owners from the schema sources. Reports the map's own totality violation (a table-bearing
- *  schema file with neither a same-named domain nor a SCHEMA_OWNERS row). */
-function deriveOwnership(ctx: GateRunCtx): void {
-  tableOwners.clear();
-  declaredTables.clear();
-  schemaFiles.clear();
-  for (const sf of ctx.project.getSourceFiles()) {
-    const rel = repoRel(sf.getFilePath());
-    const name = SCHEMA_FILE_RE.exec(rel)?.groups?.["name"];
-    if (name === undefined || rel === SCHEMA_BARREL) {
+  const tableOwners = new Map<string, readonly string[]>();
+  const declaredTables = new Set<string>();
+  const schemaFiles = new Set<string>();
+  for (const [sourcePath, tables] of tablesByFile(model)) {
+    const name = SCHEMA_FILE_RE.exec(sourcePath)?.groups?.["name"];
+    if (name === undefined || sourcePath === SCHEMA_BARREL) {
       continue;
     }
     schemaFiles.add(name);
-    const tables = tablesIn(sf);
-    if (tables.length === 0) {
-      continue; // relations.ts and friends declare no rows — nothing to own.
-    }
     const row = SCHEMA_OWNERS[name];
     let owners: readonly string[];
     if (row !== undefined) {
       owners = row.owners;
-    } else if (domainExists(ctx, name)) {
+    } else if (domainRoots.has(name)) {
       owners = [name];
     } else {
-      // THE SANCTIONED Finding overload (§1): a FILE-LEVEL finding — the schema file as a whole has no
-      // owner, so there is no offending node to anchor on or hang a marker off.
-      ctx.report({
-        file: rel,
-        line: 1,
-        column: 0,
+      ctx.report.file(anchor, {
         message:
-          `schema file declares tables but has NO owner: there is no \`${DOMAIN_ROOT}${name}/\` and no ` +
-          `SCHEMA_OWNERS row in ${GATE_SELF}. A schema file is named for its PRODUCER (Tier-1-DB.md); ` +
+          `schema file ${sourcePath} declares tables but has NO owner: there is no \`${DOMAIN_ROOT}${name}/\` ` +
+          `and no SCHEMA_OWNERS row in ${GATE_SELF}. A schema file is named for its PRODUCER (Tier-1-DB.md); ` +
           "classify it deliberately — rename it to its producing domain, or add a SCHEMA_OWNERS row naming " +
           "the owning domain(s) (or none, for a producer outside `domain/`) WITH its reason.",
       });
       owners = [];
     }
-    for (const t of tables) {
-      declaredTables.add(t);
-      tableOwners.set(t, TABLE_OWNERS[t]?.owners ?? owners);
+    for (const table of tables) {
+      declaredTables.add(table.identity.declarationName);
+      tableOwners.set(table.identity.declarationName, TABLE_OWNERS[table.identity.declarationName]?.owners ?? owners);
     }
   }
-}
-
-// ---- per-run accumulators -----------------------------------------------------------------------
-/** file path → the foreign table identifiers it imported (the write arm's lookup + the stale arms' proof). */
-const foreignByFile = new Map<string, Set<string>>();
-const seenBulkDomain = new Set<string>();
-const seenAllowlistFile = new Set<string>();
-
-function isDbImport(decl: ImportDeclaration): boolean {
-  return DB_SPECIFIER_RE.test(decl.getModuleSpecifierValue());
+  return { tableOwners, schemaFiles, declaredTables };
 }
 
 /** The `X` in `db.insert(X)` / `tx.update(X)` / `db.delete(X)`, or undefined. */
-function writtenTableIdentifier(node: Node): string | undefined {
+function writtenTableIdentifier(node: Node): Node | undefined {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return;
   }
@@ -285,206 +274,284 @@ function writtenTableIdentifier(node: Node): string | undefined {
     return;
   }
   const arg = node.getArguments()[0];
-  return arg?.isKind(SyntaxKind.Identifier) === true ? arg.getText() : undefined;
+  return arg?.isKind(SyntaxKind.Identifier) === true ? arg : undefined;
 }
 
-/** The two SOURCE arms' tokens — `read <table>` / `write <table>`. The kind is the stable position an
- *  `@orb-gate-ignore own-tables-only(write messages): <reason>` names; the table is the identity. The owning
- *  domain is NOT in the token: it is a fact about the tree, not about this site, so folding it in would make
- *  the position move when ownership is re-declared elsewhere. MESSAGE carries both arms' prose. */
-const readToken = (table: string): string => `read ${table}`;
-const writeToken = (table: string): string => `write ${table}`;
-
-/** The per-node scan site: the file's repo-relative path + owning domain, resolved once in `visit`. (No
- *  `SourceFile` — it existed only to compute a report column, which the node overload now derives itself.) */
-interface Site {
-  readonly ctx: GateRunCtx;
+/** A candidate the WALK records without judging — the schema fact (and therefore `ownership`) is not
+ *  finished until `evaluate`, so the ownership question is deferred to that phase. Pure-AST fields only. */
+interface ImportCandidate {
+  readonly node: Node; // the ImportSpecifier
   readonly rel: string;
   readonly domain: string;
+  readonly table: string;
 }
 
-/** The WRITE arm: a drizzle write whose target identifier was imported as a FOREIGN table in this file. */
-function visitWrite(node: Node, { ctx, rel }: Site): void {
-  const written = writtenTableIdentifier(node);
-  if (written === undefined || !(foreignByFile.get(rel)?.has(written) ?? false)) {
-    return;
-  }
-  ctx.report(node, { token: writeToken(written), offset: 0 });
+interface WriteCandidate {
+  readonly node: Node; // the written table's Identifier argument
+  readonly rel: string;
+  readonly table: string;
 }
 
-/** The READ arm: a VALUE `ImportSpecifier` naming a table this domain does not own. Records the name either
- *  way (the write arm reads it; the row ratchets prove their sanctions are still earned). */
-function visitImport(node: ImportSpecifier, { ctx, rel, domain }: Site): void {
-  if (node.isTypeOnly()) {
+/** A foreign-`@orb/db`-shaped value ImportSpecifier candidate, or undefined (type-only, not a `@orb/db`
+ *  import, or out of the scanned scope). Ownership is judged later, in `evaluate`. */
+function importCandidate(node: Node, ctx: GatePolicyContext): ImportCandidate | undefined {
+  if (!Node.isImportSpecifier(node) || node.isTypeOnly()) {
     return;
   }
   const decl = node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
-  if (decl === undefined || decl.isTypeOnly() || !isDbImport(decl)) {
+  if (decl === undefined || decl.isTypeOnly() || !DB_SPECIFIER_RE.test(decl.getModuleSpecifierValue())) {
     return;
   }
-  const table = node.getName();
-  const owners = tableOwners.get(table);
-  if (owners === undefined || owners.includes(domain)) {
-    return; // not a table, or this domain's own
-  }
-  const set = foreignByFile.get(rel) ?? new Set<string>();
-  set.add(table);
-  foreignByFile.set(rel, set);
-
-  if (rel in FILE_ALLOWLIST) {
-    seenAllowlistFile.add(rel);
+  const rel = ctx.relativePath(node.getSourceFile());
+  const domain = domainOf(rel);
+  if (rel.includes(PERSISTENCE_SEG) || domain === undefined) {
     return;
   }
-  if (domain in BULK_READERS) {
-    seenBulkDomain.add(domain);
-    return;
-  }
-  ctx.report(node, { token: readToken(table), offset: 0 });
+  return { node, rel, domain, table: node.getName() };
 }
 
-export const gate: GateDescriptor = {
-  name: "own-tables-only",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — Tier-1-DB.md §Cross-tier composition",
-  status: "active",
-  scopeSafety: "incremental-safe", // per-file verdicts; the ratchet arms self-guard in finalize
+function writeCandidate(node: Node, ctx: GatePolicyContext): WriteCandidate | undefined {
+  const rel = ctx.relativePath(node.getSourceFile());
+  if (rel.includes(PERSISTENCE_SEG) || domainOf(rel) === undefined) {
+    return;
+  }
+  const written = writtenTableIdentifier(node);
+  return written === undefined ? undefined : { node: written, rel, table: written.getText() };
+}
+
+interface JudgeState {
+  readonly ownership: Ownership;
+  readonly foreignByFile: Map<string, Set<string>>;
+  readonly seenBulkDomain: Set<string>;
+  readonly seenAllowlistFile: Set<string>;
+}
+
+function recordForeignImport(state: JudgeState, rel: string, table: string): void {
+  const set = state.foreignByFile.get(rel) ?? new Set<string>();
+  set.add(table);
+  state.foreignByFile.set(rel, set);
+}
+
+/** The READ arm, judged once the schema fact (and `ownership`) is ready. */
+function judgeImport(ctx: GatePolicyContext, state: JudgeState, candidate: ImportCandidate): void {
+  const owners = state.ownership.tableOwners.get(candidate.table);
+  if (owners === undefined || owners.includes(candidate.domain)) {
+    return; // not a table, or this domain's own
+  }
+  recordForeignImport(state, candidate.rel, candidate.table);
+  if (candidate.rel in FILE_ALLOWLIST) {
+    state.seenAllowlistFile.add(candidate.rel);
+    return;
+  }
+  if (candidate.domain in BULK_READERS) {
+    state.seenBulkDomain.add(candidate.domain);
+    return;
+  }
+  ctx.report.node(candidate.node, { token: candidate.table, offset: 0, message: readMessage(candidate.table) });
+}
+
+/** The WRITE arm: unconditionally red once the same file recorded that table as a foreign READ. */
+function judgeWrite(ctx: GatePolicyContext, state: JudgeState, candidate: WriteCandidate): void {
+  if (!(state.foreignByFile.get(candidate.rel)?.has(candidate.table) ?? false)) {
+    return;
+  }
+  ctx.report.node(candidate.node, { token: candidate.table, offset: 0, message: writeMessage(candidate.table) });
+}
+
+/** `anchor` is a real member of this policy's own effective population — see `deriveOwnership`'s header. */
+function reportStaleOwnershipRows(ctx: GatePolicyContext, state: JudgeState, anchor: string): void {
+  const stale = (message: string): void => {
+    ctx.report.file(anchor, { message });
+  };
+  for (const name of Object.keys(SCHEMA_OWNERS)) {
+    if (!state.ownership.schemaFiles.has(name)) {
+      stale(`${STALE_SCHEMA_PREFIX}"${name}"`);
+    }
+  }
+  for (const table of Object.keys(TABLE_OWNERS)) {
+    if (!state.ownership.declaredTables.has(table)) {
+      stale(`${STALE_TABLE_PREFIX}"${table}"`);
+    }
+  }
+  for (const domain of Object.keys(BULK_READERS)) {
+    if (!state.seenBulkDomain.has(domain)) {
+      stale(`${STALE_BULK_PREFIX}"${domain}"`);
+    }
+  }
+  for (const file of Object.keys(FILE_ALLOWLIST)) {
+    if (!state.seenAllowlistFile.has(file)) {
+      stale(`${STALE_FILE_PREFIX}"${file}"`);
+    }
+  }
+}
+
+export const gate = defineGate({
+  id: "own-tables-only",
+  family: "drizzle-schema",
+  authority: "hard",
+  severity: "error",
+  population: { in: ["@server"], under: ["packages/server/src/domain/**"] },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [drizzleSchemaFact],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  // `persistence/` is scoped OUT — it is the sanctioned cross-domain read home. Everything else under
-  // domain/ is scanned, sanctioned files included (the macro-resolution-home precedent: the only exemption
-  // is a CITED row, so a moved file goes RED instead of carrying its sanction along).
-  scanRoot: (p) => p.includes(DOMAIN_ROOT) && !p.includes(PERSISTENCE_SEG),
-  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression],
+  create: (ctx) => {
+    // The schema fact is not FINISHED until the shared walk completes, so ownership can only be judged in
+    // `evaluate`. The walk itself only records pure-AST candidates (no ownership question asked yet).
+    const imports: ImportCandidate[] = [];
+    const writes: WriteCandidate[] = [];
 
-  begin: (ctx) => {
-    foreignByFile.clear();
-    seenBulkDomain.clear();
-    seenAllowlistFile.clear();
-    deriveOwnership(ctx);
-  },
-
-  visit: (node, sf, ctx) => {
-    const rel = repoRel(sf.getFilePath());
-    const domain = domainOf(rel);
-    if (domain === undefined) {
-      return;
-    }
-    const site: Site = { ctx, rel, domain };
-    if (node.isKind(SyntaxKind.CallExpression)) {
-      visitWrite(node, site);
-      return;
-    }
-    if (node.isKind(SyntaxKind.ImportSpecifier)) {
-      visitImport(node, site);
-    }
-  },
-
-  finalize: (ctx) => {
-    // The stale arms are WHOLE-TREE claims: never below project scope, and never on a fileset that is not
-    // the real tree (a conformance mini-project also reports scope.kind === "project", and its handful of
-    // files would "prove" every sanction had vanished). The schema BARREL is the anchor — present on every
-    // real run, never needed by an example.
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, SCHEMA_BARREL)) {
-      return;
-    }
-    const stale = (message: string): void => {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message });
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportSpecifier],
+          visit: (node) => {
+            const candidate = importCandidate(node, ctx);
+            if (candidate !== undefined) {
+              imports.push(candidate);
+            }
+          },
+        },
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node) => {
+            const candidate = writeCandidate(node, ctx);
+            if (candidate !== undefined) {
+              writes.push(candidate);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        const schemaFact = ctx.fact(drizzleSchemaFact).schema();
+        recordReadySchemaFact(ctx, schemaFact);
+        // A real member of THIS policy's own effective population (@server/domain) — `report.file` cannot
+        // anchor on a schema path or on the gate's own source, neither of which is in that population.
+        const anchorFile = ctx.files[0];
+        if (anchorFile === undefined) {
+          throw new Error("own-tables-only received an empty effective source population");
+        }
+        const anchor = ctx.relativePath(anchorFile);
+        const state: JudgeState = {
+          ownership: deriveOwnership(ctx, schemaFact.value, anchor),
+          foreignByFile: new Map(),
+          seenBulkDomain: new Set(),
+          seenAllowlistFile: new Set(),
+        };
+        for (const candidate of imports) {
+          judgeImport(ctx, state, candidate);
+        }
+        for (const candidate of writes) {
+          judgeWrite(ctx, state, candidate);
+        }
+        // The stale arms are WHOLE-SCHEMA claims: withheld unless the real production schema — recognised by
+        // its barrel — was actually loaded. A conformance mini-project or a scoped run that never resolves
+        // the barrel would otherwise "prove" every sanction had vanished (§4.5's real-tree-anchor shape).
+        if (!schemaFact.receipt.paths.includes(SCHEMA_BARREL)) {
+          return;
+        }
+        reportStaleOwnershipRows(ctx, state, anchor);
+      },
     };
-    for (const name of Object.keys(SCHEMA_OWNERS)) {
-      if (!schemaFiles.has(name)) {
-        stale(`${STALE_SCHEMA_PREFIX}"${name}"`);
-      }
-    }
-    for (const table of Object.keys(TABLE_OWNERS)) {
-      if (!declaredTables.has(table)) {
-        stale(`${STALE_TABLE_PREFIX}"${table}"`);
-      }
-    }
-    for (const domain of Object.keys(BULK_READERS)) {
-      if (!seenBulkDomain.has(domain)) {
-        stale(`${STALE_BULK_PREFIX}"${domain}"`);
-      }
-    }
-    for (const file of Object.keys(FILE_ALLOWLIST)) {
-      if (!seenAllowlistFile.has(file)) {
-        stale(`${STALE_FILE_PREFIX}"${file}"`);
-      }
-    }
   },
-
   mustFlag: [
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", {});\n',
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/persona/verbs/create-from-character.ts": 'import { characters } from "@orb/db";\nexport const c = characters;\n',
       },
-      expect: { count: 1, token: "read characters" },
+      expect: { count: 1, token: "characters" },
       why: "the founding shape — a verb reading ANOTHER domain's table straight off the barrel (the real create-from-character defect this gate was minted from)",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/chat.ts": 'export const messages = sqliteTable("messages", {});\n',
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const messages = sqliteTable("messages", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/chat/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/export/verbs/export-chat.ts":
           'import { messages } from "@orb/db";\nexport async function f(db: { delete: (t: unknown) => Promise<void> }): Promise<void> {\n  await db.delete(messages);\n}\n',
       },
-      expect: { count: 1, token: "write messages" },
+      expect: { count: 1, token: "messages" },
       why: "the WRITE arm's whole point: `export` carries a BULK_READERS row, so its foreign READ passes — and the `delete` still reds. No class exemption buys a foreign write",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/nobody.ts": 'export const orphans = sqliteTable("orphans", {});\n',
+        "packages/db/src/schema/nobody.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const orphans = sqliteTable("orphans", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/chat/verbs/read.ts": "export const x = 1;\n",
       },
       expect: { count: 1, messageIncludes: "has NO owner" },
       why: "the MAP's own totality arm — a table-bearing schema file with no same-named domain and no SCHEMA_OWNERS row forces the deliberate classification instead of silently making its tables un-ownable",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", {});\n',
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/assets/workload-contributions.ts": 'import { characters } from "@orb/db";\nexport const c = characters;\n',
       },
-      expect: { count: 1, token: "read characters" },
-      why: "a FEATURE-ROOT slot (workload-contributions.ts), not a verb — the scan is `domain/** minus persistence/`, so the root slots and named subsystems are covered too",
+      expect: { count: 1, token: "characters" },
+      why: "a FEATURE-ROOT slot (workload-contributions.ts), not a verb — the scan is `domain/**`, so the root slots and named subsystems are covered too",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/persona.ts": 'export const personas = sqliteTable("personas", {});\n',
+        "packages/db/src/schema/persona.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const personas = sqliteTable("personas", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/persona/verbs/create.ts":
           'import { personas } from "@orb/db";\nexport async function f(db: { insert: (t: unknown) => Promise<void> }): Promise<void> {\n  await db.insert(personas);\n}\n',
       },
-      why: "the sanctioned shape the old absolute sentence wrongly banned — a verb writing its OWN domain's table directly (69 verb files do this and always have)",
+      why: "the sanctioned shape the old absolute sentence wrongly banned — a verb writing its OWN domain's table directly",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", {});\n',
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/persona/persistence/queries.ts": 'import { characters } from "@orb/db";\nexport const c = characters;\n',
       },
-      why: "`persistence/` is scoped OUT — the sanctioned home for a cross-domain ownership check (`ensureCharacterOwned`); this is the convention the amended law names, not a violation",
+      why:
+        "`persistence/` is scoped out of every FINDING — the sanctioned home for a cross-domain ownership check " +
+        "(`ensureCharacterOwned`). The persistence file is still WALKED (population is the whole domain tree), " +
+        "which is the intentional correction over the legacy `scanRoot` exclusion: a domain whose only files sit " +
+        "under `persistence/` must still count as existing.",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", {});\n',
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/discovery/verbs/browse.ts": 'import { characters } from "@orb/db";\nexport const c = characters;\n',
       },
-      why: "a BULK_READERS domain (discovery — library analytics computed by reading other domains' rows in bulk, Tier-1-DB §Cross-tier composition) reading a foreign table",
+      why: "a BULK_READERS domain (discovery — library analytics computed by reading other domains' rows in bulk) reading a foreign table",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/world-info.ts": 'export const worldEntries = sqliteTable("world_entries", {});\n',
+        "packages/db/src/schema/world-info.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const worldEntries = sqliteTable("world_entries", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/world-info/verbs/x.ts": "export const x = 1;\n",
         "packages/server/src/domain/chat/assembly/world-info/pool.ts": 'import { worldEntries } from "@orb/db";\nexport const w = worldEntries;\n',
       },
       why: "the FILE_ALLOWLIST row — Tier-1-DB.md §Cross-tier composition #3 names this exact file as 'the pool.ts pattern' (a chat-owned read-only VIEW over world-info's junctions)",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/character.ts": 'export const characterPersonas = sqliteTable("character_personas", {});\n',
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characterPersonas = sqliteTable("character_personas", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/persona/verbs/connection/connect.ts":
           'import { characterPersonas } from "@orb/db";\nexport async function f(db: { insert: (t: unknown) => Promise<void> }): Promise<void> {\n  await db.insert(characterPersonas);\n}\n',
@@ -492,36 +559,34 @@ export const gate: GateDescriptor = {
       why: "the TABLE_OWNERS override: `character_personas` FILE-homes in schema/character.ts but its PRODUCER is persona (its only writers are persona's connect/disconnect verbs) — a per-table classification the file-level map cannot express",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", {});\n',
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/persona/verbs/x.ts": 'import type { characters } from "@orb/db";\nexport type C = typeof characters;\n',
       },
-      why: "a TYPE-ONLY import of a foreign table — the DB row type is the `db` home every domain imports downward (Tier-1-DB §7.4); only DATA access is the boundary",
+      why: "a TYPE-ONLY import of a foreign table — the DB row type is the `db` home every domain imports downward; only DATA access is the boundary",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", {});\n',
-        "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
-        "packages/server/src/domain/persona/verbs/x.ts": 'import { batchMany, fetchOwned } from "@orb/db/kit";\nexport const k = [batchMany, fetchOwned];\n',
-      },
-      why: "`@orb/db/kit` primitives (batchMany/fetchOwned/isConstraintViolation/parsers) are legal everywhere — they are drizzle-typed utilities, not tables",
-    },
-    {
-      files: {
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", {});\n',
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/persona/verbs/x.ts": 'import * as schema from "@orb/db";\nexport const c = schema.characters;\n',
       },
       why: "DECLARED LIMIT, proven not assumed: a NAMESPACE import is invisible to the ImportSpecifier reader (the same literal-shape limit as no-direct-users-read). Zero exist under domain/; this row is the written baseline a future widening starts from",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/users.ts": 'export const users = sqliteTable("users", {});\n',
+        "packages/db/src/schema/users.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const users = sqliteTable("users", { id: text("id").primaryKey() });\n',
         "packages/server/src/domain/admin/verbs/set-role.ts":
           'import { users } from "@orb/db";\nexport async function f(db: { update: (t: unknown) => Promise<void> }): Promise<void> {\n  await db.update(users);\n}\n',
       },
-      why: "the double-owned identity root (SCHEMA_OWNERS `users` → sessions + admin): admin's user-management verbs legitimately WRITE it, so neither arm may bite — the elsewhere case is covered by `no-direct-users-read` (which also reaches persistence/, scoped out here)",
+      why: "the double-owned identity root (SCHEMA_OWNERS `users` → sessions + admin): admin's user-management verbs legitimately WRITE it, so neither arm may bite",
     },
   ],
-};
+});
