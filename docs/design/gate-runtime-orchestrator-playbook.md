@@ -70,6 +70,15 @@ order); §12 is what lanes read. This file is what YOU do, in order.
 - Conversion lanes translate their own legacy markers in the same commit (comment-only edits under `packages/**` and
   `tests/**` are inside that lane's fence). The pre-existing backlog (315 `ONESHOT-OK` in CT files, 55 `@owner-scope*`
   under `packages/server`) is one mech-executor lane, resumed from its worktree.
+- **ESCALATION: ASK-AND-CONTINUE is the default; REFUSE-AND-STOP is the exception.** A lane that needs something it
+  does not have **SendMessages you, you rule, and it goes back to work** — it does not die with a receipt. Refusal is
+  correct for exactly two cases: the work is genuinely outside its fence (a sibling lane owns the file, or it would
+  write a shared table like `lib/reviewed-grants.ts`), or building the thing is a DESIGN DECISION you have not made.
+  A missing shared reader, a missing helper, an unclear contract question, an arm that needs a new fixture — all
+  ask-and-continue. **Brief the distinction explicitly**, and require a stated DEFAULT in the message so a slow ruling
+  still moves. This was briefed wrong for most of 2026-09-11: "a correct refusal is a SUCCESS" went into every brief
+  undifferentiated, which is right for out-of-fence and wrong for a missing prerequisite, and it cost at least one lane
+  that could have kept going.
 - No SELF dispatch maps at dispatch time; no rule edits mid-lane except to fix the source of a repeated correction.
 
 ## 2. Work order (dependency order; do not reorder to fill slots)
@@ -263,7 +272,7 @@ idle composed-pass remeasurement; catalog re-attest.
    (`git diff 6c8424806 HEAD -- <the policy and its readers>`), and carries the row's named proof, including its
    do-not-restore prohibitions. Those rows are why a conversion can look green and still destroy an invariant.
 4. The exact module list with the pre-conversion SHA; the family hypothesis (a hypothesis until the lane names the
-   reader); stop-if-missing-kind (refusal is a success, report the exact read); markers translated in-commit with the
+   reader); **the escalation model below — ASK vs REFUSE, and it is not one rule**; markers translated in-commit with the
    census recorded.
 5. The fence: files it owns; sibling lanes' files it must not touch; `packages/**`/`tests/**` only for comment lines.
 6. Floors, exactly as the guide §8.8; never whole-tree; runs over ten minutes report and stop.
