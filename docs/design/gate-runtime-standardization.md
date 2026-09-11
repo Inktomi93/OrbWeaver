@@ -408,6 +408,33 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
 
 ## 11. Rulings ledger (owner, dated)
 
+- **2026-09-11 — PHASE C IS RULED AND THE CAPABILITY SET IS CLOSED (#1930).** Step 1 read all 36 direct-fs legacy
+  modules in full (playbook §2 Phase C). #1930's seven capabilities do not survive that evidence: most of it is data
+  entries and one door that is already written. **The closed set, in full — nothing else is added and the contract is
+  FROZEN after it:**
+  1. **Four enum entries, no capability:** `docs` and `scripts` ids in `AUTHORED_TREE_PATHS`; `biome` and `typescript`
+     runners in `CONFIG_SNAPSHOT_RUNNERS` (both evaluating through the tool's own loader, per the
+     `eslint-grant-liveness` precedent — never the hand-parsed JSON `biome-grant-liveness` does today).
+  2. **Expose `ResourceHost.ordinaryWaiverCarriers` as a declarable kind** — arbitrary tracked-file TEXT, comment-aware
+     and demand-driven. It is already built and private (`contract/resource-host.ts:30-33`); this is an exposure, not a
+     construction. Covers ~10 modules: the ratchet ledgers, the docs corpus, the test mirrors, the manifests.
+  3. **One CSS census `defineFact` over `authored-css`** — NOT a kind. Four modules (`integer-line-boxes`,
+     `motion-token-purity`, `rest-transform-grid`, `over-art-plate-arm`) each re-implement the identical recursive
+     `.css` walk over `packages/{ui,client}/src`.
+  4. **ONE genuinely new kind: `installed-package`**, whose request names the package AND a closed three-mode return
+     shape — `ast` (a parsed `.d.ts` tree, e.g. `@base-ui/react` at unbounded depth), `metadata` (installed-package
+     fields, e.g. the `@playwright/test` + `playwright-core/browsers.json` version tuple), `text` (a raw read of one
+     named file, e.g. `babel-plugin-react-compiler/dist/index.js`). Each mode receipted. **One kind with declared
+     modes, never three narrow kinds:** a capability serving one gate is that gate's private reader wearing a
+     contract's clothes, and three kinds would cost three passes over the four policing surfaces instead of one.
+  5. **Fixture runtime, not contract:** `runResourceExample` gains symlink expression. The CONTRACT already has it
+     (`ResourceFileSnapshot`'s `symlink` variant with `targetPath`, `resource.ts:34-36`), so path-liveness was never
+     blocked on the contract.
+
+  Two #1930 premises are REFUTED and must not be re-derived: config/compiler liveness is not blocked (three such gates
+  already converted), and the seven-capability figure was derived from eleven gates three lanes tripped over rather
+  than from the population.
+
 - 2026-09-05: final AST source populations are `.ts`/`.tsx` only; `.mts/.cts/.mjs/.cjs` are cleanup.
 - 2026-09-06: sanctioned homes convert as exact reviewed grants with liveness, never population subtraction; the
   `chatsChanged` conditional publisher is modeled, not parked; a compact map is written only when a sentinel fires.
