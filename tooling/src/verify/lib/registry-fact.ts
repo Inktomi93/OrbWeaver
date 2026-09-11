@@ -1,12 +1,12 @@
 // Visitor-fed registry facts; this module owns no Project, walk, path predicate, or binding resolver.
 import type { ArrowFunction, FunctionDeclaration, FunctionExpression, Node as MorphNode, ReturnStatement, TypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateFact } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import type { ReferenceFact, ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
 import type {
   JsxTagFact,
   RegistryDefinitionFact,
-  RegistryDefinitionFacts,
   RegistryDefinitionKind,
   RegistryDefinitionKindFacts,
   RegistryTypeDeclaration,
@@ -181,10 +181,18 @@ function sameDeclaration(left: RegistryTypeDeclaration, right: RegistryTypeDecla
   return left.compilerNode === right.compilerNode;
 }
 
+/** Score one kind's census.
+ *
+ *  WHAT COUNTS AS UNRESOLVED: only the registry TYPE. An identified definition whose authored object the
+ *  value reader cannot follow (a builder call, a mutated local) is RESOLVED DATA, not a missing subject —
+ *  it arrives as an `unresolved` ReferenceFact on `object`, and every consumer judges that fail-closed and
+ *  REPORTS it (`modal-registry-completeness` "Unreadable definition"). Scoring it as a receipt `unresolved`
+ *  made the provider refuse over exactly the population the policy was built to accuse, so the fail-closed
+ *  arms could never fire (three `mustFlag` rows, #1953). Every consumer's own receipt already declares this
+ *  same census — `members: <view>.definitions.length, unresolved: 0`. */
 function factsFor(kind: RegistryDefinitionKind, state: MutableRegistryFacts): RegistryDefinitionKindFacts {
   const target = targetFact(kind, state.targets);
   const definitions: RegistryDefinitionFact[] = [];
-  let unresolvedCount = target.kind === "unresolved" ? 1 : 0;
   if (target.kind === "resolved") {
     for (const candidate of state.candidates) {
       if (candidate.shape === "factory" && kind !== "section") {
@@ -195,9 +203,6 @@ function factsFor(kind: RegistryDefinitionKind, state: MutableRegistryFacts): Re
         continue;
       }
       const value = candidateValue(candidate, state.returns);
-      if (value.object.kind === "unresolved") {
-        unresolvedCount += 1;
-      }
       definitions.push({
         kind,
         shape: candidate.shape,
@@ -211,8 +216,8 @@ function factsFor(kind: RegistryDefinitionKind, state: MutableRegistryFacts): Re
     source: TYPE_NAMES[kind],
     target,
     definitions,
-    members: definitions.filter((definition) => definition.object.kind === "resolved").length,
-    unresolved: unresolvedCount,
+    members: definitions.length,
+    unresolved: target.kind === "unresolved" ? 1 : 0,
   };
 }
 
@@ -282,41 +287,58 @@ export function createRegistryDefinitionFacts(): {
   };
 }
 
-export const registryDefinitionFact = defineFact({
-  id: "registry-definitions",
-  population: "@client",
-  analysis: "types",
-  resources: [],
-  create: (ctx) => {
-    const collector = createRegistryDefinitionFacts();
-    let result: RegistryDefinitionFacts | undefined;
-    return {
-      visitors: [{ kinds: REGISTRY_DEFINITION_VISITOR_KINDS, visit: collector.visit }],
-      finish: (): RegistryDefinitionFacts => {
-        if (result !== undefined) {
+/** One PROVIDER per registry kind, because a provider is the runtime's atomic failure unit.
+ *
+ *  WHY NOT ONE PROVIDER OVER ALL SEVEN KINDS: it was, until 2026-09-11. A single provider emitted ONE
+ *  receipt whose `members`/`unresolved` were sums across every kind, and a fact receipt refuses on
+ *  `unresolved > 0` (`lib/policy-pass.ts` `factReceiptFailures`). `factsFor` scores an absent registry TYPE
+ *  as one unresolved, so any invocation whose population legitimately declares only some of the seven types
+ *  — every isolated conformance fixture, and any real scope narrower than the whole client — summed to a
+ *  nonzero refusal and withheld EVERY consumer, including the ones reading a kind that resolved perfectly.
+ *  That is how 95 proof rows across eight policies went dark for five days (#1953).
+ *
+ *  The fix is not a weaker refusal and not reading an unresolved kind as absent (the gate-runtime guide
+ *  §12.3: unsupported syntax "never returns absence"; `factsFor` cannot tell "unreferenced" from "renamed",
+ *  so collapsing them would blind the rename tripwire). Per-subject failure semantics require per-subject
+ *  PROVIDERS: a policy declares only the kinds it reads, only those instantiate, and only their own failure
+ *  withholds it. §12.3's one-walk guarantee is unaffected — the pass instantiates each unique provider once
+ *  and feeds them all in the same physical walk, and the per-kind scoring work is identical to the seven
+ *  `forKind` calls the aggregate already made. */
+function defineRegistryDefinitionFact(kind: RegistryDefinitionKind): GateFact<RegistryDefinitionKindFacts> {
+  return defineFact({
+    id: `registry-definitions-${kind}`,
+    population: "@client",
+    analysis: "types",
+    resources: [],
+    create: (ctx) => {
+      const collector = createRegistryDefinitionFacts();
+      let result: RegistryDefinitionKindFacts | undefined;
+      return {
+        visitors: [{ kinds: REGISTRY_DEFINITION_VISITOR_KINDS, visit: collector.visit }],
+        finish: (): RegistryDefinitionKindFacts => {
+          if (result !== undefined) {
+            return result;
+          }
+          const facts = collector.forKind(kind);
+          ctx.receipt({ kind: "population", source: facts.source, members: facts.members, unresolved: facts.unresolved });
+          result = facts;
           return result;
-        }
-        const facts = new Map(REGISTRY_DEFINITION_KINDS.map((kind) => [kind, collector.forKind(kind)] as const));
-        ctx.receipt({
-          kind: "population",
-          source: "registry-definitions",
-          members: [...facts.values()].reduce((sum, fact) => sum + fact.members, 0),
-          unresolved: [...facts.values()].reduce((sum, fact) => sum + fact.unresolved, 0),
-        });
-        result = Object.freeze({
-          forKind: (kind: RegistryDefinitionKind): RegistryDefinitionKindFacts => {
-            const fact = facts.get(kind);
-            if (fact === undefined) {
-              throw new Error(`registry definition fact has no kind ${kind}`);
-            }
-            return fact;
-          },
-        });
-        return result;
-      },
-    };
-  },
-});
+        },
+      };
+    },
+  });
+}
+
+/** The closed per-kind provider table; a new `RegistryDefinitionKind` fails `tsc` here until it has one. */
+export const registryDefinitionFacts = {
+  section: defineRegistryDefinitionFact("section"),
+  modal: defineRegistryDefinitionFact("modal"),
+  "home-tile": defineRegistryDefinitionFact("home-tile"),
+  "config-group": defineRegistryDefinitionFact("config-group"),
+  collection: defineRegistryDefinitionFact("collection"),
+  "config-section": defineRegistryDefinitionFact("config-section"),
+  chrome: defineRegistryDefinitionFact("chrome"),
+} satisfies Readonly<Record<RegistryDefinitionKind, GateFact<RegistryDefinitionKindFacts>>>;
 
 /** Normalize opening/self-closing JSX tags and resolve their canonical imported component origin. */
 export function readJsxTagFact(node: MorphNode): ReferenceFact<JsxTagFact> {

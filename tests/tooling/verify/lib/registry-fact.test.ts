@@ -3,7 +3,7 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { RegistryDefinitionKind, RegistryDefinitionKindFacts } from "../../../../tooling/src/verify/contract/registry-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { readJsxTagFact, registryDefinitionFact } from "../../../../tooling/src/verify/lib/registry-fact.ts";
+import { readJsxTagFact, registryDefinitionFacts } from "../../../../tooling/src/verify/lib/registry-fact.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/registry-facts";
@@ -25,12 +25,12 @@ function policyFor(kind: RegistryDefinitionKind, capture: (facts: RegistryDefini
     population: "@client",
     analysis: "types",
     execution: "entire-population",
-    facts: [registryDefinitionFact],
+    facts: [registryDefinitionFacts[kind]],
     resources: [],
     message: "registry definition fact control",
     create: (ctx) => ({
       evaluate: () => {
-        const view = ctx.fact(registryDefinitionFact).forKind(kind);
+        const view = ctx.fact(registryDefinitionFacts[kind]);
         capture(view);
         ctx.receipt({ kind: "population", source: view.source, members: view.members, unresolved: view.unresolved });
       },
@@ -62,6 +62,26 @@ function runRegistry(
   return { facts: captured, result };
 }
 
+/** Run a kind whose PROVIDER is expected to refuse, so the consumer never evaluates and captures nothing. */
+function runWithheldRegistry(kind: RegistryDefinitionKind, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+  let captured: RegistryDefinitionKindFacts | undefined;
+  const gate = policyFor(kind, (facts) => {
+    captured = facts;
+  });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: ROOT,
+    project: projectOf(files),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  if (captured !== undefined) {
+    throw new Error("registry facts were evaluated, so this fixture is not the withholding it claims to be");
+  }
+  return result;
+}
+
 test("canonical type origins survive type aliases, re-exports, namespace qualification, and local shadows", () => {
   const { facts, result } = runRegistry("section", {
     "packages/client/src/types.ts": "export type SectionDefinition = { readonly id: string };",
@@ -89,7 +109,7 @@ test("canonical type origins survive type aliases, re-exports, namespace qualifi
   expect(facts.definitions[0]?.authoredValue).toMatchObject({ kind: "unresolved", reason: "unsupported" });
 });
 
-test("imported object provenance resolves, while writes and builders refuse", () => {
+test("imported object provenance resolves, while writes and builders refuse AS DATA the consumer judges", () => {
   const { facts, result } = runRegistry("modal", {
     "packages/client/src/types.ts": "export interface ModalDefinition { readonly id: string }",
     "packages/client/src/value.ts": 'export const value = { id: "imported" };',
@@ -105,13 +125,17 @@ test("imported object provenance resolves, while writes and builders refuse", ()
     `,
   });
 
+  // A write and a builder are UNREADABLE VALUES, not missing subjects: both stay members of the census and
+  // arrive with their refusal reason on `object`, which is what every consumer's fail-closed arm accuses.
+  // Scoring them as receipt `unresolved` withheld the provider over exactly that population (#1953).
   expect(facts.definitions).toHaveLength(3);
-  expect(facts.members).toBe(1);
-  expect(facts.unresolved).toBe(2);
+  expect(facts.members).toBe(3);
+  expect(facts.unresolved).toBe(0);
   expect(facts.definitions.map(({ object }) => (object.kind === "unresolved" ? object.reason : "resolved"))).toEqual(["resolved", "write", "dynamic"]);
-  expect(result.policies[0]?.owner.status).toBe("incomplete");
-  expect(result.toolErrors).toMatchObject([{ phase: "receipt", message: expect.stringContaining("unresolved") }]);
-  expect(result.authority.withheldPolicyIds).toEqual(["registry-modal"]);
+  expect(result.factErrors).toEqual([]);
+  expect(result.policies[0]?.owner.status).toBe("success");
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
 });
 
 test("a field the value reader cannot read never revokes the definition's own provenance", () => {
@@ -149,23 +173,31 @@ test("only section definitions admit factories, and multiple returns refuse as a
 
   expect(facts.definitions).toHaveLength(1);
   expect(facts.definitions[0]?.object).toMatchObject({ kind: "unresolved", reason: "ambiguous" });
-  expect(facts).toMatchObject({ members: 0, unresolved: 1 });
-  expect(result.policies[0]?.owner.status).toBe("incomplete");
+  expect(facts).toMatchObject({ members: 1, unresolved: 0 });
+  expect(result.policies[0]?.owner.status).toBe("success");
 });
 
-test("missing and empty definition populations stay distinct and receipt-ready", () => {
-  const missing = runRegistry("chrome", { "packages/client/src/other.ts": "export const other = 1;" });
-  expect(missing.facts.target).toMatchObject({ kind: "unresolved", reason: "missing" });
-  expect(missing.facts).toMatchObject({ members: 0, unresolved: 1 });
-  expect(missing.result.policies[0]?.owner.status).toBe("incomplete");
+test("missing and empty definition populations stay distinct, and both refuse at the PROVIDER", () => {
+  // A renamed registry TYPE is the one thing this provider genuinely cannot resolve, so it is the only
+  // `unresolved` in its receipt — the rename tripwire. An empty-but-present type is a different blindness
+  // and says so with `zero members` alone. Both withhold every consumer of THIS kind and nothing else.
+  const missing = runWithheldRegistry("chrome", { "packages/client/src/other.ts": "export const other = 1;" });
+  expect(missing.facts).toMatchObject([
+    { id: "registry-definitions-chrome", status: "incomplete", receipts: [{ kind: "population", source: "ChromeEntry", members: 0, unresolved: 1 }] },
+  ]);
+  expect(missing.facts[0]?.error).toContain('population "ChromeEntry" left 1 unresolved');
+  expect(missing.policies[0]?.owner.status).toBe("incomplete");
+  expect(missing.authority.withheldPolicyIds).toEqual(["registry-chrome"]);
 
-  const empty = runRegistry("chrome", {
+  const empty = runWithheldRegistry("chrome", {
     "packages/client/src/types.ts": "export interface ChromeEntry { readonly id: string }",
   });
-  expect(empty.facts.target.kind).toBe("resolved");
-  expect(empty.facts).toMatchObject({ members: 0, unresolved: 0 });
-  expect(empty.result.policies[0]?.owner.status).toBe("incomplete");
-  expect(empty.result.toolErrors).toMatchObject([{ phase: "receipt", message: expect.stringContaining("zero members") }]);
+  expect(empty.facts).toMatchObject([
+    { id: "registry-definitions-chrome", status: "incomplete", receipts: [{ kind: "population", source: "ChromeEntry", members: 0, unresolved: 0 }] },
+  ]);
+  expect(empty.facts[0]?.error).toContain('population "ChromeEntry" resolved zero members');
+  expect(empty.facts[0]?.error).not.toContain("unresolved");
+  expect(empty.authority.withheldPolicyIds).toEqual(["registry-chrome"]);
 });
 
 test("JSX tags normalize opening/self-closing forms through canonical module origin", () => {

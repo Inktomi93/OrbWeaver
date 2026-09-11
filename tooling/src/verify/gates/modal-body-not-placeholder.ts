@@ -4,7 +4,7 @@
 // silent-sparkle anti-pattern, and it is unspellable.
 //
 // Both identities are semantic rather than textual. The modal population is the shared
-// `registryDefinitionFact`, so an aliased or re-exported `ModalDefinition` annotation is the same subject
+// `registryDefinitionFacts.modal`, so an aliased or re-exported `ModalDefinition` annotation is the same subject
 // and a local type that merely shares the name is not. The placeholder component is resolved to its
 // canonical module export, so `import { SectionPlaceholder as Empty }` is caught and an unrelated local
 // component named `SectionPlaceholder` is not. The import-name set is a CANDIDATE filter only.
@@ -14,7 +14,7 @@ import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField } from "../lib/registry-definition-field.ts";
-import { readJsxTagFact, registryDefinitionFact } from "../lib/registry-fact.ts";
+import { readJsxTagFact, registryDefinitionFacts } from "../lib/registry-fact.ts";
 import { resolveAuthoredComposite } from "../lib/static-authored-value.ts";
 
 const PLACEHOLDER = "SectionPlaceholder";
@@ -75,7 +75,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [registryDefinitionFact],
+  facts: [registryDefinitionFacts.modal],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -99,7 +99,7 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
-        const view = ctx.fact(registryDefinitionFact).forKind("modal");
+        const view = ctx.fact(registryDefinitionFacts.modal);
         ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
         const placeholders = candidates.filter(isCanonicalPlaceholder);
         for (const definition of view.definitions) {

@@ -8,7 +8,7 @@
 //     is Arm A and two is a contribution seam wearing a prop.
 //
 // Both identities are now TYPE STRUCTURE, not rendered text and not an alias walk with a hop cap. The
-// factory population is the shared `registryDefinitionFact`'s section view, so the return annotation must
+// factory population is the shared `registryDefinitionFacts.section` provider, so the return annotation must
 // resolve to the canonical exported `SectionDefinition`. A parameter is callable when its type HAS call
 // signatures, so an aliased function type is a render prop too.
 //
@@ -29,8 +29,8 @@ import { Node } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
-import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
-import { registryDefinitionFact } from "../lib/registry-fact.ts";
+import { definitionName } from "../lib/registry-definition-anchor.ts";
+import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 
 const REGISTRY = "ContributorRegistry";
 /** The ONE module that declares the contributor registry. A rename here is the tripwire, not a silent no-op. */
@@ -90,44 +90,49 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [registryDefinitionFact],
+  facts: [registryDefinitionFacts.section],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    // EACH ARM ANCHORS ON ITS OWN SUBJECT — the SECOND parameter of its kind, the one that makes the
+    // signature illegal. Anchoring both on the factory DECLARATION (as this policy did until 2026-09-11)
+    // gave the two findings the same file, offset and position token, differing only in `message` — which
+    // the waiver engine never reads. One `@orb-waive` marker in that carrier then matched two candidates,
+    // the central engine called it over-broad and suppressed NEITHER, so a factory tripping both arms was
+    // unwaivable by construction and this ordinary policy had no working door (#1954). Anchoring on the
+    // offending parameter keeps the arms independently waivable AND points the diagnostic at what to delete;
+    // the message still names the factory. No explicit token/offset: the runtime's own derivation takes the
+    // first identifier of a parameter's text, which is its name (or, for a bundle pattern, its first field).
     const judge = (definition: RegistryDefinitionFact, registry: MorphNode): void => {
       const name = definitionName(definition.declaration);
-      const anchor = definitionAnchor(definition.declaration);
-      const parameters = factoryParameters(definition);
-      const registries: string[] = [];
-      const callables: string[] = [];
-      for (const parameter of parameters) {
+      const registries: ParameterDeclaration[] = [];
+      const callables: ParameterDeclaration[] = [];
+      for (const parameter of factoryParameters(definition)) {
         const type = annotatedType(parameter);
         if (declaresCanonicalRegistry(type, registry)) {
-          registries.push(parameter.getName());
+          registries.push(parameter);
         } else if ((type?.getCallSignatures().length ?? 0) > 0) {
-          callables.push(parameter.getName());
+          callables.push(parameter);
         }
       }
-      if (registries.length > 1) {
-        ctx.report.node(definition.declaration, {
-          ...anchor,
-          message: `${MESSAGE} \`${name}\` takes ${registries.length} ${REGISTRY} parameters (${registries.join(", ")}).`,
+      const accuse = (offenders: readonly ParameterDeclaration[], detail: string): void => {
+        const excess = offenders[1];
+        if (excess === undefined) {
+          return;
+        }
+        ctx.report.node(excess, {
+          message: `${MESSAGE} \`${name}\` takes ${offenders.length} ${detail} (${offenders.map((parameter) => parameter.getName()).join(", ")}).`,
           fix: FIX,
         });
-      }
-      if (callables.length > 1) {
-        ctx.report.node(definition.declaration, {
-          ...anchor,
-          message: `${MESSAGE} \`${name}\` takes ${callables.length} callable render-prop parameters (${callables.join(", ")}).`,
-          fix: FIX,
-        });
-      }
+      };
+      accuse(registries, `${REGISTRY} parameters`);
+      accuse(callables, "callable render-prop parameters");
     };
 
     return {
       evaluate: () => {
-        const sections = ctx.fact(registryDefinitionFact).forKind("section");
+        const sections = ctx.fact(registryDefinitionFacts.section);
         const factories = sections.definitions.filter(({ shape }) => shape === "factory");
         const registry = canonicalRegistry(ctx);
         ctx.receipt({ kind: "population", source: FACTORY_POPULATION, members: factories.length, unresolved: 0 });
@@ -150,7 +155,7 @@ export const gate = defineGate({
         "packages/client/src/features/chat/lib/chats-section.tsx":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport type { ContributorRegistry } from "../../../lib/registry.ts";\nexport function makeChatsSection(\n  contextTabs: ContributorRegistry<string>,\n  regions: ContributorRegistry<number>,\n): SectionDefinition {\n  return { id: "chats" };\n}\n',
       },
-      expect: { count: 1, token: "makeChatsSection", messageIncludes: "ContributorRegistry parameters" },
+      expect: { count: 1, token: "regions", messageIncludes: "ContributorRegistry parameters" },
       why: "the founding shape — the positional registry signature whose every new seam churned the door and both CT overrides",
     },
     {
@@ -161,7 +166,7 @@ export const gate = defineGate({
         "packages/client/src/features/chat/lib/chats-section.tsx":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport type { ContributorRegistry } from "../../../lib/registry.ts";\nexport const makeChatsSection = (a: ContributorRegistry<string>, b: ContributorRegistry<number>): SectionDefinition => ({ id: "chats" });\n',
       },
-      expect: { count: 1, token: "makeChatsSection", messageIncludes: "ContributorRegistry parameters" },
+      expect: { count: 1, token: "b", messageIncludes: "ContributorRegistry parameters" },
       why: "the OTHER authoring shape — an exported const arrow factory; keying only on `function` declarations would be half a policy",
     },
     {
@@ -175,7 +180,7 @@ export const gate = defineGate({
         "packages/client/src/features/chat/lib/chats-section.tsx":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport type { ChatRegionSeam, ChatTabSeam } from "./types.ts";\nexport function makeChatsSection(a: ChatTabSeam, b: ChatRegionSeam): SectionDefinition {\n  return { id: "chats" };\n}\n',
       },
-      expect: { count: 1, token: "makeChatsSection", messageIncludes: "ContributorRegistry parameters" },
+      expect: { count: 1, token: "b", messageIncludes: "ContributorRegistry parameters" },
       why: "THE IDENTITY RED: both seams reach the registry through a BARREL RE-EXPORT, a renamed import, and two alias hops. Type identity is the declaration, so every spelling on the way is irrelevant — the legacy reader compared parameter TEXT and recorded the escape as a blessed limit",
     },
     {
@@ -186,7 +191,7 @@ export const gate = defineGate({
         "packages/client/src/features/character/lib/characters-section.tsx":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport function makeCharactersSection(\n  chatsPane: (view: string) => null,\n  notesPane: (view: number) => null,\n): SectionDefinition {\n  return { id: "characters" };\n}\n',
       },
-      expect: { count: 1, token: "makeCharactersSection", messageIncludes: "callable render-prop parameters" },
+      expect: { count: 1, token: "notesPane", messageIncludes: "callable render-prop parameters" },
       why: "row 5's own tripwire: a SECOND foreign pane threaded as a render prop instead of minting the contribution seam",
     },
     {
@@ -198,7 +203,7 @@ export const gate = defineGate({
         "packages/client/src/features/x/lib/x-section.tsx":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport type { Pane } from "./panes.ts";\nexport function makeXSection(p: Pane, q: Pane): SectionDefinition {\n  return { id: "x" };\n}\n',
       },
-      expect: { count: 1, token: "makeXSection", messageIncludes: "callable render-prop parameters" },
+      expect: { count: 1, token: "q", messageIncludes: "callable render-prop parameters" },
       why: "THE ALIASED RENDER PROP: a named function type is the same threaded pane. Reading the parameter's callable STRUCTURE catches it where a FunctionTypeNode syntax check does not",
     },
     {
@@ -210,7 +215,7 @@ export const gate = defineGate({
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport type { ContributorRegistry } from "../../../lib/registry.ts";\nexport function makeXSection(\n  a: ContributorRegistry<string>,\n  b: ContributorRegistry<number>,\n  p: (v: string) => null,\n  q: (v: number) => null,\n): SectionDefinition {\n  return { id: "x" };\n}\n',
       },
       expect: { count: 2 },
-      why: "both arms are independent — a factory that trips both reports both, so fixing one cannot silence the other",
+      why: "both arms are independent — a factory that trips both reports both, so fixing one cannot silence the other, and each anchors on ITS OWN excess parameter (`b`, `q`) so the two findings stay separately waivable",
     },
     {
       mode: "types",
@@ -222,7 +227,7 @@ export const gate = defineGate({
         "packages/client/src/features/chat/lib/chats-section.tsx":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport type { T0 } from "./types.ts";\nexport function makeChatsSection(a: T0, b: T0): SectionDefinition {\n  return { id: "chats" };\n}\n',
       },
-      expect: { count: 1, token: "makeChatsSection", messageIncludes: "ContributorRegistry parameters" },
+      expect: { count: 1, token: "b", messageIncludes: "ContributorRegistry parameters" },
       why: "THE RETIRED HOP CAP: an eleven-hop alias chain is still the same seam. The legacy resolver threw a TOOL ERROR past eight hops — it refused honest authoring instead of judging it — and reading the resolved type has no budget to exceed",
     },
   ],
