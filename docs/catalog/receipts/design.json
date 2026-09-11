@@ -52,6 +52,48 @@
       ]
     },
     {
+      "path": "docs/design/1208-heap-memory-arm.md",
+      "assignedSha256": "cf5238312b9025931a7caa6033df9a8bcfc2dd698082e4e4708b2f387daa65ef",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "cf5238312b9025931a7caa6033df9a8bcfc2dd698082e4e4708b2f387daa65ef",
+      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/design/1208-heap-memory-arm.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed at 561ea5ec3): Snap's `--heap`/`--heap-compare`/`--heap-retainers` page arm captures V8 heap snapshots via CDP HeapProfiler and parses them with the official `chrome-devtools-mcp@1.8.0` DevTools engine, never a home-grown dominator algorithm."
+      ],
+      "claims": [
+        {
+          "claim": "Heap capture/compare/retainer analysis reuses the exact-pinned `chrome-devtools-mcp@1.8.0` `HeapSnapshotManager` DevTools parser as a browser-free tooling-only dependency; no MCP server, process, transport or browser launch is imported or started.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1300"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:2829babdae6ff1c10ac59b53d74d492123bf7fd0"
+            }
+          ]
+        },
+        {
+          "claim": "The implementation receipt records the exact Project #1300 DoD suite (`tests/tooling/snap/ops/arms/heap.suite.int.test.ts`, 1 file/4 tests) and a fresh structure run at 254/254 gates with zero heap-attributable findings.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/snap/ops/arms/heap.suite.int.test.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#1300"
+            }
+          ]
+        }
+      ],
+      "summary": "Heap/browser-memory Snap arm design and implementation receipt: --heap/--heap-compare/--heap-retainers over the official DevTools heap-snapshot engine, with a WeakMap label table and no universal memory-size gate."
+    },
+    {
       "path": "docs/design/1208-instrument-substrate.md",
       "assignedSha256": "7abd17ff62b95ca13bfbcd60b1ece4b2fa4c909c2b955bc6cddc3dfb046c4a0c",
       "disposition": "current",
@@ -118,6 +160,82 @@
         }
       ],
       "summary": "Landed instrument substrate program (#1208): stateful Snap sessions, registered stage bands, shared browser/environment/artifact seams, a total five-tool CLI grammar, Lighthouse and request-log arms, load-aware watchdogs, one-browser matrix contexts, and the reconciled phase 0–4 control set."
+    },
+    {
+      "path": "docs/design/1208-request-result-truth-repair.md",
+      "assignedSha256": "819b7e348d6dcb62d7061015484a621a44d77c1e70eb4b48864f91e129aaf5fd",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "819b7e348d6dcb62d7061015484a621a44d77c1e70eb4b48864f91e129aaf5fd",
+      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/design/1208-request-result-truth-repair.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed 2026-09-03): Snap owns one `RequestRing` per `ProbeSession` retaining up to 4,096 ordered request rows with lifetime-monotonic sequence numbers; a run arm never installs listeners, it only checkpoints/drains/redacts."
+      ],
+      "claims": [
+        {
+          "claim": "The request ring's default window is fixed before the report reads it so requests arriving later cannot move the answer, and body retention is bounded (256 KiB per JSON body, 32 MiB aggregate) and reason-coded on every non-retention outcome.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:2829babdae6ff1c10ac59b53d74d492123bf7fd0"
+            }
+          ]
+        },
+        {
+          "claim": "The implementation receipt shows the request/session daemon suite passing 15/15 and the focused ring/result set passing 20/20 after the ring was repaired so a plain read never awaits metadata/body work.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            }
+          ]
+        }
+      ],
+      "summary": "Request-ring and RESULT-truth repair: one lifetime-owned RequestRing per session replacing duplicate per-call recorders, plus a normalized verdict-pairs door so RESULT text and the structured record cannot disagree."
+    },
+    {
+      "path": "docs/design/1208-run-index-typed-results.md",
+      "assignedSha256": "92028c805d7ef85b3a34e748e226aef3afb8c7398fb29221c77a07f465e01373",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "92028c805d7ef85b3a34e748e226aef3afb8c7398fb29221c77a07f465e01373",
+      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/design/1208-run-index-typed-results.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed 2026-09-04): `resultPairs` stays a byte-stable printable transcript only; a separate versioned `results` population is produced from typed arm-owned fact records validated through a total `ARM_FACT_DATA_SCHEMAS` Zod record, per the owner overrule against a generic `Record<string, JsonValue>` contract."
+      ],
+      "claims": [
+        {
+          "claim": "Every current artifact declaration/fact record uses one branded `scope-v1` contract (context/page/window, each exact | aggregate | not-applicable) with no null axis, while legacy v1 indices are normalized only by the browser-free reader into an explicit `legacy` shape.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1301"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:2829babdae6ff1c10ac59b53d74d492123bf7fd0"
+            }
+          ]
+        },
+        {
+          "claim": "Typed facts never change the arm's exit; pass/fail/refusal/withhold and the final RESULT transcript remain exactly what the producer verdict door returned.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1301"
+            }
+          ]
+        }
+      ],
+      "summary": "Typed run-results and artifact-scope design: a total Zod arm-fact schema map plus branded context/page/window scope, replacing string-pair RESULT parsing as the structured-evidence trust boundary."
     },
     {
       "path": "docs/design/1238-plugin-distribution.md",
@@ -208,6 +326,84 @@
         "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
         "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
       ]
+    },
+    {
+      "path": "docs/design/1308-browser-evidence-retention.md",
+      "assignedSha256": "e53e903b5d961c931114af4c32be8da53613e284ec04b82f0e200a830dcd3755",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "e53e903b5d961c931114af4c32be8da53613e284ec04b82f0e200a830dcd3755",
+      "verifiedCommit": "39445ca0874cb9869541bbe8084700c04124725a",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "re-attested at 39445ca08 (delta read: one line — the Proof section's suite path repointed from tests/tooling/_shared/ to tests/tooling/snap/lib/browser-retention.suite.int.test.ts, where the suite lives; no other change since 561ea5ec3)",
+        "docs/design/1308-browser-evidence-retention.md:1 read in full at 561ea5ec3: one `_shared/browser-evidence-ring.ts` owner provides bounded retention, monotonic cursors, range reads and JSON-safe receipts for every array-like browser channel (console/page-error/network/diagnostics), replacing per-channel ad hoc capacity accounting; ProbeContext/ProbeSession keep read-only views while the ring owners hold cursor/receipt truth."
+      ],
+      "claims": [
+        {
+          "claim": "One `_shared/browser-evidence-ring.ts` owner provides bounded retention, monotonic cursors, range reads and JSON-safe receipts for every array-like browser channel.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1308"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6"
+            }
+          ]
+        },
+        {
+          "claim": "Network active/pending records may temporarily exceed the completed cap, emitting an explicit incomplete `protected-overflow` receipt rather than a false zero-loss claim.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1308"
+            }
+          ]
+        }
+      ],
+      "summary": "Ruling for the shared browser-evidence retention ring: bounded caps, monotonic cursors, explicit eviction/overflow receipts, and a migration off retained-array-length accounting."
+    },
+    {
+      "path": "docs/design/1310-snap-filmstrip.md",
+      "assignedSha256": "9fce97e2c7d7a717e96a68621afbb4dbc12fa40f2271f7695b0af1bf31827195",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "9fce97e2c7d7a717e96a68621afbb4dbc12fa40f2271f7695b0af1bf31827195",
+      "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/design/1310-snap-filmstrip.md:1 read in full at 561ea5ec3: `pnpm snap ... --filmstrip` is the one transition-capture spelling (CDP screencast contact sheet); `pnpm record` retires to a loud recipe redirect and its parser/driver/WebM/GIF path is deleted.",
+        "docs/design/1310-snap-filmstrip.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
+      ],
+      "claims": [
+        {
+          "claim": "`--filmstrip` captures the exact Playwright page already being driven via `page.context().newCDPSession(page)` + `Page.startScreencast`, and a static/fake-CDP run producing no frame is an instrument refusal, never a clean empty contact sheet.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1310"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6"
+            }
+          ]
+        },
+        {
+          "claim": "`pnpm record <argv>` exits misuse and prints one exact `pnpm snap ... --filmstrip` recipe; no alias or quiet delegation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1310"
+            }
+          ]
+        }
+      ],
+      "summary": "Snap filmstrip design: one bounded PNG contact-sheet arm over the existing run-arm lifecycle (new `afterSettle` seam), replacing Record's WebM/GIF path entirely."
     },
     {
       "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
@@ -919,6 +1115,63 @@
       "summary": ""
     },
     {
+      "path": "docs/design/gate-runtime-orchestrator-playbook.md",
+      "assignedSha256": "d7849114216e41ba09839109a7048ed3b3da5bf582cbcdeee017dda9b0427120",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "d7849114216e41ba09839109a7048ed3b3da5bf582cbcdeee017dda9b0427120",
+      "verifiedCommit": "418f94aa49311d6fe983b6e668e76a55be2de4c6",
+      "verifiedAt": "2026-09-11",
+      "evidence": ["authored by the orchestrator from this session's owner rulings and read in full at 418f94aa4"],
+      "summary": "Step list for a fresh orchestrator session running #1584: start ritual, standing rules, phased work order at cap 3, brief skeleton, landing procedure, binding lessons.",
+      "claims": [
+        {
+          "claim": "The phased order (runtime lane alone, then backlog/rework/guard residuals, then resource kinds, then conversions, then splits and authority, then legacy deletion) reflects the owner rulings of 2026-09-11 and the dependency order in gate-runtime-standardization.md.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/design/gate-runtime-standardization.md",
+      "assignedSha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "6620b86fad86fe6192def73480ec3b7729b6d47bacd8e49a1343b2ef3b3b9beb",
+      "verifiedCommit": "418f94aa49311d6fe983b6e668e76a55be2de4c6",
+      "verifiedAt": "2026-09-11",
+      "claims": [
+        {
+          "claim": "The active gate-runtime design requires atomic descriptor cutover and preservation of world-program semantics, native observations, performance and regression proofs.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:65220530dc1349526154f964d00a93e53719142a"
+            }
+          ]
+        }
+      ],
+      "summary": "Active gate-runtime migration design with world-program carry-forward obligations; historical wave receipts do not establish current whole-corpus completion.",
+      "evidence": [
+        "Full document read by the orchestrator at the 2026-09-11 wake, before and after editing: resume step 3 now states that the gate:contract census measures descriptor shape only and that convertibility is traced against the shipped GateResourceRequest kinds (the unshipped kinds are #1930, this step's deliverable); the lane paragraph gains the family decision duty and the program-row tracking rule. Every other section re-read unchanged. Edit committed at dc252f52d7293aabf07f414a7438b1bf97b088d1; the receipt re-attests against that commit's bytes.",
+        "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
+        "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred.",
+        "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
+        "Added the measured native-snapshot startup guarantee after 72e0aa008: private worker preserves snapshot/error/root semantics while avoiding eager public-CLI imports; 108 regression cases pass at ordinary timeouts.",
+        "Full program and companion reads plus all 19 comments on #1584; resume instructions checked against integration dc5da295d and fresh gate:contract (264 modules, 145 legacy modules, 1015 findings). World closeout is complete; retained release/tooling reds remain evidence, not a fresh full-battery verdict. CSS discrepancies remain unadjudicated. This receipt attests the updated plan, not completed gate implementation."
+      ]
+    },
+    {
       "path": "docs/design/home-tile-promotion.md",
       "assignedSha256": "92154f2e5d0680b5683d07d0f377a9d25ba51f593e70fd30d670cb050f8cd129",
       "disposition": "needs-owner",
@@ -1097,6 +1350,85 @@
       "summary": "Characters landing mock (#864): the CONTENT pane at rest as a library — recently chatted, starred, just added, a fresh-install 'Meet the cast', the list-collapsed arm that owns the doors, and the phone sheet — drawn only from what character.list carries plus the two fields #865 wires; canvas source + renders + the fences for the build lane."
     },
     {
+      "path": "docs/design/mocks/config-collections/DESIGN.md",
+      "assignedSha256": "25158120dfa13e0c410ff115843cc1389791edd369a41a8359e282c854f897b8",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "25158120dfa13e0c410ff115843cc1389791edd369a41a8359e282c854f897b8",
+      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold (cb-config-list, #1725): v3 canvas redrawn from the live SectionsBand anatomy after side-eye + stickler review; owner word verbatim ('redesign approved it can be built to spec but must match the mockups'); the build (commit 2) landed against §5 with the named delta (sort row placement, commit 3) and the COLLECTION_WINDOW_MAX_HEIGHT re-bind fork recorded."
+      ],
+      "claims": [
+        {
+          "claim": "The owner approved v3 and the build must match the renders; commit 2 moved the member lists into CONTENT under the config-collection-landing host.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1725"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/config/components/config-collection-landing.tsx:1"
+            }
+          ]
+        }
+      ],
+      "summary": "Config collections in CONTENT mock (#1725, owner-approved 2026-09-05): eleven boards in both themes; §5 is the build obligations; the LIST keeps one band kind and the library (glance, control row, insights, rows) lives in CONTENT."
+    },
+    {
+      "path": "docs/design/mocks/config-collections/REVIEW-sideeye.md",
+      "assignedSha256": "c00f3a3558d3a7ae11c15e274640e6ea29acd2d8a0e887bb6b298ae833f203ec",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "c00f3a3558d3a7ae11c15e274640e6ea29acd2d8a0e887bb6b298ae833f203ec",
+      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold: frozen review evidence of v2; each finding is answered in v3 (one band kind, no row switch, one create home, rows sized to the pane, facts drawn once)."
+      ],
+      "claims": [
+        {
+          "claim": "Each v2 finding is answered in v3.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1725"
+            }
+          ]
+        }
+      ],
+      "summary": "Side-eye review of the #1725 mock v2 (UX/visual/a11y, both themes): build-with-changes — board 1 was a fiction of Settings, the regex switch was dead, create sat in two homes, rows were 67% void at pane width, facts were drawn twice; v3 answers each."
+    },
+    {
+      "path": "docs/design/mocks/config-collections/REVIEW-stickler.md",
+      "assignedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
+      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold: frozen review evidence of v2; its P0s are absent from v3 and its coupled-site list is what commit 2 followed (isPushingGroup split not flipped, clear()'s entry rung, the landing as the keyed host)."
+      ],
+      "claims": [
+        {
+          "claim": "The three P0s were removed in v3 and the coupled-site list drove commit 2.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1725"
+            }
+          ]
+        }
+      ],
+      "summary": "Stickler review of the #1725 mock v2 (IA vs law, back-stack, coupled sites): three P0 (regex on-row switch vs the 2026-08-19 fork; drag handles for a per-scope order; header Delete vs D121(D)) that v3 removed; carries the verified coupled-site list the build brief used."
+    },
+    {
       "path": "docs/design/mocks/config-revamp/DESIGN.md",
       "assignedSha256": "95994e76cdf0447be7a2550737d3c10b9299738d74bd56f0058b407bc0ee6098",
       "disposition": "current",
@@ -1180,6 +1512,191 @@
         "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
       ],
       "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/DESIGN.md",
+      "assignedSha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold (cb-regex-section): v2 redrawn from side-eye + stickler review; the server half (the effective read, the per-chat levers, #1733's room fan) landed with this fold; the section itself (step 4) is a fresh lane on the same worktree."
+      ],
+      "claims": [
+        {
+          "claim": "The owner approved v2 and the server half landed; the section build is step 4.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/substrate/regex-tier.ts:1"
+            }
+          ]
+        }
+      ],
+      "summary": "The room's Regex section (#1742), owner-approved 2026-09-05 ('regex approved' on v2): a This-chat DisclosureSection with a lever strip (master + per-tier switches incl. Everywhere), the effective prompt-side list in run order, the On-screen roster, the member view and the phone; §4 mints the vocabulary; five boards in both themes."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/PROPOSAL-ia.md",
+      "assignedSha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["Read in full by the orchestrator at the fold: one of three lens proposals the design synthesised; frozen as an input (status draft)."],
+      "claims": [
+        {
+          "claim": "An input proposal to the approved design.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            }
+          ]
+        }
+      ],
+      "summary": "Information-architecture proposal for the regex one-place (lane cb-regex-ia): where the section sits, what it lists, what it hides; an input to DESIGN.md."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/PROPOSAL-sys.md",
+      "assignedSha256": "4a0a9793b41c02ff9576c66923225a8944399120185e1035339e97adcaad681f",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "4a0a9793b41c02ff9576c66923225a8944399120185e1035339e97adcaad681f",
+      "verifiedCommit": "69bd33a23eb353d2122883f149fa8e08e7603641",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "69bd33a23eb353d2122883f149fa8e08e7603641 re-points the verb citation to chat/verbs/participants.ts after the #1010 rename (train-75 dangling-refs)",
+        "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
+        "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
+        "Read in full by the orchestrator at the fold: the systems lens; its tier/dedup model is what resolveRegexTiers implements."
+      ],
+      "claims": [
+        {
+          "claim": "The tier model landed as resolveRegexTiers.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/substrate/regex-tier.ts:1"
+            }
+          ]
+        }
+      ],
+      "summary": "Systems-lens proposal for the regex panel (lane cb-regex-sys): tiers, precedence, dedup at the winning tier, the room fan — the half that became the server read."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/PROPOSAL-ux.md",
+      "assignedSha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["Read in full by the orchestrator at the fold: the UX lens the design took its lever strip and phone sheet from."],
+      "claims": [
+        {
+          "claim": "An input proposal to the approved design.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            }
+          ]
+        }
+      ],
+      "summary": "Interaction-design proposal for the Regex section (lane cb-regex-ux): the lever strip, switch sizes, the member view, the phone sheet."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/REVIEW-sideeye.md",
+      "assignedSha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "Read in full by the orchestrator at the fold: frozen review evidence of v1; v2 answered its findings (lever strip incl. Everywhere, two legs/two rosters, readable off rows, shipped switch sizes)."
+      ],
+      "claims": [
+        {
+          "claim": "v1 findings answered in v2.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            }
+          ]
+        }
+      ],
+      "summary": "Side-eye review of the regex panel mock v1 (UX/visual/a11y, both themes) — the findings v2 was redrawn to answer."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/REVIEW-stickler.md",
+      "assignedSha256": "7584f5cb75f795055467e847073f52795afb9c3d591d0e0c172951ed8489bfb0",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "7584f5cb75f795055467e847073f52795afb9c3d591d0e0c172951ed8489bfb0",
+      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
+      "verifiedAt": "2026-09-06",
+      "evidence": [
+        "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
+        "Read in full by the orchestrator at the fold: frozen review evidence of v1; #1739 filed from it as a prerequisite/arm of step 4."
+      ],
+      "claims": [
+        {
+          "claim": "v1 findings answered in v2; #1739 filed.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            },
+            {
+              "kind": "issue",
+              "target": "#1739"
+            }
+          ]
+        }
+      ],
+      "summary": "Stickler review of the regex section mock v1 (IA vs law, coupled sites): the findings v2 answered, plus #1739 (chat-tier regex survives a host handoff but the new host cannot switch/detach it)."
+    },
+    {
+      "path": "docs/design/mocks/regex-section/STUDY.md",
+      "assignedSha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
+      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["Read in full by the orchestrator at the fold: the ST parity study behind DESIGN.md (the neo-parity oracle is a floor, never a golden)."],
+      "claims": [
+        {
+          "claim": "The parity floor the design honours.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1742"
+            }
+          ]
+        }
+      ],
+      "summary": "A study of SillyTavern's Regex panel and what the one-place panel must be — the parity floor the design was drawn against."
     },
     {
       "path": "docs/design/motion-audit-mobile-environment-977.md",
@@ -2007,500 +2524,6 @@
             }
           ]
         }
-      ]
-    },
-    {
-      "path": "docs/design/1308-browser-evidence-retention.md",
-      "assignedSha256": "e53e903b5d961c931114af4c32be8da53613e284ec04b82f0e200a830dcd3755",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "e53e903b5d961c931114af4c32be8da53613e284ec04b82f0e200a830dcd3755",
-      "verifiedCommit": "39445ca0874cb9869541bbe8084700c04124725a",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "re-attested at 39445ca08 (delta read: one line — the Proof section's suite path repointed from tests/tooling/_shared/ to tests/tooling/snap/lib/browser-retention.suite.int.test.ts, where the suite lives; no other change since 561ea5ec3)",
-        "docs/design/1308-browser-evidence-retention.md:1 read in full at 561ea5ec3: one `_shared/browser-evidence-ring.ts` owner provides bounded retention, monotonic cursors, range reads and JSON-safe receipts for every array-like browser channel (console/page-error/network/diagnostics), replacing per-channel ad hoc capacity accounting; ProbeContext/ProbeSession keep read-only views while the ring owners hold cursor/receipt truth."
-      ],
-      "claims": [
-        {
-          "claim": "One `_shared/browser-evidence-ring.ts` owner provides bounded retention, monotonic cursors, range reads and JSON-safe receipts for every array-like browser channel.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1308"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6"
-            }
-          ]
-        },
-        {
-          "claim": "Network active/pending records may temporarily exceed the completed cap, emitting an explicit incomplete `protected-overflow` receipt rather than a false zero-loss claim.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1308"
-            }
-          ]
-        }
-      ],
-      "summary": "Ruling for the shared browser-evidence retention ring: bounded caps, monotonic cursors, explicit eviction/overflow receipts, and a migration off retained-array-length accounting."
-    },
-    {
-      "path": "docs/design/1310-snap-filmstrip.md",
-      "assignedSha256": "9fce97e2c7d7a717e96a68621afbb4dbc12fa40f2271f7695b0af1bf31827195",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "9fce97e2c7d7a717e96a68621afbb4dbc12fa40f2271f7695b0af1bf31827195",
-      "verifiedCommit": "85231a6fd150750813ba0da7b724830427cdc856",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/design/1310-snap-filmstrip.md:1 read in full at 561ea5ec3: `pnpm snap ... --filmstrip` is the one transition-capture spelling (CDP screencast contact sheet); `pnpm record` retires to a loud recipe redirect and its parser/driver/WebM/GIF path is deleted.",
-        "docs/design/1310-snap-filmstrip.md:1 re-attested at 85231a6fd by the orchestrator after reading the #1315 fold's full diff of this document: retired spellings (pnpm design-audit/record/motion-audit/perf-meter, css-resolve, ALIAS_REFUSALS rows) replaced by `pnpm snap … --design-audit` / superseded-by-ruling notes; dated transcripts kept verbatim as receipts."
-      ],
-      "claims": [
-        {
-          "claim": "`--filmstrip` captures the exact Playwright page already being driven via `page.context().newCDPSession(page)` + `Page.startScreencast`, and a static/fake-CDP run producing no frame is an instrument refusal, never a clean empty contact sheet.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1310"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6"
-            }
-          ]
-        },
-        {
-          "claim": "`pnpm record <argv>` exits misuse and prints one exact `pnpm snap ... --filmstrip` recipe; no alias or quiet delegation.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1310"
-            }
-          ]
-        }
-      ],
-      "summary": "Snap filmstrip design: one bounded PNG contact-sheet arm over the existing run-arm lifecycle (new `afterSettle` seam), replacing Record's WebM/GIF path entirely."
-    },
-    {
-      "path": "docs/design/1208-heap-memory-arm.md",
-      "assignedSha256": "cf5238312b9025931a7caa6033df9a8bcfc2dd698082e4e4708b2f387daa65ef",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "cf5238312b9025931a7caa6033df9a8bcfc2dd698082e4e4708b2f387daa65ef",
-      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/design/1208-heap-memory-arm.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed at 561ea5ec3): Snap's `--heap`/`--heap-compare`/`--heap-retainers` page arm captures V8 heap snapshots via CDP HeapProfiler and parses them with the official `chrome-devtools-mcp@1.8.0` DevTools engine, never a home-grown dominator algorithm."
-      ],
-      "claims": [
-        {
-          "claim": "Heap capture/compare/retainer analysis reuses the exact-pinned `chrome-devtools-mcp@1.8.0` `HeapSnapshotManager` DevTools parser as a browser-free tooling-only dependency; no MCP server, process, transport or browser launch is imported or started.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1300"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:2829babdae6ff1c10ac59b53d74d492123bf7fd0"
-            }
-          ]
-        },
-        {
-          "claim": "The implementation receipt records the exact Project #1300 DoD suite (`tests/tooling/snap/ops/arms/heap.suite.int.test.ts`, 1 file/4 tests) and a fresh structure run at 254/254 gates with zero heap-attributable findings.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/tooling/snap/ops/arms/heap.suite.int.test.ts:1"
-            },
-            {
-              "kind": "issue",
-              "target": "#1300"
-            }
-          ]
-        }
-      ],
-      "summary": "Heap/browser-memory Snap arm design and implementation receipt: --heap/--heap-compare/--heap-retainers over the official DevTools heap-snapshot engine, with a WeakMap label table and no universal memory-size gate."
-    },
-    {
-      "path": "docs/design/1208-request-result-truth-repair.md",
-      "assignedSha256": "819b7e348d6dcb62d7061015484a621a44d77c1e70eb4b48864f91e129aaf5fd",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "819b7e348d6dcb62d7061015484a621a44d77c1e70eb4b48864f91e129aaf5fd",
-      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/design/1208-request-result-truth-repair.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed 2026-09-03): Snap owns one `RequestRing` per `ProbeSession` retaining up to 4,096 ordered request rows with lifetime-monotonic sequence numbers; a run arm never installs listeners, it only checkpoints/drains/redacts."
-      ],
-      "claims": [
-        {
-          "claim": "The request ring's default window is fixed before the report reads it so requests arriving later cannot move the answer, and body retention is bounded (256 KiB per JSON body, 32 MiB aggregate) and reason-coded on every non-retention outcome.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1292"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:2829babdae6ff1c10ac59b53d74d492123bf7fd0"
-            }
-          ]
-        },
-        {
-          "claim": "The implementation receipt shows the request/session daemon suite passing 15/15 and the focused ring/result set passing 20/20 after the ring was repaired so a plain read never awaits metadata/body work.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1292"
-            }
-          ]
-        }
-      ],
-      "summary": "Request-ring and RESULT-truth repair: one lifetime-owned RequestRing per session replacing duplicate per-call recorders, plus a normalized verdict-pairs door so RESULT text and the structured record cannot disagree."
-    },
-    {
-      "path": "docs/design/1208-run-index-typed-results.md",
-      "assignedSha256": "92028c805d7ef85b3a34e748e226aef3afb8c7398fb29221c77a07f465e01373",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "92028c805d7ef85b3a34e748e226aef3afb8c7398fb29221c77a07f465e01373",
-      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/design/1208-run-index-typed-results.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed 2026-09-04): `resultPairs` stays a byte-stable printable transcript only; a separate versioned `results` population is produced from typed arm-owned fact records validated through a total `ARM_FACT_DATA_SCHEMAS` Zod record, per the owner overrule against a generic `Record<string, JsonValue>` contract."
-      ],
-      "claims": [
-        {
-          "claim": "Every current artifact declaration/fact record uses one branded `scope-v1` contract (context/page/window, each exact | aggregate | not-applicable) with no null axis, while legacy v1 indices are normalized only by the browser-free reader into an explicit `legacy` shape.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1301"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:2829babdae6ff1c10ac59b53d74d492123bf7fd0"
-            }
-          ]
-        },
-        {
-          "claim": "Typed facts never change the arm's exit; pass/fail/refusal/withhold and the final RESULT transcript remain exactly what the producer verdict door returned.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1301"
-            }
-          ]
-        }
-      ],
-      "summary": "Typed run-results and artifact-scope design: a total Zod arm-fact schema map plus branded context/page/window scope, replacing string-pair RESULT parsing as the structured-evidence trust boundary."
-    },
-    {
-      "path": "docs/design/mocks/config-collections/DESIGN.md",
-      "assignedSha256": "25158120dfa13e0c410ff115843cc1389791edd369a41a8359e282c854f897b8",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "25158120dfa13e0c410ff115843cc1389791edd369a41a8359e282c854f897b8",
-      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
-      "verifiedAt": "2026-09-05",
-      "evidence": [
-        "Read in full by the orchestrator at the fold (cb-config-list, #1725): v3 canvas redrawn from the live SectionsBand anatomy after side-eye + stickler review; owner word verbatim ('redesign approved it can be built to spec but must match the mockups'); the build (commit 2) landed against §5 with the named delta (sort row placement, commit 3) and the COLLECTION_WINDOW_MAX_HEIGHT re-bind fork recorded."
-      ],
-      "claims": [
-        {
-          "claim": "The owner approved v3 and the build must match the renders; commit 2 moved the member lists into CONTENT under the config-collection-landing host.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1725"
-            },
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/config/components/config-collection-landing.tsx:1"
-            }
-          ]
-        }
-      ],
-      "summary": "Config collections in CONTENT mock (#1725, owner-approved 2026-09-05): eleven boards in both themes; §5 is the build obligations; the LIST keeps one band kind and the library (glance, control row, insights, rows) lives in CONTENT."
-    },
-    {
-      "path": "docs/design/mocks/config-collections/REVIEW-stickler.md",
-      "assignedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
-      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
-      "verifiedAt": "2026-09-05",
-      "evidence": [
-        "Read in full by the orchestrator at the fold: frozen review evidence of v2; its P0s are absent from v3 and its coupled-site list is what commit 2 followed (isPushingGroup split not flipped, clear()'s entry rung, the landing as the keyed host)."
-      ],
-      "claims": [
-        {
-          "claim": "The three P0s were removed in v3 and the coupled-site list drove commit 2.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1725"
-            }
-          ]
-        }
-      ],
-      "summary": "Stickler review of the #1725 mock v2 (IA vs law, back-stack, coupled sites): three P0 (regex on-row switch vs the 2026-08-19 fork; drag handles for a per-scope order; header Delete vs D121(D)) that v3 removed; carries the verified coupled-site list the build brief used."
-    },
-    {
-      "path": "docs/design/mocks/config-collections/REVIEW-sideeye.md",
-      "assignedSha256": "c00f3a3558d3a7ae11c15e274640e6ea29acd2d8a0e887bb6b298ae833f203ec",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "c00f3a3558d3a7ae11c15e274640e6ea29acd2d8a0e887bb6b298ae833f203ec",
-      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
-      "verifiedAt": "2026-09-05",
-      "evidence": [
-        "Read in full by the orchestrator at the fold: frozen review evidence of v2; each finding is answered in v3 (one band kind, no row switch, one create home, rows sized to the pane, facts drawn once)."
-      ],
-      "claims": [
-        {
-          "claim": "Each v2 finding is answered in v3.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1725"
-            }
-          ]
-        }
-      ],
-      "summary": "Side-eye review of the #1725 mock v2 (UX/visual/a11y, both themes): build-with-changes — board 1 was a fiction of Settings, the regex switch was dead, create sat in two homes, rows were 67% void at pane width, facts were drawn twice; v3 answers each."
-    },
-    {
-      "path": "docs/design/mocks/regex-section/DESIGN.md",
-      "assignedSha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
-      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
-      "verifiedAt": "2026-09-05",
-      "evidence": [
-        "Read in full by the orchestrator at the fold (cb-regex-section): v2 redrawn from side-eye + stickler review; the server half (the effective read, the per-chat levers, #1733's room fan) landed with this fold; the section itself (step 4) is a fresh lane on the same worktree."
-      ],
-      "claims": [
-        {
-          "claim": "The owner approved v2 and the server half landed; the section build is step 4.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1742"
-            },
-            {
-              "kind": "code",
-              "target": "packages/server/src/domain/chat/substrate/regex-tier.ts:1"
-            }
-          ]
-        }
-      ],
-      "summary": "The room's Regex section (#1742), owner-approved 2026-09-05 ('regex approved' on v2): a This-chat DisclosureSection with a lever strip (master + per-tier switches incl. Everywhere), the effective prompt-side list in run order, the On-screen roster, the member view and the phone; §4 mints the vocabulary; five boards in both themes."
-    },
-    {
-      "path": "docs/design/mocks/regex-section/PROPOSAL-ia.md",
-      "assignedSha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
-      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
-      "verifiedAt": "2026-09-05",
-      "evidence": ["Read in full by the orchestrator at the fold: one of three lens proposals the design synthesised; frozen as an input (status draft)."],
-      "claims": [
-        {
-          "claim": "An input proposal to the approved design.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1742"
-            }
-          ]
-        }
-      ],
-      "summary": "Information-architecture proposal for the regex one-place (lane cb-regex-ia): where the section sits, what it lists, what it hides; an input to DESIGN.md."
-    },
-    {
-      "path": "docs/design/mocks/regex-section/PROPOSAL-sys.md",
-      "assignedSha256": "4a0a9793b41c02ff9576c66923225a8944399120185e1035339e97adcaad681f",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "4a0a9793b41c02ff9576c66923225a8944399120185e1035339e97adcaad681f",
-      "verifiedCommit": "69bd33a23eb353d2122883f149fa8e08e7603641",
-      "verifiedAt": "2026-09-05",
-      "evidence": [
-        "69bd33a23eb353d2122883f149fa8e08e7603641 re-points the verb citation to chat/verbs/participants.ts after the #1010 rename (train-75 dangling-refs)",
-        "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
-        "re-attested after the dangling-refs fix (the two queries.ts line ranges each carry their path) on top of fb912327b",
-        "Read in full by the orchestrator at the fold: the systems lens; its tier/dedup model is what resolveRegexTiers implements."
-      ],
-      "claims": [
-        {
-          "claim": "The tier model landed as resolveRegexTiers.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1742"
-            },
-            {
-              "kind": "code",
-              "target": "packages/server/src/domain/chat/substrate/regex-tier.ts:1"
-            }
-          ]
-        }
-      ],
-      "summary": "Systems-lens proposal for the regex panel (lane cb-regex-sys): tiers, precedence, dedup at the winning tier, the room fan — the half that became the server read."
-    },
-    {
-      "path": "docs/design/mocks/regex-section/PROPOSAL-ux.md",
-      "assignedSha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
-      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
-      "verifiedAt": "2026-09-05",
-      "evidence": ["Read in full by the orchestrator at the fold: the UX lens the design took its lever strip and phone sheet from."],
-      "claims": [
-        {
-          "claim": "An input proposal to the approved design.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1742"
-            }
-          ]
-        }
-      ],
-      "summary": "Interaction-design proposal for the Regex section (lane cb-regex-ux): the lever strip, switch sizes, the member view, the phone sheet."
-    },
-    {
-      "path": "docs/design/mocks/regex-section/REVIEW-sideeye.md",
-      "assignedSha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
-      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
-      "verifiedAt": "2026-09-05",
-      "evidence": [
-        "Read in full by the orchestrator at the fold: frozen review evidence of v1; v2 answered its findings (lever strip incl. Everywhere, two legs/two rosters, readable off rows, shipped switch sizes)."
-      ],
-      "claims": [
-        {
-          "claim": "v1 findings answered in v2.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1742"
-            }
-          ]
-        }
-      ],
-      "summary": "Side-eye review of the regex panel mock v1 (UX/visual/a11y, both themes) — the findings v2 was redrawn to answer."
-    },
-    {
-      "path": "docs/design/mocks/regex-section/REVIEW-stickler.md",
-      "assignedSha256": "7584f5cb75f795055467e847073f52795afb9c3d591d0e0c172951ed8489bfb0",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "7584f5cb75f795055467e847073f52795afb9c3d591d0e0c172951ed8489bfb0",
-      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-      "verifiedAt": "2026-09-06",
-      "evidence": [
-        "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
-        "Read in full by the orchestrator at the fold: frozen review evidence of v1; #1739 filed from it as a prerequisite/arm of step 4."
-      ],
-      "claims": [
-        {
-          "claim": "v1 findings answered in v2; #1739 filed.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1742"
-            },
-            {
-              "kind": "issue",
-              "target": "#1739"
-            }
-          ]
-        }
-      ],
-      "summary": "Stickler review of the regex section mock v1 (IA vs law, coupled sites): the findings v2 answered, plus #1739 (chat-tier regex survives a host handoff but the new host cannot switch/detach it)."
-    },
-    {
-      "path": "docs/design/mocks/regex-section/STUDY.md",
-      "assignedSha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
-      "verifiedCommit": "ffd7d9a33ed771620058dfd60ae4b6f8a28d1869",
-      "verifiedAt": "2026-09-05",
-      "evidence": ["Read in full by the orchestrator at the fold: the ST parity study behind DESIGN.md (the neo-parity oracle is a floor, never a golden)."],
-      "claims": [
-        {
-          "claim": "The parity floor the design honours.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1742"
-            }
-          ]
-        }
-      ],
-      "summary": "A study of SillyTavern's Regex panel and what the one-place panel must be — the parity floor the design was drawn against."
-    },
-    {
-      "path": "docs/design/gate-runtime-standardization.md",
-      "assignedSha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "eb874d418268f58230c525ed027edfae5b9942f4001ef393007ca2c18c108ccd",
-      "verifiedCommit": "11e2ef32c9983fc68551b7e9232d9b333c142f92",
-      "verifiedAt": "2026-09-11",
-      "claims": [
-        {
-          "claim": "The active gate-runtime design requires atomic descriptor cutover and preservation of world-program semantics, native observations, performance and regression proofs.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1584"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:65220530dc1349526154f964d00a93e53719142a"
-            }
-          ]
-        }
-      ],
-      "summary": "Active gate-runtime migration design with world-program carry-forward obligations; historical wave receipts do not establish current whole-corpus completion.",
-      "evidence": [
-        "Full document read by the orchestrator at the 2026-09-11 wake, before and after editing: resume step 3 now states that the gate:contract census measures descriptor shape only and that convertibility is traced against the shipped GateResourceRequest kinds (the unshipped kinds are #1930, this step's deliverable); the lane paragraph gains the family decision duty and the program-row tracking rule. Every other section re-read unchanged. Edit committed at dc252f52d7293aabf07f414a7438b1bf97b088d1; the receipt re-attests against that commit's bytes.",
-        "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
-        "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred.",
-        "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
-        "Added the measured native-snapshot startup guarantee after 72e0aa008: private worker preserves snapshot/error/root semantics while avoiding eager public-CLI imports; 108 regression cases pass at ordinary timeouts.",
-        "Full program and companion reads plus all 19 comments on #1584; resume instructions checked against integration dc5da295d and fresh gate:contract (264 modules, 145 legacy modules, 1015 findings). World closeout is complete; retained release/tooling reds remain evidence, not a fresh full-battery verdict. CSS discrepancies remain unadjudicated. This receipt attests the updated plan, not completed gate implementation."
       ]
     }
   ]

@@ -12656,12 +12656,54 @@
       "receiptCurrent": false
     },
     {
+      "path": "docs/design/gate-runtime-orchestrator-playbook.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 168,
+      "bytes": 13643,
+      "sha256": "d7849114216e41ba09839109a7048ed3b3da5bf582cbcdeee017dda9b0427120",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-11"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/gate-runtime-orchestrator-playbook.md",
+        "assignedSha256": "d7849114216e41ba09839109a7048ed3b3da5bf582cbcdeee017dda9b0427120",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "d7849114216e41ba09839109a7048ed3b3da5bf582cbcdeee017dda9b0427120",
+        "verifiedCommit": "418f94aa49311d6fe983b6e668e76a55be2de4c6",
+        "verifiedAt": "2026-09-11",
+        "evidence": ["authored by the orchestrator from this session's owner rulings and read in full at 418f94aa4"],
+        "summary": "Step list for a fresh orchestrator session running #1584: start ritual, standing rules, phased work order at cap 3, brief skeleton, landing procedure, binding lessons.",
+        "claims": [
+          {
+            "claim": "The phased order (runtime lane alone, then backlog/rework/guard residuals, then resource kinds, then conversions, then splits and authority, then legacy deletion) reflects the owner rulings of 2026-09-11 and the dependency order in gate-runtime-standardization.md.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 442,
-      "bytes": 42222,
-      "sha256": "eb874d418268f58230c525ed027edfae5b9942f4001ef393007ca2c18c108ccd",
+      "lines": 447,
+      "bytes": 42772,
+      "sha256": "6620b86fad86fe6192def73480ec3b7729b6d47bacd8e49a1343b2ef3b3b9beb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12678,8 +12720,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "eb874d418268f58230c525ed027edfae5b9942f4001ef393007ca2c18c108ccd",
-        "verifiedCommit": "11e2ef32c9983fc68551b7e9232d9b333c142f92",
+        "verifiedSha256": "6620b86fad86fe6192def73480ec3b7729b6d47bacd8e49a1343b2ef3b3b9beb",
+        "verifiedCommit": "418f94aa49311d6fe983b6e668e76a55be2de4c6",
         "verifiedAt": "2026-09-11",
         "claims": [
           {
