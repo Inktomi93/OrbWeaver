@@ -40,11 +40,38 @@
 // `search` and `tool-use` carry NO row because none of them writes a durable row (search's index is
 // in-memory and rebuilt from canon; tool-use registers into the process registry at plugin activation), and
 // adding a courtesy `none` row for any of them would be ORPHAN-red — which is the ORPHAN arm doing its job.
+// FAMILY `drizzle-schema` — the shared subject reader is `lib/schema-fact.ts`'s `drizzleSchemaFact`, the
+// same provider `ownerid-registry`, `schema-branding` and `lifecycle-portability` consume. The SEATED axis
+// derives its FK graph from it; the PLANE axis's write/emit derivation is this policy's own intent over the
+// nodes the one walk delivers, and no sibling asks "does this domain persist", so it names no second reader.
+//
+// WHAT THE CONVERSION REPLACED. Both derivations were TEXT SCANS over `blankTsComments(sf)` — a
+// `.insert(`/`.update(`/`.delete(`/`.batch(` regex plus an `@orb/db` substring for the plane axis, and a
+// `.references(() => <name>.` regex over one declaration's own text for the seating axis. They are now a
+// CallExpression visitor (the write and emit call sites, which double as the findings' anchors), an
+// ImportDeclaration/ExportDeclaration read of the module SPECIFIER, and the fact's resolved
+// `column.foreignKey.parent`. A visitor cannot see a comment at all, so the property `blankTsComments`
+// was defending is structural now and `lib/comment-spans.ts` is gone from this module — its proof row
+// (COMMENT POSTURE) is carried unchanged as the pin on that claim. The FK half also stops resolving by
+// SPELLING: an aliased table import was invisible to the regex and is not to the fact.
+//
+// POPULATION PORT: byte-identical. The legacy `scanRoot` was
+// `p.includes("packages/server/src/domain/") || p.includes("packages/db/src/schema/")`; the final population
+// is the same two trees as end-anchored `under` globs. Compiled both spellings over
+// `git ls-files '*.ts' '*.tsx'` (7,394 candidates): 1,178 admitted by each, 0 legacy-only, 0 final-only,
+// with four planted controls (a domain file ✓, a schema file ✓, a router file ✗, `packages/db/src/client.ts` ✗).
+//
+// MARKER CENSUS: zero live `@orb-gate-ignore domain-freshness-plane` markers on the tree (0 markers / 0
+// files / 0 trailing-position sites, measured with a positive control), so there is no translation to do
+// and nothing was invented for an unmarked finding.
 import type { RoomEntityKind } from "@orb/contracts/chat";
-import type { SourceFile } from "ts-morph";
-import type { ExemptionRow, GateDescriptor } from "../contract/gate.ts";
-import { blankTsComments } from "../lib/comment-spans.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import type { ExemptionRow } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { SchemaColumnIdentity, SchemaModel } from "../contract/schema-fact.ts";
+import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 /** Where a domain's writes become visible to a client. `none` is the cited no-announcement verdict; every
  *  other value names the plane and, for a plane whose PRODUCER lives in another domain, says whose. */
@@ -288,10 +315,12 @@ const ROSTER_ANCHOR = "packages/db/src/schema/index.ts";
  *  a guard for this arm and would report every table-bearing mini-project as having lost the seating. */
 const SEATING_STALE_ANCHOR = "packages/db/src/schema/relations.ts";
 const DB_IMPORT = "@orb/db";
-const WRITE_RE = /\.(?:insert|update|delete|batch)\s*\(/u;
-/** Every injected-emit spelling a domain announces through (survey §1.1). `emit(` alone covers the chat
+/** The drizzle write verbs. Read off the CALLEE, so the receiver is deliberately unconstrained — the
+ *  `@orb/db` import in the same file is the half that keeps a `Map.delete(` out of the derivation. */
+const WRITE_METHODS: ReadonlySet<string> = new Set(["insert", "update", "delete", "batch"]);
+/** Every injected-emit spelling a domain announces through (survey §1.1). `emit` alone covers the chat
  *  bus's `bus.emit` and the domain-event `ctx.emit`. */
-const EMIT_RE = /\b(?:emitUserEvent|emitChatEvent|emitWiEvent|emitBus|emit)\s*\(/u;
+const EMIT_NAMES: ReadonlySet<string> = new Set(["emitUserEvent", "emitChatEvent", "emitWiEvent", "emitBus", "emit"]);
 
 // Each arm's text is a SUFFIX so the finding reads `"<domain>" <verdict> … <pointer>` — `diagnostic-legibility`
 // requires the message to END with a code-home, which a `prefix + name` composition cannot do.
@@ -326,12 +355,7 @@ const SEATING_BLIND_MESSAGE =
   "moved), so SEATED-red is a placebo (GATE-AUTHORING.md §4.6). Re-point it: " +
   "tooling/src/verify/gates/domain-freshness-plane.ts";
 
-const SCHEMA_PREFIX = "packages/db/src/schema/";
 const SCHEMA_FILE_RE = /packages\/db\/src\/schema\/(?<name>[^/]+)\.ts$/u;
-/** `export const X = sqliteTable(` — the declaration the seating derivation walks. */
-const SQLITE_TABLE_RE = /^sqliteTable\s*\(/u;
-/** Every FK target inside one table declaration: `.references(() => <table>.<column>`. */
-const REFERENCES_RE = /\.references\(\s*\(\)\s*=>\s*(\w+)\./gu;
 /** The table whose FK makes a table CHAT-ANCHORED. */
 const CHATS_TABLE = "chats";
 /** The room's own producer — a chat-anchored table pointing at chat's OWN rows is not "seating" anything. */
@@ -359,50 +383,35 @@ function domainOf(rel: string): string | undefined {
   return rel.slice(rel.indexOf(DOMAIN_PREFIX) + DOMAIN_PREFIX.length).split("/")[0];
 }
 
+/** `packages/db/src/schema/chat.ts` → `chat` — the producer-names-the-schema attribution the seating arm
+ *  and `own-tables-only`'s SCHEMA_OWNERS both use. */
+function schemaNameOf(sourcePath: string): string | undefined {
+  const match = SCHEMA_FILE_RE.exec(sourcePath);
+  return match?.groups?.["name"];
+}
+
+/** What one domain's sources proved. The two ANCHORS are the nodes the findings point at: the legacy
+ *  descriptor reported a DIRECTORY path (`packages/server/src/domain/<name>/`), which is not a file and is
+ *  therefore not an identity the final contract can anchor on — the write and emit call sites are. */
 interface DomainFacts {
   mutates: boolean;
   emits: boolean;
+  writeAnchor: MorphNode | undefined;
+  emitAnchor: MorphNode | undefined;
 }
 
-/** The `sqliteTable` declarations a schema source exports, each with the tables its columns FK. Text-level
- *  on the declaration's own initializer (never the whole file), so a `references(() => chats.id)` in a
- *  neighbouring table cannot bleed into this one's answer. */
-function tablesIn(sf: SourceFile): Map<string, ReadonlySet<string>> {
-  const out = new Map<string, ReadonlySet<string>>();
-  for (const stmt of sf.getVariableStatements()) {
-    if (!stmt.isExported()) {
-      continue;
-    }
-    for (const decl of stmt.getDeclarations()) {
-      const init = decl.getInitializer()?.getText() ?? "";
-      if (!SQLITE_TABLE_RE.test(init)) {
-        continue;
-      }
-      out.set(decl.getName(), new Set([...init.matchAll(REFERENCES_RE)].map((m) => m[1] ?? "")));
-    }
-  }
-  return out;
+/** What one FILE proved, folded into its domain in `evaluate`. Per-file because the derivation's
+ *  load-bearing half is a CONJUNCTION inside one file: `@orb/db` is imported HERE and a write call happens
+ *  HERE. Without it `domain/search/substrate/field-index.ts`'s MiniSearch and a `Map.delete` both read as
+ *  persistence, which is how a derivation quietly starts lying. */
+interface FileFacts {
+  readonly domain: string;
+  dbImport: boolean;
+  write: MorphNode | undefined;
+  emit: MorphNode | undefined;
 }
 
-/** `packages/db/src/schema/*.ts` indexed once: table const → its schema file, and table const → the tables
- *  its columns FK. Two maps rather than one record so the seating walk reads like the question it asks. */
-function indexSchema(files: readonly SourceFile[]): { fileOf: Map<string, string>; refsOf: Map<string, ReadonlySet<string>> } {
-  const fileOf = new Map<string, string>();
-  const refsOf = new Map<string, ReadonlySet<string>>();
-  for (const sf of files) {
-    const schema = SCHEMA_FILE_RE.exec(sf.getFilePath())?.groups?.["name"];
-    if (schema === undefined) {
-      continue;
-    }
-    for (const [table, refs] of tablesIn(sf)) {
-      fileOf.set(table, schema);
-      refsOf.set(table, refs);
-    }
-  }
-  return { fileOf, refsOf };
-}
-
-/** What the SEATED arm derives, in one pass over `packages/db/src/schema/*.ts`. */
+/** What the SEATED arm derives from the shared Drizzle fact. */
 interface SeatingFacts {
   /** Domains whose tables a CHAT-ANCHORED table points at — the room holds a pointer to their rows. */
   readonly seated: ReadonlySet<string>;
@@ -410,59 +419,6 @@ interface SeatingFacts {
   readonly unattributed: ReadonlySet<string>;
   /** Did the derivation find ANY chat-anchored table at all? (`false` on a real tree ⇒ blindness.) */
   readonly derived: boolean;
-}
-
-/** SEATING, derived from the schema and never hand-listed: a table is CHAT-ANCHORED when it FKs `chats.id`;
- *  every OTHER table such a table FKs is SEATED, and its owner is the domain named by its schema file
- *  (producer-names-the-schema, the same mapping `own-tables-only` derives). `chat`'s own tables are skipped:
- *  the room holding pointers to its own rows is the chat bus's job, not a second audience plane. */
-function deriveSeating(files: readonly SourceFile[], domains: ReadonlySet<string>): SeatingFacts {
-  const { fileOf, refsOf } = indexSchema(files);
-  const seated = new Set<string>();
-  const unattributed = new Set<string>();
-  let derived = false;
-  for (const [table, refs] of refsOf) {
-    if (!refs.has(CHATS_TABLE) && table !== CHATS_TABLE) {
-      continue;
-    }
-    derived = true;
-    for (const target of refs) {
-      const schema = fileOf.get(target);
-      if (target === CHATS_TABLE || schema === undefined || schema === ROOM_DOMAIN) {
-        continue;
-      }
-      if (domains.has(schema)) {
-        seated.add(schema);
-      } else {
-        unattributed.add(schema);
-      }
-    }
-  }
-  return { seated, unattributed, derived };
-}
-
-function deriveDomains(files: readonly SourceFile[]): Map<string, DomainFacts> {
-  const out = new Map<string, DomainFacts>();
-  for (const sf of files) {
-    const name = domainOf(sf.getFilePath());
-    if (name === undefined || name === "") {
-      continue;
-    }
-    // The ONE comment blanker (tooling/src/verify/lib/comment-spans.ts), not a hand-rolled regex: the old
-    // `//[^\n]*` strip also ate everything after a `//` inside a STRING — a `https://` URL blanked the
-    // rest of its line, so a `.insert(` behind one was invisible and the domain read as non-mutating.
-    const text = blankTsComments(sf);
-    const facts = out.get(name) ?? { mutates: false, emits: false };
-    // The `@orb/db` half is what keeps a MiniSearch `.delete(` or a `Map.delete(` out of the derivation.
-    if (text.includes(DB_IMPORT) && WRITE_RE.test(text)) {
-      facts.mutates = true;
-    }
-    if (EMIT_RE.test(text)) {
-      facts.emits = true;
-    }
-    out.set(name, facts);
-  }
-  return out;
 }
 
 /** The room-reach verdict for one domain: what the SCHEMA says vs what the ROW claims. Both directions are
@@ -475,238 +431,428 @@ function seatingVerdict(isSeated: boolean, lane: RoomReach["lane"]): string | un
   return lane === "none" ? undefined : UNSEATED_CLAIM_SUFFIX;
 }
 
-/** THE ROOM-REACH AXIS, all four arms. Split out of `run` because it is a second, independent reconcile —
- *  the plane axis asks "does the OWNER learn", this one asks "do the room's OTHER humans".
+/** SEATING, derived from the shared Drizzle fact and never hand-listed: a table is CHAT-ANCHORED when it
+ *  FKs `chats`; every OTHER table such a table FKs is SEATED, and its owner is the domain named by its
+ *  schema file (producer-names-the-schema). `chat`'s own tables are skipped: the room holding pointers to
+ *  its own rows is the chat bus's job, not a second audience plane.
  *
- *  Whole-tree, so it is guarded on the ROSTER anchor exactly like the ORPHAN arm: a conformance mini-project
- *  plants a handful of files, and judging seating there would "prove" every junction had vanished. The
- *  examples that DO want this axis plant the anchor themselves. */
-function reportRoomReach(ctx: Parameters<NonNullable<GateDescriptor["run"]>>[0], mutating: ReadonlySet<string>): void {
-  if (!fileLoaded(ctx, ROSTER_ANCHOR)) {
-    return;
+ *  THE FK GRAPH IS THE FACT'S, NOT A REGEX'S. The legacy arm matched `.references(() => <name>.` inside one
+ *  declaration's own TEXT, so it resolved an FK target by SPELLING — a table imported under an alias, or a
+ *  column builder composed anywhere but inline, was invisible, and a `references(` inside a comment or a
+ *  string counted. `column.foreignKey.parent` is the resolved parent COLUMN, which carries its table's
+ *  identity and source path. */
+function deriveSeating(schema: SchemaModel, mutating: ReadonlySet<string>): SeatingFacts {
+  const seated = new Set<string>();
+  const unattributed = new Set<string>();
+  let derived = false;
+  const parentsOf = (table: SchemaModel["tables"][number]): readonly SchemaColumnIdentity[] =>
+    table.columns.flatMap((column) => (column.foreignKey?.parent.kind === "population-column" ? [column.foreignKey.parent.column] : []));
+  for (const table of schema.tables) {
+    const parents = parentsOf(table);
+    if (!(table.identity.declarationName === CHATS_TABLE || parents.some((parent) => parent.table.declarationName === CHATS_TABLE))) {
+      continue;
+    }
+    derived = true;
+    for (const parent of parents) {
+      const name = schemaNameOf(parent.table.sourcePath);
+      if (parent.table.declarationName === CHATS_TABLE || name === undefined || name === ROOM_DOMAIN) {
+        continue;
+      }
+      if (mutating.has(name)) {
+        seated.add(name);
+      } else {
+        unattributed.add(name);
+      }
+    }
   }
-  const files = ctx.project.getSourceFiles().filter((f) => f.getFilePath().includes(SCHEMA_PREFIX));
-  const seating = deriveSeating(files, mutating);
-  const report = (message: string): void => {
-    ctx.report({ file: GATE_SELF, line: 1, column: 0, message });
-  };
+  return { seated, unattributed, derived };
+}
+
+/** The two report shapes the arms share, so each arm is a pure function of its own facts. */
+type NodeReport = (node: MorphNode, message: string) => void;
+type FileReport = (path: string, token: string, message: string) => void;
+
+/** Fold the per-FILE facts into per-DOMAIN ones. The conjunction is per file on purpose (see FileFacts);
+ *  `emits` is per DOMAIN, because the plane a domain announces on is a property of the domain. */
+function foldDomains(files: Iterable<FileFacts>): Map<string, DomainFacts> {
+  const derived = new Map<string, DomainFacts>();
+  for (const file of files) {
+    const domain = derived.get(file.domain) ?? { mutates: false, emits: false, writeAnchor: undefined, emitAnchor: undefined };
+    if (file.dbImport && file.write !== undefined) {
+      domain.mutates = true;
+      domain.writeAnchor ??= file.write;
+    }
+    if (file.emit !== undefined) {
+      domain.emits = true;
+      domain.emitAnchor ??= file.emit;
+    }
+    derived.set(file.domain, domain);
+  }
+  return derived;
+}
+
+/** THE PLANE AXIS: a mutating domain has a row, and a `none` row that emits is a lie. */
+function reportPlaneAxis(mutating: ReadonlyMap<string, DomainFacts>, report: NodeReport): void {
+  for (const [name, facts] of mutating) {
+    const row = DOMAIN_FRESHNESS[name];
+    if (row === undefined) {
+      report(facts.writeAnchor as MorphNode, `"${name}" ${MISSING_SUFFIX} ${GATE_SELF}`);
+      continue;
+    }
+    if (row.plane === "none" && facts.emits) {
+      report(facts.emitAnchor ?? (facts.writeAnchor as MorphNode), `"${name}" ${STALE_SUFFIX} ${GATE_SELF}`);
+    }
+  }
+}
+
+/** THE ROOM-REACH AXIS, all four arms. Separate from the plane axis because it is a second, independent
+ *  reconcile — the plane axis asks "does the OWNER learn", this one asks "do the room's OTHER humans". */
+function reportRoomReach(
+  seating: SeatingFacts,
+  mutating: ReadonlyMap<string, DomainFacts>,
+  reporters: { readonly node: NodeReport; readonly file: FileReport; readonly staleAnchorLoaded: boolean },
+): void {
   if (!seating.derived) {
-    report(SEATING_BLIND_MESSAGE);
+    reporters.file(ROSTER_ANCHOR, "schema", SEATING_BLIND_MESSAGE);
     return; // a placebo derivation must not then pronounce on any row
   }
-  for (const name of mutating) {
+  for (const [name, facts] of mutating) {
     const lane = DOMAIN_FRESHNESS[name]?.roomReach.lane;
-    if (lane === undefined) {
-      continue; // already MISSING-red; one finding per hole
-    }
-    const suffix = seatingVerdict(seating.seated.has(name), lane);
+    const suffix = lane === undefined ? undefined : seatingVerdict(seating.seated.has(name), lane);
     if (suffix !== undefined) {
-      ctx.report({ file: `${DOMAIN_PREFIX}${name}/`, line: 1, column: 0, message: `"${name}" ${suffix} tooling/src/verify/gates/domain-freshness-plane.ts` });
+      reporters.node(facts.writeAnchor as MorphNode, `"${name}" ${suffix} ${GATE_SELF}`);
     }
   }
   // The attribution totality arm + its own two-sided ratchet: seating that lands on a schema file with no
   // same-named domain is either classified here or RED, and a classification whose seating is gone is RED.
   for (const schema of seating.unattributed) {
-    if (!(schema in UNSEATABLE_SCHEMA)) {
-      report(`${UNOWNED_SEATED_PREFIX}"${schema}"`);
+    if (!Object.hasOwn(UNSEATABLE_SCHEMA, schema)) {
+      reporters.file(ROSTER_ANCHOR, schema, `${UNOWNED_SEATED_PREFIX}"${schema}"`);
     }
   }
-  if (!fileLoaded(ctx, SEATING_STALE_ANCHOR)) {
+  if (!reporters.staleAnchorLoaded) {
     return; // §4a: the stale sweep needs an anchor NO example plants and that is not any row's own path
   }
   for (const schema of Object.keys(UNSEATABLE_SCHEMA)) {
     if (!seating.unattributed.has(schema)) {
-      report(`${STALE_UNSEATABLE_PREFIX}"${schema}"`);
+      reporters.file(SEATING_STALE_ANCHOR, schema, `${STALE_UNSEATABLE_PREFIX}"${schema}"`);
     }
   }
 }
 
-export const gate: GateDescriptor = {
-  name: "domain-freshness-plane",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
-  status: "active",
-  scopeSafety: "whole-project", // a registry reconcile over every domain — a scoped run sees a fraction and would false-ORPHAN
-  message: MESSAGE,
-  fix: FIX,
+/** Proof-fixture fragments. Every row must plant a schema the shared Drizzle fact can read (its population
+ *  is `packages/db/src/schema/**`, and a provider whose population resolves to zero refuses the whole
+ *  policy), and every row that exercises the plane axis must plant the real-tree ANCHOR the blindness arm
+ *  self-guards on. The legacy fixtures faked the schema with a regex and needed neither. */
+const DRIZZLE_IMPORT = 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n';
+const CHAT_BUS: Readonly<Record<string, string>> = {
+  [ANCHOR]:
+    'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
+};
+const CHATS_SCHEMA: Readonly<Record<string, string>> = {
+  "packages/db/src/schema/chat.ts": `${DRIZZLE_IMPORT}export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n`,
+};
+const SCHEMA_BARREL_SOURCE = 'export * from "./chat.ts";\n';
+const PROBE_WRITE =
+  'import { refinerySessions } from "@orb/db";\nexport async function run(ctx) {\n  await ctx.db.update(refinerySessions).set({ n: 1 });\n}\n';
+
+export const gate = defineGate({
+  id: "domain-freshness-plane",
+  // FAMILY `drizzle-schema` — the shared subject reader is `lib/schema-fact.ts`'s `drizzleSchemaFact`, which
+  // the SEATED axis derives its FK graph from, the same provider `ownerid-registry`, `schema-branding` and
+  // `lifecycle-portability` consume. The PLANE axis's write/emit derivation is this policy's own intent over
+  // the nodes the one walk delivers, not a second reader: no sibling asks "does this domain persist".
+  family: "drizzle-schema",
+  // HARD. Every arm's escape is a ROW in one of the two registries below (name the plane, classify the
+  // seating, delete the dead row) — never a comment at a call site. The legacy descriptor was suppressible
+  // only because it never said otherwise, and its findings anchored on line 1 of the gate file itself,
+  // where a marker would have been meaningless. The two tables are authoritative policy DATA of the same
+  // class as `ownerid-registry`'s 27 ownership classifications, not exception rows (#1922 is the
+  // sanctioned-HOME migration and does not reach them).
+  authority: "hard",
+  severity: "error",
   // The domain tree (the plane axis) PLUS the schema tree — the ROOM-REACH axis derives seating from the FK
   // graph in `packages/db/src/schema/*.ts`, so those files are genuinely READ, not merely anchored on.
-  scanRoot: (p) => p.includes(DOMAIN_PREFIX) || p.includes(SCHEMA_PREFIX),
+  population: { in: ["@server", "@db"], under: ["packages/server/src/domain/**", "packages/db/src/schema/**"] },
+  analysis: "types",
+  // A registry reconcile over every domain — a scoped run sees a fraction and would false-ORPHAN.
+  execution: "entire-population",
+  facts: [drizzleSchemaFact],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const byFile = new Map<object, FileFacts>();
+    const factsFor = (sourceFile: SourceFile): FileFacts | undefined => {
+      const key = sourceFile.compilerNode;
+      const existing = byFile.get(key);
+      if (existing !== undefined) {
+        return existing;
+      }
+      const domain = domainOf(ctx.relativePath(sourceFile));
+      if (domain === undefined || domain === "") {
+        return;
+      }
+      const created: FileFacts = { domain, dbImport: false, write: undefined, emit: undefined };
+      byFile.set(key, created);
+      return created;
+    };
 
-  run: (ctx) => {
-    const derived = deriveDomains(ctx.project.getSourceFiles().filter((f) => f.getFilePath().includes(DOMAIN_PREFIX)));
-    const mutating = [...derived.entries()].filter(([, f]) => f.mutates);
-    if (mutating.length === 0) {
-      if (fileLoaded(ctx, ANCHOR)) {
-        ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_MESSAGE });
+    const calleeName = (call: CallExpression): string | undefined => {
+      const callee = call.getExpression();
+      if (Node.isPropertyAccessExpression(callee)) {
+        return callee.getName();
       }
-      return; // a synthetic mini-project with no real domain tree is a legitimate zero (§4.5)
-    }
-    for (const [name, facts] of mutating) {
-      const row = DOMAIN_FRESHNESS[name];
-      if (row === undefined) {
-        ctx.report({
-          file: `${DOMAIN_PREFIX}${name}/`,
-          line: 1,
-          column: 0,
-          message: `"${name}" ${MISSING_SUFFIX} tooling/src/verify/gates/domain-freshness-plane.ts`,
-        });
-        continue;
-      }
-      if (row.plane === "none" && facts.emits) {
-        ctx.report({
-          file: `${DOMAIN_PREFIX}${name}/`,
-          line: 1,
-          column: 0,
-          message: `"${name}" ${STALE_SUFFIX} tooling/src/verify/gates/domain-freshness-plane.ts`,
-        });
-      }
-    }
-    const mutatingNames = new Set(mutating.map(([n]) => n));
-    reportRoomReach(ctx, mutatingNames);
-    if (!fileLoaded(ctx, ROSTER_ANCHOR)) {
-      return; // the ORPHAN arm is a whole-roster claim — never fire it on a partial tree
-    }
-    for (const name of Object.keys(DOMAIN_FRESHNESS)) {
-      if (!mutatingNames.has(name)) {
-        ctx.report({ file: GATE_SELF, line: 1, column: 0, message: `"${name}" ${ORPHAN_SUFFIX} tooling/src/verify/gates/domain-freshness-plane.ts` });
-      }
-    }
+      return Node.isIdentifier(callee) ? callee.getText() : undefined;
+    };
+
+    const loaded = (path: string): boolean => ctx.files.some((sourceFile) => ctx.relativePath(sourceFile) === path);
+
+    return {
+      visitors: [
+        {
+          // The `@orb/db` half, read off the MODULE SPECIFIER rather than off the file text. The legacy
+          // `text.includes("@orb/db")` also matched the string in a comment or a message — blanked comments
+          // closed half of that, and a node read closes the other half.
+          kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration],
+          visit: (node, sourceFile) => {
+            const facts = factsFor(sourceFile);
+            if (facts === undefined) {
+              return;
+            }
+            const specifier = Node.isImportDeclaration(node) || Node.isExportDeclaration(node) ? node.getModuleSpecifierValue() : undefined;
+            facts.dbImport ||= specifier === DB_IMPORT || specifier?.startsWith(`${DB_IMPORT}/`) === true;
+          },
+        },
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node, sourceFile) => {
+            const facts = factsFor(sourceFile);
+            if (facts === undefined || !Node.isCallExpression(node)) {
+              return;
+            }
+            const name = calleeName(node);
+            if (name === undefined) {
+              return;
+            }
+            if (WRITE_METHODS.has(name)) {
+              facts.write ??= Node.isPropertyAccessExpression(node.getExpression())
+                ? node.getExpression().asKindOrThrow(SyntaxKind.PropertyAccessExpression).getNameNode()
+                : node;
+            }
+            if (EMIT_NAMES.has(name)) {
+              facts.emit ??= node.getExpression();
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        const fact = ctx.fact(drizzleSchemaFact).schema();
+        recordReadySchemaFact(ctx, fact);
+        // The finding TOKEN is the tail of the anchor's own text (`update`, `emitUserEvent`), which is what
+        // the sink would derive for a bare identifier anyway and what a reader looks for on the line.
+        const node: NodeReport = (anchor, message) => {
+          const text = anchor.getText();
+          const offset = text.lastIndexOf(".") + 1;
+          ctx.report.node(anchor, { token: text.slice(offset), offset, message });
+        };
+        const file: FileReport = (path, token, message) => ctx.report.file(path, { line: 1, token, message });
+        const mutating = new Map([...foldDomains(byFile.values())].filter(([, facts]) => facts.mutates));
+        if (mutating.size === 0) {
+          // §4.6: zero mutating domains on a tree that HAS the chat bus means the write derivation stopped
+          // matching. A synthetic mini-project with no real domain tree is a legitimate zero (§4.5).
+          if (loaded(ANCHOR)) {
+            file(ANCHOR, "bus", BLIND_MESSAGE);
+          }
+          return;
+        }
+        reportPlaneAxis(mutating, node);
+        // Both whole-ROSTER sweeps are guarded on the roster anchor: a mini-project sees a fraction of the
+        // domain tree and would report every absent domain as an orphan and every seating claim as gone.
+        if (!loaded(ROSTER_ANCHOR)) {
+          return;
+        }
+        const mutatingNames = new Set(mutating.keys());
+        reportRoomReach(deriveSeating(fact.value, mutatingNames), mutating, { node, file, staleAnchorLoaded: loaded(SEATING_STALE_ANCHOR) });
+        for (const name of Object.keys(DOMAIN_FRESHNESS)) {
+          if (!mutatingNames.has(name)) {
+            file(ROSTER_ANCHOR, name, `"${name}" ${ORPHAN_SUFFIX} ${GATE_SELF}`);
+          }
+        }
+      },
+    };
   },
-
   mustFlag: [
     {
-      files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/server/src/domain/__probe/verbs/write-thing.ts":
-          'import { refinerySessions } from "@orb/db";\nexport async function run(ctx) {\n  await ctx.db.update(refinerySessions).set({ n: 1 });\n}\n',
-      },
-      expect: { messageIncludes: "MUTATING domain with NO row" },
-      why: "THE FOUNDING HOLE reproduced as the survey's own reach probe (§3.1): a domain that persists and has no registry row. This is exactly the state `refinery` was in before 2026-08-14 — and the state no ratchet could see, because refinery had no belt to quantify over. The probe domain is used rather than `refinery` itself precisely BECAUSE refinery now carries a row: a fixture keyed on a real domain would silently stop proving anything the day that domain was registered",
+      mode: "types",
+      files: { ...CHAT_BUS, ...CHATS_SCHEMA, [`${DOMAIN_PREFIX}__probe/verbs/write-thing.ts`]: PROBE_WRITE },
+      expect: { count: 1, token: "update", messageIncludes: "MUTATING domain with NO row" },
+      why: "THE FOUNDING HOLE reproduced as the survey's own reach probe (§3.1): a domain that persists and has no registry row. This is exactly the state `refinery` was in before 2026-08-14 — and the state no ratchet could see, because refinery had no belt to quantify over. The probe domain is used rather than `refinery` itself precisely BECAUSE refinery now carries a row: a fixture keyed on a real domain would silently stop proving anything the day that domain was registered. The finding anchors on the WRITE CALL that made the domain mutating, where the legacy descriptor anchored on a DIRECTORY path that is not a file",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/server/src/domain/sessions/persistence/sessions.ts":
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        [`${DOMAIN_PREFIX}sessions/persistence/sessions.ts`]:
           'import { sessions } from "@orb/db";\nexport async function touch(ctx) {\n  await ctx.db.update(sessions).set({ n: 1 });\n  ctx.emitUserEvent(1, { type: "sessionsChanged" });\n}\n',
       },
-      expect: { messageIncludes: "DOES emit" },
-      why: "the STALE direction — `sessions` carries a cited `none` row, and the day it grows an emit the row is a lie. Self-cleaning both ways is what keeps a registry from rotting into paperwork",
+      expect: { count: 1, token: "emitUserEvent", messageIncludes: "DOES emit" },
+      why: "the STALE direction — `sessions` carries a cited `none` row, and the day it grows an emit the row is a lie. Self-cleaning both ways is what keeps a registry from rotting into paperwork. Anchored on the EMIT that falsified the row, which is the site to read",
     },
     {
-      files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        // The ROSTER anchor — present only here, so only this example arms the whole-roster ORPHAN sweep.
-        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
-      },
-      expect: { messageIncludes: "writes nothing" },
-      why: "the ORPHAN direction — every other registry row names a domain this mini-tree does not have. A row that survives its domain's deletion is a standing verdict about nothing",
+      mode: "types",
+      // The ROSTER anchor — present only in the arms that deliberately arm the whole-roster sweeps.
+      files: { ...CHAT_BUS, ...CHATS_SCHEMA, [ROSTER_ANCHOR]: SCHEMA_BARREL_SOURCE },
+      expect: { token: "credentials", messageIncludes: "writes nothing" },
+      why: "the ORPHAN direction — every other registry row names a domain this mini-tree does not have. A row that survives its domain's deletion is a standing verdict about nothing. NO `count`: the count is the registry's own cardinality, so pinning it would make every registry edit a two-site edit; the `token` pins WHICH row instead",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+        ...CHAT_BUS,
+        [ROSTER_ANCHOR]: SCHEMA_BARREL_SOURCE,
         // The room, plus a chat-anchored junction pointing at a credentials table: exactly the shape that
         // makes a domain SEATED, expressed in the same drizzle spelling the real schema uses.
-        "packages/db/src/schema/chat.ts": 'export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n',
+        "packages/db/src/schema/chat.ts": `${DRIZZLE_IMPORT}export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n`,
         "packages/db/src/schema/credentials.ts":
+          `${DRIZZLE_IMPORT}import { chats } from "./chat.ts";\n` +
           'export const credentials = sqliteTable("credentials", { id: text("id").primaryKey() });\n' +
           'export const chatCredentials = sqliteTable("chat_credentials", {\n  chatId: text("chat_id").references(() => chats.id),\n  credentialId: text("credential_id").references(() => credentials.id),\n});\n',
-        "packages/server/src/domain/credentials/verbs/rotate.ts":
+        [`${DOMAIN_PREFIX}credentials/verbs/rotate.ts`]:
           'import { credentials } from "@orb/db";\nexport async function rotate(ctx) {\n  await ctx.db.update(credentials).set({ n: 1 });\n  ctx.emitUserEvent(1, { type: "credentialsChanged" });\n}\n',
       },
-      expect: { messageIncludes: "is ROOM-SEATED" },
+      expect: { token: "update", messageIncludes: "is ROOM-SEATED" },
       why: "THE SEATED ARM — the honesty ratchet the bridge was built to leave behind. `credentials` answers `roomReach: none`, and this mini-tree seats its rows in a room via a chat-anchored junction; the row is now a lie and the gate says so. It is keyed on a REAL `none` domain deliberately (a probe domain has no registry row at all, so it is MISSING-red and never reaches this arm), and on the one `none` whose reason can never flip to `bridge` — a credential rendered to a room member would be the credential-firewall defect, not a freshness gap",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+        ...CHAT_BUS,
+        [ROSTER_ANCHOR]: SCHEMA_BARREL_SOURCE,
         // A chat-anchored table exists (so the derivation is NOT blind) — it just does not reach character.
         "packages/db/src/schema/chat.ts":
-          'export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n' +
+          `${DRIZZLE_IMPORT}export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n` +
           'export const chatInjections = sqliteTable("chat_injections", { chatId: text("chat_id").references(() => chats.id) });\n',
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n',
-        "packages/server/src/domain/character/verbs/update.ts":
+        "packages/db/src/schema/character.ts": `${DRIZZLE_IMPORT}export const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n`,
+        [`${DOMAIN_PREFIX}character/verbs/update.ts`]:
           'import { characters } from "@orb/db";\nexport async function update(ctx) {\n  await ctx.db.update(characters).set({ n: 1 });\n  ctx.emitUserEvent(1, { type: "charactersChanged" });\n}\n',
       },
-      expect: { messageIncludes: "claims room seating" },
-      why: "the SEATED arm's OTHER side — `character` declares `roomReach: bridge`, and in a tree where nothing seats a character in a room that claim is a standing verdict about a junction that is gone. Without this direction the ratchet is one-sided, which is how a `bridge` row survives the deletion of the seating it was granted for (GATE-AUTHORING §4)",
+      expect: { token: "update", messageIncludes: "claims room seating" },
+      why: "the SEATED arm's OTHER side — `character` declares `roomReach: bridge`, and in a tree where nothing seats a character in a room that claim is a standing verdict about a junction that is gone. Without this direction the ratchet is one-sided, which is how a `bridge` row survives the deletion of the seating it was granted for",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+        ...CHAT_BUS,
+        [ROSTER_ANCHOR]: SCHEMA_BARREL_SOURCE,
         "packages/db/src/schema/chat.ts":
+          `${DRIZZLE_IMPORT}import { widgets } from "./nobody.ts";\n` +
           'export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n' +
           'export const chatWidgets = sqliteTable("chat_widgets", {\n  chatId: text("chat_id").references(() => chats.id),\n  widgetId: text("widget_id").references(() => widgets.id),\n});\n',
-        "packages/db/src/schema/nobody.ts": 'export const widgets = sqliteTable("widgets", { id: text("id").primaryKey() });\n',
+        "packages/db/src/schema/nobody.ts": `${DRIZZLE_IMPORT}export const widgets = sqliteTable("widgets", { id: text("id").primaryKey() });\n`,
       },
-      expect: { messageIncludes: "cannot be attributed to any domain" },
+      expect: { token: "nobody", messageIncludes: "cannot be attributed to any domain" },
       why: "THE ATTRIBUTION TOTALITY ARM — seating that lands on a schema file with no same-named domain is un-attributable, so SEATED-red would be SILENTLY blind to it. It is the `users` case generalized: the one real instance is classified in UNSEATABLE_SCHEMA with its reason, and any second one has to be classified too rather than vanishing",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
-        // Tables exist; NONE of them FKs `chats.id`. On the real tree that means the spelling moved.
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n',
+        ...CHAT_BUS,
+        [ROSTER_ANCHOR]: SCHEMA_BARREL_SOURCE,
+        // The §4a stale-sweep anchor, planted deliberately — this is the one row that arms that arm.
+        [SEATING_STALE_ANCHOR]: "export const relations = 1;\n",
+        "packages/db/src/schema/chat.ts":
+          `${DRIZZLE_IMPORT}export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n` +
+          'export const chatInjections = sqliteTable("chat_injections", { chatId: text("chat_id").references(() => chats.id) });\n',
       },
-      expect: { messageIncludes: "DERIVED NO CHAT-ANCHORED TABLES" },
-      why: "the §4.6 BLINDNESS tripwire for the SEATING derivation, which is a SECOND derivation and therefore owes its own: the plane axis's blindness arm watches the write spelling, and would stay perfectly green while `references(() => chats.id)` moved and SEATED-red silently stopped existing",
+      expect: { token: "users", messageIncludes: "ratchet down" },
+      why: "THE OTHER SIDE OF THE TOTALITY ARM, and the first proof it has ever had: the seating derivation works and reaches NOTHING un-attributable, so the one `UNSEATABLE_SCHEMA` row classifies a junction that no longer exists. Without this direction the classification outlives its subject exactly the way an unrowed seating hides from SEATED-red — the same two-sided rot, one table down",
+    },
+    {
+      mode: "types",
+      files: {
+        ...CHAT_BUS,
+        [ROSTER_ANCHOR]: SCHEMA_BARREL_SOURCE,
+        // Tables exist; NONE of them FKs `chats`, and there is no `chats` table at all. On the real tree
+        // that means the spelling or the root moved.
+        "packages/db/src/schema/character.ts": `${DRIZZLE_IMPORT}export const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n`,
+      },
+      expect: { token: "schema", messageIncludes: "DERIVED NO CHAT-ANCHORED TABLES" },
+      why: "the §4.6 BLINDNESS tripwire for the SEATING derivation, which is a SECOND derivation and therefore owes its own: the plane axis's blindness arm watches the write spelling, and would stay perfectly green while the FK graph moved and SEATED-red silently stopped existing",
+    },
+    {
+      mode: "types",
+      files: {
+        ...CHATS_SCHEMA,
+        // The chat bus, present but NO LONGER WRITING — the shape a changed drizzle spelling or a moved
+        // domain root produces. Nothing in the whole tree derives as mutating.
+        [ANCHOR]: 'export async function e(ctx) {\n  ctx.emit({ type: "chatUpdated" });\n}\n',
+      },
+      expect: { count: 1, token: "bus", messageIncludes: "DERIVED NO MUTATING DOMAINS" },
+      why: "THE PLANE AXIS'S OWN §4.6 BLINDNESS TRIPWIRE, and the first proof it has ever had: the legacy suite planted a WRITING `domain/chat/bus.ts` in all twelve of its examples, so the arm that fires when the write derivation stops matching was never once executed. A gate whose ✓ is a placebo is the failure this arm exists to prevent, and an unexercised arm is exactly that",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/server/src/domain/search/substrate/field-index.ts":
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        [`${DOMAIN_PREFIX}search/substrate/field-index.ts`]:
           'import MiniSearch from "minisearch";\nconst cache = new Map();\nexport function drop(k) {\n  cache.delete(k);\n  index.remove(k);\n}\n',
       },
-      why: "DECLARED LIMIT MADE A PIN — `search`'s only `.delete(` is a Map/MiniSearch call in a file that never imports @orb/db, so it is NOT a mutating domain. Without the @orb/db half the derivation would classify every in-memory cache as persistence and the whole registry would be noise",
+      why: "DECLARED LIMIT MADE A PIN — `search`'s only `.delete(` is a Map/MiniSearch call in a file that never imports @orb/db, so it is NOT a mutating domain. Without the @orb/db half the derivation would classify every in-memory cache as persistence and the whole registry would be noise. THE ROW THAT DIES WITHOUT THE `dbImport` CONJUNCTION",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/server/src/domain/export/verbs/dump.ts":
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        [`${DOMAIN_PREFIX}export/verbs/dump.ts`]:
           'import { characters } from "@orb/db";\n// The writer lives elsewhere: it does ctx.db.insert(characters) and emits its own event.\nexport async function dump(ctx) {\n  return await ctx.db.select().from(characters);\n}\n',
       },
-      why: "COMMENT POSTURE (issue #117/#132): a read-only domain whose COMMENT quotes a write call is still read-only, so it must not be conscripted into the registry as MISSING. The hand-rolled comment regex this gate used to carry got this right; it got the STRING case wrong, which is why the blanking is now the shared parser-backed one",
+      why: "COMMENT POSTURE (issues #117/#132), carried from the legacy suite and now STRUCTURAL: a read-only domain whose COMMENT quotes a write call must not be conscripted into the registry as MISSING. The legacy derivation needed `blankTsComments` to get this right; a CallExpression visitor never sees a comment at all, which is why `lib/comment-spans.ts` left this module",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/server/src/domain/export/verbs/dump.ts":
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        [`${DOMAIN_PREFIX}export/verbs/dump.ts`]:
           'import { characters } from "@orb/db";\nexport async function dump(ctx) {\n  return await ctx.db.select().from(characters);\n}\n',
       },
-      why: "a READ-ONLY domain (`export`) needs no row at all — the registry quantifies over WRITERS, so a domain that only projects canon is neither MISSING nor ORPHAN. This is why `export` and `import` carry no row today",
+      why: "a READ-ONLY domain (`export`) needs no row at all — the registry quantifies over WRITERS, so a domain that only projects canon is neither MISSING nor ORPHAN. This is why `export` and `import` carry no row today, and the row that dies without the write-call half of the conjunction",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/server/src/domain/sessions/persistence/sessions.ts":
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        [`${DOMAIN_PREFIX}sessions/persistence/sessions.ts`]:
           'import { sessions } from "@orb/db";\nexport async function touch(ctx) {\n  await ctx.db.update(sessions).set({ n: 1 });\n}\n',
       },
-      why: "a cited `none` row that stays honest: `sessions` mutates auth substrate and emits nothing, which is the verdict the row records. `none` is a CLAIM the gate keeps checking, not an exemption from being checked",
+      why: "a cited `none` row that stays honest: `sessions` mutates auth substrate and emits nothing, which is the verdict the row records. `none` is a CLAIM the gate keeps checking, not an exemption from being checked — and the row that dies without the `facts.emits` half of the STALE arm",
     },
     {
+      mode: "types",
       files: {
-        "packages/server/src/domain/chat/bus.ts":
-          'import { chats } from "@orb/db";\nexport async function e(ctx) {\n  await ctx.db.update(chats).set({ n: 1 });\n  ctx.emit({ type: "chatUpdated" });\n}\n',
-        "packages/server/src/domain/imagery/persistence/queries.ts":
+        ...CHAT_BUS,
+        ...CHATS_SCHEMA,
+        [`${DOMAIN_PREFIX}imagery/persistence/queries.ts`]:
           'import { imageryGenerations } from "@orb/db";\nexport async function store(ctx) {\n  await ctx.db.insert(imageryGenerations).values({ n: 1 });\n}\n',
       },
       why: "DECLARED LIMIT — a domain whose plane's PRODUCER lives elsewhere (`imagery` writes, the chat verb emits) passes on its cited row alone. The gate cross-checks emits only against `none`; it cannot verify that a named foreign plane really fires for this domain's writes",
     },
+    {
+      mode: "types",
+      files: { ...CHAT_BUS, ...CHATS_SCHEMA },
+      why: "THE ROSTER SELF-GUARD (§4.5): `chat` is the only mutating domain in this fileset, so every OTHER registry row would read as an orphan and every seating claim as gone. The roster anchor is absent, so the whole-registry arms stay silent instead of reporting ~18 standing verdicts about a tree that was never loaded",
+    },
+    {
+      mode: "types",
+      files: { ...CHATS_SCHEMA },
+      why: "THE PLANE AXIS'S SELF-GUARD (§4.5), the twin of the blindness mustFlag above: a fileset with NO domain tree at all derives zero mutating domains — which is the truth about this fileset, not a claim that the write derivation died. The `domain/chat/bus.ts` anchor is absent, so the tripwire withholds. Deleting that guard makes this row report on a path the fixture never planted",
+    },
   ],
-};
+});
