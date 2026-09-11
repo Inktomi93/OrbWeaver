@@ -78,6 +78,24 @@ test("tests:node stays the push bar for everything else, and no longer carries t
   expect(stage("changed", "tests:node").scopedArgv).toBeTypeOf("function");
 });
 
+// #1941 — THE WHOLE-CORPUS CONFORMANCE STAGE. Before it, a converted defineGate policy's own mustFlag/mustPass rows
+// ran only where a committed family test imported the module (21 of 163 were imported by none, 2026-09-11), so a
+// policy could land with rows nobody ever executed. The stage is on the COMMIT bar, whole-only, and its exit is our
+// own scheme (a failed proof is exit 2 — the checker's claim about itself broke).
+test("structure:policy-conformance runs every final policy's proofs at STATIC, whole-only, on our own exit scheme", () => {
+  const row = stage("static", "structure:policy-conformance");
+  expect(row.argv).toEqual(["pnpm", "check:policy-conformance"]);
+  expect(row.group).toBe("structure");
+  expect(row.scopedArgv).toBeUndefined();
+  expect(row.classify(0)).toBe(0);
+  expect(row.classify(2)).toBe(2);
+  expect(row.classify(null)).toBe(2);
+  // the ladder nests: static ⊂ push ⊂ full, and never the scoped inner loop (a policy's fixtures are not a changed file)
+  expect(stagesForTier("push").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
+  expect(stagesForTier("full").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
+  expect(stagesForTier("changed").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(false);
+});
+
 test("mutation:arid is a discoverable manual report-input tool, never an automatic tier", () => {
   const row = stagesForTier("manual").find((candidate) => candidate.name === "quality:mutation-arid");
   expect(row).toMatchObject({

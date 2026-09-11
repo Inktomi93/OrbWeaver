@@ -179,6 +179,7 @@ export {
 } from "./ops/ledgers-fresh.ts";
 export { runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";
+export { runPolicyConformance } from "./ops/policy-conformance-stage.ts";
 export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate.ts";
 export { classifyRatchetFiles, discoverTestFiles, isRatchetShaped, runRatchetGateCli } from "./ops/ratchet-gate.ts";
 export { auditedExit, auditLine, auditOf, noticesIn, runVerify } from "./ops/run.ts";
