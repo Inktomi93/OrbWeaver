@@ -9,7 +9,14 @@ updated: 2026-09-05
 Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). Census base:
 `53bb2d35f3d7bf82bf0c5e911c705b60a35bb91a`.
 
-This is migration evidence for the atomic ts-morph gate-runtime replacement. It is not a production
+> **TRANSITION MODEL SUPERSEDED (owner, 2026-09-11) AND ROSTER STALE.** Written for an ATOMIC cutover; the program now
+> runs a MIXED runtime under [gate-runtime-standardization.md](../../design/gate-runtime-standardization.md), which wins
+> on any conflict. The partition below counts a 255-module corpus; there are 271 modules now, and many of the 116
+> "uncovered" rows have since converted. **Do not read the roster or any count here as current work** — re-derive with
+> `pnpm gate:contract` and intersect. What stays durable is the PER-GATE analysis: blocker class, family and shared
+> dependency, population notation, current authority, and the exact source line receipts.
+
+This is migration evidence for the ts-morph gate-runtime replacement. It is not a production
 registry. The live loader at `tooling/src/verify/lib/loader.ts:82-103` imported 255 sorted top-level gate
 modules, accepted 255 descriptors, and reported zero unregistered files at the census base.
 

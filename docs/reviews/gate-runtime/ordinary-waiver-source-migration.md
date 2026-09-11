@@ -6,7 +6,24 @@ updated: 2026-09-05
 
 # Ordinary-waiver source migration and atomic cutover manifest
 
-Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). This is a closed migration manifest, not a second runtime registry and not authority to edit the marker corpus piecemeal.
+Parent program: [#1584](https://github.com/Inktomi93/orbweaver/issues/1584). This is a closed migration manifest, not a second runtime registry.
+
+> **TRANSITION MODEL SUPERSEDED (owner, 2026-09-11).** This document was written for an ATOMIC cutover. The program
+> now runs a MIXED runtime; the operating document is
+> [gate-runtime-standardization.md](../../design/gate-runtime-standardization.md), which wins on any conflict with the
+> text below.
+>
+> **Dead here, do not follow:** the freeze-one-SHA-and-refuse-on-delta step 1 of the cutover checklist; "these are the
+> files an atomic source translation must diff, not permission to translate them early"; "all rows below are required in
+> the same atomic cutover"; "all 767 translations are cutover-blocking". Under the mixed runtime **each conversion lane
+> translates its own markers IN THE SAME COMMIT** as the conversion, so the site counts move continuously by design and
+> a frozen manifest is not a gate on progress.
+>
+> **Still binding:** "Exact central grammar and carrier contract" (what a marker is, and how node vs file/resource
+> findings bind) is the live contract; "Explicit non-migrations" is a live fence — `suppressions.ts` and
+> `no-blanket-suppression.ts` keep their native tool directives, `comment-spans.ts` stays the substrate, `@swallowed-ok`
+> and `@public` stay out; cutover-checklist steps 5, 6 and 9 are Phase F content. Every site count below is a starting
+> figure to RE-DERIVE, never to quote.
 
 ## Verdict
 
