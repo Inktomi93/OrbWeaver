@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
 import { basename } from "node:path";
 import process from "node:process";
+import { runMarkerArg } from "@orb/tooling/_shared/run-marker";
 
 const PROC_PID_RE = /^[0-9]+$/;
 const PROC_PPID_RE = /^PPid:\s+([0-9]+)$/m;
@@ -114,6 +115,19 @@ export function watchChromiumDescendants(rootPid: number, sampleMs = DEFAULT_SAM
       return [...observed.values()];
     },
   };
+}
+
+/** THE ARGS a simulated reparented-leak chromium must launch with (#1926). `marker === null` reproduces
+ *  the shape that left 11 four-day-old orphans on the box on 2026-09-11: a detached grandchild chromium
+ *  with no run-marker channel is invisible to `_shared/run-marker.ts`'s abandoned-run sweep in EITHER
+ *  reader (its environ is erased by chromium's own process-title rewrite, and nothing stamped its argv),
+ *  so if the fixture's own explicit `terminateChromiumIdentities` cleanup never runs — the test process is
+ *  SIGKILLed, OOM-killed, or its worktree torn down mid-test — the leak is PERMANENT: no sweep, ever, can
+ *  reach it. Stamping the marker gives the fixture the same reaping path every production launch already
+ *  has, as defense-in-depth alongside (never instead of) its own cleanup. */
+export function leakChromiumArgs(userDataDir: string, marker: string | null): readonly string[] {
+  const base = ["--headless", "--no-sandbox", "--disable-gpu", `--user-data-dir=${userDataDir}`];
+  return marker === null ? [...base, "about:blank"] : [...base, runMarkerArg(marker), "about:blank"];
 }
 
 /** Cleanup for planted leak controls: signal only captured, still-matching Chromium groups/identities. */
