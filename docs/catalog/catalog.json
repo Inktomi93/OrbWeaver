@@ -29724,7 +29724,18 @@
         "evidence": [
           "produced by a read-only scout at f898b14b1 and landed 1bd6ba107; read in full by the orchestrator, GATE-AUTHORING row corrected at a4816ef1b (owner ruling 2026-09-11: legacy guide, not a conversion input)"
         ],
-        "summary": "One converted exemplar per defineGate capability with its tests and the central files a conversion lane reads first; the copy-these-shapes reference every #1584 conversion brief names."
+        "summary": "One converted exemplar per defineGate capability with its tests and the central files a conversion lane reads first; the copy-these-shapes reference every #1584 conversion brief names.",
+        "claims": [
+          {
+            "claim": "Each cited exemplar was read in full at f898b14b1 and demonstrates one final defineGate capability (pure syntax, entire-population evaluate, closed ResourceHost facts, defineFact consumption, reviewed-grant, ordinary marker identity, split family, warning debt, verifyPolicyProofs, frozen differential); GATE-AUTHORING.md is the legacy descriptor guide and not a conversion input.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },
