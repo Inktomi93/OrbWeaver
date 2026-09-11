@@ -94,7 +94,12 @@ family.
    the bite proof once `verifyPolicyProofs` runs them through the production dispatcher. Do not replace them with a
    few new happy paths; add rows only for behavior the conversion changed or the legacy suite lacked (an identity
    variant the stronger reader now catches, an empty/unresolved-subject control where the verdict depends on a derived
-   population).
+   population). **Every `mustFlag` row carries an `expect`.** `expectationFailure` returns early once one finding
+   exists, so a row without `expect` asserts only "this fixture produced at least one effective finding" and PASSES
+   when the gate flags the wrong node or flags eight things where one was meant. Name `count` always, and `token`
+   (or `line`/`messageIncludes`) whenever the row's `why` makes a claim about WHICH node flags — a `why` reading
+   "this shape produced ZERO findings before hardening" is exactly such a claim. Measured 2026-09-11: 39 unpinned
+   rows across 14 converted modules (#1952).
 2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position: one
    POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position → 0 findings, 1 waived,
    0 alarms (`schema-branding.ts` carries it as a mustPass row; `ordinary-visitors-family.test.ts:187-205` drives it
@@ -102,7 +107,15 @@ family.
    consumption, unknown policy, hard/reviewed refusal, incomplete-owner withholding and consumption order are the
    CENTRAL engine's proof (`tests/tooling/verify/lib/ordinary-waiver.test.ts`), run once. Do not copy a negative arm
    into every gate: a per-gate wrong-policy arm driven with `knownPolicies: [policy]` rides the unknown-policy
-   short-circuit and proves nothing (paid 2026-09-11, three arms).
+   short-circuit and proves nothing (paid 2026-09-11, three arms). **The positive arm is SELF-CHECKING, so write it
+   without fear of guessing the token wrong:** `proofFailure` runs `toolFailure` before the arm verdict, and
+   `toolFailure` fails on any `authorityAlarms`. An unbound marker becomes exactly that (`ordinary-waiver.ts` emits
+   `malformed`, `unknown-policy`, `stale`, `over-broad`; `gate-authority.ts:390` folds them in). So a wrong position
+   FAILS the proof, a fixture that never flagged FAILS it as unused, and only a marker that actually bound yields zero
+   effective findings and passes. No separate test and no planted break are owed. Template:
+   `schema-branding.ts:137`. **Limit:** `runPass` pins `knownPolicies: [policy]` and `reviewedGrants: []`, so a
+   reviewed-grant policy cannot prove grant consumption in a module row at all — that belongs in a family test with a
+   real grant table (§4.3).
 3. **Reviewed-grant policies** prove exact `(subject, operation)` identity beside the family: the intended row is
    consumed exactly once; a wrong operation stays effective; a renamed/missing subject stales the row or withholds
    (`home-client-family.test.ts`). Generic grant-table validation is `tests/tooling/verify/lib/reviewed-grants.test.ts`.
@@ -358,7 +371,13 @@ file, request the shared checker, and call shared readers. They may not call `Pr
 Shared whole-population work is a branded `defineFact` provider with its own id, population, analysis, resources,
 collector, finish hook, receipts, timing and errors. Policies declare provider tokens in `facts` and read them only via
 `ctx.fact(provider)` during `evaluate`. The dispatcher instantiates each unique provider once, feeds it in the same
-physical walk, finishes it before policy evaluation, and withholds every dependent policy on failure. Early/undeclared
+physical walk, finishes it before policy evaluation, and withholds every dependent policy on failure. **A provider's
+RECEIPT granularity must match its consumers' DEPENDENCY granularity.** A provider covering N subjects that files one
+summed receipt withholds all N subjects' consumers when any one subject fails, including consumers that read only a
+healthy subject. `registry-fact.ts:300-304` sums `members` and `unresolved` across six kinds while every consumer reads
+one kind through `forKind`, which is why a fixture proving one kind is refused for the other five (#1953). Do not
+"fix" such a case by treating an unresolved subject as absent: §12.3's own rule is that unsupported syntax returns an
+unresolved fact or a tool error and NEVER returns absence, and collapsing the two silently blinds the consumer. Early/undeclared
 reads, duplicate provider ids, selected-file consumers, unused dependencies, missing receipts and unconsumed resources
 refuse. The registry is invocation-local.
 

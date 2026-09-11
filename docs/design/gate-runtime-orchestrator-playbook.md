@@ -181,6 +181,17 @@ idle composed-pass remeasurement; catalog re-attest.
 ## 5. Lessons that bind (each paid for at least once; the incidents are in the memory hub)
 
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
+- **Grep the docs for the governing rule BEFORE recommending a contract change, not after.** On 2026-09-11 the
+  orchestrator priced three arms for #1953 and recommended one that `gate-runtime-standardization.md` §12.3 and
+  `resource-gate-access-patterns.md:126` already forbid ("never returns absence"; "never collapse missing/unparseable
+  into `{}`"). The owner had to say "search the docs, I bet the answer is in there." It was, twice, in files this
+  playbook already points at.
+- **Cheap read-only agents return FALSE CLEANS on exhaustive enumeration.** Three scouts audited the converted corpus
+  on 2026-09-11; two claimed their slices were clean of a mechanical defect that a one-line script found in six of
+  their files, while asserting completeness ("no other file in my slice…"). The third was exactly right, which is the
+  trap: the failure is silent and inconsistent. Enumerate mechanically and verify every negative yourself; delegate
+  READING only for qualitative classes, where the same pass did produce a real find (`no-color-literals`' header
+  claims a className fence the visitor never applies).
 - **A wholesale doc rewrite can keep every section title and still strip the protection.** Consolidating this guide on
   2026-09-11 preserved all 16 world-program row titles while deleting the anchor SHA, 15 per-row evidence SHAs, four
   do-not-restore prohibitions, the anti-false-proof clauses and an inherited owner deferral (restored at `57a7f3e9c`).
