@@ -30,7 +30,7 @@ the "Codex era").
 | tooling/src/verify/lib/population-resolver.ts | globRegex + the end-anchored under/notUnder resolver - the population algebra runtime |
 | tooling/src/verify/lib/policy-pass.ts (859 lines) | runPolicyPass/resolveRun - the dispatcher: fact ordering, receipts, authority reconciliation, refusals |
 | tooling/src/verify/ops/policy-conformance.ts | verifyPolicyProofs - the self-proof runner every mustFlag/mustPass row runs through |
-| tooling/src/verify/gates/GATE-AUTHORING.md | the authoring law (still describes the production runtime pre-cutover) |
+| tooling/src/verify/gates/GATE-AUTHORING.md | LEGACY (owner, 2026-09-11): describes the PRE-cutover production runtime (scanRoot, scopeSafety, run hooks, ExemptionRow tables, check-gates.int fixtures) and never mentions defineGate. Read it only to understand what a legacy descriptor meant; never copy its shapes or satisfy its coupled-site checklist. It is rewritten at cutover (design doc, "Existing machinery we retain") |
 | tooling/src/verify/gates/TS-MORPH-CAPABILITIES.md | API choice / performance guidance for ts-morph reads |
 | tooling/src/verify/gates/NODE-26-FILESYSTEM-CAPABILITIES.md | filesystem-backed resource provider guidance |
 
