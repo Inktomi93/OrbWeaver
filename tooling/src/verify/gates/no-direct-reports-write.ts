@@ -23,7 +23,7 @@ const MESSAGE =
 const FIX = 'resolve the path through tests/support/node/snap-out.ts ctSnapPath("name") instead of a hand-spelled "reports/…" literal or template.';
 
 /** Legacy `scanRoot` was `p.startsWith("tests/")` — the `@tests` root exactly. */
-const TESTS_POPULATION = { in: ["@tests"], ext: ["ts", "tsx"] } as const;
+const TESTS_POPULATION = { in: ["@tests"] } as const;
 
 /** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. A
  *  computed key resolves through the shared static-string reader, so `{ ["path"]: … }` is the same key. */

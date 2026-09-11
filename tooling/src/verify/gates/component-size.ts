@@ -19,7 +19,6 @@ export const gate = defineGate({
     in: ["@client"],
     notUnder: ["**/node_modules/**", "**/dist/**", "**/__screenshots__/**"],
     notNamed: ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx", "*.gen.ts", "*.gen.tsx", "*.d.ts"],
-    ext: ["ts", "tsx"],
   },
   analysis: "syntax",
   execution: "selected-files",

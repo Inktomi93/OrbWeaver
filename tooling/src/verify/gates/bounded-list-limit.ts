@@ -29,7 +29,6 @@ const FIX =
 const WIRE_SCHEMA_POPULATION = {
   in: ["@server", "@contracts"],
   under: ["packages/server/src/transport/trpc/routers/**", "packages/contracts/src/**"],
-  ext: ["ts", "tsx"],
 } as const;
 
 /** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. */

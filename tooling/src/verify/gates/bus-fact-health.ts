@@ -11,7 +11,7 @@ export const gate = defineGate({
   family: "bus-fact",
   authority: "hard",
   severity: "error",
-  population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
+  population: { in: ["@contracts", "@server"] },
   analysis: "types",
   execution: "entire-population",
   facts: [busProducerFact],

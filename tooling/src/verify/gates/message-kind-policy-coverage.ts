@@ -199,7 +199,7 @@ export const gate = defineGate({
   family: "message-kind-policy-coverage",
   authority: "ordinary",
   severity: "error",
-  population: { in: ["@contracts", "@server", "@client"], ext: ["ts", "tsx"] },
+  population: { in: ["@contracts", "@server", "@client"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],

@@ -21,7 +21,7 @@ export const gate = defineGate({
   family: "bus-definition",
   authority: "hard",
   severity: "error",
-  population: { in: ["@contracts", "@client", "@server"], ext: ["ts", "tsx"] },
+  population: { in: ["@contracts", "@client", "@server"] },
   analysis: "types",
   execution: "entire-population",
   facts: [busDefinitionFact],

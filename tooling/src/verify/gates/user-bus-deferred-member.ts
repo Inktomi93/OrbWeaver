@@ -54,7 +54,7 @@ export const gate = defineGate({
   authority: "hard",
   severity: "warning",
   workItem: 1822,
-  population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
+  population: { in: ["@contracts", "@server"] },
   analysis: "types",
   execution: "entire-population",
   facts: [busProducerFact],

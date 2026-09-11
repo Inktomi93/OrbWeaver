@@ -22,7 +22,7 @@ const FIX =
 
 /** Legacy `scanRoot` admitted `packages/{server,contracts,kit}/src` minus every `.test.` and `.test-d.`
  *  path (its `scripts/` clause was already unreachable under those three prefixes). */
-const WIRE_HOME_POPULATION = { in: ["@server", "@contracts", "@kit"], notNamed: ["*.test.*", "*.test-d.*"], ext: ["ts", "tsx"] } as const;
+const WIRE_HOME_POPULATION = { in: ["@server", "@contracts", "@kit"], notNamed: ["*.test.*", "*.test-d.*"] } as const;
 
 /** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. */
 function propertyName(property: MorphNode): string | null {

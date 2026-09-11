@@ -59,7 +59,7 @@ export const gate = defineGate({
   family: "test-world-browser-contracts",
   authority: "hard",
   severity: "error",
-  population: { in: ["@tests"], ext: ["ts", "tsx"] },
+  population: { in: ["@tests"] },
   analysis: "types",
   execution: "selected-files",
   facts: [],

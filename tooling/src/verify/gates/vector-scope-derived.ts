@@ -53,7 +53,7 @@ const FIX =
 /** Legacy `scanRoot` tested `/packages\\/server\\/src\\//` against a slash-prefixed repo path — the `@server`
  *  root exactly. The sanctioned homes stay IN the population and are decided per arm below, so a re-home
  *  reds at its new path instead of carrying its exemption silently. */
-const SERVER_POPULATION = { in: ["@server"], ext: ["ts", "tsx"] } as const;
+const SERVER_POPULATION = { in: ["@server"] } as const;
 
 /** A reference SPELLED like a vector table: an import specifier (whose `getName()` is the exported name even
  *  under an alias) or a member read of that name. The NAME is the candidate gate; the origin is the verdict. */

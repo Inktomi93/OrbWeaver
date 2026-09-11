@@ -111,7 +111,7 @@ export const gate = defineGate({
   family: "role-vocabulary",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@server"], under: ["packages/server/src/domain/**"], ext: ["ts", "tsx"] },
+  population: { in: ["@server"], under: ["packages/server/src/domain/**"] },
   analysis: "types",
   execution: "entire-population",
   facts: [tupleVocabularyFact],

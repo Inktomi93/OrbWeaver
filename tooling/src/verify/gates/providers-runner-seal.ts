@@ -27,7 +27,6 @@ const FIX = "route through the providers role surface — never import the runne
 const CONSUMER_POPULATION = {
   in: ["@server"],
   under: ["packages/server/src/domain/**", "packages/server/src/transport/**", "packages/server/src/entry/**"],
-  ext: ["ts", "tsx"],
 } as const;
 
 /** THE CANDIDATE PREFILTER (the id-brand lane's measured lesson): resolving a canonical origin on every

@@ -23,7 +23,7 @@ const FIX =
   "seam cannot be injected, and what would end it>` to that exact call.";
 
 /** Legacy `scanRoot` was `p.includes("tests/")` — every authored `tests/` tree, including the nested ones. */
-const TEST_POPULATION = { in: ["@authored"], under: ["tests/**", "**/tests/**"], ext: ["ts", "tsx"] } as const;
+const TEST_POPULATION = { in: ["@authored"], under: ["tests/**", "**/tests/**"] } as const;
 
 function isInternalTarget(specifier: string): boolean {
   return INTERNAL_PREFIXES.some((prefix) => specifier.startsWith(prefix));

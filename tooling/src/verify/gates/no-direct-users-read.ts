@@ -58,7 +58,7 @@ export const gate = defineGate({
   family: "no-direct-users-read",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@server"], under: ["packages/server/src/domain/**"], ext: ["ts", "tsx"] },
+  population: { in: ["@server"], under: ["packages/server/src/domain/**"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],

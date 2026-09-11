@@ -28,7 +28,7 @@ const FIX =
 
 /** Legacy `scanRoot` tested `/packages\\/server\\/src\\/domain\\/discovery\\//` against the repo path; the
  *  `@server` root plus this `under` glob admits exactly that set. */
-const DISCOVERY_POPULATION = { in: ["@server"], under: ["packages/server/src/domain/discovery/**"], ext: ["ts", "tsx"] } as const;
+const DISCOVERY_POPULATION = { in: ["@server"], under: ["packages/server/src/domain/discovery/**"] } as const;
 
 /** The per-file candidate prefilter: an `ImportSpecifier`'s `getName()` is the ORIGINAL exported name even
  *  under an alias, and a namespace member is spelled with the exported name, so the rollup NAMES gate the

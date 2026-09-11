@@ -35,7 +35,6 @@ const FIX = "authority is chat_participants via assertParticipant → the can() 
 const CHAT_SCOPE_POPULATION = {
   in: ["@server"],
   under: ["packages/server/src/domain/chat/**", "packages/server/src/transport/trpc/routers/chat**", "packages/server/src/transport/trpc/chat-events-bus**"],
-  ext: ["ts", "tsx"],
 } as const;
 
 /** Does this operand NAME the `ownerId` property, in any spelling? A bare identifier counts (the legacy

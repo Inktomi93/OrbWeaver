@@ -74,7 +74,7 @@ export const gate = defineGate({
   family: "ambient-determinism",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@packages"], notNamed: ["*.test.*"], ext: ["ts", "tsx"] },
+  population: { in: ["@packages"], notNamed: ["*.test.*"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],

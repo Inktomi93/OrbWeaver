@@ -648,7 +648,7 @@ function createBusFactCollector(context: GateFactContext): GateFactHooks<BusFact
 
 export const busProducerFact = defineFact({
   id: "bus-producers",
-  population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
+  population: { in: ["@contracts", "@server"] },
   analysis: "types",
   resources: [],
   create: createBusFactCollector,

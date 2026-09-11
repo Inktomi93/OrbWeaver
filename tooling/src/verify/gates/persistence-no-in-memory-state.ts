@@ -30,7 +30,6 @@ const PERSISTENCE_POPULATION = {
   under: ["**/persistence/**"],
   notUnder: ["tests/**"],
   notNamed: ["*.test.*"],
-  ext: ["ts", "tsx"],
 } as const;
 
 /** The constructor name a `new X()` / `new ns.X()` expression SPELLS, used only as the candidate gate: the
