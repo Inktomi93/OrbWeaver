@@ -56,9 +56,43 @@ test("a corpus whose final policies all prove is CLEAN, and the summary names th
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(0);
-  // The real policy carries 4 mustFlag + 4 mustPass rows; the legacy module is counted, never proven here.
-  expect(res.stdout).toContain("policy-conformance: 1 final policies · 8 proof rows · 0 failure(s)");
+  // The real policy carries 4 mustFlag + 4 mustPass rows; the legacy module is counted, never proven here. The
+  // grant table is NOT part of this planted world, so only rows naming loaded policies are judged — none here.
+  expect(res.stdout).toContain("policy-conformance: 1 final policies · 8 proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid");
   expect(res.stdout).toContain("(corpus: 2 module(s), 1 legacy proven by gate-conformance)");
+});
+
+test("a planted root that carries a REVIEWED-GRANT target judges that policy's rows; one that carries the TABLE judges it whole", {
+  timeout: CLI_TIMEOUT_MS,
+}, async ({ plantedTree, repoRoot, runCli }) => {
+  // Arm 1 — a real reviewed-grant policy re-exported into the corpus: its own grant rows are judged and valid.
+  const partial = await plantedTree({
+    [`${GATES}/route-imports-no-feature.ts`]: realPolicyShim(repoRoot, "route-imports-no-feature"),
+  });
+  const judged = await runCli("verify", ["policy-conformance"], { cwd: partial, timeoutMs: CLI_TIMEOUT_MS });
+  await expect(judged).toExitWith(0);
+  expect(judged.stdout).toMatch(/1 final policies · 5 proof rows · 0 failure\(s\) · [1-9]\d* grant rows \(rows naming loaded policies\) · 0 invalid/u);
+
+  // Arm 2 — THE WHOLE-TABLE CONTROL: the same one-policy corpus, but the table's own module is planted under the
+  // root (a re-export of the real table), so the table is a member of the corpus being judged and is judged WHOLE.
+  // Every row naming a policy this corpus does not hold is an unknown-policy error; the count of invalid rows
+  // equals the count of rows naming policies OTHER than the one loaded — the arm reads the equality off the run
+  // rather than pinning a table size that moves with every reviewed grant.
+  const whole = await plantedTree({
+    [`${GATES}/route-imports-no-feature.ts`]: realPolicyShim(repoRoot, "route-imports-no-feature"),
+    "tooling/src/verify/lib/reviewed-grants.ts": `export * from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/reviewed-grants.ts")).href)};\n`,
+  });
+  const res = await runCli("verify", ["policy-conformance"], { cwd: whole, timeoutMs: CLI_TIMEOUT_MS });
+  await expect(res).toExitWith(2);
+  expect(res.stdout).toContain("· [invalid-grant] · reviewed grant targets an unknown policy:");
+  expect(res.stdout).not.toContain("reviewed grant targets an unknown policy: route-imports-no-feature");
+  const summary = /(?<rows>\d+) grant rows \(whole table\) · (?<invalid>\d+) invalid/u.exec(res.stdout)?.groups;
+  expect(summary).toBeDefined();
+  const rows = Number(summary?.["rows"]);
+  const invalid = Number(summary?.["invalid"]);
+  expect(rows).toBeGreaterThan(invalid);
+  expect(invalid).toBe(rows - Number(/(?<own>\d+) grant rows \(rows naming loaded policies\)/u.exec(judged.stdout)?.groups?.["own"]));
+  expect(res.stdout).toContain("the checker is broken, not the tree (exit 2)");
 });
 
 test("a policy whose own proof fails is a TOOL ERROR naming policy, arm, row index and why", { timeout: CLI_TIMEOUT_MS }, async ({
