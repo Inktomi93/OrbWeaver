@@ -107,10 +107,17 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        "tests/tooling/a.test.ts": 'test("empty", () => {\n  const x = 1;\n});\n',
-        "tests/tooling/b.test.ts": 'test("has assertion", () => {\n  expect(1).toBe(1);\n});\n',
+        "tests/tooling/a.test.ts": 'test("empty", () => {\n  const x = 1;\n  const y = 2;\n  const z = 3;\n  const w = 4;\n  const v = 5;\n});\n',
+        "tests/tooling/b.test.ts": "expect(1).toBe(1);\n",
       },
       expect: { count: 1 },
+      // DISCRIMINATING BY DESIGN (#1935, planted-break receipt in the report): file b's assertion node-range
+      // is chosen so its NUMERIC offsets fall inside file a's test-call range once the two files' local
+      // offsets are read off a SHARED list rather than a PER-FILE one — the prior fixture (a bare `const x = 1`
+      // body against a wrapped assertion) never overlapped under either reconciliation shape, so it proved
+      // nothing about the per-file guard the header above claims. This fixture reads `count: 1` (a's stub
+      // still flags) only when reconciliation stays per-file; a shared-list mutation of `evaluate` reads
+      // `count: 0` (b's assertion offset-overlaps and wrongly satisfies a's stub).
       why: "CROSS-FILE LEAK CONTROL: file b's assertion must not satisfy file a's stub test — reconciliation is per-file range containment over a per-file assertion index, never one shared list across the whole pass",
     },
   ],

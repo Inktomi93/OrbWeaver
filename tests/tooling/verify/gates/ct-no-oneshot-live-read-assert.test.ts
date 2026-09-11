@@ -19,23 +19,14 @@ function passOf(files: Readonly<Record<string, string>>): ReturnType<typeof runP
 }
 
 // ---------------------------------------------------------------------------------------------------
-// REPORT IDENTITY. The gate's report supplies its own policy id and a "expect" position token — this
-// proves what the mustFlag row can only assert indirectly: a marker naming the WRONG policy at the exact
-// same position is not bound by the central engine, and the underlying finding survives unsuppressed.
+// REPORT IDENTITY, POSITIVE ARM. The gate's report supplies its own policy id and an "expect" position
+// token — this proves what the mustFlag row can only assert indirectly: a marker naming THIS gate's own
+// id at the exact reported position is bound by the central engine and suppresses the finding. (The
+// wrong-policy / stale / malformed report-identity cases are the CENTRAL engine's own proof —
+// `ordinary-waiver.test.ts` — proved once there; a per-gate negative arm here with only `[gate]` in
+// `knownPolicies` made the named sibling `unknown-policy`, which is unreachable in production where the
+// whole family is known, and was therefore vacuous — owner ruling 2026-09-11, #1935.)
 // ---------------------------------------------------------------------------------------------------
-test("an @orb-waive naming the WRONG policy at the exact position suppresses nothing", () => {
-  const mismatched = passOf({
-    "tests/client/data/x.ct.tsx":
-      'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  // @orb-waive no-inline-types(expect): names a different policy than this gate.\n  expect(trpc.count("tag.createTag")).toBe(2);\n});\n',
-  });
-
-  expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.effectiveFindings[0]).toMatchObject({ policyId: "ct-no-oneshot-live-read-assert" });
-  expect(mismatched.authority.authorityAlarms).toMatchObject([
-    { kind: "ordinary-waiver", message: expect.stringContaining("targets unknown policy no-inline-types") },
-  ]);
-});
-
 test("an @orb-waive naming this gate's OWN id at the exact position suppresses the finding", () => {
   const waived = passOf({
     "tests/client/data/x.ct.tsx":
