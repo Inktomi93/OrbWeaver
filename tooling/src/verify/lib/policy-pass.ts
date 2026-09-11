@@ -640,7 +640,7 @@ function receiptFailures(receipt: PolicySemanticReceipt): readonly string[] {
 }
 
 function factReceiptFailures(run: FactRun): string[] {
-  const failures: string[] = [];
+  const failures = run.receipts.flatMap(receiptFailures);
   if (run.receipts.length === 0) {
     failures.push("fact produced no semantic receipt");
   }
