@@ -151,8 +151,34 @@ bucket is exactly this set. Run them in PARALLEL with the C design pass rather t
 **The 36 need a READING lane, not a script.** Three mechanical attempts to classify their read targets each returned a
 false clean: extensions matched in header comments, then again inside `message`/`fix` STRING LITERALS (nearly every
 gate cites a `.md` law doc in its message, so `.md` scored 36/36 three times running). What a module READS is only
-visible by reading the call, which is why step 1 below is a lane and why `gate:contract`'s simple tier was never the
-oracle. Do not quote a read-target census that a grep produced.
+visible by reading the call, which is why `gate:contract`'s simple tier was never the oracle. Do not quote a
+read-target census that a grep produced.
+
+### Step 1 COMPLETE — all 36 read in full, 2026-09-11. #1930 is wrong in BOTH directions.
+
+Three scouts read all 36 in full plus their one `lib/` hop; every claim below was re-verified against the contract by
+the orchestrator, because one scout asserted a false clean at high confidence (`ui-variant-axes-stamped` "has no
+filesystem read" — it imports `existsSync` at :22 and calls it at :109). **Verify every scouted negative.**
+
+| Bucket | Modules | Verdict |
+| - | -: | - |
+| servable by an authored-tree id that ALREADY EXISTS | 6+ | `tooling-slot-template`, `ui-primitive-structure`, `tooling-instrument-proof`, `test-layout`, `gate-ignore-inventory`, `db-structure`. Zero new capability — unconverted, not blocked |
+| DATA entries in existing enums | 3 | `docs` and `scripts` ids absent from `AUTHORED_TREE_PATHS` (12 ids, `resource-tree.ts:4-17`); `biome` and `typescript` absent from `CONFIG_SNAPSHOT_RUNNERS` |
+| ONE new declarable kind — arbitrary tracked-file TEXT | ~10 | **Already built and private.** `ResourceHost.ordinaryWaiverCarriers(paths)` (`contract/resource-host.ts:30-33`) is exactly it: comment-aware, demand-driven text snapshots of exact demanded paths, sourced from declared doors. No shipped kind returns text for an arbitrary path — `ResourceTreeEntry` is metadata only (`resource.ts:24-31`), `TrackedResourceIndex` is `{ repoPaths }` (`:51-53`), `STATIC_CONFIG_RESOURCE_PATHS` is closed at five (`resource-config.ts:19-25`). Exposing this one door covers the ledgers, the docs corpus, the test mirrors and the manifests |
+| a shared `defineFact`, NOT a kind | 4 | `integer-line-boxes`, `motion-token-purity`, `rest-transform-grid`, `over-art-plate-arm` each re-implement the SAME recursive `.css` walk over `packages/{ui,client}/src`. One census fact over `authored-css` absorbs all four |
+| **genuinely open — and it is THREE shapes, not one** | 3 | `baseui-surface-manifest` wants a parsed `.d.ts` AST tree of one named dependency at unbounded depth (`packages/ui/node_modules/@base-ui/react`); `devtools-frontend-assets` wants installed-package METADATA FIELDS from two others (`@playwright/test`, `playwright-core/browsers.json`); `no-manual-memo` wants a raw SUBSTRING search in one bundled dist file (`babel-plugin-react-compiler/dist/index.js`). Different return shapes — **do not collapse them into one `node_modules` kind** |
+| genuine outliers | 2 | `devtools-frontend-assets`'s hash-pinned binary/license asset closure resembles no shipped kind; `tooling-shared-plumbing` wants pattern-based root discovery (`playwright*.config.ts`) plus raw AST from a config whose kinds expose only selectors and key/value rows |
+
+**Two corrections to #1930 that follow directly.** It claims config/compiler liveness is blocked: `eslint-grant-liveness`,
+`depcruise-grant-liveness` and `runner-config-path-liveness` converted without it, and `biome-grant-liveness` +
+`tsconfig-entry-liveness` want the same proven shape — a `native-config` RUNNER evaluating through the tool's own
+loader, not a new kind and not the hand-parsed JSON those two do today. And the contract can already express a symlink
+(`ResourceFileSnapshot`'s `symlink` variant with `targetPath`, `resource.ts:34-36`), so the path-liveness blocker is in
+`runResourceExample`'s FIXTURE runtime, not in the contract.
+
+**So step 2's decision is much smaller than #1930 frames it:** three enum entries, one door to expose, one census fact,
+and one real design question — how to declare a read into an installed dependency when three consumers want three
+different return shapes. That last one is the only place a genuinely new capability is owed.
 
 Standing principle this serves (owner, 2026-09-11, general — not a mandate for any particular structure): *do not take
 the easy or short way just because the right way is more work.* The analysis below is the orchestrator's, and the
