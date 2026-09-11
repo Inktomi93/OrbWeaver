@@ -12659,9 +12659,9 @@
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
       "lane": "design",
       "issue": 5,
-      "lines": 223,
-      "bytes": 19504,
-      "sha256": "9001a0efb4ca3f705565602acb32cd2076c0e247b6b1d19209a2ff83755b518e",
+      "lines": 234,
+      "bytes": 20578,
+      "sha256": "5fe06b8f7de9fdeef8ea8b9ef21f5ba1d8c678051d69809fa4d0598a1dae3084",
       "frontmatter": {
         "present": true,
         "malformed": false,
