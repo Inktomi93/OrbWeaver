@@ -1,22 +1,35 @@
-// Gate: test-no-stubs (anti-gaming for test-presence)
-// A test block must contain at least one assertion (expect or expectTypeOf).
-// Empty tests or tests with no assertions are banned to prevent gaming the presence rules.
-import type { CallExpression } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+// Gate: test-no-stubs — anti-gaming for test-presence (Spine-Testing.md §5): every test/it block must
+// carry ≥1 real assertion (expect/expectTypeOf), or a stub satisfies presence rules without testing
+// anything. HARD authority: there is no legitimate reason to waive a stub test, and an ordinary marker
+// escape would defeat exactly the gaming this gate exists to prevent.
+//
+// STATE MOVED INTO `create`. The legacy shape called `call.getDescendantsOfKind(CallExpression)` on the
+// delivered test-call node to find its nested assertions — a private descendant walk the final query
+// boundary forbids even when scoped to one node. The final shape subscribes to CallExpression once (the
+// SAME shared walk every gate rides) and sorts every call into one of two per-file lists (a test
+// declaration, or an assertion call); `evaluate` then reconciles each test against ONLY its own file's
+// assertion list by node-RANGE containment. Per-file indexing (not one shared list) is load-bearing: a
+// pass over a narrowed OR whole-tree subset visits many files, and two different SourceFiles' local
+// offsets can numerically overlap — an assertion in file B must never satisfy a stub test in file A
+// (mustFlag row below proves the guard).
+import type { CallExpression, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
 
 const TEST_CALL_NAMES = new Set(["test", "it", "test.skip", "it.skip"]);
 
-function callHasAssertion(call: CallExpression): boolean {
-  return call.getDescendantsOfKind(SyntaxKind.CallExpression).some((c) => {
-    // Collapse whitespace: a formatter-broken chain (`expect\n  .poll(...)`) must still read as `expect.poll`.
-    const innerExprText = c.getExpression().getText().replaceAll(/\s+/gu, "");
-    return innerExprText === "expect" || innerExprText === "expectTypeOf" || innerExprText.startsWith("expect.");
-  });
+function calleeName(call: CallExpression): string {
+  return call.getExpression().getText();
+}
+
+function isAssertionCall(call: CallExpression): boolean {
+  // Collapse whitespace: a formatter-broken chain (`expect\n  .poll(...)`) must still read as `expect.poll`.
+  const name = calleeName(call).replaceAll(/\s+/gu, "");
+  return name === "expect" || name === "expectTypeOf" || name.startsWith("expect.");
 }
 
 function isTestDeclaration(call: CallExpression): boolean {
-  const name = call.getExpression().getText();
+  const name = calleeName(call);
   if (!TEST_CALL_NAMES.has(name)) {
     return false;
   }
@@ -28,43 +41,97 @@ function isTestDeclaration(call: CallExpression): boolean {
 const STUB_MESSAGE =
   "stub test contains no assertions (expect/expectTypeOf) — tests must assert behavior, not just satisfy presence rules (Spine-Testing.md §5).";
 
-export const gate: GateDescriptor = {
-  name: "test-no-stubs",
-  docRow: "Spine-Testing.md §5",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "test-no-stubs",
+  family: "test-no-stubs",
+  authority: "hard",
+  severity: "error",
+  population: "@tests",
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: STUB_MESSAGE,
   fix: "add at least one expect()/expectTypeOf() assertion to the test body (or delete the stub).",
-  scanRoot: (p) => p.includes("tests/"),
-  kinds: [SyntaxKind.CallExpression],
-  visit: (node, _sf, ctx) => {
-    if (!node.isKind(SyntaxKind.CallExpression)) {
-      return;
-    }
-    if (!isTestDeclaration(node) || callHasAssertion(node)) {
-      return;
-    }
-    const arg0 = node.getArguments()[0];
-    const name = arg0?.getKind() === SyntaxKind.StringLiteral ? arg0.getText() : "unnamed test";
-    ctx.report(node, { token: `stub ${name}`, offset: 0 });
+  create: (ctx) => {
+    const testCalls: CallExpression[] = [];
+    const assertionsByFile = new Map<string, CallExpression[]>();
+    const assertionsFor = (sourceFile: SourceFile): CallExpression[] => {
+      const path = ctx.relativePath(sourceFile);
+      let list = assertionsByFile.get(path);
+      if (list === undefined) {
+        list = [];
+        assertionsByFile.set(path, list);
+      }
+      return list;
+    };
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node, sourceFile) => {
+            if (!Node.isCallExpression(node)) {
+              return;
+            }
+            if (isTestDeclaration(node)) {
+              testCalls.push(node);
+              return;
+            }
+            if (isAssertionCall(node)) {
+              assertionsFor(sourceFile).push(node);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const testCall of testCalls) {
+          const assertions = assertionsByFile.get(ctx.relativePath(testCall.getSourceFile())) ?? [];
+          const start = testCall.getStart();
+          const end = testCall.getEnd();
+          const hasAssertion = assertions.some((assertion) => assertion.getStart() >= start && assertion.getEnd() <= end);
+          if (!hasAssertion) {
+            const callee = testCall.getExpression();
+            ctx.report.node(callee, { token: callee.getText(), offset: 0 });
+          }
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'test("does nothing", () => {\n  const x = 1;\n});\n',
-      at: "tests/tooling/x.test.ts",
+      mode: "source",
+      files: { "tests/tooling/x.test.ts": 'test("does nothing", () => {\n  const x = 1;\n});\n' },
+      expect: { count: 1, token: "test" },
       why: "a test with no expect/expectTypeOf — a stub that games the presence rules (§5)",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/tooling/a.test.ts": 'test("empty", () => {\n  const x = 1;\n});\n',
+        "tests/tooling/b.test.ts": 'test("has assertion", () => {\n  expect(1).toBe(1);\n});\n',
+      },
+      expect: { count: 1 },
+      why: "CROSS-FILE LEAK CONTROL: file b's assertion must not satisfy file a's stub test — reconciliation is per-file range containment over a per-file assertion index, never one shared list across the whole pass",
     },
   ],
   mustPass: [
     {
-      files: 'test("asserts", () => {\n  expect(1).toBe(1);\n});\n',
-      at: "tests/tooling/y.test.ts",
+      mode: "source",
+      files: { "tests/tooling/y.test.ts": 'test("asserts", () => {\n  expect(1).toBe(1);\n});\n' },
       why: "a test with a real expect() assertion — asserts behavior, passes",
     },
     {
-      files: 'test("conditionally available", () => {\n  test.skip(!backendAvailable, "backend unavailable");\n  expect(result).toBe("ok");\n});\n',
-      at: "tests/e2e/conditional.spec.ts",
-      why: "an in-body runner-status guard is not itself a nested test declaration",
+      mode: "source",
+      files: {
+        "tests/e2e/conditional.spec.ts":
+          'test("conditionally available", () => {\n  test.skip(!backendAvailable, "backend unavailable");\n  expect(result).toBe("ok");\n});\n',
+      },
+      why: "an in-body runner-status guard (`test.skip(condition, reason)`, no callback argument) is not itself a nested test declaration",
+    },
+    {
+      mode: "source",
+      files: { "tests/tooling/z.test.ts": 'test("chained assertion", () => {\n  expect\n    .poll(() => 1)\n    .toBe(1);\n});\n' },
+      why: "declared limit preserved from the legacy check: a formatter-broken `expect\\n  .poll(...)` chain still reads as an assertion once whitespace collapses",
     },
   ],
-};
+});
