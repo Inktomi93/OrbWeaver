@@ -346,7 +346,14 @@ const ROWS: Row[] = [
   ["pass", null, "pnpm typecheck --config tsconfig.json"],
   ["pass", null, "pnpm check:type-ownership"],
   ["pass", null, "pnpm gate:contract"],
-  ["pass", null, "pnpm exec biome check .claude/hooks/tool-guard.mjs --diagnostic-level=error"],
+  // RETIRED 2026-09-11 (#1943 F3): this row used to pin `pnpm exec biome check .claude/hooks/tool-guard.mjs
+  // --diagnostic-level=error` as a sanctioned spelling. It measured NOTHING — `biome.json`'s files.includes
+  // carries `!.claude`, so that command answers "Checked 0 files … These paths were provided but ignored"
+  // and exits 1 — and the guard recommends it nowhere. The hook's real floor is two `pnpm verify` stages
+  // (tooling/src/verify/lib/registry.ts): `lint:hook-syntax` at STATIC (`node --check` over
+  // `.claude/hooks/*.mjs` — a syntax error there fails the hook OPEN and every Bash call runs unguarded)
+  // and `tests:tool-guard` at PUSH (this file). The static one's own spelling is the row below.
+  ["pass", null, "node --check .claude/hooks/tool-guard.mjs"],
   // ---- playwright CT: every RAW run is routed to `pnpm test:ct` (2026-09-11 vocabulary refresh) ----
   // The old recipe (`rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts`) used to
   // be the PASS arm. It is now rewritten like any other raw run: `playwright/.cache` stopped being the CT
@@ -366,6 +373,97 @@ const ROWS: Row[] = [
   ["allow", "harness-piped", "pnpm test:ct tests/client/x.ct.tsx 2>&1 | tail -40"],
   ["pass", null, "pnpm test:ct tests/client/x.ct.tsx"],
   ["pass", null, "npx playwright test tests/e2e/login.spec.ts"],
+  // ---- #1943 F1: THE RAW CT SPELLINGS LANES ACTUALLY TYPE. The head named only `npx` / `pnpm exec` /
+  // line-start / `&&`, and 268 of the 782 raw CT rows in main's 179,120-row decision log are one of these
+  // three — a third of them, mostly `cd <worktree> && ./node_modules/.bin/playwright test …`. Every row
+  // below was `pass/null`: the shared `playwright/.cache` (#1581's corruption), no exclusion lock, no
+  // host-wide slot, no run marker, and for the `.bin`/`node` forms no heap floor either. ----
+  ["allow", "playwright-ct", "node_modules/.bin/playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "./node_modules/.bin/playwright test tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "pnpm playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "node node_modules/@playwright/test/cli.js test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "cd /wt && ./node_modules/.bin/playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "cd /wt && timeout 400 ./node_modules/.bin/playwright test tests/client/x.ct.tsx"],
+  // MUST PASS: an e2e run through the SAME spellings is not this rule's business (no CT hint), and the
+  // widening must not swallow the repo's own e2e scripts.
+  ["pass", null, "./node_modules/.bin/playwright test -c playwright.config.ts tests/e2e/login.spec.ts"],
+  ["pass", null, "pnpm e2e:smoke"],
+  ["pass", null, "pnpm e2e"],
+  // ---- #1943 F6: the rewrite forwards flags verbatim, and `pnpm test:ct` → `scoped-test`'s preflight
+  // reads any non-flag operand carrying a `/` as a PATH CLAIM (isPathShaped) — so a space-form
+  // `--output reports/ct-out` / `-g chat/composer` turned a working raw run into exit 3/2. Refused with
+  // the `=`-joined spelling named; everything whose value is not path-shaped still rewrites. ----
+  ["deny", "playwright-ct", "npx playwright test tests/client/x.ct.tsx --output reports/ct-out"],
+  ["deny", "playwright-ct", 'npx playwright test tests/client/x.ct.tsx -g "chat/composer"'],
+  ["allow", "playwright-ct", "npx playwright test tests/client/x.ct.tsx --output=reports/ct-out"],
+  ["allow", "playwright-ct", 'npx playwright test tests/client/x.ct.tsx -g "foo bar"'],
+  ["allow", "playwright-ct", "npx playwright test --headed tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", "npx playwright test tests/client/x.ct.tsx --workers 2 --trace on --project chromium"],
+  // ---- #1943 F4: a `-c` operand that is nothing but a VARIABLE, and `eval`. `inlineShellCommands` read
+  // the raw operand and classified `$CMD` as text, while the script-path resolver one function up expands
+  // the command's own assignments and asks on anything unresolvable — the two arms disagreed on the
+  // guard's own law. `eval` was in no head list at all, so its quoted argument was blanked before any rule
+  // saw it (the control `eval git stash` denied only because an UNQUOTED one stays visible). ----
+  ["deny", "inline:git-destructive", 'CMD="git stash"; bash -c "$CMD"'],
+  ["deny", "inline:git-destructive", "CMD='git stash'; bash -c \"$CMD\""],
+  ["ask", "inline-unresolved-operand", 'bash -c "$CMD"'],
+  ["ask", "inline-unresolved-operand", 'sh -c "$UNSET"'],
+  ["deny", "inline:git-destructive", 'eval "git stash"'],
+  ["deny", "inline:git-destructive", "eval 'git stash'"],
+  ["deny", "git-destructive", "eval git stash"],
+  ["deny", "inline:git-destructive", 'eval "$(echo git stash)"'],
+  ["deny", "inline:git-destructive", 'bash -c "$(echo git stash)"'],
+  // MUST PASS — expansion is read ONLY for a VAR-ONLY operand, on purpose: expanding the `$VAR` inside a
+  // larger string would move TEXT into command position and invent denials. `echo $MSG` echoes three
+  // words; it stashes nothing, and a guard that denies it is a guard lanes route around.
+  ["pass", null, "MSG='git stash'; bash -c \"echo $MSG\""],
+  ["pass", null, "bash -c 'echo $HOME'"],
+  ["pass", null, 'eval "$(ssh-agent -s)"'],
+  ["pass", null, 'CMD="pnpm check"; bash -c "$CMD"'],
+  // ---- #1943 F5: a heavy tool through a spelling with NO HEAP FLOOR. Measured: a bare `node`/`npx` child
+  // gets heap_size_limit 4192 MiB and no NODE_OPTIONS; anything through pnpm gets 16480. `npx eslint` had
+  // 380 corpus sightings and `npx tsc` 269 — and the bare in-process ts-morph verb is the recorded
+  // exit-134. All were `pass/null` with no advice naming the door. ----
+  ["deny", "heavy-tool-unfloored", "npx eslint packages/client/src/app.tsx"],
+  ["deny", "heavy-tool-unfloored", "npx tsc -p packages/server --noEmit"],
+  ["deny", "heavy-tool-unfloored", "node_modules/.bin/tsc -p packages/server --noEmit"],
+  ["deny", "heavy-tool-unfloored", "node scripts/eslint.cjs packages/client/src"],
+  ["deny", "heavy-tool-unfloored", "node tooling/src/verify/cli.ts structure"],
+  ["deny", "heavy-tool-unfloored", "node tooling/src/ast/cli.ts refs resolveChat"],
+  ["deny", "heavy-tool-unfloored", "npx stryker run stryker.config.js"],
+  ["deny", "heavy-tool-unfloored", "npx jscpd packages"],
+  ["deny", "heavy-tool-unfloored", "npx knip"],
+  ["deny", "heavy-tool-unfloored", "npx depcruise packages --config .dependency-cruiser.cjs"],
+  ["deny", "heavy-tool-unfloored", "npx tsx scripts/x.ts"],
+  ["deny", "heavy-tool-unfloored", "cd /repo && npx eslint packages/client/src"],
+  // MUST PASS — EVERY floored door, including the `pnpm exec` escape for a tool's own CLI. A guard that
+  // refuses the floored spelling teaches lanes to route around it, which is how it stops protecting
+  // anything. (`pnpm gate:contract`, `pnpm typecheck`, `pnpm test:scoped` are pinned in the block above.)
+  ["pass", null, "pnpm lint:eslint"],
+  ["pass", null, "pnpm exec eslint tests/tooling/tool-guard.int.test.ts"],
+  ["pass", null, "pnpm exec tsc --noEmit -p packages/ui"],
+  ["pass", null, "pnpm exec node scripts/eslint.cjs packages/client/src"],
+  ["pass", null, "pnpm ast refs resolveChat"],
+  ["pass", null, "pnpm knip"],
+  ["pass", null, "pnpm depcruise"],
+  ["pass", null, "pnpm cpd"],
+  ["pass", null, "pnpm check:structure"],
+  ["pass", null, "pnpm test:mutation"],
+  ["pass", null, "npx biome check packages/ui/src/x.ts"], // biome is Rust: no heap question, no door to name
+  // …and the vitest family is a WARN, not a deny: those spellings DO carry the heap floor (the pnpm ones)
+  // — what they miss is the supervisor watchdog, the path preflight and the nice floor. The silent halves
+  // (`pnpm exec vitest`, the vitest.mjs entry) were `pass/null` before; the WARN names the door and RUNS.
+  ["advisory", "advisory", "pnpm exec vitest run tests/client/x.test.ts"],
+  ["advisory", "advisory", "node node_modules/vitest/vitest.mjs run tests/client/x.test.ts"],
+  // …and an over-cap worker count is the same tier as the un-floored spelling: the SHIPPED defaults ARE
+  // the shared-host caps (tooling/concurrency-profile.json, #1835). The numbers here are absurd on
+  // purpose — the cap-DERIVED proof is its own test below, so this row cannot rot when a cap is retuned.
+  ["deny", "worker-over-cap", "pnpm test:ct tests/client/x.ct.tsx --workers=64"],
+  ["deny", "worker-over-cap", "pnpm test:scoped tests/server/x.test.ts --maxWorkers=99"],
+  ["deny", "worker-over-cap", "npx playwright test tests/client/x.ct.tsx --workers=64"],
+  ["pass", null, "pnpm test:ct tests/client/x.ct.tsx --workers=2"],
+  ["pass", null, "pnpm test:ct tests/client/x.ct.tsx --repeat-each=3"],
+  ["pass", null, "rg --max-workers=99 foo packages/client/src"], // not a runner stage: not this rule's business
   // ---- push tiers ----
   ["ask", "git-push-force", "git push --force origin main"],
   ["ask", "git-push-force", "git push --force-with-lease origin main"],
@@ -402,9 +500,14 @@ const ROWS: Row[] = [
   ["pass", null, "pnpm check > reports/run.log 2>&1"],
   ["pass", null, "pnpm verify --push > /tmp/push.log 2>&1"],
   ["pass", null, "pnpm test:ct"],
-  ["pass", null, "pnpm vitest run tests/tooling/tool-guard.int.test.ts"],
+  // CHANGED 2026-09-11 (#1943 F5, was pass/null): this spelling carries the heap floor but no supervisor
+  // watchdog, no path preflight and no nice — the WARN names `pnpm test:scoped` and the command still RUNS.
+  ["advisory", "advisory", "pnpm vitest run tests/tooling/tool-guard.int.test.ts"],
   ["pass", null, "pnpm ast refs resolveChat | head -20"],
-  ["pass", null, "npx tsc -p packages/server --noEmit"],
+  // RETIRED 2026-09-11 (#1943 F5, was `["pass", null, …]`): this row pinned `npx tsc -p packages/server
+  // --noEmit` as a CLEAN PASS — a false-clean pin on a 4 GiB-ceiling typed check with 269 corpus
+  // sightings. The deny row is in the F5 block above; the floored door is `pnpm typecheck --config …`,
+  // pinned as a must-pass two rows down.
   ["pass", null, "ast-grep run -p 'useMemo($$$A)' -l tsx packages/client/src"],
   ["pass", null, 'git commit -m "use sg run for the sweep"'],
   ["pass", null, "git show HEAD:packages/server/src/index.ts"],
@@ -627,6 +730,47 @@ test("rewrite: a raw CT invocation becomes `pnpm test:ct`, carrying the runner f
   expect(sanctionedPiped.rewrite?.command).toContain("< /repo/reports/tool-guard/run-");
 });
 
+// #1943 F5. The cap is DATA — tooling/concurrency-profile.json is its ONE home (#1835) — so the pin
+// DERIVES the numbers from it: cap+1 denies, cap passes, and the refusal quotes the cap it read. A
+// hard-coded number here would go quietly wrong the day a cap is retuned, which is the whole reason that
+// file exists. (The corpus table's rows use absurd counts for the same reason, from the other direction.)
+test("worker cap: the refusal is derived from the concurrency profile, and names the cap it read", () => {
+  const profile = JSON.parse(readFileSync(join(REPO, "tooling", "concurrency-profile.json"), "utf8")) as {
+    profiles: Record<string, { ctWorkers: number; vitestMaxWorkers: number } | undefined>;
+  };
+  const shared = profile.profiles["shared"];
+  if (shared === undefined) {
+    throw new Error("the concurrency profile has no `shared` profile — the guard reads that key");
+  }
+  const results = runBatch([
+    { command: `pnpm test:ct tests/client/x.ct.tsx --workers=${shared.ctWorkers + 1}` },
+    { command: `pnpm test:ct tests/client/x.ct.tsx --workers=${shared.ctWorkers}` },
+    { command: `pnpm test:scoped tests/server/x.test.ts --maxWorkers=${shared.vitestMaxWorkers + 1}` },
+    { command: `pnpm test:scoped tests/server/x.test.ts --maxWorkers=${shared.vitestMaxWorkers}` },
+  ]);
+  expect([at(results, 0).decision, at(results, 0).rule]).toEqual(["deny", "worker-over-cap"]);
+  expect(at(results, 0).reason).toContain(`cap of ${shared.ctWorkers}`);
+  expect([at(results, 1).decision, at(results, 1).rule]).toEqual(["pass", null]);
+  expect([at(results, 2).decision, at(results, 2).rule]).toEqual(["deny", "worker-over-cap"]);
+  expect([at(results, 3).decision, at(results, 3).rule]).toEqual(["pass", null]);
+});
+
+// #1943 F5. The finding was never "these tools are dangerous" — it was "they reach the box with NO heap
+// floor and the guard says nothing", so the refusal is only worth anything if it names the floored door.
+test("heavy tools: the refusal names the door and the measured ceiling, and every floored door still runs", () => {
+  const [eslint, structure, ast, floored] = runBatch([
+    { command: "npx eslint packages/client/src/app.tsx" },
+    { command: "node tooling/src/verify/cli.ts structure" },
+    { command: "node tooling/src/ast/cli.ts refs resolveChat" },
+    { command: "pnpm exec eslint packages/client/src/app.tsx" },
+  ]);
+  expect(eslint?.reason).toContain("pnpm lint:eslint");
+  expect(eslint?.reason).toContain("4192 MiB"); // the measured bare-node ceiling, not a vibe
+  expect(structure?.reason).toContain("pnpm check:structure");
+  expect(ast?.reason).toContain("pnpm ast");
+  expect([floored?.decision, floored?.rule]).toEqual(["pass", null]);
+});
+
 test("push-in-flight: a live `git push` process turns a commit into a warn (never a block)", () => {
   const procRoot = mkdtempSync(join(tmpdir(), "tg-proc-"));
   mkdirSync(join(procRoot, "999999"));
@@ -764,6 +908,39 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     // the wrapper body carries the CT spelling, so the vocabulary refresh reaches inside it too: today's
     // wrapper passes, and the same wrapper with the pre-2026-09-11 raw-playwright body is refused
     [`bash ${staleCt}`, "deny", "script:playwright-ct"],
+    // ---- #1943 F2: A GROUP CLOSER GLUED TO THE OPERAND IS A SHIELD. The 2026-09-11 `ungroup` fix blanked
+    // a word-initial `(`/`{` so the exec head is found; it never looked at the closer, and `shellWords`
+    // treats `)` as an ordinary character — so the operand word of `(bash /tmp/x.sh)` was `/tmp/x.sh)`,
+    // which cannot exist, and the ENOENT fail-open arm returned SILENCE. Every row below was `pass/null`
+    // while the identical spaced spelling (`( bash … )`, pinned above) denied: one character apart. The
+    // write-then-run pair inherited it through `commandWrites`' key, the `source`/bare-`.sh`/pipe-sink
+    // shapes through their own operand words. ----
+    [`(bash ${evil})`, "deny", "script:git-destructive"],
+    [`(bash "${evil}")`, "deny", "script:git-destructive"],
+    [`(sh ${evil})&`, "deny", "script:git-destructive"],
+    [`(bash ${evil}) &`, "deny", "script:git-destructive"],
+    [`( bash ${evil})`, "deny", "script:git-destructive"],
+    [`(bash ${evil}) | cat`, "deny", "script:git-destructive"],
+    [`(bash ${evil})2>&1`, "deny", "script:git-destructive"], // the closer GLUED to a redirect
+    [`SP=${dir}; (bash "$SP/lane-run.sh")`, "deny", "script:git-destructive"],
+    [`(source ${evil})`, "deny", "script:git-destructive"],
+    [`(. ${evil})`, "deny", "script:git-destructive"],
+    [`(${evil})`, "deny", "script:git-destructive"], // a bare `.sh` head carries the OPENER in its word too
+    [`(${evil} &)`, "deny", "script:git-destructive"],
+    [`(exec ${evil})`, "deny", "script:git-destructive"],
+    [`(cat ${evil} | bash)`, "deny", "script:git-destructive"], // the pipe SINK's stage text was ` bash)`
+    [`(printf 'git stash\\n' > ${written}); bash ${written}`, "deny", "script:git-destructive"],
+    [`(echo "git stash" > ${written}) && bash ${written}`, "deny", "script:git-destructive"],
+    // …and the backstop for the next glued character nobody has thought of: from a GROUPED clause, a path
+    // that does not exist is no longer the harmless "the command would fail anyway" silence. That ruling
+    // survives everywhere else (the row below it is the control) — its INPUT changed, because inside a
+    // group the path the guard resolved may not be the path the shell will run.
+    [`(bash ${join(dir, "does-not-exist.sh")})`, "ask", "script-grouped-unresolvable"],
+    [`bash ${join(dir, "does-not-exist.sh")}`, "pass", null],
+    // MUST PASS — a grouped SANCTIONED wrapper is still just a wrapper; the fix may only ever tighten.
+    [`(bash ${ct})`, "pass", null],
+    [`(bash ${clean} arg1)`, "pass", null],
+    [`(bash ${trackedReal} restart)`, "pass", null],
     // MUST PASS — the sanctioned forms and the fail-open paths
     [`bash ${ct} 2>&1 | tail -40`, "pass", null],
     // #631's other direction: the fix must not become a deny-everything-quoted wall. A script tracked in
@@ -876,6 +1053,11 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   const unresolved = at(runBatch([{ command: 'bash "$NOT_ASSIGNED_HERE/run.sh"' }]), 0);
   expect(unresolved.reason).toContain("$NOT_ASSIGNED_HERE/run.sh");
   expect(unresolved.reason).toContain("Write the path literally");
+  // #1943 F2: the grouped backstop is LOUD too — it names the group as the reason it stopped being the
+  // harmless ENOENT case, so a lane drops the parentheses instead of hitting an opaque wall.
+  const grouped = at(runBatch([{ command: `(bash ${join(dir, "does-not-exist.sh")})` }]), 0);
+  expect(grouped.reason).toContain("GROUPED");
+  expect(grouped.reason).toContain("does-not-exist.sh");
 });
 
 // `~/x.sh` and `$HOME/x.sh` are the same file, and the guard expanded only the first — so spelling a
