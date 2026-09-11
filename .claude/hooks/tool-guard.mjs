@@ -5,6 +5,11 @@
 // on PreToolUse again. The #1898 observation stays true of the PATH — replay and the regression corpus
 // execute this exact file, and SELF_CHECKOUT derives repository identity from this depth — so it never
 // moves. HOOKS BIND AT SESSION LAUNCH: a session already running does not pick this up.
+// CLAUDE ONLY, BY OWNER RULING (2026-09-11): "it's fine, Codex is a lot more cautious than our side so I
+// haven't had to use the tool guard." `.codex/hooks.json` therefore stays `{"hooks":{}}` deliberately —
+// it is not an oversight to be repaired, and `.codex/hooks` symlinks here, so the file is already present
+// on that side should the ruling ever change. The assertion that pins it empty is in
+// tests/tooling/agent-sync/ops/sync.int.test.ts, which carries the same ruling (JSON holds no comments).
 // PreToolUse guard for Bash — catches command shapes that destroy signal, and REWRITES the ones with
 // exactly one correct fix so the agent never even loses the turn.
 //
