@@ -15,11 +15,12 @@ production, so the atomic-cutover invariant ("no production state supports old a
 and no longer an acceptance requirement. Purity guarantees such as zero legacy descriptors, zero legacy fields, or one
 runtime shape are NOT gates on progress. The transition has three phases:
 
-1. **Legacy-only production path** (where we are today): `check:structure` loads only `GateDescriptor`s and throws on
-   a `defineGate` module; converted policies run only where a committed family test imports them.
-2. **Mixed execution** (the next thing to build, before any further conversion): one front door loads BOTH contracts,
-   runs each through its own dispatcher in one invocation, and reports them together. Every converted policy becomes
-   a live gate the moment it lands. Conversion proceeds under this phase until the legacy set is empty.
+1. ~~**Legacy-only production path**~~ — OVER. `check:structure` used to load only `GateDescriptor`s and throw on a
+   `defineGate` module, so converted policies ran only where a committed family test imported them.
+2. **Mixed execution — WHERE WE ARE, landed 2026-09-11 (`d21ece8d8`).** One front door loads BOTH contracts, runs each
+   through its own dispatcher in one invocation, and reports them together. Every converted policy is a live gate the
+   moment it lands, and its declared proof rows run on the commit bar (§5). Conversion proceeds under this phase until
+   the legacy set is empty.
 3. **Legacy retirement** (future cleanup, not a prerequisite): delete the legacy loader, pass, markers, baselines,
    `__g_` fixture suites, the census command and `GATE-AUTHORING.md`'s descriptor law once the final corpus and
    acceptance evidence justify it.
@@ -36,19 +37,25 @@ for exactly once; nothing vanishes from the roster.
 | - | - | - |
 | gate modules / final / legacy | 270 / 164 / 106 | `ls tooling/src/verify/gates/*.ts` + a `defineGate(` grep at `d21ece8d8`; `schema-fact-health` retired (#1948) |
 | converted modules with NO committed test importing them | no longer the bar | `structure:policy-conformance` runs every final policy's declared rows on the static tier (§5). A module with no family test still lacks its §4.2/§4.3/§4.5/§4.6 pins — five were named by the arms-3 lane |
-| ordinary policies with no positive `@orb-waive` identity arm | 32 of 86 (grep floor; ~34 true) | 24 landed across three lanes. The floor also counts `no-off-token-radius-shadow` and `no-form-state-in-useeffect`, whose only marker text is header prose and a sibling's negative arm |
+| ordinary policies with no positive `@orb-waive` identity arm | 24 of 86 (grep floor; ~26 true) | 32 landed across four lanes, each with a planted dead-position control. The floor also counts `no-off-token-radius-shadow` and `no-form-state-in-useeffect`, whose only marker text is header prose and a sibling's negative arm — so a grep OVERCOUNTS arms and this number is a floor, not a total |
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
-| last composed baseline (all final policies, full roster, central grants) | 119 policies: 304 raw = 182 waived + 105 granted + 17 effective; 2:03 wall / 6.55 GB on a loaded box | checkpoint-2026-09-05.md, wave 5 |
+| first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
+| whole-corpus conformance | 162 final policies · 1,467 rows · **1 failure** (#1955) · ~10.5 s | `pnpm check:policy-conformance` at `a949cf1ac`; was 95 failures before the registry provider split |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
 | shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with 7 closed kinds, `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
-| NOT shipped | the mixed production front door; a whole-corpus conformance stage; `check:show` mapping of final owner/authority/tool-error data; ResourceHost kinds beyond the seven (document/ledger facts, Base UI surface, token contract, devtools closure, tsconfig programs, path-identity door, derived mirror index); the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930, #1941, checkpoint "runtime follow-ups" |
-| known red by construction | `check:structure` (loader throw at `loader.ts:25`), `check-gates.repo.int.test.ts`, `gate-ignore-grammar.int.test.ts` (LEAKS `__g_gi` fixtures — never run on a shared tree), `enforcement-registry-parity` (blind to `defineGate`), 12 `types:graph` errors in five legacy-loader test files, `schema-fact-health` mustFlag rows (#1948) | checkpoint "Known red state" + today |
+| NOT shipped | ResourceHost kinds beyond the seven — and whether they SHOULD exist is the Phase C fork, not a backlog (playbook §2); the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930, checkpoint "runtime follow-ups" |
+| known red by construction | `check:structure` exit 1 (real product backlog: 315 `ONESHOT-OK`, 58 `@owner-scope*`, …), `gate-ignore-grammar.int.test.ts` (LEAKS `__g_gi` fixtures — never run on a shared tree), `check-gates.repo.int.test.ts` (not concurrency-safe with itself; orchestrator-only during a train), `check:doc-catalog` 34 inherited rows, 12 `types:graph` errors in five legacy-loader test files | phase A lane §"still red", 2026-09-11 |
+| NOT baselined red — treat as a real verdict | `structure:policy-conformance` and every SCOPED family test. The posture's red-by-construction list above is EXHAUSTIVE; a scoped suite red is a regression until reproduced on a clean tree and dated against the commit that broke it | `registry-family.test.ts` sat red five days because this was assumed the other way (#1953) |
 
-Prerequisite and defect rows: #1947 (native-config waiver carriers — landed `d18ee07f6`, at Verify), #1930 (missing
-resource kinds and the path-identity door), #1941 (whole-corpus conformance runner — becomes §4 item 2), #1948, #1946
-(guard residuals), #1922 (sanctioned-home tables → grants, incl. `ALLOWLIST`/`CALLER_FREE_OPS`), decisions #1939,
-\#1921, #1950 (forge for the mixed-hook splits). Conversions themselves get no rows; they land as comments on #1584.
+Open rows: **#1955** (the last conformance failure — a `bus-producers` provider refusing over an isolated fixture, the
+same class as #1953; until it clears the stage exits 2 and cannot be a bar), **#1952** (identity arms), **#1954**
+residue (`bus-on-data-no-store-write` reports a token containing a paren, which the marker grammar cannot spell),
+**#1930** (the capability fork — see playbook §2 Phase C, a design pass, not a backlog), #1946, #1922
+(sanctioned-home tables → grants, incl. `ALLOWLIST`/`CALLER_FREE_OPS`), #1950 (forge, the 13 mixed-hook splits — the
+only remaining forge-class work). At Verify awaiting a fresh-context verifier: #1941, #1948, #1953, #1954.
+Closed as superseded: #1608/#1609/#1637 (the ESLint-engine architecture; commits on `archive/codex-eslint-cutover/*`).
+Conversions themselves get no rows; they land as comments on #1584.
 
 ## 3. The contract, and how much of it a given gate needs
 
@@ -78,20 +85,22 @@ reviewed-grant identity → `no-raw-matchmedia.ts`; warning debt → `user-bus-d
 `no-raw-spacing-in-features.ts` + its `-health`.
 
 Non-negotiables inside a module: no `Project#getSourceFiles`, `getDescendants*`, `forEachDescendant`, `new Project`,
-private cache, private marker parser, gate-owned exemption table, scope predicate or filesystem read; state in `create`;
-`report.node` token is an exact slice of the node text, and when a policy passes NO token the sink DERIVES one
-(`policy-pass-context.ts:109`): the first identifier, literal or keyword token in the reported node's own text that
-contains no paren or newline. The derived token is what an author must type in `@orb-waive <id>(<position>)`, so a
-policy reporting the type argument `Registry<string, number> | null` is waived at `Registry` and one reporting a cast
-operand is waived at the operand's own text. **The position is the token the module PASSES or derives, which is
-routinely NOT the thing a reader would call the offense** — `no-manual-autosave-flush` is waived at `pushFieldValue`
-though `handleSubmit` is half the defect, and `bounded-list-limit` at the field name rather than the unbounded chain,
-because both report a pair- or chain-level verdict anchored on one locus. Read the `report.node` call, never the
-message. Unguessable is the norm, which is why an ordinary policy's `fix` owes the spelling; every anchor inside the policy's own resolved population;
-population `under: ["x/**"]` (a `"x/"` matches nothing). A read the seven shipped resource kinds cannot serve, or a
-shared reader that does not exist in `lib/`, STOPS that module (it stays legacy and armed) and returns the exact read to
-\#1930. That refusal is a success; keeping a private reader behind `defineGate` lowers the census while leaving the
-forbidden machinery in place.
+private cache, private marker parser, gate-owned exemption table, scope predicate or filesystem read; state in
+`create`; every anchor inside the policy's own resolved population; population `under: ["x/**"]` (a `"x/"` matches
+nothing). A read the seven shipped resource kinds cannot serve, or a shared reader that does not exist in `lib/`,
+STOPS that module — it stays legacy and armed, and the exact read goes to #1930. That refusal is a SUCCESS; keeping a
+private reader behind `defineGate` lowers the census while leaving the forbidden machinery in place.
+
+**The reported position, which is also the waiver position.** `report.node`'s token is an exact slice of the node
+text, and when a policy passes NO token the sink DERIVES one (`policy-pass-context.ts:109`): the first identifier,
+literal or keyword in the reported node's own text containing no paren or newline. That token is what an author must
+type in `@orb-waive <id>(<position>)`. **It is routinely NOT the thing a reader would call the offense** — a policy
+reporting the type argument `Registry<string, number> | null` is waived at `Registry`; `no-manual-autosave-flush` at
+`pushFieldValue` though `handleSubmit` is half the defect; `bounded-list-limit` at the field name rather than the
+unbounded chain, because both report a pair- or chain-level verdict anchored on one locus. A string-literal token
+INCLUDES its quotes. **Read the `report.node` call, never the message.** Unguessable is the norm, which is why an
+ordinary policy's `fix` owes the spelling — and why a token containing a paren makes the policy UNWAIVABLE, since the
+marker grammar's position group is `[^()\r\n]+` and every marker against it parses as malformed.
 
 Family = a shared `lib/` computation or subject reader (module + function), named in the header. Siblings that are two
 spellings of one concept MERGE (the stronger identity reader wins; the retired arm gets a successor proof). A policy
@@ -204,8 +213,13 @@ family.
 
    A fixture's relative import that resolves to nothing makes every identity row pass by fail-closure while
    conformance stays green, so a specifier-resolution control is part of every family floor.
-9. **One family test may cover several siblings**; a file per gate is unnecessary. Until the conformance stage in §5
-   exists, every final policy must still be imported by a committed family test (the 21 uncovered modules are the debt).
+9. **One family test may cover several siblings**; a file per gate is unnecessary. **A conversion no longer owes a
+   family test for its DECLARED rows** — the conformance stage (§5) runs every final policy's `mustFlag`/`mustPass` on
+   the static tier. A family test is owed only for what a row cannot express: the §4.2 identity arm through
+   `runPolicyPass` (which asserts `waivedFindings === 1` and `authorityAlarms === []`, neither of which a `mustPass`
+   row separately asserts), §4.3 grant identity, §4.5 refusal/receipt pins, and the §4.6 differential. Several
+   converted modules have no family test at all and therefore no home for those pins; that is the remaining debt, not
+   the declared rows.
 
 ## 5. The runtime you have (Phase A landed 2026-09-11, `d21ece8d8`)
 
@@ -245,11 +259,12 @@ harness (4 incl. `ct-poll-schedule-and-paint` split), `verify-registry-parity`, 
 `no-form-state-in-useeffect`, `persist-partialize-and-total-migrate` with its ARM A retired into
 `no-raw-zustand-persist`).
 
-**Remaining, 108 modules, by what blocks them** (from `pnpm gate:contract` at `1925d3086` plus the census docs):
+**Remaining, 106 modules, by what blocks them.** Counts below are approximate and predate the current tree — re-derive
+with `pnpm gate:contract` before dispatching; the engineering in each row is durable, the numbers are not.
 
 | Bucket | Approx. count | Blocker / prerequisite | Lane class |
 | - | -: | - | - |
-| resource-backed (`fsBacked`) run/visit/file gates: CSS family (14), config/compiler liveness (`biome-`, `tsconfig-entry-`, `runner-config-path-liveness`), Base UI + installed/generated (7), documents/registries/ledgers (9), `db-structure`, test-presence pair, `tooling-instrument-proof` | \~40 | ResourceHost kinds not shipped (#1930): document/ledger facts, Base UI surface, token contract, devtools closure, tsconfig programs, derived mirror index, path-identity door; CSS census/static-class parity adjudication (design resume step 2) | runtime lane per kind, then executor per family |
+| resource-backed (`fsBacked`) run/visit/file gates: CSS family (14), config/compiler liveness, Base UI + installed/generated (7), documents/registries/ledgers (9), `db-structure`, test-presence pair, `tooling-instrument-proof` | \~40 | **Blocked on a DECISION, not on work.** #1930 proposes seven new capabilities derived from the eleven gates three lanes tripped over — against 106 remaining. Whether the contract grows at all, and by how much, is the Phase C fork (playbook §2): each capability costs a pass over four policing surfaces (`policy-conformance.ts`'s fixture runner, `gate-modernization`, `enforcement-registry-parity`, `policy-validation.ts`), and `gate:contract`'s simple tier is blind to what a gate READS, so "simple" is never "convertible" | forge design pass FIRST; executor per family only after the set is settled |
 | run-only pure-AST gates (whole-population evaluators) | \~21 | shared facts for registries/coverage/static values; several need `evaluate` on an existing provider | executor (Opus) |
 | direct-walking visitors and file hooks | \~35 | inversion into visitors + ancestor checks, or a shared reader; state into `create`; marker vocabulary translation | executor (Sonnet where the reader exists; Opus where a reader must be added) |
 | the 13 ruled mixed-hook modules (`tooling-argv-front-door`, `tooling-shared-plumbing`, `no-inline-union-redecl`, …) | 13 | multi-way splits touching `lib/reviewed-grants.ts` and exported coupled sites | forge (#1950) |

@@ -6,8 +6,10 @@ updated: 2026-09-11
 
 # Gate-runtime orchestrator playbook — how a fresh session runs #1584
 
-Steps, not history. The law and the contract are in [gate-runtime-standardization.md](gate-runtime-standardization.md)
-(read §1–§4 and §8–§9 before your first dispatch; §12 is what lanes read). This file is what YOU do, in order.
+Steps, not history. The law and the contract are in [gate-runtime-standardization.md](gate-runtime-standardization.md).
+**Read its §5 FIRST** — it states what the runtime already GIVES you, and reading it first is what stops a session
+rebuilding something that shipped. Then §2 (tree state), §3 (contract), §4 (proof rules), §7 (what constrains any
+order); §12 is what lanes read. This file is what YOU do, in order.
 
 ## 0. Session start (every time, in this order)
 
@@ -29,7 +31,9 @@ Steps, not history. The law and the contract are in [gate-runtime-standardizatio
 5. Re-derive the census: `pnpm gate:contract > <scratch>/census.log`; the total line and the distinct `gates/*.ts`
    in the descriptor-wrapper findings are the legacy roster. Never quote a number from a document — EVERY roster in
    `docs/reviews/gate-runtime/` is a frozen snapshot and they are all stale (the conversion census counts a 255-module
-   corpus against 271 today). Run this AFTER lanes drain, never beside a live lane.
+   corpus against 270 today). Run this AFTER lanes drain, never beside a live lane. **The sharper roster is
+   `pnpm check:policy-conformance`** — it names every final policy and runs its rows, so it tells you what is
+   CONVERTED AND PROVEN, which `gate:contract` (a shape check) cannot.
 6. Read `~/.claude/bridge/to-primary/` (ack SELF notes by `mv` into `done/`). Write a SELF note ONLY when a context
    sentinel fires or you are handing the session off. A SELF note is a POINTER, never a source: verify every state
    claim in it before acting (two of note 522's were false within the hour).
@@ -47,7 +51,7 @@ Steps, not history. The law and the contract are in [gate-runtime-standardizatio
 
 ## 1. Standing rules for this program (owner, 2026-09-11)
 
-- Cap 3 concurrent lanes. The runtime lane (§2 phase A) runs ALONE.
+- Cap 3 concurrent lanes. (Phase A ran alone and is landed; no current work needs solo.)
 - Lanes run in isolated worktrees off `main` (`isolation: "worktree"`); you merge by fast-forward with the hook path
   nulled after the lane rebases; you run its named floor again on `main` after the merge.
 - Every commit and merge until the mixed `check:structure` is green on `main`: `git -c core.hooksPath=/dev/null …`,
