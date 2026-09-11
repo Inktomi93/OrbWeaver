@@ -284,7 +284,7 @@ doc's count line and rows, this file's catalog receipt.
   scratch corpus of real-shaped modules — a branded module, a legacy descriptor, an unbranded final-shaped lookalike
   (spread copy), a `defineGate` under another export name, a re-export shim under the wrong filename, a duplicate final id,
   a duplicate legacy name, a module exporting nothing; the three views' accounting identity.
-- `tests/tooling/verify/ops/structure-mixed.int.test.ts` (new): spawned `cli.ts structure` + `show` over planted trees
+- `tests/tooling/verify/ops/structure-mixed.suite.int.test.ts` (new): spawned `cli.ts structure` + `show` over planted trees
   whose gates dir holds RE-EXPORT SHIMS of one REAL legacy descriptor (`assumes-single-replica`) and REAL final policies
   (`baseui-render-prop-composition` ordinary; `no-raw-matchmedia` reviewed-grant; `verify-registry-parity` hard/resource)
   — the shims import the real modules by absolute file URL so the objects ARE the real branded descriptors. Arms: both
@@ -307,7 +307,13 @@ doc's count line and rows, this file's catalog receipt.
 | 1 | `2c24d62e7` | mixed loader (`lib/loader.ts`, `lib/policy-module.ts`, `contract/gate-corpus.ts`), the two singleton-family renames, `tests/tooling/verify/lib/loader.test.ts` (10 arms), this doc |
 | 2 | `c05dcad77` | the front door (`ops/structure.ts`), the scoped door, `contract/structure-report.ts`, `lib/structure-report.ts`, `lib/render.ts#renderPolicyPass`, the final timing ledger in `lib/timing.ts`, `lib/pass.ts#stripProbePolicyFindings`, `check:show` + `lib/show-policy.ts` |
 | 3 | `d9fe852ce` | `structure:policy-conformance` (verb, op, script, registry row, pins, planted-tree int test); the stale `lint:hook-syntax` pin repaired |
-| 4 | `ff67d9c70` | `tests/tooling/verify/ops/structure-mixed.int.test.ts` (9 arms); `reviewedGrantsFor` at the door, whole-table validation in the stage |
+| 4 | `ff67d9c70` | `tests/tooling/verify/ops/structure-mixed.suite.int.test.ts` (9 arms; landed as `structure-mixed.int.test.ts`, renamed in `983b0d640`); `reviewedGrantsFor` at the door, whole-table validation in the stage |
+| 5 | `aef57f16d` | `enforcement-registry-parity` + `gate-modernization` read both contracts; the nine missing doc rows + count 271; `check-gates.repo.int.test.ts` re-derived (§11.6) |
+| 6 | `b5a966db4` | the two grant-liveness verdict lines deleted after the front-door transfer was proven (§11.7) |
+| 7a | `72dcffd18` | the stage judges the grant table whole only where the table is part of the corpus (§11.8) |
+| 7b | `983b0d640` | the mixed test takes the `.suite.int.test.ts` kind; `docs/test-baseline/manifest.json` regenerated |
+| 8 | (this commit) | `schema-fact-health` retired (#1948) with its successor pins; §11.6–11.9 (§11.9) |
+| 9 | (next) | the doc-catalog receipts for this file and the enforcement doc — docs plumbing only, after the retirement by the catalog's own two-commit rule |
 
 Floors per leg are in each commit message; every count was read off the run (scoped-test logs in the session
 scratchpad; `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` exit 0 after every leg).
@@ -384,3 +390,76 @@ foundation those rows will be strengthened on; it is not their strength.
 | failed owner withheld, siblings reconcile | `lib/structure-report.ts`: `withheld` always false | RED |
 | deterministic exit + JSON | `lib/structure-report.ts`: a random value in a kept row | RED (+ grant and roster arms) |
 | `check:show` renders both | `lib/show-policy.ts`: the contract word dropped | RED |
+
+### 11.6 Both contracts in `enforcement-registry-parity` and `gate-modernization`; `check-gates` re-derived (leg 5, `aef57f16d`)
+
+- Parity red-first on the unmodified reader against the real tree: 155 findings (`declares "255 registered gates" but
+  there are 108 active gate descriptors` + 154 live doc rows for converted policies read as orphans). After the
+  both-contract reader and BEFORE the doc edit: exactly 10 (the count 255 vs 271, and the nine `-health`/fact-health
+  policies that had no row at all); after the nine rows + count 271: 0. `verifyGateProofs`: 18/18 rows (five new,
+  all through the fs-backed substrate with a planted `contract/policy.ts`). The int test's real-tree arm: 20.4 s
+  (8.4 s before the origin reader); timeout base raised 30 s → 60 s from that measurement.
+- Fork B arm 1 (WIDEN), both required receipts: the mustPass row (a canonical `defineGate` module with a planted
+  policy.ts stub is silent — 18/18 proof rows) AND the planted break on a REAL legacy module: `gates/test-layout.ts`
+  copied to `.p-mixed-runtime.bak`, `export const gate` renamed, the gate driven over the real gates dir → 5 findings,
+  the new one `test-layout.ts:1 … exports no \`gate\` descriptor object and no canonical \`defineGate\` policy`;
+  restored → 4 (the pre-existing arm-B rows: no-raw-spacing-in-features, no-raw-typography-in-features,
+  serde-core-seal, vector-scope-derived — the baseline's "4 other", outside this lane's fence: each carries its stale
+  arm in its `-health`sibling module, which arm B cannot see from the sibling's file). Arm A on the real gates dir:
+  173 → 4 (163 final modules + 6`gates/\_proof/\` surfaces stop reading as unregistered).
+- `check-gates.repo.int.test.ts`: 10/10 in 451 s (two mixed passes). BLIND\_RE had spelled `!` while the renderer
+  has printed `⚠` since 68c8f42d6 — the zero-scan arm was an unfailable empty set; repaired, and it now also covers a
+  final owner failure/withhold. Seven UNFIXTURABLE rows named converted policies (eslint-grant-liveness,
+  depcruise-grant-liveness, warning-code-coverage, verify-registry-parity, bus-producer-coverage,
+  message-kind-policy-coverage, ct-poll-schedule-and-paint-health); the new two-sided arm REDs such a row. Its
+  positive control was taken at predicate level only: the roster script printed exactly those seven under
+  "UNFIXTURABLE rows now FINAL" (the same `legacyNames.has` membership over the same loader output) before they were
+  removed — a full 7.5-minute run with a re-planted row was not spent; the caveat is recorded here.
+- Pre-existing catalog mismatches seen while checking docs (Core-Audits-and-Debt.md, Spine-Identity-and-Auth.md,
+  plugin-ui-plane.md, seven `docs/reviews/gate-runtime/*` debt paths): none touched by this lane.
+
+### 11.7 The grant-liveness verdict transfer (leg 6, `b5a966db4`)
+
+Owner challenge honoured before deletion. Roster: both policies on the mixed manifest as final rows, owner success,
+population complete (eslint 108 native-config rows + 9,426 tracked files; depcruise 210 rows + 9 package facts +
+9,426). Plant: one dead FILE-EXACT grant in each real config (a trailing `{ files: ["packages/kit/src/p-mixed-runtime-
+dead.ts"] }` in eslint.config.js; a `forbidden` rule with `from.path "^packages/kit/src/p-mixed-runtime-dead\.ts$"`
+in .dependency-cruiser.cjs), ONE mixed run (exit 1) → `✗ eslint-grant-liveness (1)` at `eslint.config.js:1:1` token
+`config[26].files[0]` and `✗ depcruise-grant-liveness (1)` at `.dependency-cruiser.cjs:1` token
+`packages/kit/src/p-mixed-runtime-dead.ts`; every other final policy at baseline except tooling-size 10 → 11 (the
+planted line); both configs restored, `git status` showed only the two test files. Neither policy is in the #1947
+class at repo scope, so no arm is kept as a deviation. Tests: 6/6.
+
+### 11.8 The stage's whole-table grant judgment, fixed (`72dcffd18`, stacked before the retirement; the mixed test's `.suite` rename + manifest is `983b0d640`)
+
+A leg-4 defect caught by the lane's own pin on the leg-7 floor: judging the whole `REVIEWED_GRANTS` table
+unconditionally made every planted proof root exit 2 ("105 grant rows · 105 invalid"). Rule now: the whole table is
+judged exactly when the table's own module lives under the root being judged (the real tree); otherwise only rows
+naming loaded policies. Controls at the CLI door: a one-policy root judges that policy's own rows (`route-imports-no-
+feature`, a singleton family — a lone member of a two-policy family is the loader's refusal, found the hard way with
+`zod-error-issues-home`), and the same root plus a re-export of the real table at its own path exits 2 with every
+`[invalid-grant] … unknown policy` row, invalid == rows − own rows read off the two runs. 4/4.
+
+### 11.9 The retirement (#1948) and the final read
+
+- `schema-fact-health` deleted; its doc row (added in leg 5) removed; count 271 → 270; `gate:contract` 815 → 815
+  findings across 271 → 270 modules (the module carried none). Successor pins in `schema-fact-wave-1.test.ts`
+  (5/5): the two fixtures through `runPolicyPass` over `schema-branding` — `factErrors` exactly
+  `[{ factId: "drizzle-schema", phase: "receipt", message: "fact receipt refused: population "drizzle-schema"
+  resolved zero members" }]` (impostor: `… ; population "drizzle-schema" left 1 unresolved`), the consumer's owner
+  `incomplete` with `declared fact failed: drizzle-schema: …`, zero effective findings; a healthy control resolves.
+- Final mixed `pnpm check:structure` (this tree, `/usr/bin/time -v`, box otherwise idle): run
+  `agent-a4e4f512e6acc5d96-2393157-2026-09-11T19-05-39-047Z` COMPLETE, 270/270 (108/108 legacy · 162/162 final),
+  exit 1, total 635 = 200 legacy + 435 final (435 error, 0 warning, 0 alarms, 0 tool errors, 0 withheld, 5 facts
+  ready); waived 181, granted 105. Wall 4:01.81, peak RSS 6.57 GB; legacy hooks 187.8 s (slowest:
+  enforcement-registry-parity 26.0 s — the origin reader over 163 modules, was 7.7 s — caught-failure-ownership
+  18.2 s, dangling-refs 11.6 s, gate-ignore-inventory 11.5 s, knob-wire-coverage 9.6 s); final slowest
+  ct-poll-schedule-and-paint 4.7 s, test-world-browser-contracts 4.3 s, eslint-grant-liveness 4.2 s.
+  Legacy deltas against §11.3: enforcement-registry-parity 155 → 0, gate-modernization 173 → 4,
+  diagnostic-legibility 83 → 81 (the retired module's two message-pointer rows), test-layout 22 → 23 → 22 after the
+  mixed test took the `.suite.int.test.ts` kind. Final deltas: tooling-size 10 → 11 (`lib/pass.ts` is at 483
+  lines against the 450 cap since leg 2 — recorded in §11.3; `tooling-size` is a hard policy and the row is real:
+  the split is owed and deferred to the orchestrator's call, since pass.ts was 459 at the base and already over).
+  `pnpm check:show` read the same run: `✗ check:structure FAILED — 635 violation(s)`, both contracts rendered.
+- Floors on the retirement tree: the scoped battery over 14 files → 13 passed / 1 failed (the stage pin that found
+  §11.8's defect, green after the fix: 4/4); typecheck PASS tsconfig.json + tooling/tsconfig.json; `pnpm verify --list` shows `structure:policy-conformance [structure] whole-only` under changed/static/push/full.
