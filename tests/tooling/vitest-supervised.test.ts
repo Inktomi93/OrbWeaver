@@ -38,7 +38,7 @@ const SUPERVISOR = join(process.cwd(), "scripts", "vitest-supervised.mjs");
 // The busy-mode grandchild's source, hoisted out of FAKE below so this gate marker can be a REAL comment
 // (a `//` inside a template literal is string content, not a comment). It burns CPU for a measured
 // wall-clock span and prints nothing — the exact shape of a long single test file.
-// @orb-gate-ignore test-determinism: the SUBJECT is elapsed real CPU time — a spawned grandchild has no injectable clock, and the loop's END CONDITION is FAKE_BUSY_MS of wall time having passed
+// @orb-waive test-determinism(Date.now): the SUBJECT is elapsed real CPU time — a spawned grandchild has no injectable clock, and the loop's END CONDITION is FAKE_BUSY_MS of wall time having passed
 const SPIN_SRC = "const t = Date.now(); while (Date.now() - t < Number(process.argv[1])) {}";
 
 // A single parametric fake vitest: it parses its own --outputFile.json (the supervisor passes the run args

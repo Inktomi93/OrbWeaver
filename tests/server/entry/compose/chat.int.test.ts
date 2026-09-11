@@ -18,7 +18,7 @@
 // elapsed assertion (the sub-second ceiling below) so the test does not rely solely on the outer timeout
 // to notice a slow-but-not-hung regression — Date.now/performance.now are banned under tests/ by
 // test-determinism and the frozen fixture clock can't measure wall time, so the assertion uses
-// `process.hrtime()` under the shared `@orb-gate-ignore test-determinism` marker (#828). Direct timing
+// `process.hrtime()` under the shared `@orb-waive test-determinism(process.hrtime)` marker (#828). Direct timing
 // evidence, from a standalone probe over the composed `createRegexApplyReplace()`: the guard THROWS in
 // ~52ms (`Script execution timed out after 50ms`, REGEX_APPLY_TIMEOUT_MS), while the native unguarded replace
 // over the SAME 40-`a` input never completes (killed at 90s) — that is exactly the hang the guard prevents.
@@ -119,7 +119,7 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
   test("the ReDoS pattern is interrupted by the composed watchdog: content UNCHANGED", { timeout: 10_000 }, async ({ db, services }) => {
     const { chatId, messageId, principal } = await seedEditTarget(db, services, [REDOS_SCRIPT()], "orig");
 
-    // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — proving the watchdog actually FIRED (well under a second) rather than the call merely completing under vitest's outer timeout (#831)
+    // @orb-waive test-determinism(process.hrtime): the SUBJECT is elapsed real time — proving the watchdog actually FIRED (well under a second) rather than the call merely completing under vitest's outer timeout (#831)
     const started = process.hrtime();
     const view = await services.chat.editMessage({
       principal,
@@ -127,7 +127,7 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
       messageId,
       content: REDOS_INPUT,
     });
-    // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — reading the same monotonic start above; no frozen clock can measure a real wall-clock race (#831)
+    // @orb-waive test-determinism(process.hrtime): the SUBJECT is elapsed real time — reading the same monotonic start above; no frozen clock can measure a real wall-clock race (#831)
     const [seconds] = process.hrtime(started);
 
     // The per-script catch skipped the timed-out rule → the edited content survives verbatim (the replace

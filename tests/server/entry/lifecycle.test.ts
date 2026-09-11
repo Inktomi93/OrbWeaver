@@ -20,7 +20,7 @@ const NS_PER_MS = 1_000_000;
  *  test measures REAL timer behavior (the forced-drain deadline racing a real `setTimeout`), so there is no
  *  frozen clock to inject; hrtime is the monotonic equivalent for a duration measurement. */
 function elapsedMsNow(): number {
-  // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — the forced-drain deadline races a real setTimeout, no frozen clock to inject (#831)
+  // @orb-waive test-determinism(process.hrtime): the SUBJECT is elapsed real time — the forced-drain deadline races a real setTimeout, no frozen clock to inject (#831)
   return Number(process.hrtime.bigint()) / NS_PER_MS;
 }
 
