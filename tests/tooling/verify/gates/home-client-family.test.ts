@@ -2,7 +2,7 @@
 // proof runs through the production dispatcher on an isolated population; the pins below cover what a proof
 // cannot express — a receipt REFUSAL (a tool error, not a finding) and the central grant liveness these
 // policies' whole authority rests on.
-import { Project } from "ts-morph";
+import { Project, ScriptTarget } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as boundFieldViaHook } from "../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
 import { gate as chatStreamWritesInBusOnly } from "../../../../tooling/src/verify/gates/chat-stream-writes-in-bus-only.ts";
@@ -179,6 +179,67 @@ test("no-effect-on-shared-selection REFUSES when a pointer in its vocabulary no 
   // refuses exactly as a zero would. The legacy regex simply stopped matching them.
   expect(renamed.toolErrors).toMatchObject([{ policyId: "no-effect-on-shared-selection", phase: "receipt" }]);
   expect(renamed.policies[0]?.receipts).toMatchObject([{ kind: "population", source: "shared-selection pointers", members: 1, unresolved: 6 }]);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// THE FAIL-CLOSED ORIGIN ARM of `no-raw-matchmedia`, under a program whose `lib` a proof row cannot choose.
+//
+// The module's whole posture is "a spelling whose identity cannot be established is REPORTED, never silently
+// passed". Which root spellings CAN be established is a property of the analysis program's lib: both the live
+// structure pass and the conformance runtime build ts-morph projects with DEFAULT compiler options, so DOM is
+// loaded and `window` / `self` / a bare `matchMedia` all resolve to the precise finding (that is what the
+// module's own `mustFlag[5]`/`mustFlag[6]` pin). A DOM-LESS program is the case no proof row can express —
+// `mode: "types"` gives the row no say over `lib` — and it is exactly where a silent green would hide. Pinned
+// here in both directions.
+// ---------------------------------------------------------------------------------------------------
+const ROOT_SPELLINGS = {
+  "packages/client/src/features/x/global.ts": 'export const G = (): unknown => globalThis.matchMedia("(pointer: coarse)");\n',
+  "packages/client/src/features/x/window.ts": 'export const W = (): unknown => window.matchMedia("(pointer: coarse)");\n',
+  "packages/client/src/features/x/bare.ts": 'export const B = (): unknown => matchMedia("(pointer: coarse)");\n',
+};
+
+/** The same in-memory substrate the conformance runtime uses, minus the DOM half of the default lib. */
+function domlessPassOf(files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ScriptTarget.ES2022, lib: ["lib.es2023.d.ts"] } });
+  for (const [path, source] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, source);
+  }
+  return runPolicyPass({
+    knownPolicies: [noRawMatchmedia],
+    policies: [noRawMatchmedia],
+    root: ROOT,
+    project,
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+}
+
+function verdictsByFile(result: ReturnType<typeof runPolicyPass>): Record<string, string> {
+  return Object.fromEntries(
+    result.authority.effectiveFindings.map((finding) => [finding.file, finding.message?.includes("CANNOT be established") === true ? "unreadable" : "precise"]),
+  );
+}
+
+test("a DOM-less analysis program moves the window/bare roots onto the FAIL-CLOSED arm — reported, never silently passed", () => {
+  const domless = domlessPassOf(ROOT_SPELLINGS);
+
+  expect(domless.toolErrors).toEqual([]);
+  expect(verdictsByFile(domless)).toEqual({
+    // `globalThis` is intrinsic to the checker, so it resolves with no lib at all.
+    "packages/client/src/features/x/global.ts": "precise",
+    "packages/client/src/features/x/window.ts": "unreadable",
+    "packages/client/src/features/x/bare.ts": "unreadable",
+  });
+});
+
+test("under the DEFAULT lib every root spelling resolves instead — the control that makes the arm above a measurement", () => {
+  const withDom = passOf(noRawMatchmedia, ROOT_SPELLINGS);
+
+  expect(verdictsByFile(withDom)).toEqual({
+    "packages/client/src/features/x/global.ts": "precise",
+    "packages/client/src/features/x/window.ts": "precise",
+    "packages/client/src/features/x/bare.ts": "precise",
+  });
 });
 
 // ---------------------------------------------------------------------------------------------------
