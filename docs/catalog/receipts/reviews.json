@@ -282,6 +282,270 @@
       "summary": "Scout findings on #227 (mobile You-sheet notifications placement) and #160 (analytics/memory row click): both verdicts are STALE-PREMISE, claims FALSE as currently worded. #227: the notifications-inbox overflow chrome renders in the THIRD slot, ahead of the 'More' bulk section list, not buried at its foot. #160: the closest matching surface (discovery's corpus-hit-rows.tsx) has every row type real-click-bound, including a documented history of prior side-eye passes explicitly fixing dead-click defects on this exact file; the one non-clickable row (an image no card uses) is intentionally non-interactive, not a bug."
     },
     {
+      "path": "docs/reviews/gate-runtime/bus-family-1584.md",
+      "assignedSha256": "a856748e374733d39956ba4b04d8afb2848eb33b251f45343b6afca1d3eed92c",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/bus-pair-1584.md",
+      "assignedSha256": "85077c568cd82252aeebda3bfabc0ea405b8cce6c8acdb48ba1059f955f9d574",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/checkpoint-2026-09-05.md",
+      "assignedSha256": "b2abd0a2984650fdfaa6477ffc722845b008be8581c61f65368ab6555f2c72d9",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/exception-authority-census.md",
+      "assignedSha256": "b6a5bddc070c82e523482a5d3518acd1210827a3625403182596bed17f28c15d",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/home-client-family-1584.md",
+      "assignedSha256": "a186fed7c8e4889963c6df479ccf0f6f5960e7f7dd48acbe32e9686c2189bc90",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/home-server-family-1584.md",
+      "assignedSha256": "ff75f62b58e6da676e49f6ce24027bbbbbc4e643f42105ac4183dbd3ae25b917",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/id-brand-family-1584.md",
+      "assignedSha256": "8fa602ea1819f0fe5ff29c73c32ea9e4663d5a3a88a102e80eca331fdf92f927",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/mechanical-gates-1584.md",
+      "assignedSha256": "22758d4bdea5c4f5aa24204339b1652a2cb63460ffb05fa38d8e9b9ea588d15a",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/ordinary-visitors-family-1584.md",
+      "assignedSha256": "65efc796f9a3f966580c085abac84104734ea4390d4759699573f71878236aa8",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/ordinary-waiver-source-migration.md",
+      "assignedSha256": "834ce90e2fee514ac868177046fe0a63e2db0de57eb9390bd0e29719e7d07258",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/origin-client-family-1584.md",
+      "assignedSha256": "c9e787ad0411b68f83aeac372fe3bb36591e20863bf47dbf9ded22d4e37ce830",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/origin-server-family-1584.md",
+      "assignedSha256": "c074b34e26873312acd6cd24b64dd659e73df72bebfa9eb52bd03ab789cc1c9d",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/planner-cli-integration.md",
+      "assignedSha256": "90ca11af0ff621be30b4bb90e1aa11208dd63e2506ca50a032b9b760e8ea757e",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/registry-family-1584-checkpoint.md",
+      "assignedSha256": "820027b56a9989cfd76ad7ec4bf526f134c255c167da083585d6d4241295614a",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/resource-gate-access-patterns.md",
+      "assignedSha256": "f7441548020fb3242ed1568b1a59d21decbf9ea8acf46d9271ad36c987f42ce4",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/resource-host-foundation.md",
+      "assignedSha256": "9535a9012e9065a0438512d8fd25335f175b609dbdcaab4ba560de203fd9cb0e",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/resource-layout-size-inventory.md",
+      "assignedSha256": "ccc45ed735f2d47dc79fa57c3225796cf6ef784e64ee42ad0948dcb535fe0b6a",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/schema-fact-family-1584.md",
+      "assignedSha256": "cc3353d29b963f30c2a5129e5bc4cacee6ed11071ce0a658e7ec7312563484bb",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/shared-semantic-readers.md",
+      "assignedSha256": "24f24c5dee3f12c5d19f436cd1d1afc0622ae97bf91b5882e1033d35cf306abe",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/simple-visitors-a-m.md",
+      "assignedSha256": "46340e81488b1cf7c9d16987ceadd803d64fb425e69ae62849b41fdb57aeb769",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/simple-visitors-n-z.md",
+      "assignedSha256": "00c1a0778f5ead75928e1d7655116ad5d6a9925ed8c6be9aab93de5698ab6900",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md",
+      "assignedSha256": "c007029479ffe0fa84c7ad5ccd0a749c17d93cbd56d4e4bc2ec7302d6682abae",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/reviews/interaction-build-audit/scout-P-substrate-A-B1-6.md",
       "assignedSha256": "bceca4c52ce66fcaecc82a9164eea9cd82ae661dd3a94a7ddbbc31d19f8b7605",
       "disposition": "current",
@@ -459,6 +723,192 @@
       "evidence": [
         "docs/reviews/misc/2026-08-18-corpus-forensics.md:1-660 full read at merge",
         "driven live 2026-08-18: 5/5 retrieval checks, wire harvest via /api/trpc, csls.ts A/B receipt"
+      ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
+      "assignedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
+      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
+      "verifiedAt": "2026-09-05",
+      "evidence": [
+        "re-attested at 626a06121 by the orchestrator after reading the §8 amendment in full: the 'member rows in LIST' verdict is superseded by #1725 (owner ~16:40Z: collections move into CONTENT); every other axis stands.",
+        "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 addition in full: a dated blockquote at §3a retires the species authority for its verdicts, and NEW §8 re-judges every axis on the tree without it (all KEEP on a stated structural reason; the §8.3 in-pane seam priced; nothing converged, nothing landed in code beyond header comments); §7's claims stand.",
+        "re-attested at 9e70e5db3 by the orchestrator after reading §7 in full (cb-config-list, #1169): the census table at fine + coarse, the inverted preset-borrow premise (§7.2), D1 refused on the coarse receipt (§7.3), the meta datum landed with the measured Badge-in-markers control Set{35,42} (§7.4), the voice budget + the #1099 Errand A ruling fork reconciled as 'the ruling survives, its input changed' (§7.5), D3 refused (§7.6); disposition needs-owner → current now that the ruling landed; the §3a/§7.1 SPECIES verdicts are open for re-judgment under #1714.",
+        "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",
+        "the two converged axes verified on tree: features/config/lib/config-section.tsx:79 passes ListPaneHeader; features/config/components/config-list-group.tsx:288 renders ListRow"
+      ],
+      "summary": "Measured comparison of the Config LIST pane against the chats/characters/presets LIST panes, then (§7) the cohort-anatomy census at both pointer classes and the convergence #1169's 'receipt + full convergence' ruling decided: the section row carries the Modified datum in ListRow.meta, band state marks are Badges, the voice budget has one home; species-based verdicts are re-judged under #1714 (owner's changed collections stance).",
+      "claims": [
+        {
+          "claim": "The section row carries the modified datum in ListRow.meta and the band's state marks are Badges, with the voice budget homed in the group component's header.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/config/components/config-list-group.tsx:27"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/config/components/config-list-group.tsx:312"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/config/surfaces/config-list-surface.tsx:159"
+            },
+            {
+              "kind": "issue",
+              "target": "#1169"
+            }
+          ]
+        },
+        {
+          "claim": "The #1099 Errand A no-growth mechanism survives: the band is a fixed-height control and the CT pins its height at both pointer classes.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/config/components/config-list-group.tsx:44"
+            },
+            {
+              "kind": "issue",
+              "target": "#1099"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-05-derived-field-fixture-parity.md",
+      "assignedSha256": "da7c2f465cfac2c12c8aa91ba4fc83cddfa520ffaf701bb7cc0d83cfd3b4b861",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "da7c2f465cfac2c12c8aa91ba4fc83cddfa520ffaf701bb7cc0d83cfd3b4b861",
+      "verifiedCommit": "35762a91092ed119ddebba5e158eabc4fd6a8873",
+      "verifiedAt": "2026-09-05",
+      "summary": "The #900 derived-field fixture-parity census: eight derivations whose output a fixture or seed hand-writes, the per-field verdict after the sweep (five now derived, three refused with receipts), and the MEASURED refusal to ratchet an ast-grep arm on the field name — 1 true positive in 42 hits, with the planted controls in both directions. Recommends the compile-time ratchet (a fixture builder returns its real contract type, never `unknown`) that the same lane landed twice.",
+      "evidence": [
+        "docs/reviews/misc/2026-09-05-derived-field-fixture-parity.md:1 written and read in full (150 lines) at 35762a910 by the authoring lane: the census table, the four sweep findings, the two refusals, the ast-grep rule with its scanned-file counts and its 2.4% precision, and the three recommendations."
+      ],
+      "claims": [
+        {
+          "claim": "makeCharacter defaulted characters.content_hash to `hash_<id>`, a value no write path can produce, which makes update's `contentChanged` unconditionally true for every factory-seeded row; it now stamps cardContentHash over the finished row, and a red-first run of the new pin against the unmodified factory failed with `expected 'hash_character_hash01' to be '1110eded…'`.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/character/verbs/update.ts:72"
+            },
+            {
+              "kind": "test",
+              "target": "tests/support/factories/factories.int.test.ts:42"
+            },
+            {
+              "kind": "issue",
+              "target": "#900"
+            }
+          ]
+        },
+        {
+          "claim": "Two CT files spelled an rpg.getGame literal behind a `: unknown` return carrying `statProfile: { attributes: [] }` — one beside `ruleset: \"d20\"`, a pair planLiteGameBirth cannot mint — and omitted required publicConfig members; typing the shared builder as RpgGameView turns each hole into TS2741/TS2739.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/rpg/game-mint.ts:23"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/features/rpg/fixtures.ts:50"
+            },
+            {
+              "kind": "issue",
+              "target": "#900"
+            }
+          ]
+        },
+        {
+          "claim": "An ast-grep arm keyed on the census FIELD NAME is not ratchetable: over tests/ (scannedFileCount 581 tsx / 2079 ts) it returns 42 hits of which 1 is the planted violation, because `provenance` names three unrelated concepts and ast-grep cannot see which type an object literal inhabits.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#900"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-05-external-review-claim-adjudication.md",
+      "assignedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
+      "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
+      "verifiedAt": "2026-09-05",
+      "evidence": ["landed by p-docs-batch (69f35bef5) and read in full by the orchestrator at e9ad555ac"],
+      "claims": [
+        {
+          "claim": "Fourteen external-review claims were adjudicated against the tree and REFUTED or narrowed — three of them in the synthesis's own highest-risk tier (client-002 'chat lag never heals canonical reads' among them) — each with the path:line receipt that changed the verdict; the record exists so nobody works the external synthesis as a to-do list.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1514"
+            }
+          ]
+        }
+      ],
+      "summary": "Adjudication of fourteen external-review claims (three in the synthesis's own highest-risk tier) refuted or narrowed against the tree, with path:line receipts (#1514)."
+    },
+    {
+      "path": "docs/reviews/misc/2026-09-06-external-review-claim-adjudication.md",
+      "assignedSha256": "97fa14c25f5138547bf63a79e620202b39c7337cead411e66fe120041ead9efe",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "97fa14c25f5138547bf63a79e620202b39c7337cead411e66fe120041ead9efe",
+      "verifiedCommit": "88d11f009708f33dcfaceabc2eaa5d3368f045c3",
+      "verifiedAt": "2026-09-06",
+      "evidence": ["landed by p-adjudication-1481 (c8013ed69, rebased 88d11f009) and read in full by the orchestrator at the fold"],
+      "claims": [
+        {
+          "claim": "Seven external-review claims were adjudicated against the tree: six REFUTED and one ALREADY FIXED by #1375, each with the path:line receipt re-derived on 2026-09-06 (two moved ranges re-cited; claims 6 and 7 gained receipts the issue body lacked); the record exists so the same mirror findings are not re-derived again.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1481"
+            }
+          ]
+        }
+      ],
+      "summary": "Adjudication of seven external-review claims — six REFUTED, one ALREADY FIXED (#1375) — against the 2026-09-06 tree, with re-derived path:line receipts (#1481)."
+    },
+    {
+      "path": "docs/reviews/mutation-config-calibration.md",
+      "assignedSha256": "cea69c76e9ac76260c41d42ba9be3ef702e56258c033c382cd117266ba9724e7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "39751b004db6aa7a263fe084a8d160b79d3075ed56e5940c2235425ab9e67477",
+      "verifiedCommit": "fd67d6ccbeac1d46cff4e5a08a35ffe3b1d8c525",
+      "verifiedAt": "2026-09-10",
+      "evidence": [
+        "Full read of both pre-migration JSON configs and this preserved calibration record; historical measurements explicitly distinguished from fresh proof.",
+        "Native exploratory and gate dry runs each passed 110 tests; no mutations executed.",
+        "tests/tooling/_shared/stryker-config.test.ts: complete options and mutable branch independence."
+      ],
+      "summary": "Preserved Stryker calibration history and bounded native config-migration evidence; no new score or threshold change.",
+      "claims": [
+        {
+          "claim": "Both Stryker profiles preserve authored options and allocate independent nested config branches.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/_shared/stryker-config.test.ts:110"
+            }
+          ]
+        }
       ]
     },
     {
@@ -784,6 +1234,183 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/research/2026-09-03-snap-instrument-bundle-battery.md",
+      "assignedSha256": "87843063c03637ce57449dc416a20cfad4fa2b7418185995747e892edf4c0823",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "87843063c03637ce57449dc416a20cfad4fa2b7418185995747e892edf4c0823",
+      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-03-snap-instrument-bundle-battery.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed 2026-09-03): durable execution receipt for `1208-instrument-substrate.md` §10.8 and #1292/#1295 — nine immutable `run.json` cases covering ordinary visual/map/diagnostics, planted motion/perf findings, CPU profile, React profile, session request failure/export/continuation, matrix+scenario, and an explicit React refusal."
+      ],
+      "claims": [
+        {
+          "claim": "A cold-read of the first session export found `trace-000.zip` incorrectly classified as primary; a planted filename control failed, the classifier was repaired, and the replacement export index classifies it `raw-fallback` without rewriting the immutable earlier index.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1295"
+            }
+          ]
+        },
+        {
+          "claim": "Independent acceptance (two/three cold agents using only help/card/report output, a side-eye PNG pass, and a verifier round-trip check) is explicitly still owed at the time this receipt was written.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            }
+          ]
+        }
+      ],
+      "summary": "Snap instrument bundle operator battery: nine immutable run.json cases exercising the full pass/fail/refusal battery for the #1292/#1295 run-bundle program, with one filename-classifier repair recorded and independent cold-agent acceptance still owed."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-browser-escape-workflow-census.md",
+      "assignedSha256": "e09d978716af88c4c48c192eac9ee42d8d3fa175f982ca995c0a6c6aeafa40b8",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e09d978716af88c4c48c192eac9ee42d8d3fa175f982ca995c0a6c6aeafa40b8",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-browser-escape-workflow-census.md:1 read in full at 561ea5ec3: 3,388 separate-browser events censused across both accounts; 3,028 candidate escape events found no evidence-backed new Snap arm to build, only a documentation/enforcement gap."
+      ],
+      "claims": [
+        {
+          "claim": "The census recommends one Snap-driving recipe (\"When not to escape Snap\") and does not recommend restoring headless DevTools MCP or adding speculative dialog/PWA/drag/evaluator commands.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1195"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent browser-escape workflow census: 3,388 separate-browser events, 3,028 candidate escapes, no missing Snap capability found; the residual work is a documented Snap-first recipe plus the explicit owner-profile Chrome exception."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-cli-artifact-usage-census.md",
+      "assignedSha256": "af83ada2dfd5049d2056b41b9312807ab2d97f47093969e0c7ff6da02119f5c7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "af83ada2dfd5049d2056b41b9312807ab2d97f47093969e0c7ff6da02119f5c7",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-cli-artifact-usage-census.md:1 read in full at 561ea5ec3: 4,623 actual Snap invocations (91% success) dwarf every sibling family; zero actual invocations of Snap's `--report`/`--reports` reader despite 4,623 calls; product Record calls produced four consumed click-strip PNGs and zero consumed GIF/WebM."
+      ],
+      "claims": [
+        {
+          "claim": "Owner disposition Board #1310 retires the separate `pnpm record` CLI, folds click-strip/contact-sheet capture into Snap filmstrip, and kills GIF/WebM generation by default.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1310"
+            }
+          ]
+        },
+        {
+          "claim": "No agent opened, parsed, listed or cited a Snap HAR or ZIP artifact after its producing invocation in the censused corpus (172 HAR and 175 ZIP result-listed successes, zero downstream references for either).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1292"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent CLI/artifact usage census: Snap is the dominant rendered-instrument CLI by an order of magnitude; motion-audit/perf-meter/record retirement into Snap arms is supported by the usage and consumption data."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-mcp-usage-recovery-census.md",
+      "assignedSha256": "a29ec65f51b8372b9cf324a292c53786761712e75ef4d03ac141dc6a96d0e53a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "a29ec65f51b8372b9cf324a292c53786761712e75ef4d03ac141dc6a96d0e53a",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-mcp-usage-recovery-census.md:1 read in full at 561ea5ec3: 826 retired headless Chrome DevTools MCP calls censused; Snap now owns every load-bearing Orbweaver use found in that corpus, and the `cb-config-eye-2` selected-page incident is the confirmed recovery-gap positive control."
+      ],
+      "claims": [
+        {
+          "claim": "Of the 58 tools the installed `chrome-devtools-mcp@1.8.0` exposes, only 20 ever appeared in an Orbweaver tool-use block, and nothing in the unused 38-tool remainder justifies restoring the retired headless MCP.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1195"
+            }
+          ]
+        },
+        {
+          "claim": "The `cb-config-eye-2` incident spent four failed calls over 18 seconds before escalating and recovered only after control outside the lane changed, because `list_pages` was not exposed to that lane's tool set.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1195"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent browser/MCP usage recovery census: the retired headless DevTools MCP's load-bearing surface is fully replaced by Snap; the owner's logged-in Chrome MCP remains a separate authenticated-profile authority; page-bound recovery verbs are the confirmed operational gap."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-orb-selector-choreography-census.md",
+      "assignedSha256": "5ec34c0cb89f748bb9825733333d7a0c4b00a63117cf1334e78b5ad3cfb7741f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "5ec34c0cb89f748bb9825733333d7a0c4b00a63117cf1334e78b5ad3cfb7741f",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-orb-selector-choreography-census.md:1 read in full at 561ea5ec3: agents repeatedly needed five legible journeys (section/chat/context-tab/config-surface bridge reads plus multi-page `@N` action/eval); bare-CSS/handle waits are the most brittle selector family (45.1% failure exposure) versus data-slot/test-id (4.8-11.0%)."
+      ],
+      "claims": [
+        {
+          "claim": "#1304's discoverable `capabilities()`/`rings()`/`nav.capabilities()` help and the `rpg-game` scenario are directionally correct, but the transcript snapshot has zero post-#1304 discovery or scenario invocation to judge adoption from yet.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1304"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent __orb/selector/choreography census: five dominant journeys, brittle bare-selector waits versus stable data-slot/test-id handles, and RPG bridge usage already real before #1304 landed its discovery affordances."
+    },
+    {
+      "path": "docs/reviews/research/2026-09-04-agent-snap-result-discoverability-census.md",
+      "assignedSha256": "69b1b5c45f23f215e7cb801f8631ff0a598df19e5c9e9e761d9236ab6f377db3",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "69b1b5c45f23f215e7cb801f8631ff0a598df19e5c9e9e761d9236ab6f377db3",
+      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
+      "verifiedAt": "2026-09-04",
+      "evidence": [
+        "docs/reviews/research/2026-09-04-agent-snap-result-discoverability-census.md:1 read in full at 561ea5ec3: 4,623 paired Snap calls found PNG/JSON/HTML as the only demonstrably followed result formats; zero downstream references for HAR (172 produced) or ZIP (175 produced); zero executed `--report`/`--reports` calls."
+      ],
+      "claims": [
+        {
+          "claim": "The census supports a compact cold-agent end card (one immutable run identity, a primary PNG/JSON pointer, one exact copy-paste reader command) and does not support promoting HAR/ZIP/run.json/scenario summaries to the primary door.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1295"
+            }
+          ]
+        }
+      ],
+      "summary": "Agent Snap result-discoverability census: PNG/JSON are the demonstrably followed artifact formats; HAR/ZIP and the report reader are effectively invisible downstream in the censused corpus, motivating the #1295 run-bundle end-card design."
     },
     {
       "path": "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md",
@@ -1311,6 +1938,278 @@
         }
       ],
       "summary": "side-eye CLS attribution of the 'This chat' tab (#819): SHIP WITH FIXES — the B10 review's 0.3263 was the context-panel dock (shell-main 917→568px, free on a click, paid on programmatic nav); the tab body pays 0 CLS at rest but its Injections section's one-line skeleton stands in for ~830px of forms and at 4× CPU on mobile the settle crosses the 500ms hadRecentInput cliff (0.308 paid in one shift); 0-vs-2 injections control 4.1×; the #815 sibling-section lead retracted (victims, not movers); two instrument findings."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-02-characters-rail-drive.md",
+      "assignedSha256": "56a0136c3176a37234cecee873a56845155a64219de3877b997625a0fe08aa36",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "56a0136c3176a37234cecee873a56845155a64219de3877b997625a0fe08aa36",
+      "verifiedCommit": "eaa6b7edffb059b31c6eba45e0265d6a50a1cdba",
+      "verifiedAt": "2026-09-02",
+      "summary": "side-eye Phase 4 rail drive of CHARACTERS with the full battery (#1114, lane p-eye-characters, tip 97a110dff, ~35 runs at 0 page/console errors, stage band held by a sibling so every receipt is off live :5173): verdict DO NOT SHIP AS IS; six 08-30 findings verifiably FIXED (import-dialog exit, 44x44 coarse import, the 28 dead tag facets, the Field junk drawer rebuilt as toolbar + aria-current + roving tabindex with History its own tab, honest provenance, #1067's checkbox ladder); three P1s (the Recently-chatted card renders the Added date under a sorted-by-last-chat heading and a chat count that disagrees across three homes; the four-way Opening selector carries no ARIA state and a 1.189:1 border; opening a character drops 25.45% of frames behind a bare loading line with an 84px post-fill jump); 11 P2s (seven character.list round-trips + 16 region:list commits + 14% entry drop, the boot splash 4/4, shipped-default glass panels putting 8-13 text elements off the device grid with compact's blurSurfaces=[] arm reporting 0 as the proof, no display voice with a 10.5px list h2, the bulk bar's filled Delete and orphaned dismiss, the unlabelled token datum, the 917x752 landing holding one 136px card, ungrouped suggested-tag stops, position-only Overview pairs); 17 receipted nits; six self-retractions; the rest-regime NO-VERDICT recorded as structural on this surface.",
+      "evidence": [
+        "born-reviewed at eaa6b7edffb059b31c6eba45e0265d6a50a1cdba (Phase 4 of the overnight plan, fold of the p-eye-characters lane): full read by the primary orchestrator — environment/run health incl. the probed appearance state and the shared-scratchpad fault, the verdict, Part 0 delta (six fixed with receipts, one changed, nine standing/not-re-measured, the inherited-accepted row, the killed skip-link claim), Part 1 F1-F14 with receipts and nits 15-31, Part 2 instrument notes, Part 3 taste/IA/errands/cognitive load/console triage, the ARIA recommendations, six retractions, what works, the biggest opportunity, the coverage table, artifact slots and state left behind; the orchestrator files the F rows and lands #1114"
+      ],
+      "claims": [
+        {
+          "claim": "The CONTENT landing's Recently-chatted card prints chatted 2d ago · 0 chats for a character whose context pane in the same session prints 1 chat and Last chat: Aug 2, 2026 with Added: 2d ago — the card renders the Added field under a heading annotated sorted by last chat, and the chat count has three homes that disagree (0 / 1 / 1).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1114"
+            }
+          ]
+        },
+        {
+          "claim": "All four Opening buttons carry role/aria-pressed/aria-current/aria-selected null with tabIndex 0, and the only visual state is a 1px border that composites to rgb(34,31,28) on rgb(15,12,10) = 1.189:1 against the WCAG 1.4.11 3:1 floor.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1114"
+            }
+          ]
+        },
+        {
+          "claim": "Opening a character drops 14 of 55 frames (25.45%) under motion-audit, shows a bare Loading character… line over an empty pane for ~240ms, then shifts the greeting block 84px after fill (observed non-virtualized CLS 0.0233, input-adjacent so no gate catches it).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1114"
+            },
+            {
+              "kind": "issue",
+              "target": "#885"
+            }
+          ]
+        },
+        {
+          "claim": "The shipped-default glass panels put 8-13 text elements on a fractional device-pixel grid inside a backdrop-filter layer (off-grid-text P2 in the owner, defaults, maximal, diagnostics, Light, reading and driven arms) and --appearance-preset compact, the only arm with blurSurfaces: [], reports 0 — the arm sweep is the causal proof.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1114"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/_shared/appearance-presets.json:1"
+            }
+          ]
+        },
+        {
+          "claim": "A rest-regime design-audit of Characters is structurally NO-VERDICT (selection-idiom unmatchedUnselected) because the surface's selection cohort only exists once driven; only the driven run publishes population-verdict=complete — correct per #1059 and stated as a coverage fact, not filed.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1114"
+            },
+            {
+              "kind": "issue",
+              "target": "#1059"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md",
+      "assignedSha256": "3d3714a85666e7750088d37f800ac1fc2c97403d66a888ec0f83cb7c3d08b86d",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "3d3714a85666e7750088d37f800ac1fc2c97403d66a888ec0f83cb7c3d08b86d",
+      "verifiedCommit": "a98085731986da7772a26c48dbd9a3e71f65d38c",
+      "verifiedAt": "2026-09-02",
+      "summary": "side-eye maximal re-drive of the Config surface on the truth-repaired fleet (#1099, lane cb-config-eye-2, tip 4f3840283): verdict DO NOT SHIP AS IS unchanged; of 08-30's 36 defects 2 fixed / 4 changed / 26 standing / 4 not re-measured; 12 new findings (3 P1: the Looks-section mount shift, the CONTEXT pane duplicating the LIST, transition-all at four sites); a 13-row instrument delta; two instrument rows (::after accent bars invisible to census-decor; snap --matrix NO-VERDICT on non-chat surfaces); four self-retractions.",
+      "evidence": [
+        "born-reviewed at a98085731 (Phase 2 of the overnight plan): full read by the primary orchestrator — environment/run health, the verdict, Part 0 delta tables (F1-F36, E1-E8, the nits, inherited retractions), Part 1 G1-G12 with receipts, Part 2 instrument delta + the one remaining blind spot, Part 3 UX/IA/errands/console triage, the retractions, what works, the coverage table, the state left behind; claude-b files the G/instrument rows and amends the Config train"
+      ],
+      "claims": [
+        {
+          "claim": "Clicking a settings group mounts the Looks section ~230 ms late and pushes 372 px of content down (observed non-virtualized shift 0.1656, reproduced 4x incl. a real Playwright click) — the reserved-box class #885 shipped on 21 sites and missed here; only statable since #1071's observed-CLS basis.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1099"
+            },
+            {
+              "kind": "issue",
+              "target": "#885"
+            }
+          ]
+        },
+        {
+          "claim": "With both panes docked the CONTEXT pane renders the LIST's nine Appearance sub-sections verbatim (8x duplicate-action-door, zero in every other pane arm) — shell law says CONTEXT is never navigation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1099"
+            }
+          ]
+        },
+        {
+          "claim": "transition-all survives at four sites (collapsible, accordion, appearance-sizing-section, progress) and the [anim] flagger convicts scrollbarColor beside the ratified height; #1069's tab glide is confirmed working on the same run.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1099"
+            },
+            {
+              "kind": "issue",
+              "target": "#1069"
+            }
+          ]
+        },
+        {
+          "claim": "The repaired fleet paid for itself: quiet-state, row-void, cohort-anatomy and duplicate-action-door now catch by machine what 08-30 measured by hand or missed; the four appearance presets found tight-leading x5 + nested-card x2 the declared coverage gap was hiding; the remaining blind spot is ::after accent bars (census-decor reads border-*-width only).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1099"
+            },
+            {
+              "kind": "issue",
+              "target": "#1068"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-02-home-rail-drive.md",
+      "assignedSha256": "6051b115c8c7d38b33c1ab56ff917941f2f89db205227126a79e5c9a6a609afd",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "6051b115c8c7d38b33c1ab56ff917941f2f89db205227126a79e5c9a6a609afd",
+      "verifiedCommit": "469f6d93528a06909365db9a514d05aee6193776",
+      "verifiedAt": "2026-09-02",
+      "summary": "side-eye Phase 4 rail drive of HOME with the full battery (#1112, lane p-eye-home, tip 7fa019799, ~40 runs at 0 page/console errors): verdict SHIP WITH FIXES, 32/40; two 08-30 findings closed (roadmap kicker voice; the one-item region obsolete at seven items), the boot re-settle unchanged at 0.0229; 20 findings H1-H20 (2 P1: the fold-fade mask drops two live Databank buttons to 1.75:1 at 1280x800 while every contrast instrument reports PASS; notifications carry a live wire and no door on mobile), 5 P2 (two empty inert backdrop-filter panes on a section declaring both panes unavailable, the 0.188px promoted-layer offset they cause, no measure cap at 153ch, no plan above 800px tall, a zero-width hero art accent), five instrument rows (SURFACE-AXIS polarity inverted on declared-unavailable panes; mask-blind contrast family now with a WCAG failure attached; dropped-frame % denominator on suppressed-motion cells; snap --matrix unreachable while a sibling holds the stage; shared-scratchpad log clobber), five self-retractions, a 42-row coverage table with two arms blocked and stated.",
+      "evidence": [
+        "born-reviewed at 469f6d935 (Phase 4 of the overnight plan, fold of the p-eye-home lane): full read by the primary orchestrator — environment/run health and the two mid-run environment faults, the verdict and Nielsen table, Part 0 delta vs 08-30 (16 rows), Part 1 H1-H20 with the framebuffer four-cell table and its positive control, Part 2 I1-I5, Part 3 taste/flow/IA/errands A-H, retractions R-1..R-5, what works, the biggest opportunity, console triage, the 42-row instrument coverage table, artifact slots and state left behind; the orchestrator files the H/I rows and lands #1112"
+      ],
+      "claims": [
+        {
+          "claim": "At the shipped 1280x800 default the content scroller's bottom fade mask paints over the Databank empty state's two live buttons and drops their ink to 1.75:1 by framebuffer decode (the same button above the band and an above-band control both read 17.14:1), while snap --contrast and design-audit's whole contrast family report 61 judged / 0 affected because mask is paint and invisible to getComputedStyle.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1112"
+            },
+            {
+              "kind": "issue",
+              "target": "#1078"
+            }
+          ]
+        },
+        {
+          "claim": "Every mobile boot attaches the notifications stream and reads the inbox, and nothing renders it: the mobile map has no bell, the banner has zero buttons, and the You sheet has no entry — a live consumer with no rendered control.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1112"
+            }
+          ]
+        },
+        {
+          "claim": "Home renders two full-height inert aria-hidden empty panes each carrying backdrop-filter although home-section.tsx declares both panes unavailable; they are the only two backdrop-filter elements on the page and the left one's fractional translate is what makes design-audit file promoted-layer-offset P2 in seven of ten arms.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1112"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/home/lib/home-section.tsx:31"
+            }
+          ]
+        },
+        {
+          "claim": "design-audit's SURFACE-AXIS census prints withheld(docked/overlay) and NO-VERDICT panel axes on a section whose definition declares the panes unavailable, while the same tool's --panels both-docked run refuses correctly — the population law's polarity inverted (EXCLUDED, not WITHHELD).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1112"
+            },
+            {
+              "kind": "issue",
+              "target": "#1059"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-05-characters-hub-and-scale.md",
+      "assignedSha256": "efaf5076bf34e74202c72f552e118e2d3c80fa4c86c7e4bb1f3b960404b58914",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "efaf5076bf34e74202c72f552e118e2d3c80fa4c86c7e4bb1f3b960404b58914",
+      "verifiedCommit": "3b321d1211084d7e0c27cd9f38585b0293fa368d",
+      "verifiedAt": "2026-09-05",
+      "summary": "Side-eye review: the Characters hub-ingest and 312-row scale arms, and the 2x chats door (#844 #891).",
+      "evidence": [
+        "born-reviewed at 3b321d121 (cb-characters-sideeye, #844 #891): the Characters hub-ingest + 312-row scale arms driven on an isolated stage with receipts; #891 settled as two doors in two regions (tooling fence #1705). Read in full by the orchestrator at the fold."
+      ],
+      "claims": [
+        {
+          "claim": "A hub-ingested card reports Source: Made here because the installer funnel hands the import a card with no filename, so importedFrom is null and the provenance derivation reads authored (#1702).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/compose/services.ts:1"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/import/verbs/import-character.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "The design-audit duplicate-action-door pair on Characters is two doors in two regions (the primary nav's Chats navigates; the character toolbar's chats cell repaints context), so the remedy is a tooling fence (#1705), not a client change.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/app-shell/components/rail.tsx:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-06-config-grammar-980-rederive.md",
+      "assignedSha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
+      "verifiedCommit": "51126c8bccaa6b71bbf3fef1c15585892312caea",
+      "verifiedAt": "2026-09-06",
+      "evidence": [
+        "claude-b lane cb-config-sideeye 2026-09-06 (bridge 502), nine snap runs at 9c6464f86/ae53c7f2c/301547c24, read in full by the orchestrator before receipting"
+      ],
+      "claims": [
+        {
+          "claim": "Against today's Config surface, F10/E3 and F12 of #980 are closed (5023241e2 + aad98e225; config-welcome.tsx deleted at 6b00c37fd), F13 (Backup checkbox split, 906–937px) and F22 (tag-member switch control-left) are live with rendered receipts, and the #1725 redesign left every config-band unpainted in its aria-current state (#1823) with an 84–86% library-row ink void at 990px (#1824).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#980"
+            },
+            {
+              "kind": "issue",
+              "target": "#1823"
+            },
+            {
+              "kind": "issue",
+              "target": "#1824"
+            }
+          ]
+        }
+      ],
+      "summary": "side-eye re-derivation of #980's six control-grammar items against the post-#1725 Config surface: F10/E3 FIXED, F12 DEAD, F13 + F22 LIVE (build), F23/F24/E2 re-file narrower; two new P1s (#1823 unmarked LIST location, #1824 library-row void) and one open instrument question (SELECTION_CONTROL hit area)."
     },
     {
       "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
@@ -1907,35 +2806,6 @@
       ]
     },
     {
-      "path": "docs/reviews/stickler/2026-09-01-ui-audit-population-train.md",
-      "assignedSha256": "0fec5dde3f159587caa1dffb7cb60993f9efce51e5b11a882ff1afa72c34e23b",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "0fec5dde3f159587caa1dffb7cb60993f9efce51e5b11a882ff1afa72c34e23b",
-      "verifiedCommit": "53437ec8fee76bd7a0ff68328924c65d121dbbe7",
-      "verifiedAt": "2026-09-01",
-      "evidence": [
-        "docs/reviews/stickler/2026-09-01-ui-audit-population-train.md:1-257 read in full; cold grouped review of daafa3e55^..532200fce with focused pure and Chromium plants for all eight confirmed population-integrity findings"
-      ],
-      "summary": "Cold grouped review of the UI-audit population train: eight confirmed findings, ceiling P1, covering arithmetic settlement, fail-loud partial populations, state pairing, authored ownership, bounded representatives, animation withholding, collision census completeness, and non-vacuous controls.",
-      "claims": [
-        {
-          "claim": "Work item #987 owns and 53437ec8f repairs the eight confirmed population-integrity defects plus the verifier-refuted settlement and closed-exclusion semantics required by the #953 matrix.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#987"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:53437ec8fee76bd7a0ff68328924c65d121dbbe7"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "path": "docs/reviews/stickler/2026-09-01-law-doc-memory-truth-audit.md",
       "assignedSha256": "285f7bb2eceb2c3de4887ab06bbf8ad1909eda6c69d996531cc2dab607099054",
       "disposition": "current",
@@ -2005,407 +2875,176 @@
       ]
     },
     {
-      "path": "docs/reviews/stickler/2026-09-02-motion-perf-mechanism-audit.md",
-      "assignedSha256": "030f2ef984aaf6d535ced016b7cd55e168d560793c04f170f026416ff048ae91",
+      "path": "docs/reviews/stickler/2026-09-01-ui-audit-population-train.md",
+      "assignedSha256": "0fec5dde3f159587caa1dffb7cb60993f9efce51e5b11a882ff1afa72c34e23b",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "030f2ef984aaf6d535ced016b7cd55e168d560793c04f170f026416ff048ae91",
-      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
-      "verifiedAt": "2026-09-02",
-      "summary": "Stickler mechanism audit of the motion/perf instrument fleet vs Base UI 1.7.0 (docs + vendored source) and the house motion law (#1065, lane cb-motion-mechanism, static-only): 8 findings (three P2 lying-instrument class), a 20-row mechanism-match table, the vendored animating-component population, proposed fix rows.",
+      "verifiedSha256": "0fec5dde3f159587caa1dffb7cb60993f9efce51e5b11a882ff1afa72c34e23b",
+      "verifiedCommit": "53437ec8fee76bd7a0ff68328924c65d121dbbe7",
+      "verifiedAt": "2026-09-01",
       "evidence": [
-        "born-reviewed at c2bca04ee: full read by the primary orchestrator — §0 inventory, F1-F8 + L1-L3, the §2 table, §3 population, §4 verified-clean, §5 suspicions, §6 fix rows; claude-b filed the finding rows (#1069-#1072) and re-scoped #991"
+        "docs/reviews/stickler/2026-09-01-ui-audit-population-train.md:1-257 read in full; cold grouped review of daafa3e55^..532200fce with focused pure and Chromium plants for all eight confirmed population-integrity findings"
       ],
+      "summary": "Cold grouped review of the UI-audit population train: eight confirmed findings, ceiling P1, covering arithmetic settlement, fail-loud partial populations, state pairing, authored ownership, bounded representatives, animation withholding, collision census completeness, and non-vacuous controls.",
       "claims": [
         {
-          "claim": "The [anim] console flagger convicts guide-ratified motion (tabs indicator left/width glide, accordion/collapsible height lifecycle) because the #953 sanctioned-height allowance exists only on the motion-audit side.",
+          "claim": "Work item #987 owns and 53437ec8f repairs the eight confirmed population-integrity defects plus the verifier-refuted settlement and closed-exclusion semantics required by the #953 matrix.",
           "evidence": [
             {
               "kind": "issue",
-              "target": "#1069"
-            }
-          ]
-        },
-        {
-          "claim": "motion-audit's dirty-animation budget samples getAnimations() once at window end and is structurally blind to the 130-360ms band; __orb.flags() is checkpoint-scoped and read nowhere in tooling.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1070"
-            }
-          ]
-        },
-        {
-          "claim": "The interaction-cell CLS budget gates on the input-excluded number and observedCls is never consumed by the tool — the false-PASS the collector's own header documents.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1071"
-            }
-          ]
-        },
-        {
-          "claim": "#991's swipe-dismiss wedge is statically refuted (useAnimationsFinished resolves immediately on an empty population; the release path re-arms the transform transition); gesture-driven motion has no instrument coverage.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#991"
+              "target": "#987"
             },
             {
-              "kind": "issue",
-              "target": "#1072"
+              "kind": "provenance",
+              "target": "git:53437ec8fee76bd7a0ff68328924c65d121dbbe7"
             }
           ]
         }
       ]
     },
     {
-      "path": "docs/reviews/stickler/2026-09-02-uiaudit-orbui-mechanism-audit.md",
-      "assignedSha256": "b716ccddae165f5b42a12b2234f37d747f3e4f41e36e2aecab4f161614283877",
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-final.md",
+      "assignedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "b716ccddae165f5b42a12b2234f37d747f3e4f41e36e2aecab4f161614283877",
-      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
+      "verifiedCommit": "b23839843a46cf0755fc4794d5dd330c246309ce",
       "verifiedAt": "2026-09-02",
-      "summary": "Stickler mechanism audit of the 54 in-scope ui-audit rules with @orb/ui as the oracle (#1064, lane cb-orbui-mechanism, static-only): 8 confirmed blind-class findings (F1 hover-contrast publishes a FALSE excluded on group-variant hover paint), 14 verified-MATCHED intersections, 0 overclaims, each shaped as a RULE-AUTHORING mechanism-match row.",
+      "summary": "CT corpus audit FINAL closeout (#1229, lane cb-ct-audit-final): derived the true covered/remainder arithmetic from the ten folded shard reports' own per-file verdicts rather than their stated totals — corpus 469 files/113,931 lines, covered by the ten reports 414 files/105,540 lines (8 confirmed cross-shard duplicate reads, all tracing to leg4b), true remainder 55 files/8,391 lines (vs. the brief's naive 428/~41 hypothesis). Full-read all 55 remainder files (user-admin x14, discovery x8, world-info x5, stats x5, regex x5, auth x5, credentials x3, tag x2, chat x2, routes x2, plus 5 singles) against leg1's unchanged rubric — zero new findings. Re-checked leg4b's PROVISIONAL corpus-search-results.ct.tsx SCENES-door verdict against today's post-#1249 source and confirmed CLEAN. Campaign declared COMPLETE at 469/469 files, 113,931/113,931 lines, five total findings (#1240 #1241 #1242 #1258 #1261), severity ceiling P3.",
       "evidence": [
-        "born-reviewed at c2bca04ee: full read by the primary orchestrator — the denominators, F1-F8 with both-side receipts, the 14 MATCHED rows, the unconfirmed probes, the scope statement; claude-b filed #1073-#1079 + decision #1080; memory hover-force-cannot-engage-group-variant-rules written"
+        "born-reviewed at b23839843a46cf0755fc4794d5dd330c246309ce: authored and full-read by lane cb-ct-audit-final (stickler) in the same session — the derived-arithmetic section, the 55-file per-area verdict tables, the taxonomy sweep receipts, the corpus-search-results.ct.tsx re-check, and the #1229 issue summary"
       ],
       "claims": [
         {
-          "claim": "The forced-state hover pass forces the painted element, so compiled group-variant rules never engage and the pair is published excluded(noHoverChange) — a false measurement claim the attribute twin already withholds by name.",
+          "claim": "The ten folded shard reports' stated-population sum (428) is neither the covered count nor the remainder complement: cross-referencing each report's own per-file verdicts (not its stated totals or 'excl' cross-references) surfaces 8 confirmed cross-shard duplicate full-reads (all traced to leg4b) and a true remainder of 55 files never verdicted by any report — corpus 469 = covered 414 + remainder 55.",
           "evidence": [
             {
-              "kind": "issue",
-              "target": "#1073"
+              "kind": "test",
+              "target": "tests/client/state/character-selection-store.ct.tsx:1",
+              "note": "one of the 8 confirmed cross-shard duplicates (L4-client-core state/ chunk and leg4b batch 1 item 3 each independently read and verdicted this file)"
             }
           ]
         },
         {
-          "claim": "INTERACTIVE_SELECTOR omits textarea and summary, so Textarea/MacroTextarea/ToolCallBlock are invisible to tap-target, aria-name, duplicate-action-door and obscured-target while five sibling fleet vocabularies include both.",
+          "claim": "leg4b's PROVISIONAL verdict on corpus-search-results.ct.tsx's SCENES door-look block (flagged against a pre-#1249 base) resolves CLEAN on today's tree: the RoomDoor component's post-#1249 className applies RECEDED_INK per the assertion's relational checks (justify-start, arrow present, colour !== bodyColour), and the source's own header comment names this exact CT assertion as the fix's target.",
           "evidence": [
             {
-              "kind": "issue",
-              "target": "#1074"
-            }
-          ]
-        },
-        {
-          "claim": "selection-idiom vetoes any box-shadow containing 'inset', blinding it to the ratified inset-ring state channel; animated-img-hover is triple-blind to the MediaTileGrid group-hover:scale-105 idiom; mask-image paint and ECharts canvas ink have zero fleet handling.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1075"
+              "kind": "code",
+              "target": "packages/client/src/features/discovery/components/corpus-hit-rows.tsx:158"
             },
             {
-              "kind": "issue",
-              "target": "#1076"
-            }
-          ]
-        },
-        {
-          "claim": "TARGET_VARIANT_ATTRS contributes nothing on house primitives (no data-variant/size/intent/tone stamping), so distinct tv() arms collapse into one authored-decision row — an owner fork.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1080"
+              "kind": "test",
+              "target": "tests/client/features/discovery/components/corpus-search-results.ct.tsx:483"
             }
           ]
         }
       ]
     },
     {
-      "path": "docs/reviews/verifier/2026-09-02-941-semantic-denominator-closure.md",
-      "assignedSha256": "9ba37b0ab6328cf3e424a8a2b7cd01b6dd13043e6a6173f01434fd28f320e717",
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L1-ui.md",
+      "assignedSha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "4ad50d79d7ad96001589d6eca8e7da9a7ccf14c7f00353cb0dd8305ce3b3251e",
-      "verifiedCommit": "fbf068c7f3d5973099a817f283314533b6578ab6",
+      "verifiedSha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
+      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
       "verifiedAt": "2026-09-02",
-      "summary": "Verifier closure check of the #941 semantic-denominator program on 718e97ab3: REFUTED narrowly — the three named escapes are closed with planted regressions and all 24 gates declare a semantic population, but four paired controls show two gates still silently under-read a sanctioned composition shape (chat-viewer-plane-canon-reads non-literal matrix values; knob-wire-coverage arms A/B/B2/C inheritance and spreads).",
+      "summary": "CT corpus audit shard L1 (#1229, lane cb-ct-audit-L1): full read of tests/ui/** minus files already covered by legs 1-3 and a concurrent sibling shard — 64/106 population files, all newly read in full top-to-bottom (8,206 lines). Zero findings: every file honest, premise-current (5 load-bearing spot-checks against today's packages/ui/src), harness-correct. Taxonomy sweep (reports/ writes, as-unknown-as casts, .labels[0] accname trap, skip/tautology, ONESHOT-window, stand-in children, shared-render-tree reads) returned zero in-population hits on every class, each corroborated by non-zero hits landing correctly in the excluded files.",
       "evidence": [
-        "re-attested at fbf068c7f: the Re-verification section — CONFIRMED on 3b38d5b84 after #1091 + #1094; both residual gaps closed with the paired controls re-planted in one batch (census moving per arm), 43/43 pins, 251/251 gates clean",
-        "born-reviewed at 574da5a05: full read by the primary orchestrator — the verdict, the three planted-regression receipts, the 24-row table across tiers A/B/C/D, the four GAP rows with their paired inline-vs-composed controls, the environment notes; residual rows filed from §GAP"
+        "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L1 (stickler) in the same session — the population derivation, 64-file verdict table, taxonomy sweep receipts with cross-referenced corroboration, and the #1229 issue summary"
       ],
       "claims": [
         {
-          "claim": "The three current escapes (#934/#942/#943) are genuinely closed: planted regressions in the imported appearance schema, the RAIL_ZONES spread and the WorkloadScheduleService verbs each RED their gate with the census moving as expected.",
+          "claim": "The 64-file tests/ui/** population's zero-count taxonomy classes are corroborated by non-zero hits landing correctly in the excluded (already-read) files — e.g. 17 as-unknown-as double-casts confined to log-viewer.ct.tsx/message-list.ct.tsx/sortable.ct.tsx/sandbox-frame.ct.tsx/markdown.ct.tsx — proving the corpus-wide sweep is live rather than blind, and that population attribution was checked rather than assumed.",
           "evidence": [
             {
-              "kind": "issue",
-              "target": "#941"
-            }
-          ]
-        },
-        {
-          "claim": "chat-viewer-plane-canon-reads' foldMatrix silently drops any CHAT_VERB_AUTHORITY row whose value is not a string literal (census 93→92, gate green), and isViewerPlane(undefined)===false then removes that verb from the D16 room-plane check.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#941"
-            },
-            {
-              "kind": "code",
-              "target": "tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts:191"
-            }
-          ]
-        },
-        {
-          "claim": "knob-wire-coverage's non-C arms were never re-homed: interfaceKeys drops inherited EffectiveAppConfig fields, tupleMembers drops a spread USER_SETTINGS_SECTIONS member, zObjectKeys drops a spread appSettingsSchema key from arms B2 and C — silently, while the inline spelling REDs.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#941"
-            },
-            {
-              "kind": "code",
-              "target": "tooling/src/verify/gates/knob-wire-coverage.ts:137"
+              "kind": "test",
+              "target": "tests/ui/charts/meter/waystone.ct.tsx:1"
             }
           ]
         }
       ]
     },
     {
-      "path": "docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md",
-      "assignedSha256": "3d3714a85666e7750088d37f800ac1fc2c97403d66a888ec0f83cb7c3d08b86d",
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L2-chat.md",
+      "assignedSha256": "a5e2ebe1be7bd2cd51e30a47b35d1db1400c6fd00f3dc4e3845f221af6707a24",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "3d3714a85666e7750088d37f800ac1fc2c97403d66a888ec0f83cb7c3d08b86d",
-      "verifiedCommit": "a98085731986da7772a26c48dbd9a3e71f65d38c",
+      "verifiedSha256": "a5e2ebe1be7bd2cd51e30a47b35d1db1400c6fd00f3dc4e3845f221af6707a24",
+      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
       "verifiedAt": "2026-09-02",
-      "summary": "side-eye maximal re-drive of the Config surface on the truth-repaired fleet (#1099, lane cb-config-eye-2, tip 4f3840283): verdict DO NOT SHIP AS IS unchanged; of 08-30's 36 defects 2 fixed / 4 changed / 26 standing / 4 not re-measured; 12 new findings (3 P1: the Looks-section mount shift, the CONTEXT pane duplicating the LIST, transition-all at four sites); a 13-row instrument delta; two instrument rows (::after accent bars invisible to census-decor; snap --matrix NO-VERDICT on non-chat surfaces); four self-retractions.",
+      "summary": "CT corpus audit shard L2 (#1229, lane cb-ct-audit-L2): chat + shared-components population, 65/65 files read whole across 8 chunks (tests/client/features/chat/** + tests/client/components/**, minus 9 files already audited by legs 1-3 and 11 chat files claimed by a concurrent sibling shard, from an 87-file raw population). Zero findings. Taxonomy sweep (literal reports/ writes, as-unknown-as double-casts, skip/fixme/only, suppression markers, ONESHOT-OK adjacency) came back clean across the board, each class corroborated with a planted positive control.",
       "evidence": [
-        "born-reviewed at a98085731 (Phase 2 of the overnight plan): full read by the primary orchestrator — environment/run health, the verdict, Part 0 delta tables (F1-F36, E1-E8, the nits, inherited retractions), Part 1 G1-G12 with receipts, Part 2 instrument delta + the one remaining blind spot, Part 3 UX/IA/errands/console triage, the retractions, what works, the coverage table, the state left behind; claude-b files the G/instrument rows and amends the Config train"
+        "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L2 (stickler) in the same session — the population derivation, per-file verdicts across 8 chunks, taxonomy sweep receipts with planted-control corroboration, and the #1229 issue summary"
       ],
       "claims": [
         {
-          "claim": "Clicking a settings group mounts the Looks section ~230 ms late and pushes 372 px of content down (observed non-virtualized shift 0.1656, reproduced 4x incl. a real Playwright click) — the reserved-box class #885 shipped on 21 sites and missed here; only statable since #1071's observed-CLS basis.",
+          "claim": "The 65-file chat + shared-components population's taxonomy sweep (component.screenshot({path:}) not routed through storyShot, as-unknown-as double-casts, test.skip/.fixme/.todo/.only, biome-ignore/eslint-disable) returned zero real hits, each class corroborated by a planted positive control in the same invocation that matched the identical grep, proving the sweep is live rather than silently blind.",
           "evidence": [
             {
-              "kind": "issue",
-              "target": "#1099"
-            },
-            {
-              "kind": "issue",
-              "target": "#885"
-            }
-          ]
-        },
-        {
-          "claim": "With both panes docked the CONTEXT pane renders the LIST's nine Appearance sub-sections verbatim (8x duplicate-action-door, zero in every other pane arm) — shell law says CONTEXT is never navigation.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1099"
-            }
-          ]
-        },
-        {
-          "claim": "transition-all survives at four sites (collapsible, accordion, appearance-sizing-section, progress) and the [anim] flagger convicts scrollbarColor beside the ratified height; #1069's tab glide is confirmed working on the same run.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1099"
-            },
-            {
-              "kind": "issue",
-              "target": "#1069"
-            }
-          ]
-        },
-        {
-          "claim": "The repaired fleet paid for itself: quiet-state, row-void, cohort-anatomy and duplicate-action-door now catch by machine what 08-30 measured by hand or missed; the four appearance presets found tight-leading x5 + nested-card x2 the declared coverage gap was hiding; the remaining blind spot is ::after accent bars (census-decor reads border-*-width only).",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1099"
-            },
-            {
-              "kind": "issue",
-              "target": "#1068"
+              "kind": "test",
+              "target": "tests/client/features/chat/hooks/use-slash-commands.ct.tsx:30"
             }
           ]
         }
       ]
     },
     {
-      "path": "docs/reviews/side-eye/2026-09-02-home-rail-drive.md",
-      "assignedSha256": "6051b115c8c7d38b33c1ab56ff917941f2f89db205227126a79e5c9a6a609afd",
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L3-rpg-refinery.md",
+      "assignedSha256": "7e1f101416db6c3afef8626761edda3b8d5ed812d073d10c5aed17ed46758d4e",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "6051b115c8c7d38b33c1ab56ff917941f2f89db205227126a79e5c9a6a609afd",
-      "verifiedCommit": "469f6d93528a06909365db9a514d05aee6193776",
+      "verifiedSha256": "7e1f101416db6c3afef8626761edda3b8d5ed812d073d10c5aed17ed46758d4e",
+      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
       "verifiedAt": "2026-09-02",
-      "summary": "side-eye Phase 4 rail drive of HOME with the full battery (#1112, lane p-eye-home, tip 7fa019799, ~40 runs at 0 page/console errors): verdict SHIP WITH FIXES, 32/40; two 08-30 findings closed (roadmap kicker voice; the one-item region obsolete at seven items), the boot re-settle unchanged at 0.0229; 20 findings H1-H20 (2 P1: the fold-fade mask drops two live Databank buttons to 1.75:1 at 1280x800 while every contrast instrument reports PASS; notifications carry a live wire and no door on mobile), 5 P2 (two empty inert backdrop-filter panes on a section declaring both panes unavailable, the 0.188px promoted-layer offset they cause, no measure cap at 153ch, no plan above 800px tall, a zero-width hero art accent), five instrument rows (SURFACE-AXIS polarity inverted on declared-unavailable panes; mask-blind contrast family now with a WCAG failure attached; dropped-frame % denominator on suppressed-motion cells; snap --matrix unreachable while a sibling holds the stage; shared-scratchpad log clobber), five self-retractions, a 42-row coverage table with two arms blocked and stated.",
+      "summary": "CT corpus audit L3 shard (#1229, lane cb-ct-audit-L3): rpg/refinery/preset/automation/workloads/imagery fully drained — 35 files / 4,507 lines read whole, 100% of this shard's real population (no gallery/tool-use .ct.tsx files exist on this tree). Verdict: 35 CLEAN, zero findings — the strongest-condition register the campaign has found so far. Taxonomy sweep over exactly these files: 0 literal reports/ writes (1 hit is a prose citation of a historical screenshot receipt in a comment), 0 kill spawns, 0 as-unknown-as casts, 0 skip/fixme/only, 0 suppressions, 6 ONESHOT-OK markers across 4 files all inside the adjacency window.",
       "evidence": [
-        "born-reviewed at 469f6d935 (Phase 4 of the overnight plan, fold of the p-eye-home lane): full read by the primary orchestrator — environment/run health and the two mid-run environment faults, the verdict and Nielsen table, Part 0 delta vs 08-30 (16 rows), Part 1 H1-H20 with the framebuffer four-cell table and its positive control, Part 2 I1-I5, Part 3 taste/flow/IA/errands A-H, retractions R-1..R-5, what works, the biggest opportunity, console triage, the 42-row instrument coverage table, artifact slots and state left behind; the orchestrator files the H/I rows and lands #1112"
+        "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L3 (stickler) in the same session — the population derivation, 35-file verdict table, taxonomy sweep receipts, per-file notes, and the #1229 issue summary"
       ],
       "claims": [
         {
-          "claim": "At the shipped 1280x800 default the content scroller's bottom fade mask paints over the Databank empty state's two live buttons and drops their ink to 1.75:1 by framebuffer decode (the same button above the band and an above-band control both read 17.14:1), while snap --contrast and design-audit's whole contrast family report 61 judged / 0 affected because mask is paint and invisible to getComputedStyle.",
+          "claim": "The readout family's pipeline-order pin is DERIVED from PROMPT_LANE_STEPS/REPLY_LANE_STEPS (the same tuples the server iterates) rather than hand-spelled, so a server-side reorder of those steps breaks the CT too — the shard's strongest instance of a derived-not-duplicated pin.",
           "evidence": [
             {
-              "kind": "issue",
-              "target": "#1112"
-            },
-            {
-              "kind": "issue",
-              "target": "#1078"
-            }
-          ]
-        },
-        {
-          "claim": "Every mobile boot attaches the notifications stream and reads the inbox, and nothing renders it: the mobile map has no bell, the banner has zero buttons, and the You sheet has no entry — a live consumer with no rendered control.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1112"
-            }
-          ]
-        },
-        {
-          "claim": "Home renders two full-height inert aria-hidden empty panes each carrying backdrop-filter although home-section.tsx declares both panes unavailable; they are the only two backdrop-filter elements on the page and the left one's fractional translate is what makes design-audit file promoted-layer-offset P2 in seven of ten arms.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1112"
-            },
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/home/lib/home-section.tsx:31"
-            }
-          ]
-        },
-        {
-          "claim": "design-audit's SURFACE-AXIS census prints withheld(docked/overlay) and NO-VERDICT panel axes on a section whose definition declares the panes unavailable, while the same tool's --panels both-docked run refuses correctly — the population law's polarity inverted (EXCLUDED, not WITHHELD).",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1112"
-            },
-            {
-              "kind": "issue",
-              "target": "#1059"
+              "kind": "test",
+              "target": "tests/client/features/preset/components/readout/transforms-readout.ct.tsx:1"
             }
           ]
         }
       ]
     },
     {
-      "path": "docs/reviews/side-eye/2026-09-02-characters-rail-drive.md",
-      "assignedSha256": "56a0136c3176a37234cecee873a56845155a64219de3877b997625a0fe08aa36",
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L4-client-core.md",
+      "assignedSha256": "7589f7573d37af4ae47ee9f7c92211c7e4e955a2c87bc6aa1852f2fda2b35f29",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "56a0136c3176a37234cecee873a56845155a64219de3877b997625a0fe08aa36",
-      "verifiedCommit": "eaa6b7edffb059b31c6eba45e0265d6a50a1cdba",
+      "verifiedSha256": "7589f7573d37af4ae47ee9f7c92211c7e4e955a2c87bc6aa1852f2fda2b35f29",
+      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
       "verifiedAt": "2026-09-02",
-      "summary": "side-eye Phase 4 rail drive of CHARACTERS with the full battery (#1114, lane p-eye-characters, tip 97a110dff, ~35 runs at 0 page/console errors, stage band held by a sibling so every receipt is off live :5173): verdict DO NOT SHIP AS IS; six 08-30 findings verifiably FIXED (import-dialog exit, 44x44 coarse import, the 28 dead tag facets, the Field junk drawer rebuilt as toolbar + aria-current + roving tabindex with History its own tab, honest provenance, #1067's checkbox ladder); three P1s (the Recently-chatted card renders the Added date under a sorted-by-last-chat heading and a chat count that disagrees across three homes; the four-way Opening selector carries no ARIA state and a 1.189:1 border; opening a character drops 25.45% of frames behind a bare loading line with an 84px post-fill jump); 11 P2s (seven character.list round-trips + 16 region:list commits + 14% entry drop, the boot splash 4/4, shipped-default glass panels putting 8-13 text elements off the device grid with compact's blurSurfaces=[] arm reporting 0 as the proof, no display voice with a 10.5px list h2, the bulk bar's filled Delete and orphaned dismiss, the unlabelled token datum, the 917x752 landing holding one 136px card, ungrouped suggested-tag stops, position-only Overview pairs); 17 receipted nits; six self-retractions; the rest-regime NO-VERDICT recorded as structural on this surface.",
+      "summary": "CT corpus audit leg 4, shard L4 (#1229, lane cb-ct-audit-L4): 107 files full-read, zero sampled. Scope: tests/client/{data,lib,state,forms,a11y,agent-nav,agent-rpg,agent-seed,compose}/** + tests/client/features/{app-shell,settings,connections,databank,plugin,home}/**, minus legs 1-3's already-read files and the sibling-lane exclusion set (tests/client/features/connections/ does not exist on this tree — flagged as a spec/naming mismatch, not guessed into scope). Verdict: 106 of 107 files CLEAN with zero findings; one P4 (G1) — use-carried-appearance.ct.tsx's header describes 3 pins from a pre-R1 design (2 describe deleted draft-mode behavior, 1 is a genuine untested error-degrade arm on the still-live single-arm hook).",
       "evidence": [
-        "born-reviewed at eaa6b7edffb059b31c6eba45e0265d6a50a1cdba (Phase 4 of the overnight plan, fold of the p-eye-characters lane): full read by the primary orchestrator — environment/run health incl. the probed appearance state and the shared-scratchpad fault, the verdict, Part 0 delta (six fixed with receipts, one changed, nine standing/not-re-measured, the inherited-accepted row, the killed skip-link claim), Part 1 F1-F14 with receipts and nits 15-31, Part 2 instrument notes, Part 3 taste/IA/errands/cognitive load/console triage, the ARIA recommendations, six retractions, what works, the biggest opportunity, the coverage table, artifact slots and state left behind; the orchestrator files the F rows and lands #1114"
+        "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L4 (stickler) in the same session — the population derivation, per-file verdicts across multiple chunks, the G1 finding, taxonomy sweep receipts, and the #1229 issue summary"
       ],
       "claims": [
         {
-          "claim": "The CONTENT landing's Recently-chatted card prints chatted 2d ago · 0 chats for a character whose context pane in the same session prints 1 chat and Last chat: Aug 2, 2026 with Added: 2d ago — the card renders the Added field under a heading annotated sorted by last chat, and the chat count has three homes that disagree (0 / 1 / 1).",
+          "claim": "use-carried-appearance.ct.tsx's header comment lists five pins but the file contains exactly two test() blocks; reading the source shows R1 (13ee1bde6) deleted the draft-phase card-reading arm the header's pins 2-3 describe, while pin 5 (a failed card read degrading to undefined) is a genuine, still-live, untested coverage gap on the current single-arm hook.",
           "evidence": [
             {
-              "kind": "issue",
-              "target": "#1114"
-            }
-          ]
-        },
-        {
-          "claim": "All four Opening buttons carry role/aria-pressed/aria-current/aria-selected null with tabIndex 0, and the only visual state is a 1px border that composites to rgb(34,31,28) on rgb(15,12,10) = 1.189:1 against the WCAG 1.4.11 3:1 floor.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1114"
-            }
-          ]
-        },
-        {
-          "claim": "Opening a character drops 14 of 55 frames (25.45%) under motion-audit, shows a bare Loading character… line over an empty pane for ~240ms, then shifts the greeting block 84px after fill (observed non-virtualized CLS 0.0233, input-adjacent so no gate catches it).",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1114"
-            },
-            {
-              "kind": "issue",
-              "target": "#885"
-            }
-          ]
-        },
-        {
-          "claim": "The shipped-default glass panels put 8-13 text elements on a fractional device-pixel grid inside a backdrop-filter layer (off-grid-text P2 in the owner, defaults, maximal, diagnostics, Light, reading and driven arms) and --appearance-preset compact, the only arm with blurSurfaces: [], reports 0 — the arm sweep is the causal proof.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1114"
+              "kind": "test",
+              "target": "tests/client/data/use-carried-appearance.ct.tsx:1"
             },
             {
               "kind": "code",
-              "target": "tooling/src/_shared/appearance-presets.json:1"
-            }
-          ]
-        },
-        {
-          "claim": "A rest-regime design-audit of Characters is structurally NO-VERDICT (selection-idiom unmatchedUnselected) because the surface's selection cohort only exists once driven; only the driven run publishes population-verdict=complete — correct per #1059 and stated as a coverage fact, not filed.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1114"
-            },
-            {
-              "kind": "issue",
-              "target": "#1059"
+              "target": "packages/client/src/data/use-carried-appearance.ts:1"
             }
           ]
         }
       ]
-    },
-    {
-      "path": "docs/reviews/stickler/2026-09-02-cta-conformance-census.md",
-      "assignedSha256": "67e2164147a7dc6717c5840f0c38f80d86a71dd6fb307bf363316748b6abc403",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "67e2164147a7dc6717c5840f0c38f80d86a71dd6fb307bf363316748b6abc403",
-      "verifiedCommit": "97fe449fb2e58b4e3373cb1e7a81f628d13b0c47",
-      "verifiedAt": "2026-09-02",
-      "evidence": [
-        "docs/reviews/stickler/2026-09-02-cta-conformance-census.md:1 (authored by lane cb-cta-census; the #1224 CTA conformance census — structural population, stamp census, rendered theme-reactivity arms)"
-      ],
-      "claims": [
-        {
-          "claim": "675 CTA-shaped controls in packages/client/src/{features,compose}: 97% direct @orb/ui primitives, the rest Button-backed wrappers, one sanctioned raw shell scrim; zero hand-styled Base UI parts, zero tv() outside @orb/ui, and zero theme-frozen controls across Hearth/Mocha/Light once the --theme shim settles.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1224"
-            },
-            {
-              "kind": "code",
-              "target": "packages/ui/src/lib/variant-attrs.ts:41"
-            }
-          ]
-        },
-        {
-          "claim": "Three ghost-intent Button call sites (rpg-card-row, rpg-pack-rows TILE_CLASS, assembly-preview) hand-compose the outline/card skin via className, so the #1080 data-intent stamp mis-describes the painted arm and the F8 authored-identity collapse is rebuilt through the class channel no gate reads.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/rpg/components/rpg-card-row.tsx:33"
-            }
-          ]
-        }
-      ],
-      "summary": "The #1224 CTA census: population conformant (675 controls, primitives-funneled by four live belts plus resolver physics), stamps fully held inside @orb/ui (baseline {}), rendered arm clean across all three shipped themes with token-matched positive controls. Two findings: the call-site skin family shadowing intent=outline (LOW), and snap --theme landing after data-app-ready so first-surface receipts sample the default palette (P2 instrument)."
     },
     {
       "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg1.md",
@@ -2600,143 +3239,150 @@
       ]
     },
     {
-      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L1-ui.md",
-      "assignedSha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
+      "path": "docs/reviews/stickler/2026-09-02-cta-conformance-census.md",
+      "assignedSha256": "67e2164147a7dc6717c5840f0c38f80d86a71dd6fb307bf363316748b6abc403",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "c00698488c8efe87b9d06936d1cfe9417f5be7517b81d76dc7e3184b3c416db6",
-      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
+      "verifiedSha256": "67e2164147a7dc6717c5840f0c38f80d86a71dd6fb307bf363316748b6abc403",
+      "verifiedCommit": "97fe449fb2e58b4e3373cb1e7a81f628d13b0c47",
       "verifiedAt": "2026-09-02",
-      "summary": "CT corpus audit shard L1 (#1229, lane cb-ct-audit-L1): full read of tests/ui/** minus files already covered by legs 1-3 and a concurrent sibling shard — 64/106 population files, all newly read in full top-to-bottom (8,206 lines). Zero findings: every file honest, premise-current (5 load-bearing spot-checks against today's packages/ui/src), harness-correct. Taxonomy sweep (reports/ writes, as-unknown-as casts, .labels[0] accname trap, skip/tautology, ONESHOT-window, stand-in children, shared-render-tree reads) returned zero in-population hits on every class, each corroborated by non-zero hits landing correctly in the excluded files.",
       "evidence": [
-        "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L1 (stickler) in the same session — the population derivation, 64-file verdict table, taxonomy sweep receipts with cross-referenced corroboration, and the #1229 issue summary"
+        "docs/reviews/stickler/2026-09-02-cta-conformance-census.md:1 (authored by lane cb-cta-census; the #1224 CTA conformance census — structural population, stamp census, rendered theme-reactivity arms)"
       ],
       "claims": [
         {
-          "claim": "The 64-file tests/ui/** population's zero-count taxonomy classes are corroborated by non-zero hits landing correctly in the excluded (already-read) files — e.g. 17 as-unknown-as double-casts confined to log-viewer.ct.tsx/message-list.ct.tsx/sortable.ct.tsx/sandbox-frame.ct.tsx/markdown.ct.tsx — proving the corpus-wide sweep is live rather than blind, and that population attribution was checked rather than assumed.",
+          "claim": "675 CTA-shaped controls in packages/client/src/{features,compose}: 97% direct @orb/ui primitives, the rest Button-backed wrappers, one sanctioned raw shell scrim; zero hand-styled Base UI parts, zero tv() outside @orb/ui, and zero theme-frozen controls across Hearth/Mocha/Light once the --theme shim settles.",
           "evidence": [
             {
-              "kind": "test",
-              "target": "tests/ui/charts/meter/waystone.ct.tsx:1"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L2-chat.md",
-      "assignedSha256": "a5e2ebe1be7bd2cd51e30a47b35d1db1400c6fd00f3dc4e3845f221af6707a24",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "a5e2ebe1be7bd2cd51e30a47b35d1db1400c6fd00f3dc4e3845f221af6707a24",
-      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
-      "verifiedAt": "2026-09-02",
-      "summary": "CT corpus audit shard L2 (#1229, lane cb-ct-audit-L2): chat + shared-components population, 65/65 files read whole across 8 chunks (tests/client/features/chat/** + tests/client/components/**, minus 9 files already audited by legs 1-3 and 11 chat files claimed by a concurrent sibling shard, from an 87-file raw population). Zero findings. Taxonomy sweep (literal reports/ writes, as-unknown-as double-casts, skip/fixme/only, suppression markers, ONESHOT-OK adjacency) came back clean across the board, each class corroborated with a planted positive control.",
-      "evidence": [
-        "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L2 (stickler) in the same session — the population derivation, per-file verdicts across 8 chunks, taxonomy sweep receipts with planted-control corroboration, and the #1229 issue summary"
-      ],
-      "claims": [
-        {
-          "claim": "The 65-file chat + shared-components population's taxonomy sweep (component.screenshot({path:}) not routed through storyShot, as-unknown-as double-casts, test.skip/.fixme/.todo/.only, biome-ignore/eslint-disable) returned zero real hits, each class corroborated by a planted positive control in the same invocation that matched the identical grep, proving the sweep is live rather than silently blind.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/client/features/chat/hooks/use-slash-commands.ct.tsx:30"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L3-rpg-refinery.md",
-      "assignedSha256": "7e1f101416db6c3afef8626761edda3b8d5ed812d073d10c5aed17ed46758d4e",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "7e1f101416db6c3afef8626761edda3b8d5ed812d073d10c5aed17ed46758d4e",
-      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
-      "verifiedAt": "2026-09-02",
-      "summary": "CT corpus audit L3 shard (#1229, lane cb-ct-audit-L3): rpg/refinery/preset/automation/workloads/imagery fully drained — 35 files / 4,507 lines read whole, 100% of this shard's real population (no gallery/tool-use .ct.tsx files exist on this tree). Verdict: 35 CLEAN, zero findings — the strongest-condition register the campaign has found so far. Taxonomy sweep over exactly these files: 0 literal reports/ writes (1 hit is a prose citation of a historical screenshot receipt in a comment), 0 kill spawns, 0 as-unknown-as casts, 0 skip/fixme/only, 0 suppressions, 6 ONESHOT-OK markers across 4 files all inside the adjacency window.",
-      "evidence": [
-        "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L3 (stickler) in the same session — the population derivation, 35-file verdict table, taxonomy sweep receipts, per-file notes, and the #1229 issue summary"
-      ],
-      "claims": [
-        {
-          "claim": "The readout family's pipeline-order pin is DERIVED from PROMPT_LANE_STEPS/REPLY_LANE_STEPS (the same tuples the server iterates) rather than hand-spelled, so a server-side reorder of those steps breaks the CT too — the shard's strongest instance of a derived-not-duplicated pin.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/client/features/preset/components/readout/transforms-readout.ct.tsx:1"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-L4-client-core.md",
-      "assignedSha256": "7589f7573d37af4ae47ee9f7c92211c7e4e955a2c87bc6aa1852f2fda2b35f29",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "7589f7573d37af4ae47ee9f7c92211c7e4e955a2c87bc6aa1852f2fda2b35f29",
-      "verifiedCommit": "c8008085e2b21721c47c36e52c6e3d9b49fe5eff",
-      "verifiedAt": "2026-09-02",
-      "summary": "CT corpus audit leg 4, shard L4 (#1229, lane cb-ct-audit-L4): 107 files full-read, zero sampled. Scope: tests/client/{data,lib,state,forms,a11y,agent-nav,agent-rpg,agent-seed,compose}/** + tests/client/features/{app-shell,settings,connections,databank,plugin,home}/**, minus legs 1-3's already-read files and the sibling-lane exclusion set (tests/client/features/connections/ does not exist on this tree — flagged as a spec/naming mismatch, not guessed into scope). Verdict: 106 of 107 files CLEAN with zero findings; one P4 (G1) — use-carried-appearance.ct.tsx's header describes 3 pins from a pre-R1 design (2 describe deleted draft-mode behavior, 1 is a genuine untested error-degrade arm on the still-live single-arm hook).",
-      "evidence": [
-        "born-reviewed at c8008085e: authored and full-read by lane cb-ct-audit-L4 (stickler) in the same session — the population derivation, per-file verdicts across multiple chunks, the G1 finding, taxonomy sweep receipts, and the #1229 issue summary"
-      ],
-      "claims": [
-        {
-          "claim": "use-carried-appearance.ct.tsx's header comment lists five pins but the file contains exactly two test() blocks; reading the source shows R1 (13ee1bde6) deleted the draft-phase card-reading arm the header's pins 2-3 describe, while pin 5 (a failed card read degrading to undefined) is a genuine, still-live, untested coverage gap on the current single-arm hook.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/client/data/use-carried-appearance.ct.tsx:1"
+              "kind": "issue",
+              "target": "#1224"
             },
             {
               "kind": "code",
-              "target": "packages/client/src/data/use-carried-appearance.ts:1"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-final.md",
-      "assignedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "a662a8117752afd687b901b771c438c4e4dd854cbd87d7b6a5835ec109264705",
-      "verifiedCommit": "b23839843a46cf0755fc4794d5dd330c246309ce",
-      "verifiedAt": "2026-09-02",
-      "summary": "CT corpus audit FINAL closeout (#1229, lane cb-ct-audit-final): derived the true covered/remainder arithmetic from the ten folded shard reports' own per-file verdicts rather than their stated totals — corpus 469 files/113,931 lines, covered by the ten reports 414 files/105,540 lines (8 confirmed cross-shard duplicate reads, all tracing to leg4b), true remainder 55 files/8,391 lines (vs. the brief's naive 428/~41 hypothesis). Full-read all 55 remainder files (user-admin x14, discovery x8, world-info x5, stats x5, regex x5, auth x5, credentials x3, tag x2, chat x2, routes x2, plus 5 singles) against leg1's unchanged rubric — zero new findings. Re-checked leg4b's PROVISIONAL corpus-search-results.ct.tsx SCENES-door verdict against today's post-#1249 source and confirmed CLEAN. Campaign declared COMPLETE at 469/469 files, 113,931/113,931 lines, five total findings (#1240 #1241 #1242 #1258 #1261), severity ceiling P3.",
-      "evidence": [
-        "born-reviewed at b23839843a46cf0755fc4794d5dd330c246309ce: authored and full-read by lane cb-ct-audit-final (stickler) in the same session — the derived-arithmetic section, the 55-file per-area verdict tables, the taxonomy sweep receipts, the corpus-search-results.ct.tsx re-check, and the #1229 issue summary"
-      ],
-      "claims": [
-        {
-          "claim": "The ten folded shard reports' stated-population sum (428) is neither the covered count nor the remainder complement: cross-referencing each report's own per-file verdicts (not its stated totals or 'excl' cross-references) surfaces 8 confirmed cross-shard duplicate full-reads (all traced to leg4b) and a true remainder of 55 files never verdicted by any report — corpus 469 = covered 414 + remainder 55.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/client/state/character-selection-store.ct.tsx:1",
-              "note": "one of the 8 confirmed cross-shard duplicates (L4-client-core state/ chunk and leg4b batch 1 item 3 each independently read and verdicted this file)"
+              "target": "packages/ui/src/lib/variant-attrs.ts:41"
             }
           ]
         },
         {
-          "claim": "leg4b's PROVISIONAL verdict on corpus-search-results.ct.tsx's SCENES door-look block (flagged against a pre-#1249 base) resolves CLEAN on today's tree: the RoomDoor component's post-#1249 className applies RECEDED_INK per the assertion's relational checks (justify-start, arrow present, colour !== bodyColour), and the source's own header comment names this exact CT assertion as the fix's target.",
+          "claim": "Three ghost-intent Button call sites (rpg-card-row, rpg-pack-rows TILE_CLASS, assembly-preview) hand-compose the outline/card skin via className, so the #1080 data-intent stamp mis-describes the painted arm and the F8 authored-identity collapse is rebuilt through the class channel no gate reads.",
           "evidence": [
             {
               "kind": "code",
-              "target": "packages/client/src/features/discovery/components/corpus-hit-rows.tsx:158"
+              "target": "packages/client/src/features/rpg/components/rpg-card-row.tsx:33"
+            }
+          ]
+        }
+      ],
+      "summary": "The #1224 CTA census: population conformant (675 controls, primitives-funneled by four live belts plus resolver physics), stamps fully held inside @orb/ui (baseline {}), rendered arm clean across all three shipped themes with token-matched positive controls. Two findings: the call-site skin family shadowing intent=outline (LOW), and snap --theme landing after data-app-ready so first-surface receipts sample the default palette (P2 instrument)."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-motion-perf-mechanism-audit.md",
+      "assignedSha256": "030f2ef984aaf6d535ced016b7cd55e168d560793c04f170f026416ff048ae91",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "030f2ef984aaf6d535ced016b7cd55e168d560793c04f170f026416ff048ae91",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
+      "summary": "Stickler mechanism audit of the motion/perf instrument fleet vs Base UI 1.7.0 (docs + vendored source) and the house motion law (#1065, lane cb-motion-mechanism, static-only): 8 findings (three P2 lying-instrument class), a 20-row mechanism-match table, the vendored animating-component population, proposed fix rows.",
+      "evidence": [
+        "born-reviewed at c2bca04ee: full read by the primary orchestrator — §0 inventory, F1-F8 + L1-L3, the §2 table, §3 population, §4 verified-clean, §5 suspicions, §6 fix rows; claude-b filed the finding rows (#1069-#1072) and re-scoped #991"
+      ],
+      "claims": [
+        {
+          "claim": "The [anim] console flagger convicts guide-ratified motion (tabs indicator left/width glide, accordion/collapsible height lifecycle) because the #953 sanctioned-height allowance exists only on the motion-audit side.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1069"
+            }
+          ]
+        },
+        {
+          "claim": "motion-audit's dirty-animation budget samples getAnimations() once at window end and is structurally blind to the 130-360ms band; __orb.flags() is checkpoint-scoped and read nowhere in tooling.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1070"
+            }
+          ]
+        },
+        {
+          "claim": "The interaction-cell CLS budget gates on the input-excluded number and observedCls is never consumed by the tool — the false-PASS the collector's own header documents.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1071"
+            }
+          ]
+        },
+        {
+          "claim": "#991's swipe-dismiss wedge is statically refuted (useAnimationsFinished resolves immediately on an empty population; the release path re-arms the transform transition); gesture-driven motion has no instrument coverage.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#991"
             },
             {
-              "kind": "test",
-              "target": "tests/client/features/discovery/components/corpus-search-results.ct.tsx:483"
+              "kind": "issue",
+              "target": "#1072"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-uiaudit-orbui-mechanism-audit.md",
+      "assignedSha256": "b716ccddae165f5b42a12b2234f37d747f3e4f41e36e2aecab4f161614283877",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "b716ccddae165f5b42a12b2234f37d747f3e4f41e36e2aecab4f161614283877",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
+      "summary": "Stickler mechanism audit of the 54 in-scope ui-audit rules with @orb/ui as the oracle (#1064, lane cb-orbui-mechanism, static-only): 8 confirmed blind-class findings (F1 hover-contrast publishes a FALSE excluded on group-variant hover paint), 14 verified-MATCHED intersections, 0 overclaims, each shaped as a RULE-AUTHORING mechanism-match row.",
+      "evidence": [
+        "born-reviewed at c2bca04ee: full read by the primary orchestrator — the denominators, F1-F8 with both-side receipts, the 14 MATCHED rows, the unconfirmed probes, the scope statement; claude-b filed #1073-#1079 + decision #1080; memory hover-force-cannot-engage-group-variant-rules written"
+      ],
+      "claims": [
+        {
+          "claim": "The forced-state hover pass forces the painted element, so compiled group-variant rules never engage and the pair is published excluded(noHoverChange) — a false measurement claim the attribute twin already withholds by name.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1073"
+            }
+          ]
+        },
+        {
+          "claim": "INTERACTIVE_SELECTOR omits textarea and summary, so Textarea/MacroTextarea/ToolCallBlock are invisible to tap-target, aria-name, duplicate-action-door and obscured-target while five sibling fleet vocabularies include both.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1074"
+            }
+          ]
+        },
+        {
+          "claim": "selection-idiom vetoes any box-shadow containing 'inset', blinding it to the ratified inset-ring state channel; animated-img-hover is triple-blind to the MediaTileGrid group-hover:scale-105 idiom; mask-image paint and ECharts canvas ink have zero fleet handling.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1075"
+            },
+            {
+              "kind": "issue",
+              "target": "#1076"
+            }
+          ]
+        },
+        {
+          "claim": "TARGET_VARIANT_ATTRS contributes nothing on house primitives (no data-variant/size/intent/tone stamping), so distinct tv() arms collapse into one authored-decision row — an owner fork.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1080"
             }
           ]
         }
@@ -2861,183 +3507,6 @@
       ]
     },
     {
-      "path": "docs/reviews/research/2026-09-04-agent-browser-escape-workflow-census.md",
-      "assignedSha256": "e09d978716af88c4c48c192eac9ee42d8d3fa175f982ca995c0a6c6aeafa40b8",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "e09d978716af88c4c48c192eac9ee42d8d3fa175f982ca995c0a6c6aeafa40b8",
-      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/reviews/research/2026-09-04-agent-browser-escape-workflow-census.md:1 read in full at 561ea5ec3: 3,388 separate-browser events censused across both accounts; 3,028 candidate escape events found no evidence-backed new Snap arm to build, only a documentation/enforcement gap."
-      ],
-      "claims": [
-        {
-          "claim": "The census recommends one Snap-driving recipe (\"When not to escape Snap\") and does not recommend restoring headless DevTools MCP or adding speculative dialog/PWA/drag/evaluator commands.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1195"
-            }
-          ]
-        }
-      ],
-      "summary": "Agent browser-escape workflow census: 3,388 separate-browser events, 3,028 candidate escapes, no missing Snap capability found; the residual work is a documented Snap-first recipe plus the explicit owner-profile Chrome exception."
-    },
-    {
-      "path": "docs/reviews/research/2026-09-04-agent-cli-artifact-usage-census.md",
-      "assignedSha256": "af83ada2dfd5049d2056b41b9312807ab2d97f47093969e0c7ff6da02119f5c7",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "af83ada2dfd5049d2056b41b9312807ab2d97f47093969e0c7ff6da02119f5c7",
-      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/reviews/research/2026-09-04-agent-cli-artifact-usage-census.md:1 read in full at 561ea5ec3: 4,623 actual Snap invocations (91% success) dwarf every sibling family; zero actual invocations of Snap's `--report`/`--reports` reader despite 4,623 calls; product Record calls produced four consumed click-strip PNGs and zero consumed GIF/WebM."
-      ],
-      "claims": [
-        {
-          "claim": "Owner disposition Board #1310 retires the separate `pnpm record` CLI, folds click-strip/contact-sheet capture into Snap filmstrip, and kills GIF/WebM generation by default.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1310"
-            }
-          ]
-        },
-        {
-          "claim": "No agent opened, parsed, listed or cited a Snap HAR or ZIP artifact after its producing invocation in the censused corpus (172 HAR and 175 ZIP result-listed successes, zero downstream references for either).",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1292"
-            }
-          ]
-        }
-      ],
-      "summary": "Agent CLI/artifact usage census: Snap is the dominant rendered-instrument CLI by an order of magnitude; motion-audit/perf-meter/record retirement into Snap arms is supported by the usage and consumption data."
-    },
-    {
-      "path": "docs/reviews/research/2026-09-04-agent-mcp-usage-recovery-census.md",
-      "assignedSha256": "a29ec65f51b8372b9cf324a292c53786761712e75ef4d03ac141dc6a96d0e53a",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "a29ec65f51b8372b9cf324a292c53786761712e75ef4d03ac141dc6a96d0e53a",
-      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/reviews/research/2026-09-04-agent-mcp-usage-recovery-census.md:1 read in full at 561ea5ec3: 826 retired headless Chrome DevTools MCP calls censused; Snap now owns every load-bearing Orbweaver use found in that corpus, and the `cb-config-eye-2` selected-page incident is the confirmed recovery-gap positive control."
-      ],
-      "claims": [
-        {
-          "claim": "Of the 58 tools the installed `chrome-devtools-mcp@1.8.0` exposes, only 20 ever appeared in an Orbweaver tool-use block, and nothing in the unused 38-tool remainder justifies restoring the retired headless MCP.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1195"
-            }
-          ]
-        },
-        {
-          "claim": "The `cb-config-eye-2` incident spent four failed calls over 18 seconds before escalating and recovered only after control outside the lane changed, because `list_pages` was not exposed to that lane's tool set.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1195"
-            }
-          ]
-        }
-      ],
-      "summary": "Agent browser/MCP usage recovery census: the retired headless DevTools MCP's load-bearing surface is fully replaced by Snap; the owner's logged-in Chrome MCP remains a separate authenticated-profile authority; page-bound recovery verbs are the confirmed operational gap."
-    },
-    {
-      "path": "docs/reviews/research/2026-09-04-agent-orb-selector-choreography-census.md",
-      "assignedSha256": "5ec34c0cb89f748bb9825733333d7a0c4b00a63117cf1334e78b5ad3cfb7741f",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "5ec34c0cb89f748bb9825733333d7a0c4b00a63117cf1334e78b5ad3cfb7741f",
-      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/reviews/research/2026-09-04-agent-orb-selector-choreography-census.md:1 read in full at 561ea5ec3: agents repeatedly needed five legible journeys (section/chat/context-tab/config-surface bridge reads plus multi-page `@N` action/eval); bare-CSS/handle waits are the most brittle selector family (45.1% failure exposure) versus data-slot/test-id (4.8-11.0%)."
-      ],
-      "claims": [
-        {
-          "claim": "#1304's discoverable `capabilities()`/`rings()`/`nav.capabilities()` help and the `rpg-game` scenario are directionally correct, but the transcript snapshot has zero post-#1304 discovery or scenario invocation to judge adoption from yet.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1304"
-            }
-          ]
-        }
-      ],
-      "summary": "Agent __orb/selector/choreography census: five dominant journeys, brittle bare-selector waits versus stable data-slot/test-id handles, and RPG bridge usage already real before #1304 landed its discovery affordances."
-    },
-    {
-      "path": "docs/reviews/research/2026-09-04-agent-snap-result-discoverability-census.md",
-      "assignedSha256": "69b1b5c45f23f215e7cb801f8631ff0a598df19e5c9e9e761d9236ab6f377db3",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "69b1b5c45f23f215e7cb801f8631ff0a598df19e5c9e9e761d9236ab6f377db3",
-      "verifiedCommit": "561ea5ec38e9c2d4281c196ab1ac2bf18eea6fc6",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/reviews/research/2026-09-04-agent-snap-result-discoverability-census.md:1 read in full at 561ea5ec3: 4,623 paired Snap calls found PNG/JSON/HTML as the only demonstrably followed result formats; zero downstream references for HAR (172 produced) or ZIP (175 produced); zero executed `--report`/`--reports` calls."
-      ],
-      "claims": [
-        {
-          "claim": "The census supports a compact cold-agent end card (one immutable run identity, a primary PNG/JSON pointer, one exact copy-paste reader command) and does not support promoting HAR/ZIP/run.json/scenario summaries to the primary door.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1295"
-            }
-          ]
-        }
-      ],
-      "summary": "Agent Snap result-discoverability census: PNG/JSON are the demonstrably followed artifact formats; HAR/ZIP and the report reader are effectively invisible downstream in the censused corpus, motivating the #1295 run-bundle end-card design."
-    },
-    {
-      "path": "docs/reviews/research/2026-09-03-snap-instrument-bundle-battery.md",
-      "assignedSha256": "87843063c03637ce57449dc416a20cfad4fa2b7418185995747e892edf4c0823",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "87843063c03637ce57449dc416a20cfad4fa2b7418185995747e892edf4c0823",
-      "verifiedCommit": "2829babdae6ff1c10ac59b53d74d492123bf7fd0",
-      "verifiedAt": "2026-09-04",
-      "evidence": [
-        "docs/reviews/research/2026-09-03-snap-instrument-bundle-battery.md:1 read in full at 2829babda (frontmatter-fixed commit; content landed 2026-09-03): durable execution receipt for `1208-instrument-substrate.md` §10.8 and #1292/#1295 — nine immutable `run.json` cases covering ordinary visual/map/diagnostics, planted motion/perf findings, CPU profile, React profile, session request failure/export/continuation, matrix+scenario, and an explicit React refusal."
-      ],
-      "claims": [
-        {
-          "claim": "A cold-read of the first session export found `trace-000.zip` incorrectly classified as primary; a planted filename control failed, the classifier was repaired, and the replacement export index classifies it `raw-fallback` without rewriting the immutable earlier index.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1295"
-            }
-          ]
-        },
-        {
-          "claim": "Independent acceptance (two/three cold agents using only help/card/report output, a side-eye PNG pass, and a verifier round-trip check) is explicitly still owed at the time this receipt was written.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1292"
-            }
-          ]
-        }
-      ],
-      "summary": "Snap instrument bundle operator battery: nine immutable run.json cases exercising the full pass/fail/refusal battery for the #1292/#1295 run-bundle program, with one filename-classifier repair recorded and independent cold-agent acceptance still owed."
-    },
-    {
       "path": "docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md",
       "assignedSha256": "ae2315150a87537220d6987b5fcac2ebaa595b85a1dabade4b5e868b36dc23d3",
       "disposition": "current",
@@ -3097,292 +3566,100 @@
       ]
     },
     {
-      "path": "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md",
-      "assignedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "bffe43ce614feccbfbb390d2a04b4b4670a19a1493b7084f3352329eff5518a2",
-      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
-      "verifiedAt": "2026-09-05",
-      "evidence": [
-        "re-attested at 626a06121 by the orchestrator after reading the §8 amendment in full: the 'member rows in LIST' verdict is superseded by #1725 (owner ~16:40Z: collections move into CONTENT); every other axis stands.",
-        "re-attested at 24d2c6ab3 by the orchestrator after reading the #1714 addition in full: a dated blockquote at §3a retires the species authority for its verdicts, and NEW §8 re-judges every axis on the tree without it (all KEEP on a stated structural reason; the §8.3 in-pane seam priced; nothing converged, nothing landed in code beyond header comments); §7's claims stand.",
-        "re-attested at 9e70e5db3 by the orchestrator after reading §7 in full (cb-config-list, #1169): the census table at fine + coarse, the inverted preset-borrow premise (§7.2), D1 refused on the coarse receipt (§7.3), the meta datum landed with the measured Badge-in-markers control Set{35,42} (§7.4), the voice budget + the #1099 Errand A ruling fork reconciled as 'the ruling survives, its input changed' (§7.5), D3 refused (§7.6); disposition needs-owner → current now that the ruling landed; the §3a/§7.1 SPECIES verdicts are open for re-judgment under #1714.",
-        "docs/reviews/misc/2026-09-05-config-list-pane-divergence.md:1-140 full read by the orchestrator at 20ca3612a (lane cb-client-config-polish, #1169 arm a: measured comparison receipt, three drift candidates proposed, nothing landed)",
-        "the two converged axes verified on tree: features/config/lib/config-section.tsx:79 passes ListPaneHeader; features/config/components/config-list-group.tsx:288 renders ListRow"
-      ],
-      "summary": "Measured comparison of the Config LIST pane against the chats/characters/presets LIST panes, then (§7) the cohort-anatomy census at both pointer classes and the convergence #1169's 'receipt + full convergence' ruling decided: the section row carries the Modified datum in ListRow.meta, band state marks are Badges, the voice budget has one home; species-based verdicts are re-judged under #1714 (owner's changed collections stance).",
-      "claims": [
-        {
-          "claim": "The section row carries the modified datum in ListRow.meta and the band's state marks are Badges, with the voice budget homed in the group component's header.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/config/components/config-list-group.tsx:27"
-            },
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/config/components/config-list-group.tsx:312"
-            },
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/config/surfaces/config-list-surface.tsx:159"
-            },
-            {
-              "kind": "issue",
-              "target": "#1169"
-            }
-          ]
-        },
-        {
-          "claim": "The #1099 Errand A no-growth mechanism survives: the band is a fixed-height control and the CT pins its height at both pointer classes.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/config/components/config-list-group.tsx:44"
-            },
-            {
-              "kind": "issue",
-              "target": "#1099"
-            }
-          ]
-        }
-      ]
+      "path": "docs/reviews/stickler/2026-09-05-1584-integration-checkpoint.md",
+      "assignedSha256": "7bac2923bdfa409f4dd7bf5dfb333bfc9f1a72ca98da34b7453c9ac3f2cb0fcb",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
-      "path": "docs/reviews/misc/2026-09-05-derived-field-fixture-parity.md",
-      "assignedSha256": "da7c2f465cfac2c12c8aa91ba4fc83cddfa520ffaf701bb7cc0d83cfd3b4b861",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "da7c2f465cfac2c12c8aa91ba4fc83cddfa520ffaf701bb7cc0d83cfd3b4b861",
-      "verifiedCommit": "35762a91092ed119ddebba5e158eabc4fd6a8873",
-      "verifiedAt": "2026-09-05",
-      "summary": "The #900 derived-field fixture-parity census: eight derivations whose output a fixture or seed hand-writes, the per-field verdict after the sweep (five now derived, three refused with receipts), and the MEASURED refusal to ratchet an ast-grep arm on the field name — 1 true positive in 42 hits, with the planted controls in both directions. Recommends the compile-time ratchet (a fixture builder returns its real contract type, never `unknown`) that the same lane landed twice.",
-      "evidence": [
-        "docs/reviews/misc/2026-09-05-derived-field-fixture-parity.md:1 written and read in full (150 lines) at 35762a910 by the authoring lane: the census table, the four sweep findings, the two refusals, the ast-grep rule with its scanned-file counts and its 2.4% precision, and the three recommendations."
-      ],
-      "claims": [
-        {
-          "claim": "makeCharacter defaulted characters.content_hash to `hash_<id>`, a value no write path can produce, which makes update's `contentChanged` unconditionally true for every factory-seeded row; it now stamps cardContentHash over the finished row, and a red-first run of the new pin against the unmodified factory failed with `expected 'hash_character_hash01' to be '1110eded…'`.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/server/src/domain/character/verbs/update.ts:72"
-            },
-            {
-              "kind": "test",
-              "target": "tests/support/factories/factories.int.test.ts:42"
-            },
-            {
-              "kind": "issue",
-              "target": "#900"
-            }
-          ]
-        },
-        {
-          "claim": "Two CT files spelled an rpg.getGame literal behind a `: unknown` return carrying `statProfile: { attributes: [] }` — one beside `ruleset: \"d20\"`, a pair planLiteGameBirth cannot mint — and omitted required publicConfig members; typing the shared builder as RpgGameView turns each hole into TS2741/TS2739.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/server/src/domain/rpg/game-mint.ts:23"
-            },
-            {
-              "kind": "test",
-              "target": "tests/client/features/rpg/fixtures.ts:50"
-            },
-            {
-              "kind": "issue",
-              "target": "#900"
-            }
-          ]
-        },
-        {
-          "claim": "An ast-grep arm keyed on the census FIELD NAME is not ratchetable: over tests/ (scannedFileCount 581 tsx / 2079 ts) it returns 42 hits of which 1 is the planted violation, because `provenance` names three unrelated concepts and ast-grep cannot see which type an object literal inhabits.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#900"
-            }
-          ]
-        }
-      ]
+      "path": "docs/reviews/stickler/2026-09-05-gate-migration-codemod.md",
+      "assignedSha256": "bad28fe7eae0579d182362083a96bc5993b1401d0b518c28098952f5afce996b",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
-      "path": "docs/reviews/side-eye/2026-09-05-characters-hub-and-scale.md",
-      "assignedSha256": "efaf5076bf34e74202c72f552e118e2d3c80fa4c86c7e4bb1f3b960404b58914",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "efaf5076bf34e74202c72f552e118e2d3c80fa4c86c7e4bb1f3b960404b58914",
-      "verifiedCommit": "3b321d1211084d7e0c27cd9f38585b0293fa368d",
-      "verifiedAt": "2026-09-05",
-      "summary": "Side-eye review: the Characters hub-ingest and 312-row scale arms, and the 2x chats door (#844 #891).",
-      "evidence": [
-        "born-reviewed at 3b321d121 (cb-characters-sideeye, #844 #891): the Characters hub-ingest + 312-row scale arms driven on an isolated stage with receipts; #891 settled as two doors in two regions (tooling fence #1705). Read in full by the orchestrator at the fold."
-      ],
-      "claims": [
-        {
-          "claim": "A hub-ingested card reports Source: Made here because the installer funnel hands the import a card with no filename, so importedFrom is null and the provenance derivation reads authored (#1702).",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/server/src/entry/compose/services.ts:1"
-            },
-            {
-              "kind": "code",
-              "target": "packages/server/src/domain/import/verbs/import-character.ts:1"
-            }
-          ]
-        },
-        {
-          "claim": "The design-audit duplicate-action-door pair on Characters is two doors in two regions (the primary nav's Chats navigates; the character toolbar's chats cell repaints context), so the remedy is a tooling fence (#1705), not a client change.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/app-shell/components/rail.tsx:1"
-            }
-          ]
-        }
-      ]
+      "path": "docs/reviews/stickler/2026-09-05-gate-runtime-core.md",
+      "assignedSha256": "7c67087b1b7501938a1cb07bfe682db05c135ac349694a25932e934e6b3b74a9",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
-      "path": "docs/reviews/misc/2026-09-05-external-review-claim-adjudication.md",
-      "assignedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "0bb773f53122ee36365edcfa3788f2ca534cf4640e3c0fd6236f4e077eb69ebe",
-      "verifiedCommit": "e9ad555ac59bae1aad396ca557f6b1548cdce90a",
-      "verifiedAt": "2026-09-05",
-      "evidence": ["landed by p-docs-batch (69f35bef5) and read in full by the orchestrator at e9ad555ac"],
-      "claims": [
-        {
-          "claim": "Fourteen external-review claims were adjudicated against the tree and REFUTED or narrowed — three of them in the synthesis's own highest-risk tier (client-002 'chat lag never heals canonical reads' among them) — each with the path:line receipt that changed the verdict; the record exists so nobody works the external synthesis as a to-do list.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1514"
-            }
-          ]
-        }
-      ],
-      "summary": "Adjudication of fourteen external-review claims (three in the synthesis's own highest-risk tier) refuted or narrowed against the tree, with path:line receipts (#1514)."
+      "path": "docs/reviews/stickler/2026-09-05-gate-runtime-foundation.md",
+      "assignedSha256": "9d01e28b8fe28114287fdb2a1917d563ce0d8f809d13713b7ae1ecd45748cbc9",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
-      "path": "docs/reviews/misc/2026-09-06-external-review-claim-adjudication.md",
-      "assignedSha256": "97fa14c25f5138547bf63a79e620202b39c7337cead411e66fe120041ead9efe",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "97fa14c25f5138547bf63a79e620202b39c7337cead411e66fe120041ead9efe",
-      "verifiedCommit": "88d11f009708f33dcfaceabc2eaa5d3368f045c3",
-      "verifiedAt": "2026-09-06",
-      "evidence": ["landed by p-adjudication-1481 (c8013ed69, rebased 88d11f009) and read in full by the orchestrator at the fold"],
-      "claims": [
-        {
-          "claim": "Seven external-review claims were adjudicated against the tree: six REFUTED and one ALREADY FIXED by #1375, each with the path:line receipt re-derived on 2026-09-06 (two moved ranges re-cited; claims 6 and 7 gained receipts the issue body lacked); the record exists so the same mirror findings are not re-derived again.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#1481"
-            }
-          ]
-        }
-      ],
-      "summary": "Adjudication of seven external-review claims — six REFUTED, one ALREADY FIXED (#1375) — against the 2026-09-06 tree, with re-derived path:line receipts (#1481)."
+      "path": "docs/reviews/stickler/2026-09-05-policy-scope-foundation-ff408a140.md",
+      "assignedSha256": "38724b46257608c4ff60cf7c1f093394aa7b09bc123b8fe45a54b2e5007f6bfc",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
-      "path": "docs/reviews/side-eye/2026-09-06-config-grammar-980-rederive.md",
-      "assignedSha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
-      "verifiedCommit": "51126c8bccaa6b71bbf3fef1c15585892312caea",
-      "verifiedAt": "2026-09-06",
-      "evidence": [
-        "claude-b lane cb-config-sideeye 2026-09-06 (bridge 502), nine snap runs at 9c6464f86/ae53c7f2c/301547c24, read in full by the orchestrator before receipting"
-      ],
-      "claims": [
-        {
-          "claim": "Against today's Config surface, F10/E3 and F12 of #980 are closed (5023241e2 + aad98e225; config-welcome.tsx deleted at 6b00c37fd), F13 (Backup checkbox split, 906–937px) and F22 (tag-member switch control-left) are live with rendered receipts, and the #1725 redesign left every config-band unpainted in its aria-current state (#1823) with an 84–86% library-row ink void at 990px (#1824).",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#980"
-            },
-            {
-              "kind": "issue",
-              "target": "#1823"
-            },
-            {
-              "kind": "issue",
-              "target": "#1824"
-            }
-          ]
-        }
-      ],
-      "summary": "side-eye re-derivation of #980's six control-grammar items against the post-#1725 Config surface: F10/E3 FIXED, F12 DEAD, F13 + F22 LIVE (build), F23/F24/E2 re-file narrower; two new P1s (#1823 unmarked LIST location, #1824 library-row void) and one open instrument question (SELECTION_CONTROL hit area)."
+      "path": "docs/reviews/stickler/2026-09-05-resource-layout-size-inventory.md",
+      "assignedSha256": "ee0b83eb53db80410a12c61c63218c0a2040b0a00e491e64935f7c4875f0ba0d",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
-      "path": "docs/reviews/stickler/2026-09-08-world-scope-checkpoint.md",
-      "assignedSha256": "fbd68cf0c3713b9b73d6143063db1aaabf2bb7687112ea2dc9e25f58a65beb5e",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "fbd68cf0c3713b9b73d6143063db1aaabf2bb7687112ea2dc9e25f58a65beb5e",
-      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
-      "verifiedAt": "2026-09-08",
-      "evidence": [
-        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed."
-      ],
-      "claims": [
-        {
-          "claim": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/tooling/verify/ops/scoped-test.int.test.ts:1"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
-            }
-          ]
-        }
-      ],
-      "summary": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate."
+      "path": "docs/reviews/stickler/2026-09-05-shared-semantic-readers.md",
+      "assignedSha256": "5287fd9efe43a20391ed1999ac50f22b15045162fb36e6fbd745e0b48397f73c",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
-      "path": "docs/reviews/stickler/2026-09-08-codemod-kit-checkpoint.md",
-      "assignedSha256": "da7b3e547e31146f4f00844e0a2b6413f6667088ad7475c04ae396ab659c786a",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "da7b3e547e31146f4f00844e0a2b6413f6667088ad7475c04ae396ab659c786a",
-      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
-      "verifiedAt": "2026-09-08",
-      "evidence": [
-        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed."
-      ],
-      "claims": [
-        {
-          "claim": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/tooling/codemod/lib/program-diagnostics.int.test.ts:1"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
-            }
-          ]
-        }
-      ],
-      "summary": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization."
+      "path": "docs/reviews/stickler/2026-09-06-gate-system-composed-review.md",
+      "assignedSha256": "dfdd81f22d081597088bcb801963e45e0824afe8b8e794ff7d913382844a7409",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/reviews/stickler/2026-09-08-appearance-boot-split.md",
@@ -3414,62 +3691,33 @@
       "summary": "The appearance DOM writer moved to composition with pre-paint semantics and carrier-gate coverage preserved."
     },
     {
-      "path": "docs/reviews/stickler/2026-09-08-session-document-host.md",
-      "assignedSha256": "324e95e02ef39a07419492cb32abfafd1062e10b184602b31f5d0bd7ff87200c",
+      "path": "docs/reviews/stickler/2026-09-08-client-component-ownership.md",
+      "assignedSha256": "d95a788b4ca4633c9aade81f5506f4d2160b2cf827453212acde9f38367648ac",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "324e95e02ef39a07419492cb32abfafd1062e10b184602b31f5d0bd7ff87200c",
-      "verifiedCommit": "1a77f8d831c47cb1e5cacd840f2bf2b76077784e",
+      "verifiedSha256": "d95a788b4ca4633c9aade81f5506f4d2160b2cf827453212acde9f38367648ac",
+      "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
       "verifiedAt": "2026-09-08",
       "evidence": [
-        "Full report read against 1a77f8d831c47cb1e5cacd840f2bf2b76077784e; behavioral receipts retained in this task phase3-composition-checkpoint artifact."
+        "Full review read against 370243fe7a30d10328d9ba98d766731688fe074f; body/import identity proofs, behavioral tests and immutable build comparison retained in task artifacts."
       ],
       "claims": [
         {
-          "claim": "Independent review of the session document host found no security or correctness defects; the shared browser test adapter retained the focused session behavior.",
+          "claim": "Component source/test ownership, import/export identity, runtime cycles, gate anchors and measured boot payload were reviewed; current path references were repaired.",
           "evidence": [
             {
               "kind": "test",
-              "target": "tests/client/lib/session-document-host.test.ts:1"
+              "target": "tests/client/components/query-boundary.ct.tsx:126"
             },
             {
               "kind": "provenance",
-              "target": "git:1a77f8d831c47cb1e5cacd840f2bf2b76077784e"
+              "target": "git:370243fe7a30d10328d9ba98d766731688fe074f"
             }
           ]
         }
       ],
-      "summary": "Independent review of the session document host found no security or correctness defects; the shared browser test adapter retained the focused session behavior."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-09-08-symbol-routing.md",
-      "assignedSha256": "31b9fff5cf8e495f2a02e3e81965072eaaf07d65e651a02b489c84ade2e2907d",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "31b9fff5cf8e495f2a02e3e81965072eaaf07d65e651a02b489c84ade2e2907d",
-      "verifiedCommit": "1a77f8d831c47cb1e5cacd840f2bf2b76077784e",
-      "verifiedAt": "2026-09-08",
-      "evidence": [
-        "Full report read against 1a77f8d831c47cb1e5cacd840f2bf2b76077784e; behavioral receipts retained in this task phase3-composition-checkpoint artifact."
-      ],
-      "claims": [
-        {
-          "claim": "Symbol-routing review found and resolved the default-type import defect; native diagnostics and nine regression tests passed.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/tooling/codemod/lib/imports.int.test.ts:1"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:1a77f8d831c47cb1e5cacd840f2bf2b76077784e"
-            }
-          ]
-        }
-      ],
-      "summary": "Symbol-routing review found and resolved the default-type import defect; native diagnostics and nine regression tests passed."
+      "summary": "Component source/test ownership, import/export identity, runtime cycles, gate anchors and measured boot payload were reviewed; current path references were repaired."
     },
     {
       "path": "docs/reviews/stickler/2026-09-08-codemod-authored-programs.md",
@@ -3501,33 +3749,60 @@
       "summary": "Codemod diagnostics preserve actual authored roots and native import closures during migration, while honoring declaration options and refusing invalid destination worlds."
     },
     {
-      "path": "docs/reviews/stickler/2026-09-08-client-component-ownership.md",
-      "assignedSha256": "d95a788b4ca4633c9aade81f5506f4d2160b2cf827453212acde9f38367648ac",
+      "path": "docs/reviews/stickler/2026-09-08-codemod-kit-checkpoint.md",
+      "assignedSha256": "da7b3e547e31146f4f00844e0a2b6413f6667088ad7475c04ae396ab659c786a",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "d95a788b4ca4633c9aade81f5506f4d2160b2cf827453212acde9f38367648ac",
-      "verifiedCommit": "370243fe7a30d10328d9ba98d766731688fe074f",
+      "verifiedSha256": "da7b3e547e31146f4f00844e0a2b6413f6667088ad7475c04ae396ab659c786a",
+      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
       "verifiedAt": "2026-09-08",
       "evidence": [
-        "Full review read against 370243fe7a30d10328d9ba98d766731688fe074f; body/import identity proofs, behavioral tests and immutable build comparison retained in task artifacts."
+        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed."
       ],
       "claims": [
         {
-          "claim": "Component source/test ownership, import/export identity, runtime cycles, gate anchors and measured boot payload were reviewed; current path references were repaired.",
+          "claim": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization.",
           "evidence": [
             {
               "kind": "test",
-              "target": "tests/client/components/query-boundary.ct.tsx:126"
+              "target": "tests/tooling/codemod/lib/program-diagnostics.int.test.ts:1"
             },
             {
               "kind": "provenance",
-              "target": "git:370243fe7a30d10328d9ba98d766731688fe074f"
+              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
             }
           ]
         }
       ],
-      "summary": "Component source/test ownership, import/export identity, runtime cycles, gate anchors and measured boot payload were reviewed; current path references were repaired."
+      "summary": "Closed-manifest codemod review: six high findings were repaired and reverified before any real source reorganization."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-forms-editor-ownership-split.md",
+      "assignedSha256": "4b40c787d6c1c41111b259578868105f2592d7e7debd122c48432aa8c5f436cb",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "4b40c787d6c1c41111b259578868105f2592d7e7debd122c48432aa8c5f436cb",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedAt": "2026-09-08",
+      "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+      "claims": [
+        {
+          "claim": "Independent forms re-review closes the three ownership, regression and documentation findings.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            }
+          ]
+        }
+      ],
+      "summary": "Independent forms re-review closes the three ownership, regression and documentation findings."
     },
     {
       "path": "docs/reviews/stickler/2026-09-08-native-compiler-overlay.md",
@@ -3563,112 +3838,33 @@
       "summary": "Native source filename overlays, actual destination ownership and full affected-program diagnostics reviewed; all four reproduced defect families repaired and cold verified."
     },
     {
-      "path": "docs/reviews/stickler/2026-09-08-forms-editor-ownership-split.md",
-      "assignedSha256": "4b40c787d6c1c41111b259578868105f2592d7e7debd122c48432aa8c5f436cb",
+      "path": "docs/reviews/stickler/2026-09-08-session-document-host.md",
+      "assignedSha256": "324e95e02ef39a07419492cb32abfafd1062e10b184602b31f5d0bd7ff87200c",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "4b40c787d6c1c41111b259578868105f2592d7e7debd122c48432aa8c5f436cb",
-      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedSha256": "324e95e02ef39a07419492cb32abfafd1062e10b184602b31f5d0bd7ff87200c",
+      "verifiedCommit": "1a77f8d831c47cb1e5cacd840f2bf2b76077784e",
       "verifiedAt": "2026-09-08",
-      "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+      "evidence": [
+        "Full report read against 1a77f8d831c47cb1e5cacd840f2bf2b76077784e; behavioral receipts retained in this task phase3-composition-checkpoint artifact."
+      ],
       "claims": [
         {
-          "claim": "Independent forms re-review closes the three ownership, regression and documentation findings.",
+          "claim": "Independent review of the session document host found no security or correctness defects; the shared browser test adapter retained the focused session behavior.",
           "evidence": [
             {
               "kind": "test",
-              "target": "tests/client/forms/editor/focus-invalid-field.ct.tsx:8"
+              "target": "tests/client/lib/session-document-host.test.ts:1"
             },
             {
               "kind": "provenance",
-              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+              "target": "git:1a77f8d831c47cb1e5cacd840f2bf2b76077784e"
             }
           ]
         }
       ],
-      "summary": "Independent forms re-review closes the three ownership, regression and documentation findings."
-    },
-    {
-      "path": "docs/reviews/stickler/2026-09-08-trpc-brand-seam.md",
-      "assignedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
-      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
-      "verifiedAt": "2026-09-08",
-      "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
-      "claims": [
-        {
-          "claim": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/tooling/trpc-brand-input.test-d.ts:1"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
-            }
-          ]
-        }
-      ],
-      "summary": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection."
-    },
-    {
-      "path": "docs/reviews/trpc-walled-garden-2026-09-08.md",
-      "assignedSha256": "99d706ac338020141bdbefe3cd9356b5e111a1c6870ae27fb2dfe1b732366488",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "99d706ac338020141bdbefe3cd9356b5e111a1c6870ae27fb2dfe1b732366488",
-      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
-      "verifiedAt": "2026-09-08",
-      "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
-      "claims": [
-        {
-          "claim": "The tRPC investigation records official guidance, measured type/runtime closures, brand identity and the accepted bounded cleanup recommendations.",
-          "evidence": [
-            {
-              "kind": "test",
-              "target": "tests/tooling/trpc-brand-input.test-d.ts:1"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
-            }
-          ]
-        }
-      ],
-      "summary": "The tRPC investigation records official guidance, measured type/runtime closures, brand identity and the accepted bounded cleanup recommendations."
-    },
-    {
-      "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
-      "assignedSha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "efd517db9a206769fb69d964b05ec847667449e13a8401a59235327f4d04abbc",
-      "verifiedCommit": "7d9cd503ea1e11f92213df84f870037d687cd5e2",
-      "verifiedAt": "2026-09-08",
-      "evidence": ["Full report read; independent verification and committed implementation checked at 7d9cd503ea1e11f92213df84f870037d687cd5e2."],
-      "claims": [
-        {
-          "claim": "Adjudication removed nine superseded RPC wrappers and retained six supported candidates; domain services and their separate coverage obligations remain.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "tooling/src/ast/ops/wiring.ts:1"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:7d9cd503ea1e11f92213df84f870037d687cd5e2"
-            }
-          ]
-        }
-      ],
-      "summary": "Adjudication removed nine superseded RPC wrappers and retained six supported candidates; domain services and their separate coverage obligations remain."
+      "summary": "Independent review of the session document host found no security or correctness defects; the shared browser test adapter retained the focused session behavior."
     },
     {
       "path": "docs/reviews/stickler/2026-09-08-stale-rpc-wrapper-cleanup.md",
@@ -3698,6 +3894,62 @@
       ]
     },
     {
+      "path": "docs/reviews/stickler/2026-09-08-symbol-routing.md",
+      "assignedSha256": "31b9fff5cf8e495f2a02e3e81965072eaaf07d65e651a02b489c84ade2e2907d",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "31b9fff5cf8e495f2a02e3e81965072eaaf07d65e651a02b489c84ade2e2907d",
+      "verifiedCommit": "1a77f8d831c47cb1e5cacd840f2bf2b76077784e",
+      "verifiedAt": "2026-09-08",
+      "evidence": [
+        "Full report read against 1a77f8d831c47cb1e5cacd840f2bf2b76077784e; behavioral receipts retained in this task phase3-composition-checkpoint artifact."
+      ],
+      "claims": [
+        {
+          "claim": "Symbol-routing review found and resolved the default-type import defect; native diagnostics and nine regression tests passed.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/codemod/lib/imports.int.test.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:1a77f8d831c47cb1e5cacd840f2bf2b76077784e"
+            }
+          ]
+        }
+      ],
+      "summary": "Symbol-routing review found and resolved the default-type import defect; native diagnostics and nine regression tests passed."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-08-trpc-brand-seam.md",
+      "assignedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "dcb682af39467a4b59255647d90b0435fbb720b90981ea06f6cabbf940cf2495",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedAt": "2026-09-08",
+      "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+      "claims": [
+        {
+          "claim": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/trpc-brand-input.test-d.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            }
+          ]
+        }
+      ],
+      "summary": "Independent review verifies accurate branded wire-input typing and the narrowed direct AppRouter type connection."
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-08-typecheck-directive-freshness.md",
       "assignedSha256": "09f34ea9cf20cf6679085477de220923a4322272408aa26b5eb67f2ff116b9f7",
       "disposition": "current",
@@ -3725,27 +3977,135 @@
       ]
     },
     {
-      "path": "docs/reviews/mutation-config-calibration.md",
-      "assignedSha256": "cea69c76e9ac76260c41d42ba9be3ef702e56258c033c382cd117266ba9724e7",
+      "path": "docs/reviews/stickler/2026-09-08-world-scope-checkpoint.md",
+      "assignedSha256": "fbd68cf0c3713b9b73d6143063db1aaabf2bb7687112ea2dc9e25f58a65beb5e",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "39751b004db6aa7a263fe084a8d160b79d3075ed56e5940c2235425ab9e67477",
-      "verifiedCommit": "fd67d6ccbeac1d46cff4e5a08a35ffe3b1d8c525",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "fbd68cf0c3713b9b73d6143063db1aaabf2bb7687112ea2dc9e25f58a65beb5e",
+      "verifiedCommit": "659d2456c7de1d9e4b5bf3b20db4a63848f99392",
+      "verifiedAt": "2026-09-08",
       "evidence": [
-        "Full read of both pre-migration JSON configs and this preserved calibration record; historical measurements explicitly distinguished from fresh proof.",
-        "Native exploratory and gate dry runs each passed 110 tests; no mutations executed.",
-        "tests/tooling/_shared/stryker-config.test.ts: complete options and mutable branch independence."
+        "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed."
       ],
-      "summary": "Preserved Stryker calibration history and bounded native config-migration evidence; no new score or threshold change.",
       "claims": [
         {
-          "claim": "Both Stryker profiles preserve authored options and allocate independent nested config branches.",
+          "claim": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate.",
           "evidence": [
             {
               "kind": "test",
-              "target": "tests/tooling/_shared/stryker-config.test.ts:110"
+              "target": "tests/tooling/verify/ops/scoped-test.int.test.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
+            }
+          ]
+        }
+      ],
+      "summary": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate."
+    },
+    {
+      "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
+      "assignedSha256": "9c23c043e70bfc3de53fdaa367c2292aa80c3acfdddced12bf7a00a4485eea11",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "efd517db9a206769fb69d964b05ec847667449e13a8401a59235327f4d04abbc",
+      "verifiedCommit": "7d9cd503ea1e11f92213df84f870037d687cd5e2",
+      "verifiedAt": "2026-09-08",
+      "evidence": ["Full report read; independent verification and committed implementation checked at 7d9cd503ea1e11f92213df84f870037d687cd5e2."],
+      "claims": [
+        {
+          "claim": "Adjudication removed nine superseded RPC wrappers and retained six supported candidates; domain services and their separate coverage obligations remain.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/ast/ops/wiring.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:7d9cd503ea1e11f92213df84f870037d687cd5e2"
+            }
+          ]
+        }
+      ],
+      "summary": "Adjudication removed nine superseded RPC wrappers and retained six supported candidates; domain services and their separate coverage obligations remain."
+    },
+    {
+      "path": "docs/reviews/trpc-walled-garden-2026-09-08.md",
+      "assignedSha256": "99d706ac338020141bdbefe3cd9356b5e111a1c6870ae27fb2dfe1b732366488",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "99d706ac338020141bdbefe3cd9356b5e111a1c6870ae27fb2dfe1b732366488",
+      "verifiedCommit": "b849e7addf23ed408e2825d90904ad07557feb41",
+      "verifiedAt": "2026-09-08",
+      "evidence": ["Full final report read and attested at b849e7addf23ed408e2825d90904ad07557feb41; native and behavioral receipts retained with the task."],
+      "claims": [
+        {
+          "claim": "The tRPC investigation records official guidance, measured type/runtime closures, brand identity and the accepted bounded cleanup recommendations.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/trpc-brand-input.test-d.ts:1"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:b849e7addf23ed408e2825d90904ad07557feb41"
+            }
+          ]
+        }
+      ],
+      "summary": "The tRPC investigation records official guidance, measured type/runtime closures, brand identity and the accepted bounded cleanup recommendations."
+    },
+    {
+      "path": "docs/reviews/verifier/2026-09-02-941-semantic-denominator-closure.md",
+      "assignedSha256": "9ba37b0ab6328cf3e424a8a2b7cd01b6dd13043e6a6173f01434fd28f320e717",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "4ad50d79d7ad96001589d6eca8e7da9a7ccf14c7f00353cb0dd8305ce3b3251e",
+      "verifiedCommit": "fbf068c7f3d5973099a817f283314533b6578ab6",
+      "verifiedAt": "2026-09-02",
+      "summary": "Verifier closure check of the #941 semantic-denominator program on 718e97ab3: REFUTED narrowly — the three named escapes are closed with planted regressions and all 24 gates declare a semantic population, but four paired controls show two gates still silently under-read a sanctioned composition shape (chat-viewer-plane-canon-reads non-literal matrix values; knob-wire-coverage arms A/B/B2/C inheritance and spreads).",
+      "evidence": [
+        "re-attested at fbf068c7f: the Re-verification section — CONFIRMED on 3b38d5b84 after #1091 + #1094; both residual gaps closed with the paired controls re-planted in one batch (census moving per arm), 43/43 pins, 251/251 gates clean",
+        "born-reviewed at 574da5a05: full read by the primary orchestrator — the verdict, the three planted-regression receipts, the 24-row table across tiers A/B/C/D, the four GAP rows with their paired inline-vs-composed controls, the environment notes; residual rows filed from §GAP"
+      ],
+      "claims": [
+        {
+          "claim": "The three current escapes (#934/#942/#943) are genuinely closed: planted regressions in the imported appearance schema, the RAIL_ZONES spread and the WorkloadScheduleService verbs each RED their gate with the census moving as expected.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#941"
+            }
+          ]
+        },
+        {
+          "claim": "chat-viewer-plane-canon-reads' foldMatrix silently drops any CHAT_VERB_AUTHORITY row whose value is not a string literal (census 93→92, gate green), and isViewerPlane(undefined)===false then removes that verb from the D16 room-plane check.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#941"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts:191"
+            }
+          ]
+        },
+        {
+          "claim": "knob-wire-coverage's non-C arms were never re-homed: interfaceKeys drops inherited EffectiveAppConfig fields, tupleMembers drops a spread USER_SETTINGS_SECTIONS member, zObjectKeys drops a spread appSettingsSchema key from arms B2 and C — silently, while the inline spelling REDs.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#941"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/knob-wire-coverage.ts:137"
             }
           ]
         }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 1,
+    "pending": 31,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -29588,7 +29588,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/bus-family-1584.md",
+        "assignedSha256": "a856748e374733d39956ba4b04d8afb2848eb33b251f45343b6afca1d3eed92c",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29608,7 +29619,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/bus-pair-1584.md",
+        "assignedSha256": "85077c568cd82252aeebda3bfabc0ea405b8cce6c8acdb48ba1059f955f9d574",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29628,7 +29650,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/checkpoint-2026-09-05.md",
+        "assignedSha256": "b2abd0a2984650fdfaa6477ffc722845b008be8581c61f65368ab6555f2c72d9",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29648,7 +29681,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/exception-authority-census.md",
+        "assignedSha256": "b6a5bddc070c82e523482a5d3518acd1210827a3625403182596bed17f28c15d",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29668,7 +29712,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/home-client-family-1584.md",
+        "assignedSha256": "a186fed7c8e4889963c6df479ccf0f6f5960e7f7dd48acbe32e9686c2189bc90",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29688,7 +29743,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/home-server-family-1584.md",
+        "assignedSha256": "ff75f62b58e6da676e49f6ce24027bbbbbc4e643f42105ac4183dbd3ae25b917",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29708,7 +29774,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/id-brand-family-1584.md",
+        "assignedSha256": "8fa602ea1819f0fe5ff29c73c32ea9e4663d5a3a88a102e80eca331fdf92f927",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29728,7 +29805,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/mechanical-gates-1584.md",
+        "assignedSha256": "22758d4bdea5c4f5aa24204339b1652a2cb63460ffb05fa38d8e9b9ea588d15a",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29748,7 +29836,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/ordinary-visitors-family-1584.md",
+        "assignedSha256": "65efc796f9a3f966580c085abac84104734ea4390d4759699573f71878236aa8",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29768,7 +29867,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/ordinary-waiver-source-migration.md",
+        "assignedSha256": "834ce90e2fee514ac868177046fe0a63e2db0de57eb9390bd0e29719e7d07258",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29788,7 +29898,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/origin-client-family-1584.md",
+        "assignedSha256": "c9e787ad0411b68f83aeac372fe3bb36591e20863bf47dbf9ded22d4e37ce830",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29808,7 +29929,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/origin-server-family-1584.md",
+        "assignedSha256": "c074b34e26873312acd6cd24b64dd659e73df72bebfa9eb52bd03ab789cc1c9d",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29828,7 +29960,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/planner-cli-integration.md",
+        "assignedSha256": "90ca11af0ff621be30b4bb90e1aa11208dd63e2506ca50a032b9b760e8ea757e",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29848,7 +29991,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/registry-family-1584-checkpoint.md",
+        "assignedSha256": "820027b56a9989cfd76ad7ec4bf526f134c255c167da083585d6d4241295614a",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29868,7 +30022,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/resource-gate-access-patterns.md",
+        "assignedSha256": "f7441548020fb3242ed1568b1a59d21decbf9ea8acf46d9271ad36c987f42ce4",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29888,7 +30053,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/resource-host-foundation.md",
+        "assignedSha256": "9535a9012e9065a0438512d8fd25335f175b609dbdcaab4ba560de203fd9cb0e",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29908,7 +30084,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/resource-layout-size-inventory.md",
+        "assignedSha256": "ccc45ed735f2d47dc79fa57c3225796cf6ef784e64ee42ad0948dcb535fe0b6a",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29928,7 +30115,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/schema-fact-family-1584.md",
+        "assignedSha256": "cc3353d29b963f30c2a5129e5bc4cacee6ed11071ce0a658e7ec7312563484bb",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29948,7 +30146,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/shared-semantic-readers.md",
+        "assignedSha256": "24f24c5dee3f12c5d19f436cd1d1afc0622ae97bf91b5882e1033d35cf306abe",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29968,7 +30177,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/simple-visitors-a-m.md",
+        "assignedSha256": "46340e81488b1cf7c9d16987ceadd803d64fb425e69ae62849b41fdb57aeb769",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -29988,7 +30208,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/simple-visitors-n-z.md",
+        "assignedSha256": "00c1a0778f5ead75928e1d7655116ad5d6a9925ed8c6be9aab93de5698ab6900",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -30008,7 +30239,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md",
+        "assignedSha256": "c007029479ffe0fa84c7ad5ccd0a749c17d93cbd56d4e4bc2ec7302d6682abae",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34777,7 +35019,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-05-1584-integration-checkpoint.md",
+        "assignedSha256": "7bac2923bdfa409f4dd7bf5dfb333bfc9f1a72ca98da34b7453c9ac3f2cb0fcb",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34797,7 +35050,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-05-gate-migration-codemod.md",
+        "assignedSha256": "bad28fe7eae0579d182362083a96bc5993b1401d0b518c28098952f5afce996b",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34817,7 +35081,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-05-gate-runtime-core.md",
+        "assignedSha256": "7c67087b1b7501938a1cb07bfe682db05c135ac349694a25932e934e6b3b74a9",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34837,7 +35112,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-05-gate-runtime-foundation.md",
+        "assignedSha256": "9d01e28b8fe28114287fdb2a1917d563ce0d8f809d13713b7ae1ecd45748cbc9",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34857,7 +35143,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-05-policy-scope-foundation-ff408a140.md",
+        "assignedSha256": "38724b46257608c4ff60cf7c1f093394aa7b09bc123b8fe45a54b2e5007f6bfc",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34877,7 +35174,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-05-resource-layout-size-inventory.md",
+        "assignedSha256": "ee0b83eb53db80410a12c61c63218c0a2040b0a00e491e64935f7c4875f0ba0d",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34897,7 +35205,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-05-shared-semantic-readers.md",
+        "assignedSha256": "5287fd9efe43a20391ed1999ac50f22b15045162fb36e6fbd745e0b48397f73c",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
@@ -34917,7 +35236,18 @@
         },
         "errors": []
       },
-      "receipt": null,
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-06-gate-system-composed-review.md",
+        "assignedSha256": "dfdd81f22d081597088bcb801963e45e0824afe8b8e794ff7d913382844a7409",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
       "receiptCurrent": false
     },
     {
