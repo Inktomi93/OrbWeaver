@@ -38,6 +38,7 @@ for exactly once; nothing vanishes from the roster.
 | converted modules with NO committed test importing them | 21 of 163 | orchestrator sweep 2026-09-11 (incl. `baseui-render-prop-composition`, whose missing `name` throws in the legacy loader) |
 | ordinary policies with no positive `@orb-waive` identity arm | 44 of 86 | 16 landed at `efc8ace50` and `7ee0e6da0`, each with a planted dead-position control. A grep floor reports 42: it also counts `no-off-token-radius-shadow` and `no-form-state-in-useeffect`, whose only marker text is header prose and a sibling's negative arm |
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
+| working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
 | last composed baseline (all final policies, full roster, central grants) | 119 policies: 304 raw = 182 waived + 105 granted + 17 effective; 2:03 wall / 6.55 GB on a loaded box | checkpoint-2026-09-05.md, wave 5 |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
 | shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with 7 closed kinds, `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
@@ -175,10 +176,34 @@ family.
 7. **Invented rows owe a planted-break receipt.** Only when a lane adds a NEW row for a NEW property (a per-file index,
    an absent-subject arm) must it break that property in a scratch copy, show the row went red, and restore. A header that says "this row proves X" for a row never shown to
    catch X is a defect; a cross-file row whose fixture offsets never overlap is the worked example.
-8. **Fixtures.** Source/type proofs are virtual files; resource proofs are auto-cleaned temp roots; real-corpus controls
-   are virtual overlays on the loaded Project. No `__g_`/`__dc_` planting in the working tree for a final policy. A
-   fixture's relative import that resolves to nothing makes every identity row pass by fail-closure while conformance
-   stays green, so a specifier-resolution control is part of every family floor.
+8. **Fixtures — where a proof's files actually go, and why a final policy CANNOT plant in the working tree.**
+   A proof row declares `mode` plus a `files` map of path → content. **The MODULE never chooses the substrate; the
+   runtime does**, from `mode` (`ops/policy-conformance.ts`):
+   - `mode: "source"` / `"types"` → `runVirtualExample`. Files are created with `Project#createSourceFile` under the
+     synthetic root `/orb-policy-conformance-<n>` in a project built `useInMemoryFileSystem: true`. **Nothing is
+     written to disk anywhere** — there is no file, not merely no file in the repo. Sources are removed before and
+     after each example, so rows cannot see each other's fixtures.
+   - `mode: "resource"` → `runResourceExample`. A real directory under the OS tmpdir
+     (`mkdtempSync(join(tmpdir(), "orb-policy-conformance-"))`), OUTSIDE the checkout, deleted in a `finally` with
+     `rmSync(root, { recursive: true, force: true })` whether the row passes, fails or throws.
+   - Real-corpus controls are virtual overlays on the loaded Project, never edits to tracked files.
+
+   So **"no planting in the working tree" is enforced by construction, not by author discipline.** A final policy has
+   no filesystem access at all (§12.3 bans reads; there are zero writes across the corpus), and its proof rows cannot
+   reach the checkout even deliberately. The legacy runtime did the opposite — it planted `__g_`/`__dc_` fixtures in
+   the working tree, which is why `check-gates.repo.int.test.ts` is still not concurrency-safe with itself, why it
+   stays the orchestrator's to run during a merge train, and why a live probe was once swept into a commit and shipped
+   a BLINDED gate. Those hazards retire with the legacy suites, not with a rule.
+
+   **The paths in a `files` map are population coordinates, not locations.** `"packages/client/src/features/a/data.ts"`
+   places that fixture inside the policy's declared population; change the path and you change whether the policy sees
+   it at all. That is how a row proves a population fence.
+
+   **This does not change how you probe a REAL file.** Fixtures are for proof rows; probing live behaviour still uses
+   a throwaway scratch path, or `cp f f.bak` … `mv f.bak f` — never `git stash`/`checkout`/`restore` (constitution §4).
+
+   A fixture's relative import that resolves to nothing makes every identity row pass by fail-closure while
+   conformance stays green, so a specifier-resolution control is part of every family floor.
 9. **One family test may cover several siblings**; a file per gate is unnecessary. Until the conformance stage in §5
    exists, every final policy must still be imported by a committed family test (the 21 uncovered modules are the debt).
 

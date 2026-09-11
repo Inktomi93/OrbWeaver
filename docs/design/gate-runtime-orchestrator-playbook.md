@@ -168,6 +168,9 @@ idle composed-pass remeasurement; catalog re-attest.
    census recorded.
 5. The fence: files it owns; sibling lanes' files it must not touch; `packages/**`/`tests/**` only for comment lines.
 6. Floors, exactly as the guide §8.8; never whole-tree; runs over ten minutes report and stop.
+6b. Fixtures: a proof row's `files` map is VIRTUAL (in-memory for source/types, an auto-cleaned tmpdir for resource) and
+   its paths are population coordinates, not locations — see guide §4.8. A final policy never plants in the working
+   tree and cannot. Probing a REAL file is the separate `cp`/`mv` rule; never `git stash`/`checkout`/`restore`.
 7. Git: `git -C <wt>` always; `git add -A` fine in its own worktree; `git status --short` empty; `git show --stat` in
    the report; one commit; `git -c core.hooksPath=/dev/null commit`; Co-Authored-By trailer.
 8. Hazards: `vitest list --json=/abs/path`; rg `-r` clusters; never `git stash`/`checkout`/`restore`; `pnpm ast` for
