@@ -16,8 +16,9 @@ paths:
 # Gates and instruments — before you edit one
 
 - **GATE-RUNTIME MIGRATION POSTURE (#1584; owner rulings 2026-09-11, binding until the atomic cutover).**
-  - **Read first, in this order, in full:** `docs/design/gate-runtime-standardization.md` (the goal and the
-    final `defineGate` contract), `docs/reviews/gate-runtime/exemplars-2026-09-11.md` ("copy these shapes"),
+  - **Read first, in this order, in full:** `docs/design/gate-runtime-standardization.md` (THE program guide:
+    mixed runtime, state of the tree, proof rules, order of work, per-conversion procedure, dispatch mechanics, and
+    the full `defineGate` contract in §12), `docs/reviews/gate-runtime/exemplars-2026-09-11.md` ("copy these shapes"),
     `tooling/src/verify/contract/policy.ts` (+ `population.ts`, `resource-declaration.ts`), then the
     converted exemplar modules and their family tests, then every assigned gate and its legacy source via
     `git show <sha>:<path>`. **`tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide**
