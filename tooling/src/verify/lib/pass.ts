@@ -16,6 +16,7 @@ import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Node, SourceFile, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx, GateScanDeclaration, Scope } from "../contract/gate.ts";
 import type { DeclaredScan, GatePassResult, GatePhase, GateScan, PassResult, PopulationScan, ToolError } from "../contract/pass.ts";
+import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import { findGateIgnore, findGateIgnoreAtLine } from "./gate-ignore.ts";
 import type { PhaseClock } from "./pass-timing.ts";
 import { chargedPhase, inFinalizePhase, newPhaseClock, nowMs, passTiming } from "./pass-timing.ts";
@@ -411,6 +412,29 @@ function runWithReferenceCache(gates: readonly GateDescriptor[], ctxBase: Omit<G
  *  at the real-tree entrypoints (ops/structure.ts / ops/scoped.ts), NEVER inside runPass: conformance's
  *  own fixture runs assert findings ON probe-named files, and a runPass-level filter would blind them. */
 const PROBE_ARTIFACT_RE = /(^|\/)__(?:g|dc)_/u;
+
+/** The FINAL side of the same rule: drop probe-artifact EFFECTIVE findings from a real-tree `runPolicyPass` result
+ *  and recompute the authority verdict over what remains, so `policyPassExitCode` keeps ONE spelling of the exit
+ *  rule. Waived/granted findings and the alarms are untouched (they are not findings on the report), and a result
+ *  with no probe finding is returned as-is. */
+export function stripProbePolicyFindings(result: PolicyPassResult): PolicyPassResult {
+  const effectiveFindings = result.authority.effectiveFindings.filter((finding) => !PROBE_ARTIFACT_RE.test(finding.file));
+  if (effectiveFindings.length === result.authority.effectiveFindings.length) {
+    return result;
+  }
+  const errors = effectiveFindings.filter(({ severity }) => severity === "error").length;
+  const warnings = effectiveFindings.length - errors;
+  const alarmErrors = result.authority.authorityAlarms.length;
+  const { failOnWarnings } = result.authority.verdict;
+  return {
+    ...result,
+    authority: {
+      ...result.authority,
+      effectiveFindings,
+      verdict: { errors: errors + alarmErrors, warnings, blocking: errors + alarmErrors + (failOnWarnings ? warnings : 0), failOnWarnings },
+    },
+  };
+}
 
 /** Drop probe-artifact findings from a real-tree pass (see PROBE_ARTIFACT_RE). */
 export function stripProbeFindings(pass: PassResult): PassResult {

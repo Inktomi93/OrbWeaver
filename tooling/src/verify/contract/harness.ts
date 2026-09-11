@@ -2,12 +2,19 @@
 // CheckContext / Check shapes still consumed by the injectable-baseline factories and the retained
 // `monotonicTests` Check, plus `GateResult` — the per-gate record the check-structure.json writer emits.
 import type { Project } from "ts-morph";
+import type { GateSeverity } from "./gate-authority.ts";
 import type { GateScan, GateTiming } from "./pass.ts";
 
 export interface Violation {
   readonly file: string;
   readonly line: number;
   readonly message: string;
+  /** The three fields a FINAL policy's effective finding carries beyond the legacy triple (mixed runtime, #1584):
+   *  the exact column and position token the central waiver engine bound, and the severity central authority
+   *  stamped. A legacy row never sets them; a reader treats their absence as a legacy finding. */
+  readonly column?: number;
+  readonly token?: string;
+  readonly severity?: GateSeverity;
 }
 
 export interface CheckContext {

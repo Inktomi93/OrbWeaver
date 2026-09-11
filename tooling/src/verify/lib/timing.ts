@@ -15,6 +15,9 @@
 // verdict (exit 2), never a silently untimed report.
 import type { GatePassResult, GatePhase, PassTiming, TimingLedgerView } from "../contract/pass.ts";
 import { GATE_PHASES } from "../contract/pass.ts";
+import type { PolicyPassTiming, PolicyPhase } from "../contract/policy-pass.ts";
+import { POLICY_PHASES } from "../contract/policy-pass.ts";
+import type { FinalPolicyRow } from "../contract/structure-report.ts";
 
 /** How many gates the console line names. FIVE: the measured cost distribution is extremely long-tailed
  *  (one lib was 115s of a 292s pass), so the top handful IS the actionable content, while a longer list
@@ -79,5 +82,54 @@ export function timingLine(timing: PassTiming, gates: readonly GatePassResult[],
     `single-pass cost: ${fmt(timing.totalMs)} wall — gate hooks ${fmt(timing.gateMs)}, harness ${fmt(harness)}`,
     `  slowest ${String(slowest.length)}: ${named === "" ? "(no gates ran)" : named}`,
     `  (per-gate timing: ${artifactPath})`,
+  ].join("\n");
+}
+
+/** A final row's timing as a READER receives it (the loose shape `timingAlarms`' view takes, for the same reason). */
+interface PolicyTimingRowView {
+  readonly name: string;
+  readonly timing?: { readonly totalMs?: number | undefined; readonly phaseMs?: Partial<Record<PolicyPhase, number>> | undefined } | undefined;
+}
+
+/** The FINAL side of the untimed refusal (mixed runtime, #1584 §5): every policy row owes a finite `totalMs` and a
+ *  finite number for every `POLICY_PHASES` member, and the pass owes its three totals. Same class, same voice
+ *  (`incompleteReasons`), same exit: an untimed final policy is a broken writer, never an instant one. */
+export function policyTimingAlarms(rows: readonly PolicyTimingRowView[], timing: Partial<PolicyPassTiming> | undefined): readonly string[] {
+  const out: string[] = [];
+  for (const row of rows) {
+    const t = row.timing;
+    if (t === undefined || !isMs(t.totalMs)) {
+      out.push(`final policy '${row.name}' reported NO wall-clock — the run is UNTIMED, not instant (tooling/src/verify/lib/timing.ts, #1107)`);
+      continue;
+    }
+    const missing = POLICY_PHASES.filter((phase) => !isMs(t.phaseMs?.[phase]));
+    if (missing.length > 0) {
+      out.push(`final policy '${row.name}' reported no wall-clock for phase(s) ${missing.join(", ")} — the per-phase breakdown is incomplete (#1107)`);
+    }
+  }
+  if (timing === undefined || !isMs(timing.totalMs) || !isMs(timing.policyMs) || !isMs(timing.factMs)) {
+    out.push("the final pass reported no wall-clock of its own — the timing ledger has no total to check the policies against (#1107)");
+    return out;
+  }
+  if (timing.policyMs + timing.factMs > timing.totalMs) {
+    out.push(
+      `the final timing ledger does not add up: policies ${fmt(timing.policyMs)} + facts ${fmt(timing.factMs)} exceed the ${fmt(timing.totalMs)} pass — a part cannot exceed the whole (#1107)`,
+    );
+  }
+  return out;
+}
+
+function dominantPolicyPhase(row: FinalPolicyRow): PolicyPhase {
+  return POLICY_PHASES.reduce((worst, phase) => (row.timing.phaseMs[phase] > row.timing.phaseMs[worst] ? phase : worst), "population");
+}
+
+/** The final pass's cost line beside the legacy one: wall, the policy/fact split, and the slowest policies. */
+export function policyTimingLine(timing: PolicyPassTiming, rows: readonly FinalPolicyRow[]): string {
+  const slowest = [...rows].sort((a, b) => b.timing.totalMs - a.timing.totalMs).slice(0, SLOWEST_REPORTED);
+  const named = slowest.map((row) => `${row.name} ${fmt(row.timing.totalMs)} (${dominantPolicyPhase(row)})`).join(" · ");
+  const dispatcher = Math.max(0, timing.totalMs - timing.policyMs - timing.factMs);
+  return [
+    `final-pass cost: ${fmt(timing.totalMs)} wall — policies ${fmt(timing.policyMs)}, facts ${fmt(timing.factMs)}, dispatcher ${fmt(dispatcher)}`,
+    `  slowest ${String(slowest.length)}: ${named === "" ? "(no policies ran)" : named}`,
   ].join("\n");
 }

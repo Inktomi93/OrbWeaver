@@ -4,13 +4,24 @@
 import type { AnySQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { GateDescriptor } from "./gate.ts";
 import type { PassResult } from "./pass.ts";
+import type { GatePolicy } from "./policy.ts";
+import type { PolicyPassResult } from "./policy-pass.ts";
 
-/** What one `cli.ts scoped` run produced: the incremental-safe gates' pass, the whole-project gates it
- *  DEFERRED (a scoped clean is never a full all-clear), and how many files were in scope. */
+/** What one `cli.ts scoped` run produced on the LEGACY side: the incremental-safe gates' pass, the whole-project
+ *  gates it DEFERRED (a scoped clean is never a full all-clear), and how many files were in scope. */
 export interface ScopedResult {
   readonly pass: PassResult;
   readonly deferred: readonly GateDescriptor[];
   readonly files: number;
+}
+
+/** The FINAL side of one scoped run (mixed runtime, #1584 §5): the dispatcher's result over the scoped fileset as
+ *  `requestedPaths`, plus the policies it declined to run — an `entire-population` policy under a proper subset
+ *  and a policy whose population never met the selection are both `not-applicable` owners, which is the final
+ *  contract's whole-project fence. `pass` is null when the corpus holds no final policy. */
+export interface ScopedPolicyResult {
+  readonly pass: PolicyPassResult | null;
+  readonly deferred: readonly GatePolicy[];
 }
 
 /** One failed gate self-proof example. A conformance failure is a TOOL error (exit 2), never a violation:

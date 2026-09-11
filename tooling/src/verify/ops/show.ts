@@ -22,7 +22,9 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
+import type { FinalPolicyRow, StructurePolicyReport } from "../contract/structure-report.ts";
 import { nearCapAdvisories } from "../lib/near-cap.ts";
+import { failedHeaderLine, finalBlockLines, finalBrokenEvidenceCount, finalRowHeader, passLine, violationLine } from "../lib/show-policy.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:show");
 
@@ -46,6 +48,10 @@ interface Violation {
   readonly file: string;
   readonly line: number;
   readonly message: string;
+  /** Present on a FINAL row's findings (mixed runtime, #1584); absent on legacy rows and pre-mixed artifacts. */
+  readonly column?: number;
+  readonly token?: string;
+  readonly severity?: "error" | "warning";
 }
 /** Optional: absent in pre-2026-08-13 artifacts (pass.ts `GateScan`). */
 interface GateScanView {
@@ -57,11 +63,20 @@ interface GateScanView {
   readonly admittedRatified?: number;
   readonly declared?: { readonly unit: string; readonly candidates: number; readonly scanned: number };
 }
-interface GateReport {
+/** A LEGACY row (`contract` absent on a pre-mixed artifact — read as legacy). */
+interface LegacyGateView {
+  readonly contract?: "legacy";
   readonly name: string;
   readonly ok: boolean;
   readonly violations: readonly Violation[];
   readonly scan?: GateScanView;
+}
+/** ONE roster, two contracts (mixed runtime, #1584): a final row is the writer's own shape, never a loose view —
+ *  the mixed writer is the only writer that emits it. */
+type GateReport = LegacyGateView | FinalPolicyRow;
+
+function isFinalRow(g: GateReport): g is FinalPolicyRow {
+  return g.contract === "final";
 }
 /** The run manifest (#410). OPTIONAL here on purpose: this view also reads artifacts written before the
  *  manifest existed, and a MISSING manifest is a pre-#410 artifact (readable), while a manifest that says
@@ -98,6 +113,9 @@ interface StructureReport {
    *  empty or left declarations unresolved — read here for the same reason as `scanAlarms`: this view is
    *  where the doctrine says to LOOK, so a signal missing here is a signal nobody sees. */
   readonly populationAlarms?: readonly PopulationAlarmView[];
+  /** Optional: absent in pre-mixed artifacts; null when the corpus held no final policy. The final side's
+   *  refusals/alarms live here and are rendered beside the legacy tool errors for the same read-here reason. */
+  readonly policy?: StructurePolicyReport | null;
   readonly total: number;
   readonly ok: boolean;
 }
@@ -254,7 +272,9 @@ function scanNote(scan: GateScanView | undefined): string {
 }
 
 function printGate(g: GateReport, violations: readonly Violation[], f: Filter): void {
-  const header = `${g.ok ? ANSI.green("✓") : ANSI.red("✗")} ${ANSI.bold(g.name)} (${violations.length} violation${violations.length === 1 ? "" : "s"})${scanNote(g.scan)}`;
+  const header = isFinalRow(g)
+    ? finalRowHeader(g, violations.length, ANSI)
+    : `${g.ok ? ANSI.green("✓") : ANSI.red("✗")} ${ANSI.bold(g.name)} (${violations.length} violation${violations.length === 1 ? "" : "s"})${scanNote(g.scan)}`;
   print(header);
   if (f.errorsOnly || violations.length === 0) {
     print("");
@@ -262,8 +282,7 @@ function printGate(g: GateReport, violations: readonly Violation[], f: Filter): 
   }
   const sample = violations.slice(0, f.limit);
   for (const v of sample) {
-    const loc = v.line > 0 ? `${v.file}:${v.line}` : v.file;
-    print(`  ${ANSI.cyan(loc)}  ${v.message}`);
+    print(violationLine(v, ANSI));
   }
   if (violations.length > sample.length) {
     print(ANSI.dim(`  …and ${violations.length - sample.length} more (--limit N to widen)`));
@@ -298,13 +317,15 @@ function printVerdictAndToolErrors(report: StructureReport): void {
   const blind = report.scanAlarms ?? [];
   const populations = report.populationAlarms ?? [];
   const evidenceBroken = brokenEvidenceCount(report) > 0;
-  print(
-    report.ok && !evidenceBroken
-      ? ANSI.green("✓ check:structure passed (filter view)\n")
-      : ANSI.red(
-          `✗ check:structure FAILED — ${report.total} violation(s)${toolErrors.length > 0 ? ` + ${toolErrors.length} TOOL ERROR(S)` : ""}${blind.length > 0 ? ` + ${blind.length} BLIND GATE(S)` : ""}${populations.length > 0 ? ` + ${populations.length} REFUSED POPULATION(S)` : ""} across its gates\n`,
-        ),
-  );
+  const counts = {
+    total: report.total,
+    toolErrors: toolErrors.length,
+    blind: blind.length,
+    populations: populations.length,
+    finalToolErrors: finalBrokenEvidenceCount(report.policy),
+    alarms: report.policy?.authority.alarms.length ?? 0,
+  };
+  print(report.ok && !evidenceBroken ? ANSI.green("✓ check:structure passed (filter view)\n") : failedHeaderLine(counts, ANSI));
   for (const e of toolErrors) {
     print(`${ANSI.red("✗ TOOL ERROR")} ${ANSI.bold(e.gate)} [${e.phase}]  ${e.message}`);
   }
@@ -315,6 +336,11 @@ function printVerdictAndToolErrors(report: StructureReport): void {
   }
   for (const a of populations) {
     print(`${ANSI.red("✗ REFUSED POPULATION")} ${ANSI.bold(a.gate)}  ${populationAlarmText(a)}`);
+  }
+  if (report.policy !== null && report.policy !== undefined) {
+    for (const line of finalBlockLines(report.policy, ANSI)) {
+      print(line);
+    }
   }
   if (evidenceBroken) {
     print("");
@@ -333,7 +359,7 @@ function populationAlarmText(a: PopulationAlarmView): string {
 /** How many "the run is not a verdict" signals the artifact carries — thrown gates, blind gates, refused
  *  populations. ONE spelling, so the header, the exit code and the pass line can never disagree. */
 function brokenEvidenceCount(report: StructureReport): number {
-  return (report.toolErrors?.length ?? 0) + (report.scanAlarms?.length ?? 0) + (report.populationAlarms?.length ?? 0);
+  return (report.toolErrors?.length ?? 0) + (report.scanAlarms?.length ?? 0) + (report.populationAlarms?.length ?? 0) + finalBrokenEvidenceCount(report.policy);
 }
 
 /** #644 — the near-cap ADVISORY, never a violation: a file a few lines under its component-size /
@@ -401,10 +427,7 @@ export function runShow(root: string, argv: readonly string[]): number {
   if (report.ok && !filtersActive && !evidenceBroken) {
     // The admitted total rides the PASS line: a ratchet baseline is declared debt a green run is still
     // carrying, and "green" was the only thing this line said until 2026-08-13 (Codex GA-H-02).
-    const admitted = report.gates.reduce((n, g) => n + (g.scan?.admitted ?? 0), 0);
-    const ratified = report.gates.reduce((n, g) => n + (g.scan?.admittedRatified ?? 0), 0);
-    const debt = admitted > 0 ? ANSI.dim(` · ${admitted} finding(s) admitted by ratchet baselines ${formatSplit(admitted - ratified, ratified)}`) : "";
-    print(`${ANSI.green(`✓ check:structure passed — ${report.gates.length} gates, 0 violations`)}${debt}`);
+    print(passLine(report.gates, report.policy, ANSI));
     printNearCapAdvisories(root);
     return EXIT.clean;
   }
