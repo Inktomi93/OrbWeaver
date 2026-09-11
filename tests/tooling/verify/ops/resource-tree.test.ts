@@ -1,5 +1,5 @@
 import { PRODUCT_STYLESHEETS } from "../../../../tooling/src/verify/contract/css-family.ts";
-import type { ResourceLoad, ResourceReader, ResourceTreeEntry } from "../../../../tooling/src/verify/contract/resource.ts";
+import type { ResourceFileSnapshot, ResourceLoad, ResourceReader, ResourceTreeEntry } from "../../../../tooling/src/verify/contract/resource.ts";
 import { AUTHORED_TREE_PATHS } from "../../../../tooling/src/verify/contract/resource-tree.ts";
 import { loadAuthoredCss, loadAuthoredTree, loadProductCss } from "../../../../tooling/src/verify/ops/resource-tree.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -28,6 +28,13 @@ function readerWith(options: {
       options.readCalls?.push(path);
       return options.texts?.[path] ?? { status: "missing", reason: `missing file: ${path}`, paths: [path], members: 0 };
     },
+    // Unexercised by this file's tests (loadAuthoredTree/loadAuthoredCss/loadProductCss only tree/read).
+    snapshot: (paths): ResourceLoad<readonly ResourceFileSnapshot[]> => ({
+      status: "missing",
+      reason: `missing snapshot: ${paths.join(", ")}`,
+      paths,
+      members: 0,
+    }),
   };
 }
 
