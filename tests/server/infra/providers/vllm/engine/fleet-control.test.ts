@@ -10,16 +10,20 @@ import {
   advanceAutoSleep,
   capacityWarnings,
   clearHold,
+  clearStopped,
   decideWake,
   getIsSleeping,
   holdMarkerPath,
   initialAutoSleepState,
   isEngineIdle,
   isHeld,
+  isStopped,
   parseEngineCapacity,
   parseEngineMetrics,
   postWakeAndAwait,
+  stoppedMarkerPath,
   writeHold,
+  writeStopped,
 } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
@@ -114,6 +118,40 @@ describe("hold marker file round-trip", () => {
     expect(isHeld(dir)).toBe(false);
     clearHold(dir); // no throw on a missing marker
     expect(isHeld(dir)).toBe(false);
+  });
+});
+
+// #1929: the stopped marker mirrors the hold marker's file round-trip, but is a SEPARATE file (a different
+// axis — takeover-suppression, not wake-suppression) so the two never collide or alias each other.
+describe("stopped marker file round-trip (#1929)", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "orb-stopped-"));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("write → isStopped true; clear → isStopped false; clear is idempotent", () => {
+    expect(isStopped(dir)).toBe(false);
+    writeStopped(dir, 1_700_000_000_000, "alex");
+    expect(isStopped(dir)).toBe(true);
+    expect(stoppedMarkerPath(dir)).toContain("engines.stopped");
+    clearStopped(dir);
+    expect(isStopped(dir)).toBe(false);
+    clearStopped(dir); // no throw on a missing marker
+    expect(isStopped(dir)).toBe(false);
+  });
+
+  test("the stopped marker and the hold marker are independent files", () => {
+    writeHold(dir, 1_700_000_000_000);
+    expect(isStopped(dir)).toBe(false);
+    writeStopped(dir, 1_700_000_000_000, "alex");
+    expect(isHeld(dir)).toBe(true);
+    expect(isStopped(dir)).toBe(true);
+    clearHold(dir);
+    expect(isHeld(dir)).toBe(false);
+    expect(isStopped(dir)).toBe(true); // clearing the hold never touches the stopped marker
   });
 });
 

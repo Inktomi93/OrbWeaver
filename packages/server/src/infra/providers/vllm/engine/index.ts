@@ -34,6 +34,7 @@ export {
   advanceAutoSleep,
   capacityWarnings,
   clearHold,
+  clearStopped,
   decideWake,
   enginePortPid,
   fetchEngineCapacity,
@@ -45,12 +46,15 @@ export {
   initialAutoSleepState,
   isEngineIdle,
   isHeld,
+  isStopped,
   parseEngineCapacity,
   parseEngineMetrics,
   postSleep,
   postWakeAndAwait,
+  stoppedMarkerPath,
   WAKE_READY_TIMEOUT_MS,
   writeHold,
+  writeStopped,
 } from "./fleet-control.ts";
 export { fetchEngineMaxModelLen } from "./gen-window.ts";
 export { countGpus, detectGpu } from "./gpu.ts";

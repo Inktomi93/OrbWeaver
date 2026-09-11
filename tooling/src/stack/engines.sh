@@ -9,8 +9,10 @@
 #                           (a healthy fleet is a no-op), so N adopters collapse to
 #                           one spawn.
 #   pnpm engines stop       group-kill the family by pidfile (TERM → wait → KILL),
-#                           verified against the known pids AND the ports.
-#   pnpm engines status     per-engine pid · /health · /is_sleeping · GPU tenants.
+#                           verified against the known pids AND the ports. On a clean stop (no refusals)
+#                           writes the STOPPED marker (#1929) so the in-server supervisor's takeover
+#                           decision does not read a dead pidfile as a crash; a real `start` clears it.
+#   pnpm engines status     per-engine pid · /health · /is_sleeping · GPU tenants · hold/stopped markers.
 #   pnpm engines sleep      POST /sleep?level=1 + write the hold marker.
 #   pnpm engines wake       clear hold → reconcile → VRAM gate → wake + wait.
 #   pnpm engines reconcile  orphan-family sweep (also runs pre-spawn).
@@ -37,6 +39,11 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
 RUN_DIR="$REPO/.cache/stack"
 PIDFILE="$RUN_DIR/engines.pgid"
+# #1929: the intentional-stop marker `engines stop` writes (tooling/src/stack/ops/engines-ctl.ts, the same
+# home the in-server supervisor reads via @orb/server/infra/providers/vllm/engine's isStopped/fleetRunDir).
+# A REAL spawn attempt below clears it — an explicit `start` is the operator/automation superseding an
+# earlier stop, exactly like `engines wake` clears the hold marker before re-running its own gate.
+STOPPED_MARKER="$RUN_DIR/engines.stopped"
 LOG_DIR="$RUN_DIR"
 TSX="$REPO/node_modules/.bin/tsx"
 # tsx is a ROOT devDependency — absent from a prod-pruned install (the container image, which carries the
@@ -245,6 +252,10 @@ do_start() {
     # (tests/tooling/stack/ops/engines-start.int.test.ts; the standing ban is lane-standing-facts.md).
     echo "engines: START PROBE — no spawn; waiting on ${PORTS[*]} only."
   else
+    # A REAL spawn attempt clears the stopped marker (#1929) — the operator/automation asked for the fleet to
+    # be up, which supersedes an earlier `engines stop`. Cleared BEFORE the boot so the supervisor's next
+    # tick never reads a stale "stopped intentionally" while this launch is coming up.
+    rm -f "$STOPPED_MARKER"
     bootstrap_venv
     # Reconcile (orphan-family sweep) before the boot — the VRAM pre-check inside engines.ts then names a REAL
     # foreign tenant, never our own corpse.
