@@ -246,26 +246,26 @@ Exact rosters: `pnpm gate:contract` (descriptor-wrapper findings = the legacy se
 `uncovered-gate-conversion-census.md`, and the 53-row resource manifest in `resource-gate-access-patterns.md`. None of
 those documents is a progress board; the loader and the census are.
 
-## 7. Order of work
+## 7. What constrains any order
 
-1. §5 runtime lane, alone. Forge. Land, verify (Opus verifier), baseline.
-2. Runtime prerequisites that unblock the largest families, one lane each in dependency order: #1930 path-identity door
-   and document/ledger facts; CSS census/static-class parity adjudication; Base UI surface; token contract + devtools;
-   tsconfig programs. Each ships as a provider with ready/missing/empty/unresolved receipts and its own controls; no
-   gate converts on a kind before the kind lands.
-3. Conversions, cap 3, one family per lane, in this order: remaining direct-walk visitors and file hooks (readers
-   exist) → run-only evaluators on existing providers → resource families as their kinds land → the 13 mixed-hook
-   splits (forge, #1950). Each conversion lane ALSO translates its own legacy markers in the same commit (comment-only
-   edits under `packages/**` / `tests/**` are in that lane's fence) so the converted gate is green on the live tree at
-   landing; marker translation is conversion work, never a separate final-launch lane. Marker grammar and
-   binding rules: `ordinary-waiver-source-migration.md` §"Exact central grammar".
-4. Authority reconciliation: #1922 (sanctioned-home tables and the remaining gate-owned typed tables → central grants),
-   the 9 baseline JSON ledgers → fixes, exact grants or `workItem` warnings (`exception-authority-census.md` has the
-   per-row disposition), decisions #1939 and #1921.
-5. Legacy retirement when the census is zero: the atomic cutover checklist in `ordinary-waiver-source-migration.md`
-   §"Atomic cutover checklist" is the deletion list (legacy parser/pass accounting, `markerImmune`, the two retired
-   auditors, `__g_` suites, baselines, census command); `GATE-AUTHORING.md`, `gate:new` and `gate-modernization`
-   rewritten against `defineGate`; idle composed-pass remeasurement; catalog re-attest.
+**The SEQUENCE is not here.** It lives in [gate-runtime-orchestrator-playbook.md](gate-runtime-orchestrator-playbook.md)
+§2, which is the one home for phase order and moves as the owner rules on it. This section carries only the hard
+dependencies that constrain ANY sequence, because they are law rather than scheduling:
+
+- The mixed front door (§5) precedes everything. Until it lands, a converted policy runs only where a committed family
+  test imports it, so "converted" does not mean "enforcing".
+- **No gate converts on a resource kind before that kind lands** (#1930). Each kind ships as a provider with
+  ready/missing/empty/unresolved receipts and its own controls.
+- A conversion lane translates its own legacy markers in the SAME commit — comment-only edits under `packages/**` and
+  `tests/**` are inside that lane's fence — so the converted gate is green on the live tree at landing. Marker
+  translation is conversion work, never a separate final-launch lane. Grammar and binding:
+  `ordinary-waiver-source-migration.md` §"Exact central grammar".
+- Authority reconciliation (#1922, the nine baseline JSON ledgers, decisions #1939 and #1921) needs the central grant
+  table stable, so it follows the conversions that feed it. Per-row dispositions: `exception-authority-census.md`.
+- Legacy retirement runs only when `gate:contract` shows zero legacy modules. The deletion list is
+  `ordinary-waiver-source-migration.md` §"Atomic cutover checklist" (legacy parser/pass accounting, `markerImmune`, the
+  two retired auditors, `__g_` suites, baselines, census command), plus rewriting `GATE-AUTHORING.md`, `gate:new` and
+  `gate-modernization` against `defineGate`, an idle composed-pass remeasurement, and a catalog re-attest.
 
 ## 8. Per-conversion procedure (the decision rule every lane follows)
 
