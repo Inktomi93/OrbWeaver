@@ -12,7 +12,13 @@
 // The `surface` reachability arm resolves its openers semantically (`resolveCallableOrigin`), so a local
 // function that happens to be named `openModal` no longer satisfies the rule and an aliased import does.
 // The import-name prefilter is a CANDIDATE filter only; every candidate is confirmed through the shared
-// reader before it counts as an opener.
+// reader before it counts as an opener — measured 2026-09-11: removing the prefilter changes no proof row,
+// which is exactly what "candidate filter, not a narrowing" has to mean.
+//
+// FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`)
+// plus `lib/registry-definition-{anchor,field,home}.ts`, consumed identically by all seven members.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
+// (577d03d63^); the final population is `@client`, with the ROUTES fence kept inside the god-map arm.
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -39,7 +45,7 @@ const MESSAGE =
   "mobile-tab singleton placement, a `surface` modal with no openModal(id) opener, or a route re-forming the `modals` " +
   "override god-map — client-architecture-lockdown.md §6d.";
 const FIX =
-  'co-locate the definition and write it as an authored object literal; a planned modal is a non-empty reason; one modal per mobile-tab; give a `surface` modal at least one openModal("<id>") call site; a route is a thin mount — modals ride the registry.';
+  'co-locate the definition and write it as an authored object literal; a planned modal is a non-empty reason; one modal per mobile-tab; give a `surface` modal at least one openModal("<id>") call site; a route is a thin mount — modals ride the registry. For a deliberate exception, write an adjacent `@orb-waive modal-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the modal (`xModal`), and on the god-map arm it is the JSX attribute name `modals`.';
 
 interface Opener {
   readonly call: MorphNode;
@@ -453,6 +459,37 @@ export const gate = defineGate({
         "packages/client/src/routes/some-route.tsx": "export const G = <AppShell modals={modalRegistry} />;\n",
       },
       why: "the god-map arm's FALSE branch: a `modals` prop that forwards the assembled registry is not an object-literal override map",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
+        "packages/client/src/features/x/components/panel.tsx": "export const P = <AppShell modals={{ theme: 1 }} />;\n",
+      },
+      why: "THE ROUTE FENCE, pinned: the god-map arm judges `packages/client/src/routes/` ONLY, because a `modals={{…}}` prop anywhere else is an ordinary component prop. Deleting the `startsWith(ROUTES)` guard flags this component and REDS this row — without it the fence is a claim no positive row visits",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
+        "packages/client/src/routes/other-route.tsx": "export const G = <AppShell overrides={{ theme: 1 }} />;\n",
+      },
+      why: "THE ATTRIBUTE-NAME FENCE, pinned: the arm bans the `modals` override map specifically, not every object-literal prop a route passes down. Replacing the `GOD_MAP_PROP` comparison with a bare JsxAttribute test flags this route and REDS this row",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-modal.tsx":
+          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\n' +
+          "// @orb-waive modal-registry-completeness(xModal): pinned identity arm; ends when this modal declares a real reason.\n" +
+          'export const xModal: ModalDefinition = { id: "x", trigger: { placement: "surface" }, body: { planned: "" } };\n',
+      },
+      why: "THE IDENTITY ARM (§4.2): the twin of the `Empty planned reason` mustFlag row, which produces EXACTLY ONE finding (the empty reason RETURNS `refused`, so the surface-reachability arm never adds a second), waived at the position this policy reports — the declared name `xModal`",
     },
   ],
 });

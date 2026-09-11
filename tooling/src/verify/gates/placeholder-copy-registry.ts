@@ -11,6 +11,14 @@
 //
 // A placeholder the reader cannot resolve now FAILS CLOSED: an unjudgeable pair is a section whose copy is
 // invisible to the distinctness comparison, which is exactly what a re-home behind a builder produces.
+//
+// FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`)
+// plus `lib/registry-definition-{anchor,field,home}.ts`, consumed identically by all seven members.
+// POPULATION PORT: an INTENTIONAL WIDENING. The legacy descriptor admitted only files matching its own
+// `SECTION_FILE_RE` (`*-section.{ts,tsx}`, 577d03d63^); the final population is `@client` and the subject is
+// the canonical SectionDefinition TYPE. A section declared outside its co-located home still owes distinct
+// copy — whether it is co-located at all is `section-registry-completeness`'s arm, not this one's, and
+// filtering by FILENAME here let an uncolocated section duplicate another's copy unseen.
 import type { ObjectLiteralExpression } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
@@ -26,7 +34,7 @@ const MESSAGE =
   "placeholder must be a DISTINCT, non-empty (title, description) pair, and a pair this policy cannot resolve is a " +
   "section whose copy is invisible to the comparison entirely (client-architecture-lockdown.md §6a).";
 const FIX =
-  "write the definition as an authored object literal (or a `make<X>Section(): SectionDefinition` factory returning one) and give the section its own honest, non-empty (title, description) placeholder copy — no two sections share a pair.";
+  "write the definition as an authored object literal (or a `make<X>Section(): SectionDefinition` factory returning one) and give the section its own honest, non-empty (title, description) placeholder copy — no two sections share a pair. For a deliberate exception, write an adjacent `@orb-waive placeholder-copy-registry(<position>): <why + end condition>` — the position is the DECLARED NAME of the section (`aSection`, `makeASection`), never the copy field the message names.";
 
 interface Claim {
   readonly name: string;
@@ -176,7 +184,7 @@ export const gate = defineGate({
         "packages/client/src/features/b/lib/b-section.ts":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" } };\n',
       },
-      expect: { count: 1, messageIncludes: "Duplicate copy" },
+      expect: { count: 1, token: "bSection", messageIncludes: "Duplicate copy" },
       why: "THE FACTORY CONTROL (§6b/M3): a `make<X>Section(): SectionDefinition` factory duplicating a const section's copy — four of the ten live sections are authored this way",
     },
     {
@@ -189,7 +197,7 @@ export const gate = defineGate({
         "packages/client/src/features/b/lib/b-section.ts":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" } };\n',
       },
-      expect: { count: 1, messageIncludes: "Duplicate copy" },
+      expect: { count: 1, token: "bSection", messageIncludes: "Duplicate copy" },
       why: "THE ALIASED-COPY RED: a title reached through an imported label constant is the SAME copy. The legacy literal-only reader counted this pair as an unreadable skip and compared nine sections while reporting ten",
     },
   ],
@@ -256,6 +264,17 @@ export const gate = defineGate({
           'interface SectionDefinition {\n  readonly id: string;\n}\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" } };\n',
       },
       why: "THE COUNTERFACTUAL: `bSection` is annotated with a LOCAL type that merely shares the name, so it is not a section and cannot duplicate a section's copy. Identity is the canonical declaration the shared fact resolved, never the word at the annotation site",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\n' +
+          "// @orb-waive placeholder-copy-registry(aSection): pinned identity arm; ends when this section earns real copy.\n" +
+          'export const aSection: SectionDefinition = { id: "a", placeholder: { title: "" as string, description: "D" } };\n',
+      },
+      why: "THE IDENTITY ARM (§4.2): the twin of the `Empty copy` mustFlag row, which produces EXACTLY ONE finding, waived at the position this policy reports — the declared name `aSection`, not `placeholder.title`",
     },
   ],
 });

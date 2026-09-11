@@ -14,6 +14,13 @@
 // composition route" is a rule whose exceptions are recurring repository PERMISSIONS, not per-occurrence
 // waivers, so it is `route-imports-no-feature` under reviewed-grant authority — one authority per policy
 // (the same split the design's own `tooling-front-door` row prescribes).
+//
+// FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`,
+// one provider per definition kind) plus `lib/registry-definition-{anchor,field,home}.ts`, consumed
+// identically by all seven members, so the co-location law and the finding anchor cannot drift apart.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
+// (dd862e988^); the final population is `@client`. The ROUTES fence stays INSIDE the god-map arm rather
+// than in the population, because the other four arms judge the whole client tree.
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -34,7 +41,7 @@ const MESSAGE =
   "authored object literal, an unreadable or duplicate id, a DECLARED-PLANNED section with an empty reason or a real " +
   "body, or a route re-forming the `sections` god-map — client-architecture-lockdown.md §6.";
 const FIX =
-  "co-locate the definition and write it as an authored object literal, or a `make<X>Section(): SectionDefinition` factory returning one; a planned section is a non-empty reason and no body (context kind none); a route is a thin mount — sections ride the registry.";
+  "co-locate the definition and write it as an authored object literal, or a `make<X>Section(): SectionDefinition` factory returning one; a planned section is a non-empty reason and no body (context kind none); a route is a thin mount — sections ride the registry. For a deliberate exception, write an adjacent `@orb-waive section-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the section (`xSection`, `makeXSection`), and on the god-map arm it is the JSX attribute name `sections`.";
 
 interface Claim {
   readonly name: string;
@@ -232,7 +239,7 @@ export const gate = defineGate({
         "packages/client/src/features/b/lib/b-section.ts":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "dup", content: () => null, context: { kind: "none" } };\n',
       },
-      expect: { count: 1, messageIncludes: "Duplicate id" },
+      expect: { count: 1, token: "bSection", messageIncludes: "Duplicate id" },
       why: "THE FACTORY CONTROL (§6b/M3): a `make<X>Section(): SectionDefinition` factory colliding with a const section's id. Four live sections are authored this way and a variable-declaration-only reader saw none of them",
     },
     {
@@ -306,6 +313,37 @@ export const gate = defineGate({
         "packages/client/src/routes/app-root.tsx": "export const G = <AppShell sections={sectionRegistry} />;\n",
       },
       why: "the god-map arm's FALSE branch: a `sections` prop that forwards the assembled registry is not an object-literal override map",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
+        "packages/client/src/features/x/components/panel.tsx": "export const P = <AppShell sections={{ chats: 1 }} />;\n",
+      },
+      why: "THE ROUTE FENCE, pinned: the god-map arm judges `packages/client/src/routes/` ONLY, because a `sections={{…}}` prop anywhere else is an ordinary component prop and not the deleted override map. Deleting the `startsWith(ROUTES)` guard flags this component and REDS this row — without it the fence is a claim the positives never visit",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
+        "packages/client/src/routes/other-route.tsx": "export const G = <AppShell overrides={{ chats: 1 }} />;\n",
+      },
+      why: "THE ATTRIBUTE-NAME FENCE, pinned: the arm bans the `sections` override map specifically, not every object-literal prop a route passes down. Replacing the `GOD_MAP_PROP` comparison with a bare JsxAttribute test flags this route and REDS this row",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\n' +
+          "// @orb-waive section-registry-completeness(xSection): pinned identity arm; ends when this section declares a real reason.\n" +
+          'export const xSection: SectionDefinition = { id: "x", content: { planned: "" }, context: { kind: "none" } };\n',
+      },
+      why: "THE IDENTITY ARM (§4.2): the twin of the `Empty planned reason` mustFlag row, which produces EXACTLY ONE finding, waived by the one central marker at the position this policy actually reports — the declared name `xSection`, not the `planned` field a reader would call the offense",
     },
   ],
 });

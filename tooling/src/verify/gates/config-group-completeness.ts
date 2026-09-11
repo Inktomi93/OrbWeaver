@@ -23,6 +23,13 @@
 // THE ANCHOR ARM IS NOT HERE. "A file that stamps `configAnchorId(…)` must be registry-registered" has
 // recurring repository PERMISSIONS for the anchor READERS rather than per-occurrence waivers, so it is
 // `config-anchor-in-registry` under reviewed-grant authority — one authority per policy.
+//
+// FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`,
+// here two kinds: `config-group` and `collection`) plus `lib/registry-definition-{anchor,field,home}.ts`,
+// consumed identically by all seven members.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
+// (58370d705^); the final population is `@client`. The HOST fence and the two specifier prefixes stay
+// INSIDE the import arm, since the definition arms judge the whole client tree.
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -47,7 +54,7 @@ const MESSAGE =
   "collection body no group registers, or the config content host importing a feature's internals — " +
   "client-architecture-lockdown.md §8 / config-revamp-design.md §6.8.";
 const FIX =
-  "co-locate each definition and write it as an authored object literal; declare `create: { label, useRun }` and `importFile: { label, accept, useRun }` as data; register every collection body through its group's `body.collection`; read bodies off the registries in the host instead of importing a feature.";
+  "co-locate each definition and write it as an authored object literal; declare `create: { label, useRun }` and `importFile: { label, accept, useRun }` as data; register every collection body through its group's `body.collection`; read bodies off the registries in the host instead of importing a feature. For a deliberate exception, write an adjacent `@orb-waive config-group-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the group or collection (`xCollection`), and on the host-import arm it is the keyword `import` that opens the offending declaration.";
 
 /** The canonical types, the content host, and one registered group/collection pair. Every proof carries it:
  *  all three denominators must be nonempty for this policy to render a verdict at all, which is the point. */
@@ -268,7 +275,7 @@ export const gate = defineGate({
         "packages/client/src/features/x/lib/not-a-collection-file.ts":
           'import type { CollectionContribution } from "../../../lib/collection-contracts.ts";\nexport const strayCollection: CollectionContribution = { create: { label: "New x", useRun: () => () => undefined } };\n',
       },
-      expect: { messageIncludes: "Not co-located" },
+      expect: { count: 1, token: "strayCollection", messageIncludes: "Not co-located" },
       why: "a CollectionContribution outside a `*-collection` file — the body co-location arm folded in from the retired collection gate",
     },
     {
@@ -280,8 +287,8 @@ export const gate = defineGate({
         "packages/client/src/features/b/lib/b-group.tsx":
           'import type { ConfigGroupDefinition } from "../../../state/config-group-registry.ts";\nexport const bGroup: ConfigGroupDefinition = { id: "dup" };\n',
       },
-      expect: { count: 1, messageIncludes: "Duplicate id" },
-      why: "two co-located groups declaring the SAME id — the shadow-def duplicate-id arm",
+      expect: { count: 1, token: "bGroup", messageIncludes: "Duplicate id" },
+      why: "two co-located groups declaring the SAME id — the shadow-def duplicate-id arm, reported on the SECOND claimant so the first stays the owner of the id",
     },
     {
       mode: "types",
@@ -336,7 +343,7 @@ export const gate = defineGate({
         ...PRELUDE,
         [HOST]: 'import { Panel } from "#features/persona";\nexport const ConfigContentSurface = (): unknown => Panel;\n',
       },
-      expect: { count: 1, messageIncludes: "imports a feature's internals" },
+      expect: { count: 1, token: "import", messageIncludes: "imports a feature's internals" },
       why: "the config content host mounting a feature's front door instead of reading its body off the registries — the de-god's whole point",
     },
   ],
@@ -375,6 +382,17 @@ export const gate = defineGate({
           'interface ConfigGroupDefinition {\n  readonly id: string;\n}\nexport const shadowGroup: ConfigGroupDefinition = { id: "base" };\n',
       },
       why: "THE COUNTERFACTUAL: a LOCAL type sharing the ConfigGroupDefinition name is not a config group, so it neither collides with the real group's id nor enters the denominator",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRELUDE,
+        "packages/client/src/features/x/lib/x-collection.tsx":
+          'import type { CollectionContribution } from "../../../lib/collection-contracts.ts";\n' +
+          "// @orb-waive config-group-completeness(xCollection): pinned identity arm; ends when a group registers this body.\n" +
+          'export const xCollection: CollectionContribution = { create: { label: "New x", useRun: () => () => undefined } };\n',
+      },
+      why: "THE IDENTITY ARM (§4.2): the twin of the `Orphan collection body` mustFlag row, which produces EXACTLY ONE finding, waived at the position this policy reports — the declared name `xCollection`, not `body.collection` where the registration is missing",
     },
   ],
 });

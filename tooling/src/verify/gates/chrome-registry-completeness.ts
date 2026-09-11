@@ -15,6 +15,12 @@
 // The subject is the shared `registryDefinitionFacts.chrome` provider: a `ChromeEntry[]` annotation is the assembler's
 // derived list and resolves to the Array symbol, not to the canonical entry type, so the assembler stays
 // out of the population by type identity rather than by matching an annotation's head text.
+//
+// FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`)
+// plus `lib/registry-definition-{anchor,field,home}.ts`, consumed identically by all seven members.
+// `tupleVocabularyFact` is a shared PRIMITIVE this policy also reads, not a second family.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
+// (9055cfe6a); the final population is `@client`.
 import type { ObjectLiteralExpression } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
@@ -34,7 +40,7 @@ const MESSAGE =
   `object literal, an unreadable or duplicate id, a zone outside ${ZONE_TUPLE}, or a rail.* widget missing \`${MOBILE_FIELD}\` ` +
   "— shell-chrome-unification.md §A/§D.";
 const FIX =
-  'co-locate the definition at features/<owner>/lib/<id>-chrome.tsx and write it as an authored object literal; give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on every rail.* widget (topbar.* may declare it too — the You sheet projects "sheet"-curated trail widgets).';
+  'co-locate the definition at features/<owner>/lib/<id>-chrome.tsx and write it as an authored object literal; give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on every rail.* widget (topbar.* may declare it too — the You sheet projects "sheet"-curated trail widgets). For a deliberate exception, write an adjacent `@orb-waive chrome-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the widget (`railChrome`), never the zone or the `mobile` field the message names.';
 
 interface Claim {
   readonly name: string;
@@ -266,6 +272,19 @@ export const gate = defineGate({
           'import type { ChromeEntry } from "../../../state/chrome-registry.ts";\nexport const xChrome: ChromeEntry = { id: "x", zone: "topbar.trail", label: "X" };\n',
       },
       why: "THE SHADOW CONTROL: a LOCAL type that merely shares the name is not the canonical ChromeEntry, so an uncolocated declaration annotated with it is not this policy's subject",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
+        "packages/client/src/state/chrome-registry.ts":
+          'import { RAIL_ZONES } from "./section-registry.ts";\nexport interface ChromeEntry { readonly id: string }\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+        "packages/client/src/features/x/lib/rail-chrome.tsx":
+          'import type { ChromeEntry } from "../../../state/chrome-registry.ts";\n' +
+          "// @orb-waive chrome-registry-completeness(railChrome): pinned identity arm; ends when this widget declares its mobile fate.\n" +
+          'export const railChrome: ChromeEntry = { id: "r", zone: "rail.nav", label: "R" };\n',
+      },
+      why: "THE IDENTITY ARM (§4.2): the twin of the `Missing mobile fate` mustFlag row, which produces EXACTLY ONE finding, waived at the position this policy reports — the declared name `railChrome`, not the `mobile` field the message asks for",
     },
   ],
 });
