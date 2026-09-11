@@ -1,8 +1,11 @@
 // The PERMANENT PIN for the `depcruise-grant-liveness` policy, migrated to the final `defineGate` contract
 // (#1930). The matcher/classifier and every self-proof arm (dead row, template-literal code-config,
 // ambiguous-pattern skip, dependency-pattern liveness, the classifier-rot tripwire) are proven through the
-// policy's own `mustFlag`/`mustPass` rows against `verifyPolicyProofs` — see
-// `tests/tooling/verify/ops/policy-conformance.test.ts` for the shared harness proof. What THIS file keeps is
+// policy's own `mustFlag`/`mustPass` rows against `verifyPolicyProofs`, which the family conformance test
+// `tests/tooling/verify/gates/grant-liveness-family.test.ts` runs. (#1932 correction: this header used to
+// cite `tests/tooling/verify/ops/policy-conformance.test.ts` as that harness. It is not — that file proves
+// `verifyPolicyProofs` ITSELF against synthetic policies and imports no gate module, so until the family
+// test landed, NO committed test executed this policy's proofs.) What THIS file keeps is
 // what those isolated resource fixtures cannot show:
 //   1. a MISSING or UNPARSEABLE `.dependency-cruiser.cjs` REFUSES the whole run as a population-phase TOOL
 //      ERROR — the fail-LOUD requirement is now the runtime's own refusal (`resolveResourceDeclarations`
@@ -20,7 +23,11 @@
 // CARRIER only for the resources it reads as text itself (authoredCss, staticConfig, …), never for the
 // incidental thousands of unrelated files a native-config's inventory happens to include. This is a
 // resource-host gap for the `native-config` kind, not a defect in this policy — `resource-*.ts` under
-// `verify/ops/` is fenced from this lane; see the report for the FORK. Every other already-converted
+// `verify/ops/` is fenced from this lane; see the report for the FORK. MEASURED 2026-09-11 (#1932 lane):
+// running this policy's sibling through `runPolicyPass` at the real repository root throws
+// `ordinary waiver resource population has no exact text carrier: .codex/agent-doctrine.md` — the carrier
+// is missing because that path is a tracked SYMLINK and `ops/resource-reader.ts` refuses symlink
+// traversal by design, so the first trigger on this tree is symlink policy, not file format. Every other already-converted
 // resource-analysis policy (`package-layout`, `ui-exports-map-complete`, `feature-structure`,
 // `server-layout`, `no-raw-color-in-css`) likewise carries no bespoke real-root int test — real-tree
 // correctness for a resource policy is the ORCHESTRATOR'S `pnpm check:structure` floor, not a lane unit test.

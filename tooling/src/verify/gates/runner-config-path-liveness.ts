@@ -20,6 +20,23 @@
 // liveness is filesystem resolution, exactly as in the sibling grant-liveness gates —
 // a deliberately-absent-on-a-clean-checkout path takes an EXEMPT row, as `tsconfig-entry-liveness` does.
 // COMMENT POSTURE: comment-SAFE — extraction is pure AST over node kinds, never a text match.
+// CONVERSION TO `defineGate` REFUSED 2026-09-11 (#1584 resume step 3 / #1930), orchestrator-approved; this
+// module stays on the legacy descriptor and stays fully armed. Two of its reads have NO door on the closed
+// `ResourceHost` surface (`contract/resource-host.ts`), and both protect a COMMITTED regression proof in
+// tests/tooling/verify/gates/runner-config-path-liveness.int.test.ts:
+//   1. `realpathSync` containment (`resolveExactRows` below): an in-repo SYMLINK must not grant a runner
+//      access to an outside target. `trackedFiles()` returns repo paths only and git lists a symlink as an
+//      ordinary path, so that escape would silently PASS; `ResourceReader.snapshot`'s `kind:"symlink"`
+//      (`contract/resource.ts`) is internal and never reaches a policy.
+//   2. root-relative resolution of an ABSOLUTE selector (`resolve(rootAbs, row.path)`): `GatePolicyContext`
+//      deliberately carries no root, so an absolute selector cannot be related to the repository at all.
+// The third filesystem read, `statSync(...).isFile()`, IS derivable from `tracked-files` directory prefixes
+// and is not a blocker. Unblocking needs ONE shared door: authored-path identity for a repo-relative
+// selector (exists · file|directory · symlink-resolves-outside) plus absolute-selector normalization.
+// Separately, converting today would move a WORKING gate into a class that cannot run here: a
+// `native-config` declaration drags the whole repository inventory into the policy's resource population,
+// and `lib/policy-pass.ts`'s ordinary-waiver carrier demand then throws on this tree's tracked symlinks
+// (measured on `eslint-grant-liveness`, 2026-09-11).
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { ConfigSnapshotField } from "../contract/config-snapshot.ts";
