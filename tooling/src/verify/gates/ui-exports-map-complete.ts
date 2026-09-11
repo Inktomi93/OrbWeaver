@@ -1,11 +1,23 @@
 // Gate: ui-exports-map-complete (ui-package-design.md). The live @orb/ui module tree and package exports
 // must agree in both directions. ResourceHost supplies both sources; the policy derives modules from the
 // tree rather than maintaining a family list.
+// FAMILY: singleton. The subject is one package's manifest-versus-tree agreement; no second policy reads
+// the `@orb/ui` exports map, and the shared reader this module does use is the declaration-consumption
+// reader `readyResourceValue`, not a family identity reader.
+// WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that is missing/empty/unresolved/
+// malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`) THROW during the
+// POPULATION phase, and the receipt phase withholds every consumer, both before `create`/`evaluate` run
+// (guide §11 ruling 3). So this module owns no not-ready branch: reading through `readyResourceValue`
+// turns a broken resource into a loud tool error. An in-module `if (fact.status !== "ready") return;`
+// would be unreachable code that teaches the next resource conversion to answer a broken resource with a
+// silent return. Consequence for the roster: there is no reportable BLINDNESS arm here — an unreadable
+// exports block is a tool error, never a finding.
 
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
 import type { PackageStringMap } from "../contract/resource-config.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const UI_PACKAGE = "packages/ui";
 const UI_SOURCE = `${UI_PACKAGE}/src`;
@@ -50,8 +62,14 @@ function modules(entries: readonly ResourceTreeEntry[]): readonly ModuleDir[] {
   return out;
 }
 
+/** An exports target is a PACKAGE-RELATIVE specifier; anything else names nothing this package can
+ *  resolve and is dead by construction. The `./` test is what makes the slice below meaningful rather
+ *  than arbitrary — without it a target whose third character onward happens to spell a live path
+ *  (`~/src/primitives/button/index.ts`) would resolve to a real file and pass, which `mustFlag[4]` now
+ *  pins. The former `&& target.length > 2` companion was deleted: `"./"` slices to `""` and yields
+ *  `packages/ui/`, which is not a tree path either way, so no fixture could ever tell the two apart. */
 function targetPath(target: string): string | undefined {
-  return target.startsWith("./") && target.length > 2 ? `${UI_PACKAGE}/${target.slice(2)}` : undefined;
+  return target.startsWith("./") ? `${UI_PACKAGE}/${target.slice(2)}` : undefined;
 }
 
 function reportModuleProblems(ctx: GatePolicyContext, entries: readonly ResourceTreeEntry[], exports: PackageStringMap): void {
@@ -99,13 +117,10 @@ export const gate = defineGate({
   fix: 'add the exact "./<name>": "./src/<family>/<name>/index.ts" export, add the missing index.ts, or delete the dead export.',
   create: (ctx) => ({
     evaluate: () => {
-      const tree = ctx.resources.authoredTree("packages");
-      const metadata = ctx.resources.packageMetadata("ui");
-      if (tree.status !== "ready" || metadata.status !== "ready") {
-        return;
-      }
-      reportModuleProblems(ctx, tree.value, metadata.value.exports);
-      reportDeadTargets(ctx, tree.value, metadata.value.exports);
+      const entries = readyResourceValue(ctx.resources.authoredTree("packages"));
+      const exports = readyResourceValue(ctx.resources.packageMetadata("ui")).exports;
+      reportModuleProblems(ctx, entries, exports);
+      reportDeadTargets(ctx, entries, exports);
     },
   }),
   mustFlag: [
@@ -127,7 +142,10 @@ export const gate = defineGate({
         "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
         "packages/ui/src/primitives/badge/index.ts": "export const Badge = 1;\n",
       },
-      expect: { count: 1, messageIncludes: "not" },
+      // The discriminator names BOTH halves of the wrong-target message — what the manifest spells and
+      // what the tree requires. A bare "not" matched the DEAD-TARGET arm too (its message reads "which
+      // does not exist"), so this row proved nothing its sibling `mustFlag[3]` did not already prove.
+      expect: { count: 1, messageIncludes: 'exports has "./src/primitives/button/index.ts", not "./src/primitives/badge/index.ts"' },
       why: "an export entry pointing at another module is present but wrong",
     },
     {
@@ -137,7 +155,7 @@ export const gate = defineGate({
         "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
         "packages/ui/src/charts/meter/meter.tsx": "export const Meter = 1;\n",
       },
-      expect: { messageIncludes: "has no index.ts" },
+      expect: { count: 1, messageIncludes: "has no index.ts" },
       why: "a family member without an index has no exportable front door",
     },
     {
@@ -149,6 +167,20 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "does not exist" },
       why: "an export target that vanished is stale",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/package.json":
+          '{"name":"@orb/ui","private":true,"exports":{"./button":"./src/primitives/button/index.ts","./tilde":"~/src/primitives/button/index.ts"}}',
+        "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
+      },
+      // The MINIMAL falsifier for the package-relative test in `targetPath`. This target's tail spells a
+      // path that really exists, so dropping the `./` test resolves it to the live button module and the
+      // row goes green — which is how the fence earns its §4.1 cut. A target that merely fails to exist
+      // cannot prove it: both the fenced and the unfenced spelling report that one.
+      expect: { count: 1, messageIncludes: 'points at "~/src/primitives/button/index.ts"' },
+      why: "an export target that is not a package-relative ./ specifier resolves to nothing this package owns",
     },
   ],
   mustPass: [
