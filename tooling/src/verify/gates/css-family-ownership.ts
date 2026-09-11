@@ -1,6 +1,17 @@
 // Gate: css-family-ownership (#951 / client-architecture-lockdown.md §4.3 and §4.7).
 // The descriptor keeps permanent polar controls; policy, selector parsing, and declaration provenance
 // live in lib modules below the 450-line ceiling.
+//
+// COUPLED SITE — the five `censusControlFiles({...})` rows below are a HAND-SPELLED oracle for
+// `EXPECTED_DECLARATION_CENSUS` / `_TOTAL` / `_DIRECT_THEME_DECLARATIONS` in lib/css-family-census.ts.
+// They deliberately do NOT derive from the manifest (css-family-proof-fixtures.ts:17-18) so a manifest
+// bump cannot launder its own proof — which makes every manifest bump owe BOTH edits in one commit.
+// Four consecutive commits paid only the manifest half and left this arm red for five days (#1956):
+// 1416f2c98 (#1684, theme 306→304: direct 200→199, rules 106→105), d6870e275 (#1868, theme 304→312 and
+// shell 349→351), 03b8cb94f (#1869, shell 351→353), d72339a26 (#1869 #1870, ui globals 189→190). Each
+// delta is an INTENDED ownership change annotated at its own sheet in the manifest; the stylesheets
+// themselves never drifted from it. The clean control restates the manifest exactly; the four flag rows
+// are single-declaration perturbations OF that control, so they move with it.
 
 import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 import type { GateDescriptor } from "../contract/gate.ts";
@@ -145,22 +156,22 @@ export const gate: GateDescriptor = {
       why: "an attribute value cannot counterfeit shell ancestry inside :where()",
     },
     {
-      files: censusControlFiles({ themeDirect: 200, themeRules: 106, ui: 190, tiers: 47, client: 127, shell: 349 }),
+      files: censusControlFiles({ themeDirect: 203, themeRules: 109, ui: 191, tiers: 47, client: 127, shell: 353 }),
       expect: { count: 2, token: "census:ui-globals" },
       why: "adding one otherwise legal declaration makes both the UI-home and total ratchets stale",
     },
     {
-      files: censusControlFiles({ themeDirect: 200, themeRules: 106, ui: 189, tiers: 47, client: 127, shell: 348 }),
+      files: censusControlFiles({ themeDirect: 203, themeRules: 109, ui: 190, tiers: 47, client: 127, shell: 352 }),
       expect: { count: 2, token: "census:shell" },
       why: "deleting one otherwise legal declaration makes both the shell-home and total ratchets stale",
     },
     {
-      files: censusControlFiles({ themeDirect: 200, themeRules: 106, ui: 188, tiers: 47, client: 128, shell: 349 }),
+      files: censusControlFiles({ themeDirect: 203, themeRules: 109, ui: 189, tiers: 47, client: 128, shell: 353 }),
       expect: { count: 2, token: "census:ui-globals" },
       why: "moving one declaration preserves the total but makes both source and destination home ratchets stale",
     },
     {
-      files: censusControlFiles({ themeDirect: 199, themeRules: 107, ui: 189, tiers: 47, client: 127, shell: 349 }),
+      files: censusControlFiles({ themeDirect: 202, themeRules: 110, ui: 190, tiers: 47, client: 127, shell: 353 }),
       expect: { count: 1, token: "census:theme-direct" },
       why: "moving one generated declaration out of direct @theme keeps every home total stable but trips the generated-output ratchet",
     },
@@ -416,8 +427,8 @@ export const gate: GateDescriptor = {
       why: "className and data-shell properties are live structural writers when their object is actually spread into JSX",
     },
     {
-      files: censusControlFiles({ themeDirect: 200, themeRules: 106, ui: 189, tiers: 47, client: 127, shell: 349 }),
-      why: "the exact post-#938 declaration manifest, including direct generated @theme declarations, is the clean control",
+      files: censusControlFiles({ themeDirect: 203, themeRules: 109, ui: 190, tiers: 47, client: 127, shell: 353 }),
+      why: "the exact declaration manifest as of #1869/#1870, including direct generated @theme declarations, is the clean control",
     },
     {
       files: { [UI_GLOBALS]: "/* @layer base { .fake { color: red; } } */\n:root { font-size: 100%; }\n" },
