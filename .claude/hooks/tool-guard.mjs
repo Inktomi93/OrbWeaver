@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-// ARCHIVED 2026-09-10 (#1898): no project Claude or Codex hook registers this classifier. It remains at
-// its historical path so the transcript replay and regression corpus can execute the exact preserved
-// implementation; SELF_CHECKOUT and the self-invocation controls derive repository identity from this depth.
+// RE-REGISTERED 2026-09-11 (owner ruling, superseding the ARCHIVED-2026-09-10 banner #1898 that stood
+// here): the archival removed the ONLY enforcement of the destroy-uncommitted ban, and a lane then ran
+// `git stash -u` on a shared tree and swept five lanes' files. `.claude/settings.json` registers this file
+// on PreToolUse again. The #1898 observation stays true of the PATH — replay and the regression corpus
+// execute this exact file, and SELF_CHECKOUT derives repository identity from this depth — so it never
+// moves. HOOKS BIND AT SESSION LAUNCH: a session already running does not pick this up.
 // PreToolUse guard for Bash — catches command shapes that destroy signal, and REWRITES the ones with
 // exactly one correct fix so the agent never even loses the turn.
 //
@@ -60,8 +63,9 @@
 //     HEREDOC BODIES are blanked the same way: neither is a command (`ls packages # never git stash`
 //     denied as git-destructive until comment blanking landed, 2026-08-14).
 //   · PIPELINE-AWARE — only a HARNESS stage feeding a later stage bites. `git log | head` is fine.
-//   · THE GUARD NEVER BLOCKS THE SANCTIONED FORM OF A JOB — `rm -rf playwright/.cache && npx playwright
-//     test -c playwright-ct.config.ts <paths>` is the CORRECT lane CT recipe and passes untouched, and a
+//   · THE GUARD NEVER BLOCKS THE SANCTIONED FORM OF A JOB — `pnpm test:ct <paths>` is the CORRECT lane CT
+//     recipe (vocabulary refresh 2026-09-11: it was `rm -rf playwright/.cache && npx playwright test -c
+//     playwright-ct.config.ts <paths>` until the per-invocation cache landed) and passes untouched, and a
 //     path-scoped / `--only=`-scoped `biome check --write` is the CORRECT mechanical-migration form
 //     (tsx-shedding spec Stage 1) and is warn-tier, never deny. A rule that catches the right way of
 //     doing something teaches agents to route around the hook, and then it protects nothing.
@@ -449,7 +453,6 @@ const HARNESS_OR_TRUE =
 const HARNESS_SEMI_TRUE =
   /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b)[^\n;]*;\s*true\s*$/;
 const PLAYWRIGHT_TEST = /(?:\bnpx\s+|\bpnpm\s+exec\s+|^\s*|&&\s*)playwright\s+test\b/;
-const PLAYWRIGHT_CACHE_CLEAR = /rm\s+-rf\s+(?:\S*\/)?playwright\/\.cache/;
 const CT_CONFIG = /playwright-ct\.config\.ts/;
 const CT_FILE_HINT = /\.ct\.tsx?\b/;
 const SG_AS_AST_GREP = /(?:^|[;&|(]\s*|\s)sg\s+(?:run|scan|outline|test|new|--version|-p\b|--pattern)/;
@@ -638,7 +641,7 @@ const STDIN_DEADLINE_MS = 2_500;
 
 const REASONS = {
   harnessPipedDeny:
-    "Piping the harness loses its exit code (the pipeline reports tail/grep's status — a red run was reported green this way) AND hangs: playwright/vite/stack/vitest descendants inherit the pipe's write end, so the reader waits for an EOF that never comes (measured: `pnpm check` piped median 64.1s vs 2.3s unpiped, 28×). Run it bare — `pnpm check` — and read the auto-written artifacts: reports/verify.json + reports/verify/<stage>.log. Same for a harness inside `$( … )` (owner ruling: the substitution form stays denied — no safe grammar exists for it): `pnpm snap`/`pnpm vitest` run BARE with output redirected to a file, then the file is read in a SEPARATE command.",
+    "Piping the harness loses its exit code (the pipeline reports tail/grep's status — a red run was reported green this way) AND hangs: playwright/vite/stack/vitest descendants inherit the pipe's write end, so the reader waits for an EOF that never comes (measured: `pnpm check` piped median 64.1s vs 2.3s unpiped, 28×). Run it bare — `pnpm check` — and read the auto-written artifacts: reports/verify.json + reports/verify/<stage>.log. Same for a harness inside `$( … )` (owner ruling: the substitution form stays denied — no safe grammar exists for it): `pnpm snap`/`pnpm test:scoped` run BARE with output redirected to a file, then the file is read in a SEPARATE command.",
   harnessSwallowed:
     "`|| true` (or `; true`) after a harness command erases the failure — the tool reports success even when the gate was red. Let it exit non-zero; the failure list is already in reports/verify.json / reports/test-report.json.",
   gitDestructive:
@@ -648,7 +651,7 @@ const REASONS = {
   cdWorktree:
     "The Bash cwd PERSISTS across calls — one `cd` into a lane worktree silently relocates every later command (this landed a main-session commit on a lane branch; 3,064 sightings in the corpus). Use `git -C /abs/path/to/worktree <cmd>` — no cd needed.",
   playwrightCt:
-    "CT runs need the sanctioned prefix: `rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts <paths>`. A stale playwright/.cache replays errors that stopped existing ('Identifier already declared'), and a missing `-c playwright-ct.config.ts` runs the wrong project — 85% of historical CT invocations skipped the cache clear.",
+    "CT runs go through the sanctioned script: `pnpm test:ct <paths>` (= `cli.ts scoped-test ct`). Driving playwright directly skips everything that makes a CT run trustworthy on this box — the PER-INVOCATION build cache under .cache/ct (a shared cache replays errors that stopped existing, 'Identifier already declared'), the per-worktree exclusion lock that refuses a corrupting second runner (#1581: a racing runner reported failures in tests it never touched), the host-wide runner slots and the nice floor that protect the co-hosted homelab (#1835), and the CT config + flake reporter. Pass runner flags straight through: `pnpm test:ct tests/ui/x.ct.tsx --repeat-each=3`.",
   pushForce:
     "Force-push rewrites shared history on the integration trunk — that is an owner call (6 sightings in 133,631 calls, none routine). State why, or use a plain push.",
   lanePush:
@@ -696,11 +699,11 @@ const CONTEXTS = {
   rewriteLongLived: (log) =>
     `tool-guard rewrote this command: git spawns credential/network children that hold a pipe open after the visible command finishes (census: \`git push … | tail\` hit the 120s tool timeout). Output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
   rewritePlaywright:
-    "tool-guard prepended the sanctioned CT prefix (`rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts …`): a stale CT cache replays errors that no longer exist, and 85% of historical CT runs skipped the clear.",
+    "tool-guard routed this CT run through the sanctioned script (`pnpm test:ct <paths>`): driving playwright directly skips the per-invocation build cache, the exclusion lock that catches a racing sibling runner, the host-wide slot pool and the nice floor. Your runner flags were carried over verbatim.",
   sgDeprecated:
     "Use `ast-grep`. `sg` is deprecated upstream (the tool itself warns on --version), and /usr/bin/sg on this machine is a symlink to newgrp — it only resolves to ast-grep because ~/.cargo/bin happens to come first in PATH. Same CLI: `ast-grep run -p '<pattern>' -l ts <paths>` (run both -l ts AND -l tsx).",
   bareVitest:
-    "Prefer `pnpm vitest run <paths>` (the sanctioned scoped lane run) or `pnpm test` (writes reports/test-report.json). A bare/npx vitest bypasses the workspace harness and its artifacts.",
+    "Prefer `pnpm test:scoped <paths>` (the sanctioned scoped lane run — it verifies the paths actually collect a test, keeps the watchdog and carries the nice floor) or `pnpm test` (writes reports/test-report.json). A bare/npx vitest bypasses the workspace harness and its artifacts.",
   grepUnscoped:
     "`grep -r` from a broad root does NOT respect ignore files and every package has its own node_modules — add `--exclude-dir=node_modules` (and use `/usr/bin/grep -a`; the shell's `grep` is a ugrep wrapper that skips some .ts as binary). Better: the Grep tool, or ast-grep for structure.",
   sqliteLive:
@@ -717,8 +720,8 @@ const CONTEXTS = {
     "A `git push` is RUNNING on this box right now. The push window is not atomic: with a long pre-push hook, git re-reads the ref at transfer time, so a commit landed mid-window ships silently while the push's own summary line reports the stale range (measured incident, 2026-08-03). Hold this commit until the push returns, or verify afterwards exactly what landed on origin.",
   longLivedPipe:
     "A piped `git push/pull/fetch` can hang to the full 120s tool timeout — git's credential/network child holds the pipe open after the visible command finishes (measured in the census). Drop the pipe, or redirect to a file and read it.",
-  playwrightPiped:
-    "Piping a playwright run risks the harness hang (browser/ctViteDev descendants inherit the pipe's write end) — prefer `> file 2>&1` then read the file.",
+  // (playwrightPiped retired 2026-09-11 with rule 6's piped branch: a raw CT run is now rewritten into
+  //  `pnpm test:ct`, which is a harness head, so a piped CT run is rule 4's redirect — not a bare notice.)
   cdWorktreeLaneCtx:
     "cd pins your cwd to that worktree for every later call, and your cwd can silently reset between calls — prefer absolute paths and `git -C <worktree>` so each command names its own ground.",
   scriptAdvisory: (script, note) => `From inside the untracked script ${script} (tool-guard classifies wrapper bodies, not just the command line): ${note}`,
@@ -865,12 +868,18 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
 
 const PW_CLAUSE_HEAD = /^\s*(timeout\s+\d+[a-z]?\s+)?(?:npx\s+|pnpm\s+exec\s+)?playwright\s+test\b/;
 
-/** Rebuild an unsanctioned CT invocation into the sanctioned recipe (cache clear + explicit CT config,
- *  absolute paths so a `cd` prefix can't misroute them), or null if too complex. Prefix clauses (a
- *  `cd <repo>` etc.) are kept verbatim; the playwright clause must be LAST, unpiped, and shaped exactly
- *  `[timeout N] [npx|pnpm exec] playwright test …` (the timeout wrapper is preserved). */
-function playwrightRewrite(command, blank, clauses, ctx) {
-  if (blank.includes("||") || PLAYWRIGHT_CACHE_CLEAR.test(blank)) {
+/** Rebuild a raw CT invocation into the sanctioned script call (`pnpm test:ct <args>`), or null if too
+ *  complex. Prefix clauses (a `cd <repo>` etc.) are kept verbatim; the playwright clause must be LAST,
+ *  unpiped, and shaped exactly `[timeout N] [npx|pnpm exec] playwright test …` (the timeout wrapper is
+ *  preserved). The `-c/--config` flag is dropped because the script owns the config.
+ *  2026-09-11: the target was `rm -rf <root>/playwright/.cache && npx playwright test -c
+ *  <root>/playwright-ct.config.ts …`. Both halves went stale at once — the CT build cache is now minted
+ *  per invocation under `.cache/ct/build-<id>` (ct-runner-lock.ts §1), so clearing `playwright/.cache`
+ *  cleans a directory nothing reads, and the raw runner takes neither the exclusion lock nor a host-wide
+ *  slot. The old recipe is therefore no longer a PASS either: it is rewritten like any other raw run,
+ *  which is why the cache-clear early-bail that used to sit here is gone. */
+function playwrightRewrite(command, blank, clauses) {
+  if (blank.includes("||")) {
     return null;
   }
   const clause = clauses.at(-1);
@@ -892,11 +901,10 @@ function playwrightRewrite(command, blank, clauses, ctx) {
     .replace(/^playwright\s+test\s*/, "")
     .replace(/(?:^|\s)(?:-c|--config)(?:=\S+|\s+\S+)/g, " ")
     .trim();
-  const root = ctx.projectDir;
   const prefix = command.slice(0, clause.start);
   const wrapper = head[1] ?? "";
   const joiner = prefix === "" || /\s$/.test(prefix) ? "" : " ";
-  return `rm -rf ${root}/playwright/.cache && ${prefix}${joiner}${wrapper}npx playwright test -c ${root}/playwright-ct.config.ts${args ? ` ${args}` : ""}`;
+  return `${prefix}${joiner}${wrapper}pnpm test:ct${args ? ` ${args}` : ""}`;
 }
 
 // ── warn collectors (defer + additionalContext — visible, never blocking) ──
@@ -1115,12 +1123,25 @@ function collectStageWarns(command, blank, clauses, contexts) {
 // regex hint → token scan → path resolve → stat (size cap) → `git ls-files` (tracked = reviewed code,
 // stop) → read → classify. Nothing spawns unless a stage really names a resolvable script file.
 
+/** A GROUP OPENER is not part of the command it opens (2026-09-11). `(setsid nohup bash -c 'git stash' &)`
+ *  tokenised as `(setsid` — neither a wrapper nor a shell — so the exec head was never found and the
+ *  QUOTED COMMAND INSIDE IT WAS NEVER EXTRACTED: that exact spelling classified `pass/null` on HEAD while
+ *  the identical `setsid nohup bash -c 'git stash' &` denied. A subshell is how a lane backgrounds work,
+ *  so this was a live hole in the destroy-uncommitted ban, not a curiosity. Blanked to a SPACE, never
+ *  removed: every index in this file points back into the original text. Only a WORD-INITIAL `(`/`{`
+ *  counts, which is what keeps `$( … )` (handled by its own extraction pass) and `${VAR}` untouched. */
+const GROUP_OPENER = /(^|\s)([({]+)/g;
+
+function ungroup(text) {
+  return text.replace(GROUP_OPENER, (_m, pre, opener) => pre + " ".repeat(opener.length));
+}
+
 /** The executable token of a stage, read off the BLANKED text (so a shell name in a comment, a heredoc
- *  body or a quoted argument is never mistaken for one) with leading env assignments and
- *  timeout/nice/setsid/nohup/env/exec wrappers skipped. Returns the token list too, so a caller can look
- *  at the flags that follow. */
+ *  body or a quoted argument is never mistaken for one) with leading env assignments,
+ *  timeout/nice/setsid/nohup/env/exec wrappers and subshell openers skipped. Returns the token list too,
+ *  so a caller can look at the flags that follow. */
 function execHead(text) {
-  const tokens = [...text.matchAll(/\S+/g)];
+  const tokens = [...ungroup(text).matchAll(/\S+/g)];
   let i = 0;
   while (tokens[i] !== undefined && (SELF_ENV_ASSIGN.test(tokens[i][0]) || SCRIPT_WRAPPER_TOKEN.test(tokens[i][0]) || SCRIPT_WRAPPER_ARG.test(tokens[i][0]))) {
     i += 1;
@@ -1330,7 +1351,8 @@ export function scriptTargets(command, blank, clauses) {
   for (const clause of clauses) {
     for (let si = 0; si < clause.stages.length; si += 1) {
       const stage = clause.stages[si];
-      const text = blank.slice(stage.start, stage.end);
+      // ungrouped for the same reason as the inline pass: `(bash /tmp/lane.sh &)` runs that script
+      const text = ungroup(blank.slice(stage.start, stage.end));
       if (!SCRIPT_STAGE_HINT.test(text)) {
         continue;
       }
@@ -1672,7 +1694,8 @@ export function inlineShellCommands(command, blank, clauses) {
   const found = [];
   for (const clause of clauses) {
     for (const stage of clause.stages) {
-      const text = blank.slice(stage.start, stage.end);
+      // ungrouped so a subshell-wrapped stage still shows its head — `(bash -c '…' &)` (see `ungroup`)
+      const text = ungroup(blank.slice(stage.start, stage.end));
       if (!SCRIPT_STAGE_HINT.test(text)) {
         continue;
       }
@@ -1963,44 +1986,30 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "harness-swallowed", reason: REASONS.harnessSwallowed, contexts };
   }
 
-  // 6. playwright CT — the sanctioned prefix (cache clear + explicit CT config) is REQUIRED, and a piped
-  //    CT run hangs exactly like the harness (browser + ctViteDev descendants inherit the pipe). REWRITE
-  //    what is unambiguous: missing prefix → prepend it; piped → redirect + re-read; both → both.
-  //    e2e invocations (no CT hint) are not this rule's business.
+  // 6. playwright CT — the sanctioned spelling is the SCRIPT (`pnpm test:ct <paths>`), so every raw
+  //    playwright run with CT intent is rewritten into it, or denied when the shape is too complex to
+  //    rewrite. e2e invocations (no CT hint) are not this rule's business.
+  //    2026-09-11, the vocabulary refresh: this rule used to accept a raw run that carried the "sanctioned
+  //    prefix" (`rm -rf playwright/.cache` + an explicit `-c playwright-ct.config.ts`) and to rewrite a
+  //    piped one into a redirect. BOTH premises died with the per-invocation cache (#1581) and the
+  //    host-wide slot pool (#1835): `playwright/.cache` is not the CT cache any more, and a raw runner
+  //    takes no exclusion lock and no host slot — so passing that shape let through the exact corrupting
+  //    sibling runner the lock exists to refuse. The piped branch went with it and lost nothing: the
+  //    rewritten spelling is a `pnpm test:*` harness head, so `pnpm test:ct … | tail` is caught and
+  //    redirected by rule 4 above, one rule instead of two.
   if (PLAYWRIGHT_TEST.test(blank)) {
-    // Sanction is read off the RAW command, exactly like `ctIntent` below and for the same reason: a path
-    // is the same path quoted or not, and `-c "$WT/playwright-ct.config.ts"` + `rm -rf "$WT/playwright/
-    // .cache"` IS the sanctioned recipe. Testing sanction on the BLANKED text (where a quoted path is
-    // spaces) while testing intent on the raw made the recipe deny itself the moment a lane quoted its
-    // absolute paths — 49 real wrapper invocations in the corpus, every one of them correct (surfaced by
-    // the script-body A/B, 2026-08-14). The rule still only ENGAGES on a real playwright stage in the
-    // blanked text, so a comment can never conjure this branch out of nothing.
-    const sanctioned = PLAYWRIGHT_CACHE_CLEAR.test(command) && CT_CONFIG.test(command);
+    // Intent is read off the RAW command: a path is the same path quoted or not, and `-c
+    // "$WT/playwright-ct.config.ts"` is a CT run. The rule still only ENGAGES on a real playwright stage
+    // in the blanked text, so a comment can never conjure this branch out of nothing.
     const ctIntent = CT_CONFIG.test(command) || CT_FILE_HINT.test(command);
-    const piped = clauses.some((cl) => cl.stages.length > 1 && PW_CLAUSE_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
-    if (ctIntent && (!sanctioned || piped)) {
+    if (ctIntent) {
       const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
-      const rewritten = playwrightRewrite(command, blank, clauses, ctx);
+      const rewritten = playwrightRewrite(command, blank, clauses);
       if (rewritten) {
         contexts.push(CONTEXTS.rewritePlaywright);
         return { decision: "allow", rule: "playwright-ct", rewrite: { command: rewritten, timeout }, contexts };
       }
-      if (CT_CONFIG.test(blank)) {
-        const pr = pipeRewrite(command, blank, clauses, PW_CLAUSE_HEAD, ctx);
-        if (pr) {
-          const cachePrefix = sanctioned ? "" : `rm -rf ${ctx.projectDir}/playwright/.cache && `;
-          if (!sanctioned) {
-            contexts.push(CONTEXTS.rewritePlaywright);
-          }
-          contexts.push(CONTEXTS.rewritePiped(pr.log));
-          return { decision: "allow", rule: "playwright-ct", rewrite: { command: `${cachePrefix}${pr.command}`, timeout, log: pr.log }, contexts };
-        }
-      }
-      if (!sanctioned) {
-        return { decision: "deny", rule: "playwright-ct", reason: REASONS.playwrightCt, contexts };
-      }
-      // sanctioned but piped in a shape we can't safely rewrite — teach without blocking
-      contexts.push(CONTEXTS.playwrightPiped);
+      return { decision: "deny", rule: "playwright-ct", reason: REASONS.playwrightCt, contexts };
     }
   }
 
@@ -2105,6 +2114,8 @@ const BRIEFING = [
   "  artifacts survive. A pipeline returns the READER's status, and it can hang forever because",
   "  playwright/vite/stack children inherit the pipe. Just redirect: `<cmd> > run.log 2>&1`, then read",
   "  the log and reports/verify.json.",
+  "· REWRITES a raw `playwright test` CT run into `pnpm test:ct <paths>` — the script owns the config, the",
+  "  per-invocation build cache, the exclusion lock that catches a racing sibling runner, and the nice floor.",
   "· DENIES: `git stash`/`restore`/`checkout <path>`/`checkout-index -f` (they destroy uncommitted work — use",
   "  `git show HEAD:<path>` to read an old version), whole-tree `biome check --write` fix-alls, and",
   "  `cd` into a worktree (the Bash cwd PERSISTS across calls — use `git -C <abs-path>`).",

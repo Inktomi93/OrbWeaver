@@ -7,7 +7,7 @@
 // owner's own false-positive case (a commit MESSAGE mentioning `pnpm check | tail` must never fire) and
 // the heredoc-body leak that once turned a commit message into a `lane-git-push` ask.
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { accessSync, constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -20,7 +20,6 @@ const PINNED_NOW = "1700000000000";
 // every batch case gets an EMPTY proc root by default so a real `git push` running on this box while the
 // suite executes can never leak a push-in-flight context into an unrelated row
 const EMPTY_PROC = mkdtempSync(join(tmpdir(), "tg-proc-none-"));
-const PW_SANCTIONED_PREFIX = /^rm -rf \/repo\/playwright\/\.cache && npx playwright test -c playwright-ct\.config\.ts/;
 // the exit-code restore survives a trailing comment in the clause AFTER the piped one (it is on its own line)
 const SUFFIX_COMMENT_THEN_EXIT = /echo done # all set\n\( exit \$__tg_ec \)$/;
 const NESTED_DEPTH_CAP_RULE = /nested-depth-cap$/; // the rule id carries one `subst:`/`inline:` per level
@@ -267,6 +266,11 @@ const ROWS: Row[] = [
   // ---- destructive git ----
   ["deny", "git-destructive", "git stash"],
   ["deny", "git-destructive", "git stash pop"],
+  // the four spellings the 2026-09-10 sweep was done with — `-u` is the one that took five lanes' files
+  ["deny", "git-destructive", "git stash -u"],
+  ["deny", "git-destructive", "git stash push -u -m p-lane"],
+  ["deny", "git-destructive", "git stash drop"],
+  ["deny", "git-destructive", "git -C /abs/wt stash -u"],
   ["deny", "git-destructive", "git stash push -- packages/ui/src/styles/globals.css && pnpm snap /"],
   ["deny", "git-destructive", "git restore packages/client/src/app.tsx"],
   ["deny", "git-destructive", "git restore --staged --worktree packages/client/src/app.tsx"],
@@ -331,17 +335,36 @@ const ROWS: Row[] = [
   ["pass", null, "cd /x/.claude/worktrees/agent-abc/packages/client", LANE],
   ["pass", null, "git -C /x/.claude/worktrees/agent-abc status --short"],
   ["pass", null, "git worktree remove .claude/worktrees/agent-abc"],
-  // ---- playwright CT ----
+  // ---- the sanctioned spellings this guard's own refusals recommend must RUN (2026-09-11). Every one is
+  // read off this branch's package.json scripts block; a refusal naming a command that does not exist, or
+  // a guard that bites the form it told you to use, is a lying instrument.
+  ["pass", null, "git show HEAD:packages/client/src/app.tsx > packages/client/src/app.tsx"],
+  ["pass", null, "git show MERGE_HEAD:docs/x.md > docs/x.md"],
+  ["pass", null, "cp packages/ui/src/a.tsx packages/ui/src/a.tsx.bak"],
+  ["pass", null, "mv packages/ui/src/a.tsx.bak packages/ui/src/a.tsx"],
+  ["pass", null, "pnpm test:scoped tests/tooling/tool-guard.int.test.ts"],
+  ["pass", null, "pnpm typecheck --config tsconfig.json"],
+  ["pass", null, "pnpm check:type-ownership"],
+  ["pass", null, "pnpm gate:contract"],
+  ["pass", null, "pnpm exec biome check .claude/hooks/tool-guard.mjs --diagnostic-level=error"],
+  // ---- playwright CT: every RAW run is routed to `pnpm test:ct` (2026-09-11 vocabulary refresh) ----
+  // The old recipe (`rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts`) used to
+  // be the PASS arm. It is now rewritten like any other raw run: `playwright/.cache` stopped being the CT
+  // cache when it went per-invocation (#1581), and a raw runner takes neither the exclusion lock nor a
+  // host-wide slot (#1835) — i.e. the shape that used to read "sanctioned" is exactly the racing runner
+  // the lock exists to refuse.
   ["allow", "playwright-ct", "npx playwright test tests/client/features/chat/composer.ct.tsx"],
   ["allow", "playwright-ct", "npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx --reporter=line"],
-  ["allow", "playwright-ct", "cd /repo && timeout 400 npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx 2>&1 | tail -20"],
-  ["allow", "playwright-ct", "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx 2>&1 | tail -40"],
+  ["allow", "playwright-ct", "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  ["allow", "playwright-ct", 'rm -rf "$WT/playwright/.cache" && npx playwright test -c "$WT/playwright-ct.config.ts" tests/client/x.ct.tsx'],
+  // A piped or loop-wrapped raw run has no single safe rewrite → DENY naming the script. Nothing is lost
+  // by dropping the old piped-rewrite branch: the rewritten spelling is a `pnpm test:*` harness head, so
+  // `pnpm test:ct … | tail` is caught and redirected by the harness rule.
+  ["deny", "playwright-ct", "cd /repo && timeout 400 npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx 2>&1 | tail -20"],
+  ["deny", "playwright-ct", "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx 2>&1 | tail -40"],
   ["deny", "playwright-ct", "for i in 1 2 3; do npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx; done"],
-  ["pass", null, "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
-  // …and the same recipe with its absolute paths QUOTED, which is how every real lane wrapper spells it.
-  // Sanction was read off the blanked text while intent was read off the raw, so quoting made the
-  // sanctioned recipe deny itself (39+10 real corpus invocations; found by the script-body A/B).
-  ["pass", null, 'rm -rf "$WT/playwright/.cache" && npx playwright test -c "$WT/playwright-ct.config.ts" tests/client/x.ct.tsx'],
+  ["allow", "harness-piped", "pnpm test:ct tests/client/x.ct.tsx 2>&1 | tail -40"],
+  ["pass", null, "pnpm test:ct tests/client/x.ct.tsx"],
   ["pass", null, "npx playwright test tests/e2e/login.spec.ts"],
   // ---- push tiers ----
   ["ask", "git-push-force", "git push --force origin main"],
@@ -445,6 +468,11 @@ const ROWS: Row[] = [
   ["deny", "inline:git-destructive", "bash -c 'git stash'"],
   ["deny", "inline:git-destructive", 'bash -c "git stash"'],
   ["deny", "inline:git-destructive", "setsid nohup bash -c 'git stash' > /tmp/x.log 2>&1 &"],
+  // A SUBSHELL IS NOT A SHIELD (2026-09-11). `(setsid nohup bash -c 'git stash' &)` — the spelling a lane
+  // uses to background work — classified `pass/null` until the exec head learned to see past a group
+  // opener, while the identical command without the parens denied. Both spellings, both layers.
+  ["deny", "inline:git-destructive", "(setsid nohup bash -c 'git stash' &)"],
+  ["deny", "inline:git-destructive", "(bash -c 'git stash')"],
   ["deny", "inline:harness-swallowed", "bash -lc 'pnpm check || true'"],
   ["ask", "inline:rm-rf-unsafe", "sh -c 'rm -rf packages/server/src'"],
   ["deny", "inline:biome-write", "env bash -c 'pnpm lint:fix'"],
@@ -459,9 +487,12 @@ const ROWS: Row[] = [
   // sanctioned one stays allowed. Breaking these would teach lanes to route around the guard.
   ["pass", null, "setsid nohup bash -c 'pnpm check > /tmp/c.log 2>&1; echo $? > /tmp/c.exit' > /dev/null 2>&1 &"],
   ["pass", null, "S=/tmp/sp; setsid nohup bash -c 'pnpm verify --push > $S/push.log 2>&1' < /dev/null &"],
+  // the backgrounded CT wrapper: the SANCTIONED spelling passes, and the raw one inside the quoted string
+  // is refused through the nested lift — a redirect is not a rewritable shape, so it must teach instead
+  ["pass", null, "(setsid nohup bash -c 'pnpm test:ct tests/client/x.ct.tsx > /tmp/ct.log 2>&1' &)"],
   [
-    "pass",
-    null,
+    "deny",
+    "inline:playwright-ct",
     "(setsid nohup bash -c 'rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx > /tmp/ct.log 2>&1' &)",
   ],
   ["pass", null, 'setsid bash -c "cd /repo && bash tooling/src/stack/stack.sh restart dev > /tmp/stack.log 2>&1"'],
@@ -574,17 +605,26 @@ test("rewrite: a trailing comment cannot swallow the exit-code restore", () => {
   expect(runTemplate(`${body(join(tmp, "b.log"))}\n( exit $__tg_ec )`)).toBe(3);
 });
 
-test("rewrite: the playwright CT rewrite injects the sanctioned prefix with absolute paths", () => {
+test("rewrite: a raw CT invocation becomes `pnpm test:ct`, carrying the runner flags and dropping -c", () => {
   const r = at(runBatch([{ command: "npx playwright test tests/client/x.ct.tsx --reporter=line" }]), 0);
   expect(r.decision).toBe("allow");
-  expect(r.rewrite?.command).toBe(
-    "rm -rf /repo/playwright/.cache && npx playwright test -c /repo/playwright-ct.config.ts tests/client/x.ct.tsx --reporter=line",
-  );
-  // config present + piped + cache missing → cache-clear AND pipe fix compose
+  expect(r.rewrite?.command).toBe("pnpm test:ct tests/client/x.ct.tsx --reporter=line");
+  // the config flag is the script's business, and a `cd` prefix + a timeout wrapper survive verbatim
+  const wrapped = at(runBatch([{ command: "cd /repo && timeout 400 npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx" }]), 0);
+  expect(wrapped.rewrite?.command).toBe("cd /repo && timeout 400 pnpm test:ct tests/client/x.ct.tsx");
+  // the OLD sanctioned recipe is no longer a pass — it is rewritten like any other raw run
+  const oldRecipe = at(runBatch([{ command: "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx" }]), 0);
+  expect(oldRecipe.decision).toBe("allow");
+  expect(oldRecipe.rewrite?.command).toBe("rm -rf playwright/.cache && pnpm test:ct tests/client/x.ct.tsx");
+  // a piped raw run has no single safe rewrite → DENY, and the refusal names the script
   const piped = at(runBatch([{ command: "npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx 2>&1 | tail -20" }]), 0);
-  expect(piped.decision).toBe("allow");
-  expect(piped.rewrite?.command).toMatch(PW_SANCTIONED_PREFIX);
-  expect(piped.rewrite?.command).toContain("< /repo/reports/tool-guard/run-");
+  expect(piped.decision).toBe("deny");
+  expect(piped.reason).toContain("pnpm test:ct <paths>");
+  // …and the sanctioned spelling piped is the HARNESS rule's redirect, so the protection is not lost
+  const sanctionedPiped = at(runBatch([{ command: "pnpm test:ct tests/client/x.ct.tsx 2>&1 | tail -20" }]), 0);
+  expect(sanctionedPiped.decision).toBe("allow");
+  expect(sanctionedPiped.rule).toBe("harness-piped");
+  expect(sanctionedPiped.rewrite?.command).toContain("< /repo/reports/tool-guard/run-");
 });
 
 test("push-in-flight: a live `git push` process turns a commit into a warn (never a block)", () => {
@@ -609,22 +649,25 @@ test("push-in-flight: a live `git push` process turns a commit into a warn (neve
 // day's decisions.jsonl, every rule judging the wrapper instead of what ran. Nothing enforced that the
 // bodies were sanctioned; they happened to be. Every bite row below returned `pass/null` before the fix.
 
-/** the sanctioned CT recipe, lifted VERBATIM from a real lane wrapper (scratchpad/r1draft-ct.sh,
- *  2026-08-14) — line continuations and all. It must keep passing: a guard that blocks the RIGHT way of
- *  doing a job teaches agents to route around it. Note the shape that kills line-by-line classification —
- *  the cache clear is on its own line and the CT invocation spans four more via `\`. */
+/** a real lane CT wrapper (shape lifted VERBATIM from scratchpad/r1draft-ct.sh, 2026-08-14) with its CT
+ *  invocation respelled to this branch's sanctioned script — line continuations and all. It must keep
+ *  passing: a guard that blocks the RIGHT way of doing a job teaches agents to route around it. Note the
+ *  shape that kills line-by-line classification — the invocation spans four lines via `\`. */
 const REAL_CT_WRAPPER = `#!/usr/bin/env bash
 WT=/home/x/orbweaver/.claude/worktrees/agent-a662d9e17adb6dc35
 SP=/tmp/claude-1000/-home-x-orbweaver/db7648b6/scratchpad
 cd "$WT" || exit 2
-rm -rf playwright/.cache
-npx playwright test -c playwright-ct.config.ts \\
+pnpm test:ct \\
   client/features/chat/surfaces/chat-room-surface.ct.tsx \\
   client/state/active-chat-store.ct.tsx \\
   --reporter=list > "$SP/r1draft-ct.log" 2>&1
 echo "CT EXIT=$?"
 tail -40 "$SP/r1draft-ct.log"
 `;
+/** the SAME wrapper as it was spelled before the 2026-09-11 vocabulary refresh. It must now BITE: a raw
+ *  runner takes no exclusion lock and no host slot, and `playwright/.cache` is not the CT cache any more,
+ *  so the body that used to be "the sanctioned recipe" is the racing runner the lock exists to refuse. */
+const STALE_CT_WRAPPER = REAL_CT_WRAPPER.replace("pnpm test:ct \\", "rm -rf playwright/.cache\nnpx playwright test -c playwright-ct.config.ts \\");
 const EVIL_BODY = "#!/usr/bin/env bash\ncd /repo || exit 2\ngit stash\npnpm check\n";
 
 function writeScript(dir: string, name: string, body: string): string {
@@ -637,6 +680,7 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   const dir = mkdtempSync(join(tmpdir(), "tg-scripts-"));
   const evil = writeScript(dir, "lane-run.sh", EVIL_BODY);
   const ct = writeScript(dir, "lane-ct.sh", REAL_CT_WRAPPER);
+  const staleCt = writeScript(dir, "lane-stale-ct.sh", STALE_CT_WRAPPER);
   const clean = writeScript(dir, "lane-clean.sh", "#!/usr/bin/env bash\necho hello\nls packages\n");
   const nested = writeScript(dir, "lane-nested.sh", `#!/usr/bin/env bash\nbash ${evil}\n`);
   const deep = writeScript(dir, "lane-deep.sh", `#!/usr/bin/env bash\nbash ${nested}\n`);
@@ -717,6 +761,9 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     [`${forged}`, "deny", "script:git-destructive"], // the bare `.sh` head resolves the same way
     // …and a forged-tracked file PAST the cap is judged by the cap, not waved through as reviewed
     [`bash ${forgedBig}`, "ask", "script-too-large"],
+    // the wrapper body carries the CT spelling, so the vocabulary refresh reaches inside it too: today's
+    // wrapper passes, and the same wrapper with the pre-2026-09-11 raw-playwright body is refused
+    [`bash ${staleCt}`, "deny", "script:playwright-ct"],
     // MUST PASS — the sanctioned forms and the fail-open paths
     [`bash ${ct} 2>&1 | tail -40`, "pass", null],
     // #631's other direction: the fix must not become a deny-everything-quoted wall. A script tracked in
@@ -760,11 +807,7 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     [`node gen.js > ${written}; bash ${written}`, "ask", "script-written-opaque"],
     [`echo "git stash" | tee ${written}; bash ${written}`, "ask", "script-written-opaque"],
     // MUST PASS — the sanctioned wrapper idiom, written and run in one call, is READ and found clean
-    [
-      `cat > ${written} <<'EOF'\n#!/usr/bin/env bash\nrm -rf playwright/.cache\nnpx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx\nEOF\nbash ${written}`,
-      "pass",
-      null,
-    ],
+    [`cat > ${written} <<'EOF'\n#!/usr/bin/env bash\npnpm test:ct tests/client/x.ct.tsx\nEOF\nbash ${written}`, "pass", null],
     [`printf 'echo hi\\n' > ${written}; bash ${written}`, "pass", null],
     [`bash ${clean} > ${join(dir, "run.log")} 2>&1`, "pass", null], // writing a LOG is not writing the script
     // ---- #634 (b) THE CHANNELS. An interpreter takes its program from an operand, from stdin, from a
@@ -1110,7 +1153,8 @@ test("contract: warn tier ALLOWS with additionalContext; clean commands allow si
   const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
   const warn = runHook(bashInput("npx vitest run tests/client/x.test.ts"), [["CLAUDE_PROJECT_DIR", tmp]]);
   expect(warn.out.hookSpecificOutput?.permissionDecision).toBe("allow");
-  expect(warn.out.hookSpecificOutput?.additionalContext).toContain("pnpm vitest run");
+  // the warn NAMES the scoped runner script, which is what the agent is expected to type next
+  expect(warn.out.hookSpecificOutput?.additionalContext).toContain("pnpm test:scoped <paths>");
   const clean = runHook(bashInput("git status --short"), [["CLAUDE_PROJECT_DIR", tmp]]);
   expect(clean.out.hookSpecificOutput?.permissionDecision).toBe("allow");
   expect(clean.out.hookSpecificOutput?.additionalContext).toBeUndefined();
@@ -1183,4 +1227,68 @@ test("kill switch: ORB_TOOL_GUARD=off bypasses every rule and logs the bypass", 
   expect(out.hookSpecificOutput?.permissionDecision).toBe("defer");
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("kill-switch");
+});
+
+// ── the advice surface: a guard that recommends a dead command is a lying instrument ──────────────────
+// The 2026-09-10 archival left this classifier unregistered for a day, and the command vocabulary moved
+// under it. Every refusal NAMES a spelling an agent is then expected to type, so those names are
+// load-bearing behaviour, not prose. Comment lines are excluded on purpose: the decision log above each
+// rule cites what a spelling USED to be, which is history, not advice.
+
+/** the guard's advice surface — its source with comment-only lines removed, i.e. the string literals and
+ *  patterns that can reach an agent. */
+function adviceSurface(): string {
+  return readFileSync(HOOK, "utf8")
+    .split("\n")
+    .filter((line) => {
+      const t = line.trimStart();
+      return !(t.startsWith("//") || t.startsWith("*") || t.startsWith("/*"));
+    })
+    .join("\n");
+}
+
+test("advice: every recommended spelling exists on this branch, and no retired one survives", () => {
+  const advice = adviceSurface();
+  // RETIRED — each was a real command at some point; none is in this branch's package.json scripts block.
+  // `ct:scoped` is the trap: the lane rules still name it, and it has never existed here.
+  for (const dead of [
+    "ct:scoped",
+    "typecheck:graph",
+    "typecheck:tests-dom",
+    "types:graph",
+    "types:packages",
+    "check:tests-membership",
+    "lint:biome",
+    "scripts/typecheck.cjs",
+    "pnpm vitest",
+    "npx playwright test",
+  ]) {
+    expect([dead, advice.includes(dead)]).toEqual([dead, false]);
+  }
+  // POSITIVE CONTROL — the zero above must not be vacuous: these ARE recommended by name, and each is a
+  // live row in package.json's scripts block.
+  for (const live of ["pnpm test:ct", "pnpm test:scoped", "pnpm check", "pnpm test", "pnpm lint:fix", "pnpm snap"]) {
+    expect([live, advice.includes(live)]).toEqual([live, true]);
+  }
+  expect(advice).toContain("pnpm test:ct <paths>");
+});
+
+test("registration: settings.json wires this guard on PreToolUse, at a path that exists and can execute", () => {
+  // the hook EVENT names are the external wire contract (PascalCase), so they stay data — read by literal
+  // key out of a record rather than declared as properties the house naming convention would rewrite.
+  const settings = JSON.parse(readFileSync(join(REPO, ".claude", "settings.json"), "utf8")) as {
+    hooks: Record<string, { matcher?: string; hooks: { type: string; command: string; args?: string[] }[] }[] | undefined>;
+  };
+  const bash = (settings.hooks["PreToolUse"] ?? []).filter((entry) => entry.matcher === "Bash");
+  expect(bash.length).toBe(1);
+  const guard = at(bash, 0)
+    .hooks.map((h) => [h.command, ...(h.args ?? [])].join(" "))
+    .filter((c) => c.includes("tool-guard.mjs"));
+  expect(guard.length).toBe(1);
+  // the registration is a PATH CLAIM: it must resolve to this file, and the file must be runnable AS one
+  // (shebang + exec bit) — this form invokes it directly, not through `bash`, which cannot run an .mjs.
+  expect(at(guard, 0)).toContain("$CLAUDE_PROJECT_DIR/.claude/hooks/tool-guard.mjs");
+  expect(existsSync(HOOK)).toBe(true);
+  expect(() => accessSync(HOOK, constants.X_OK)).not.toThrow();
+  expect(readFileSync(HOOK, "utf8").split("\n")[0]).toBe("#!/usr/bin/env node");
 });
