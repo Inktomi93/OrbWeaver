@@ -28,7 +28,11 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 - **Commit policy lives in constitution §L.** In an owned assigned worktree or clone, commit normally
   through the configured hooks; keep explicit iteration checks scoped and do not manually duplicate a
   full battery solely to commit. A hook bypass requires a specific user- or coordinator-authorized
-  exception with its reason and executed/owed checks recorded.
+  exception with its reason and executed/owed checks recorded. **STANDING EXCEPTION until the gate-runtime
+  cutover (#1584; owner, 2026-09-11): the lefthook `pre-commit` / `pre-merge-commit` / `pre-push` whole-tree
+  checks are RED by construction while the production loader is legacy. Every lane commit and every
+  orchestrator merge runs `git -c core.hooksPath=/dev/null …`; the scoped floor you ran is named in the
+  commit message. The red is baseline, not your defect, never laundered green.**
 - **Stage by PATHSPEC on `main` or any SHARED tree; `git add -A` is FINE in your own isolated worktree**
   (owner correction 2026-08-24). The two failure modes are opposite: on a shared tree a broad `git add`
   sweeps a sibling's in-flight probe into your commit (it has shipped a BLINDED gate, which then reports

@@ -15,10 +15,45 @@ paths:
 
 # Gates and instruments — before you edit one
 
-- **Read `tooling/src/verify/gates/GATE-AUTHORING.md` IN FULL first.** It is the gate law: descriptor
-  contract, coupled sites, exemption grammar, scanRoot formats, conformance mechanics. Constitution
-  §0.3 routes gate work there. `.claude/agent-doctrine.md` carries the marker-gate laws, the
-  gates-land-on-a-fixed-tree rule, and the exemption-row coupled-site rule — both still apply.
+- **GATE-RUNTIME MIGRATION POSTURE (#1584; owner rulings 2026-09-11, binding until the atomic cutover).**
+  - **Read first, in this order, in full:** `docs/design/gate-runtime-standardization.md` (the goal and the
+    final `defineGate` contract), `docs/reviews/gate-runtime/exemplars-2026-09-11.md` ("copy these shapes"),
+    `tooling/src/verify/contract/policy.ts` (+ `population.ts`, `resource-declaration.ts`), then the
+    converted exemplar modules and their family tests, then every assigned gate and its legacy source via
+    `git show <sha>:<path>`. **`tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide**
+    (`scanRoot`, `scopeSafety`, `run` hooks, `ExemptionRow` tables, `check-gates.int` fixtures, the
+    registered-gates count; it never mentions `defineGate`): read it only to understand a descriptor you are
+    replacing; never copy its shapes or satisfy its coupled-site checklist in a `defineGate` module.
+  - **Whole-tree checks are RED by construction mid-migration** (`pnpm check`/`verify`/`check:structure`,
+    the lefthook hooks, `check-gates.repo.int.test.ts` throwing in setup). That red is baseline, never your
+    defect, never laundered. Your verdict is the SCOPED floor: the family tests you name, `pnpm gate:contract`
+    before/after (the corpus total must not rise; zero for each converted module), biome/eslint on touched
+    files, `pnpm typecheck --config tsconfig.json`. Commit with `git -c core.hooksPath=/dev/null` and name
+    the floor in the message.
+  - **Every conversion records a FAMILY decision** in the module header and the report: the shared `lib/`
+    reader (module + function) or "singleton"; siblings that are two spellings of one concept MERGE (the
+    stronger identity reader wins, with a successor proof for the retired arm); arms that differ in
+    authority or severity SPLIT into an ordinary policy plus a hard `-health` sibling with the identical
+    `family` string. A theme is not a family.
+  - **STOP-IF-MISSING-KIND:** a read outside the seven shipped `GateResourceRequest` kinds, or a needed
+    shared reader that is not in `lib/`, stops that module (leave it legacy and armed), reports the exact read
+    with file:line, and continues; that refusal is a success and #1930 tracks the gap. Never a private reader,
+    walk, cache, scope predicate or exemption grammar behind `defineGate`.
+  - **The receipt is a committed family test** under `tests/tooling/verify/gates/` importing every converted
+    module and asserting `verifyPolicyProofs([...])` equals `[]`, plus the negative report-identity row for
+    every ordinary policy (a marker naming a DIFFERENT policy must not suppress; shape
+    `ordinary-visitors-family.test.ts:190-204`) and a frozen-legacy differential for the conversion commit.
+    Retiring a private marker vocabulary for `@orb-waive` means COUNTING the live legacy markers (count /
+    files / trailing-position) and recording the census in the header; translation of product files is a
+    separate lane, never yours.
+  - **Contract facts that bit:** `report.node` token is an exact slice of the node text; population
+    `under: ["x/"]` matches nothing (use `"x/**"`); state in `create`; `ctx.fact()` only in
+    evaluate/visitFile/visitors; every anchor inside the policy's own population; `facts: []` explicit;
+    direct walks are banned regardless of receiver.
+  - **Conversions are program work:** no board row per gate or batch; the orchestrator posts your receipt on
+    #1584. Only defects, prerequisites and decisions get rows, and only the orchestrator files them.
+- `.claude/agent-doctrine.md` carries the marker-gate laws, the gates-land-on-a-fixed-tree rule, and the
+  exemption-row coupled-site rule — the last applies to LEGACY descriptors only.
 - **Invoke through the `pnpm` rows, never a bare `node tooling/src/<tool>/cli.ts …`.** The bare
   spelling bypasses the workspace-wide heap floor (`nodeOptions: --max-old-space-size=16384` in
   `pnpm-workspace.yaml`) and dies at node's ~4GB self-cap. Paid 2026-08-23: two exit-134 OOMs on a bare

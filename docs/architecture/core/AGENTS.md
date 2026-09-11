@@ -26,7 +26,11 @@ updated: 2026-09-10
    Keep explicit iteration checks scoped, and do not manually duplicate a full battery solely to commit.
    Hook bypass is only for a specific user- or coordinator-authorized exception whose reason and
    executed/owed checks are recorded. Main integration and push remain coordinator/owner scope. End the
-   message with the `Co-Authored-By` trailer.
+   message with the `Co-Authored-By` trailer. **STANDING EXCEPTION (owner, 2026-09-11, until the gate-runtime
+   cutover, #1584): the production loader is legacy while modules convert, so every whole-tree check the
+   lefthook `pre-commit` / `pre-merge-commit` / `pre-push` hooks run is RED by construction. Lanes and the
+   orchestrator commit and merge with `git -c core.hooksPath=/dev/null …`, run the scoped floor by hand,
+   and name it in the commit message. That red is baseline, never a lane's defect and never laundered green.**
 7. **`pnpm ast`, never grep,** for any code question (refs / callers / importers / exports / rot lenses).
 8. **Grep is for CODE, never for LAW.** A law doc's ruling lives in the CONTEXT around a line, not the
    line — grepping "app-shell" finds the CSS exemption and misses that app-shell is NOT import-privileged.
@@ -61,7 +65,7 @@ updated: 2026-09-10
 | **identity / auth / sessions / agents** | `Spine-Identity-and-Auth.md` + ledger D17/D18/D40/D60/D65 → route the work to `security-executor` |
 | **providers / backends / a new model source** | `Tier-3b-Providers.md` + the `domain/connection` code + D31/D39/D67 |
 | **db schema / a migration** | `Tier-1-DB.md` + D15/D20/D23/D24/D28 |
-| **a gate / an enforcement change** | `Core-Enforcement-Active-Gates.md` + `Core-0` §7 → `../../../tooling/src/verify/gates/GATE-AUTHORING.md` IN FULL |
+| **a gate / an enforcement change** | `Core-Enforcement-Active-Gates.md` + `Core-0` §7 → **during the gate-runtime migration (#1584, owner 2026-09-11): a CONVERSION or a new `defineGate` policy reads `../../design/gate-runtime-standardization.md` IN FULL → `../../reviews/gate-runtime/exemplars-2026-09-11.md` → `../../../tooling/src/verify/contract/policy.ts`; `../../../tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide, read only to understand a descriptor being replaced, never copied** |
 | **a tool / an instrument** (anything under `tooling/`) | `Core-0` §9 → `Core-Tooling-Law.md` (§2 shape · §4 gates · §9 move playbook) → the tool's own file headers |
 | **client / a feature surface** | `UI-Architecture-and-Layout.md` header (its reading order + §-map) → the owning Project issue and linked program doc |
 | **a `@orb/ui` primitive** | `ui-package-design.md` + `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
@@ -315,7 +319,7 @@ domain-map judgment call is open here.
 | types · schemas · string-union dispatch · house TS style | `Spine-TypeScript-and-Patterns.md` |
 | testing policy (lanes, presence, determinism, factories) | `Spine-Testing.md` |
 | the derived-data cluster boundary (embeddings/search/discovery/memory/stats) | `Knowledge-Cluster.md` |
-| authoring a structural gate | `../../../tooling/src/verify/gates/GATE-AUTHORING.md` (scaffold: `pnpm gate:new <name>`) |
+| authoring a structural gate | during the #1584 migration: `../../design/gate-runtime-standardization.md` → `../../reviews/gate-runtime/exemplars-2026-09-11.md` → `../../../tooling/src/verify/contract/policy.ts`; `../../../tooling/src/verify/gates/GATE-AUTHORING.md` is LEGACY until cutover (scaffold `pnpm gate:new <name>` still emits the legacy shape) |
 | authoring a ui-audit detector rule | `../../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
 | the domain map | §6 above |
 | which WORD names which concept (user-facing copy · ids · testids · comments) | [`../../design/vocabulary-map.md`](../../design/vocabulary-map.md) — the one living home; D151 + §3 cite it and never restate it |
