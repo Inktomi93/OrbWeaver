@@ -27,6 +27,8 @@ function canonicalRequest(request: GateResourceRequest): GateResourceRequest {
       return { kind: request.kind, id: request.id };
     case "static-config":
       return { kind: request.kind, id: request.id };
+    case "native-config":
+      return { kind: request.kind, id: request.id };
     case "tracked-files":
       return { kind: request.kind };
   }
@@ -49,6 +51,8 @@ function requestFact(host: ResourceHost, request: GateResourceRequest): Resource
       return host.packageMetadata(request.id);
     case "static-config":
       return host.staticConfig(request.id);
+    case "native-config":
+      return host.nativeConfig(request.id);
     case "tracked-files":
       return host.trackedFiles();
   }
@@ -67,6 +71,8 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
     case "static-config":
       return path === STATIC_CONFIG_RESOURCE_PATHS[request.id];
     case "tracked-files":
+      return true;
+    case "native-config":
       return true;
   }
 }

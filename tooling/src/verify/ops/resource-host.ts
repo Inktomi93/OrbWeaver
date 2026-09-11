@@ -5,6 +5,7 @@ import { performance } from "node:perf_hooks";
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Project, SourceFile } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { ConfigSnapshot, ConfigSnapshotRunner } from "../contract/config-snapshot.ts";
 import type { OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceLoad, ResourceReceipt } from "../contract/resource.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
@@ -13,6 +14,7 @@ import type { AuthoredTreeId } from "../contract/resource-tree.ts";
 import { ordinaryWaiverResourceFormat } from "../lib/ordinary-waiver-source.ts";
 import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
 import { loadCssFacts } from "./resource-css.ts";
+import { loadNativeConfig } from "./resource-native-config.ts";
 import { createResourceReader } from "./resource-reader.ts";
 import { loadTrackedFiles } from "./resource-tracked.ts";
 import { loadAuthoredCss, loadAuthoredTree, loadProductCss } from "./resource-tree.ts";
@@ -32,7 +34,8 @@ function freezeValue<T>(value: T): T {
 /** Create once at the invocation root; release the returned object to release every cached resource. */
 export function createResourceHost(options: ResourceHostOptions): ResourceInvocation {
   const root = resolve(options.root);
-  const reader = createResourceReader(options);
+  const invocationOptions = { ...options, root, ...(options.overlay === undefined ? {} : { overlay: { ...options.overlay } }) };
+  const reader = createResourceReader(invocationOptions);
   const receipts = new Map<string, ResourceReceipt>();
   const acquiredPaths = new Set<string>();
   const recordPaths = (paths: readonly string[]): void => {
@@ -102,6 +105,9 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     cssInventory: keyed("css-inventory", (request) => loadCssFacts(request === "authored" ? authoredCss() : productCss())),
     packageMetadata: keyed("package", (id: PackageResourceId) => loadPackageMetadata(reader, id)),
     staticConfig: keyed("static-config", (id: StaticConfigResourceId) => loadStaticConfig(reader, id, parseSource)),
+    nativeConfig: keyed<ConfigSnapshotRunner, ConfigSnapshot>("native-config", (id) =>
+      loadNativeConfig(reader, invocationOptions, id),
+    ) as ResourceHost["nativeConfig"],
     trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),
   });
   const ordinaryWaiverSources = (): readonly OrdinaryWaiverSource[] =>

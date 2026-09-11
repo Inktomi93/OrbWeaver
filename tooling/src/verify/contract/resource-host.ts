@@ -1,5 +1,6 @@
 // Closed resource requests; adding a family requires a concrete provider and a proof, never a path callback.
 import type { SourceFile } from "ts-morph";
+import type { ConfigSnapshotByRunner, ConfigSnapshotRunner } from "./config-snapshot.ts";
 import type { OrdinaryWaiverSource } from "./ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceReaderOptions, ResourceReceipt, ResourceTreeEntry, TrackedResourceIndex } from "./resource.ts";
 import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfigResourceId } from "./resource-config.ts";
@@ -13,6 +14,7 @@ export interface ResourceHost {
   readonly cssInventory: (request: CssInventoryRequest) => ResourceFact<CssFacts>;
   readonly packageMetadata: (id: PackageResourceId) => ResourceFact<PackageMetadata>;
   readonly staticConfig: (id: StaticConfigResourceId) => ResourceFact<StaticConfigFacts>;
+  readonly nativeConfig: <R extends ConfigSnapshotRunner>(id: R) => ResourceFact<ConfigSnapshotByRunner[R]>;
   readonly trackedFiles: () => ResourceFact<TrackedResourceIndex>;
 }
 
