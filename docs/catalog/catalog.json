@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 31,
+    "pending": 33,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -29696,6 +29696,37 @@
       "receiptCurrent": false
     },
     {
+      "path": "docs/reviews/gate-runtime/exemplars-2026-09-11.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 308,
+      "bytes": 20115,
+      "sha256": "24b73abe8680067bea98273e227a9a69d10b38f04dcc5b6a320e255d97aaddca",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-11"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/exemplars-2026-09-11.md",
+        "assignedSha256": "24b73abe8680067bea98273e227a9a69d10b38f04dcc5b6a320e255d97aaddca",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/gate-runtime/home-client-family-1584.md",
       "lane": "reviews",
       "issue": 7,
@@ -35821,6 +35852,37 @@
         "summary": "Closed-manifest world/scope review: seven findings were repaired and reverified; the full program remains separate."
       },
       "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-11-tool-guard-reenable.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 448,
+      "bytes": 40727,
+      "sha256": "2e7165d03a39d9e04df958972e505c0b12fa3ef9a51bff1a9d34d93385c0051e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-11"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-11-tool-guard-reenable.md",
+        "assignedSha256": "2e7165d03a39d9e04df958972e505c0b12fa3ef9a51bff1a9d34d93385c0051e",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
