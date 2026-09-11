@@ -40,10 +40,10 @@ Steps, not history. The law and the contract are in [gate-runtime-standardizatio
    nine baseline ledgers' per-row disposition, Phase E), `shared-semantic-readers.md` (the M/O/G/V foundations — and
    its binding constraint that those are COMPUTATION GROUPS, so a lane must prove real shared consumption before
    naming a `family`), `ordinary-waiver-source-migration.md` §"Exact central grammar" plus its "Explicit
-   non-migrations" fence, and `checkpoint-2026-09-05.md`. **Two of those were written on the dead ATOMIC premise and
-   now carry superseded banners** — the waiver manifest in particular told readers the marker sites were "not
-   permission to translate them early", which directly countermands the in-commit translation ruling, and constitution
-   §0.1 makes a lane follow the doc over your brief. Read a banner before you cite the doc it sits on.
+   non-migrations" fence, and `checkpoint-2026-09-05.md`. Two of them were written on the dead ATOMIC
+   premise and carry superseded banners naming what is dead and what still binds; read the banner before citing the
+   doc it sits on, and brief a lane off the banner rather than the body. Constitution §0.1 makes a lane follow a doc
+   over your brief, so an unbannered stale premise misbriefs silently.
 
 ## 1. Standing rules for this program (owner, 2026-09-11)
 
@@ -181,36 +181,20 @@ idle composed-pass remeasurement; catalog re-attest.
 ## 5. Lessons that bind (each paid for at least once; the incidents are in the memory hub)
 
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
-- **Grep the docs for the governing rule BEFORE recommending a contract change, not after.** On 2026-09-11 the
-  orchestrator priced three arms for #1953 and recommended one that `gate-runtime-standardization.md` §12.3 and
-  `resource-gate-access-patterns.md:126` already forbid ("never returns absence"; "never collapse missing/unparseable
-  into `{}`"). The owner had to say "search the docs, I bet the answer is in there." It was, twice, in files this
-  playbook already points at.
-- **Measuring proof coverage is a READING task; a script only bounds it.** Grepping `@orb-waive <id>(` overcounts
-  (sibling negative arms, live product-tree waivers, a module's own header prose promising a spelling) and the absence
-  side undercounts. Two Opus verifiers reading gate + family test + fixtures turned "29 policies have an arm" into 26,
-  and 57 missing into 60. Escalate to `verifier` for this class, never `scout`, and require a PER-SUBJECT verdict line
-  so a miss shows up as a missing row instead of hiding inside "none found".
-- **Verify a subagent's mechanism claim before you write it into law.** A verifier reported that a `mustPass` identity
-  arm "silently degenerates" when its twin `mustFlag` row changes. Reading `ordinary-waiver.ts:608-620` plus
-  `gate-authority.ts:286-291` refuted it — those alarms are completion-bound and a proof row's owner always completes.
-  The false caveat was one commit from becoming guide law, and a lane had already been told to skip work because of it.
-- **Cheap read-only agents return FALSE CLEANS on exhaustive enumeration.** Three scouts audited the converted corpus
-  on 2026-09-11; two claimed their slices were clean of a mechanical defect that a one-line script found in six of
-  their files, while asserting completeness ("no other file in my slice…"). The third was exactly right, which is the
-  trap: the failure is silent and inconsistent. Enumerate mechanically and verify every negative yourself; delegate
-  READING only for qualitative classes, where the same pass did produce a real find (`no-color-literals`' header
-  claims a className fence the visitor never applies).
-- **A wholesale doc rewrite can keep every section title and still strip the protection.** Consolidating this guide on
-  2026-09-11 preserved all 16 world-program row titles while deleting the anchor SHA, 15 per-row evidence SHAs, four
-  do-not-restore prohibitions, the anti-false-proof clauses and an inherited owner deferral (restored at `57a7f3e9c`).
-  Before committing a rewrite of a law or handoff document, diff the OLD section against the new one row by row;
-  "no superseded sections are kept" is licence to drop history, never to compress a protection list.
-- **Measure a lane's base, never read it from the lane's own prose.** A lane doc claimed a base 22 commits older than
-  its real `git merge-base`, which turned a clean two-commit docs-only rebase into an imagined merge hazard.
-- A document that details what to PROTECT is worth reading in full even when a table in your own guide summarises it;
-  the 131-line world-program record is what exposed both the stripped protection and a phantom gate
-  (`tsconfig-routing-parity`, retired and absent from the tree, still listed as convertible in §6).
+- Grep the docs for the governing rule BEFORE recommending a contract change: guide §12.3 and
+  `resource-gate-access-patterns.md:126` already rule the absence-versus-unresolved question, and a provider is atomic
+  by §12.2, so per-subject failure means per-subject PROVIDERS.
+- Counting proof coverage is a READING task a script can only bound: a grep for `@orb-waive <id>(` matches sibling
+  negative arms, live product waivers and header prose. Escalate to `verifier`, never `scout`, and require a
+  per-subject verdict line so a miss surfaces as a missing row instead of hiding inside "none found".
+- Verify a subagent's MECHANISM claim against the code before writing it into law, and before a lane acts on it.
+- Cheap read-only agents return false cleans on exhaustive enumeration, silently and inconsistently. Enumerate
+  mechanically and verify every negative yourself; delegate READING only for qualitative classes.
+- A wholesale doc rewrite can keep every section title and still strip the protection. Diff the OLD section row by row
+  before committing a rewrite of a law or handoff document; "no superseded sections are kept" licenses dropping
+  history, never compressing a protection list.
+- Measure a lane's base with `git merge-base`; never read it from the lane's own prose.
+- A document naming what to PROTECT is read in full even when a table in your own guide summarises it.
 - The census is not a convertibility list; trace every read against the seven shipped resource kinds.
 - Carry the legacy proof rows; identity is proven once by the positive arm; central negatives are central; a planted
   break is owed only for an invented row; a header claiming a proof it was never shown to catch is a defect.

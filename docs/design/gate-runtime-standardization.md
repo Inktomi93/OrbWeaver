@@ -36,7 +36,8 @@ for exactly once; nothing vanishes from the roster.
 | - | - | - |
 | gate modules / final / legacy | 271 / 163 / 108 | `pnpm gate:contract` at `1925d3086`: 815 findings across 271 modules; 108 modules carry a descriptor-wrapper finding |
 | converted modules with NO committed test importing them | 21 of 163 | orchestrator sweep 2026-09-11 (incl. `baseui-render-prop-composition`, whose missing `name` throws in the legacy loader) |
-| ordinary policies with no positive `@orb-waive` identity arm | 57 of 86 | same sweep |
+| ordinary policies with no positive `@orb-waive` identity arm | 60 of 86 | two Opus verifiers read every candidate gate + its family tests + fixtures, 2026-09-11 (#1952); a grep alone reported 57, overcounting three policies whose only marker text was a sibling's negative arm or their own header prose |
+| `mustFlag` rows carrying no `expect` | 39 rows across 14 modules | script sweep 2026-09-11 (#1952); such a row passes when the gate flags the wrong node |
 | last composed baseline (all final policies, full roster, central grants) | 119 policies: 304 raw = 182 waived + 105 granted + 17 effective; 2:03 wall / 6.55 GB on a loaded box | checkpoint-2026-09-05.md, wave 5 |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
 | shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with 7 closed kinds, `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
@@ -88,50 +89,45 @@ spellings of one concept MERGE (the stronger identity reader wins; the retired a
 with no proven sibling is a singleton family under its own id. A theme, a filename prefix or a shared topic is not a
 family.
 
-## 4. Proof rules (this is where the last two days went wrong; read twice)
+## 4. Proof rules
 
 1. **Carry the legacy rows.** The legacy `mustFlag`/`mustPass` examples are the founding, near-miss, alias/identity and
    declared-limit cases. They translate one-to-one into `GatePolicyProof` rows (`mode`, `files` map, `why`), and they ARE
    the bite proof once `verifyPolicyProofs` runs them through the production dispatcher. Do not replace them with a
    few new happy paths; add rows only for behavior the conversion changed or the legacy suite lacked (an identity
    variant the stronger reader now catches, an empty/unresolved-subject control where the verdict depends on a derived
-   population). **Every `mustFlag` row carries an `expect`.** `expectationFailure` returns early once one finding
-   exists, so a row without `expect` asserts only "this fixture produced at least one effective finding" and PASSES
-   when the gate flags the wrong node or flags eight things where one was meant. Name `count` always, and `token`
-   (or `line`/`messageIncludes`) whenever the row's `why` makes a claim about WHICH node flags — a `why` reading
-   "this shape produced ZERO findings before hardening" is exactly such a claim. Measured 2026-09-11: 39 unpinned
-   rows across 14 converted modules (#1952).
-2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position: one
-   POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position → 0 findings, 1 waived,
-   0 alarms (`schema-branding.ts` carries it as a mustPass row; `ordinary-visitors-family.test.ts:187-205` drives it
-   through `runPolicyPass`). Wrong-policy, stale/dead position, malformed, missing reason, over-broad, duplicate
-   consumption, unknown policy, hard/reviewed refusal, incomplete-owner withholding and consumption order are the
-   CENTRAL engine's proof (`tests/tooling/verify/lib/ordinary-waiver.test.ts`), run once. Do not copy a negative arm
-   into every gate: a per-gate wrong-policy arm driven with `knownPolicies: [policy]` rides the unknown-policy
-   short-circuit and proves nothing (paid 2026-09-11, three arms). **The positive arm is SELF-CHECKING, so write it
-   without fear of guessing the token wrong:** `proofFailure` runs `toolFailure` before the arm verdict, and
-   `toolFailure` fails on any `authorityAlarms`. An unbound marker becomes exactly that (`ordinary-waiver.ts` emits
-   `malformed`, `unknown-policy`, `stale`, `over-broad`; `gate-authority.ts:390` folds them in). So a wrong position
-   FAILS the proof, a fixture that never flagged FAILS it as unused, and only a marker that actually bound yields zero
-   effective findings and passes. No separate test and no planted break are owed. Template:
-   `schema-branding.ts:137`. **The exact mechanism, so nobody re-derives it:** `reconcileMatch`
-   (`ordinary-waiver.ts:608-620`) treats `stale`, `dead-position`, `unbound-trivia`, `ambiguous-trivia`, `over-broad`
-   and `duplicate-target` as COMPLETION-BOUND — suppressed unless the policy entered `completedOrdinary` — while
-   `malformed`, `unknown-policy` and `wrong-authority` alarm unconditionally. An ordinary policy enters
-   `completedOrdinary` whenever it runs without a wrong-grant-authority condition (`gate-authority.ts:286-291`), and a
-   proof row's owner must succeed or `toolFailure` fails first, so inside a proof row the policy is ALWAYS completed
-   and every one of those alarms is live. **The one place they go quiet is a WITHHELD or wrong-grant-authority owner**,
-   which never completes; that cannot occur inside a passing proof row, but it is why a real-tree run can hold a dead
-   marker silently while the proof corpus cannot. A `mustPass` arm does NOT separately assert `waivedFindings === 1`,
-   and it does not need to: a fixture that stopped flagging leaves the marker `stale`, which alarms. Naming the twin
-   `mustFlag` row in the arm's `why` is good practice for the next reader, never a correctness requirement.
-   **Limit:** `runPass` pins `knownPolicies: [policy]` and `reviewedGrants: []`, so a
-   reviewed-grant policy cannot prove grant consumption in a module row at all — that belongs in a family test with a
-   real grant table (§4.3). **A marker naming your policy inside ANOTHER policy's negative arm is not your arm**: a
-   grep for `@orb-waive <id>(` overcounts, matching sibling negative arms, live product-tree waivers and a module's own
-   header prose. Measured 2026-09-11: three of 29 policies credited with an arm by grep had none
-   (`no-form-state-in-useeffect`, `zod-modern-spellings`, `no-off-token-radius-shadow`), so the real gap is 60 of 86,
-   not 57 (#1952). Counting arms is a READING task; a script can only bound it.
+   population). **Every `mustFlag` row carries an `expect`.** `expectationFailure` returns early once one
+   finding exists, so a row without `expect` asserts only that the fixture produced at least one effective finding, and
+   passes when the gate flags the WRONG node or flags several where one was meant. Name `count` always, and `token`
+   (or `line`/`messageIncludes`) whenever the row's `why` claims WHICH node flags.
+2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
+   one POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position, yielding 0
+   effective findings, 1 waived, 0 alarms. Two shapes are valid — a `mustPass` row in the module
+   (`schema-branding.ts:137`) or a `runPolicyPass` pin in a family test (`ordinary-visitors-family.test.ts:187-205`).
+   The negatives are the CENTRAL engine's proof, run once
+   (`tests/tooling/verify/lib/ordinary-waiver.test.ts`): wrong-policy, stale/dead position, malformed, missing reason,
+   over-broad, duplicate consumption, unknown policy, hard/reviewed refusal, incomplete-owner withholding and
+   consumption order. Never copy a negative arm into a gate; under `knownPolicies: [policy]` it rides the
+   unknown-policy short-circuit and proves nothing.
+
+   **The arm is self-checking, so write it without fear of the token.** `proofFailure` runs `toolFailure` before the
+   arm verdict and fails on any `authorityAlarms`. `reconcileMatch` (`ordinary-waiver.ts:608-620`) alarms
+   unconditionally on `malformed`, `unknown-policy` and `wrong-authority`, and alarms on `stale`, `dead-position`,
+   `unbound-trivia`, `ambiguous-trivia`, `over-broad` and `duplicate-target` once the policy has entered
+   `completedOrdinary` — which every ordinary policy does when it runs without a wrong-grant-authority condition
+   (`gate-authority.ts:286-291`). A proof row's owner must succeed or `toolFailure` fails first, so inside a proof row
+   every alarm is live: a wrong position, a foreign id, an over-broad match and a fixture that no longer flags each
+   FAIL the row. No separate test and no planted break are owed. A `mustPass` arm need not assert
+   `waivedFindings === 1`; naming the twin `mustFlag` row in its `why` is legibility, not correctness.
+
+   **Where the protection stops.** Completion-bound alarms are suppressed for a WITHHELD or wrong-grant-authority
+   owner, which never completes, so a real-tree run can hold a dead marker silently where the proof corpus cannot. And
+   `runPass` pins `knownPolicies: [policy]` with `reviewedGrants: []`, so a reviewed-grant policy cannot prove grant
+   consumption in a module row at all; that belongs in a family test with a real grant table (§4.3).
+
+   **Counting arms is a reading task.** A grep for `@orb-waive <id>(` overcounts: it matches sibling policies'
+   negative arms, live product-tree waivers, and a module's own header prose promising a spelling. A marker naming
+   your policy inside another policy's negative arm is not your arm.
 3. **Reviewed-grant policies** prove exact `(subject, operation)` identity beside the family: the intended row is
    consumed exactly once; a wrong operation stays effective; a renamed/missing subject stales the row or withholds
    (`home-client-family.test.ts`). Generic grant-table validation is `tests/tooling/verify/lib/reviewed-grants.test.ts`.
@@ -148,9 +144,8 @@ family.
    reader). A retired or merged arm needs a successor proof (`simple-visitors-wave-2.test.ts`, `-wave-4.test.ts`).
    This is conversion evidence for the landing commit, not standing law.
 7. **Invented rows owe a planted-break receipt.** Only when a lane adds a NEW row for a NEW property (a per-file index,
-   an absent-subject arm) must it break that property in a scratch copy, show the row went red, and restore. A header
-   that says "this row proves X" for a row never shown to catch X is a defect (paid 2026-09-11: a cross-file mustFlag
-   whose fixture offsets never overlapped).
+   an absent-subject arm) must it break that property in a scratch copy, show the row went red, and restore. A header that says "this row proves X" for a row never shown to
+   catch X is a defect; a cross-file row whose fixture offsets never overlap is the worked example.
 8. **Fixtures.** Source/type proofs are virtual files; resource proofs are auto-cleaned temp roots; real-corpus controls
    are virtual overlays on the loaded Project. No `__g_`/`__dc_` planting in the working tree for a final policy. A
    fixture's relative import that resolves to nothing makes every identity row pass by fail-closure while conformance
