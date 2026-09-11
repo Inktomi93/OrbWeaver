@@ -58,7 +58,7 @@ test("a corpus whose final policies all prove is CLEAN, and the summary names th
   await expect(res).toExitWith(0);
   // The real policy carries 4 mustFlag + 4 mustPass rows; the legacy module is counted, never proven here. The
   // grant table is NOT part of this planted world, so only rows naming loaded policies are judged — none here.
-  expect(res.stdout).toContain("policy-conformance: 1 final policies · 8 proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid");
+  expect(res.stdout).toContain("policy-conformance: 1 final policies · 9 proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid");
   expect(res.stdout).toContain("(corpus: 2 module(s), 1 legacy proven by gate-conformance)");
 });
 
@@ -106,7 +106,7 @@ test("a policy whose own proof fails is a TOOL ERROR naming policy, arm, row ind
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
-  expect(res.stdout).toContain("2 final policies · 10 proof rows · 1 failure(s)");
+  expect(res.stdout).toContain("2 final policies · 11 proof rows · 1 failure(s)");
   expect(res.stdout).toContain("✗ planted-broken · mustFlag[0] · the founding defect that this policy can no longer see");
   expect(res.stdout).toContain("expected at least one effective finding but got 0");
   expect(res.stdout).toContain("the checker is broken, not the tree (exit 2)");
