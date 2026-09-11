@@ -134,7 +134,7 @@ export function createTupleVocabularyFacts(): {
  *  consumer arm — an absent-vocabulary fixture needs only one unrelated exported variable to index. */
 export const tupleVocabularyFact = defineFact({
   id: "tuple-vocabularies",
-  population: { in: ["@client", "@server", "@contracts"], ext: ["ts", "tsx"] },
+  population: { in: ["@client", "@server", "@contracts"] },
   analysis: "types",
   resources: [],
   create: (ctx) => {

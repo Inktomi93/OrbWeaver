@@ -40,7 +40,6 @@ const SIDE_GEN_POPULATION = {
   in: ["@server"],
   under: ["packages/server/src/domain/**", "packages/server/src/entry/**"],
   notNamed: ["*.test.ts", "*.test.tsx"],
-  ext: ["ts", "tsx"],
 } as const;
 
 /** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. */

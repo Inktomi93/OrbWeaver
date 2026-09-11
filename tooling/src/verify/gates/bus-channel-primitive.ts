@@ -75,7 +75,7 @@ export const gate = defineGate({
   family: "bus-channel-primitive",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@server"], under: ["packages/server/src/transport/**"], ext: ["ts", "tsx"] },
+  population: { in: ["@server"], under: ["packages/server/src/transport/**"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],

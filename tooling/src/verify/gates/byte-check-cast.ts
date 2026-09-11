@@ -39,7 +39,7 @@ const FIX = "wrap the column in `cast(<col> as blob)` inside the CHECK's length(
 
 /** Legacy `scanRoot` was `p.startsWith("packages/db/src/schema/")` — byte-equal to this expression, which is
  *  also `drizzleSchemaFact`'s own population. */
-const SCHEMA_POPULATION = { in: ["@db"], under: ["packages/db/src/schema/**"], ext: ["ts", "tsx"] } as const;
+const SCHEMA_POPULATION = { in: ["@db"], under: ["packages/db/src/schema/**"] } as const;
 
 /** Is this callee the named Drizzle export? Alias, namespace member and re-export all resolve here; a local
  *  helper of the same name does not. */

@@ -31,7 +31,7 @@ export const gate = defineGate({
   family: "package-layout",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@client", "@ui", "@db", "@contracts", "@kit"], ext: ["ts", "tsx"] },
+  population: { in: ["@client", "@ui", "@db", "@contracts", "@kit"] },
   analysis: "resource",
   execution: "entire-population",
   facts: [],

@@ -30,7 +30,6 @@ const TEST_POPULATION = {
   under: ["tests/**", "**/tests/**"],
   notUnder: ["tests/e2e/**", "tests/support/**", "**/tests/e2e/**", "**/tests/support/**"],
   notNamed: ["*.test-d.ts"],
-  ext: ["ts", "tsx"],
 } as const;
 
 /** A fixture binding entering this file: a named import specifier (whose `getName()` is the exported name

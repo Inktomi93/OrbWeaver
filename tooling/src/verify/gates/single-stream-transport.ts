@@ -70,7 +70,7 @@ export const gate = defineGate({
   family: "single-stream-transport",
   authority: "reviewed-grant",
   severity: "error",
-  population: { in: ["@server"], under: ["packages/server/src/transport/trpc/routers/**"], ext: ["ts", "tsx"] },
+  population: { in: ["@server"], under: ["packages/server/src/transport/trpc/routers/**"] },
   analysis: "types",
   execution: "entire-population",
   facts: [],

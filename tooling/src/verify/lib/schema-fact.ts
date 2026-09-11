@@ -519,7 +519,6 @@ const PROVIDER_RECEIPT_SOURCE = "drizzle-schema-sources";
 export const DRIZZLE_SCHEMA_POPULATION = {
   in: ["@db"],
   under: ["packages/db/src/schema/**"],
-  ext: ["ts", "tsx"],
 } as const;
 
 export const drizzleSchemaFact = defineFact({

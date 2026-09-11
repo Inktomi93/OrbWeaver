@@ -29,7 +29,6 @@ export const gate = defineGate({
       "*.gen.tsx",
       "*.d.ts",
     ],
-    ext: ["ts", "tsx"],
   },
   analysis: "syntax",
   execution: "selected-files",

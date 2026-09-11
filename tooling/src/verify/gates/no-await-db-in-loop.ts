@@ -29,7 +29,7 @@ const FIX =
 
 /** Legacy `scanRoot` was `!(p.includes(".test.") || p.startsWith("tests/"))` over the whole harness corpus;
  *  the nine authored roots minus the test tree and every `*.test.*` basename is the same admitted set. */
-const PRODUCTION_POPULATION = { in: ["@authored"], notUnder: ["tests/**"], notNamed: ["*.test.*"], ext: ["ts", "tsx"] } as const;
+const PRODUCTION_POPULATION = { in: ["@authored"], notUnder: ["tests/**"], notNamed: ["*.test.*"] } as const;
 
 /** BOUNDED ancestor navigation on the delivered node — never a descendant sweep. Walks up from the await
  *  until it either enters a loop statement (RED) or crosses a function boundary, which means the await is

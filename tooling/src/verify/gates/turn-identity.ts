@@ -27,7 +27,7 @@ const MESSAGE =
 const FIX = "resolve the identity triple (runAsUserId + triggeredBy) at the verb layer and pass it down; the caller's Principal stays at the verb layer.";
 
 /** Legacy `scanRoot` tested `/packages\\/server\\/src\\/domain\\/chat\\/engine\\//` against the repo path. */
-const ENGINE_POPULATION = { in: ["@server"], under: ["packages/server/src/domain/chat/engine/**"], ext: ["ts", "tsx"] } as const;
+const ENGINE_POPULATION = { in: ["@server"], under: ["packages/server/src/domain/chat/engine/**"] } as const;
 
 /** The IDENTITY arm's candidate set: an import specifier (whose `getName()` is the exported name even under
  *  an alias) or a member read spelled with the exported name (the namespace door). A bare identifier USE of

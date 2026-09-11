@@ -49,7 +49,7 @@ const FIX =
  *  `@packages` set names the six cake packages and showcase-plugins is not one of them. It admits nothing:
  *  that package is ONE file with ZERO `drizzle-orm` references (rg, with a packages/server positive
  *  control), and guest showcase code has no db reach through the plugin membrane to acquire one. */
-const NULLABLE_INEQUALITY_POPULATION = { in: ["@packages", "@tests"], ext: ["ts", "tsx"] } as const;
+const NULLABLE_INEQUALITY_POPULATION = { in: ["@packages", "@tests"] } as const;
 
 interface Operand {
   /** The `T.col` argument node — the report anchor and the waiver position token. */
