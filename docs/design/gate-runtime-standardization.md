@@ -34,9 +34,9 @@ for exactly once; nothing vanishes from the roster.
 
 | Fact | Value | Source |
 | - | - | - |
-| gate modules / final / legacy | 271 / 163 / 108 | `pnpm gate:contract` at `1925d3086`: 815 findings across 271 modules; 108 modules carry a descriptor-wrapper finding |
-| converted modules with NO committed test importing them | 21 of 163 | orchestrator sweep 2026-09-11 (incl. `baseui-render-prop-composition`, whose missing `name` throws in the legacy loader) |
-| ordinary policies with no positive `@orb-waive` identity arm | 44 of 86 | 16 landed at `efc8ace50` and `7ee0e6da0`, each with a planted dead-position control. A grep floor reports 42: it also counts `no-off-token-radius-shadow` and `no-form-state-in-useeffect`, whose only marker text is header prose and a sibling's negative arm |
+| gate modules / final / legacy | 270 / 164 / 106 | `ls tooling/src/verify/gates/*.ts` + a `defineGate(` grep at `d21ece8d8`; `schema-fact-health` retired (#1948) |
+| converted modules with NO committed test importing them | no longer the bar | `structure:policy-conformance` runs every final policy's declared rows on the static tier (§5). A module with no family test still lacks its §4.2/§4.3/§4.5/§4.6 pins — five were named by the arms-3 lane |
+| ordinary policies with no positive `@orb-waive` identity arm | 32 of 86 (grep floor; ~34 true) | 24 landed across three lanes. The floor also counts `no-off-token-radius-shadow` and `no-form-state-in-useeffect`, whose only marker text is header prose and a sibling's negative arm |
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
 | last composed baseline (all final policies, full roster, central grants) | 119 policies: 304 raw = 182 waived + 105 granted + 17 effective; 2:03 wall / 6.55 GB on a loaded box | checkpoint-2026-09-05.md, wave 5 |
@@ -207,37 +207,25 @@ family.
 9. **One family test may cover several siblings**; a file per gate is unnecessary. Until the conformance stage in §5
    exists, every final policy must still be imported by a committed family test (the 21 uncovered modules are the debt).
 
-## 5. The mixed-runtime work, first and alone (runtime lane; forge-class; nothing else runs beside it)
+## 5. The runtime you have (Phase A landed 2026-09-11, `d21ece8d8`)
 
-Until this lands, every "converted" gate is a file, not a gate. Build in this order, one lane, isolated worktree:
+This is no longer work; it is the substrate every lane now builds on. What it guarantees:
 
-1. **Mixed loader.** Classify each `tooling/src/verify/gates/*.ts` module by exact contract identity; load legacy
-   descriptors through `lib/loader.ts` and final policies through `lib/policy-loader.ts`; refuse unbranded lookalikes,
-   duplicate ids and duplicate module identities; account for every module exactly once. Fix the `baseui-render-prop-
-   composition` missing-`name` throw at the source of its shape, not by skipping it.
-2. **One front door, one report.** `check:structure` (and the scoped path) runs the legacy pass and `runPolicyPass` in
-   one invocation with the FULL final roster as `knownPolicies` and the central grant table; findings, owner status,
-   authority, severity, population and timing land in the existing run manifest / `reports/check-structure.json` schema
-   and `check:show` (the seam planner-cli-integration.md left open). Exit classes stay: 0 clean, 1 violations, 2 tool
-   error, 3 misuse. Legacy markers route only to legacy owners; `@orb-waive` only to final ordinary policies; grants
-   only to final reviewed-grant policies.
-3. **Whole-corpus conformance stage** (#1941): a static `verify` stage that loads every final policy and runs
-   `verifyPolicyProofs` over all of them. This retires "family test per module" as the bite receipt and closes the 21
-   uncovered modules by construction. Family tests remain for §4 items 2 (runPolicyPass shape), 3, 5 and 6.
-4. **Mixed-corpus test** (required, using one REAL legacy descriptor and one REAL final policy, not two synthetic
-   objects): both load and execute in one invocation; both contribute to one report; id/authority/severity/owner
-   status/population/timing distinguishable; marker and grant routing as above; unbranded lookalike rejected; duplicate
-   id rejected; a missing/malformed module cannot vanish; one failed or incomplete owner withholds only its own
-   authority reconciliation with explicit failure state; deterministic exit and JSON.
-5. **`enforcement-registry-parity`** rewritten to read both contracts (today it reads `name`/`status` off the legacy
-   literal and is blind to every final policy). `check-gates.repo.int.test.ts` and its `UNFIXTURABLE_GATES` list come
-   back to life under the mixed loader, or are explicitly retired with successor proofs per the carry-forward table.
-6. **Baseline read.** Run the mixed `check:structure` once on quiet `main`. What is red is now REAL: untranslated legacy
-   markers (315 `ONESHOT-OK` + 55 `@owner-scope*` + the 633 `@orb-gate-ignore` sites once their owners convert),
-   product violations, missing kinds. Classify once, file the defects, record the baseline in this section.
+- **One front door.** `pnpm check:structure` and the scoped door load BOTH contracts in one invocation over one
+  Project, classify each module by exact contract identity (a branded `defineGate` result vs a validated
+  `GateDescriptor`; a lookalike or duplicate id is a tool error), and emit ONE artifact that `check:show` renders.
+  Exit classes unchanged: 0 clean, 1 violations, 2 tool error, 3 misuse.
+- **A converted policy is LIVE the moment it lands.** It no longer runs only where a family test imports it.
+- **Its proof rows run on the commit bar.** `structure:policy-conformance` is a STATIC stage (in `pnpm verify --list`,
+  under changed/static/push/full, whole-only) that runs `verifyPolicyProofs` over every final policy — 1,459 rows
+  across 162 policies in ~10.5 s. **So a conversion no longer owes a family test for its DECLARED rows.** A family
+  test is still owed for what the rows cannot express: the §4.2 identity arm driven through `runPolicyPass`, §4.3 grant
+  identity, §4.5 refusal/receipt pins, and the §4.6 conversion differential.
+- **Marker routing is fenced:** legacy `@orb-gate-ignore` reaches only legacy owners, `@orb-waive` only final ordinary
+  policies, reviewed grants only final reviewed-grant policies.
 
-Then re-enable the lefthook pre-commit when `check:structure` is green on `main`; until then every commit and merge runs
-with `git -c core.hooksPath=/dev/null` and names its scoped floor.
+**Read the conformance stage's exit as a real verdict.** It is exit 2 only while a fact-provider defect is open
+(#1955); it is not baselined red the way the whole-tree checks are.
 
 ## 6. What is done and what remains
 

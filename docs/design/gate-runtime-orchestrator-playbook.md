@@ -67,29 +67,9 @@ Steps, not history. The law and the contract are in [gate-runtime-standardizatio
 
 ## 2. Work order (dependency order; do not reorder to fill slots)
 
-**Phase A — runtime lane, forge, alone.** One brief, one isolated worktree, one commit series; nothing else dispatched
-until it lands, an Opus verifier confirms, and you have read the first mixed baseline.
-
-- Mixed loader: classify each `tooling/src/verify/gates/*.ts` module by exact contract identity (branded `defineGate`
-  result vs validated `GateDescriptor`); unbranded lookalike, duplicate id, duplicate module identity → tool error;
-  every module accounted for once. Fix the `baseui-render-prop-composition` missing-`name` throw at its source.
-- One front door: `check:structure` (and the scoped path) runs the legacy pass and `runPolicyPass` (full final roster
-  as `knownPolicies`, central grant table) in one invocation; findings, owner status, authority, severity, population,
-  timing land in the existing run manifest / `reports/check-structure.json` / `check:show`; exit classes 0/1/2/3
-  unchanged; legacy markers route only to legacy owners, `@orb-waive` only to final ordinary policies, grants only to
-  final reviewed-grant policies.
-- Whole-corpus conformance stage in `verify` (static tier): load every final policy, run `verifyPolicyProofs` over all
-  of them (#1941; closes the 21 modules no family test imports).
-- Mixed-corpus test with one REAL legacy descriptor and one REAL final policy (the 12 assertions in the guide §5.4).
-- `enforcement-registry-parity` reads both contracts; `check-gates.repo.int.test.ts` alive under the mixed loader or
-  retired with successor proofs per the carry-forward table.
-- Delete the two real-tree zero-findings arms the #1947 lane restored in the grant-liveness int tests (keep the
-  runnability arms) — the front door now owns that verdict.
-- Floors: scoped tests it names; `pnpm gate:contract` unchanged; biome/eslint on touched files;
-  `pnpm typecheck --config tsconfig.json` and `--config tooling/tsconfig.json`; the first mixed `check:structure` run
-  on its worktree, wall time and RSS recorded.
-- After merge: run the mixed `check:structure` once on quiet `main`, alone. Record the baseline (counts by policy and
-  class) as a #1584 comment. File defects for real product findings; untranslated markers go to the backlog lane.
+**Phase A — DONE, landed 2026-09-11 at `d21ece8d8`.** The mixed front door, the whole-corpus conformance stage
+(#1941), both contracts read by `enforcement-registry-parity`/`gate-modernization`, and the `schema-fact-health`
+retirement (#1948). What it gives you is guide §5; do not rebuild it.
 
 **Phase B — three slots, after A.**
 
@@ -114,21 +94,21 @@ until it lands, an Opus verifier confirms, and you have read the first mixed bas
    A/B over the pin ROWS table).
 
 **Phase B2 — make the CONVERTED corpus sound before converting more (owner, 2026-09-11: "I'd rather get our new
-gates in a pristine place before converting old ones"). This precedes Phase C and Phase D.** Growing the corpus while
-the converted half proves less than it claims compounds the debt at conversion rate.
+gates in a pristine place before converting old ones"). Precedes C and D.**
 
-1. **#1953 — the registry provider split. P1, and the only one with LIVE enforcement loss.** Eight registry policies
-   have 95 refused proof rows on main and prove nothing today; `registry-family.test.ts` has been red since
-   `ab675b23b` (2026-09-10). `registry-fact.ts:285` models six kinds as ONE `defineFact` and sums their receipts; a
-   provider is atomic by guide §12.2/§12.3, so the fix is one provider per kind. No contract change.
-2. **#1952 — the identity arms, 44 of 86 remaining**, in batches of ~8 by family. The mechanism is settled in guide
-   §4.2 and the arm is self-checking, so these are parallelisable and cheap. The `mustFlag` half of this row is CLOSED.
-3. **#1954 — the unwaivable sites, 2 modules / 3 rows.** `persist-partialize-and-total-migrate` reports per missing key
-   on one node; `section-factory-contribution-bundle` spreads one anchor into two report calls. Both need one finding
-   per call site or a distinct subject anchor, and both change finding cardinality, so each owes its `expect.count`
-   update and a verifier. The section-factory row is blocked behind #1953 and belongs in that lane.
-4. Small mis-authorings found in the same audit: `no-color-literals`' header claims a className fence its visitor never
-   applies, and `test-factory-contract.ts:64`'s `why` promises a "distinct message" the policy does not emit.
+1. **#1955 — the LAST conformance failure.** `bus-fact-health`'s provider refuses over an isolated fixture, the same
+   class #1953 was. Until it lands, `structure:policy-conformance` exits 2 and cannot serve as a bar. Everything below
+   is cheaper once it is green, because a conversion then proves itself by landing. **Do this first.**
+2. **#1952 — identity arms, ~32 of 86 remaining**, batches of ~8 by family. Self-checking (guide §4.2), so cheap and
+   parallelisable. The `mustFlag`/`expect` half is CLOSED.
+3. **#1954 residue** — `bus-on-data-no-store-write` reports a token containing a paren, which the marker grammar
+   (`[^()\r\n]+`) cannot spell, so every waiver against it is malformed. One-line fix: report the bare identifier with
+   an offset. `persist-partialize` and `section-factory` are DONE.
+4. **Five converted modules have no family test** (`baseui-render-prop-composition`, `bus-on-data-no-store-write`,
+   `membership-fan-guard`, `no-caller-user-id`, `no-external-media-without-gate`). Their declared rows now run via the
+   conformance stage, but their §4.2/§4.5 pins have no home.
+5. The two message overclaims the audit found beyond `no-color-literals`: the false "in className" context claim
+   repeats in `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`.
 
 **Phase C — resource kinds (#1930), one Opus executor lane per kind, at most one at a time beside conversions,** in
 the order that unblocks the most gates: path-identity door (exists / file-or-directory / symlink-resolves-outside +
