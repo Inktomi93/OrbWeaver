@@ -30,9 +30,13 @@ const FAMILY_TIMEOUT_MS = scaledBudget(120_000);
 // states this explicitly ("SPLIT FROM THE LEGACY MODULE (authority is HARD...)").
 //
 // `schema-fact-health` is RETIRED (#1948, owner-ratified 2026-09-11) and no longer in this list: the guarantee
-// it claimed ("an empty or unresolved schema census is a broken instrument, never a clean verdict") is the
-// dispatcher's own fact-receipt refusal since ab675b23b, and the policy's `if (fact.status !== "ready")` branch
-// was provably dead — see the describe block at the bottom, which pins the guarantee where it actually lives.
+// it claimed ("an empty or unresolved schema census is a broken instrument, never a clean verdict") is owned by
+// the runtime rather than by a policy, and the module's `if (fact.status !== "ready")` branch was provably dead.
+// WHICH RUNTIME PHASE owns it changed on 2026-09-11 (#1962): it was the dispatcher's fact-receipt refusal
+// (ab675b23b) until that receipt was corrected to state the denominator the provider WALKED instead of the
+// census it FOUND (§12.3); it is now every consumer's own fail-closed `recordReadySchemaFact`, which throws on
+// any non-`ready` status. The retirement ruling survives — its INPUT moved one phase later. See the describe
+// block at the bottom, which pins the guarantee where it actually lives.
 test(
   "the first Drizzle schema policy wave proves relational integrity, ownership, and brands",
   () => {
@@ -54,14 +58,18 @@ test(
 
 // THE SUCCESSOR PINS for the retired `schema-fact-health` (#1948). The mapping that made the policy dead is
 // TOTAL: the fact's status union is closed at four members (lib/schema-fact.ts `buildSchema`: unresolved /
-// missing / empty / ready), `receipt()` sums tables + columns + fks + indexes, every non-ready branch passes
-// `[]` for tables (members 0) and the missing/unresolved branches also set `unresolved: 1`, while `ready` is
-// reachable only past the `calls.length === 0` guard, so it always carries members ≥ 1. The dispatcher's
-// receipt refusal (lib/policy-pass.ts `factReceiptFailures`, ab675b23b) refuses members 0 or unresolved > 0
-// and withholds every consumer BEFORE `evaluate` — so the health policy's "not ready" branch could never run,
-// and its two mustFlag rows were red on the unmodified tree for exactly that reason. These pins drive a REAL
-// consumer of the fact through `runPolicyPass` on the same two fixtures and assert the guarantee at its
-// actual home: the refusal names the fact and the reason, the consumer is withheld, nothing is reported.
+// missing / empty / ready), and every consumer of the fact calls `recordReadySchemaFact`, which throws on any
+// status but `ready` — so the health policy's "not ready" branch could never run, and its two mustFlag rows
+// were red on the unmodified tree for exactly that reason.
+//
+// WHERE THE REFUSAL LIVES MOVED ONE PHASE ON 2026-09-11 (#1962), and these pins moved with it. It used to be
+// the dispatcher's fact-receipt refusal (`lib/policy-pass.ts` `factReceiptFailures`, ab675b23b): the provider
+// receipted its CENSUS, so members 0 / unresolved 1 refused the FACT and withheld every consumer before
+// `evaluate`. That is the §12.3 anti-pattern — a receipt states the denominator walked, never what was found —
+// and it is what kept `freeze-provenance-write-pairing-health`'s empty-schema arm unexecutable. The provider
+// now receipts its walked sources, the census is DELIVERED, and the guarantee is asserted at its new home:
+// the CONSUMER's fail-closed read throws, the consumer is incomplete and withheld, nothing is reported. The
+// loudness is identical — a tool error either way — and only the accused moves from the fact to the policy.
 const VIRTUAL_ROOT = "/orb-schema-fact-wave-1";
 const PROBE = "packages/db/src/schema/probe.ts";
 
@@ -73,51 +81,51 @@ function runConsumer(files: Readonly<Record<string, string>>): PolicyPassResult 
   return runPolicyPass({ knownPolicies: [schemaBranding], policies: [schemaBranding], root: VIRTUAL_ROOT, project, reviewedGrants: [], failOnWarnings: false });
 }
 
-describe("the shared Drizzle fact's health is the dispatcher's receipt refusal (schema-fact-health RETIRED, #1948)", () => {
-  test("a schema population with no canonical Drizzle table: the fact is refused at receipt and its consumer is withheld", () => {
+describe("the shared Drizzle fact's health is its CONSUMER's fail-closed read (schema-fact-health RETIRED, #1948; phase moved #1962)", () => {
+  test("a schema population with no canonical Drizzle table: the census is DELIVERED and its consumer refuses on it", () => {
     const result = runConsumer({ [PROBE]: "export const noSchemaTable = true;\n" });
-    expect(result.factErrors).toEqual([
-      {
-        factId: "drizzle-schema",
-        phase: "receipt",
-        message: expect.stringMatching(/^fact receipt refused: population "drizzle-schema" resolved zero members$/u),
-      },
-    ]);
+    // The provider SUCCEEDS: it walked one authored schema source and says so. Emptiness is the fact's own
+    // modelled status, which is exactly what makes `freeze-provenance-write-pairing-health` able to REPORT
+    // this corpus instead of dying on it (#1962).
+    expect(result.factErrors).toEqual([]);
+    expect(result.facts[0]).toMatchObject({ id: "drizzle-schema", status: "success", receipts: [{ source: "drizzle-schema-sources", members: 1 }] });
     expect(result.toolErrors).toEqual([
-      expect.objectContaining({ policyId: "schema-branding", phase: "evaluate", message: expect.stringMatching(/^declared fact failed: drizzle-schema: /u) }),
+      expect.objectContaining({
+        policyId: "schema-branding",
+        phase: "evaluate",
+        message: expect.stringMatching(/^drizzle schema fact empty: schema source population declares no Drizzle SQLite tables$/u),
+      }),
     ]);
     expect(result.policies[0]?.owner.status).toBe("incomplete");
     expect(result.authority.effectiveFindings).toEqual([]);
   });
 
-  test("an impostor builder leaves the census unresolved: refused at receipt, consumer withheld, no manufactured evidence", () => {
+  test("an impostor builder leaves the census unresolved: the consumer refuses, no manufactured evidence", () => {
     const result = runConsumer({
       [PROBE]:
         'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
         "const fake = { primaryKey: (value: unknown) => value };\n" +
         'export const probe = sqliteTable("probe", { id: text("id") }, (t) => [fake.primaryKey({ columns: [t.id] })]);\n',
     });
-    expect(result.factErrors).toEqual([
-      {
-        factId: "drizzle-schema",
-        phase: "receipt",
-        message: expect.stringMatching(
-          /^fact receipt refused: population "drizzle-schema" resolved zero members; population "drizzle-schema" left 1 unresolved$/u,
-        ),
-      },
+    expect(result.factErrors).toEqual([]);
+    expect(result.toolErrors).toEqual([
+      expect.objectContaining({ policyId: "schema-branding", phase: "evaluate", message: expect.stringMatching(/^drizzle schema fact unresolved: /u) }),
     ]);
-    expect(result.toolErrors).toEqual([expect.objectContaining({ policyId: "schema-branding", phase: "evaluate" })]);
     expect(result.policies[0]?.owner.status).toBe("incomplete");
     expect(result.authority.effectiveFindings).toEqual([]);
   });
 
-  test("the healthy control: a resolved census carries members and the consumer runs to a verdict", () => {
+  test("the healthy control: a resolved census reaches the consumer and it runs to a verdict", () => {
     const result = runConsumer({
       [PROBE]: 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const probe = sqliteTable("probe", { id: text("id").primaryKey() });\n',
     });
     expect(result.factErrors).toEqual([]);
     expect(result.toolErrors).toEqual([]);
     expect(result.policies[0]?.owner.status).toBe("success");
-    expect(result.facts[0]?.receipts).toEqual([expect.objectContaining({ kind: "population", source: "drizzle-schema", unresolved: 0 })]);
+    expect(result.facts[0]?.receipts).toEqual([expect.objectContaining({ kind: "population", source: "drizzle-schema-sources", members: 1 })]);
+    // The CONSUMER's receipt is the census — `recordReadySchemaFact` files `fact.receipt.members` — which is
+    // the sanctioned blindness door, one phase later and per consumer. The two receipts are different
+    // objects with different jobs; conflating them is what #1962 undid.
+    expect(result.policies[0]?.receipts).toEqual([expect.objectContaining({ kind: "population", source: "drizzle-schema", members: 2 })]);
   });
 });

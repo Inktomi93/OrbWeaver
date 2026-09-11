@@ -136,7 +136,13 @@ test("one kind's blind provider withholds only ITS consumers — the other kinds
   // seven: a fact is the runtime's atomic failure unit, so a summed receipt over every kind made ANY
   // population that legitimately declares only some of the types refuse for all of them — which is how 95
   // proof rows across eight policies went dark. Here `ModalDefinition` is absent while `SectionDefinition`
-  // is healthy: the modal provider refuses and withholds its consumer, the section consumer still accuses.
+  // is healthy: the modal consumer is withheld, the section consumer still accuses.
+  //
+  // WHICH PHASE withholds moved on 2026-09-11 (#1962) and the property did not. Both providers now SUCCEED —
+  // a provider receipt states the sources it walked, never the census it found (§12.3) — and the modal
+  // blindness is caught one phase later at `modal-registry-completeness`'s own
+  // `members: view.definitions.length` receipt, the door every registry consumer already files. Same
+  // withheld id, same silence, same untouched sibling.
   const project = new Project({ useInMemoryFileSystem: true });
   project.createSourceFile(`${ROOT}/packages/client/src/state/section-registry.ts`, SECTION_TYPE);
   project.createSourceFile(
@@ -154,8 +160,11 @@ test("one kind's blind provider withholds only ITS consumers — the other kinds
   });
 
   expect(result.facts.map(({ id, status }) => [id, status])).toEqual([
-    ["registry-definitions-modal", "incomplete"],
+    ["registry-definitions-modal", "success"],
     ["registry-definitions-section", "success"],
+  ]);
+  expect(result.toolErrors).toMatchObject([
+    { policyId: "modal-registry-completeness", phase: "receipt", message: expect.stringContaining("resolved zero members") },
   ]);
   expect(result.authority.withheldPolicyIds).toEqual(["modal-registry-completeness"]);
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "section-registry-completeness", token: "xSection" }]);

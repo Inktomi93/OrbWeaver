@@ -62,26 +62,6 @@ function runRegistry(
   return { facts: captured, result };
 }
 
-/** Run a kind whose PROVIDER is expected to refuse, so the consumer never evaluates and captures nothing. */
-function runWithheldRegistry(kind: RegistryDefinitionKind, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
-  let captured: RegistryDefinitionKindFacts | undefined;
-  const gate = policyFor(kind, (facts) => {
-    captured = facts;
-  });
-  const result = runPolicyPass({
-    knownPolicies: [gate],
-    policies: [gate],
-    root: ROOT,
-    project: projectOf(files),
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-  if (captured !== undefined) {
-    throw new Error("registry facts were evaluated, so this fixture is not the withholding it claims to be");
-  }
-  return result;
-}
-
 test("canonical type origins survive type aliases, re-exports, namespace qualification, and local shadows", () => {
   const { facts, result } = runRegistry("section", {
     "packages/client/src/types.ts": "export type SectionDefinition = { readonly id: string };",
@@ -177,27 +157,88 @@ test("only section definitions admit factories, and multiple returns refuse as a
   expect(result.policies[0]?.owner.status).toBe("success");
 });
 
-test("missing and empty definition populations stay distinct, and both refuse at the PROVIDER", () => {
-  // A renamed registry TYPE is the one thing this provider genuinely cannot resolve, so it is the only
-  // `unresolved` in its receipt — the rename tripwire. An empty-but-present type is a different blindness
-  // and says so with `zero members` alone. Both withhold every consumer of THIS kind and nothing else.
-  const missing = runWithheldRegistry("chrome", { "packages/client/src/other.ts": "export const other = 1;" });
-  expect(missing.facts).toMatchObject([
-    { id: "registry-definitions-chrome", status: "incomplete", receipts: [{ kind: "population", source: "ChromeEntry", members: 0, unresolved: 1 }] },
+test("missing and empty definition populations stay distinct, are DELIVERED, and refuse at the CONSUMER", () => {
+  // A renamed registry TYPE is the one thing this provider genuinely cannot resolve, and an empty-but-present
+  // type is a different blindness; the fact carries both distinctly on `target`/`members`/`unresolved`.
+  //
+  // THE PHASE MOVED IN #1962, THE SIGNAL DID NOT. Until 2026-09-11 the provider RECEIPTED that census, so
+  // `factReceiptFailures` refused it and `withholdFactDependents` dropped every consumer of this kind before
+  // `evaluate` — a provider receipt must state the denominator it WALKED, never what it FOUND (§12.3), and
+  // #1953's per-kind split fixed only the cross-kind half. The receipt is now the walked sources, the census
+  // is DELIVERED, and the rename tripwire fires one phase later at the consumer's own
+  // `members: <view>.definitions.length` receipt — the sanctioned blindness door every production registry
+  // consumer already files (`chrome-registry-completeness.ts` names it). Still nothing reported, still only
+  // THIS kind's consumers withheld.
+  const missing = runRegistry("chrome", { "packages/client/src/other.ts": "export const other = 1;" });
+  expect(missing.result.facts).toMatchObject([
+    { id: "registry-definitions-chrome", status: "success", receipts: [{ kind: "population", source: "ChromeEntry-sources", members: 1 }] },
   ]);
-  expect(missing.facts[0]?.error).toContain('population "ChromeEntry" left 1 unresolved');
-  expect(missing.policies[0]?.owner.status).toBe("incomplete");
-  expect(missing.authority.withheldPolicyIds).toEqual(["registry-chrome"]);
+  expect(missing.facts.target).toMatchObject({ kind: "unresolved", reason: "missing" });
+  expect(missing.facts).toMatchObject({ members: 0, unresolved: 1 });
+  expect(missing.result.toolErrors).toMatchObject([
+    { policyId: "registry-chrome", phase: "receipt", message: expect.stringContaining('population "ChromeEntry" left 1 unresolved') },
+  ]);
+  expect(missing.result.policies[0]?.owner.status).toBe("incomplete");
+  expect(missing.result.authority.withheldPolicyIds).toEqual(["registry-chrome"]);
+  expect(missing.result.authority.effectiveFindings).toEqual([]);
 
-  const empty = runWithheldRegistry("chrome", {
+  const empty = runRegistry("chrome", {
     "packages/client/src/types.ts": "export interface ChromeEntry { readonly id: string }",
   });
-  expect(empty.facts).toMatchObject([
-    { id: "registry-definitions-chrome", status: "incomplete", receipts: [{ kind: "population", source: "ChromeEntry", members: 0, unresolved: 0 }] },
+  expect(empty.result.facts).toMatchObject([{ id: "registry-definitions-chrome", status: "success" }]);
+  expect(empty.facts.target.kind).toBe("resolved");
+  expect(empty.facts).toMatchObject({ members: 0, unresolved: 0 });
+  expect(empty.result.toolErrors).toMatchObject([
+    { policyId: "registry-chrome", phase: "receipt", message: expect.stringContaining('population "ChromeEntry" resolved zero members') },
   ]);
-  expect(empty.facts[0]?.error).toContain('population "ChromeEntry" resolved zero members');
-  expect(empty.facts[0]?.error).not.toContain("unresolved");
-  expect(empty.authority.withheldPolicyIds).toEqual(["registry-chrome"]);
+  expect(empty.result.toolErrors[0]?.message).not.toContain("left 1 unresolved");
+  expect(empty.result.authority.withheldPolicyIds).toEqual(["registry-chrome"]);
+});
+
+test("a provider that could not LOOK still refuses at its own POPULATION phase, and withholds only its kind", () => {
+  // THE PLANTED CONTROL for the row above: moving the census out of the receipt must not disarm blindness.
+  // It does not — it moves the refusal one phase EARLIER for the one case that is genuinely unmeasurable.
+  // A corpus admitting zero `@client` paths gives the modal provider nothing to walk, so it refuses at
+  // POPULATION while the section provider — fed the same empty population — refuses identically and
+  // independently; per-provider failure, never a family-wide blackout (#1953 preserved).
+  let captured: RegistryDefinitionKindFacts | undefined;
+  // The POLICY's population is wider than the FACT's on purpose: a corpus holding only a server file gives
+  // the policy something to run over and the `@client` provider nothing to walk, which is the one shape that
+  // isolates a provider-population refusal from a policy-population refusal.
+  const modal: GatePolicy = defineGate({
+    id: "registry-modal-wide-probe",
+    family: "registry-definition",
+    authority: "hard",
+    severity: "error",
+    population: { in: ["@client", "@server"], ext: ["ts", "tsx"] },
+    analysis: "types",
+    execution: "entire-population",
+    facts: [registryDefinitionFacts.modal],
+    resources: [],
+    message: "registry definition population control",
+    create: (ctx) => ({
+      evaluate: () => {
+        captured = ctx.fact(registryDefinitionFacts.modal);
+        ctx.receipt({ kind: "population", source: "registry-modal-wide-probe", members: 1 });
+      },
+    }),
+    mustFlag: [{ mode: "types", files: { "packages/client/src/flag.ts": "export const flag = 1;" }, why: "descriptor proof control" }],
+    mustPass: [{ mode: "types", files: { "packages/client/src/pass.ts": "export const pass = 1;" }, why: "descriptor proof control" }],
+  });
+  const result = runPolicyPass({
+    knownPolicies: [modal],
+    policies: [modal],
+    root: ROOT,
+    project: projectOf({ "packages/server/src/x.ts": "export const outsideTheClientPopulation = 1;" }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+
+  expect(captured).toBeUndefined();
+  expect(result.factErrors.map(({ factId, phase }) => `${factId}/${phase}`)).toEqual(["registry-definitions-modal/population"]);
+  expect(result.facts.map(({ id, status }) => `${id}/${status}`)).toEqual(["registry-definitions-modal/incomplete"]);
+  expect(result.toolErrors[0]?.message).toContain("declared fact failed: registry-definitions-modal");
+  expect(result.authority.withheldPolicyIds).toEqual(["registry-modal-wide-probe"]);
 });
 
 test("JSX tags normalize opening/self-closing forms through canonical module origin", () => {

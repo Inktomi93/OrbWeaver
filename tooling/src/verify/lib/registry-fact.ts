@@ -303,7 +303,23 @@ export function createRegistryDefinitionFacts(): {
  *  PROVIDERS: a policy declares only the kinds it reads, only those instantiate, and only their own failure
  *  withholds it. §12.3's one-walk guarantee is unaffected — the pass instantiates each unique provider once
  *  and feeds them all in the same physical walk, and the per-kind scoring work is identical to the seven
- *  `forKind` calls the aggregate already made. */
+ *  `forKind` calls the aggregate already made.
+ *
+ *  AND THE RECEIPT IS THE OTHER HALF OF THAT FIX, landed 2026-09-11 (#1962). #1953 split the provider per
+ *  kind but did not change WHAT each one counts: `members: facts.members` plus `unresolved: facts.unresolved`
+ *  is still a CENSUS, so each per-kind provider went on refusing its own empty corpus — `members === 0`
+ *  (`lib/policy-pass.ts:631`) for a kind that declares no definition, `unresolved > 0` (`:635`) for one whose
+ *  registry TYPE is missing or ambiguous — and `withholdFactDependents` (`:679`) still dropped that kind's
+ *  consumers BEFORE `evaluate`. A receipt states the denominator the provider WALKED, never what it found
+ *  (§12.3). It now states `ctx.files.length`.
+ *
+ *  THE RENAME TRIPWIRE SURVIVES, one phase later and per consumer. `target` is delivered on the fact, and a
+ *  missing or ambiguous registry TYPE yields zero definitions (`factsFor` admits a definition only through a
+ *  RESOLVED target), so every consumer's own `members: <view>.definitions.length` receipt refuses — the
+ *  sanctioned blindness door `chrome-registry-completeness`'s header already names. Measured 2026-09-11: no
+ *  gate module reads `view.target`, so §12.3's discriminator ("if no consumer expresses its dependency
+ *  through the provider's `unresolved`, the provider must not publish one") applies exactly, and the pins are
+ *  in `tests/tooling/verify/lib/registry-fact.test.ts`. */
 function defineRegistryDefinitionFact(kind: RegistryDefinitionKind): GateFact<RegistryDefinitionKindFacts> {
   return defineFact({
     id: `registry-definitions-${kind}`,
@@ -320,7 +336,7 @@ function defineRegistryDefinitionFact(kind: RegistryDefinitionKind): GateFact<Re
             return result;
           }
           const facts = collector.forKind(kind);
-          ctx.receipt({ kind: "population", source: facts.source, members: facts.members, unresolved: facts.unresolved });
+          ctx.receipt({ kind: "population", source: `${facts.source}-sources`, members: ctx.files.length });
           result = facts;
           return result;
         },

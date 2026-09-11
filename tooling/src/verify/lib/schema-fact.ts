@@ -481,6 +481,27 @@ export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
   }
 }
 
+/** The provider receipt states the denominator this collector actually MEASURED — the authored schema
+ *  sources it walked — and nothing about what the census FOUND.
+ *
+ *  WHY NOT THE CENSUS: it was `members: <tables + columns + foreign keys + indexes>` plus an `unresolved`
+ *  flag raised for a `missing`/`unresolved` fact, until 2026-09-11. `factReceiptFailures`
+ *  (`lib/policy-pass.ts:641`) refuses a fact receipt with `members === 0` (`:631`) or `unresolved > 0`
+ *  (`:635`) and `withholdFactDependents` (`:679`) drops every consumer BEFORE `evaluate` (`:821-822`), so a
+ *  schema tree that declares no table — or one the reader could not follow — preempted the very policies
+ *  that exist to report it. Both numbers are this fact's own MODELLED VALUE (`SchemaFact.status` plus the
+ *  `SchemaFactReceipt` the fact PUBLISHES to consumers, which is a different object from this receipt), and
+ *  both already have fail-closed owners: every ordinary consumer calls `recordReadySchemaFact`, which throws
+ *  on any non-`ready` status, and `freeze-provenance-write-pairing-health` (hard/error) REPORTS a schema
+ *  tree that no longer declares its guarded table. That arm — blindness mode B — was recorded as BLOCKED in
+ *  that module's header for exactly this reason (#1962); it is enabled in the same commit as this line.
+ *
+ *  What the refusal still bites: a population admitting zero authored paths — the provider genuinely could
+ *  not look, which no consumer can distinguish from a schema tree that honestly declares nothing. That
+ *  refusal is per-provider and fires one phase EARLIER, at population. Same ruling, same reason as
+ *  `bus-fact.ts#PROVIDER_RECEIPT_SOURCE` (#1955) and `registry-fact.ts` (#1953). */
+const PROVIDER_RECEIPT_SOURCE = "drizzle-schema-sources";
+
 export const DRIZZLE_SCHEMA_POPULATION = {
   in: ["@db"],
   under: ["packages/db/src/schema/**"],
@@ -516,13 +537,7 @@ export const drizzleSchemaFact = defineFact({
       ],
       finish: (): SchemaQuery => {
         const query = discoveryError === undefined ? queryForCalls(ctx, calls) : unresolvedDiscovery(ctx, discoveryError);
-        const fact = query.schema();
-        ctx.receipt({
-          kind: "population",
-          source: fact.receipt.source,
-          members: fact.receipt.members,
-          unresolved: fact.status === "unresolved" || fact.status === "missing" ? 1 : 0,
-        });
+        ctx.receipt({ kind: "population", source: PROVIDER_RECEIPT_SOURCE, members: ctx.files.length });
         return query;
       },
     };

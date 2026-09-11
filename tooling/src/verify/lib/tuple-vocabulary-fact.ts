@@ -117,7 +117,21 @@ export function createTupleVocabularyFacts(): {
  *  (`CHROME_ZONES`), `@server` (`WARNING_CODES`) and `@contracts` (`CHAT_WARNING_CODES`). A tuple name
  *  claimed by two exported declarations anywhere in that population is an `ambiguous` refusal at read
  *  time, never a silently narrowed vocabulary, and an index that collected nothing refuses outright
- *  rather than answering `absent` for every name. */
+ *  rather than answering `absent` for every name.
+ *
+ *  THE RECEIPT STATES WHAT THIS COLLECTOR MEASURED — the authored sources it walked — never what it FOUND
+ *  (#1962). It was `members: indexed` (the size of the index it built) until 2026-09-11, and
+ *  `factReceiptFailures` (`lib/policy-pass.ts:641`) refuses `members === 0` and withholds every consumer
+ *  before `evaluate` (`:679`), which is how a census becomes its own accuser's gag. EMPTINESS PER NAME rides
+ *  the fact itself: `read(name)` answers `absent`, and every consumer files
+ *  `tupleVocabularyReceipt(<what it read>)` as its OWN policy receipt — which refuses with zero members, one
+ *  phase later, for that consumer only. That per-consumer door is the blindness tripwire, not this receipt.
+ *
+ *  THE `indexed === 0` REFUSAL ABOVE SURVIVES DELIBERATELY and is a narrower claim than the retired receipt:
+ *  not "this vocabulary is empty" but "this collector indexed nothing at all across @client + @server +
+ *  @contracts", which no real or fixture corpus carrying a single exported variable can produce, and which
+ *  would otherwise answer `absent` for every name and read as a unanimous, confident nothing. It blocks no
+ *  consumer arm — an absent-vocabulary fixture needs only one unrelated exported variable to index. */
 export const tupleVocabularyFact = defineFact({
   id: "tuple-vocabularies",
   population: { in: ["@client", "@server", "@contracts"], ext: ["ts", "tsx"] },
@@ -136,7 +150,7 @@ export const tupleVocabularyFact = defineFact({
         if (indexed === 0) {
           throw new Error("tuple vocabulary index collected no exported variable declaration in its effective population");
         }
-        ctx.receipt({ kind: "population", source: "tuple-vocabularies", members: indexed, unresolved: 0 });
+        ctx.receipt({ kind: "population", source: "tuple-vocabulary-sources", members: ctx.files.length });
         result = Object.freeze({ read: collector.read, indexed });
         return result;
       },

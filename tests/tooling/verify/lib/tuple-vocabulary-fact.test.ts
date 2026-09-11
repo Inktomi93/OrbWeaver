@@ -125,14 +125,18 @@ test("absent, empty, missing-initializer, ambiguous, and non-exported shadows ar
   ).toMatchObject({ kind: "unresolved", reason: "ambiguous" });
 });
 
-test("the provider indexes once, receipts its own denominator, and refuses an empty index", () => {
+test("the provider indexes once, receipts the sources it WALKED, and refuses an empty index", () => {
   const shared = runTuple({
     "packages/client/src/vocab.ts": 'export const VOCAB = ["a"] as const;',
     "packages/client/src/other.ts": "export const other = 1;",
+    "packages/client/src/nothing-exported.ts": "type Local = string;\n",
   });
   expect(shared.result.factErrors).toEqual([]);
+  // MEASURED, NOT FOUND (#1962): three admitted sources, two indexed names. The receipt is the denominator
+  // the collector walked — the third file is what discriminates the two numbers — and per-name emptiness
+  // rides the fact, judged by the consumer's own `tupleVocabularyReceipt` below.
   expect(shared.result.facts).toMatchObject([
-    { id: "tuple-vocabularies", status: "success", receipts: [{ kind: "population", source: "tuple-vocabularies", members: 2, unresolved: 0 }] },
+    { id: "tuple-vocabularies", status: "success", receipts: [{ kind: "population", source: "tuple-vocabulary-sources", members: 3 }] },
   ]);
   expect(shared.result.policies[0]?.receipts).toEqual([{ kind: "population", source: VOCAB, members: 1, unresolved: 0 }]);
 
