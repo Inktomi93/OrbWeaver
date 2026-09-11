@@ -232,10 +232,27 @@ implementation shape is open; what is NOT open is deriving the requirement from 
 **Why #1930 as written is not the shape.** It names seven capabilities derived from ELEVEN gates that three lanes
 happened to trip over, against a legacy set of over a hundred. Implement those seven and the next gate trips over an
 eighth, and every capability added costs a mandatory pass over the policing surfaces — `policy-conformance.ts`'s
-fixture runner, `gate-modernization`, and `policy-validation.ts`. **That is THREE, not four.** Earlier text here and in
-several briefs said four by including `enforcement-registry-parity`; the capability lane proved otherwise on
-2026-09-11 with a positive control — grepping it for `resource|kind|AUTHORED_TREE|CONFIG_SNAPSHOT` returns zero against
-107 `gate` matches, so it reads the roster and never the resource vocabulary. The churn is real either way:
+fixture runner, `gate-modernization`, and `policy-validation.ts`.
+
+**IT IS FIVE, MEASURED (owner challenge, 2026-09-11 evening — this paragraph twice said a number nobody had
+counted).** The earlier text said four by including `enforcement-registry-parity`; a capability lane refuted THAT file
+with a positive control (grepping it for `resource|kind|AUTHORED_TREE|CONFIG_SNAPSHOT` returns zero against 107 `gate`
+matches — it reads the roster, never the resource vocabulary), and this paragraph then wrote "THREE" without counting
+the rest. **The correction was right about the one file it checked and wrong about the total.** Union of the policing
+surfaces actually touched by the two capability-adding commits on the tree:
+
+| Surface | `899ec74a7` (7 doors) | json + `installed-package` |
+| - | :-: | :-: |
+| `lib/policy-validation.ts` | yes | yes |
+| `lib/resource-policy.ts` | yes | yes |
+| `lib/resource-declaration.ts` | yes | — |
+| `gates/gate-modernization.ts` | — | yes |
+| `ops/policy-conformance.ts` (fixture runner) | — | yes |
+
+`enforcement-registry-parity` appears in NEITHER, so that refutation stands. **The understated number matters because
+it is the whole cost argument for settling the set before building it** — at five surfaces per capability, adding kinds
+one at a time is five edits each, and the §5b soundness enforcer (#1971) cannot target a vocabulary that is still
+moving. Freeze first, then enforce. The churn is real either way:
 `gate-modernization`'s arm A had to be widened the day 163 modules became `defineGate` calls, because the policer broke
 when the thing it polices moved.
 
