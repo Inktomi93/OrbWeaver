@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 589,
-    "enforced": 584,
-    "reported": 16,
+    "sites": 596,
+    "enforced": 591,
+    "reported": 23,
     "byVerdict": {
       "deliberate-absorb": 568,
       "detached-owned": 5,
-      "unproven": 16
+      "unproven": 23
     },
     "byGrammar": {
       "promise": 143,
       "default": 161,
-      "empty": 285
+      "empty": 292
     }
   },
   "rows": [
@@ -3764,7 +3764,7 @@
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts::default:catch::1",
       "path": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts",
-      "line": 87,
+      "line": 121,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3772,12 +3772,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a POST /sleep failure returns false (engine not slept) — a local loopback engine-lifecycle op, no auth/credential; false is the conservative \"did not sleep\". Ends if this call reaches a non-loopback target.",
-      "markerLine": 83
+      "markerLine": 117
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts::default:catch::2",
       "path": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts",
-      "line": 148,
+      "line": 182,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3785,12 +3785,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a /metrics scrape failure returns null (\"can't tell\"), and isEngineIdle/advanceAutoSleep treat null as never-idle — the conservative direction (never auto-sleeps a busy engine); local engine, no auth/credential. Ends if null ever admits an auto-sleep.",
-      "markerLine": 141
+      "markerLine": 175
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts::default:catch::3",
       "path": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts",
-      "line": 275,
+      "line": 309,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3798,12 +3798,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a /metrics capacity scrape failure returns null (absent, never a fabricated healthy snapshot); local engine observability, no auth/credential. Ends if null is read as a healthy snapshot.",
-      "markerLine": 268
+      "markerLine": 302
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts::default:catch::4",
       "path": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts",
-      "line": 364,
+      "line": 398,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3811,12 +3811,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an /is_sleeping probe failure returns null (\"could not measure\"); local engine state read, no auth/credential — null disarms the auto-sleep timer (never sleeps on missing data). Ends if null ever admits an auto-sleep.",
-      "markerLine": 356
+      "markerLine": 390
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts::default:catch::5",
       "path": "packages/server/src/infra/providers/vllm/engine/fleet-control.ts",
-      "line": 375,
+      "line": 409,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3824,7 +3824,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a POST /wake_up failure returns false (engine did not wake); local engine-lifecycle op, no auth/credential. Ends if this call reaches a non-loopback target.",
-      "markerLine": 372
+      "markerLine": 406
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/gen-window.ts::default:catch::1",
@@ -3972,7 +3972,7 @@
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/supervisor.ts::default:catch::1",
       "path": "packages/server/src/infra/providers/vllm/engine/supervisor.ts",
-      "line": 213,
+      "line": 229,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3980,12 +3980,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an /is_sleeping probe failure returns false (\"not sleeping\" — fails toward healthy, at worst a needless wake, never a hang); local engine health probe, no auth/credential. Ends if false ever suppresses a needed wake into a hang.",
-      "markerLine": 205
+      "markerLine": 221
     },
     {
       "siteId": "packages/server/src/infra/providers/vllm/engine/supervisor.ts::empty:err::1",
       "path": "packages/server/src/infra/providers/vllm/engine/supervisor.ts",
-      "line": 230,
+      "line": 246,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -3993,7 +3993,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "a /health probe failure is classified into a typed Probe verdict (TimeoutError → occupied, refused → free); local engine health classification, no auth/credential, failure propagated as a verdict. Ends if the classification stops feeding the caller.",
-      "markerLine": 219
+      "markerLine": 235
     },
     {
       "siteId": "packages/server/src/infra/storage/cas.ts::empty:err::1",
@@ -6845,7 +6845,7 @@
     {
       "siteId": "tooling/src/stack/ops/engines-ctl.ts::default:catch::1",
       "path": "tooling/src/stack/ops/engines-ctl.ts",
-      "line": 80,
+      "line": 83,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -6853,7 +6853,20 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal.",
-      "markerLine": 76
+      "markerLine": 79
+    },
+    {
+      "siteId": "tooling/src/stack/ops/engines-ctl.ts::empty:catch::1",
+      "path": "tooling/src/stack/ops/engines-ctl.ts",
+      "line": 104,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "tooling/src/stack/ops/prod-down.ts::empty:error::1",
@@ -7014,7 +7027,7 @@
     {
       "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::empty:catch::1",
       "path": "tooling/src/verify/gates/depcruise-grant-liveness.ts",
-      "line": 192,
+      "line": 183,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -7022,7 +7035,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unparseable pattern matches nothing, so it",
-      "markerLine": 187
+      "markerLine": 178
     },
     {
       "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::empty:error::1",
@@ -7131,7 +7144,7 @@
     {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::default:catch::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
-      "line": 163,
+      "line": 173,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -7139,7 +7152,20 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot.",
-      "markerLine": 160
+      "markerLine": 170
+    },
+    {
+      "siteId": "tooling/src/verify/lib/config-snapshot.ts::empty:error::1",
+      "path": "tooling/src/verify/lib/config-snapshot.ts",
+      "line": 225,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "tooling/src/verify/lib/ct-runner-lock.ts::default:catch::1",
@@ -7183,7 +7209,7 @@
     {
       "siteId": "tooling/src/verify/lib/grant-liveness.ts::default:catch::1",
       "path": "tooling/src/verify/lib/grant-liveness.ts",
-      "line": 223,
+      "line": 240,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -7191,12 +7217,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "NOT a swallow — an empty corpus is the",
-      "markerLine": 215
+      "markerLine": 232
     },
     {
       "siteId": "tooling/src/verify/lib/grant-liveness.ts::default:catch::2",
       "path": "tooling/src/verify/lib/grant-liveness.ts",
-      "line": 240,
+      "line": 257,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -7204,7 +7230,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a malformed package.json is the package",
-      "markerLine": 235
+      "markerLine": 252
     },
     {
       "siteId": "tooling/src/verify/lib/history.ts::empty:catch::1",
@@ -7274,7 +7300,7 @@
     {
       "siteId": "tooling/src/verify/lib/pass.ts::empty:err::1",
       "path": "tooling/src/verify/lib/pass.ts",
-      "line": 281,
+      "line": 282,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -7282,7 +7308,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.",
-      "markerLine": 278
+      "markerLine": 279
     },
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::empty:error::1",
@@ -7313,7 +7339,7 @@
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::empty:error::3",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 408,
+      "line": 417,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -7326,7 +7352,7 @@
     {
       "siteId": "tooling/src/verify/lib/policy-pass.ts::empty:error::4",
       "path": "tooling/src/verify/lib/policy-pass.ts",
-      "line": 475,
+      "line": 482,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -7495,7 +7521,7 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::empty:error::1",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 67,
+      "line": 71,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -7508,7 +7534,7 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::empty:error::2",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 92,
+      "line": 119,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -7547,7 +7573,7 @@
     {
       "siteId": "tooling/src/verify/ops/resource-host.ts::empty:error::1",
       "path": "tooling/src/verify/ops/resource-host.ts",
-      "line": 68,
+      "line": 77,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -7558,9 +7584,61 @@
       "markerLine": null
     },
     {
+      "siteId": "tooling/src/verify/ops/resource-installed.ts::empty:error::1",
+      "path": "tooling/src/verify/ops/resource-installed.ts",
+      "line": 136,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-path.ts::empty:catch::1",
+      "path": "tooling/src/verify/ops/resource-path.ts",
+      "line": 68,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-path.ts::empty:error::1",
+      "path": "tooling/src/verify/ops/resource-path.ts",
+      "line": 77,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-path.ts::empty:error::2",
+      "path": "tooling/src/verify/ops/resource-path.ts",
+      "line": 92,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 2,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::empty:error::1",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 71,
+      "line": 108,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -7573,7 +7651,7 @@
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::empty:error::2",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 129,
+      "line": 166,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -7586,7 +7664,7 @@
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::empty:error::3",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 148,
+      "line": 185,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -7599,11 +7677,24 @@
     {
       "siteId": "tooling/src/verify/ops/resource-reader.ts::empty:error::4",
       "path": "tooling/src/verify/ops/resource-reader.ts",
-      "line": 254,
+      "line": 284,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
       "ordinal": 4,
+      "snippet": "} catch (error) {",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "tooling/src/verify/ops/resource-reader.ts::empty:error::5",
+      "path": "tooling/src/verify/ops/resource-reader.ts",
+      "line": 319,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 5,
       "snippet": "} catch (error) {",
       "verdict": "unproven",
       "reason": null,
