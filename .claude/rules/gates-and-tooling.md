@@ -40,20 +40,23 @@ paths:
     with file:line, and continues; that refusal is a success and #1930 tracks the gap. Never a private reader,
     walk, cache, scope predicate or exemption grammar behind `defineGate`.
   - **The receipt is a committed family test** under `tests/tooling/verify/gates/` importing every converted
-    module and asserting `verifyPolicyProofs([...])` equals `[]`, plus the negative report-identity row for
-    every ordinary policy (a marker naming a DIFFERENT policy must not suppress; shape
-    `ordinary-visitors-family.test.ts:190-204`) and a frozen-legacy differential for the conversion commit.
+    module and asserting `verifyPolicyProofs([...])` equals `[]`, plus for each ORDINARY policy the positive
+    identity arm (the correct marker at the reported position suppresses; shape
+    `ordinary-visitors-family.test.ts:187-205`) and a frozen-legacy differential for the conversion commit.
     Retiring a private marker vocabulary for `@orb-waive` means COUNTING the live legacy markers (count /
     files / trailing-position) and recording the census in the header; translation of product files is a
     separate lane, never yours.
-  - **Every NEW proof row ships with a planted-break receipt** (Opus verifier ruling, 2026-09-11, after two
-    Sonnet lanes each shipped one proof that cannot fail): for each new `mustFlag`, negative identity arm,
-    or differential row, break the property it claims to guard in a SCRATCH COPY of the module (never the
-    tracked file), run the row, record "went red with <message>" in your report, restore. A row that stays
-    green under the break is a fence, not a proof — fix the fixture until it discriminates (offsets must
-    actually overlap; a wrong-policy marker must reach the `policyId` filter, so pass BOTH policies in
-    `knownPolicies` and pair it with a positive same-position arm). A header that claims "this row proves X"
-    without that receipt is a defect.
+  - **Proofs: carry the legacy rows, prove identity ONCE, invent nothing you cannot break** (owner +
+    verifier, 2026-09-11). The legacy six-arm `mustFlag`/`mustPass` rows carried into the converted module
+    ARE the bite proof once `verifyPolicyProofs` runs them in a committed family test — no extra receipt.
+    The per-policy identity proof is the exemplar's POSITIVE arm only: the correct `@orb-waive <id>(<pos>)`
+    marker at the reported position suppresses (0 findings, 1 waived, 0 alarms). Wrong-policy, stale,
+    malformed and over-broad markers are the CENTRAL engine's proof (`ordinary-waiver.test.ts`), run once —
+    do not copy a negative arm into every gate; a copied one rides the unknown-policy short-circuit and
+    proves nothing. Only when a lane INVENTS a new row for a NEW property (a cross-file index, an
+    absent-subject arm) does it owe a planted-break receipt: break the property in a scratch copy, show the
+    row went red, restore. A header that claims a row proves something it was never shown to catch is a
+    defect.
   - **Contract facts that bit:** `report.node` token is an exact slice of the node text; population
     `under: ["x/"]` matches nothing (use `"x/**"`); state in `create`; `ctx.fact()` only in
     evaluate/visitFile/visitors; every anchor inside the policy's own population; `facts: []` explicit;
