@@ -234,23 +234,28 @@ happened to trip over, against a legacy set of over a hundred. Implement those s
 eighth, and every capability added costs a mandatory pass over the policing surfaces — `policy-conformance.ts`'s
 fixture runner, `gate-modernization`, and `policy-validation.ts`.
 
-**IT IS FIVE, MEASURED (owner challenge, 2026-09-11 evening — this paragraph twice said a number nobody had
-counted).** The earlier text said four by including `enforcement-registry-parity`; a capability lane refuted THAT file
-with a positive control (grepping it for `resource|kind|AUTHORED_TREE|CONFIG_SNAPSHOT` returns zero against 107 `gate`
-matches — it reads the roster, never the resource vocabulary), and this paragraph then wrote "THREE" without counting
-the rest. **The correction was right about the one file it checked and wrong about the total.** Union of the policing
-surfaces actually touched by the two capability-adding commits on the tree:
+**IT IS FOUR, and the owner said four all along (2026-09-11 evening, corrected TWICE).** The original text said four.
+An orchestrator "corrected" it to THREE by refuting `enforcement-registry-parity` (rightly — it has zero `resource`
+references and reads only the roster), then "corrected" it to FIVE from `git show --name-only` FILE LISTS. **A file
+appearing in a capability commit is not evidence that its hunk was capability work.** The `p-capability-freeze` lane
+read the hunks and refuted it: `gates/gate-modernization.ts` contains ZERO references to "resource", and its hunk in
+the json/`installed-package` commit was ARM E — the `analysis`-token honesty arm (#1958) — plus a `Registration` type
+change, unrelated to the resource vocabulary. Independently corroborated by `contract/resource-installed.ts`'s own
+header, which says "the four policing surfaces".
 
-| Surface | `899ec74a7` (7 doors) | json + `installed-package` |
-| - | :-: | :-: |
-| `lib/policy-validation.ts` | yes | yes |
-| `lib/resource-policy.ts` | yes | yes |
-| `lib/resource-declaration.ts` | yes | — |
-| `gates/gate-modernization.ts` | — | yes |
-| `ops/policy-conformance.ts` (fixture runner) | — | yes |
+**The measured cost of one new kind:**
 
-`enforcement-registry-parity` appears in NEITHER, so that refutation stands. **The understated number matters because
-it is the whole cost argument for settling the set before building it** — at five surfaces per capability, adding kinds
+| Surface | When |
+| - | - |
+| `contract/resource-declaration.ts` | always |
+| `contract/resource-host.ts` | always |
+| `lib/resource-policy.ts` | always |
+| `lib/policy-validation.ts` | always |
+| two NEW files (`contract/` + `ops/resource-<family>.ts`) | always |
+| `ops/policy-conformance.ts` | ONLY when the fixture substrate cannot express the subject (`authored-path` needed `symlinkSync`) |
+
+**The number matters because
+it is the whole cost argument for settling the set before building it** — at four mandatory surfaces plus two new files per capability, adding kinds
 one at a time is five edits each, and the §5b soundness enforcer (#1971) cannot target a vocabulary that is still
 moving. Freeze first, then enforce. The churn is real either way:
 `gate-modernization`'s arm A had to be widened the day 163 modules became `defineGate` calls, because the policer broke

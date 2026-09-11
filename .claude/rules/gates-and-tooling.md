@@ -41,7 +41,9 @@ paths:
     stronger identity reader wins, with a successor proof for the retired arm); arms that differ in
     authority or severity SPLIT into an ordinary policy plus a hard `-health` sibling with the identical
     `family` string. A theme is not a family.
-  - **STOP-IF-MISSING-KIND:** a read outside the seven shipped `GateResourceRequest` kinds, or a needed
+  - **STOP-IF-MISSING-KIND:** a read outside the **eighteen** shipped `GateResourceRequest` kinds (the set is
+    FROZEN — re-derive it from `tooling/src/verify/contract/resource-declaration.ts`, never from a doc; it was
+    seven until 2026-09-11 and any prose still saying seven is stale), or a needed
     shared reader that is not in `lib/`, stops that module (leave it legacy and armed), reports the exact read
     with file:line, and continues; that refusal is a success and #1930 tracks the gap. Never a private reader,
     walk, cache, scope predicate or exemption grammar behind `defineGate`.
