@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-09-05
+updated: 2026-09-11
 ---
 
 # ts-morph capabilities for Orb gate authors
@@ -33,7 +33,7 @@ A gate module never constructs or retrieves a `Project`, performs descendant tra
 | import/re-export origin | `Symbol#getAliasedSymbol`, `ExportSpecifier`, `getModuleSpecifierSourceFile`, `SourceFile#getExportSymbols` | `reference-fact.ts` | local spelling and exported name are not canonical identity |
 | local aliases and writes | identifier declarations, binding elements, assignment/reference nodes | `reference-fact*.ts` | an alias is safe only until write, cycle, dynamic, or ambiguity |
 | authored literals/objects/tuples | literal nodes, property nodes, spread nodes | `static-authored-value.ts` | runtime `Type` values do not preserve authored order or source anchors |
-| resolved type | `Node#getType`, `Type#getProperty`, `getUnionTypes`, `getIntersectionTypes`, `getLiteralValue` | typed shared fact | `getText()` is presentation, not identity |
+| resolved type | `Node#getType`, `Type#getProperty`, `getUnionTypes`, `getIntersectionTypes`, `getLiteralValue` | typed shared fact | `getText()` is presentation, not identity — **and `Node#getType` reaches the Project's checker WITHOUT going through `ctx.checker()`, so it is not fenced by `analysis: "syntax"`** (see the checklist) |
 | conditional/mapped type result | `Type#getProperty` plus `Symbol#getTypeAtLocation` | typed shared fact | `Type#getAliasSymbol()` may legitimately be absent after resolution |
 | callable shape | `Type#getNonNullableType`, `getCallSignatures`, signature parameters | shared callable/fact reader | optional callable properties have no signatures until non-nullable |
 | exact call target | `TypeChecker#getResolvedSignature`, callee symbol/declaration | shared callable reader | expensive across a broad unfiltered call population |
@@ -112,7 +112,7 @@ Shared whole-population work uses one provider token:
 ```ts
 export const exampleFact = defineFact({
   id: "example-fact",
-  population: { in: ["@contracts", "@server"], ext: ["ts", "tsx"] },
+  population: { in: ["@contracts", "@server"] },
   analysis: "types",
   resources: [],
   create: (ctx) => {
@@ -145,15 +145,26 @@ Shared facts are entire-population machinery. A selected-files policy cannot dec
 
 Current providers/readers:
 
+Six `defineFact` providers ship today. **Check this table before building one** — two rows here said "provider
+conversion pending" for months after the provider landed, and a lane that believes a stale "pending" builds what
+already exists.
+
 | Subject | Use |
 | - | - |
 | bus producers | `lib/bus-fact.ts` `busProducerFact` |
-| registry definitions | `lib/registry-fact.ts` `registryDefinitionFacts.<kind>` (one provider per kind) |
+| bus definitions / belted rosters | `lib/bus-definition-fact.ts` `busDefinitionFact` — cross-checked against the producer roster; the two must AGREE or the run refuses |
+| registry definitions | `lib/registry-fact.ts` `registryDefinitionFacts.<kind>` (one provider PER KIND — a single provider spanning six kinds summed its receipts and withheld five healthy consumers, #1953) |
 | schema tables/columns/FKs/indexes/JSON | `lib/schema-fact.ts` `drizzleSchemaFact` |
-| exported tuple vocabularies | `lib/tuple-vocabulary-fact.ts` (provider conversion pending) |
-| CSS resources | ResourceHost plus `lib/css-resource-facts.ts` |
-| JSX/classes/composers | `lib/static-class-facts.ts` (provider conversion pending) |
+| exported tuple vocabularies | `lib/tuple-vocabulary-fact.ts` `tupleVocabularyFact` |
+| JSX/classes/composers | `lib/static-class-facts.ts` `staticClassFact` |
+| CSS resources | ResourceHost `authoredCss` / `productCss` / `cssInventory` plus `lib/css-resource-facts.ts` — the corpus and its parse are already shared, so a CSS census fact would be a fifth home |
 | package/config/tree/tracked resources | `ctx.resources` through declared ResourceHost requests |
+
+**A provider's receipt states what it MEASURED, never what it FOUND.** `members` is the denominator it walked;
+`unresolved` is syntax it could not read. Receipting the census instead preempts the provider's own `-health` accuser,
+because the runtime refuses `members === 0` / `unresolved > 0` and withholds every consumer before `evaluate`. That was
+both of the last two whole-corpus conformance failures (#1953, #1955). Emptiness and holes belong in the fact's
+`status`/`unresolved` FIELDS, which consumers read and judge.
 
 ## Project and node lifecycle
 
@@ -193,7 +204,11 @@ Before adding or widening a reader:
 - identify the exact semantic identity and every legal spelling;
 - search the shared reader/provider table first;
 - confirm the installed API in `ts-morph.d.ts` rather than inventing a plausible method;
-- decide syntax versus types before requesting the checker;
+- decide syntax versus types before requesting the checker — and know that **`analysis` is NOT enforced against you**:
+  the fence at `lib/policy-pass-context.ts:244` throws only from the `ctx.checker()` accessor, so a `node.getType()`
+  or `node.getSymbol()` in your own module reads types under a declared-syntax policy and every gate stays green
+  (proven 2026-09-11; #1958). What `analysis` DOES couple to is the proof `mode`, a load-time tool error on mismatch.
+  Auditing your own declaration means sweeping the module body for type-resolving calls, not trusting the field;
 - declare the provider population/resources exactly;
 - plant alias, re-export, namespace, destructuring, computed, wrapper, shadow, write, cycle, dynamic, missing, empty, and ambiguity controls that apply;
 - prove a candidate prefilter cannot exclude a valid subject;
