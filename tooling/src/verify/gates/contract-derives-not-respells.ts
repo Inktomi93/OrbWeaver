@@ -158,10 +158,12 @@ export function matchedTable(name: string, tables: ReadonlySet<string>): { table
   return table === undefined ? undefined : { table, suffix };
 }
 
-/** One shape's verdict: the report call to make, or undefined when it is clean/allowlisted. */
-function shapeFinding(shape: Shape, rel: string, siblings: ReadonlySet<string>, tables: ReadonlySet<string>): { readonly token: string } | undefined {
+/** One shape's verdict: the report message to append, or undefined when it is clean/allowlisted. The
+ *  report NODE-anchor requires the token to be an exact slice of the node's own text, so the ARM
+ *  distinction (respells / hand-row) rides the message instead of the token — the shape NAME is the token. */
+function shapeFinding(shape: Shape, rel: string, siblings: ReadonlySet<string>, tables: ReadonlySet<string>): string | undefined {
   if (siblings.has(shape.name)) {
-    return { token: respellToken(shape.name) };
+    return `${MESSAGE} (${respellToken(shape.name)})`;
   }
   const match = matchedTable(shape.name, tables);
   if (match === undefined) {
@@ -171,7 +173,7 @@ function shapeFinding(shape: Shape, rel: string, siblings: ReadonlySet<string>, 
   if (key in ALLOWLIST) {
     return;
   }
-  return { token: handRowToken(shape.name) };
+  return `${MESSAGE} (${handRowToken(shape.name)})`;
 }
 
 export const gate = defineGate({
@@ -199,9 +201,10 @@ export const gate = defineGate({
         const siblings = contractsExports.get(domain) ?? new Set<string>();
         const rel = ctx.relativePath(sf);
         for (const shape of handWrittenShapes(sf)) {
-          const finding = shapeFinding(shape, rel, siblings, tables);
-          if (finding !== undefined) {
-            ctx.report.node(shape.node, { token: finding.token, offset: 0 });
+          const message = shapeFinding(shape, rel, siblings, tables);
+          if (message !== undefined) {
+            const offset = shape.node.getText().indexOf(shape.name);
+            ctx.report.node(shape.node, { token: shape.name, offset, message });
           }
         }
       }
@@ -215,7 +218,7 @@ export const gate = defineGate({
         "packages/contracts/src/chat/roster.ts": "export interface RosterMemberSpec {\n  readonly kind: string;\n}\n",
         "packages/server/src/domain/chat/contract/params.ts": "export interface RosterMemberSpec {\n  readonly kind: string;\n}\n",
       },
-      expect: { token: 'respells "RosterMemberSpec"' },
+      expect: { messageIncludes: 'respells "RosterMemberSpec"' },
       why: "ARM A: the domain contract re-declares a name @orb/contracts/chat owns — the wire shape now has two homes and they drift apart silently",
     },
     {
@@ -225,7 +228,7 @@ export const gate = defineGate({
         "packages/server/src/domain/workloads/contract/probe-schedule.ts":
           "export interface WorkloadScheduleRow {\n  readonly id: string;\n  readonly enabled: boolean;\n}\n",
       },
-      expect: { token: 'hand-row "WorkloadScheduleRow"' },
+      expect: { messageIncludes: 'hand-row "WorkloadScheduleRow"' },
       why: "ARM B: the founding defect — a hand-written interface listing a real table's columns (fixed on the tree in this gate's landing commit)",
     },
     {
@@ -234,7 +237,7 @@ export const gate = defineGate({
         "packages/db/src/schema/workloads.ts": 'export const workloads = sqliteTable("workloads", {});\n',
         "packages/server/src/domain/workloads/contract/x.ts": "export type WorkloadInsert = {\n  readonly id: string;\n};\n",
       },
-      expect: { token: 'hand-row "WorkloadInsert"' },
+      expect: { messageIncludes: 'hand-row "WorkloadInsert"' },
       why: "ARM B, the INSERT half + the object-literal TYPE ALIAS spelling (not just `interface`) — the remedy names $inferInsert, not $inferSelect",
     },
   ],

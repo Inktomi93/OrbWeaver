@@ -5,18 +5,27 @@
 // so the boundary must carry the scope). Exemptions are TYPED rows with a reason + an end condition, and the
 // table is TWO-SIDED (a row naming no live op is RED). The entity-id vocabulary is DERIVED from
 // `@orb/kit/ids`, with a blindness tripwire when that derivation comes back empty.
-import type { Node, TypeAliasDeclaration } from "ts-morph";
+//
+// NO BOUNDED-SUBTREE WALK: the legacy shape called `node.getDescendantsOfKind(Identifier)` per parameter to
+// collect every identifier under it (param names, destructured elements, object members). The final
+// contract bans that primitive outright (#1930 — no bounded-subtree API exists). This is INVERTED per
+// GATE-AUTHORING.md's own prescription: every Identifier in the population is visited once, and each one
+// walks UP via `getFirstAncestorByKind(Parameter)` to ask "am I inside some op candidate's parameter list at
+// all", then up again to the owning `TypeAliasDeclaration` to attribute the name. Pre-order dispatch
+// guarantees the alias visitor registers its candidate slot before any of its own descendant identifiers
+// are visited in the same walk.
+//
+// ARM SPLIT (this file + injected-op-caller-param-health.ts, family "injected-op-caller-param"): the
+// occurrence check is `ordinary` (a genuinely structural/un-principal op takes a reviewed CALLER_FREE_OPS
+// row); the two-sided stale-exemption ratchet AND the empty-derivation blindness tripwire are whole-tree,
+// unsuppressible claims and live in their own `hard` policy id under the same family.
+import type { SourceFile, TypeAliasDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { ExemptionTable } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
 
-const IDS_MODULE = "packages/kit/src/ids/index.ts";
-/** The real-tree ANCHOR for the stale arm. Deliberately NOT the ids module: the conformance examples PLANT
- *  that file (they have to — it is the derivation source), so anchoring there would fire the whole-tree stale
- *  arm inside every mini-project and red the gate's own self-proof (GATE-AUTHORING §4.5). */
-const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
-const CONTRACT_RE = /packages\/server\/src\/domain\/[^/]+\/contract\//u;
-const GATE_SELF = "tooling/src/verify/gates/injected-op-caller-param.ts";
+export const IDS_MODULE = "packages/kit/src/ids/index.ts";
+const CONTRACT_RE = /^packages\/server\/src\/domain\/[^/]+\/contract\//u;
 const TYPEID_OF = "TypeIdOf";
 
 /** The scope vocabulary: a param NAME, a destructured element, or an object-member name that carries the
@@ -39,8 +48,9 @@ const SCOPE_NAMES = new Set([
 const SCOPE_TYPES = new Set(["Principal", "UserId"]);
 
 /** Ops that legitimately carry NO caller. Each row says WHY the authority is elsewhere and what would END
- *  the exemption. Two-sided: a row naming an op no contract declares is RED. */
-const CALLER_FREE_OPS: ExemptionTable = {
+ *  the exemption. Two-sided: a row naming an op no contract declares is RED (the health sibling). Exported
+ *  for the health sibling's staleness sweep. */
+export const CALLER_FREE_OPS: ExemptionTable = {
   ReapAssetsOp: {
     why:
       "the authority is STRUCTURAL, not the caller's: `reapIfOrphan` purges an id only when the whole " +
@@ -96,110 +106,95 @@ const FIX =
   "`AttachCardTagOp`/`DetachCardTagOp` shape: `{ ownerId, characterId, tagName }`). If the op's authority is " +
   "genuinely structural or un-principal (D20), add a CALLER_FREE_OPS row saying why AND what would end it.";
 
-const STALE = (op: string): string =>
-  `CALLER_FREE_OPS names "${op}" but no domain contract declares an op function type of that name — delete ` +
-  `the stale row in ${GATE_SELF} (two-direction ratchet; a stale exemption is inherited by the next op that ` +
-  "takes the name).";
-
-const BLIND =
-  "injected-op-caller-param derived ZERO entity-id type names from packages/kit/src/ids/index.ts — the gate " +
-  "is scanning for a vocabulary that no longer exists and has gone silently green. Re-point the derivation " +
-  "in tooling/src/verify/gates/injected-op-caller-param.ts";
-
-/** Branded ENTITY-row id type names, derived from `@orb/kit/ids`: every `export type X = TypeIdOf<"…">`.
- *  `UserId`/`Handle`/`SessionToken`/`ModelId` are `Branded<…>`, not `TypeIdOf<…>` — identity and foreign
- *  handles, not tenant rows — so they are excluded by construction, not by a hand-kept skip list. */
-const entityIdTypes = new Set<string>();
-const seenOps = new Set<string>();
-
-function deriveEntityIdTypes(ctx: GateRunCtx): void {
-  entityIdTypes.clear();
-  for (const sf of ctx.project.getSourceFiles()) {
-    if (!sf.getFilePath().includes(IDS_MODULE)) {
+/** Every branded ENTITY-row id type name in `@orb/kit/ids`: every `export type X = TypeIdOf<"…">`.
+ *  Exported for the health sibling's blindness tripwire. */
+export function deriveEntityIdTypes(files: readonly SourceFile[], relativePath: (sf: SourceFile) => string): ReadonlySet<string> {
+  const names = new Set<string>();
+  for (const sf of files) {
+    if (relativePath(sf) !== IDS_MODULE) {
       continue;
     }
     for (const ta of sf.getTypeAliases()) {
       const tn = ta.getTypeNode();
       if (tn?.isKind(SyntaxKind.TypeReference) === true && tn.getTypeName().getText() === TYPEID_OF) {
-        entityIdTypes.add(ta.getName());
+        names.add(ta.getName());
       }
     }
   }
+  return names;
 }
 
-/** Every identifier-ish name in a subtree — param names, destructured elements, object members, type names. */
-function namesIn(node: Node): string[] {
-  const out = [node.getKind() === SyntaxKind.Identifier ? node.getText() : ""];
-  for (const d of node.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    out.push(d.getText());
+/** True when a FunctionType is an OP — a Promise-returning boundary, not a pure/sync computation. */
+function isOpFunctionType(alias: TypeAliasDeclaration): boolean {
+  const fnType = alias.getTypeNode();
+  if (fnType?.isKind(SyntaxKind.FunctionType) !== true) {
+    return false;
   }
-  return out.filter((s) => s !== "");
+  const ret = fnType.getReturnTypeNode();
+  return ret?.isKind(SyntaxKind.TypeReference) === true && ret.getTypeName().getText() === "Promise";
 }
 
-export const gate: GateDescriptor = {
-  name: "injected-op-caller-param",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — AGENTS §2 (cross-feature dependency is an injected op); Core-Path-Registry.md D20",
-  status: "active",
-  scopeSafety: "whole-project", // the id vocabulary comes from another package; the stale arm is tree-wide
+export const gate = defineGate({
+  id: "injected-op-caller-param",
+  family: "injected-op-caller-param",
+  authority: "ordinary",
+  severity: "error",
+  // The id vocabulary is derived from another package (@kit), so the verdict is whole-population.
+  population: ["@server", "@kit"],
+  analysis: "syntax",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  scanRoot: (p) => CONTRACT_RE.test(p) || p.includes(IDS_MODULE),
-  kinds: [SyntaxKind.TypeAliasDeclaration],
-
-  begin: (ctx) => {
-    seenOps.clear();
-    deriveEntityIdTypes(ctx);
-  },
-
-  visit: (node, sf, ctx) => {
-    if (!(node.isKind(SyntaxKind.TypeAliasDeclaration) && CONTRACT_RE.test(sf.getFilePath()))) {
-      return;
-    }
-    const alias: TypeAliasDeclaration = node;
-    const fnType = alias.getTypeNode();
-    if (fnType?.isKind(SyntaxKind.FunctionType) !== true) {
-      return;
-    }
-    // AN OP = async (a Promise return). A pure/sync function type is a computation, not a data door.
-    const ret = fnType.getReturnTypeNode();
-    if (ret?.isKind(SyntaxKind.TypeReference) !== true || ret.getTypeName().getText() !== "Promise") {
-      return;
-    }
-    const params = fnType.getParameters();
-    // REACHES TENANT DATA = a param mentions a branded ENTITY-row id (the derived vocabulary). An op over
-    // credentials / urls / model names touches no tenant row and needs no caller.
-    const paramNames = params.flatMap((p) => namesIn(p));
-    if (!paramNames.some((n) => entityIdTypes.has(n))) {
-      return;
-    }
-    seenOps.add(alias.getName());
-    if (paramNames.some((n) => SCOPE_NAMES.has(n) || SCOPE_TYPES.has(n))) {
-      return;
-    }
-    if (alias.getName() in CALLER_FREE_OPS) {
-      return;
-    }
-    ctx.report(alias, { token: alias.getName(), offset: alias.getText().indexOf(alias.getName()) });
-  },
-
-  finalize: (ctx) => {
-    // WHOLE-TREE claims: a conformance mini-project declares one op and would "prove" every row dead
-    // (§4.5/§4.6). The anchor is the schema barrel — on every real run, on no example's path.
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, REAL_TREE_ANCHOR)) {
-      return;
-    }
-    if (entityIdTypes.size === 0) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND });
-    }
-    for (const op of Object.keys(CALLER_FREE_OPS)) {
-      if (!seenOps.has(op)) {
-        ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE(op) });
-      }
-    }
+  create: (ctx) => {
+    const candidateAliases = new Map<TypeAliasDeclaration, string>();
+    const paramNamesByAlias = new Map<TypeAliasDeclaration, string[]>();
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.TypeAliasDeclaration],
+          visit: (node, sf) => {
+            const isCandidate = node.isKind(SyntaxKind.TypeAliasDeclaration) && CONTRACT_RE.test(ctx.relativePath(sf)) && isOpFunctionType(node);
+            if (!isCandidate) {
+              return;
+            }
+            candidateAliases.set(node, node.getName());
+            paramNamesByAlias.set(node, []);
+          },
+        },
+        {
+          kinds: [SyntaxKind.Identifier],
+          visit: (node) => {
+            const paramAncestor = node.getFirstAncestorByKind(SyntaxKind.Parameter);
+            const alias = paramAncestor?.getFirstAncestorByKind(SyntaxKind.TypeAliasDeclaration);
+            const bucket = alias === undefined ? undefined : paramNamesByAlias.get(alias);
+            bucket?.push(node.getText());
+          },
+        },
+      ],
+      evaluate: () => {
+        const entityIdTypes = deriveEntityIdTypes(ctx.files, ctx.relativePath);
+        for (const [alias, name] of candidateAliases) {
+          const paramNames = paramNamesByAlias.get(alias) ?? [];
+          if (!paramNames.some((n) => entityIdTypes.has(n))) {
+            continue;
+          }
+          if (paramNames.some((n) => SCOPE_NAMES.has(n) || SCOPE_TYPES.has(n))) {
+            continue;
+          }
+          if (name in CALLER_FREE_OPS) {
+            continue;
+          }
+          ctx.report.node(alias, { token: name, offset: alias.getText().indexOf(name) });
+        }
+      },
+    };
   },
 
   mustFlag: [
     {
+      mode: "source",
       files: {
         "packages/kit/src/ids/index.ts": 'export type CharacterId = TypeIdOf<"character">;\nexport type AssetId = TypeIdOf<"asset">;\n',
         "packages/server/src/domain/character/contract/service.ts":
@@ -209,16 +204,18 @@ export const gate: GateDescriptor = {
       why: "the founding shape — the census's open item: an op moving state between two character ids, safe today only because its ONE call site happens to have proved ownership first",
     },
     {
+      mode: "source",
       files: {
         "packages/kit/src/ids/index.ts": 'export type AssetId = TypeIdOf<"asset">;\n',
         "packages/server/src/domain/x/contract/service.ts": "export type LoadThingOp = (assetId: AssetId) => Promise<Uint8Array>;\n",
       },
       expect: { count: 1 },
-      why: "the POSITIONAL form of the same hole — a bare id param, not an options object; a gate reading only object members would miss half the corpus",
+      why: "the POSITIONAL form of the same hole — a bare id param, not an options object; a reader keyed only on object members would miss half the corpus",
     },
   ],
   mustPass: [
     {
+      mode: "source",
       files: {
         "packages/kit/src/ids/index.ts": 'export type CharacterId = TypeIdOf<"character">;\n',
         "packages/server/src/domain/character/contract/service.ts":
@@ -227,6 +224,7 @@ export const gate: GateDescriptor = {
       why: "the SHAPE the fix asks for — the live `AttachCardTagOp`: the scope rides in the args object beside the entity id",
     },
     {
+      mode: "source",
       files: {
         "packages/kit/src/ids/index.ts": 'export type CharacterId = TypeIdOf<"character">;\n',
         "packages/server/src/domain/character/contract/service.ts":
@@ -235,6 +233,7 @@ export const gate: GateDescriptor = {
       why: "no entity id in the params — nothing tenant-scoped is reachable, so the trigger does not fire (and the `caller` would satisfy it anyway)",
     },
     {
+      mode: "source",
       files: {
         "packages/kit/src/ids/index.ts": 'export type AssetId = TypeIdOf<"asset">;\n',
         "packages/server/src/domain/character/contract/service.ts": "export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;\n",
@@ -242,6 +241,7 @@ export const gate: GateDescriptor = {
       why: "the CALLER_FREE_OPS row: the reap's authority is the asset-ref registry, not the caller (D20 un-principal). The reason — and its end condition — is the deliverable, not the silence",
     },
     {
+      mode: "source",
       files: {
         "packages/kit/src/ids/index.ts": 'export type ChatId = TypeIdOf<"chat">;\nexport type CharacterId = TypeIdOf<"character">;\n',
         "packages/server/src/domain/x/contract/service.ts":
@@ -250,6 +250,7 @@ export const gate: GateDescriptor = {
       why: "a `chatId` IS a scope — a membership-scoped op carries the room the `requireParticipant` check runs on (D18), not a userId",
     },
     {
+      mode: "source",
       files: {
         "packages/kit/src/ids/index.ts": 'export type AssetId = TypeIdOf<"asset">;\n',
         "packages/server/src/domain/discovery/contract/service.ts":
@@ -258,6 +259,7 @@ export const gate: GateDescriptor = {
       why: "DECLARED LIMIT: a SYNC function type is a computation, not a data door — the Promise return is what makes an op an I/O boundary",
     },
     {
+      mode: "source",
       files: {
         "packages/kit/src/ids/index.ts": 'export type AssetId = TypeIdOf<"asset">;\n',
         "packages/server/src/domain/x/contract/service.ts": "export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<void>;\n",
@@ -265,4 +267,4 @@ export const gate: GateDescriptor = {
       why: "DECLARED LIMIT, written down not assumed: an id reached through a NAMED type reference is invisible here (the reader is syntactic over the param subtree, the same literal-shape limit `own-tables-only` carries for namespace imports). This row is the baseline a checker-resolved widening would start from",
     },
   ],
-};
+});
