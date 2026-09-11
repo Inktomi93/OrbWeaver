@@ -482,12 +482,40 @@ dependencies that constrain ANY sequence, because they are law rather than sched
    replace a private marker grammar with `@orb-waive` and TRANSLATE the live markers in the same commit (count them:
    markers / files / trailing-position sites; a trailing marker moves to the line above; a marker with no finding is
    dead text you list, never invent a waiver for an unmarked finding).
+
+   **THE PER-FILE COUNT RECONCILIATION IS PART OF THIS STEP, NOT A LATER SWEEP (owner, 2026-09-11).** Markers are the
+   conversion lane's own in-commit work (§7: *do not plan marker lanes*), so the lane PROVES it did not drop one,
+   in the same commit, per file:
+
+   ```
+   legacy  = git show <pre-conversion-sha>:<path> | grep -c '<legacy opener>'
+   current = grep -c '@orb-waive <policy-id>' <path>
+   ```
+
+   Any file where the two differ is **DEAD** (listed, never waived), **MULTI/UNWAIVABLE** (N findings need N distinct
+   tokens; two findings sharing a carrier AND a token are unwaivable and get a comment, not a marker), or a **LOST
+   SUPPRESSION**. A lane's "N pre-existing debt" line CANNOT distinguish the third from the first — which is the whole
+   reason this is arithmetic and not judgement.
+
+   **Why it is mandatory and why a position sample does not substitute:** a WRONG position alarms loudly through the
+   central engine (`AUTHORITY ALARM … names a dead position`); a DELETED marker is silent in BOTH directions, because
+   neither engine reports a marker addressed to the other's world, and it simply reappears in the census as
+   indistinguishable "pre-existing debt". Measured 2026-09-11 on the caught-failure conversion: a verifier sampled 15
+   translated positions across four directory classes and **all 15 bound correctly**, then one file-count comparison
+   found `tooling/src/stack/ops/engines-ctl.ts` had gone 2 → 1 — its `safeUsername` marker deleted while its
+   `healthOk` sibling translated correctly. One command found what the sample structurally could not.
+
+   Exclude gate self-quotes and engine fixtures from the count (`verify/gates/**`, `verify/lib/**`,
+   `tests/tooling/gate-ignore-grammar*`, `tests/tooling/verify/lib/**`) — a module's header prose, its `fix` string and
+   its proof fixtures all name both grammars. The caught-failure lane's own header records that correction as
+   "576 raw − 2 prose = 574".
 7. Proofs per §4: carry every legacy row; add the positive identity arm if ordinary; add refusal/receipt pins where the
    verdict depends on a derived population; conversion differential; planted-break receipt only for invented rows.
 8. Floors (scoped, never whole-tree): the family test(s) you touched; `pnpm gate:contract` before/after (per-module zero,
    total not rising); `pnpm exec biome check <files> --diagnostic-level=error`; `pnpm exec eslint <files>`;
    `pnpm typecheck --config tsconfig.json`; behavioral mirror suites for any product file whose comments you touched
-   (comment-only edits still owe the compile). After §5 lands: the mixed `check:structure` before/after on the real
+   (comment-only edits still owe the compile); **the step-6 per-file marker count reconciliation, with every mismatch
+   classified — a lane that translated markers and cannot show this table has not finished.** After §5 lands: the mixed `check:structure` before/after on the real
    tree with the finding delta explained.
 9. One commit, `git -c core.hooksPath=/dev/null commit` (owner-authorized until `check:structure` is green), the floor
    named in the message, `git status --short` empty, `git show --stat` in the report.

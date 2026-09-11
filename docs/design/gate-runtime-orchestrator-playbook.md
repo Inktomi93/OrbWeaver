@@ -353,6 +353,15 @@ idle composed-pass remeasurement; catalog re-attest.
   capability set, biome's loader, `jsonc`'s consumer, a `JUDGMENT_DEFERRED` table's disposition — was already answered
   in the review layer, and each was caught by a lane or the owner instead of by me. Quoting §12.5 correctly is not a
   substitute for reading the census that already classified the row.
+- **NEVER DISPATCH A MARKER SWEEP LANE — THE RECONCILIATION IS THE CONVERTING LANE'S OWN FLOOR LINE** (owner
+  correction, 2026-09-11, on my own dispatch). Guide §7 says *"do not plan marker lanes: plan the conversions, and the
+  markers ride with them"*, and §8.6 makes translation in-commit work. When a verifier found that a merged conversion
+  had DELETED one live marker instead of translating it, I dispatched a lane to sweep that gate's 335 files — which is
+  the marker-backlog shape the doctrine forbids, wearing a defect-repair label. The repair itself was real and had to
+  happen; the SHAPE was wrong, and the cost recurs once per conversion if the rule stays a repair instead of a gate.
+  **The durable fix is guide §8.6's per-file count reconciliation, now a named floor line in §8.8**, so every future
+  conversion proves it in its own commit and no sweep is ever owed. When a verifier finds a class defect, ask whether
+  the fix belongs in the PROCEDURE before you spend a lane slot on the instance.
 - **"THE MARKERS" IS NINE KINDS, AND A CENSUS OF ONE GRAMMAR IS EVIDENCE ABOUT NOTHING ELSE** (owner correction,
   2026-09-11 evening). The orchestrator measured `ONESHOT-OK` and `@owner-scope*`, found both at zero live markers,
   and reported "the marker backlog is CLOSED" in a #1584 comment. Two of thirteen-plus spellings. **Marker passes are
