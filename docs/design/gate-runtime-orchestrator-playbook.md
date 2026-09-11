@@ -165,34 +165,51 @@ tree tells you the moment a fix breaks a row.
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
 
-   **MEASURED SCOPE (wave 1, 2026-09-12) — this is a 167-module sweep, not an item, and the rate is the reason it
-   precedes D.** Wave 1 audited the ten modules `exemplars-2026-09-11.md` cites as "copy these shapes" and **REFUTED
-   NINE**; only `user-bus-deferred-member` survives as copyable. Two of the three the doc marked **"Wart: none found"**
-   were refuted SEVERE. **12 of 30 narrowings came back UNENFORCED — 40%, double the corpus's prior \~1-in-5 rate.**
-   Receipts per module: [`v-exemplar-audit-2026-09-12.md`](../reviews/gate-runtime/v-exemplar-audit-2026-09-12.md).
+   **AUDIT STATE — 2026-09-12, waves 1 and 2 complete. 18 of 167 modules audited.**
 
-   **157 modules remain unaudited.** At \~8-10 modules per verifier lane that is \~16-18 lanes, and it is the honest
-   number to plan against rather than rediscover. Run them by FAMILY so one cold read covers the batch, and fold both
-   mandatory sweeps into each lane rather than as separate passes: the §4.1 narrowing cut test, and #1968's
-   expectation-row check.
+| wave | subjects | verdict | narrowings |
+| - | - | - | - |
+| 1 | the ten cited exemplars | **9 REFUTED**; only `user-bus-deferred-member` copyable | 12/30 by the NAIVE sweep (unsplit, likely overstates) |
+| 2 | registry/completeness ×8 | **7 REFUTED**; the 8th was LEGACY, not a subject | naive 12/30 → **classified 5 genuinely unenforced (17%)** |
 
-   **Every audit lane runs `pnpm check:structure` ONCE and reports two numbers** — `N tool error(s)` and `N withheld`.
-   Wave 1 did not, declared the gap honestly, and a defect landed exactly in it: a policy at 0 conformance failures,
-   fully withheld on the real tree (guide §5, #1972/#1973). Conformance runs on virtual projects with no
-   `node_modules` and is structurally blind to that class.
+**Wave 2 beat wave 1 on every proof axis** — 0 of 45 rows missing `count` (wave 1: 2 of 33), **0 tautologies (all six
+sibling-arm transplants FAILED)**, 7/7 identity arms alarm on a dead position, no loader-property limit anywhere.
+So the corpus is NOT uniformly bad; the exemplar set was the bad part, which is the worst possible place for it.
 
-   **Fix lanes split by MODULE, not by defect**, because the fences then cannot collide and one cold read serves every
-   defect in a module. Wave 1's nine refutations split cleanly into two fix lanes on that rule.
-2. ~~**#1952 — identity arms**~~ **CLOSED 2026-09-11: 0 of 86 outstanding.** The last 22 landed across three lanes,
-   every arm an in-module `mustPass` so no lane touched a shared test file; a fresh-context verifier flipped seven to
-   dead positions and got the §4.2 alarm on all seven. Kept here only so the next reader does not re-open it. Was:
-   batches of \~8 by family, self-checking
-   (guide §4.2), so cheap and parallelisable. Folds into the audit lanes rather than running as its own wave.
-3. **The narrowing sweep** (guide §4.1, found by #1954): deleting `inClassCarrier` from `no-raw-spacing-in-features`
-   and `no-raw-typography-in-features` left every pre-existing proof row GREEN. Two commands per module — delete the
-   fence in a `cp`-backed copy, run its rows, restore — so it goes inside the audit lane for each family.
-4. **Converted modules with no family test.** Their declared rows run via the conformance stage, but their §4.2/§4.5
-   pins have no home. Re-derive the list before dispatching; guide §2's row names the last measured set.
+**TWO copyable modules exist:** `user-bus-deferred-member` (wave 1) and `section-registry-completeness` (wave 2 —
+4/4 narrowings enforced, both fence rows state their own cut result and both are TRUE, header and roster row
+accurate). **Naming the module a lane should COPY is the most actionable thing an audit produces — require it.**
+
+**\~149 modules remain, \~16-18 verifier lanes at 8-10 per lane.** Run by FAMILY so one cold read covers the batch.
+
+**MEASURED SCOPE (wave 1, 2026-09-12) — this is a 167-module sweep, not an item, and the rate is the reason it
+precedes D.** Wave 1 audited the ten modules `exemplars-2026-09-11.md` cites as "copy these shapes" and **REFUTED
+NINE**; only `user-bus-deferred-member` survives as copyable. Two of the three the doc marked **"Wart: none found"**
+were refuted SEVERE. **12 of 30 narrowings came back UNENFORCED — 40%, double the corpus's prior \~1-in-5 rate.**
+Receipts per module: [`v-exemplar-audit-2026-09-12.md`](../reviews/gate-runtime/v-exemplar-audit-2026-09-12.md).
+
+**157 modules remain unaudited.** At \~8-10 modules per verifier lane that is \~16-18 lanes, and it is the honest
+number to plan against rather than rediscover. Run them by FAMILY so one cold read covers the batch, and fold both
+mandatory sweeps into each lane rather than as separate passes: the §4.1 narrowing cut test, and #1968's
+expectation-row check.
+
+**Every audit lane runs `pnpm check:structure` ONCE and reports two numbers** — `N tool error(s)` and `N withheld`.
+Wave 1 did not, declared the gap honestly, and a defect landed exactly in it: a policy at 0 conformance failures,
+fully withheld on the real tree (guide §5, #1972/#1973). Conformance runs on virtual projects with no
+`node_modules` and is structurally blind to that class.
+
+**Fix lanes split by MODULE, not by defect**, because the fences then cannot collide and one cold read serves every
+defect in a module. Wave 1's nine refutations split cleanly into two fix lanes on that rule.
+2\. ~~**#1952 — identity arms**~~ **CLOSED 2026-09-11: 0 of 86 outstanding.** The last 22 landed across three lanes,
+every arm an in-module `mustPass` so no lane touched a shared test file; a fresh-context verifier flipped seven to
+dead positions and got the §4.2 alarm on all seven. Kept here only so the next reader does not re-open it. Was:
+batches of \~8 by family, self-checking
+(guide §4.2), so cheap and parallelisable. Folds into the audit lanes rather than running as its own wave.
+3\. **The narrowing sweep** (guide §4.1, found by #1954): deleting `inClassCarrier` from `no-raw-spacing-in-features`
+and `no-raw-typography-in-features` left every pre-existing proof row GREEN. Two commands per module — delete the
+fence in a `cp`-backed copy, run its rows, restore — so it goes inside the audit lane for each family.
+4\. **Converted modules with no family test.** Their declared rows run via the conformance stage, but their §4.2/§4.5
+pins have no home. Re-derive the list before dispatching; guide §2's row names the last measured set.
 
 **Phase C — settle the capability set before spending it. Forge. A design pass, not an executor lane.**
 
