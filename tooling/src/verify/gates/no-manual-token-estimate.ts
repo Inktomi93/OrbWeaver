@@ -287,5 +287,15 @@ export const gate = defineGate({
       },
       why: "A COMPUTED divisor is not a flat heuristic at all — the shared reader refuses to read it, and a value that changes at runtime is outside the ban this policy states",
     },
+    {
+      mode: "types",
+      files: {
+        ...ESTIMATOR_PROOF,
+        "packages/server/src/domain/x/verb.ts":
+          "// @orb-waive no-manual-token-estimate(length): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export const g = (text: string): number => text.length / 4;\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the whole DIVISION but supplies `length` with an offset into that text (:162-166), so the position is the member being judged rather than the receiver name the derived token would have produced (`text`, `parts`, `buf`) — the module's own comment states that choice. The fixture is mustFlag[0] (:174, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes. The estimator home carried in ESTIMATOR_PROOF divides too, but it is the home and never a finding",
+    },
   ],
 });

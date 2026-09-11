@@ -124,5 +124,15 @@ export const gate = defineGate({
       },
       why: "THE DECLARED LIMIT, written down: reflection reached through ANOTHER module's alias is not reported here. The `ReturnType` is authored in reflect.ts, which is outside this population; widening to chase alias chains would make the policy's subject the whole type graph rather than the DI bundle",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/chat/context.ts":
+          "declare function makeCtx(): { db: number };\n" +
+          "// @orb-waive no-context-returntype(ReturnType): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export type Ctx = ReturnType<typeof makeCtx>;\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the IDENTIFIER itself and passes the utility name as the token, so the position is `ReturnType` rather than the alias `Ctx` it builds. The fixture is mustFlag[0] (:161, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes. The two-occurrence row beside it (mustFlag[1]) is deliberately NOT the base: two findings need two markers",
+    },
   ],
 });

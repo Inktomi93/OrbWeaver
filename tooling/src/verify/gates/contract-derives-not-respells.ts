@@ -283,5 +283,15 @@ export const gate = defineGate({
       },
       why: "the ALLOWLIST'S OTHER SIDE: no `themes` table exists in this fixture, so `ThemeRow` matches no table at all and never reaches the allowlist check — the row exists for the REAL tree, where `themes` (a different concept) is what forces it",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/contracts/src/chat/roster.ts": "export interface RosterMemberSpec {\n  readonly kind: string;\n}\n",
+        "packages/server/src/domain/chat/contract/params.ts":
+          "// @orb-waive contract-derives-not-respells(RosterMemberSpec): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export interface RosterMemberSpec {\n  readonly kind: string;\n}\n",
+      },
+      why: 'POSITIONAL IDENTITY: the ARM distinction rides the MESSAGE and the shape NAME is the token (:82-87, :206-207), so an author waives `RosterMemberSpec` — not `respells "RosterMemberSpec"`, which is what the rendered arm prefix would tempt. The fixture is mustFlag[0] (:221) plus the marker line; only the domain `contract/` copy is a finding (the @orb/contracts twin is outside the reported population), so that row produces exactly one occurrence, and the arm ends if it changes',
+    },
   ],
 });

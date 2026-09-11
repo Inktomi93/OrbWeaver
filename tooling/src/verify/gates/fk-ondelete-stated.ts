@@ -83,5 +83,16 @@ export const gate = defineGate({
       },
       why: "restrict is explicit and sibling reference options are irrelevant",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n' +
+          "// @orb-waive fk-ondelete-stated(chatId): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          'export const messages = sqliteTable("messages", { chatId: text("chat_id").references(() => chats.id) });\n',
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the COLUMN DECLARATION at offset 0 and its token is the schema fact's `column.identity.propertyName`, so an author waives the property name `chatId` — never the SQL name `chat_id` or the `references` call. The fixture is mustFlag[0] (:47, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

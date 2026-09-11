@@ -249,5 +249,17 @@ export const gate = defineGate({
       },
       why: "DECLARED LIMIT — a value the shared reader refuses (a member read, a call result) carries NO evidence that it is a zod number at all. This policy fails QUIET on an unknowable schema rather than accusing every dynamic composition; the schema fact's own precedent is the same",
     },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.ts":
+          "interface NumberSchema {\n  int(): NumberSchema;\n  min(value: number): NumberSchema;\n  max(value: number): NumberSchema;\n  positive(): NumberSchema;\n  optional(): NumberSchema;\n}\nexport declare function number(): NumberSchema;\nexport declare const z: { number: () => NumberSchema; coerce: { number: () => NumberSchema }; object: (shape: unknown) => unknown };\n",
+        "packages/server/src/transport/trpc/routers/probe.ts":
+          'import { z } from "zod";\n' +
+          "// @orb-waive bounded-list-limit(limit): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export const s = z.object({ limit: z.number().int().optional() });\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the property's NAME NODE with the field name as token (:133-134), so the position is the field `limit` — never the unbounded chain that earned the finding. It is the same token for the computed-key spelling (`[\"limit\"]`), which is why the offset is computed into the name node's own text. The fixture is mustFlag[0] (:148, count 1) plus the marker line; the marker binds through the enclosing statement carrier to that one occurrence, and it ends if that row changes",
+    },
   ],
 });
