@@ -294,7 +294,7 @@ function scanClasses(ctx: GateRunCtx): void {
     const path = repoRel(ctx.root, source.getFilePath());
     return path.startsWith("packages/client/src/") || path.startsWith("packages/ui/src/");
   });
-  const walked = walkStaticClassExpressions(ctx.project, files);
+  const walked = walkStaticClassExpressions(files);
   const scanner = new Scanner({ sources: [] });
   const allowedCounts = new Map<string, number>();
   let scanned = 0;

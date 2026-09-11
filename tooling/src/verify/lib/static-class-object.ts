@@ -1,12 +1,11 @@
 // Static object provenance shared by class-member access, join maps, and variant configurations.
 // Object KEYS become classes only in join semantics; ordinary member access evaluates selected VALUES.
-import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import type { StaticValue } from "./static-class-expression-model.ts";
+import type { StaticClassSourceIndex, StaticValue } from "./static-class-expression-model.ts";
 import { dedupeValues, exportedDeclarations, importedSource, literalValue, localDeclarations, unwrap } from "./static-class-expression-model.ts";
 
 export interface CollectionHost {
-  readonly project: Project;
+  readonly sourceIndex: StaticClassSourceIndex;
   diagnose: (kind: "unresolved" | "opaque", node: Node, reason: string) => void;
   evalClass: (node: Node, path: Set<Node>) => StaticValue[];
   evalIdentifier: (node: import("ts-morph").Identifier, path: Set<Node>) => StaticValue[];
@@ -136,10 +135,10 @@ function resolveExportedObjects(host: CollectionHost, declaration: Node, path: S
 }
 
 function resolveImportedObjects(host: CollectionHost, target: ImportedObjectTarget, path: Set<Node>): import("ts-morph").ObjectLiteralExpression[] {
-  const source = importedSource(host.project, target.from, target.moduleName);
+  const source = importedSource(host.sourceIndex, target.from, target.moduleName);
   return source === undefined
     ? []
-    : exportedDeclarations(host.project, source, target.imported).flatMap((declaration) => resolveDeclarationObjects(host, declaration, path));
+    : exportedDeclarations(host.sourceIndex, source, target.imported).flatMap((declaration) => resolveDeclarationObjects(host, declaration, path));
 }
 
 export function evalObjectMember(host: CollectionHost, raw: Node, names: readonly string[] | undefined, path: Set<Node>): StaticValue[] {

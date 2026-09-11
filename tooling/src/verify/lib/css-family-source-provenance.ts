@@ -20,6 +20,7 @@ interface HookOwnerPass {
   readonly owners: Map<string, HookOwners>;
   readonly dataShellNames: Set<string>;
   readonly spreads: Array<{ readonly spread: import("ts-morph").JsxSpreadAttribute; readonly owner: SourceOwner }>;
+  readonly terminals: Array<{ readonly node: Node; readonly owner: SourceOwner }>;
   readonly visited: WeakSet<Node>;
   result?: ReadonlyMap<string, HookOwners>;
 }
@@ -39,10 +40,11 @@ export function beginHookOwnerCollection(ctx: GateRunCtx): void {
     passIdentity: ctx.passIdentity,
     project: ctx.project,
     files: ctx.files,
-    collector: new ClassCollector(ctx.project, files, true),
+    collector: new ClassCollector(files),
     owners: new Map(),
     dataShellNames: new Set(),
     spreads: [],
+    terminals: [],
     visited: new WeakSet(),
   };
 }
@@ -287,7 +289,7 @@ export function visitHookOwnerNode(node: Node, source: SourceFile, ctx: GateRunC
   if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
     throw new Error("hook-owner visit ran outside its begin lifecycle");
   }
-  state.collector.visit(node);
+  state.collector.index(node);
   if (state.visited.has(node)) {
     return;
   }
@@ -296,21 +298,16 @@ export function visitHookOwnerNode(node: Node, source: SourceFile, ctx: GateRunC
   if (owner === undefined) {
     return;
   }
-  const collector = state.collector;
   if (Node.isPropertyAssignment(node)) {
     const name = propertyName(node.getNameNode());
     if (name?.startsWith("data-shell-") === true) {
       state.dataShellNames.add(name);
     }
-  } else if (Node.isJsxAttribute(node)) {
-    recordDirectJsxAttribute(state.owners, node, owner, collector);
-  } else if (Node.isJsxSpreadAttribute(node)) {
-    state.spreads.push({ spread: node, owner });
-  } else if (Node.isCallExpression(node)) {
-    recordCall(state.owners, node, owner, collector);
-  } else if (Node.isBinaryExpression(node)) {
-    recordAssignment(state.owners, node, owner, collector);
   }
+  if (Node.isJsxSpreadAttribute(node)) {
+    state.spreads.push({ spread: node, owner });
+  }
+  state.terminals.push({ node, owner });
 }
 
 /** Collect only hooks that reach JSX, a declaration-proven class composer, or a DOM class terminal. */
@@ -322,7 +319,19 @@ export function collectHookOwners(ctx: GateRunCtx): ReadonlyMap<string, HookOwne
   if (state.result !== undefined) {
     return state.result;
   }
+  for (const { node } of state.terminals) {
+    state.collector.visit(node);
+  }
   recordWalkedClassCarriers(state.owners, state.collector);
+  for (const { node, owner } of state.terminals) {
+    if (Node.isJsxAttribute(node)) {
+      recordDirectJsxAttribute(state.owners, node, owner, state.collector);
+    } else if (Node.isCallExpression(node)) {
+      recordCall(state.owners, node, owner, state.collector);
+    } else if (Node.isBinaryExpression(node)) {
+      recordAssignment(state.owners, node, owner, state.collector);
+    }
+  }
   for (const { spread, owner } of state.spreads) {
     recordJsxSpread(state.owners, spread, { owner, collector: state.collector }, [...state.dataShellNames]);
   }

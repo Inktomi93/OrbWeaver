@@ -1,11 +1,12 @@
 // Cycle-fenced static class VALUE evaluator. Exact values preserve producer segments; unsupported static
 // shapes are unresolved, while genuine runtime leaves are counted opaque and partial templates retain
 // the prefix proven before their first runtime substitution.
-import type { ImportClause, ImportDeclaration, Project, SourceFile } from "ts-morph";
+import type { ImportClause, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
+import { resolveStableExpression } from "./reference-fact.ts";
 import { evalComposerCall } from "./static-class-collections.ts";
 import { ComposerResolver } from "./static-class-composer.ts";
-import type { RuntimeClassPrefix, StaticValue } from "./static-class-expression-model.ts";
+import type { RuntimeClassPrefix, StaticClassSourceIndex, StaticValue } from "./static-class-expression-model.ts";
 import {
   combine,
   dedupeValues,
@@ -39,7 +40,7 @@ export class StaticClassEvaluator implements CollectionHost {
   readonly runtimePrefixes: Omit<RuntimeClassPrefix, "consumers">[] = [];
   readonly unresolved: Array<{ readonly node: Node; readonly reason: string }> = [];
   readonly opaque: Array<{ readonly node: Node; readonly reason: string }> = [];
-  readonly project: Project;
+  readonly sourceIndex: StaticClassSourceIndex;
   readonly composers: ComposerResolver;
   readonly jsxBindings: JsxBindingResolver;
   readonly variants: StaticVariantResolver;
@@ -50,13 +51,13 @@ export class StaticClassEvaluator implements CollectionHost {
   private readonly sourceSet: ReadonlySet<SourceFile>;
   private readonly importDefinitionCache = new Map<string, readonly Node[]>();
 
-  constructor(project: Project, files: readonly import("ts-morph").SourceFile[] = project.getSourceFiles(), resolvers?: StaticClassResolvers) {
-    this.project = project;
+  constructor(sourceIndex: StaticClassSourceIndex, files: readonly import("ts-morph").SourceFile[], resolvers?: StaticClassResolvers) {
+    this.sourceIndex = sourceIndex;
     this.sourceSet = new Set(files);
     if (resolvers === undefined) {
-      this.composers = new ComposerResolver(project);
-      this.jsxBindings = new JsxBindingResolver(project, files);
-      this.variants = new StaticVariantResolver(project, this.composers);
+      this.composers = new ComposerResolver(sourceIndex);
+      this.jsxBindings = new JsxBindingResolver(sourceIndex);
+      this.variants = new StaticVariantResolver(sourceIndex, this.composers);
     } else {
       this.composers = resolvers.composers;
       this.jsxBindings = resolvers.jsxBindings;
@@ -277,6 +278,10 @@ export class StaticClassEvaluator implements CollectionHost {
   evalIdentifier = (node: import("ts-morph").Identifier, path: Set<Node>): StaticValue[] => {
     const declarations = this.identifierDeclarations(node);
     if (declarations.length === 0) {
+      const stable = resolveStableExpression(node);
+      if (stable.kind === "resolved" && stable.value.compilerNode !== node.compilerNode) {
+        return this.evalClass(stable.value, path);
+      }
       this.diagnose("opaque", node, "runtime identifier");
       return [];
     }
@@ -369,8 +374,9 @@ export class StaticClassEvaluator implements CollectionHost {
   }
 
   private evalImport(target: ImportTarget, path: Set<Node>): StaticValue[] {
-    const source = importedSource(this.project, target.from, target.moduleName);
-    const declarations = source === undefined ? this.workspaceImportDeclarations(target.anchor) : exportedDeclarations(this.project, source, target.imported);
+    const source = importedSource(this.sourceIndex, target.from, target.moduleName);
+    const declarations =
+      source === undefined ? this.workspaceImportDeclarations(target.anchor) : exportedDeclarations(this.sourceIndex, source, target.imported);
     if (source === undefined && declarations.length === 0) {
       this.diagnose("opaque", target.anchor, `external class value import from ${target.moduleName}`);
       return [];

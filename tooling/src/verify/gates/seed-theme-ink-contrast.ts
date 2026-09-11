@@ -156,7 +156,7 @@ function censusInks(ctx: GateRunCtx): readonly InkUse[] {
   if (files.length === 0) {
     return [];
   }
-  return collectInkUses(walkStaticClassExpressions(ctx.project, files).candidates, carrierPath);
+  return collectInkUses(walkStaticClassExpressions(files).candidates, carrierPath);
 }
 
 function reportStaleExemptions(ctx: GateRunCtx, seen: ReadonlySet<string>): void {

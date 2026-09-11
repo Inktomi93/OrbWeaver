@@ -13,9 +13,16 @@ function project(): Project {
     compilerOptions: { module: ModuleKind.NodeNext, moduleResolution: ModuleResolutionKind.NodeNext, jsx: 4 },
   });
   workspace.createSourceFile(`${ROOT}/packages/ui/src/classes.ts`, 'export const CLASS_NAME = "probe-shared";\n');
+  workspace.createSourceFile(`${ROOT}/packages/ui/src/wrappers.ts`, 'import { clsx } from "clsx";\nexport const forward = (value: string) => clsx(value);\n');
   workspace.createSourceFile(
     `${ROOT}/packages/client/src/view.tsx`,
-    'import { CLASS_NAME } from "../../ui/src/classes.ts";\nexport const View = <div className={CLASS_NAME} />;\n',
+    [
+      'import { clsx } from "clsx";',
+      'import { CLASS_NAME } from "../../ui/src/classes.ts";',
+      'import { forward } from "../../ui/src/wrappers.ts";',
+      'const Child = ({ className: renamed }: { className: string }) => <div className={clsx("probe-child-base", renamed)} />;',
+      'export const View = <><div className={CLASS_NAME} /><div className={forward("probe-forwarded")} /><Child className="probe-callsite" /></>;',
+    ].join("\n"),
     { scriptKind: ScriptKind.TSX },
   );
   return workspace;
@@ -77,6 +84,9 @@ test("bounds one pass to one source walk and no project-wide import-resolution a
       fingerprints.push(JSON.stringify([...owners.keys()].filter((key) => key.startsWith("class:probe-")).sort()));
       work.push(hookOwnerWork(ctx));
       expect(owners.has(`class:${expected}`)).toBe(true);
+      expect(owners.has("class:probe-forwarded")).toBe(true);
+      expect(owners.has("class:probe-child-base")).toBe(true);
+      expect(owners.has("class:probe-callsite")).toBe(true);
     },
   });
   const { finalize: omittedFinalize, ...unfinished } = gate("probe-static-class-unfinished");
@@ -91,14 +101,14 @@ test("bounds one pass to one source walk and no project-wide import-resolution a
   expect(firstPass.toolErrors).toEqual([]);
   expect(counter.sourceWalks).toBe(files.length * 2);
   expect(projectArrays).toBe(0);
-  expect(fingerprints[0]).toBe('["class:probe-changed"]');
+  expect(fingerprints[0]).toBe('["class:probe-callsite","class:probe-changed","class:probe-child-base","class:probe-forwarded"]');
   expect(fingerprints[0]).toBe(fingerprints[1]);
   expect(work[0]).toEqual(work[1]);
-  expect(work[0]).toEqual({ evaluators: 1, dispatchedNodes: 1, rootEvaluations: 1 });
+  expect(work[0]).toEqual({ evaluators: 1, dispatchedNodes: 37, rootEvaluations: 7 });
 
   workspace.getSourceFileOrThrow(`${ROOT}/packages/ui/src/classes.ts`).replaceWithText('export const CLASS_NAME = "probe-after-pass";\n');
   const secondPass = runPass([gate("probe-static-class-a"), gate("probe-static-class-b")], base);
   expect(secondPass.toolErrors).toEqual([]);
   expect(counter.sourceWalks).toBe(files.length * 3);
-  expect(fingerprints.at(-1)).toBe('["class:probe-after-pass"]');
+  expect(fingerprints.at(-1)).toBe('["class:probe-after-pass","class:probe-callsite","class:probe-child-base","class:probe-forwarded"]');
 });

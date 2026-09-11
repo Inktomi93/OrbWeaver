@@ -61,7 +61,14 @@ function constDeclaration(identifier: Identifier): VariableDeclaration | undefin
 }
 
 function contains(root: MorphNode, child: MorphNode): boolean {
-  return root === child || root.getDescendants().includes(child);
+  let current: MorphNode | undefined = child;
+  while (current !== undefined) {
+    if (current === root) {
+      return true;
+    }
+    current = current.getParent();
+  }
+  return false;
 }
 
 interface ArrayResolution {

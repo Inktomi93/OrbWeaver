@@ -1,17 +1,17 @@
 // Declaration-proven tailwind-variants result provenance. A recipe call is trusted only when its
 // defining initializer calls a composer already proven to be the real tv export.
-import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
 import type { ComposerResolver } from "./static-class-composer.ts";
+import type { StaticClassSourceIndex } from "./static-class-expression-model.ts";
 import { exportedDeclarations, importedSource, literalValue, localDeclarations, uniqueNodes, unwrap } from "./static-class-expression-model.ts";
 
 export class StaticVariantResolver {
   private readonly cache = new Map<Node, readonly import("ts-morph").CallExpression[]>();
-  private readonly project: Project;
+  private readonly sourceIndex: StaticClassSourceIndex;
   private readonly composers: ComposerResolver;
 
-  constructor(project: Project, composers: ComposerResolver) {
-    this.project = project;
+  constructor(sourceIndex: StaticClassSourceIndex, composers: ComposerResolver) {
+    this.sourceIndex = sourceIndex;
     this.composers = composers;
   }
 
@@ -112,10 +112,10 @@ export class StaticVariantResolver {
   }
 
   private importedDefinitions(from: import("ts-morph").SourceFile, moduleName: string, imported: string, path: Set<Node>): Node[] {
-    const source = importedSource(this.project, from, moduleName);
+    const source = importedSource(this.sourceIndex, from, moduleName);
     return source === undefined
       ? []
-      : exportedDeclarations(this.project, source, imported).flatMap((declaration) => this.declarationDefinitions(declaration, path));
+      : exportedDeclarations(this.sourceIndex, source, imported).flatMap((declaration) => this.declarationDefinitions(declaration, path));
   }
 
   private exportedSpecifierDefinitions(specifier: import("ts-morph").ExportSpecifier, path: Set<Node>): Node[] {

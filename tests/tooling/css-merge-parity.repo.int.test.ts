@@ -8,7 +8,7 @@ import { CSS_MERGE_FAMILY_NAMES } from "@orb/ui/lib";
 import { assertTokenContract } from "@orb/ui/token-contract";
 import { Scanner } from "@tailwindcss/oxide";
 import { compile } from "tailwindcss";
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { getWorkspace } from "../../tooling/src/_shared/ts-workspace.ts";
 import { walkStaticClassExpressions } from "../../tooling/src/verify/lib/static-class-expression.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
@@ -64,11 +64,11 @@ const FAMILY_PROBES: readonly CompilerFamilyProbe[] = [
   { family: "tracking", candidate: "tracking-micro" },
 ];
 
-function exactStaticEvidence(project: Project, files: readonly SourceFile[]): ExactStaticEvidence {
+function exactStaticEvidence(files: readonly SourceFile[]): ExactStaticEvidence {
   if (files.length === 0) {
     throw new Error("INSTRUMENT ERROR: CSS exact provenance loaded zero source files");
   }
-  const walked = walkStaticClassExpressions(project, files);
+  const walked = walkStaticClassExpressions(files);
   if (walked.roots === 0 || walked.candidates.length === 0) {
     throw new Error(`INSTRUMENT ERROR: CSS static provenance found ${walked.roots} roots and ${walked.candidates.length} values`);
   }
@@ -144,7 +144,7 @@ function familyParity(compilerFamilies: readonly string[], registeredFamilies: r
 }
 
 const PROJECT = getWorkspace({ root: ROOT, globs: PRODUCT_GLOBS });
-const EXACT = exactStaticEvidence(PROJECT, PROJECT.getSourceFiles());
+const EXACT = exactStaticEvidence(PROJECT.getSourceFiles());
 const PRODUCTION_SOURCES = [
   { base: join(ROOT, "packages/client/src"), pattern: "**/*", negated: false },
   { base: join(ROOT, "packages/ui/src"), pattern: "**/*", negated: false },
@@ -200,6 +200,6 @@ test("parity controls fail for one omitted positive family and one bogus registr
 });
 
 test("zero source population fails loud before static provenance can return a false clean", () => {
-  expect(() => exactStaticEvidence(PROJECT, [])).toThrow("INSTRUMENT ERROR: CSS exact provenance loaded zero source files");
+  expect(() => exactStaticEvidence([])).toThrow("INSTRUMENT ERROR: CSS exact provenance loaded zero source files");
   expect(() => productionCandidates([])).toThrow("INSTRUMENT ERROR: CSS production scanner has zero source roots");
 });

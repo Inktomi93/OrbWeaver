@@ -1,15 +1,16 @@
 // Shared value/provenance shapes and syntax-only module resolution for the static class-expression
 // walker. Kept separate from evaluation so every tooling source stays below Core-Tooling-Law's hard cap.
 import { posix } from "node:path";
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import type { StaticClassSegment, StaticValue } from "../contract/static-class-expression.ts";
+import type { StaticClassSegment, StaticClassSourceIndex, StaticValue } from "../contract/static-class-expression.ts";
 
 export type {
   Composer,
   RuntimeClassPrefix,
   StaticClassCandidate,
   StaticClassEvaluation,
+  StaticClassSourceIndex,
   StaticClassWalk,
   StaticObjectPropertyEvaluation,
   StaticValue,
@@ -29,8 +30,11 @@ export function uniqueNodes(nodes: readonly Node[]): Node[] {
   return [...new Map(nodes.map((node) => [`${node.getSourceFile().getFilePath()}:${node.getStart()}:${node.getKind()}`, node])).values()];
 }
 
-/** Resolve only source modules already present in the shared Project. External packages stay syntax-proven. */
-export function importedSource(project: Project, from: SourceFile, moduleName: string): SourceFile | undefined {
+export function staticClassSourceIndex(files: readonly SourceFile[]): StaticClassSourceIndex {
+  return new Map(files.map((file) => [file.getFilePath(), file]));
+}
+
+export function importedSource(index: StaticClassSourceIndex, from: SourceFile, moduleName: string): SourceFile | undefined {
   if (!moduleName.startsWith(".")) {
     return;
   }
@@ -41,7 +45,7 @@ export function importedSource(project: Project, from: SourceFile, moduleName: s
     candidates.add(raw.replace(/\.(?:[cm]?ts|tsx)$/u, ".ts"));
     candidates.add(raw.replace(/\.(?:[cm]?ts|tsx)$/u, ".tsx"));
   }
-  return [...candidates].map((candidate) => project.getSourceFile(candidate)).find((source): source is SourceFile => source !== undefined);
+  return [...candidates].map((candidate) => index.get(candidate)).find((source): source is SourceFile => source !== undefined);
 }
 
 function localImportDeclarations(source: SourceFile, name: string): Node[] {
@@ -91,15 +95,15 @@ function directExports(source: SourceFile, name: string): Node[] {
   return found;
 }
 
-function reExports(project: Project, source: SourceFile, name: string, seen: Set<string>): Node[] {
+function reExports(index: StaticClassSourceIndex, source: SourceFile, name: string, seen: Set<string>): Node[] {
   const found: Node[] = [];
   for (const declaration of source.getExportDeclarations()) {
     const moduleName = declaration.getModuleSpecifierValue();
     const named = declaration.getNamedExports();
     if (named.length === 0 && moduleName !== undefined) {
-      const target = importedSource(project, source, moduleName);
+      const target = importedSource(index, source, moduleName);
       if (target !== undefined) {
-        found.push(...exportedDeclarations(project, target, name, seen));
+        found.push(...exportedDeclarations(index, target, name, seen));
       }
       continue;
     }
@@ -109,13 +113,13 @@ function reExports(project: Project, source: SourceFile, name: string, seen: Set
 }
 
 /** Syntax-owned export resolution avoids asking TypeScript to serialize large recursive public types. */
-export function exportedDeclarations(project: Project, source: SourceFile, name: string, seen: Set<string> = new Set()): Node[] {
+export function exportedDeclarations(index: StaticClassSourceIndex, source: SourceFile, name: string, seen: Set<string> = new Set()): Node[] {
   const key = `${source.getFilePath()}:${name}`;
   if (seen.has(key)) {
     return [];
   }
   seen.add(key);
-  return uniqueNodes([...directExports(source, name), ...reExports(project, source, name, seen)]);
+  return uniqueNodes([...directExports(source, name), ...reExports(index, source, name, seen)]);
 }
 
 export function literalValue(node: Node): StaticValue | undefined {

@@ -177,7 +177,7 @@ function checkRealTreeRuntime(ctx: GateRunCtx, inventory: CssVariableInventory):
 }
 
 function run(ctx: GateRunCtx): void {
-  const inventory = inventoryCssVariables(ctx.root, ctx.project, ctx.files, CSS_HOMES);
+  const inventory = inventoryCssVariables(ctx.root, ctx.files, CSS_HOMES);
   checkPopulations(ctx, inventory);
   const vendor = readVendorContract(ctx.root);
   const vendorReferences = inventory.references.filter((site) => vendor.documented.has(site.name));

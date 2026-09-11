@@ -23,7 +23,7 @@ function project(files: Readonly<Record<string, string>>): Project {
 }
 
 function valuesOf(p: Project): string[] {
-  return walkStaticClassExpressions(p, p.getSourceFiles())
+  return walkStaticClassExpressions(p.getSourceFiles())
     .candidates.map((candidate) => candidate.value)
     .sort();
 }
@@ -101,7 +101,7 @@ test("resolves workspace package aliases only to admitted source files", () => {
     { scriptKind: ScriptKind.TSX },
   );
 
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates.map((candidate) => candidate.value)).toEqual(["probe:workspace-alias probe:after-alias"]);
   expect(result.opaque).toEqual([]);
 });
@@ -115,7 +115,7 @@ test("resolves a composer through namespace access on a local re-export module",
       export const bracket = composer["join"]("probe:namespace-reexport-bracket");
     `,
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates.map((candidate) => candidate.value).sort()).toEqual(["probe:namespace-reexport-bracket", "probe:namespace-reexport-dot"]);
   expect(result.opaque).toEqual([]);
   expect(result.unresolved).toEqual([]);
@@ -143,7 +143,7 @@ test("keeps producer provenance through re-exports, templates, concatenation, an
     `,
   });
 
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates.map((candidate) => candidate.value).sort()).toEqual(["focus:probe:text-foreground", "hover:probe:bg-card", "probe:bg-card"].sort());
   expect(new Set(result.candidates.map((candidate) => candidate.segments[0]?.node.getSourceFile().getFilePath()))).toEqual(new Set([`${ROOT}/${producer}`]));
 });
@@ -153,7 +153,7 @@ test("resolves a default-imported class value at its producer", () => {
     "packages/ui/src/default-class.ts": 'export default "probe:default-export";\n',
     "packages/ui/src/x.tsx": 'import className from "./default-class.ts";\nexport const x = <div className={className} />;\n',
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates.map((candidate) => candidate.value)).toEqual(["probe:default-export"]);
   expect(result.candidates[0]?.segments[0]?.node.getSourceFile().getFilePath()).toBe(`${ROOT}/packages/ui/src/default-class.ts`);
 });
@@ -225,12 +225,12 @@ test("carries declaration-proven tv configuration through direct, aliased, re-ex
     if (call === undefined) {
       throw new Error(`test fixture lost ${text}`);
     }
-    const result = evaluateStaticClassExpression(call, call);
+    const result = evaluateStaticClassExpression(p.getSourceFiles(), call, call);
     expect(result.candidates.map((candidate) => candidate.value).sort(), text).toEqual(expected);
     expect(result.opaque, text).toEqual([]);
     expect(result.unresolved, text).toEqual([]);
   }
-  const walked = walkStaticClassExpressions(p, p.getSourceFiles());
+  const walked = walkStaticClassExpressions(p.getSourceFiles());
   const consumers = walked.candidates.find((candidate) => candidate.value === "probe:base")?.consumers.map((consumer) => consumer.getText()) ?? [];
   expect(consumers).toEqual(expect.arrayContaining([...provenCalls]));
 });
@@ -249,7 +249,7 @@ test("keeps counterfeit and runtime-configured variant calls opaque", () => {
       export const C = <div className={spread()} />;
     `,
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates.map((candidate) => candidate.value)).toEqual(["probe:known"]);
   expect(result.opaque.map((shape) => shape.reason)).toEqual(
     expect.arrayContaining(["runtime call result", "runtime variant configuration", "runtime object spread in variant configuration"]),
@@ -269,7 +269,7 @@ test("counts opaque runtime leaves and fails loud on a static cycle while retain
     `,
   });
 
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.unresolved.some((shape) => shape.reason.includes("cycle"))).toBe(true);
   expect(result.opaque.length).toBeGreaterThan(0);
   expect(result.runtimePrefixes.map((prefix) => prefix.prefix)).toContain("probe:");
@@ -291,7 +291,7 @@ test("models all zero-argument string trims across literal unions while preservi
     `,
   });
 
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates.map((candidate) => candidate.value)).toEqual(
     expect.arrayContaining(["probe:trimmed", "probe:start  ", "  probe:end", "probe:union-a", "probe:union-b"]),
   );
@@ -337,7 +337,7 @@ test("collects createLucideIcon IconNode className writers only through the exac
       export const B = Lucide["createLucideIcon"]("B", [["path", { className: "orb:namespace" }]]);
     `,
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates.map((candidate) => candidate.value).sort()).toEqual(["orb:base", "orb:namespace", "orb:pushed", "orb:second"]);
   expect(result.unresolved).toEqual([]);
   expect(result.opaque).toEqual([]);
@@ -353,7 +353,7 @@ test("keeps counterfeit factories and uncertain lucide IconNode mutations opaque
   ];
   for (const [index, source] of cases.entries()) {
     const p = project({ [`packages/ui/src/case-${index}.ts`]: source });
-    const result = walkStaticClassExpressions(p, p.getSourceFiles());
+    const result = walkStaticClassExpressions(p.getSourceFiles());
     expect(result.candidates, `case ${index}`).toEqual([]);
     expect(Math.min([...result.opaque, ...result.unresolved].length, 1), `case ${index}`).toBe(index === 0 ? 0 : 1);
   }
@@ -389,7 +389,7 @@ test("counts runtime composer arguments opaque without manufacturing a static cy
       }
     `,
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates.map((candidate) => candidate.value)).toEqual(["probe:literal"]);
   expect(result.unresolved).toEqual([]);
   expect(result.opaque.some((shape) => shape.reason.includes("callsite"))).toBe(true);
@@ -406,7 +406,7 @@ test("deduplicates repeated values while retaining every carrier consumer", () =
       // probe:comment is not a carrier
     `,
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates).toHaveLength(1);
   expect(result.candidates[0]?.value).toBe("probe:shared");
   expect(result.candidates[0]?.consumers).toHaveLength(2);
@@ -437,7 +437,7 @@ test("evaluates a supplied terminal and a JSX spread object's class fields witho
   if (spread === undefined) {
     throw new Error("test fixture lost spread argument");
   }
-  const terminal = evaluateStaticClassExpression(spread, call);
+  const terminal = evaluateStaticClassExpression(p.getSourceFiles(), spread, call);
   expect(terminal.candidates.map((candidate) => candidate.value).sort()).toEqual(["probe:shared", "probe:spread-arg"]);
   expect(terminal.candidates.every((candidate) => candidate.consumers[0] === call)).toBe(true);
 
@@ -445,7 +445,7 @@ test("evaluates a supplied terminal and a JSX spread object's class fields witho
   if (jsxSpread === undefined) {
     throw new Error("test fixture lost JSX spread");
   }
-  const properties = evaluateStaticClassProperties(jsxSpread.getExpression(), jsxSpread);
+  const properties = evaluateStaticClassProperties(p.getSourceFiles(), jsxSpread.getExpression(), jsxSpread);
   expect(properties.candidates.map((candidate) => candidate.value).sort()).toEqual(["probe:nested", "probe:svg"]);
   expect(properties.candidates.every((candidate) => candidate.consumers[0] === jsxSpread)).toBe(true);
   expect(properties.unresolved).toEqual([]);
@@ -455,7 +455,7 @@ test("reports mutable carrier bindings unresolved rather than guessing an initia
   const p = project({
     "packages/ui/src/x.tsx": 'let mutable = "probe:first";\nmutable = "probe:second";\nexport const X = <div className={mutable} />;\n',
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates).toEqual([]);
   expect(result.unresolved.map((shape) => shape.reason)).toContain("mutable class binding");
 });
@@ -472,9 +472,43 @@ test("binds imported JSX component attributes to renamed destructured parameters
       export const X = <Control marker="probe:callsite" />;
     `,
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates.map((candidate) => candidate.value).sort()).toEqual(["button-base", "button-base probe:callsite"]);
   expect(result.unresolved).toEqual([]);
+});
+
+test("standalone evaluation preindexes forwarding wrappers and cross-file JSX bindings", () => {
+  const p = project({
+    "packages/ui/src/component.tsx": `
+      import { clsx } from "clsx";
+      export const forward = (value: string) => clsx(value);
+      export function Child({ marker: renamed }: { marker: string }) { return <div className={clsx("probe:base", renamed)} />; }
+    `,
+    "packages/client/src/x.tsx": `
+      import { Child, forward } from "../../ui/src/component.tsx";
+      export const A = <div className={forward("probe:forwarded")} />;
+      export const B = <Child marker="probe:callsite" />;
+    `,
+  });
+  const files = p.getSourceFiles();
+  const wrapperCall = p
+    .getSourceFileOrThrow(`${ROOT}/packages/client/src/x.tsx`)
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .find((call) => call.getText().startsWith("forward("));
+  const childClass = p
+    .getSourceFileOrThrow(`${ROOT}/packages/ui/src/component.tsx`)
+    .getDescendantsOfKind(SyntaxKind.JsxAttribute)
+    .find((attribute) => attribute.getNameNode().getText() === "className");
+  const childExpression = childClass?.getInitializer()?.asKind(SyntaxKind.JsxExpression)?.getExpression();
+  if (wrapperCall === undefined || childClass === undefined || childExpression === undefined) {
+    throw new Error("standalone preindex fixture lost a class expression");
+  }
+  expect(evaluateStaticClassExpression(files, wrapperCall, wrapperCall).candidates.map(({ value }) => value)).toEqual(["probe:forwarded"]);
+  expect(
+    evaluateStaticClassExpression(files, childExpression, childClass)
+      .candidates.map(({ value }) => value)
+      .sort(),
+  ).toEqual(["probe:base", "probe:callsite"].sort());
 });
 
 test("fails loud on a recursive JSX prop binding", () => {
@@ -485,7 +519,7 @@ test("fails loud on a recursive JSX prop binding", () => {
       }
     `,
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.unresolved.map((shape) => shape.reason)).toContain("static JSX component-prop cycle");
 });
 
@@ -516,15 +550,15 @@ test("resolves exact spread properties through aliases and re-exports with overw
   if (exactSpread === undefined || unresolvedSpread === undefined || opaqueSpread === undefined) {
     throw new Error("test fixture lost one of its JSX spreads");
   }
-  const exact = evaluateStaticObjectProperties(exactSpread.getExpression(), exactSpread, ["className", "dataProbe"]);
+  const exact = evaluateStaticObjectProperties(p.getSourceFiles(), exactSpread.getExpression(), exactSpread, ["className", "dataProbe"]);
   expect(exact.properties.map((property) => [property.name, property.value.getText()])).toEqual([
     ["className", '"probe:last"'],
     ["dataProbe", '"yes"'],
   ]);
   expect(exact.properties.every((property) => property.consumer === exactSpread)).toBe(true);
   expect(exact.unresolved).toEqual([]);
-  expect(evaluateStaticObjectProperties(unresolvedSpread.getExpression(), unresolvedSpread, ["className"]).unresolved).not.toEqual([]);
-  expect(evaluateStaticObjectProperties(opaqueSpread.getExpression(), opaqueSpread, ["className"]).opaque).not.toEqual([]);
+  expect(evaluateStaticObjectProperties(p.getSourceFiles(), unresolvedSpread.getExpression(), unresolvedSpread, ["className"]).unresolved).not.toEqual([]);
+  expect(evaluateStaticObjectProperties(p.getSourceFiles(), opaqueSpread.getExpression(), opaqueSpread, ["className"]).opaque).not.toEqual([]);
 });
 
 test("an imported computed non-class key stays outside class selection while a runtime key remains unresolved", () => {
@@ -537,7 +571,7 @@ test("an imported computed non-class key stays outside class selection while a r
       export const unknown = <div {...{ [runtimeKey]: "probe:unknown" }} />;
     `,
   });
-  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  const result = walkStaticClassExpressions(p.getSourceFiles());
   expect(result.candidates).toEqual([]);
   expect(result.unresolved).toHaveLength(1);
   expect(result.unresolved[0]?.reason).toBe("computed selected-property key is unresolved");
@@ -573,19 +607,19 @@ test("applies spread overwrite order to member reads and invalidates values behi
   if (known === undefined || uncertain === undefined || restored === undefined || nestedUncertain === undefined) {
     throw new Error("test fixture lost one of its className member reads");
   }
-  const knownResult = evaluateStaticClassExpression(known, known);
+  const knownResult = evaluateStaticClassExpression(p.getSourceFiles(), known, known);
   expect(knownResult.candidates.map((candidate) => candidate.value)).toEqual(["probe:new"]);
   expect(knownResult.opaque).toEqual([]);
 
-  const uncertainResult = evaluateStaticClassExpression(uncertain, uncertain);
+  const uncertainResult = evaluateStaticClassExpression(p.getSourceFiles(), uncertain, uncertain);
   expect(uncertainResult.candidates).toEqual([]);
   expect(uncertainResult.opaque.map((shape) => shape.reason)).toContain("runtime object spread under selected-property carrier");
 
-  const restoredResult = evaluateStaticClassExpression(restored, restored);
+  const restoredResult = evaluateStaticClassExpression(p.getSourceFiles(), restored, restored);
   expect(restoredResult.candidates.map((candidate) => candidate.value)).toEqual(["probe:restored"]);
   expect(restoredResult.opaque).toEqual([]);
 
-  const nestedUncertainResult = evaluateStaticClassExpression(nestedUncertain, nestedUncertain);
+  const nestedUncertainResult = evaluateStaticClassExpression(p.getSourceFiles(), nestedUncertain, nestedUncertain);
   expect(nestedUncertainResult.candidates).toEqual([]);
   expect(nestedUncertainResult.opaque.map((shape) => shape.reason)).toContain("runtime object spread under selected-property carrier");
 });

@@ -19,7 +19,11 @@ export function evalComposerCall(
   if (composer === "cva") {
     return [...(args[0] === undefined ? [] : host.evalClass(args[0], path)), ...(args[1] === undefined ? [] : evalVariantConfig(host, args[1], path))];
   }
-  return args[0] === undefined ? [] : evalVariantConfig(host, args[0], path);
+  if (args[0] === undefined) {
+    host.diagnose("unresolved", call, "tv composer has no configuration argument");
+    return [];
+  }
+  return evalVariantConfig(host, args[0], path);
 }
 
 function evalJoin(host: CollectionHost, raw: Node, path: Set<Node>): StaticValue[] {
@@ -71,10 +75,10 @@ function joinDeclarationInner(host: CollectionHost, declaration: Node, path: Set
     return initializer === undefined ? [] : evalJoin(host, initializer, path);
   }
   if (Node.isImportSpecifier(declaration)) {
-    const source = importedSource(host.project, declaration.getSourceFile(), declaration.getImportDeclaration().getModuleSpecifierValue());
+    const source = importedSource(host.sourceIndex, declaration.getSourceFile(), declaration.getImportDeclaration().getModuleSpecifierValue());
     return source === undefined
       ? []
-      : exportedDeclarations(host.project, source, declaration.getNameNode().getText()).flatMap((target) => joinDeclarationValues(host, target, path));
+      : exportedDeclarations(host.sourceIndex, source, declaration.getNameNode().getText()).flatMap((target) => joinDeclarationValues(host, target, path));
   }
   return joinExportDeclaration(host, declaration, path);
 }
@@ -87,10 +91,10 @@ function joinExportDeclaration(host: CollectionHost, declaration: Node, path: Se
         .filter((target) => target !== declaration)
         .flatMap((target) => joinDeclarationValues(host, target, path));
     }
-    const source = importedSource(host.project, declaration.getSourceFile(), moduleName);
+    const source = importedSource(host.sourceIndex, declaration.getSourceFile(), moduleName);
     return source === undefined
       ? []
-      : exportedDeclarations(host.project, source, declaration.getNameNode().getText()).flatMap((target) => joinDeclarationValues(host, target, path));
+      : exportedDeclarations(host.sourceIndex, source, declaration.getNameNode().getText()).flatMap((target) => joinDeclarationValues(host, target, path));
   }
   if (Node.isExportAssignment(declaration)) {
     return evalJoin(host, declaration.getExpression(), path);
@@ -98,8 +102,8 @@ function joinExportDeclaration(host: CollectionHost, declaration: Node, path: Se
   if (declaration.getKindName() === "ImportClause") {
     const importDeclaration = declaration.getFirstAncestor(Node.isImportDeclaration);
     const source =
-      importDeclaration === undefined ? undefined : importedSource(host.project, declaration.getSourceFile(), importDeclaration.getModuleSpecifierValue());
-    return source === undefined ? [] : exportedDeclarations(host.project, source, "default").flatMap((target) => joinDeclarationValues(host, target, path));
+      importDeclaration === undefined ? undefined : importedSource(host.sourceIndex, declaration.getSourceFile(), importDeclaration.getModuleSpecifierValue());
+    return source === undefined ? [] : exportedDeclarations(host.sourceIndex, source, "default").flatMap((target) => joinDeclarationValues(host, target, path));
   }
   return [];
 }

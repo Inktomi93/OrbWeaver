@@ -381,7 +381,7 @@ export const gate: GateDescriptor = {
       const path = repoRel(ctx.root, source.getFilePath());
       return path.startsWith("packages/ui/src/") || path.startsWith("packages/client/src/");
     });
-    const walked = walkStaticClassExpressions(ctx.project, files);
+    const walked = walkStaticClassExpressions(files);
     const census: TransformCensus = { tokens: 0 };
     for (const candidate of walked.candidates) {
       judgeCandidate({ ctx, census, segments: candidate.segments }, candidate.value);
