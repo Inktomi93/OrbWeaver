@@ -60,7 +60,7 @@ named by its exact filename. Assume the index, never the body.
   | `overview` / `show` / `list` | `overview` · `show <issue…>` · `list [--status <status>]` | `overview` is the board-read ritual verb. |
   | `create` | `<class> --title <t> --body-file <f>` | prefer `file`. |
   | `ready` · `claim` · `review` · `needs-owner` | `ready <issue…>` · `claim <issue…> --lane <lane>` · `review <issue…>` · `needs-owner <issue…>` | every one takes a LIST. |
-  | `set` | `<issue…> <field> <value> [<field> <value>…]` | `Lane` is lifecycle-controlled and REFUSED here — use `claim`. |
+  | `set` | `<issue…> <field> <value> [<field> <value>…]` | `Lane` is lifecycle-controlled and REFUSED here. |
   | `block` · `unblock` · `park` | `block <issue…> --by <blocker>` · `unblock <issue…> --by <blocker>` · `park <issue…> --wake <condition>` | `--by` and `--wake` are mandatory. |
   | `verify` · `reverify` · `done` | `verify <issue…> --evidence <r>` · `reverify <issue…> --evidence <replacement>` · `done <issue…> --evidence <same-r> [--force-close --reason <t>]` | `done` takes the SAME receipt `verify` took. |
   | `refute` | `<issue…> --evidence <refutation> [--dod '<cmd>']` | **Verify only.** Returns the row to Ready with Evidence replaced; the outcome stands and the rework is claimable. |
@@ -72,6 +72,13 @@ named by its exact filename. Assume the index, never the body.
   <condition>` (the honest one — it forces a wake), or `block --by`, or `needs-owner`, or carry it forward through
   `review`. Interrupted transitions are safe to rerun, including the composite verbs, which resume at the row's
   current status.
+
+- **A RUNNING row's Lane cannot be changed by any verb.** `set … Lane` is refused as lifecycle-controlled, and
+  `claim` refuses with `work item is already Running in lane <x>`. So when a lane DIES mid-flight — an account goes
+  down, a session is lost — the Lane field keeps naming an owner that cannot act and there is no tool path to correct
+  it. Record the transfer as an issue COMMENT, which is the durable owner-of-record, and treat the stale Lane string
+  as cosmetic. Do not `park`/`ready`/re-`claim` a live row just to repaint the label: that trades a cosmetic lie for a
+  lifecycle lie. Paid 2026-09-11 when Codex went hard down mid-program.
 - **Lifecycle hygiene (Codex control-plane review, 2026-08-16 — the four measured misses):**
   1. **Claim FIRST, always.** The issue exists and is claimed BEFORE the fixing work starts — an issue
      created seconds after its fixing commit is retrospective paperwork, not tracking (#75 was minted
