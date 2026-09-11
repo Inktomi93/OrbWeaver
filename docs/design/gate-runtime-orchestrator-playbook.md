@@ -97,9 +97,16 @@ retirement (#1948). What it gives you is guide §5; do not rebuild it.
    whole statement, since formatting will move it), and trailing `ONESHOT-OK` markers DELETED with no `@orb-waive`
    replacement (each is either a dead marker, which guide §8.6 allows only if it is counted and listed, or a silent
    suppression loss). Also remove its two `p-marker-translate-scratch*.test.ts` files. Receipt: both families at 0
-   blocking findings on the real tree, 0 unused markers, and either a clean
-   `git diff -U0 | grep -vE '^[-+]\s*//'` or every exception listed with its justification. That receipt is only
-   measurable AFTER Phase A's front door lands, which is why this is Phase B.
+   blocking findings on the real tree and 0 unused markers (`policy.authority.alarms` and
+   `policy.waiverCarrierRefusals` both empty).
+
+   **DO NOT use `git diff -U0 | grep -vE '^[-+]\s*//'` as that receipt — it is broken and it was in this playbook.**
+   The filter's predicate is "is this line a comment", and BOTH halves of a moved comment are comments, so it drops the
+   `+` half and renders a RELOCATED marker as a silent deletion — precisely the defect such a filter is deployed to
+   hunt. Paid 2026-09-11: all ten "deleted with no replacement" sites it reported were relocations. **Instead:**
+   re-locate the guarded expression in the CURRENT tree and read the line above it, and cross-check a before/after
+   count of the marker's CARRIER POSITION (`grep -E '\S.*//\s*MARKER'` counts trailing-position sites; that number
+   going to 0 while the leading count rises by the same amount is a relocation, not a loss).
 
    **The routing answer for every custom grammar is already written** — `ordinary-waiver-source-migration.md`
    §"Closed 11-grammar disposition" gives a per-grammar verdict (CENTRALIZE · DELETE EMPTY · DELETE WITH THE GATE)
