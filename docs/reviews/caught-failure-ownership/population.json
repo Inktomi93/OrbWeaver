@@ -1944,7 +1944,7 @@
     {
       "siteId": "packages/server/src/domain/character/persistence/card.ts::default:err::1",
       "path": "packages/server/src/domain/character/persistence/card.ts",
-      "line": 183,
+      "line": 181,
       "column": 5,
       "grammar": "default",
       "position": "default:err",
@@ -1952,7 +1952,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the ONE absorbed arm is a LOST RACE, and it is",
-      "markerLine": 173
+      "markerLine": 171
     },
     {
       "siteId": "packages/server/src/domain/character/seeder/seed.ts::empty:err::1",
@@ -2230,7 +2230,7 @@
     {
       "siteId": "packages/server/src/domain/databank/ingest/index.ts::empty:error::1",
       "path": "packages/server/src/domain/databank/ingest/index.ts",
-      "line": 198,
+      "line": 195,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -2238,7 +2238,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the accumulator records this document's failure (`acc.addFailure`), surfaced to the caller via `acc.result()`; the pass continues so one bad document never aborts the batch. Ends if `addFailure` stops being read by the returned result.",
-      "markerLine": 192
+      "markerLine": 189
     },
     {
       "siteId": "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts::default:catch::1",
@@ -2815,7 +2815,7 @@
     {
       "siteId": "packages/server/src/domain/workloads/persistence/queries.ts::empty:catch::1",
       "path": "packages/server/src/domain/workloads/persistence/queries.ts",
-      "line": 148,
+      "line": 145,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2823,7 +2823,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — a params-schema failure",
-      "markerLine": 143
+      "markerLine": 140
     },
     {
       "siteId": "packages/server/src/domain/workloads/verbs/start.ts::empty:err::1",
