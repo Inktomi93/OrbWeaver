@@ -451,9 +451,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 413,
-      "bytes": 251612,
-      "sha256": "c5c8f9985057440e63747691d3173e1ee772598727cce0d2aa259a4d8a351784",
+      "lines": 426,
+      "bytes": 256648,
+      "sha256": "928890463972e1db899e1eb6e6564cc4e93c927cda490ad5a194324ef5beaaa6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -470,9 +470,9 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "c5c8f9985057440e63747691d3173e1ee772598727cce0d2aa259a4d8a351784",
-        "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
-        "verifiedAt": "2026-09-10",
+        "verifiedSha256": "928890463972e1db899e1eb6e6564cc4e93c927cda490ad5a194324ef5beaaa6",
+        "verifiedCommit": "94b1b5199e14af079635c45e1ec6c077a9483ee9",
+        "verifiedAt": "2026-09-11",
         "evidence": [
           "Full document read by the registration lane; changed rows reviewed against source by the orchestrator. Browser-contract real-tree fixture red/clean, 15 behavioral tests and independent semantic review; hook/router/config snapshot 137 behavioral tests and security approval. Full legacy structure still refuses the separate mixed-descriptor cutover.",
           "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
@@ -566,7 +566,8 @@
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:116 re-attested at 2674a9453 by the orchestrator after reading the #1451 diff (external-id-single-writer: claim arm widened from LINK-only to the two capability verbs; bindOwnerSubject now calls claimExternalIdIfUnbound then an inline updateUser without externalId, so the declared-limit example is updateExisting's changes patch; mustFlag third caller still red; finalize tripwires untouched).",
           "docs/architecture/core/Core-Enforcement-Active-Gates.md re-attested at 3700b07c6 by the orchestrator after reading the #1585 diff in full: one new row for the `stale-draft-commit` gate (a once-seeded prop-derived draft compared against the live value and handed to a non-setter call; structural, allowlist born empty, tripwire on lib/edit-session.ts) and the active-gate count 254 → 255.",
           "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
-          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
+          "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351.",
+          "delta re-verify 2026-09-11 (#1584 mixed runtime, lane p-mixed-runtime) at 94b1b5199e14af079635c45e1ec6c077a9483ee9: nine final `-health`/fact-health policies that had NO row gained rows beside their siblings (aef57f16d), then the retired `schema-fact-health` row was removed (94b1b5199); the count line 255 → 271 → 270 = 108 status:\"active\" legacy descriptors + 162 canonical defineGate policies; the Layer-3 layout paragraph, the count sentence and the enforcement-registry-parity / gate-modernization rows describe the MIXED loader (both contracts by identity). enforcement-registry-parity — now reading both contracts — reconciles the doc against the loader's roster at 0 findings on this tree (real-tree arm of its int test, and the final mixed pnpm check:structure run); scoped pnpm check:docs green after pnpm format:docs."
         ],
         "claims": [
           {
@@ -29904,6 +29905,121 @@
         "summary": ""
       },
       "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/mixed-runtime-front-door.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 465,
+      "bytes": 41894,
+      "sha256": "662891117955154939a7d9178b1c6646563c0f748607c37417acc6f127195bbe",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-11"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/mixed-runtime-front-door.md",
+        "assignedSha256": "662891117955154939a7d9178b1c6646563c0f748607c37417acc6f127195bbe",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "662891117955154939a7d9178b1c6646563c0f748607c37417acc6f127195bbe",
+        "verifiedCommit": "94b1b5199e14af079635c45e1ec6c077a9483ee9",
+        "verifiedAt": "2026-09-11",
+        "evidence": [
+          "docs/reviews/gate-runtime/mixed-runtime-front-door.md:1 (authored and read in full by lane p-mixed-runtime — the design-first record and receipts for #1584 §5 items 1–6, #1941, #1948; every count in §11 read off the named runs)"
+        ],
+        "claims": [
+          {
+            "claim": "The production front door loads every tooling/src/verify/gates/*.ts module through ONE mixed loader that classifies by exact contract identity (branded defineGate → final; validated GateDescriptor → legacy; an unbranded lookalike refuses at load), runs both dispatchers in one invocation over one shared Project, and reports both contracts in one artifact read by check:show.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/lib/loader.ts:1"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/ops/structure.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/lib/loader.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/ops/structure-mixed.suite.int.test.ts:1"
+              }
+            ]
+          },
+          {
+            "claim": "structure:policy-conformance is a whole-only STATIC-tier stage that runs every final policy's own mustFlag/mustPass rows through the production dispatcher on every pnpm check, refuses a bare-zero corpus, and judges the reviewed-grant table whole only where the table is part of the corpus being judged.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/ops/policy-conformance-stage.ts:1"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/lib/registry.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/ops/policy-conformance-stage.int.test.ts:1"
+              }
+            ]
+          },
+          {
+            "claim": "enforcement-registry-parity and gate-modernization read both contracts by import-origin identity, the enforcement doc names exactly the mixed roster (108 legacy active + 162 final after the schema-fact-health retirement), and check-gates.repo.int.test.ts is re-derived on the mixed roster with final policies handed to the conformance stage.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/enforcement-registry-parity.ts:1"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/gate-modernization.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/check-gates.repo.int.test.ts:1"
+              }
+            ]
+          },
+          {
+            "claim": "schema-fact-health is retired (#1948): the guarantee it claimed is the dispatcher's fact-receipt refusal, pinned over a real consumer in the schema wave test; the two grant-liveness real-tree verdict lines were deleted only after the mixed front door was shown to run both policies on the real corpus and to report a planted dead grant in each config.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/gates/schema-fact-wave-1.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/verify/gates/depcruise-grant-liveness.int.test.ts:1"
+              },
+              {
+                "kind": "issue",
+                "target": "#1948"
+              }
+            ]
+          }
+        ],
+        "summary": "Design-first record and receipts of the mixed gate runtime (#1584 §5 items 1–6): the identity-classifying loader, the one-invocation front door and report, the whole-corpus conformance stage (#1941), the mixed-corpus suite, the both-contract parity/meta gates and the re-derived check-gates pin, the proven grant-liveness verdict transfer, the first mixed baseline (§11.3) and final read (§11.9), and the schema-fact-health retirement (#1948). The 97 red-by-construction conformance rows are recorded as #1953's diagnosed defect, not a ruling in flight."
+      },
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/ordinary-visitors-family-1584.md",

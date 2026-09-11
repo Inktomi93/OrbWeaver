@@ -4147,6 +4147,102 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/mixed-runtime-front-door.md",
+      "assignedSha256": "662891117955154939a7d9178b1c6646563c0f748607c37417acc6f127195bbe",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "662891117955154939a7d9178b1c6646563c0f748607c37417acc6f127195bbe",
+      "verifiedCommit": "94b1b5199e14af079635c45e1ec6c077a9483ee9",
+      "verifiedAt": "2026-09-11",
+      "evidence": [
+        "docs/reviews/gate-runtime/mixed-runtime-front-door.md:1 (authored and read in full by lane p-mixed-runtime — the design-first record and receipts for #1584 §5 items 1–6, #1941, #1948; every count in §11 read off the named runs)"
+      ],
+      "claims": [
+        {
+          "claim": "The production front door loads every tooling/src/verify/gates/*.ts module through ONE mixed loader that classifies by exact contract identity (branded defineGate → final; validated GateDescriptor → legacy; an unbranded lookalike refuses at load), runs both dispatchers in one invocation over one shared Project, and reports both contracts in one artifact read by check:show.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/lib/loader.ts:1"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/ops/structure.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/lib/loader.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/structure-mixed.suite.int.test.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "structure:policy-conformance is a whole-only STATIC-tier stage that runs every final policy's own mustFlag/mustPass rows through the production dispatcher on every pnpm check, refuses a bare-zero corpus, and judges the reviewed-grant table whole only where the table is part of the corpus being judged.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/ops/policy-conformance-stage.ts:1"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/lib/registry.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/policy-conformance-stage.int.test.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "enforcement-registry-parity and gate-modernization read both contracts by import-origin identity, the enforcement doc names exactly the mixed roster (108 legacy active + 162 final after the schema-fact-health retirement), and check-gates.repo.int.test.ts is re-derived on the mixed roster with final policies handed to the conformance stage.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/enforcement-registry-parity.ts:1"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/gate-modernization.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/check-gates.repo.int.test.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "schema-fact-health is retired (#1948): the guarantee it claimed is the dispatcher's fact-receipt refusal, pinned over a real consumer in the schema wave test; the two grant-liveness real-tree verdict lines were deleted only after the mixed front door was shown to run both policies on the real corpus and to report a planted dead grant in each config.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/gates/schema-fact-wave-1.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/gates/depcruise-grant-liveness.int.test.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#1948"
+            }
+          ]
+        }
+      ],
+      "summary": "Design-first record and receipts of the mixed gate runtime (#1584 §5 items 1–6): the identity-classifying loader, the one-invocation front door and report, the whole-corpus conformance stage (#1941), the mixed-corpus suite, the both-contract parity/meta gates and the re-derived check-gates pin, the proven grant-liveness verdict transfer, the first mixed baseline (§11.3) and final read (§11.9), and the schema-fact-health retirement (#1948). The 97 red-by-construction conformance rows are recorded as #1953's diagnosed defect, not a ruling in flight."
     }
   ]
 }

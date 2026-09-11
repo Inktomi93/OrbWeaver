@@ -176,9 +176,9 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "c5c8f9985057440e63747691d3173e1ee772598727cce0d2aa259a4d8a351784",
-      "verifiedCommit": "a3b9882dd9d2a81533415afd007ee4fce48a1d61",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "928890463972e1db899e1eb6e6564cc4e93c927cda490ad5a194324ef5beaaa6",
+      "verifiedCommit": "94b1b5199e14af079635c45e1ec6c077a9483ee9",
+      "verifiedAt": "2026-09-11",
       "evidence": [
         "Full document read by the registration lane; changed rows reviewed against source by the orchestrator. Browser-contract real-tree fixture red/clean, 15 behavioral tests and independent semantic review; hook/router/config snapshot 137 behavioral tests and security approval. Full legacy structure still refuses the separate mixed-descriptor cutover.",
         "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
@@ -272,7 +272,8 @@
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:116 re-attested at 2674a9453 by the orchestrator after reading the #1451 diff (external-id-single-writer: claim arm widened from LINK-only to the two capability verbs; bindOwnerSubject now calls claimExternalIdIfUnbound then an inline updateUser without externalId, so the declared-limit example is updateExisting's changes patch; mustFlag third caller still red; finalize tripwires untouched).",
         "docs/architecture/core/Core-Enforcement-Active-Gates.md re-attested at 3700b07c6 by the orchestrator after reading the #1585 diff in full: one new row for the `stale-draft-commit` gate (a once-seeded prop-derived draft compared against the live value and handed to a non-setter call; structural, allowlist born empty, tripwire on lib/edit-session.ts) and the active-gate count 254 → 255.",
         "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
-        "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351."
+        "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351.",
+        "delta re-verify 2026-09-11 (#1584 mixed runtime, lane p-mixed-runtime) at 94b1b5199e14af079635c45e1ec6c077a9483ee9: nine final `-health`/fact-health policies that had NO row gained rows beside their siblings (aef57f16d), then the retired `schema-fact-health` row was removed (94b1b5199); the count line 255 → 271 → 270 = 108 status:\"active\" legacy descriptors + 162 canonical defineGate policies; the Layer-3 layout paragraph, the count sentence and the enforcement-registry-parity / gate-modernization rows describe the MIXED loader (both contracts by identity). enforcement-registry-parity — now reading both contracts — reconciles the doc against the loader's roster at 0 findings on this tree (real-tree arm of its int test, and the final mixed pnpm check:structure run); scoped pnpm check:docs green after pnpm format:docs."
       ],
       "claims": [
         {
