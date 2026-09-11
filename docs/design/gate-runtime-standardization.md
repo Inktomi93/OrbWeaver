@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-10
+updated: 2026-09-11
 ---
 
 # One ts-morph runtime for every Orb gate
@@ -37,6 +37,16 @@ Resume in this order, refining the migration sequence below:
 3. Finish the shared resource/fact and fixture prerequisites. Replace live-tree fixture writers
    with isolated successors before removing the repository-test barrier. Reassess the obsolete
    workloads/runners presence arm; retain real contribution behavior and general presence controls.
+   The `gate:contract` census measures descriptor SHAPE only (legacy fields, descriptor indirection,
+   private walks, module state); it is blind to what a gate READS. A module whose only findings are
+   `legacy-field` and `descriptor-wrapper` is not thereby convertible: convertibility is decided by
+   tracing every read, one `lib/` hop included, against the shipped `GateResourceRequest` kinds in
+   `contract/resource-declaration.ts`. The kinds proposed in
+   [resource-gate-access-patterns.md](../reviews/gate-runtime/resource-gate-access-patterns.md) and
+   never shipped are tracked as #1930 and are THIS step's deliverable; a conversion lane that meets one
+   stops and reports rather than keeping a private reader behind `defineGate`, which lowers the census
+   while leaving the forbidden machinery in place (2026-09-11: three lanes, nine modules, all refused
+   correctly).
 4. Convert simple visitors/file hooks, then shared-reader consumers, resource policies and finally
    mixed-hook policies. Missing shared capabilities return to the prerequisite lane, never a private
    gate reader. Record each retired harness mechanism's successor behavioral proof.
@@ -234,6 +244,8 @@ Work proceeds in dependency order:
 7. frozen-corpus old/new differential, performance/RSS comparison, authoring/scaffold rewrite, and one atomic cutover.
 
 Every implementation lane receives an exhaustive file manifest generated from the current corpus, reads those gate files in full, and owns no runtime or shared-reader architecture. A lane may request a missing shared primitive; it may not add a local walk, cache, scope predicate, exemption grammar, or registry. Membership and progress are derived from the loader and migration census rather than maintained as a second list.
+
+Every conversion also records a FAMILY decision, with receipts, in the module header and the lane report: which shared computation or subject reader the policy actually uses (`lib/` module and function, not a filename prefix or a shared theme); whether sibling modules are distinct policies on that reader or two spellings of one concept, which merge (two homes for one concept); and whether any module's arms differ in authority or severity, which split. A lane that cannot name the reader has not established the family. Conversions are tracked under the program row (#1584) as landing comments, not as one Project row per gate or batch; only defects, prerequisites and decisions get rows.
 
 The 13 mixed-hook modules have been read in full and are ruled before conversion:
 

@@ -155,7 +155,7 @@ it into the linked Project issue — no lane touches `work:item`.
 
 ## Merge / load discipline
 
-- **MAX 3 CONCURRENT LANES OVERALL** (owner, 2026-08-28) — let over-cap lanes FINISH, never refill above
+- **MAX 3 CONCURRENT LANES OVERALL** (owner, 2026-08-28; RAISED TO 5 for the gate-runtime program only — owner, 2026-09-11, "until we get through the gate portions" — the box must first be quiet: engines stopped, prod down, see the runbook §8 pre-flight) — let over-cap lanes FINISH, never refill above
   3. Gate-heavy lanes are ≤3 within that cap and staggered by minutes: 4+ synchronize their verification
   into load spikes that flake gates and starve the foreground. This paragraph is the cap's home.
 - **A merge landed while a whole-tree check is running VOIDS that check** — its verdict describes a tree
