@@ -315,7 +315,7 @@ dependencies that constrain ANY sequence, because they are law rather than sched
 
 - Lanes run in isolated worktrees off `main` (`isolation: "worktree"`; the hook installs deps and links memory) and
   land by orchestrator fast-forward with the hook path nulled; a lane rebases in its worktree if `main` moved.
-- Roles and models: runtime/architecture lanes and the 13 splits → forge (owner ruling #1950 pending); families where a
+- Roles and models: runtime/architecture lanes and the 13 splits → forge (#1950, RULED 2026-09-11); families where a
   reader must be added → Opus executor; fully-specified conversions on existing readers and marker translation →
   Sonnet executor / mech-executor (owner test 2026-09-11: mechanical work and header honesty consistently good;
   self-checking of an INVENTED proof's discriminating power consistently absent, so §4.7 is briefed explicitly); every
