@@ -40,13 +40,20 @@ root_common=$(realpath -- "$root_common") || notice_and_exit "checkout Git commo
 project_common=$(realpath -- "$project_common") || notice_and_exit "project Git common directory cannot be canonicalized"
 [ "$root_common" = "$project_common" ] || notice_and_exit "hook cwd belongs to a different repository than CLAUDE_PROJECT_DIR"
 
+# Lexical normalization only (-s: do not follow symlinks): the containment test below must see the path as
+# WRITTEN, so a symlink planted inside the checkout that points outside is judged by the resolving arm that
+# follows it, not silently waved through as an outside path.
 case "$file" in
-  /*) file_abs=$(realpath -m -- "$file") ;;
-  *) file_abs=$(realpath -m -- "$payload_cwd/$file") ;;
+  /*) file_abs=$(realpath -m -s -- "$file") ;;
+  *) file_abs=$(realpath -m -s -- "$payload_cwd/$file") ;;
 esac
+# A file outside the checkout (a scratchpad note, a bridge message, a /tmp probe) is not repository code:
+# there is nothing here to lint, so this is a silent no-op, not a non-verdict (owner, 2026-09-11 — the
+# old exit-2 notice fired on every scratchpad Write and read as an error). A path that LOOKS inside but
+# RESOLVES outside is the symlink-escape case below and stays a refusal.
 case "$file_abs" in
   "$root"/*) ;;
-  *) notice_and_exit "edited path is outside the active checkout: $file_abs" ;;
+  *) exit 0 ;;
 esac
 if [ -e "$file_abs" ]; then
   file_target=$(realpath -- "$file_abs") || notice_and_exit "edited path cannot be resolved: $file_abs"
