@@ -3,7 +3,8 @@
 // `biome-ignore-start` / `eslint-disable` block (biome 2.5.1 extends an unclosed range to EOF and only WARNS,
 // which `--diagnostic-level=error` hides; eslint disables to EOF silently), and a closed range that encloses
 // the file's every statement (a blanket in disguise). THREE ARMS over ONE directive reader
-// (`suppressions.ts` `readDirectiveComment`): A the harness fileset (working tree, TS/TSX) · B every other
+// (`lib/suppression-directive.ts` `readDirectiveComment`, shared with the `suppressions` ledger — a
+// FOREIGN-tool grammar, never an Orb waiver): A the harness fileset (working tree, TS/TSX) · B every other
 // file biome lints — js/jsx/mjs/cjs/mts/cts/json/jsonc/css from the TRACKED corpus (`git ls-files`, never an
 // FS walk) minus biome.json's own top-level ignores (derived, declared as a skip) · C THE INDEX — `git grep
 // --cached` candidates re-judged from their STAGED blobs, so a stale staged blob cannot commit merely
@@ -13,6 +14,14 @@
 // override (stale-armed by `biome-grant-liveness`) — are each governed elsewhere, so a marker here would be
 // an ungoverned third door (docs/design/962-blanket-suppression-control-plane.md §2.4). COMMENT POSTURE:
 // comments-INTENDED — the directive IS a comment; a spelling inside a string or mid-sentence is inert.
+// CONVERSION TO `defineGate` REFUSED 2026-09-11 (#1930), and the resource vocabulary is now FROZEN at 18
+// kinds (`docs/design/gate-runtime-standardization.md` §12.4), so this module stays on the legacy descriptor
+// and stays fully armed — indefinitely, under the mixed runtime. ARM C reads THE GIT INDEX (`git grep
+// --cached` at `judgeIndex`, then `git show :<path>` per candidate blob) and no shipped kind serves a staged
+// blob: `TrackedResourceIndex` is `{ repoPaths }` only, which names the working-tree path set and can say
+// nothing about what is STAGED there. A staged-blob capability was considered and DELIBERATELY NOT MINTED:
+// re-derived across the whole verify tree, this gate is its ONLY consumer, and a capability serving one gate
+// is that gate's private reader wearing a contract's clothes (guide §11.5). The refusal is the success.
 // DECLARED LIMITS (each a mustPass row): arms B+C need a git work tree, so they run only on a root carrying
 // this module (the §4.5 anchor) — a conformance mini-project proves arm A, the pin proves B, C and the real
 // tree; a `// eslint-disable` LINE comment is not a block directive (eslint ignores it) and is not judged.
@@ -24,8 +33,8 @@ import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { commentSpansInText, parseScratch } from "../lib/comment-spans.ts";
 import { globMatcher, memberSources } from "../lib/grant-liveness.ts";
 import { repoRel } from "../lib/pass.ts";
-import type { SuppressionSite } from "./suppressions.ts";
-import { readDirectiveComment, suppressionSites } from "./suppressions.ts";
+import type { SuppressionSite } from "../lib/suppression-directive.ts";
+import { readDirectiveComment, suppressionSites } from "../lib/suppression-directive.ts";
 
 const GATE_SELF = "tooling/src/verify/gates/no-blanket-suppression.ts";
 const CONFIG_REL = "biome.json";

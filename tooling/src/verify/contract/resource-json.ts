@@ -1,10 +1,16 @@
-// Parsed authored DATA, split by GRAMMAR because the two grammars fail differently.
+// Parsed authored DATA. STRICT JSON only.
 //
 // STRICT JSON (`json`) has no comment syntax at all, so a `//` is a parse error rather than a nuance — and
 // a config that silently fell back to a default runs a different tool than the repository asked for, which
-// makes every verdict downstream of it a lie. JSONC (`jsonc`) is TypeScript's config grammar, where the
-// EFFECTIVE shape is not in the literal file: it is spread across an `extends` chain and a project-reference
-// graph, and a reader that stops at the first file reports a partial config as a complete one.
+// makes every verdict downstream of it a lie.
+//
+// THERE IS NO `jsonc` SIBLING, AND THERE WILL NOT BE (frozen 2026-09-11, #1930 — reason in
+// `docs/design/gate-runtime-standardization.md` §12.4). Guide §11.4 named one; an earlier draft of this
+// header described it beside `json`. It was never built and is now ruled out: the whole gate corpus contains
+// exactly ONE JSONC parse (`gates/tsconfig-entry-liveness.ts:233`), so the kind would serve one gate, and the
+// `extends`-FOLDING half §11.4 asked for is already owned by the world program's shared compiler reader
+// (`lib/policy-program-membership.ts:78-85`, #1351). That gate's conversion needs a shared READER exposing
+// per-config RAW include/exclude entries, not a resource kind.
 //
 // MISSING AND UNPARSEABLE ARE SEPARATE FACTS AT BOTH DOORS, and neither ever becomes `{}`.
 // `resource-gate-access-patterns.md:126` is the law: *"Missing and parse failure must be separate

@@ -12,7 +12,8 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { serializeRow, writeLedgerFile } from "@orb/tooling/_shared/ratchet-rows";
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
-import { BASELINE_REL, classWhy, governedScope, governedSourceRel, ratifiedSiteCount, suppressionSites } from "../../gates/suppressions.ts";
+import { BASELINE_REL, classWhy, governedScope, governedSourceRel, ratifiedSiteCount } from "../../gates/suppressions.ts";
+import { suppressionSites } from "../../lib/suppression-directive.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline suppressions");
 

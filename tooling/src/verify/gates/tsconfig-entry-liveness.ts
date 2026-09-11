@@ -18,6 +18,15 @@
 // by-design rows in RATIFIED below.
 // route through the same two-sided EXEMPT table (not a hard fail). COMMENT POSTURE: n/a — parsed as JSONC via
 // the TypeScript config reader, so comments are structurally out of scope.
+// CONVERSION BLOCKED ON A SHARED READER, NOT ON A CAPABILITY (2026-09-11, #1930). Guide §11.4 once named a
+// `jsonc` ResourceHost kind for this gate; it was never built and is now RULED OUT with its reason
+// (`docs/design/gate-runtime-standardization.md` §12.4), because this module is the corpus's ONLY JSONC parse
+// (`readTsconfig` below) and a kind serving one gate is that gate's private reader wearing a contract's
+// clothes. What this gate actually needs is per-config RAW `include`/`exclude` entries — UNFOLDED and
+// UNEXPANDED, resolved against each config's OWN directory, which is the trap this family exists around — and
+// the world program's shared compiler reader already owns the config grammar (`lib/policy-program-membership.ts`
+// `parseConfig`, which keeps exactly that `raw` object beside the folded `ParsedCommandLine`, #1351). So the
+// conversion route is exposing that raw half through the shared reader. Until then: legacy, and fully armed.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { ts } from "ts-morph";
