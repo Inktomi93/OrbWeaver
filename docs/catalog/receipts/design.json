@@ -1120,8 +1120,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "d7849114216e41ba09839109a7048ed3b3da5bf582cbcdeee017dda9b0427120",
-      "verifiedCommit": "418f94aa49311d6fe983b6e668e76a55be2de4c6",
+      "verifiedSha256": "34b8cadb8cd4d9443de315a46ddf88d91c9a8f8c46f88fa9a24377c77d98b66c",
+      "verifiedCommit": "ae3904c01c5dab03154a6909946e8a16d91298b1",
       "verifiedAt": "2026-09-11",
       "evidence": ["authored by the orchestrator from this session's owner rulings and read in full at 418f94aa4"],
       "summary": "Step list for a fresh orchestrator session running #1584: start ritual, standing rules, phased work order at cap 3, brief skeleton, landing procedure, binding lessons.",
@@ -1143,8 +1143,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "6620b86fad86fe6192def73480ec3b7729b6d47bacd8e49a1343b2ef3b3b9beb",
-      "verifiedCommit": "418f94aa49311d6fe983b6e668e76a55be2de4c6",
+      "verifiedSha256": "112b2cc4eb7f595851255c422f3a5ceca51da2fbf04973a3f8842776d2f016ce",
+      "verifiedCommit": "ae3904c01c5dab03154a6909946e8a16d91298b1",
       "verifiedAt": "2026-09-11",
       "claims": [
         {
