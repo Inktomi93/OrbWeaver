@@ -1,9 +1,9 @@
-// Gate: ct-no-oneshot-live-read-assert (Spine-Testing.md §7; the DEF-14 flake class) — a HARD invariant:
-// a Playwright component test (`*.ct.tsx`) NEVER reads mutable async state with a NON-retrying assertion.
-// A single synchronous read of mutable state samples MID-TRANSITION (focus moving, an animation/dialog
-// settling, a ResizeObserver not yet fired, a network call not yet recorded) and passes or fails by timing
-// luck — the class that flaked nine CTs (root-caused 2026-07-20: the lightbox focus-trap, chart resize, and
-// create-entity `expect(trpc.count(x)).toBe(2)` read before the retry's call landed).
+// Gate: ct-no-oneshot-live-read-assert (Spine-Testing.md §7; the DEF-14 flake class) — an ORDINARY
+// invariant: a Playwright component test (`*.ct.tsx`) never reads mutable async state with a NON-retrying
+// assertion. A single synchronous read of mutable state samples MID-TRANSITION (focus moving, an
+// animation/dialog settling, a ResizeObserver not yet fired, a network call not yet recorded) and passes or
+// fails by timing luck — the class that flaked nine CTs (root-caused 2026-07-20: the lightbox focus-trap,
+// chart resize, and create-entity `expect(trpc.count(x)).toBe(2)` read before the retry's call landed).
 //
 // FLAGGED — `expect(<arg>).<valueMatcher>(...)` (a plain non-retrying matcher: `toBe`/`toEqual`/
 // `toBeGreaterThan`/`toBeTruthy`/`toContain`…) where `<arg>` is a mutable-async read:
@@ -16,22 +16,33 @@
 // FIX: a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/
 // toBeInViewport()`, or wrap the read: `await expect.poll(() => <read>).toBe(...)`. Both retry until the
 // value SETTLES. Provably settled at read-time (e.g. asserted only AFTER a poll/web-first on the same state
-// already awaited it)? mark it `// ONESHOT-OK: <concrete reason>`.
+// already awaited it)? escape it with the central `@orb-waive ct-no-oneshot-live-read-assert(expect): <reason>`
+// marker on the line immediately above (GATE-AUTHORING.md's central marker grammar; this gate no longer
+// parses its own escape vocabulary — see "FAMILY DECISION" below).
 //
 // NOT flagged (already retrying): `expect.poll(...)` / `expect(...).toPass()` and the web-first locator
-// matchers (`toBeFocused`/`toBeVisible`/`toHaveText`…). ZERO baseline — every occurrence is resolved (fixed
-// or escaped) in the tree, so the whole CT suite passes this hard gate.
-// COMMENT POSTURE: comment-SAFE for detection (calls/definitions are AST nodes); comments-INTENDED for the
-// ONESHOT-OK escape block. DECLARED LIMIT: only `*.ct.tsx` and the enumerated mutable-read APIs are judged.
-import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
+// matchers (`toBeFocused`/`toBeVisible`/`toHaveText`…).
+// COMMENT POSTURE: comment-SAFE for detection (calls/definitions are AST nodes; the central marker engine
+// owns comment/trivia reading). DECLARED LIMIT: only `*.ct.tsx` and the enumerated mutable-read APIs are
+// judged.
+//
+// FAMILY DECISION (gate-runtime-standardization.md): singleton family. This gate's identity check
+// (`readsMutableAsync`/matcher classification) is a private AST predicate with no sibling consumer among
+// the other three gates in this migration lane — `ct-poll-schedule-and-paint` and `ct-story-single-import`
+// each implement their own unrelated predicate over the same CT file class, and neither imports anything
+// from here. Sharing a file CLASS ("CT test") is not sharing a computation or reader (design doc: "not
+// that their filenames share a prefix or their prose mentions the same topic").
+//
+// CONTRACT CORRECTION: the legacy header called this "a HARD invariant" descriptively, but it always
+// carried an escape door (`// ONESHOT-OK: <reason>`) for a provably-settled read — mechanically that is
+// `authority: "ordinary"`, not `"hard"` (hard has no suppression door at all). The escape survives; only
+// its vocabulary changes, from a private comment parser to the one central `@orb-waive` marker — "gate
+// modules receive neither grant tables nor marker parsers" (gate-runtime-standardization.md).
+import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
 
-const CT_FILE_RE = /\.ct\.tsx$/u;
-const ESCAPE = "ONESHOT-OK";
 const ACTIVE_ELEMENT = "activeElement";
-const ESCAPE_OPENER_RE = /^\/\/\s*ONESHOT-OK\b/u;
-const ESCAPE_VALID_RE = /^\/\/\s*ONESHOT-OK\s*:\s*\S/u;
 
 // Playwright locator/page reads that resolve ONCE (no auto-retry) — awaited inside a non-retrying expect()
 // they sample a single mid-transition frame of live DOM.
@@ -95,9 +106,9 @@ const MESSAGE =
   "snapshot) or a tRPC recorder read (`trpc.count/inputs/lastInput(...)`). A single read samples mid-transition " +
   "(focus/animation/ResizeObserver/an unrecorded call) and flakes by timing luck (the DEF-14 class, 2026-07-20). Use " +
   "a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/" +
-  "toBeInViewport()` — or wrap the read: `await expect.poll(() => <read>).toBe(...)`. Provably settled at read-time? " +
-  "mark it `// ONESHOT-OK: <concrete reason>` (core/Spine-Testing.md §7). A malformed marker exempts nothing; " +
-  "a stale marker not exactly adjacent to one guarded consumption is RED.";
+  "toBeInViewport()` — or wrap the read: `await expect.poll(() => <read>).toBe(...)`. Provably settled at " +
+  "read-time? escape it with `// @orb-waive ct-no-oneshot-live-read-assert(expect): <reason>` on the line " +
+  "immediately above (core/Spine-Testing.md §7).";
 
 /** Unwrap parentheses / non-null / `as` wrappers to the inner expression (see-through-wraps). */
 function unwrap(node: TsNode): TsNode {
@@ -214,153 +225,150 @@ function isBareExpectCall(call: CallExpression): boolean {
   return Node.isIdentifier(callee) && callee.getText() === "expect" && call.getArguments().length === 1;
 }
 
-interface EscapeMarker {
-  readonly node: TsNode;
-  readonly line: number;
-  readonly valid: boolean;
-  consumed: boolean;
+/** True when this `expect(...)` call is exactly the flagged shape: a plain non-retrying matcher reading
+ *  mutable async state. Delivered one CallExpression at a time by the shared kind-indexed walk. */
+function isLiveReadExpectCall(call: CallExpression): boolean {
+  if (!isBareExpectCall(call)) {
+    return false;
+  }
+  const matcher = matcherName(call);
+  const [arg] = call.getArguments();
+  return matcher !== undefined && !RETRYING_MATCHERS.has(matcher) && arg !== undefined && readsMutableAsync(arg);
 }
 
-/** The ONESHOT-OK markers in one file, with the ts-morph node each is attached to — the report anchor, so
- *  the finding stays node-anchored and `@orb-gate-ignore`-suppressible (GATE-AUTHORING.md §1).
- *
- *  THE CANDIDATE FENCE IS WHY THIS IS AFFORDABLE, and it is the same decision `comment-spans.ts`
- *  `codeTextForScan` records: the walk below is the kind-less `getDescendants()`, which materialises a
- *  ts-morph wrapper for every TOKEN in the file — and it has to be, because a marker written above a `}`
- *  attaches to that token and `forEachDescendant` never reaches it (measured 2026-09-02: the node-only walk
- *  loses 41 comment ranges across 20 real `*.ct.tsx`, in the PERMISSIVE direction — a blind escape
- *  vocabulary, #967). So the fix is not a cheaper walk, it is not walking at all: a marker's own text must
- *  appear literally in the raw file, so a file whose text lacks `ONESHOT-OK` cannot carry one and is
- *  skipped. SOUND in one direction only — the fence may only ever SKIP work, never decide a verdict. */
-function escapeMarkers(sf: SourceFile): EscapeMarker[] {
-  if (!sf.getFullText().includes(ESCAPE)) {
-    return [];
-  }
-  const seen = new Set<number>();
-  const markers: EscapeMarker[] = [];
-  for (const node of [sf, ...sf.getDescendants()]) {
-    for (const range of [...node.getLeadingCommentRanges(), ...node.getTrailingCommentRanges()]) {
-      if (seen.has(range.getPos())) {
-        continue;
-      }
-      seen.add(range.getPos());
-      const text = range.getText().trim();
-      if (ESCAPE_OPENER_RE.test(text)) {
-        markers.push({ node, line: sf.getLineAndColumnAtPos(range.getPos()).line, valid: ESCAPE_VALID_RE.test(text), consumed: false });
-      }
-    }
-  }
-  return markers.sort((a, b) => a.line - b.line);
-}
-
-function liveReadExpectCalls(sf: SourceFile): CallExpression[] {
-  return sf.getDescendantsOfKind(SyntaxKind.CallExpression).filter((node) => {
-    if (!isBareExpectCall(node)) {
-      return false;
-    }
-    const matcher = matcherName(node);
-    const [arg] = node.getArguments();
-    return matcher !== undefined && !RETRYING_MATCHERS.has(matcher) && arg !== undefined && readsMutableAsync(arg);
-  });
-}
-
-function inspectFile(sf: SourceFile, report: (node: TsNode, token: string) => void): void {
-  const markers = escapeMarkers(sf);
-  for (const marker of markers) {
-    if (!marker.valid) {
-      report(marker.node, ESCAPE);
-    }
-  }
-  for (const node of liveReadExpectCalls(sf)) {
-    const line = node.getStartLineNumber();
-    const marker = markers.find((candidate) => candidate.valid && !candidate.consumed && (candidate.line === line || candidate.line === line - 1));
-    if (marker !== undefined) {
-      marker.consumed = true;
-    } else {
-      report(node, "expect");
-    }
-  }
-  for (const marker of markers) {
-    if (marker.valid && !marker.consumed) {
-      report(marker.node, ESCAPE);
-    }
-  }
-}
-
-export const gate: GateDescriptor = {
-  name: "ct-no-oneshot-live-read-assert",
-  docRow: "core/Spine-Testing.md §7 (the DEF-14 flake class, 2026-07-20)",
-  status: "active",
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "ct-no-oneshot-live-read-assert",
+  family: "ct-no-oneshot-live-read-assert",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@tests"], named: ["*.ct.tsx"] },
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "use a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/toBeInViewport()` — or wrap the read: `await expect.poll(() => <read>).toBe(...)`; mark a provably-settled read `// ONESHOT-OK: <reason>`.",
-  scanRoot: (p) => CT_FILE_RE.test(p),
-  visitFile: (sf, ctx) => {
-    inspectFile(sf, (node, token) => ctx.report(node, { token, offset: 0 }));
-  },
+  fix: "use a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/toBeInViewport()` — or wrap the read: `await expect.poll(() => <read>).toBe(...)`; escape a provably-settled read with `@orb-waive ct-no-oneshot-live-read-assert(expect): <reason>`.",
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.CallExpression],
+        visit: (node) => {
+          if (Node.isCallExpression(node) && isLiveReadExpectCall(node)) {
+            ctx.report.node(node, { token: "expect", offset: 0 });
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: 'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  expect(trpc.count("tag.createTag")).toBe(2);\n});\n',
-      at: "tests/client/data/x.ct.tsx",
+      mode: "source",
+      files: {
+        "tests/client/data/x.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  expect(trpc.count("tag.createTag")).toBe(2);\n});\n',
+      },
       expect: { messageIncludes: "MUTABLE ASYNC" },
       why: "the create-entity-mutation flake verbatim — a bare `expect(recorder.count(...)).toBe(N)` read before the async call registered",
     },
     {
-      files:
-        'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ dialog }) => {\n  expect(await dialog.evaluate((n) => n.contains(document.activeElement))).toBe(true);\n});\n',
-      at: "tests/ui/content/x.ct.tsx",
+      mode: "source",
+      files: {
+        "tests/ui/content/x.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ dialog }) => {\n  expect(await dialog.evaluate((n) => n.contains(document.activeElement))).toBe(true);\n});\n',
+      },
       expect: { messageIncludes: "MUTABLE ASYNC" },
       why: "the lightbox focus-trap flake — a bare `expect(await locator.evaluate(...activeElement...)).toBe(true)` focus read",
     },
     {
-      files:
-        'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ canvas }) => {\n  expect((await canvas.boundingBox())?.width).toBeGreaterThan(300);\n});\n',
-      at: "tests/ui/charts/x.ct.tsx",
+      mode: "source",
+      files: {
+        "tests/ui/charts/x.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ canvas }) => {\n  expect((await canvas.boundingBox())?.width).toBeGreaterThan(300);\n});\n',
+      },
       expect: { messageIncludes: "MUTABLE ASYNC" },
       why: "the chart-resize flake — a bare `expect(await locator.boundingBox()?.width).toBeGreaterThan(...)` one-shot rect read",
     },
     {
-      files:
-        'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  const el = document.activeElement;\n  expect(el).toBe(document.body);\n});\n',
-      at: "tests/ui/primitives/snap.ct.tsx",
+      mode: "source",
+      files: {
+        "tests/ui/primitives/snap.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  const el = document.activeElement;\n  expect(el).toBe(document.body);\n});\n',
+      },
       expect: { messageIncludes: "MUTABLE ASYNC" },
       why: "an `activeElement` snapshot captured into a local then asserted non-retrying — the variable-capture focus-read shape",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/ui/pane.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("live", async ({ pane }) => {\n  const text = await pane.textContent();\n  expect(text).toBe("settled");\n});\ntest("static", () => {\n  const text = "settled";\n  expect(text).toBe("settled");\n});\n',
+      },
+      expect: { count: 1, messageIncludes: "MUTABLE ASYNC" },
+      why: "symbol identity matters: the live-read local is flagged while a same-named local in another test scope stays clean",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/ui/taint.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("box", async ({ pane }) => {\n  const box = await pane.boundingBox();\n  expect(box?.width).toBeGreaterThan(0);\n});\ntest("text", async ({ pane }) => {\n  const text = (await pane.textContent())?.trim().toLowerCase();\n  expect(text).toBe("ready");\n});\n',
+      },
+      expect: { count: 2, messageIncludes: "MUTABLE ASYNC" },
+      why: "property selection and pure transforms do not settle the mutable DOM snapshot",
     },
   ],
   mustPass: [
     {
-      files: 'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ input }) => {\n  await expect(input).toBeFocused();\n});\n',
-      at: "tests/ui/primitives/y.ct.tsx",
+      mode: "source",
+      files: {
+        "tests/ui/primitives/y.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ input }) => {\n  await expect(input).toBeFocused();\n});\n',
+      },
       why: "the FIX shape — a web-first auto-retrying `expect(<locator>).toBeFocused()` waits for focus to settle",
     },
     {
-      files:
-        'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  await expect.poll(() => trpc.count("tag.createTag")).toBe(2);\n});\n',
-      at: "tests/client/data/y.ct.tsx",
+      mode: "source",
+      files: {
+        "tests/client/data/y.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  await expect.poll(() => trpc.count("tag.createTag")).toBe(2);\n});\n',
+      },
       why: "the FIX shape — `expect.poll(() => <read>).toBe(...)` retries the read until it settles (callee is `expect.poll`, not bare `expect`)",
     },
     {
-      files:
-        'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ dialog }) => {\n  await expect(dialog).toContainText("hi");\n});\n',
-      at: "tests/ui/content/z.ct.tsx",
+      mode: "source",
+      files: {
+        "tests/ui/content/z.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ dialog }) => {\n  await expect(dialog).toContainText("hi");\n});\n',
+      },
       why: "a web-first `toContainText` on a locator — auto-retrying, never a one-shot read",
     },
     {
-      files:
-        'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  expect(trpc.count("tag.createTag")).toBe(2); // ONESHOT-OK: settled — count polled to 2 above\n});\n',
-      at: "tests/client/data/escape.ct.tsx",
-      why: "a deliberate settled recorder read escaped with `// ONESHOT-OK` on the same line — passes",
+      mode: "source",
+      files: {
+        "tests/client/data/escape.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — count polled to 2 above\n  expect(trpc.count("tag.createTag")).toBe(2);\n});\n',
+      },
+      why: "a deliberate settled recorder read escaped with the central `@orb-waive` marker on the line immediately above — passes",
     },
     {
-      files: 'import { expect } from "@playwright/experimental-ct-react";\nexport const g = expect(await page.evaluate(() => 1)).toBe(1);\n',
-      at: "packages/server/src/domain/x.ts",
-      why: "scope — the same shape OUTSIDE a *.ct.tsx file is not gated here (CT-only class); passes",
-    },
-    {
-      files:
-        'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  expect(results).toEqual([{ accepted: 0, rejected: 1 }]);\n});\n',
-      at: "tests/ui/primitives/plain.ct.tsx",
+      mode: "source",
+      files: {
+        "tests/ui/primitives/plain.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", () => {\n  expect(results).toEqual([{ accepted: 0, rejected: 1 }]);\n});\n',
+      },
       why: "a plain-value assertion whose arg is NOT a mutable-async read (a JS array from a callback) — out of the class; passes",
     },
+    {
+      mode: "source",
+      files: {
+        // A companion IN-population `.ct.tsx` file: `named: ["*.ct.tsx"]` excludes the `.test.ts` subject
+        // below otherwise, and a population resolving zero paths from a nonempty candidate set is a tool
+        // error, not a pass.
+        "tests/client/lib/companion.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("x", async ({ input }) => {\n  await expect(input).toBeFocused();\n});\n',
+        "tests/client/lib/notct.test.ts":
+          'import { expect } from "@playwright/experimental-ct-react";\nexport const g = expect(await page.evaluate(() => 1)).toBe(1);\n',
+      },
+      why: "scope — the same shape outside a *.ct.tsx file is not gated here (CT-only class); passes",
+    },
   ],
-};
+});

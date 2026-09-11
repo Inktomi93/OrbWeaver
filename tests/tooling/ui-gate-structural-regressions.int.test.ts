@@ -2,8 +2,6 @@
 // the RED-FIRST proof compiles against the old gate source and fails on behavior, not a new gate API.
 import { gate as derivesGate } from "../../tooling/src/verify/gates/baseui-derives-not-respells.ts";
 import { gate as portalGate } from "../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
-import { gate as oneshotGate } from "../../tooling/src/verify/gates/ct-no-oneshot-live-read-assert.ts";
-import { gate as storyGate } from "../../tooling/src/verify/gates/ct-story-single-import.ts";
 import { gate as evaluateGate } from "../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { gate as fabricationGate } from "../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { gate as focusGate } from "../../tooling/src/verify/gates/surface-a11y-focus.ts";
@@ -102,32 +100,16 @@ test("a lookalike type identifier is not a Base UI derivation", () => {
   ).toEqual([]);
 });
 
-test("only the local initialized by a mutable DOM read is one-shot", () => {
-  expect(
-    failuresFor(oneshotGate, [
-      {
-        files:
-          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("live", async ({ pane }) => {\n  const text = await pane.textContent();\n  expect(text).toBe("settled");\n});\ntest("static", () => {\n  const text = "settled";\n  expect(text).toBe("settled");\n});\n',
-        at: "tests/ui/pane.ct.tsx",
-        expect: { count: 1, messageIncludes: "MUTABLE ASYNC" },
-        why: "symbol identity matters: the live-read local is flagged while a same-named local in another test scope stays clean",
-      },
-    ]),
-  ).toEqual([]);
-});
-
-test("one imported story rendered twice as JSX collides", () => {
-  expect(
-    failuresFor(storyGate, [
-      {
-        files: 'import { Story } from "./_ct-stories.tsx";\nexport const Cases = () => <>\n  <Story />\n  <Story />\n</>;\n',
-        at: "tests/ui/story.ct.tsx",
-        expect: { token: "Story" },
-        why: "two JSX rewrite sites collide even when no array carries the component",
-      },
-    ]),
-  ).toEqual([]);
-});
+// ct-no-oneshot-live-read-assert and ct-story-single-import migrated off the old `GateDescriptor` +
+// `failuresFor` shape at the gate-runtime-standardization.md conversion (#1935). Both are now `defineGate`
+// policies whose OWN `mustFlag`/`mustPass` rows carry every case that was pinned here — symbol identity
+// across test scopes, taint-through-transform, and the bare two-JSX-siblings collision — proven through
+// `verifyPolicyProofs` in `tests/tooling/verify/gates/ct-no-oneshot-live-read-assert.test.ts` and
+// `tests/tooling/verify/gates/ct-story-single-import.test.ts`. The ONESHOT-OK marker-mechanics proof
+// (malformed/stale/adjacency/two-sidedness) is RETIRED entirely: that gate's bespoke escape parser is gone,
+// replaced by the one central `@orb-waive` engine, whose own reconciliation tests
+// (`tooling/src/verify/contract/ordinary-waiver.ts` consumers) are the successor for that behavior class —
+// no per-gate marker-mechanics proof is owed any more.
 
 test("FABRICATION-OK is reasoned, block-scoped, and two-sided", () => {
   expect(
@@ -234,55 +216,6 @@ test("only an imported @orb/ui layout container establishes containment", () => 
             why: "the imported symbol identity survives a local alias",
           },
         ],
-      },
-    ]),
-  ).toEqual([]);
-});
-
-test("one-shot taint survives property access and value transforms", () => {
-  expect(
-    failuresFor(oneshotGate, [
-      {
-        files:
-          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("box", async ({ pane }) => {\n  const box = await pane.boundingBox();\n  expect(box?.width).toBeGreaterThan(0);\n});\ntest("text", async ({ pane }) => {\n  const text = (await pane.textContent())?.trim().toLowerCase();\n  expect(text).toBe("ready");\n});\n',
-        at: "tests/ui/taint.ct.tsx",
-        expect: { count: 2, messageIncludes: "MUTABLE ASYNC" },
-        why: "property selection and pure transforms do not settle the mutable DOM snapshot",
-      },
-    ]),
-  ).toEqual([]);
-});
-
-test("ONESHOT-OK is reasoned, adjacent, single-use, and two-sided", () => {
-  expect(
-    failuresFor(oneshotGate, [
-      {
-        files:
-          'import { expect } from "@playwright/experimental-ct-react";\nconst text = await pane.textContent();\n// ONESHOT-OK\nexpect(text).toBe("ready");\n',
-        at: "tests/ui/malformed.ct.tsx",
-        expect: { messageIncludes: "malformed" },
-        why: "a marker without a concrete reason exempts nothing",
-      },
-      {
-        files:
-          'import { expect } from "@playwright/experimental-ct-react";\n// ONESHOT-OK: settled by the preceding web-first assertion\nexpect("ready").toBe("ready");\n',
-        at: "tests/ui/stale.ct.tsx",
-        expect: { messageIncludes: "stale" },
-        why: "a valid marker beside no one-shot consumption is stale",
-      },
-      {
-        files:
-          'import { expect } from "@playwright/experimental-ct-react";\nconst first = await pane.textContent();\nconst second = await pane.innerText();\n// ONESHOT-OK: both reads are settled\nexpect(first).toBe("ready"); expect(second).toBe("ready");\n',
-        at: "tests/ui/single-use.ct.tsx",
-        expect: { count: 1, messageIncludes: "MUTABLE ASYNC" },
-        why: "one adjacent marker is consumed by exactly one assertion and cannot absolve its sibling",
-      },
-      {
-        files:
-          'import { expect } from "@playwright/experimental-ct-react";\nconst text = await pane.textContent();\n// ONESHOT-OK: settled elsewhere\n\nexpect(text).toBe("ready");\n',
-        at: "tests/ui/nonadjacent.ct.tsx",
-        expect: { count: 2 },
-        why: "a blank line breaks adjacency: the assertion remains live-read RED and the marker is stale",
       },
     ]),
   ).toEqual([]);
