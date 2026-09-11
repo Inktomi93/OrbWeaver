@@ -1,109 +1,105 @@
 // Gate: persist-partialize-and-total-migrate (UI-Gates-and-Lessons.md §11.5, UI-Primitives-and-Reuse.md
 // §13.1/§13.3). Zustand `persist()` is partly IRREVERSIBLE — once a stale blob is in localStorage you
 // can't migrate from a version line never shipped, so every persist must route through one of the two
-// minting factories that bake `partialize` + `version` + a TOTAL crash-proof `migrate`. ARM A: a bare
-// `persist(` call outside the two factories is RED. ARM B: inside each factory, the options object must carry `version`/`partialize`/`migrate`.
-import type { CallExpression, SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+// minting factories that bake `partialize` + `version` + a TOTAL crash-proof `migrate`.
+//
+// ARM A RETIRED AS A DUPLICATE (2026-09-11, converting for #1584). The legacy module's ARM A — a bare
+// `persist(` call outside the two factories is RED — is the EXACT rule `no-raw-zustand-persist.ts`
+// already enforces under its `persistMint` operation (authority reviewed-grant), with a STRONGER
+// identity reader: the legacy check here was `Node.isIdentifier(callee) && callee.getText() === "persist"`,
+// which an aliased import (`import { persist as durable } from "zustand/middleware"`) walks straight past;
+// `no-raw-zustand-persist` resolves the callee's package-export origin instead and catches the alias.
+// Converting ARM A again would ship a second, weaker gate over the identical subject. Its successor proof
+// lives in tests/tooling/verify/gates/simple-visitors-wave-4.test.ts (replays every legacy ARM A
+// mustFlag/mustPass example through no-raw-zustand-persist and asserts it still holds).
+//
+// This policy now covers ONLY the genuinely distinct arm: inside each factory, the persist() options
+// object must carry `version`/`partialize`/`migrate` — nothing else on the tree checks factory-option
+// completeness. Population is narrowed to exactly the two factory files (no `scanRoot` predicate, no
+// FACTORY_FILES set lookup at runtime): the two paths are declared data the population algebra resolves
+// once, and a rename tripwire is unnecessary here because a moved factory simply drops out of `ctx.files`
+// and its `persist()` requirement goes unjudged — the SAME shape `no-raw-zustand-persist`'s reviewed-grant
+// staleness sweep already polices for arm A's identity, so a moved factory is caught there, not duplicated
+// here.
+//
+// SINGLETON FAMILY: this policy reads an object-literal's own property shape directly
+// (`ObjectLiteralExpression.getProperty`), never the shared package-export-origin reader
+// `no-raw-zustand-persist` uses — no shared computation, so it is its own family, not a theme-sharing
+// member of "persist-*".
+import type { CallExpression, Node } from "ts-morph";
+import { SyntaxKind, Node as TsNode } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
 
-/** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
- *  call node carries its own position, and `token` is the arm label the gate already used. */
-interface Hit {
-  readonly node: CallExpression;
-  readonly token: string;
-}
-
-const CLIENT_SRC = "/packages/client/src/";
-
-/** The two persist-minting factories — the ONLY sanctioned `persist(` call sites. */
-const FACTORY_FILES = new Set(["packages/client/src/state/create-persisted-store.ts", "packages/client/src/state/create-entity-draft-store.ts"]);
-
-/** The keys a persist options object MUST carry (the irreversibility guard). */
+const FACTORY_PERSISTED_STORE = "packages/client/src/state/create-persisted-store.ts";
+const FACTORY_ENTITY_DRAFT_STORE = "packages/client/src/state/create-entity-draft-store.ts";
 const REQUIRED_KEYS = ["version", "partialize", "migrate"] as const;
 
-const RAW_PERSIST_MESSAGE =
-  "raw zustand persist() outside the two minting factories — persistence footguns (partialize / " +
-  "version + total-migrate / storage-key uniqueness) are baked into createPersistedStore / " +
-  "createEntityDraftStore; use one, never a bare persist (UI-Gates-and-Lessons.md §11.5).";
+const MESSAGE =
+  "the mint factory's own persist() options object is missing a required irreversibility guard — " +
+  "version/partialize/migrate must all be present so a stale localStorage blob can always migrate " +
+  "forward instead of crashing (UI-Gates-and-Lessons.md §11.5, UI-Primitives-and-Reuse.md §13.1/§13.3).";
 
-function clientRel(path: string): string | undefined {
-  const idx = path.indexOf(CLIENT_SRC);
-  if (idx === -1) {
-    return;
+function isPersistCall(node: Node): node is CallExpression {
+  if (!TsNode.isCallExpression(node)) {
+    return false;
   }
-  return `packages/client/src/${path.slice(idx + CLIENT_SRC.length)}`;
+  const callee = node.getExpression();
+  return TsNode.isIdentifier(callee) && callee.getText() === "persist";
 }
 
-/** Every `persist(...)` call whose callee is the bare `persist` identifier (the zustand middleware). */
-function persistCalls(sf: SourceFile): CallExpression[] {
-  return sf.getDescendantsOfKind(SyntaxKind.CallExpression).filter((call) => {
-    const callee = call.getExpression();
-    return Node.isIdentifier(callee) && callee.getText() === "persist";
-  });
-}
-
-/** ARM A — a bare `persist(` outside the factories. */
-function rawPersistHits(sf: SourceFile): Hit[] {
-  return persistCalls(sf).map((call) => ({ node: call, token: "raw persist()" }));
-}
-
-/** ARM B — the factory's persist options object carries version + partialize + migrate. */
-function factoryOptionHits(sf: SourceFile): Hit[] {
-  const out: Hit[] = [];
-  for (const call of persistCalls(sf)) {
-    const opts = call.getArguments()[1];
-    if (opts === undefined || !Node.isObjectLiteralExpression(opts)) {
-      continue;
-    }
-    for (const key of REQUIRED_KEYS) {
-      if (opts.getProperty(key) === undefined) {
-        out.push({ node: call, token: `persist opts missing ${key}` });
-      }
-    }
-  }
-  return out;
-}
-
-// Two arms, per-FILE dispatch: a factory file runs ARM B (its persist options must carry version +
-// partialize + migrate), every other client file runs ARM A (a bare `persist(` is RED).
-export const gate: GateDescriptor = {
-  name: "persist-partialize-and-total-migrate",
-  docRow: "UI-Gates-and-Lessons.md §11.5 (UI-Primitives-and-Reuse.md §13.1/§13.3)",
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: RAW_PERSIST_MESSAGE,
-  fix: "use createPersistedStore / createEntityDraftStore (which bake partialize + version + a total crash-proof migrate) — never a bare persist().",
-  scanRoot: (p) => p.includes("packages/client/src/"),
-  visitFile: (sf, ctx: GateRunCtx) => {
-    const rel = clientRel(sf.getFilePath());
-    if (rel === undefined) {
-      return;
-    }
-    const hits = FACTORY_FILES.has(rel) ? factoryOptionHits(sf) : rawPersistHits(sf);
-    for (const hit of hits) {
-      ctx.report(hit.node, { token: hit.token, offset: 0 });
-    }
-  },
+export const gate = defineGate({
+  id: "persist-partialize-and-total-migrate",
+  family: "persist-partialize-and-total-migrate",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@client"], under: [FACTORY_PERSISTED_STORE, FACTORY_ENTITY_DRAFT_STORE] },
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: "add the missing key(s) to the factory's persist() options object.",
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.CallExpression],
+        visit: (node) => {
+          if (!isPersistCall(node)) {
+            return;
+          }
+          const opts = node.getArguments()[1];
+          if (opts === undefined || !TsNode.isObjectLiteralExpression(opts)) {
+            return;
+          }
+          const callee = node.getExpression();
+          for (const key of REQUIRED_KEYS) {
+            if (opts.getProperty(key) === undefined) {
+              ctx.report.node(callee, { token: callee.getText(), offset: 0 });
+            }
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: "export const s = persist(() => ({}), {});\n",
-      at: "packages/client/src/features/x/store.ts",
-      expect: { token: "raw persist()" },
-      why: "a bare persist() outside the two minting factories — persistence footguns aren't baked in (§11.5)",
+      mode: "source",
+      files: { [FACTORY_PERSISTED_STORE]: "export const s = persist(() => ({}), { version: 1 });\n" },
+      expect: { count: 2, token: "persist" },
+      why: "the factory's persist options object is missing partialize/migrate (only version present) — the founding shape",
     },
     {
-      files: "export const s = persist(() => ({}), { version: 1 });\n",
-      at: "packages/client/src/state/create-persisted-store.ts",
-      expect: { count: 2, token: "persist opts missing partialize" },
-      why: "ARM B — the factory's persist options object is missing `partialize`/`migrate` (only version present)",
+      mode: "source",
+      files: { [FACTORY_ENTITY_DRAFT_STORE]: "export const s = persist(() => ({}), {});\n" },
+      expect: { count: 3, token: "persist" },
+      why: "the OTHER factory, all three required keys absent",
     },
   ],
   mustPass: [
     {
-      files: "export const s = createPersistedStore('x', () => ({}));\n",
-      at: "packages/client/src/features/x/store2.ts",
-      why: "a factory mint (createPersistedStore) — no bare persist, the sanctioned door, passes",
+      mode: "source",
+      files: { [FACTORY_PERSISTED_STORE]: "export const s = persist(() => ({}), { version: 1, partialize: (state) => state, migrate: (state) => state });\n" },
+      why: "all three required keys present — the compliant factory shape",
     },
   ],
-};
+});
