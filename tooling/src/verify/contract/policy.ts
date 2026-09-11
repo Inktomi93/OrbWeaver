@@ -24,6 +24,13 @@ export interface GatePolicyProofExpectation {
 export interface GatePolicyProof {
   readonly mode: GatePolicyProofMode;
   readonly files: Readonly<Record<string, string>>;
+  /** Repo-relative link path → link TARGET, exactly as authored. `resource` mode only.
+   *
+   *  A symlink is not expressible as text, and the one verdict `authoredPaths` exists to produce — a
+   *  selector that reaches OUTSIDE the tree through an in-repo symlink — cannot be proven without one. The
+   *  target is deliberately unconstrained: a target that ESCAPES the fixture root is the whole point, and a
+   *  proof runtime that refused it could only ever demonstrate the arm that already passes. */
+  readonly links?: Readonly<Record<string, string>>;
   readonly expect?: GatePolicyProofExpectation;
   readonly why: string;
 }

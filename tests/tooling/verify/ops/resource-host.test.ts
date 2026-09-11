@@ -16,8 +16,12 @@ test("the host has closed resource doors and acquires only requested facts", ({ 
   expect(invocation.receipts()).toEqual([]);
   expect(Object.keys(invocation.host).sort()).toEqual([
     "authoredCss",
+    "authoredPaths",
+    "authoredText",
     "authoredTree",
     "cssInventory",
+    "installedPackage",
+    "json",
     "nativeConfig",
     "packageMetadata",
     "productCss",
@@ -46,6 +50,45 @@ test("a refused or unacquired waiver carrier is a receipted refusal, never a sil
   });
   // A path with no waiver-carrier format is out of the question entirely, not a refusal.
   expect(invocation.ordinaryWaiverCarriers(["packages/ui/src/button.ts"])).toEqual({ sources: [], refusals: [] });
+});
+
+test("the PUBLIC text door is total where the private waiver door filters", ({ scratch }) => {
+  const { host } = createResourceHost({ root: scratch, overlay: { "docs/a.md": "# a\n", "packages/ui/src/button.ts": "export const b = 1;\n" } });
+  // Acquire both through a declared door first — the text door is parasitic on an acquisition by design.
+  expect(host.authoredTree("docs").status).toBe("ready");
+  expect(host.authoredTree("ui-source").status).toBe("ready");
+
+  const corpus = host.authoredText(["docs/a.md", "packages/ui/src/button.ts", "docs/never-acquired.md"]);
+  expect(corpus.status).toBe("ready");
+  if (corpus.status !== "ready") {
+    throw new Error("fixture resource failed");
+  }
+  // THE DIFFERENCE THAT MATTERS: `.ts` carries no waiver comment grammar, so the PRIVATE door drops it
+  // silently (asserted above). The public door SERVES it with `format: undefined` — a dropped path is
+  // absence, and absence is what §12.3 forbids.
+  expect(corpus.value.files.map((file) => [file.path, file.format])).toEqual([
+    ["docs/a.md", "markdown"],
+    ["packages/ui/src/button.ts", undefined],
+  ]);
+  expect(corpus.value.refusals).toEqual([{ path: "docs/never-acquired.md", status: "unacquired", reason: expect.stringContaining("declared door") }]);
+  // `members` is what it MEASURED — every demanded path — never only the ones it could serve.
+  expect(corpus.members).toBe(3);
+  // A demand door owns no population.
+  expect(corpus.paths).toEqual([]);
+});
+
+test("each distinct demand is its own receipted acquisition, and an identical one is cached", ({ scratch }) => {
+  const invocation = createResourceHost({ root: scratch, overlay: { "docs/a.md": "# a\n" } });
+  expect(invocation.host.authoredTree("docs").status).toBe("ready");
+
+  const first = invocation.host.authoredText(["docs/a.md"]);
+  const repeat = invocation.host.authoredText(["docs/a.md"]);
+  const second = invocation.host.authoredText(["docs/a.md", "docs/b.md"]);
+
+  // Two DIFFERENT subjects are two measurements; collapsing them would leave one receipt describing neither.
+  expect(repeat).toBe(first);
+  expect(second).not.toBe(first);
+  expect(invocation.receipts().filter((receipt) => receipt.source.startsWith("authored-text")).length).toBe(2);
 });
 
 test("package and tree facts share overlay contents and callers cannot mutate cached values", ({ scratch }) => {

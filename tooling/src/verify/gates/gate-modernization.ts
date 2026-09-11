@@ -67,7 +67,12 @@ const MESSAGE =
   "IS a committed ratchet-ledger path: this gate READS that ledger and never calls `ctx.scan({ admitted })`, " +
   "so every finding its budgets absolve is missing from the single-pass's admitted total — declared debt " +
   "that renders as ZERO declared debt, which is the one number a reader uses to know the debt is still " +
-  "there (#551). Any other " +
+  "there (#551). " +
+  'An `analysis` token: the policy DECLARES `analysis: "syntax"` and its body calls `getType(`/`getSymbol(`. ' +
+  "`ctx.checker()` refuses a syntax owner, but a ts-morph node reaches the compiler WITHOUT the context, so " +
+  "the declaration is simply untrue — the gate reads types on a tier priced for syntax, and the " +
+  "smallest-complete-contract rule has no other enforcer on this axis. " +
+  "Any other " +
   "token is an EXEMPTION TABLE by that name with no STALE arm: this gate module contains no diagnostic that " +
   "fires when a row stops matching a live violation, and a one-sided exemption rots into a lie — the " +
   "violation gets fixed, the row stays, and the next violation written at that site inherits an exemption " +
@@ -81,7 +86,10 @@ const FIX =
   "scan-SCOPE decision rather than an exemption, rename it out of the exemption vocabulary. " +
   "C: repoint the `§` to an anchor the cited doc actually defines. " +
   `D: call \`ctx.scan({ admitted: <the findings your budgets absolved> })\` in the gate's \`run\`/\`finalize\` (${LAW} §1) — ` +
-  "`density-tier` and `duplicate-action-doors` are the worked examples; `pnpm debt` enumerates the rows behind the number.";
+  "`density-tier` and `duplicate-action-doors` are the worked examples; `pnpm debt` enumerates the rows behind the number. " +
+  'E: declare `analysis: "types"` if the policy genuinely needs compiler-resolved semantics, or delete the ' +
+  "`getType`/`getSymbol` calls and judge the node's syntax — a type read through a ts-morph node is still a " +
+  "type read, and `ctx.checker()` is the only spelling the runtime can price.";
 
 // ── ARM A ────────────────────────────────────────────────────────────────────────────────────────────
 const NO_DESCRIPTOR = (rel: string): string =>
@@ -92,7 +100,7 @@ const NO_DESCRIPTOR = (rel: string): string =>
 
 /** How a gate module registers: the legacy descriptor OBJECT (judged field by field below), or a canonical
  *  `defineGate(…)` CALL (registered; its shape is the final contract's own validation). */
-type Registration = { readonly contract: "legacy"; readonly obj: Node } | { readonly contract: "final" };
+type Registration = { readonly contract: "legacy"; readonly obj: Node } | { readonly contract: "final"; readonly obj: Node | undefined };
 
 /** The module's registration under either contract, or undefined when it registers under neither. Identity, not
  *  spelling: a `defineGate` whose import origin is not `contract/policy.ts` is a lookalike and registers nothing. */
@@ -109,7 +117,14 @@ function registrationOf(sf: SourceFile): Registration | undefined {
     return;
   }
   const callee = value.getExpression();
-  return TsNode.isIdentifier(callee) && isCanonicalDefineGate(callee) ? { contract: "final" } : undefined;
+  if (!(TsNode.isIdentifier(callee) && isCanonicalDefineGate(callee))) {
+    return;
+  }
+  // The descriptor literal itself — §12.1 requires `defineGate({ … })` to take a direct object literal, and
+  // ARM E judges the CLAIM that literal makes about its own evidence plane. Anything else is `undefined`:
+  // the final contract's own validator owns that refusal, and this arm must not guess at a second one.
+  const argument = value.getArguments()[0];
+  return { contract: "final", obj: argument !== undefined && TsNode.isObjectLiteralExpression(argument) ? argument : undefined };
 }
 
 /** Is a descriptor property a non-empty array literal? */
@@ -130,6 +145,7 @@ function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | und
     return;
   }
   if (registration.contract === "final") {
+    armSyntaxAnalysis(registration.obj, ctx);
     return;
   }
   const { obj } = registration;
@@ -141,6 +157,59 @@ function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | und
     }
   }
   return obj;
+}
+
+// ── ARM E ────────────────────────────────────────────────────────────────────────────────────────────
+// `analysis: "syntax"` is a CLAIM that the policy reads no types, and the runtime enforces exactly ONE HALF
+// of it: `ctx.checker()` throws for a syntax owner (tooling/src/verify/lib/policy-pass-context.ts:243-248).
+// A ts-morph `node.getType()` / `node.getSymbol()` walks straight past that fence — the compiler is
+// reachable from the very node the visitor was handed, without ever asking the context for it. So a policy
+// can read types while declaring pure syntax and stay green: the declared evidence plane becomes a lie, the
+// gate is mis-tiered against its real cost, and the smallest-complete-contract rule (§5b item 1) has no
+// enforcer on this axis. Blast radius is currently ZERO — the one offender was corrected at f52492f44 — and
+// this arm exists so that it STAYS zero rather than because anything is broken today (#1958).
+// SCOPE: the FINAL contract only. A legacy descriptor has no `analysis` field, so it makes no such claim and
+// there is nothing to contradict (mustPass row).
+// IDENTITY, not text: the reads are matched as CALL EXPRESSIONS through a member access, so a `getType` in
+// a comment, a message string or a proof fixture cannot trip it — which matters here because this module's
+// own `mustFlag` row contains the literal string it hunts.
+const TYPE_READ_METHODS: ReadonlySet<string> = new Set(["getType", "getSymbol"]);
+const SYNTAX_ANALYSIS = "syntax";
+const ANALYSIS_PROP = "analysis";
+
+/** The literal text of the descriptor's `analysis` value, or undefined when it is not a plain string. */
+function analysisText(obj: Node): string | undefined {
+  const prop = TsNode.isObjectLiteralExpression(obj) ? obj.getProperty(ANALYSIS_PROP) : undefined;
+  const init = prop !== undefined && TsNode.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
+  if (init === undefined) {
+    return;
+  }
+  const n = unwrap(init);
+  return TsNode.isStringLiteral(n) || TsNode.isNoSubstitutionTemplateLiteral(n) ? n.getLiteralText() : undefined;
+}
+
+/** Does this subtree call a type-reading ts-morph member? A local `getChildren` recursion on purpose: the
+ *  descendant helpers are the banned direct-walk vocabulary (`lib/gate-contract.ts`), and this module must
+ *  not add a call site to a list it exists to police. */
+function readsTypes(node: Node): boolean {
+  if (TsNode.isCallExpression(node)) {
+    const callee = node.getExpression();
+    if (TsNode.isPropertyAccessExpression(callee) && TYPE_READ_METHODS.has(callee.getName())) {
+      return true;
+    }
+  }
+  return node.getChildren().some(readsTypes);
+}
+
+/** ARM E for one FINAL module. One finding per module, anchored on the descriptor with the `analysis` token:
+ *  the defect is the DECLARATION, not each read, and the repair is to change that one word (or drop the
+ *  reads). Reporting per call site would also make several findings share one carrier and one token, which
+ *  is the shape that has no working suppression door at all. */
+function armSyntaxAnalysis(obj: Node | undefined, ctx: GateRunCtx): void {
+  if (obj === undefined || analysisText(obj) !== SYNTAX_ANALYSIS || !readsTypes(obj)) {
+    return;
+  }
+  ctx.report(obj, { token: ANALYSIS_PROP, offset: 0 });
 }
 
 // ── ARM B ────────────────────────────────────────────────────────────────────────────────────────────
@@ -421,6 +490,12 @@ function armExemptions(sf: SourceFile, ctx: GateRunCtx): void {
   }
 }
 
+/** ARM E's fixture pair. The stub gives the origin reader a real `contract/policy.ts` to resolve against —
+ *  this gate is fsBacked, so its examples are real temp roots, exactly as ARM A's canonical row already is. */
+const POLICY_STUB = "export function defineGate(policy: unknown): unknown {\n  return policy;\n}\n";
+const finalProbe = (body: string): string =>
+  `import { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", ${body}, mustFlag: [1], mustPass: [1] });\n`;
+
 export const gate: GateDescriptor = {
   name: "gate-modernization",
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — tooling/src/verify/gates/GATE-AUTHORING.md",
@@ -462,6 +537,22 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "exports no `gate` descriptor" },
       why: "ARM A — IDENTITY, not spelling: a same-named LOCAL `defineGate` has no import origin in contract/policy.ts, so the module registers nothing (the loader would refuse its unbranded result too) and the arm names it rather than trusting the callee's name",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getType()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: 'ARM E — a policy declaring `analysis: "syntax"` while calling `getType` reads types past the only fence the runtime has (`ctx.checker()` throws for a syntax owner; a ts-morph node does not ask it). ONE finding, on the DECLARATION: the token is `analysis` because changing that one word — or dropping the read — is the repair, and a per-call-site finding would give several findings one carrier and one token, which has no working waiver door at all',
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getSymbol()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E — `getSymbol` is the second door onto the same compiler and is flagged identically; without this row the arm would be shown to catch only half its own vocabulary",
     },
     {
       files: {
@@ -512,6 +603,27 @@ export const gate: GateDescriptor = {
           'import { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", mustFlag: [1], mustPass: [1] });\n',
       },
       why: "ARM A — a CANONICAL `defineGate` module is REGISTERED (the mixed loader classifies it final by brand; this arm by import origin), and its proof floor belongs to lib/policy-validation.ts — the arm judges nothing further on it (the #1584 widening: 163 converted modules read as 'exports no descriptor' before it)",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "types", create: (ctx) => ctx.node.getType()'),
+      },
+      why: 'ARM E DECLARED LIMIT — the arm judges the CLAIM, not the read: a policy that honestly declares `analysis: "types"` may call `getType` freely, and flagging it would price every type-reading gate as a defect',
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getText()'),
+      },
+      why: 'ARM E — `analysis: "syntax"` with no type read is the ordinary, correct shape; the arm must not fire on the mere presence of the declaration (the near-miss that separates "declares syntax" from "declares syntax and reads types")',
+    },
+    {
+      files: {
+        "tooling/src/verify/gates/__probe.ts":
+          'export const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], run: (ctx) => ctx.node.getType() };\n',
+      },
+      why: "ARM E SCOPE — a LEGACY descriptor carries no `analysis` field, so it makes no claim about its evidence plane and there is nothing for a type read to contradict; arm E is final-contract only",
     },
     {
       files: { "tooling/src/verify/gates/_proof/__probe-surface.ts": "export const SURFACE = 1;\n" },

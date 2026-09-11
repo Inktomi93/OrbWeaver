@@ -66,6 +66,10 @@ test("the authored-tree axis resolves every closed id to its exact gate-root pat
     "client-source": "packages/client/src",
     "ui-source": "packages/ui/src",
     gate: "tooling/src/verify/gates",
+    // The two authored trees that are not source packages. They exist so the prose policies can ADMIT the
+    // paths whose text they then demand through `authoredText`, which owns no population of its own.
+    docs: "docs",
+    scripts: "scripts",
   });
   for (const [id, path] of Object.entries(AUTHORED_TREE_PATHS)) {
     const calls: string[] = [];

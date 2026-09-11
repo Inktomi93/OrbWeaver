@@ -5,6 +5,10 @@ import type { OrdinaryWaiverCarriers } from "./ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceReaderOptions, ResourceReceipt, ResourceTreeEntry, TrackedResourceIndex } from "./resource.ts";
 import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfigResourceId } from "./resource-config.ts";
 import type { CssFacts, CssInventoryRequest } from "./resource-css.ts";
+import type { InstalledPackageFacts, InstalledPackageRequest } from "./resource-installed.ts";
+import type { JsonResourceFacts, JsonResourceId } from "./resource-json.ts";
+import type { AuthoredPathIndex } from "./resource-path.ts";
+import type { AuthoredTextCorpus } from "./resource-text.ts";
 import type { AuthoredCssFile, AuthoredTreeId } from "./resource-tree.ts";
 
 export interface ResourceHost {
@@ -16,6 +20,12 @@ export interface ResourceHost {
   readonly staticConfig: (id: StaticConfigResourceId) => ResourceFact<StaticConfigFacts>;
   readonly nativeConfig: <R extends ConfigSnapshotRunner>(id: R) => ResourceFact<ConfigSnapshotByRunner[R]>;
   readonly trackedFiles: () => ResourceFact<TrackedResourceIndex>;
+  readonly json: (id: JsonResourceId) => ResourceFact<JsonResourceFacts>;
+  readonly installedPackage: (request: InstalledPackageRequest) => ResourceFact<InstalledPackageFacts>;
+  /** DEMAND doors. They own no population, take their subject at call time, and are fenced by declaration
+   *  rather than by path membership — see `resource-declaration.ts` on the two classes of kind. */
+  readonly authoredPaths: (selectors: readonly string[]) => ResourceFact<AuthoredPathIndex>;
+  readonly authoredText: (paths: readonly string[]) => ResourceFact<AuthoredTextCorpus>;
 }
 
 /** Invocation composition only. The parser seam permits the fixture runner's shared workspace. */

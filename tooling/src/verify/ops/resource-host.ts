@@ -10,11 +10,17 @@ import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiv
 import type { ResourceFact, ResourceLoad, ResourceReceipt } from "../contract/resource.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
 import type { ResourceHost, ResourceHostOptions, ResourceInvocation } from "../contract/resource-host.ts";
+import type { InstalledPackageFacts, InstalledPackageRequest } from "../contract/resource-installed.ts";
+import type { JsonResourceFacts, JsonResourceId } from "../contract/resource-json.ts";
+import type { AuthoredTextCorpus, AuthoredTextFile, AuthoredTextRefusal } from "../contract/resource-text.ts";
 import type { AuthoredTreeId } from "../contract/resource-tree.ts";
 import { ordinaryWaiverResourceFormat } from "../lib/ordinary-waiver-source.ts";
 import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
 import { loadCssFacts } from "./resource-css.ts";
+import { loadInstalledPackage } from "./resource-installed.ts";
+import { loadJsonResource } from "./resource-json.ts";
 import { loadNativeConfig } from "./resource-native-config.ts";
+import { loadAuthoredPaths } from "./resource-path.ts";
 import { createResourceReader } from "./resource-reader.ts";
 import { loadTrackedFiles } from "./resource-tracked.ts";
 import { loadAuthoredCss, loadAuthoredTree, loadProductCss } from "./resource-tree.ts";
@@ -96,6 +102,58 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
       return provider();
     };
   };
+  // A DEMAND door takes its subject at call time, so `cached`'s one-slot memo cannot serve it. Each distinct
+  // demand is its own acquisition with its own receipt, keyed by the exact subject list — two different
+  // demands must not collapse into one receipt that describes neither.
+  const demanded = <T>(family: string, load: (subject: readonly string[]) => ResourceLoad<T>): ((subject: readonly string[]) => ResourceFact<T>) => {
+    const providers = new Map<string, () => ResourceFact<T>>();
+    return (subject) => {
+      const distinct = [...new Set(subject)].toSorted((left, right) => left.localeCompare(right));
+      const key = JSON.stringify(distinct);
+      let provider = providers.get(key);
+      if (provider === undefined) {
+        provider = cached(`${family}#${String(providers.size)}`, () => load(distinct));
+        providers.set(key, provider);
+      }
+      return provider();
+    };
+  };
+  // An installed-package request is keyed by its whole identity, mode and named file included: `text` of one
+  // file and `ast` of the same package are two different acquisitions with two different receipts.
+  const installedProviders = new Map<string, () => ResourceFact<InstalledPackageFacts>>();
+  const installed = (request: InstalledPackageRequest): ResourceFact<InstalledPackageFacts> => {
+    const key = request.mode === "text" ? `${request.id}:text:${request.file}` : `${request.id}:${request.mode}`;
+    let provider = installedProviders.get(key);
+    if (provider === undefined) {
+      provider = cached(`installed-package:${key}`, () => loadInstalledPackage(root, request));
+      installedProviders.set(key, provider);
+    }
+    return provider();
+  };
+  /** The public half of the text door. TOTAL over the demanded paths: unlike the private waiver carrier
+   *  below it, a path whose extension carries no comment grammar is SERVED with `format: undefined` rather
+   *  than dropped — a silent drop is absence, which §12.3 forbids. */
+  const loadAuthoredText = (paths: readonly string[]): ResourceLoad<AuthoredTextCorpus> => {
+    if (paths.length === 0) {
+      return { status: "empty", paths: [], members: 0, reason: "authored text was demanded for zero paths" };
+    }
+    const files: AuthoredTextFile[] = [];
+    const refusals: AuthoredTextRefusal[] = [];
+    for (const path of paths) {
+      if (!acquiredPaths.has(path)) {
+        refusals.push(Object.freeze({ path, status: "unacquired", reason: `resource was not acquired through a declared door: ${path}` }));
+        continue;
+      }
+      const text = reader.read(path);
+      if (text.status === "ready") {
+        files.push(Object.freeze({ path, text: text.value, format: ordinaryWaiverResourceFormat(path) }));
+      } else {
+        refusals.push(Object.freeze({ path, status: text.status, reason: text.reason }));
+      }
+    }
+    // `members` is what the door MEASURED — every demanded path — never only the ones it could serve.
+    return { status: "ready", value: { files, refusals }, paths: [], members: files.length + refusals.length };
+  };
   const authoredCss = cached("authored-css", () => loadAuthoredCss(reader));
   const productCss = cached("product-css", () => loadProductCss(reader));
   const host: ResourceHost = Object.freeze({
@@ -109,14 +167,18 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
       loadNativeConfig(reader, invocationOptions, id),
     ) as ResourceHost["nativeConfig"],
     trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),
+    json: keyed<JsonResourceId, JsonResourceFacts>("json", (id) => loadJsonResource(reader, id)),
+    installedPackage: (request: InstalledPackageRequest) => installed(request),
+    authoredPaths: demanded("authored-path", (selectors) => loadAuthoredPaths(root, selectors)),
+    authoredText: demanded("authored-text", (paths) => loadAuthoredText(paths)),
   });
   // Every demanded waiver-format path leaves here as a carrier or as a REFUSAL carrying the reader's own
   // reason. A silent drop was the shape that let a by-design symlink refusal reach the dispatcher as an
   // unexplained absence (#1947).
-  const ordinaryWaiverCarriers = (demanded: readonly string[]): OrdinaryWaiverCarriers => {
+  const ordinaryWaiverCarriers = (subjects: readonly string[]): OrdinaryWaiverCarriers => {
     const sources: OrdinaryWaiverSource[] = [];
     const refusals: OrdinaryWaiverCarrierRefusal[] = [];
-    for (const path of [...new Set(demanded)].toSorted((left, right) => left.localeCompare(right))) {
+    for (const path of [...new Set(subjects)].toSorted((left, right) => left.localeCompare(right))) {
       const format = ordinaryWaiverResourceFormat(path);
       if (format === undefined) {
         continue;

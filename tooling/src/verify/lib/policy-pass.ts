@@ -24,6 +24,7 @@ import type {
 } from "../contract/policy-pass.ts";
 import { GATE_FACT_PHASES, POLICY_OWNER_PLAN_MODES, POLICY_PHASES } from "../contract/policy-pass.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
+import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
@@ -247,6 +248,17 @@ function assertSelectedPoliciesAreLoaded(knownPolicies: readonly GatePolicy[], s
   }
 }
 
+/** Which declarations survive into the run's DECLARED set — the fence `bindPolicyResources` checks.
+ *
+ *  A populated request survives only if at least one of its paths is still in the effective population: a
+ *  narrowed scope that excludes a resource must also withdraw permission to read it. An UNPOPULATED request
+ *  resolves zero paths by construction, so that test drops it every time and the policy is then refused at
+ *  its own declared door — which surfaces as "undeclared", a message pointing at the descriptor rather than
+ *  at this filter. Same conflation as the empty-fact rule in `resource-declaration.ts`, one layer up. */
+function requestStaysDeclared(host: ResourceHost, request: GateResourceRequest, effectiveResources: ReadonlySet<string>): boolean {
+  return isGateResourceUnpopulatedKind(request.kind) || resolveResourceDeclarations(host, [request]).some((path) => effectiveResources.has(path));
+}
+
 function newRun(policy: GatePolicy): PolicyRun {
   return {
     policy,
@@ -396,9 +408,7 @@ function resolveRuns(
         const declaredResources = resolveResourceDeclarations(resources, run.policy.resources);
         resolveRun({ run, candidates, sourceFiles, requestedPaths, resources: declaredResources });
         const effectiveResources = new Set(run.population.effectiveResourcePaths);
-        run.resourceRequests = run.policy.resources.filter((request) =>
-          resolveResourceDeclarations(resources, [request]).some((path) => effectiveResources.has(path)),
-        );
+        run.resourceRequests = run.policy.resources.filter((request) => requestStaysDeclared(resources, request, effectiveResources));
         const ownerPlan = input.ownerPlansByPolicy?.get(run.policy.id);
         if (ownerPlan !== undefined) {
           applyOwnerPlan(run, ownerPlan);
@@ -465,9 +475,7 @@ function resolveFactRuns({ facts, sourceFiles, resources, control }: ResolveFact
         });
         run.effectivePathSet = new Set([...declaredSourcePaths, ...declaredResourcePaths]);
         const effectiveResources = new Set(declaredResourcePaths);
-        run.resourceRequests = fact.resources.filter((request) =>
-          resolveResourceDeclarations(resources, [request]).some((path) => effectiveResources.has(path)),
-        );
+        run.resourceRequests = fact.resources.filter((request) => requestStaysDeclared(resources, request, effectiveResources));
         run.status = "success";
         run.error = null;
       });
