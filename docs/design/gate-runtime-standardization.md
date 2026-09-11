@@ -36,7 +36,7 @@ for exactly once; nothing vanishes from the roster.
 | - | - | - |
 | gate modules / final / legacy | 271 / 163 / 108 | `pnpm gate:contract` at `1925d3086`: 815 findings across 271 modules; 108 modules carry a descriptor-wrapper finding |
 | converted modules with NO committed test importing them | 21 of 163 | orchestrator sweep 2026-09-11 (incl. `baseui-render-prop-composition`, whose missing `name` throws in the legacy loader) |
-| ordinary policies with no positive `@orb-waive` identity arm | 52 of 86 | verified by two Opus verifiers reading gate + family tests + fixtures, 2026-09-11 (#1952); 8 landed at `efc8ace50`. A grep floor reports 50: it also counts `no-off-token-radius-shadow` and `no-form-state-in-useeffect`, whose only marker text is header prose and a sibling's negative arm |
+| ordinary policies with no positive `@orb-waive` identity arm | 44 of 86 | 16 landed at `efc8ace50` and `7ee0e6da0`, each with a planted dead-position control. A grep floor reports 42: it also counts `no-off-token-radius-shadow` and `no-form-state-in-useeffect`, whose only marker text is header prose and a sibling's negative arm |
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | last composed baseline (all final policies, full roster, central grants) | 119 policies: 304 raw = 182 waived + 105 granted + 17 effective; 2:03 wall / 6.55 GB on a loaded box | checkpoint-2026-09-05.md, wave 5 |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
@@ -82,8 +82,11 @@ private cache, private marker parser, gate-owned exemption table, scope predicat
 (`policy-pass-context.ts:109`): the first identifier, literal or keyword token in the reported node's own text that
 contains no paren or newline. The derived token is what an author must type in `@orb-waive <id>(<position>)`, so a
 policy reporting the type argument `Registry<string, number> | null` is waived at `Registry` and one reporting a cast
-operand is waived at the operand's own text — unguessable from the message, which is why an ordinary policy's `fix`
-owes the spelling; every anchor inside the policy's own resolved population;
+operand is waived at the operand's own text. **The position is the token the module PASSES or derives, which is
+routinely NOT the thing a reader would call the offense** — `no-manual-autosave-flush` is waived at `pushFieldValue`
+though `handleSubmit` is half the defect, and `bounded-list-limit` at the field name rather than the unbounded chain,
+because both report a pair- or chain-level verdict anchored on one locus. Read the `report.node` call, never the
+message. Unguessable is the norm, which is why an ordinary policy's `fix` owes the spelling; every anchor inside the policy's own resolved population;
 population `under: ["x/**"]` (a `"x/"` matches nothing). A read the seven shipped resource kinds cannot serve, or a
 shared reader that does not exist in `lib/`, STOPS that module (it stays legacy and armed) and returns the exact read to
 \#1930. That refusal is a success; keeping a private reader behind `defineGate` lowers the census while leaving the
