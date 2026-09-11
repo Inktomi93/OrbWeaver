@@ -1,6 +1,11 @@
 // Gate: no-raw-color-in-css (UI-Architecture-and-Layout.md / D43) — parsed declarations only.
 // The generated theme.css is the authoritative raw-color definition surface; comments, selectors, and
 // declaration content strings are not color declarations and remain outside this policy.
+// FAMILY: a singleton until a second CSS-literal sibling converts. The loader law (lib/policy-module.ts, the
+// final contract's "a policy with no proven sibling is a singleton family under its own id") refuses a lone member
+// whose `family` is not its id — `css-literal-geometry` was declared here for the 14 LEGACY CSS gates that share the
+// authored-css reader, and the mixed door (#1584 §5) is the first loader to have run this module. Re-declare the
+// shared family in the same commit that converts the second member.
 import { defineGate } from "../contract/policy.ts";
 
 const GENERATED_THEME = "packages/ui/src/styles/theme.css";
@@ -46,7 +51,7 @@ function valuePosition(text: string, declarationOffset: number, value: string): 
 
 export const gate = defineGate({
   id: "no-raw-color-in-css",
-  family: "css-literal-geometry",
+  family: "no-raw-color-in-css",
   authority: "ordinary",
   severity: "error",
   population: { of: "none", why: "CSS is a ResourceHost fact population, never a compiler population" },

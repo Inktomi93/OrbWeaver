@@ -16,6 +16,10 @@
 //
 // THREE ANSWERS: a proven chat mutation is the finding; a proven non-tRPC `mutationOptions` passes; a
 // candidate whose chain cannot be placed is REPORTED as unreadable (GATE-AUTHORING §5, #944).
+// FAMILY: a singleton under its own id. `trpc-proxy-origin` named the `lib/type-member-origin.ts` reader this policy
+// shares in spirit with the rest of the canonical-origin client family, but no second FINAL policy declares it, and
+// the loader law (lib/policy-module.ts) refuses a lone member whose `family` is not its id — first applied to this
+// module by the mixed door (#1584 §5). Re-declare the shared family when a second member lands.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -61,7 +65,7 @@ function isProxyRoot(root: MorphNode): boolean {
 
 export const gate = defineGate({
   id: "no-chat-trpc-in-surface",
-  family: "trpc-proxy-origin",
+  family: "no-chat-trpc-in-surface",
   authority: "ordinary",
   severity: "error",
   population: { in: ["@authored"], under: [SURFACES] },
