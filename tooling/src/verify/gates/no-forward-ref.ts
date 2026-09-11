@@ -140,5 +140,16 @@ export const gate = defineGate({
       },
       why: "a DIFFERENT React export is untouched — the matcher is keyed on one exported name, not on the react door",
     },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx":
+          'import React from "react";\n' +
+          "// @orb-waive no-forward-ref(forwardRef): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export const MyInput = React.forwardRef((props: object, ref: object) => null);\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the reference with the token `forwardRef` — the EXPORT name, not the local spelling of its receiver — so `React.forwardRef` is waived as `forwardRef`. Built on the MEMBER arm mustFlag[2] (:62) because it is a ONE-finding fixture: the founding row also fires on the import door, and one marker suppresses one occurrence. The marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

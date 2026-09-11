@@ -159,5 +159,16 @@ export const gate = defineGate({
       },
       why: "SAME NAME, WRONG PACKAGE: another package exporting `useContext` is not React's deprecated reader, and nothing but the resolved module home distinguishes it",
     },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx":
+          'import React, { createContext } from "react";\nconst ThemeContext = createContext("");\nexport function useTheme(): string {\n' +
+          "  // @orb-waive no-use-context(useContext): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "  return React.useContext(ThemeContext);\n}\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the reference with the token `useContext` — the EXPORT name, not the receiver spelling — so `React.useContext` is waived as `useContext`. Built on the MEMBER arm mustFlag[2] (:68) because it is a ONE-finding fixture: the founding row also fires on the import door, and one marker suppresses one occurrence. The marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

@@ -77,5 +77,16 @@ export const gate = defineGate({
       files: { "packages/client/src/x.ts": 'function castId(value: string): string { return value; }\nexport const x = castId("");\n' },
       why: "a local same-named function is not the canonical kit seam",
     },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/client/src/x.ts":
+          'import { castId } from "../../kit/src/ids/index";\n' +
+          "// @orb-waive no-fake-disabled-id(castId): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          'export const x = castId("");\n',
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the CALLEE, whose derived position token is `castId`, so that is the only position an author can waive. The fixture is mustFlag[0] (:47) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });
