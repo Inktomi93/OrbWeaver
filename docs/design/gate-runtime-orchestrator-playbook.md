@@ -172,9 +172,10 @@ filesystem read" — it imports `existsSync` at :22 and calls it at :109). **Ver
 **Two corrections to #1930 that follow directly.** It claims config/compiler liveness is blocked: `eslint-grant-liveness`,
 `depcruise-grant-liveness` and `runner-config-path-liveness` converted without it, and `biome-grant-liveness` +
 `tsconfig-entry-liveness` want the same proven shape — a `native-config` RUNNER evaluating through the tool's own
-loader, not a new kind and not the hand-parsed JSON those two do today. And the contract can already express a symlink
-(`ResourceFileSnapshot`'s `symlink` variant with `targetPath`, `resource.ts:34-36`), so the path-liveness blocker is in
-`runResourceExample`'s FIXTURE runtime, not in the contract.
+loader, not a new kind and not the hand-parsed JSON those two do today. The symlink blocker IS in the contract:
+`ResourceFileSnapshot`'s `symlink` variant is internal and never reaches a policy, which
+`runner-config-path-liveness.ts:23-39` states from a measured refusal. That module is a legacy `GateDescriptor`
+(`:306`) that refused conversion citing #1930 — NOT a converted precedent; do not cite it as one.
 
 **So step 2's decision is much smaller than #1930 frames it:** three enum entries, one door to expose, one census fact,
 and one real design question — how to declare a read into an installed dependency when three consumers want three

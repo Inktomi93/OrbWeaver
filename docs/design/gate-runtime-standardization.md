@@ -427,13 +427,21 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
      named file, e.g. `babel-plugin-react-compiler/dist/index.js`). Each mode receipted. **One kind with declared
      modes, never three narrow kinds:** a capability serving one gate is that gate's private reader wearing a
      contract's clothes, and three kinds would cost three passes over the four policing surfaces instead of one.
-  5. **Fixture runtime, not contract:** `runResourceExample` gains symlink expression. The CONTRACT already has it
-     (`ResourceFileSnapshot`'s `symlink` variant with `targetPath`, `resource.ts:34-36`), so path-liveness was never
-     blocked on the contract.
+  5. **An authored-path identity door**, plus absolute-selector normalization. `runner-config-path-liveness.ts:23-39`
+     specifies it exactly, from a refusal measured on this tree: a policy needs `exists · file|directory ·
+     symlink-resolves-outside` for a repo-relative selector, and a way to relate an ABSOLUTE selector to the repo at
+     all (`GatePolicyContext` deliberately carries no root). Without it an in-repo symlink pointing outside the tree
+     silently PASSES — `trackedFiles()` returns repo paths and git lists a symlink as an ordinary path. **The
+     `symlink` variant on `ResourceFileSnapshot` does NOT satisfy this: it is internal and never reaches a policy.**
+     `runResourceExample` needs the matching fixture-side expression.
+  6. **Constraint on item 1, measured 2026-09-11:** a `native-config` declaration drags the whole repository inventory
+     into the policy's resource population, and the ordinary-waiver carrier demand then throws on this tree's tracked
+     symlinks. Both shipped native-config consumers are `authority: "hard"` (`eslint-grant-liveness.ts:93`,
+     `depcruise-grant-liveness.ts:294`) and hard policies never demand carriers, which is why they work. **A
+     native-config runner is safe for a HARD policy; an ordinary one must be proven before it is declared.**
 
-  Two #1930 premises are REFUTED and must not be re-derived: config/compiler liveness is not blocked (three such gates
-  already converted), and the seven-capability figure was derived from eleven gates three lanes tripped over rather
-  than from the population.
+  **`runner-config-path-liveness` is NOT a converted precedent** — it is a legacy `GateDescriptor` (`:306`) that
+  REFUSED conversion citing this very row (`:23`), and its refusal is the specification for item 5.
 
 - 2026-09-05: final AST source populations are `.ts`/`.tsx` only; `.mts/.cts/.mjs/.cjs` are cleanup.
 - 2026-09-06: sanctioned homes convert as exact reviewed grants with liveness, never population subtraction; the
