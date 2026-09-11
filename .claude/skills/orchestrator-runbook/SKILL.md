@@ -73,6 +73,19 @@ named by its exact filename. Assume the index, never the body.
   `review`. Interrupted transitions are safe to rerun, including the composite verbs, which resume at the row's
   current status.
 
+- **Two more guards `land` enforces, both paid 2026-09-11.** `land` needs the row at **Ready or later** — a Parked
+  row must go through `ready` first (Parked IS a legal `ready` pre-state, so it is `ready` then `land`, two calls). And
+  `--force-close --reason` only OVERRIDES A BAR THAT EXISTS: on a row with no DoD it refuses with
+  `has no DoD — --force-close only overrides a bar that exists`. A row that never had a DoD closes with plain `land`.
+
+- **CLOSING A ROW AS SUPERSEDED: read the BODY, never the title or the commits.** A row's title and its commit trail
+  can both look current while its body specifies an architecture that no longer exists. Paid 2026-09-11: three P1 rows
+  (#1608/#1609/#1637) were first triaged by commit archaeology and parked to be "re-derived", when reading their bodies
+  showed all three specified the ESLint-engine design — ESLint rule bodies, `no-restricted-syntax` fragments, a
+  `runEslint` platform — whose every referenced artifact is absent from the tree. There was nothing to re-derive
+  against. The close receipt owes a REQUIREMENT-TO-LANDING map (which of the row's stated outcomes shipped, by what
+  route) plus the archive tag holding the unmerged commits, so a later reader can tell supersession from abandonment.
+
 - **A RUNNING row's Lane cannot be changed by any verb.** `set … Lane` is refused as lifecycle-controlled, and
   `claim` refuses with `work item is already Running in lane <x>`. So when a lane DIES mid-flight — an account goes
   down, a session is lost — the Lane field keeps naming an owner that cannot act and there is no tool path to correct
