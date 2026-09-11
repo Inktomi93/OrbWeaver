@@ -15,6 +15,7 @@ import {
   fleetRunDir,
   getVllmEngineController,
   isHeld,
+  isStopped,
   resolveEngineDeploymentFacts,
   startVllmEngines,
 } from "./engine/index.ts";
@@ -150,6 +151,9 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
         ...(deps.manages !== undefined ? { manages: deps.manages } : {}),
         // The supervisor tick reads the hold marker each tick → sleeping-held classification.
         sleepHeld: () => isHeld(fleetRunDir(repoRoot)),
+        // The supervisor tick reads the stopped marker each tick — present ⇒ refuse the takeover-respawn
+        // (#1929: `engines stop` alone left the pidfile behind, which read as a crash).
+        stoppedHeld: () => isStopped(fleetRunDir(repoRoot)),
       }),
     status: () => allEngineStatuses(),
     deployment: () => resolveEngineDeploymentFacts({ repoRoot, deployment, ports }),

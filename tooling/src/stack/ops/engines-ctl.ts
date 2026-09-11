@@ -14,6 +14,7 @@
  * HTTP + a marker FILE, so they work with the app server DOWN (the ComfyUI tenant workflow). The RESULT line
  * is the machine contract (probe convention); exit code carries the verdict (a wake refusal exits non-zero).
  */
+import { userInfo } from "node:os";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { engineLaunchEnvFloor, processEnvSnapshot } from "@orb/server/foundation/env";
@@ -27,6 +28,7 @@ import {
   fleetRunDir,
   getIsSleeping,
   isHeld,
+  isStopped,
   postSleep,
   postWakeAndAwait,
   queryGpuVram,
@@ -34,6 +36,7 @@ import {
   stopRecordedEngineProcess,
   VLLM_ENGINES,
   writeHold,
+  writeStopped,
 } from "@orb/server/infra/providers/vllm/engine";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { runTool, UsageError } from "../../_shared/run-tool.ts";
@@ -93,6 +96,16 @@ function gib(bytes: number): string {
   return `${(bytes / BYTES_PER_GIB).toFixed(1)}GiB`;
 }
 
+/** Best-effort "who" for the stopped marker — the file is a human-readable receipt, not an auth record. */
+function safeUsername(): string {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable OS user identity falls back to a fixed label ("unknown") for a HUMAN-READABLE receipt on a marker file, never an authorization decision. Ends if the fallback ever gates a signal.
+  try {
+    return userInfo().username;
+  } catch {
+    return "unknown";
+  }
+}
+
 // ── reconcile: stale-pidfile handling stays in bash; the orphan-family sweep is the reaper (cwd-equality) ──
 async function reconcile(): Promise<number> {
   const reaped = await reapOrphanedFamily(REPO_ROOT);
@@ -130,7 +143,9 @@ async function logEngineRow(engine: (typeof VLLM_ENGINES)[number], held: boolean
 async function status(): Promise<number> {
   const gpus = await queryGpuVram();
   const held = isHeld(RUN_DIR);
+  const stopped = isStopped(RUN_DIR);
   log(`hold marker: ${held ? "PRESENT (sleeping-held; `engines wake` releases)" : "absent"}`);
+  log(`stopped marker: ${stopped ? "PRESENT (supervisor will NOT take over; `engines start` clears it)" : "absent"}`);
   for (const engine of VLLM_ENGINES) {
     await logEngineRow(engine, held);
   }
@@ -141,6 +156,7 @@ async function status(): Promise<number> {
   result([
     ["verb", "status"],
     ["held", held ? "yes" : "no"],
+    ["stopped", stopped ? "yes" : "no"],
     ["gpus", gpus.length],
   ]);
   return 0;
@@ -198,6 +214,16 @@ async function stopAll(): Promise<number> {
   const terminated = await signalFleet("SIGTERM", false, refused);
   await waitForFleetPortsFree(STOP_GRACE_TICKS);
   const escalated = await signalFleet("SIGKILL", true, refused);
+
+  // #1929: a verified stop (no refusals — every engine was either signaled or already absent) records
+  // INTENT the supervisor's takeover decision honors. Written only on the clean verdict: a refusal means
+  // the fleet's state is uncertain (a foreign listener, a mismatched record), and claiming "stopped on
+  // purpose" for the whole fleet in that case would be asserting evidence nobody observed.
+  if (refused.size === 0) {
+    const who = safeUsername();
+    writeStopped(RUN_DIR, Date.now(), who);
+    log(`wrote stopped marker (by ${who}) — the supervisor will not take over a dead pidfile; \`engines start\` clears it`);
+  }
 
   result([
     ["verb", "stop"],

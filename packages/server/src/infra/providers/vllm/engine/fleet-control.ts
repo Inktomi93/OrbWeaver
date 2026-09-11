@@ -22,6 +22,17 @@ import { decideWakeBudget, engineVramNeed } from "./wake-budget.ts";
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
 const HOLD_MARKER_NAME = "engines.hold";
+// THE STOPPED MARKER (#1929): `<runDir>/engines.stopped` records an INTENTIONAL `engines stop` the same way
+// `engines.hold` records an intentional sleep — a fleet-wide file, not per-engine, mirroring the hold
+// marker's own scope. Without it, "pidfile present, recorded leader absent" reads as a CRASH to the
+// supervisor's `decideFree` and it takes over with a detached respawn (observed live: a fleet stopped to
+// free ~37 GiB of host RAM came back asleep within minutes because the prod server's tick treated the
+// deliberate kill as a death). The hold marker gates auto-WAKE only; this one gates the supervisor's
+// TAKEOVER decision — a DIFFERENT axis, so it is a separate file rather than an overload of `.hold`.
+// Written by `engines stop` once every engine is verified stopped (or was already down); cleared by
+// `engines start`'s real spawn attempt — an explicit start is the operator/automation superseding the
+// earlier stop, exactly like `engines wake` clears the hold before re-running the headroom gate.
+const STOPPED_MARKER_NAME = "engines.stopped";
 
 /** The run dir holding the hold marker + pidfile — `<repoRoot>/.cache/stack` (same as the supervisor's log
  *  dir + stack.sh's RUN_DIR). One home so the CLI verb and the supervisor read the same marker path. */
@@ -32,6 +43,11 @@ export function fleetRunDir(repoRoot: string): string {
 /** The hold-marker path under a run dir. */
 export function holdMarkerPath(runDir: string): string {
   return path.join(runDir, HOLD_MARKER_NAME);
+}
+
+/** The stopped-marker path under a run dir (#1929). */
+export function stoppedMarkerPath(runDir: string): string {
+  return path.join(runDir, STOPPED_MARKER_NAME);
 }
 
 /** Is the manual hold marker present? (the supervisor tick reads this each tick → sleeping-held). */
@@ -48,6 +64,24 @@ export function writeHold(runDir: string, at: number): void {
 /** Clear the hold marker (`engines wake`). Idempotent. */
 export function clearHold(runDir: string): void {
   rmSync(holdMarkerPath(runDir), { force: true });
+}
+
+/** Is the intentional-stop marker present? (#1929 — the supervisor's `decideFree` reads this each tick and
+ *  refuses the takeover-respawn while it is set, instead of reading a dead pidfile as a crash). */
+export function isStopped(runDir: string): boolean {
+  return existsSync(stoppedMarkerPath(runDir));
+}
+
+/** Write the stopped marker (`engines stop`, once every engine verified stopped). Idempotent; records who
+ *  (best-effort, `whoami`-shaped) and when for an operator reading the file by hand. */
+export function writeStopped(runDir: string, at: number, who: string): void {
+  mkdirSync(runDir, { recursive: true });
+  writeFileSync(stoppedMarkerPath(runDir), `stopped by ${who} at ${new Date(at).toISOString()}\n`);
+}
+
+/** Clear the stopped marker (`engines start`'s real spawn attempt). Idempotent. */
+export function clearStopped(runDir: string): void {
+  rmSync(stoppedMarkerPath(runDir), { force: true });
 }
 
 // ── the wake DECISION (shared by the CLI + the client auto-wake gate) ────────────────────────────────────

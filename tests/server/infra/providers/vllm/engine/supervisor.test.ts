@@ -85,6 +85,7 @@ const base = {
   pendingSpawn: false,
   laterEngineHealthy: false,
   sleepHeld: false,
+  stoppedIntentionally: false,
   manages: true,
 } satisfies Parameters<typeof decideTick>[0];
 
@@ -248,6 +249,42 @@ describe("decideTick", () => {
       expect(decideTick({ ...base, probe: "free", stackMode: false })).toEqual({
         kind: "spawn",
         reason: "no engine running",
+      });
+    });
+  });
+
+  // #1929: `engines stop` leaves the pidfile behind, and the supervisor used to read "pidfile present,
+  // leader absent" as a crash — resurrecting a fleet deliberately stopped to free host RAM. The marker
+  // (isStopped/`.cache/stack/engines.stopped`) is the operator's "I meant it" the takeover decision honors.
+  describe("stoppedIntentionally marker (#1929) — the must-not-widen pair", () => {
+    // CONTROL (a): stopped-on-purpose → the takeover path does NOT spawn.
+    test("previously healthy then died, but STOPPED intentionally → no takeover spawn", () => {
+      const action = decideTick({ ...base, probe: "free", seenHealthy: true, stoppedIntentionally: true });
+      expect(action).toEqual({
+        kind: "mark",
+        status: "down",
+        detail: "engines stopped intentionally (`engines stop`) — `pnpm engines start` resumes; supervisor will not take over",
+      });
+    });
+    // The marker also suppresses a FRESH boot's cold-start spawn (a server that boots while the fleet is
+    // intentionally down must not treat that as "no engine running yet" and spawn it anyway).
+    test("fresh boot, never seen healthy, but STOPPED intentionally → no cold-boot spawn either", () => {
+      const action = decideTick({ ...base, probe: "free", seenHealthy: false, stoppedIntentionally: true });
+      expect(action.kind).toBe("mark");
+    });
+    // CONTROL (b), the MUST-NOT-WIDEN guard: a GENUINE crash (no stop marker, leader gone) still takes
+    // over exactly as before. Without this pin the fix could regress into "the supervisor never respawns".
+    test("previously healthy then genuinely crashed (marker ABSENT) → takeover spawn still happens", () => {
+      const action = decideTick({ ...base, probe: "free", seenHealthy: true, stoppedIntentionally: false });
+      expect(action).toEqual({ kind: "spawn", reason: "takeover: previous engine died" });
+    });
+    // adopt-only never spawns regardless of the marker — the marker must not change that arm's own message.
+    test("adopt-only + stopped marker present → still the adopt-only fail-fast, not the stopped detail", () => {
+      const action = decideTick({ ...base, probe: "free", manages: false, stoppedIntentionally: true });
+      expect(action).toEqual({
+        kind: "mark",
+        status: "down",
+        detail: "engines down — `pnpm engines start` (adopt-only: this stack never spawns)",
       });
     });
   });

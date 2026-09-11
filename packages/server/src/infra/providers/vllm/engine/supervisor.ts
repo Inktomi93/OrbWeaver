@@ -15,7 +15,7 @@ import { setEngineStatus } from "./engine-status.ts";
 import { engineBaseUrl } from "./engine-url.ts";
 import { VLLM_ENGINES } from "./engines.ts";
 import type { AutoSleepState, EngineMetrics } from "./fleet-control.ts";
-import { advanceAutoSleep, enginePortPid, fetchEngineMetrics, initialAutoSleepState, postSleep } from "./fleet-control.ts";
+import { advanceAutoSleep, enginePortPid, fetchEngineMetrics, fleetRunDir, initialAutoSleepState, isStopped, postSleep } from "./fleet-control.ts";
 import { detectGpu } from "./gpu.ts";
 import { signalRecordedEngineProcess } from "./process-identity.ts";
 import { reapOrphanedFamily } from "./reaper.ts";
@@ -78,6 +78,11 @@ interface TickInput {
   /** The manual hold marker (`.cache/stack/engines.hold`) is present — a `sleeping` probe classifies as
    *  `sleeping-held` (the wake gate refuses on the marker even with VRAM free), else plain `sleeping`. */
   sleepHeld: boolean;
+  /** The intentional-stop marker (`.cache/stack/engines.stopped`, #1929) is present — `decideFree` refuses
+   *  the takeover-respawn while it is set (an operator/automation ran `engines stop` on purpose; a dead
+   *  pidfile is not a crash). Cleared by `engines start`'s real spawn attempt, so a GENUINE later crash
+   *  (no marker, leader gone) still takes over exactly as before — this gates one axis, not "never respawn". */
+  stoppedIntentionally: boolean;
   /** The fleet MANAGER posture (adopt-or-start): spawns/takes over a down engine. False (adopt-only) = a
    *  passive consumer that adopts healthy engines but NEVER spawns — a down engine fails fast. */
   manages: boolean;
@@ -130,6 +135,17 @@ function decideFree(t: TickInput): TickAction {
   // no implicit 3-min cold boot. adopt-or-start (the manager) spawns/takes over.
   if (!t.manages) {
     return { kind: "mark", status: "down", detail: "engines down — `pnpm engines start` (adopt-only: this stack never spawns)" };
+  }
+  // #1929: an operator/automation ran `engines stop` on purpose — the marker says so, and a dead pidfile is
+  // not evidence of a crash. Refuse the takeover for BOTH free-port arms (a fresh boot finding the fleet
+  // down, and a mid-run "previous engine died" transition) — the marker is cleared only by `engines start`'s
+  // real spawn attempt, so a GENUINE later crash (marker absent) still takes over exactly as before.
+  if (t.stoppedIntentionally) {
+    return {
+      kind: "mark",
+      status: "down",
+      detail: "engines stopped intentionally (`engines stop`) — `pnpm engines start` resumes; supervisor will not take over",
+    };
   }
   if (t.stackMode && !t.seenHealthy && !t.laterEngineHealthy && t.now - t.bootAt < STACK_BOOT_GRACE_MS) {
     return { kind: "mark", status: "stack-pending", detail: "waiting for the fleet spawner" };
@@ -262,6 +278,10 @@ export function startVllmEngines(opts: {
   /** Reads the manual hold marker (`.cache/stack/engines.hold`) each tick — present ⇒ a sleeping engine
    *  classifies as `sleeping-held`. Defaults to false (no hold). */
   sleepHeld?: () => boolean;
+  /** Reads the intentional-stop marker (`.cache/stack/engines.stopped`, #1929) each tick — present ⇒
+   *  `decideFree` refuses the takeover-respawn. Defaults to reading {@link isStopped} on the real run dir
+   *  (the compose site injects the same read the CLI verb writes, so both owners see one truth). */
+  stoppedHeld?: () => boolean;
   /** The fleet MANAGER posture (adopt-or-start) spawns/takes over; adopt-only never spawns (fail-fast on a
    *  down engine). Defaults to true (today's manager behavior) so existing callers are unchanged. */
   manages?: boolean;
@@ -281,6 +301,7 @@ export function startVllmEngines(opts: {
   const sleep = opts.sleep ?? sleepFor;
   const sleepMode = opts.sleepMode ?? env.VLLM_SLEEP_MODE;
   const isSleepHeld = opts.sleepHeld ?? ((): boolean => false);
+  const isStoppedHeld = opts.stoppedHeld ?? ((): boolean => isStopped(fleetRunDir(repoRoot)));
   const manages = opts.manages ?? true;
   const autoSleepIdleMs = opts.autoSleepIdleMs ?? env.VLLM_AUTO_SLEEP_IDLE_MS;
   const fetchMetrics = opts.fetchMetrics ?? fetchEngineMetrics;
@@ -531,6 +552,7 @@ export function startVllmEngines(opts: {
       pendingSpawn: s.pendingSpawns > 0,
       laterEngineHealthy,
       sleepHeld: isSleepHeld(),
+      stoppedIntentionally: isStoppedHeld(),
       manages,
     });
     s.unhealthyStreak = probe === "occupied" ? s.unhealthyStreak + 1 : 0;
