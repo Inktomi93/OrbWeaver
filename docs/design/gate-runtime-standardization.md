@@ -35,7 +35,7 @@ for exactly once; nothing vanishes from the roster.
 
 | Fact | Value | Source |
 | - | - | - |
-| gate modules / final / legacy | 270 / 164 / 106 | `ls tooling/src/verify/gates/*.ts` + a `defineGate(` grep at `d21ece8d8`; `schema-fact-health` retired (#1948) |
+| gate modules / final / legacy | 270 / 162 / 108 | `pnpm check:policy-conformance` (the authoritative roster). **A bare `defineGate` grep OVERCOUNTS by 3** — `gate-modernization` and `enforcement-registry-parity` carry it inside proof-fixture STRINGS and `runner-config-path-liveness` inside its refusal comment. The honest shape test is `^export const gate = defineGate(` |
 | converted modules with NO committed test importing them | no longer the bar | `structure:policy-conformance` runs every final policy's declared rows on the static tier (§5). A module with no family test still lacks its §4.2/§4.3/§4.5/§4.6 pins. At least 12 are in that state, named across three lanes — `baseui-render-prop-composition`, `bus-on-data-no-store-write`, `membership-fan-guard`, `no-caller-user-id`, `no-external-media-without-gate`, `no-color-literals`, `test-factory-contract`, `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`, `no-decorators`, `no-array-literal-querykey`, `no-if-is-group` |
 | ordinary policies with no positive `@orb-waive` identity arm | 24 of 86 (grep floor; ~26 true) | 32 landed across four lanes, each with a planted dead-position control. The floor also counts `no-off-token-radius-shadow` and `no-form-state-in-useeffect`, whose only marker text is header prose and a sibling's negative arm — so a grep OVERCOUNTS arms and this number is a floor, not a total |
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
@@ -408,52 +408,50 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
 
 ## 11. Rulings ledger (owner, dated)
 
-- **2026-09-11 — PHASE C IS RULED AND THE CAPABILITY SET IS CLOSED (#1930).** Step 1 read all 36 direct-fs legacy
-  modules in full (playbook §2 Phase C). #1930's seven capabilities do not survive that evidence: most of it is data
-  entries and one door that is already written. **The closed set, in full — nothing else is added and the contract is
-  FROZEN after it:**
-  1. **Three enum entries, no capability:** `docs` and `scripts` ids in `AUTHORED_TREE_PATHS`; a `typescript` runner
-     in `CONFIG_SNAPSHOT_RUNNERS`, evaluating through TypeScript's real loader (`ts.readConfigFile` +
-     `parseJsonConfigFileContent` + `resolveProjectReferencePath` — already the shared reader's basis at
-     `lib/policy-program-membership.ts:78-108`).
-     **NOT `biome` — that half of this ruling was wrong and is withdrawn (measured 2026-09-11).** It generalized from
-     ESLint, which ships a real `ConfigArray` API, to Biome, which ships an executable: `@biomejs/biome` 2.5.1 has no
-     `main`, no `exports`, `files` is `bin/biome` + `configuration_schema.json` + docs, there is no `@biomejs/js-api`,
-     and no subcommand emits a resolved configuration (`rage` prints the rule list, never `overrides[].includes`).
-     There is no loader to evaluate through. **And the gap it meant to close is EMPTY:** the world program's law
-     targets a static reader that cannot follow the NEW form — a config hiding its effective shape behind `extends`,
-     imports or generated layers — and `biome.json` has no `extends`, so the hand parse follows it completely and a
-     "native" read would return byte-identical selectors. `biome-grant-liveness` stays legacy and armed; revisit only
-     if Biome ships a config-dump or `@biomejs/js-api` lands. Deriving each override row natively from per-file
-     diagnostics was priced and refused: one counterfactual `biome check` run per row, 26 rows, ~6 s each, is ~2.5
-     minutes added to the STATIC tier for one gate's population.
-  2. **Expose `ResourceHost.ordinaryWaiverCarriers` as a declarable kind** — arbitrary tracked-file TEXT, comment-aware
-     and demand-driven. It is already built and private (`contract/resource-host.ts:30-33`); this is an exposure, not a
-     construction. Covers ~10 modules: the ratchet ledgers, the docs corpus, the test mirrors, the manifests.
-  3. **One CSS census `defineFact` over `authored-css`** — NOT a kind. Four modules (`integer-line-boxes`,
-     `motion-token-purity`, `rest-transform-grid`, `over-art-plate-arm`) each re-implement the identical recursive
-     `.css` walk over `packages/{ui,client}/src`.
-  4. **ONE genuinely new kind: `installed-package`**, whose request names the package AND a closed three-mode return
-     shape — `ast` (a parsed `.d.ts` tree, e.g. `@base-ui/react` at unbounded depth), `metadata` (installed-package
-     fields, e.g. the `@playwright/test` + `playwright-core/browsers.json` version tuple), `text` (a raw read of one
-     named file, e.g. `babel-plugin-react-compiler/dist/index.js`). Each mode receipted. **One kind with declared
-     modes, never three narrow kinds:** a capability serving one gate is that gate's private reader wearing a
-     contract's clothes, and three kinds would cost three passes over the four policing surfaces instead of one.
-  5. **An authored-path identity door**, plus absolute-selector normalization. `runner-config-path-liveness.ts:23-39`
-     specifies it exactly, from a refusal measured on this tree: a policy needs `exists · file|directory ·
-     symlink-resolves-outside` for a repo-relative selector, and a way to relate an ABSOLUTE selector to the repo at
-     all (`GatePolicyContext` deliberately carries no root). Without it an in-repo symlink pointing outside the tree
-     silently PASSES — `trackedFiles()` returns repo paths and git lists a symlink as an ordinary path. **The
-     `symlink` variant on `ResourceFileSnapshot` does NOT satisfy this: it is internal and never reaches a policy.**
-     `runResourceExample` needs the matching fixture-side expression.
-  6. **Constraint on item 1, measured 2026-09-11:** a `native-config` declaration drags the whole repository inventory
-     into the policy's resource population, and the ordinary-waiver carrier demand then throws on this tree's tracked
-     symlinks. Both shipped native-config consumers are `authority: "hard"` (`eslint-grant-liveness.ts:93`,
-     `depcruise-grant-liveness.ts:294`) and hard policies never demand carriers, which is why they work. **A
-     native-config runner is safe for a HARD policy; an ordinary one must be proven before it is declared.**
+- **2026-09-11 — PHASE C: THE DESIGN ALREADY EXISTS; ONLY THE DELTA IS RULED HERE (#1930).**
+  **[`resource-gate-access-patterns.md`](../reviews/gate-runtime/resource-gate-access-patterns.md) §§1–8 IS the Phase C
+  design** — eight resource families with their required surfaces written as TypeScript, a per-gate access/scan/proof
+  table, a `__g_` live-probe replacement table with a destination per fixture, a keep-vs-move-behind-host map for ten
+  helpers, and nine numbered prerequisites. **Read it before proposing any capability.** An earlier version of this
+  ruling re-derived a worse subset of it from scratch; that is withdrawn. Its COUNTS are stale (255-module corpus,
+  atomic premise); its ENGINEERING binds. What is ruled here is only what that document could not know:
 
-  **`runner-config-path-liveness` is NOT a converted precedent** — it is a legacy `GateDescriptor` (`:306`) that
-  REFUSED conversion citing this very row (`:23`), and its refusal is the specification for item 5.
+  1. **Eight of its ~15 typed facts are SHIPPED** (`contract/resource-host.ts`): `authoredTree`, `authoredCss`,
+     `productCss`, `cssInventory`, `packageMetadata`, `staticConfig`, `nativeConfig`, `trackedFiles`. In particular
+     §2's "preserve the static reader's algorithm, put its loading behind `staticConfig`" is DONE, and §1's
+     `authoredTree` carries 12 closed ids covering every identity §1 names. **Genuinely absent:** `json`, `jsonc`,
+     `exactFiles`, `mirrorIndex`, `vendorCssSurface`, `documents`, `ledger`, `baseUiSurface`, `tokenContract`,
+     `devtoolsClosure`, `installedReactCompiler`.
+  2. **§8 is STRUCK, and BLOCKED #5 with it.** `tsconfigPrograms()` existed only for `tsconfig-routing-parity`, which
+     no longer exists — the world program retired it in phase 6 (#1896), successor at `ops/tests-type-membership.ts`,
+     and §12.7 forbids resurrecting it.
+  3. **BLOCKED #2 and #3 are CLOSED.** #2: the status union is `ready | missing | empty | unresolved | malformed`
+     (`contract/resource.ts:3-4`), `resolveResourceDeclarations` throws on any non-ready declaration and on an empty
+     fact, and `factReceiptFailures`/`withholdFactDependents` withhold every consumer before `evaluate`. #3: the
+     overlay question is answered — `ResourceReaderOptions.overlay` feeds the resource reader, `mergeOverlay` merges
+     overlay entries into tree walks, and `runResourceExample` hands the SAME map to both substrates in one call.
+  4. **`biome.json` is a strict `json()` read, never a native loader** (§2 already says so: *"Strict JSON remains
+     distinct for `biome.json` …"*). Biome ships an executable, not a config API — `@biomejs/biome` 2.5.1 has no
+     `main`, no `exports`, no `@biomejs/js-api`, and no subcommand emits a resolved configuration. `tsconfig` is
+     `jsonc()` plus `extends` FOLDING, also per §2. **No `CONFIG_SNAPSHOT_RUNNERS` member is added for either.**
+  5. **OWNER RULING — one `installed-package` kind with a closed three-mode return shape** (`ast` | `metadata` |
+     `text`), each receipted, rather than §6/§7's three narrow facts. A capability serving one gate is that gate's
+     private reader wearing a contract's clothes, and three kinds cost three passes over the four policing surfaces
+     instead of one. This is the one place the ruling deliberately overrides the document.
+  6. **An authored-path identity door**, plus absolute-selector normalization, specified by a measured refusal at
+     `runner-config-path-liveness.ts:23-39`: `exists · file|directory · symlink-resolves-outside` for a repo-relative
+     selector, and a way to relate an ABSOLUTE selector to the repo at all (`GatePolicyContext` carries no root).
+     Without it an in-repo symlink pointing outside the tree silently PASSES. **`ResourceFileSnapshot`'s `symlink`
+     variant does NOT satisfy this — it is internal and never reaches a policy.** `runResourceExample` needs the
+     matching fixture-side expression. **`runner-config-path-liveness` is NOT a converted precedent**: it is a legacy
+     `GateDescriptor` (`:306`) that REFUSED conversion citing this row.
+  7. **The carrier-demand hazard is one KIND's defect, not a property of resource declarations.** `native-config`'s
+     fact paths are the whole repository inventory, so an ordinary consumer's waiver-carrier demand throws on tracked
+     symlinks; both shipped consumers are `authority: "hard"` and hard policies never demand carriers. An ORDINARY
+     policy CAN carry a resource declaration — `no-raw-color-in-css` is the worked exemplar (`ordinary` + `resource` +
+     `authored-css`).
+  8. **No CSS census `defineFact`.** `authored-css` already IS that corpus and `cssInventory` already parses it, so
+     the four duplicating modules declare `authored-css` as `no-raw-color-in-css` does. A fifth CSS home is the rot.
 
 - 2026-09-05: final AST source populations are `.ts`/`.tsx` only; `.mts/.cts/.mjs/.cjs` are cleanup.
 - 2026-09-06: sanctioned homes convert as exact reviewed grants with liveness, never population subtraction; the
