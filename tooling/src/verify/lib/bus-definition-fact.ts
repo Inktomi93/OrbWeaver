@@ -339,6 +339,16 @@ function finishDefinitionFact(context: GateFactContext, state: DefinitionState):
   };
 }
 
+/** The provider receipt states the denominator this collector actually MEASURED — the authored sources it
+ *  walked — and nothing about what the census FOUND. Same ruling, same reason and same date as
+ *  `bus-fact.ts#PROVIDER_RECEIPT_SOURCE`; read the WHY there. The half specific to this provider: EVERY
+ *  consumer already throws its own `bus definition fact is incomplete: …` before filing a receipt
+ *  (`bus-definition-belts`, `bus-belt-total`, `bus-consumer-belt`, and `bus-producer-coverage`'s roster
+ *  join), so a receipt-level refusal could only PREEMPT the policy message a proof row asserts — which is
+ *  exactly how the roster-disagreement pin in `tests/tooling/verify/gates/bus-fact-health.test.ts` started
+ *  reading a `bus-definitions` receipt refusal instead of the disagreement it exists to catch. */
+const PROVIDER_RECEIPT_SOURCE = "bus-definition-sources";
+
 function createDefinitionCollector(context: GateFactContext): GateFactHooks<BusDefinitionFact> {
   const state = newState();
   let finished: BusDefinitionFact | undefined;
@@ -359,7 +369,7 @@ function createDefinitionCollector(context: GateFactContext): GateFactHooks<BusD
     ],
     finish: (): BusDefinitionFact => {
       finished ??= finishDefinitionFact(context, state);
-      context.receipt({ kind: "population", source: "bus-definition-fact", members: finished.receipt.unions, unresolved: finished.receipt.unresolved });
+      context.receipt({ kind: "population", source: PROVIDER_RECEIPT_SOURCE, members: context.files.length });
       return finished;
     },
   };
