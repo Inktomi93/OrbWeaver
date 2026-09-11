@@ -88,6 +88,16 @@ retirement (#1948). What it gives you is guide §5; do not rebuild it.
    blocking findings on the real tree, 0 unused markers, and either a clean
    `git diff -U0 | grep -vE '^[-+]\s*//'` or every exception listed with its justification. That receipt is only
    measurable AFTER Phase A's front door lands, which is why this is Phase B.
+
+   **The routing answer for every custom grammar is already written** — `ordinary-waiver-source-migration.md`
+   §"Closed 11-grammar disposition" gives a per-grammar verdict (CENTRALIZE · DELETE EMPTY · DELETE WITH THE GATE)
+   with its parser receipt and candidate file set. Do not re-derive it per lane. Two traps it names: **`@swallowed-ok`
+   has TWO consumers** — the verifier gate and a separate AST lens (`tooling/src/ast/ops/swallowed.ts`), which is
+   explicitly *"not an alias"*, so translating the six shared source files can silently change the lens verdict; and
+   **`@finding-overload-ok` (24 sites) is DELETED WITH ITS GATE, never translated** — but its node-vs-file provenance
+   cases transplant into the final report-sink tests, because `gate-ignore-inventory` and `finding-overload-provenance`
+   are *"retired policy modules, not discarded proof populations."* A file/resource finding at line 0 or 1 is
+   unsuppressible by construction (no preceding source line).
 2. Proof rework: resume `.claude/worktrees/agent-a2dae218300f26638`, **checkpointed at `20550dc83` (3 files); rebase
    onto `main` first**. Item 1 was built under the SUPERSEDED scope (per-gate negative arms); correct it to guide
    §4.2 — positive same-position arm per tenancy policy, delete the vacuous negative arms — then item 2: the
