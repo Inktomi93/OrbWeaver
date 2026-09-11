@@ -366,6 +366,15 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   `tests/**` are inside that lane's fence — so the converted gate is green on the live tree at landing. Marker
   translation is conversion work, never a separate final-launch lane. Grammar and binding:
   `ordinary-waiver-source-migration.md` §"Exact central grammar".
+- **A GRAMMAR'S MARKERS TRANSLATE ONLY WHEN ITS OWNING GATE IS ALREADY FINAL, and the runtime will not tell you
+  otherwise.** Marker routing is fenced (§5): the legacy grammars reach only LEGACY owners, `@orb-waive` only FINAL
+  ordinary policies. Translating a marker whose gate has not converted loses the legacy suppression AND binds the new
+  marker to nothing — silent in both directions, because neither engine reports a marker addressed to the other's
+  world. This is why marker translation rides WITH a conversion rather than running ahead of it, and why a standalone
+  backlog lane must check each grammar's owner before touching a site. Measured 2026-09-11: five of the eleven custom
+  grammars still had LEGACY owners (`@swallowed-ok`, `@sub-floor-ok`, `@surface-focus-elsewhere`, `@first-boot-only`,
+  `@over-art-plate-ok`), and `@finding-overload-ok`'s delete-with-the-gate disposition means its 24 sites cannot be
+  removed ahead of that gate either.
 - Authority reconciliation (#1922, the nine baseline JSON ledgers, decisions #1939 and #1921) needs the central grant
   table stable, so it follows the conversions that feed it. Per-row dispositions: `exception-authority-census.md`.
 - Legacy retirement runs only when `gate:contract` shows zero legacy modules. The deletion list is
