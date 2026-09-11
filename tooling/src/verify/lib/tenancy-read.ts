@@ -1,14 +1,21 @@
 // Shared readers for the TENANCY gates (`owner-scoped-reads` + `owner-scoped-writes` + `owner-scoped-upserts`)
 // — ONE home for the questions all three must answer IDENTICALLY: what does this drizzle statement PREDICATE
-// on (`.where` for a read/write, the `onConflictDoUpdate` config for an upsert), and which function does a
-// two-sided `@owner-scope…-ok:` marker hang off. Re-spelled per gate they would drift on exactly the question
-// they exist to enforce (`tooling/src/_shared/schema-read.ts` is the same call for what a `sqliteTable(...)` DECLARES). The
-// (a)-class table set they cross this with is derived by `gates/table-scoping-class.ts`.
-import type { CallExpression, Node, SourceFile } from "ts-morph";
+// on (`.where` for a read/write, the `onConflictDoUpdate` config for an upsert), and (for `owner-scoped-reads`)
+// whether a POST-FETCH filter relates the fetched row's owner to the caller's. Re-spelled per gate they would
+// drift on exactly the question they exist to enforce (`tooling/src/_shared/schema-read.ts` is the same call
+// for what a `sqliteTable(...)` DECLARES). The (a)-class table set they cross this with is derived by
+// `gates/table-scoping-class.ts`. Homed here rather than in the gate file because these readers walk BOUNDED
+// node subtrees (`getDescendantsOfKind` on a function body / statement / expression, never a `SourceFile`) —
+// exactly the shape `verify/lib` exists for; the static `gate:contract` census globs only `gates/*.ts` and
+// cannot see past the receiver to tell a bounded node walk from a repository one.
+import type { CallExpression, Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { TableTarget } from "../contract/tenancy.ts";
+import { unwrapExpression } from "./ast-read.ts";
 
-const LEADING_SLASH_RE = /^\/+/u;
+const OWNER_COL = "ownerId";
+const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
+
 const MAX_ALIAS_DEPTH = 8;
 /** The chained calls only a drizzle statement can carry. The DISCRIMINATOR for the unresolvable arm: an
  *  identifier the resolver cannot trace is a finding only when the statement is provably a drizzle write —
@@ -57,12 +64,6 @@ function tracedTable(identifier: Node, tableIdents: ReadonlySet<string>, seen: S
   return localAliasInitializers(identifier)
     .map((initializer) => tracedTable(initializer, tableIdents, seen, depth + 1))
     .find((traced) => traced !== undefined);
-}
-
-/** Absolute ts-morph path → the repo-relative jump-link path (conformance mini-projects are rooted at `/repo`). */
-function repoRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path.replace(LEADING_SLASH_RE, "") : path.slice(idx + 1);
 }
 
 /** Classify a drizzle table argument: trace it ONCE against the FULL schema table set, then read its class
@@ -165,61 +166,158 @@ export function enclosingFn(node: Node): Node | undefined {
   return node.getFirstAncestor(isFnish);
 }
 
-function fnName(fn: Node): string {
-  if (fn.isKind(SyntaxKind.FunctionDeclaration) || fn.isKind(SyntaxKind.MethodDeclaration)) {
-    return fn.getName() ?? "(anonymous)";
+/** True when `id` is the read result binding itself or a one-hop local alias initialized from it. */
+function derivesFromReadResult(id: Identifier, resultDecl: Node): boolean {
+  for (const def of id.getDefinitionNodes()) {
+    if (def === resultDecl) {
+      return true;
+    }
+    if (!def.isKind(SyntaxKind.VariableDeclaration)) {
+      continue;
+    }
+    const init = def.getInitializer();
+    if (init === undefined) {
+      continue;
+    }
+    const sources = init.isKind(SyntaxKind.Identifier) ? [init] : init.getDescendantsOfKind(SyntaxKind.Identifier);
+    if (sources.some((source) => source.getDefinitionNodes().includes(resultDecl))) {
+      return true;
+    }
   }
-  const parent = fn.getParent();
-  return parent?.isKind(SyntaxKind.VariableDeclaration) === true ? parent.getName() : "(anonymous)";
+  return false;
 }
 
-function leadingMarker(n: Node, marker: RegExp): boolean {
-  return n.getLeadingCommentRanges().some((r) => marker.test(r.getText()));
+/** The `.ownerId` reads on this side that derive from the exact query-result declaration. */
+function resultOwnerReads(side: Node, resultDecl: Node): Node[] {
+  const descendants = side.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
+  const accesses = side.isKind(SyntaxKind.PropertyAccessExpression) ? [side, ...descendants] : descendants;
+  return accesses.filter((candidate) => {
+    if (candidate.getName() !== OWNER_COL) {
+      return false;
+    }
+    const receiver = candidate.getExpression();
+    if (receiver.isKind(SyntaxKind.Identifier) && derivesFromReadResult(receiver, resultDecl)) {
+      return true;
+    }
+    return receiver.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => derivesFromReadResult(id, resultDecl));
+  });
 }
 
-/** A function carries the marker when it sits in the function's OWN leading comments, or in those of the
- *  variable statement declaring it. Deliberately NOT "anywhere in the body": a marker attached to the
- *  function is the reviewable unit, and a body-wide text match would let an inner arrow inherit a promise its
- *  enclosing helper was granted (and would make the stale arm fire on phantom keys). */
-function carriesMarker(fn: Node, marker: RegExp): boolean {
-  if (leadingMarker(fn, marker)) {
+function expressionDerivesFromReadResult(expression: Node, resultDecl: Node): boolean {
+  const value = unwrapExpression(expression);
+  if (value.isKind(SyntaxKind.Identifier) && derivesFromReadResult(value, resultDecl)) {
     return true;
   }
-  const decl = fn.getParent();
-  if (decl?.isKind(SyntaxKind.VariableDeclaration) !== true) {
+  return value.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => derivesFromReadResult(id, resultDecl));
+}
+
+/** Does this expression name the caller-side owner identity rather than another fetched/ambient row? The
+ *  accepted forms are an explicit local binding (`ownerId`, `caller`, `callerUserId`) or the authenticated
+ *  identity projection (`principal.userId` / `caller.userId`). An arbitrary `other.ownerId` is not an
+ *  authority relationship merely because it shares the column name. */
+function isCallerOwnerBinding(side: Node, resultDecl: Node): boolean {
+  const value = unwrapExpression(side);
+  if (expressionDerivesFromReadResult(value, resultDecl)) {
     return false;
   }
-  const stmt = decl.getFirstAncestorByKind(SyntaxKind.VariableStatement);
-  return stmt !== undefined && leadingMarker(stmt, marker);
-}
-
-/** One marked function, keyed `<repo-rel file>#<function name>` — the SAME key both halves of a two-sided
- *  marker arm use (recorded here, marked used at the violation site), so they can never drift. */
-interface MarkedFunction {
-  readonly key: string;
-  readonly fn: string;
-  readonly file: string;
-}
-
-/** Every function in this file carrying the marker — the stale arm's left-hand side. */
-export function markedFunctions(sf: SourceFile, marker: RegExp): MarkedFunction[] {
-  if (!marker.test(sf.getFullText())) {
-    return [];
+  if (value.isKind(SyntaxKind.Identifier)) {
+    return CALLER_OWNER_BINDING_RE.test(value.getText());
   }
-  const rel = repoRel(sf.getFilePath());
-  return sf
-    .getDescendants()
-    .filter((n) => isFnish(n) && carriesMarker(n, marker))
-    .map((n) => ({ key: `${rel}#${fnName(n)}`, fn: fnName(n), file: rel }));
+  if (!value.isKind(SyntaxKind.PropertyAccessExpression) || value.getName() !== "userId") {
+    return false;
+  }
+  const principalText = value.getExpression().getText();
+  return principalText === "principal" || principalText === "caller" || principalText.endsWith(".principal") || principalText.endsWith(".caller");
 }
 
-/** The key of the nearest ancestor function (innermost first) carrying the marker, or undefined when none
- *  does — a statement inside a `.map()` inherits the exported helper's marker, which is where a reviewer
- *  writes it. */
-export function markerKeyFor(node: Node, sf: SourceFile, marker: RegExp): string | undefined {
-  let cur = enclosingFn(node);
-  while (cur !== undefined && !carriesMarker(cur, marker)) {
-    cur = cur.getFirstAncestor(isFnish);
+/** A mismatch branch protects egress only when it definitely leaves without returning the fetched result.
+ *  This deliberately recognises the guard-clause register (`throw`, `return null`, or a block ending in one)
+ *  and rejects a logging-only branch or `return row`. */
+function rejectsFetchedResult(statement: Node, resultDecl: Node): boolean {
+  if (statement.isKind(SyntaxKind.ThrowStatement)) {
+    return true;
   }
-  return cur === undefined ? undefined : `${repoRel(sf.getFilePath())}#${fnName(cur)}`;
+  if (statement.isKind(SyntaxKind.ReturnStatement)) {
+    const expression = statement.getExpression();
+    return expression === undefined || !expressionDerivesFromReadResult(expression, resultDecl);
+  }
+  if (!statement.isKind(SyntaxKind.Block)) {
+    return false;
+  }
+  const outerFn = enclosingFn(statement);
+  const leaksOnAnyBranch = statement.getDescendantsOfKind(SyntaxKind.ReturnStatement).some((ret) => {
+    if (enclosingFn(ret) !== outerFn) {
+      return false;
+    }
+    const expression = ret.getExpression();
+    return expression !== undefined && expressionDerivesFromReadResult(expression, resultDecl);
+  });
+  if (leaksOnAnyBranch) {
+    return false;
+  }
+  const last = statement.getStatements().at(-1);
+  return last !== undefined && rejectsFetchedResult(last, resultDecl);
+}
+
+/** Walk a `!==` mismatch through parentheses / OR clauses to the `if` it makes true. `&&` is intentionally
+ *  excluded: a second false conjunct would let a mismatched row continue to egress. */
+function rejectingGuardOf(comparison: Node, resultDecl: Node): boolean {
+  let condition: Node = comparison;
+  for (;;) {
+    const parent = condition.getParent();
+    if (parent?.isKind(SyntaxKind.ParenthesizedExpression) === true) {
+      condition = parent;
+      continue;
+    }
+    if (parent?.isKind(SyntaxKind.BinaryExpression) === true && parent.getOperatorToken().getKind() === SyntaxKind.BarBarToken) {
+      condition = parent;
+      continue;
+    }
+    if (parent?.isKind(SyntaxKind.IfStatement) !== true || parent.getExpression() !== condition) {
+      return false;
+    }
+    return rejectsFetchedResult(parent.getThenStatement(), resultDecl);
+  }
+}
+
+/** A verifier may return the ownership relationship itself instead of loading the row for egress. Keep
+ *  this arm deliberately narrow: the exact `===` comparison must be the return expression. */
+function returnsOwnerVerdict(comparison: Node): boolean {
+  let expression = comparison;
+  while (expression.getParent()?.isKind(SyntaxKind.ParenthesizedExpression) === true) {
+    expression = expression.getParentOrThrow();
+  }
+  return expression.getParent()?.isKind(SyntaxKind.ReturnStatement) === true;
+}
+
+/** The POST-FETCH-FILTER arm `owner-scoped-reads` accepts as an alternative to putting the owner in the
+ *  WHERE: the enclosing function must relate the exact fetched result's `.ownerId` to the caller's authorized
+ *  owner binding. A row-loading function rejects a mismatch; a boolean verifier may return the exact equality
+ *  relationship directly. */
+export function hasPostFetchFilter(read: Node, fn: Node | undefined): boolean {
+  if (fn === undefined) {
+    return false;
+  }
+  const resultDecl = read.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  if (resultDecl === undefined) {
+    return false;
+  }
+  return fn.getDescendantsOfKind(SyntaxKind.BinaryExpression).some((b) => {
+    const op = b.getOperatorToken().getKind();
+    if (op !== SyntaxKind.ExclamationEqualsEqualsToken && op !== SyntaxKind.EqualsEqualsEqualsToken) {
+      return false;
+    }
+    const left = b.getLeft();
+    const right = b.getRight();
+    const leftIsResultOwner = resultOwnerReads(left, resultDecl).length > 0;
+    const rightIsResultOwner = resultOwnerReads(right, resultDecl).length > 0;
+    if (leftIsResultOwner === rightIsResultOwner) {
+      return false;
+    }
+    const callerOwner = leftIsResultOwner ? right : left;
+    if (!isCallerOwnerBinding(callerOwner, resultDecl)) {
+      return false;
+    }
+    return op === SyntaxKind.EqualsEqualsEqualsToken ? returnsOwnerVerdict(b) : rejectingGuardOf(b, resultDecl);
+  });
 }
