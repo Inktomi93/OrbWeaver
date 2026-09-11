@@ -113,6 +113,23 @@ until it lands, an Opus verifier confirms, and you have read the first mixed bas
 3. \#1946 guard residuals (Sonnet mech-executor; hook + its pin + `registry.test.ts`; both-direction pins; no-loosening
    A/B over the pin ROWS table).
 
+**Phase B2 — make the CONVERTED corpus sound before converting more (owner, 2026-09-11: "I'd rather get our new
+gates in a pristine place before converting old ones"). This precedes Phase C and Phase D.** Growing the corpus while
+the converted half proves less than it claims compounds the debt at conversion rate.
+
+1. **#1953 — the registry provider split. P1, and the only one with LIVE enforcement loss.** Eight registry policies
+   have 95 refused proof rows on main and prove nothing today; `registry-family.test.ts` has been red since
+   `ab675b23b` (2026-09-10). `registry-fact.ts:285` models six kinds as ONE `defineFact` and sums their receipts; a
+   provider is atomic by guide §12.2/§12.3, so the fix is one provider per kind. No contract change.
+2. **#1952 — the identity arms, 44 of 86 remaining**, in batches of ~8 by family. The mechanism is settled in guide
+   §4.2 and the arm is self-checking, so these are parallelisable and cheap. The `mustFlag` half of this row is CLOSED.
+3. **#1954 — the unwaivable sites, 2 modules / 3 rows.** `persist-partialize-and-total-migrate` reports per missing key
+   on one node; `section-factory-contribution-bundle` spreads one anchor into two report calls. Both need one finding
+   per call site or a distinct subject anchor, and both change finding cardinality, so each owes its `expect.count`
+   update and a verifier. The section-factory row is blocked behind #1953 and belongs in that lane.
+4. Small mis-authorings found in the same audit: `no-color-literals`' header claims a className fence its visitor never
+   applies, and `test-factory-contract.ts:64`'s `why` promises a "distinct message" the policy does not emit.
+
 **Phase C — resource kinds (#1930), one Opus executor lane per kind, at most one at a time beside conversions,** in
 the order that unblocks the most gates: path-identity door (exists / file-or-directory / symlink-resolves-outside +
 absolute-selector normalization: unblocks `runner-config-path-liveness`, `tsconfig-entry-liveness`); document/ledger
