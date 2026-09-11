@@ -279,6 +279,11 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
 - 2026-09-06: sanctioned homes convert as exact reviewed grants with liveness, never population subtraction; the
   `chatsChanged` conditional publisher is modeled, not parked; a compact map is written only when a sentinel fires.
 - 2026-09-10: `--dod` is optional; red instruments are expected mid-migration and are baselined, never laundered.
+- 2026-09-11 (evening): forge runs the mixed-runtime lane alone, and forge runs the 13 mixed-hook splits (#1950 ruled);
+  conversion lanes translate their own markers in-commit and the pre-existing 370-marker backlog is one resumed
+  mech-executor lane; the #1947 lane's two real-tree zero-findings arms stay until the mixed front door lands, then are
+  deleted; executors run Opus by definition (Sonnet only where the owner names it). The orchestrator's step list is
+  [gate-runtime-orchestrator-playbook.md](gate-runtime-orchestrator-playbook.md).
 - 2026-09-11: main is the integration tree (ff of `codex/world-gate-integration`); mixed runtime replaces atomic cutover;
   lanes in isolated worktrees, orchestrator merges, hooks bypassed until `check:structure` is green; cap 3; Sonnet
   executors for fully-specified gate work, Opus on judgment-heavy work and every verifier; conversions are #1584
