@@ -29,8 +29,10 @@
 // admitted file the legacy walk judged is dropped.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateFactContext } from "../contract/fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";
+import { declarationHome } from "../lib/declaration-home.ts";
 import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 
@@ -148,12 +150,31 @@ function isMapperReturn(statement: MorphNode): boolean {
   return statement.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration)?.getName() === CHAT_MAPPER;
 }
 
-/** The vocabulary, bound to its declaring module: a same-named tuple elsewhere is a different vocabulary. */
-function channelVocabulary(fact: TupleVocabularyFact, channel: Channel, relativePath: (file: SourceFile) => string): TupleVocabularyFact {
+/** The vocabulary, bound to its declaring module: a same-named tuple elsewhere is a different vocabulary.
+ *
+ *  The home is read through {@link declarationHome} and NOT through `ctx.relativePath`. The tuple index is a
+ *  SHARED provider whose population (`@client` + `@server` + `@contracts`) is strictly wider than this
+ *  policy's (`@server` + `@contracts`), so the declaration this binding check exists to catch — the tuple
+ *  that moved out of its home — is exactly the one `ctx.relativePath` refuses. It would have THROWN and
+ *  withheld the policy instead of reporting the move (guide §12.3).
+ *
+ *  NO CONFORMANCE ROW CAN HOLD THIS, and that is a property of the arm rather than a missing proof: a home
+ *  mismatch returns `unresolved`, `tupleVocabularyReceipt` scores that `members: 0, unresolved: 1`, and the
+ *  policy's own receipt then refuses — `toolFailure` fails BOTH arms on a non-success owner status
+ *  (`ops/policy-conformance.ts`), so the row can be neither `mustFlag` (no finding is reported) nor
+ *  `mustPass` (the owner did not succeed). Both sides were measured instead, on the same fixture (a
+ *  `WARNING_CODES` planted at `packages/client/src/state/provider-warnings.ts`, inside the shared tuple
+ *  index's population and outside this policy's), 2026-09-12:
+ *    · before — `PASS TOOL ERROR [evaluate] source file is outside the effective population: …`
+ *    · after  — `PASS TOOL ERROR [receipt] policy receipt refused: population "WARNING_CODES" resolved zero
+ *      members; population "WARNING_CODES" left 1 unresolved`
+ *  Same blast radius, but the second names the vocabulary and the reason — it is the designed blindness
+ *  tripwire firing, not the runtime breaking. */
+function channelVocabulary(context: GateFactContext, fact: TupleVocabularyFact, channel: Channel): TupleVocabularyFact {
   if (fact.kind !== "resolved") {
     return fact;
   }
-  const declared = relativePath(fact.symbol.declaration.getSourceFile());
+  const declared = declarationHome(context, fact.symbol.declaration.getSourceFile());
   return declared === channel.home
     ? fact
     : {
@@ -223,7 +244,7 @@ export const gate = defineGate({
     const state: Collected = { records: [], mapperReturns: [] };
 
     const judgeChannel = (channel: Channel, fact: TupleVocabularyFact): void => {
-      const vocabulary = channelVocabulary(fact, channel, ctx.relativePath);
+      const vocabulary = channelVocabulary(ctx, fact, channel);
       ctx.receipt({ kind: "population", ...tupleVocabularyReceipt(vocabulary) });
       if (vocabulary.kind !== "resolved") {
         return;
