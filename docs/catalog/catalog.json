@@ -12659,9 +12659,9 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 318,
-      "bytes": 35557,
-      "sha256": "53486efd557ff582a4941c3ecb2f751e863a0eea12c11a287d15ab28f5a1f70a",
+      "lines": 442,
+      "bytes": 42222,
+      "sha256": "eb874d418268f58230c525ed027edfae5b9942f4001ef393007ca2c18c108ccd",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12678,8 +12678,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "53486efd557ff582a4941c3ecb2f751e863a0eea12c11a287d15ab28f5a1f70a",
-        "verifiedCommit": "7ce50a0400c0127b3fa5a28d56c01136f83c2ce0",
+        "verifiedSha256": "eb874d418268f58230c525ed027edfae5b9942f4001ef393007ca2c18c108ccd",
+        "verifiedCommit": "11e2ef32c9983fc68551b7e9232d9b333c142f92",
         "verifiedAt": "2026-09-11",
         "claims": [
           {
