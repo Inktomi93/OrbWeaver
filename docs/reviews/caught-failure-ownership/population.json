@@ -1942,7 +1942,7 @@
     {
       "siteId": "packages/server/src/domain/character/persistence/card.ts::err::1",
       "path": "packages/server/src/domain/character/persistence/card.ts",
-      "line": 183,
+      "line": 181,
       "column": 12,
       "grammar": "default",
       "position": "err",
@@ -1950,7 +1950,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "the ONE absorbed arm is a LOST RACE, and it is",
-      "markerLine": 173
+      "markerLine": 171
     },
     {
       "siteId": "packages/server/src/domain/character/seeder/seed.ts::err::1",
@@ -2228,7 +2228,7 @@
     {
       "siteId": "packages/server/src/domain/databank/ingest/index.ts::error::1",
       "path": "packages/server/src/domain/databank/ingest/index.ts",
-      "line": 198,
+      "line": 195,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -2236,7 +2236,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the accumulator records this document's failure (`acc.addFailure`), surfaced to the caller via `acc.result()`; the pass continues so one bad document never aborts the batch. Ends if `addFailure` stops being read by the returned result.",
-      "markerLine": 192
+      "markerLine": 189
     },
     {
       "siteId": "packages/server/src/domain/databank/verbs/scrape/scrape-youtube.ts::catch::1",
@@ -2813,7 +2813,7 @@
     {
       "siteId": "packages/server/src/domain/workloads/persistence/queries.ts::catch::1",
       "path": "packages/server/src/domain/workloads/persistence/queries.ts",
-      "line": 148,
+      "line": 145,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -2821,7 +2821,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — a params-schema failure",
-      "markerLine": 143
+      "markerLine": 140
     },
     {
       "siteId": "packages/server/src/domain/workloads/verbs/start.ts::err::1",
@@ -7571,7 +7571,7 @@
     {
       "siteId": "tooling/src/verify/ops/resource-host.ts::error::1",
       "path": "tooling/src/verify/ops/resource-host.ts",
-      "line": 77,
+      "line": 85,
       "column": 16,
       "grammar": "empty",
       "position": "error",
@@ -7584,7 +7584,7 @@
     {
       "siteId": "tooling/src/verify/ops/resource-installed.ts::error::1",
       "path": "tooling/src/verify/ops/resource-installed.ts",
-      "line": 136,
+      "line": 167,
       "column": 12,
       "grammar": "empty",
       "position": "error",
