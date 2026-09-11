@@ -412,9 +412,21 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
   modules in full (playbook §2 Phase C). #1930's seven capabilities do not survive that evidence: most of it is data
   entries and one door that is already written. **The closed set, in full — nothing else is added and the contract is
   FROZEN after it:**
-  1. **Four enum entries, no capability:** `docs` and `scripts` ids in `AUTHORED_TREE_PATHS`; `biome` and `typescript`
-     runners in `CONFIG_SNAPSHOT_RUNNERS` (both evaluating through the tool's own loader, per the
-     `eslint-grant-liveness` precedent — never the hand-parsed JSON `biome-grant-liveness` does today).
+  1. **Three enum entries, no capability:** `docs` and `scripts` ids in `AUTHORED_TREE_PATHS`; a `typescript` runner
+     in `CONFIG_SNAPSHOT_RUNNERS`, evaluating through TypeScript's real loader (`ts.readConfigFile` +
+     `parseJsonConfigFileContent` + `resolveProjectReferencePath` — already the shared reader's basis at
+     `lib/policy-program-membership.ts:78-108`).
+     **NOT `biome` — that half of this ruling was wrong and is withdrawn (measured 2026-09-11).** It generalized from
+     ESLint, which ships a real `ConfigArray` API, to Biome, which ships an executable: `@biomejs/biome` 2.5.1 has no
+     `main`, no `exports`, `files` is `bin/biome` + `configuration_schema.json` + docs, there is no `@biomejs/js-api`,
+     and no subcommand emits a resolved configuration (`rage` prints the rule list, never `overrides[].includes`).
+     There is no loader to evaluate through. **And the gap it meant to close is EMPTY:** the world program's law
+     targets a static reader that cannot follow the NEW form — a config hiding its effective shape behind `extends`,
+     imports or generated layers — and `biome.json` has no `extends`, so the hand parse follows it completely and a
+     "native" read would return byte-identical selectors. `biome-grant-liveness` stays legacy and armed; revisit only
+     if Biome ships a config-dump or `@biomejs/js-api` lands. Deriving each override row natively from per-file
+     diagnostics was priced and refused: one counterfactual `biome check` run per row, 26 rows, ~6 s each, is ~2.5
+     minutes added to the STATIC tier for one gate's population.
   2. **Expose `ResourceHost.ordinaryWaiverCarriers` as a declarable kind** — arbitrary tracked-file TEXT, comment-aware
      and demand-driven. It is already built and private (`contract/resource-host.ts:30-33`); this is an exposure, not a
      construction. Covers ~10 modules: the ratchet ledgers, the docs corpus, the test mirrors, the manifests.
