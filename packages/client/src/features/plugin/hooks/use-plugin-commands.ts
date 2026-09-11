@@ -63,7 +63,7 @@ export function usePluginCommandRunner(
       notify.error(PLUGIN_COMMAND_UNKNOWN);
       return;
     }
-    // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): the comment below explains — the
+    // @orb-waive caught-failure-ownership(mutateAsync): the comment below explains — the
     // mutation's own errorToast already told the person; this catch only keeps a handled rejection from
     // surfacing as unhandled on this fire-and-forget path. Ends if that mutation drops its errorToast.
     void invoke

@@ -116,7 +116,7 @@ async function readProfilePages(session: ProbeSession): Promise<ReactProfilePage
       continue;
     }
     for (const [pageIndex, page] of context.pages.entries()) {
-      // @orb-gate-ignore caught-failure-ownership(empty:error): the caught page read becomes a hookInstalled:false evidence row; profileGaps prints it and forces exit 2. Ends if missingPage stops carrying the caught detail or profileGaps stops refusing it.
+      // @orb-waive caught-failure-ownership(error): the caught page read becomes a hookInstalled:false evidence row; profileGaps prints it and forces exit 2. Ends if missingPage stops carrying the caught detail or profileGaps stops refusing it.
       try {
         pages.push(pageEvidence(await readProfilePayload(page), contextIndex, pageIndex, page.url()));
       } catch (error) {
@@ -137,14 +137,14 @@ async function prepareProfile(
     if (context.owned === false) {
       continue;
     }
-    // @orb-gate-ignore caught-failure-ownership(empty:error): the caught install failure is returned in errors; profileGaps prints it and forces exit 2. Ends if the error stops entering this return or gaps stop voting.
+    // @orb-waive caught-failure-ownership(error): the caught install failure is returned in errors; profileGaps prints it and forces exit 2. Ends if the error stops entering this return or gaps stop voting.
     try {
       await context.context.addInitScript({ content: reactProfileInitScript(windowId) });
     } catch (error) {
       errors.push(`context ${String(contextIndex)} addInitScript failed: ${errorMessage(error)}`);
     }
     for (const [pageIndex, page] of context.pages.entries()) {
-      // @orb-gate-ignore caught-failure-ownership(empty:error): the caught call-window mark failure is returned in errors; profileGaps prints it and forces exit 2 rather than mixing prior commits into this call. Ends if the detail stops entering this return or gaps stop voting.
+      // @orb-waive caught-failure-ownership(error): the caught call-window mark failure is returned in errors; profileGaps prints it and forces exit 2 rather than mixing prior commits into this call. Ends if the detail stops entering this return or gaps stop voting.
       try {
         await page.evaluate(`globalThis.__ORB_SNAP_REACT_PROFILE__?.beginWindow(${JSON.stringify(windowId)})`);
       } catch (error) {

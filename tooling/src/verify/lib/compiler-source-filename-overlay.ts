@@ -101,7 +101,7 @@ function authoredIdentities(inventory: PolicyRepositoryInventory): ReadonlySet<s
 
 function diskEntries(directory: string, deleted: ReadonlyMap<string, string>): DirectoryEntries {
   let entries: Dirent<string>[];
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): native ts.sys.readDirectory treats an unreadable
+  // @orb-waive caught-failure-ownership(catch): native ts.sys.readDirectory treats an unreadable
   // directory as empty. This adapter preserves that behavior; virtual entries are merged separately below.
   try {
     entries = readdirSync(directory, { withFileTypes: true });
@@ -114,7 +114,7 @@ function diskEntries(directory: string, deleted: ReadonlyMap<string, string>): D
     const path = resolve(directory, entry.name);
     let kind: ReturnType<typeof statSync> | typeof entry = entry;
     if (entry.isSymbolicLink()) {
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): native ts.sys directory reads skip dangling
+      // @orb-waive caught-failure-ownership(catch): native ts.sys directory reads skip dangling
       // or unreadable symlink entries. Ends if this absence becomes an authored-path authorization decision.
       try {
         kind = statSync(path);

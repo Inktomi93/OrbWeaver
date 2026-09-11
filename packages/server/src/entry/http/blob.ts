@@ -115,7 +115,7 @@ async function serveOriginal(deps: BlobDeps, principal: Principal, hash: string)
   // meta.ownerId is set when the asset belongs to a co-participant (roster-avatar exception); on the
   // normal path it is absent and the caller IS the owner.
   const casOwnerId = (meta.ownerId as UserId | undefined) ?? principal.userId;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a LEAK-FREE COLLAPSE, stated in this function's own JSDoc — a torn CAS entry and a foreign/missing blob must return the identical 404, or the response distinguishes "exists but unreadable" from "not yours" and becomes an existence oracle. The ownership gate above already ran. Ends if torn-blob repair gains an operator surface that can be told apart from a miss.
+  // @orb-waive caught-failure-ownership(catch): a LEAK-FREE COLLAPSE, stated in this function's own JSDoc — a torn CAS entry and a foreign/missing blob must return the identical 404, or the response distinguishes "exists but unreadable" from "not yours" and becomes an existence oracle. The ownership gate above already ran. Ends if torn-blob repair gains an operator surface that can be told apart from a miss.
   try {
     const bytes = await deps.cas.read(casOwnerId, hash);
     return serveBytes(bytes, meta.mime);

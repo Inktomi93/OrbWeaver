@@ -218,7 +218,7 @@ interface EngineState {
  *  unregistered → 404, treated as "not sleeping"). Any failure/non-200 ⇒ not sleeping (fail toward healthy —
  *  a sleeping-mislabel would only cost a needless wake, never a hang). */
 async function probeIsSleeping(engine: VllmEngine): Promise<boolean> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an /is_sleeping probe failure returns false ("not sleeping" — fails toward healthy, at worst a needless wake, never a hang); local engine health probe, no auth/credential. Ends if false ever suppresses a needed wake into a hang.
+  // @orb-waive caught-failure-ownership(catch): an /is_sleeping probe failure returns false ("not sleeping" — fails toward healthy, at worst a needless wake, never a hang); local engine health probe, no auth/credential. Ends if false ever suppresses a needed wake into a hang.
   try {
     const res = await fetch(`${engineBaseUrl(engine)}/is_sleeping`, { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS) });
     if (!res.ok) {
@@ -232,7 +232,7 @@ async function probeIsSleeping(engine: VllmEngine): Promise<boolean> {
 }
 
 async function probeEngine(engine: VllmEngine, sleepMode: boolean): Promise<Probe> {
-  // @orb-gate-ignore caught-failure-ownership(empty:err): a /health probe failure is classified into a typed Probe verdict (TimeoutError → occupied, refused → free); local engine health classification, no auth/credential, failure propagated as a verdict. Ends if the classification stops feeding the caller.
+  // @orb-waive caught-failure-ownership(err): a /health probe failure is classified into a typed Probe verdict (TimeoutError → occupied, refused → free); local engine health classification, no auth/credential, failure propagated as a verdict. Ends if the classification stops feeding the caller.
   try {
     const res = await fetch(`${engineBaseUrl(engine)}/health`, {
       signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),

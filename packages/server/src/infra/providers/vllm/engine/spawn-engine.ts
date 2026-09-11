@@ -47,7 +47,7 @@ export function resolveStoreRoot(repoRoot: string, override?: string | undefined
   if (override !== undefined && override.length > 0) {
     return override;
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a git-common-dir resolution failure falls back to the repo root (the documented non-worktree default); local path derivation, no auth/credential/network. Ends if the resolved root ever crosses a trust boundary.
+  // @orb-waive caught-failure-ownership(catch): a git-common-dir resolution failure falls back to the repo root (the documented non-worktree default); local path derivation, no auth/credential/network. Ends if the resolved root ever crosses a trust boundary.
   try {
     const commonDir = execFileSync("git", ["-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"], {
       encoding: "utf8",

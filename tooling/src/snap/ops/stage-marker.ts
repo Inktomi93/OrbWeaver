@@ -153,7 +153,7 @@ function migrateLegacyMarker(home: string, rows: readonly StageRow[]): readonly 
 }
 
 function readLegacyRow(path: string): StageRow | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — a truncated/garbage legacy marker is treated as "no legacy stage", which is the same clean-rebuild path a missing one takes. Ends if a legacy marker ever carries state the table cannot re-derive.
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a truncated/garbage legacy marker is treated as "no legacy stage", which is the same clean-rebuild path a missing one takes. Ends if a legacy marker ever carries state the table cannot re-derive.
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
     if (!isRecord(parsed)) {
@@ -175,7 +175,7 @@ export function readBands(home: string): readonly StageRow[] {
   if (!existsSync(path)) {
     return migrateLegacyMarker(home, []);
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): optional-read-as-absent — a truncated/garbage table (a killed mid-write) is treated as "no stages", which triggers the same clean-allocate path an ABSENT table takes, legacy migration included; the operator sees the empty census on the next `--stage-status`. Ends if the sweep/status readers stop tolerating an empty table.
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a truncated/garbage table (a killed mid-write) is treated as "no stages", which triggers the same clean-allocate path an ABSENT table takes, legacy migration included; the operator sees the empty census on the next `--stage-status`. Ends if the sweep/status readers stop tolerating an empty table.
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
     const rows =
@@ -292,7 +292,7 @@ function waitSync(ms: number): void {
 }
 
 function lockHolderPid(path: string): number | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — an unreadable holder file means "I cannot identify the holder", which the age check below then judges. Ends if a lock ever carries state beyond its holder pid.
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — an unreadable holder file means "I cannot identify the holder", which the age check below then judges. Ends if a lock ever carries state beyond its holder pid.
   try {
     const pid = Number(readFileSync(join(path, "pid"), "utf8").trim());
     return Number.isInteger(pid) && pid > 0 ? pid : null;
@@ -319,7 +319,7 @@ let releaseSeq = 0;
 export function releaseLockDir(path: string, onRenamed?: () => void): void {
   releaseSeq += 1;
   const releasing = `${path}.releasing-${process.pid}-${releaseSeq}`;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): the rename target is already gone — someone
+  // @orb-waive caught-failure-ownership(catch): the rename target is already gone — someone
   // else's break or release beat us to it — which means there is nothing left for THIS caller to remove.
   // Ends if this ever stops being a "someone else already finished the job" race.
   try {
@@ -357,7 +357,7 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
   const path = lockPath(home);
   const deadline = Date.now() + LOCK_WAIT_MS;
   for (;;) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.
+    // @orb-waive caught-failure-ownership(catch): EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.
     try {
       mkdirSync(path);
       writeFileSync(join(path, "pid"), `${process.pid}\n`);

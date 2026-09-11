@@ -382,7 +382,7 @@ function answeredIdsAfter(history: readonly TurnMessage[], index: number): Reado
  *  literal would set the prototype. */
 function isJsonObject(raw: string): boolean {
   let parsed: unknown;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): CLASSIFIER, not a failure — "does this model-emitted blob parse to an object" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.
+  // @orb-waive caught-failure-ownership(catch): CLASSIFIER, not a failure — "does this model-emitted blob parse to an object" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.
   try {
     parsed = JSON.parse(raw);
   } catch {
@@ -888,7 +888,7 @@ export function createRunChatTurnBridge(deps: {
         ? agentSdkChatRequest({ req, orSkinTierModels, onDelta })
         : arrayWireChatRequest({ req, onDelta, promptCacheMinDepth: deps.promptCacheMinDepth?.() ?? 0 });
 
-    // @orb-gate-ignore caught-failure-ownership(promise:runChatTurn): propagated — the rejection reaches
+    // @orb-waive caught-failure-ownership(runChatTurn): propagated — the rejection reaches
     // `pump.fail(err)` in the `.catch` below, which the consuming `yield* pump.drain()` surfaces to the
     // caller; never swallowed. Ends if `pump.fail` stops being read by the drain.
     void deps
@@ -971,7 +971,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     defaultPresetId: string | null,
   ): Promise<{ config: PromptConfig; presetId: PresetId | null; presetName: string | null }> => {
     if (presetOverride !== undefined) {
-      // @orb-gate-ignore caught-failure-ownership(empty:err): narrow rethrow — documented below: only a
+      // @orb-waive caught-failure-ownership(err): narrow rethrow — documented below: only a
       // genuinely stale/unowned/missing override falls through to the host's default (the lenient-id rule,
       // #759); a database/I/O/program failure rethrows below unhandled. Ends if #759's ruling changes.
       try {
@@ -1194,7 +1194,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
     // fail-closes to [] rather than throwing into the member-card read.
     resolveCharacterTags: async ({ ownerId, characterId }) => {
-      // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
+      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
       try {
         const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
         return detail.tags.map((t) => t.name);
@@ -1220,7 +1220,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       if (characterId === null || ownerId === null) {
         return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
       }
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): FAIL-CLOSED — the comment block above states
+      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — the comment block above states
       // the contract: a no-host/unreadable-card seat resolves to the bare global floor + a null card, never
       // a throw into roster assembly. Ends if an unreadable card needs to surface distinctly from absence.
       try {
@@ -1260,7 +1260,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       }
 
       if (avatarAssetId === null) {
-        // @orb-gate-ignore caught-failure-ownership(empty:catch): optional-read-as-absent — a persona/handle
+        // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a persona/handle
         // display fact was already resolved above; this is the LAST-resort avatar enrichment, and a failed
         // read just leaves `avatarAssetId` at its already-established `null`. Ends if this read becomes the
         // only source of `displayName`/`handle`.

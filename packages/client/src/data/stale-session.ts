@@ -168,7 +168,7 @@ export function completeReauth(outcome: ReauthOutcome): void {
 /** The ladder itself — rung 0, then the mode-forked rung 1, then rung 2. */
 async function runLadder(): Promise<void> {
   postSessionMessage({ kind: "session-recovering" });
-  // @orb-gate-ignore caught-failure-ownership(promise:fetchAuthMe): the server is unreachable, not the session dead (see the comment below) — the tab is left exactly as it is and the next real edge re-enters the ladder. Ends if unreachable must be distinguished from dead here.
+  // @orb-waive caught-failure-ownership(fetchAuthMe): the server is unreachable, not the session dead (see the comment below) — the tab is left exactly as it is and the next real edge re-enters the ladder. Ends if unreachable must be distinguished from dead here.
   const me = await fetchAuthMe().catch(() => null);
   if (me === null) {
     // The server is unreachable, not the session dead (the route guard draws the same line). Leave the tab
@@ -185,7 +185,7 @@ async function runLadder(): Promise<void> {
     resume(me.handle);
     return;
   }
-  // @orb-gate-ignore caught-failure-ownership(promise:fetchAuthConfig): a null config falls through every mode branch to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if a branch after this stops reaching signOut().
+  // @orb-waive caught-failure-ownership(fetchAuthConfig): a null config falls through every mode branch to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if a branch after this stops reaching signOut().
   const config = await fetchAuthConfig().catch(() => null);
   if (config?.mode === "oidc") {
     writeSessionResume({ chatId: host?.resumeChatId() ?? null });
@@ -193,7 +193,7 @@ async function runLadder(): Promise<void> {
     return;
   }
   if (config?.mode === "local" && (await promptReauth()) === "recovered") {
-    // @orb-gate-ignore caught-failure-ownership(promise:fetchAuthMe): a null/unauthenticated read falls through to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if this branch stops reaching signOut().
+    // @orb-waive caught-failure-ownership(fetchAuthMe): a null/unauthenticated read falls through to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if this branch stops reaching signOut().
     const reauthed = await fetchAuthMe().catch(() => null);
     if (reauthed?.authenticated === true) {
       // §4.2.1's identity boundary: a DIFFERENT handle just signed in on this browser, so every warm cache

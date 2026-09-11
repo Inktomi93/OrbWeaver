@@ -40,7 +40,7 @@ function videoIdFrom(input: string): string | undefined {
     return input;
   }
   let url: URL;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): client-input — a non-URL string just means "no
+  // @orb-waive caught-failure-ownership(catch): client-input — a non-URL string just means "no
   // video id here" (the header's contract: `undefined` collapses to a leak-free `ScrapeFailedError` BAD_REQUEST
   // at the caller). Ends if this stops being an id-extraction probe.
   try {

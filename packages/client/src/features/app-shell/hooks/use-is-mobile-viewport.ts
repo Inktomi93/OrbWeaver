@@ -116,7 +116,7 @@ export function useShellContentPrimacyObserver(sentinelRef: RefObject<HTMLElemen
       }
     };
     document.fonts.addEventListener("loadingdone", onFontsLoaded);
-    // @orb-gate-ignore caught-failure-ownership(promise:promise): fonts.ready never rejecting in practice, and the
+    // @orb-waive caught-failure-ownership(document.fonts.ready): fonts.ready never rejecting in practice, and the
     // "loadingdone" listener above already re-fires onFontsLoaded on the real completion signal. Ends if fonts.ready
     // starts rejecting on a real load failure this listener would miss.
     document.fonts.ready.then(onFontsLoaded, () => undefined);

@@ -217,7 +217,7 @@ async function parsedSnapshot(manager: object, path: string): Promise<HeapParsed
     .toSorted((left, right) => right.attributedSize - left.attributedSize);
   const retained = record(retainedValue, "retained by context");
   let parserProblemRows: string[] = [];
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT means the official worker emitted no problem report; every other read/parse failure rethrows. Ends if the error-code check or rethrow is removed.
+  // @orb-waive caught-failure-ownership(error): ENOENT means the official worker emitted no problem report; every other read/parse failure rethrows. Ends if the error-code check or rethrow is removed.
   try {
     const source = await readFile(problemPath, "utf8");
     parserProblemRows = source

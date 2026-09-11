@@ -193,7 +193,7 @@ export function createCas(rootDir: string): Cas {
       if (await exists(ownerId, hash)) {
         // Dedup hit — bump mtime so GC's grace window protects this put too. ENOENT means a concurrent GC
         // just removed it — fall through and write fresh.
-        // @orb-gate-ignore caught-failure-ownership(empty:err): only ENOENT is absorbed (a concurrent GC removed the dedup target → fall through and write fresh); every other utimes error is re-thrown, so a permission/I/O fault never silently passes. Ends if the non-ENOENT re-throw is removed.
+        // @orb-waive caught-failure-ownership(err): only ENOENT is absorbed (a concurrent GC removed the dedup target → fall through and write fresh); every other utimes error is re-thrown, so a permission/I/O fault never silently passes. Ends if the non-ENOENT re-throw is removed.
         try {
           const seconds = now / MS_PER_SECOND;
           await utimes(dest, seconds, seconds);

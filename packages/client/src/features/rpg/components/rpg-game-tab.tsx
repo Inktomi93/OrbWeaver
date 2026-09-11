@@ -316,7 +316,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   // Sequential by necessity (restamp → rebuild). A failed restamp ABORTS the rebuild: the mutation's own
   // error toast has already spoken, and rebuilding on the old stamps is exactly what the host didn't ask for.
   const onResync = async (): Promise<void> => {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): the failed mutation's own errorToast already
+    // @orb-waive caught-failure-ownership(catch): the failed mutation's own errorToast already
     // spoke — the toast is the surface. Ends if a mutation in this sequence drops its errorToast.
     try {
       if (restampFirst && personaId !== null) {
@@ -355,7 +355,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
           size="sm"
           disabled={busy}
           onClick={(): void => {
-            // @orb-gate-ignore caught-failure-ownership(promise:onResync): onResync already catches its own
+            // @orb-waive caught-failure-ownership(onResync): onResync already catches its own
             // mutation rejections internally (errorToast-backed), so it never rejects — belt-and-suspenders.
             // Ends if onResync stops catching internally.
             onResync().catch(() => undefined); // The sequence owns and surfaces mutation failure.

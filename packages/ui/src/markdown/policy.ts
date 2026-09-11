@@ -84,7 +84,7 @@ export const untrustedUrlTransform: UrlTransform = (url) => {
     return value;
   }
   let parsed: URL;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): fail-closed security gate, documented below
+  // @orb-waive caught-failure-ownership(catch): fail-closed security gate, documented below
   // — an unparseable url is blocked (empty string), consumed by Streamdown as "drop this url". Ends if
   // the block-on-unparseable behavior is removed.
   try {

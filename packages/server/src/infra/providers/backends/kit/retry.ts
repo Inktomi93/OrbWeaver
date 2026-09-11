@@ -113,7 +113,7 @@ export async function runWithPreCommitRetry<T>(
     const markCommitted = (): void => {
       committed = true;
     };
-    // @orb-gate-ignore caught-failure-ownership(empty:raw): the caught error is classified and either re-thrown verbatim (committed/non-retryable/exhausted → throw raw) or drives a bounded retry — the failure is fully propagated, never dropped. Ends if the abandon branch stops re-throwing raw.
+    // @orb-waive caught-failure-ownership(raw): the caught error is classified and either re-thrown verbatim (committed/non-retryable/exhausted → throw raw) or drives a bounded retry — the failure is fully propagated, never dropped. Ends if the abandon branch stops re-throwing raw.
     try {
       return await op(markCommitted);
     } catch (raw) {

@@ -17,7 +17,7 @@ function errorCode(error: unknown): unknown {
 }
 
 export async function probePortHealth(port: number, request: typeof fetch = fetch): Promise<PortHealth> {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): connection refusal is the only absent verdict; every other rejection becomes an unproven result that launchOneEngine refuses before headroom or spawn. Ends if unproven can authorize launch.
+  // @orb-waive caught-failure-ownership(error): connection refusal is the only absent verdict; every other rejection becomes an unproven result that launchOneEngine refuses before headroom or spawn. Ends if unproven can authorize launch.
   try {
     const response = await request(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(HEALTH_PROBE_TIMEOUT_MS) });
     return response.ok ? { kind: "healthy" } : { kind: "unproven", reason: `health endpoint answered ${response.status}` };

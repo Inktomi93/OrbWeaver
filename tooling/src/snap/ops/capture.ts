@@ -79,7 +79,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
   };
   const out = planOut(plan, pageIndex, totalPages);
   const armPlan: ShotPlan = { url: plan.url, out, produceShot: plan.produceShot };
-  // @orb-gate-ignore caught-failure-ownership(empty:e): captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.
+  // @orb-waive caught-failure-ownership(e): captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.
   try {
     outcome.navError = plan.navigatePage === false ? null : await navigate(page, opts, plan.url, outcome.driveFailures);
     // #1227: `data-app-ready` is not the whole readiness contract when a THEME was requested — the stamp
@@ -141,7 +141,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     // is about the NAV FAILURE, not about the pixel arm — the run has to hand back an image of whatever
     // state it reached even though the pass above never got as far as the shutter.
     if (plan.produceShot) {
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's "still lands" claim stops holding.
+      // @orb-waive caught-failure-ownership(catch): best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's "still lands" claim stops holding.
       try {
         await SHOT_ARM.lifecycle.run({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: [], ratePosture });
       } catch {

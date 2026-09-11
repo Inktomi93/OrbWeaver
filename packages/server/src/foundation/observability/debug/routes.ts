@@ -85,7 +85,7 @@ const bugReportInput = z.object({
 
 /** The POSTed body, or `null` when it was not JSON at all — which `safeParse` then reports as invalid. */
 async function readJsonBody(c: Context): Promise<unknown> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed body is a 400 the caller sees, and
+  // @orb-waive caught-failure-ownership(catch): a malformed body is a 400 the caller sees, and
   // the null flows straight into the schema's own failure path. Ends if the null stops being validated.
   try {
     return await c.req.json();
@@ -278,7 +278,7 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
   return async (c: Context, next: Next) => {
     const adminArmConsulted = config.adminAuth !== undefined;
     if (config.adminAuth !== undefined) {
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): documented below — a checker error falls
+      // @orb-waive caught-failure-ownership(catch): documented below — a checker error falls
       // through to the token check, never opening the gate. Ends if the fallthrough is removed.
       try {
         if (config.adminAuth.isAdmin(c)) {

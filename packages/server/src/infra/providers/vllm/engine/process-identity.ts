@@ -177,7 +177,7 @@ export function readObservedEngineProcess(pid: number): ObservedEngineProcess | 
   if (!Number.isInteger(pid) || pid <= 1) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable /proc process entry returns null, and verifyEngineLaunchIdentity treats null as absent/refused — NEVER "owned", so an unreadable process can never authorize the negative-PGID kill; fail-closed. Ends if null ever yields an "owned" verdict.
+  // @orb-waive caught-failure-ownership(catch): an unreadable /proc process entry returns null, and verifyEngineLaunchIdentity treats null as absent/refused — NEVER "owned", so an unreadable process can never authorize the negative-PGID kill; fail-closed. Ends if null ever yields an "owned" verdict.
   try {
     const parsed = parseProcIdentityStat(readFileSync(`/proc/${pid}/stat`, "utf8"));
     const cmdline = readFileSync(`/proc/${pid}/cmdline`);
@@ -202,7 +202,7 @@ export function readObservedEngineProcess(pid: number): ObservedEngineProcess | 
  *  running pid carries is proof of which launch started it. `null` = unreadable, absent or malformed, and
  *  all three are "not provably ours" (fail-closed: an unreadable process can never authorize a signal). */
 export function readEngineProcessLaunchMarker(pid: number, read: (procPath: string) => Buffer = (procPath) => readFileSync(procPath)): string | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable /proc/<pid>/environ returns null, which adoptEngineGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict.
+  // @orb-waive caught-failure-ownership(catch): an unreadable /proc/<pid>/environ returns null, which adoptEngineGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict.
   try {
     const prefix = `${ENGINE_LAUNCH_MARKER_ENV}=`;
     const entry = read(`/proc/${pid}/environ`)
@@ -250,7 +250,7 @@ export function serializeEngineIdentityFile(file: EngineIdentityFile): string {
 }
 
 export function parseEngineIdentityFile(text: string): EngineIdentityFile | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed engine-identity file parses to null (no launch record), so no negative-PGID signal can be authorized against it — the fail-closed direction. Ends if a null record ever authorizes a signal.
+  // @orb-waive caught-failure-ownership(catch): a malformed engine-identity file parses to null (no launch record), so no negative-PGID signal can be authorized against it — the fail-closed direction. Ends if a null record ever authorizes a signal.
   try {
     const parsed = identityFileSchema.safeParse(JSON.parse(text));
     return parsed.success ? parsed.data : null;
@@ -260,7 +260,7 @@ export function parseEngineIdentityFile(text: string): EngineIdentityFile | null
 }
 
 export function readEngineIdentityFile(repoRoot: string): EngineIdentityFile | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable engine-identity file returns null (no launch record); no signal can be authorized without a matching record — fail-closed. Ends if a null read ever authorizes a signal.
+  // @orb-waive caught-failure-ownership(catch): an unreadable engine-identity file returns null (no launch record); no signal can be authorized without a matching record — fail-closed. Ends if a null read ever authorizes a signal.
   try {
     return parseEngineIdentityFile(readFileSync(engineIdentityFilePath(repoRoot), "utf8"));
   } catch {
@@ -347,7 +347,7 @@ export function signalEngineLaunchIdentity(
   if (ownership.verdict !== "owned") {
     return ownership;
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the kill failure is classified into a typed verdict (ESRCH → absent, else → refused) AFTER ownership was already verified "owned" above — propagated as a verdict, and no unverified signal is ever sent. Ends if the kill precedes ownership verification.
+  // @orb-waive caught-failure-ownership(error): the kill failure is classified into a typed verdict (ESRCH → absent, else → refused) AFTER ownership was already verified "owned" above — propagated as a verdict, and no unverified signal is ever sent. Ends if the kill precedes ownership verification.
   try {
     (opts.kill ?? process.kill)(-ownership.pgid, signal);
     return { verdict: "signaled", pgid: ownership.pgid };
@@ -467,7 +467,7 @@ export function signalAdoptedEngineGroup(
   if (adoption.kind !== "adoptable") {
     return adoption;
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed.
+  // @orb-waive caught-failure-ownership(error): ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed.
   try {
     (opts.kill ?? process.kill)(-adoption.pgid, signal);
   } catch (error) {

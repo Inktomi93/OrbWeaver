@@ -9,7 +9,7 @@ let cached: boolean | null = null;
 /** True when running under `pnpm snap --probe` (deterministic-render mode). */
 export function isProbeMode(): boolean {
   if (cached === null) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): storage access refused degrades to the safe default (not probe mode) — probe mode is opt-in instrumentation, never required for correct rendering. Ends if probe mode becomes load-bearing.
+    // @orb-waive caught-failure-ownership(catch): storage access refused degrades to the safe default (not probe mode) — probe mode is opt-in instrumentation, never required for correct rendering. Ends if probe mode becomes load-bearing.
     try {
       cached = globalThis.localStorage.getItem(PROBE_MODE_KEY) === "1";
     } catch {

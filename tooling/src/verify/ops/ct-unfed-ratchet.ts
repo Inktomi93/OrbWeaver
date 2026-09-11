@@ -112,7 +112,7 @@ export interface UnfedRatchetVerdict {
  * playwright already reports, and inventing a refusal from it would be noise, not signal.
  */
 export function owesActiveMarker(root: string, file: string): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): documented above — an unreadable file is a separate failure playwright already reports; treating it as "owing nothing" avoids inventing a duplicate, noisy refusal. Ends if playwright stops being the thing that surfaces unreadable-file failures.
+  // @orb-waive caught-failure-ownership(catch): documented above — an unreadable file is a separate failure playwright already reports; treating it as "owing nothing" avoids inventing a duplicate, noisy refusal. Ends if playwright stops being the thing that surfaces unreadable-file failures.
   try {
     return readFileSync(join(root, file), "utf8").includes(ROUTE_TRPC_CALL);
   } catch {

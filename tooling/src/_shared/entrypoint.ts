@@ -11,7 +11,7 @@ import { EXIT } from "./exit-contract.ts";
 
 /** Real path, or the input verbatim when it does not resolve (a deleted or virtual `argv[1]`). */
 function realOrSelf(path: string): string {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than "no real path".
+  // @orb-waive caught-failure-ownership(catch): a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than "no real path".
   try {
     return realpathSync(path);
   } catch {

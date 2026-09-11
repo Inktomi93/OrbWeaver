@@ -33,7 +33,7 @@ export async function capturePerfEvidence(page: Pick<Page, "evaluate">, ratePost
     print(`LOAD-SUSPECT (${disposition.reason})`);
   }
   const status = disposition.disposition === "load-suspect" ? ("load-suspect" as const) : ("measured" as const);
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as "no perf evidence", never a failure. Ends if a caller starts requiring perf evidence to be present.
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as "no perf evidence", never a failure. Ends if a caller starts requiring perf evidence to be present.
   try {
     // #1004 — validated so a malformed payload reaches the `catch → null` arm below (optional read,
     // absent is fine) instead of landing in the report as fabricated navigation numbers.

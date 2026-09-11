@@ -106,7 +106,7 @@ function toSdkToolResult(block: Extract<AgentSeedBlock, { type: "tool-result" }>
  *  set the prototype. */
 function toToolInput(raw: string): Record<string, unknown> | null {
   let parsed: unknown;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): CLASSIFIER, not a failure — the compose seam has already refused an unparseable blob WITH its result half (`isJsonObject`), so this is the belt: `null` becomes an empty `input`, which keeps the pair valid rather than orphaning a `tool_result`. Ends if this function ever becomes the only parseability gate.
+  // @orb-waive caught-failure-ownership(catch): CLASSIFIER, not a failure — the compose seam has already refused an unparseable blob WITH its result half (`isJsonObject`), so this is the belt: `null` becomes an empty `input`, which keeps the pair valid rather than orphaning a `tool_result`. Ends if this function ever becomes the only parseability gate.
   try {
     parsed = JSON.parse(raw);
   } catch {

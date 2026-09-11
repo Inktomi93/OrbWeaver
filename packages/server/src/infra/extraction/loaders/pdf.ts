@@ -52,7 +52,7 @@ function assemblePage(items: readonly (TextItem | TextMarkedContent)[]): string 
 /** The info-dict `Title`, trimmed, when present + non-empty. A metadata read failure never fails extraction. */
 async function readTitle(doc: PDFDocumentProxy): Promise<string | undefined> {
   let info: object = {};
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a PDF metadata read failure collapses to "no title" — no credential/auth/crypto path, the title is derived display-only content, so a malformed info dict can never fail extraction or leak. Ends if getMetadata()'s result ever gates a security decision.
+  // @orb-waive caught-failure-ownership(catch): a PDF metadata read failure collapses to "no title" — no credential/auth/crypto path, the title is derived display-only content, so a malformed info dict can never fail extraction or leak. Ends if getMetadata()'s result ever gates a security decision.
   try {
     ({ info } = await doc.getMetadata());
   } catch {

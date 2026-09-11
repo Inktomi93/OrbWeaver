@@ -374,7 +374,7 @@ export async function snapMatrix(opts: Args): Promise<number> {
 export async function snapMatrixOnSession(opts: Args, host: ProbeSession | null): Promise<number> {
   let fixture: Awaited<ReturnType<typeof provisionRatedStageThemes>> = null;
   let verdict: number = EXIT.toolError;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.
+  // @orb-waive caught-failure-ownership(error): every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.
   try {
     fixture = opts.motion ? null : await provisionRatedStageThemes(opts.base, opts.isolated);
     verdict = await runRatedMatrix(opts, fixture?.entries ?? null, host);
@@ -382,7 +382,7 @@ export async function snapMatrixOnSession(opts: Args, host: ProbeSession | null)
     print(`INSTRUMENT ERROR  snap matrix discovery/planning failed: ${errorMessage(error)}`);
   }
   if (fixture !== null) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.
+    // @orb-waive caught-failure-ownership(error): cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.
     try {
       await fixture.cleanup();
     } catch (error) {

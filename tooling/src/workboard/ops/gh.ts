@@ -22,7 +22,7 @@ function execOutput(error: unknown, channel: "stdout" | "stderr"): string {
 
 function graphqlResetTime(): string {
   // The REST rate_limit endpoint is free — probing it never spends the budget it reports.
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): only used to make an already-thrown rate-limit error message more specific — a failed probe of the reset time just falls back to a vaguer but still-actionable phrase in that same message, it never suppresses the real rate-limit failure itself. Ends if this return value starts being used outside a message string.
+  // @orb-waive caught-failure-ownership(catch): only used to make an already-thrown rate-limit error message more specific — a failed probe of the reset time just falls back to a vaguer but still-actionable phrase in that same message, it never suppresses the real rate-limit failure itself. Ends if this return value starts being used outside a message string.
   try {
     const payload = JSON.parse(execNicedSync("gh", ["api", "rate_limit"])) as {
       readonly resources?: { readonly graphql?: { readonly reset?: number } };

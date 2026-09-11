@@ -128,7 +128,7 @@ function reservationNames(home: string): readonly string[] {
     return [];
   }
   return readdirSync(dir).filter((name) => {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed.
+    // @orb-waive caught-failure-ownership(catch): an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed.
     try {
       const reservation = bootReservation(JSON.parse(readFileSync(reservationPath(home, name), "utf8")));
       if (reservation?.name === name && pidAlive(reservation.pid)) {
@@ -145,7 +145,7 @@ function reservationNames(home: string): readonly string[] {
 function withBootLock<T>(home: string, fn: () => T): T {
   const path = join(home, BOOT_LOCK);
   for (;;) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation.
+    // @orb-waive caught-failure-ownership(error): only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation.
     try {
       mkdirSync(path);
       break;

@@ -67,7 +67,7 @@ export async function login(handle: Handle, password: string): Promise<void> {
     body,
   });
   if (!res.ok) {
-    // @orb-gate-ignore caught-failure-ownership(promise:json): a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed.
+    // @orb-waive caught-failure-ownership(res.json): a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed.
     const parsed = (await res.json().catch(() => ({}))) as { readonly error?: string };
     throw new LoginFailedError(parsed.error ?? `login failed (HTTP ${res.status})`);
   }
@@ -87,7 +87,7 @@ export async function firstRunSetup(password: string): Promise<void> {
     body: new URLSearchParams({ password }),
   });
   if (!res.ok) {
-    // @orb-gate-ignore caught-failure-ownership(promise:json): a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed.
+    // @orb-waive caught-failure-ownership(res.json): a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed.
     const parsed = (await res.json().catch(() => ({}))) as { readonly error?: string };
     throw new LoginFailedError(parsed.error ?? `first-run setup failed (HTTP ${res.status})`);
   }
@@ -129,7 +129,7 @@ export async function logout(): Promise<LogoutResult> {
   if (!res.ok) {
     throw new Error(`logout failed (HTTP ${res.status})`);
   }
-  // @orb-gate-ignore caught-failure-ownership(promise:json): `res.ok` already confirmed the response succeeded; a malformed/absent body is a best-effort optional read that degrades to the documented null fallback (non-oidc / no end-session endpoint). Ends if endSessionUrl becomes a required field.
+  // @orb-waive caught-failure-ownership(res.json): `res.ok` already confirmed the response succeeded; a malformed/absent body is a best-effort optional read that degrades to the documented null fallback (non-oidc / no end-session endpoint). Ends if endSessionUrl becomes a required field.
   const parsed = (await res.json().catch(() => ({}))) as { readonly endSessionUrl?: string | null };
   return { endSessionUrl: parsed.endSessionUrl ?? null };
 }

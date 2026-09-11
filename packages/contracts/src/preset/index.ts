@@ -3112,7 +3112,7 @@ function stStopStrings(powerUser: Record<string, unknown>): string[] | undefined
     return;
   }
   let parsed: unknown;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): ST mirror — JSON.parse of custom_stopping_strings
+  // @orb-waive caught-failure-ownership(catch): ST mirror — JSON.parse of custom_stopping_strings
   // yields nothing on failure, mirroring ST's own reader. Consumer: stStopStrings returns undefined, caller
   // treats it as "no stop strings". Ends if the caller stops consuming the undefined return.
   try {

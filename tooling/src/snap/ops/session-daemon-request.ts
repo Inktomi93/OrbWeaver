@@ -95,7 +95,7 @@ function touchRow(state: SessionDaemonState, patch: Partial<SessionRow>): void {
  *  throws; this catch is the last-resort REPORT on the daemon log, never a swallow — a teardown that failed
  *  quietly is exactly the row-reads-live-forever class §3.8 exists to make loud. */
 export function detachSessionShutdown(work: Promise<void>, name: string, reason: string): void {
-  // @orb-gate-ignore caught-failure-ownership(promise:work): a timer/signal boundary has no caller to carry an exit code, so the daemon log IS the report; the `closed` latch is already released by shutdown's `finally`, so the process leaves regardless. Ends if shutdown stops releasing the latch unconditionally.
+  // @orb-waive caught-failure-ownership(work): a timer/signal boundary has no caller to carry an exit code, so the daemon log IS the report; the `closed` latch is already released by shutdown's `finally`, so the process leaves regardless. Ends if shutdown stops releasing the latch unconditionally.
   work.catch((unhandled: unknown) => {
     warn(`session      ${name}: shutdown (${reason}) failed — ${errorMessage(unhandled)}`);
   });
@@ -146,7 +146,7 @@ async function serveSerialized(state: SessionDaemonState, request: SessionReques
   });
   let exit: number = EXIT.toolError;
   let terminalReason: string | null = null;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the failure is printed to the caller as SESSION CALL ERROR and the request's `done` carries toolError — the caller's exit IS the report; the daemon stays up by design (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.
+  // @orb-waive caught-failure-ownership(error): the failure is printed to the caller as SESSION CALL ERROR and the request's `done` carries toolError — the caller's exit IS the report; the daemon stays up by design (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.
   try {
     const call = request.kind === "call" ? parseSnapArgs([...request.argv]) : null;
     const navigates = call !== null && (sessionCallTarget(call) !== "live" || call.matrix || call.scenario !== null);

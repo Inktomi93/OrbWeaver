@@ -274,7 +274,7 @@ function buildHostProxy(deps: RealmDeps): QuickJSHandle {
         if (state.inFlight >= UI_GUEST_BUDGETS.hostCallsInFlightMax) {
           using err = ctx.newError(`too many concurrent host calls (>${UI_GUEST_BUDGETS.hostCallsInFlightMax})`);
           deferred.reject(err);
-          // @orb-gate-ignore caught-failure-ownership(promise:promise): both settle arms run the SAME pump(ctx) —
+          // @orb-waive caught-failure-ownership(deferred.settled): both settle arms run the SAME pump(ctx) —
           // this is the manual job-queue pump the guest realm requires on any settle, not error swallowing; the
           // rejection itself already reached the guest's own promise via deferred.reject above. Ends if the two
           // arms ever diverge.
@@ -297,7 +297,7 @@ function buildHostProxy(deps: RealmDeps): QuickJSHandle {
         post({ kind: "hostCall", callId, fn: `${namespace}.${method}`, argsJson: JSON.stringify(args) });
         // Pump the job queue when the promise settles so the guest continuation actually runs — the SYNC
         // variant schedules nothing on its own, which is the manual pumping the server's membrane does too.
-        // @orb-gate-ignore caught-failure-ownership(promise:promise): both settle arms run the SAME pump(ctx) —
+        // @orb-waive caught-failure-ownership(deferred.settled): both settle arms run the SAME pump(ctx) —
         // the required job-queue pump on any settle, not error swallowing; the reject/resolve handlers above
         // already deliver the outcome into the guest's own promise. Ends if the two arms ever diverge.
         void deferred.settled.then(pump(ctx), pump(ctx));

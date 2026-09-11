@@ -14,11 +14,11 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
   const userWriteChains = new Map<UserId, Promise<unknown>>();
   function serializeUserWrite<T>(ownerId: UserId, run: () => Promise<T>): Promise<T> {
     const prev = userWriteChains.get(ownerId) ?? Promise.resolve();
-    // @orb-gate-ignore caught-failure-ownership(promise:prev): propagated — `next` is what this function
+    // @orb-waive caught-failure-ownership(prev): propagated — `next` is what this function
     // RETURNS to the caller, so a failed write reaches the caller unmuted through `next`'s own rejection.
     // Ends if `next` stops being the returned promise.
     const next = prev.then(run, run);
-    // @orb-gate-ignore caught-failure-ownership(promise:next): scaffolding only — `settled` exists so a
+    // @orb-waive caught-failure-ownership(next): scaffolding only — `settled` exists so a
     // failed write cannot poison the CHAIN's next link (the comment two lines below the app-settings twin
     // states the same contract); the real outcome the caller sees is `next`, not `settled`. Ends if
     // `settled` is read anywhere but the chain-continuation plumbing.

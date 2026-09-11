@@ -77,7 +77,7 @@ export const CPU_PROFILE_ARM = {
           if (!opts.cpuProfile || ctx.pageIndex !== 0 || pause || cdp !== null || profile !== null || failure !== null) {
             return null;
           }
-          // @orb-gate-ignore caught-failure-ownership(empty:error): failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
+          // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
           try {
             cdp = await ctx.page.context().newCDPSession(ctx.page);
             await cdp.send("Profiler.enable");
@@ -97,7 +97,7 @@ export const CPU_PROFILE_ARM = {
             failure ??= "no non-pause action entered the CPU profile window";
             return;
           }
-          // @orb-gate-ignore caught-failure-ownership(empty:error): failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
+          // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
           try {
             const stopped = await cdp.send("Profiler.stop");
             profile = cpuProfileEvidence(Reflect.get(stopped, "profile"));
@@ -113,7 +113,7 @@ export const CPU_PROFILE_ARM = {
           if (!opts.cpuProfile || profile === null) {
             return;
           }
-          // @orb-gate-ignore caught-failure-ownership(empty:error): failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
+          // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes cpu-profile=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
           try {
             path = await artifactFile("cpu-profile", `${ctx.name}-cpu`, ".cpuprofile", {
               producer: "cpu-profile",

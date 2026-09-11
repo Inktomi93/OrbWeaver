@@ -450,7 +450,7 @@ async function fetchAndReduce(args: {
       });
     }
     if (!res.ok || res.body === null) {
-      // @orb-gate-ignore caught-failure-ownership(promise:readErrorBody): an error-body read failure falls back to res.statusText and the failure is STILL thrown as a secret-scrubbed ProviderError (providerErrorFromHttp) — propagated, not dropped, and secrets redacted by value. Ends if the throw below is removed.
+      // @orb-waive caught-failure-ownership(readErrorBody): an error-body read failure falls back to res.statusText and the failure is STILL thrown as a secret-scrubbed ProviderError (providerErrorFromHttp) — propagated, not dropped, and secrets redacted by value. Ends if the throw below is removed.
       const text = await readErrorBody(res).catch((): string => "");
       throw providerErrorFromHttp(
         Object.assign(new Error(text.length > 0 ? text : res.statusText), {

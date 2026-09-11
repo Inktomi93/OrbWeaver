@@ -34,7 +34,7 @@ export function decode32Bytes(raw: string): Buffer | null {
     }
   }
   // base64: Buffer.from is lenient (truncates short inputs), so the byte-length check is the real gate.
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a non-decodable key is INDISTINGUISHABLE from a wrong-length one here, and both must reach the same null — the 32-byte check below is the validator and the file header states the contract (degrade to a DISABLED box, never throw at boot). Ends if decode gains a failure the caller must report separately.
+  // @orb-waive caught-failure-ownership(catch): a non-decodable key is INDISTINGUISHABLE from a wrong-length one here, and both must reach the same null — the 32-byte check below is the validator and the file header states the contract (degrade to a DISABLED box, never throw at boot). Ends if decode gains a failure the caller must report separately.
   try {
     const b64 = Buffer.from(trimmed, "base64");
     if (b64.length === CREDENTIALS_KEY_BYTES) {
@@ -60,7 +60,7 @@ export function dataDirFromDbUrl(dbUrl: string): string | null {
  *  A corrupt/unrecognized existing file FAILS CLOSED (returns null — never overwrites). Filesystem
  *  errors (permission, read-only) also return null ⇒ a disabled box rather than a partial crypto state. */
 export function loadOrCreateKeyfile(keyPath: string): Buffer | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so `createSecretBox(null)` yields a DISABLED box rather than a partial crypto state that could overwrite the only decryption recovery path. The operator sees it as credentials being unavailable, never as silent re-keying. Ends if boot gains a channel that can refuse startup on a crypto fault.
+  // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so `createSecretBox(null)` yields a DISABLED box rather than a partial crypto state that could overwrite the only decryption recovery path. The operator sees it as credentials being unavailable, never as silent re-keying. Ends if boot gains a channel that can refuse startup on a crypto fault.
   try {
     if (existsSync(keyPath)) {
       const raw = readFileSync(keyPath, "utf-8").trim();

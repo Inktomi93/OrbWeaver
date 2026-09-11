@@ -117,7 +117,7 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       return;
     }
     let parsed: unknown;
-    // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed tree kills the guest with a named
+    // @orb-waive caught-failure-ownership(catch): a malformed tree kills the guest with a named
     // reason (§4.9's fail-closed posture) — the failure is surfaced, not swallowed. Ends if `kill` stops being
     // called on this path.
     try {
@@ -142,7 +142,7 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     // The relay. Note what is NOT here: any decision about whether the call is allowed. The server re-gates
     // every one against the caller's own row, and duplicating that judgment here would create a second,
     // divergeable copy of the rule — the client's view of its grants is display-only by design.
-    // @orb-gate-ignore caught-failure-ownership(empty:err): the failure is relayed back to the guest as a
+    // @orb-waive caught-failure-ownership(err): the failure is relayed back to the guest as a
     // rejected hostResult with the error's own message — fully propagated, never swallowed. Ends if the
     // message stops being sent.
     try {
@@ -177,7 +177,7 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       return;
     }
     if (message.kind === "hostCall") {
-      // @orb-gate-ignore caught-failure-ownership(promise:handleHostCall): handleHostCall already catches its
+      // @orb-waive caught-failure-ownership(handleHostCall): handleHostCall already catches its
       // own await internally and always resolves (it sends a rejected hostResult instead of throwing) — this
       // outer catch is belt-and-suspenders. Ends if handleHostCall stops catching internally.
       void handleHostCall(message.callId, message.fn, message.argsJson).catch(() => undefined);

@@ -30,7 +30,7 @@ function tabStorage(): Storage | undefined {
 
 /** Record where to land after the IdP round trip. A no-op where sessionStorage is unavailable. */
 export function writeSessionResume(snapshot: SessionResumeSnapshot): void {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): storage refused (private mode / disabled) — the bounce still works, it just lands on the landing view. Ends if the resume target becomes required for the bounce to work.
+  // @orb-waive caught-failure-ownership(catch): storage refused (private mode / disabled) — the bounce still works, it just lands on the landing view. Ends if the resume target becomes required for the bounce to work.
   try {
     tabStorage()?.setItem(RESUME_KEY, JSON.stringify(snapshot));
   } catch {
@@ -45,7 +45,7 @@ export function takeSessionResume(): SessionResumeSnapshot | null {
     return null;
   }
   let raw: string | null = null;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): storage access refused — the resume target degrades to null (the landing view), same as no snapshot ever written. Ends if the resume target becomes required.
+  // @orb-waive caught-failure-ownership(catch): storage access refused — the resume target degrades to null (the landing view), same as no snapshot ever written. Ends if the resume target becomes required.
   try {
     raw = storage.getItem(RESUME_KEY);
     storage.removeItem(RESUME_KEY);
@@ -55,7 +55,7 @@ export function takeSessionResume(): SessionResumeSnapshot | null {
   if (raw === null) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a corrupt blob is discarded, never trusted (#11 autosave doctrine) — degrades to null, same as no snapshot.
+  // @orb-waive caught-failure-ownership(catch): a corrupt blob is discarded, never trusted (#11 autosave doctrine) — degrades to null, same as no snapshot.
   try {
     const parsed = JSON.parse(raw) as { readonly chatId?: unknown };
     return { chatId: typeof parsed.chatId === "string" ? castId<ChatId>(parsed.chatId) : null };

@@ -151,7 +151,7 @@ export async function readBugReports(repoRoot: string, now: number): Promise<Bug
 
 /** The directory's entries, or `null` when it does not exist (nothing captured yet in this checkout). */
 async function listDir(dir: string): Promise<readonly string[] | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an absent directory IS the answer here — it
+  // @orb-waive caught-failure-ownership(catch): an absent directory IS the answer here — it
   // becomes the listing's `missing: true` arm, which the formatter renders as a named empty naming the capture
   // path. Ends if `missing` stops being rendered distinctly from "zero reports".
   try {
@@ -163,7 +163,7 @@ async function listDir(dir: string): Promise<readonly string[] | null> {
 
 /** A parsed bundle object, or `null` when the file is unreadable/not an object — the `unreadable` row. */
 async function parseBundle(path: string): Promise<Readonly<Record<string, unknown>> | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): the null is consumed as an `unreadable` ROW in
+  // @orb-waive caught-failure-ownership(catch): the null is consumed as an `unreadable` ROW in
   // the listing, which is printed — a report the reader cannot open is reported, never skipped. Ends if the
   // caller stops recording the row.
   try {
@@ -179,7 +179,7 @@ export async function readBugReportMarkdown(path: string | null): Promise<string
   if (path === null) {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a missing companion degrades the SHOW output to
+  // @orb-waive caught-failure-ownership(catch): a missing companion degrades the SHOW output to
   // "the bundle is at <path>" rather than failing the lookup — the JSON is the evidence, the md is the index
   // card. Ends if the show formatter stops handling a null digest.
   try {

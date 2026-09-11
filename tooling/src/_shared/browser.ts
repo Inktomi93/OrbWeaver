@@ -213,7 +213,7 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   const cookies = opts.contextCookies ?? [];
   const contexts: ProbeContext[] = [];
   const ownedContexts: { readonly context: BrowserContext }[] = [];
-  // @orb-gate-ignore caught-failure-ownership(empty:error): closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.
+  // @orb-waive caught-failure-ownership(error): closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.
   try {
     for (let i = 0; i < contextCount; i += 1) {
       const built = await buildProbeContext({
@@ -344,7 +344,7 @@ export async function attachProbeSession(endpoint: string, environment: ProbeAtt
 export async function closeProbeSession(session: ProbeResourceOwner): Promise<void> {
   const contextResults = await Promise.allSettled(session.contexts.filter(({ owned }) => owned !== false).map(({ context }) => context.close()));
   const failures = contextResults.flatMap((result) => (result.status === "rejected" ? [result.reason] : []));
-  // @orb-gate-ignore caught-failure-ownership(empty:error): collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.
+  // @orb-waive caught-failure-ownership(error): collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.
   try {
     await session.browser.close();
   } catch (error) {

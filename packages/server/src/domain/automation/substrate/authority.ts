@@ -34,7 +34,7 @@ export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId
   if (principal === null || role === undefined) {
     return false;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — the ONE `can()` kernel's refusal
+  // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — the ONE `can()` kernel's refusal
   // collapses to a boolean host-authority verdict; a denied `can()` can never read as host. Ends if `can()`
   // grows a distinct infra-error class this boolean must stop swallowing.
   try {

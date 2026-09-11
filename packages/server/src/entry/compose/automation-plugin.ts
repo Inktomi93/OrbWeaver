@@ -534,7 +534,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // live re-check that the installer is still in the room, one belt beyond the invocation-time admission.
       // A refusal (kicked between admission and write) resolves fail-CLOSED to "not attached".
       isBookAttachedToChat: async (ownerId, chatId, bookId) => {
-        // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: a refusal
+        // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a refusal
         // (kicked between admission and write) resolves to "not attached", never a leak. Ends if this needs
         // to tell a raced-kick apart from an infra failure.
         try {
@@ -553,7 +553,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // `isBookAttachedToChat` above uses, projecting to the reduced `{id, name}`; fail-CLOSED to `[]` on a
       // refusal (kicked between admission and read), so a non-member never learns the room's book list.
       listBooksForChat: async (ownerId, chatId) => {
-        // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: a
+        // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a
         // refusal (kicked between admission and read) resolves to `[]`, so a non-member never learns the
         // room's book list. Ends if this needs to tell a raced-kick apart from an infra failure.
         try {
@@ -568,7 +568,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // ran in the bridge first. Fail-CLOSED to `[]` if the installer does not own the book (leak-free — a book
       // owned by another host is indistinguishable from an empty one). Content is capped like the message read.
       listEntries: async (ownerId, bookId) => {
-        // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: `[]` if
+        // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: `[]` if
         // the installer does not own the book — leak-free, indistinguishable from an empty one. Ends if this
         // needs to tell a not-owned book apart from an infra failure.
         try {
@@ -719,7 +719,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     assets: {
       read: async ({ installerUserId, assetId }) => {
         const caller = await resolveOwnerPrincipal(installerUserId);
-        // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — documented above: any
+        // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: any
         // unreadable asset (a foreign/absent id, `AssetNotFoundError`) collapses to `null`, leak-free (no
         // existence oracle). Ends if this needs to tell "foreign" apart from an infra failure.
         try {

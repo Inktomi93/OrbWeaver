@@ -205,7 +205,7 @@ export type BugReportSubmission = { readonly ok: true; readonly id: string; read
  *  non-gate failure (a proxy 502, an HTML error page) has no such body — then the status alone is the honest
  *  answer, and inventing a cause for it would be worse than saying less. */
 async function refusalReason(response: Response): Promise<string | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means "say only what is true". Ends if a refusal body ever becomes required rather than additive.
+  // @orb-waive caught-failure-ownership(catch): the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means "say only what is true". Ends if a refusal body ever becomes required rather than additive.
   try {
     const body = (await response.json()) as { reason?: unknown; error?: unknown };
     // `reason` names the ARM; `error` is the gate's older one-word shape — take whichever the server sent.

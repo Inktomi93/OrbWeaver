@@ -24,18 +24,18 @@ interface LocatorProof {
 
 async function locatorProof(page: Page, selector: string): Promise<LocatorProof> {
   const locator = page.locator(selector);
-  // @orb-gate-ignore caught-failure-ownership(promise:count): a malformed/non-unique candidate returns
+  // @orb-waive caught-failure-ownership(locator.count): a malformed/non-unique candidate returns
   // unique=false and falls through to the next candidate; no row can escape without a proven locator.
   const count = await locator.count().catch(() => 0);
   if (count !== 1) {
     return { unique: false, visible: false, enabled: false };
   }
-  // @orb-gate-ignore caught-failure-ownership(promise:isVisible): a failed visibility probe is false;
+  // @orb-waive caught-failure-ownership(locator.isVisible): a failed visibility probe is false;
   // visible/actionable rows require true, while explicit hidden inventory remains locator-only.
   return {
     unique: true,
     visible: await locator.isVisible().catch(() => false),
-    // @orb-gate-ignore caught-failure-ownership(promise:isEnabled): failed enabled proof is false;
+    // @orb-waive caught-failure-ownership(locator.isEnabled): failed enabled proof is false;
     // a locator-only inventory row can survive it, but an actionable row cannot.
     enabled: await locator.isEnabled().catch(() => false),
   };
@@ -87,7 +87,7 @@ async function captureMapBridge(page: Page): Promise<{
   readonly shellError: string | null;
 }> {
   let raw: RawMapBridgeEvidence;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the browser read failure is retained in
+  // @orb-waive caught-failure-ownership(error): the browser read failure is retained in
   // both named map errors; the report prints it and the map page-arm exit forces toolError.
   try {
     raw = mapBridgePayload(await page.evaluate(READ_MAP_BRIDGE_SCRIPT));
@@ -99,14 +99,14 @@ async function captureMapBridge(page: Page): Promise<{
   let atlasError: string | null = null;
   let shell: MapShellEvidence | null = null;
   let shellError: string | null = null;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the capabilities shape failure becomes
+  // @orb-waive caught-failure-ownership(error): the capabilities shape failure becomes
   // mapAtlasError, printed as MAP INSTRUMENT ERROR and forced to toolError by the page-arm exit.
   try {
     atlas = mapAtlasEvidence(raw.atlas);
   } catch (error) {
     atlasError = errorMessage(error);
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the shell shape failure becomes
+  // @orb-waive caught-failure-ownership(error): the shell shape failure becomes
   // mapShellError, printed as MAP INSTRUMENT ERROR and forced to toolError by the page-arm exit.
   try {
     shell = mapShellEvidence(raw.shell);

@@ -59,7 +59,7 @@ type AdmissionRow = Omit<Parameters<typeof insertWorkload>[1], "id">;
  * is.
  */
 async function admit(ctx: WorkloadServiceContext, row: AdmissionRow, adoptActive: boolean): Promise<{ id: WorkloadId }> {
-  // @orb-gate-ignore caught-failure-ownership(empty:err): the ONE absorbed failure is the single-active
+  // @orb-waive caught-failure-ownership(err): the ONE absorbed failure is the single-active
   // collision under an explicit `adoptActive` caller, and it is absorbed by RESOLVING it — the caller gets
   // the id of the run that already holds the slot, which is the outcome it asked for. Every other arm throws
   // the domain's own error (`translateInsertFailure`: conflict / leak-free NOT_FOUND / the raw failure), and

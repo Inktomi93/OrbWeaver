@@ -260,7 +260,7 @@ let spillChain: Promise<void> = Promise.resolve();
 /** Append one record as JSONL, rotating at the cap. Best-effort by construction. */
 function spill(kind: "request" | "outcome", record: WireCapture | WireOutcome): void {
   let line: string;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): documented — an unserializable body is not
+  // @orb-waive caught-failure-ownership(catch): documented — an unserializable body is not
   // worth failing (or retrying) a turn over, best-effort observability spill. Ends if spill() stops being
   // best-effort by contract.
   try {
@@ -268,14 +268,14 @@ function spill(kind: "request" | "outcome", record: WireCapture | WireOutcome): 
   } catch {
     return; // an unserializable body is not worth failing (or retrying) a turn over
   }
-  // @orb-gate-ignore caught-failure-ownership(promise:spillChain): documented above the spillChain
+  // @orb-waive caught-failure-ownership(spillChain): documented above the spillChain
   // declaration — failures are swallowed into the chain, never rethrown; an unwritable .cache/ must not
   // fail a chat turn. Ends if spill stops being best-effort by contract.
   spillChain = spillChain
     .then(async () => {
       await mkdir(SPILL_DIR, { recursive: true });
       let bytes = 0;
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): documented — first write of a fresh
+      // @orb-waive caught-failure-ownership(catch): documented — first write of a fresh
       // generation has no prior file to stat, treated as size 0 (nothing to rotate). Ends if the rotation
       // logic stops treating a missing file as size 0.
       try {

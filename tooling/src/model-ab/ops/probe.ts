@@ -25,7 +25,7 @@ export async function runProbe(baseUrl: string, model: string, probe: Probe): Pr
       signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
     });
     const ms = Date.now() - t0;
-    // @orb-gate-ignore caught-failure-ownership(promise:json): res.ok/status are read independently of json — a non-JSON error body just means the `message` field falls back to empty in the failure branch below; the HTTP failure itself is never lost. Ends if the ok/status path starts depending on json having parsed.
+    // @orb-waive caught-failure-ownership(res.json): res.ok/status are read independently of json — a non-JSON error body just means the `message` field falls back to empty in the failure branch below; the HTTP failure itself is never lost. Ends if the ok/status path starts depending on json having parsed.
     const json = (await res.json().catch(() => ({}))) as ChatResponse;
     if (!res.ok) {
       const message = String(json.message ?? json.error?.message ?? "").slice(0, ERROR_CHARS);

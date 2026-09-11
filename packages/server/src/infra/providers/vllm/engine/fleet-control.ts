@@ -114,7 +114,7 @@ const HTTP_TIMEOUT_MS = 5000;
 /** POST /sleep?level=1 to an engine (mode default `abort` — the idle gate guarantees no in-flight requests).
  *  Level 1 = weights→CPU, KV discarded. Returns true on a 2xx. */
 export async function postSleep(engine: VllmEngine): Promise<boolean> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a POST /sleep failure returns false (engine not slept) — a local loopback engine-lifecycle op, no auth/credential; false is the conservative "did not sleep". Ends if this call reaches a non-loopback target.
+  // @orb-waive caught-failure-ownership(catch): a POST /sleep failure returns false (engine not slept) — a local loopback engine-lifecycle op, no auth/credential; false is the conservative "did not sleep". Ends if this call reaches a non-loopback target.
   try {
     const res = await fetch(`${engineBaseUrl(engine)}/sleep?level=${SLEEP_LEVEL_1}`, { method: "POST", signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) });
     return res.ok;
@@ -172,7 +172,7 @@ export function parseEngineMetrics(text: string): EngineMetrics {
 
 /** GET /metrics and parse the idle snapshot. Any failure ⇒ null (treated as "can't tell" — never auto-sleep). */
 export async function fetchEngineMetrics(engine: VllmEngine): Promise<EngineMetrics | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a /metrics scrape failure returns null ("can't tell"), and isEngineIdle/advanceAutoSleep treat null as never-idle — the conservative direction (never auto-sleeps a busy engine); local engine, no auth/credential. Ends if null ever admits an auto-sleep.
+  // @orb-waive caught-failure-ownership(catch): a /metrics scrape failure returns null ("can't tell"), and isEngineIdle/advanceAutoSleep treat null as never-idle — the conservative direction (never auto-sleeps a busy engine); local engine, no auth/credential. Ends if null ever admits an auto-sleep.
   try {
     const res = await fetch(`${engineBaseUrl(engine)}/metrics`, { signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) });
     if (!res.ok) {
@@ -299,7 +299,7 @@ export function parseEngineCapacity(text: string, engine: VllmEngine): EngineCap
 /** GET /metrics and parse the contention snapshot. Any failure ⇒ null (engine down/asleep/unreachable —
  *  an absent answer, never a fabricated healthy one). */
 export async function fetchEngineCapacity(engine: VllmEngine): Promise<EngineCapacityMetrics | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a /metrics capacity scrape failure returns null (absent, never a fabricated healthy snapshot); local engine observability, no auth/credential. Ends if null is read as a healthy snapshot.
+  // @orb-waive caught-failure-ownership(catch): a /metrics capacity scrape failure returns null (absent, never a fabricated healthy snapshot); local engine observability, no auth/credential. Ends if null is read as a healthy snapshot.
   try {
     const res = await fetch(`${engineBaseUrl(engine)}/metrics`, { signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) });
     if (!res.ok) {
@@ -387,7 +387,7 @@ export function advanceAutoSleep(state: AutoSleepState, metrics: EngineMetrics |
 
 /** GET /is_sleeping — null means the engine's state could not be measured. */
 export async function getIsSleeping(engine: VllmEngine): Promise<boolean | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an /is_sleeping probe failure returns null ("could not measure"); local engine state read, no auth/credential — null disarms the auto-sleep timer (never sleeps on missing data). Ends if null ever admits an auto-sleep.
+  // @orb-waive caught-failure-ownership(catch): an /is_sleeping probe failure returns null ("could not measure"); local engine state read, no auth/credential — null disarms the auto-sleep timer (never sleeps on missing data). Ends if null ever admits an auto-sleep.
   try {
     const res = await fetch(`${engineBaseUrl(engine)}/is_sleeping`, { signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) });
     if (!res.ok) {
@@ -403,7 +403,7 @@ export async function getIsSleeping(engine: VllmEngine): Promise<boolean | null>
 /** POST /wake_up (no tags = full wake) then poll /is_sleeping until false, bounded. Returns whether the
  *  engine woke within the bound. `sleep`/`now` injected for deterministic tests. */
 export async function postWakeAndAwait(engine: VllmEngine, deps: { now: () => number; sleep: (ms: number) => Promise<void> }): Promise<boolean> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a POST /wake_up failure returns false (engine did not wake); local engine-lifecycle op, no auth/credential. Ends if this call reaches a non-loopback target.
+  // @orb-waive caught-failure-ownership(catch): a POST /wake_up failure returns false (engine did not wake); local engine-lifecycle op, no auth/credential. Ends if this call reaches a non-loopback target.
   try {
     await fetch(`${engineBaseUrl(engine)}/wake_up`, { method: "POST", signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) });
   } catch {

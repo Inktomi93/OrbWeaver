@@ -244,7 +244,7 @@ export function createAutosaveEntityForm<TValues extends object>(
           setSaveState("error");
           return;
         }
-        // @orb-gate-ignore caught-failure-ownership(promise:handleSubmit): the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
+        // @orb-waive caught-failure-ownership(form.handleSubmit): the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
         // handleSubmit re-throws an onSubmit rejection; swallow it here — the injected save's own
         // errorToast surfaces the failure and the draft mirror holds the edit for retry.
         form.handleSubmit().catch(() => undefined);
@@ -327,7 +327,7 @@ export function createAutosaveEntityForm<TValues extends object>(
           return; // a staged reseed/discard, or an unwritable subtree (#1716) — see the predicate's TSDoc
         }
         if (form.state.isValid && hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
-          // @orb-gate-ignore caught-failure-ownership(promise:handleSubmit): same swallow as the debounce driver above — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
+          // @orb-waive caught-failure-ownership(form.handleSubmit): same swallow as the debounce driver above — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
           form.handleSubmit().catch(() => undefined);
         }
       };
@@ -344,7 +344,7 @@ export function createAutosaveEntityForm<TValues extends object>(
     // forms one. Until then the exposure is the debounce window, and the honest mitigation is the consumer's
     // own dirty disclosure — a pane must not read "Saved" over an unsaved edit.
     const retrySave = (): void => {
-      // @orb-gate-ignore caught-failure-ownership(promise:handleSubmit): explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast.
+      // @orb-waive caught-failure-ownership(form.handleSubmit): explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast.
       // Direct submit — an explicit user retry always re-attempts the held edit; same swallow as the driver.
       form.handleSubmit().catch(() => undefined);
     };

@@ -37,7 +37,7 @@ const FIX =
 /** Every text-source file under a scan root, in a deterministic order. */
 function textFiles(root: string, relDir: string, out: string[]): void {
   let entries: Dirent[];
-  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — documented on the return: a scan root absent from this tree (a conformance temp dir plants only some roots) has nothing to scan. Ends if this gate starts running against a fixed, always-complete root set.
+  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — documented on the return: a scan root absent from this tree (a conformance temp dir plants only some roots) has nothing to scan. Ends if this gate starts running against a fixed, always-complete root set.
   try {
     entries = readdirSync(join(root, relDir), { withFileTypes: true, encoding: "utf8" });
   } catch {

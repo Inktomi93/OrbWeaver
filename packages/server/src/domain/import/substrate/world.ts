@@ -77,7 +77,7 @@ function toLoreEntry(stEntry: Record<string, unknown>): BulkImportLoreEntryInput
  *  (the caller passes the filename stem). Never throws — a malformed file is one skipped world, not an abort. */
 export function parseStWorldFile(bytes: Uint8Array, name: string): BulkImportLorebookInput | null {
   let raw: unknown;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): pure `JSON.parse` over untrusted upload
+  // @orb-waive caught-failure-ownership(catch): pure `JSON.parse` over untrusted upload
   // bytes — documented above: "Never throws — a malformed file is one skipped world, not an abort."
   try {
     raw = JSON.parse(new TextDecoder("utf-8").decode(bytes));

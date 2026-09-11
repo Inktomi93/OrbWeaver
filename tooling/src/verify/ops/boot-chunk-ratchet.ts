@@ -180,7 +180,7 @@ function readBootRefs(html: string): {
 export function measureBootChunk(root: string, ceilingBytes: number = BOOT_CHUNK_CEILING_BYTES): BootChunkVerdict {
   const assetsDir = join(root, ASSETS_REL);
   let candidates: string[];
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): documented on the next line — an unreadable/absent dir is the same UNMEASURABLE class as zero matches, and `entry === undefined` below routes it to the `unmeasurable()` verdict, never a pass. Ends if that unmeasurable() routing is removed.
+  // @orb-waive caught-failure-ownership(catch): documented on the next line — an unreadable/absent dir is the same UNMEASURABLE class as zero matches, and `entry === undefined` below routes it to the `unmeasurable()` verdict, never a pass. Ends if that unmeasurable() routing is removed.
   try {
     candidates = readdirSync(assetsDir)
       .filter((name) => ENTRY_CHUNK_RE.test(name))
@@ -197,7 +197,7 @@ export function measureBootChunk(root: string, ceilingBytes: number = BOOT_CHUNK
   }
 
   let html: string;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
+  // @orb-waive caught-failure-ownership(catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
   try {
     html = readFileSync(join(root, INDEX_HTML_REL), "utf8");
   } catch {
@@ -225,7 +225,7 @@ export function measureBootChunk(root: string, ceilingBytes: number = BOOT_CHUNK
   const bootFiles: BootChunkFile[] = [];
   for (const name of names) {
     let bytes: number;
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
+    // @orb-waive caught-failure-ownership(catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
     try {
       bytes = statSync(join(assetsDir, name)).size;
     } catch {

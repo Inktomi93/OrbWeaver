@@ -124,7 +124,7 @@ function liftString(node: Record<string, unknown>, path: string): z.ZodType {
 /** Compile a guest `pattern` to a RegExp, or `null` when it is malformed (the caller turns null into a typed
  *  refusal — a guest regex is untrusted input, never a thrown SyntaxError). */
 function compilePattern(pattern: string): RegExp | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): documented — the caller (liftString) turns
+  // @orb-waive caught-failure-ownership(catch): documented — the caller (liftString) turns
   // null into a typed JsonSchemaLiftError refusal rather than a thrown SyntaxError. Ends if the caller
   // stops checking for null.
   try {

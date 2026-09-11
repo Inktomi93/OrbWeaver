@@ -339,7 +339,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       const restore = perFire(input);
       // No navigation and no commit: the composer stays mounted, so the fill goes through the caller's own
       // onChange, called with the GROWING accumulation on each delta (progressive fill).
-      // @orb-gate-ignore caught-failure-ownership(promise:streamImpersonation): the .catch below explicitly
+      // @orb-waive caught-failure-ownership(streamImpersonation): the .catch below explicitly
       // toasts via notifyImpersonateFailure before restoring the typed steer — the failure is surfaced, not
       // swallowed. Ends if the toast call is ever removed from the handler.
       streamImpersonation(chatId, guided, onDrafted)

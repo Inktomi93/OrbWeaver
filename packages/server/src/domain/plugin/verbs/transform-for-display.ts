@@ -45,7 +45,7 @@ async function applyBounded(invoke: ResidentInvoke, transform: PluginDisplayTran
   const deadline = new Promise<null>((resolve) => {
     timer = setTimeout(() => resolve(null), PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
   });
-  // @orb-gate-ignore caught-failure-ownership(default:catch): documented above — `null` covers EVERY failure
+  // @orb-waive caught-failure-ownership(catch): documented above — `null` covers EVERY failure
   // mode (throw, rejected invoke, deadline); the caller keeps the row's prior text on any of them. Ends if a
   // guest crash needs to surface distinctly from a timeout.
   try {

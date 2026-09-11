@@ -73,7 +73,7 @@ async function readPin(): Promise<DevToolsAssetPin> {
 async function fetchAsset(path: string): Promise<CachedAsset> {
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= RESOURCE_FETCH_ATTEMPTS; attempt += 1) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): each failed attempt is retained as `lastError`; retry exhaustion throws it with the asset path below. Ends if exhaustion stops throwing the retained detail.
+    // @orb-waive caught-failure-ownership(error): each failed attempt is retained as `lastError`; retry exhaustion throws it with the asset path below. Ends if exhaustion stops throwing the retained detail.
     try {
       const response = await fetch(`${SOURCE_ORIGIN}${path}`, { redirect: "manual", signal: AbortSignal.timeout(RESOURCE_FETCH_TIMEOUT_MS) });
       if (response.status === HTTP_OK && !response.headers.has("location")) {
@@ -145,9 +145,9 @@ async function closeLiteralModuleAssets(revision: string, cache: Map<string, Pro
 
 async function startDiscoveryProxy(revision: string, cache: Map<string, Promise<CachedAsset>>, failures: string[]): Promise<Server> {
   const server = createServer((request, response) => {
-    // @orb-gate-ignore caught-failure-ownership(promise:promise): any escape from the request handler is recorded in `failures`, destroys the response, and aborts materialization after discovery. Ends if the shared failure receipt stops gating installation.
+    // @orb-waive caught-failure-ownership(catch): any escape from the request handler is recorded in `failures`, destroys the response, and aborts materialization after discovery. Ends if the shared failure receipt stops gating installation.
     (async (): Promise<void> => {
-      // @orb-gate-ignore caught-failure-ownership(empty:error): request failures enter the shared `failures` receipt, return HTTP 502, and abort materialization after discovery. Ends if the post-discovery failures check is removed.
+      // @orb-waive caught-failure-ownership(error): request failures enter the shared `failures` receipt, return HTTP 502, and abort materialization after discovery. Ends if the post-discovery failures check is removed.
       try {
         if (request.method !== "GET") {
           response.writeHead(HTTP_METHOD_NOT_ALLOWED).end();
@@ -187,7 +187,7 @@ function serverPort(server: Server): number {
 async function debugPort(profile: string): Promise<number> {
   const file = join(profile, "DevToolsActivePort");
   for (let attempt = 0; attempt < DEBUG_PORT_ATTEMPTS; attempt += 1) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing.
+    // @orb-waive caught-failure-ownership(catch): Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing.
     try {
       const [line] = (await readFile(file, "utf8")).split("\n");
       const port = Number(line);

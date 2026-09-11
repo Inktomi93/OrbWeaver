@@ -71,7 +71,7 @@ function legacyAnalyzerDraft(artifact: AnalyzerArtifact): FindingDraft {
 export async function analyzerFindingDrafts(artifacts: readonly SnapRunArtifact[]): Promise<FindingDraft[]> {
   const drafts: FindingDraft[] = [];
   for (const artifact of artifacts.filter(isAnalyzerArtifact)) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.
+    // @orb-waive caught-failure-ownership(error): composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.
     try {
       const read = await readSnapAnalyzerProblems(artifact);
       if (read === null) {
@@ -93,7 +93,7 @@ export async function analyzerFindingDrafts(artifacts: readonly SnapRunArtifact[
 export async function lighthouseFindingDrafts(artifacts: readonly SnapRunArtifact[]): Promise<FindingDraft[]> {
   const drafts: FindingDraft[] = [];
   for (const artifact of artifacts.filter((candidate) => candidate.producer === "lighthouse" && candidate.relativePath.endsWith(".json"))) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.
+    // @orb-waive caught-failure-ownership(error): composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.
     try {
       for (const audit of failedAudits(await readJson(artifact.path))) {
         // axe already wrote the diagnosis and captured the element (#1347). Printing the selectors alone
@@ -132,7 +132,7 @@ export async function reactFindingDrafts(artifacts: readonly SnapRunArtifact[]):
   const summaries = profileArtifacts.filter((candidate) => candidate.schema === "snap-react-profile-summary-v1");
   const selected = summaries.length > 0 ? summaries : profileArtifacts.filter((candidate) => candidate.schema === "snap-react-profile-v1");
   for (const artifact of selected) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.
+    // @orb-waive caught-failure-ownership(error): composite display owns parser drift by persisting a malformed-evidence finding; the strict detailed reader still refuses the source artifact. Ends if malformedFinding stops retaining the caught error.
     try {
       const parsed = record(await readJson(artifact.path));
       const gaps = parsed?.["gaps"];

@@ -26,7 +26,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, CatchStat
 
   override componentDidCatch(error: Error, _info: ErrorInfo): void {
     const ownerStack = IS_DEV ? captureOwnerStack() : null;
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): the report path must never compound the crash it exists to report — there is no surface left to report a failed report to. Ends if onError gets its own independent error surface.
+    // @orb-waive caught-failure-ownership(catch): the report path must never compound the crash it exists to report — there is no surface left to report a failed report to. Ends if onError gets its own independent error surface.
     try {
       this.props.onError?.(error, ownerStack);
     } catch {

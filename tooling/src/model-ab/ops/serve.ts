@@ -74,7 +74,7 @@ async function waitHealthy(baseUrl: string, exited: () => boolean, deadline: num
   if (Date.now() > deadline) {
     throw new Error("boot timeout");
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a failed health poll advances to the bounded retry whose timeout or process exit is the operator verdict. Ends if one poll becomes terminal.
+  // @orb-waive caught-failure-ownership(catch): a failed health poll advances to the bounded retry whose timeout or process exit is the operator verdict. Ends if one poll becomes terminal.
   try {
     const res = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(HEALTH_PROBE_TIMEOUT_MS) });
     if (res.ok) {
@@ -137,7 +137,7 @@ async function bootAndProbe(v: Variant, cli: CliOptions, outDir: string, isLast:
   });
   const baseUrl = `http://${HOST}:${cli.port}`;
   const bootStart = Date.now();
-  // @orb-gate-ignore caught-failure-ownership(empty:e): the boot failure is warned and returned as an explicit failed variant row with error text. Ends if callers stop publishing that row.
+  // @orb-waive caught-failure-ownership(e): the boot failure is warned and returned as an explicit failed variant row with error text. Ends if callers stop publishing that row.
   try {
     await waitHealthy(baseUrl, child.hasExited, bootStart + BOOT_TIMEOUT_MS);
     print(`  healthy in ${((Date.now() - bootStart) / MS_PER_SECOND).toFixed(0)}s`);

@@ -149,7 +149,7 @@ function StartSessionDoor({ trigger }: { readonly trigger: (busy: boolean) => Re
           onEscape={(): void => setPickerOpen(false)}
           onSelect={(id): void => {
             setPickerOpen(false);
-            // @orb-gate-ignore caught-failure-ownership(promise:openRefinery): useOpenRefinery's own errorToast
+            // @orb-waive caught-failure-ownership(openRefinery): useOpenRefinery's own errorToast
             // surfaces the failure. Ends if useOpenRefinery drops its errorToast.
             void openRefinery(id).catch(() => undefined);
           }}

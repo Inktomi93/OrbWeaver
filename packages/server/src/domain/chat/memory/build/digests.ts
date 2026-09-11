@@ -81,7 +81,7 @@ async function summarizeBatchIsolated(
   if (inputs.length === 0) {
     return [];
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a batch rejection falls back to ISOLATED
+  // @orb-waive caught-failure-ownership(catch): a batch rejection falls back to ISOLATED
   // per-item calls (documented above) — the per-item loop below owns and reports each item's own failure
   // via `onItemError`; this outer catch only routes to that fallback, it never drops a failure silently.
   try {
@@ -95,7 +95,7 @@ async function summarizeBatchIsolated(
         out.push(null);
         continue;
       }
-      // @orb-gate-ignore caught-failure-ownership(empty:err): reported via `onItemError(i, err)` (the
+      // @orb-waive caught-failure-ownership(err): reported via `onItemError(i, err)` (the
       // caller's own callback — content-hash self-heal retries the dropped item next pass) and returned as
       // a consumed `null` result, per the batch/isolate contract documented above.
       try {

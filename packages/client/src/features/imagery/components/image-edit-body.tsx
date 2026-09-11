@@ -88,7 +88,7 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
         // the empty-row arm below carries; the outer catch keeps covering only the mutation-rejection arm the
         // global errorToast already speaks for.
         let refs: readonly AssetBlobRef[];
-        // @orb-gate-ignore caught-failure-ownership(default:catch): the comment above explains — this catch
+        // @orb-waive caught-failure-ownership(catch): the comment above explains — this catch
         // explicitly toasts a dedicated "saved but not openable" message before returning. Ends if that toast
         // call is removed.
         try {

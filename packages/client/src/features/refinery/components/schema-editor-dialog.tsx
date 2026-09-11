@@ -94,7 +94,7 @@ function previewEmptyTextOf(schemaText: string): string {
 }
 
 function parseDraft(text: string): Record<string, unknown> | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): null is the caller's own "not parsing yet"
+  // @orb-waive caught-failure-ownership(catch): null is the caller's own "not parsing yet"
   // signal (previewEmptyTextOf renders "That JSON doesn't parse yet — fix it to preview.") — a rendered
   // teaching state, not a swallow. Ends if the caller stops distinguishing null from a real parsed value.
   try {

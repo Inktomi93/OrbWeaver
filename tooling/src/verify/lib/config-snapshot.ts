@@ -167,7 +167,7 @@ function parseDepcruiseSnapshot(snapshot: Record<string, unknown>, config: strin
 
 function parseSnapshot(text: string, runner: ConfigSnapshotRunner, config: string): ConfigSnapshot | undefined {
   let value: unknown;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot.
+  // @orb-waive caught-failure-ownership(catch): readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot.
   try {
     value = JSON.parse(text);
   } catch {

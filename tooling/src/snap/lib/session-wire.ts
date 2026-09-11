@@ -22,7 +22,7 @@ function isStringArray(value: unknown): value is readonly string[] {
 }
 
 function parseJsonObject(text: string): Record<string, unknown> | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed line IS the negative answer both readers return — the daemon refuses the request as a protocol error and the client treats the row as unreadable; `null` is that answer at every call site. Ends if a caller starts needing WHY the bytes did not parse.
+  // @orb-waive caught-failure-ownership(catch): a malformed line IS the negative answer both readers return — the daemon refuses the request as a protocol error and the client treats the row as unreadable; `null` is that answer at every call site. Ends if a caller starts needing WHY the bytes did not parse.
   try {
     const value: unknown = JSON.parse(text);
     return isRecord(value) ? value : null;

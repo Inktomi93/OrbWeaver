@@ -116,7 +116,7 @@ async function runAssertion(page: Page, assertion: Assertion, includeHidden: boo
     // flag report FAIL about an element the user can see. `visibleLocators` is asked for the VISIBLE
     // population unconditionally — `--include-hidden` widens the other assertions' population, but for
     // this one visibility IS the question, so widening it would answer a different one.
-    // @orb-gate-ignore caught-failure-ownership(promise:visibleLocators): probe-whose-failure-is-its-return-value — a locator failure converts to an empty population and so to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.
+    // @orb-waive caught-failure-ownership(visibleLocators): probe-whose-failure-is-its-return-value — a locator failure converts to an empty population and so to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.
     const matched = await visibleLocators(locator, false).catch((): Locator[] => []);
     const pass = matched.length > 0;
     // NEVER a NO-MATCH: an absent element is precisely the finding this flag exists to report.
@@ -128,7 +128,7 @@ async function runAssertion(page: Page, assertion: Assertion, includeHidden: boo
 async function runAssertions(page: Page, assertions: readonly Assertion[], includeHidden: boolean): Promise<AssertionOutcome[]> {
   const outcomes: AssertionOutcome[] = [];
   for (const assertion of assertions) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.
+    // @orb-waive caught-failure-ownership(error): captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.
     try {
       outcomes.push(await runAssertion(page, assertion, includeHidden));
     } catch (error) {

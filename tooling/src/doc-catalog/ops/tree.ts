@@ -64,7 +64,7 @@ export function stableJson(value: unknown): string {
 }
 
 function gitOutput(args: readonly string[], cwd = root, isolateGitEnvironment = false): string | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): every caller (receiptFacts) treats a git command failure as "this receipt fact is unverified", not as a tool crash — null downgrades verifiedCommitExists/IsAncestor/blob to false/null rather than aborting the whole catalog build. Ends if a caller starts treating null as "verified".
+  // @orb-waive caught-failure-ownership(catch): every caller (receiptFacts) treats a git command failure as "this receipt fact is unverified", not as a tool crash — null downgrades verifiedCommitExists/IsAncestor/blob to false/null rather than aborting the whole catalog build. Ends if a caller starts treating null as "verified".
   try {
     return execNicedSync(
       isolateGitEnvironment ? "env" : "git",
@@ -84,7 +84,7 @@ function gitResult(args: readonly string[], cwd = root, isolateGitEnvironment = 
 }
 
 function gitBlob(args: readonly string[], cwd = root, isolateGitEnvironment = false): Buffer | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): same optional-read contract as gitOutput above — a failed verified-commit or candidate-index read returns null and the receipt stays unverified. Ends if a caller starts treating null as "verified".
+  // @orb-waive caught-failure-ownership(catch): same optional-read contract as gitOutput above — a failed verified-commit or candidate-index read returns null and the receipt stays unverified. Ends if a caller starts treating null as "verified".
   try {
     return execNicedSyncBuffer(
       isolateGitEnvironment ? "env" : "git",
@@ -127,7 +127,7 @@ interface ReceiptFactsInput {
 
 /** Paths whose candidate-index bytes differ from HEAD. Git honors a hook's temporary GIT_INDEX_FILE. */
 export function indexChangedPaths(repoRoot = root, isolateGitEnvironment = false): ReadonlySet<string> | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): null means the candidate-path census is unavailable; every receipt pair is then treated as touched and must pass the exact-index proof, so failure widens verification instead of reading clean. Ends if null stops selecting every pair.
+  // @orb-waive caught-failure-ownership(catch): null means the candidate-path census is unavailable; every receipt pair is then treated as touched and must pass the exact-index proof, so failure widens verification instead of reading clean. Ends if null stops selecting every pair.
   try {
     return new Set(
       execNicedSync(

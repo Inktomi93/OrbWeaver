@@ -104,7 +104,7 @@ function selectInteractionEntries(entries: readonly PerformanceEntry[], seen: Se
 
 /** Basename of a source URL — the full dev URL (vite hashes, absolute paths) is noise in a log line. */
 function basename(url: string): string {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a non-URL string degrades to the raw url as the log-line label — cosmetic formatting only. Ends if the caller needs a validated URL rather than a display label.
+  // @orb-waive caught-failure-ownership(catch): a non-URL string degrades to the raw url as the log-line label — cosmetic formatting only. Ends if the caller needs a validated URL rather than a display label.
   try {
     const { pathname } = new URL(url);
     return pathname.split("/").pop() ?? pathname;

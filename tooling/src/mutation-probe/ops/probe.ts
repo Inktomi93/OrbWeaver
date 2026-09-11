@@ -41,7 +41,7 @@ interface VitestFile {
  *  there" from "the suite named no failing test" — collapsing both to [] would let an unwritten json
  *  read as a kill attributed to nothing, which is the same absent-evidence lie one level down. */
 function failedTitles(jsonOut: string): { readonly readable: boolean; readonly titles: readonly string[] } {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the readable:false verdict IS the return contract — the JSDoc above states this distinguishes "the report was not there" from "the suite named no failing test", so a read/parse failure is reported through the return value, not swallowed. Ends if a caller starts treating readable:false the same as readable:true.
+  // @orb-waive caught-failure-ownership(catch): the readable:false verdict IS the return contract — the JSDoc above states this distinguishes "the report was not there" from "the suite named no failing test", so a read/parse failure is reported through the return value, not swallowed. Ends if a caller starts treating readable:false the same as readable:true.
   try {
     const parsed: unknown = JSON.parse(readFileSync(jsonOut, "utf8"));
     const files = (parsed as { readonly testResults?: readonly VitestFile[] }).testResults ?? [];

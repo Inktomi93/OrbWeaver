@@ -115,7 +115,7 @@ async function reportDevDbForecast(root: string): Promise<void> {
   const url = process.env["DATABASE_URL"] ?? DEFAULT_DATABASE_URL;
   const { forecastDevDbReset } = await import("@orb/db");
   let forecast: Awaited<ReturnType<typeof forecastDevDbReset>>;
-  // @orb-gate-ignore caught-failure-ownership(default:err): printed via noticeLine — this is a Never-throws/never-gates forecast function per the doc comment above, and the notice itself says "could not read", never claiming safety. Ends if this forecast starts gating the run's exit code.
+  // @orb-waive caught-failure-ownership(err): printed via noticeLine — this is a Never-throws/never-gates forecast function per the doc comment above, and the notice itself says "could not read", never claiming safety. Ends if this forecast starts gating the run's exit code.
   try {
     forecast = await forecastDevDbReset(url, join(root, DEV_DB_MIGRATIONS));
   } catch (err) {
@@ -145,7 +145,7 @@ async function reportDevDbForecast(root: string): Promise<void> {
 export async function runDbBaselineParity(root: string): Promise<number> {
   await reportDevDbForecast(root);
   let result: SchemaBaselineComparison;
-  // @orb-gate-ignore caught-failure-ownership(empty:err): printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.
+  // @orb-waive caught-failure-ownership(err): printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.
   try {
     result = await compareSchemaBaseline(root);
   } catch (err) {

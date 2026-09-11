@@ -22,7 +22,7 @@ import process from "node:process";
  *  about a marker from THIS box (a run slot's, a session row's daemon), so a pid from another machine can
  *  never be misread as live. */
 export function pidAlive(pid: number): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan, the session registry's daemon liveness). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH.
+  // @orb-waive caught-failure-ownership(catch): ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan, the session registry's daemon liveness). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH.
   try {
     process.kill(pid, 0);
     return true;
@@ -71,7 +71,7 @@ export function selectPrunable(candidates: readonly RetentionCandidate[], now: n
 }
 
 export function readPrunedRuns(base: string): readonly PrunedRun[] {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): no ledger yet means this instrument has pruned nothing here — the empty list is that answer at both call sites (the bounded rewrite, and the reader answering a citation). Ends if a caller must distinguish "never pruned" from "ledger unreadable".
+  // @orb-waive caught-failure-ownership(catch): no ledger yet means this instrument has pruned nothing here — the empty list is that answer at both call sites (the bounded rewrite, and the reader answering a citation). Ends if a caller must distinguish "never pruned" from "ledger unreadable".
   try {
     return readFileSync(join(base, PRUNE_LEDGER), "utf-8")
       .split("\n")
@@ -91,7 +91,7 @@ export function recordPrunedRuns(base: string, rows: readonly PrunedRun[]): void
     return;
   }
   const path = join(base, PRUNE_LEDGER);
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): bookkeeping ABOUT a deletion that already happened — the run's own verdict has been published and must not be lost to a ledger write, and the next publish re-appends its own rows. Ends if a reader starts requiring the ledger to be complete rather than best-effort.
+  // @orb-waive caught-failure-ownership(catch): bookkeeping ABOUT a deletion that already happened — the run's own verdict has been published and must not be lost to a ledger write, and the next publish re-appends its own rows. Ends if a reader starts requiring the ledger to be complete rather than best-effort.
   try {
     writeFileSync(path, rows.map((row) => `${JSON.stringify(row)}\n`).join(""), { flag: "a" });
     const kept = readPrunedRuns(base);

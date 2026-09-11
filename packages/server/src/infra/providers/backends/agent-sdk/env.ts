@@ -267,7 +267,7 @@ function mode1IsolatedConfigDir(): string | undefined {
     try {
       symlinkSync(credSrc, join(dir, ".credentials.json"));
     } catch (cause) {
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): best-effort temp-dir cleanup on the symlink-failure path — the symlink already failed so `dir` holds no credential; a cleanup miss leaks only an empty tmp dir, never an auth decision. Ends if this cleanup becomes load-bearing or `dir` can ever hold a live credential.
+      // @orb-waive caught-failure-ownership(catch): best-effort temp-dir cleanup on the symlink-failure path — the symlink already failed so `dir` holds no credential; a cleanup miss leaks only an empty tmp dir, never an auth decision. Ends if this cleanup becomes load-bearing or `dir` can ever hold a live credential.
       try {
         rmSync(dir, { recursive: true, force: true });
       } catch {

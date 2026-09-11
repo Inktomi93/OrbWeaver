@@ -254,7 +254,7 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
         sink.submit(actionId, merged);
         return;
       }
-      // @orb-gate-ignore caught-failure-ownership(promise:mutateAsync): the comment above explains — the
+      // @orb-waive caught-failure-ownership(mutateAsync): the comment above explains — the
       // mutation's own errorToast already told the person; this catch only keeps a handled rejection from
       // surfacing as unhandled on this fire-and-forget path. Ends if that mutation drops its errorToast.
       void invoke

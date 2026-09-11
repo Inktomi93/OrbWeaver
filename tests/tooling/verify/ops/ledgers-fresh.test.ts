@@ -61,9 +61,8 @@ function census(rows: readonly CaughtFailureRow[]): CaughtFailurePopulation {
     generatedBy: "tooling/src/verify/ops/gen/caught-failure-population.ts",
     totals: {
       sites: rows.length,
-      enforced: rows.length,
       reported: rows.filter((r) => r.verdict === "unproven").length,
-      byVerdict: { "deliberate-absorb": 0, "detached-owned": 0, unproven: rows.filter((r) => r.verdict === "unproven").length },
+      byVerdict: { "deliberate-absorb": 0, unproven: rows.filter((r) => r.verdict === "unproven").length },
       byGrammar,
     },
     rows,

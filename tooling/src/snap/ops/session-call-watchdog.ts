@@ -38,9 +38,9 @@ export function sessionCallWatchdogBaseMs(navigates: boolean, armBaseMs: number 
 async function terminatePageExecution(session: ProbeSession): Promise<void> {
   const cdp = await session.page.context().newCDPSession(session.page);
   try {
-    // @orb-gate-ignore caught-failure-ownership(promise:send): the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.
+    // @orb-waive caught-failure-ownership(cdp.send): the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.
     await Promise.race([cdp.send("Runtime.terminateExecution").catch(() => undefined), sleep(budget(TERMINATION_ACK_WAIT_BASE_MS))]);
-    // @orb-gate-ignore caught-failure-ownership(promise:reload): reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.
+    // @orb-waive caught-failure-ownership(session.page.reload): reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.
     await session.page.reload({ waitUntil: "commit", timeout: SESSION_CALL_BASE_MS }).catch(() => undefined);
   } finally {
     await cdp.detach();
@@ -57,7 +57,7 @@ export async function runSessionCallWithinBudget(
   const budgetMs = budget(baseMs);
   const deadline = Promise.withResolvers<Error>();
   const timer = setTimeout(() => deadline.resolve(loadKillError({ what: `session ${state.name} call \`${op}\``, budgetMs, baseMs })), budgetMs);
-  // @orb-gate-ignore caught-failure-ownership(promise:resolve): the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.
+  // @orb-waive caught-failure-ownership(Promise.resolve): the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.
   const work = Promise.resolve()
     .then(run)
     .then(
@@ -77,7 +77,7 @@ export async function runSessionCallWithinBudget(
   // is still live would allow the timed-out call to mutate the same page concurrently with its successor.
   // Both promises are rejection-owned here; the deadline remains the caller-visible error.
   const recovery = Promise.all([
-    // @orb-gate-ignore caught-failure-ownership(promise:promise): failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.
+    // @orb-waive caught-failure-ownership(then): failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.
     ("recover" in state ? state.recover() : terminatePageExecution(state.session)).then(
       () => true,
       () => false,

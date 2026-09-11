@@ -421,7 +421,7 @@ function unwrapType(typeNode: Node): Node {
  *  exit-2 tool error: under D16 a wire shape the reader cannot establish IS the violation, not a broken
  *  checker. Nothing is swallowed — the empty set is a refusal the caller must act on. */
 function tupleMembersOrEmpty(decl: VariableDeclaration): ReadonlySet<string> {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the failure IS owned and surfaced — tuple-read THROWS to say "I cannot establish this vocabulary", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REPORTS `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this gate's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed report.
+  // @orb-waive caught-failure-ownership(catch): the failure IS owned and surfaced — tuple-read THROWS to say "I cannot establish this vocabulary", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REPORTS `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this gate's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed report.
   try {
     return readTupleDeclaration(decl).members;
   } catch {

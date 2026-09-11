@@ -81,7 +81,7 @@ function frameToken(dropped: number, total: number): string {
 }
 
 async function applicationMotionEvidence(session: ProbeSession, opts: Args): Promise<AuditData["applicationMotion"]> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): this optional appearance cross-check is null in ordinary non-app fixtures; rated matrix cells consume the same contract through their mandatory matrix receipt. Ends if applicationMotion becomes a verdict input outside that matrix receipt.
+  // @orb-waive caught-failure-ownership(catch): this optional appearance cross-check is null in ordinary non-app fixtures; rated matrix cells consume the same contract through their mandatory matrix receipt. Ends if applicationMotion becomes a verdict input outside that matrix receipt.
   try {
     const contract = await readRuntimeAppearanceContract(session.page);
     const row = contract.rows.find((candidate) => candidate.key === "reducedMotion");
@@ -131,7 +131,7 @@ async function measureMotionAction(
     return { data: null, gaps: queueHint === null ? [gap] : [gap, queueHint], pass: false, artifact: null, loadSuspect: null };
   }
   const cdp = await page.context().newCDPSession(page);
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit.
+  // @orb-waive caught-failure-ownership(error): the caught measurement failure becomes a named evidence gap, printed as REFUSED and forced to exit 2 by the arm. Ends if the returned gaps stop feeding report/pairs/exit.
   try {
     if (opts.motionThrottle) {
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: MOTION_THROTTLE_RATE });

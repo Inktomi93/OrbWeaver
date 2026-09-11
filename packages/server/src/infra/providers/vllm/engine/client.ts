@@ -93,7 +93,7 @@ function unreachable(engine: VllmEngine, url: string, cause: unknown, timeoutMs:
 
 // Map a non-ok engine response into a typed ProviderError (400/422 = invalid request; 5xx = retryable).
 async function httpError(engine: VllmEngine, path: string, res: Response): Promise<ProviderError> {
-  // @orb-gate-ignore caught-failure-ownership(promise:text): reading a non-ok vllm engine body to enrich a ProviderError that IS returned; a read failure falls back to empty text — the failure is propagated and the engine is local loopback, no credential/auth involved. Ends if the ProviderError stops being returned.
+  // @orb-waive caught-failure-ownership(res.text): reading a non-ok vllm engine body to enrich a ProviderError that IS returned; a read failure falls back to empty text — the failure is propagated and the engine is local loopback, no credential/auth involved. Ends if the ProviderError stops being returned.
   const text = await res.text().catch(() => "");
   return new ProviderError({
     kind: res.status === HTTP_BAD_REQUEST || res.status === HTTP_UNPROCESSABLE ? "invalid" : "server",

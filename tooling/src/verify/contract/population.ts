@@ -8,6 +8,13 @@ export const POPULATION_ROOTS = {
   "@db": ["packages/db/src/"],
   "@contracts": ["packages/contracts/src/"],
   "@kit": ["packages/kit/src/"],
+  /** The example-plugin package. An independently selectable workspace member (`packages/*`), so §12.4
+   *  admits it as a root — deliberately NOT a member of `@packages`, which is an explicit six-root list
+   *  every existing policy was authored against and which must not widen silently. Added 2026-09-11 with
+   *  the `caught-failure-ownership` conversion, whose legacy `scanRoot` covered `packages/<any>/src` and
+   *  whose census records four live sites here; without the root the conversion would have narrowed the
+   *  policy and dead-lettered those markers. */
+  "@showcase": ["packages/showcase-plugins/src/"],
   "@tooling": ["tooling/src/"],
   "@tests": ["tests/"],
   "@scripts": ["scripts/"],

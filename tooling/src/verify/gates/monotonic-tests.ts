@@ -106,13 +106,13 @@ function readDeletions(raw: unknown): Readonly<Record<string, TestBaselineDeleti
 
 function readManifest(root: string): ManifestResult {
   let raw: string;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): captured as kind "missing", a distinct ManifestResult arm the caller (scanDeletedTestFiles) reports as a violation, never a silent pass. Ends if that "missing" arm stops being read as a violation.
+  // @orb-waive caught-failure-ownership(catch): captured as kind "missing", a distinct ManifestResult arm the caller (scanDeletedTestFiles) reports as a violation, never a silent pass. Ends if that "missing" arm stops being read as a violation.
   try {
     raw = readFileSync(join(root, TEST_BASELINE_REL), "utf-8");
   } catch {
     return { kind: "missing" };
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): captured as kind "malformed", a distinct ManifestResult arm the caller reports as a violation, never a silent pass. Ends if that "malformed" arm stops being read as a violation.
+  // @orb-waive caught-failure-ownership(catch): captured as kind "malformed", a distinct ManifestResult arm the caller reports as a violation, never a silent pass. Ends if that "malformed" arm stops being read as a violation.
   try {
     const parsed = JSON.parse(raw) as { testFiles?: unknown; deletions?: unknown };
     if (!Array.isArray(parsed.testFiles)) {

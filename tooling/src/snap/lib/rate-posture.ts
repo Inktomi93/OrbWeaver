@@ -38,7 +38,7 @@ export async function sampleSnapRatePosture(browser: Browser, readers: SnapRateP
   const load = Object.freeze({ ...readLoad() });
   let acceleration = UNKNOWN_ACCELERATION;
   let accelerationError: string | null = null;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): this one acceleration-read failure is preserved in accelerationError; ratePostureDisposition reads it first and withholds every rate verdict with the original message. Ends if accelerationError stops feeding that withholding branch or any rate consumer can publish a verdict after this catch.
+  // @orb-waive caught-failure-ownership(error): this one acceleration-read failure is preserved in accelerationError; ratePostureDisposition reads it first and withholds every rate verdict with the original message. Ends if accelerationError stops feeding that withholding branch or any rate consumer can publish a verdict after this catch.
   try {
     acceleration = await readAcceleration(browser);
   } catch (error) {

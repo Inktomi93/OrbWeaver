@@ -534,7 +534,7 @@ export const PLANE_DIFF_RENDERERS: readonly RegisteredPlaneDiff[] = [
  *  value degrades to NO lines (the other planes still render); the block never throws. Returns the plane's
  *  lines (empty on no-change OR a degraded plane). */
 function renderPlane(r: RegisteredPlaneDiff, prev: RpgSnapshotState, cur: RpgSnapshotState, ctx: DeltaContext): readonly string[] {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): §2.7.4 D79-heal DEFENSIVE arm (comment below) —
+  // @orb-waive caught-failure-ownership(catch): §2.7.4 D79-heal DEFENSIVE arm (comment below) —
   // pure prose rendering, no write/persistence in this path; a malformed plane degrades to no lines for
   // THAT plane only, the other planes still render. Consumed as the returned empty array.
   try {

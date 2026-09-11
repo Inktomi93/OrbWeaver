@@ -26,7 +26,7 @@ export function repoPhysicalIdentity(fileName: string, repoRoot: string): string
   }
   let identity: string;
   let physicalRoot: string;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unresolvable or escaping compiler probe is
+  // @orb-waive caught-failure-ownership(catch): an unresolvable or escaping compiler probe is
   // outside authored overlay ownership and falls through to the native host. Ends if this result authorizes
   // a write or suppresses a native diagnostic rather than selecting which host reads the path.
   try {

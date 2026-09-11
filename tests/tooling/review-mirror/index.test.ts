@@ -49,12 +49,12 @@ function evidence(): ReviewMirrorEvidence {
 
 test("TS stripping PRESERVES a suppression/directive marker instead of erasing gate-ownership evidence (#1496)", () => {
   const source =
-    "// @orb-gate-ignore caught-failure-ownership(default:catch): optional read\n" +
+    "// @orb-waive caught-failure-ownership(err): optional read\n" +
     "const x = 1; // biome-ignore lint/x: reason\n" +
     "// @ts-expect-error narrow union\n" +
     "const y = 2; // plain narration, drop this\n";
   const stripped = stripComments("sample.ts", source);
-  expect(stripped).toContain("@orb-gate-ignore caught-failure-ownership");
+  expect(stripped).toContain("@orb-waive caught-failure-ownership");
   expect(stripped).toContain("biome-ignore lint/x: reason");
   expect(stripped).toContain("@ts-expect-error narrow union");
   expect(stripped).not.toContain("plain narration");

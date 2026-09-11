@@ -329,7 +329,7 @@ export async function runChatCompletionTurn(client: OpenRouterChatClient, req: O
     );
 
   let result: { view: ChatCompletionResult; reasoning: string };
-  // @orb-gate-ignore caught-failure-ownership(empty:err): the caught error drives a single reasoning-fallback retry ONLY for the mandatory-reasoning rejection; every other error is re-thrown verbatim (else → throw err) — propagated, not swallowed. Ends if the else branch stops re-throwing.
+  // @orb-waive caught-failure-ownership(err): the caught error drives a single reasoning-fallback retry ONLY for the mandatory-reasoning rejection; every other error is re-thrown verbatim (else → throw err) — propagated, not swallowed. Ends if the else branch stops re-throwing.
   try {
     result = await run(true);
   } catch (err) {

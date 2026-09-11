@@ -293,7 +293,7 @@ function PickerRow({
         aria-label={`Attach ${name}`}
         checked={attached}
         onCheckedChange={(next): void => {
-          // @orb-gate-ignore caught-failure-ownership(promise:toggle): the selected mutation's own errorToast surfaces the failure. Ends if the mutation stops wiring an errorToast.
+          // @orb-waive caught-failure-ownership(toggle): the selected mutation's own errorToast surfaces the failure. Ends if the mutation stops wiring an errorToast.
           toggle(script.id, next).catch(() => undefined); // The selected mutation's errorToast owns failure.
         }}
       />

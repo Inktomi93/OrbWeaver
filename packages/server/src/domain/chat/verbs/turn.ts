@@ -1272,7 +1272,7 @@ function isAutoSwipeRejected(content: string, cfg: ChatBehaviorInputs["autoSwipe
 /** Runs ONE auto-behavior follow-up (swipe/continue) and returns its committed tip, or null on any failure —
  *  non-fatal, mirroring neo: the already-committed reply stands and the loop stops. */
 async function runAutoFollowUp(run: () => Promise<TurnOutcome>): Promise<MessageView | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): documented above — non-fatal, mirrors neo: the
+  // @orb-waive caught-failure-ownership(catch): documented above — non-fatal, mirrors neo: the
   // already-committed reply stands and the loop stops; the `null` is the consumed result the caller checks.
   // Ends if a follow-up failure needs to surface to the turn's own caller.
   try {
@@ -2254,7 +2254,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
         // The consumer walked away mid-draft (a `break`, a closed subscription, a thrown yield). Cancel the
         // generation it abandoned — nothing else will.
         cancellation.abort();
-        // @orb-gate-ignore caught-failure-ownership(promise:run): the fault has NOWHERE to go — this generator
+        // @orb-waive caught-failure-ownership(run): the fault has NOWHERE to go — this generator
         // is being finalized, so `await run` below is unreachable and the consumer that would have received a
         // throw is gone. The run is cancelled above and its settlement is logged rather than dropped silently.
         // Ends if a cancelled draft gains a surface (a bus warning) that could carry the fault instead.
@@ -2461,7 +2461,7 @@ async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: Pe
   if (claimed === undefined) {
     return "skipped"; // a concurrent drain already claimed this row.
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:err): fully classified below — a permanent verdict
+  // @orb-waive caught-failure-ownership(err): fully classified below — a permanent verdict
   // notifies + logs and returns "dropped"; anything else (budget/transient) re-inserts the row and logs
   // "requeued" (documented in the function header). Ends if a third fault class needs its own handling.
   try {

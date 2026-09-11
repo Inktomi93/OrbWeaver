@@ -280,7 +280,7 @@ async function parseOneScore(
 ): Promise<RefineryScorePayload | null> {
   const run = (correction?: string): Promise<string> =>
     correction === undefined ? Promise.resolve(batchText) : retryScoreOne(deps, item, correction, sampleOpts);
-  // @orb-gate-ignore caught-failure-ownership(default:catch): bookkeeping — documented above: `null` is the
+  // @orb-waive caught-failure-ownership(catch): bookkeeping — documented above: `null` is the
   // FAILED containment the header cites (the `parseOneDistill` precedent); the caller counts it into
   // `failed` and the sweep continues. Ends if a per-card cause needs to travel past this boundary.
   try {

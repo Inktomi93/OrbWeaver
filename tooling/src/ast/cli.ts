@@ -120,7 +120,7 @@ async function main(): Promise<number> {
   const wide = WIDE_SYNTACTIC_VERBS.has(verb);
   const flags = parseFlags([...invocation.flagTokens]);
   beginRun(verb, corpusOf(typed, wide), flags);
-  // @orb-gate-ignore caught-failure-ownership(empty:e): the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean.
+  // @orb-waive caught-failure-ownership(e): the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean.
   try {
     VERBS[verb]?.(loadProject(typed, wide), invocation.effectiveArg, flags);
   } catch (e) {

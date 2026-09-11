@@ -102,7 +102,7 @@ export function seedStageData(root: string, paths: StagePaths): StageDbProvenanc
   }
   const devAssets = join(root, "data", "assets");
   if (existsSync(devAssets) && !existsSync(paths.assetsDir)) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist.
+    // @orb-waive caught-failure-ownership(catch): documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist.
     try {
       symlinkSync(devAssets, paths.assetsDir, "dir");
     } catch {

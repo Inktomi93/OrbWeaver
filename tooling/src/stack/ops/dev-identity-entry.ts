@@ -125,7 +125,7 @@ function signal(arg: string | undefined): number {
 
 /** Delete the launch record and report the verdict that authorized it. */
 function clearIdentity(verdict: { readonly verdict: string; readonly pgid?: number; readonly reason?: string }): number {
-  // @orb-gate-ignore caught-failure-ownership(empty:error): ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported.
+  // @orb-waive caught-failure-ownership(error): ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported.
   try {
     unlinkSync(devStackIdentityFilePath(repoRoot));
   } catch (error) {

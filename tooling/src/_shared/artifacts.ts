@@ -97,7 +97,7 @@ const RUN_ID_UNSAFE_RE = /[^a-zA-Z0-9_-]+/gu;
  *  worktree's is a FILE holding a `gitdir:` pointer, the primary checkout's is a DIRECTORY — so it is one
  *  stat and never shells out (child_process has ONE door, `_shared/proc.ts`, and it is not this module). */
 export function checkoutName(root: string): string {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a missing `.git` entry means this root is not a checkout at all (a planted fixture tree), which is a legitimate NAME, not a failure — the fallback IS the answer and it is returned to the caller. Ends if a non-checkout root must be refused instead of named.
+  // @orb-waive caught-failure-ownership(catch): a missing `.git` entry means this root is not a checkout at all (a planted fixture tree), which is a legitimate NAME, not a failure — the fallback IS the answer and it is returned to the caller. Ends if a non-checkout root must be refused instead of named.
   try {
     return statSync(join(root, ".git")).isDirectory() ? "main" : basename(root);
   } catch {
@@ -152,7 +152,7 @@ function instrumentRunsDir(root: string, instrument: string): string {
 }
 
 function readMarker(dir: string): InflightMarker | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an absent or unparseable in-flight marker means "this slot is not in flight" — the ONLY question this reader asks — and `null` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if any caller starts treating null as "in flight".
+  // @orb-waive caught-failure-ownership(catch): an absent or unparseable in-flight marker means "this slot is not in flight" — the ONLY question this reader asks — and `null` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if any caller starts treating null as "in flight".
   try {
     return JSON.parse(readFileSync(join(dir, INFLIGHT_MARKER), "utf-8")) as InflightMarker;
   } catch {
@@ -161,7 +161,7 @@ function readMarker(dir: string): InflightMarker | null {
 }
 
 function runDirs(root: string, instrument: string): readonly string[] {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): no runs directory yet means this instrument has never run here — an empty list is the truthful census, and every caller (racing, prune, abandoned) reads it as "no other slots". Ends if a missing directory must be created or refused here rather than by openRunSlot.
+  // @orb-waive caught-failure-ownership(catch): no runs directory yet means this instrument has never run here — an empty list is the truthful census, and every caller (racing, prune, abandoned) reads it as "no other slots". Ends if a missing directory must be created or refused here rather than by openRunSlot.
   try {
     return readdirSync(instrumentRunsDir(root, instrument), { withFileTypes: true })
       .filter((e) => e.isDirectory())
@@ -212,14 +212,14 @@ export function runFile(slot: RunSlot, ...segments: readonly string[]): string {
  *  only non-atomic moment in the layout, and it happens once per alias per checkout. */
 function publishSymlink(absPath: string, target: string): void {
   const tmp = `${absPath}.tmp.${process.pid}`;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the pre-clean of a leftover temp link from an earlier crashed publish; ENOENT is the normal case, and a real failure surfaces immediately at the symlinkSync below (EEXIST), which is NOT caught. Ends if the symlink call is made tolerant of an existing path.
+  // @orb-waive caught-failure-ownership(catch): the pre-clean of a leftover temp link from an earlier crashed publish; ENOENT is the normal case, and a real failure surfaces immediately at the symlinkSync below (EEXIST), which is NOT caught. Ends if the symlink call is made tolerant of an existing path.
   try {
     unlinkSync(tmp);
   } catch {
     /* no leftover temp link from an earlier crash — the normal case */
   }
   symlinkSync(target, tmp);
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): nothing at the alias yet (the first publish) or a concurrent publisher removed it — both mean "no stale REAL file to clear", and the renameSync below still lands the pointer atomically and DOES throw if it cannot. Ends if the rename stops being the load-bearing step.
+  // @orb-waive caught-failure-ownership(catch): nothing at the alias yet (the first publish) or a concurrent publisher removed it — both mean "no stale REAL file to clear", and the renameSync below still lands the pointer atomically and DOES throw if it cannot. Ends if the rename stops being the load-bearing step.
   try {
     // lstat, never stat: `stat` FOLLOWS the link, so a symlink already at the alias would read as a real
     // file and be rm'd on every publish — the rename alone replaces a link.
@@ -243,7 +243,7 @@ export interface RunAlias {
  *  Called ONLY when the artifacts in the slot are complete — that is what makes the published path safe to
  *  read without knowing whose run wrote it. */
 export function publishRunSlot(root: string, slot: RunSlot, aliases: readonly RunAlias[]): readonly string[] {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition "this slot is no longer in flight" holds either way. Ends if publishing twice must become an error.
+  // @orb-waive caught-failure-ownership(catch): the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition "this slot is no longer in flight" holds either way. Ends if publishing twice must become an error.
   try {
     unlinkSync(join(slot.dir, INFLIGHT_MARKER));
   } catch {
@@ -279,7 +279,7 @@ export function publishRunSlot(root: string, slot: RunSlot, aliases: readonly Ru
 
 /** The aliases a slot published, or an empty list for a slot that never got that far. */
 function publishedAliases(dir: string): readonly string[] {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an absent or unparseable manifest means "this slot published nothing a pointer could still resolve into" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish "never published" from "manifest lost".
+  // @orb-waive caught-failure-ownership(catch): an absent or unparseable manifest means "this slot published nothing a pointer could still resolve into" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish "never published" from "manifest lost".
   try {
     return JSON.parse(readFileSync(join(dir, PUBLISHED_MANIFEST), "utf-8")) as readonly string[];
   } catch {
@@ -291,7 +291,7 @@ function publishedAliases(dir: string): readonly string[] {
  *  when nothing readable is at the alias. Read as a LINK — never followed — so a pointer a later run
  *  re-aimed answers with that later run's id, which is exactly the retention question. */
 function pointerRunId(root: string, alias: string, instrument: string): string | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a removed or replaced alias is the NEGATIVE answer to "does this pointer still resolve into that slot?" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable.
+  // @orb-waive caught-failure-ownership(catch): a removed or replaced alias is the NEGATIVE answer to "does this pointer still resolve into that slot?" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable.
   try {
     const target = readlinkSync(reportsPath(root, alias)).replaceAll("\\", "/");
     const marker = `${RUNS_SEGMENT}/${instrument}/`;
@@ -312,7 +312,7 @@ function slotIsReferenced(root: string, instrument: string, runIdOfSlot: string,
 /** Does this path exist (without following a link)? `existsSync` answers FALSE for a dangling symlink, and
  *  "a link is there" is exactly what the publish check needs to know. */
 function exists(path: string): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's "did the run write this artifact?" check). Ends if the caller starts needing WHY the path is unreadable.
+  // @orb-waive caught-failure-ownership(catch): this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's "did the run write this artifact?" check). Ends if the caller starts needing WHY the path is unreadable.
   try {
     lstatSync(path);
     return true;
@@ -330,7 +330,7 @@ function exists(path: string): boolean {
  *  lost its history entry. Reproduced 12/15 trials at 2 concurrent publishers over a 12-slot ring; all
  *  five instrument families share the call site. A vanished slot is nothing to prune. */
 function slotMtime(dir: string): number | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting).
+  // @orb-waive caught-failure-ownership(catch): a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting).
   try {
     return statSync(dir).mtimeMs;
   } catch {

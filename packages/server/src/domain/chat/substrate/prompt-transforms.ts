@@ -64,7 +64,7 @@ async function applyBounded(transform: PromptTransform, draft: string, env: Prom
   const deadline = new Promise<BoundedOutcome>((resolve) => {
     timer = setTimeout(() => resolve(SKIP), deadlineMs);
   });
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): D53 — a throw resolves to SKIP exactly like a
+  // @orb-waive caught-failure-ownership(catch): D53 — a throw resolves to SKIP exactly like a
   // timeout (the type-level BoundedOutcome comment above), never manufactures an abort; the caller keeps the
   // prior draft and warns. Ends if a transform failure needs to abort the turn instead of degrading.
   try {

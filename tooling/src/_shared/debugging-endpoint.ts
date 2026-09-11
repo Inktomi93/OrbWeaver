@@ -39,7 +39,7 @@ export async function createDebuggingProfile(): Promise<DebuggingProfile> {
 export async function readDebuggingPort(profileDir: string): Promise<number> {
   const file = join(profileDir, ACTIVE_PORT_FILE);
   for (let attempt = 0; attempt < DEBUG_PORT_ATTEMPTS; attempt += 1) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): the file exists only after Chrome binds its ephemeral endpoint; the bounded loop owns the race and throws below when its budget expires. Ends if exhaustion stops throwing.
+    // @orb-waive caught-failure-ownership(catch): the file exists only after Chrome binds its ephemeral endpoint; the bounded loop owns the race and throws below when its budget expires. Ends if exhaustion stops throwing.
     try {
       const [line] = (await readFile(file, "utf8")).split("\n");
       const port = Number(line);

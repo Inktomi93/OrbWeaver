@@ -388,13 +388,13 @@ export async function prepareDevToolsCascadeRuntime(assetRoot: string): Promise<
         }
         closed = true;
         const failures: unknown[] = [];
-        // @orb-gate-ignore caught-failure-ownership(empty:error): cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.
+        // @orb-waive caught-failure-ownership(error): cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.
         try {
           await ownedServer.close();
         } catch (error) {
           failures.push(error);
         }
-        // @orb-gate-ignore caught-failure-ownership(empty:error): cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.
+        // @orb-waive caught-failure-ownership(error): cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.
         try {
           await rm(tempRoot, { recursive: true, force: true });
         } catch (error) {
@@ -408,10 +408,10 @@ export async function prepareDevToolsCascadeRuntime(assetRoot: string): Promise<
   } catch (error) {
     const failures: unknown[] = [error];
     if (server !== null) {
-      // @orb-gate-ignore caught-failure-ownership(promise:close): initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.
+      // @orb-waive caught-failure-ownership(server.close): initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.
       await server.close().catch((cleanupError: unknown) => failures.push(cleanupError));
     }
-    // @orb-gate-ignore caught-failure-ownership(promise:rm): initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.
+    // @orb-waive caught-failure-ownership(rm): initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.
     await rm(tempRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError));
     throw initializationFailure(failures, error);
   }

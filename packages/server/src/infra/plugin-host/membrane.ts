@@ -589,7 +589,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     using argsH = ctx.getProp(defHandle, "args");
     const onRun = ctx.getProp(defHandle, "onRun");
     let parsed: ReturnType<typeof pluginCommandRegistrationMetaSchema.safeParse>;
-    // @orb-gate-ignore caught-failure-ownership(empty:err): guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined.
+    // @orb-waive caught-failure-ownership(err): guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined.
     try {
       const name = tryDumpGuestValue(ctx, nameH);
       const describe = tryDumpGuestValue(ctx, describeH);
@@ -1843,11 +1843,11 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
       inFlight.controllers?.delete(controller);
       inFlight.settlements?.delete(settlement);
     };
-    // @orb-gate-ignore caught-failure-ownership(promise:running): BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.
+    // @orb-waive caught-failure-ownership(running): BOOKKEEPING ONLY — this chain exists so teardown can await in-flight work, and both arms deliberately do the same thing (exactly one release per acquisition, so the counter cannot drift). The REJECTION of `running` is owned by the sibling race chain below, which routes it to `deferred.reject` and thence to the guest. Ends if this chain becomes the only reader of `running`.
     settlement = running.then(releaseSlot, releaseSlot);
     inFlight.settlements?.add(settlement);
 
-    // @orb-gate-ignore caught-failure-ownership(promise:race): the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.
+    // @orb-waive caught-failure-ownership(Promise.race): the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink.
     void Promise.race([running, timeout])
       .then(
         (result) => {

@@ -35,7 +35,7 @@ export function createBulkAddCardTag(ctx: CharacterContext): CharacterService["b
 
     const outcomes = await Promise.all(
       characterIds.map(async (characterId): Promise<BulkTagOutcome> => {
-        // @orb-gate-ignore caught-failure-ownership(empty:failed): the owner IS this per-item result —
+        // @orb-waive caught-failure-ownership(failed): the owner IS this per-item result —
         // `failed` rides `outcomes` into `buildBulkTagResult`, which classifies it onto the wire's
         // `CharacterBulkTagResult.failed[].error` (never swallowed; the client's `refusal` toast is the
         // surfaced state). End condition: this batch's `Promise.all` resolving.

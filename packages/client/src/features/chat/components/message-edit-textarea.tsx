@@ -66,7 +66,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
       cancel();
       return;
     }
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): useEditMessageMutation carries errorToast "Couldn't save that edit." — the toast is the surface; staying in edit mode preserves the draft. Ends if the mutation drops its errorToast.
+    // @orb-waive caught-failure-ownership(catch): useEditMessageMutation carries errorToast "Couldn't save that edit." — the toast is the surface; staying in edit mode preserves the draft. Ends if the mutation drops its errorToast.
     try {
       await editMessage.mutateAsync({
         chatId: message.chatId,
@@ -87,7 +87,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
     }
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      // @orb-gate-ignore caught-failure-ownership(promise:save): save() already catches the mutation's own
+      // @orb-waive caught-failure-ownership(save): save() already catches the mutation's own
       // errorToast-backed rejection internally; this outer catch is belt-and-suspenders. Ends if save() stops
       // catching its own rejection.
       save().catch(() => undefined); // save owns the mutation failure and preserves the draft.

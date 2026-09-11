@@ -148,7 +148,7 @@ export function resolveSeedVllmDisabled(forceDisabled: boolean, gpuPresent: () =
 /** Run a best-effort seeded chat turn: on offline-model failure, log the honest limitation and continue —
  *  the greeting transcript is already committed, so a demo db is valid either way. */
 async function tryTurn(run: () => Promise<unknown>, log: (msg: string) => void, label: string): Promise<void> {
-  // @orb-gate-ignore caught-failure-ownership(empty:err): the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged.
+  // @orb-waive caught-failure-ownership(err): the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged.
   try {
     await run();
     log(`${label}: seeded a scripted assistant turn`);
@@ -333,7 +333,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
     return EXIT.violations;
   }
 
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the message is warned to the operator and the function returns EXIT.toolError — propagated through both channels, not dropped. Ends if either the warn or the return code is removed.
+  // @orb-waive caught-failure-ownership(error): the message is warned to the operator and the function returns EXIT.toolError — propagated through both channels, not dropped. Ends if either the warn or the return code is removed.
   try {
     await validateRequiredDemoAssets();
   } catch (error) {

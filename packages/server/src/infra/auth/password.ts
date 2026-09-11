@@ -98,7 +98,7 @@ export function createPasswordHasher(pepperSecret: string | null | undefined): P
       const [, saltB64, hashB64] = parts as [string, string, string];
       let salt: Buffer;
       let expected: Buffer;
-      // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — an undecodable stored hash returns `false` from verify(), which is the same answer as a wrong password, so a malformed row can never authenticate. Distinguishing the two for the caller would be a credential oracle. Ends if verify() gains a typed "stored credential is corrupt" arm for an operator surface.
+      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — an undecodable stored hash returns `false` from verify(), which is the same answer as a wrong password, so a malformed row can never authenticate. Distinguishing the two for the caller would be a credential oracle. Ends if verify() gains a typed "stored credential is corrupt" arm for an operator surface.
       try {
         salt = Buffer.from(saltB64, "base64");
         expected = Buffer.from(hashB64, "base64");

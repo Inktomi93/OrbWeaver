@@ -9,7 +9,7 @@ const probeNvidiaSmi = (): void => {
 
 /** Detect a usable NVIDIA GPU. Success ⇒ true; ANY failure ⇒ false. `exec` defaults to the real call. */
 export function detectGpu(exec: () => void = probeNvidiaSmi): boolean {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a GPU-presence probe (nvidia-smi -L) that throws returns false (no usable GPU) — a local hardware probe, no auth/credential/network. Ends if GPU presence ever gates a security decision.
+  // @orb-waive caught-failure-ownership(catch): a GPU-presence probe (nvidia-smi -L) that throws returns false (no usable GPU) — a local hardware probe, no auth/credential/network. Ends if GPU presence ever gates a security decision.
   try {
     exec();
     return true;
@@ -24,7 +24,7 @@ const listNvidiaSmi = (): string => execFileSync("nvidia-smi", ["-L"], { encodin
 /** Count usable NVIDIA GPUs — drives TP + the gpu-util split (2-card ⇒ TP=2, rerank on GPU1). 0 on any
  *  failure (no GPU / no driver). `exec` defaults to the real `nvidia-smi -L`. */
 export function countGpus(exec: () => string = listNvidiaSmi): number {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a GPU-count probe failure returns 0 (no GPU/driver); local hardware probe, no auth/credential/network. Ends if the count ever gates a security decision.
+  // @orb-waive caught-failure-ownership(catch): a GPU-count probe failure returns 0 (no GPU/driver); local hardware probe, no auth/credential/network. Ends if the count ever gates a security decision.
   try {
     return exec()
       .split("\n")

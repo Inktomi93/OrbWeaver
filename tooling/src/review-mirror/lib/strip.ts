@@ -6,7 +6,7 @@ import { ts } from "ts-morph";
 const HASH_LINE_RE = /^\s*#/u;
 // PRESERVED comments — suppression/directive markers are load-bearing (they change tooling behavior AND tell
 // a reviewer a line was deliberately exempted): a stripped-of-everything mirror hides exactly the
-// gate-suppression ownership a reviewer needs (#1496 — e.g. `@orb-gate-ignore caught-failure-ownership`
+// gate-suppression ownership a reviewer needs (#1496 — e.g. `@orb-waive caught-failure-ownership`
 // annotations were invisible here even though the review round exists to check them). Covers lint/type
 // suppressions AND this repo's own gate escape grammar: `// terse-ok:`, `// test-exempt`, `seated-exempt`,
 // the `@*-ok`/`@*-exempt` family, and `@orb-*`/`@instrument-*`/`@ds-*` annotations, plus SAFE:.

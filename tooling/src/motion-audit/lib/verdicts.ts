@@ -116,7 +116,7 @@ function scriptAttribution(sourceURL: string): ScriptAttribution {
     return "unknown";
   }
   let pathname: string;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): an unparseable sourceURL falls back to the raw string, which the pathname.includes() checks below just won't match — degrading to "unknown" attribution rather than throwing, consistent with this function's documented "veto, not proof" contract. Ends if callers start requiring pathname to be a real URL path.
+  // @orb-waive caught-failure-ownership(catch): an unparseable sourceURL falls back to the raw string, which the pathname.includes() checks below just won't match — degrading to "unknown" attribution rather than throwing, consistent with this function's documented "veto, not proof" contract. Ends if callers start requiring pathname to be a real URL path.
   try {
     pathname = new URL(sourceURL).pathname;
   } catch {

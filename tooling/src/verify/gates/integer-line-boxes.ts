@@ -112,7 +112,7 @@ function readTypeScale(root: string): TypeScale | undefined {
   }
   const problems: string[] = [];
   let raw: unknown;
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): an unparseable tokens.json becomes this gate's own RED finding ("tokens.json is unparseable") through the returned problems array — the loudest owner a structural gate has. Ends if the problems array stops being reported in `run`.
+  // @orb-waive caught-failure-ownership(catch): an unparseable tokens.json becomes this gate's own RED finding ("tokens.json is unparseable") through the returned problems array — the loudest owner a structural gate has. Ends if the problems array stops being reported in `run`.
   try {
     raw = JSON.parse(readFileSync(path, "utf8"));
   } catch {

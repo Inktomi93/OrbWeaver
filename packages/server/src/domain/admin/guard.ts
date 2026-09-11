@@ -73,7 +73,7 @@ export const requireOwner: RequireOwner = (principal) => {
 // The boolean form of the global admin gate — the same `can()` decision, caught into a verdict so a
 // role-aware scoping caller can branch without a throw being control flow.
 export const isAdmin: IsAdmin = (principal) => {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED — the ONE `can()` kernel's refusal
+  // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — the ONE `can()` kernel's refusal
   // collapses to a boolean verdict for a role-aware scoping caller; a denied `can()` can never read as admin.
   // Ends if `can()` grows a distinct infra-error class this boolean must stop swallowing.
   try {

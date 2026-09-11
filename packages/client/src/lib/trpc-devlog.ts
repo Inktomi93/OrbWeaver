@@ -55,7 +55,7 @@ function redactSensitive(value: unknown, depth = 0): unknown {
 }
 
 function compactJson(value: unknown): string {
-  // @orb-gate-ignore caught-failure-ownership(empty:catch): a value that can't stringify (a cycle, a BigInt) degrades to a placeholder log label — dev logging only, never a data path. Ends if this output feeds anything besides a dev log line.
+  // @orb-waive caught-failure-ownership(catch): a value that can't stringify (a cycle, a BigInt) degrades to a placeholder log label — dev logging only, never a data path. Ends if this output feeds anything besides a dev log line.
   try {
     const str = JSON.stringify(value);
     return str.length > INPUT_MAX_CHARS ? `${str.slice(0, INPUT_TRUNCATE_AT)}…` : str;

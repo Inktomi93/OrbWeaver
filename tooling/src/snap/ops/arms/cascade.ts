@@ -154,7 +154,7 @@ export async function capturePageCssEvidence(ask: CssEvidenceAsk): Promise<CssEv
     return { status: "instrument-error", merge: null, cascade: queries.map((query) => errorReceipt(query, error)), repositoryDeclarations: 0, error };
   }
   let merge: CssEvidenceReceipt["merge"] = null;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): the catch returns a terminal instrument-error receipt consumed by Snap's verdict and artifact, including one error row per requested query. Ends if this result stops driving the verdict.
+  // @orb-waive caught-failure-ownership(error): the catch returns a terminal instrument-error receipt consumed by Snap's verdict and artifact, including one error row per requested query. Ends if this result stops driving the verdict.
   try {
     merge = await readMergeReceipt(session, pageIndex);
     const raw = await runtime.query(

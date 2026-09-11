@@ -61,7 +61,7 @@ async function shootWithRetry(
   clip: Clip,
 ): Promise<{ readonly ok: true; readonly buffer: Buffer } | { readonly ok: false; readonly reason: string }> {
   for (let attempt = 1; attempt <= SHOT_ATTEMPTS; attempt += 1) {
-    // @orb-gate-ignore caught-failure-ownership(empty:error): a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into).
+    // @orb-waive caught-failure-ownership(error): a mid-retry attempt is deliberately absorbed — the loop tries again; only the LAST attempt below owns the failure with a discriminated `ok: false` return. Ends if SHOT_ATTEMPTS drops to 1 (no retry left to absorb into).
     try {
       return { ok: true, buffer: await page.screenshot({ clip, animations: "disabled" }) };
     } catch (error) {

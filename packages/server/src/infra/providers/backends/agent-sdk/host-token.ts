@@ -62,13 +62,13 @@ function resolveHostTokenDeps(deps: HostTokenDeps): ResolvedHostTokenDeps {
 
 async function readHostCredentials(path: string): Promise<HostCredentials | null> {
   let raw: string;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a host-credentials file that cannot be read yields null → runRefresh returns false (skip the proactive refresh), never an authenticate-with-garbage; absence of credentials fails closed to no-refresh. Ends if a null read ever drives a fallback auth attempt.
+  // @orb-waive caught-failure-ownership(catch): a host-credentials file that cannot be read yields null → runRefresh returns false (skip the proactive refresh), never an authenticate-with-garbage; absence of credentials fails closed to no-refresh. Ends if a null read ever drives a fallback auth attempt.
   try {
     raw = await readFile(path, "utf8");
   } catch {
     return null;
   }
-  // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed credentials JSON yields null (same as a missing file) → the refresh is skipped, never a forged/partial token; an unparseable credential can never authenticate. Ends if a null parse ever drives a fallback auth attempt.
+  // @orb-waive caught-failure-ownership(catch): a malformed credentials JSON yields null (same as a missing file) → the refresh is skipped, never a forged/partial token; an unparseable credential can never authenticate. Ends if a null parse ever drives a fallback auth attempt.
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (typeof parsed !== "object" || parsed === null) {

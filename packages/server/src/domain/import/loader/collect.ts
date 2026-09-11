@@ -403,7 +403,7 @@ async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: C
 async function collectSettingsPreset(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   let settingsRaw: unknown;
   const settingsPath = fs.join(profileDir, "settings.json");
-  // @orb-gate-ignore caught-failure-ownership(default:error): `rethrowInfraFailure` escalates any real infra
+  // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates any real infra
   // fault (permission/disk); only a missing/corrupt settings.json falls through here, the documented
   // best-effort posture above (same as tags/personas) — nothing is dropped, there is nothing to collect.
   try {
@@ -436,7 +436,7 @@ async function collectGroupChats(args: {
     const fileName = `${leaf}.jsonl`;
     const filePath = fs.join(dir, fileName);
     let bytes: Uint8Array;
-    // @orb-gate-ignore caught-failure-ownership(empty:error): `rethrowInfraFailure` escalates real infra
+    // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
     // faults; a missing/unreadable leaf is recorded on `missingChatLeaves` (the function header: "a claimed
     // leaf with no readable/parseable file is recorded on the group, never silent"), never dropped.
     try {
@@ -499,7 +499,7 @@ async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: Col
     }
   }
   const settingsPath = fs.join(profileDir, "settings.json");
-  // @orb-gate-ignore caught-failure-ownership(empty:error): `rethrowInfraFailure` escalates real infra
+  // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; a missing/corrupt settings.json is documented below as nothing-to-report (personas collection
   // records its own absence separately).
   try {
@@ -522,7 +522,7 @@ async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: Col
  *  what ST bundles into a theme file). A missing/corrupt settings.json yields `{}` — nothing is patched. */
 async function collectAppearance(fs: ImportFsPort, profileDir: string): Promise<Record<string, unknown>> {
   const settingsPath = fs.join(profileDir, "settings.json");
-  // @orb-gate-ignore caught-failure-ownership(default:error): `rethrowInfraFailure` escalates real infra
+  // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; only a missing/corrupt settings.json falls through, documented above as "yields `{}` — nothing
   // is patched."
   try {
@@ -551,7 +551,7 @@ function descend(raw: unknown, ...keys: string[]): unknown {
  *  copies of this posture): null on a missing/corrupt file, never a throw. */
 async function readSettingsJson(fs: ImportFsPort, profileDir: string): Promise<unknown> {
   const settingsPath = fs.join(profileDir, "settings.json");
-  // @orb-gate-ignore caught-failure-ownership(default:error): `rethrowInfraFailure` escalates real infra
+  // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; documented above — "null on a missing/corrupt file, never a throw," the shared best-effort
   // posture every side-collector below relies on.
   try {
@@ -647,7 +647,7 @@ async function countUserPlanes(fs: ImportFsPort, profileDir: string, state: Coll
 // by matching the card filename against the map key (ST's `tag_map[character.avatar]`).
 async function collectTags(fs: ImportFsPort, profileDir: string): Promise<ReadonlyMap<string, readonly string[]>> {
   const settingsPath = fs.join(profileDir, "settings.json");
-  // @orb-gate-ignore caught-failure-ownership(empty:error): `rethrowInfraFailure` escalates real infra
+  // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; only a missing/corrupt settings.json falls through, documented above as "yields an empty map."
   try {
     const bytes = await fs.readFile(settingsPath);
@@ -662,7 +662,7 @@ async function collectTags(fs: ImportFsPort, profileDir: string): Promise<Readon
 async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<CollectedPersona[]> {
   let settingsRaw: unknown;
   const settingsPath = fs.join(profileDir, "settings.json");
-  // @orb-gate-ignore caught-failure-ownership(default:error): `rethrowInfraFailure` escalates real infra
+  // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; documented above — "a missing/corrupt settings.json yields []."
   try {
     const bytes = await fs.readFile(settingsPath);
@@ -677,7 +677,7 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
   for (const parsed of personas) {
     let avatarBytes: Uint8Array | undefined;
     const avatarPath = fs.join(avatarsDir, parsed.avatarFile);
-    // @orb-gate-ignore caught-failure-ownership(empty:error): `rethrowInfraFailure` escalates real infra
+    // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
     // faults; documented above — "a missing avatar yields an avatar-less persona" (the `out.push` below
     // branches on `avatarBytes !== undefined`).
     try {

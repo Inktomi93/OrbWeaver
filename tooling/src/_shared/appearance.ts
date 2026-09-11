@@ -80,7 +80,7 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
   await context.addInitScript(
     ({ axes: requested, key, version }) => {
       let current: unknown;
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative.
+      // @orb-waive caught-failure-ownership(catch): a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative.
       try {
         current = JSON.parse(localStorage.getItem(key) ?? "null") as unknown;
       } catch {
@@ -90,7 +90,7 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
         typeof current === "object" && current !== null && "state" in current && typeof current.state === "object" && current.state !== null
           ? current.state
           : {};
-      // @orb-gate-ignore caught-failure-ownership(empty:catch): an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source.
+      // @orb-waive caught-failure-ownership(catch): an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source.
       try {
         localStorage.setItem(key, JSON.stringify({ state: { ...state, ...requested }, version }));
       } catch {
@@ -133,7 +133,7 @@ export function mergeAppearancePatches(base: AppearancePatch | null, next: Appea
  */
 export function trpcProcedureIndex(rawUrl: string, procedure: string = SETTINGS_PROCEDURE): number | null {
   let pathname: string;
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative.
+  // @orb-waive caught-failure-ownership(catch): an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative.
   try {
     pathname = new URL(rawUrl).pathname;
   } catch {
@@ -204,7 +204,7 @@ async function fulfilPatched(route: Route, patch: SettingsPatch, index: number):
  *  intercepted request went to, so a `--base`/stage port never has to be re-derived here. `listThemes` takes
  *  no input, so the batch URL carries an empty input map. */
 function themeListUrl(requestUrl: string): string | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator.
+  // @orb-waive caught-failure-ownership(catch): an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator.
   try {
     return `${new URL(requestUrl).origin}${TRPC_PATH_PREFIX}${LIST_THEMES_PROCEDURE}?batch=1&input=${encodeURIComponent("{}")}`;
   } catch {
@@ -255,7 +255,7 @@ function themeResolver(request: ThemeRequest): (route: Route, context: BrowserCo
       return null;
     }
     let entries: readonly ThemeEntry[] | null = null;
-    // @orb-gate-ignore caught-failure-ownership(default:e): the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure.
+    // @orb-waive caught-failure-ownership(e): the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure.
     try {
       const response = await context.request.get(url);
       entries = response.ok() ? readThemeList((await response.json()) as unknown) : null;
@@ -339,7 +339,7 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
       await route.fallback();
       return;
     }
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.
+    // @orb-waive caught-failure-ownership(catch): the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.
     try {
       // No --theme, or a resolution that FAILED (the warning already said so) → no theme key at all, never
       // a fabricated selection. A resolved `none` IS a selection: `selectedThemeId: null`.

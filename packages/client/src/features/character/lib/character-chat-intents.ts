@@ -27,7 +27,7 @@ export function useStartChatWithCharacter(): (characterId: CharacterId) => void 
   return (characterId): void => {
     clearChatListCharacterFilter();
     setActiveSection("chats");
-    // @orb-gate-ignore caught-failure-ownership(promise:startChat): useStartChat's mutation carries
+    // @orb-waive caught-failure-ownership(startChat): useStartChat's mutation carries
     // errorToast: "Couldn't start the chat." — the toast is the surface. Ends if useStartChat drops errorToast.
     startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
   };

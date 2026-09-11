@@ -54,7 +54,7 @@ function vitePort(): number {
 /** `localhost`, NOT 127.0.0.1 — vite v8 binds [::1] only; the IPv4 loopback never answers (stack.sh's
  *  `vite_ok` carries the same note). `/@fs/<abs>` is vite's own escape hatch for a file outside root. */
 async function fetchServed(absPath: string): Promise<string | null> {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): probe JSON parse failure returns null and the caller reports the service as unverified. Ends if null can satisfy the served probe.
+  // @orb-waive caught-failure-ownership(catch): probe JSON parse failure returns null and the caller reports the service as unverified. Ends if null can satisfy the served probe.
   try {
     const res = await fetch(`http://localhost:${vitePort()}/@fs${absPath}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     return res.status === HTTP_OK ? await res.text() : null;
@@ -64,7 +64,7 @@ async function fetchServed(absPath: string): Promise<string | null> {
 }
 
 function readSource(path: string): string | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): probe request failure returns null and the caller reports the service as unreachable. Ends if null can satisfy the served probe.
+  // @orb-waive caught-failure-ownership(catch): probe request failure returns null and the caller reports the service as unreachable. Ends if null can satisfy the served probe.
   try {
     return readFileSync(path, "utf8");
   } catch {

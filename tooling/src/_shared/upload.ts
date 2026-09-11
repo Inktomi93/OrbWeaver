@@ -136,7 +136,7 @@ async function fileInputFacts(input: Locator): Promise<FileInputFacts> {
 /** A direct file input or first descendant. Sibling/label/button triggers deliberately return null so
  * the caller takes the Playwright filechooser arm instead of guessing a DOM association. */
 export async function resolveFileInputLocator(loc: Locator): Promise<Locator | null> {
-  // @orb-gate-ignore caught-failure-ownership(promise:evaluate): this best-effort type probe converts a detached/unreadable target into "not a direct input" and deliberately delegates to the descendant/chooser arms below; those interactions surface the actionable target failure. Ends if this catch stops feeding that fallback or a failure can exit clean without either arm running.
+  // @orb-waive caught-failure-ownership(evaluate): this best-effort type probe converts a detached/unreadable target into "not a direct input" and deliberately delegates to the descendant/chooser arms below; those interactions surface the actionable target failure. Ends if this catch stops feeding that fallback or a failure can exit clean without either arm running.
   const direct = await loc
     .evaluate((element) => {
       const node = element as unknown as { tagName: string; getAttribute: (name: string) => string | null };
@@ -201,7 +201,7 @@ export async function driveFileUpload(target: Locator, selector: string, rawPath
   try {
     await target.click({ timeout: timeoutMs });
   } catch (error) {
-    // @orb-gate-ignore caught-failure-ownership(promise:chooserPromise): the target click already failed and is rethrown below; drain the paired chooser promise so its later timeout cannot become an unhandled secondary failure. Ends if the chooser result is consumed here or the click error stops being rethrown.
+    // @orb-waive caught-failure-ownership(chooserPromise): the target click already failed and is rethrown below; drain the paired chooser promise so its later timeout cannot become an unhandled secondary failure. Ends if the chooser result is consumed here or the click error stops being rethrown.
     await chooserPromise.catch(() => undefined);
     throw error;
   }
