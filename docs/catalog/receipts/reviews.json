@@ -332,14 +332,16 @@
     {
       "path": "docs/reviews/gate-runtime/exemplars-2026-09-11.md",
       "assignedSha256": "24b73abe8680067bea98273e227a9a69d10b38f04dcc5b6a320e255d97aaddca",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1241bec2a5e172b9ce035fe2f43563193551ee47a1d28edded9efaaf53f2adbc",
+      "verifiedCommit": "a4816ef1bb5deb0479ea0c350a93f45e9918a3c5",
+      "verifiedAt": "2026-09-11",
+      "evidence": [
+        "produced by a read-only scout at f898b14b1 and landed 1bd6ba107; read in full by the orchestrator, GATE-AUTHORING row corrected at a4816ef1b (owner ruling 2026-09-11: legacy guide, not a conversion input)"
+      ],
+      "summary": "One converted exemplar per defineGate capability with its tests and the central files a conversion lane reads first; the copy-these-shapes reference every #1584 conversion brief names."
     },
     {
       "path": "docs/reviews/gate-runtime/home-client-family-1584.md",
