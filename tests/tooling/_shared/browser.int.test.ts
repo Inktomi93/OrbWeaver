@@ -10,11 +10,13 @@ import type { LocalStorageSeed } from "@orb/tooling/_shared/browser-contract";
 import { MOBILE_DEVICE, readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
+import { currentRunMarker } from "@orb/tooling/_shared/run-marker";
 import { chromium } from "@playwright/test";
 import { afterAll, vi } from "vitest";
 import type { ChromiumIdentity } from "../../support/chromium-processes.ts";
 import {
   chromiumDescendantIdentities,
+  leakChromiumArgs,
   livingChromiumIdentities,
   terminateChromiumIdentities,
   watchChromiumDescendants,
@@ -270,8 +272,14 @@ test("the process census sees a live Chromium process before cleanup", async () 
 
 test("captured Chromium identities survive reparenting without becoming a false clean", async () => {
   const profile = join(TEMP, "reparented-leak-profile");
+  // THE MARKER IS STAMPED (#1926): this fixture deliberately detaches a real chromium to simulate a
+  // reparented leak, and relies on its own `terminateChromiumIdentities` cleanup below. That cleanup is
+  // NOT the only safety net — if this test process is ever SIGKILLed/OOM-killed between the spawn and its
+  // `finally`, the marker gives `_shared/run-marker.ts`'s abandoned-run sweep a real reaping path, exactly
+  // as any production launch already has. Proven both ways in browser-run-marker.suite.int.test.ts.
+  const leakArgs = leakChromiumArgs(profile, currentRunMarker());
   const leakScript = `const { spawn } = require("node:child_process");
-const chromium = spawn(process.argv[1], ["--headless", "--no-sandbox", "--disable-gpu", "--user-data-dir=" + process.argv[2], "about:blank"], {
+const chromium = spawn(process.argv[1], JSON.parse(process.argv[2]), {
   detached: true,
   stdio: "ignore",
 });
@@ -280,7 +288,10 @@ setTimeout(() => process.exit(0), 500);`;
   const witness = watchChromiumDescendants(process.pid);
   let captured: readonly ChromiumIdentity[] = [];
   try {
-    const result = await spawnNiced(process.execPath, ["-e", leakScript, chromium.executablePath(), profile], { cwd: TEMP, timeoutMs: scaledBudget(5000) });
+    const result = await spawnNiced(process.execPath, ["-e", leakScript, chromium.executablePath(), JSON.stringify(leakArgs)], {
+      cwd: TEMP,
+      timeoutMs: scaledBudget(5000),
+    });
     expect(result.code, result.stderr).toBe(0);
     captured = witness.stop();
     const living = livingChromiumIdentities(captured);
