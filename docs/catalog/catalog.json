@@ -12702,9 +12702,9 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 722,
-      "bytes": 76766,
-      "sha256": "492f2e8b7b987bdaf619917333268985d5cc11e44aff605b38ca049172cd8fe3",
+      "lines": 731,
+      "bytes": 77736,
+      "sha256": "a4cc94e894829bb1c37697392e3d86ce342b82f6872ad176ca7c90fbbed77127",
       "frontmatter": {
         "present": true,
         "malformed": false,
