@@ -210,5 +210,16 @@ export const gate = defineGate({
       },
       why: "THE DECLARED LIMIT, written down: an alias read TEXTUALLY ABOVE its own declaration is not indexed in time, because the alias set is filled in document order. Chasing it would need a second whole-file pass inside the policy, which the shared query boundary forbids; the direct `fetch(` spelling in the same body is still caught",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/thing/lib/load.ts":
+          "export async function load(): Promise<unknown> {\n" +
+          "  // @orb-waive fetch-fn-in-features(fetch): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          '  return await fetch("/api/x");\n' +
+          "}\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the CALLEE and the token is `fetch` even under a member spelling (`globalThis.fetch` reports `fetch` at an offset, :119-122), so one waiver vocabulary covers every spelling of the global. The fixture is mustFlag[0] (:134, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes. The alias row (mustFlag[3]) is deliberately NOT the base — its callee text is `wire`, so its position is the alias name, not `fetch`",
+    },
   ],
 });

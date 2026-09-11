@@ -266,5 +266,15 @@ export const gate = defineGate({
       },
       why: "DECLARED LIMIT, written down not assumed: an id reached through a NAMED type reference is invisible here (the reader is syntactic over the param subtree, the same literal-shape limit `own-tables-only` carries for namespace imports). This row is the baseline a checker-resolved widening would start from",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/kit/src/ids/index.ts": 'export type CharacterId = TypeIdOf<"character">;\nexport type AssetId = TypeIdOf<"asset">;\n',
+        "packages/server/src/domain/character/contract/service.ts":
+          "// @orb-waive injected-op-caller-param(CopyCharacterBooksOp): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export type CopyCharacterBooksOp = (args: { readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the whole TYPE ALIAS with the OP NAME as its token (:189), so an author waives `CopyCharacterBooksOp` — not the offending param (`fromCharacterId`) and not the id type. That is also why an op with a genuine reason has TWO doors: this marker, or a CALLER_FREE_OPS row keyed on the same name. The fixture is mustFlag[0] (:203, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });
