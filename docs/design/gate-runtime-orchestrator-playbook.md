@@ -13,16 +13,37 @@ Steps, not history. The law and the contract are in [gate-runtime-standardizatio
 
 1. Prove the guard is bound: run `git stash` (bare) and expect the hook to DENY it. If it passes, relaunch from `main`
    before touching anything (hooks bind at launch).
-2. Pre-flight: `pnpm engines status` (fleet must be DOWN; sleeping vLLM parks \~37 GiB in host RAM), `pnpm stack status`
-   (prod down), `free -g`. Take prod down and stop engines from `main`'s checkout if either is up.
+2. Pre-flight, cheapest probe FIRST: `free -g` and `grep Shmem /proc/meminfo`. A sleeping vLLM fleet parks \~37 GiB as
+   `Shmem`; under \~1 GiB means engines are already down and you need no launcher call at all. Only if `Shmem` is high
+   do you touch `pnpm engines status` / `pnpm stack status`, and then take prod down and stop engines from `main`'s
+   checkout. The launcher family has no help guard — a bare `node scripts/dev/engines.ts --help` once REAPED three live
+   pids — so never invoke it merely to look.
 3. `git -C <main> status --short` empty, `git log --oneline -3`, `git worktree list` (every worktree is a lane; resume,
-   never respawn — a killed lane's worktree keeps its uncommitted work).
+   never respawn — a killed lane's worktree keeps its uncommitted work). **For each worktree run
+   `git -C <wt> rev-list --count main..HEAD` and `git -C <wt> status --short`. A dead lane showing 0 commits and a large
+   dirty set is one `worktree remove` from annihilation: CHECKPOINT it immediately** (`git -C <wt> add -u`, then
+   `git -C <wt> -c core.hooksPath=/dev/null commit`) with a message that says explicitly it is a durability checkpoint
+   and not a completion receipt. `add -u` stages tracked modifications only, so lane scratch files stay untracked.
 4. `pnpm work:item overview`. The program row is #1584. Rows that matter: Verify (needs an Opus verifier), Ready (claim
    at dispatch), Needs owner (ask, do not build).
 5. Re-derive the census: `pnpm gate:contract > <scratch>/census.log`; the total line and the distinct `gates/*.ts`
-   in the descriptor-wrapper findings are the legacy roster. Never quote a number from a document.
+   in the descriptor-wrapper findings are the legacy roster. Never quote a number from a document — EVERY roster in
+   `docs/reviews/gate-runtime/` is a frozen snapshot and they are all stale (the conversion census counts a 255-module
+   corpus against 271 today). Run this AFTER lanes drain, never beside a live lane.
 6. Read `~/.claude/bridge/to-primary/` (ack SELF notes by `mv` into `done/`). Write a SELF note ONLY when a context
-   sentinel fires or you are handing the session off.
+   sentinel fires or you are handing the session off. A SELF note is a POINTER, never a source: verify every state
+   claim in it before acting (two of note 522's were false within the hour).
+7. Know the doc layer before you brief anyone. `docs/reviews/gate-runtime/` holds 23 documents. Roughly thirteen are
+   completed-family EVIDENCE. Live detail the guide delegates to: `uncovered-gate-conversion-census.md` (per-gate
+   blocker, family, population, authority, source lines — the Phase D ordering source),
+   `resource-gate-access-patterns.md` (the 53-row resource manifest, Phase C), `exception-authority-census.md` (the
+   nine baseline ledgers' per-row disposition, Phase E), `shared-semantic-readers.md` (the M/O/G/V foundations — and
+   its binding constraint that those are COMPUTATION GROUPS, so a lane must prove real shared consumption before
+   naming a `family`), `ordinary-waiver-source-migration.md` §"Exact central grammar" plus its "Explicit
+   non-migrations" fence, and `checkpoint-2026-09-05.md`. **Two of those were written on the dead ATOMIC premise and
+   now carry superseded banners** — the waiver manifest in particular told readers the marker sites were "not
+   permission to translate them early", which directly countermands the in-commit translation ruling, and constitution
+   §0.1 makes a lane follow the doc over your brief. Read a banner before you cite the doc it sits on.
 
 ## 1. Standing rules for this program (owner, 2026-09-11)
 
@@ -72,13 +93,23 @@ until it lands, an Opus verifier confirms, and you have read the first mixed bas
 
 **Phase B — three slots, after A.**
 
-1. Marker backlog: resume the worktree `.claude/worktrees/agent-a588b7202b748d71e` (uncommitted partial translation of
-   the owner-scope markers; ONESHOT-OK not started). mech-executor. Receipt: both converted families at 0 blocking
-   findings on the real tree, 0 unused markers, comment-only diff proven by `git diff -U0 | grep -vE '^[-+]\s*//'`.
-2. Proof rework: resume `.claude/worktrees/agent-a2dae218300f26638` (item 1 done under the OLD scope: negative arms;
-   correct it to the guide §4.2 — positive same-position arm per tenancy policy, delete the vacuous negative arms —
-   then item 2: the `test-no-stubs` cross-file fixture whose offsets must overlap, plus its `@tests` header note). This
-   is #1935's rework; `review` → `verify` → verifier → `done`.
+1. Marker backlog: resume `.claude/worktrees/agent-a588b7202b748d71e`, **checkpointed at `8f1b31897` (121 files) — the
+   lane does NOT redo it, it rebases onto `main` first**. Both vocabularies are substantially translated: the
+   `@owner-scope*` markers under `packages/server` AND \~110 CT files of `ONESHOT-OK`. mech-executor. The checkpoint
+   contains **26 non-comment diff lines that must each be adjudicated** before merge, in two shapes: a trailing marker
+   relocated across a ternary operand (`: db` split over a comment line — restructure so the marker sits above the
+   whole statement, since formatting will move it), and trailing `ONESHOT-OK` markers DELETED with no `@orb-waive`
+   replacement (each is either a dead marker, which guide §8.6 allows only if it is counted and listed, or a silent
+   suppression loss). Also remove its two `p-marker-translate-scratch*.test.ts` files. Receipt: both families at 0
+   blocking findings on the real tree, 0 unused markers, and either a clean
+   `git diff -U0 | grep -vE '^[-+]\s*//'` or every exception listed with its justification. That receipt is only
+   measurable AFTER Phase A's front door lands, which is why this is Phase B.
+2. Proof rework: resume `.claude/worktrees/agent-a2dae218300f26638`, **checkpointed at `20550dc83` (3 files); rebase
+   onto `main` first**. Item 1 was built under the SUPERSEDED scope (per-gate negative arms); correct it to guide
+   §4.2 — positive same-position arm per tenancy policy, delete the vacuous negative arms — then item 2: the
+   `test-no-stubs` cross-file fixture whose offsets must actually OVERLAP (the prior attempt's never did), plus its
+   `@tests` header note. That fixture is an invented row for a new property, so it owes a planted break. This is
+   #1935's rework, already Running and claimed; `review` → `verify` → verifier → `done`.
 3. \#1946 guard residuals (Sonnet mech-executor; hook + its pin + `registry.test.ts`; both-direction pins; no-loosening
    A/B over the pin ROWS table).
 
@@ -111,6 +142,10 @@ idle composed-pass remeasurement; catalog re-attest.
 3. Read in full, in order: the guide (`gate-runtime-standardization.md`) §3, §4, §8, §12; the exemplars doc; the
    exemplar modules and tests for the lane's evidence plane; every assigned module and its legacy source via
    `git show <sha>:<path>`; any carry-forward row naming a module. GATE-AUTHORING.md is the LEGACY guide, not an input.
+   **If any assigned module appears in guide §12.7, that row is a world-program (#1351) guarantee the conversion may
+   not break:** the lane re-reads the CURRENT implementation on `main`, re-derives the delta against the anchor
+   (`git diff 6c8424806 HEAD -- <the policy and its readers>`), and carries the row's named proof, including its
+   do-not-restore prohibitions. Those rows are why a conversion can look green and still destroy an invariant.
 4. The exact module list with the pre-conversion SHA; the family hypothesis (a hypothesis until the lane names the
    reader); stop-if-missing-kind (refusal is a success, report the exact read); markers translated in-commit with the
    census recorded.
@@ -130,17 +165,32 @@ idle composed-pass remeasurement; catalog re-attest.
 3. Run the lane's named floor on `main`; `pnpm gate:contract` for the delta; regenerate `docs/test-baseline/manifest.json`
    on quiet `main` if a spec was added (`pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest`,
    commit it alone).
-4. Post the receipt on #1584 (`gh issue comment --body-file`); rows: `review` + `verify --evidence` (< \~700 chars).
-5. Dispatch one Opus verifier over the wave's merged commits (claims, exact fixtures to re-drive, census, the Sonnet
+4. Docs the lane added or rewrote: `pnpm format:docs` then `pnpm check:docs` (both exit 0), then `pnpm doc-catalog:write`
+   for a rewritten doc or `pnpm doc-catalog:sync` to adopt a NEW one. Both exit 1 on the inherited ratchet rows (31
+   pending debt paths plus stale `verifiedSha256` on three documents last touched 2026-09-05/06), so judge the run by
+   `git diff docs/catalog/` and NOT by its exit code: keep it only if the diff touches the rows for documents you
+   actually read. Never let a regeneration attest a document you have not read. Commit the catalog alone.
+5. Post the receipt on #1584 (`gh issue comment --body-file`); rows: `review` + `verify --evidence` (< \~700 chars).
+6. Dispatch one Opus verifier over the wave's merged commits (claims, exact fixtures to re-drive, census, the Sonnet
    assessment if a Sonnet lane is in the wave). On CONFIRMED: `done` with the identical evidence string. On REFUTED:
    `refute` with the spec; the fix goes back to a lane.
-6. Fold the lane's lessons into the memory hub (`gate-migration-1584-lessons-hub.md`); if a correction had to be sent
+7. Fold the lane's lessons into the memory hub (`gate-migration-1584-lessons-hub.md`); if a correction had to be sent
    to a second lane, fix the FILE the lanes load, not the next brief.
-7. Tear down the worktree only after the verifier confirmed and nothing may need resuming.
+8. Tear down the worktree only after the verifier confirmed and nothing may need resuming.
 
 ## 5. Lessons that bind (each paid for at least once; the incidents are in the memory hub)
 
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
+- **A wholesale doc rewrite can keep every section title and still strip the protection.** Consolidating this guide on
+  2026-09-11 preserved all 16 world-program row titles while deleting the anchor SHA, 15 per-row evidence SHAs, four
+  do-not-restore prohibitions, the anti-false-proof clauses and an inherited owner deferral (restored at `57a7f3e9c`).
+  Before committing a rewrite of a law or handoff document, diff the OLD section against the new one row by row;
+  "no superseded sections are kept" is licence to drop history, never to compress a protection list.
+- **Measure a lane's base, never read it from the lane's own prose.** A lane doc claimed a base 22 commits older than
+  its real `git merge-base`, which turned a clean two-commit docs-only rebase into an imagined merge hazard.
+- A document that details what to PROTECT is worth reading in full even when a table in your own guide summarises it;
+  the 131-line world-program record is what exposed both the stripped protection and a phantom gate
+  (`tsconfig-routing-parity`, retired and absent from the tree, still listed as convertible in §6).
 - The census is not a convertibility list; trace every read against the seven shipped resource kinds.
 - Carry the legacy proof rows; identity is proven once by the positive arm; central negatives are central; a planted
   break is owed only for an invented row; a header claiming a proof it was never shown to catch is a defect.
