@@ -6,7 +6,7 @@ import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Project, SourceFile } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ConfigSnapshot, ConfigSnapshotRunner } from "../contract/config-snapshot.ts";
-import type { OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
+import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceLoad, ResourceReceipt } from "../contract/resource.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
 import type { ResourceHost, ResourceHostOptions, ResourceInvocation } from "../contract/resource-host.ts";
@@ -110,25 +110,33 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     ) as ResourceHost["nativeConfig"],
     trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),
   });
-  const ordinaryWaiverSources = (): readonly OrdinaryWaiverSource[] =>
-    Object.freeze(
-      [...acquiredPaths]
-        .toSorted((left, right) => left.localeCompare(right))
-        .flatMap((path): readonly OrdinaryWaiverSource[] => {
-          const format = ordinaryWaiverResourceFormat(path);
-          if (format === undefined) {
-            return [];
-          }
-          const text = reader.read(path);
-          if (text.status !== "ready") {
-            return [];
-          }
-          return [Object.freeze({ kind: "resource", path, format, text: text.value })];
-        }),
-    );
+  // Every demanded waiver-format path leaves here as a carrier or as a REFUSAL carrying the reader's own
+  // reason. A silent drop was the shape that let a by-design symlink refusal reach the dispatcher as an
+  // unexplained absence (#1947).
+  const ordinaryWaiverCarriers = (demanded: readonly string[]): OrdinaryWaiverCarriers => {
+    const sources: OrdinaryWaiverSource[] = [];
+    const refusals: OrdinaryWaiverCarrierRefusal[] = [];
+    for (const path of [...new Set(demanded)].toSorted((left, right) => left.localeCompare(right))) {
+      const format = ordinaryWaiverResourceFormat(path);
+      if (format === undefined) {
+        continue;
+      }
+      if (!acquiredPaths.has(path)) {
+        refusals.push(Object.freeze({ path, format, status: "unacquired", reason: `resource was not acquired through a declared door: ${path}` }));
+        continue;
+      }
+      const text = reader.read(path);
+      if (text.status === "ready") {
+        sources.push(Object.freeze({ kind: "resource", path, format, text: text.value }));
+      } else {
+        refusals.push(Object.freeze({ path, format, status: text.status, reason: text.reason }));
+      }
+    }
+    return Object.freeze({ sources: Object.freeze(sources), refusals: Object.freeze(refusals) });
+  };
   return Object.freeze({
     host,
     receipts: () => Object.freeze([...receipts.values()].toSorted((left, right) => left.source.localeCompare(right.source))),
-    ordinaryWaiverSources,
+    ordinaryWaiverCarriers,
   });
 }

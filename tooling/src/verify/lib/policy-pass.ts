@@ -5,7 +5,7 @@ import { collectByKinds } from "@orb/tooling/_shared/ts-workspace";
 import type { SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
 import type { GateFact, GateFactHooks } from "../contract/fact.ts";
 import type { GateOwnerCompletion, RawGateFinding } from "../contract/gate-authority.ts";
-import type { OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
+import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { GatePolicy, GatePolicyHooks } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type {
@@ -27,7 +27,6 @@ import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
-import { ordinaryWaiverResourceFormat } from "./ordinary-waiver-source.ts";
 import type { PolicyFactValueRegistry } from "./policy-pass-context.ts";
 import { makeFactContext, makePolicyContext } from "./policy-pass-context.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
@@ -748,14 +747,32 @@ function factResult(run: FactRun): GateFactOwnerResult {
   };
 }
 
-function ordinaryWaiverSources(
+interface OrdinaryWaiverAcquisition {
+  readonly sources: readonly OrdinaryWaiverSource[];
+  readonly refusals: readonly OrdinaryWaiverCarrierRefusal[];
+}
+
+/** Acquire the waiver carriers central reconciliation may read, plus the receipt for every refused one.
+ *
+ *  WHY THE AUTHORITY FILTER: only an `ordinary` policy has a waiver door, so only an ordinary owner's
+ *  population can demand a text carrier. Demanding one from every completed owner killed both HARD
+ *  `native-config` grant-liveness policies at repository scope (#1947, measured 2026-09-11): that kind's
+ *  population is deliberately the whole authored transaction, one member of which is the tracked symlink
+ *  `.codex/agent-doctrine.md` that `ops/resource-reader.ts` refuses BY DESIGN — so the pass threw after
+ *  ~4s while both policies' isolated proofs read green, and every later policy on the kind inherited it.
+ *  The TypeScript half stays unfiltered: those carriers are already-parsed SourceFiles costing no I/O, and
+ *  narrowing them would drop the malformed/unknown-policy marker alarms they are the only source of. */
+function ordinaryWaiverAcquisition(
   policies: readonly PolicyOwnerResult[],
+  authorityById: ReadonlyMap<string, GatePolicy["authority"]>,
   sourceFiles: ReadonlyMap<string, SourceFile>,
-  resourceSources: readonly OrdinaryWaiverSource[],
-): readonly OrdinaryWaiverSource[] {
+  carriers: (paths: readonly string[]) => OrdinaryWaiverCarriers,
+): OrdinaryWaiverAcquisition {
   const sourcePaths = new Set(policies.flatMap(({ population }) => population.effectiveSourcePaths));
-  const resourcePaths = new Set(policies.flatMap(({ population }) => population.effectiveResourcePaths));
-  const resourcesByPath = new Map(resourceSources.map((source) => [source.path, source]));
+  // Owner COMPLETION is deliberately not a condition: acquisition alarms (malformed, unknown-policy,
+  // wrong-authority) are not completion-bound, so an incomplete ordinary owner still owes its carriers.
+  const demanded = policies.flatMap(({ id, population }) => (authorityById.get(id) === "ordinary" ? population.effectiveResourcePaths : []));
+  const acquired = carriers(demanded);
   const sources: OrdinaryWaiverSource[] = [...sourcePaths].toSorted().map((path) => {
     const sourceFile = sourceFiles.get(path);
     if (sourceFile === undefined) {
@@ -763,26 +780,13 @@ function ordinaryWaiverSources(
     }
     return { kind: "typescript", path, sourceFile };
   });
-  for (const path of [...resourcePaths].toSorted()) {
-    if (ordinaryWaiverResourceFormat(path) === undefined) {
-      continue;
-    }
-    const source = resourcesByPath.get(path);
-    if (source === undefined || source.kind !== "resource") {
-      const completedOwnerRequiresCarrier = policies.some(
-        ({ owner, population }) => owner.status === "success" && population.effectiveResourcePaths.includes(path),
-      );
-      if (completedOwnerRequiresCarrier) {
-        throw new Error(`ordinary waiver resource population has no exact text carrier: ${path}`);
-      }
-      continue;
-    }
-    if (sourcePaths.has(path)) {
-      throw new Error(`ordinary waiver population has ambiguous syntax and resource carriers: ${path}`);
+  for (const source of acquired.sources) {
+    if (sourcePaths.has(source.path)) {
+      throw new Error(`ordinary waiver population has ambiguous syntax and resource carriers: ${source.path}`);
     }
     sources.push(source);
   }
-  return Object.freeze(sources);
+  return { sources: Object.freeze(sources), refusals: acquired.refusals };
 }
 
 /** Run every selected policy with invocation-local state, then coordinate all authority centrally. */
@@ -821,10 +825,16 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   }
   const facts = factRuns.map(factResult).toSorted((left, right) => left.id.localeCompare(right.id));
   const policies = runs.map(ownerResult).toSorted((left, right) => left.id.localeCompare(right.id));
+  const waiverCarriers = ordinaryWaiverAcquisition(
+    policies,
+    new Map(input.policies.map(({ id, authority: policyAuthority }) => [id, policyAuthority])),
+    sourceFiles,
+    resourceInvocation.ordinaryWaiverCarriers,
+  );
   const authority = coordinateGateAuthority({
     knownPolicies: input.knownPolicies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
     selectedPolicies: input.policies.map(({ id, authority: policyAuthority, severity }) => ({ id, authority: policyAuthority, severity })),
-    ordinaryWaiverSources: ordinaryWaiverSources(policies, sourceFiles, resourceInvocation.ordinaryWaiverSources()),
+    ordinaryWaiverSources: waiverCarriers.sources,
     ownerResults: policies.map(({ id, population, owner, findings }) => ({
       policyId: id,
       populationFiles: [...new Set([...population.effectiveSourcePaths, ...population.effectiveResourcePaths])].toSorted(),
@@ -853,6 +863,7 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
     policies,
     factErrors: sortedFactErrors,
     toolErrors: sortedErrors,
+    waiverCarrierRefusals: waiverCarriers.refusals,
     authority,
     timing: { totalMs: Math.max(ceilMs(performance.now() - started), policyMs + factMs), policyMs, factMs },
   };

@@ -31,11 +31,21 @@ test("the host has closed resource doors and acquires only requested facts", ({ 
   expect(Object.isFrozen(invocation.host)).toBe(true);
 });
 
-test("a missing acquired package does not throw while collecting ordinary waiver sources", ({ scratch }) => {
+test("a refused or unacquired waiver carrier is a receipted refusal, never a silent drop", ({ scratch }) => {
   const invocation = createResourceHost({ root: scratch });
 
   expect(invocation.host.packageMetadata("root").status).toBe("missing");
-  expect(invocation.ordinaryWaiverSources()).toEqual([]);
+  expect(invocation.ordinaryWaiverCarriers(["package.json"])).toEqual({
+    sources: [],
+    refusals: [{ path: "package.json", format: "json", status: "missing", reason: expect.stringContaining("package.json") }],
+  });
+  // Demanded but never acquired through a declared door: still a refusal with its own status.
+  expect(invocation.ordinaryWaiverCarriers(["docs/never-read.md"])).toMatchObject({
+    sources: [],
+    refusals: [{ path: "docs/never-read.md", format: "markdown", status: "unacquired" }],
+  });
+  // A path with no waiver-carrier format is out of the question entirely, not a refusal.
+  expect(invocation.ordinaryWaiverCarriers(["packages/ui/src/button.ts"])).toEqual({ sources: [], refusals: [] });
 });
 
 test("package and tree facts share overlay contents and callers cannot mutate cached values", ({ scratch }) => {

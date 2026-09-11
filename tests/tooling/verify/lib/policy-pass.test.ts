@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process";
+import { symlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GateFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
@@ -1343,4 +1346,65 @@ test("resource injection cannot substitute a different root with the same relati
   expect(names).toEqual(["root-a"]);
   expect(result.toolErrors).toEqual([]);
   expect(result.policies[0]?.owner.status).toBe("success");
+});
+
+// #1947 — the `native-config` resource kind observes the WHOLE authored transaction (deliberate:
+// `ops/resource-native-config.ts` header — an executable config can read anything). A transaction that
+// large always carries paths the reader refuses BY DESIGN (a tracked symlink, undecodable bytes), so the
+// two arms below pin WHO may demand an ordinary-waiver text carrier and what happens when one cannot be
+// built. Before the fix both arms died with a thrown pass: `no exact text carrier: bad.md`.
+function nativeConfigTransaction(root: string): void {
+  writeFileSync(join(root, "vitest.config.ts"), 'export default { test: { include: ["tests/a.test.ts"] } };\n');
+  writeFileSync(join(root, "note.md"), "<!-- @orb-waive native-ordinary(forbidden): exact prose token -->\nforbidden\n");
+  writeFileSync(join(root, "target.md"), "target\n");
+  symlinkSync("target.md", join(root, "link.md"));
+  writeFileSync(join(root, "bad.md"), Buffer.from([0xff, 0xfe, 0x41, 0x0a]));
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  execFileSync("git", ["add", "-A"], { cwd: root });
+}
+
+function nativeConfigPolicy(id: string, authority: GatePolicy["authority"]): GatePolicy {
+  return policy(id, {
+    authority,
+    population: { of: "none", why: "the executable runner config and the authored transaction it observes" },
+    analysis: "resource",
+    execution: "entire-population",
+    facts: [],
+    resources: [{ kind: "native-config", id: "vitest" }],
+    create: (ctx) => ({
+      evaluate: () => {
+        ctx.resources.nativeConfig("vitest");
+        ctx.report.file("note.md", { line: 2, column: 1, token: "forbidden" });
+      },
+    }),
+  });
+}
+
+test("a HARD owner's resource population demands no ordinary-waiver carrier", ({ scratch }) => {
+  nativeConfigTransaction(scratch);
+  const gate = nativeConfigPolicy("native-hard", "hard");
+  const result = run([gate], projectOf({}), { root: scratch });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies[0]?.owner.status).toBe("success");
+  expect(result.policies[0]?.population.effectiveResourcePaths).toEqual(expect.arrayContaining(["bad.md", "link.md", "note.md"]));
+  expect(result.waiverCarrierRefusals).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ file: "note.md", token: "forbidden" }]);
+  // A hard finding has no waiver door, so the marker sitting in this owner's population is never acquired.
+  expect(result.authority.authorityAlarms).toEqual([]);
+});
+
+test("an ORDINARY owner still gets its carriers, and a refused carrier is a receipted skip", ({ scratch }) => {
+  nativeConfigTransaction(scratch);
+  const gate = nativeConfigPolicy("native-ordinary", "ordinary");
+  const result = run([gate], projectOf({}), { root: scratch });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.waiverCarrierRefusals).toMatchObject([
+    { path: "bad.md", format: "markdown", status: "unresolved" },
+    { path: "link.md", format: "markdown", status: "unresolved" },
+  ]);
+  expect(result.authority.waivedFindings).toMatchObject([{ finding: { file: "note.md", token: "forbidden" } }]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.authorityAlarms).toEqual([]);
 });

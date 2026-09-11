@@ -897,6 +897,7 @@ test.describe("final policy planner", () => {
       policies: [],
       factErrors: [],
       toolErrors: [],
+      waiverCarrierRefusals: [],
       authority: {
         effectiveFindings: [],
         waivedFindings: [],
