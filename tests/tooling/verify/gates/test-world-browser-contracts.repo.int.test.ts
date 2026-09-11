@@ -1,44 +1,51 @@
+// Integration proof for test-world-browser-contracts, migrated to the final `defineGate` contract. The
+// founding/negative shapes, symbol-identity edge cases, and the fail-closed unresolved-origin/cycle arms
+// are proven once through the policy's own `mustFlag`/`mustPass` rows via `verifyPolicyProofs` below. This
+// file keeps only what an isolated in-memory fixture cannot show: the world-classification table itself,
+// and the REAL-CORPUS carry-forward guarantee (gate-runtime-standardization.md, "Browser contracts require
+// the real DOM world") — that the current whole Node-intent test census has zero browser-contract findings
+// and zero unresolved relevant origins. The legacy version of this file ran the OLD `runPass`/`GateDescriptor`
+// dispatcher directly; the successor is `runPolicyPass` over the same real `getWorkspace()` project, with no
+// live-tree fixture-writer sentinel (the population/`isNodeTestContractRoot` filter runs inside the shared
+// visitor now, not a `scanRoot` field the harness reads before dispatch).
 import { join } from "node:path";
 import process from "node:process";
 import { Project } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
-import type { Finding } from "../../../../tooling/src/verify/contract/gate.ts";
+import type { RawGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
+import type { PolicyToolError } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-world-browser-contracts.ts";
 import { isNodeTestContractRoot } from "../../../../tooling/src/verify/lib/browser-contract-reader.ts";
-import { repoRel, runPass } from "../../../../tooling/src/verify/lib/pass.ts";
-import { verifyGateProofs } from "../../../../tooling/src/verify/ops/conformance.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor } from "../../_support.ts";
 
 interface Verdict {
-  readonly findings: readonly Finding[];
-  readonly toolErrors: readonly { readonly message: string }[];
-}
-
-function verdict(project: Project, root: string, files = project.getSourceFiles()): Verdict {
-  const result = runPass([gate], {
-    root,
-    project,
-    scope: { kind: "project" },
-    files,
-    checker: () => project.getTypeChecker(),
-  });
-  return { findings: result.gates[0]?.findings ?? [], toolErrors: result.toolErrors };
+  readonly findings: readonly RawGateFinding[];
+  readonly toolErrors: readonly PolicyToolError[];
 }
 
 function virtualVerdict(files: Readonly<Record<string, string>>): Verdict {
   const { project, root } = ctxFor({ ...files });
-  return verdict(project, root);
+  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const owner = result.policies.find((policy) => policy.id === gate.id);
+  return { findings: owner?.findings ?? [], toolErrors: result.toolErrors };
 }
 
+// The REAL @types/react + lib.dom resolution this class of finding depends on — the whole point of the
+// gate is that React's global.d.ts supplies EMPTY DOM interfaces in the Node program, which only a real
+// tsconfig-backed Project (not an isolated in-memory fixture) can exercise.
 function nativeVerdict(source: string, suffix = ".test-d.ts", extraFiles: Readonly<Record<string, string>> = {}): Verdict {
   const root = process.cwd();
   const project = new Project({ tsConfigFilePath: join(root, "tsconfig.json"), skipAddingFilesFromTsConfig: true });
   for (const [path, text] of Object.entries(extraFiles)) {
     project.createSourceFile(join(root, path), text);
   }
-  const file = project.createSourceFile(join(root, `tests/__browser-contract-proof__/subject${suffix}`), source);
-  return verdict(project, root, [file]);
+  project.createSourceFile(join(root, `tests/__browser-contract-proof__/subject${suffix}`), source);
+  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const owner = result.policies.find((policy) => policy.id === gate.id);
+  return { findings: owner?.findings ?? [], toolErrors: result.toolErrors };
 }
 
 test("the scan scope is derived from authored test kinds and helper worlds", () => {
@@ -59,57 +66,8 @@ test("the scan scope is derived from authored test kinds and helper worlds", () 
   ).toEqual([true, true, true, true, true, true, false, false, false, false, false]);
 });
 
-test("follows a browser-authored type through a single file, renamed barrel export, and namespace import", () => {
-  const single = virtualVerdict({
-    "packages/ui/src/input.tsx": "export interface InputProps { readonly value?: string }\n",
-    "tests/ui/input.test-d.ts": 'import type { InputProps as Props } from "../../packages/ui/src/input.tsx";\nexport type Subject = Props;\n',
-  });
-  const namespace = virtualVerdict({
-    "packages/ui/src/input.tsx": "export interface InputProps { readonly value?: string }\n",
-    "packages/ui/src/index.ts": 'export type { InputProps as PublicProps } from "./input.tsx";\n',
-    "tests/ui/input.test-d.ts": 'import type * as UI from "../../packages/ui/src/index.ts";\nexport type Subject = UI.PublicProps;\n',
-  });
-  expect(single.toolErrors).toEqual([]);
-  expect(single.findings).toHaveLength(1);
-  expect(namespace.toolErrors).toEqual([]);
-  expect(namespace.findings).toHaveLength(1);
-});
-
-test("follows a consumed runtime binding through a renamed barrel export", () => {
-  const result = virtualVerdict({
-    "packages/ui/src/button.tsx": "export function Button(): string { return 'button' }\n",
-    "packages/ui/src/index.ts": 'export { Button as Action } from "./button.tsx";\n',
-    "tests/ui/button.test.ts": 'import { Action as renderAction } from "../../packages/ui/src/index.ts";\nexport const subject = renderAction();\n',
-  });
-  expect(result.toolErrors).toEqual([]);
-  expect(result.findings).toHaveLength(1);
-});
-
-test("callable signatures preserve browser ownership through const and object facades", () => {
-  for (const [facade, subject] of [
-    ["export const Action = Button;", "import { Action } from '../../packages/ui/src/index.ts'; export const subject = Action();"],
-    ["export const API = { Button };", "import { API } from '../../packages/ui/src/index.ts'; export const subject = API.Button();"],
-    ["export const API = { Button };", "import { API } from '../../packages/ui/src/index.ts'; const local = API; export const subject = local.Button();"],
-  ] as const) {
-    const result = virtualVerdict({
-      "packages/ui/src/button.tsx": "export function Button(): string { return 'button'; }",
-      "packages/ui/src/index.ts": `import { Button } from './button.tsx'; ${facade}`,
-      "tests/ui/button.test.ts": subject,
-    });
-    expect(result.toolErrors).toEqual([]);
-    expect(result.findings.length).toBeGreaterThan(0);
-  }
-});
-
-test("keeps DOM-free .ts contracts and browser test kinds available", () => {
-  const files = {
-    "packages/ui/src/collection-contracts.ts": "export interface CollectionContract { readonly id: string }\n",
-    "tests/ui/collection.test-d.ts":
-      'import type { CollectionContract } from "../../packages/ui/src/collection-contracts.ts";\nexport type Subject = CollectionContract;\n',
-    "packages/ui/src/button.tsx": "export interface ButtonProps { readonly label?: string }\n",
-    "tests/ui/button.dom.test-d.ts": 'import type { ButtonProps } from "../../packages/ui/src/button.tsx";\nexport type Subject = ButtonProps;\n',
-  };
-  expect(virtualVerdict(files)).toMatchObject({ findings: [], toolErrors: [] });
+test("the policy's own founding and negative proofs run through the production dispatcher", () => {
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
 test("rejects the canonical React DOM shapes that compile in the Node program", () => {
@@ -193,16 +151,15 @@ test("a relevant re-export cycle refuses instead of passing through an intermedi
   expect(result.toolErrors.some(({ message }) => message.includes("cycle"))).toBe(true);
 });
 
-test("the descriptor's own founding and negative proofs run through the production dispatcher", () => {
-  expect(verifyGateProofs([gate])).toEqual([]);
-});
-
 test("the current full Node-intent test census has no browser-contract findings or unresolved relevant origins", { timeout: 120_000 }, () => {
   const root = process.cwd();
   const project = getWorkspace({ root });
-  const files = project.getSourceFiles().filter((file) => gate.scanRoot?.(repoRel(root, file.getFilePath())) === true);
-  // This proves the guard over the roots its shared world vocabulary selects. Imported modules remain
-  // identity evidence for consumed bindings; they are not recursively reclassified as test roots.
-  expect(files.length).toBeGreaterThan(0);
-  expect(verdict(project, root, files)).toMatchObject({ findings: [], toolErrors: [] });
+  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors).toEqual([]);
+  const owner = result.policies.find((policy) => policy.id === gate.id);
+  // This proves the guard over the whole real corpus its shared world vocabulary selects, exercising the
+  // same dynamic `isNodeTestContractRoot` filter the visitor applies — not a harness-level pre-filter.
+  expect(owner?.population.effectiveSourcePaths.length).toBeGreaterThan(0);
+  expect(owner?.owner.status).toBe("success");
+  expect(owner?.findings).toEqual([]);
 });

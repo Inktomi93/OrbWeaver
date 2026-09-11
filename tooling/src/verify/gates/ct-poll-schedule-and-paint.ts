@@ -3,37 +3,43 @@
 // MUTATES the array it is handed, so the second poll runs the drained default. ARM B: an
 // `evaluate(el => el.click())` trigger fired with no presented-paint barrier before it while a later poll
 // reads layout-shift-derived motion — a shift entry needs a PAINTED "before", so the poll times out on
-// evidence that never existed. ARM C: the founding-file blindness tripwire. Pure AST — comment-SAFE by
-// construction (GATE-AUTHORING.md §"comment posture"). DECLARED LIMITS: an options identifier declared
-// outside module scope or imported is unresolvable, and a computed `intervals` value is invisible — each
-// owns a mustPass row.
+// evidence that never existed. Pure AST — comment-SAFE by construction. DECLARED LIMITS: an options
+// identifier declared outside module scope or imported is unresolvable, and a computed `intervals` value is
+// invisible — each owns a mustPass row.
+//
+// FAMILY DECISION (gate-runtime-standardization.md): this module SPLITS into two policies sharing one
+// family, `ct-poll-schedule-and-paint`. Both consume the EXACT SAME computation — `barrierNames`,
+// `isFreshSchedule`/`isMotionPoll`/`isUntrustedTrigger`, and the founding-file counters below — so they are
+// a real shared-reader family, not a filename-prefix coincidence:
+//   - `ct-poll-schedule-and-paint` (this file): the ORDINARY per-occurrence policy (ARM A + ARM B). Neither
+//     arm ever carried an escape door in the legacy descriptor (a shared schedule or an unbarriered trigger
+//     is always a real defect), so authority stays `hard` — no suppression door existed before and none is
+//     introduced now.
+//   - `ct-poll-schedule-and-paint-health` (sibling file): the FORMER "ARM C" whole-corpus blindness
+//     tripwire — the founding CT file (tests/client/lib/motion-stats.ct.tsx) rotting against the matchers
+//     here. It is a whole-population self-health question the per-file occurrence policy's dispatch cannot
+//     answer, and it differs on `execution` (`entire-population` vs `selected-files`) — the split the design
+//     doc requires whenever an old multi-arm module's arms differ in more than message text.
+//
+// The legacy module carried `begin`/`finalize` and a top-level mutable `anchorFacts` object — banned under
+// the final contract ("`create` runs once per invocation and closes over mutable state... module-global
+// accumulators... disappear"). The health counters now live in the sibling file's own `create` closure.
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import { defineGate } from "../contract/policy.ts";
 
-const TESTS_ROOT = "tests/";
 const INTERVALS = "intervals";
 const EXPECT = "expect";
 const POLL = "poll";
 const TO_PASS = "toPass";
 const EVALUATE = "evaluate";
-const PAINT_API = "requestAnimationFrame";
+export const PAINT_API = "requestAnimationFrame";
 const TEST_CALLEE = "test";
 
 /** The reads that only exist because a `layout-shift` entry was delivered — the values ARM B protects. */
-const MOTION_READS: ReadonlySet<string> = new Set(["cls", "observedCls", "virtualizedCls", "nonVirtualizedCls"]);
+export const MOTION_READS: ReadonlySet<string> = new Set(["cls", "observedCls", "virtualizedCls", "nonVirtualizedCls"]);
 /** Untrusted triggers `locator.click()`'s two-stable-frame actionability wait does NOT cover. */
 const UNTRUSTED_TRIGGERS: ReadonlySet<string> = new Set(["click", "dispatchEvent"]);
-
-/** A file present on every real run and planted by NO example — proof this is the real tree, not a
- *  conformance mini-project (`ctx.scope.kind` says "project" in both; GATE-AUTHORING.md §4.5). */
-const REAL_RUN_ANCHOR = "packages/db/src/schema/index.ts";
-/** The founding file both laws were paid for in. ARM C reds if it moves or stops exercising the idioms —
- *  the §4.6 blindness tripwire, because every matcher below is keyed on shapes THIS file is the proof of. */
-const FOUNDING_ANCHOR = "tests/client/lib/motion-stats.ct.tsx";
-
-const GATE_SELF = "tooling/src/verify/gates/ct-poll-schedule-and-paint.ts";
 
 const MESSAGE =
   "a Playwright poll idiom that loses its evidence silently: an `intervals` schedule reached by identifier " +
@@ -48,26 +54,8 @@ const FIX =
   "`evidencePoll()`), and await two presented animation frames (`settlePaint`) before an untrusted " +
   "evaluate-click whose evidence is a layout shift — tests/client/lib/motion-stats.ct.tsx.";
 
-const ANCHOR_GONE =
-  "the founding CT for both poll laws is no longer at " +
-  FOUNDING_ANCHOR +
-  " — every matcher in tooling/src/verify/gates/ct-poll-schedule-and-paint.ts is keyed on the shapes that file proves. Retarget FOUNDING_ANCHOR, or the gate polices a vocabulary nothing exercises.";
-
-const anchorFacts = { freshSchedules: 0, barriers: 0, untrustedTriggers: 0, motionPolls: 0 };
-
-const ANCHOR_BLIND: Readonly<Record<keyof typeof anchorFacts, string>> = {
-  freshSchedules: "no freshly-minted poll schedule (ARM A's legal shape)",
-  barriers: "no presented-paint barrier helper (ARM B's derived vocabulary)",
-  untrustedTriggers: "no evaluate-driven untrusted trigger (ARM B's subject)",
-  motionPolls: "no layout-shift-derived poll (ARM B's evidence read)",
-};
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
 /** The options argument of a Playwright poll door — `expect.poll(fn, OPTS)` / `<expect>.toPass(OPTS)`. */
-function pollOptionsArg(call: CallExpression): TsNode | undefined {
+export function pollOptionsArg(call: CallExpression): TsNode | undefined {
   const callee = call.getExpression();
   if (!Node.isPropertyAccessExpression(callee)) {
     return;
@@ -110,10 +98,10 @@ function sharedScheduleNode(prop: TsNode, sf: SourceFile): TsNode | undefined {
 }
 
 /** ARM A — every identifier-carried route to a shared interval array in one options argument. */
-function reportSharedSchedule(options: TsNode, sf: SourceFile, ctx: GateRunCtx): void {
+function reportSharedSchedule(options: TsNode, sf: SourceFile, report: (node: TsNode, token: string) => void): void {
   if (Node.isIdentifier(options)) {
     if (namesSharedSchedule(sf, options)) {
-      ctx.report(options, { token: options.getText(), offset: 0 });
+      report(options, options.getText());
     }
     return;
   }
@@ -123,13 +111,14 @@ function reportSharedSchedule(options: TsNode, sf: SourceFile, ctx: GateRunCtx):
   for (const prop of options.getProperties()) {
     const hit = sharedScheduleNode(prop, sf);
     if (hit !== undefined) {
-      ctx.report(hit, { token: Node.isShorthandPropertyAssignment(hit) ? INTERVALS : hit.getText(), offset: 0 });
+      report(hit, Node.isShorthandPropertyAssignment(hit) ? INTERVALS : hit.getText());
     }
   }
 }
 
-/** Is this options argument a FRESH mint — an inline array literal or a factory call? (ARM C's health read.) */
-function isFreshSchedule(options: TsNode | undefined): boolean {
+/** Is this options argument a FRESH mint — an inline array literal or a factory call? (the health arm's
+ *  read.) */
+export function isFreshSchedule(options: TsNode | undefined): boolean {
   if (options === undefined) {
     return false;
   }
@@ -143,46 +132,58 @@ function isFreshSchedule(options: TsNode | undefined): boolean {
   return prop !== undefined && Node.isPropertyAssignment(prop) && Node.isArrayLiteralExpression(prop.getInitializerOrThrow());
 }
 
+/** Does `scope`'s subtree contain `node`? Walks UP from `node` via its ancestor chain (never a descendant
+ *  walk of `scope`) — the shared kind-indexed walk already delivers every identifier/call in the file, so
+ *  "is this occurrence inside that scope" is answered by ancestry, never by re-walking down from `scope`. */
+function ancestorContains(scope: TsNode, node: TsNode): boolean {
+  return node === scope || node.getAncestors().includes(scope);
+}
+
+/** Does `scope`'s subtree contain a `requestAnimationFrame` identifier, from the file's own
+ *  pre-collected identifier list? */
+function reachesPaintApi(scope: TsNode, identifiers: readonly TsNode[]): boolean {
+  return identifiers.some((id) => id.getText() === PAINT_API && ancestorContains(scope, id));
+}
+
 /** The names of same-file helpers whose body reaches `requestAnimationFrame` — the barrier vocabulary,
- *  DERIVED rather than hard-coded so a rename of `settlePaint` cannot silently disarm ARM B (§3). */
-function barrierNames(sf: SourceFile): ReadonlySet<string> {
+ *  DERIVED rather than hard-coded so a rename of `settlePaint` cannot silently disarm ARM B. */
+export function barrierNames(sf: SourceFile, identifiers: readonly TsNode[]): ReadonlySet<string> {
   const names = new Set<string>();
   for (const fn of sf.getFunctions()) {
     const name = fn.getName();
-    if (name !== undefined && mentionsPaintApi(fn)) {
+    if (name !== undefined && reachesPaintApi(fn, identifiers)) {
       names.add(name);
     }
   }
   for (const decl of sf.getVariableDeclarations()) {
     const init = decl.getInitializer();
-    if (init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init)) && mentionsPaintApi(init)) {
+    if (init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init)) && reachesPaintApi(init, identifiers)) {
       names.add(decl.getName());
     }
   }
   return names;
 }
 
-function mentionsPaintApi(node: TsNode): boolean {
-  return node.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => id.getText() === PAINT_API);
-}
-
 /** A barrier: a call to a derived helper, or an inline `page.evaluate(() => requestAnimationFrame(…))`. */
-function isBarrierCall(call: CallExpression, names: ReadonlySet<string>): boolean {
+function isBarrierCall(call: CallExpression, names: ReadonlySet<string>, identifiers: readonly TsNode[]): boolean {
   const callee = call.getExpression();
   if (Node.isIdentifier(callee) && names.has(callee.getText())) {
     return true;
   }
-  return Node.isPropertyAccessExpression(callee) && callee.getName() === EVALUATE && mentionsPaintApi(call);
+  return Node.isPropertyAccessExpression(callee) && callee.getName() === EVALUATE && reachesPaintApi(call, identifiers);
 }
 
 /** An UNTRUSTED trigger: `<locator>.evaluate(el => el.click())` / a dispatched event — no actionability wait. */
-function isUntrustedTrigger(call: CallExpression): boolean {
+export function isUntrustedTrigger(call: CallExpression, calls: readonly CallExpression[]): boolean {
   const callee = call.getExpression();
   if (!(Node.isPropertyAccessExpression(callee) && callee.getName() === EVALUATE)) {
     return false;
   }
   return call.getArguments().some((arg) =>
-    arg.getDescendantsOfKind(SyntaxKind.CallExpression).some((inner) => {
+    calls.some((inner) => {
+      if (!ancestorContains(arg, inner)) {
+        return false;
+      }
       const target = inner.getExpression();
       return Node.isPropertyAccessExpression(target) && UNTRUSTED_TRIGGERS.has(target.getName());
     }),
@@ -190,12 +191,12 @@ function isUntrustedTrigger(call: CallExpression): boolean {
 }
 
 /** A poll whose asserted value is layout-shift-derived (the read that needs a painted "before"). */
-function isMotionPoll(call: CallExpression): boolean {
+export function isMotionPoll(call: CallExpression, identifiers: readonly TsNode[]): boolean {
   if (pollOptionsArg(call) === undefined) {
     return false;
   }
   const statement = call.getFirstAncestorByKind(SyntaxKind.ExpressionStatement) ?? call;
-  return statement.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => MOTION_READS.has(id.getText()));
+  return identifiers.some((id) => MOTION_READS.has(id.getText()) && ancestorContains(statement, id));
 }
 
 /** This node's own `test(…)` body, if it IS a test call. */
@@ -215,85 +216,93 @@ function enclosingTestBody(node: TsNode): TsNode | undefined {
     .find((body) => body !== undefined);
 }
 
+interface FileFacts {
+  readonly sf: SourceFile;
+  readonly identifiers: readonly TsNode[];
+  readonly calls: readonly CallExpression[];
+}
+
 /** ARM B — an untrusted trigger with motion evidence polled after it and no barrier before it. */
-function reportUnbarrieredTrigger(trigger: CallExpression, sf: SourceFile, ctx: GateRunCtx): void {
+function reportUnbarrieredTrigger(trigger: CallExpression, facts: FileFacts, report: (node: TsNode, token: string) => void): void {
   const body = enclosingTestBody(trigger);
   if (body === undefined) {
     return;
   }
-  const calls = body.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const inBody = facts.calls.filter((c) => ancestorContains(body, c));
   const at = trigger.getStart();
-  const names = barrierNames(sf);
-  if (calls.some((c) => c.getStart() < at && isBarrierCall(c, names))) {
+  const names = barrierNames(facts.sf, facts.identifiers);
+  if (inBody.some((c) => c.getStart() < at && isBarrierCall(c, names, facts.identifiers))) {
     return;
   }
-  if (calls.some((c) => c.getStart() > at && isMotionPoll(c))) {
-    ctx.report(trigger, { token: EVALUATE, offset: Math.max(trigger.getText().indexOf(EVALUATE), 0) });
+  if (inBody.some((c) => c.getStart() > at && isMotionPoll(c, facts.identifiers))) {
+    report(trigger, EVALUATE);
   }
 }
 
-export const gate: GateDescriptor = {
-  name: "ct-poll-schedule-and-paint",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
-  status: "active",
-  // ARM C reconciles the founding anchor against the whole loaded tree, which a changed-file run cannot see.
-  scopeSafety: "whole-project",
+export const gate = defineGate({
+  id: "ct-poll-schedule-and-paint",
+  family: "ct-poll-schedule-and-paint",
+  authority: "hard",
+  severity: "error",
+  population: { in: ["@tests"] },
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  scanRoot: (p) => p.startsWith(TESTS_ROOT),
-
-  begin: () => {
-    anchorFacts.freshSchedules = 0;
-    anchorFacts.barriers = 0;
-    anchorFacts.untrustedTriggers = 0;
-    anchorFacts.motionPolls = 0;
+  create: (ctx) => {
+    // Collected once per file by the shared kind-indexed walk, then judged in `evaluate` — the "is this
+    // occurrence inside that scope" questions (a barrier before a trigger, a motion read in the same
+    // statement) are answered by ANCESTRY over this list, never by a private descendant walk down from a
+    // scope node.
+    const identifiersBySource = new WeakMap<SourceFile, TsNode[]>();
+    const callsBySource = new WeakMap<SourceFile, CallExpression[]>();
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.Identifier],
+          visit: (node, sf) => {
+            const list = identifiersBySource.get(sf) ?? [];
+            list.push(node);
+            identifiersBySource.set(sf, list);
+          },
+        },
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node, sf) => {
+            if (!Node.isCallExpression(node)) {
+              return;
+            }
+            const list = callsBySource.get(sf) ?? [];
+            list.push(node);
+            callsBySource.set(sf, list);
+          },
+        },
+      ],
+      evaluate: () => {
+        for (const sf of ctx.files) {
+          const identifiers = identifiersBySource.get(sf) ?? [];
+          const calls = callsBySource.get(sf) ?? [];
+          const facts: FileFacts = { sf, identifiers, calls };
+          for (const call of calls) {
+            const options = pollOptionsArg(call);
+            if (options !== undefined) {
+              reportSharedSchedule(options, sf, (target, token) => ctx.report.node(target, { token, offset: 0 }));
+            }
+            if (isUntrustedTrigger(call, calls)) {
+              reportUnbarrieredTrigger(call, facts, (target, token) =>
+                ctx.report.node(target, { token, offset: Math.max(target.getText().indexOf(token), 0) }),
+              );
+            }
+          }
+        }
+      },
+    };
   },
-
-  visitFile: (sf, ctx) => {
-    const isAnchor = relPath(ctx.root, sf.getFilePath()) === FOUNDING_ANCHOR;
-    if (isAnchor) {
-      anchorFacts.barriers += barrierNames(sf).size;
-    }
-    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      const options = pollOptionsArg(call);
-      if (options !== undefined) {
-        reportSharedSchedule(options, sf, ctx);
-      }
-      if (isUntrustedTrigger(call)) {
-        reportUnbarrieredTrigger(call, sf, ctx);
-      }
-      if (!isAnchor) {
-        continue;
-      }
-      anchorFacts.freshSchedules += isFreshSchedule(options) ? 1 : 0;
-      anchorFacts.untrustedTriggers += isUntrustedTrigger(call) ? 1 : 0;
-      anchorFacts.motionPolls += isMotionPoll(call) ? 1 : 0;
-    }
-  },
-
-  // ARM C: node-anchored arms are done by now, so a file-level verdict here cannot double-red a marker.
-  finalize: (ctx) => {
-    if (!fileLoaded(ctx, REAL_RUN_ANCHOR)) {
-      return; // a conformance mini-project — a blindness claim here would judge a synthetic fileset
-    }
-    if (!fileLoaded(ctx, FOUNDING_ANCHOR)) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: ANCHOR_GONE });
-      return;
-    }
-    for (const [fact, what] of Object.entries(ANCHOR_BLIND)) {
-      if (anchorFacts[fact as keyof typeof anchorFacts] === 0) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${FOUNDING_ANCHOR} exercises ${what} any more — the matcher in tooling/src/verify/gates/ct-poll-schedule-and-paint.ts rotted against the file it was derived from. Re-derive the arm, do not delete it.`,
-        });
-      }
-    }
-  },
-
   mustFlag: [
     {
+      mode: "source",
       files: {
         "tests/client/features/chat/components/shared-array.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nconst SCHEDULE = [50, 100, 250];\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals: SCHEDULE, timeout: 10_000 }).toBe(1);\n});\n',
@@ -302,6 +311,7 @@ export const gate: GateDescriptor = {
       why: "the founding ARM A shape (#121): a module-scope array handed to `intervals` — pollAgainstDeadline pops/shifts it, so the SECOND poll in the file runs the drained 1000ms default. Deeply-nested path",
     },
     {
+      mode: "source",
       files: {
         "tests/x.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nconst POLL_OPTS = { intervals: [50, 100], timeout: 10_000 };\ntest("g", async () => {\n  await expect.poll(() => 1, POLL_OPTS).toBe(1);\n});\n',
@@ -310,6 +320,7 @@ export const gate: GateDescriptor = {
       why: "the WHOLE options object shared by identifier — the same drained array one indirection out. Shallow path, so the reader is proven not to depend on directory depth",
     },
     {
+      mode: "source",
       files: {
         "tests/client/lib/spread.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nconst BASE = { intervals: [50, 100], timeout: 10_000 };\ntest("g", async () => {\n  await expect.poll(() => 1, { ...BASE, timeout: 20_000 }).toBe(1);\n});\n',
@@ -318,6 +329,7 @@ export const gate: GateDescriptor = {
       why: "the SPREAD spelling — a spread copies the object but not the array inside it, so the shared reference survives; a literal-shape reader that only checked `intervals:` would ship a false clean",
     },
     {
+      mode: "source",
       files: {
         "tests/client/lib/shorthand.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nconst intervals = [50, 100];\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals, timeout: 10_000 }).toBe(1);\n});\n',
@@ -326,6 +338,7 @@ export const gate: GateDescriptor = {
       why: "the SHORTHAND spelling `{ intervals }` — the third syntactic form of the same shared reference",
     },
     {
+      mode: "source",
       files: {
         "tests/client/lib/topass.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nconst SCHEDULE = [50, 100];\ntest("g", async () => {\n  await expect(() => {}).toPass({ intervals: SCHEDULE });\n});\n',
@@ -334,6 +347,7 @@ export const gate: GateDescriptor = {
       why: "`toPass` is the OTHER door into the same pollAgainstDeadline loop — an expect.poll-only reader would leave half the API unguarded",
     },
     {
+      mode: "source",
       files: {
         "tests/client/features/motion/components/unbarriered.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  const button = page.getByRole("button");\n  await button.evaluate((el) => (el as HTMLButtonElement).click());\n  await expect.poll(async () => (await read(page)).observedCls, { intervals: [50], timeout: 10_000 }).toBeGreaterThan(0);\n});\n',
@@ -342,6 +356,7 @@ export const gate: GateDescriptor = {
       why: "the founding ARM B shape (#121): an untrusted evaluate-click with no painted `before`, then a poll on `observedCls`. Measured control in this exact chromium: 0 layout-shift entries without the barrier, 1 with it — the poll can only run out its budget",
     },
     {
+      mode: "source",
       files: {
         "tests/client/features/motion/components/late-barrier.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nfunction settle(page) {\n  return page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));\n}\ntest("g", async ({ page }) => {\n  const button = page.getByRole("button");\n  await button.evaluate((el) => (el as HTMLButtonElement).click());\n  await settle(page);\n  await expect.poll(async () => (await read(page)).cls, { intervals: [50] }).toBeGreaterThan(0);\n});\n',
@@ -350,9 +365,9 @@ export const gate: GateDescriptor = {
       why: "ORDER is the whole rule: a barrier that runs AFTER the trigger cannot resurrect an entry the browser never emitted. A presence-only reader would call this file conformant",
     },
   ],
-
   mustPass: [
     {
+      mode: "source",
       files: {
         "tests/client/lib/inline.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals: [50, 100, 200, 250], timeout: 10_000 }).toBe(1);\n});\n',
@@ -360,6 +375,7 @@ export const gate: GateDescriptor = {
       why: "the sanctioned ARM A shape: an INLINE array literal is a new array per evaluation, so the mutation has nothing to leak into",
     },
     {
+      mode: "source",
       files: {
         "tests/client/lib/factory.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nfunction evidencePoll() {\n  return { intervals: [50, 100, 200, 250], timeout: 10_000 };\n}\ntest("g", async () => {\n  await expect.poll(() => 1, evidencePoll()).toBe(1);\n});\n',
@@ -367,6 +383,7 @@ export const gate: GateDescriptor = {
       why: "the other sanctioned shape: a CALL mints a fresh object (and a fresh array) per poll — the `evidencePoll()` idiom the founding file uses",
     },
     {
+      mode: "source",
       files: {
         "tests/client/lib/imported.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nimport { POLL_OPTS } from "./support.ts";\ntest("g", async () => {\n  await expect.poll(() => 1, POLL_OPTS).toBe(1);\n});\n',
@@ -374,6 +391,7 @@ export const gate: GateDescriptor = {
       why: "DECLARED LIMIT: an options identifier with no module-scope declaration IN THIS FILE is unresolvable, so it is not judged — an imported factory result and an imported shared object are indistinguishable here without a checker walk",
     },
     {
+      mode: "source",
       files: {
         "tests/client/lib/computed.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nconst FAST = [50, 100];\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals: FAST.slice(), timeout: 10_000 }).toBe(1);\n});\n',
@@ -381,6 +399,7 @@ export const gate: GateDescriptor = {
       why: "DECLARED LIMIT: a COMPUTED intervals value is invisible to a literal-shape reader. `.slice()` happens to be the correct fix, but any expression passes here — the arm judges identifiers, not aliasing",
     },
     {
+      mode: "source",
       files: {
         "tests/client/features/motion/components/barriered.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\nfunction settle(page) {\n  return page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));\n}\ntest("g", async ({ page }) => {\n  await settle(page);\n  const button = page.getByRole("button");\n  await button.evaluate((el) => (el as HTMLButtonElement).click());\n  await expect.poll(async () => (await read(page)).observedCls, { intervals: [50] }).toBeGreaterThan(0);\n});\n',
@@ -388,6 +407,7 @@ export const gate: GateDescriptor = {
       why: "the sanctioned ARM B shape, with the barrier DERIVED from its body (a helper reaching requestAnimationFrame) rather than from the name `settlePaint` — a rename must not disarm the gate",
     },
     {
+      mode: "source",
       files: {
         "tests/client/features/motion/components/trusted-click.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  await page.getByRole("button").click();\n  await expect.poll(async () => (await read(page)).cls, { intervals: [50] }).toBeGreaterThan(0);\n});\n',
@@ -395,6 +415,7 @@ export const gate: GateDescriptor = {
       why: "a REAL `locator.click()` already waits for two stable animation frames as part of its actionability check — the barrier is implicit, and demanding an explicit one would be noise",
     },
     {
+      mode: "source",
       files: {
         "tests/client/features/motion/components/non-motion-poll.ct.tsx":
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  const lines: string[] = [];\n  await page.getByRole("button").evaluate((el) => (el as HTMLButtonElement).click());\n  await expect.poll(() => lines.length, { intervals: [50] }).toBeGreaterThan(0);\n});\n',
@@ -402,4 +423,4 @@ export const gate: GateDescriptor = {
       why: "an untrusted trigger whose evidence is a CONSOLE line, not a layout shift — nothing about it needs a painted previous position, so ARM B deliberately stays out of it",
     },
   ],
-};
+});

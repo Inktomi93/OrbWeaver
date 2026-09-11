@@ -1086,6 +1086,12 @@ const UNFIXTURABLE_GATES = new Set([
   "devtools-frontend-assets",
   // The unit is the canonical production/CT front doors; a __g file cannot perturb their exact graph.
   "playwright-css-topology",
+  // ct-poll-schedule-and-paint-health: the founding-anchor blindness tripwire split from
+  // ct-poll-schedule-and-paint (gate-runtime-standardization.md conversion, #1935). A __g_ file cannot
+  // move or rewrite the real tests/client/lib/motion-stats.ct.tsx anchor, so this arm keeps judging the
+  // untouched real tree and stays quiet across the whole fixture run — proven instead by its own mustFlag
+  // row.
+  "ct-poll-schedule-and-paint-health",
 ]);
 
 let registry = new Set<string>();
