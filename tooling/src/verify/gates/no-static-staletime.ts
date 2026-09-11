@@ -176,5 +176,16 @@ export const gate = defineGate({
       },
       why: "THE DECLARED LIMIT, written down: a SPREAD source is checked against nothing at its own site, so its `staleTime` has no contextual owner and is not reported. Closing it needs value-flow from the constant to the call, which a per-node policy cannot do without a private walk — the directly-authored key at the call site is still caught",
     },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/feature/query.ts":
+          'import { useQuery } from "@tanstack/react-query";\n' +
+          "// @orb-waive no-static-staletime(staleTime): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          'export const q = useQuery({ queryKey: ["key"], staleTime: "static" });\n',
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the PROPERTY ASSIGNMENT at offset 0, so the position is the KEY `staleTime` rather than the banned value — a marker naming `static` would be a dead position. The fixture is mustFlag[0] (:85) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

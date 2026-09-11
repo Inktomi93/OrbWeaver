@@ -252,5 +252,17 @@ export const gate = defineGate({
       },
       why: "a `createRegistryContext` MINT call is the fix and is never a subject — the policy keys on React's constructor, not on any generic call",
     },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        ...REGISTRY_PROOF,
+        "packages/client/src/state/g-registry-context.ts":
+          'import { createContext } from "react";\nimport type { Registry } from "../lib/registry.ts";\n' +
+          "// @orb-waive registry-context-via-mint(Registry): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export const C = createContext<Registry<string, number> | null>(null);\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the TYPE ARGUMENT and supplies no explicit token, so the derived position is that node's first authored identity token — `Registry`, the vocabulary the verdict is about, not the `createContext` callee. The fixture is mustFlag[0] (:158) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

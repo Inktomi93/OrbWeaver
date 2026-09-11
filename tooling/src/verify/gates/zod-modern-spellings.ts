@@ -30,7 +30,9 @@
 // SUPPRESSION: the three arms report NODE-anchored on their own authored method token, so
 // `@orb-waive zod-modern-spellings(strict|union|enum): <reason>` names its position exactly. One line can
 // legitimately carry two arms — `z.object({k: z.union([z.literal("a"), z.literal("b")])}).strict()` is both
-// A and B — and the tokens keep them apart.
+// A and B — and the tokens keep them apart. That claim is no longer prose: the last three `mustPass` rows
+// are one positive identity arm PER TOKEN, each the matching `mustFlag` fixture plus its marker, and each
+// goes red as `dead-position` the moment its arm stops anchoring on the authored method token.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -278,6 +280,42 @@ export const gate = defineGate({
           "const z = {\n  object(shape: unknown): { strict: () => unknown } {\n    return { strict: () => shape };\n  },\n};\nexport const s = z.object({}).strict();\n",
       },
       why: "THE COUNTERFACTUAL: a project object spelled `z` with an `object` method whose result has `.strict()`. The text the legacy reader compared is IDENTICAL; the origin is a local declaration, so it is a different identity",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodObject {\n  strict(): ZodObject;\n}\nexport declare const z: {\n  object: (shape: unknown) => ZodObject;\n  union: (arms: readonly unknown[]) => unknown;\n  literal: (value: unknown) => unknown;\n  enum: (values: readonly string[]) => unknown;\n};\n",
+        "packages/contracts/src/x.ts":
+          'import { z } from "zod";\n' +
+          "// @orb-waive zod-modern-spellings(strict): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          "export const s = z.object({}).strict();\n",
+      },
+      why: "ARM A's POSITION, proving the header's suppression claim: the report anchors on the authored METHOD token, so ARM A is waived as `strict` — not as `object` and not as the whole chain. The fixture is mustFlag[0] (:190) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export declare const z: {\n  union: (arms: readonly unknown[]) => unknown;\n  literal: (value: unknown) => unknown;\n  enum: (values: readonly string[]) => unknown;\n};\n",
+        "packages/contracts/src/x.ts":
+          'import { z } from "zod";\n' +
+          "// @orb-waive zod-modern-spellings(union): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          'export const s = z.union([z.literal("a"), z.literal("b")]);\n',
+      },
+      why: "ARM B's POSITION: the same policy id with a DIFFERENT position token, which is what lets one line carrying two arms keep them apart. `literal` is not a position here — the members are not findings. The fixture is mustFlag[2] (:210) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export declare const z: {\n  union: (arms: readonly unknown[]) => unknown;\n  literal: (value: unknown) => unknown;\n  enum: (values: readonly string[]) => unknown;\n};\n",
+        "packages/server/src/foundation/env/x.ts":
+          'import { z } from "zod";\n' +
+          "// @orb-waive zod-modern-spellings(enum): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
+          'export const flag = z.enum(["true", "false"]);\n',
+      },
+      why: "ARM D's POSITION, the third of the three tokens the header names — an env boolean is the one arm with a standing reason to be waived at a boot-refusal site. The fixture is mustFlag[4] (:230) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
     },
   ],
 });

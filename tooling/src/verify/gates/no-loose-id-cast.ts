@@ -68,5 +68,13 @@ export const gate = defineGate({
       files: { "packages/server/src/clean.ts": "export const clean = true;\n", "tests/server/x.test.ts": "export const x = value as never;\n" },
       why: "tests are outside this policy population",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/x.ts":
+          "// @orb-waive no-loose-id-cast(value): the proof's stand-in reason; ends when this fixture stops flagging.\nexport const x = value as never;\n",
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the cast OPERAND and its token is that operand's own text (`value`), so an author waives the operand, never the `as never` clause. The fixture is mustFlag[0] (:44) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

@@ -145,5 +145,13 @@ export const gate = defineGate({
       },
       why: "SAME SHAPE, WRONG PACKAGE: another library's context-like object with a `Provider` property is not React's deprecated API — React 19's deprecation is what the law is about, and only the declaring package can say so",
     },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx": `${CONTEXT_HOST}export function Host({ children }: { children: unknown }): unknown {\n  // @orb-waive no-context-provider(Provider): the proof's stand-in reason; ends when this fixture stops flagging.\n  return <ThemeContext.Provider value="day">{children}</ThemeContext.Provider>;\n}\n`,
+      },
+      why: "POSITIONAL IDENTITY: the report anchors on the `.Provider` member access with the token `Provider`, so that member — not the context receiver and not the whole tag — is what an author waives. The fixture is mustFlag[0] (:73) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });
