@@ -24,7 +24,7 @@ import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { definitionField } from "../lib/registry-definition-field.ts";
-import { readJsxTagFact, registryDefinitionFact } from "../lib/registry-fact.ts";
+import { readJsxTagFact, registryDefinitionFacts } from "../lib/registry-fact.ts";
 
 const ANCHOR_FN = "configAnchorId";
 const OPERATION = "config-anchor-stamp";
@@ -77,7 +77,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [registryDefinitionFact],
+  facts: [registryDefinitionFacts["config-section"]],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -122,7 +122,7 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
-        const contributions = ctx.fact(registryDefinitionFact).forKind("config-section");
+        const contributions = ctx.fact(registryDefinitionFacts["config-section"]);
         const registered = new Set<string>();
         for (const definition of contributions.definitions) {
           registered.add(definition.declaration.getSourceFile().getFilePath());

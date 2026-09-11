@@ -148,7 +148,7 @@ Current providers/readers:
 | Subject | Use |
 | - | - |
 | bus producers | `lib/bus-fact.ts` `busProducerFact` |
-| registry definitions | `lib/registry-fact.ts` `registryDefinitionFact` |
+| registry definitions | `lib/registry-fact.ts` `registryDefinitionFacts.<kind>` (one provider per kind) |
 | schema tables/columns/FKs/indexes/JSON | `lib/schema-fact.ts` `drizzleSchemaFact` |
 | exported tuple vocabularies | `lib/tuple-vocabulary-fact.ts` (provider conversion pending) |
 | CSS resources | ResourceHost plus `lib/css-resource-facts.ts` |

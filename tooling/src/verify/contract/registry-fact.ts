@@ -36,12 +36,11 @@ export interface RegistryDefinitionKindFacts {
   readonly source: string;
   readonly target: RegistryTypeTargetFact;
   readonly definitions: readonly RegistryDefinitionFact[];
+  /** Every definition this kind's registry TYPE admits, readable object or not. */
   readonly members: number;
+  /** 1 when the registry TYPE itself is missing or ambiguous — the rename tripwire. An unreadable authored
+   *  object is NOT counted here: it is resolved data on `object`, which the consumer judges fail-closed. */
   readonly unresolved: number;
-}
-
-export interface RegistryDefinitionFacts {
-  readonly forKind: (kind: RegistryDefinitionKind) => RegistryDefinitionKindFacts;
 }
 
 export interface JsxTagFact {

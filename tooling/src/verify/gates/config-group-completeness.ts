@@ -31,7 +31,7 @@ import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
-import { registryDefinitionFact } from "../lib/registry-fact.ts";
+import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 
 /** The config CONTENT host: the surface that must read bodies off the registries, never import a feature. */
 const HOST = "packages/client/src/features/config/surfaces/config-content-surface.tsx";
@@ -108,7 +108,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [registryDefinitionFact],
+  facts: [registryDefinitionFacts["config-group"], registryDefinitionFacts.collection],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -229,9 +229,8 @@ export const gate = defineGate({
         }
       },
       evaluate: () => {
-        const facts = ctx.fact(registryDefinitionFact);
-        const groups = facts.forKind("config-group");
-        const collections = facts.forKind("collection");
+        const groups = ctx.fact(registryDefinitionFacts["config-group"]);
+        const collections = ctx.fact(registryDefinitionFacts.collection);
         ctx.receipt({ kind: "population", source: groups.source, members: groups.definitions.length, unresolved: 0 });
         ctx.receipt({ kind: "population", source: collections.source, members: collections.definitions.length, unresolved: 0 });
         ctx.receipt({ kind: "population", source: HOST_POPULATION, members: hosts.size, unresolved: 0 });

@@ -425,7 +425,7 @@ Two traps this cost, both worth copying:
 - **`getVariableDeclarations()` is not "every definition."** `section-registry-completeness` and
   `placeholder-copy-registry` read only annotated consts, so the four FACTORY sections
   (chats/characters/home/config) were outside every arm — a distinctness gate comparing 6 of 10 pairs and
-  reporting a full file count. The shared discovery is now the first-class `registryDefinitionFact`
+  reporting a full file count. The shared discovery is now the first-class per-kind `registryDefinitionFacts`
   (`lib/registry-fact.ts`), one home, so the two subjects cannot drift apart again.
 - **`startsWith("<Type>")` on an annotation also matches `<Type>[]`** — an ARRAY of definitions is an
   assembler's derivation, not a definition, and a fail-closed arm keyed on the loose prefix would accuse it.

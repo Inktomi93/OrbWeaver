@@ -3,7 +3,7 @@
 // comparison is CROSS-FILE: every section's pair must be non-empty and DISTINCT (the "all sections look
 // identical" root cause).
 //
-// The subject is the shared `registryDefinitionFact`'s section view, so BOTH sanctioned authoring shapes —
+// The subject is the shared `registryDefinitionFacts.section` provider, so BOTH sanctioned authoring shapes —
 // the annotated const and the `make<X>Section(): SectionDefinition` factory — are one population, and the
 // copy is read through the shared authored-value reader. That reader follows a stable alias, so a pair
 // written `title: CHARACTERS_SECTION_LABEL` is COMPARED rather than counted as an unreadable skip; the two
@@ -16,7 +16,7 @@ import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
-import { registryDefinitionFact } from "../lib/registry-fact.ts";
+import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 
 /** U+241F (SYMBOL FOR UNIT SEPARATOR) cannot appear in copy — an unambiguous (title, description) key. */
 const PAIR_SEPARATOR = "␟";
@@ -73,7 +73,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [registryDefinitionFact],
+  facts: [registryDefinitionFacts.section],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -115,7 +115,7 @@ export const gate = defineGate({
 
     return {
       evaluate: () => {
-        const view = ctx.fact(registryDefinitionFact).forKind("section");
+        const view = ctx.fact(registryDefinitionFacts.section);
         ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
         for (const definition of view.definitions) {
           judge(definition);

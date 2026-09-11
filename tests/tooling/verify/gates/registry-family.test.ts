@@ -68,7 +68,44 @@ test("an unrelated exported ContributorRegistry elsewhere does not disturb the m
   // withholds this policy nor is admitted as a seam: the real two-seam signature still reds, exactly once.
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.withheldPolicyIds).toEqual([]);
-  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "section-factory-contribution-bundle", token: "makeXSection" }]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "section-factory-contribution-bundle", token: "b" }]);
+});
+
+test("a factory that trips BOTH arms is separately waivable — one marker per excess parameter", () => {
+  // #1954: both arms used to anchor on the factory DECLARATION, so the two findings shared a file, an
+  // offset and a position token and differed only in `message`, which the waiver engine never reads. One
+  // marker in that carrier matched two candidates, went over-broad and suppressed NEITHER — this ordinary
+  // policy had no working door at all. Each arm now anchors on its own excess parameter, so two markers
+  // bind one finding each. The negative arms (wrong-policy, stale, malformed, over-broad) stay the central
+  // engine's proof in `ordinary-waiver.test.ts`; this is the POSITIVE identity arm for this policy.
+  const result = factoryPassOf({
+    "packages/client/src/state/section-registry.ts": SECTION_TYPE,
+    "packages/client/src/lib/registry.ts": REGISTRY_TYPE,
+    "packages/client/src/features/x/lib/x-section.tsx": [
+      'import type { SectionDefinition } from "../../../state/section-registry.ts";',
+      'import type { ContributorRegistry } from "../../../lib/registry.ts";',
+      "export function makeXSection(",
+      "  a: ContributorRegistry<string>,",
+      "  // @orb-waive section-factory-contribution-bundle(b): the second registry is a staged migration seam",
+      "  b: ContributorRegistry<number>,",
+      "  p: (v: string) => null,",
+      "  // @orb-waive section-factory-contribution-bundle(q): the second render prop lands with the seam above",
+      "  q: (v: number) => null,",
+      "): SectionDefinition {",
+      "  void a;",
+      "  void b;",
+      "  void p;",
+      "  void q;",
+      '  return { id: "x" };',
+      "}",
+      "",
+    ].join("\n"),
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.waivedFindings).toHaveLength(2);
+  expect(result.authority.authorityAlarms).toEqual([]);
 });
 
 test("a missing or ambiguous registry home refuses with an unresolved receipt — the rename tripwire", () => {
@@ -92,6 +129,36 @@ test("a missing or ambiguous registry home refuses with an unresolved receipt �
   });
   expect(ambiguous.authority.withheldPolicyIds).toEqual(["section-factory-contribution-bundle"]);
   expect(ambiguous.authority.effectiveFindings).toEqual([]);
+});
+
+test("one kind's blind provider withholds only ITS consumers — the other kinds still render a verdict", () => {
+  // THE #1953 PROPERTY, and the reason there is one provider per registry kind rather than one over all
+  // seven: a fact is the runtime's atomic failure unit, so a summed receipt over every kind made ANY
+  // population that legitimately declares only some of the types refuse for all of them — which is how 95
+  // proof rows across eight policies went dark. Here `ModalDefinition` is absent while `SectionDefinition`
+  // is healthy: the modal provider refuses and withholds its consumer, the section consumer still accuses.
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile(`${ROOT}/packages/client/src/state/section-registry.ts`, SECTION_TYPE);
+  project.createSourceFile(
+    `${ROOT}/packages/client/src/features/x/lib/not-a-section-file.ts`,
+    'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const xSection: SectionDefinition = { id: "x", content: () => null };\n',
+  );
+
+  const result = runPolicyPass({
+    knownPolicies: [modalRegistryCompleteness, sectionRegistryCompleteness],
+    policies: [modalRegistryCompleteness, sectionRegistryCompleteness],
+    root: ROOT,
+    project,
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+
+  expect(result.facts.map(({ id, status }) => [id, status])).toEqual([
+    ["registry-definitions-modal", "incomplete"],
+    ["registry-definitions-section", "success"],
+  ]);
+  expect(result.authority.withheldPolicyIds).toEqual(["modal-registry-completeness"]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "section-registry-completeness", token: "xSection" }]);
 });
 
 const PROVIDER_HOME = "packages/server/src/infra/providers/contract/resolve.ts";

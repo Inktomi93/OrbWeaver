@@ -12,7 +12,7 @@
 // members and WITHHOLDS this policy, which is the §4.6 blindness rule expressed as the runtime's own
 // refusal rather than as a finding this policy has to remember to raise.
 //
-// The subject is the shared `registryDefinitionFact`: a `ChromeEntry[]` annotation is the assembler's
+// The subject is the shared `registryDefinitionFacts.chrome` provider: a `ChromeEntry[]` annotation is the assembler's
 // derived list and resolves to the Array symbol, not to the canonical entry type, so the assembler stays
 // out of the population by type identity rather than by matching an annotation's head text.
 import type { ObjectLiteralExpression } from "ts-morph";
@@ -21,7 +21,7 @@ import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionStringField } from "../lib/registry-definition-field.ts";
 import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
-import { registryDefinitionFact } from "../lib/registry-fact.ts";
+import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 
 const ZONE_TUPLE = "CHROME_ZONES";
@@ -54,7 +54,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [registryDefinitionFact, tupleVocabularyFact],
+  facts: [registryDefinitionFacts.chrome, tupleVocabularyFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -114,7 +114,7 @@ export const gate = defineGate({
 
     return {
       evaluate: () => {
-        const view = ctx.fact(registryDefinitionFact).forKind("chrome");
+        const view = ctx.fact(registryDefinitionFacts.chrome);
         const vocabulary = ctx.fact(tupleVocabularyFact).read(ZONE_TUPLE);
         ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
         ctx.receipt({ kind: "population", ...tupleVocabularyReceipt(vocabulary) });

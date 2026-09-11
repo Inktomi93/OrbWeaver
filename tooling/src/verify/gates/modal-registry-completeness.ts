@@ -3,7 +3,7 @@
 // adds CO-LOCATION, DUPLICATE ID, the DECLARED-PLANNED honesty rule, the mobile-tab SINGLETON placement,
 // the `surface` REACHABILITY rule (§E-7), and the anti-god-map ban on a route re-forming a `modals` map.
 //
-// Definition identity is the shared `registryDefinitionFact`: a modal is whatever the checker says is
+// Definition identity is the shared `registryDefinitionFacts.modal` provider: a modal is whatever the checker says is
 // annotated with the canonical exported `ModalDefinition`, so an alias, a namespace qualification, or a
 // re-export is the same subject and a local shadow type is not. The definition's own object literal is
 // resolved across files, which is STRICTLY STRONGER than the legacy same-file read: an imported
@@ -21,7 +21,7 @@ import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
-import { registryDefinitionFact } from "../lib/registry-fact.ts";
+import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 
 const OPENER = "openModal";
@@ -135,7 +135,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [registryDefinitionFact],
+  facts: [registryDefinitionFacts.modal],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -255,7 +255,7 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
-        const view = ctx.fact(registryDefinitionFact).forKind("modal");
+        const view = ctx.fact(registryDefinitionFacts.modal);
         ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
         for (const candidate of openerCandidates) {
           const slot = openedSlotId(candidate.call);

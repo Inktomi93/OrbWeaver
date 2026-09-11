@@ -3,7 +3,7 @@
 // CO-LOCATION, the DECLARED-PLANNED discipline (O1), DUPLICATE ID, and the anti-god-map ban on a route
 // re-forming a `sections` object-literal map.
 //
-// The subject is the shared `registryDefinitionFact`'s section view, which covers BOTH sanctioned authoring
+// The subject is the shared `registryDefinitionFacts.section` provider, which covers BOTH sanctioned authoring
 // shapes — the annotated const AND the `make<X>Section(): SectionDefinition` factory (§6b/M3, live on four
 // of the ten sections) — by canonical TYPE identity, so an aliased or re-exported annotation is the same
 // subject and a local type that merely shares the name is not. The definition's own object literal is
@@ -21,7 +21,7 @@ import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
-import { registryDefinitionFact } from "../lib/registry-fact.ts";
+import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 
 const ROUTES = "packages/client/src/routes/";
 const GOD_MAP_PROP = "sections";
@@ -89,7 +89,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [registryDefinitionFact],
+  facts: [registryDefinitionFacts.section],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -165,7 +165,7 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
-        const view = ctx.fact(registryDefinitionFact).forKind("section");
+        const view = ctx.fact(registryDefinitionFacts.section);
         ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
         for (const definition of view.definitions) {
           const name = definitionName(definition.declaration);
