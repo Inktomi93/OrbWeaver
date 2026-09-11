@@ -4,7 +4,10 @@
 // `path.ts:line:col` jump-links — like grouped eslint/tsc output.
 import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
 import type { Finding, GateDescriptor } from "../contract/gate.ts";
+import type { Violation } from "../contract/harness.ts";
 import type { GatePassResult, GateScan, PassResult, ToolError } from "../contract/pass.ts";
+import type { GatePolicy } from "../contract/policy.ts";
+import type { FinalPolicyRow, StructurePolicyReport } from "../contract/structure-report.ts";
 import { isBlindScan } from "./pass.ts";
 import { populationAlarmLine, populationAlarms } from "./population.ts";
 
@@ -179,5 +182,108 @@ export function renderPass(result: PassResult, gatesByName: ReadonlyMap<string, 
   }
   out.push("");
   out.push(...renderFooter(result, { violations, blind, admitted, ratified }, alarm));
+  return out.join("\n");
+}
+
+// ── the FINAL side (mixed runtime, #1584 §5) ─────────────────────────────────────────────────────────────
+// Same line shapes as the legacy block above — `  ✓ <id>` / `  ✗ <id> (N)` / `  ⚠ <id>` with a `  ·  ` suffix —
+// so a reader (and check-gates.repo.int's scrape) sees ONE roster; the suffix carries the final vocabulary (authority,
+// severity, the population and receipt denominators, waived/granted) instead of a file scan count.
+
+function policyOccurrenceLine(v: Violation): string {
+  const loc = v.line > 0 ? `${v.file}:${v.line}:${v.column ?? 0}` : v.file;
+  const suffix = v.token === undefined ? "" : `  ${v.token}`;
+  return `      ${loc}${suffix}${v.severity === "warning" ? "  [warning]" : ""}`;
+}
+
+/** The denominator suffix every final line carries: what the policy resolved, what its receipts counted, and what
+ *  central reconciliation absorbed. */
+function policySuffix(row: FinalPolicyRow): string {
+  const parts = [
+    `final ${row.authority}/${row.severity}`,
+    `population ${row.population.effectiveSourcePaths} source · ${row.population.effectiveResourcePaths} resource`,
+  ];
+  for (const receipt of row.receipts) {
+    const n = receipt.kind === "population" ? `${receipt.members} member(s)` : `${receipt.resources} resource(s)`;
+    parts.push(receipt.unresolved > 0 ? `${receipt.source}: ${n}, ${receipt.unresolved} UNRESOLVED` : `${receipt.source}: ${n}`);
+  }
+  if (row.waived > 0) {
+    parts.push(`waived ${row.waived}`);
+  }
+  if (row.granted > 0) {
+    parts.push(`granted ${row.granted}`);
+  }
+  return `  ·  ${parts.join(" · ")}`;
+}
+
+function renderPolicyRow(row: FinalPolicyRow, policy: GatePolicy | undefined): readonly string[] {
+  const suffix = policySuffix(row);
+  if (row.owner.status !== "success" || row.withheld) {
+    const reason = "reason" in row.owner ? `: ${row.owner.reason}` : "";
+    return [`  ⚠ ${row.name}${suffix} · owner ${row.owner.status}${reason}${row.withheld ? " · WITHHELD by authority" : ""}`];
+  }
+  const errors = row.violations.filter(({ severity }) => severity === "error").length;
+  const warnings = row.violations.length - errors;
+  if (row.ok) {
+    const head = warnings > 0 ? `  ✓ ${row.name} (${warnings} warning(s))${suffix}` : `  ✓ ${row.name}${suffix}`;
+    return [head, ...row.violations.map(policyOccurrenceLine)];
+  }
+  const lines = [`  ✗ ${row.name} (${row.violations.length})${suffix}`];
+  if (policy !== undefined) {
+    lines.push(`      ${policy.message}`);
+    if (policy.fix !== undefined) {
+      lines.push(`      fix: ${policy.fix}`);
+    }
+  }
+  lines.push(...row.violations.map(policyOccurrenceLine));
+  return lines;
+}
+
+function renderPolicyBlock(report: StructurePolicyReport): readonly string[] {
+  const out: string[] = [];
+  for (const fact of report.facts) {
+    const receipts = fact.receipts
+      .map((r) => (r.kind === "population" ? `${r.source} ${r.members} member(s)` : `${r.source} ${r.resources} resource(s)`))
+      .join(", ");
+    out.push(
+      `  fact ${fact.id}: ${fact.status} · ${receipts === "" ? "no receipt" : receipts} · ${fact.timing.totalMs.toFixed(1)}ms${fact.error === null ? "" : ` · ${fact.error}`}`,
+    );
+  }
+  for (const e of report.factErrors) {
+    out.push(`  ⚠ fact ${e.factId} [${e.phase}]: ${e.message}`);
+  }
+  for (const e of report.toolErrors) {
+    out.push(`  ⚠ ${e.policyId} [${e.phase}]: ${e.message}`);
+  }
+  for (const e of report.authority.toolErrors) {
+    out.push(`  ⚠ authority [${e.kind}]${e.policyId === undefined ? "" : ` ${e.policyId}`}: ${e.message}`);
+  }
+  for (const a of report.authority.alarms) {
+    out.push(`  ⚠ authority alarm [${a.kind}] ${a.policyId}: ${a.message}`);
+  }
+  for (const r of report.waiverCarrierRefusals) {
+    out.push(`  ⚠ waiver carrier ${r.path} (${r.format}) ${r.status}: ${r.reason}`);
+  }
+  return out;
+}
+
+/** Render the final pass: one line per policy (grouped occurrences under a failing one), the facts and every
+ *  refusal/alarm, then the final footer. `policies` supplies message/fix for the group headers. */
+export function renderPolicyPass(rows: readonly FinalPolicyRow[], report: StructurePolicyReport, policies: readonly GatePolicy[]): string {
+  const byId = new Map(policies.map((policy) => [policy.id, policy]));
+  const out: string[] = [];
+  for (const row of rows) {
+    out.push(...renderPolicyRow(row, byId.get(row.name)));
+  }
+  out.push(...renderPolicyBlock(report));
+  const waived = rows.reduce((n, row) => n + row.waived, 0);
+  const granted = rows.reduce((n, row) => n + row.granted, 0);
+  const effective = rows.reduce((n, row) => n + row.violations.length, 0);
+  const { verdict } = report.authority;
+  const toolErrors = report.factErrors.length + report.toolErrors.length + report.authority.toolErrors.length;
+  out.push("");
+  out.push(
+    `final policies: ${rows.length} ran · raw ${waived + granted + effective} = waived ${waived} + granted ${granted} + effective ${effective} (${verdict.errors - report.authority.alarms.length} error, ${verdict.warnings} warning) · ${report.authority.alarms.length} alarm(s) · ${toolErrors} tool error(s) · ${report.authority.withheldPolicyIds.length} withheld`,
+  );
   return out.join("\n");
 }

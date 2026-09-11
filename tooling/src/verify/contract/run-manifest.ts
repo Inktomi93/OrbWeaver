@@ -61,6 +61,12 @@ export interface RunManifest {
   readonly active: number;
   /** Gates that actually produced a result this pass. */
   readonly ran: number;
+  /** THE MIXED RUNTIME'S SPLIT (#1584 §5): `registered`/`active`/`ran` above are the SUMS across both contracts, so a
+   *  pre-mixed reader keeps its meaning; these halves say which contract each count came from. A final policy has
+   *  no dormant state (every registered policy is active), and `withheld` counts the final owners central
+   *  authority refused to reconcile (an incomplete owner, a spoofed finding) — each of those is also a tool error. */
+  readonly legacy: { readonly registered: number; readonly active: number; readonly ran: number };
+  readonly final: { readonly registered: number; readonly ran: number; readonly withheld: number };
   /** Why the reconciliation failed, when it did. Empty on a complete, reconciled run. */
   readonly incompleteReasons: readonly string[];
 }

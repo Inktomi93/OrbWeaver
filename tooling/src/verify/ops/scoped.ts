@@ -7,17 +7,28 @@
 // runs ONLY the `incremental-safe` gates and DEFERS every whole-project gate wholesale, printing the
 // deferred count + names so a scoped "clean" can never be misread as a full all-clear. Incremental-safe
 // gates with a stale-registry `finalize` arm self-fence it on `scope.kind !== "project"`.
+//
+// THE MIXED HALF (#1584 §5): the SAME loader classifies both contracts, and the final policies run through their own
+// dispatcher over the SAME Project with the scoped fileset as `requestedPaths`. The final contract's whole-project
+// fence is the dispatcher's own: an `entire-population` policy under a proper subset, or a policy whose population
+// never met the selection, comes back `not-applicable` and is listed in the deferred notice beside the legacy
+// whole-project gates. The exit is the max of the two sides.
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { SourceFile } from "ts-morph";
 import type { GateDescriptor, GateRunCtx, Scope } from "../contract/gate.ts";
-import type { ScopedResult } from "../contract/scoped.ts";
-import { loadGates } from "../lib/loader.ts";
-import { projectCtx, repoRel, runPass, stripProbeFindings } from "../lib/pass.ts";
-import { renderPass } from "../lib/render.ts";
+import type { GatePolicy } from "../contract/policy.ts";
+import type { ScopedPolicyResult, ScopedResult } from "../contract/scoped.ts";
+import { loadMixedGateCorpus } from "../lib/loader.ts";
+import { projectCtx, repoRel, runPass, stripProbeFindings, stripProbePolicyFindings } from "../lib/pass.ts";
+import { runPolicyPass } from "../lib/policy-pass.ts";
+import { policyPassExitCode } from "../lib/policy-plan.ts";
+import { renderPass, renderPolicyPass } from "../lib/render.ts";
 import { gitChangedPaths } from "../lib/repo-paths.ts";
+import { REVIEWED_GRANTS } from "../lib/reviewed-grants.ts";
+import { policyReport, policyRows } from "../lib/structure-report.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts scoped --scope <folder-glob>");
 
@@ -201,16 +212,17 @@ function partitionGates(gates: readonly GateDescriptor[]): {
   return { incremental, deferred };
 }
 
-/** The deferred-gate notice: a scoped clean is NOT a full all-clear. Names every whole-project gate
- *  that was skipped so the dev knows exactly what still needs the full run. */
-function renderDeferredNotice(deferred: readonly GateDescriptor[]): string {
-  if (deferred.length === 0) {
+/** The deferred-gate notice: a scoped clean is NOT a full all-clear. Names every whole-project legacy gate and
+ *  every final policy the dispatcher declined (entire-population under a subset, or an empty intersection) so the
+ *  dev knows exactly what still needs the full run. */
+function renderDeferredNotice(deferred: readonly GateDescriptor[], deferredFinal: readonly GatePolicy[]): string {
+  if (deferred.length + deferredFinal.length === 0) {
     return "";
   }
-  const names = deferred.map((g) => g.name).sort();
+  const names = [...deferred.map((g) => `${g.name} (legacy whole-project)`), ...deferredFinal.map((p) => `${p.id} (final ${p.execution})`)].sort();
   const lines = [
     "",
-    `  ⚠ ${deferred.length} whole-project gate(s) DEFERRED — a scoped run does NOT judge cross-file`,
+    `  ⚠ ${names.length} gate(s) DEFERRED — a scoped run does NOT judge cross-file`,
     "    (registry/coverage/parity/uniqueness) rules. Run the full `pnpm check` before pushing:",
   ];
   for (const name of names) {
@@ -239,6 +251,32 @@ export function runScopedPass(
   // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
   const pass = process.env["ORB_GATE_FIXTURES"] === "1" ? rawPass : stripProbeFindings(rawPass);
   return { pass, deferred, files: files.length };
+}
+
+/** The FINAL half of a scoped run: every final policy through the production dispatcher over the SAME Project, the
+ *  scoped fileset as `requestedPaths` and the FULL roster as `knownPolicies`. The dispatcher's own fence decides
+ *  what runs — a `not-applicable` owner is the deferred list, never a policy this door filtered by hand. */
+export function runScopedPolicyPass(
+  policies: readonly GatePolicy[],
+  base: Omit<GateRunCtx, "report" | "scan">,
+  files: readonly SourceFile[],
+): ScopedPolicyResult {
+  if (policies.length === 0) {
+    return { pass: null, deferred: [] };
+  }
+  const raw = runPolicyPass({
+    knownPolicies: policies,
+    policies,
+    root: base.root,
+    project: base.project,
+    requestedPaths: files.map((sf) => repoRel(base.root, sf.getFilePath())),
+    reviewedGrants: REVIEWED_GRANTS,
+    failOnWarnings: false,
+  });
+  // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
+  const pass = process.env["ORB_GATE_FIXTURES"] === "1" ? raw : stripProbePolicyFindings(raw);
+  const declined = new Set(pass.policies.filter(({ owner }) => owner.status === "not-applicable").map(({ id }) => id));
+  return { pass, deferred: policies.filter(({ id }) => declined.has(id)) };
 }
 
 /** The EMPTY-SCOPE notice (#1185). ONE home so the pin reads the tool's own words. A scoped run over zero
@@ -284,16 +322,29 @@ export async function runScopedCli(root: string, argv: readonly string[]): Promi
     process.stderr.write(`${emptyScopeNotice(selection.label, asserted)}\n`);
     return asserted ? EXIT.toolError : EXIT.clean;
   }
-  const gates = await loadGates(root);
+  const corpus = await loadMixedGateCorpus(root);
+  const gates = corpus.legacy;
   const { pass, deferred, files } = runScopedPass(gates, base, selection);
+  const final = runScopedPolicyPass(corpus.final, base, scopedFiles(base, selection.inScope));
 
   process.stdout.write(`check:scope — ${selection.label} · ${files} file(s) in scope\n\n`);
   process.stdout.write(renderPass(pass, new Map(gates.map((g) => [g.name, g]))));
-  process.stdout.write(`${renderDeferredNotice(deferred)}\n`);
+  if (final.pass !== null) {
+    // The declined owners are the deferred notice's business, not ⚠ rows.
+    const rows = policyRows(final.pass, corpus.final).filter((row) => row.owner.status !== "not-applicable");
+    process.stdout.write(`\n${renderPolicyPass(rows, policyReport(final.pass), corpus.final)}`);
+  }
+  process.stdout.write(`${renderDeferredNotice(deferred, final.deferred)}\n`);
 
   const violations = pass.gates.reduce((n, g) => n + g.findings.length, 0);
-  if (pass.toolErrors.length > 0) {
-    return EXIT.toolError; // a gate threw — the checker is broken
+  const finalExit = final.pass === null ? EXIT.clean : policyPassExitCode(final.pass);
+  // A thrown gate or a refused final owner — the checker is broken — outranks a verdict on either side.
+  return Math.max(legacyExit(pass.toolErrors.length, violations), finalExit);
+}
+
+function legacyExit(toolErrors: number, violations: number): number {
+  if (toolErrors > 0) {
+    return EXIT.toolError;
   }
   return violations > 0 ? EXIT.violations : EXIT.clean;
 }

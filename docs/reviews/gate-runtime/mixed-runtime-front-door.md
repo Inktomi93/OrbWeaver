@@ -6,7 +6,7 @@ updated: 2026-09-11
 
 # The mixed production front door (#1584 §5 items 1–6, #1941, #1948)
 
-Design first, then receipts. Lane `p-mixed-runtime`, isolated worktree off `main` at `172485b3a`. The program
+Design first, then receipts. Lane `p-mixed-runtime`, isolated worktree off `main`; merge-base `205540e98` (the base every receipt below was taken against). The program
 guide is [gate-runtime-standardization.md](../../design/gate-runtime-standardization.md); this file is the lane's
 durable design plus the receipts the guide's §5 asks for. It records the alternatives rejected and why, the coupled
 sites enumerated before building, and the proof plan — not a task roster.
