@@ -1,6 +1,24 @@
 // Gate: no-tailwind-dark-variant (#954) — polarity is ThemeScope-derived color-scheme + light-dark(); a
 // named-theme dark: utility cannot see custom-theme polarity. Class carriers come from the neutral static
 // provenance walker; Tailwind's scanner is used only to tokenize an already-proven exact class value.
+//
+// FAMILY: declared SINGLETON (`no-tailwind-dark-variant`), with the shared reader named. The subject reader
+// is `lib/static-class-expression.ts` `walkStaticClassExpressions` and it is genuinely SHARED — five gate
+// modules consume it (`css-length-tokens`, `rest-transform-grid`, `integer-line-boxes`,
+// `seed-theme-ink-contrast`, and this one) — but every one of the other four is still a LEGACY
+// `GateDescriptor` carrying no `family` field, so there is no family string to join. The family name for the
+// static-class-provenance set is a decision that belongs to the lane that converts the rest of it, not a
+// string minted unilaterally here; this policy's own verdict (is any top-level `dark` variant present) shares
+// no computation with theirs beyond the walk.
+//
+// THE REPORTED POSITION is the EXACT CLASS CANDIDATE (`dark:bg-card`), supplied with its offset inside the
+// carrier literal; `fix` states the spelling. TWO POSITION SHAPES CANNOT BE WAIVED and the limit is declared
+// rather than hidden: (a) a candidate whose text contains a paren — an arbitrary selector or `@supports` query
+// such as `supports-[selector(:has(*))]:dark:text-foreground` — because the central marker grammar's position
+// group is `[^()\r\n]+`, so every marker written against it parses as malformed; and (b) the `unresolved:*`
+// arm and the zero-carrier-root tripwire, which report a synthetic label, not authored text. (a) is reported
+// to #1584 rather than worked around: shortening the token to a paren-free slice would break the runtime's
+// exact-slice identity rule, which is what binds a marker to a finding at all.
 import { Scanner } from "@tailwindcss/oxide";
 import type { Node } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
@@ -10,7 +28,13 @@ import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
 
 const MESSAGE =
   "Tailwind dark: utility creates a second polarity mechanism that cannot see ThemeScope-derived custom-theme polarity; an `unresolved:*` token means static provenance could not prove the census clean (client-architecture-lockdown.md §4.6).";
-const FIX = "Use a polarity-aware light-dark() token selected by ThemeScope's derived color-scheme; never branch paint with dark:.";
+const FIX =
+  "Use a polarity-aware light-dark() token selected by ThemeScope's derived color-scheme; never branch paint " +
+  "with dark:. A deliberate dark: utility is waived with `// @orb-waive no-tailwind-dark-variant(<position>): " +
+  "<reason>` on a line above the offending statement, where <position> is the EXACT CLASS CANDIDATE — the " +
+  "whole variant chain, `hover:dark:text-foreground`, never the bare `dark:` and never the quoted literal. A " +
+  "candidate containing a paren (an arbitrary selector or @supports query) has NO waiver spelling: the marker " +
+  "grammar's position group forbids parens, so raise it on #1584 instead of writing a marker that cannot parse.";
 /** The real-tree anchor for the zero-carrier-root self-guard: a file guaranteed present on a real run and
  *  inside the declared population, so a fixture-only invocation (which never loads it) stays silent. */
 const REAL_TREE_ANCHOR = "packages/ui/src/lib/class-merge.ts";
@@ -347,6 +371,20 @@ export const x = <div className={\`dark:\${tone}\`} />;
       mode: "source",
       files: { "packages/ui/src/x.tsx": 'export const G = <div className="[&_.dark:x]:bg-card darkroom:bg-card bg-card text-foreground" />;\n' },
       why: "nested selector text and non-exact dark prefixes are not top-level dark variants",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/x.tsx": 'export const G = <div className="hover:dark" />;\n' },
+      why: "THE LAST-SEGMENT FENCE, pinned (#1584 pristine pass): this gate bans `dark` as a VARIANT, so `darkPart` searches `topLevelParts(...).slice(0, -1)` and never the utility position. A class whose FINAL segment is literally `dark` names a utility, not a polarity branch. Delete the `.slice(0, -1)` and this row goes red; before it existed, every pre-existing row stayed green without that fence",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/x.tsx":
+          "// @orb-waive no-tailwind-dark-variant(dark:bg-card): the proof's stand-in reason and its end condition.\n" +
+          'export const G = <div className="dark:bg-card" />;\n',
+      },
+      why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the SUPPLIED position (the exact class candidate) suppresses the twin of mustFlag[0] — one finding, one marker, zero effective findings and zero authority alarms. A wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`",
     },
   ],
 });

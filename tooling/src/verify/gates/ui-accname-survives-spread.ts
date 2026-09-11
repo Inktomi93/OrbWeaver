@@ -3,6 +3,17 @@
 // makes the caller's `aria-label` unwinnable (avatar-stack shipped "N people" over both committed "N characters"
 // callers for months; §13.10 asserts names are CORRECT, nothing asserted a caller's name SURVIVES). data-*/role
 // seals stay legal. Member-expression/aliased/wrapped spreads are invisible; type-level Omit is conservatively flagged.
+//
+// FAMILY: declared SINGLETON (`ui-accname-survives-spread`). It consumes NO `lib/` reader — caller-bag
+// resolution is ts-morph parameter/binding inspection on the nodes delivered to its own visitors — and no
+// sibling policy judges JSX attribute-vs-spread ORDER. The a11y gates it sits beside each resolve a different
+// subject through a different reader, so a merge would join verdicts that share no computation; a shared
+// topic is not a family.
+//
+// THE REPORTED POSITION is the ATTRIBUTE NAME (`aria-label`), supplied with offset 0 on the JsxAttribute
+// node; `fix` states the spelling. Two guarded attributes after one spread are two findings with two
+// DIFFERENT position tokens, so they stay separately waivable — pinned by the `Pair` mustFlag row below,
+// whose `token` names the SECOND of the two. Population `@ui`: this is a `@orb/ui` seal by design.
 import type { JsxAttribute, JsxOpeningElement, JsxSelfClosingElement, Node, ParameterDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -20,7 +31,11 @@ const MESSAGE =
   '"N characters" and a screen reader never said it). Put the DEFAULT before the spread so the caller wins, ' +
   "or destructure the prop and merge it. See packages/ui/src/primitives/avatar-stack/avatar-stack.tsx.";
 const FIX =
-  "move the default attribute BEFORE the {...rest} spread (caller-passed values then win), or destructure the prop out of rest and compose it explicitly.";
+  "move the default attribute BEFORE the {...rest} spread (caller-passed values then win), or destructure the " +
+  "prop out of rest and compose it explicitly. A deliberate post-spread seal is waived with " +
+  "`// @orb-waive ui-accname-survives-spread(<position>): <reason>` on a line above the element, where " +
+  "<position> is the GUARDED ATTRIBUTE NAME itself — `aria-label`, `title` — never the element or the spread. " +
+  "Two guarded attributes after one spread are two findings with two positions, and take two markers.";
 
 /** The caller-props bag the spread carries, resolved against the ENCLOSING function-like: either the rest
  *  element of a parameter ObjectBindingPattern (`{ a, ...rest }`) or a whole simple parameter (`props`).
@@ -154,8 +169,8 @@ export const gate = defineGate({
           '  return (\n    <div {...rest} aria-label="a" aria-describedby="b">\n      <i />\n    </div>\n  );\n' +
           "}\n",
       },
-      expect: { count: 2 },
-      why: "a PAIRED (non-self-closing) element with TWO guarded attrs after the spread — one finding each, both token-named",
+      expect: { count: 2, token: "aria-describedby" },
+      why: "a PAIRED (non-self-closing) element with TWO guarded attrs after the spread — one finding each, both token-named. `count` proves the pair and `token` names the SECOND: the two positions DIFFER, which is what keeps them separately waivable (one marker consumes one occurrence, matched on exact position identity)",
     },
     {
       mode: "source",
@@ -235,6 +250,14 @@ export const gate = defineGate({
           'export function Order(props: { title?: string }, callerOverrides: object) {\n  return <div {...props} title="default" {...callerOverrides} />;\n}\n',
       },
       why: "a later caller-parameter spread restores caller precedence after the default attribute",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/chip/chip.tsx":
+          'export function Chip(props: { title?: string }) {\n  // @orb-waive ui-accname-survives-spread(title): a stand-in reason and its end condition.\n  return <span {...props} title="always this" />;\n}\n',
+      },
+      why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the SUPPLIED position (the guarded attribute NAME) suppresses the twin of mustFlag[1] — a ONE-finding fixture is used deliberately, since one marker consumes one occurrence and the two-attribute `Pair` shape would leave the second effective. Zero effective findings, zero authority alarms; a wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`",
     },
   ],
 });

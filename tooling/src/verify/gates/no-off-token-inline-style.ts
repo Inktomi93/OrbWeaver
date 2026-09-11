@@ -14,6 +14,14 @@
 // `lib/symbol-reference.ts`), which is exactly the shared-reader boundary the final contract asks for;
 // it has no sibling gate reusing those SAME readers for a related off-token-style intent, so it is not
 // merged with anything.
+//
+// THE REPORTED POSITION IS DERIVED, AND IT DIFFERS PER CARRIER (#1584 pristine pass, 2026-09-11). Every
+// `ctx.report.node` call below passes NO token, so the runtime derives one: the first identifier, literal or
+// keyword in the REPORTED NODE's own text containing no paren or newline (`lib/policy-pass-context.ts`
+// `derivedNodePosition`). The reported node is the PropertyAssignment for the JSX arm, so the position is the
+// CSS property name (`borderRadius`); it is the whole BinaryExpression / CallExpression for the two imperative
+// arms, so the position is the RECEIVER identifier (`el`), never the property. `fix` states both spellings —
+// nobody can guess the second one. The `mustFlag` rows' `expect.token` values are that derivation, pinned.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -183,7 +191,13 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "use a Tailwind token utility, or (if inline is required) reference a `var(--…)` token, per tokens.json.",
+  fix:
+    "use a Tailwind token utility, or (if inline is required) reference a `var(--…)` token, per tokens.json. " +
+    "A deliberate raw inline style is waived with `// @orb-waive no-off-token-inline-style(<position>): <reason>` " +
+    "on a line above the offending statement, where <position> is the CSS PROPERTY NAME for the JSX " +
+    "`style={{…}}` arm (`borderRadius`) and the RECEIVER IDENTIFIER for the imperative `.style = …` / " +
+    "`.style.setProperty(…)` arms (`el`) — the reported node there is the whole assignment or call, and the " +
+    "runtime derives its first paren-free identifier.",
   create: (ctx) => ({
     // Three carriers, ONE gate: a JSX `style={{ <prop>: <raw> }}` PropertyAssignment, an imperative
     // `<expr>.style.<prop> = <raw>` BinaryExpression, and a `.style.setProperty("<prop>", <raw>)`
@@ -303,6 +317,30 @@ export const gate = defineGate({
         "packages/client/src/features/demo/components/dynamic.tsx": "export const G = ({ r }: { r: string }) => <div style={{ borderRadius: r }} />;\n",
       },
       why: "a DYNAMIC inline value (identifier) is conservatively not chased — passes",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/demo/plain-object-target.ts":
+          'export function f(box: { borderRadius: string }): void {\n  box.borderRadius = "8px";\n}\n',
+      },
+      why: "THE `.style` RECEIVER FENCE, pinned (#1584 pristine pass): a token-backed property NAME assigned on a PLAIN object is not an inline style — this gate owns the CSSOM carrier, not every property called `borderRadius`. Delete `isStyleAccess(read.receiver)` from `isStyleTokenTarget` and this row goes red; before it existed, every pre-existing row stayed green without that fence",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/demo/components/non-style-attr.tsx": 'export const G = <div data-theme={{ borderRadius: "8px" }} />;\n',
+      },
+      why: 'THE `style` ATTRIBUTE FENCE, pinned (#1584 pristine pass): an object literal with a token-backed key under a NON-`style` JSX attribute sets no CSS declaration. Delete the `getNameNode().getText() !== "style"` guard in `styleObjectLiterals` and this row goes red; before it existed, every pre-existing row stayed green without that fence',
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/demo/components/waived.tsx":
+          "// @orb-waive no-off-token-inline-style(borderRadius): the proof's stand-in reason and its end condition.\n" +
+          'export const G = <div style={{ borderRadius: "8px" }} />;\n',
+      },
+      why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the DERIVED position (the CSS property name, because the reported node is the PropertyAssignment) suppresses the twin of mustFlag[0] — one finding, one marker, zero effective findings and zero authority alarms. A wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`",
     },
   ],
 });
