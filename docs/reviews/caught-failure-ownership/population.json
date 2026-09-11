@@ -3,10 +3,10 @@
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
     "sites": 596,
-    "reported": 24,
+    "reported": 23,
     "byVerdict": {
-      "deliberate-absorb": 572,
-      "unproven": 24
+      "deliberate-absorb": 573,
+      "unproven": 23
     },
     "byGrammar": {
       "default": 161,
@@ -6856,15 +6856,15 @@
     {
       "siteId": "tooling/src/stack/ops/engines-ctl.ts::catch::2",
       "path": "tooling/src/stack/ops/engines-ctl.ts",
-      "line": 103,
+      "line": 104,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
       "ordinal": 2,
       "snippet": "} catch {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable OS user identity falls back to a fixed label (\"unknown\") for a HUMAN-READABLE receipt on a marker file, never an authorization decision. Ends if the fallback ever gates a signal.",
+      "markerLine": 101
     },
     {
       "siteId": "tooling/src/stack/ops/prod-down.ts::error::1",

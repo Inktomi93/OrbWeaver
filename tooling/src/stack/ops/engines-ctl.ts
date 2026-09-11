@@ -98,6 +98,7 @@ function gib(bytes: number): string {
 
 /** Best-effort "who" for the stopped marker — the file is a human-readable receipt, not an auth record. */
 function safeUsername(): string {
+  // @orb-waive caught-failure-ownership(catch): an unreadable OS user identity falls back to a fixed label ("unknown") for a HUMAN-READABLE receipt on a marker file, never an authorization decision. Ends if the fallback ever gates a signal.
   try {
     return userInfo().username;
   } catch {
