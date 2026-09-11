@@ -30,6 +30,11 @@
 //      (`contract/resource.ts`) is internal and never reaches a policy.
 //   2. root-relative resolution of an ABSOLUTE selector (`resolve(rootAbs, row.path)`): `GatePolicyContext`
 //      deliberately carries no root, so an absolute selector cannot be related to the repository at all.
+// THAT REFUSAL'S PREMISE IS RETIRED (2026-09-11, #1930): the `authored-path` kind was minted FROM it and
+// serves both reads — selector identity (`file | directory | absent | outside`) with absolute-selector
+// normalization (`contract/resource-path.ts`, guide §11.6 cites this module's lines by name). So this gate is
+// no longer blocked on a capability; it is ordinary Phase D conversion work, and a lane must not re-refuse on
+// these grounds. The resource vocabulary is FROZEN at 18 kinds (guide §12.4) — nothing further is coming.
 // The third filesystem read, `statSync(...).isFile()`, IS derivable from `tracked-files` directory prefixes
 // and is not a blocker. Unblocking needs ONE shared door: authored-path identity for a repo-relative
 // selector (exists · file|directory · symlink-resolves-outside) plus absolute-selector normalization.

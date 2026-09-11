@@ -56,8 +56,8 @@ for exactly once; nothing vanishes from the roster.
 | first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
 | whole-corpus conformance | 166 final policies · 1,567 rows · **0 failures**, exit 0 · \~11 s | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
-| shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with 7 closed kinds, `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
-| NOT shipped | ResourceHost kinds beyond the seven — and whether they SHOULD exist is the Phase C fork, not a backlog (playbook §2); the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930, checkpoint "runtime follow-ups" |
+| shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with **18 closed kinds, FROZEN 2026-09-11** (§12.4), `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
+| NOT shipped | `jsonc` — §11.4 named it required; it was never built and is now RULED OUT with its reason (§12.4). The Phase C capability fork is CLOSED: the vocabulary is frozen at 18 kinds and the condition that reopens it is in §12.4. Still open: the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930 (freeze landed), checkpoint "runtime follow-ups" |
 | known red by construction | `check:structure` exit 1 (real product backlog: 315 `ONESHOT-OK`, 58 `@owner-scope*`, …), `gate-ignore-grammar.int.test.ts` (LEAKS `__g_gi` fixtures — never run on a shared tree), `check-gates.repo.int.test.ts` (not concurrency-safe with itself; orchestrator-only during a train), `check:doc-catalog` 34 inherited rows, 12 `types:graph` errors in five legacy-loader test files | phase A lane §"still red", 2026-09-11 |
 | NOT baselined red — treat as a real verdict | `structure:policy-conformance` and every SCOPED family test. The posture's red-by-construction list above is EXHAUSTIVE; a scoped suite red is a regression until reproduced on a clean tree and dated against the commit that broke it | `registry-family.test.ts` sat red five days because this was assumed the other way (#1953) |
 
@@ -105,7 +105,7 @@ reviewed-grant identity → `no-raw-matchmedia.ts`; warning debt → `user-bus-d
 Non-negotiables inside a module: no `Project#getSourceFiles`, `getDescendants*`, `forEachDescendant`, `new Project`,
 private cache, private marker parser, gate-owned exemption table, scope predicate or filesystem read; state in
 `create`; every anchor inside the policy's own resolved population; population `under: ["x/**"]` (a `"x/"` matches
-nothing). A read the seven shipped resource kinds cannot serve, or a shared reader that does not exist in `lib/`,
+nothing). A read the 18 FROZEN resource kinds (§12.4) cannot serve, or a shared reader that does not exist in `lib/`,
 STOPS that module — it stays legacy and armed, and the exact read goes to #1930. That refusal is a SUCCESS; keeping a
 private reader behind `defineGate` lowers the census while leaving the forbidden machinery in place.
 
@@ -470,7 +470,7 @@ dependencies that constrain ANY sequence, because they are law rather than sched
 1. Re-derive: is the module legacy or final (`gate:contract` row, not the filename)? Read it in full, plus §12's
    contract sections, the exemplar for its plane, and any world-program carry-forward row naming it (re-read the CURRENT
    implementation on `main`, never an older branch copy).
-2. Trace every read, one `lib/` hop included. A read outside the seven resource kinds, or a needed reader not in
+2. Trace every read, one `lib/` hop included. A read outside the 18 frozen resource kinds (§12.4), or a needed reader not in
    `lib/`, stops the module with the exact `file:line` and continues with the others.
 3. Check already-converted siblings for the same rule (`pnpm ast` on the module's core literal): a stronger detector
    elsewhere means MERGE with a successor proof, not a second gate.
@@ -582,7 +582,9 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
      §2's "preserve the static reader's algorithm, put its loading behind `staticConfig`" is DONE, and §1's
      `authoredTree` carries 12 closed ids covering every identity §1 names. **Genuinely absent:** `json`, `jsonc`,
      `exactFiles`, `mirrorIndex`, `vendorCssSurface`, `documents`, `ledger`, `baseUiSurface`, `tokenContract`,
-     `devtoolsClosure`, `installedReactCompiler`.
+     `devtoolsClosure`, `installedReactCompiler`. **The ruling stands as the dated record; §12.4 states what it became.**
+     Every one of those shipped EXCEPT `jsonc`, which §12.4 now rules out with its reason — and the set is FROZEN there
+     at 18 kinds, so this list is no longer a work queue.
   2. **§8 is STRUCK, and BLOCKED #5 with it.** `tsconfigPrograms()` existed only for `tsconfig-routing-parity`, which
      no longer exists — the world program retired it in phase 6 (#1896), successor at `ops/tests-type-membership.ts`,
      and §12.7 forbids resurrecting it.
@@ -754,9 +756,133 @@ exact reviewed grants with rename/deletion liveness, never population subtractio
 `{ of: "none", why }` for TS dispatch plus their explicit resource population. A predicate that cannot be represented
 without loss blocks that conversion until the algebra gains one reviewed, tested operator or the change is classified;
 there is no custom-resolver escape hatch. Generic Orb policies apply to `tooling/src` and `tests/tooling` too. The
-source universe is authored `.ts`/`.tsx` only; JSON/JSONC, CSS, Markdown, SQL enter only through closed ResourceHost
-declarations (seven shipped kinds: authored-tree, authored-css, product-css, package-metadata, static-config,
-native-config, tracked-files); a hybrid's dual role is explicit and receipted.
+source universe is authored `.ts`/`.tsx` only; JSON/JSONC, CSS, Markdown, SQL enter only through the closed
+ResourceHost declarations frozen below; a hybrid's dual role is explicit and receipted.
+
+#### THE RESOURCE VOCABULARY IS CLOSED — 18 kinds, frozen 2026-09-11 (#1930)
+
+**A capability set that is still moving cannot be policed.** The §5b soundness enforcer (#1971) is blocked on this
+freeze, and every kind added costs a mandatory pass over the policing surfaces below, forever. Phase C is over: the set
+is CLOSED and conversions proceed against a vocabulary that no longer moves.
+
+**The roster is `GATE_RESOURCE_REQUEST_KINDS` in `tooling/src/verify/contract/resource-declaration.ts` — DATA, never
+this table.** The table is the PROVENANCE record: why each member is in a closed set. A vocabulary a reader cannot
+audit member-by-member is not closed, it is merely finished.
+
+| Kind | What it serves | Authorized by |
+| - | - | - |
+| `authored-tree` | 14 closed tree ids (`AUTHORED_TREE_PATHS`) — the directory/liveness family: feature/package/server/ui/db/test/gate layout, plus `docs` and `scripts` as the ADMITTING population for `authored-text` | §11.1 (shipped pre-ruling); `docs`/`scripts` ids added by the `authored-text` wave |
+| `authored-css` | the authored stylesheet corpus; `cssInventory("authored")` rides this declaration | §11.1 · §11.8 (no separate CSS census fact — a fifth CSS home is the rot) |
+| `product-css` | the exact five-home product CSS identity; `cssInventory("product")` rides this declaration | §11.1 · §11.8 |
+| `package-metadata` | `package.json` manifests by closed id (root, tooling, the workspace packages) | §11.1 |
+| `static-config` | statically-evaluated JS/TS configs (eslint, depcruise, the three runner configs) behind `config-static-read`'s preserved evaluator | §11.1 (access-patterns §2's "preserve the algorithm, host the loading" — DONE) |
+| `native-config` | native loader observations (eslint `ConfigArray`, dependency-cruiser). **Carrier-demand hazard, ONE kind's property:** its fact paths are the whole repository inventory, so an ORDINARY consumer's waiver-carrier demand throws on tracked symlinks. Both shipped consumers are `authority: "hard"`, which is why they work | §11.1 · §12.7 (#1351) · §11.4 (no member for biome or tsconfig) |
+| `tracked-files` | the one `git ls-files` inventory behind the grant-liveness family | §11.1 · access-patterns §3 |
+| `json` | STRICT JSON over five closed ids (biome, migration journal, token vault, doc catalog, Base UI manifest). Missing / empty / unparseable stay three distinct facts; none becomes `{}` | §11.1 (named genuinely absent; built `4f9726e78`) |
+| `installed-package` | ONE kind, three receipted modes (`ast` \| `metadata` \| `text`) over five closed ids, resolved through NODE's own algorithm because pnpm reaches every installed package through a store symlink the authored reader refuses by design | **§11.5, the ruling that deliberately overrides access-patterns §6/§7** — it absorbs `baseUiSurface`, `installedReactCompiler` and the narrow installed facts |
+| `mirror-index` | the derived source↔test mirror membership (`package-test`, `tooling-test`) — membership, not the mirror RULE | §11.1 (named genuinely absent; built `899ec74a7`) |
+| `documents` | the living-document corpus + catalog status, for the citation/dangling families | §11.1 · access-patterns §5 |
+| `ledger` | four named registries by closed id (`core-path-registry`, `core-audits-debt`, `gate-enforcement-roster`, `ratchet-baselines`). Two doors beside `documents` because a corpus tolerates a refused member and an IDENTITY does not | §11.1 · access-patterns §5 |
+| `exact-file` | exact named files by closed id (db baseline SQL, client/CSS/CT entries, the app-shell surface). **ONE declaration PER ID** even though the door takes a list, so a policy that declared one file cannot read a second by widening its argument | §11.1 (named genuinely absent; built `899ec74a7`) |
+| `vendor-css-surface` | the committed-mirror ↔ installed-vendor comparison surface (Base UI mirror, Streamdown selector sources) | §11.1 · access-patterns §4 |
+| `token-contract` | the canonical generated token bundle (vault, themes, resolver, removed) behind the preserved `validateTokenContract` | §11.1 · access-patterns §7 |
+| `devtools-closure` | the exact DevTools pin/closure/licence tuple behind the preserved `verifyDevToolsAssetsSync` | §11.1 · access-patterns §7 |
+| `authored-path` | the DEMAND identity door: `file \| directory \| absent \| outside \| unresolved` for a repo-relative or ABSOLUTE selector, with absolute-selector normalization. Catches an in-repo symlink resolving outside the tree, which `trackedFiles()` structurally cannot see | **§11.6**, specified by the measured refusal at `runner-config-path-liveness.ts:23-39` |
+| `authored-text` | the DEMAND text door: comment-aware snapshots of exactly the demanded paths, TOTAL over them where the private door silently dropped unknown formats | **NOT a §11 ruling — an EXPOSURE.** `ResourceInvocation.ordinaryWaiverCarriers` was already built and private; this publishes it under the declaration fence. Recorded here rather than left unexplained, because a closed set whose provenance a reader cannot trace is not auditable |
+
+Two kind CLASSES are named in the contract rather than applied as a silent downstream skip, because a silently skipped
+declaration is exactly how a request that resolved nothing reads as a clean zero. **UNPOPULATED** (`installed-package`,
+`authored-path`, `authored-text`) contribute no authored path, so the empty-fact refusal that is correct for every other
+kind is skipped BY NAME. **DEMAND** (`authored-path`, `authored-text`, a strict subset) take their subject at the call,
+so the population-membership fence does not apply and the DECLARATION fence is the only thing between the door and an
+undeclared filesystem read.
+
+`cssInventory` is a HOST DOOR with no kind of its own (it rides `authored-css` / `product-css`): **19 doors, 18 kinds**,
+and that is deliberate, not an omission.
+
+##### What a new kind costs — MEASURED, and it is why the set is closed
+
+Re-derived 2026-09-11 against `899ec74a7` (the 7-door wave) and `4f9726e78` (json + installed-package + the two demand
+kinds). **Four mandatory edits, plus two new files, plus one conditional:**
+
+| Surface | Always | Why |
+| - | - | - |
+| `contract/resource-declaration.ts` | yes | the union arm + the UNPOPULATED/DEMAND tuples |
+| `contract/resource-host.ts` | yes | the door |
+| `lib/resource-policy.ts` | yes | the binding, the declaration fence, the receipt |
+| `lib/policy-validation.ts` | yes | the id vocabulary and the exact key-set shape |
+| `contract/resource-<family>.ts` + `ops/resource-<family>.ts` | yes (new files) | the closed ids and the provider |
+| `ops/policy-conformance.ts` | ONLY when the fixture substrate cannot express the subject | `authored-path` needed real symlinks (`links` + `symlinkSync`); the 7-door wave did not touch it |
+
+**Two modules are NOT policing surfaces for this vocabulary, despite appearances.** `gates/enforcement-registry-parity`
+reads the gate ROSTER, never the resource vocabulary. `gates/gate-modernization` contains zero references to it — its
+hunk in `4f9726e78` was ARM E (#1958, the `analysis`-token honesty arm) and is unrelated. An earlier count of FIVE
+surfaces came from reading those two commits' file lists without reading the hunks.
+
+And the proofs: a kind ships with `ready | missing | empty | unresolved | malformed` receipts and controls in BOTH
+directions — `resolveResourceDeclarations` throws on any non-ready declaration and on an empty fact, so a planted
+control must REFUSE and a planted control must be ADMITTED.
+
+##### The three residuals, closed
+
+1. **A STAGED-BLOB / git-index read — NOT MINTED, and its gate stays LEGACY.** `no-blanket-suppression` arm C shells
+   `git grep --cached` + `git show :<path>` (`:330`, `:342`) to re-judge STAGED blobs, so a stale staged blob cannot
+   commit while every working-tree check reads clean (the #954 shape). `TrackedResourceIndex` is `{ repoPaths }` only,
+   and no shipped kind serves it. **It has exactly ONE consumer in the whole verify tree** (re-derived 2026-09-11:
+   every other git call under `verify/**` is `ls-files` / `diff` / `rev-parse` / `merge-base` / `log`, and the only
+   other `--cached` mention is `lib/repo-paths.ts:61-62`'s inventory of the verbs this tree runs, which names this
+   gate). §11.5's own principle governs: *a capability serving one gate is that gate's private reader wearing a
+   contract's clothes.* So `no-blanket-suppression` stays a legacy `GateDescriptor`, armed and enforcing, and its
+   private reader survives to Phase F. That is the STOP-IF-MISSING-KIND refusal working, not a gap.
+2. **`jsonc` — RULED REQUIRED IN §11.4, NEVER BUILT, AND NOW RULED OUT.** This is the one real diff between the ruling
+   and the tree, and it is stated rather than quietly dropped. §11.4 says *"`tsconfig` is `jsonc()` plus `extends`
+   FOLDING"*; `contract/resource-json.ts`'s own header still describes a `jsonc` door beside `json`. Two measurements
+   close it: (a) the whole gate corpus contains exactly ONE JSONC parse — `tsconfig-entry-liveness.ts:233` — so the
+   kind would serve one gate, the §11.5 test again; (b) the FOLDING half §11.4 names is already owned by the world
+   program's shared compiler reader (`lib/policy-program-membership.ts:78-85`, `readConfigFile` +
+   `parseJsonConfigFileContent`, #1351, completed 2026-09-10 — AFTER the inputs §11.4 was drafted against, so THE
+   STALENESS RULE applies). A `jsonc` resource kind would therefore be one gate's private reader AND a second home for
+   config folding. **`tsconfig-entry-liveness` stays legacy; its conversion route is a shared-READER question — the
+   compiler reader exposing per-config RAW `include`/`exclude` entries, unfolded and unexpanded, which is what that
+   gate actually judges — not a capability question.** `biome.json` does not reopen this: §11.4 ruled it a strict
+   `json()` read and that shipped.
+3. **`authored-text`'s provenance** — see its row above.
+
+##### Is `node_modules` traversal declarable? — RULED: YES, and ONLY through `installed-package`
+
+Answered in practice by §11.5 and ruled here. The installed tree is deliberately not the authored transaction: the
+authored reader REFUSES every symlink traversal by design, and under pnpm every installed package is reached through a
+store symlink, so an installed read cannot come through it at all. It is declarable through exactly one kind, resolved
+by NODE's own algorithm from a declared base, over a closed id set, in one of three receipted modes. Everything else
+about `node_modules` stays undeclarable: no path glob, no directory walk, no id a gate supplies. Adding an installed
+SUBJECT is an id row with a named consumer (cheap, and inside the freeze); adding an installed READING SHAPE would be a
+fourth mode and is a reopening under the condition below.
+
+##### What reopens the set
+
+Exactly one condition, and it is a RULING, not a lane's call: a CONVERSION that is blocked by a read no shipped kind
+serves, **and** whose read has TWO OR MORE independent consumers after read-tracing the remaining legacy corpus one
+`lib/` hop deep. One consumer is a private reader by definition and the gate stays legacy instead (both residuals above
+took that arm). A new id inside an existing kind is not a reopening — it is a contract edit with a named consumer, which
+is what keeps `json`/`exact-file`/`ledger` from becoming `readFile(path)`.
+
+##### OPEN, proposal only — one directory-tier population operator (#1922)
+
+Not built, and `population.ts`'s algebra is untouched by this freeze. Recorded because the freeze forces the question:
+the algebra has named roots plus `under`/`notUnder`, and a SANCTIONED HOME ("this concept lives in exactly these
+directories") is expressed today as 25 `SANCTIONED_HOMES` tables / 42 rows plus per-gate path liveness. **Arm A — add
+one reviewed, tested directory-tier operator**: shrinks path-liveness and #1922 together, and a home becomes declared
+data rather than a gate-local table. Cost: it is a POPULATION operator, so it prices in against §12.4's own rule that a
+predicate which cannot be represented blocks a conversion — every existing policy's resolved population must be proven
+byte-identical, and the operator needs its own two-sided proofs. Risk: a home expressed as population SUBTRACTION is
+exactly what the 2026-09-06 ruling forbade (*"sanctioned homes convert as exact reviewed grants with liveness, never
+population subtraction"*), so the operator must be an ADMISSION tier, never a subtraction, or it reverses a standing
+ruling. **Arm B — no operator; homes stay exact reviewed grants** per that ruling, and #1922 lands as grant rows.
+**Default if unruled: ARM B**, because it is the arm the 2026-09-06 ruling already took and arm A cannot be evaluated
+without measuring how many of the 42 rows are genuinely directory-tier rather than file-exact. **That measurement
+belongs to #1922's lane, not to this one** — whoever takes #1922 should produce the directory-tier-vs-file-exact split
+as a by-product of converting the tables, and the operator question is answerable only after it. Until then this stays
+recorded, not scheduled.
 
 ### 12.5 Exceptions and authority
 

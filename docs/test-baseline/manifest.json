@@ -2410,6 +2410,7 @@
     "tests/tooling/verify/lib/static-authored-value.test.ts",
     "tests/tooling/verify/lib/static-class-expression.test.ts",
     "tests/tooling/verify/lib/static-class-facts.test.ts",
+    "tests/tooling/verify/lib/suppression-directive.test.ts",
     "tests/tooling/verify/lib/symbol-reference.test.ts",
     "tests/tooling/verify/lib/template-static-text.test.ts",
     "tests/tooling/verify/lib/test-runner-door.test.ts",
