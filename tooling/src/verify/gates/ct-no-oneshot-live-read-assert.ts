@@ -35,9 +35,21 @@
 //
 // CONTRACT CORRECTION: the legacy header called this "a HARD invariant" descriptively, but it always
 // carried an escape door (`// ONESHOT-OK: <reason>`) for a provably-settled read — mechanically that is
-// `authority: "ordinary"`, not `"hard"` (hard has no suppression door at all). The escape survives; only
-// its vocabulary changes, from a private comment parser to the one central `@orb-waive` marker — "gate
-// modules receive neither grant tables nor marker parsers" (gate-runtime-standardization.md).
+// `authority: "ordinary"`, not `"hard"` (hard has no suppression door at all).
+//
+// UNTRANSLATED MARKER CENSUS (re-derived 2026-09-11, #1935): this conversion retired the private
+// `ONESHOT-OK` parser for the central `@orb-waive` engine and translated NONE of the live markers — the
+// central engine binds only `// @orb-waive ct-no-oneshot-live-read-assert(<position>): <reason>`, and
+// every legacy marker on the real tree is still the OLD `// ONESHOT-OK: <reason>` spelling, which the
+// central engine does not recognize under any grammar. A real run over the current population (491
+// `*.ct.tsx` candidate files) reports 315 blocking findings and 0 waived. All 315 sit on a
+// legacy-exempted position: 305 are `// ONESHOT-OK: <reason>` on the line ABOVE the guarded
+// `expect(...)`, and 10 are TRAILING same-line comments (`expect(...); // ONESHOT-OK: <reason>`) — the
+// central engine's node-anchored resolver reads LEADING trivia only, so it cannot bind a same-line
+// trailing comment either. The 315 markers are spread across 105 distinct `.ct.tsx` files. This policy
+// REDS the live tree until the marker-translation lane (#1260) rewrites all 315 sites into the
+// `@orb-waive` grammar; until then every one of those 315 reasoned comments is dead text with no
+// suppressive effect.
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

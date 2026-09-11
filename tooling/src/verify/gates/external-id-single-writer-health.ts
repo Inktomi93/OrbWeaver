@@ -7,90 +7,62 @@
 // narrower request that never reaches these files is not a stale claim, so `execution: "entire-population"`
 // (not a runtime scope flag, which the final context does not expose) is what keeps a real narrow run from
 // silently deferring rather than false-alarming: a request smaller than the full population defers this
-// policy entirely (policy-pass.ts), so it only ever judges a COMPLETE view of `@backend`.
+// policy entirely (policy-pass.ts), so it only ever judges a COMPLETE view of `@server`.
 //
-// The tiny detection predicates below are a DELIBERATE COPY of the sibling's, not an import: the two
-// modules are the family's whole membership, each is a self-contained proof, and there is no third
-// consumer that would justify a new shared-lib home for four one-line node-shape checks (GATE-AUTHORING.md
-// "a unique policy algorithm may live in verify/lib" — reserved for primitives more than one FAMILY needs).
+// FAMILY (fixed 2026-09-11, #1937): this policy and its sibling `external-id-single-writer.ts` both read
+// `verify/lib/external-id-writer.ts` — the ONE shared reader for the write-shape predicate, the sanctioned
+// files, and the atomic-claim-writer name. The prior conversion declared the same `family` id while each
+// module carried its OWN copy of the predicate; that is a shared THEME, not a shared reader, and the design
+// doc is explicit that a family means the latter (gate-runtime-standardization.md).
+//
+// ABSENT-SUBJECT ARM (fixed 2026-09-11, #1937): `ctx.report.file(path, …)` requires `path` to belong to
+// this policy's own effective population. The prior version anchored EACH stale/link finding on the exact
+// file it was ABOUT (`LINK_CAPABILITY`, a `SANCTIONED_FILES` entry) — so the one real scenario this gate
+// exists to catch (the subject file itself DELETED) made the anchor throw "file is outside the effective
+// population" instead of reporting red: a deleted sanctioned writer or a deleted link-external-id.ts is
+// exactly a dead carve-out, and the detector must never turn that into an incomplete non-verdict. Every
+// finding here anchors on `ctx.files[0]` instead (own-tables-only.ts's anchor pattern) — a file that is
+// ALWAYS a member of `@server`'s resolved population when this whole-population policy runs at all, so an
+// absent subject can never make the anchor itself unresolvable.
+//
+// POPULATION CORRECTION: reverted from the prior conversion's `@backend` to `@server`, matching the sibling
+// detector's reasoning (this file's header, external-id-single-writer.ts) — no writer of this family's
+// shape lives outside `packages/server/src`.
+//
+// AUTHORITY: `hard`, matching the sibling detector — the legacy pre-cutover descriptor carried no explicit
+// authority/severity field at all (that axis did not exist in the old contract), so this is the FIRST
+// explicit statement of the invariant's authority. It is deliberately "hard": the legacy gate offered no
+// suppression vocabulary for a dead carve-out or a broken caller either (its `finalize` unconditionally
+// reported), so `hard` preserves rather than escalates the legacy behavior.
 // COMMENT POSTURE: comment-SAFE — pure node-kind subscription, no file text is matched.
-import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { unwrapExpression } from "../lib/ast-read.ts";
-
-const KEYS: ReadonlySet<string> = new Set(["externalId", "external_id"]);
-const WRITE_VERBS: ReadonlySet<string> = new Set(["insertUser", "updateUser", "set", "values", "onConflictDoUpdate"]);
-const SESSIONS = "packages/server/src/domain/sessions/";
-const LINK_CAPABILITY = `${SESSIONS}verbs/link-external-id.ts`;
-const PROVISION_CAPABILITY = `${SESSIONS}verbs/provision-identity.ts`;
-const CLAIM_WRITER = "claimExternalIdIfUnbound";
-/** The two physical externalId writers. Named individually so a stale finding can name the dead one. */
-const SANCTIONED_FILES = [PROVISION_CAPABILITY, `${SESSIONS}persistence/users.ts`] as const;
+import {
+  CLAIM_WRITER,
+  EXTERNAL_ID_SANCTIONED_FILES,
+  isClaimWriterCall,
+  isExternalIdAssignment,
+  isExternalIdWriteKey,
+  LINK_CAPABILITY,
+  PROVISION_CAPABILITY,
+} from "../lib/external-id-writer.ts";
 
 const STALE_PREFIX =
   "stale sanctioned-writer — this file no longer writes `users.externalId`, so its carve-out is dead (either the U1 detector broke, or the writer moved — ratchet down / re-point): ";
 const LINK_STALE = `${LINK_CAPABILITY} no longer calls ${CLAIM_WRITER} — the U1 admin link capability lost its atomic writer, or the writer was renamed`;
-
-function calleeName(call: Node): string | undefined {
-  if (!call.isKind(SyntaxKind.CallExpression)) {
-    return;
-  }
-  const callee = call.getExpression();
-  if (callee.isKind(SyntaxKind.PropertyAccessExpression)) {
-    return callee.getName();
-  }
-  return callee.isKind(SyntaxKind.Identifier) ? callee.getText() : undefined;
-}
-
-function isNullish(value: Node | undefined): boolean {
-  if (value === undefined) {
-    return false;
-  }
-  const inner = unwrapExpression(value);
-  return inner.isKind(SyntaxKind.NullKeyword) || (inner.isKind(SyntaxKind.Identifier) && inner.getText() === "undefined");
-}
-
-function isExternalIdWriteKey(node: Node): boolean {
-  if (node.isKind(SyntaxKind.PropertyAssignment)) {
-    if (!KEYS.has(node.getNameNode().getText().replace(/["']/gu, "")) || isNullish(node.getInitializer())) {
-      return false;
-    }
-  } else if (node.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
-    if (!KEYS.has(node.getNameNode().getText())) {
-      return false;
-    }
-  } else {
-    return false;
-  }
-  const enclosingCall = node.getFirstAncestorByKind(SyntaxKind.CallExpression);
-  return enclosingCall !== undefined && WRITE_VERBS.has(calleeName(enclosingCall) ?? "");
-}
-
-function isExternalIdAssignment(node: Node): boolean {
-  if (!node.isKind(SyntaxKind.BinaryExpression) || node.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
-    return false;
-  }
-  const lhs = node.getLeft();
-  return lhs.isKind(SyntaxKind.PropertyAccessExpression) && KEYS.has(lhs.getName()) && !isNullish(node.getRight());
-}
-
-function isClaimWriterCall(node: Node): boolean {
-  return node.isKind(SyntaxKind.CallExpression) && calleeName(node) === CLAIM_WRITER;
-}
 
 export const gate = defineGate({
   id: "external-id-single-writer-health",
   family: "external-id-single-writer",
   authority: "hard",
   severity: "error",
-  population: "@backend",
+  population: "@server",
   analysis: "syntax",
   execution: "entire-population",
   facts: [],
   resources: [],
   message: "the U1 externalId single-writer carve-out no longer matches the tree it exempts (Spine-Identity-and-Auth.md).",
-  fix: "if the sanctioned file genuinely stopped writing externalId, delete its row in external-id-single-writer.ts / external-id-single-writer-health.ts; if it moved, re-point the path in both files.",
+  fix: "if the sanctioned file genuinely stopped writing externalId, delete its row in external-id-single-writer.ts / external-id-single-writer-health.ts (and verify/lib/external-id-writer.ts); if it moved, re-point the path in all three.",
   create: (ctx) => {
     const sanctionedWrites = new Set<string>();
     let linkCallsClaim = false;
@@ -106,20 +78,30 @@ export const gate = defineGate({
               }
               return;
             }
-            if ((isExternalIdWriteKey(node) || isExternalIdAssignment(node)) && SANCTIONED_FILES.includes(rel as (typeof SANCTIONED_FILES)[number])) {
+            if (
+              (isExternalIdWriteKey(node) || isExternalIdAssignment(node)) &&
+              EXTERNAL_ID_SANCTIONED_FILES.includes(rel as (typeof EXTERNAL_ID_SANCTIONED_FILES)[number])
+            ) {
               sanctionedWrites.add(rel);
             }
           },
         },
       ],
       evaluate: () => {
-        for (const rel of SANCTIONED_FILES) {
+        // ABSENT-SUBJECT ANCHOR: a file always present in this policy's own resolved `@server` population —
+        // never one of the subjects under judgment, which may themselves be the thing that vanished.
+        const anchorFile = ctx.files[0];
+        if (anchorFile === undefined) {
+          throw new Error("external-id-single-writer-health received an empty effective population");
+        }
+        const anchor = ctx.relativePath(anchorFile);
+        for (const rel of EXTERNAL_ID_SANCTIONED_FILES) {
           if (!sanctionedWrites.has(rel)) {
-            ctx.report.file(rel, { line: 1, message: `${STALE_PREFIX}"${rel}"` });
+            ctx.report.file(anchor, { line: 1, message: `${STALE_PREFIX}"${rel}"` });
           }
         }
         if (!linkCallsClaim) {
-          ctx.report.file(LINK_CAPABILITY, { line: 1, message: LINK_STALE });
+          ctx.report.file(anchor, { line: 1, message: LINK_STALE });
         }
       },
     };
@@ -158,6 +140,22 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "no longer calls" },
       why: "MODE A for the caller half: link-external-id.ts stopped calling claimExternalIdIfUnbound — the admin link path lost its bind-once guard, and that must RED rather than read as health",
     },
+    {
+      mode: "source",
+      files: {
+        [PROVISION_CAPABILITY]:
+          'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
+          "export async function bindOwnerSubject(db: D, ownerId: U, externalId: E): Promise<boolean> {\n" +
+          "  const changes: { externalId?: E } = {};\n" +
+          "  changes.externalId = externalId;\n" +
+          "  return await claimExternalIdIfUnbound(db, ownerId, externalId, 0);\n" +
+          "}\n",
+        "packages/server/src/domain/sessions/persistence/users.ts":
+          'import { users } from "@orb/db";\nexport const claimExternalIdIfUnbound = (db: DB, id: string, sub: string) => db.update(users).set({ externalId: sub });\n',
+      },
+      expect: { count: 1, messageIncludes: "no longer calls" },
+      why: "ABSENT-SUBJECT ARM: both sanctioned writers are intact (still writing) and link-external-id.ts is entirely DELETED from this run's population — the exact scenario the health check exists for. It must REPORT RED anchored on a file inside the resolved population (never throw 'outside the effective population')",
+    },
   ],
   mustPass: [
     {
@@ -178,7 +176,7 @@ export const gate = defineGate({
           "  await claimExternalIdIfUnbound(db, userId, externalId, 0);\n" +
           "}\n",
       },
-      why: "the healthy real shape: both sanctioned files still write, and the admin link capability still calls the atomic writer — no stale finding",
+      why: "the healthy real shape (SUBJECT PRESENT): both sanctioned files still write, and the admin link capability still calls the atomic writer — no stale finding",
     },
     {
       mode: "source",

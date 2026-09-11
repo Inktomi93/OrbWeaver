@@ -8,6 +8,18 @@
 // control-flow-dependent (the cross-tenant behavioral sweep stays that proof). A post-fetch arm is valid only
 // when a rejecting guard compares that exact result (or a one-hop alias) with the caller's owner binding; a
 // self-comparison, unrelated owner, or unused comparison is RED.
+//
+// UNTRANSLATED MARKER CENSUS (re-derived 2026-09-11, #1934): this conversion dropped the legacy
+// function-level `@owner-scope-ok` / `@owner-scope-write-ok` comment markers for the central `@orb-waive`
+// grammar and translated NONE of the live markers. `grep -rn "@owner-scope-ok" packages` finds 23
+// occurrences across 16 files; the sibling `@owner-scope-write-ok` finds 32 occurrences across 8 files
+// (owner-scoped-writes.ts carries that count); the union is 21 distinct files under `packages/`, every
+// one of which carries at least one marker of either spelling. The central `@orb-waive` engine does not
+// recognize either legacy spelling under any grammar, so every one of those markers is dead text with no
+// suppressive effect against this gate. A fresh-context verifier's real run over the tenancy family
+// (2026-09-11) reported 26 blocking findings for this policy and 32 for `owner-scoped-writes` — 58
+// combined, 0 waived. This policy REDS the live tree until the marker-translation lane (#1944) rewrites
+// the 23 `@owner-scope-ok` sites into `@orb-waive owner-scoped-reads(<ident>): <reason>`.
 import type { Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

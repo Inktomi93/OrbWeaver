@@ -2,6 +2,7 @@ import { gate as dbEnumFromTuple } from "../../../../tooling/src/verify/gates/db
 import { gate as fkColumnsIndexed } from "../../../../tooling/src/verify/gates/fk-columns-indexed.ts";
 import { gate as fkOnDeleteStated } from "../../../../tooling/src/verify/gates/fk-ondelete-stated.ts";
 import { gate as nullableColumnInequality } from "../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
+import { gate as ownTablesOnly } from "../../../../tooling/src/verify/gates/own-tables-only.ts";
 import { gate as ownerIdRegistry } from "../../../../tooling/src/verify/gates/ownerid-registry.ts";
 import { gate as schemaBranding } from "../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as schemaFactHealth } from "../../../../tooling/src/verify/gates/schema-fact-health.ts";
@@ -16,10 +17,18 @@ import { scaledBudget } from "../../_load-budget.ts";
 // 4.9 s alone. `scaledBudget` is the house spelling and grows with the box.
 const FAMILY_TIMEOUT_MS = scaledBudget(120_000);
 
+// own-tables-only joins this wave (#1934 fix): its conversion consumes the SAME `drizzleSchemaFact` as the
+// rest of the "drizzle-schema" family, but the module previously had NO committed test driving
+// `verifyPolicyProofs` over it — its 12 mustFlag/mustPass rows executed nowhere. Landed here rather than a
+// dedicated file because its own header already documents the family reuse (schema-branding.ts's sibling
+// reasoning: "one computation, several policies"). AUTHORITY ESCALATION: own-tables-only is `authority:
+// "hard"` (no suppression door — SCHEMA_OWNERS/TABLE_OWNERS/BULK_READERS/FILE_ALLOWLIST are ruling data,
+// never a comment-marker escape), unlike this wave's other members' mixed authorities; its own header
+// states this explicitly ("SPLIT FROM THE LEGACY MODULE (authority is HARD...)").
 test(
-  "the first Drizzle schema policy wave proves fact health, relational integrity, and brands",
+  "the first Drizzle schema policy wave proves fact health, relational integrity, ownership, and brands",
   () => {
-    expect(verifyPolicyProofs([schemaFactHealth, schemaBranding, fkColumnsIndexed, fkOnDeleteStated, tableExplicitPrimaryKey])).toEqual([]);
+    expect(verifyPolicyProofs([schemaFactHealth, schemaBranding, fkColumnsIndexed, fkOnDeleteStated, tableExplicitPrimaryKey, ownTablesOnly])).toEqual([]);
   },
   FAMILY_TIMEOUT_MS,
 );
