@@ -11,34 +11,56 @@
 // producers. Arm A mints it. A new domain that stamps `ownerId` and registers nothing is now RED AT BIRTH.
 //
 // DECLARED LIMITS (each with a mustPass row):
-//   • Arm A derives OWNERSHIP from the literal `text("owner_id")` column spelling. A table whose owner is
+//   • Arm A derives OWNERSHIP from the resolved `owner_id` SQL COLUMN NAME (the shared Drizzle fact's
+//     `column.sqlName`, not the `text("owner_id")` text the legacy regex matched). A table whose owner is
 //     INHERITED through an FK chain (D23 — `gallery_items` via its asset, `world_entries` via its book) is
 //     invisible here BY DESIGN: its portability is its parent's, so classifying it separately would be a
 //     second, forkable answer to one question.
 //   • Arm B resolves a tRPC cite to `<router>.<proc>` and an HTTP cite to its route-path literal. It proves
 //     the door EXISTS, not that it is reachable from the UI — client chrome is CT/side-eye territory.
 
-// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
-// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
-// and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
-// here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
-// column's DECLARING file and the scan line prints the resolved table/column population.
+// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the ownership stamp is read off the SHARED Drizzle
+// schema fact, which follows an imported/aliased columns binding (and object spreads) and refuses loudly on
+// any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns here, erasing this
+// gate's obligations while the schema file scan stayed healthy.
+//
+// FAMILY `drizzle-schema` — the shared subject reader is `lib/schema-fact.ts`'s `drizzleSchemaFact`
+// provider, the same one `ownerid-registry`, `schema-branding`, `db-enum-from-tuple` and
+// `nullable-column-inequality` consume. Arm A owns INTENT only (is this owned canon carried or classified);
+// the provider owns table/column identity. Arm B's door corpus is this policy's own population and no
+// sibling shares it, which is why the family string names the reader rather than the topic.
+//
+// WHAT THE CONVERSION REPLACED, arm by arm. The legacy module walked `ctx.project.getSourceFiles()` twice
+// and hand-parsed the schema with `_shared/schema-read` plus a `text("owner_id")` REGEX over the resolved
+// column text; the fact supplies `column.sqlName` directly, so an aliased `text` import or a renamed local
+// builder can no longer launder a stamp. Arm B read the http registrars as BLANKED FILE TEXT
+// (`blankTsComments`, because a route path quoted in a header comment would keep a deleted door reading as
+// live — issues #117/#132); it now collects StringLiteral NODES, which cannot see a comment at all, so the
+// defended property is structural rather than defended by a blanker. That is why `lib/comment-spans.ts` is
+// gone from this module. The `ctx.scope.kind !== "project"` guard and the duplicated
+// `judgeCompletenessSynthetic` arm are gone with it: the barrel anchor alone decides whether the
+// whole-tree arms may speak, and the coverage arm needs no second implementation.
+//
+// POPULATION PORT — an INTENTIONAL NARROWING, recorded rather than claimed byte-identical. The legacy
+// descriptor declared NO `scanRoot`: its `run` received all 7,394 candidate sources and derived a semantic
+// population internally (the census notation `P9/run`). The final population declares exactly what the two
+// arms read — the schema, the tRPC routers and the http registrars: 74 of 7,394 candidates, 0 admitted by
+// the final expression that the legacy body would have read and ignored. Compiled both spellings over
+// `git ls-files '*.ts' '*.tsx'`: legacy 7,394 / final 74 / finalOnly 0, with four planted controls (schema
+// ✓, router ✓, http ✓, a server domain file ✗).
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_KINDS } from "@orb/contracts/portability";
-import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
-import type { SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { ExemptionRow, ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { blankTsComments } from "../lib/comment-spans.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import { Node, SyntaxKind } from "ts-morph";
+import type { ExemptionRow, ExemptionTable } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { SchemaModel } from "../contract/schema-fact.ts";
+import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
-const SCHEMA_FILE_RE = /packages\/db\/src\/schema\/(?<name>[^/]+)\.ts$/u;
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const ROUTER_DIR = "packages/server/src/transport/trpc/routers/";
 const HTTP_DIR = "packages/server/src/entry/http/";
-const SQLITE_TABLE_RE = /^sqliteTable\s*\(/u;
-const OWNER_COLUMN_RE = /text\(\s*"owner_id"\s*\)/u;
-const LEADING_SLASH_RE = /^\/+/u;
+const OWNER_COLUMN = "owner_id";
 const GATE_SELF = "tooling/src/verify/gates/lifecycle-portability.ts";
 /** The router factory call whose ONE argument holds the procs (`t.router({…})`). */
 const ROUTER_FACTORY = "t.router";
@@ -301,43 +323,6 @@ const STALE_NON_PORTABLE =
 const STALE_CARRIED =
   "PORTABLE_CANON_TABLES names a table the schema no longer declares (ratchet down) — fix the kind's carried set in tooling/src/verify/gates/lifecycle-portability.ts: ";
 
-/** Every table the schema declares, and which of those are OWNER-STAMPED. Rebuilt in `begin`. */
-const declaredTables = new Set<string>();
-const ownerStamped = new Set<string>();
-
-function repoRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  const scripts = path.indexOf("/scripts/");
-  if (idx !== -1) {
-    return path.slice(idx + 1);
-  }
-  return scripts === -1 ? path.replace(LEADING_SLASH_RE, "") : path.slice(scripts + 1);
-}
-
-/** Read every `export const X = sqliteTable(…)` in a schema source, recording ownership by the literal
- *  `text("owner_id")` column spelling (the DECLARED LIMIT in the header). */
-function readSchema(sf: SourceFile): void {
-  for (const stmt of sf.getVariableStatements()) {
-    if (!stmt.isExported()) {
-      continue;
-    }
-    for (const decl of stmt.getDeclarations()) {
-      const initializer = decl.getInitializer();
-      if (initializer === undefined || !SQLITE_TABLE_RE.test(initializer.getText())) {
-        continue;
-      }
-      declaredTables.add(decl.getName());
-      // The ownership stamp is read off the RESOLVED columns, not the table's own initializer text: an
-      // imported columns object carries no `text("owner_id")` in this file, and reading text alone made an
-      // owner-stamped table look unowned — i.e. carried no portability obligation at all (#945).
-      const columns = initializer.isKind(SyntaxKind.CallExpression) ? columnProperties(initializer.getArguments()[1]) : [];
-      if (columns.some((column) => OWNER_COLUMN_RE.test(column.text))) {
-        ownerStamped.add(decl.getName());
-      }
-    }
-  }
-}
-
 /** table → the kind that carries it (the claim side of arm A). */
 function carriedTables(): ReadonlyMap<string, PortableKind> {
   const carried = new Map<string, PortableKind>();
@@ -349,127 +334,6 @@ function carriedTables(): ReadonlyMap<string, PortableKind> {
   return carried;
 }
 
-type Reporter = (message: string) => void;
-
-/** The COVERAGE half: an owner-stamped table with neither a carrier nor a classification. */
-function reportUncovered(carried: ReadonlyMap<string, PortableKind>, report: Reporter): void {
-  for (const table of [...ownerStamped].sort()) {
-    if (!(carried.has(table) || table in NON_PORTABLE_CANON)) {
-      report(
-        `\`${table}\` is OWNER-STAMPED canon that no portable kind carries and no NON_PORTABLE_CANON row ` +
-          `classifies — a full-account backup silently drops it. ${MESSAGE}`,
-      );
-    }
-  }
-}
-
-/** The RATCHET half: both registries clean down, and no table gets two answers. */
-function reportStale(carried: ReadonlyMap<string, PortableKind>, report: Reporter): void {
-  for (const table of Object.keys(NON_PORTABLE_CANON)) {
-    if (!declaredTables.has(table)) {
-      report(`${STALE_NON_PORTABLE}"${table}"`);
-    }
-    if (carried.has(table)) {
-      report(
-        `\`${table}\` is BOTH carried by kind "${carried.get(table) ?? ""}" and classified NON-PORTABLE — one answer ` +
-          "per family; delete the losing row in tooling/src/verify/gates/lifecycle-portability.ts.",
-      );
-    }
-  }
-  for (const [table, kind] of carried) {
-    if (!declaredTables.has(table)) {
-      report(`${STALE_CARRIED}"${table}" (kind "${kind}")`);
-    }
-  }
-}
-
-/** Arm A: every owner-stamped table is carried or classified; both registries ratchet down. */
-function judgeCompleteness(ctx: GateRunCtx): void {
-  const carried = carriedTables();
-  const report: Reporter = (message) => {
-    ctx.report({ file: GATE_SELF, line: 1, column: 0, message });
-  };
-  reportUncovered(carried, report);
-  reportStale(carried, report);
-}
-
-/** The tRPC procs a router source declares — the properties of the ONE `t.router({…})` argument, never a
- *  nested `z.object({…})`. Reading every descendant object literal instead would ADD phantom cites, and a
- *  phantom cite is a LYING GREEN (the door table would resolve against an input schema's field name). */
-function procsIn(sf: SourceFile, router: string): ReadonlySet<string> {
-  const names = new Set<string>();
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    if (call.getExpression().getText() !== ROUTER_FACTORY) {
-      continue;
-    }
-    const arg = call.getArguments()[0];
-    if (arg === undefined || !arg.isKind(SyntaxKind.ObjectLiteralExpression)) {
-      continue;
-    }
-    for (const prop of arg.getProperties()) {
-      if (prop.isKind(SyntaxKind.PropertyAssignment)) {
-        names.add(`${router}.${prop.getName()}`);
-      }
-    }
-  }
-  return names;
-}
-
-/** Everything a door cite can resolve AGAINST: the live tRPC proc set + the http registrar sources. */
-interface DoorCorpus {
-  readonly trpcCites: ReadonlySet<string>;
-  readonly httpText: readonly string[];
-}
-
-function readDoorCorpus(ctx: GateRunCtx): DoorCorpus {
-  const trpcCites = new Set<string>();
-  const httpText: string[] = [];
-  for (const sf of ctx.project.getSourceFiles()) {
-    const rel = repoRel(sf.getFilePath());
-    if (rel.startsWith(ROUTER_DIR)) {
-      for (const cite of procsIn(sf, toCamel(rel.slice(ROUTER_DIR.length).replace(TS_EXT_RE, "")))) {
-        trpcCites.add(cite);
-      }
-    } else if (rel.startsWith(HTTP_DIR)) {
-      // CODE, not file text (issue #117/#132): arm B asks whether a declared door RESOLVES to a real
-      // route literal, so a route path quoted in a COMMENT (a header listing the routes a module
-      // serves, the ordinary shape here) would keep a DELETED door reading as live — the exact
-      // rename-leaves-the-table-lying failure the arm exists to catch, wearing a `//`.
-      httpText.push(blankTsComments(sf));
-    }
-  }
-  return { trpcCites, httpText };
-}
-
-function doorIsLive(door: DoorSpec, corpus: DoorCorpus): boolean {
-  return door.transport === "trpc" ? corpus.trpcCites.has(door.cite) : corpus.httpText.some((text) => text.includes(`"${door.cite}"`));
-}
-
-/** Arm B: every declared DoorSpec resolves to a real proc/route (the registry-cite tripwire — a renamed
- *  proc must RED here rather than leave the table quietly lying). */
-function judgeDoors(ctx: GateRunCtx): void {
-  const corpus = readDoorCorpus(ctx);
-  for (const kind of PORTABLE_KINDS) {
-    const doors = LIFECYCLE_DOORS[kind];
-    const halves: readonly (readonly [string, Door])[] = [
-      ["export", doors.singleExport],
-      ["import", doors.singleImport],
-    ];
-    for (const [half, door] of halves) {
-      if (isSpec(door) && !doorIsLive(door, corpus)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message:
-            `the "${kind}" single-${half} door cites \`${door.cite}\`, which no ${door.transport === "trpc" ? "router" : "http registrar"} ` +
-            `declares — the door table is lying (a rename left it behind). Fix the cite, or replace the DoorSpec with a cited \`{ ruled }\` cell in tooling/src/verify/gates/lifecycle-portability.ts (${DOC_POINTER}).`,
-        });
-      }
-    }
-  }
-}
-
 /** `world-info` → `worldInfo` (a router FILE is kebab, its tRPC key is camel). */
 function toCamel(kebab: string): string {
   return kebab.replace(/-(?<ch>[a-z])/gu, (_m, ...args) => {
@@ -478,109 +342,277 @@ function toCamel(kebab: string): string {
   });
 }
 
-export const gate: GateDescriptor = {
-  name: "lifecycle-portability",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — docs/architecture/history/export-import-portability.md",
-  status: "active",
-  // WHOLE-PROJECT by construction: both arms are coverage claims over the schema + the router/http corpus.
-  // Marked incremental-safe it would false-green on every scoped run, which is exactly the class of hole
-  // that let databank sit unregistered.
-  scopeSafety: "whole-project",
+/** The DECLARATION names of every table the schema declares, and which of those are OWNER-STAMPED by the
+ *  literal `owner_id` SQL column. The registries key on the declaration name (`chatTags`), which is what the
+ *  authors of `PORTABLE_CANON_TABLES` spell, so the identity comes off `table.identity.declarationName`
+ *  rather than off `sqlName`. */
+interface SchemaFacts {
+  readonly declared: ReadonlySet<string>;
+  readonly ownerStamped: ReadonlyMap<string, SchemaModel["tables"][number]>;
+}
+
+function readSchemaFacts(schema: SchemaModel): SchemaFacts {
+  const declared = new Set<string>();
+  const ownerStamped = new Map<string, SchemaModel["tables"][number]>();
+  for (const table of schema.tables) {
+    const name = table.identity.declarationName;
+    declared.add(name);
+    if (table.columns.some((column) => column.sqlName === OWNER_COLUMN)) {
+      ownerStamped.set(name, table);
+    }
+  }
+  return { declared, ownerStamped };
+}
+
+export const gate = defineGate({
+  id: "lifecycle-portability",
+  family: "drizzle-schema",
+  // HARD, and the census agrees: `lifecycle-portability.ts:92` is "17 authoritative portability
+  // classifications" under exception-authority-census.md's "Hard policy and authoritative runtime data" —
+  // "not exception rows", so there is no per-site waiver door to preserve. The escape from a finding is a
+  // ROW (register the kind, or classify it with its end condition), never a comment at a call site. The
+  // legacy descriptor was suppressible only because it never declared otherwise; its findings anchored on
+  // line 1 of the gate file itself, where a marker would have been meaningless.
+  authority: "hard",
+  severity: "error",
+  population: {
+    in: ["@db", "@server"],
+    under: ["packages/db/src/schema/**", "packages/server/src/transport/trpc/routers/**", "packages/server/src/entry/http/**"],
+  },
+  analysis: "types",
+  // Both arms are COVERAGE claims: "is every owner-stamped table answered" and "does every declared door
+  // resolve" cannot compose over an arbitrary subset. Marked selected-files it would false-green on every
+  // scoped run, which is exactly the class of hole that let databank sit unregistered.
+  execution: "entire-population",
+  facts: [drizzleSchemaFact],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  run: (ctx) => {
-    ctx.scan(schemaScan(ctx.project));
-    declaredTables.clear();
-    ownerStamped.clear();
-    for (const sf of ctx.project.getSourceFiles()) {
-      const rel = repoRel(sf.getFilePath());
-      if (SCHEMA_FILE_RE.test(rel) && rel !== SCHEMA_BARREL) {
-        readSchema(sf);
+  create: (ctx) => {
+    /** `<router>.<proc>` for every proc a router source declares — the properties of the ONE `t.router({…})`
+     *  argument, never a nested `z.object({…})`. Reading every descendant object literal instead would ADD
+     *  phantom cites, and a phantom cite is a LYING GREEN (the door table would resolve against an input
+     *  schema's field name). */
+    const trpcCites = new Set<string>();
+    /** Every authored string literal in the http registrars. A route path quoted in a COMMENT is not a node
+     *  and therefore cannot reach this set — the property the legacy blanker defended, now structural. */
+    const httpLiterals = new Set<string>();
+
+    const doorIsLive = (door: DoorSpec): boolean => (door.transport === "trpc" ? trpcCites.has(door.cite) : httpLiterals.has(door.cite));
+
+    /** Arm A, the COVERAGE half: an owner-stamped table with neither a carrier nor a classification. */
+    const reportUncovered = (facts: SchemaFacts, carried: ReadonlyMap<string, PortableKind>): void => {
+      for (const name of [...facts.ownerStamped.keys()].toSorted()) {
+        if (carried.has(name) || Object.hasOwn(NON_PORTABLE_CANON, name)) {
+          continue;
+        }
+        const table = facts.ownerStamped.get(name) as SchemaModel["tables"][number];
+        ctx.report.node(table.declaration, {
+          token: name,
+          offset: 0,
+          message:
+            `\`${name}\` is OWNER-STAMPED canon that no portable kind carries and no NON_PORTABLE_CANON row ` +
+            `classifies — a full-account backup silently drops it. ${MESSAGE}`,
+        });
       }
-    }
-    // The stale/coverage arms are WHOLE-TREE claims: a conformance mini-project also reports
-    // scope.kind === "project", and its handful of files would "prove" every table had vanished.
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, SCHEMA_BARREL)) {
-      judgeCompletenessSynthetic(ctx);
-      return;
-    }
-    judgeCompleteness(ctx);
-    judgeDoors(ctx);
+    };
+
+    /** Arm A, the RATCHET half: both registries clean down, and no table gets two answers. */
+    const reportStale = (facts: SchemaFacts, carried: ReadonlyMap<string, PortableKind>): void => {
+      const report = (token: string, message: string): void => ctx.report.file(SCHEMA_BARREL, { line: 1, token, message });
+      for (const table of Object.keys(NON_PORTABLE_CANON)) {
+        if (!facts.declared.has(table)) {
+          report(table, `${STALE_NON_PORTABLE}"${table}"`);
+        }
+        if (carried.has(table)) {
+          report(
+            table,
+            `\`${table}\` is BOTH carried by kind "${carried.get(table) ?? ""}" and classified NON-PORTABLE — one answer ` +
+              "per family; delete the losing row in tooling/src/verify/gates/lifecycle-portability.ts.",
+          );
+        }
+      }
+      for (const [table, kind] of carried) {
+        if (!facts.declared.has(table)) {
+          report(table, `${STALE_CARRIED}"${table}" (kind "${kind}")`);
+        }
+      }
+    };
+
+    /** Arm B: every declared DoorSpec resolves to a real proc/route (the registry-cite tripwire — a renamed
+     *  proc must RED here rather than leave the table quietly lying). */
+    const reportDoors = (): void => {
+      for (const kind of PORTABLE_KINDS) {
+        const doors = LIFECYCLE_DOORS[kind];
+        const halves: readonly (readonly [string, Door])[] = [
+          ["export", doors.singleExport],
+          ["import", doors.singleImport],
+        ];
+        for (const [half, door] of halves) {
+          if (!isSpec(door) || doorIsLive(door)) {
+            continue;
+          }
+          ctx.report.file(SCHEMA_BARREL, {
+            line: 1,
+            token: door.cite,
+            message:
+              `the "${kind}" single-${half} door cites \`${door.cite}\`, which no ${door.transport === "trpc" ? "router" : "http registrar"} ` +
+              `declares — the door table is lying (a rename left it behind). Fix the cite, or replace the DoorSpec with a cited \`{ ruled }\` cell in ${GATE_SELF} (${DOC_POINTER}).`,
+          });
+        }
+      }
+    };
+
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node, sourceFile) => {
+            const path = ctx.relativePath(sourceFile);
+            if (!(path.startsWith(ROUTER_DIR) && Node.isCallExpression(node)) || node.getExpression().getText() !== ROUTER_FACTORY) {
+              return;
+            }
+            const arg = node.getArguments()[0];
+            if (arg === undefined || !Node.isObjectLiteralExpression(arg)) {
+              return;
+            }
+            const router = toCamel(path.slice(ROUTER_DIR.length).replace(TS_EXT_RE, ""));
+            for (const prop of arg.getProperties()) {
+              if (Node.isPropertyAssignment(prop)) {
+                trpcCites.add(`${router}.${prop.getName()}`);
+              }
+            }
+          },
+        },
+        {
+          kinds: [SyntaxKind.StringLiteral],
+          visit: (node, sourceFile) => {
+            if (ctx.relativePath(sourceFile).startsWith(HTTP_DIR) && Node.isStringLiteral(node)) {
+              httpLiterals.add(node.getLiteralText());
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        const fact = ctx.fact(drizzleSchemaFact).schema();
+        recordReadySchemaFact(ctx, fact);
+        const facts = readSchemaFacts(fact.value);
+        const carried = carriedTables();
+        reportUncovered(facts, carried);
+        // The stale and door arms are WHOLE-REGISTRY claims, so they speak only where the PRODUCTION schema
+        // is present, recognised by its barrel (the §4.5 real-tree-anchor shape, and NOT any row's own path
+        // — a table deleted outright must still be judged). A fixture that never plants the barrel would
+        // otherwise "prove" that every registry row had lost its subject.
+        if (!ctx.files.map(ctx.relativePath).includes(SCHEMA_BARREL)) {
+          return;
+        }
+        reportStale(facts, carried);
+        reportDoors();
+      },
+    };
   },
 
   mustFlag: [
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/journal.ts":
-          'const ownerId = text("owner_id");\nexport const journalEntries = sqliteTable("journal_entries", { ownerId, body: text("body") });\n',
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'const ownerId = text("owner_id");\n' +
+          'export const journalEntries = sqliteTable("journal_entries", { ownerId, body: text("body") });\n',
       },
-      expect: { count: 1, messageIncludes: "OWNER-STAMPED canon that no portable kind carries" },
-      why: "THE #1035 SHORTHAND RED: the ownership stamp arrives as a shorthand member, so arm A must still see an owner-stamped table — dropped, the table read as unowned and carried no portability obligation",
+      expect: { count: 1, token: "journalEntries", messageIncludes: "OWNER-STAMPED canon that no portable kind carries" },
+      why: "THE #1035 SHORTHAND RED: the ownership stamp arrives as a shorthand member, so arm A must still see an owner-stamped table — dropped, the table read as unowned and carried no portability obligation. The finding now anchors on the TABLE DECLARATION rather than on line 1 of the gate file",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/journal-columns.ts": 'export const journalColumns = { ownerId: text("owner_id"), body: text("body") };\n',
+        "packages/db/src/schema/journal-columns.ts":
+          'import { text } from "drizzle-orm/sqlite-core";\nexport const journalColumns = { ownerId: text("owner_id"), body: text("body") };\n',
         "packages/db/src/schema/journal.ts":
-          'import { journalColumns } from "./journal-columns";\nexport const journalEntries = sqliteTable("journal_entries", journalColumns);\n',
+          'import { sqliteTable } from "drizzle-orm/sqlite-core";\n' +
+          'import { journalColumns } from "./journal-columns";\n' +
+          'export const journalEntries = sqliteTable("journal_entries", journalColumns);\n',
       },
-      expect: { count: 1, messageIncludes: "OWNER-STAMPED canon that no portable kind carries" },
+      expect: { count: 1, token: "journalEntries", messageIncludes: "OWNER-STAMPED canon that no portable kind carries" },
       why: "THE #945 IMPORTED-COLUMNS RED: arm A used to read the ownership stamp off the table initializer's TEXT, so an imported columns object made an owner-stamped table look unowned — i.e. carrying no portability obligation at all",
     },
     {
+      mode: "types",
       files: {
         "packages/db/src/schema/journal.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
           'export const journalEntries = sqliteTable("journal_entries", { ownerId: text("owner_id"), body: text("body") });\n',
       },
-      expect: { count: 1, messageIncludes: "OWNER-STAMPED canon that no portable kind carries" },
+      expect: { count: 1, token: "journalEntries", messageIncludes: "OWNER-STAMPED canon that no portable kind carries" },
       why: "the founding shape — a new domain stamps `ownerId` and registers nothing (exactly how `documents` sat outside portability while backups silently dropped it). RED AT BIRTH is the whole point",
+    },
+    {
+      mode: "types",
+      files: {
+        [SCHEMA_BARREL]: 'export * from "./journal.ts";\n',
+        "packages/db/src/schema/journal.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const journalEntries = sqliteTable("journal_entries", { body: text("body") });\n',
+      },
+      expect: { token: "characters", messageIncludes: "PORTABLE_CANON_TABLES names a table the schema no longer declares" },
+      why: "THE RATCHET ARM, mode (B) of §4.4a, and the first proof it has ever had: the barrel resolves so this IS the production schema, and every carried/classified table is gone — a registry row that outlives its subject must RED rather than sit there looking like a ruling. NO `count`: the count is the registry's own cardinality (14 carried + 17 classified + 11 door cites), so pinning it would make every registry edit a two-site edit and turn a legitimate row addition into a red proof. The `token` pins WHICH row instead",
+    },
+    {
+      mode: "types",
+      files: {
+        [SCHEMA_BARREL]: 'export * from "./journal.ts";\n',
+        "packages/db/src/schema/journal.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const journalEntries = sqliteTable("journal_entries", { body: text("body") });\n',
+        "packages/server/src/transport/trpc/routers/persona.ts": "export const personaRouter = t.router({ list: 1 });\n",
+      },
+      expect: { token: "persona.export", messageIncludes: "the door table is lying" },
+      why: "ARM B, and the first proof IT has ever had: a real router source that declares `list` but not `export`, so the `persona` single-export door cites a proc nothing declares. The router IS read (its `list` proc resolves), which is what makes this a cite failure rather than an empty-corpus artefact — the distinction the legacy arm could not express at all, because it only ever ran on the real tree",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/character.ts": 'const ownerId = text("owner_id");\nexport const characters = sqliteTable("characters", { ownerId });\n',
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'const ownerId = text("owner_id");\n' +
+          'export const characters = sqliteTable("characters", { ownerId });\n',
       },
       why: "the SHORTHAND's green twin: the same resolved stamp on a table a portable kind DOES carry — passes",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/gallery.ts": 'export const galleryItems = sqliteTable("gallery_items", { assetId: text("asset_id") });\n',
+        "packages/db/src/schema/world-info.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const worldEntries = sqliteTable("world_entries", { bookId: text("book_id") });\n',
       },
-      why: "DECLARED LIMIT, written down: ownership INHERITED through an FK chain (D23 — gallery_items via its asset) is invisible to arm A by design. Its portability is its parent's; a separate classification would be a second forkable answer",
+      why: "DECLARED LIMIT, written down: ownership INHERITED through an FK chain (D23 — `world_entries` via its book) is invisible to arm A by design. Its portability is its parent's (the `world-info` kind carries `worldBooks`, never the entries), so classifying it separately would be a second forkable answer. THE ROW THAT DIES WITHOUT THE `owner_id` COLUMN FENCE, and it took a correction to make that true: the row used to spell `galleryItems`, which is CARRIED by the `gallery` kind, so deleting the fence left it green and the claim in this `why` was unproven (§4.1, measured — cutting `column.sqlName === OWNER_COLUMN` kept all 1,520 rows green). `worldEntries` is in neither registry, so the fence is the only thing keeping it quiet",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/character.ts": 'export const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
       },
-      why: "an owner-stamped table that IS carried (kind `character`) — the passing shape the whole registry exists to keep true",
+      why: "an owner-stamped table that IS carried (kind `character`) — the passing shape the whole registry exists to keep true, and the row that dies without the PORTABLE_CANON_TABLES lookup",
     },
     {
+      mode: "types",
       files: {
-        "packages/db/src/schema/credentials.ts": 'export const userCredentials = sqliteTable("user_credentials", { ownerId: text("owner_id") });\n',
+        "packages/db/src/schema/credentials.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const userCredentials = sqliteTable("user_credentials", { ownerId: text("owner_id") });\n',
       },
-      why: "an owner-stamped table with a CITED non-portable classification (RULED-OUT, spec R10 secrets-never-leave-the-box) — a ruling is a legal answer, silence is not",
+      why: "an owner-stamped table with a CITED non-portable classification (RULED-OUT, spec R10 secrets-never-leave-the-box) — a ruling is a legal answer, silence is not. The row that dies without the NON_PORTABLE_CANON lookup",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/credentials.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'export const userCredentials = sqliteTable("user_credentials", { ownerId: text("owner_id") });\n',
+        "packages/server/src/transport/trpc/routers/persona.ts": "export const personaRouter = t.router({ list: 1 });\n",
+      },
+      why: "THE BARREL SELF-GUARD (§4.5) — the control the legacy module expressed by carrying a SECOND implementation of arm A (`judgeCompletenessSynthetic`) instead. Every carried table, every classified table and every door cite is unresolvable in this fileset, and the `persona` router deliberately declares `list` rather than `export`, so an unguarded run would fire ~42 findings. The barrel is absent, so the whole-registry arms stay silent and only the coverage arm speaks — which passes, because `userCredentials` is classified",
     },
   ],
-};
-
-/** The synthetic-project arm: only the coverage half runs (the stale + door arms need the real tree, and a
- *  mini-project would "prove" every registry row dangling). Kept as the conformance examples' judge. */
-function judgeCompletenessSynthetic(ctx: GateRunCtx): void {
-  const carried = new Set<string>();
-  for (const kind of PORTABLE_KINDS) {
-    for (const table of PORTABLE_CANON_TABLES[kind]) {
-      carried.add(table);
-    }
-  }
-  for (const table of [...ownerStamped].sort()) {
-    if (carried.has(table) || table in NON_PORTABLE_CANON) {
-      continue;
-    }
-    ctx.report({
-      file: GATE_SELF,
-      line: 1,
-      column: 0,
-      message: `\`${table}\` is OWNER-STAMPED canon that no portable kind carries and no NON_PORTABLE_CANON row classifies — register it or classify it in tooling/src/verify/gates/lifecycle-portability.ts (${DOC_POINTER}).`,
-    });
-  }
-}
+});
