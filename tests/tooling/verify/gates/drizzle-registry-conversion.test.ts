@@ -10,8 +10,10 @@
 //      the stronger reader requires), the final policy and the frozen legacy descriptor name the SAME
 //      subjects — one classified difference, the ANCHOR, is asserted rather than waved at;
 //   3. the STRENGTHENING is real: on the ORIGINAL bytes, where `sqliteTable` resolves to nothing, the
-//      legacy regex still "reads" a schema and reports, while the final policy REFUSES through the shared
-//      fact's own empty-population receipt. Identity, not spelling — and a refusal, never a silent pass.
+//      legacy regex still "reads" a schema and reports, while the final policy REFUSES on the shared fact's
+//      `empty` status through its own fail-closed `recordReadySchemaFact` (the phase that owns this moved
+//      from the provider receipt to the consumer in #1962). Identity, not spelling — and a refusal, never
+//      a silent pass.
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -95,15 +97,22 @@ function finalRun(gate: GatePolicy, files: Readonly<Record<string, string>>): Fi
   const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
   return {
     findings: result.authority.effectiveFindings.map((finding) => ({ file: finding.file, message: finding.message ?? gate.message })),
-    // A refused fact lands in BOTH lists, and the pair is the point: `factErrors` names the provider whose
-    // receipt was refused, `toolErrors` names the CONSUMER that was withheld because of it. Collected
-    // together so a proof cannot read "zero findings" as a pass when the run never happened.
+    // BOTH lists, because either can carry the refusal: `factErrors` when a provider itself could not run
+    // (its population admitted nothing), `toolErrors` when a CONSUMER refused the census it was handed —
+    // which is where an empty or unreadable schema lands since #1962. Collected together so a proof cannot
+    // read "zero findings" as a pass when the run never happened.
     refusals: [...result.factErrors.map(({ factId, phase }) => `${factId}:${phase}`), ...result.toolErrors.map(({ phase, message }) => `${phase}: ${message}`)],
   };
 }
 
-const UNRESOLVED_FK_REFUSAL =
-  'evaluate: declared fact failed: drizzle-schema: receipt: fact receipt refused: population "drizzle-schema" resolved zero members; population "drizzle-schema" left 1 unresolved';
+/** The refusal an unreadable schema produces, at its CONSUMER. It was a fact-receipt refusal until #1962:
+ *  the provider receipted its own census, so an `unresolved` schema withheld every dependent before
+ *  `evaluate`. A receipt states the denominator walked, never what was found (§12.3), so the fact is now
+ *  delivered and `recordReadySchemaFact` — every consumer's fail-closed read — throws on any non-`ready`
+ *  status. Same loudness, same silence, one phase later — and the text is now the fact's own REASON, which
+ *  names the offending column, so the two unbound-FK fixtures no longer share one string. The shape and the
+ *  refusal class stay pinned; the subject is what varies. */
+const UNRESOLVED_FK_REFUSAL_RE = /^evaluate: drizzle schema fact unresolved: packages\/db\/src\/schema\/\S+ references target: no lexical symbol binds \w+$/u;
 const FK_REFERENCE_RE = /\.references\(\s*\(\)\s*=>\s*(?<target>\w+)\./gu;
 
 /** Does some schema fixture FK a table it neither imports nor declares? The legacy regex read that as a
@@ -122,9 +131,7 @@ function hasUnboundForeignKey(files: Readonly<Record<string, string>>): boolean 
 
 /** One comparable verdict per engine run: a refusal and its text, or the finding subjects. */
 function verdictOf(final: FinalRun): readonly [string, string] {
-  return final.refusals.length > 0
-    ? ["REFUSED", final.refusals.slice(1).join(" | ")]
-    : ["FINDINGS", subjects(final.findings.map(({ message }) => message)).join(" | ")];
+  return final.refusals.length > 0 ? ["REFUSED", final.refusals.join(" | ")] : ["FINDINGS", subjects(final.findings.map(({ message }) => message)).join(" | ")];
 }
 
 function toolingHref(relFromGates: string): string {
@@ -174,7 +181,9 @@ test("each final policy names the same subjects as its frozen legacy gate on eve
       // That refusal is the strengthening, not a gap — its exact text is the expectation, and the converted
       // module carries the same arm as a proof row whose fixture binds the import (its SEATED row).
       expect(verdictOf(final), label).toEqual(
-        hasUnboundForeignKey(files) ? ["REFUSED", UNRESOLVED_FK_REFUSAL] : ["FINDINGS", subjects(legacyHits.map(({ message }) => message)).join(" | ")],
+        hasUnboundForeignKey(files)
+          ? ["REFUSED", expect.stringMatching(UNRESOLVED_FK_REFUSAL_RE)]
+          : ["FINDINGS", subjects(legacyHits.map(({ message }) => message)).join(" | ")],
       );
       // THE ONE CLASSIFIED DIFFERENCE — the ANCHOR. Both legacy descriptors reported registry verdicts on
       // line 1 of the GATE MODULE itself, and `domain-freshness-plane` additionally reported per-domain
@@ -199,13 +208,12 @@ test("the final reader REFUSES the unresolvable table the legacy regex read anyw
   expect(Object.values(original).some((source) => source.includes("drizzle-orm"))).toBe(false);
   // Legacy: `sqliteTable(` in the initializer TEXT is enough, so it reports the uncovered table.
   expect(legacyFindings(legacy, original)).toHaveLength(1);
-  // Final: nothing in that fixture resolves to the canonical Drizzle door, so the shared fact's population
-  // phase publishes an EMPTY schema and the consumer is withheld — the identity-not-spelling strengthening,
-  // expressed as a refusal rather than as a silent pass or an invented verdict.
+  // Final: nothing in that fixture resolves to the canonical Drizzle door, so the shared fact publishes an
+  // EMPTY schema and its consumer refuses on it — the identity-not-spelling strengthening, expressed as a
+  // refusal rather than as a silent pass or an invented verdict. The refusal moved from the fact's receipt
+  // to the consumer's fail-closed read in #1962 (see `UNRESOLVED_FK_REFUSAL` above); a policy whose JOB is
+  // to report an empty schema can now do so, and this one — which has no such job — still refuses.
   const final = finalRun(lifecyclePortability, original);
   expect(final.findings).toEqual([]);
-  expect(final.refusals).toEqual([
-    "drizzle-schema:receipt",
-    'evaluate: declared fact failed: drizzle-schema: receipt: fact receipt refused: population "drizzle-schema" resolved zero members',
-  ]);
+  expect(final.refusals).toEqual(["evaluate: drizzle schema fact empty: schema source population declares no Drizzle SQLite tables"]);
 });

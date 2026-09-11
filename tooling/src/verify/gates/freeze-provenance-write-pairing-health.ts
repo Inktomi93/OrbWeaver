@@ -19,19 +19,19 @@
 // the declaration to a sibling schema file is now correctly a non-event instead of a false alarm. Both
 // legacy rows are carried against the merged verdict.
 //
-// BLINDNESS MODE B IS BLOCKED, NOT BROKEN, and it is blocked on a provider defect this conversion found.
-// `drizzleSchemaFact` publishes its own CENSUS as the receipt's `members` (`lib/schema-fact.ts:378` sums
-// tables + columns + foreign keys + indexes), which is the §12.3 anti-pattern in the #1953/#1955 class:
-// a receipt states what the provider MEASURED (the denominator it walked), never what it FOUND, and
-// emptiness belongs in the fact's own `status`/`unresolved` FIELDS, which consumers read and judge. Note
-// the halves are not symmetric — an `unresolved` COUNT reporting syntax the provider could not read is
-// correct and must not be "fixed" while `members` moves. The consequence here: a schema tree that declares
-// NO table refuses at receipt and withholds this policy before `evaluate`, so the arm that would report
-// "the guarded table is gone" cannot run on exactly that corpus. The guarantee still holds — it arrives as
-// a LOUD exit-2 fact tool error instead of as a finding, which is the classification
-// `drizzle-registry-conversion.test.ts` already made — and it becomes expressible as a finding the moment
-// `schema-fact` moves to a measured denominator. Until then the arm below proves the case that CAN run: a
-// schema tree with tables, but without this one.
+// BLINDNESS MODE B IS LIVE as of 2026-09-11 (#1962) — it was recorded here as BLOCKED, NOT BROKEN, on a
+// provider defect this conversion found, and the provider is fixed. `drizzleSchemaFact` used to publish its
+// own CENSUS as the receipt's `members` (a sum of tables + columns + foreign keys + indexes), which is the
+// §12.3 anti-pattern in the #1953/#1955 class: a receipt states what the provider MEASURED (the denominator
+// it walked), never what it FOUND, and emptiness belongs in the fact's own `status`/`unresolved` FIELDS,
+// which consumers read and judge. The consequence HERE was that a schema tree declaring NO table refused at
+// receipt and withheld this policy before `evaluate`, so the arm that reports "the guarded table is gone"
+// could not run on exactly that corpus — the guarantee arrived as a LOUD exit-2 fact tool error instead of
+// as a finding. `lib/schema-fact.ts` now receipts the authored sources it walked, `evaluate` judges the
+// fact's `empty` status itself, and mode B is the third `mustFlag` row below. Note the halves are not
+// symmetric — an `unresolved` COUNT reporting syntax the provider could not read is correct and was NOT
+// moved: `unresolved`/`missing` still route into `recordReadySchemaFact`'s fail-closed throw here, because
+// those mean the reader could not look, which is not a verdict this policy may soften into a finding.
 //
 // The REAL-TREE ANCHOR guards both arms off a mini fixture run, where every subject would falsely "prove"
 // itself dead. It is also the anchor both findings report on, because neither has a node when it fires:
@@ -90,8 +90,26 @@ export const gate = defineGate({
         // declared is a contract refusal ("declared facts were not consumed"), and the self-guard below is
         // about whether a VERDICT is honest here, not about whether the schema was read.
         const fact = ctx.fact(drizzleSchemaFact).schema();
+        const onRealTree = ctx.files.some((sourceFile) => ctx.relativePath(sourceFile) === ANCHOR);
+        // BLINDNESS MODE B — a schema population that declares NO Drizzle table at all. It is the same
+        // verdict as derivation loss (the guarded table cannot be derived), it just arrives through the
+        // fact's `empty` status instead of through a census miss, so it is reported here rather than routed
+        // into `recordReadySchemaFact`'s fail-closed throw. `empty` is the fact's own modelled value, not a
+        // broken reader: `unresolved`/`missing` still throw below, because those mean the reader could not
+        // look. Expressible only since `drizzleSchemaFact` receipted its MEASURED denominator (#1962) —
+        // until then the provider refused first and withheld this policy before `evaluate`.
+        if (fact.status === "empty") {
+          ctx.receipt({ kind: "population", source: "freeze-provenance-write-pairing-health", members: 1 });
+          if (onRealTree) {
+            ctx.report.file(ANCHOR, {
+              line: 1,
+              message: `BLIND: the Drizzle schema no longer declares \`${GUARDED_TABLE}\` anywhere — its population declares no table at all — so the guarded columns cannot be derived — ${MESSAGE}`,
+            });
+          }
+          return;
+        }
         recordReadySchemaFact(ctx, fact);
-        if (!ctx.files.some((sourceFile) => ctx.relativePath(sourceFile) === ANCHOR)) {
+        if (!onRealTree) {
           return; // not the real tree — a blindness claim here would judge a synthetic fileset
         }
         const table = fact.value.tables.find((candidate) => candidate.identity.declarationName === GUARDED_TABLE);
@@ -149,6 +167,12 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "not one `messageVariants` insert/update was found" },
       why: "BLINDNESS by SUBJECT LOSS: schema intact, but not a single write site in the tree — the writers moved or the table symbol was renamed, and a zero-finding pass on the sibling would otherwise read as health",
     },
+    {
+      mode: "types",
+      files: { [ANCHOR]: "export const schemaHomeIsGone = true;\n" },
+      expect: { count: 1, messageIncludes: "its population declares no table at all" },
+      why: "BLINDNESS MODE B: the schema population is loaded but declares no Drizzle table at all — the guarded home was emptied or moved out from under the schema population, and the guarded columns cannot be derived from anything. This row is the one the header recorded as BLOCKED until 2026-09-11: the provider receipted its CENSUS, so this exact corpus refused at the fact receipt and withheld the policy before `evaluate` (#1962). It dies if `lib/schema-fact.ts` goes back to receipting what it FOUND",
+    },
   ],
   mustPass: [
     {
@@ -171,6 +195,11 @@ export const gate = defineGate({
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id") });\n',
       },
       why: "THE ANCHOR SELF-GUARD, and the row that dies without it: the anchor file is not loaded (a plain fixture run), so the tripwire declares nothing dead. Delete the anchor check and this fixture — whose schema declares no `messageVariants` at all — flags the derivation-loss arm",
+    },
+    {
+      mode: "types",
+      files: { "packages/db/src/schema/chat.ts": "export const schemaHomeIsGone = true;\n" },
+      why: "THE ANCHOR SELF-GUARD FOR MODE B, the twin of the row above: same empty schema population as mode B's `mustFlag`, but off the real-tree anchor, so the new `empty` arm must stay silent rather than declare the whole schema dead from a synthetic fileset. It also proves `empty` is DELIVERED rather than refused — a withheld policy would fail this row as a tool error, which is exactly what it did before #1962",
     },
   ],
 });

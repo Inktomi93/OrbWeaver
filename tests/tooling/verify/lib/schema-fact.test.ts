@@ -102,7 +102,9 @@ test("the first-class schema provider uses dispatcher declarations once and expo
       id: "drizzle-schema",
       status: "success",
       population: { effectiveSourcePaths: ["packages/db/src/schema/x.ts"] },
-      receipts: [{ source: "drizzle-schema", members: 2, unresolved: 0 }],
+      // THE RECEIPT IS THE WALKED DENOMINATOR, not the census (#1962): one admitted schema source, not the
+      // two members the census below counts. The census is the fact's own published VALUE, asserted next.
+      receipts: [{ source: "drizzle-schema-sources", members: 1 }],
     },
   ]);
   expect(captured?.schema()).toMatchObject({ status: "ready", receipt: { tables: 1, columns: 1, members: 2 } });

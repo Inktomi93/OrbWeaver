@@ -247,6 +247,115 @@ function policy(): GatePolicy {
   });
 }
 
+/** A consumer that judges the facts WITHOUT re-filing the census as its own receipt, so the arms below
+ *  isolate the PROVIDER's verdict from a consumer's own blindness door. */
+function deliveryProbe(capture: (facts: StaticClassFactResult) => void, population: GatePolicy["population"] = "@frontend"): GatePolicy {
+  return defineGate({
+    id: "static-class-delivery-probe",
+    family: "static-class-reader-proof",
+    authority: "hard",
+    severity: "error",
+    population,
+    analysis: "types",
+    execution: "entire-population",
+    facts: [staticClassFact],
+    resources: [],
+    message: "static class delivery probe",
+    create: (context) => ({
+      evaluate: () => {
+        capture(context.fact(staticClassFact));
+        context.receipt({ kind: "population", source: "static-class-delivery-probe", members: 1 });
+      },
+    }),
+    mustFlag: [
+      { mode: "types", files: { "packages/client/src/x.tsx": 'export const X = <div className="dark:bg-card" />;' }, why: "descriptor proof control" },
+    ],
+    mustPass: [{ mode: "types", files: { "packages/client/src/x.tsx": 'export const X = <div className="bg-card" />;' }, why: "descriptor proof control" }],
+  });
+}
+
+test("a frontend corpus with NO class token is DELIVERED — the provider receipt is not the accuser", () => {
+  // THE #1962 ROW. `members` used to be the TOKEN CENSUS, and `factReceiptFailures` refuses `members === 0`
+  // and withholds every consumer BEFORE `evaluate` (`lib/policy-pass.ts`), so a frontend corpus authoring no
+  // class at all would have preempted any policy whose job is to report that. A receipt states the
+  // denominator the provider WALKED; an empty census is delivered data the consumer judges.
+  let captured: StaticClassFactResult | undefined;
+  const gate = deliveryProbe((facts) => {
+    captured = facts;
+  });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: ROOT,
+    project: projectOf({ "packages/client/src/plain.ts": "export const plain = 1;\n" }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(captured?.tokens).toEqual([]);
+  expect(result.facts[0]).toMatchObject({
+    id: "static-class",
+    status: "success",
+    receipts: [{ kind: "population", source: "static-class-sources", members: 1, unresolved: 0 }],
+  });
+});
+
+test("UNRESOLVED authored syntax still refuses at the provider — the asymmetric half that did NOT move", () => {
+  // THE PLANTED CONTROL for the row above, and the §12.3 asymmetry: `members` is the census (moved),
+  // `unresolved` counts syntax this reader could NOT READ (kept). A mutated alias is unread, not absent, and
+  // no consumer can tell the two apart from a clean `tokens: []` — so the provider refuses and withholds,
+  // rather than handing a consumer a confident zero. Delete `unresolved` from the receipt and this row goes
+  // green while the tree it describes stays unreadable.
+  let captured: StaticClassFactResult | undefined;
+  const gate = deliveryProbe((facts) => {
+    captured = facts;
+  });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: ROOT,
+    project: projectOf({
+      "packages/client/src/x.tsx": 'let mutable = "probe:stale";\nmutable = "probe:new";\nexport const A = <div className={mutable} />;\n',
+    }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+
+  expect(captured).toBeUndefined();
+  expect(result.factErrors).toMatchObject([
+    { factId: "static-class", phase: "receipt", message: expect.stringContaining('population "static-class-sources" left 1 unresolved') },
+  ]);
+  expect(result.authority.withheldPolicyIds).toEqual(["static-class-delivery-probe"]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+});
+
+test("a provider that could not LOOK refuses one phase EARLIER, at its own population", () => {
+  // The blindness the receipt fix does NOT disarm: zero admitted frontend paths. The POLICY's population is
+  // wider than the FACT's so the policy has files while the provider has none — the shape that isolates a
+  // provider-population refusal from a policy-population one.
+  let captured: StaticClassFactResult | undefined;
+  const gate = deliveryProbe(
+    (facts) => {
+      captured = facts;
+    },
+    { in: ["@client", "@server"], ext: ["ts", "tsx"] },
+  );
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: ROOT,
+    project: projectOf({ "packages/server/src/x.ts": "export const outsideTheFrontend = 1;\n" }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+
+  expect(captured).toBeUndefined();
+  expect(result.factErrors.map(({ factId, phase }) => `${factId}/${phase}`)).toEqual(["static-class/population"]);
+  expect(result.authority.withheldPolicyIds).toEqual(["static-class-delivery-probe"]);
+});
+
 test("composes with the production policy context and shared dispatcher", () => {
   const project = projectOf({
     "packages/client/src/x.tsx": 'import { clsx } from "clsx"; const value = "dark:bg-card"; export const X = clsx(value);',
