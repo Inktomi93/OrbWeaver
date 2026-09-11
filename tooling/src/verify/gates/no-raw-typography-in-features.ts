@@ -9,6 +9,14 @@
 // a SEPARATE policy in this same family (`typography-tier-home-health`) because the occurrence check below
 // is per-file/incremental-safe while the tripwire needs the entire declared population to know whether a
 // home resolved to zero files — one `execution` value cannot serve both.
+//
+// THE CARRIER FENCE IS REAL, AND THE MESSAGE'S "in className" IS THEREFORE EARNED (re-derived 2026-09-11,
+// #1954, against the `no-color-literals` finding that a header may not claim a context its visitor never
+// applies). `inClassCarrier` below IS applied on every hit, and it admits two carriers: a `className` JSX
+// attribute and a class-composer call (`cn`/`clsx`/`cva`/`tv`) — so the `tv()` variant maps that made an
+// ancestry fence wrong for `no-color-literals` are INSIDE this fence, not blinded by it. The fence is pinned
+// in both directions: the `cn(…)` mustFlag row proves the composer arm bites, and the bare-constant mustPass
+// row proves an uncarried string does not. Deleting either leaves the header's claim unproven.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable } from "../contract/gate.ts";
@@ -96,6 +104,11 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/client/src/test.tsx": 'const x = <div className="text-body" />;' },
       why: "valid intent token",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/test.ts": 'export const label = "text-sm rendering of the size in prose";' },
+      why: "THE CARRIER FENCE (#1954): the exact banned utility `text-sm`, in an ordinary string constant with no className attribute and no cn/clsx/cva/tv call above it, does NOT flag. This is the pin for the header's fenced claim and for the message's 'in className' wording — drop `inClassCarrier` and this row goes red instead of the claim silently becoming false.",
     },
   ],
 });

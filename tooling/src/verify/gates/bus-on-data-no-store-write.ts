@@ -2,13 +2,22 @@
 // `onConnectionStateChange` body may route into the pure reducer, buffer through the sanctioned
 // chatStream write api, or drive the invalidation/notify seam — and nothing else. A raw Zustand write
 // (`.setState(`) inside the callback forks canon into an unsanctioned second store.
+//
+// THE REPORTED POSITION IS THE BARE `setState` IDENTIFIER, NOT THE `.setState(` SPELLING (fixed 2026-09-11,
+// #1954). This policy is ORDINARY, so it exists to be waivable — and the ordinary marker grammar's position
+// group is `\(([^()\r\n]+)\)` (lib/ordinary-waiver.ts), which CANNOT contain a paren. Reporting `.setState(`
+// therefore named a position no author could ever spell: every `@orb-waive bus-on-data-no-store-write(...)`
+// parsed as `malformed`, the finding survived, and an authority alarm fired. The door was shut. The offset
+// is derived from the name node rather than an `indexOf` on the call text so a nested `.setState(` in an
+// argument cannot steal the anchor; the token stays an exact source slice, which `locateFinding` enforces.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
 /** The subscription-callback property names whose bodies must stay store-write-free. */
 const HANDLER_NAMES = new Set(["onData", "onConnectionStateChange"]);
-const STORE_WRITE_TOKEN = ".setState(";
+/** The waivable position token: the bare property name, free of the parens the marker grammar forbids. */
+const POSITION_TOKEN = "setState";
 
 const MESSAGE =
   "raw store write (.setState) inside a bus onData/onConnectionStateChange body — the subscription seam " +
@@ -48,7 +57,7 @@ export const gate = defineGate({
           }
           const call = node.getParent();
           if (call?.isKind(SyntaxKind.CallExpression) === true && insideHandler(node)) {
-            ctx.report.node(call, { token: STORE_WRITE_TOKEN, offset: call.getText().indexOf(STORE_WRITE_TOKEN) });
+            ctx.report.node(call, { token: POSITION_TOKEN, offset: node.getNameNode().getStart() - call.getStart() });
           }
         },
       },
@@ -58,13 +67,13 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/data/bus/use-chat-bus.ts": "export const sub = {\n  onData: () => {\n    useX.setState({ a: 1 });\n  },\n};\n" },
-      expect: { count: 1, token: STORE_WRITE_TOKEN },
+      expect: { count: 1, token: POSITION_TOKEN },
       why: "a raw .setState inside an onData body — forking canon into an unsanctioned second store (§11.1)",
     },
     {
       mode: "source",
       files: { "packages/client/src/data/bus/unrelated.ts": "export const sub = { onConnectionStateChange() { unrelated.setState({ ready: true }); } };\n" },
-      expect: { count: 1, token: STORE_WRITE_TOKEN },
+      expect: { count: 1, token: POSITION_TOKEN },
       why: "the syntax policy intentionally bans any dotted .setState call in either named handler, including an unrelated receiver and method shorthand",
     },
   ],
@@ -83,6 +92,16 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/client/src/data/bus/computed.ts": 'export const sub = { onData: () => store["setState"]({ ready: true }) };\n' },
       why: "declared limit: computed/quoted member access is outside this dotted .setState spelling policy",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/data/bus/waived.ts":
+          "export const sub = {\n  onData: () => {\n" +
+          "    // @orb-waive bus-on-data-no-store-write(setState): the proof's stand-in reason and its end condition.\n" +
+          "    useX.setState({ a: 1 });\n  },\n};\n",
+      },
+      why: "POSITIVE IDENTITY (#1954): the marker an author would actually write — `setState`, the position this policy reports — binds to the flagged call and suppresses it. Self-checking: a paren-bearing or otherwise unspellable position would come back `malformed`, a wrong name `dead-position`, a non-flagging fixture `stale`, and every one of those raises an authority alarm that fails this arm.",
     },
   ],
 });
