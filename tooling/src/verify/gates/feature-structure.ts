@@ -1,7 +1,8 @@
-// Gate: feature-structure (core/Core-0-Architecture-and-Structure.md §7) — every domain feature follows the per-feature template.
-// Requires the universal slots: index.ts (front door), service.ts (composition root), context.ts
-// (DI bundle), and contract/ + verbs/ dirs. persistence/ and substrate/ are per-feature (export has
-// no persistence/; chat/workloads have no substrate/), so they are NOT required here.
+// Gate: feature-structure (core/Core-0-Architecture-and-Structure.md §7) — every domain feature follows the
+// per-feature template (index.ts / service.ts / context.ts / contract/ / verbs/). persistence/ and
+// substrate/ are per-feature (export has no persistence/; chat/workloads have no substrate/), so they are
+// NOT required here. ResourceHost derives the live `packages/server/src/domain` tree; a missing/loose entry
+// is a structural fact, not a syntax one.
 //
 // Documented exceptions to "only index/service/context at root":
 // - `guard.ts` is a ratified, cross-domain 9th slot (Core-Laws-and-Precedents.md "Committed decisions" —
@@ -16,10 +17,8 @@
 //   `workload-contributions.ts` — I/O-touching, not a verb, cross-domain by construction.
 // - A handful of domain-specific root singletons, each individually justified inline below
 //   (`DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES`) but not yet promoted to the cross-domain ledger.
-import { existsSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { ResourceTreeEntry } from "../contract/resource.ts";
 
 const DOMAIN_REL = "packages/server/src/domain";
 const REQUIRED_FILES = ["index.ts", "service.ts", "context.ts"] as const;
@@ -41,8 +40,10 @@ const REQUIRED_DIRS = ["contract", "verbs"] as const;
  *    without reading the queue. */
 const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts", "teaching-contribution.ts", "workload-contributions.ts"] as const;
 
-const GATE_SELF = "tooling/src/verify/gates/feature-structure.ts";
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): a domain every real run has and no example builds. */
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): a domain every real run has and no example builds. The
+ *  stale-arm findings anchor HERE (a ResourceHost resource can only ever be declared over the domain
+ *  tree it already reads — a second `authored-tree` request for the gate's own source would have to
+ *  resolve "ready" on EVERY proof, including the ones that plant no `tooling/` tree at all). */
 const ANCHOR_DOMAIN = "chat";
 const STALE_ALWAYS =
   "stale ALWAYS_ALLOWED_ROOT_FILES slot — NO domain root carries this file any more, so the cross-domain " +
@@ -61,34 +62,12 @@ const STALE_DOMAIN_FILE =
  *  - settings: `constants.ts` (the theme seed sentinel TypeIDs, domain-internal), `seed-themes.ts`
  *    (boot-time `ensureSeedThemes` — the preset `seed.ts` precedent, named `-themes` since the domain
  *    root's `seed.ts` slot may host a different concern later).
- *  - rpg: `bus.ts` (the rpg's per-CHAT SSE event bus emitter + replay ring with the host/member hidden-clock
- *    split; a feature-root collaborator the verbs emit onto, rpg-design/05 §5),
- *    `staging.ts` (the Option-A per-turn tool-write staging accumulator singleton — an in-memory Map the tool
- *    verbs stage into + the commit/abort hooks flush/clear, the chat/active-turns.ts precedent; rpg-design/10 §R4),
- *    `snapshot-edit.ts` (the verb-facing HAND-edit I/O over the CURRENT resolved snapshot — resolve the
- *    ladder head, apply a [merge-clear] overlay + auto-lock, write back in place; the guard.ts
- *    I/O-wrapping-root precedent, shared by editSnapshot/upsertQuest/deleteQuest so verb-to-verb VALUE imports
- *    stay banned; rpg-design/05 §4.4),
- *    `game-mint.ts` (the ONE lite-game BIRTH mechanism — row + pointer mirror + bus emit — shared by the
- *    caller-gated createGame verb AND the chat-ops draft-time `startGame` door so the #40 front door never
- *    re-spells the birth; the `snapshot-edit.ts` I/O-wrapping-root precedent),
- *    `flush-barrier.ts` (the per-chat in-flight-flush BARRIER singleton — an in-memory Map the post-turn flush
- *    registers into + the next turn's gather awaits, so a fast re-send reads the just-committed state, not stale
- *    state; the `staging.ts`/`bus.ts` in-memory-singleton precedent; the dedicated state round made the flush a
- *    real 0.8-2.9s call, so the race is real — rpg-design/05 §4.6 delivery-model amendment),
- *    `trace.ts` (R-OBS — the per-process rpg FLIGHT RECORDER: a bounded in-memory ring the composition root
- *    mints ONE of when `RPG_TRACE=on`, whose `sink` the compose emit sites write through and whose `recent`
- *    the host-only `/api/_debug/rpg/traces` route reads; the `staging.ts`/`bus.ts` in-memory-singleton
- *    precedent exactly. RE-ADDED 2026-08-07 with the file: this row was one of the four deleted by the stale-arm
- *    catch below, which is the two-sided rule working — the permission died with its code and comes back with it).
- *  - stats: `reconcile-in-flight.ts` (the per-USER single-flight gate for the awaited `stats.reconcile` verb —
- *    an in-memory Set the verb claims/releases around the rebuild, so a second concurrent recompute is refused
- *    with CONFLICT instead of racing the first over the same rollup rows; the `chat/active-turns.ts`
- *    in-memory-registry precedent, owner ruling 2026-08-02). */
-// FIRST LIVE CATCH of the stale arm (2026-08-02): six rows had outlived their code — the whole `crew` and
-// `roster-preset` domains (purged in the rebuild) and four rpg root singletons (`turn-staging.ts`,
-// `seat.ts`, `trace.ts`, `encounter-commit.ts`). Rows AND their justifications were deleted together: a
-// justification for a file that does not exist is not history, it is a permission waiting for a namesake.
+ *  - rpg: `bus.ts`, `staging.ts`, `snapshot-edit.ts`, `flush-barrier.ts`, `game-mint.ts`, `trace.ts` —
+ *    the per-CHAT SSE bus, the Option-A per-turn tool-write staging singleton, the hand-edit I/O seam,
+ *    the lite-game birth mechanism, the in-flight-flush barrier, and the R-OBS flight recorder
+ *    (rpg-design/05, /10).
+ *  - stats: `reconcile-in-flight.ts` (the per-USER single-flight gate for the awaited `stats.reconcile`
+ *    verb, owner ruling 2026-08-02). */
 const DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   chat: ["bus.ts", "active-turns.ts"],
   rpg: ["bus.ts", "staging.ts", "snapshot-edit.ts", "flush-barrier.ts", "game-mint.ts", "trace.ts"],
@@ -105,76 +84,74 @@ function isAllowedRootFile(feature: string, fileName: string): boolean {
   return (DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES[feature] ?? []).includes(fileName);
 }
 
-function checkRequiredSlots(featureDir: string, feature: string): Violation[] {
-  const violations: Violation[] = [];
+function basename(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+/** Every DIRECT child entry of `dir`, at any kind. */
+function directChildren(entries: readonly ResourceTreeEntry[], dir: string): readonly ResourceTreeEntry[] {
+  const prefix = `${dir}/`;
+  return entries.filter((entry) => entry.path.startsWith(prefix) && !entry.path.slice(prefix.length).includes("/"));
+}
+
+/** The domain-root feature names: depth-1 DIRECTORY entries under `packages/server/src/domain`. */
+function featureNames(entries: readonly ResourceTreeEntry[]): readonly string[] {
+  return directChildren(entries, DOMAIN_REL)
+    .filter((entry) => entry.kind === "directory")
+    .map((entry) => basename(entry.path))
+    .toSorted();
+}
+
+function hasEntry(byPath: ReadonlyMap<string, ResourceTreeEntry>, path: string, kind: ResourceTreeEntry["kind"]): boolean {
+  return byPath.get(path)?.kind === kind;
+}
+
+interface Report {
+  readonly path: string;
+  readonly message: string;
+}
+
+function checkRequiredSlots(byPath: ReadonlyMap<string, ResourceTreeEntry>, feature: string, featureDir: string, out: Report[]): void {
   for (const file of REQUIRED_FILES) {
-    if (!existsSync(join(featureDir, file))) {
-      violations.push({
-        file: `${DOMAIN_REL}/${feature}/${file}`,
-        line: 0,
-        message: `missing template file '${file}' (8-slot per-feature template, Core-0-Architecture-and-Structure.md §4)`,
+    if (!hasEntry(byPath, `${featureDir}/${file}`, "file")) {
+      out.push({
+        path: featureDir,
+        message: `missing template file '${file}' (8-slot per-feature template, Core-0-Architecture-and-Structure.md §4) at ${DOMAIN_REL}/${feature}/`,
       });
     }
   }
   for (const dir of REQUIRED_DIRS) {
-    if (!existsSync(join(featureDir, dir))) {
-      violations.push({
-        file: `${DOMAIN_REL}/${feature}/${dir}/`,
-        line: 0,
-        message: `missing template dir '${dir}/' (8-slot per-feature template, Core-0-Architecture-and-Structure.md §4)`,
+    if (!hasEntry(byPath, `${featureDir}/${dir}`, "directory")) {
+      out.push({
+        path: featureDir,
+        message: `missing template dir '${dir}/' (8-slot per-feature template, Core-0-Architecture-and-Structure.md §4) at ${DOMAIN_REL}/${feature}/`,
       });
     }
   }
-  return violations;
 }
 
-function checkLooseFiles(featureDir: string, feature: string): Violation[] {
-  const violations: Violation[] = [];
-  for (const entry of readdirSync(featureDir, { withFileTypes: true })) {
-    if (entry.isFile() && !isAllowedRootFile(feature, entry.name)) {
-      violations.push({
-        file: `${DOMAIN_REL}/${feature}/${entry.name}`,
-        line: 0,
-        message: `loose file '${entry.name}' not allowed at feature root (must be index.ts, service.ts, context.ts, guard.ts, or a domain-specific documented root file — Core-0-Architecture-and-Structure.md §4)`,
+function checkLooseFiles(entries: readonly ResourceTreeEntry[], feature: string, featureDir: string, out: Report[]): void {
+  for (const entry of directChildren(entries, featureDir)) {
+    if (entry.kind === "file" && !isAllowedRootFile(feature, basename(entry.path))) {
+      out.push({
+        path: entry.path,
+        message: `loose file '${basename(entry.path)}' not allowed at feature root (must be index.ts, service.ts, context.ts, guard.ts, or a domain-specific documented root file — Core-0-Architecture-and-Structure.md §4)`,
       });
     }
   }
-  return violations;
 }
 
-/** The fs scan shared by the legacy Check and the single-pass `run` descriptor. */
-function scanFeatureStructure(root: string): Violation[] {
-  const violations: Violation[] = [];
-  const domainDir = join(root, DOMAIN_REL);
-  if (!existsSync(domainDir)) {
-    return violations;
+/** TWO-SIDED (GATE-AUTHORING.md §4.4): both root-slot allowlists ratchet DOWN. Guarded on a REAL-TREE
+ *  ANCHOR (§4.5): a domain every real run has and no example builds. */
+function staleRootSlotRows(entries: readonly ResourceTreeEntry[], byPath: ReadonlyMap<string, ResourceTreeEntry>): readonly Report[] {
+  if (!hasEntry(byPath, `${DOMAIN_REL}/${ANCHOR_DOMAIN}`, "directory")) {
+    return []; // synthetic fixture — these are whole-tree claims
   }
-  for (const feature of readdirSync(domainDir)) {
-    const featureDir = join(domainDir, feature);
-    if (!statSync(featureDir).isDirectory()) {
-      continue;
-    }
-    violations.push(...checkRequiredSlots(featureDir, feature), ...checkLooseFiles(featureDir, feature));
-  }
-  return violations;
-}
-
-/** TWO-SIDED (GATE-AUTHORING.md §4.4): both root-slot allowlists ratchet DOWN. A cross-domain slot NO
- *  domain occupies, a per-domain row whose domain is gone, or a per-domain row whose file is gone — each is
- *  a standing permission on a NAME, and the next file to take that name inherits an exemption nobody
- *  granted it. Guarded on a REAL-TREE ANCHOR (§4.5): a domain every real run has and no example builds. */
-function staleRootSlotRows(root: string): Violation[] {
-  const domainDir = join(root, DOMAIN_REL);
-  if (!existsSync(join(domainDir, ANCHOR_DOMAIN))) {
-    return []; // synthetic tree — these are whole-tree claims
-  }
-  const domains = readdirSync(domainDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name);
-  const out: Violation[] = [];
-  const row = (message: string): Violation => ({ file: GATE_SELF, line: 1, message });
+  const domains = featureNames(entries);
+  const out: Report[] = [];
+  const row = (message: string): Report => ({ path: `${DOMAIN_REL}/${ANCHOR_DOMAIN}`, message });
   for (const slot of ALWAYS_ALLOWED_ROOT_FILES) {
-    if (!domains.some((d) => existsSync(join(domainDir, d, slot)))) {
+    if (!domains.some((domain) => hasEntry(byPath, `${DOMAIN_REL}/${domain}/${slot}`, "file"))) {
       out.push(row(`${STALE_ALWAYS}"${slot}" — the slot list lives in tooling/src/verify/gates/feature-structure.ts`));
     }
   }
@@ -184,7 +161,7 @@ function staleRootSlotRows(root: string): Violation[] {
       continue;
     }
     for (const file of files) {
-      if (!existsSync(join(domainDir, domain, file))) {
+      if (!hasEntry(byPath, `${DOMAIN_REL}/${domain}/${file}`, "file")) {
         out.push(row(`${STALE_DOMAIN_FILE}"${domain}/${file}" — delete the entry in tooling/src/verify/gates/feature-structure.ts`));
       }
     }
@@ -192,30 +169,50 @@ function staleRootSlotRows(root: string): Violation[] {
   return out;
 }
 
-export const gate: GateDescriptor = {
-  name: "feature-structure",
-  docRow: "core/Core-0-Architecture-and-Structure.md §7 (§4)",
-  status: "active",
-  scopeSafety: "whole-project",
-  fsBacked: true,
+export const gate = defineGate({
+  id: "feature-structure",
+  family: "feature-structure",
+  authority: "hard",
+  severity: "error",
+  population: { of: "none", why: "the per-feature domain layout is a closed ResourceHost tree fact" },
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [{ kind: "authored-tree", id: "server-domain" }],
   message:
     "a domain feature does not follow the per-feature template — it is missing a required slot (index.ts / service.ts / context.ts / contract/ / verbs/) or carries a loose non-template file at its root (Core-0-Architecture-and-Structure.md §4).",
   fix: "add the missing template slot, or move the loose file into verbs/ / substrate/ / a subsystem (only index/service/context/guard + documented singletons live at the feature root).",
-  run: (ctx) => {
-    for (const v of scanFeatureStructure(ctx.root)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
-    for (const v of staleRootSlotRows(ctx.root)) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: v.message });
-    }
-  },
+  create: (ctx) => ({
+    evaluate: () => {
+      const domainTree = ctx.resources.authoredTree("server-domain");
+      if (domainTree.status !== "ready") {
+        return;
+      }
+      const entries = domainTree.value;
+      const byPath = new Map(entries.map((entry) => [entry.path, entry]));
+      const findings: Report[] = [];
+      for (const feature of featureNames(entries)) {
+        const featureDir = `${DOMAIN_REL}/${feature}`;
+        checkRequiredSlots(byPath, feature, featureDir, findings);
+        checkLooseFiles(entries, feature, featureDir, findings);
+      }
+      for (const finding of findings) {
+        ctx.report.file(finding.path, { line: 1, column: 1, message: finding.message });
+      }
+      for (const stale of staleRootSlotRows(entries, byPath)) {
+        ctx.report.file(stale.path, { line: 1, column: 1, message: stale.message });
+      }
+    },
+  }),
   mustFlag: [
     {
+      mode: "resource",
       files: { "packages/server/src/domain/broken/index.ts": "export const x = 1;\n" },
       expect: { messageIncludes: "missing template" },
       why: "a domain feature with only index.ts — missing service.ts/context.ts/contract/verbs (§4)",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/loose/index.ts": "export const x = 1;\n",
         "packages/server/src/domain/loose/service.ts": "export const s = 1;\n",
@@ -229,6 +226,7 @@ export const gate: GateDescriptor = {
       why: "a feature with every required slot PLUS a loose non-template root file — the checkLooseFiles arm",
     },
     {
+      mode: "resource",
       files: {
         // The anchor domain exists (so the stale arms judge) and carries one of its two documented
         // singletons; every other allowlisted slot/row names something this tree does not have.
@@ -246,6 +244,7 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/whole/index.ts": "export const x = 1;\n",
         "packages/server/src/domain/whole/service.ts": "export const s = 1;\n",
@@ -256,4 +255,4 @@ export const gate: GateDescriptor = {
       why: "a feature with all required slots (index/service/context + contract/ + verbs/) — the template, passes; with no anchor domain this is not the real tree, so the stale arms stay silent (THE ANCHOR GUARD)",
     },
   ],
-};
+});
