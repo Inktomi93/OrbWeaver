@@ -1,7 +1,7 @@
 ---
 kind: review
 status: active
-updated: 2026-09-11
+updated: 2026-09-12
 ---
 
 # Gate-runtime conversion exemplars for #1584
@@ -11,6 +11,26 @@ tests and the central files a conversion lane must read first. Produced by a rea
 `f898b14b1` for the orchestrator; every future conversion brief names this file as "copy these shapes". The
 "did not cover" section at the end is part of the record, not a footnote: an exemplar it marks unconfirmed is a
 lead, not a precedent.
+
+> **REFUTED 2026-09-12 — NINE OF THESE TEN ARE NOT COPYABLE. Read this before copying any shape below.**
+>
+> A fresh-context PRISTINE audit ran all ten against §5b's seven criteria and refuted nine. Receipts, per
+> module, in [v-exemplar-audit-2026-09-12.md](v-exemplar-audit-2026-09-12.md). **Only
+> `user-bus-deferred-member` (§8) survives as a module a lane should copy.**
+>
+> - **12 of 30 narrowings are UNENFORCED (40%)** — cut the fence, every proof row stays green. Double the
+>   corpus's prior \~1-in-5 rate.
+> - **Three "Wart: none found" lines below are FALSE** (§2, §3, §5). Each is corrected in place.
+> - **The §3 preference for `server-layout` over `ui-exports-map-complete` is WITHDRAWN.** Both carry the
+>   same defect, and the audit found `server-layout`'s worse.
+> - **The five "no dedicated test file was located" entries RESOLVE**:
+>   `tests/tooling/verify/gates/resource-layout-wave-1.test.ts` covers BOTH resource policies (§3) — and
+>   holds no pin for either; `no-array-literal-querykey` (§1) and the four raw-CSS modules genuinely have
+>   none. The scout was right to mark them unconfirmed rather than absent.
+>
+> **What still binds:** the "Central files to read before converting anything" table, the capability→shape
+> mapping (which module demonstrates which plane), and every §4.2 identity arm — all five ordinary policies'
+> arms DISCRIMINATE under a planted dead-position control. That is the one criterion the whole set passes.
 
 ## EXEMPLARS - copy these shapes
 
@@ -83,7 +103,9 @@ features family to defineGate" - one of last night's four named SHAs.
 Why exhaustive: the tripwire never asserts the tree is broken off a fixture that never loaded its own
 anchor - the control most lazy entire-population conversions skip, proven here explicitly.
 
-Wart: none found; both files read in full, no shortcuts visible.
+Wart: **CORRECTED 2026-09-12 — this line was FALSE.** The pair is REFUTED on §5b criteria 6 and 7: the
+`-health` sibling carries an unenforced narrowing, and a `mustPass` is titled after a fence that survives
+that fence's deletion. Minor relative to §3 and §5, but not "none found".
 
 Test: no dedicated test file was located for this pair by name; its family appears to run through
 check-gates.repo.int.test.ts / conformance. Confirm the gate id before reusing that as precedent for
@@ -94,7 +116,9 @@ skipping a family test file, since items 4, 5, 10 below DO have one.
 ## 3. Resource policy - closed ResourceHost facts, no source population
 
 File: tooling/src/verify/gates/server-layout.ts (106 lines, whole file read)
-Commit 3d8abaf5b, Codex era. Confirmed the cleaner of the brief's two precedents: ui-exports-map-
+Commit 3d8abaf5b, Codex era. **PREFERENCE WITHDRAWN 2026-09-12** — the audit found BOTH carry the
+unexecutable-guard defect and `server-layout`'s proof rows worse; neither is the cleaner. Originally read as
+the cleaner of the brief's two precedents: ui-exports-map-
 complete.ts (186 lines) does the same shape but is longer and was only skimmed; server-layout.ts is the
 minimal clean version.
 
@@ -112,7 +136,13 @@ Why exhaustive: the resource-not-ready guard means a partial or failed resource 
 reporting half a verdict - exactly the missing/empty/unresolved-population-refusal standard capability the
 design doc requires.
 
-Wart: none found.
+Wart: **CORRECTED 2026-09-12 — this line was FALSE, and this module is REFUTED SEVERE.** (a) `mustFlag[0]`
+tolerates **8 findings from two arms** under a one-finding `why` (derived by planting `count: 99` → `but got
+8`): the fixture supplies a stray file and NO tiers, so the missing-tier loop fires seven times too. (b) The
+`tree.status !== "ready"` guard at `:41-43` that §3 calls its headline virtue **CANNOT EXECUTE** —
+`lib/resource-declaration.ts:182` throws at the POPULATION phase first, proven by deleting the `package.json`
+from a fixture: `PASS TOOL ERROR [population] … is missing`, not a silent green-zero. So this module teaches a
+lane to write dead code AND to answer a broken resource with a silent return.
 
 Test: proofs run via verifyPolicyProofs / family conformance; this scout did not locate a dedicated test
 file named for server-layout specifically in the time available - treat as unconfirmed, not "none exists."
@@ -181,7 +211,13 @@ Why exhaustive: this is the strongest exemplar in the corpus for identity-not-sp
 names and closes the legacy check's blind spots (alias, computed key, cast) with one mustFlag row each,
 and is honest about the one it cannot close (Reflect.get) rather than hiding it.
 
-Wart: none found - this is as thorough as the corpus gets.
+Wart: **CORRECTED 2026-09-12 — this line was FALSE, and this module is REFUTED SEVERE.** (a) Its DECLARED
+LIMIT is false in THREE documents at once — the header `:92-95`, the `why` of `mustFlag[5]`/`[6]`, and
+`Core-Enforcement-Active-Gates.md:286` all claim `window.matchMedia` / bare `matchMedia(q)` "land on the
+FAIL-CLOSED unreadable finding"; both carry the PRECISE message (transplant test, exit 0). (b) That
+fail-closed arm is exercised by NO row — `classifyOriginRefusal → "other"` fails OPEN and kills nothing.
+(c) `mustFlag[6]`'s `why` is self-refuting: it promises a message change "shows up here rather than
+silently" while carrying no `messageIncludes`.
 
 Central grant-liveness proof: tooling/src/verify/lib/reviewed-grants.ts (grant table shape and lookup),
 tests/tooling/verify/lib/reviewed-grants.test.ts (malformed/stale/over-broad reconciliation),
