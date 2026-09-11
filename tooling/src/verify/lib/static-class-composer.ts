@@ -1,8 +1,8 @@
 // Declaration-proven class-composer identity. Textual callee names never grant authority: imports,
 // namespaces, aliases, re-exports, createTV/merge factories, and simple parameter-forwarding wrappers do.
-import type { ArrowFunction, FunctionDeclaration, FunctionExpression, ImportDeclaration, Project } from "ts-morph";
+import type { ArrowFunction, FunctionDeclaration, FunctionExpression, ImportDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
-import type { Composer } from "./static-class-expression-model.ts";
+import type { Composer, StaticClassSourceIndex } from "./static-class-expression-model.ts";
 import { exportedDeclarations, importedSource, literalValue, localDeclarations, uniqueNodes, unwrap } from "./static-class-expression-model.ts";
 
 type FunctionLike = FunctionDeclaration | FunctionExpression | ArrowFunction;
@@ -29,12 +29,36 @@ function moduleComposer(moduleName: string, exportName: string): Composer | unde
 }
 
 export class ComposerResolver {
-  private readonly project: Project;
+  private readonly sourceIndex: StaticClassSourceIndex;
   private readonly expressionCache = new Map<Node, Composer | null>();
   private readonly declarationCache = new Map<Node, Composer | null>();
+  private readonly callsByFunction = new Map<FunctionLike, import("ts-morph").CallExpression[]>();
+  private readonly identifiersByCall = new Map<import("ts-morph").CallExpression, import("ts-morph").Identifier[]>();
 
-  constructor(project: Project) {
-    this.project = project;
+  constructor(sourceIndex: StaticClassSourceIndex) {
+    this.sourceIndex = sourceIndex;
+  }
+
+  visit(node: Node): void {
+    if (Node.isCallExpression(node)) {
+      const owner = node.getFirstAncestor(this.isFunctionLike);
+      if (owner !== undefined) {
+        const calls = this.callsByFunction.get(owner) ?? [];
+        calls.push(node);
+        this.callsByFunction.set(owner, calls);
+      }
+      return;
+    }
+    if (!Node.isIdentifier(node)) {
+      return;
+    }
+    const call = node.getFirstAncestor(Node.isCallExpression);
+    if (call === undefined || !call.getArguments().some((argument) => node.getStart() >= argument.getStart() && node.getEnd() <= argument.getEnd())) {
+      return;
+    }
+    const identifiers = this.identifiersByCall.get(call) ?? [];
+    identifiers.push(node);
+    this.identifiersByCall.set(call, identifiers);
   }
 
   composerOf(raw: Node, path: Set<Node> = new Set()): Composer | undefined {
@@ -148,8 +172,8 @@ export class ComposerResolver {
     if (direct !== undefined) {
       return direct;
     }
-    const source = importedSource(this.project, specifier.getSourceFile(), moduleName);
-    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.project, source, imported), path);
+    const source = importedSource(this.sourceIndex, specifier.getSourceFile(), moduleName);
+    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.sourceIndex, source, imported), path);
   }
 
   private defaultImportComposer(declaration: Node): Composer | undefined {
@@ -178,8 +202,8 @@ export class ComposerResolver {
     if (direct !== undefined) {
       return direct;
     }
-    const source = importedSource(this.project, specifier.getSourceFile(), moduleName);
-    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.project, source, imported), path);
+    const source = importedSource(this.sourceIndex, specifier.getSourceFile(), moduleName);
+    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.sourceIndex, source, imported), path);
   }
 
   private firstDeclarationComposer(declarations: readonly Node[], path: Set<Node>): Composer | undefined {
@@ -234,8 +258,8 @@ export class ComposerResolver {
     if (direct !== undefined) {
       return direct;
     }
-    const source = importedSource(this.project, declaration.getSourceFile(), moduleName);
-    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.project, source, exportName), path);
+    const source = importedSource(this.sourceIndex, declaration.getSourceFile(), moduleName);
+    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.sourceIndex, source, exportName), path);
   }
 
   private staticScalars(raw: Node, path: Set<Node>): string[] {
@@ -273,7 +297,7 @@ export class ComposerResolver {
     if (parameters.length === 0) {
       return;
     }
-    for (const call of fn.getDescendants().filter(Node.isCallExpression)) {
+    for (const call of this.callsByFunction.get(fn) ?? []) {
       if (!(this.isOwnedCall(call, fn) && this.isReturnedCall(call, fn))) {
         continue;
       }
@@ -326,7 +350,7 @@ export class ComposerResolver {
 
   private forwardsAll(call: import("ts-morph").CallExpression, parameters: readonly import("ts-morph").ParameterDeclaration[]): boolean {
     const forwarded = new Set<Node>();
-    for (const identifier of call.getArguments().flatMap((argument) => [argument, ...argument.getDescendants()].filter(Node.isIdentifier))) {
+    for (const identifier of this.identifiersByCall.get(call) ?? []) {
       for (const declaration of this.identifierDeclarations(identifier)) {
         if (Node.isParameterDeclaration(declaration) && parameters.includes(declaration)) {
           forwarded.add(declaration);

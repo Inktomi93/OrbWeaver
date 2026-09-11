@@ -137,7 +137,7 @@ export const gate: GateDescriptor = {
       const path = repoRel(ctx.root, source.getFilePath());
       return path.startsWith("packages/client/src/") || path.startsWith("packages/ui/src/");
     });
-    const walked = walkStaticClassExpressions(ctx.project, files);
+    const walked = walkStaticClassExpressions(files);
     const scanner = new Scanner({ sources: [] });
     for (const candidate of walked.candidates) {
       for (const anchored of exactTokens(scanner, candidate)) {

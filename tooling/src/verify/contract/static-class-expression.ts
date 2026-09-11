@@ -1,4 +1,6 @@
-import type { Node } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
+
+export type StaticClassSourceIndex = ReadonlyMap<string, SourceFile>;
 
 export interface StaticClassSegment {
   readonly node: Node;

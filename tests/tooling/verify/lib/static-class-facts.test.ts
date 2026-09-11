@@ -3,7 +3,7 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { StaticClassFactResult } from "../../../../tooling/src/verify/contract/static-class-expression.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { createStaticClassFactReader, STATIC_CLASS_FACT_KINDS } from "../../../../tooling/src/verify/lib/static-class-facts.ts";
+import { createStaticClassFactReader, STATIC_CLASS_FACT_KINDS, staticClassFact } from "../../../../tooling/src/verify/lib/static-class-facts.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = "/static-class-facts";
@@ -21,7 +21,7 @@ function projectOf(files: Readonly<Record<string, string>>): Project {
 
 function factsOf(files: Readonly<Record<string, string>>): StaticClassFactResult {
   const project = projectOf(files);
-  const reader = createStaticClassFactReader();
+  const reader = createStaticClassFactReader(project.getSourceFiles());
   for (const source of project.getSourceFiles()) {
     source.forEachDescendant((node) => {
       if ((STATIC_CLASS_FACT_KINDS as readonly number[]).includes(node.getKind())) {
@@ -68,6 +68,7 @@ test("proves JSX and declaration-bound composer carriers without granting a name
   expect(facts.tokens.map((token) => token.value)).not.toContain("probe:shadow");
   expect(facts.tokens.map((token) => token.value)).not.toContain("probe:not-selector");
   expect(facts.carriers.map((carrier) => carrier.kind)).toEqual(expect.arrayContaining(["jsx-class", "composer"]));
+  expect(facts.carriers).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "composer", composer: "join" })]));
 });
 
 test("resolves imported aliases, object spreads, and class member aliases at their producer occurrence", () => {
@@ -138,6 +139,72 @@ test("emits exact JSX style writers through direct and spread carriers", () => {
   expect(facts.carriers.filter((carrier) => carrier.kind === "class-property")).toHaveLength(3);
 });
 
+test("keeps readable tv leaves when one sibling template is dynamic", () => {
+  const facts = factsOf({
+    "packages/ui/src/x.ts": `
+      import { tv } from "tailwind-variants";
+      declare const runtime: string;
+      export const recipe = tv({
+        base: "probe:base",
+        slots: { root: "probe:slot" },
+        variants: { tone: { loud: "probe:variant", mixed: \`probe:mixed \${runtime}\` } },
+        compoundVariants: [{ tone: "loud", class: "probe:compound" }],
+      });
+    `,
+  });
+
+  expect(facts.tokens.map((token) => token.value).sort()).toEqual(["probe:base", "probe:compound", "probe:slot", "probe:variant"].sort());
+  expect(facts.runtimePrefixes.map((prefix) => prefix.prefix)).toContain("probe:mixed ");
+});
+
+test("resolves recipe result and slot calls back to their proven tv definition", () => {
+  const facts = factsOf({
+    "packages/ui/src/recipe.ts": `
+      import { tv } from "tailwind-variants";
+      export const recipe = tv({ slots: { root: "probe:slot" }, variants: { tone: { loud: { root: "probe:variant" } } } });
+    `,
+    "packages/client/src/x.tsx": `
+      import { recipe as imported } from "../../ui/src/recipe.ts";
+      const slots = imported({ tone: "loud" });
+      export const A = <div className={slots.root()} />;
+    `,
+  });
+
+  expect(facts.tokens.map((token) => token.value).sort()).toEqual(["probe:slot", "probe:variant"]);
+  expect(facts.tokens.find((token) => token.value === "probe:slot")?.consumers.map((consumer) => consumer.getKindName())).toContain("JsxAttribute");
+});
+
+test("rejects className prose records while preserving the Lucide tuple terminal", () => {
+  const facts = factsOf({
+    "packages/client/src/x.tsx": `
+      import { createLucideIcon } from "lucide-react";
+      const records = [{ className: "Warden of House Vane" }];
+      export const Icon = createLucideIcon("Probe", [["path", { className: "probe:lucide", d: "M0 0" }]]);
+    `,
+  });
+
+  expect(facts.tokens.map((token) => token.value)).toEqual(["probe:lucide"]);
+});
+
+test("cannot resolve class values through source files outside its exact population", () => {
+  const project = projectOf({
+    "packages/client/src/allowed.tsx": `import { hidden, style } from "./excluded.ts"; export const A = <div className={hidden} style={style} />;`,
+    "packages/client/src/excluded.ts": `export const hidden = "probe:outside"; export const style = { color: "red" } as const;`,
+  });
+  const allowed = project.getSourceFileOrThrow(`${ROOT}/packages/client/src/allowed.tsx`);
+  const reader = createStaticClassFactReader([allowed]);
+  allowed.forEachDescendant((node) => {
+    if ((STATIC_CLASS_FACT_KINDS as readonly number[]).includes(node.getKind())) {
+      reader.visit(node);
+    }
+  });
+
+  const facts = reader.finish();
+  expect(facts.tokens).toEqual([]);
+  expect(facts.styleProperties).toEqual([]);
+  expect([...facts.unresolved, ...facts.opaque]).not.toEqual([]);
+});
+
 function policy(): GatePolicy {
   return defineGate({
     id: "static-class-reader-proof",
@@ -146,26 +213,22 @@ function policy(): GatePolicy {
     severity: "error",
     population: "@client",
     analysis: "types",
-    execution: "selected-files",
-    facts: [],
+    execution: "entire-population",
+    facts: [staticClassFact],
     resources: [],
     message: "dark class token",
-    create: (context) => {
-      const reader = createStaticClassFactReader();
-      return {
-        visitors: [{ kinds: STATIC_CLASS_FACT_KINDS, visit: reader.visit }],
-        evaluate: () => {
-          const facts = reader.finish();
-          context.receipt({ kind: "population", source: "static-class-token", members: facts.tokens.length, unresolved: facts.unresolved.length });
-          for (const token of facts.tokens.filter((candidate) => candidate.value.startsWith("dark:"))) {
-            const segment = token.segments[0];
-            if (segment !== undefined) {
-              context.report.node(segment.node, { token: token.value, offset: segment.sourceStart - segment.node.getStart() });
-            }
+    create: (context) => ({
+      evaluate: () => {
+        const facts = context.fact(staticClassFact);
+        context.receipt({ kind: "population", source: "static-class-token", members: facts.tokens.length, unresolved: facts.unresolved.length });
+        for (const token of facts.tokens.filter((candidate) => candidate.value.startsWith("dark:"))) {
+          const segment = token.segments[0];
+          if (segment !== undefined) {
+            context.report.node(segment.node, { token: token.value, offset: segment.sourceStart - segment.node.getStart() });
           }
-        },
-      };
-    },
+        }
+      },
+    }),
     mustFlag: [
       {
         mode: "types",

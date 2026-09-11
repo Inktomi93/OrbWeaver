@@ -1,8 +1,8 @@
 // Bounded JSX custom-component binding. This resolves direct object-destructured props from JSX callsites
 // into a class carrier; it does not guess component factories, render-prop calls, or arbitrary functions.
-import type { ArrowFunction, FunctionDeclaration, FunctionExpression, Project } from "ts-morph";
+import type { ArrowFunction, FunctionDeclaration, FunctionExpression } from "ts-morph";
 import { Node } from "ts-morph";
-import type { StaticValue } from "./static-class-expression-model.ts";
+import type { StaticClassSourceIndex, StaticValue } from "./static-class-expression-model.ts";
 import { exportedDeclarations, importedSource, localDeclarations, uniqueNodes, unwrap } from "./static-class-expression-model.ts";
 import type { CollectionHost } from "./static-class-object.ts";
 import { findObjectProperties } from "./static-class-object.ts";
@@ -49,13 +49,27 @@ function jsxValue(host: CollectionHost, attribute: import("ts-morph").JsxAttribu
 }
 
 export class JsxBindingResolver {
-  private readonly project: Project;
-  private readonly files: readonly import("ts-morph").SourceFile[];
-  private elementIndex: ReadonlyMap<string, readonly JsxElement[]> | undefined;
+  private readonly sourceIndex: StaticClassSourceIndex;
+  private readonly elementIndex = new Map<string, JsxElement[]>();
 
-  constructor(project: Project, files: readonly import("ts-morph").SourceFile[]) {
-    this.project = project;
-    this.files = files;
+  constructor(sourceIndex: StaticClassSourceIndex) {
+    this.sourceIndex = sourceIndex;
+  }
+
+  visit(node: Node): void {
+    if (!(Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node))) {
+      return;
+    }
+    const reference = tagReference(node);
+    if (reference === undefined || reference.getText()[0]?.toUpperCase() !== reference.getText()[0]) {
+      return;
+    }
+    for (const target of this.elementTargets(node, new Set())) {
+      const key = nodeKey(target);
+      const elements = this.elementIndex.get(key) ?? [];
+      elements.push(node);
+      this.elementIndex.set(key, elements);
+    }
   }
 
   values(host: CollectionHost, binding: import("ts-morph").BindingElement, path: Set<Node>): StaticValue[] | undefined {
@@ -111,33 +125,7 @@ export class JsxBindingResolver {
   }
 
   private index(): ReadonlyMap<string, readonly JsxElement[]> {
-    if (this.elementIndex !== undefined) {
-      return this.elementIndex;
-    }
-    const index = new Map<string, JsxElement[]>();
-    for (const source of this.files) {
-      if (!source.getFilePath().endsWith(".tsx")) {
-        continue;
-      }
-      source.forEachDescendant((node) => {
-        if (!(Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node))) {
-          return;
-        }
-        const element: JsxElement = node;
-        const reference = tagReference(element);
-        if (reference === undefined || reference.getText()[0]?.toUpperCase() !== reference.getText()[0]) {
-          return;
-        }
-        for (const target of this.elementTargets(element, new Set())) {
-          const key = nodeKey(target);
-          const elements = index.get(key) ?? [];
-          elements.push(element);
-          index.set(key, elements);
-        }
-      });
-    }
-    this.elementIndex = index;
-    return index;
+    return this.elementIndex;
   }
 
   private referenceTargets(reference: import("ts-morph").Identifier, path: Set<Node>): Node[] {
@@ -159,7 +147,7 @@ export class JsxBindingResolver {
     const source = this.namespaceSource(receiver, path);
     return source === undefined
       ? []
-      : exportedDeclarations(this.project, source, tag.getName()).flatMap((declaration) => this.declarationTargets(declaration, path));
+      : exportedDeclarations(this.sourceIndex, source, tag.getName()).flatMap((declaration) => this.declarationTargets(declaration, path));
   }
 
   private namespaceSource(reference: import("ts-morph").Identifier, path: Set<Node>): import("ts-morph").SourceFile | undefined {
@@ -179,7 +167,7 @@ export class JsxBindingResolver {
       const importDeclaration = declaration.getFirstAncestor(Node.isImportDeclaration);
       return importDeclaration === undefined
         ? undefined
-        : importedSource(this.project, declaration.getSourceFile(), importDeclaration.getModuleSpecifierValue());
+        : importedSource(this.sourceIndex, declaration.getSourceFile(), importDeclaration.getModuleSpecifierValue());
     }
     if (!Node.isVariableDeclaration(declaration) || path.has(declaration)) {
       return;
@@ -244,7 +232,9 @@ export class JsxBindingResolver {
   }
 
   private importTargets(from: import("ts-morph").SourceFile, moduleName: string, name: string, path: Set<Node>): Node[] {
-    const source = importedSource(this.project, from, moduleName);
-    return source === undefined ? [] : exportedDeclarations(this.project, source, name).flatMap((declaration) => this.declarationTargets(declaration, path));
+    const source = importedSource(this.sourceIndex, from, moduleName);
+    return source === undefined
+      ? []
+      : exportedDeclarations(this.sourceIndex, source, name).flatMap((declaration) => this.declarationTargets(declaration, path));
   }
 }

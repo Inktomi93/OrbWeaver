@@ -1,6 +1,6 @@
 // Neutral entrypoint for static class-expression provenance. The pass-owned Project is the only graph;
 // evaluator caches and cycle fences live for one walk and never leak across conformance phases.
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { evalComposerCall } from "./static-class-collections.ts";
 import { ComposerResolver } from "./static-class-composer.ts";
@@ -13,6 +13,7 @@ import type {
   StaticObjectPropertyEvaluation,
   StaticValue,
 } from "./static-class-expression-model.ts";
+import { staticClassSourceIndex } from "./static-class-expression-model.ts";
 import { evalLucideIconTerminal } from "./static-class-external-terminals.ts";
 import { JsxBindingResolver } from "./static-class-jsx.ts";
 import { findObjectProperties, propertyName } from "./static-class-object.ts";
@@ -50,28 +51,28 @@ interface MutableWork {
 
 /** One resolver graph over an exact source set; callers either stream nodes through visit or call walk. */
 export class StaticClassCollector {
-  private readonly project: Project;
   private readonly files: readonly SourceFile[];
+  private readonly sourceIndex: ReturnType<typeof staticClassSourceIndex>;
   private readonly resolvers: StaticClassResolvers;
   private readonly mutableWork: MutableWork = { evaluators: 0, dispatchedNodes: 0, rootEvaluations: 0 };
   private readonly sourceSet: ReadonlySet<SourceFile>;
   private readonly visited = new WeakSet<Node>();
+  private readonly indexed = new WeakSet<Node>();
   private readonly state: WalkState;
-  private readonly passOwned: boolean;
   private walked: StaticClassWalk | undefined;
 
-  constructor(project: Project, files: readonly SourceFile[], passOwned = false) {
-    this.project = project;
+  constructor(files: readonly SourceFile[]) {
     this.files = files;
     this.sourceSet = new Set(files);
-    this.passOwned = passOwned;
-    const composers = new ComposerResolver(project);
+    this.sourceIndex = staticClassSourceIndex(files);
+    const composers = new ComposerResolver(this.sourceIndex);
     this.resolvers = {
       composers,
-      jsxBindings: new JsxBindingResolver(project, files),
-      variants: new StaticVariantResolver(project, composers),
+      jsxBindings: new JsxBindingResolver(this.sourceIndex),
+      variants: new StaticVariantResolver(this.sourceIndex, composers),
     };
-    this.state = { evaluator: this.evaluator(), candidateByKey: new Map(), prefixByKey: new Map(), roots: 0 };
+    this.state = { evaluator: new StaticClassEvaluator(this.sourceIndex, files, this.resolvers), candidateByKey: new Map(), prefixByKey: new Map(), roots: 0 };
+    this.mutableWork.evaluators += 1;
   }
 
   get work(): StaticClassWork {
@@ -80,17 +81,12 @@ export class StaticClassCollector {
 
   private evaluator(): StaticClassEvaluator {
     this.mutableWork.evaluators += 1;
-    return new StaticClassEvaluator(this.project, this.files, this.resolvers);
+    return new StaticClassEvaluator(this.sourceIndex, this.files, this.resolvers);
   }
 
   walk(): StaticClassWalk {
     if (this.walked !== undefined) {
       return this.walked;
-    }
-    if (!this.passOwned) {
-      for (const source of this.files) {
-        source.forEachDescendant((node) => this.visit(node));
-      }
     }
     this.walked = {
       roots: this.state.roots,
@@ -110,10 +106,20 @@ export class StaticClassCollector {
       return;
     }
     this.visited.add(node);
+    this.index(node);
     this.mutableWork.dispatchedNodes += 1;
     const before = this.state.roots;
     walkNode(this.state, node);
     this.mutableWork.rootEvaluations += this.state.roots - before;
+  }
+
+  index(node: Node): void {
+    if (!this.sourceSet.has(node.getSourceFile()) || this.indexed.has(node)) {
+      return;
+    }
+    this.indexed.add(node);
+    this.resolvers.composers.visit(node);
+    this.resolvers.jsxBindings.visit(node);
   }
 
   evaluate(expression: Node, consumer: Node): StaticClassEvaluation {
@@ -136,10 +142,26 @@ export class StaticClassCollector {
     const properties = findObjectProperties(evaluator, expression, new Set(names), new Set()).map((property) => ({ ...property, consumer }));
     return { properties, unresolved: evaluator.unresolved, opaque: evaluator.opaque };
   }
+
+  composerOf(call: import("ts-morph").CallExpression): Exclude<Composer, "tv-factory" | "join-factory"> | undefined {
+    const composer = this.state.evaluator.composers.composerOf(call.getExpression());
+    if (concreteComposer(composer)) {
+      return composer;
+    }
+    return this.state.evaluator.variants.definitionsOf(call.getExpression()).length > 0 ? "tv" : undefined;
+  }
 }
 
-function staticClassCollector(project: Project, files: readonly SourceFile[]): StaticClassCollector {
-  return new StaticClassCollector(project, files);
+function staticClassCollector(files: readonly SourceFile[]): StaticClassCollector {
+  return new StaticClassCollector(files);
+}
+
+function indexedStaticClassCollector(files: readonly SourceFile[]): StaticClassCollector {
+  const collector = staticClassCollector(files);
+  for (const source of files) {
+    source.forEachDescendant((node) => collector.index(node));
+  }
+  return collector;
 }
 
 export const STATIC_CLASS_KINDS = [
@@ -149,11 +171,10 @@ export const STATIC_CLASS_KINDS = [
   SyntaxKind.ShorthandPropertyAssignment,
   SyntaxKind.CallExpression,
   SyntaxKind.BinaryExpression,
+  SyntaxKind.Identifier,
+  SyntaxKind.JsxOpeningElement,
+  SyntaxKind.JsxSelfClosingElement,
 ] as const;
-
-function defaultCollector(project: Project): StaticClassCollector {
-  return new StaticClassCollector(project, project.getSourceFiles());
-}
 
 function candidateKey(value: StaticValue): string {
   const anchor = value.segments[0];
@@ -292,8 +313,12 @@ function walkNode(state: WalkState, node: Node): void {
 }
 
 /** Discover and evaluate all statically provable class expressions rooted in `files`. */
-export function walkStaticClassExpressions(project: Project, files: readonly SourceFile[]): StaticClassWalk {
-  return staticClassCollector(project, files).walk();
+export function walkStaticClassExpressions(files: readonly SourceFile[]): StaticClassWalk {
+  const collector = indexedStaticClassCollector(files);
+  for (const source of files) {
+    source.forEachDescendant((node) => collector.visit(node));
+  }
+  return collector.walk();
 }
 
 function evaluation(evaluator: StaticClassEvaluator, values: readonly StaticValue[], consumer: Node): StaticClassEvaluation {
@@ -310,16 +335,21 @@ function evaluation(evaluator: StaticClassEvaluator, values: readonly StaticValu
 }
 
 /** Evaluate one proven carrier expression without performing whole-file root discovery. */
-export function evaluateStaticClassExpression(expression: Node, consumer: Node): StaticClassEvaluation {
-  return defaultCollector(expression.getProject()).evaluate(expression, consumer);
+export function evaluateStaticClassExpression(files: readonly SourceFile[], expression: Node, consumer: Node): StaticClassEvaluation {
+  return indexedStaticClassCollector(files).evaluate(expression, consumer);
 }
 
 /** Evaluate only class/className properties reachable from one proven rendered object-spread carrier. */
-export function evaluateStaticClassProperties(expression: Node, consumer: Node): StaticClassEvaluation {
-  return defaultCollector(expression.getProject()).evaluateClassProperties(expression, consumer);
+export function evaluateStaticClassProperties(files: readonly SourceFile[], expression: Node, consumer: Node): StaticClassEvaluation {
+  return indexedStaticClassCollector(files).evaluateClassProperties(expression, consumer);
 }
 
 /** Resolve exact property writes reachable from one proven object-spread carrier. */
-export function evaluateStaticObjectProperties(expression: Node, consumer: Node, names: readonly string[]): StaticObjectPropertyEvaluation {
-  return defaultCollector(expression.getProject()).evaluateObjectProperties(expression, consumer, names);
+export function evaluateStaticObjectProperties(
+  files: readonly SourceFile[],
+  expression: Node,
+  consumer: Node,
+  names: readonly string[],
+): StaticObjectPropertyEvaluation {
+  return indexedStaticClassCollector(files).evaluateObjectProperties(expression, consumer, names);
 }

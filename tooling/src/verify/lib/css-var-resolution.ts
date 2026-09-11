@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
-import type { Project, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { customPropertyDefinitions, customPropertyReferences } from "./css-resource-facts.ts";
 import { parseCssStylesheet } from "./css-rules.ts";
@@ -251,11 +251,11 @@ function uniqueSites(sites: readonly CssVariableSite[]): CssVariableSite[] {
   return [...byLocation.values()];
 }
 
-export function inventoryCssVariables(root: string, project: Project, files: readonly SourceFile[], cssHomes: readonly string[]): CssVariableInventory {
+export function inventoryCssVariables(root: string, files: readonly SourceFile[], cssHomes: readonly string[]): CssVariableInventory {
   const css = cssInventory(root, cssHomes);
   const sources = productSources(root, files);
   const strings = sourceStringInventory(root, sources);
-  const walk = walkStaticClassExpressions(project, sources);
+  const walk = walkStaticClassExpressions(sources);
   const references = [...css.references, ...strings.references];
   for (const candidate of walk.candidates) {
     for (const segment of candidate.segments) {
