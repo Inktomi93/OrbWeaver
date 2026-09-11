@@ -28,11 +28,13 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
+      expect: { count: 1, token: "Injectable" },
       why: "decorator on class",
       files: { "packages/server/src/probe.ts": "@Injectable()\nclass Foo {}\n" },
     },
     {
       mode: "source",
+      expect: { count: 1, line: 2, token: "Column" },
       why: "decorator on property",
       files: { "packages/server/src/probe.ts": "class Foo {\n  @Column()\n  id: string;\n}\n" },
     },

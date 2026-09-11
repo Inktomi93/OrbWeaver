@@ -41,21 +41,25 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
+      expect: { count: 1, token: "isGroup" },
       why: "const isGroup",
       files: { "packages/client/src/probe.ts": "const isGroup = true;\n" },
     },
     {
       mode: "source",
+      expect: { count: 1, token: "isGroup" },
       why: "if (isGroup)",
       files: { "packages/client/src/probe.ts": "if (isGroup) { doSomething(); }\n" },
     },
     {
       mode: "source",
+      expect: { count: 1, token: "isGroup" },
       why: "ternary isGroup",
       files: { "packages/client/src/probe.ts": "const x = isGroup ? a : b;\n" },
     },
     {
       mode: "source",
+      expect: { count: 1, token: "isGroupChat" },
       why: "the spelling ban deliberately catches a shadowed local declaration",
       files: { "packages/server/src/probe.ts": "function local(): void { const isGroupChat = false; }\n" },
     },

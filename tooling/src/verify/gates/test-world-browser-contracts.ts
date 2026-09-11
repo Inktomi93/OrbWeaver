@@ -147,6 +147,7 @@ export const gate = defineGate({
         "packages/ui/src/index.ts": "import { Button } from './button.tsx'; export const Action = Button;",
         "tests/ui/const-facade.test.ts": "import { Action } from '../../packages/ui/src/index.ts'; export const subject = Action();",
       },
+      expect: { count: 1, token: "Action" },
       why: "a callable exposed through a renamed const facade retains browser ownership",
     },
     {
@@ -156,6 +157,7 @@ export const gate = defineGate({
         "packages/ui/src/index.ts": "import { Button } from './button.tsx'; export const API = { Button };",
         "tests/ui/object-facade.test.ts": "import { API } from '../../packages/ui/src/index.ts'; export const subject = API.Button();",
       },
+      expect: { count: 1, token: "API.Button" },
       why: "a callable exposed as an OBJECT-LITERAL facade member retains browser ownership",
     },
     {
@@ -166,6 +168,7 @@ export const gate = defineGate({
         "tests/ui/aliased-object-facade.test.ts":
           "import { API } from '../../packages/ui/src/index.ts'; const local = API; export const subject = local.Button();",
       },
+      expect: { count: 1, token: "local.Button" },
       why: "the same object-facade member reached through a LOCAL alias still resolves to the same callable identity",
     },
     // The canonical-React-DOM-generic shapes (ComponentProps/Ref/DOMAttributes/SyntheticEvent/the React

@@ -82,6 +82,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/ui/src/primitives/menu/member.tsx": "export const G = <Base.Menu.Trigger asChild />;\n" },
+      expect: { count: 1, token: "asChild" },
       why: "component identity is deliberately irrelevant: a namespace/member JSX tag carrying the exact banned attribute still flags",
     },
   ],

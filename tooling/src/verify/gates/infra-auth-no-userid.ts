@@ -41,6 +41,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/server/src/infra/auth/modes/thing.ts": "export function f(userId: string) {}\n" },
+      expect: { count: 1, token: "userId" },
       why: "a `userId` code identifier under infra/auth — the D40 tier-collapse (infra yields no userId)",
     },
     {
