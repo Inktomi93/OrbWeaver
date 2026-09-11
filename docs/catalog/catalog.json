@@ -12701,9 +12701,9 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 452,
-      "bytes": 43320,
-      "sha256": "112b2cc4eb7f595851255c422f3a5ceca51da2fbf04973a3f8842776d2f016ce",
+      "lines": 461,
+      "bytes": 45880,
+      "sha256": "e276a1fcc1d40ba9c342ca26136a23337f515a0b76d5bf78aa7e856fc3e4660e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12748,7 +12748,7 @@
           "Full program and companion reads plus all 19 comments on #1584; resume instructions checked against integration dc5da295d and fresh gate:contract (264 modules, 145 legacy modules, 1015 findings). World closeout is complete; retained release/tooling reds remain evidence, not a fresh full-battery verdict. CSS discrepancies remain unadjudicated. This receipt attests the updated plan, not completed gate implementation."
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/home-tile-promotion.md",
@@ -29940,9 +29940,9 @@
       "path": "docs/reviews/gate-runtime/ordinary-waiver-source-migration.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1770,
-      "bytes": 73206,
-      "sha256": "834ce90e2fee514ac868177046fe0a63e2db0de57eb9390bd0e29719e7d07258",
+      "lines": 1787,
+      "bytes": 74488,
+      "sha256": "8a3a8d3b878ca2046063395be9e294fc670092478e9f0669d34ace594755e6a2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -30312,9 +30312,9 @@
       "path": "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 230,
-      "bytes": 26462,
-      "sha256": "c007029479ffe0fa84c7ad5ccd0a749c17d93cbd56d4e4bc2ec7302d6682abae",
+      "lines": 237,
+      "bytes": 27137,
+      "sha256": "a636edf109b67c9ac101c1d984aeb1e34425e0fc11cb2e586da7ba41609b8ed0",
       "frontmatter": {
         "present": true,
         "malformed": false,
