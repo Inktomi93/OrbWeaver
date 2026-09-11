@@ -343,5 +343,14 @@ export const gate = defineGate({
       },
       why: "the owner-deferred member is owned by the warning-debt sibling, not by this error policy — the exact split the retired DEFERRED allowlist used to express as a local table, now keyed by (union, member) so a same-named member of ANOTHER bus is not silently deferred with it",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts":
+          'export type ChatBusEvent = { type: "neverEmitted" };\nexport const CHAT_BUS_EVENT_TYPES = {\n  // @orb-waive bus-producer-coverage(neverEmitted): the proof\'s stand-in reason; ends when this fixture stops flagging.\n  neverEmitted: true,\n} satisfies Record<ChatBusEvent["type"], true>;\n',
+        "packages/server/src/domain/chat/x.ts": 'export const decoy = "neverEmitted";\n',
+      },
+      why: "POSITIONAL IDENTITY: the finding carries only a message, so the sink DERIVES the token from `member.anchor.node` — which `beltMembers` sets to the BELT's key node, i.e. the member name as authored in `CHAT_BUS_EVENT_TYPES` (`neverEmitted`), not the union arm's `type:` literal and not the union alias. An object-shaped belt therefore takes a bare identifier position; an ARRAY-shaped belt's key node is a string literal, whose derived token carries its quotes. The fixture is mustFlag[0] (:114, count 1) plus the marker line inside the belt object; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

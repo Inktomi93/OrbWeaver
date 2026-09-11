@@ -187,5 +187,14 @@ export const gate = defineGate({
       },
       why: `SAME CHAIN, WRONG PACKAGE: a proxy declared in ${LOOKALIKE_HOME} — same type name, same router, same member — is not this app's tRPC surface, and only the declaring package separates them`,
     },
+    {
+      mode: "types",
+      files: {
+        ...trpcProxyProof(),
+        "packages/client/src/features/chat/surfaces/some-surface.tsx":
+          'import { useTRPC } from "@trpc/tanstack-react-query";\nexport function Surface(): unknown {\n  const trpc = useTRPC();\n  // @orb-waive no-chat-trpc-in-surface(mutationOptions): the proof\'s stand-in reason; ends when this fixture stops flagging.\n  return trpc.chat.send.mutationOptions();\n}\n',
+      },
+      why: "POSITIONAL IDENTITY: the anchor is `{ token: MUTATION_OPTIONS, offset: node.getText().lastIndexOf(MUTATION_OPTIONS) }`, so an author waives the tRPC MEMBER (`mutationOptions`) at the end of the chain — never the proxy binding, the `chat` router segment, or the verb name. The fixture is mustFlag[0] (:111, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });

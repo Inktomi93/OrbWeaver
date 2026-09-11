@@ -54,5 +54,13 @@ export const gate = defineGate({
       why: "no decorators",
       files: { "packages/server/src/probe.ts": "class Foo {\n  id: string;\n}\n" },
     },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/probe.ts":
+          "// @orb-waive no-decorators(Injectable): the proof's stand-in reason; ends when this fixture stops flagging.\n@Injectable()\nclass Foo {}\n",
+      },
+      why: "POSITIONAL IDENTITY: `ctx.report.node(node)` passes no token, so the sink DERIVES one from the Decorator node's own text — the first identifier past the `@`, which is the decorator's NAME (`Injectable`), never the class it decorates. The fixture is mustFlag[0] (:29, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
   ],
 });
