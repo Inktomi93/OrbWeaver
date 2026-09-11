@@ -17,6 +17,16 @@
 //
 // The legacy per-channel DEFERRED tables are DELETED. Both were empty, and their stale/orphan arms were
 // unprovable while they stayed empty; a real deferral is a warning work item or an exact reviewed grant.
+//
+// FAMILY: SINGLETON under its own id. `tupleVocabularyFact` is a shared PRIMITIVE, not a family key — three
+// unrelated families read it (`registry-definitions` via chrome, `role-vocabulary` via the two role
+// policies, and this one) — and no sibling policy judges whether a warning code is EMITTED, which is this
+// policy's subject.
+// POPULATION PORT: the legacy descriptor was `scopeSafety: "whole-project"` and walked `ctx.project`
+// entirely (ed8b96aef), narrowing to the channels inside its own reader. The final population is
+// `in: ["@server", "@contracts"]` — an INTENTIONAL narrowing, and lossless: both tuple homes live there
+// (server/infra/providers, contracts/chat) and both emit scopes are under `packages/server/src/`, so no
+// admitted file the legacy walk judged is dropped.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -59,7 +69,8 @@ const CHANNELS: readonly Channel[] = [
 const MESSAGE =
   "a warning-code tuple member has NO emit site — a declared-never-emitted warning code is silently dead " +
   "(D41 bans speculative codes). See Core-Path-Registry.md D41.";
-const FIX = "wire the executable emit site in the channel's scope, or delete the code.";
+const FIX =
+  "wire the executable emit site in the channel's scope, or delete the code. For a deliberate exception, write an adjacent `@orb-waive warning-code-coverage(<position>): <why + end condition>` — the finding is anchored on the TUPLE MEMBER, so the position is the quoted literal INCLUDING its quotes (`\"never_emitted\"`), and the marker goes on the line above the tuple's own declaration.";
 
 function stringOf(node: MorphNode | undefined): string | undefined {
   if (node === undefined) {
@@ -201,7 +212,7 @@ export const gate = defineGate({
   family: "warning-code-coverage",
   authority: "ordinary",
   severity: "error",
-  population: { in: ["@server", "@contracts"], ext: ["ts", "tsx"] },
+  population: { in: ["@server", "@contracts"] },
   analysis: "types",
   execution: "entire-population",
   facts: [tupleVocabularyFact],
@@ -264,7 +275,7 @@ export const gate = defineGate({
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
       },
-      expect: { count: 1, messageIncludes: 'Member: "never_emitted"' },
+      expect: { count: 1, token: '"never_emitted"', messageIncludes: 'Member: "never_emitted"' },
       why: "THE SPREAD RED (provider channel): the dead code arrives through an imported spread and still owes an emit. A direct-element reader saw only the emitted local member",
     },
     {
@@ -278,7 +289,7 @@ export const gate = defineGate({
           'import { BASE_CHAT_WARNING_CODES } from "./base-codes.ts";\nexport const CHAT_WARNING_CODES = [...BASE_CHAT_WARNING_CODES, "chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
       },
-      expect: { count: 1, messageIncludes: 'Member: "never_emitted"' },
+      expect: { count: 1, token: '"never_emitted"', messageIncludes: 'Member: "never_emitted"' },
       why: "THE SAME SPREAD RED on the CHAT channel — a different home, a different emit scope and its own reader path, so proving one channel says nothing about the other",
     },
     {
@@ -290,7 +301,7 @@ export const gate = defineGate({
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
       },
-      expect: { count: 1, messageIncludes: 'Member: "provider_ok"' },
+      expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
       why: "THE COUNTERFACTUAL: a warning-SHAPED record pushed onto an unrelated accumulator is not an emit. The record's shape is the same spelling; the sink identity is what differs",
     },
     {
@@ -302,7 +313,7 @@ export const gate = defineGate({
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/x.ts": 'export const code = "chat_ok";\n',
       },
-      expect: { count: 1, messageIncludes: 'Member: "chat_ok"' },
+      expect: { count: 1, token: '"chat_ok"', messageIncludes: 'Member: "chat_ok"' },
       why: "an arbitrary literal equal to a warning code is not an executable emit — a text census would count it and report the channel covered",
     },
     {
@@ -314,8 +325,30 @@ export const gate = defineGate({
         "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
         "packages/server/src/domain/chat/other.ts": 'export function toChatWarningCode(): string {\n  return "chat_ok";\n}\n',
       },
-      expect: { count: 1, messageIncludes: 'Member: "chat_ok"' },
+      expect: { count: 1, token: '"chat_ok"', messageIncludes: 'Member: "chat_ok"' },
       why: "THE MAPPER TRIPWIRE (#1440): the translation was renamed, so its returns stop proving emits and every code it owns REDs loudly. The failure mode is a false accusation, never a false clean",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/infra/providers/contract/resolve.ts":
+          'export const WARNING_CODES = ["provider_ok"] as const;\nexport function describe(): { code: string; message: string } {\n  return { code: "provider_ok", message: "beside the vocabulary" };\n}\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
+      why: "THE HOME FENCE, pinned: the provider tuple's own module sits INSIDE the provider emit scope, so a real executable warning record there is the vocabulary describing itself rather than a provider emitting. Deleting `candidate.path !== channel.home` counts it and REDS this row (the chat channel cannot pin this — its home is in @contracts, outside its emit scope entirely)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts":
+          'declare function emit(event: unknown): void;\ndeclare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "wrong channel" });\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
+      why: "THE SCOPE FENCE, pinned: a textbook provider emit sitting in the CHAT domain is not a provider emit — the two channels own disjoint emit scopes, which is what `TWO INDEPENDENT DENOMINATORS` means operationally. Deleting `startsWith(channel.emitScope)` counts it and REDS this row",
     },
   ],
   mustPass: [
@@ -360,10 +393,22 @@ export const gate = defineGate({
         "packages/server/src/infra/providers/resolve-chat.ts":
           'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
         "packages/contracts/src/chat/bus.ts":
-          'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\nexport const decoy = { code: "chat_ok", message: "the tuple home is excluded from its own emit corpus" };\n',
+          'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\nexport const decoy = { code: "chat_ok", message: "an inert record is not an emit" };\n',
         "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
       },
-      why: "the tuple HOME is excluded from its own emit corpus, so a record sitting beside the vocabulary never counts as coverage — the emit here is the real one in the domain",
+      why: "a warning-SHAPED CONST that is neither pushed, returned, nor carried by an emitter is inert, so it never counts as coverage — the emit here is the real one in the domain. (This row does NOT prove the tuple-home exclusion, which the `THE HOME FENCE` mustFlag row above pins; the record's inertness alone decides this one, measured 2026-09-11)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/infra/providers/contract/resolve.ts":
+          '// @orb-waive warning-code-coverage("provider_ok"): pinned identity arm; ends when the provider emits this code.\nexport const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/server/src/infra/providers/resolve-chat.ts":
+          'declare const audit: { code: string; message: string }[];\naudit.push({ code: "provider_ok", message: "visible" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      why: 'THE IDENTITY ARM (§4.2): the twin of the unrelated-accumulator counterfactual, which produces EXACTLY ONE finding (the chat channel is covered), waived at the position this policy reports — the TUPLE MEMBER literal WITH its quotes, `"provider_ok"`, because the finding is anchored on the member node and the sink derives the token from it',
     },
   ],
 });

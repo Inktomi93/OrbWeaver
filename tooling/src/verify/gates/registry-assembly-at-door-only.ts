@@ -18,7 +18,17 @@
 // IDENTITY, NOT SPELLING: the factories are the EXPORTED DECLARATIONS in `client/src/lib/registry.ts`,
 // resolved through the shared project-home reader, so an alias or a re-export is the same assembly while a
 // same-named local function is not. The home is bound through `ctx.files` and RECEIPTED: if the module
-// moves or stops exporting a factory, the receipt refuses the run instead of reporting a silent zero.
+// moves or stops exporting a factory, the receipt refuses the run instead of reporting a silent zero. The
+// name prefilter is a CANDIDATE filter, not a narrowing — measured 2026-09-11: removing it changes no proof
+// row, because `classifyProjectHomeOrigin` is what decides, and `lib/project-home-origin.ts` is a shared
+// PRIMITIVE seventeen policies read rather than a family key.
+//
+// FAMILY: SINGLETON under its own id. Its sibling arm (`register()` anywhere in client source) SPLIT into
+// `no-mutating-register-api` over a wider population; nothing else judges where a registry is assembled.
+// POPULATION PORT: an INTENTIONAL CORRECTION, stated above. The legacy `scanRoot:
+// (p) => p.startsWith("packages/client/src/")` (68c8f42d6) becomes `@client` MINUS the door, because the
+// door is a structural class the law itself names and carrying it as a run-time check would have kept the
+// composition root inside a population it can never legally violate.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
@@ -27,13 +37,17 @@ import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-hom
 const REGISTRY_HOME = { path: "packages/client/src/lib/registry.ts", names: ["createRegistry", "createContributorRegistry"] } as const;
 const FACTORY_POPULATION = "registry factories";
 
+// The message says "any compose/ module", NOT "a compose/ module main.tsx imports": the population is
+// `notUnder packages/client/src/**/compose/**` and NOTHING checks the import relation (deliberately — see
+// the header). A message clause is a claim, so it states the structural class the code actually applies.
 const MESSAGE =
   "createRegistry()/createContributorRegistry() may be CALLED only at the composition root (main.tsx) or " +
-  "a compose/ module it imports — every other call site is a private assembly outside the ONE " +
+  "in any compose/ module — every other call site is a private assembly outside the ONE " +
   "registration door (client-architecture-lockdown.md §5/§7/§16 G8).";
 const UNREADABLE =
   "this call is spelled like a registry mint but the shared readers cannot place the callee's declaration, so whether it enters through the registry home CANNOT be established. Reported rather than passed: a door an unreadable barrel can walk through is not a door.";
-const FIX = "move the createRegistry()/createContributorRegistry() call into main.tsx (or a compose/ module main.tsx imports).";
+const FIX =
+  "move the createRegistry()/createContributorRegistry() call into main.tsx (or a compose/ module). For a deliberate exception, write an adjacent `@orb-waive registry-assembly-at-door-only(<position>): <why + end condition>` — the position is the LOCAL callee name at the call site, after the last dot (`createRegistry`, or the alias you imported it under), never the factory's exported name.";
 
 export const gate = defineGate({
   id: "registry-assembly-at-door-only",
@@ -149,6 +163,18 @@ export const gate = defineGate({
           'function createRegistry(name: string): string {\n  return name;\n}\nexport const x = createRegistry("t");\n',
       },
       why: "THE COUNTERFACTUAL: a LOCAL function with the factory's name assembles no registry, so its caller is not a private assembly. The legacy text compare accused it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/lib/registry.ts":
+          "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n",
+        "packages/client/src/features/x/lib/x-section.ts":
+          'import { createRegistry } from "../../../lib/registry.ts";\n' +
+          "// @orb-waive registry-assembly-at-door-only(createRegistry): pinned identity arm; ends when this assembly moves to a compose/ module.\n" +
+          'export const x = createRegistry("t", ["a"], { a: 1 });\n',
+      },
+      why: "THE IDENTITY ARM (§4.2): the twin of the founding mustFlag row, which produces EXACTLY ONE finding, waived at the position this policy reports — the LOCAL callee name, which is why the alias row's position would be `assemble` instead",
     },
   ],
 });
