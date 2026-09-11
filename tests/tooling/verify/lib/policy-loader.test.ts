@@ -424,3 +424,26 @@ test("resource proof file identity comes from descriptor declarations rather tha
   });
   await expect(loadPolicyCorpus(scratch)).resolves.toMatchObject({ gates: [{ id: "typescript-resource" }] });
 });
+
+test("the second-wave kinds admit their own closed id vocabularies, and refuse anything else", () => {
+  // The one POLICING surface a new resource kind touches: `resourceIds` keys each kind off its own door's
+  // definition object, so this validator cannot drift from the door. Both directions per kind — the real id
+  // loads, a plausible neighbour is refused by name.
+  for (const request of [
+    { kind: "mirror-index", id: "package-test" },
+    { kind: "ledger", id: "core-path-registry" },
+    { kind: "exact-file", id: "ct-boot" },
+    { kind: "documents" },
+    { kind: "vendor-css-surface" },
+    { kind: "token-contract" },
+    { kind: "devtools-closure" },
+  ] as const) {
+    expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [request] }))).not.toThrow();
+  }
+  const malformed = (request: unknown): unknown => resourcePolicy({ resources: [request] as never });
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "mirror-index", id: "package-tests" }))).toThrow(/id is unknown for mirror-index/i);
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "ledger", id: "core-path-registries" }))).toThrow(/id is unknown for ledger/i);
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "exact-file", id: "ct-bootstrap" }))).toThrow(/id is unknown for exact-file/i);
+  // An id on a kind that takes none is an unknown PROPERTY, never a silently ignored field.
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "documents", id: "docs" }))).toThrow(/unknown property/i);
+});

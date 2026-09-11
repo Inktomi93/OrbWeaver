@@ -1,7 +1,12 @@
 import type { ResourceFact } from "../../../../tooling/src/verify/contract/resource.ts";
+import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import type { GateResourceRequest } from "../../../../tooling/src/verify/contract/resource-declaration.ts";
+import type { LedgerId } from "../../../../tooling/src/verify/contract/resource-document.ts";
+import { DOCUMENT_CATALOG_PATH, LEDGER_DEFINITIONS } from "../../../../tooling/src/verify/contract/resource-document.ts";
+import { EXACT_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-exact.ts";
 import type { ResourceHost } from "../../../../tooling/src/verify/contract/resource-host.ts";
 import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
+import { VENDOR_MIRROR_INDEX, VENDOR_MIRROR_ROOT } from "../../../../tooling/src/verify/contract/resource-vendor.ts";
 import { resolveResourceDeclarations } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -53,6 +58,52 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
         version: "1",
         directory: null,
         exportKeys: [],
+      }),
+    mirrorIndex: (id) =>
+      fact(`mirror-index:${id}`, ["packages/server/src/a.ts", "tests/server/a.test.ts"], {
+        family: id,
+        sourceRoot: "packages",
+        testRoot: "tests",
+        sourceFiles: new Set(["packages/server/src/a.ts"]),
+        sourceDirectories: new Set(["packages/server/src"]),
+        testFiles: new Set(["tests/server/a.test.ts"]),
+        testsByDirectory: new Map([["tests/server", ["tests/server/a.test.ts"]]]),
+      }),
+    documents: () => fact("documents", ["docs/Mission.md", DOCUMENT_CATALOG_PATH], { documents: [], refusals: [], catalogMisses: [] }),
+    ledger: ((id: LedgerId) => {
+      const definition = LEDGER_DEFINITIONS[id];
+      return definition.nature === "markdown"
+        ? fact(`ledger:${id}`, definition.paths, { id, nature: "markdown", documents: [] })
+        : fact(`ledger:${id}`, [`${definition.tree}/x${definition.suffix}`], { id, nature: "json", documents: [] });
+    }) as ResourceHost["ledger"],
+    exactFiles: (ids) =>
+      fact(
+        `exact-file:${ids.join(",")}`,
+        ids.map((id) => EXACT_RESOURCE_PATHS[id]),
+        new Map(ids.map((id) => [id, { id, path: EXACT_RESOURCE_PATHS[id], text: "", bytes: 0, lines: 1 }] as const)),
+      ),
+    vendorCssSurface: () =>
+      fact("vendor-css-surface", [VENDOR_MIRROR_INDEX], {
+        mirrorRoot: VENDOR_MIRROR_ROOT,
+        mirrorDocuments: [{ path: VENDOR_MIRROR_INDEX, text: "" }],
+        mirrorIndexText: "",
+        packageVersion: "1.7.0",
+        declarationFiles: [],
+        selectorSources: [],
+      }),
+    tokenContract: () =>
+      fact("token-contract", [TOKEN_CONTRACT_PATHS.base], {
+        texts: { base: "", light: "", mocha: "", resolver: "", removed: "", formatSchema: "", resolverSchema: "" },
+        paths: [TOKEN_CONTRACT_PATHS.base],
+      }),
+    devtoolsClosure: () =>
+      fact("devtools-closure", [`${DEVTOOLS_CLOSURE_ROOT}/pin.json`], {
+        root: DEVTOOLS_CLOSURE_ROOT,
+        pinText: "",
+        manifestText: "",
+        licensesText: "",
+        files: [],
+        totalBytes: 0,
       }),
     authoredPaths: () => fact("authored-path", [], { identities: [] }),
     authoredText: () => fact("authored-text", [], { files: [], refusals: [] }),

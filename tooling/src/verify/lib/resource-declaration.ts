@@ -4,12 +4,17 @@ import { PRODUCT_STYLESHEETS } from "../contract/css-family.ts";
 import type { GateFact } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import type { ResourceFact } from "../contract/resource.ts";
+import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../contract/resource-artifact.ts";
 import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
+import { DOCUMENT_CORPUS_ROOT, LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
+import { EXACT_RESOURCE_PATHS } from "../contract/resource-exact.ts";
 import type { ResourceHost, ResourceHostOptions } from "../contract/resource-host.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
+import { MIRROR_FAMILY_DEFINITIONS } from "../contract/resource-mirror.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
+import { VENDOR_MIRROR_ROOT } from "../contract/resource-vendor.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { assertGateResourceDeclarations, assertRepoPathIdentity } from "./policy-validation.ts";
 
@@ -45,6 +50,20 @@ function canonicalRequest(request: GateResourceRequest): GateResourceRequest {
       return request.mode === "text"
         ? { kind: request.kind, id: request.id, mode: request.mode, file: request.file }
         : { kind: request.kind, id: request.id, mode: request.mode };
+    case "mirror-index":
+      return { kind: request.kind, id: request.id };
+    case "documents":
+      return { kind: request.kind };
+    case "ledger":
+      return { kind: request.kind, id: request.id };
+    case "exact-file":
+      return { kind: request.kind, id: request.id };
+    case "vendor-css-surface":
+      return { kind: request.kind };
+    case "token-contract":
+      return { kind: request.kind };
+    case "devtools-closure":
+      return { kind: request.kind };
     case "authored-path":
       return { kind: request.kind };
     case "authored-text":
@@ -77,6 +96,23 @@ function requestFact(host: ResourceHost, request: GateResourceRequest): Resource
       return host.json(request.id);
     case "installed-package":
       return host.installedPackage(request);
+    case "mirror-index":
+      return host.mirrorIndex(request.id);
+    case "documents":
+      return host.documents();
+    case "ledger":
+      return host.ledger(request.id);
+    // The declaration is per ID and the door takes a LIST, so planning acquires exactly the one id declared.
+    // A policy declaring two exact files acquires each independently here and may then call the door with
+    // both; it can never reach an id no declaration named.
+    case "exact-file":
+      return host.exactFiles([request.id]);
+    case "vendor-css-surface":
+      return host.vendorCssSurface();
+    case "token-contract":
+      return host.tokenContract();
+    case "devtools-closure":
+      return host.devtoolsClosure();
     case "authored-path":
     case "authored-text":
       // A demand kind has no subject at planning time. `resolveResourceDeclarations` never reaches here —
@@ -108,6 +144,24 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
       // An installed package publishes no authored paths at all (`ops/resource-installed.ts` returns an
       // empty `paths`), so nothing can belong to this request and reaching here at all is the bug.
       return false;
+    case "mirror-index":
+      return [MIRROR_FAMILY_DEFINITIONS[request.id].sourceRoot, MIRROR_FAMILY_DEFINITIONS[request.id].testRoot].some((root) => path.startsWith(`${root}/`));
+    case "documents":
+      return path.startsWith(`${DOCUMENT_CORPUS_ROOT}/`);
+    case "ledger": {
+      const definition = LEDGER_DEFINITIONS[request.id];
+      return definition.nature === "markdown" ? (definition.paths as readonly string[]).includes(path) : path.startsWith(`${definition.tree}/`);
+    }
+    case "exact-file":
+      return path === EXACT_RESOURCE_PATHS[request.id];
+    // Only the COMMITTED mirror side of the vendor surface publishes repo paths; the installed halves are
+    // absolute store paths and publish none (`ops/resource-vendor.ts`).
+    case "vendor-css-surface":
+      return path.startsWith(`${VENDOR_MIRROR_ROOT}/`);
+    case "token-contract":
+      return Object.values(TOKEN_CONTRACT_PATHS).includes(path);
+    case "devtools-closure":
+      return path.startsWith(`${DEVTOOLS_CLOSURE_ROOT}/`);
     case "authored-path":
     case "authored-text":
       return false;

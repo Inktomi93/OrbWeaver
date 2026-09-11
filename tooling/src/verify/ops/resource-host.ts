@@ -9,21 +9,29 @@ import type { ConfigSnapshot, ConfigSnapshotRunner } from "../contract/config-sn
 import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { ResourceFact, ResourceLoad, ResourceReceipt } from "../contract/resource.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
+import type { LedgerFacts, LedgerId } from "../contract/resource-document.ts";
+import type { ExactFile, ExactResourceId } from "../contract/resource-exact.ts";
 import type { ResourceHost, ResourceHostOptions, ResourceInvocation } from "../contract/resource-host.ts";
 import type { InstalledPackageFacts, InstalledPackageRequest } from "../contract/resource-installed.ts";
 import type { JsonResourceFacts, JsonResourceId } from "../contract/resource-json.ts";
+import type { MirrorFamilyId } from "../contract/resource-mirror.ts";
 import type { AuthoredTextCorpus, AuthoredTextFile, AuthoredTextRefusal } from "../contract/resource-text.ts";
 import type { AuthoredTreeId } from "../contract/resource-tree.ts";
 import { ordinaryWaiverResourceFormat } from "../lib/ordinary-waiver-source.ts";
+import { loadDevToolsClosure, loadTokenContract } from "./resource-artifact.ts";
 import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
 import { loadCssFacts } from "./resource-css.ts";
+import { loadDocumentIndex, loadLedger } from "./resource-document.ts";
+import { loadExactFiles } from "./resource-exact.ts";
 import { loadInstalledPackage } from "./resource-installed.ts";
 import { loadJsonResource } from "./resource-json.ts";
+import { loadMirrorIndex } from "./resource-mirror.ts";
 import { loadNativeConfig } from "./resource-native-config.ts";
 import { loadAuthoredPaths } from "./resource-path.ts";
 import { createResourceReader } from "./resource-reader.ts";
 import { loadTrackedFiles } from "./resource-tracked.ts";
 import { loadAuthoredCss, loadAuthoredTree, loadProductCss } from "./resource-tree.ts";
+import { loadVendorCssSurface } from "./resource-vendor.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -154,6 +162,20 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     // `members` is what the door MEASURED — every demanded path — never only the ones it could serve.
     return { status: "ready", value: { files, refusals }, paths: [], members: files.length + refusals.length };
   };
+  // An exact-file acquisition is keyed by its whole demanded ID SET: a policy asking for one file and a
+  // policy asking for three are two different measurements with two different refusal surfaces, and one
+  // receipt describing both would describe neither.
+  const exactProviders = new Map<string, () => ResourceFact<ReadonlyMap<ExactResourceId, ExactFile>>>();
+  const exactFiles = (ids: readonly ExactResourceId[]): ResourceFact<ReadonlyMap<ExactResourceId, ExactFile>> => {
+    const distinct = [...new Set(ids)].toSorted((left, right) => left.localeCompare(right));
+    const key = distinct.join(",");
+    let provider = exactProviders.get(key);
+    if (provider === undefined) {
+      provider = cached(`exact-file:${key}`, () => loadExactFiles(reader, distinct));
+      exactProviders.set(key, provider);
+    }
+    return provider();
+  };
   const authoredCss = cached("authored-css", () => loadAuthoredCss(reader));
   const productCss = cached("product-css", () => loadProductCss(reader));
   const host: ResourceHost = Object.freeze({
@@ -169,6 +191,15 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),
     json: keyed<JsonResourceId, JsonResourceFacts>("json", (id) => loadJsonResource(reader, id)),
     installedPackage: (request: InstalledPackageRequest) => installed(request),
+    mirrorIndex: keyed("mirror-index", (id: MirrorFamilyId) => loadMirrorIndex(reader, id)),
+    documents: cached("documents", () => loadDocumentIndex(reader)),
+    // The per-id narrowing is a TYPE property of the door (`LedgerFactsFor`); the provider is one function
+    // over the closed id set, exactly as `nativeConfig` resolves its own per-runner snapshot type.
+    ledger: keyed<LedgerId, LedgerFacts>("ledger", (id) => loadLedger(reader, id)) as ResourceHost["ledger"],
+    exactFiles,
+    vendorCssSurface: cached("vendor-css-surface", () => loadVendorCssSurface(reader, root)),
+    tokenContract: cached("token-contract", () => loadTokenContract(reader)),
+    devtoolsClosure: cached("devtools-closure", () => loadDevToolsClosure(reader)),
     authoredPaths: demanded("authored-path", (selectors) => loadAuthoredPaths(root, selectors)),
     authoredText: demanded("authored-text", (paths) => loadAuthoredText(paths)),
   });

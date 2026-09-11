@@ -3,6 +3,7 @@ import { PRODUCT_STYLESHEETS } from "../../../../tooling/src/verify/contract/css
 import type { GatePolicyContext } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { GatePolicyReceipt } from "../../../../tooling/src/verify/contract/policy-primitives.ts";
+import { EXACT_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-exact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { bindPolicyResources } from "../../../../tooling/src/verify/lib/resource-policy.ts";
 import { createResourceHost } from "../../../../tooling/src/verify/ops/resource-host.ts";
@@ -156,4 +157,25 @@ test("overlapping declared requests must each be consumed", ({ scratch }) => {
 
   expect(result.policies[0]?.owner.status).toBe("incomplete");
   expect(result.toolErrors).toMatchObject([{ phase: "receipt", message: expect.stringMatching(/unconsumed.*product-css/i) }]);
+});
+
+test("the exact-file door is fenced PER ID, so a widened argument cannot reach an undeclared file", ({ scratch }) => {
+  // The declaration is per id while the call takes a LIST. Without a per-id check the policy below would
+  // read a file no declaration ever named — and it would arrive fully receipted, which is worse than an
+  // unfenced read: it would look measured.
+  const overlay = { [EXACT_RESOURCE_PATHS["ct-boot"]]: "boot\n", [EXACT_RESOURCE_PATHS["ct-extension-css"]]: ".ct {}\n" };
+  const invocation = createResourceHost({ root: scratch, overlay });
+  const receipts: GatePolicyReceipt[] = [];
+  const bound = bindPolicyResources({
+    host: invocation.host,
+    context: { resourcePaths: [EXACT_RESOURCE_PATHS["ct-boot"]], receipt: (receipt) => receipts.push(receipt) },
+    declarations: [{ kind: "exact-file", id: "ct-boot" }],
+  });
+
+  // Positive control: the declared id is served.
+  expect(bound.exactFiles(["ct-boot"]).status).toBe("ready");
+  // Negative control: the same call widened by one id refuses, naming the ID rather than the kind.
+  expect(() => bound.exactFiles(["ct-boot", "ct-extension-css"])).toThrow("exact-file:ct-extension-css is undeclared");
+  expect(() => bound.exactFiles([])).toThrow("zero ids");
+  expect(receipts.at(-1)).toEqual({ kind: "resource", source: "exact-file", resources: 0, unresolved: 1 });
 });
