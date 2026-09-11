@@ -41,6 +41,29 @@ test("tests:tooling is a REAL stage at full — and at NO other tier", () => {
   expect(stagesForTier("changed").some((row) => row.name === "tests:tooling")).toBe(false);
 });
 
+// #1943 F3. The #1842 cut is right about the BATTERY and left one hole behind it: `.claude/hooks/*.mjs` is
+// linted by nothing (biome.json ignores `.claude`; eslint's node surface globs name no `.mjs`), and the
+// PreToolUse Bash guard's only executing check lived in the `--full`-only battery — so a syntax error in
+// the hook that gates EVERY Bash call would fail it open (non-zero, no JSON ⇒ non-blocking hook error)
+// with `pnpm check` and `pnpm verify --push` both still green. Two rows close it, and their TIERS are the
+// whole point: parsing on the commit bar, behaviour on the push bar.
+test("the Bash guard has a floor below --full: syntax at STATIC, its pin at PUSH", () => {
+  const syntax = stage("static", "lint:hook-syntax");
+  expect(syntax.group).toBe("lint");
+  // a raw-bin argv, not `pnpm <script>`: `node --check` takes ONE file, so the family check is the loop
+  expect(syntax.argv[0]).toBe("bash");
+  expect(syntax.argv.join(" ")).toContain("node --check");
+  expect(syntax.argv.join(" ")).toContain(".claude/hooks/*.mjs");
+  expect(stagesForTier("push").some((row) => row.name === "lint:hook-syntax")).toBe(true);
+
+  const pin = stage("push", "tests:tool-guard");
+  expect(pin.group).toBe("tests");
+  expect(pin.argv).toEqual(["pnpm", "test:scoped", "tests/tooling/tool-guard.int.test.ts"]);
+  expect(stagesForTier("full").some((row) => row.name === "tests:tool-guard")).toBe(true);
+  // …and NOT on the static bar: `pnpm check` runs no tests, and this row must not smuggle one in.
+  expect(stagesForTier("static").some((row) => row.name === "tests:tool-guard")).toBe(false);
+});
+
 test("tests:node stays the push bar for everything else, and no longer carries the tooling battery", () => {
   // `pnpm test:node`'s project list is what makes the exclusion real; the row's argv is the pointer to it.
   // The argv changed in #1848: this stage was `pnpm test`, the COMPOSITE that also ran the whole CT suite,

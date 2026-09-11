@@ -48,6 +48,27 @@ const GATING_STAGES: readonly StageDef[] = [
     classify: eslintScheme,
     scopedArgv: (sel) => eslintScopedArgv(sel.eslintPaths),
   },
+  {
+    name: "lint:hook-syntax",
+    group: "lint",
+    tiers: STATIC,
+    // `.claude/hooks/*.mjs` IS LINTED BY NOTHING (#1943 F3, measured): `biome.json`'s files.includes
+    // carries `!.claude` (a scoped run there answers "Checked 0 files"), and eslint's node surface globs
+    // name no `.mjs` and no `.claude/**`, so only the no-`files` global block reaches those files — zero
+    // substantive rules. That carve-out is acceptable for STYLE and not for BEHAVIOUR, because one of
+    // those files is the PreToolUse Bash guard: a syntax error in it exits node non-zero with no JSON,
+    // the hook contract reads a non-zero non-2 exit as a NON-BLOCKING error, and every Bash call in
+    // every session then runs unguarded — silently, while the push bar stays green. Sub-second, and it
+    // catches exactly that one failure.
+    //
+    // NOT a `pnpm <script>` argv, deliberately: the check is a two-token shell loop over a glob, the
+    // parity gate reconciles `pnpm <script>` argvs only (a raw-bin argv contributes to neither arm), and
+    // a package.json row for it would be a second coupled site buying nothing. `node --check` takes ONE
+    // file, so the loop is what makes this a FAMILY check rather than a hard-coded filename that goes
+    // blind the day a second hook lands.
+    argv: ["bash", "-c", 'for f in .claude/hooks/*.mjs; do node --check "$f" || exit 1; done'],
+    classify: asViolations,
+  },
 
   // ── types stage-group ──
   {
@@ -310,6 +331,25 @@ const GATING_STAGES: readonly StageDef[] = [
     // Whole-only by nature, and that is only honest because `tests:node`'s scoped path delegates to
     // Vitest's native configured projects, so a tooling source still reaches its related tests at
     // `changed`. A second row at `changed` would spawn a second Vitest over the same selection.
+  },
+  {
+    name: "tests:tool-guard",
+    group: "tests",
+    // THE ONE INSTRUMENT WHOSE PIN CANNOT WAIT FOR `--full` (#1943 F3). The #1842 cut is right about the
+    // battery — 71 CPU-minutes of instrument recertification does not belong on the push bar — but it
+    // left the PreToolUse Bash guard (.claude/hooks/tool-guard.mjs) with NO executing check below
+    // `--full`: nothing lints it (see `lint:hook-syntax`), and its only behavioural proof lived in the
+    // `--full`-only battery. The guard gates every Bash call in every session, it fails OPEN by contract,
+    // and it is edited by lanes — so its contract rows (rewrite template, hard floor, fail-open, kill
+    // switch, wire shape) are a PUSH-tier fact. 2.35 s measured for the whole file, which is why the row
+    // is the file rather than a subset: a pin nobody can name is a pin nobody runs.
+    // It runs a SECOND time inside `tests:tooling` at `--full`; that duplication costs seconds and keeps
+    // the battery's membership honest (the file is a tooling test and stays one).
+    tiers: ["push", "full"],
+    argv: ["pnpm", "test:scoped", "tests/tooling/tool-guard.int.test.ts"],
+    classify: ownScheme,
+    // Whole-only BY NATURE: the stage IS one file. At a scoped tier the guard's own diff reaches this
+    // test through `tests:node`'s native related-tests resolution, exactly like any other tooling source.
   },
   {
     name: "browser:ct",

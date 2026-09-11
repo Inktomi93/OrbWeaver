@@ -10,6 +10,22 @@
 // it is not an oversight to be repaired, and `.codex/hooks` symlinks here, so the file is already present
 // on that side should the ruling ever change. The assertion that pins it empty is in
 // tests/tooling/agent-sync/ops/sync.int.test.ts, which carries the same ruling (JSON holds no comments).
+// SIX CONFIRMED GAPS CLOSED 2026-09-11 (#1943, from the stickler review of the re-registration —
+// docs/reviews/stickler/2026-09-11-tool-guard-reenable.md; each fix carries its WHY at the code it
+// changed, and every one was pre-existing, not a regression of the re-enable):
+//   F1 rule 6's head vocabulary now names `<path>/node_modules/.bin/playwright`, `pnpm playwright` and
+//      `node …/@playwright/test/cli.js` (268 of 782 raw CT corpus rows ran un-floored through those).
+//   F2 a group CLOSER glued to the operand is no longer a shield (`(bash /tmp/x.sh)` passed while
+//      `(bash /tmp/x.sh )` denied), and ENOENT from a GROUPED clause is an `ask`, not silence.
+//   F3 is OUTSIDE this file: `pnpm verify`'s STATIC tier now runs `node --check .claude/hooks/*.mjs` and
+//      its PUSH tier runs this guard's pin (a syntax error here exits non-zero with no JSON, which the
+//      hook contract treats as a non-blocking error — i.e. every Bash call would run unguarded while the
+//      push bar stayed green, and `tests:tooling` is `--full`-only). tooling/src/verify/lib/registry.ts.
+//   F4 a `-c`/`eval` operand that is nothing but a variable is resolved from the command's own
+//      assignments, and asks when it cannot be (`CMD='git stash'; bash -c "$CMD"` denied).
+//   F5 a heavy tool reached through a spelling with NO HEAP FLOOR is denied WITH the floored door.
+//   F6 the CT rewrite refuses (naming the `=`-joined spelling) when a space-form flag value is
+//      path-shaped, because `scoped-test`'s preflight would read it as a path claim and kill the run.
 // PreToolUse guard for Bash — catches command shapes that destroy signal, and REWRITES the ones with
 // exactly one correct fix so the agent never even loses the turn.
 //
@@ -457,11 +473,89 @@ const HARNESS_OR_TRUE =
   /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b|\bpnpm\s+(?:exec\s+)?vitest\b)[^\n;]*\|\|\s*(?:true|echo|:)(?:\s|$)/;
 const HARNESS_SEMI_TRUE =
   /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b)[^\n;]*;\s*true\s*$/;
-const PLAYWRIGHT_TEST = /(?:\bnpx\s+|\bpnpm\s+exec\s+|^\s*|&&\s*)playwright\s+test\b/;
+// THE RAW-CT HEAD VOCABULARY (2026-09-11, #1943 F1): this named only `npx`, `pnpm exec`, line-start and
+// `&&`, and 268 of the 782 raw CT rows in main's 179,120-row decision log are `./node_modules/.bin/
+// playwright test` or `pnpm playwright test` — a third of them, every one running with the stock shared
+// `playwright/.cache` (the #1581 corruption the rewrite exists to refuse), no worktree lock, no host slot,
+// no run marker, and for the `.bin`/`node` spellings no heap floor either. A head regex for any tool
+// carries `(?:\S*\/)?<bin>` and `pnpm <bin>` beside `npx`/`pnpm exec`; `@playwright/test/cli.js` is the
+// same binary spelled as a node script, so it is named too. WIDENING ONLY — every spelling that matched
+// before still matches, so this rule cannot have loosened.
+const PLAYWRIGHT_CLI_JS = String.raw`node\s+\S*@playwright\/test\/cli\.js\s+test\b`;
+// A COMMAND POSITION is line start, a separator, or one of them followed by the usual env/timeout/nice
+// wrappers (WRAP_PREFIX) — `cd <wt> && timeout 400 ./node_modules/.bin/playwright test …` is the shape
+// lanes actually type, and an anchor without the wrapper allowance reads it as text.
+const PW_ANCHOR = String.raw`(?:\bnpx\s+|\bpnpm\s+(?:exec\s+)?|(?:^|[;&|(])\s*${WRAP_PREFIX})`;
+const PLAYWRIGHT_TEST = new RegExp(String.raw`${PW_ANCHOR}(?:\S*\/)?playwright\s+test\b|${PW_ANCHOR}${PLAYWRIGHT_CLI_JS}`);
 const CT_CONFIG = /playwright-ct\.config\.ts/;
 const CT_FILE_HINT = /\.ct\.tsx?\b/;
 const SG_AS_AST_GREP = /(?:^|[;&|(]\s*|\s)sg\s+(?:run|scan|outline|test|new|--version|-p\b|--pattern)/;
-const VITEST_HEAD = /^\s*(?:npx\s+vitest|vitest|\S*node_modules\/\.bin\/vitest)\b/;
+// Every vitest spelling that is NOT the sanctioned door (2026-09-11, #1943 F5 widened it from
+// npx/bare/.bin). The `pnpm …` forms carry the heap floor but still miss the supervisor watchdog, the
+// preflight that proves the paths collect a test, and the nice floor — silence there was the gap; a WARN
+// is the honest tier for it, because the difference from the door is a watchdog, not a missing heap
+// ceiling (that is what the deny family below is for, and a deny on a floored spelling would cry wolf).
+const VITEST_HEAD = /^\s*(?:npx\s+vitest|vitest|\S*node_modules\/\.bin\/vitest|pnpm\s+(?:exec\s+|run\s+)?vitest|node\s+\S*node_modules\/vitest\/vitest\.mjs)\b/;
+
+// ── un-floored heavy tools (2026-09-11, #1943 F5) ──
+// MEASURED on this box (stickler 2026-09-11, item 9): a bare `node` gets heap_size_limit 4192 MiB and no
+// NODE_OPTIONS; a `pnpm exec node` / `pnpm run` child gets 16480 (pnpm-workspace.yaml `nodeOptions`). The
+// ENTRY SPELLING decides the heap ceiling, and these are the tools that need it — typed eslint (380 corpus
+// sightings), tsc (269), the in-process ts-morph verbs (the recorded exit-134 OOM, gates-and-tooling.md),
+// stryker, jscpd, knip, depcruise. `nice` does NOT depend on the spelling (every _shared/proc.ts door
+// applies it in-process), so this rule is about the FLOOR, never politeness.
+// PRECISION, the guard's first law: only the spellings with NO floor at all are refused — `npx <tool>`,
+// `<path>/node_modules/.bin/<tool>`, and a bare `node <heavy script>`. EVERY `pnpm …` spelling passes
+// untouched (`pnpm exec tsc`, `pnpm lint:eslint`, `pnpm ast`), because a guard that refuses the floored
+// door is what teaches agents to route around it.
+const HEAVY_TOOLS = {
+  eslint: "`pnpm lint:eslint` (or `pnpm exec eslint <paths>` when you want eslint's own flags)",
+  tsc: "`pnpm typecheck` (add `--config <tsconfig>` to scope it to one program)",
+  stryker: "`pnpm test:mutation` — and a mutation run is orchestrator-scheduled, never ad hoc",
+  jscpd: "`pnpm cpd` (which caps the workers; jscpd's own default is every core)",
+  knip: "`pnpm knip`",
+  depcruise: "`pnpm depcruise`",
+  "dependency-cruiser": "`pnpm depcruise`",
+  tsx: "node runs TypeScript directly since the tsx shed — `pnpm exec node <file>`",
+};
+// The same tools wearing a script path, reached through a bare `node`.
+const HEAVY_NODE_SCRIPTS = [
+  [/(?:^|\/)scripts\/eslint\.cjs$/, "`pnpm lint:eslint`"],
+  [/(?:^|\/)tooling\/src\/ast\/cli\.ts$/, "`pnpm ast <lens>` (the bare spelling runs an in-process ts-morph lens at 4 GiB)"],
+];
+const HEAVY_VERIFY_CLI = /(?:^|\/)tooling\/src\/verify\/cli\.ts$/;
+const HEAVY_VERIFY_VERBS = {
+  structure: "`pnpm check:structure`",
+  "gate-contract": "`pnpm gate:contract`",
+  "tests-membership": "`pnpm check:type-ownership`",
+};
+const NPX_HEAD = /^(?:\S*\/)?npx$/;
+const BIN_DIR_TOOL = /(?:^|\/)node_modules\/\.bin\/([\w.-]+)$/;
+// An explicit worker count above the fleet cap. The caps are DATA — tooling/concurrency-profile.json is
+// their ONE home (#1835) — so this reads them rather than hard-coding a number, and the shipped defaults
+// ARE the shared-host values: a flag is only ever needed to go LOWER.
+const WORKER_FLAG = /(?:^|\s)--(?:workers|maxWorkers|max-workers)(?:=|\s+)(\d+)/;
+const CT_RUNNER_STAGE = /\bpnpm\s+(?:run\s+)?test:ct\b/;
+const VITEST_RUNNER_STAGE = /\bpnpm\s+(?:run\s+)?test:(?:scoped|node|tooling)\b/;
+const PROFILE_REL = "tooling/concurrency-profile.json";
+let concurrencyCapsCache;
+/** `{ct, vitest}` from the profile, or null when it cannot be read — fail-open, like every other fact this
+ *  guard derives from the tree. */
+function concurrencyCaps() {
+  if (concurrencyCapsCache === undefined) {
+    concurrencyCapsCache = null;
+    try {
+      const profiles = JSON.parse(readFileSync(path.join(SELF_CHECKOUT ?? "", PROFILE_REL), "utf8")).profiles;
+      const active = profiles[process.env.ORB_DEDICATED_BOX === "1" ? "dedicated" : "shared"];
+      if (typeof active?.ctWorkers === "number" && typeof active?.vitestMaxWorkers === "number") {
+        concurrencyCapsCache = { ct: active.ctWorkers, vitest: active.vitestMaxWorkers };
+      }
+    } catch {
+      concurrencyCapsCache = null;
+    }
+  }
+  return concurrencyCapsCache;
+}
 const GREP_HEAD = /^\s*(?:\/usr\/bin\/)?grep\s/;
 const GREP_RECURSIVE_FLAG = /\s-[a-zA-Z]*r/i;
 const GREP_EXCLUDE_DIR = /--exclude-dir/;
@@ -539,7 +633,10 @@ const ENV_KILL = /^(?:off|0|false)$/i;
 // Everything below only runs for a stage that passes this.
 // The shell arm ends at `(?:\s|$)`, not `\s`: a PIPE SINK is a stage whose whole text is the shell name
 // (`cat f | bash`), so a required trailing space skipped the exact shape #634 is about.
-const SCRIPT_STAGE_HINT = /(?:^|[\s/])(?:sh|bash|zsh|ksh|dash)(?:\s|$)|\.sh(?:\s|$)|^\s*(?:\.|source)\s/;
+// `eval` joined the hint 2026-09-11 (#1943 F4): `eval "git stash"` takes its PROGRAM from an operand just
+// like `bash -c` does, and the quoted operand was blanked before any rule could see it — the control
+// `eval git stash` denied only because an UNQUOTED one is still visible in the blanked text.
+const SCRIPT_STAGE_HINT = /(?:^|[\s/])(?:sh|bash|zsh|ksh|dash)(?:\s|$)|\.sh(?:\s|$)|^\s*(?:\.|source)\s|(?:^|\s)eval\s/;
 // `.`/`source` as a stage's COMMAND WORD. Never a path argument: the head is found at the exec-head
 // position, so `find . -name x`, `biome check . --write` and `grep . --exclude-dir=y` are not this
 // (measured: a raw-regex count of "dot-source" said 2,367 on the 135,505-command corpus and the
@@ -619,6 +716,17 @@ const SCRIPT_LINE_MAX = 160;
 // The extracted text runs through this same `classify` and merges strictest-wins, so a nested command can
 // only ever make the outer one STRICTER.
 const SHELL_INLINE_C_FLAG = /^-[a-zA-Z]*c[a-zA-Z]*$/; // `-s` alone reads the command from STDIN — nothing to extract
+// `eval` is a shell BUILTIN whose operand is the program — the `-c` shape with the flag left off, and it
+// was in no head list at all (#1943 F4). There is no file to read and no `-c` to find, so the operand is
+// the word right after the head.
+const EVAL_EXEC = /^eval$/;
+// An operand that is NOTHING BUT variable references (`"$CMD"`, `"${PRE} ${POST}"`). This is the ONLY
+// shape whose expansion is read, deliberately (#1943 F4): a variable-carried command is one the guard
+// cannot see AT ALL, whereas expanding the `$VAR` inside `bash -c "echo $MSG"` would move TEXT into
+// command position and invent denials (`MSG='git stash'; bash -c "echo $MSG"` echoes three words; it
+// stashes nothing). Resolved from the command's OWN assignments, exactly like the script-path resolver;
+// unresolvable ⇒ `ask`, because an operand the guard could not read must not pass as "no objection".
+const VAR_ONLY_COMMAND = /^(?:\s*\$\{?[A-Za-z_][A-Za-z0-9_]*\}?)+\s*$/;
 // The operand right after `-c`: single-quoted (literal), double-quoted (escapes resolved), or a bare word.
 const INLINE_OPERAND = /^\s*(?:'([^']*)'|"((?:[^"\\]|\\.)*)"|([^\s'"|;&<>()]+))/;
 const INLINE_DQ_ESCAPE = /\\(["\\$`])/g;
@@ -656,7 +764,7 @@ const REASONS = {
   cdWorktree:
     "The Bash cwd PERSISTS across calls — one `cd` into a lane worktree silently relocates every later command (this landed a main-session commit on a lane branch; 3,064 sightings in the corpus). Use `git -C /abs/path/to/worktree <cmd>` — no cd needed.",
   playwrightCt:
-    "CT runs go through the sanctioned script: `pnpm test:ct <paths>` (= `cli.ts scoped-test ct`). Driving playwright directly skips everything that makes a CT run trustworthy on this box — the PER-INVOCATION build cache under .cache/ct (a shared cache replays errors that stopped existing, 'Identifier already declared'), the per-worktree exclusion lock that refuses a corrupting second runner (#1581: a racing runner reported failures in tests it never touched), the host-wide runner slots and the nice floor that protect the co-hosted homelab (#1835), and the CT config + flake reporter. Pass runner flags straight through: `pnpm test:ct tests/ui/x.ct.tsx --repeat-each=3`.",
+    "CT runs go through the sanctioned script: `pnpm test:ct <paths>` (= `cli.ts scoped-test ct`). Driving playwright directly skips everything that makes a CT run trustworthy on this box — the PER-INVOCATION build cache under .cache/ct (a shared cache replays errors that stopped existing, 'Identifier already declared'), the per-worktree exclusion lock that refuses a corrupting second runner (#1581: a racing runner reported failures in tests it never touched), the host-wide runner slots and the nice floor that protect the co-hosted homelab (#1835), and the CT config + flake reporter. Pass runner flags straight through: `pnpm test:ct tests/ui/x.ct.tsx --repeat-each=3` — and JOIN a flag to its value with `=` when the value contains a slash (`--output=reports/ct-out`, `-g='chat/composer'`), because the scoped runner reads a bare slash-bearing operand as a path claim and refuses the run.",
   pushForce:
     "Force-push rewrites shared history on the integration trunk — that is an owner call (6 sightings in 133,631 calls, none routine). State why, or use a plain push.",
   lanePush:
@@ -670,6 +778,10 @@ const REASONS = {
     "`rm -rf` on a target that is not scratch (/tmp, scratchpad, node_modules, reports/, .claude/worktrees/, dist, coverage, .cache, *.bak, playwright/.cache). This used to reach the permission layer on its way past; it no longer does, so it stops here. Re-read the path — if it is right, confirm.",
   sqliteLive:
     "Never run bare `sqlite3` against the LIVE db — a stray write or a held lock corrupts the running stack's state, and WAL makes the damage non-obvious. Probe a COPY, or use `/api/_debug/*`. If this really is a scratch/:memory: db, confirm.",
+  heavyToolUnfloored: (tool, door) =>
+    `\`${tool}\` run this way has NO HEAP FLOOR: measured on this box, a bare \`node\`/\`npx\` child gets heap_size_limit 4192 MiB and no NODE_OPTIONS, while anything spawned through pnpm gets 16480 (the workspace-wide --max-old-space-size=16384 in pnpm-workspace.yaml, which \`npx\` never carries). This is the whole tool family, not a pair of tools, and an OOM under that ceiling reads as a tool error nobody can distinguish from a real finding (a bare in-process ts-morph verb exit-134'd on this box). Use the floored door: ${door}. \`pnpm exec <tool> …\` also carries the floor when you genuinely need the tool's own CLI.`,
+  workerOverCap: (asked, cap) =>
+    `\`--workers=${asked}\` is above the fleet cap of ${cap}. The SHIPPED defaults ARE the shared-host values (tooling/concurrency-profile.json is their ONE home, #1835): this box co-hosts the homelab and runs up to three lanes per account, and per-run caps multiplying across lanes is exactly what put node_load1 at 105.8 on 24 cores. Pass NO worker flag — or pass one only to go LOWER. If you genuinely have the box to yourself, the switch is \`ORB_DEDICATED_BOX=1\` in the SHELL environment, which retunes every reader at once.`,
   rgReplaceMangle:
     "`rg -r`/`--replace` glued directly to another flag letter (e.g. `-rln`) is parsed by ripgrep as `-r` TAKING the glued letters as its REPLACEMENT VALUE — so the intended listing/count flag silently vanishes and the command REPLACES matched text instead of listing matches, with no error (four paid offenses this era). Spell it out: `-n`/`--files-with-matches`/`--count` for listing, or `-r 'text'`/`--replace='text'` (a SEPARATE token) when you actually mean a replacement.",
   scriptBody: (script, line, inner) =>
@@ -684,8 +796,12 @@ const REASONS = {
     `${script} is ${bytes} bytes, past the ${SCRIPT_MAX_BYTES}-byte body-inspection cap, so tool-guard cannot see what it runs and will not wave it through blind. Split the wrapper, or run the commands directly.`,
   scriptUnresolvedOperand: (spelling) =>
     `This runs a script tool-guard could not IDENTIFY: the operand \`${spelling.length > SCRIPT_LINE_MAX ? `${spelling.slice(0, SCRIPT_LINE_MAX)}…` : spelling}\` still carries an expansion, a substitution or a glob after the command's own assignments were resolved, so the guard cannot read the body — and it will not wave an unreviewed body through blind. A PreToolUse \`allow\` bypasses the permission flow entirely, so "I did not look" must never read as "I have no objection" (#631: \`bash "$SP/run.sh"\` and \`bash "/abs/run.sh" arg\` both executed unread). Write the path literally, or assign it in THIS command — \`SP=/abs/dir; bash "$SP/run.sh"\` resolves and is read.`,
+  scriptGroupedMissing: (file) =>
+    `This runs a script from inside a GROUPED clause (\`( … )\` / \`{ … }\`) and the path tool-guard read — ${file} — does not exist, so it could not read the body. Inside a group that is not the harmless "the command would fail anyway" case it is everywhere else: a group character glued to the operand is exactly how a path comes out mis-parsed, which is how \`(bash /tmp/x.sh)\` ran unread while \`(bash /tmp/x.sh )\` was refused. Drop the parentheses (a lane backgrounds with \`setsid nohup … &\`, no group needed), or put a space before the closer, and the body IS read.`,
   scriptDepthCap: (script) =>
     `A wrapper script that invokes another wrapper script (${script}) — tool-guard reads ONE level of script body, so what this ultimately runs is unseen. Flatten it: invoke the inner script directly from your Bash call, or inline its commands.`,
+  inlineUnresolvedOperand: (spelling) =>
+    `This hands a shell (or \`eval\`) a command string that is nothing but a VARIABLE — \`${spelling}\` — and the command's own assignments do not pin it down, so tool-guard cannot see what will execute. It will not wave an unread command through: a PreToolUse \`allow\` bypasses the permission flow, so "I did not look" must never read as "I have no objection" (#631, the same law the script-path resolver obeys). Write the command literally, or assign it in THIS command — \`CMD='pnpm check'; bash -c "$CMD"\` resolves and IS read.`,
   nestedCommand: (kind, snippet, inner) =>
     `${NESTED_LABEL[kind]} — quoting is not a shield, tool-guard classifies what actually executes.\nThe command it decided on:\n    ${snippet}\n\n${inner}`,
   nestedDepthCap: (kind, snippet) =>
@@ -871,7 +987,40 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
   };
 }
 
-const PW_CLAUSE_HEAD = /^\s*(timeout\s+\d+[a-z]?\s+)?(?:npx\s+|pnpm\s+exec\s+)?playwright\s+test\b/;
+// The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
+// match LENGTH is now what the argument slice is taken from (see playwrightRewrite): the `cli.js` form
+// carries no `playwright test` substring to search for, and a length-based slice is the one that reads the
+// same for all four.
+const PW_CLAUSE_HEAD = new RegExp(
+  String.raw`^\s*(timeout\s+\d+[a-z]?\s+)?(?:(?:npx|pnpm(?:\s+exec)?)\s+)?(?:(?:\S*\/)?playwright|node\s+\S*@playwright\/test\/cli\.js)\s+test\b`,
+);
+// Playwright flags that take their value as a SEPARATE word. Load-bearing for the rewrite (#1943 F6): the
+// rewritten `pnpm test:ct` runs `scoped-test`, whose preflight reads every non-flag operand carrying a `/`
+// (or a test-file extension) as a PATH CLAIM (`_shared/scoped-run-paths.ts` isPathShaped) — so a forwarded
+// `--output reports/ct-out` or `-g chat/composer` turns a run that would have worked into exit 3
+// (UNRESOLVED) or exit 2 (BARREN). The `=`-joined spelling starts with `-` and is never read as a claim,
+// which is why the refusal names it instead of the rewrite silently mangling the run. An INCOMPLETE list
+// fails toward today's behaviour (forward it), never toward a false refusal.
+const PW_VALUE_FLAGS = new Set([
+  "-g",
+  "--grep",
+  "--grep-invert",
+  "--output",
+  "--reporter",
+  "--project",
+  "--trace",
+  "--workers",
+  "-j",
+  "--retries",
+  "--repeat-each",
+  "--timeout",
+  "--global-timeout",
+  "--max-failures",
+  "--shard",
+  "--config",
+  "-c",
+]);
+const PW_PATH_SHAPED = /^[^-].*(?:\/|\.[cm]?[jt]sx?$)/u;
 
 /** Rebuild a raw CT invocation into the sanctioned script call (`pnpm test:ct <args>`), or null if too
  *  complex. Prefix clauses (a `cd <repo>` etc.) are kept verbatim; the playwright clause must be LAST,
@@ -900,12 +1049,17 @@ function playwrightRewrite(command, blank, clauses) {
     return null;
   }
   const original = command.slice(clause.start, clause.end);
-  const afterIdx = original.search(/playwright\s+test\b/);
   const args = original
-    .slice(afterIdx)
-    .replace(/^playwright\s+test\s*/, "")
+    .slice(head[0].length)
     .replace(/(?:^|\s)(?:-c|--config)(?:=\S+|\s+\S+)/g, " ")
     .trim();
+  // A space-form flag VALUE that looks like a path would be read by `scoped-test`'s preflight as a path
+  // claim (see PW_VALUE_FLAGS): rewriting would hand the runner an operand that fails the run. Refuse with
+  // advice instead — the `=`-joined spelling survives the rewrite untouched.
+  const tokens = args.split(/\s+/).filter((t) => t.length > 0);
+  if (tokens.some((t, i) => PW_VALUE_FLAGS.has(t) && tokens[i + 1] !== undefined && PW_PATH_SHAPED.test(tokens[i + 1]))) {
+    return null;
+  }
   const prefix = command.slice(0, clause.start);
   const wrapper = head[1] ?? "";
   const joiner = prefix === "" || /\s$/.test(prefix) ? "" : " ";
@@ -1136,9 +1290,47 @@ function collectStageWarns(command, blank, clauses, contexts) {
  *  removed: every index in this file points back into the original text. Only a WORD-INITIAL `(`/`{`
  *  counts, which is what keeps `$( … )` (handled by its own extraction pass) and `${VAR}` untouched. */
 const GROUP_OPENER = /(^|\s)([({]+)/g;
+// …AND NEITHER IS A CLOSER (2026-09-11, #1943 F2). The opener fix left the other end glued to the LAST
+// word, so `(bash /tmp/x.sh)` passed while `(bash /tmp/x.sh )` denied — one character apart. In the
+// BLANKED views this is what hid the stage from the cheap pre-filter and the exec head: `.sh)` fails
+// SCRIPT_STAGE_HINT's `\.sh(?:\s|$)`, `bash)` fails its shell arm (the pipe-sink shape), and
+// `execHead`'s token for `(/tmp/x.sh)` did not end in `.sh`. A closer run is blanked when what follows is
+// whitespace, end, another separator, or a glued redirect (`)2>&1`) — never mid-word, so a path that
+// genuinely contains `)` keeps it. Blanked, never removed: every index in this file points back into the
+// original text. (A `)` that closes a `$( … )` is blanked here too; both consumers of this view look only
+// for interpreter heads, and the substitution pass reads the RAW command.)
+const GROUP_CLOSER = /[)}]+(?=[\s&;]|\d*[<>]|$)/g;
 
 function ungroup(text) {
-  return text.replace(GROUP_OPENER, (_m, pre, opener) => pre + " ".repeat(opener.length));
+  return text.replace(GROUP_OPENER, (_m, pre, opener) => pre + " ".repeat(opener.length)).replace(GROUP_CLOSER, (m) => " ".repeat(m.length));
+}
+
+/** The same fix on the RAW side. `shellWords` treats `)` as an ordinary character, so the operand word of
+ *  `(bash /tmp/x.sh)` is `/tmp/x.sh)` — which resolves, statSync's ENOENT, and returns the fail-open
+ *  "the command would fail anyway" silence, i.e. the body is never read. Every operand this guard resolves
+ *  goes through `resolveScriptOperand`, so the strip lives there and `commandWrites` keys its map by the
+ *  same stripped path (the write-then-run pair `(printf … > w.sh); bash w.sh` needs both sides to agree).
+ *  Stripped only when the VALUE ends in the same closers the RAW word does — a quoted `"/tmp/a)b"` ends its
+ *  raw word with the QUOTE, so its `)` is part of the path and survives. */
+const GROUP_CLOSER_TAIL = /[)}]+(?:[&;]|\d*>>?&?\d*|>+\S*)*$/;
+// The opener half of the same word problem: `ungroup` blanks a word-initial `(` in the BLANKED view, which
+// is what lets `execHead` find the head of `(/tmp/x.sh)` — but the RAW word is still `(/tmp/x.sh)`, and for
+// a bare `.sh` head that word IS the operand.
+const GROUP_OPENER_HEAD = /^[({]+/;
+
+function stripGroupClosers(word) {
+  let { value, raw } = word;
+  const opener = raw.match(GROUP_OPENER_HEAD);
+  if (opener !== null && GROUP_OPENER_HEAD.test(value)) {
+    raw = raw.slice(opener[0].length);
+    value = value.replace(GROUP_OPENER_HEAD, "");
+  }
+  const rawTail = raw.match(GROUP_CLOSER_TAIL);
+  const valueTail = value.match(GROUP_CLOSER_TAIL);
+  if (rawTail === null || valueTail === null || raw[rawTail.index - 1] === "\\") {
+    return { ...word, value, raw };
+  }
+  return { ...word, value: value.slice(0, valueTail.index), raw: raw.slice(0, rawTail.index) };
 }
 
 /** The executable token of a stage, read off the BLANKED text (so a shell name in a comment, a heredoc
@@ -1243,10 +1435,12 @@ function shellFileOperand(words) {
 /** One operand word → the literal path it names, or `{path: null}` when the command itself does not pin it
  *  down. `$VAR`/`${VAR}` are expanded from the command's OWN assignments only (`assignedVars` — an unknown
  *  name is left as written, so it stays unresolvable), `~/` from `$HOME`. */
-function resolveScriptOperand(word, vars) {
-  if (word.unterminated) {
-    return { path: null, spelling: word.raw };
+function resolveScriptOperand(rawWord, vars) {
+  if (rawWord.unterminated) {
+    return { path: null, spelling: rawWord.raw };
   }
+  // A GROUP CLOSER GLUED TO THE OPERAND IS NOT PART OF THE PATH (#1943 F2) — see stripGroupClosers.
+  const word = stripGroupClosers(rawWord);
   const expanded = expandAssigned(word.value, vars);
   // `$HOME`/`${HOME}` resolve exactly like the `~/` this already expanded — same variable, same value, and
   // the comment beside HOME_PREFIX has always SAID they are the same file. They were not: `. "$HOME/.cargo/
@@ -1357,10 +1551,16 @@ export function scriptTargets(command, blank, clauses) {
     for (let si = 0; si < clause.stages.length; si += 1) {
       const stage = clause.stages[si];
       // ungrouped for the same reason as the inline pass: `(bash /tmp/lane.sh &)` runs that script
-      const text = ungroup(blank.slice(stage.start, stage.end));
+      const stageBlank = blank.slice(stage.start, stage.end);
+      const text = ungroup(stageBlank);
       if (!SCRIPT_STAGE_HINT.test(text)) {
         continue;
       }
+      // GROUPED (#1943 F2): this stage carried a `(`/`{`/`)`/`}` that had to be blanked before its head and
+      // operand could be read. Recorded on every target the stage produces, because a MIS-PARSE in grouped
+      // text presents as a path that does not exist — and ENOENT is the guard's fail-open silence.
+      const grouped = text !== stageBlank;
+      const push = (target) => found.push(grouped ? { ...target, grouped: true } : target);
       const { exec } = execHead(text);
       if (exec === undefined) {
         continue;
@@ -1376,7 +1576,7 @@ export function scriptTargets(command, blank, clauses) {
       if (head === -1) {
         // Structurally unreachable (a token found in the blanked text has non-space raw at that index, so
         // some word covers it) — but if the two views ever disagree, the guard has NOT identified what runs.
-        found.push({ path: null, spelling: text.trim() });
+        push({ path: null, spelling: text.trim() });
         continue;
       }
       const vars = assignedVars(command, blank, clauses, stage.start);
@@ -1391,34 +1591,34 @@ export function scriptTargets(command, blank, clauses) {
         if (first === undefined) {
           continue; // `source` with no operand: the shell errors out, nothing to judge
         }
-        found.push(PROCESS_SUBSTITUTION.test(first.raw) ? { path: null, stdin: true, spelling: first.raw } : resolveScriptOperand(first, vars));
+        push(PROCESS_SUBSTITUTION.test(first.raw) ? { path: null, stdin: true, spelling: first.raw } : resolveScriptOperand(first, vars));
         continue;
       }
       const word = isShell ? shellFileOperand(words.slice(head + 1)) : words[head];
       // A process substitution IS the program when nothing else is (`bash <(gen)`): the interpreter reads a
       // pipe another command fills, so there is no path to resolve and no bytes to read.
       if (word === undefined && words.slice(head + 1).some((w) => PROCESS_SUBSTITUTION.test(w.raw))) {
-        found.push({ path: null, stdin: true, spelling: text.trim() });
+        push({ path: null, stdin: true, spelling: text.trim() });
         continue;
       }
       if (word === null) {
         continue; // a `-c`/`-s` inline string the nested pass owns
       }
       if (word !== undefined) {
-        found.push(resolveScriptOperand(word, vars));
+        push(resolveScriptOperand(word, vars));
         continue;
       }
       // No file operand: the interpreter's program arrives through a CHANNEL. Judge the channel, or say
       // the guard cannot see it — silence here is an `allow`, and nothing looks after that.
       const heredoc = stageHeredoc(command, units, stage);
       if (heredoc !== null) {
-        found.push({ text: heredoc, label: "a heredoc" });
+        push({ text: heredoc, label: "a heredoc" });
         continue;
       }
       const stdin = raw.match(STDIN_FILE_REDIRECT);
       if (stdin) {
         const target = words.find((w) => w.value === stdin[1] || w.raw === stdin[1]);
-        found.push(target === undefined ? { path: null, spelling: stdin[1] } : resolveScriptOperand(target, vars));
+        push(target === undefined ? { path: null, spelling: stdin[1] } : resolveScriptOperand(target, vars));
         continue;
       }
       if (si > 0) {
@@ -1433,10 +1633,10 @@ export function scriptTargets(command, blank, clauses) {
           : [];
         if (files.length > 0) {
           for (const f of files) {
-            found.push(resolveScriptOperand(f, assignedVars(command, blank, clauses, prev.start)));
+            push(resolveScriptOperand(f, assignedVars(command, blank, clauses, prev.start)));
           }
         } else {
-          found.push({ path: null, stdin: true, spelling: blank.slice(prev.start, prev.end).trim() });
+          push({ path: null, stdin: true, spelling: blank.slice(prev.start, prev.end).trim() });
         }
       }
     }
@@ -1586,7 +1786,7 @@ function textProgramVerdict(describe, text, ctx, depth) {
 }
 
 /** @returns {{decision: string, rule: string|null, reason?: string, contexts: string[]}|null} */
-function oneScriptVerdict(operand, ctx, depth, writes) {
+function oneScriptVerdict(operand, ctx, depth, writes, grouped = false) {
   const base = path.isAbsolute(operand) ? "/" : (ctx.cwd ?? ctx.projectDir ?? process.cwd());
   const file = path.resolve(base, operand);
   // WRITTEN BY THIS COMMAND (#634) — judge what will LAND there, never what is on disk. `printf '…' > x.sh;
@@ -1629,7 +1829,18 @@ function oneScriptVerdict(operand, ctx, depth, writes) {
   } catch {
     // missing / unreadable / a directory: the command would fail anyway, so the guard has nothing to
     // judge and says so by staying silent (fail-open — the guard breaking must never block work).
-    return null;
+    //
+    // …EXCEPT FROM A GROUPED CLAUSE (2026-09-11, #1943 F2). The fail-open ruling SURVIVES — its INPUT
+    // changed: it assumes the path the guard resolved is the path the SHELL will run, and inside a
+    // `( … )`/`{ … }` that assumption is exactly what failed. `(bash /tmp/x.sh)` resolved to `/tmp/x.sh)`,
+    // which cannot exist, so ENOENT was not "the command dies anyway" — it was a mis-parse wearing that
+    // answer's clothes, and the body went unread for a whole era one character away from a deny. The
+    // stripping above is the real fix; this arm is the honesty backstop for the next glued character
+    // nobody has thought of, and it obeys #631: a guard that cannot identify what will execute must not
+    // return a content verdict (silence IS a content verdict now that pass means allow).
+    return grouped
+      ? { decision: "ask", rule: "script-grouped-unresolvable", reason: REASONS.scriptGroupedMissing(file), contexts: [] }
+      : null;
   }
   return liftScriptVerdict(file, body, classify(body, { ...ctx, scriptDepth: depth + 1 }), ctx, depth);
 }
@@ -1642,7 +1853,7 @@ function oneTargetVerdict(target, ctx, depth, writes) {
     return textProgramVerdict(`This interpreter reads its program from ${target.label}`, target.text, ctx, depth);
   }
   if (target.path !== null) {
-    return oneScriptVerdict(target.path, ctx, depth, writes);
+    return oneScriptVerdict(target.path, ctx, depth, writes, target.grouped === true);
   }
   return target.stdin === true
     ? { decision: "ask", rule: "script-opaque-stdin", reason: REASONS.scriptOpaqueStdin(target.spelling), contexts: [] }
@@ -1705,10 +1916,15 @@ export function inlineShellCommands(command, blank, clauses) {
         continue;
       }
       const { tokens, index, exec } = execHead(text);
-      if (exec === undefined || !SCRIPT_SHELL_EXEC.test(exec[0])) {
+      if (exec === undefined) {
         continue;
       }
-      const flag = tokens.slice(index + 1).find((t) => SHELL_INLINE_C_FLAG.test(t[0]));
+      const isEval = EVAL_EXEC.test(exec[0]);
+      if (!isEval && !SCRIPT_SHELL_EXEC.test(exec[0])) {
+        continue;
+      }
+      // `eval`'s program is the word right after the head; a shell's is the word right after `-c`.
+      const flag = isEval ? exec : tokens.slice(index + 1).find((t) => SHELL_INLINE_C_FLAG.test(t[0]));
       if (flag === undefined) {
         continue;
       }
@@ -1716,9 +1932,15 @@ export function inlineShellCommands(command, blank, clauses) {
       // runs "-x"), so this reads the next word rather than skipping flags.
       const operand = command.slice(stage.start + flag.index + flag[0].length, stage.end).match(INLINE_OPERAND);
       const inner = operand === null ? null : (operand[1] ?? operand[2]?.replace(INLINE_DQ_ESCAPE, "$1") ?? operand[3]);
-      if (inner !== null && inner !== undefined && inner.trim().length > 0) {
-        found.push(inner);
+      if (inner === null || inner === undefined || inner.trim().length === 0) {
+        continue;
       }
+      if (!VAR_ONLY_COMMAND.test(inner)) {
+        found.push({ inner });
+        continue;
+      }
+      const resolved = expandAssigned(inner, assignedVars(command, blank, clauses, stage.start));
+      found.push(UNRESOLVED_VALUE.test(resolved) || resolved.trim().length === 0 ? { unresolved: inner } : { inner: resolved });
     }
   }
   return found;
@@ -1824,7 +2046,9 @@ function nestedCommandVerdict(command, blank, clauses, ctx) {
   try {
     const depth = ctx.nestedDepth ?? 0;
     const targets = [
-      ...new Set(inlineShellCommands(command, blank, clauses)).values().map((inner) => ({ kind: "inline", inner })),
+      // keyed so `bash -c X && bash -c X` reads once, while an unresolvable operand keys on its own
+      // spelling (it has no readable text to key on)
+      ...new Map(inlineShellCommands(command, blank, clauses).map((t) => [t.inner ?? ` ${t.unresolved}`, { kind: "inline", ...t }])).values(),
       ...new Set(commandSubstitutions(command)).values().map((inner) => ({ kind: "subst", inner })),
     ];
     if (targets.length === 0) {
@@ -1832,11 +2056,15 @@ function nestedCommandVerdict(command, blank, clauses, ctx) {
     }
     const first = targets[0];
     if (depth >= NESTED_DEPTH_CAP) {
-      return { decision: "ask", rule: "nested-depth-cap", reason: REASONS.nestedDepthCap(first.kind, first.inner.slice(0, SCRIPT_LINE_MAX)), contexts: [] };
+      const snippet = (first.inner ?? first.unresolved).slice(0, SCRIPT_LINE_MAX);
+      return { decision: "ask", rule: "nested-depth-cap", reason: REASONS.nestedDepthCap(first.kind, snippet), contexts: [] };
     }
     let worst = null;
-    for (const { kind, inner } of targets) {
-      const verdict = liftNestedVerdict(kind, inner, classify(inner, { ...ctx, nestedDepth: depth + 1 }));
+    for (const { kind, inner, unresolved } of targets) {
+      const verdict =
+        unresolved === undefined
+          ? liftNestedVerdict(kind, inner, classify(inner, { ...ctx, nestedDepth: depth + 1 }))
+          : { decision: "ask", rule: "inline-unresolved-operand", reason: REASONS.inlineUnresolvedOperand(unresolved), contexts: [] };
       worst = worst === null || DECISION_RANK[verdict.decision] > DECISION_RANK[worst.decision] ? { ...verdict, contexts: [...(worst?.contexts ?? []), ...verdict.contexts] } : { ...worst, contexts: [...worst.contexts, ...verdict.contexts] };
     }
     return worst;
@@ -1864,6 +2092,82 @@ function mergeVerdicts(outer, script) {
     merged.rule = outer.rule ?? (contexts.length > 0 ? "advisory" : null);
   }
   return merged;
+}
+
+/** The first stage that runs a heavy tool through a spelling with no heap floor, as `{tool, door}` — or
+ *  null. Head-anchored per stage through `execHead`, so a tool NAME inside an argument, a commit message
+ *  or a `pnpm` script's own text can never fire it. */
+function heavyToolDoor(blank, clauses) {
+  for (const clause of clauses) {
+    for (const stage of clause.stages) {
+      const { tokens, index, exec } = execHead(blank.slice(stage.start, stage.end));
+      if (exec === undefined) {
+        continue;
+      }
+      const rest = tokens.slice(index + 1).map((t) => t[0]);
+      if (NPX_HEAD.test(exec[0])) {
+        const tool = rest.find((t) => !t.startsWith("-"));
+        const door = tool === undefined ? undefined : HEAVY_TOOLS[tool.replace(/^.*\//, "")];
+        if (door !== undefined) {
+          return { tool: `npx ${tool}`, door };
+        }
+        continue;
+      }
+      const bin = exec[0].match(BIN_DIR_TOOL);
+      if (bin !== null) {
+        const door = HEAVY_TOOLS[bin[1]];
+        if (door !== undefined) {
+          return { tool: exec[0], door };
+        }
+        continue;
+      }
+      if (!SELF_NODE_EXEC.test(exec[0])) {
+        continue;
+      }
+      const script = rest.find((t) => !t.startsWith("-"));
+      if (script === undefined) {
+        continue;
+      }
+      const known = HEAVY_NODE_SCRIPTS.find(([re]) => re.test(script));
+      if (known !== undefined) {
+        return { tool: `node ${script}`, door: known[1] };
+      }
+      if (HEAVY_VERIFY_CLI.test(script)) {
+        const verb = rest[rest.indexOf(script) + 1];
+        const door = verb === undefined ? undefined : HEAVY_VERIFY_VERBS[verb];
+        if (door !== undefined) {
+          return { tool: `node ${script} ${verb}`, door };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/** An explicit worker count above the fleet cap, as `{asked, cap}` — or null. Only asked of a stage that
+ *  IS a CT or vitest invocation: `--workers` on an unrelated tool is that tool's own business, and the two
+ *  runners have different caps. */
+function overCapWorkers(blank, clauses) {
+  const caps = concurrencyCaps();
+  if (caps === null) {
+    return null;
+  }
+  for (const clause of clauses) {
+    for (const stage of clause.stages) {
+      const text = blank.slice(stage.start, stage.end);
+      const asked = text.match(WORKER_FLAG);
+      if (asked === null) {
+        continue;
+      }
+      const ct = PLAYWRIGHT_TEST.test(text) || CT_RUNNER_STAGE.test(text);
+      const vitest = VITEST_HEAD.test(text) || VITEST_RUNNER_STAGE.test(text);
+      const cap = ct ? caps.ct : vitest ? caps.vitest : null;
+      if (cap !== null && Number(asked[1]) > cap) {
+        return { asked: Number(asked[1]), cap };
+      }
+    }
+  }
+  return null;
 }
 
 // ── the classifier ──
@@ -1973,6 +2277,15 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     }
   }
 
+  // 3b. AN OVER-CAP WORKER COUNT — DENY (2026-09-11, #1943 F5). Ahead of the two REWRITE rules on
+  //     purpose: a rewrite would carry `--workers=8` verbatim into the sanctioned script, laundering the
+  //     one number this rule exists to hold. (Its sibling, the un-floored heavy-tool family, sits at 5b
+  //     instead — see there.)
+  const overCap = overCapWorkers(blank, clauses);
+  if (overCap !== null) {
+    return { decision: "deny", rule: "worker-over-cap", reason: REASONS.workerOverCap(overCap.asked, overCap.cap), contexts };
+  }
+
   // 4. harness piped — REWRITE the simple shape, DENY the rest (the headline 45-hour class). The harness
   //    must be at a pipeline HEAD (env/timeout/nice wrappers allowed) — mid-text mentions can never fire.
   const harnessPiped = clauses.some((cl) => cl.stages.length > 1 && HARNESS_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
@@ -1989,6 +2302,17 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   // 5. harness failure swallowed (`|| true`) — DENY
   if (HARNESS_OR_TRUE.test(blank) || HARNESS_SEMI_TRUE.test(blank)) {
     return { decision: "deny", rule: "harness-swallowed", reason: REASONS.harnessSwallowed, contexts };
+  }
+
+  // 5b. A HEAVY TOOL THROUGH AN UN-FLOORED SPELLING — DENY WITH THE DOOR (2026-09-11, #1943 F5).
+  //     AFTER the two harness rules and BEFORE the CT rewrite, deliberately: a command that is BOTH a
+  //     piped harness and an un-floored tool (`npx tsc | head -5; pnpm typecheck 2>&1 | tail -15`) denies
+  //     either way, and the pipe is the older, better-taught diagnosis — so the harness rule keeps the
+  //     verdict and triage keeps reading one rule id for one shape. Ahead of rule 6 because that one is a
+  //     REWRITE, and a rewrite must never be reached by a spelling this rule refuses.
+  const heavy = heavyToolDoor(blank, clauses);
+  if (heavy !== null) {
+    return { decision: "deny", rule: "heavy-tool-unfloored", reason: REASONS.heavyToolUnfloored(heavy.tool, heavy.door), contexts };
   }
 
   // 6. playwright CT — the sanctioned spelling is the SCRIPT (`pnpm test:ct <paths>`), so every raw
@@ -2124,6 +2448,12 @@ const BRIEFING = [
   "· DENIES: `git stash`/`restore`/`checkout <path>`/`checkout-index -f` (they destroy uncommitted work — use",
   "  `git show HEAD:<path>` to read an old version), whole-tree `biome check --write` fix-alls, and",
   "  `cd` into a worktree (the Bash cwd PERSISTS across calls — use `git -C <abs-path>`).",
+  "· DENIES a HEAVY TOOL run through a spelling with no heap floor — `npx eslint|tsc|stryker|jscpd|knip|",
+  "  depcruise|tsx`, `node_modules/.bin/<tool>`, a bare `node scripts/eslint.cjs` or `node tooling/src/",
+  "  {verify,ast}/cli.ts <verb>` — and names the floored door (`pnpm lint:eslint`, `pnpm typecheck`,",
+  "  `pnpm check:structure`, `pnpm ast`, …). A bare node child gets 4 GiB and OOMs; anything through pnpm",
+  "  gets 16 GiB. `pnpm exec <tool>` is floored too, so it always passes. Same tier for a `--workers=N`",
+  "  above the fleet cap: the shipped defaults ARE the shared-host caps, and a flag is for going LOWER.",
   "· DENIES `git push` from a lane: you do not push. Commit on your branch and report; the orchestrator",
   "  merges and the owner gives an explicit word per push.",
   "· READS THE BODY of an untracked wrapper script you run (`bash /tmp/…/lane-run.sh`) and judges its",
