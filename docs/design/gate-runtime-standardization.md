@@ -150,6 +150,30 @@ family.
    the narrowing in a `cp`-backed copy, run the module's rows, restore — and the fix is a `mustPass` row placing the
    same literal OUTSIDE the fence. This is the one place a conversion owes a planted break for a row it did not
    invent: §4.7 covers new properties, and this covers an old property nothing was ever shown to enforce.
+
+   **A CLEAN CUT HAS THREE MEANINGS, AND ONLY ONE OF THEM IS "UNENFORCED" (measured 2026-09-12 across two fix
+   lanes — the naive sweep OVER-REPORTS, so classify every clean cut before counting it):**
+
+   - **UNENFORCED** — genuinely unpinned. The fix is a `mustPass` row placing the subject OUTSIDE the fence.
+   - **MUTUALLY REDUNDANT** — two fences guard ONE subject, so each is individually uncuttable because the sibling
+     catches it. `server-layout.topEntry` carried a `startsWith(SERVER_SOURCE/)` test AND a `relative.length > 0`
+     test, both aimed at the root entry; the sweep reported both unenforced and **the obvious fix was wrong** — no
+     fixture can produce that subject at all (the tree is rooted at the prefix, and `walk` emits children only), so
+     the answer was DELETING BOTH, not adding a row. **When two cuts in one function both come back clean, cut them
+     TOGETHER before concluding.**
+   - **WRONG-DIRECTION CUT** — the standard cut assumes removing a fence makes the policy flag MORE. That holds for a
+     carrier fence and FAILS for a fence that changes a DERIVED path, which exists to prevent a FALSE CLEAN.
+     `ui-exports-map-complete`'s `target.startsWith("./")` survived, because an unfenced non-`./` target still
+     resolves to a nonexistent path and is reported either way. Falsifying it needed a fixture whose UNFENCED
+     resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
+     path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
+
+   **And a fourth outcome is legitimate: UNFALSIFIABLE, documented rather than faked.** For a reviewed-grant policy,
+   `reportReviewedGrantCandidates` dedupes by `(subject, operation)`, so any narrowing whose only counterexample sits
+   ABOVE an already-flagging node cannot change the finding count — `no-raw-matchmedia`'s `memberPath.length === 0`
+   is the worked case, measured identical with and without the clause. The clause stays (it is the shared reader's
+   contract) and the header says plainly that no fixture enforces it. **Inventing a row that does not discriminate is
+   worse than recording the gap**, because it converts an honest limit into a false pin.
 2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
    one POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position, yielding 0
    effective findings, 1 waived, 0 alarms. Two shapes are valid — a `mustPass` row in the module
