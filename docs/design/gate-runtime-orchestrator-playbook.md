@@ -211,11 +211,14 @@ the easy or short way just because the right way is more work.* The analysis bel
 implementation shape is open; what is NOT open is deriving the requirement from whoever happened to trip over it.
 
 **Why #1930 as written is not the shape.** It names seven capabilities derived from ELEVEN gates that three lanes
-happened to trip over. The remaining legacy set is **106**. Implement those seven and the 107th gate trips over an
-eighth, and every capability added costs a mandatory pass over FOUR policing surfaces — `policy-conformance.ts`'s
-fixture runner, `gate-modernization`, `enforcement-registry-parity`, `policy-validation.ts`. That already happened
-once: `gate-modernization`'s arm A had to be widened the day 163 modules became `defineGate` calls, because the
-policer broke when the thing it polices moved. Seven dribbles is seven rounds of policer churn.
+happened to trip over, against a legacy set of over a hundred. Implement those seven and the next gate trips over an
+eighth, and every capability added costs a mandatory pass over the policing surfaces — `policy-conformance.ts`'s
+fixture runner, `gate-modernization`, and `policy-validation.ts`. **That is THREE, not four.** Earlier text here and in
+several briefs said four by including `enforcement-registry-parity`; the capability lane proved otherwise on
+2026-09-11 with a positive control — grepping it for `resource|kind|AUTHORED_TREE|CONFIG_SNAPSHOT` returns zero against
+107 `gate` matches, so it reads the roster and never the resource vocabulary. The churn is real either way:
+`gate-modernization`'s arm A had to be widened the day 163 modules became `defineGate` calls, because the policer broke
+when the thing it polices moved.
 
 **And "leave them legacy" is not the answer either.** Mixed runtime makes a legacy module tolerable INDEFINITELY, but
 legacy means a private reader, a gate-owned exemption table and a direct walk — the exact rot the closed contract

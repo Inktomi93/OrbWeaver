@@ -375,6 +375,25 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   grammars still had LEGACY owners (`@swallowed-ok`, `@sub-floor-ok`, `@surface-focus-elsewhere`, `@first-boot-only`,
   `@over-art-plate-ok`), and `@finding-overload-ok`'s delete-with-the-gate disposition means its 24 sites cannot be
   removed ahead of that gate either.
+- **THE MARKER BACKLOG IS NOT A BACKLOG — it is one conversion.** Measured 2026-09-11 over the tracked `.ts`/`.tsx`
+  universe: **681** central `@orb-gate-ignore` markers name **36** distinct gates, and **578 of them name one gate,
+  `caught-failure-ownership`** (126 files under `tooling/src`, 112 under `packages/server`, 78 under
+  `packages/client`). Every other legacy gate's markers together are **28**; **38** are translatable today because
+  their owner is already final; **37** are deliberate negative-control fixtures naming gates that do not exist
+  (`no-such-gate`, `real-gate`, `line-scan-probe`, `dormant-gate`) which live in `gate-ignore.test.ts` and
+  `gate-ignore-inventory.ts` and retire with the legacy engine rather than translating. So do not plan marker lanes:
+  plan the conversions, and the markers ride with them.
+- **Translation is NOT a text codemod, because the two position vocabularies differ in KIND.** Legacy positions are a
+  taxonomy of the site's shape — `default:catch` (138), `empty:catch` (112), `empty:error` (83), `empty:err` (47),
+  `promise:run`, and the vocabulary is not even self-consistent (`empty:err` / `empty:error` / `empty:e` are three
+  spellings of one class). The final position must EXACTLY equal `finding.token`, an exact slice of the reported
+  node's text. There is no function from the one to the other. **Derive every position from what the CONVERTED policy
+  actually reports at that site**: run it over the real tree, dump effective findings (`file:line:column` + `token` +
+  `policyId`), join each legacy marker's LOCATION to the finding(s) there, and carry the legacy reason verbatim. Then
+  classify the three exceptions rather than guessing — DEAD (a marker with no finding: list it, never invent a waiver),
+  MULTI (N findings need N markers with distinct tokens), UNWAIVABLE (two findings sharing carrier AND token). And a
+  splitting module means the legacy gate name is NOT the final policy id
+  (`ordinary-waiver-source-migration.md:125`).
 - Authority reconciliation (#1922, the nine baseline JSON ledgers, decisions #1939 and #1921) needs the central grant
   table stable, so it follows the conversions that feed it. Per-row dispositions: `exception-authority-census.md`.
 - Legacy retirement runs only when `gate:contract` shows zero legacy modules. The deletion list is
