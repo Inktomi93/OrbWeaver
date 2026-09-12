@@ -45,6 +45,22 @@
 // already knows exactly will rot on a schedule set by how often the machine's answer changes. That is why
 // this paragraph now carries its METHOD and DATE rather than only its value — a reader who needs the
 // number runs the derivation, and a reader who needs to trust it can see when and how it was taken.
+//
+// THE FAMILY'S POPULATION PORT IS DERIVED ONCE HERE (§5b.5), so the three call-shape members cite one
+// measurement instead of copying it three times — the `DRIZZLE_SCHEMA_POPULATION` precedent, which this
+// family's fourth member consumes directly. All four converted in ONE commit, `b54b2c34e`, so the legacy
+// sha is its parent `40223a0915eda72dd8ab35fbdeaf9e9892089717` for every member.
+//   `owner-scoped-{reads,writes,upserts}`: legacy `scanRoot: (p) => p.includes("packages/server/src/")`
+//   becomes `@server`, which IS `packages/server/src/` — the same set. The only difference is that
+//   `includes(` matched the segment ANYWHERE in a path while the population root is ANCHORED at its start,
+//   and on this tree that distinction is empty: 1560 tracked paths contain `packages/server/src/` and the
+//   same 1560 begin with it.
+//   `table-scoping-class`: legacy `scanRoot: (p) => p.includes("packages/db/src/schema/")` becomes
+//   `DRIZZLE_SCHEMA_POPULATION` (`{ in: ["@db"], under: ["packages/db/src/schema/**"] }`), again the same
+//   set under the same anchoring difference — 30 tracked paths contain the segment and the same 30 begin
+//   with it. That member therefore declares the DRIZZLE-SCHEMA family's shared population while belonging
+//   to THIS family: the classification data is tenancy's, the files it reads are the schema's, and the two
+//   are deliberately not merged.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import type { ReadySchemaFact, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 

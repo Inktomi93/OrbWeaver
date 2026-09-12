@@ -21,6 +21,17 @@
 // The legacy `owner-scoped-upserts` descriptor itself (40223a0915eda72dd8ab35fbdeaf9e9892089717) — created
 // as its own GateDescriptor 2026-08-02, distinct from the `owner-scoped-writes`/`-reads` twins named above
 // — ran this same check before this conversion.
+//
+// FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts` (`ownerScopedTableIdents`,
+// `schemaTableIdents` for the every-declared-table denominator, `reportBlindWhenEmpty` for the
+// zero-derivation refusal), plus `lib/tenancy-read.ts` for the call shapes. The denominator matters here
+// in particular: without it an UNREADABLE table target is indistinguishable from a non-owner-scoped one,
+// and this member would go quietly silent on exactly the rows it exists to judge.
+// POPULATION PORT: the same set, byte-for-byte in membership. The legacy
+// `scanRoot: (p) => p.includes("packages/server/src/")` (40223a0915eda72dd8ab35fbdeaf9e9892089717)
+// becomes `@server`, which is `packages/server/src/`; the only change is substring matching becoming
+// anchored, and 1560 tracked paths contain that segment while the same 1560 begin with it. The derivation
+// and its measurement have ONE home, in the shared reader's own header.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
