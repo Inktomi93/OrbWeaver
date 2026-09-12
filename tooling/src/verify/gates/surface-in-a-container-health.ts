@@ -96,6 +96,15 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "stale shell exemption" },
       why: "THE RATCHET, and the successor to the legacy `STALE_PREFIX` arm: the client feature tree is populated and real, and the exempted `app-shell` feature is not in it. The exemption has outlived its feature and must red rather than quietly un-scan the name",
     },
+    {
+      mode: "resource",
+      files: {
+        ...CLIENT_PKG,
+        "packages/client/src/features/app-shell-lookalike/surfaces/pane.tsx": "export const Pane = () => <div>x</div>;\n",
+      },
+      expect: { count: 1, messageIncludes: "stale shell exemption" },
+      why: "THE PREFIX FENCE — and it must be a `mustFlag`, which is the correction: the shell feature is GONE and the only thing near its name is `app-shell-lookalike`, so the ratchet must still fire. Membership is tested as the exact directory OR a `/`-terminated prefix; drop the `/` and `app-shell-lookalike/...` satisfies `startsWith(EXEMPT_DIR)`, the arm returns early, and this row goes 1 → 0. DIRECTION: that cut makes the policy flag LESS — it widens the ACQUITTING set — so no `mustPass` can hold this fence. The `mustPass` below deliberately no longer claims to",
+    },
   ],
   mustPass: [
     {
@@ -110,7 +119,7 @@ export const gate = defineGate({
         ...CLIENT_PKG,
         ...SHELL,
       },
-      why: "the PREFIX fence: membership is tested on the exact directory or a `/`-terminated prefix of it, so a feature merely NAMED `app-shell-lookalike` neither satisfies the ratchet nor is mistaken for the shell. Drop the `/` from the `startsWith` and this row still passes but the previous one starts acquitting on a lookalike — which is why both exist",
+      why: "a lookalike feature ALONGSIDE the real shell changes nothing: the shell itself satisfies the membership test, so the arm acquits on the shell and the lookalike is irrelevant. THIS ROW HOLDS NO FENCE and its `why` used to claim one — it said the `/`-terminated prefix was pinned here, which is false in the plainest way: the row passes with the `/` and passes without it, because `.some()` is already satisfied by the shell. The fence lives in the `mustFlag` above, where the shell is ABSENT and the lookalike is the only near-miss. Kept because it is a real (if weak) statement about coexistence, not because it discriminates",
     },
   ],
 });
