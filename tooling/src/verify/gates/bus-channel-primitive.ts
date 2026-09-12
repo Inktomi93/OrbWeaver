@@ -20,15 +20,27 @@
 // table carried, now owned centrally: the day the mint moves, the row goes red at its dead subject. Nothing
 // here subtracts a path from the population and this policy holds no allowlist of its own.
 //
-// The legacy `bus-channel-primitive` descriptor (123b36f453318217b33a76d6e7ffb0ff15288f06) ran the
-// spelling-based `getExpression().getText() === "EventEmitter"` check and carried `SANCTIONED_HOMES`
+// The legacy `bus-channel-primitive` descriptor (123b36f453318217b33a76d6e7ffb0ff15288f06 = `9808b93c0^`)
+// ran the spelling-based `getExpression().getText() === "EventEmitter"` check and carried `SANCTIONED_HOMES`
 // before this conversion moved both onto the callable-origin reader and the central reviewed-grant table.
+//
+// FAMILY: SINGLETON (`bus-channel-primitive`). No sibling policy resolves a CONSTRUCTED class's door
+// identity; `lib/reference-fact-call.ts#resolveCallableOrigin` and `lib/origin-verdict.ts`'s
+// `classifyOriginRefusal`/`referenceNamesExport` are corpus-wide primitives that ~20 policies across four
+// families consume, which is a shared PRIMITIVE and not a shared family computation (guide §3: a theme or a
+// shared topic is not a family).
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `TRANSPORT_SCOPE.test('/' + p)` where
+// `TRANSPORT_SCOPE = /\/packages\/server\/src\/transport\//` (`9808b93c0^:36`); the final population is
+// `{ in: ["@server"], under: ["packages/server/src/transport/**"] }`, and `@server` is exactly
+// `packages/server/src/`. The legacy `SANCTIONED_HOMES` row is NOT a population subtraction on either side —
+// it was a scanned-and-excused home then and is a central reviewed grant now.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";
 import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
+import { EMITTER_GLOBAL_HOME, emitterGlobalLookalikeProof } from "./_proof/node-types.ts";
 
 const EMITTER_EXPORT = "EventEmitter";
 const OPERATION = "event-emitter-construction";
@@ -192,7 +204,14 @@ export const gate = defineGate({
       files: {
         "packages/server/src/transport/trpc/other.ts": "export class Thing {}\nexport const t = new Thing();\n",
       },
-      why: "a `new` of a locally declared class under transport/ — a different class, and the reader proves it by its declaration rather than by its name",
+      why: "THE PREFILTER CONTROL: a `new` whose class is not NAMED `EventEmitter` never enters the candidate set, so no origin is resolved for it and fail-closure never reaches it. Deleting the name prefilter accuses five live `new TRPCError(…)` sites of being the transport emitter",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/transport/trpc/local-class.ts": "class EventEmitter {\n  on(): void {}\n}\nexport const bus = new EventEmitter();\n",
+      },
+      why: 'THE PROVEN-OTHER arm of the refusal classifier, and the row that makes the header\'s sentence *a construction that PROVABLY binds another declaration is a different class and passes* an enforced claim rather than a paragraph. A FILE-LOCAL class named `EventEmitter` names the export (the prefilter admits it) and resolves through NEITHER door, so `constructsEventEmitter` reaches `classifyOriginRefusal`, which answers case (a) because the leaf binds a `ClassDeclaration` and not an import alias. Replacing that call with the constant `"unreadable"` — fail-closure with no acquittal — turns this row red; before it, no declared row reached the `other` outcome at all (wave-8 D5, `v-audit-wave8-2026-09-12.md:253`)',
     },
     {
       mode: "types",
@@ -205,9 +224,26 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/server/src/transport/trpc/renamed-export-barrel.ts": 'export { setMaxListeners as EventEmitter } from "node:events";\n',
+        "packages/server/src/transport/trpc/renamed-export-bus.ts":
+          'import { EventEmitter } from "./renamed-export-barrel.ts";\nexport const bus = new EventEmitter();\n',
+      },
+      why: "THE EXPORTED-NAME COUNTERFACTUAL, and the only row that dies without the `canonical.exportedName` half: a barrel re-exports a DIFFERENT `node:events` export UNDER the name `EventEmitter`, so the name prefilter admits it AND the door comparison passes (it genuinely IS the `node:events` door) — only the canonical exported name rejects it. Dropping that half leaves every other row in this module green (wave-8 D1, `v-audit-wave8-2026-09-12.md:140`). It is the mirror of the `mustPass` row above it: that one holds the NAME and moves the door, this one holds the DOOR and moves the name",
+    },
+    {
+      mode: "types",
+      files: {
+        ...emitterGlobalLookalikeProof(),
+        "packages/server/src/transport/trpc/global-emitter.ts": "export const bus = new EventEmitter();\n",
+      },
+      why: `THE ORIGIN-KIND FENCE, PINNED: a TRUSTED AMBIENT GLOBAL constructor spelled \`EventEmitter\` (${EMITTER_GLOBAL_HOME}) is admitted by the name prefilter and RESOLVES — to a global origin rather than a module one — so it is the only fixture that reaches \`target.kind !== "module"\`. Node declares no such global; the twin exists so that comparison is enforced rather than asserted. Before it the branch was reached by zero rows, and the row that claimed it planted \`new Map()\`/\`new Set()\`, which the name prefilter rejects before any origin is resolved (wave-8 D5, \`v-audit-wave8-2026-09-12.md:253\`)`,
+    },
+    {
+      mode: "types",
+      files: {
         "packages/server/src/transport/trpc/globals.ts": "export const seen = new Map<string, number>();\nexport const once = new Set<string>();\n",
       },
-      why: "ambient global constructions under transport/ resolve to a GLOBAL origin, never a module one — the arm keys on the node:events door and abstains on everything else",
+      why: "the PREFILTER control for ambient constructions: `new Map()` / `new Set()` are not named `EventEmitter`, so they never become candidates and no origin is resolved for them. Kept beside the row above because the two are different claims — this one is about what is never asked, that one about what is asked and answered GLOBAL",
     },
     {
       mode: "types",

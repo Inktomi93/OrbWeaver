@@ -17,6 +17,20 @@
 // OVER-BROAD and license neither read. The legacy rename tripwire is now the central STALE alarm: the day
 // either home moves or stops reading the ambient clock, its row is consumed zero times and says so.
 // The test/dev-tool ZONES stay a population decision, which is what they are.
+//
+// FAMILY `ambient-determinism` — the shared reader is `lib/ambient-determinism.ts#readAmbientInvocation`
+// over a policy-supplied `AmbientSource[]`, consumed identically by this policy and `no-raw-random`, so the
+// three-valued ambient verdict (`ambient` / `other` / `unreadable`) cannot drift between the clock and the
+// generator. The `AmbientSource` tuples differ; the judgement does not.
+// POPULATION PORT: intentional correction, stated — the legacy NEGATIVE fence is re-expressed as a POSITIVE
+// root list. The legacy descriptor admitted everything EXCEPT `.test.` / `tests/` / `scripts/` / `tools/` /
+// `tooling/` (`9808b93c0^:30-40`), i.e. an open-ended complement whose admitted set was whatever else the
+// candidate walk offered. The final population is `{ in: ["@packages"], notNamed: ["*.test.*"] }`, which
+// states the same intent as an ADMISSION: the six workspace package sources minus test files. The two
+// differ only where the legacy complement would have admitted a path outside `packages/*/src` — the repo
+// root and `packages/showcase-plugins/src/` (the `@showcase` root, #1980) — and admit no path the legacy
+// predicate rejected. The tooling exclusion is now the absence of `@tooling` from the root list rather than
+// a hand-written prefix test, which is the difference from this policy's `no-raw-random` sibling.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

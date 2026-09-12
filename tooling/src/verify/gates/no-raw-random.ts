@@ -19,6 +19,17 @@
 // predecessors: `packages/client/src/main.tsx` and `packages/kit/src/ids/` draw no ambient entropy on this
 // tree at all (`kit/ids` mints through `nanoid`), so translating them would have minted two grants that are
 // STALE on their first complete run. They are DELETED with a receipt rather than carried.
+//
+// FAMILY `ambient-determinism` — the shared reader is `lib/ambient-determinism.ts#readAmbientInvocation`,
+// consumed identically by this policy and `no-raw-clock`; only the `AmbientSource` tuple differs, so the
+// three-valued ambient verdict cannot drift between the generator and the clock.
+// POPULATION PORT: intentional correction, stated — the legacy NEGATIVE fence is re-expressed as a POSITIVE
+// root list. The legacy descriptor admitted everything EXCEPT `.test.` / `tests/` / `scripts/` / `tools/`
+// (`9808b93c0^:38`); the final population is `{ in: ["@packages", "@tooling"], notNamed: ["*.test.*"] }`.
+// `@tooling` is IN the list here and absent from `no-raw-clock`'s, which is exactly the legacy pair's own
+// asymmetry (the clock's predicate fenced `tooling/` out because tools measure the real wall clock, this
+// one never did) — the difference between the two siblings is deliberate and `mustFlag[4]` pins it. The two
+// halves differ only where the legacy complement admitted a path outside `packages/*/src` and `tooling/src`.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

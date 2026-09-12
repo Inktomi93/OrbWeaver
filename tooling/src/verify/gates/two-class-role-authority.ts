@@ -36,6 +36,16 @@
 // caller gate. Each is one exact `(subject, operation)` row in the central reviewed-grant table, and the
 // legacy both-ways stale arms are that table's own liveness: a home that stops carrying an enforcement
 // comparison leaves its row consumed zero times, which is the central STALE alarm.
+//
+// FAMILY `role-vocabulary` — the shared reader is `lib/role-vocabulary.ts` (`readRoleComparison`,
+// `readAxisVerdict`, `vocabularyAtHome`, `vocabularyMembers`) fed by the shared `lib/tuple-vocabulary-fact.ts`
+// provider, consumed identically by this policy and `owner-role-split`. Only the VOCABULARY
+// (`PARTICIPANT_ROLES` vs `USER_ROLES`) and this policy's additional ENFORCEMENT-POSITION test differ; the
+// axis judgement is one computation, which is what keeps the two lattices from drifting apart.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `p.includes(DOMAIN_ROOT)` where
+// `DOMAIN_ROOT = "packages/server/src/domain/"` (`9808b93c0^:49,200`); the final population is
+// `{ in: ["@server"], under: ["packages/server/src/domain/**"] }`. The legacy `SANCTIONED_HOMES` entries
+// were scanned and excused, never subtracted.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
