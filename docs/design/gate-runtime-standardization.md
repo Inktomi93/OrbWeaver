@@ -50,31 +50,20 @@ for exactly once; nothing vanishes from the roster.
 
 | Fact | Value | Source |
 | - | - | - |
-| gate modules / final / legacy | **278 / 186 / 92** (2026-09-12 late; was 275/171/104 that morning — **fifteen conversions plus five authority SPLITS in one day**) | `pnpm check:policy-conformance` (the authoritative roster). **A bare `defineGate` grep OVERCOUNTS** — `gate-modernization` and `enforcement-registry-parity` carry it inside proof-fixture STRINGS. It used to overcount by THREE; `runner-config-path-liveness` was the third and it converted (#2013), which is the shape of every count in this file: **re-derive, never quote.** The honest shape test is `^export const gate = defineGate(` |
+| gate modules / final / legacy | **re-derive at every session start** — 2026-09-12 evening: **297 / 237 / 60**; the same morning it was 275/171/104, so a number here is a snapshot with a date, never a fact | `pnpm check:policy-conformance` (the authoritative roster). **A bare `defineGate` grep OVERCOUNTS** — `gate-modernization` and `enforcement-registry-parity` carry it inside proof-fixture STRINGS. It used to overcount by THREE; `runner-config-path-liveness` was the third and it converted (#2013), which is the shape of every count in this file: **re-derive, never quote.** The honest shape test is `^export const gate = defineGate(` |
 | converted modules with NO committed test importing them | no longer the bar | `structure:policy-conformance` runs every final policy's declared rows on the static tier (§5). A module with no family test still lacks its §4.2/§4.3/§4.5/§4.6 pins. That list was measured 2026-09-11 and has NOT been re-derived since nine conversions landed — treat it as an upper bound and re-derive. As measured then, at least 12 were in that state — `baseui-render-prop-composition`, `bus-on-data-no-store-write`, `membership-fan-guard`, `no-caller-user-id`, `no-external-media-without-gate`, `no-color-literals`, `test-factory-contract`, `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`, `no-decorators`, `no-array-literal-querykey`, `no-if-is-group` |
 | ordinary policies with no positive `@orb-waive` identity arm | **0 of 86 — CLOSED** (#1952) | The last 22 landed 2026-09-11 across three lanes (`158c4993c`, `d660d6442`, `f52492f44`), every one an in-module `mustPass` so no lane touched a shared test file. A fresh-context verifier sampled seven across all three commits, flipped each marker to a dead token, and got the §4.2 `AUTHORITY ALARM … names a dead position` on all seven; each sampled fixture produces exactly one finding |
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
 | first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
-| whole-corpus conformance | **186 final policies · 2,021 rows · 0 failures, exit 0 · \~23 s** (2026-09-12 late; was 171 · 1,733 that morning) (2026-09-11 evening, measured on `main` after the #1971 merge). Rows rose from 1,567 on real reproduced-red-first proof, not on new policies alone. **The stage did NOT regress when the enforcer landed** — 12341ms before, 12283ms after, with four more policies | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
+| whole-corpus conformance | **re-derive** — 2026-09-12 evening: 237 final policies · \~2,690 rows · 0 failures · 131 grant rows, exit 0 · \~25 s quiet (the same morning 186 · 2,021) (2026-09-11 evening, measured on `main` after the #1971 merge). Rows rose from 1,567 on real reproduced-red-first proof, not on new policies alone. **The stage did NOT regress when the enforcer landed** — 12341ms before, 12283ms after, with four more policies | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
 | shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with **18 closed kinds, FROZEN 2026-09-11** (§12.4), `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
 | NOT shipped | `jsonc` — §11.4 named it required; it was never built and is now RULED OUT with its reason (§12.4). The Phase C capability fork is CLOSED: the vocabulary is frozen at 18 kinds and the condition that reopens it is in §12.4. Still open: the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930 (freeze landed), checkpoint "runtime follow-ups" |
 | known red by construction | `check:structure` exit 1 (real product backlog: 315 `ONESHOT-OK`, 58 `@owner-scope*`, …), `gate-ignore-grammar.int.test.ts` (LEAKS `__g_gi` fixtures — never run on a shared tree), `check-gates.repo.int.test.ts` (not concurrency-safe with itself; orchestrator-only during a train), `check:doc-catalog` 34 inherited rows, 12 `types:graph` errors in five legacy-loader test files | phase A lane §"still red", 2026-09-11 |
 | NOT baselined red — treat as a real verdict | `structure:policy-conformance` and every SCOPED family test. The posture's red-by-construction list above is EXHAUSTIVE; a scoped suite red is a regression until reproduced on a clean tree and dated against the commit that broke it | `registry-family.test.ts` sat red five days because this was assumed the other way (#1953) |
 
-Open rows: **#1930** (the ruled capability build — §11, and the design it implements is
-`resource-gate-access-patterns.md`), **#1922** (sanctioned-home tables → reviewed grants, one lane not pair-by-pair,
-incl. `ALLOWLIST`/`CALLER_FREE_OPS`), **#1950** (forge, the 13 mixed-hook splits — the only remaining forge-class work),
-\#1946. Defects found by the 2026-09-11 exemplar wave and its verifier, none blocking a conversion: **#1956**
-(`css-family-ownership`'s real-tree manifest stale since 2026-09-07), **#1957** (two unwaivable finding classes — a
-paren in the position, and a file-constant position), **#1958** (`analysis: "syntax"` fences only `ctx.checker()`;
-blast radius currently zero, the gap is recurrence), **#1959** (`ext: ["ts","tsx"]` is inert and survives in 32
-policies, 4 providers and the `TS-MORPH-CAPABILITIES.md` example that teaches it), **#1960**
-(`no-media-queries-in-features` misses interpolated class strings and its message misnames the shape).
-DONE 2026-09-11 after a fresh-context verifier CONFIRMED: #1941, #1952, #1953, #1954, #1955. Still at Review, NOT
-covered by that verifier and not to be swept into it: **#1948**.
-Closed as superseded: #1608/#1609/#1637 (the ESLint-engine architecture; commits on `archive/codex-eslint-cutover/*`).
+Open rows live on the board (`pnpm work:item overview`) and open defects in the refutation ledger; this document no longer lists either — every list it carried went stale within a day. Closed as superseded: #1608/#1609/#1637 (the ESLint-engine architecture; commits on `archive/codex-eslint-cutover/*`).
 Conversions themselves get no rows; they land as comments on #1584.
 
 ## 3. The contract, and how much of it a given gate needs
@@ -992,18 +981,18 @@ harness (4 incl. `ct-poll-schedule-and-paint` split), `verify-registry-parity`, 
 `no-form-state-in-useeffect`, `persist-partialize-and-total-migrate` with its ARM A retired into
 `no-raw-zustand-persist`).
 
-**Remaining: 92 modules (2026-09-12 late; re-derive with `pnpm check:policy-conformance`, never quote this). THE PER-GATE BLOCKER IS NOT LISTED HERE — it is in
+**Remaining: 60 modules (2026-09-12 evening; re-derive with `pnpm check:policy-conformance`, never quote this) — only two are `O`, the rest are `X` and convert through AUTHORITY MIGRATION (#1922), read per row from `exception-authority-census.md` re-derived against the tree. THE PER-GATE BLOCKER IS NOT LISTED HERE — it is in
 [`uncovered-gate-conversion-census.md`](../reviews/gate-runtime/uncovered-gate-conversion-census.md), one row per gate,
 and that document is the Phase D ordering source.** The shape below is for dispatch planning only; no bucket count in
 it is current.
 
-| Bucket | Lane class |
-| - | - |
-| resource-backed (`fsBacked`) run/visit/file gates: CSS family, config liveness, Base UI + installed/generated, documents/registries/ledgers, `db-structure`, the test-presence trio, `tooling-instrument-proof` | executor per family, as each capability lands (#1930) |
-| run-only whole-population evaluators | executor (Opus) — most want `evaluate` on a provider that already exists |
-| direct-walking visitors and file hooks | executor — inversion into visitors + ancestor checks, state into `create`, markers translated in-commit |
-| the 13 ruled mixed-hook modules (`tooling-argv-front-door`, `tooling-shared-plumbing`, `no-inline-union-redecl`, …) | forge (#1950); multi-way splits touching `lib/reviewed-grants.ts` and exported coupled sites |
-| self-policing gates that read the gate corpus (`enforcement-registry-parity`, `gate-ignore-inventory`, `finding-overload-provenance`, `gate-modernization`, `dangling-refs`) | runtime lane; two of them retire at legacy deletion rather than converting |
+| Bucket | Lane class | |
+| - | - | - |
+| resource-backed (`fsBacked`) run/visit/file gates: CSS family, config liveness, Base UI + installed/generated, documents/registries/ledgers, `db-structure`, the test-presence trio, `tooling-instrument-proof` | executor per family, as each capability lands (#1930) | |
+| run-only whole-population evaluators | executor (Opus) — most want `evaluate` on a provider that already exists | |
+| direct-walking visitors and file hooks | executor — inversion into visitors + ancestor checks, state into `create`, markers translated in-commit | |
+| ~~the 13 ruled mixed-hook modules~~ **ALL CONVERTED 2026-09-12** (32 policies; two ruled arities amended on the tree's evidence — `ui-variant-axes-stamped`'s baseline was `{}`, `no-inline-union-redecl`'s exemption table was `{}`) | done; see §12.6 | coupled sites |
+| self-policing gates that read the gate corpus (`enforcement-registry-parity`, `gate-ignore-inventory`, `finding-overload-provenance`, `gate-modernization`, `dangling-refs`) | runtime lane; two of them retire at legacy deletion rather than converting | |
 
 **A FILESYSTEM TEST IS NOT A CONVERTIBILITY TEST, and neither is `gate:contract`.** Measured 2026-09-11: 60 of the 108
 import no `node:fs`, reference no `node_modules`, and reach no fs-touching `lib/` reader — and that says nothing about
@@ -1082,11 +1071,11 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   | `@foreign-id-ok` | **0** | 70 | yes | CENTRALIZED |
   | `@owner-scope-ok` + `@owner-scope-write-ok` | **0** | 51 | yes | CENTRALIZED |
   | `@nullable-cmp-ok` | **0** | 1 | yes | CENTRALIZED |
-  | `@sub-floor-ok` | 2 | 2 | **no** (`sub-floor-disclosure`, a #1950 split) | PARKED behind the fence above |
-  | `@swallowed-ok` | 8 | 8 | **no** (`detached-work-traced`) | PARKED — and kind 9 above is its second consumer |
-  | `@surface-focus-elsewhere` | 2 | 2 | **no** (`surface-a11y-focus`) | PARKED |
+  | `@sub-floor-ok` | 0 | 2 | yes (`sub-floor-disclosure`, split at `6563946a0`) | CENTRALIZED 2026-09-12 (2 = 2 bind) |
+  | `@swallowed-ok` | 0 | 8 | yes (`detached-work-traced`, split at `1e81658b4`) | CENTRALIZED 2026-09-12 (5 bind); kind 9 (the AST lens) is a separate consumer and was left untouched — its own migrate-or-retire decision |
+  | `@surface-focus-elsewhere` | re-derive | 2 | yes (`surface-a11y-focus`, converted at `ff07e1302`) | translated with its gate; verifier `cb-v-night-conversions` confirmed the family — re-derive the count |
   | `@finding-overload-ok` | 21 | 24 | n/a | DELETE with its gate; never translate |
-  | `@owner-scope-upsert-ok` · `@first-boot-only` · `@over-art-plate-ok` | 0 | 0 | — | delete the empty grammar at Phase F |
+  | `@owner-scope-upsert-ok` · `@over-art-plate-ok` | 0 | 0 | — | delete the empty grammar at Phase F (`@first-boot-only` already deleted at `6563946a0`) |
 
   **The 12 parked markers are correctly parked, not missed.** All four owners are still legacy `GateDescriptor`s, and
   the fence above is the reason: translating them would lose the legacy suppression AND bind the new marker to
@@ -1263,6 +1252,34 @@ every dispatch. The mixed runtime still requires honest reporting and explicit f
 no name-based dispatch, no false-clean receipt, no undocumented behavior difference.
 
 ## 11. Rulings ledger (owner, dated)
+
+- **2026-09-12 (the day of the first full verification sweep) — the operating rulings, each paid for once:**
+  1. **Nothing gets to refuse to convert**: convert or delete; a missing capability with two-plus consumers is BUILD
+     work; a lane ASKS with a stated default and keeps working (read-first §0).
+  2. **Two accounts, one split**: claude-b orchestrates (verify lens ≤3 verifiers, board, rulings); primary is the
+     worker-orchestrator (five lanes at once, ff-only merges, the only committer on main's checkout). Blocks of work
+     and blocks of results — no staggering, no one-off dispatches or notes; every row pre-filed and pre-claimed.
+  3. **No frontier roles** (`forge`, `stickler`) unless the owner says so.
+  4. **Every verifier-found defect is a refutation-ledger row AND a board row**; verifier reports carry
+     `## LEDGER ROWS (N rows)`; the lane that closes a row flips it in its fixing commit; the rollup is barrier-only.
+  5. **A "superseded / held at another tier / delete" ruling owes a tree read of the other tier's predicate plus a
+     planted control that reds** — `tsconfig-entry-liveness` was wrongly ruled superseded from the archived
+     type-worlds doc; the membership stage never names a config entry.
+  6. **A declared limit on an identity branch owes the question "would this branch REPORT on an unreadable input,
+     or pass?"** answered by running it (§4.1); **every fail-open → fail-closed repair owes a NAME PREFILTER**
+     (§4.6; `lib/origin-verdict.ts`'s header); the fourth polarity is checked per ARM, never per module.
+  7. **`check:structure` legs are serialized box-wide and never overlap a fixture-planting suite on `main`**
+     (#2069); an overlapped run is a NON-VERDICT.
+  8. **§5b.5 censuses run over the HEADER SPAN with planted controls** (a whole-file grep over-reports present);
+     the legacy-SHA field is read by hand (three under-report modes, one over-report mode).
+  9. **A conversion whose gate had live markers and whose diff touches no `packages/**` has translated nothing**
+     — the §8.6 reconciliation runs once per marker KIND the module owns (its table AND the central markers).
+  10. **Worktree teardown is never defaulted**: contained ∧ not live ∧ not awaiting a verifier ∧ not wanted for a
+      warm leg, the last two answered by the orchestrator.
+  11. **#1988** → verdict types move to `verify/contract/`; **#2001** → declared `expect: { countFrom }` rows, a
+      contract change owing every coupled site; **#2002** → the renderer prints `finding.message` when it differs;
+      **#2021** → not superseded, expose raw `include`/`exclude` with positions through the shared compiler reader
+      and convert; **#2066** (a §4.1 cut harness) parked pending an owner price.
 
 - **2026-09-11 — PHASE C: THE DESIGN ALREADY EXISTS; ONLY THE DELTA IS RULED HERE (#1930).**
   **[`resource-gate-access-patterns.md`](../reviews/gate-runtime/resource-gate-access-patterns.md) §§1–8 IS the Phase C
@@ -1641,6 +1658,8 @@ recorded, not scheduled.
 
 ### 12.5 Exceptions and authority
 
+**A REVIEWED GRANT IS STRICTLY ONE-TO-ONE (re-read 2026-09-12, `lib/gate-authority.ts#processReviewed` / `#reconcileAuthority`):** a grant whose identity matches exactly one candidate GRANTS it; a grant matching N > 1 candidates suppresses NOTHING — every candidate stays effective and the run alarms `over-broad-reviewed-grant`. So a class-level legacy exemption (an allowlist, a sanctioned-home list, a count ratchet) cannot be migrated as one grant row over N findings. The shape that works, #1939's precedent generalised: **the POLICY reports ONE aggregate finding per class** (one subject, one operation), so the grant is 1:1 by construction and the central `stale-reviewed-grant` alarm replaces the gate's own stale sweep. `exception-authority-census.md:177`'s older sentence ("suppresses every finding with that identity and merely increments a count") described a retired engine and is corrected there; #1922's plan is priced on this paragraph, never on that sentence.
+
 No gate-specific exemption grammar and no count ratchet. `hard` findings have no suppression door. `ordinary` findings
 may consume the one central inline marker `// @orb-waive <policy-id>(<position>): <reason>` (also `/* … */` and
 `{/* … */}` carriers), bound to the exact policy and position with a mandatory reason; a node finding binds to leading
@@ -1648,7 +1667,7 @@ trivia on the node or its ancestors up to the enclosing statement; a file/resour
 immediately above; one marker consumes exactly one occurrence; unused, malformed and over-broad markers are central
 reconciliation findings. `reviewed-grant` findings may consume only a typed central grant keyed by policy id, subject and
 operation, with `why` and `endsWhen`; after a complete owner run zero consumption is stale and more than one match is
-over-broad and suppresses none. `error` blocks. **`warning` does NOT block on the FINAL side, and the promotion mechanism EXISTS — this paragraph claimed the opposite from 2026-09-12 until 2026-09-13 and the claim was FALSE (refuted by `v-wave-2026-09-13`, re-derived line by line by the orchestrator).** The partition is `lib/gate-authority.ts:404`, `blocking: errors + alarmErrors + (input.failOnWarnings ? warnings : 0)`; `ops/structure.ts:153` hardcodes `failOnWarnings: false`; `ops/structure.ts:199-200` builds `total = legacyTotal + finalBlocking` from `authority.verdict.blocking`; `:241` is `ok: total === 0 && !legacyBroken && !finalBroken`; `lib/policy-plan.ts:421` returns `blocking > 0 ? 1 : 0`. **So a final `warning` contributes 0 to `blocking`, 0 to `total`, 0 to `ok` and 0 to the exit code.** Driven, not read: the same policy at `failOnWarnings=false` gives `BLOCKING=0 exit=0` and at `true` gives `BLOCKING=4 exit=1`.
+over-broad and suppresses none. `error` blocks. **`warning` does NOT block on the FINAL side, and the promotion mechanism EXISTS — this paragraph claimed the opposite from 2026-09-12 until 2026-09-13 and the claim was FALSE (refuted by `v-wave-2026-09-13`, re-derived line by line by the orchestrator).** The partition is `lib/gate-authority.ts:404`, `blocking: errors + alarmErrors + (input.failOnWarnings ? warnings : 0)`; `ops/structure.ts` read `failOnWarnings: false` as a hardcode until #2025; it now reads `const failOnWarnings = parseWarningPromotion(argv)` (arrives from the operator, DEFAULTS false — the default is unchanged); `ops/structure.ts:199-200` builds `total = legacyTotal + finalBlocking` from `authority.verdict.blocking`; `:241` is `ok: total === 0 && !legacyBroken && !finalBroken`; `lib/policy-plan.ts:421` returns `blocking > 0 ? 1 : 0`. **So a final `warning` contributes 0 to `blocking`, 0 to `total`, 0 to `ok` and 0 to the exit code.** Driven, not read: the same policy at `failOnWarnings=false` gives `BLOCKING=0 exit=0` and at `true` gives `BLOCKING=4 exit=1`.
 
 **HOW THE FALSE CLAIM GOT HERE, because it is the most instructive thing in this section.** The retracted text quoted `ops/structure.ts` computing `ok: violations.length === 0` with no severity partition. That expression is real and quoted accurately — it is **`ops/structure.ts:46`, the per-gate LEGACY ROW**, not the run verdict. A per-row field was read as the exit computation, one hop short of `gate-authority.ts`. It then propagated into a commit message, an issue's evidence field, this law doc and a report to the owner before anything checked it. ***Partial reads LOCATE, they do not CONCLUDE*** is already law in this repo's recon standards; this is what breaking it costs when the result is written into the document lanes copy from.
 
@@ -1660,7 +1679,7 @@ over-broad and suppresses none. `error` blocks. **`warning` does NOT block on th
 
 **THE DOOR LANDED 2026-09-12 (#2025), AND IT CHANGED NO DEFAULT.** `--fail-on-warnings` — the SAME token, imported from `lib/policy-command.ts` (`FAIL_ON_WARNINGS_FLAG`) rather than re-spelled — is now the whole tail of the `structure` verb (`pnpm check:structure --fail-on-warnings`; `lib/verb-tail.ts` rules it `"own"`, zero or one, refused before the run slot opens) and a legal companion to any `scoped` selector. **Absent, both doors pass `false` exactly as before**, proven byte-for-byte: the same planted mixed tree under HEAD and under the door produced an identical exit code and an identical `check-structure.json` modulo run identity and clocks. The two-sided pin is `tests/tooling/verify/ops/warning-promotion.suite.int.test.ts` — a planted warning policy is `blocking: 0 · total: 0 · ok: true · exit 0` without the flag and `blocking: 1 · total: 1 · ok: false · exit 1` with it, reporting the IDENTICAL finding either way. **No new verb was added**: `planner-cli-integration.md` rules that pointing the CLI at the final loader belongs to the atomic cutover, and when the cutover points `structure` at `planPolicyArgv` the flag an operator already types is the flag that planner already parses. `ops/policy-conformance.ts` deliberately keeps its literal `false`: that stage's verdict reads `effectiveFindings` and the authority alarms, never `verdict.blocking`, so promotion there would be an inert knob.
 
-**WHAT IS CURRENTLY NON-BLOCKING, from the loader (positive control: 188 error + 5 warning = 193).** Five policies declare `warning`, and **THREE of them are `authority: "hard"`** — an unsuppressible policy whose findings block nothing, which is a sharper contradiction than the ordinary case:
+**WHAT IS CURRENTLY NON-BLOCKING, from the loader (positive control: 188 error + 5 warning = 193).** Five policies declare `warning`, and **FOUR of them are `authority: "hard"`** (the loader, 2026-09-12 — an earlier count said three) — an unsuppressible policy whose findings block nothing, which is a sharper contradiction than the ordinary case:
 
 | policy | authority | `workItem` |
 | - | - | -: |
@@ -1678,7 +1697,7 @@ population; a thrown, incomplete, empty or unresolved owner withholds liveness r
 modules receive neither grant tables nor marker parsers. Current-population declaration counts, every-file manifests and
 `*.baseline.json` debt retire (dispositions per row: `exception-authority-census.md`).
 
-### 12.6 The 13 mixed-hook modules, ruled before conversion
+### 12.6 The 13 mixed-hook modules — ALL CONVERTED 2026-09-12 (the ruled mappings, kept as the record)
 
 > **A RULED ARITY IS STILL A CLAIM ABOUT THE TREE (amended 2026-09-12, `tooling-argv-front-door`).** The
 > mappings below were ruled 2026-09-11 against that day's tree. The forge lane building them found one whose

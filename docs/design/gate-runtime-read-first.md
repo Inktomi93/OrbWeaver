@@ -31,6 +31,16 @@ findings were already CLOSED. Do not repeat that.
    sharper for having been paid twice, and this paragraph itself went stale claiming otherwise until
    2026-09-12. Same shape as the deferred roster's 8 entries still reading "not yet ported" after landing
    (#2008). **Re-derive before inheriting.**
+4. **A "SUPERSEDED / held at another tier / delete it" ruling owes a TREE READ of the other tier's predicate
+   and a PLANTED CONTROL that reds, before the gate is touched** (owner question, 2026-09-12). The
+   orchestrator ruled `tsconfig-entry-liveness` superseded by the type-worlds membership stage from the
+   archived design doc; the tree said no — that stage judges file→program ownership and never names a config
+   entry, so the gate's dead-exclude and glob-liveness arms were held by nothing. Two documents agreeing is
+   the same unread question twice.
+5. **EVERY DEFECT A VERIFIER FINDS IS A LEDGER ROW AND A BOARD ROW** (owner, 2026-09-12). Verifier reports
+   carry `## LEDGER ROWS (N rows)` in the ledger's exact format; the integrator appends them in the commit that
+   lands the report and asserts N; the lane that closes a row flips it in its fixing commit; the rollup is
+   rebuilt only at a barrier by the ledger's stated method.
 
 ## 1. The read list, in order, with what it costs
 
@@ -38,7 +48,7 @@ findings were already CLOSED. Do not repeat that.
 | -: | - | -: | - |
 | 1 | `gate-runtime-standardization.md` — the LAW | **180 KB** | in full, always |
 | 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **116 KB** | in full, always. §2b is where you decide what is next |
-| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **172 KB** | **in full — this is the work queue.** **142 defect rows** across 16 tables, each with its state on today's tree (re-derived 2026-09-12 by the ledger's OWN stated counting method, which it tells you to re-run rather than trust). It read `25 KB · 91 defects` until then — **a 7x understatement of the single largest thing this table prices** |
+| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **\~200 KB, growing daily** | **the WORK QUEUE — read its OPEN rows only, never front-to-back.** Re-run its counting method first (per-table print, `UNBINNED` reported), then read the rows whose state cell is `OPEN`/`PARTIAL`/`UNADJUDICATED`; a `CLOSED` row is a receipt, not reading. It is appended to by every verifier report (`## LEDGER ROWS (N rows)`) and by every fix lane's commit, so its size and counts on any given day are measured, never quoted (2026-09-12 evening: 165 rows / 20 tables / 44 open, of which 36 were that day's verifier finds and the original audit backlog was down to 8) |
 | 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | **164 KB** | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the \~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
 | 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | **80 KB** | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
 | 5b | **`tooling/src/verify/contract/*.ts` HEADERS — the law you will otherwise rediscover** | **112 KB of comment** in 66 files | **READ THE HEADERS, not the types.** Ten run 20-32 lines before the first export. Start with `resource-declaration` · `resource-json` · `resource-mirror` · `resource-path` · `resource-document` · `resource-installed` · `run-manifest`, plus `lib/resource-declaration.ts`'s `readyResourceValue` header |
@@ -151,11 +161,30 @@ errors above were sitting. Reading those documents END TO END is not the same ac
 - **Claim at dispatch.** A row dispatched without `claim` sits Ready-with-no-Lane while an agent builds it,
   and `review` then refuses.
 
-## 4. Standing posture
+## 4. Standing posture (owner rulings of 2026-09-12; re-read at every session start)
 
-Engines DOWN, prod DOWN. **Never push `origin` without fresh owner authorization for that exact push —
-nothing has been pushed.** Cap 5 lanes while #1584 is the work. Every commit and merge:
-`git -c core.hooksPath=/dev/null …` with the scoped floor NAMED in the message (standing owner exception —
-the whole-tree hooks are RED by construction while the loader is mixed). Never `git stash` / `git checkout <path>` / `git restore`. Conversions are #1584 COMMENTS, not rows. Only the orchestrator mutates Project 1.
-`gate-ignore-grammar.repo.int` and `gate-conformance.repo.int` are ORCHESTRATOR-ONLY and are OWED at the
-next quiet barrier.
+- **Two accounts, one split.** claude-b is the ORCHESTRATOR: the verify lens (up to THREE verifier lanes at
+  once), the board (`work:item`), rulings, memory writes. primary is the WORKER-ORCHESTRATOR: expands briefs,
+  runs FIVE lanes of work at once (idle warm legs do not count as lanes), merges ff-only with hooks nulled,
+  reruns each lane's floor on `main`, and is the ONLY account that commits on main's checkout (every docs
+  commit, every ledger append). Neither delegates across the bridge; both read `~/.claude/bridge/PROTOCOL.md`.
+- **Blocks, not slivers.** No staggering. Work goes out as chunks of 4–8 rows per lane, every row pre-filed
+  and pre-claimed so the worker pulls from the queue without asking; results come back one note per batch;
+  notes ≤40 lines; briefs restate DELTAS only. Every board call and bridge note is usage on both accounts.
+- **No frontier roles** (`forge`, `stickler`) unless the owner says so; Opus `executor`/`verifier`, Sonnet
+  `mech-executor`; named roles keep their own model.
+- **Program work stops at Verify until a fresh-context Opus verifier CONFIRMS**; a REFUTED cell goes back to
+  the agent that built it as a WARM LEG, never a fresh lane. Every verifier runs `check:structure` ONCE, in
+  its own worktree, SERIALIZED box-wide (one structure leg at a time, announced; three concurrent legs pushed
+  a scaled suite into a timeout), and reports `N tool error(s)` / `N withheld` plus per-policy RAW counts.
+- **A fixture-planting suite and a `check:structure` on `main` are mutually exclusive, both directions**; an
+  overlapped structure run is a NON-VERDICT (its inflation is invisible in the artifact — #2069). The four
+  planting suites (`check-gates.repo.int`, `gate-ignore-grammar.repo.int`, `gate-conformance.repo.int`,
+  `gate-spelling-twins.int`) are orchestrator-only and run once per quiet barrier.
+- **Worktree teardown is never defaulted**: contained AND not live AND not awaiting a verifier AND not wanted
+  for a warm leg; the last two are the orchestrator's to answer. A live lane between commits passes
+  containment.
+- Engines DOWN, prod DOWN. **Never push `origin` without fresh owner authorization for that exact push.**
+  Every commit and merge: `git -c core.hooksPath=/dev/null …` with the scoped floor NAMED in the message
+  (standing owner exception — the whole-tree hooks are RED by construction while the loader is mixed). Never
+  `git stash` / `git checkout <path>` / `git restore`. Conversions are #1584 COMMENTS, not rows.
