@@ -12,9 +12,18 @@
 // the schema BARREL being in the effective population — the §4.5 real-tree-anchor shape, which is NOT any
 // row's own path and therefore still sees a table that was deleted outright.
 //
-// The legacy `ownerid-registry` descriptor (66d28b1272c9dc255545a073276a3b159eddf85a) resolved schema
-// columns through its own inline reader before this conversion moved it onto the shared Drizzle schema
-// fact.
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// Drizzle builder identity and the table/column model for every member.
+// POPULATION PORT: byte-identical. The legacy descriptor scoped with
+// `scanRoot: (p) => /\/packages\/db\/src\/schema\//u.test(`/${p}`)` and the final declares the PROVIDER'S
+// OWN `DRIZZLE_SCHEMA_POPULATION` — the same admitted set, barrel included, which this policy's stale arm
+// depends on because the barrel IS its real-tree anchor. The family's one-path delta against the OTHER
+// legacy spelling (`isSchemaFile`, barrel excluded) is recorded at that constant in `lib/schema-fact.ts`.
+//
+// The legacy `ownerid-registry` descriptor (66d28b1272c9dc255545a073276a3b159eddf85a — the PARENT of this
+// module's own conversion commit `e847189f7`, verified 2026-09-12 to hold a `GateDescriptor` with the
+// `scanRoot` quoted above) resolved schema columns through the legacy `_shared/schema-read.ts` reader
+// (`columnProperties`, `schemaScan`) before this conversion moved it onto the shared Drizzle schema fact.
 
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaModel } from "../contract/schema-fact.ts";
@@ -141,7 +150,7 @@ export const gate = defineGate({
           'const ownerId = text("owner_id");\n' +
           'export const t = sqliteTable("not_classified", { ownerId });\n',
       },
-      expect: { count: 1, token: "ownerId", messageIncludes: "D23" },
+      expect: { count: 1, token: "ownerId", messageIncludes: "ownership-stamp classification" },
       why: "THE #1035 SHORTHAND RED: a D23 ownership stamp on an unclassified table, written as a shorthand member — the exact keystroke that used to empty this gate's subject",
     },
     {
@@ -151,7 +160,7 @@ export const gate = defineGate({
         "packages/db/src/schema/x.ts":
           'import { sqliteTable } from "drizzle-orm/sqlite-core";\nimport { tColumns } from "./x-columns";\nexport const t = sqliteTable("not_classified", tColumns);\n',
       },
-      expect: { count: 1, token: "ownerId", messageIncludes: "D23" },
+      expect: { count: 1, token: "ownerId", messageIncludes: "ownership-stamp classification" },
       why: "THE #945 IMPORTED-COLUMNS RED: the same stamp reached through an imported columns object — the classified rows keep their own stale checks satisfied, so nothing else would have noticed",
     },
     {
@@ -169,7 +178,7 @@ export const gate = defineGate({
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("not_classified", { ownerId: text("owner_id") });\n',
       },
-      expect: { count: 1, messageIncludes: "D23" },
+      expect: { count: 1, messageIncludes: "ownership-stamp classification" },
       why: "SAME DECLARATION NAME, DIFFERENT TABLE: the JS binding is spelled `characters` (a classified row) but the SQL table it creates is `not_classified`. The classification is about the TABLE the database gets, so the declaration name must not launder the stamp",
     },
     {
@@ -179,8 +188,8 @@ export const gate = defineGate({
         "packages/db/src/schema/chat.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n',
       },
-      expect: { messageIncludes: "classifies nothing" },
-      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling",
+      expect: { count: 27, messageIncludes: "classifies nothing" },
+      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` (27, derived by planting `count: 99`), and it is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.",
     },
   ],
   mustPass: [

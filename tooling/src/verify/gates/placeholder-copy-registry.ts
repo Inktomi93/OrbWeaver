@@ -217,6 +217,17 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/a/lib/a-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "Nothing here yet", description: "Import a character to begin." } };\n',
+        "packages/client/src/features/b/lib/b-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "Nothing here yet", description: "Create a persona to begin." } };\n',
+      },
+      why: "THE PAIR KEY IS THE PAIR (§4.1): two sections SHARING A TITLE while differing in description are distinct copy and must NOT flag — a short empty-state heading is legitimately reused, and it is the (title, description) TOGETHER that tells a user which surface they are looking at. THE ROW THAT DIES WITHOUT `judgePair`'s title-PAIR_SEPARATOR-description key: key on the title alone and these two collide, so this row reds with `Duplicate copy`",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
         "packages/client/src/features/a/lib/copy.ts": 'export const A_PLACEHOLDER = { title: "T1", description: "D1" };\n',
         "packages/client/src/features/a/lib/a-section.ts":
           'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport { A_PLACEHOLDER } from "./copy.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: A_PLACEHOLDER };\n',

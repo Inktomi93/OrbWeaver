@@ -516,6 +516,22 @@ export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
  *  and files the census receipt. A new consumer that skips it inherits no blindness door. */
 const PROVIDER_RECEIPT_SOURCE = "drizzle-schema-sources";
 
+/** THE ONE HOME for this family's §5b.5 POPULATION-PORT delta, so no member re-derives it and no member
+ *  claims it byte-identical when it is not.
+ *
+ *  Every consumer declares THIS constant rather than re-spelling the globs — which is also what guide
+ *  §4.5b's third structural gap asks for, since nothing checks that a provider's population is a subset of
+ *  its consumers' and a consumer that narrowed below the provider would be handed nodes it may not NAME.
+ *
+ *  Against the legacy descriptors this population is an INTENTIONAL WIDENING BY EXACTLY ONE PATH, and it is
+ *  lossless. The legacy schema gates scoped either by `_shared/schema-read.ts`'s `isSchemaFile`
+ *  (`/^packages\/db\/src\/schema\/[^/]+\.ts$/` MINUS the barrel) or by the regex
+ *  `/\/packages\/db\/src\/schema\//` (barrel included); `under: ["packages/db/src/schema/**"]` admits both
+ *  plus any nested directory. Measured 2026-09-12 on the tracked tree: the directory holds 30 files and
+ *  ZERO nested paths, and the ONE path the `isSchemaFile` form excluded —
+ *  `packages/db/src/schema/index.ts`, the re-export barrel — carries ZERO `sqliteTable(` calls against 97
+ *  across the other 29 files (that 97 is the positive control proving the search reached the directory).
+ *  So the added path contributes no table, no column and no finding to any member. */
 export const DRIZZLE_SCHEMA_POPULATION = {
   in: ["@db"],
   under: ["packages/db/src/schema/**"],

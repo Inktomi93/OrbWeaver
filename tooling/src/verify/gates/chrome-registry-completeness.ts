@@ -219,6 +219,18 @@ export const gate = defineGate({
       expect: { count: 1, token: "xChrome", messageIncludes: "Definition outside its home" },
       why: "THE #944 CASE, judged instead of refused: the IMPORTED entry means the sanctioned `*-chrome.tsx` path holds no definition, and the rail-mobile arm it hid is no longer reached over nothing",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
+        "packages/client/src/state/chrome-registry.ts":
+          'import { RAIL_ZONES } from "./section-registry.ts";\nexport interface ChromeEntry { readonly id: string }\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+        "packages/client/src/features/x/lib/rail-chrome.tsx":
+          'import type { ChromeEntry } from "../../../state/chrome-registry.ts";\ndeclare function computeId(): string;\nexport const railChrome: ChromeEntry = { id: computeId(), zone: "rail.nav", label: "R" };\n',
+      },
+      expect: { count: 1, token: "railChrome", messageIncludes: "Unreadable id" },
+      why: "THE UNREADABLE-ID GATE (§4.1): a widget whose `id` is a call the static readers cannot resolve produces the unreadable-id finding AND NOTHING ELSE — `claimId` returning false is what stops `judgeZone` running over a definition the duplicate-id arm already could not judge. This fixture is `rail.nav` with no `mobile` ON PURPOSE, so the count is the discriminator: run `judgeZone` regardless of `claimId` and this row goes 1 → 2 as the rail-mobile arm piles a second verdict onto one unjudgeable definition. THE ROW THAT DIES WITHOUT the `claimId(...)` conjunct at the call site",
+    },
   ],
   mustPass: [
     {

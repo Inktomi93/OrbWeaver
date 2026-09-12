@@ -1,5 +1,12 @@
 // Every Drizzle foreign key states its deletion policy explicitly. The shared schema fact owns call
 // identity, imported columns, aliases, and fail-closed option parsing; this policy only judges the fact.
+//
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// Drizzle builder identity and the table/column model for every member.
+// POPULATION PORT: an INTENTIONAL WIDENING BY EXACTLY ONE PATH, lossless. The legacy descriptor
+// (f2e1e2f3d41d02e1443072d009b19012b4762b44, the parent of the `fa5612835` conversion) scoped with
+// `scanRoot: isSchemaFile`; the final declares the PROVIDER'S OWN `DRIZZLE_SCHEMA_POPULATION`. The delta,
+// its one path and its positive control are recorded once at that constant in `lib/schema-fact.ts`.
 
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";

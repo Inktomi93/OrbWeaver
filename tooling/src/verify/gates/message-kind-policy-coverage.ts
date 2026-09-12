@@ -306,6 +306,18 @@ export const gate = defineGate({
       expect: { count: 1, token: "prompt" },
       why: "THE SEMANTIC UPGRADE: a LOCAL object that merely shares the record's name is not the canonical record, so it proves no reader. A text match on the receiver counted it and reported a covered axis",
     },
+    {
+      mode: "types",
+      files: {
+        [HOME]:
+          "export interface MessageKindPolicy {\n  readonly memory: 'ingest' | 'exclude';\n}\n" +
+          "export const MESSAGE_KIND_POLICY = { standard: { memory: 'ingest' } };\n",
+        "packages/contracts/src/chat/derive.ts":
+          'import { MESSAGE_KIND_POLICY } from "./participants.ts";\nexport const m = MESSAGE_KIND_POLICY.standard.memory;\n',
+      },
+      expect: { count: 1, token: "memory" },
+      why: "THE READER-SCOPE FENCE (§4.1). A SECOND `@contracts` file — inside the policy's population, outside `packages/{server,client}/src` — imports the canonical record and reads the axis. That is a contract deriving from itself, not a BEHAVIOR TIER enforcing the cell, so the axis stays uncovered and REDS. THE ROW THAT DIES WITHOUT `directAxes`' `isReaderScope(path)` filter: drop it and this contracts-internal read counts as production coverage, so the row goes 1 → 0. This is a `mustFlag`, not a `mustPass`, and that is the point — the property is 'a non-behaviour-tier read leaves the axis UNCOVERED', which no passing row can express. It also needs a SECOND file: `isCanonicalRecordReference` refuses a same-file reference outright, so the two fences are mutually redundant for a HOME-file fixture and only a separate `@contracts` module reaches this one (v-audit-wave2-2026-09-12 D4, whose first falsifier attempt did NOT flip for exactly that reason)",
+    },
   ],
   mustPass: [
     {
@@ -354,7 +366,7 @@ export const gate = defineGate({
         "packages/server/src/domain/chat/x.ts":
           'import { MESSAGE_KIND_POLICY } from "../../../../contracts/src/chat/participants.ts";\nexport const m = MESSAGE_KIND_POLICY.standard.memory;\n',
       },
-      why: "the CONTRACTS-INTERNAL derivation is a carrier, not an enforcer: `SELF` alone would not cover the axis, and the behavior-tier read here is what does — so this row pins that a home-file read is never counted as production coverage on its own",
+      why: "the CONTRACTS-INTERNAL derivation is a carrier, not an enforcer: a home-file `SELF` beside a real behavior-tier read must not turn the axis into a DOUBLE count or a tool error. WHAT THIS ROW DOES NOT PIN, corrected 2026-09-12: it does not enforce `directAxes`' `isReaderScope` fence, and its `why` used to claim it did. The fixture carries a genuine server read, so `memory` is covered either way and cutting the fence leaves this row green — the audit reproduced exactly that (v-audit-wave2-2026-09-12 D4). The claim is 'a non-behaviour-tier read leaves the axis UNCOVERED', which is a `mustFlag` shape, and it now lives in the LAST `mustFlag` row (a second `@contracts` file reading the record with no behaviour-tier reader at all)",
     },
     {
       mode: "types",

@@ -5,7 +5,24 @@
 // TWO-SIDED: an unreadable Zod initializer is REPORTED (never skipped), and a row whose named subject no
 // longer resolves in its declared home is REPORTED too — a name-keyed ban that stops matching is a no-op.
 //
-// The legacy `schema-banned-shapes` descriptor (0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef) checked both
+// FAMILY: SINGLETON under its own id, and the reason is the READER, not the topic. It shares
+// `../lib/ledger-banned-shapes.ts` with `schema-banned-shapes`, but that module is a shared VOCABULARY —
+// the (location, forbidden shape, D-cite) rows plus `bannedMessage`/`contractBanHome`, which exist so one
+// D-cite has one spelling — and guide §3 decides a family on a shared SUBJECT READER or computation. The
+// two policies' subject readers are disjoint: the schema partition consumes `lib/schema-fact.ts`'s
+// `drizzleSchemaFact` and is `family: "drizzle-schema"`; this one reads AUTHORED contract declarations
+// through `lib/reference-fact.ts#readMemberReference` and `lib/schema-fact-value.ts#objectEntries`, and
+// touches no Drizzle fact at all. Naming `drizzle-schema` here would claim a fact this policy never reads;
+// naming a joint "banned-shapes" family would make a shared data table a family key, which is the "theme
+// is not a family" shape §3 forbids. Same call, same reason, as `warning-code-coverage`'s singleton over
+// `tupleVocabularyFact`. The vocabulary module's own header states the split first: "TWO PARTITIONS, TWO
+// POLICIES, ONE VOCABULARY … they are separate policy ids because they read different subjects."
+// POPULATION PORT: an INTENTIONAL NARROWING, stated with its derivation and its positive control at the
+// `population:` field below.
+//
+// The legacy `schema-banned-shapes` descriptor (0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef — the PARENT of
+// the `1bf7ff7d9` split commit; this policy's OWN file does not exist there, because this half was BORN at
+// that split, and the legacy blob verified 2026-09-12 at `schema-banned-shapes.ts`) checked both
 // the contract rows above and the schema rows below in one combined gate before this split by evidence
 // plane.
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
@@ -114,13 +131,20 @@ function banSubject(shape: ContractBannedShape): string {
 }
 
 const UNRESOLVED_MESSAGE =
-  "an exported schema the ledger rules on has an initializer the shared static readers cannot resolve, so its shape keys are UNKNOWN — a ban cannot be established and this is reported rather than skipped (GATE-AUTHORING §5, #944). Author the shape as a resolvable Zod object/extend/merge chain.";
+  "an exported schema the ledger rules on has an initializer the shared static readers cannot resolve, so its shape keys are UNKNOWN — a ban cannot be established and this is reported rather than skipped (#944). Author the shape as a resolvable Zod object/extend/merge chain. See tooling/src/verify/gates/GATE-AUTHORING.md §5.";
 
 const missingSubject = (subject: string, home: string): string =>
   `the ledger ban on \`${subject}\` no longer resolves: no such declaration exists in its declared home ${home}, so this D-cite is a SILENT NO-OP (GATE-AUTHORING §4.6). Repoint the row in tooling/src/verify/lib/ledger-banned-shapes.ts at the declaration's new home, or delete the row if the ledger retired it.`;
 
+/** DELIBERATELY DISJOINT from `missingSubject`, and it must stay that way. The two blindness arms differ
+ *  only in message, so a `messageIncludes` row can discriminate them ONLY if neither text is a substring of
+ *  the other (guide §4.1's fail-closed third-answer rule). This message used to interpolate
+ *  `missingSubject(...)` verbatim, which put "SILENT NO-OP" in BOTH texts and left `mustFlag[6]` green when
+ *  its own arm stopped executing (wave 3 D2). Each arm now carries its own verdict phrase — "SILENT NO-OP"
+ *  here means the home file was READ and the subject was absent; "DEAD ROW" means the home file itself is
+ *  outside the population — and `mustFlag[6]`/`mustFlag[7]` pin one each. */
 const missingHome = (subject: string, home: string, anchor: string): string =>
-  `${missingSubject(subject, home)} Its home file is not in this policy's population at all — reported here on ${anchor} because the row's own anchor no longer exists.`;
+  `the ledger ban on \`${subject}\` no longer resolves: its declared home ${home} is not in this policy's population at all, so this D-cite is a DEAD ROW (GATE-AUTHORING §4.6) — reported on ${anchor} because the row's own anchor no longer exists. Repoint the row in tooling/src/verify/lib/ledger-banned-shapes.ts at the declaration's new home, or delete the row if the ledger retired it.`;
 
 const PRINCIPAL_HOME = "packages/contracts/src/identity/index.ts";
 const SETTINGS_HOME = "packages/contracts/src/settings/index.ts";
