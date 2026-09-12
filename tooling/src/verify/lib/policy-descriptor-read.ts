@@ -13,11 +13,27 @@
 // recognised through `resolveCallableMember`, so `ctx.report.node`, a destructured `report.node` and a const
 // alias of the sink all read as the same site.
 //
+// A CALL is authored text or it is a value (#2040): a callee with ONE return expression is read THROUGH (its
+// parameters stay dynamic, so the pieces are still certain); every other call — a method, a formatter such as
+// `JSON.stringify`, a callee with statements — yields the empty incomplete read, which every consumer treats as
+// UNREADABLE rather than as absent text. And because a HIT is certain while an ABSENCE is not, `complete` is
+// load-bearing at the verdict: see `discriminationOf`.
+//
 // Segments, not values, on purpose: `readExpressionString` (config-static-read.ts) answers "what WHOLE strings
 // does this expression contribute" and refuses a template with a dynamic span outright; this family needs
 // the opposite answer — "which pieces of text are certain" — because a `messageIncludes` substring that sits
 // inside a certain piece matches every finding that site emits, whatever the dynamic part says.
-import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, PropertyAssignment, SourceFile, TemplateExpression } from "ts-morph";
+import type {
+  ArrowFunction,
+  CallExpression,
+  FunctionDeclaration,
+  FunctionExpression,
+  Node as MorphNode,
+  ObjectLiteralExpression,
+  PropertyAssignment,
+  SourceFile,
+  TemplateExpression,
+} from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Discrimination, ProofRows, ReportSiteMessage, StaticSegments } from "../contract/policy-descriptor-read.ts";
 import { isCanonicalDefineGate, resolveCallableMember } from "./gate-contract-origin.ts";
@@ -103,11 +119,11 @@ function nonEmpty(segments: readonly string[]): readonly string[] {
   return segments.filter((segment) => segment.length > 0);
 }
 
-function templateSegments(node: TemplateExpression): StaticSegments {
+function templateSegments(node: TemplateExpression, seen: Set<object>): StaticSegments {
   const segments: string[] = [node.getHead().getLiteralText()];
   let complete = true;
   for (const span of node.getTemplateSpans()) {
-    const part = staticSegments(span.getExpression());
+    const part = staticSegments(span.getExpression(), seen);
     const tail = span.getLiteral().getLiteralText();
     const last = segments.length - 1;
     if (part.complete && part.segments.length === 1) {
@@ -132,28 +148,82 @@ function concatSegments(left: StaticSegments, right: StaticSegments): StaticSegm
   return { segments: nonEmpty([...segments, ...rest]), complete: left.complete && right.complete };
 }
 
+/** The function a callee names, through an import alias: a `function` declaration, or a const bound to an arrow
+ *  or function expression. A method, a computed callee and an overloaded/ambiguous symbol all read as none. */
+function textFunctionOf(callee: MorphNode): ArrowFunction | FunctionDeclaration | FunctionExpression | undefined {
+  const symbol = Node.isIdentifier(callee) ? callee.getSymbol() : undefined;
+  const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+  const declaration = declarations.length === 1 ? declarations[0] : undefined;
+  const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
+  const value = initializer === undefined ? undefined : unwrapExpression(initializer);
+  let fn: ArrowFunction | FunctionDeclaration | FunctionExpression | undefined;
+  if (Node.isFunctionDeclaration(declaration)) {
+    fn = declaration;
+  } else if (value !== undefined && (Node.isArrowFunction(value) || Node.isFunctionExpression(value))) {
+    fn = value;
+  }
+  return fn;
+}
+
+/** The ONE expression a text function always returns: an expression-bodied arrow, or a body whose single
+ *  statement is a `return`. Several statements, a branch, or an ambient declaration with no body: none. */
+function returnExpressionOf(fn: ArrowFunction | FunctionDeclaration | FunctionExpression): MorphNode | undefined {
+  const body = fn.getBody();
+  const statements = body !== undefined && Node.isBlock(body) ? body.getStatements() : [];
+  const only = statements.length === 1 ? statements[0] : undefined;
+  let returned: MorphNode | undefined;
+  if (body !== undefined && !Node.isBlock(body)) {
+    returned = body;
+  } else if (Node.isReturnStatement(only)) {
+    returned = only.getExpression();
+  }
+  return returned;
+}
+
+/** A call whose result is AUTHORED TEXT this reader can see whole (#2040): the callee's single return
+ *  expression, read in place. ARGUMENTS ARE NOT SUBSTITUTED — a parameter identifier resolves to nothing and
+ *  breaks the segment exactly like an inline `${value}` span — so every piece this yields is certain in EVERY
+ *  result, which is the only property the family's substring judgements rest on. Anything else (a method, a
+ *  value formatter like `JSON.stringify`, a callee with statements before its return, a cycle) yields the empty
+ *  incomplete read: "I could not read this", which the census counts as an unreadable SOURCE, never as absence. */
+function callSegments(call: CallExpression, seen: Set<object>): StaticSegments {
+  const fn = textFunctionOf(unwrapExpression(call.getExpression()));
+  const returned = fn === undefined ? undefined : returnExpressionOf(fn);
+  const identity: object | undefined = fn?.compilerNode;
+  let result: StaticSegments = { segments: [], complete: false };
+  if (returned !== undefined && identity !== undefined && !seen.has(identity)) {
+    seen.add(identity);
+    result = staticSegments(returned, seen);
+    seen.delete(identity);
+  }
+  return result;
+}
+
 /** Every contiguous piece of static text an expression can contribute to ONE string value. A conditional
- *  contributes both branches (each is possible text), marked incomplete because which one appears is dynamic. */
-export function staticSegments(expression: MorphNode): StaticSegments {
+ *  contributes both branches (each is possible text), marked incomplete because which one appears is dynamic.
+ *  `seen` is the cycle fence for the call reader; callers never pass it. */
+export function staticSegments(expression: MorphNode, seen: Set<object> = new Set()): StaticSegments {
   const node = unwrapExpression(expression);
   let result: StaticSegments = { segments: [], complete: false };
   if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
     result = { segments: nonEmpty([node.getLiteralText()]), complete: true };
   } else if (Node.isTemplateExpression(node)) {
-    result = templateSegments(node);
+    result = templateSegments(node, seen);
   } else if (Node.isBinaryExpression(node) && node.getOperatorToken().getKind() === SyntaxKind.PlusToken) {
-    result = concatSegments(staticSegments(node.getLeft()), staticSegments(node.getRight()));
+    result = concatSegments(staticSegments(node.getLeft(), seen), staticSegments(node.getRight(), seen));
   } else if (Node.isConditionalExpression(node)) {
-    result = { segments: [...staticSegments(node.getWhenTrue()).segments, ...staticSegments(node.getWhenFalse()).segments], complete: false };
+    result = { segments: [...staticSegments(node.getWhenTrue(), seen).segments, ...staticSegments(node.getWhenFalse(), seen).segments], complete: false };
+  } else if (Node.isCallExpression(node)) {
+    result = callSegments(node, seen);
   } else if (Node.isIdentifier(node)) {
     const fact = resolveStableExpression(node);
     if (fact.kind === "resolved") {
-      result = staticSegments(fact.value);
+      result = staticSegments(fact.value, seen);
     } else if (
       fact.reason === "dynamic" &&
       (Node.isTemplateExpression(fact.node) || Node.isBinaryExpression(fact.node) || Node.isConditionalExpression(fact.node))
     ) {
-      result = staticSegments(fact.node);
+      result = staticSegments(fact.node, seen);
     }
   }
   return result;
@@ -305,17 +375,24 @@ export function isMessageProperty(property: PropertyAssignment): boolean {
 }
 
 /** Judge one `messageIncludes` substring against the module's distinct message sources. `sources` is the set
- *  of segment lists a finding can carry; `unreadable` is how many sources could not be read. */
-export function discriminationOf(substring: string, sources: readonly (readonly string[])[], unreadable: number): Discrimination {
-  const hits = sources.filter((segments) => segments.some((segment) => segment.includes(substring))).length;
+ *  of texts a finding can carry; `unreadable` is how many sources could not be read at all.
+ *
+ *  A HIT is CERTAIN: a substring inside a certain piece appears in text that source really emits. An ABSENCE is
+ *  NOT — and `discriminates` is precisely a claim of absence from every OTHER source (#2040). So a non-hitting
+ *  source that was read only in part (a dynamic span, a call this reader refused, a conditional) leaves the row
+ *  UNJUDGED rather than passed: the piece nobody could see may carry the substring, which would make it
+ *  `shared`. `shared` and `tautology` — the two verdicts that FIND — rest on certain hits only and are unmoved. */
+export function discriminationOf(substring: string, sources: readonly StaticSegments[], unreadable: number): Discrimination {
+  const hits = sources.filter((source) => source.segments.some((segment) => segment.includes(substring)));
+  const blindMiss = sources.some((source) => !(source.complete || hits.includes(source)));
   let verdict: Discrimination = "discriminates";
   if (unreadable > 0) {
     verdict = "unjudged";
-  } else if (hits >= 2) {
+  } else if (hits.length >= 2) {
     verdict = "shared";
-  } else if (hits === 1 && sources.length === 1) {
+  } else if (hits.length === 1 && sources.length === 1) {
     verdict = "tautology";
-  } else if (hits === 0) {
+  } else if (hits.length === 0 || blindMiss) {
     verdict = "unjudged";
   }
   return verdict;

@@ -26,6 +26,16 @@
 // A conditional (`cond ? "no entry at all" : \`"${t}", not …\``) contributes BOTH branches, which is what makes
 // D3 reachable: the substring must be judged against every text one site can emit.
 //
+// THE CALL HALF (#2040). A message COMPOSED BY A CALL was text the census could not see, and a partially-read
+// source was counted as if it had been read whole — so a substring that also lives in the invisible piece read
+// as `discriminates` and the row's claim shipped unenforced under a green enforcer. Two changes, one in each
+// direction: (1) `staticSegments` now reads THROUGH a call whose callee is a function or arrow with a single
+// return expression — authored text, arguments not substituted, so every piece it yields is still certain;
+// (2) `discriminates` is now claimable only when every NON-HITTING source was read WHOLE, because that verdict
+// is a claim of ABSENCE and a partially-read source cannot support one. Everything else a call can be — a
+// method, `JSON.stringify`, a value formatter — still reads as an UNREADABLE source and makes the module
+// UNJUDGED, which is the refusal, never a guess (§12.3).
+//
 // Warning, not error: 60 rows across 20 modules carry no `count` at mint (#1968 owns the burn-down), and the
 // finding is the row, so each repair is local. Hard: a proof row cannot waive the check on its own honesty.
 import type { CallExpression, ObjectLiteralExpression, PropertyAssignment, SourceFile } from "ts-morph";
@@ -82,22 +92,27 @@ interface ModuleWalk {
 }
 
 interface MessageCensus {
-  readonly sources: readonly (readonly string[])[];
+  readonly sources: readonly StaticSegments[];
   readonly unreadable: number;
 }
 
 interface CensusState {
-  readonly sources: Map<string, readonly string[]>;
+  readonly sources: Map<string, StaticSegments>;
   unreadable: number;
   /** Some report site omits its message, so the descriptor's own `message` is a live source. */
   bare: boolean;
 }
 
+/** Sources are DEDUPED by their segments, as they always were. When two sites spell the same text and only one
+ *  of them was read whole, the merged source keeps the WEAKER `complete` — the reader never claims to have seen
+ *  more than it did (#2040). */
 function addText(state: CensusState, text: StaticSegments | undefined): void {
   if (text === undefined || text.segments.length === 0) {
     state.unreadable += 1;
   } else {
-    state.sources.set(JSON.stringify(text.segments), text.segments);
+    const key = JSON.stringify(text.segments);
+    const existing = state.sources.get(key);
+    state.sources.set(key, existing === undefined ? text : { segments: text.segments, complete: existing.complete && text.complete });
   }
 }
 
@@ -196,6 +211,15 @@ const CONDITIONAL_MODULE = (rowExpect: string): string =>
     'import type { Node as MorphNode } from "ts-morph";\n',
   );
 
+/** ARM M, the CALL half (#2040): a message composed by a module-local TEXT FUNCTION. The call carries
+ *  AUTHORED text, so the census must read through it; `subject` is a parameter and stays dynamic, exactly
+ *  like an inline span. `helper` and the second site's literal vary so one shape proves both directions. */
+const TEXT_FUNCTION_MODULE = (helper: string, siteB: string, rowExpect: string): string =>
+  finalProbeModule(
+    `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ visitors: [{ kinds: [1], visit: (node: MorphNode) => { ctx.report.node(node, { message: armA(node.getText()) }); ctx.report.node(node, { message: "${siteB}" }); } }] }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: ${rowExpect}, why: "w" }],`,
+    `import type { Node as MorphNode } from "ts-morph";\n${helper}`,
+  );
+
 export const gate = defineGate({
   id: "policy-proof-expectations",
   family: "policy-soundness",
@@ -291,6 +315,18 @@ export const gate = defineGate({
       expect: { count: 1, token: "rows", messageIncludes: "not a statically readable" },
       why: "U a row set produced by a CALL cannot be read by any reader — §12.1's explicit-fixture rule, pinned at zero live cases",
     },
+    {
+      mode: "types",
+      files: familyFixture(
+        TEXT_FUNCTION_MODULE(
+          "const armA = (subject: string): string => `arm A: ${subject} is not registered.`;\n",
+          "arm B: the target is not registered either.",
+          '{ count: 1, messageIncludes: "not registered" }',
+        ),
+      ),
+      expect: { count: 1, token: "messageIncludes", messageIncludes: "MORE THAN ONE" },
+      why: "M THE CALL-COMPOSED SHARED SUBSTRING (#2040 direction ONE): one site's message is a module-local TEXT FUNCTION whose static text also carries `not registered` — before the census read through the call this row's module was UNJUDGED and the shared substring shipped unenforced",
+    },
   ],
   mustPass: [
     {
@@ -310,7 +346,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(CONDITIONAL_MODULE('{ count: 1, messageIncludes: "no entry at all" }')),
-      why: "M the conditional's OTHER branch: `no entry at all` appears in one branch of one site and nowhere else, so it discriminates — the same module D3's row lives in, judged correctly on its honest sibling row",
+      why: "M the conditional's OTHER branch: `no entry at all` appears in one branch of one site and in no VISIBLE piece of the other, and the other site carries a dynamic span — so since #2040 this reads UNJUDGED rather than `discriminates`, and either way there is nothing to report. The same module D3's row lives in, judged quietly on its honest sibling row",
     },
     {
       mode: "types",
@@ -338,6 +374,27 @@ export const gate = defineGate({
         'export const gate = { name: "probe", docRow: "x", message: "m", mustFlag: [{ files: { "x.ts": "x" }, why: "w" }], mustPass: [1] };\n',
       ),
       why: "SCOPE: a legacy descriptor's examples run through the legacy runtime, whose expectation shape is its own — this family reads the final contract only",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        TEXT_FUNCTION_MODULE(
+          'const armA = (): string => "arm A: the entry is missing.";\n',
+          "arm B: the target does not exist.",
+          '{ count: 1, messageIncludes: "does not exist" }',
+        ),
+      ),
+      why: "M THE CALL-COMPOSED DISCRIMINATOR (#2040 direction TWO): the same call shape whose text does NOT carry the substring — read whole, the call-composed source proves ABSENCE, so the row discriminates and nothing is reported. An arm that refused every call would flag this one",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ visitors: [{ kinds: [1], visit: (node: MorphNode) => { ctx.report.node(node, { message: node.getText() }); ctx.report.node(node, { message: "arm B: the target does not exist." }); } }] }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1, messageIncludes: "does not exist" }, why: "w" }],`,
+          'import type { Node as MorphNode } from "ts-morph";\n',
+        ),
+      ),
+      why: "M THE REFUSAL RESIDUE: a METHOD call on a node is not authored text this reader can resolve, so the source stays unreadable and the module UNJUDGED — the fence that keeps the call reader from guessing at an arbitrary call's result",
     },
   ],
 });
