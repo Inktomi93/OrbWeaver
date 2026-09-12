@@ -2358,6 +2358,7 @@
     "tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts",
     "tests/tooling/verify/gates/port-parity-tier3.test.ts",
     "tests/tooling/verify/gates/query-freshness-coverage.test.ts",
+    "tests/tooling/verify/gates/real-corpus-liveness-family.repo.int.test.ts",
     "tests/tooling/verify/gates/registry-family.test.ts",
     "tests/tooling/verify/gates/resource-layout-wave-1.test.ts",
     "tests/tooling/verify/gates/resource-layout-wave-2.test.ts",

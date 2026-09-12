@@ -41,7 +41,7 @@ import type { CaughtFailurePopulation, CaughtFailureRow } from "../contract/caug
 import type { LedgerFreshness } from "../contract/scoped.ts";
 import type { TestBaselineManifest } from "../contract/test-baseline.ts";
 import { TEST_BASELINE_REL } from "../contract/test-baseline.ts";
-import { ledgerSections, readDoc, reportLedgerRows } from "../lib/gate-program-docs.ts";
+import { ledgerSections, readDoc, reportLedgerRows, strayLedgerSections } from "../lib/gate-program-docs.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
 import { READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./gen/read-first-costs.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
@@ -214,9 +214,19 @@ export function readFirstCostsDrift(root: string): LedgerFreshness {
  *  declares no rows of its own (the ten waves are distilled INTO the ledger by their reader), so a bare
  *  "fresh" over the handful that do reconcile would be the same clean-zero this row exists to end. */
 export function ledgerSectionDrift(root: string): LedgerFreshness {
-  const sections = ledgerSections(readDoc(root, REFUTATION_LEDGER_REL));
+  const text = readDoc(root, REFUTATION_LEDGER_REL);
+  const sections = ledgerSections(text);
   const drift: string[] = [];
   let reconciled = 0;
+  // THE FENCE REPORTS WHAT IT EXCLUDES (#2166). Six real defect rows were appended below `## CLASS ROLLUP`
+  // and every instrument that reads this file while sitting inside it was correct-and-blind: the reconciler
+  // printed the SAME "11 of 24" before and after. A fence that cannot say what it stopped short of is the
+  // false clean this whole row is about, so a ledger-shaped section outside it is now a finding.
+  for (const stray of strayLedgerSections(text)) {
+    drift.push(
+      `stray  ${REFUTATION_LEDGER_REL}:${stray.line} \`### ${stray.heading}\` carries ${stray.rows} ledger row(s) but sits under \`${stray.enclosing}\`, OUTSIDE the \`## THE LEDGER\` fence — no reconciler, no rollup and no row count can see it. Move the section above \`## CLASS ROLLUP\`.`,
+    );
+  }
   for (const section of sections) {
     const report = section.report;
     if (report === undefined) {
@@ -245,7 +255,7 @@ export function ledgerSectionDrift(root: string): LedgerFreshness {
     }
   }
   return {
-    ledger: `${REFUTATION_LEDGER_REL} sections vs their reports (${reconciled} of ${sections.length} reconcilable; the rest cite an audit report that declares no rows)`,
+    ledger: `${REFUTATION_LEDGER_REL} sections vs their reports (${reconciled} of ${sections.length} IN-FENCE sections reconcilable; the rest cite an audit report that declares no rows)`,
     regen: "append the missing row(s) to the ledger section, or correct the source report — BOTH sides are authored and neither is generated",
     derived: reconciled,
     drift,

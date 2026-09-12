@@ -117,6 +117,15 @@ survives; its INPUT changed.
    `main` before you start.
 3. **THE ROLLUP IS BARRIER-ONLY.** A rollup recomputed while lanes are appending is stale on arrival. Rows land
    continuously; `## CLASS ROLLUP` is rebuilt once, on a quiet tree, by the account holding main's checkout.
+4. **EVERY APPEND GOES ABOVE `## CLASS ROLLUP`, INSIDE THE `## THE LEDGER` FENCE** (#2166). The fence is
+   `## THE LEDGER` → the next `##`, and it is what `lib/gate-program-docs.ts#ledgerSections` counts, what the
+   rollup rebuild sums, and what the `ledgers:fresh` section-vs-report reconciler reads. `6c983149e` appended
+   `### cb-v-fix-wave-1` BELOW the rollup and its six rows were invisible to all three at once — the
+   reconciler printed the SAME "11 of 24 reconcilable" before and after, correct about a section it could not
+   see, while a naive `grep -c` found the rows and read them as present. **That is no longer silent:** a
+   ledger-shaped section outside the fence is now a `ledgers:fresh` finding naming the heading, its line and
+   the `##` it landed under. The detector keys on the TABLE's schema (`defect` + `state`), not on the
+   heading's wording, so a section whose heading cites no report is caught too.
 
 **WHO, under the role split in force (2026-09-12).** claude-b is the orchestrator: it owns Project 1, the
 verify lens and the rulings, and it never commits on main's checkout. The primary account owns dispatch and

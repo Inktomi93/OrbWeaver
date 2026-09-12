@@ -109,6 +109,9 @@ export interface LedgerSection {
 }
 
 const H3_MARKER_LENGTH = "### ".length;
+/** The ONE spelling of the ledger fence, shared by the section scanner and the stray scanner — two readers
+ *  disagreeing about where the fence is would reintroduce #2166 from the other side. */
+const LEDGER_FENCE = "## THE LEDGER";
 const BYTES_PER_KIB = 1024;
 
 const REPORT_CITE = /`([a-z0-9][a-z0-9.-]*\.md)`/;
@@ -143,7 +146,7 @@ export function ledgerSections(text: string): readonly LedgerSection[] {
   for (const [index, line] of lines.entries()) {
     if (line.startsWith("## ")) {
       flush();
-      inLedger = line.trim() === "## THE LEDGER";
+      inLedger = line.trim() === LEDGER_FENCE;
       continue;
     }
     if (!inLedger) {
@@ -163,6 +166,85 @@ export function ledgerSections(text: string): readonly LedgerSection[] {
   }
   flush();
   return sections;
+}
+
+/** A ledger-row table by SCHEMA: it names both a `defect` and a `state`. Schema-keyed and not first-column
+ *  keyed, which is #2075's lesson — the in-fence tables use SIX different schemas (`module` and `subject`
+ *  first cells, four different trailing-cell counts) and all six carry this pair, while NO table outside the
+ *  fence does (measured 2026-09-12 over all 30 tables in the ledger: 25 in-fence ledger-shaped, 0 out). */
+function isLedgerRowTable(table: MarkdownTable): boolean {
+  const columns = new Set(table.columns);
+  return columns.has("defect") && columns.has("state");
+}
+
+export interface StrayLedgerSection {
+  /** The `###` heading text, without the marker. */
+  readonly heading: string;
+  /** 1-based line of the heading. */
+  readonly line: number;
+  /** The `##` heading it actually sits under — what the author appended below by mistake. */
+  readonly enclosing: string;
+  /** The report the heading cites, when it cites one. */
+  readonly report: string | undefined;
+  readonly rows: number;
+}
+
+/** LEDGER ROWS THAT ARE IN THE FILE AND OUTSIDE THE FENCE — a REFUSAL, never a silent skip (#2166).
+ *
+ *  `ledgerSections` is fenced by `## THE LEDGER` → the next `##`, which is correct and is also exactly how
+ *  six real defect rows went invisible: `6c983149e` appended `### cb-v-fix-wave-1` BELOW `## CLASS ROLLUP`,
+ *  so the reconciler did not count it, the rollup rebuild did not include it, and `ledgers:fresh` reported
+ *  the SAME "11 of 24 reconcilable" before and after — correct about a section it could not see. A naive
+ *  `grep -c` finds those rows, which is the false-clean shape: the instrument stopped early and said
+ *  nothing about what it stopped short of.
+ *
+ *  So the fence now REPORTS what it excludes. A `###` section outside the fence carrying a ledger-shaped
+ *  table is a stray; the consumer names the heading, its line, the `##` it landed under, and the fence it
+ *  belongs in. The predicate keys on the table's SCHEMA rather than on the heading's wording, so it also
+ *  catches a section whose heading cites no report at all (`### p-suite-honesty` is a real cite-less
+ *  section, so a cite-keyed predicate would have a live blind spot). */
+export function strayLedgerSections(text: string): readonly StrayLedgerSection[] {
+  const lines = text.split("\n");
+  const strays: StrayLedgerSection[] = [];
+  let inLedger = false;
+  let enclosing = "(top of file)";
+  let current: { heading: string; line: number; enclosing: string; body: string[] } | undefined;
+  const flush = (): void => {
+    if (current === undefined) {
+      return;
+    }
+    const tables = markdownTables(current.body).filter(isLedgerRowTable);
+    if (tables.length > 0) {
+      strays.push({
+        heading: current.heading,
+        line: current.line,
+        enclosing: current.enclosing,
+        report: REPORT_CITE.exec(current.heading)?.[1],
+        rows: tables.reduce((total, table) => total + table.rows.length, 0),
+      });
+    }
+    current = undefined;
+  };
+  for (const [index, line] of lines.entries()) {
+    if (line.startsWith("## ")) {
+      flush();
+      enclosing = line.trim();
+      inLedger = line.trim() === LEDGER_FENCE;
+      continue;
+    }
+    if (line.startsWith("#")) {
+      flush();
+      if (line.startsWith("### ") && !inLedger) {
+        current = { heading: line.slice(H3_MARKER_LENGTH).trim(), line: index + 1, enclosing, body: [] };
+      }
+      continue;
+    }
+    if (current !== undefined) {
+      current.body.push(line);
+    }
+  }
+  flush();
+  return strays;
 }
 
 export interface ReportRowTable {

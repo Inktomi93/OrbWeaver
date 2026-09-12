@@ -121,7 +121,7 @@ export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedF
 export { aggregateExit, asViolations, eslintScheme, ownScheme } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
-export { ledgerSections, markdownTables, reportLedgerRows } from "./lib/gate-program-docs.ts";
+export { ledgerSections, markdownTables, reportLedgerRows, strayLedgerSections } from "./lib/gate-program-docs.ts";
 export { getProject } from "./lib/harness.ts";
 export { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "./lib/history.ts";
 export { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome, SCHEMA_BANNED_SHAPES } from "./lib/ledger-banned-shapes.ts";
