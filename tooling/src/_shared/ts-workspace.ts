@@ -12,7 +12,7 @@
 // `collectByKinds` is the dispatcher's inner loop promoted to neutral territory (§1.4/§6): ONE
 // forEachDescendant walk per file, dispatching each node only to the visitors subscribed to its kind.
 // Both the gate runner (pass.ts) and any multi-helper codemod consume this instead of N kind sweeps.
-import type { KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
+import type { CallExpression, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
 import { Project, Node as TsNode, ts } from "ts-morph";
 
 export interface WorkspaceOptions {
@@ -122,25 +122,38 @@ export function collectByKinds(files: readonly SourceFile[], byKind: ReadonlyMap
   }
 }
 
-/** Identifiers CALLED at module scope (`f(…)` / `await f(…)` as a top-level statement). AST-POSITIONAL on
- *  purpose: a text search for a guard name matched it inside `new-gate.ts`'s scaffold TEMPLATE STRING once
+/** The CALLS made at module scope (`f(…)` / `await f(…)` as a top-level statement), as nodes. AST-POSITIONAL
+ *  on purpose: a text search for a guard name matched it inside `new-gate.ts`'s scaffold TEMPLATE STRING once
  *  and reported an unarmed module as armed — a lying proof (#509). A statement node cannot live in a string.
+ *  Statement-level only (`getStatements`), never a descendant walk: the question is what a module DOES when
+ *  it is loaded, and only a top-level statement runs then.
  *
- *  ONE HOME on purpose (2026-08-26): the `tooling-ops-direct-invocation` gate and its behavioural twin
+ *  ONE HOME on purpose (2026-08-26): the `tooling-ops-direct-invocation` policy and its behavioural twin
  *  `tests/tooling/_shared/entrypoint.int.test.ts` both ask "is this module a PROGRAM?", and when each kept
  *  its own answer they drifted — the gate derived program-ness from the source while the test carried a
- *  hand-kept name list, so `dev-identity-entry.ts` was born a program and only the test noticed. */
-export function moduleScopeCallees(sf: SourceFile): ReadonlySet<string> {
-  const out = new Set<string>();
+ *  hand-kept name list, so `dev-identity-entry.ts` was born a program and only the test noticed. The policy
+ *  judges each call's CALLEE by declaration identity through `verify/lib/project-home-origin.ts`; the twin
+ *  reads the callee NAMES through `moduleScopeCallees` below. Both start from this one statement shape. */
+export function moduleScopeCalls(sf: SourceFile): readonly CallExpression[] {
+  const out: CallExpression[] = [];
   for (const st of sf.getStatements()) {
     if (!TsNode.isExpressionStatement(st)) {
       continue;
     }
     const expr = st.getExpression();
     const call = TsNode.isAwaitExpression(expr) ? expr.getExpression() : expr;
-    if (!TsNode.isCallExpression(call)) {
-      continue;
+    if (TsNode.isCallExpression(call)) {
+      out.push(call);
     }
+  }
+  return out;
+}
+
+/** The NAMES of the identifiers called at module scope — `moduleScopeCalls` reduced to bare-identifier
+ *  callees, for the behavioural twin's derived program census. */
+export function moduleScopeCallees(sf: SourceFile): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const call of moduleScopeCalls(sf)) {
     const callee = call.getExpression();
     if (TsNode.isIdentifier(callee)) {
       out.add(callee.getText());
