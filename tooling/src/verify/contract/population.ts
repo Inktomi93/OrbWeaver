@@ -42,7 +42,7 @@ export type AuthoredMembership = { readonly authored: true } | { readonly author
  *  which is exactly how the 2026-09-11 omission passed a green suite. A mirror is not a classification.
  *
  *  THE REASON LIVES IN THE `why` FIELD AND NOWHERE ELSE. An `authoredExclusionReason(root)` accessor shipped
- *  beside this map and was DELETED 2026-09-12 (#2114): `pnpm ast refs` found one hit — its own definition —
+ *  beside this map and was DELETED 2026-09-12 (#2116): `pnpm ast refs` found one hit — its own definition —
  *  over `scanned=7518 status=complete`, while its JSDoc named two consumers ("a gate diagnostic, this
  *  contract's own test") that did not exist. A reader with no reader is a claim about an architecture
  *  nobody built; the `why` string below is the one home, and a future diagnostic reads it directly. */
