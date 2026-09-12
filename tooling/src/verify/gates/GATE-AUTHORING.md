@@ -271,11 +271,14 @@ An exemption is a promise. This is how the promise is written.
    (backtick style) or inside a string literal is an inert MENTION everywhere — which is what lets
    `gate-ignore-inventory` scan the gate corpus itself without the corpus's own documentation self-flagging.
    3a. **THE MARKER NAMES ITS POSITION whenever ONE LINE can carry two guarded things**
-   (`// @foreign-id-ok(<positionName>): <reason>`). A line-scoped marker OVER-EXEMPTS: the live corpus case
+   (`// @orb-waive <gate-id>(<positionName>): <reason>`). A line-scoped marker OVER-EXEMPTS: the live corpus case
    is `record(chatId: string, sessionId: string)` — a foreign `sessionId` sitting beside one of OUR
    `chatId`s, where a line marker would silently absolve both. Two-sidedness then applies to the NAME too: a
    marker naming a position that is not live is RED, exactly as a stale row is. Paid for by
-   `brand-in-name-position` (2026-08-03). **This clause NAMES ITS ENFORCER for the shared
+   `brand-in-name-position` (2026-08-03), whose own marker vocabulary was then `@foreign-id-ok(<position>)`
+   — **RETIRED and parsed by nothing since that gate's conversion; the live spelling above is the central
+   ordinary-waiver plane's, and a marker in the old spelling suppresses nothing** (#2010, re-censused
+   2026-09-12: 76 live `@orb-waive brand-in-name-position` markers, ZERO live `@foreign-id-ok`). **This clause NAMES ITS ENFORCER for the shared
    `@orb-gate-ignore` vocabulary: `gate-ignore-inventory`'s OVER-EXEMPT arm** — `pass.ts` counts what each
    marker suppressed, and an UNPOSITIONED marker that absolved more than one finding is RED (2026-08-03; it
    was prose-only until the §5 probe planted the counterfactual and watched one marker silently absolve

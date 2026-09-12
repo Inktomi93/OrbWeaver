@@ -17,12 +17,17 @@ import { join } from "node:path";
 import type { CaughtFailurePopulation, CaughtFailureRow, TestBaselineManifest } from "@orb/tooling/verify";
 import {
   censusDrift,
+  deferredRosterDrift,
+  deriveReadFirstCosts,
   deriveSnapFlagsIndexMarkdown,
   deriveTestBaselineManifest,
   LEDGER_CHECKS,
   ledgerReport,
+  ledgerSectionDrift,
   manifestDrift,
+  READ_FIRST_REL,
   REGISTRY,
+  readFirstCostsDrift,
   SNAP_FLAGS_INDEX_REL,
   snapFlagsIndexDrift,
   TEST_BASELINE_REL,
@@ -189,6 +194,7 @@ test("a stale ledger never suppresses its sibling's verdict from the same run", 
 test("every generated ledger/config family carries a `baseline --check` arm", () => {
   expect(Object.keys(LEDGER_CHECKS).sort((a, b) => a.localeCompare(b))).toEqual([
     "caught-failure-population",
+    "read-first-costs",
     "snap-flags-index",
     "test-baseline-manifest",
     "type-configs",
@@ -232,4 +238,255 @@ test("a planted stale flag index reds naming the regen command", () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ─── #2017: the two rows that hold a #1584 PROGRAM DOC's derivable numbers ───────────────────────────
+//
+// Both were added because a hand-authored number in a law doc is wrong between re-measurements. The
+// read-first cost table had ALL EIGHT sizes stale at once (the work queue by 7x), and nothing at all
+// reconciled a refutation-ledger section against the verifier report its rows were transcribed from.
+//
+// EVERY ARM BELOW IS A PLANTED CONTROL IN A TEMP ROOT. Neither derivation may be exercised by writing into
+// the real tree: `check:structure` reads the working tree while a planting suite writes it, and an
+// overlapped structure run is a NON-VERDICT that looks exactly like a real number (#2069, 2026-09-12).
+
+/** A temp repo carrying every path the cost table prices, at KNOWN sizes, so a derived cell is a
+ *  MEASUREMENT rather than an echo. `filler(n)` is exactly n bytes. */
+function costTableRoot(): { root: string; expected: Record<string, number> } {
+  const root = mkdtempSync(join(tmpdir(), "orb-read-first-costs-"));
+  const filler = (bytes: number): string => "x".repeat(bytes);
+  const write = (rel: string, bytes: number): void => {
+    mkdirSync(join(root, rel.slice(0, rel.lastIndexOf("/"))), { recursive: true });
+    writeFileSync(join(root, rel), filler(bytes));
+  };
+  const Kib = 1024;
+  write("docs/design/gate-runtime-standardization.md", 4 * Kib);
+  write("docs/design/gate-runtime-orchestrator-playbook.md", 2 * Kib);
+  write("docs/reviews/gate-runtime/resource-gate-access-patterns.md", Kib);
+  write("docs/reviews/gate-runtime/uncovered-gate-conversion-census.md", Kib);
+  write("docs/reviews/gate-runtime/exception-authority-census.md", Kib);
+  write("docs/reviews/gate-runtime/ordinary-waiver-source-migration.md", Kib);
+  write("docs/reviews/gate-runtime/shared-semantic-readers.md", Kib);
+  write("docs/reviews/gate-runtime/checkpoint-2026-09-05.md", Kib);
+  write("docs/reviews/gate-runtime/bus-family-1584.md", 3 * Kib);
+  write("docs/reviews/gate-runtime/mixed-runtime-front-door.md", 3 * Kib);
+  write("docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md", 5 * Kib);
+  write("docs/reviews/gate-runtime/v-gate-batch-2026-09-12.md", 5 * Kib);
+  write("tooling/src/verify/contract/policy.ts", 8 * Kib);
+  mkdirSync(join(root, "docs/architecture/core"), { recursive: true });
+  writeFileSync(
+    join(root, "docs/architecture/core/Core-Enforcement-Active-Gates.md"),
+    ["| Gate | Enforces |", "| - | - |", "| `alpha-gate` | does a thing |", "| `beta-gate` | does another |", ""].join("\n"),
+  );
+  writeFileSync(
+    join(root, "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md"),
+    ["## THE LEDGER", "", "### Wave 1 (`v-audit-wave2-2026-09-12.md`)", "", "| module | defect |", "| - | - |", "| `a` | x |", ""].join("\n"),
+  );
+  return { root, expected: { "1": 4, "2": 2, "4": 4, "5": 2, "6": 8 } };
+}
+
+const READ_FIRST_ROWS = [
+  "| # | Read | Size | Stop rule |",
+  "| -: | - | -: | - |",
+  "| 1 | the LAW | **999 KB** | in full |",
+  "| 2 | the runbook | **999 KB** | in full |",
+  "| 3 | the queue | **999 KB** | in full |",
+  "| 4 | the four | **999 KB** | in full |",
+  "| 5 | the pair | **999 KB** | in full |",
+  "| 5b | the headers | **999 KB** | read them |",
+  "| 6 | the roster | **999 KB** | by row |",
+  "| 7 | the families | **999 KB** | the one |",
+  "| — | the waves | **999 KB** | do not read |",
+  "",
+];
+
+test("the cost table's SIZE cells are MEASURED — planted bytes come back as the printed KB", () => {
+  const { root, expected } = costTableRoot();
+  try {
+    mkdirSync(join(root, "docs/design"), { recursive: true });
+    writeFileSync(join(root, READ_FIRST_REL), READ_FIRST_ROWS.join("\n"));
+    const derived = deriveReadFirstCosts(root).split("\n");
+    // Row 1 prices one 4 KiB file; row 4 prices four 1 KiB files and must SAY so; row 6 carries the
+    // roster's own derived ROW COUNT, which is the figure that was wrong in the real table.
+    expect(derived[2]).toContain(`**${expected["1"]} KB**`);
+    expect(derived[5]).toContain(`**${expected["4"]} KB** · 4 files`);
+    expect(derived[8]).toContain("· 2 rows");
+    // Row 3 carries the ledger's derived DEFECT-ROW count, the other figure that was wrong.
+    expect(derived[4]).toContain("· 1 defect rows");
+    // Every 999 placeholder is gone: a row the derivation failed to reach would still read 999.
+    expect(derived.join("\n")).not.toContain("999 KB");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a declared cost row that is no longer a table row REFUSES rather than pricing what is left", () => {
+  const { root } = costTableRoot();
+  try {
+    writeFileSync(join(root, READ_FIRST_REL), READ_FIRST_ROWS.filter((line) => !line.startsWith("| 5b |")).join("\n"));
+    // A tool error, never a freshness verdict: the table moved, so every number this run produced is
+    // about a document shape the derivation no longer understands.
+    expect(() => deriveReadFirstCosts(root)).toThrow(/rewrote 8 of 9 declared rows/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a stale SIZE cell reds through the per-ledger door", () => {
+  const { root } = costTableRoot();
+  try {
+    writeFileSync(join(root, READ_FIRST_REL), READ_FIRST_ROWS.join("\n"));
+    expect(readFirstCostsDrift(root).drift).not.toEqual([]);
+    expect(LEDGER_CHECKS["read-first-costs"]?.(root)).toBe(1);
+    writeFileSync(join(root, READ_FIRST_REL), deriveReadFirstCosts(root));
+    expect(readFirstCostsDrift(root).drift).toEqual([]);
+    expect(LEDGER_CHECKS["read-first-costs"]?.(root)).toBe(0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+/** A temp repo whose ledger carries three sections: one reconciling, one short by a row, and one citing an
+ *  AUDIT report that declares no rows of its own. */
+function ledgerSectionRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), "orb-ledger-sections-"));
+  const dir = join(root, "docs/reviews/gate-runtime");
+  mkdirSync(dir, { recursive: true });
+  const table = (count: number): readonly string[] => ["| module | defect |", "| - | - |", ...Array.from({ length: count }, (_v, i) => `| \`m${i}\` | x |`)];
+  writeFileSync(join(dir, "v-good-2026-09-12.md"), ["## LEDGER ROWS (2 rows)", "", ...table(2), ""].join("\n"));
+  writeFileSync(join(dir, "v-short-2026-09-12.md"), ["## LEDGER ROWS", "", ...table(3), ""].join("\n"));
+  writeFileSync(join(dir, "v-audit-wave9-2026-09-12.md"), ["## FINDINGS", "", ...table(4), ""].join("\n"));
+  writeFileSync(
+    join(dir, "refutation-ledger-2026-09-12.md"),
+    [
+      "## THE LEDGER",
+      "",
+      "### good (`v-good-2026-09-12.md`)",
+      "",
+      ...table(2),
+      "",
+      "### short (`v-short-2026-09-12.md`)",
+      "",
+      ...table(2),
+      "",
+      "### wave (`v-audit-wave9-2026-09-12.md`)",
+      "",
+      ...table(4),
+      "",
+      "## CLASS ROLLUP",
+      "",
+      ...table(7),
+      "",
+    ].join("\n"),
+  );
+  return root;
+}
+
+test("a ledger section short of its report's own LEDGER ROWS table is named, with both counts", () => {
+  const root = ledgerSectionRoot();
+  try {
+    const result = ledgerSectionDrift(root);
+    expect(result.drift).toHaveLength(1);
+    expect(result.drift[0]).toContain("carries 2 row(s)");
+    expect(result.drift[0]).toContain("declares 3");
+    // The rollup table AFTER `## THE LEDGER` must not be counted as a section's defect rows, and the audit
+    // section must be reported as UNRECONCILABLE rather than silently passing: 2 of 3.
+    expect(result.derived).toBe(2);
+    expect(result.ledger).toContain("2 of 3 reconcilable");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a report whose heading count disagrees with its own table is named separately", () => {
+  const root = ledgerSectionRoot();
+  try {
+    const dir = join(root, "docs/reviews/gate-runtime");
+    writeFileSync(
+      join(dir, "v-good-2026-09-12.md"),
+      ["## LEDGER ROWS (9 rows)", "", "| module | defect |", "| - | - |", "| `m0` | x |", "| `m1` | x |", ""].join("\n"),
+    );
+    const result = ledgerSectionDrift(root);
+    expect(result.drift.join("\n")).toContain("heading says (9 rows) and its table carries 2");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a ledger section citing a report that is not on the tree is drift, never a silent skip", () => {
+  const root = ledgerSectionRoot();
+  try {
+    rmSync(join(root, "docs/reviews/gate-runtime/v-short-2026-09-12.md"));
+    expect(ledgerSectionDrift(root).drift.join("\n")).toContain("which is not in docs/reviews/gate-runtime/");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the committed refutation ledger agrees with every report that declares its own rows", ({ repoRoot }) => {
+  const result = ledgerSectionDrift(repoRoot);
+  expect(result.drift).toEqual([]);
+  // A derivation that reconciled NOTHING would print the same empty drift; the count is what makes the
+  // green a measurement.
+  expect(result.derived).toBeGreaterThan(0);
+});
+
+/** A temp repo whose deferred roster carries one landed-but-unmarked row, one landed-and-marked row, and
+ *  one genuinely-waiting row — plus a DROPPED table below it whose rows have the identical shape. */
+function deferredRosterRoot(landedMarked: boolean): string {
+  const root = mkdtempSync(join(tmpdir(), "orb-deferred-roster-"));
+  mkdirSync(join(root, "docs/architecture/core"), { recursive: true });
+  mkdirSync(join(root, "tooling/src/verify/gates"), { recursive: true });
+  writeFileSync(join(root, "tooling/src/verify/gates/landed-gate.ts"), "export const gate = 1;\n");
+  writeFileSync(join(root, "tooling/src/verify/gates/marked-gate.ts"), "export const gate = 1;\n");
+  writeFileSync(
+    join(root, "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md"),
+    [
+      "## Deferred backlog — neo gates not yet ported, with activation trigger",
+      "",
+      "| Gate | What it does | Activates when |",
+      "| - | - | - |",
+      `| \`landed-gate\` | a thing | ${landedMarked ? "PROMOTED — it landed" : "the domain is built"} |`,
+      "| `marked-gate` | another | PROMOTED — it landed |",
+      "| `waiting-gate` | a third | the domain is built |",
+      "",
+      "### Dropped (do not port)",
+      "",
+      "| neo gate | Why N/A |",
+      "| - | - |",
+      "| `landed-gate` | a row of the SAME shape, outside the deferred table |",
+      "",
+    ].join("\n"),
+  );
+  return root;
+}
+
+test("a deferred row whose gate has LANDED is named — the one-sided half made two-sided (#2008)", () => {
+  const root = deferredRosterRoot(false);
+  try {
+    const result = deferredRosterDrift(root);
+    expect(result.drift).toHaveLength(1);
+    expect(result.drift[0]).toContain("`landed-gate` reads as not-yet-ported");
+    // THE DENOMINATOR IS THE DEFERRED TABLE, not the file: the DROPPED table below carries a row of the
+    // same shape and the same id, and counting it would inflate the census that justifies the green.
+    expect(result.derived).toBe(3);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a deferred row that already says PROMOTED is not re-accused", () => {
+  const root = deferredRosterRoot(true);
+  try {
+    expect(deferredRosterDrift(root).drift).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the committed deferred roster has no row whose gate has quietly landed", ({ repoRoot }) => {
+  const result = deferredRosterDrift(repoRoot);
+  expect(result.drift).toEqual([]);
+  // Five rows were stale when this arm was written; a zero denominator would print the same clean green.
+  expect(result.derived).toBeGreaterThan(20);
 });

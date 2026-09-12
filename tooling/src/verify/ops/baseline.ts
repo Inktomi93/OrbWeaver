@@ -12,6 +12,7 @@ import { generateCaughtFailurePopulation } from "./gen/caught-failure-population
 import { generateDensityBaseline } from "./gen/density.ts";
 import { generateDuplicateActionDoorsBaseline } from "./gen/duplicate-action-doors.ts";
 import { generateProseBaseline } from "./gen/prose.ts";
+import { generateReadFirstCosts } from "./gen/read-first-costs.ts";
 import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
 import { generateSuppressionsBaseline } from "./gen/suppressions.ts";
 import { generateTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
@@ -30,6 +31,10 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   density: generateDensityBaseline,
   "duplicate-action-doors": generateDuplicateActionDoorsBaseline,
   prose: generateProseBaseline,
+  // A generated COLUMN inside a hand-authored document, not a generated file: the read-first table's SIZE
+  // cells are derived and its Read/Stop-rule prose is authored, joined by the row id. #2017 — every one of
+  // those eight numbers was stale at once, the work queue by 7x.
+  "read-first-costs": generateReadFirstCosts,
   "snap-flags-index": generateSnapFlagsIndex,
   suppressions: generateSuppressionsBaseline,
   "test-baseline-manifest": generateTestBaselineManifest,

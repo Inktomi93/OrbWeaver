@@ -22,18 +22,66 @@ export const POPULATION_ROOTS = {
 
 export type PopulationRoot = keyof typeof POPULATION_ROOTS;
 
+/** One root's membership of `@authored`, with the reason an excluded root is excluded.
+ *
+ *  A `false` row MUST carry its `why`: an omission with no stated reason is indistinguishable from the
+ *  omission this shape exists to make impossible. */
+export type AuthoredMembership = { readonly authored: true } | { readonly authored: false; readonly why: string };
+
+/** WHICH ROOTS `@authored` MEANS — the CLASSIFICATION, from which the set below is derived (#1980).
+ *
+ *  `@authored` was a hand-typed nine-root LITERAL and nothing held it two-sided, so when `@showcase` was
+ *  added to `POPULATION_ROOTS` on 2026-09-11 it silently did not join, and `packages/showcase-plugins/src`
+ *  fell outside every policy declaring `@authored` with no author ever deciding that. The set is now
+ *  DERIVED from this map and the map is EXHAUSTIVE over `PopulationRoot`, so the enforcer is tsc itself
+ *  (constitution §2.2 rung 2): a new root that is not classified here fails the `satisfies` below with a
+ *  missing-property error naming the root. The decision cannot be skipped, only made and stated.
+ *
+ *  `populationResolver`'s own test asserts `POPULATION_ROOTS` and `POPULATION_SETS` by literal, which REDS
+ *  when a root is added — but it reds on the ROOT list alone and asks the author nothing about `@authored`,
+ *  which is exactly how the 2026-09-11 omission passed a green suite. A mirror is not a classification. */
+const AUTHORED_MEMBERSHIP = {
+  "@client": { authored: true },
+  "@ui": { authored: true },
+  "@server": { authored: true },
+  "@db": { authored: true },
+  "@contracts": { authored: true },
+  "@kit": { authored: true },
+  "@showcase": {
+    authored: false,
+    why:
+      "an authored workspace package that is deliberately OUTSIDE `@authored` today, so the 23 policies declaring it do not " +
+      "see `packages/showcase-plugins/src`. That is an OPEN QUESTION rather than a settled boundary: widening it is a " +
+      "behaviour change across all 23, so it is measured and ruled, never done in passing. Measured 2026-09-11 " +
+      "(`@showcase` added as a root, `pnpm check:structure` + `pnpm check:policy-conformance`): ZERO new findings and zero " +
+      "proof-row failures — the blast radius is empty today because the package holds one file, which is why the decision " +
+      "is cheap now and gets more expensive with every file added to it. A policy that needs the package TODAY declares " +
+      "both refs (`['@authored', '@showcase']`), which is what the `harnessGlobs`-derived conversions do",
+  },
+  "@tooling": { authored: true },
+  "@tests": { authored: true },
+  "@scripts": { authored: true },
+} as const satisfies Readonly<Record<PopulationRoot, AuthoredMembership>>;
+
+/** The classified roots, in `POPULATION_ROOTS` declaration order — the same order the literal carried, so
+ *  the derivation is byte-comparable with what it replaced. */
+const AUTHORED_ROOTS: readonly PopulationRoot[] = (Object.keys(AUTHORED_MEMBERSHIP) as readonly PopulationRoot[]).filter(
+  (root) => AUTHORED_MEMBERSHIP[root].authored,
+);
+
+/** Why a root is not in `@authored`, or `undefined` when it is — the reader for anything that has to
+ *  EXPLAIN the boundary rather than merely apply it (a gate diagnostic, this contract's own test). */
+export function authoredExclusionReason(root: PopulationRoot): string | undefined {
+  const row = AUTHORED_MEMBERSHIP[root];
+  return row.authored ? undefined : row.why;
+}
+
 export const POPULATION_SETS = {
   "@frontend": ["@client", "@ui"],
   "@backend": ["@server", "@db", "@contracts"],
   "@packages": ["@client", "@ui", "@server", "@db", "@contracts", "@kit"],
-  /** "everything this repo authors" is a LITERAL nine-root list, so `@showcase` — an authored workspace
-   *  package — is deliberately OUTSIDE it today, and 19 policies declaring `@authored` therefore do not see
-   *  `packages/showcase-plugins/src`. That is an OPEN QUESTION rather than a settled boundary: widening the
-   *  set is a behaviour change across all 19, so it is measured and ruled, never done in passing. Measured
-   *  2026-09-11 (`@showcase` added here, `pnpm check:structure` + `pnpm check:policy-conformance`): ZERO new
-   *  findings and zero proof-row failures — the blast radius is empty today because the package holds one
-   *  file, which is why the decision is cheap now and gets more expensive with every file added to it. */
-  "@authored": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tooling", "@tests", "@scripts"],
+  /** "everything this repo authors" — DERIVED from `AUTHORED_MEMBERSHIP` above, never re-typed here. */
+  "@authored": AUTHORED_ROOTS,
 } as const satisfies Readonly<Record<`@${string}`, readonly PopulationRoot[]>>;
 
 export type PopulationRef = PopulationRoot | keyof typeof POPULATION_SETS;
