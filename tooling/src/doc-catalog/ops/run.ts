@@ -5,18 +5,21 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
-import type { CatalogMode, FormatMode, LaneConfig, State } from "../contract/types.ts";
+import type { CatalogMode, CatalogWriteRequest, Doc, FormatMode, Lane, LaneConfig, Receipt, State } from "../contract/types.ts";
 import { migrationMetrics } from "../lib/debt.ts";
 import { CATALOG_DIR, LANES_PATH, OUTPUT_PATH, STATE_PATH } from "../lib/vocab.ts";
 import {
   bootstrap,
   candidateTouchesCatalog,
   catalogIndexIsStale,
+  catalogInputDirt,
   catalogIsStale,
   catalogSourcesMatchIndex,
   expectedCatalog,
   normalizeAuthoredArtifacts,
   ratchet,
+  readCatalog,
+  scopedCatalog,
   sync,
   unformattedArtifacts,
   writeCatalog,
@@ -43,9 +46,77 @@ function candidateCatalogErrors(config: LaneConfig, expected: string, changedInd
   return errors;
 }
 
+/** The violations only `--check` can raise: the generated artifact is what a write would land, and the
+ *  hand-authored ones are in the form the repo's own formatter would keep. */
+function checkOnlyErrors(config: LaneConfig, expected: string, changedIndexPaths: ReadonlySet<string> | null): readonly string[] {
+  return [
+    ...(catalogIsStale(expected) ? [`${OUTPUT_PATH}: generated catalog is stale; run pnpm doc-catalog:write`] : []),
+    ...candidateCatalogErrors(config, expected, changedIndexPaths),
+    ...unformattedArtifacts(config).map((path) => `${path}: not in the canonical (biome-formatted) form — run pnpm doc-catalog:write`),
+  ];
+}
+
+/** The whole-tree write's guard (#2165): TRUE when it must not run, having said why. Uncommitted movement
+ *  in the catalog's own inputs means this run would bake a sibling lane's in-flight work into a committed
+ *  artifact under the caller's name — which is what happened, at 184 insertions, after a one-file re-attest. */
+function wholeWriteIsRefused(changedIndexPaths: ReadonlySet<string> | null, worktreePaths: ReadonlySet<string> | null): boolean {
+  const dirt = catalogInputDirt(changedIndexPaths, worktreePaths);
+  if (dirt.length === 0) {
+    return false;
+  }
+  warn(
+    `doc-catalog:write — NOTHING WRITTEN. The whole-tree form regenerates EVERY row from the working tree, and ${String(dirt.length)} of the catalog's own inputs are uncommitted, so this run would bake them into a committed artifact under your name:\n${dirt.map((path) => `  ${path}`).join("\n")}\n  Name the documents instead: pnpm doc-catalog:write --paths <docs…>\n  Or, if you ARE the barrier and the whole tree is yours: pnpm doc-catalog:write --barrier`,
+  );
+  return true;
+}
+
+/** THE SCOPED WRITE DOOR (#2165) — `catalog --write --paths <docs…>`. All-or-nothing, and the refusal
+ *  is the product: a named row that would land a violation is refused with NOTHING WRITTEN, which is the
+ *  half the whole form gets wrong (it exits 1 on pre-existing debt and writes anyway, so `$?` cannot tell
+ *  an operator what happened and they have to read `git diff` instead). Errors about documents the caller
+ *  did NOT name are reported as context and never block — they are somebody else's row. */
+function runScopedWrite(input: {
+  readonly config: LaneConfig;
+  readonly docs: readonly Doc[];
+  readonly receipts: readonly Receipt[];
+  readonly paths: readonly string[];
+  readonly errors: readonly string[];
+  readonly assignments: ReadonlyMap<string, Lane>;
+}): ExitCode {
+  const named = new Set(input.paths);
+  const blocking = input.errors.filter((error) => named.has(error.slice(0, error.indexOf(":"))));
+  const scoped = scopedCatalog({
+    base: readCatalog(),
+    named: input.paths,
+    docs: input.docs,
+    receipts: input.receipts,
+    config: input.config,
+    assignments: input.assignments,
+  });
+  const refusals = [...scoped.refusals, ...blocking];
+  if (refusals.length > 0 || scoped.contents === undefined) {
+    warn(`doc-catalog:write --paths — NOTHING WRITTEN; ${refusals.length} refusal(s):\n${refusals.map((error) => `  ${error}`).join("\n")}`);
+    return EXIT.violations;
+  }
+  writeCatalog(scoped.contents);
+  const elsewhere = input.errors.length - blocking.length;
+  print(
+    `doc-catalog:write — regenerated ${String(named.size)} row(s): ${input.paths.join(", ")}` +
+      (elsewhere > 0 ? ` (${String(elsewhere)} pre-existing violation(s) on documents you did not name were left alone)` : ""),
+  );
+  return EXIT.clean;
+}
+
 /** `pnpm doc-catalog:* / check:doc-catalog`. Exit 1 = the corpus violates the receipt contract or the
- *  generated catalog is stale; the write verbs land the artifact and still report violations. */
-export function runCatalog(mode: CatalogMode): ExitCode {
+ *  generated catalog is stale.
+ *
+ *  THE WHOLE-TREE WRITE IS A BARRIER OPERATION (#2165). It regenerates every row from the working tree,
+ *  so on a busy day it sweeps every document any lane has touched into one commit under whoever ran it —
+ *  measured: a ONE-FILE re-attest followed by this verb produced 184 insertions across every document
+ *  that had changed that day, exit 1 on unrelated debt, and a written file. It now REFUSES while the
+ *  catalog's input closure is dirty unless the caller says `--barrier`, and `--paths` is the everyday
+ *  door. The `--sync`/`--ratchet` writes are unchanged: their subject IS the whole corpus by definition. */
+export function runCatalog(mode: CatalogMode, request: CatalogWriteRequest = { paths: [], barrier: false }): ExitCode {
   const config = json<LaneConfig>(LANES_PATH);
   const docs = documents();
   const assignments = laneAssignments(config, docs);
@@ -65,7 +136,14 @@ export function runCatalog(mode: CatalogMode): ExitCode {
   const state = json<State>(STATE_PATH);
   const expected = expectedCatalog(docs, assignments, receipts);
   const changedIndexPaths = indexChangedPaths();
-  const errors = [...validate({ config, docs, assignments, receipts, state, changedIndexPaths, worktreeIndexChangedPaths: worktreeIndexChangedPaths() })];
+  const worktreePaths = worktreeIndexChangedPaths();
+  const errors = [...validate({ config, docs, assignments, receipts, state, changedIndexPaths, worktreeIndexChangedPaths: worktreePaths })];
+  if (mode === "--write" && request.paths.length > 0) {
+    return runScopedWrite({ config, docs, receipts, paths: request.paths, errors, assignments });
+  }
+  if (mode === "--write" && !request.barrier && wholeWriteIsRefused(changedIndexPaths, worktreePaths)) {
+    return EXIT.violations;
+  }
   if (WRITING_MODES.has(mode)) {
     writeCatalog(expected);
     // #968: the receipts are HAND-attested, so a lane can leave JSON the repo's own formatter rejects —
@@ -76,13 +154,7 @@ export function runCatalog(mode: CatalogMode): ExitCode {
       print(`doc-catalog — reformatted ${path}`);
     }
   } else {
-    if (catalogIsStale(expected)) {
-      errors.push(`${OUTPUT_PATH}: generated catalog is stale; run pnpm doc-catalog:write`);
-    }
-    errors.push(...candidateCatalogErrors(config, expected, changedIndexPaths));
-    for (const path of unformattedArtifacts(config)) {
-      errors.push(`${path}: not in the canonical (biome-formatted) form — run pnpm doc-catalog:write`);
-    }
+    errors.push(...checkOnlyErrors(config, expected, changedIndexPaths));
   }
   if (errors.length > 0) {
     warn(`check:doc-catalog — ${errors.length} violation(s):\n${errors.map((error) => `  ${error}`).join("\n")}`);

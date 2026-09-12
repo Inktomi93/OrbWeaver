@@ -6,7 +6,9 @@ export type {
   AttestInput,
   AttestPlan,
   AttestRefusal,
+  CatalogDocumentRow,
   CatalogMode,
+  CatalogWriteRequest,
   DebtPaths,
   Doc,
   EvidenceSources,
@@ -30,8 +32,11 @@ export {
   authoredArtifacts,
   candidateTouchesCatalog,
   catalogIndexIsStale,
+  catalogInputDirt,
   catalogSourcesMatchIndex,
   offCanonicalPaths,
+  readCatalog,
+  scopedCatalog,
   unformattedArtifacts,
 } from "./ops/catalog.ts";
 export type { FormatOutcome, FormatRefusal } from "./ops/format.ts";

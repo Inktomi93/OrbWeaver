@@ -238,8 +238,11 @@ export function runAttest(selection: readonly string[]): ExitCode {
   for (const path of plan.attested) {
     print(`doc-catalog:attest — re-attested ${path} at ${(commit ?? "").slice(0, SHA_ECHO_LENGTH)}`);
   }
+  // THE CLOSING LINE NAMES THE SCOPED DOOR (#2165). It used to say `pnpm doc-catalog:write`, and an
+  // operator who followed it after a ONE-FILE re-attest got 184 insertions across every document that had
+  // changed that day. The advice line was as much the defect surface as the verb it pointed at.
   print(
-    `doc-catalog:attest — wrote ${String(plan.writes.length)} receipt file(s); stage the documents AND the receipts together, then run pnpm doc-catalog:write`,
+    `doc-catalog:attest — wrote ${String(plan.writes.length)} receipt file(s); stage the documents AND the receipts together, then regenerate JUST these rows:\n  pnpm doc-catalog:write --paths ${plan.attested.join(" ")}`,
   );
   return EXIT.clean;
 }
