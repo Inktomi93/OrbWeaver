@@ -26,6 +26,15 @@
 // family, while an import of THIS collection by a stale-armed module is evidence about THIS collection.
 // Both directions are pinned below, because a door that excuses too much is the same disease as the
 // accusation it replaced.
+//
+// #2168 added the THIRD direction: the import alone did not require the sibling's stale arm to be ABOUT
+// the collection it imports, so a module holding two tables and one unrelated diagnostic excused both.
+// The row prescribed a join on the collection IDENTIFIER and the corpus REFUTES it — measured here on
+// 2026-09-12, all three real excusers name their subject in PROSE ("stale SANCTIONED-HOME row") and none
+// by identifier, so that join reports zero covered pairs and false-accuses every one of them. What all
+// three do carry is the DECLARING MODULE's name, because a stale-arm diagnostic tells its reader which
+// file holds the row. The corpus arm below is what catches that class: a fixture-only pin would have
+// shipped the identifier join green.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
@@ -88,19 +97,21 @@ test("a collection whose stale arm lives in an IMPORTING sibling is two-sided as
   expect(accusedCollections(ORDINARY, mixed)).toEqual(["WAIVED"]);
 });
 
-// THE AFFORDANCE-LEVEL PROOF, and the one that is red-first against the unfixed gate: the two new proof
+// A LOAD-HONEST BUDGET, and this suite earned the lesson TWICE on itself. BOTH tests below walk the whole
+// corpus with ts-morph — the second reads all ~300 modules directly, the first re-runs every proof row
+// through a policy pass — so the budget is shared. Each timed out at vitest's 5s default in turn: the
+// corpus walk when it first ran beside three sibling files, the proof driver the moment one more row
+// landed. A test that reds on LOAD rather than on a defect is the same lie as one that passes on a defect
+// — it just points the other way. The base is ~4x the quiet measurement, scaled by the shared-host profile.
+const CORPUS_WALK_BUDGET = scaledBudget(60_000);
+
+// THE AFFORDANCE-LEVEL PROOF, and the one that is red-first against the unfixed gate: the three proof
 // ROWS are data, so they compile against the old module, and the split-family mustPass row reds there.
 // `gate-conformance.repo.int.test.ts` is the orchestrator's and is `--full`-only, which is exactly how
 // this class stayed invisible; driving this gate's own rows here puts the verdict on a tier a lane runs.
-test("the gate's OWN proof rows hold, including the split-family pair", () => {
+test("the gate's OWN proof rows hold, including the split-family pair", { timeout: CORPUS_WALK_BUDGET }, () => {
   expect(verifyGateProofs([gate])).toEqual([]);
 });
-
-// A LOAD-HONEST BUDGET, and this suite earned the lesson on itself: it parses all ~300 corpus modules with
-// ts-morph, took 5.8s alone and TIMED OUT at vitest's 5s default the first time it ran beside three sibling
-// files. A test that reds on LOAD rather than on a defect is the same lie as one that passes on a defect —
-// it just points the other way. The base is ~4x the quiet measurement, scaled by the shared-host profile.
-const CORPUS_WALK_BUDGET = scaledBudget(60_000);
 
 test("the split-family door is ENGAGED on the real corpus, not just on fixtures", { timeout: CORPUS_WALK_BUDGET }, ({ repoRoot }) => {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
