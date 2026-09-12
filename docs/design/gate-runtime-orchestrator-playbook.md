@@ -189,7 +189,17 @@ tree tells you the moment a fix breaks a row.
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
 
-   **AUDIT STATE — 2026-09-11 evening. Waves 1-9 complete, 101 of 167 modules audited** (wave 9 closed wave 8's open axes on the same 14 modules rather than adding new ones — hence +1, not +14) (wave 8's 25 = 24 fresh + 1 partial re-audit; `origin-server`'s §4.1 cuts and reachability probes are NOT covered and are wave 9's obvious start) (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
+   **THE SWEEP IS OVER — RULED 2026-09-12. Audit only a family you are about to hand a lane as a copy
+   target.** Waves 1-10 audited **112 of 167**; the remaining \~55 do NOT get swept. The reason is #1971:
+   the §5b soundness enforcer landed and MECHANIZED the four defect classes a script can catch (wave 1's
+   D1, D3, D7, D10), and it reports its own worklist on the commit bar. Spending Opus verifier lanes on
+   what a gate now catches every commit is paying twice. What the enforcer still cannot see is §5b.2 (is
+   the `message` TRUE of what the code flags), §5b.5 (does the header record the decisions) and §4.1 (the
+   narrowing CUT) — judgment and mutation — so an audit lane is still the only way to get those, and that
+   is exactly what a copy-target dispatch needs. **\~5 verifier lanes saved; the remaining spine is
+   conversion.**
+
+   **AUDIT STATE — 2026-09-12. Waves 1-10 complete, 112 of 167 modules audited** (wave 9 closed wave 8's open axes on the same 14 modules rather than adding new ones — hence +1, not +14) (wave 8's 25 = 24 fresh + 1 partial re-audit; `origin-server`'s §4.1 cuts and reachability probes are NOT covered and are wave 9's obvious start) (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
 
 | wave | subjects | verdict | narrowings |
 | - | - | - | - |
@@ -199,6 +209,7 @@ tree tells you the moment a fix breaks a row.
 | 4 | raw-CSS / token ×9 | **all nine REFUTED** | 31 cuts → 19 enforced / **10 unenforced (32%)** / 2 unfalsifiable / **0 mutually redundant (MEASURED)** |
 | 5 | `ordinary-visitors` ×15 | **13 REFUTED / 2 confirmed** | 94 cuts → naive 56 clean → **33 UNENFORCED (35%)**; naive over-reports by 41% |
 | 6 | `origin-client` ×12 | **all 12 REFUTED** | 59 cuts → naive 29 clean → **25 UNENFORCED (42%)**; 1 mutually redundant, 3 unfalsifiable |
+| 10 | the BUS plane ×6 + `id-brand-flow` ×5 + 1 re-audit = **12** | **8 REFUTED / 3 CONFIRMED / 1 re-audit CONFIRMED** | 47 cuts → naive 51% → **30% open**, \~71% over-report. **34 of 34 rows carry `count` — a program first.** Third answer reached **0 of 12**. Two HIGH: `no-raw-id`'s private zod reader is blind to a one-hop re-export door (**#2009**), and the roster publishes the RETIRED `@foreign-id-ok` grammar, 3 dead vs 76 live (**#2010**) |
 | 9 | `origin-server` ×14 (the axes wave 8 left open) | **14 REFUTED** | 107 cuts, each with its DIRECTION → naive 46% → **32% UNENFORCED**. **Third answer reached 11 of 14 — best in the program.** Headline is not a proof gap: **FIVE gates ACCUSE CORRECT CODE on unmodified source (#2006, P1)** |
 | 8 | `home-server` 11 + `origin-server` 14 = **25** | **24 REFUTED / 1 partial re-audit** | 46 cuts → naive 19 clean (41%) → **11 UNENFORCED (24%)**, over-report 73%. **Best proof axes ever: 155 of 155 rows carry `count`, 14 of 14 identity arms discriminate, third answer REACHED in 7 of 8.** §5b.5 fails **25 of 25** (no FAMILY line, no POPULATION PORT, no legacy SHA) |
 | 7 | `home-client` ×14 | **13 REFUTED / 1 confirmed-with-repairs** | 85 cuts → naive 29 clean (34%) → **17 UNENFORCED (20%)**, 8 mutually redundant, 4 unfalsifiable. **Naive over-reports by 71%** — the widest gap, caused by declared PERF PREFILTERS that cut clean by design. **71 of 71 rows carry `count`; zero tautologies** |
@@ -293,7 +304,9 @@ here is not permission to dispatch it — check the Phase D gate below first.
 ### THE THREE THAT GATE PHASE D
 
 1. **#1971 — LANDED**, at Verify pending its wave verifier.
-2. **The audit reaches a bar the owner picks.** 62 of 167 audited across six waves. See the copy set below.
+2. ~~**The audit reaches a bar the owner picks.**~~ **RULED 2026-09-12 — the bar is 112 of 167 and the sweep
+   is CLOSED.** From here an audit runs per-dispatch, on the family being handed to a lane, never as a
+   corpus sweep. See the AUDIT STATE block in §2 for the reasoning. **This gate is no longer blocking.**
 3. **#1968 + #1966 + #1972 close.** #1966 and #1972 are DONE; **#1968 is the survivor** — and it is now
    MEASURED AND ENFORCED by `policy-proof-expectations`, which reports its own worklist.
 
@@ -303,6 +316,29 @@ cannot ADD to that backlog.** The 126 is closed, not growing. What #2000 DOES ga
 **do not point a Phase D lane at a SPLIT family as an exemplar until Tier 1 is done.** A `-health` split is precisely
 the shape whose behaviour is reproduced by two policies together with nothing checking the union, and copying that
 shape 104 times before verifying one of them is the defect-multiplication this program exists to prevent.
+
+### THE FIX BACKLOG RIDES ALONG — RULED 2026-09-12, and it collapses \~28 rows into ZERO dispatches
+
+The Ready pile is \~28 gate rows and almost all of it is per-module polish: a message split, a header line,
+a roster row, a missing §4.5 pin, an unenforced narrowing. **None of that gets its own lane any more.** A
+fix row is carried by the lane that is already touching its family — the cold read of the area is the
+expensive part, and paying it twice for a one-line header fix is how a repair loop becomes infinite.
+
+Three consequences, all of them shrinks:
+
+- **A conversion brief now carries its family's open fix rows** as named work, not as a separate dispatch.
+- **`fix lanes split by MODULE` still holds** (§5) — it is about how to split work that IS dispatched, and
+  it does not license dispatching a lane per defect.
+- **A row only earns its own lane when it is a CLASS** (a defect present in N modules through a shared
+  reader) or when it BLOCKS a dispatch. #2009 earned one on the first test; #2010 did not and waits.
+
+### THE ROWS THIS SESSION FILED, and what each is waiting on
+
+| row | what | state |
+| -: | - | - |
+| **#2008** | the DEFERRED roster half is one-sided — 5 rows silently stale. **Carries the full 28-row re-triage.** The "\~10 fired triggers" bucket is a READING task against the enforcement ladder, not a build queue — expected yield near zero | Ready |
+| **#2009** | `no-raw-id`'s private zod reader is blind to a one-hop re-export door; one `export { z } from "zod"` barrel turns the brand gate off, undeclared. Proven by differential against its own family sibling | Running (`p-rawid-door`) |
+| **#2010** | the roster publishes the RETIRED `@foreign-id-ok` grammar (3 dead vs 76 live). THIRD instance of rows whose CONTENT nothing holds | Ready — rides along |
 
 ### HOW BIG IS THE CORPUS, ACTUALLY — the arithmetic nobody had done (2026-09-12)
 
@@ -596,7 +632,11 @@ the column says NO, tell the lane to copy the module's PROOF shape and take its 
 | **`no-raw-matchmedia`** | **reviewed-grant** | wave 1 refuted it SEVERE, it was repaired (`b157bb9be`), and wave 7 re-audited and **confirmed the repair HELD**. The only module in 26 audited (waves 6–7) whose #944 third answer is actually REACHED. **Fix #1998 first** — its header and roster row both say “all four” grants and there are five |
 | `spacing-tier-home-health` | HARD tripwire only | owes one §4.5 pin |
 
-**ANTI-PATTERNS — never point a lane at these:** `no-raw-spacing-in-features`'s HEADER · `no-manual-token-estimate` ·
+**Wave 10 adds one of each.** COPY: **`bus-definition-belts`** (bus plane; the bus headers are among the
+corpus's best). ANTI-pattern: **`no-raw-id`** — a private zod reader sitting BESIDE the shared one its own
+family sibling uses, blind to a one-hop re-export door (#2009).
+
+**ANTI-PATTERNS — never point a lane at these:** `no-raw-id` (#2009) · `no-raw-spacing-in-features`'s HEADER · `no-manual-token-estimate` ·
 `no-inline-types` · `zod-modern-spellings` · `persistence-boundary` · `no-rejected-cors-proxy` (**these four were REPAIRED at `8ad418868` — re-derive before trusting this line**) · `no-effect-on-shared-selection` (it writes `=== "home"` against a THREE-answer reader, converting the third answer back into silence, unpinned in both directions).
 
 ### OWED TO THE ORCHESTRATOR AT A QUIET BARRIER — no lane may run these
@@ -800,6 +840,23 @@ idle composed-pass remeasurement; catalog re-attest.
 
 ## 5. Lessons that bind (each paid for at least once; the incidents are in the memory hub)
 
+- **A GATE ROSTER IS NOT THE ENFORCEMENT SURFACE — absence from it is evidence of nothing** (owner
+  correction, 2026-09-12, on my own filing). I read `Core-Enforcement-Deferred-Dropped.md`, found
+  `asset-owner-gated` ("per-user CAS, never serves on bare row-existence, D21 no leaks ever") with its
+  trigger fired and no gate of that name, read `blob.ts` far enough to confirm the BEHAVIOUR was correct,
+  and filed it as a placement held by prose. The owner's answer was one line: *"we already have a similar
+  new gate to that."* It is proven at the BEHAVIOURAL tier —
+  `tests/server/transport/cross-tenant-sweep.suite.int.test.ts:1321` reasons about that exact route, and
+  the sweep fails any procedure that is neither PROBED nor EXEMPT(reason). It is there BY DESIGN:
+  `table-scoping-class`'s own roster row delegates to it (*"the membership rung is control-flow-dependent
+  and the cross-tenant behavioral sweep stays that proof"*). Building the gate would have been a SECOND
+  answer to a question one home already owns. **Constitution §2.2 makes enforcement a LADDER** —
+  resolve-time (package deps) → compile-time (branded types, exhaustive unions) → lint-time
+  (biome/dep-cruiser/gates) → test-time — and §2.3 requires a placement to name its enforcer at SOME tier,
+  not at the gate tier. So before filing any "X is unenforced" row: **ask which TIER holds it**, and check
+  the behavioural suites for a control-flow-dependent or per-request property, because that is where the
+  doctrine PUTS those. This is the namesake trap one level out: there, a matching name was not a matching
+  gate; here, a missing gate was not a missing guarantee.
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
 - **CLAIM AT DISPATCH. It bit TWICE on 2026-09-11 and the second time was after I had already named it.** A row
   dispatched without `claim` sits at **Ready with no Lane while an agent builds it** — invisible in-flight work, and
