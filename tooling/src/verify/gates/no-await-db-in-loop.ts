@@ -6,6 +6,7 @@
 // inside a nested callback is not executed by the loop body. DECLARED LIMITS live in the mustPass rows.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GatePolicyNodeFindingDetails } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 
@@ -26,6 +27,13 @@ const FIX =
   "serialization is DELIBERATE — heartbeats, backpressure over a bound-variable cap, per-row error " +
   "observation — attach `@orb-waive no-await-db-in-loop(<the reported method>): <why one round trip per " +
   "iteration is the intent, and what would end it>` to that exact occurrence.";
+
+/** THE FAIL-CLOSED THIRD ANSWER (#944) on the verb-vocabulary backstop, a SEPARATE text rather than a
+ *  `${MESSAGE} …` suffix: the unreadable arm reports the same single finding under the same token as the
+ *  drizzle verdict and differs ONLY in message, so a shared prefix would leave both arms unpinnable in
+ *  either direction (guide §4.1). The two texts are disjoint. */
+const UNREADABLE =
+  "an awaited call inside a loop names a query verb on a receiver the checker cannot bind, so whether it is a Drizzle round trip CANNOT be established. Reported rather than silently admitted: an untyped seam is exactly where a real db handle hides, and the spelling alone is not the identity.";
 
 /** Legacy `scanRoot` was `!(p.includes(".test.") || p.startsWith("tests/"))` over the whole harness corpus;
  *  the nine authored roots minus the test tree and every `*.test.*` basename is the same admitted set. */
@@ -63,6 +71,14 @@ function waiverCarrier(node: MorphNode): object {
     parent = current.getParent();
   }
   return current.compilerNode;
+}
+
+/** A bracket-spelled member's name node is the STRING LITERAL, so the authored token starts one character
+ *  in; deriving the offset from the node's own text covers both spellings. The fail-closed arm carries the
+ *  disjoint `UNREADABLE` text — the only thing that distinguishes it from the drizzle verdict. */
+function findingDetails(method: string, anchor: MorphNode, unreadable: boolean): GatePolicyNodeFindingDetails {
+  const offset = anchor.getText().indexOf(method);
+  return unreadable ? { token: method, offset, message: UNREADABLE } : { token: method, offset };
 }
 
 export const gate = defineGate({
@@ -113,7 +129,7 @@ export const gate = defineGate({
             const method = verdict.method as string;
             // A bracket-spelled member's name node is the STRING LITERAL, so the authored token starts one
             // character in; deriving the offset from the node's own text covers both spellings.
-            ctx.report.node(anchor, { token: method, offset: anchor.getText().indexOf(method) });
+            ctx.report.node(anchor, findingDetails(method, anchor, failClosed));
           },
         },
       ],
@@ -178,8 +194,8 @@ export const gate = defineGate({
         "packages/server/src/domain/x/persistence/untyped.ts":
           "export async function f(db: Record<string, (table: unknown) => Promise<void>>, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db.insert({});\n  }\n}\n",
       },
-      expect: { count: 1, token: "insert" },
-      why: "FAIL-CLOSED — the backstop's control: an INDEX-SIGNATURE receiver gives the checker no named property symbol for `insert`, so the drizzle claim cannot be proven either way. An unprovable query-verb call inside a loop is reported rather than silently admitted, because an untyped seam is exactly where a real handle hides",
+      expect: { count: 1, token: "insert", messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944) — the backstop's control: an INDEX-SIGNATURE receiver gives the checker no named property symbol for `insert`, so the drizzle claim cannot be proven either way. An unprovable query-verb call inside a loop is reported rather than silently admitted, because an untyped seam is exactly where a real handle hides. The row REACHED the arm before #2041 but could not PROVE it: the `messageIncludes` is the addition, because the unreadable arm emits the SAME single finding under the SAME token as the drizzle verdict and differed only in the descriptor message, so the old `{ count: 1, token }` passed identically whether the backstop fired or the `local-method.ts` identity arm did",
     },
   ],
   mustPass: [

@@ -28,6 +28,12 @@ const FIX =
   "discovery-no-stats-rollups(<position>): <reason>` on the line above, where <position> is the rollup " +
   "identifier's own name (e.g. `ownerStats`, `characterStats`, `dailyStats`, `modelStats`).";
 
+/** THE FAIL-CLOSED THIRD ANSWER (#944), a SEPARATE text rather than a `${MESSAGE} …` suffix: the unreadable
+ *  arm reports the same single finding the sealed verdict does and differs ONLY in message, so a shared
+ *  prefix would leave both arms unpinnable in either direction (guide §4.1). The two texts are disjoint. */
+const UNREADABLE =
+  "a rollup table NAME reached through a door the shared readers cannot place — whether this binds the stats schema's own table CANNOT be established, so a seam an unreadable barrel can walk through is reported rather than admitted. The spelling alone is not the identity.";
+
 /** Legacy `scanRoot` tested `/packages\\/server\\/src\\/domain\\/discovery\\//` against the repo path; the
  *  `@server` root plus this `under` glob admits exactly that set. */
 const DISCOVERY_POPULATION = { in: ["@server"], under: ["packages/server/src/domain/discovery/**"] } as const;
@@ -72,9 +78,15 @@ export const gate = defineGate({
           // reported (a seam an unreadable barrel can walk through is not a seam), while a candidate that
           // provably binds something else — a local object's key, a project interface's property — is not a
           // subject at all. `readSealedOrigin` returns the VERDICT; `sealedOriginReports` is the decision.
-          if (sealedOriginReports(readSealedOrigin(hit.anchor, STATS_ROLLUP_HOME), hit.anchor)) {
-            ctx.report.node(hit.anchor, { token: hit.name, offset: hit.anchor.getText().indexOf(hit.name) });
+          const verdict = readSealedOrigin(hit.anchor, STATS_ROLLUP_HOME);
+          if (!sealedOriginReports(verdict, hit.anchor)) {
+            return;
           }
+          // Past the decision, `unresolved` can only be the UNREADABLE half of it — a `foreign` verdict
+          // already returned and a refusal that provably binds elsewhere is not a subject.
+          const unreadable = verdict.kind === "unresolved";
+          const offset = hit.anchor.getText().indexOf(hit.name);
+          ctx.report.node(hit.anchor, unreadable ? { token: hit.name, offset, message: UNREADABLE } : { token: hit.name, offset });
         },
       },
     ],
@@ -126,8 +138,8 @@ export const gate = defineGate({
       files: {
         "packages/server/src/domain/discovery/persistence/unreadable.ts": 'import { ownerStats } from "./missing.ts";\nexport const t = ownerStats;\n',
       },
-      expect: { count: 1, token: "ownerStats" },
-      why: "FAIL-CLOSED — a rollup name whose door does not resolve is reported rather than admitted; the seam must not be walkable through an unreadable module",
+      expect: { count: 1, token: "ownerStats", messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944) — a rollup name whose door does not resolve is reported rather than admitted; the seam must not be walkable through an unreadable module. The row REACHED the arm before #2041 but could not PROVE it: the `messageIncludes` is the addition, because the unreadable arm emits the SAME single finding under the same token as the sealed verdict and differs only in message, so the old `{ count: 1, token }` passed identically whether the arm fired or was failed open",
     },
   ],
   mustPass: [

@@ -25,10 +25,24 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { ModuleMemberOrigin } from "../contract/reference-fact.ts";
 import { ID_BRAND_HOME } from "../lib/id-brand.ts";
+import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { idCastProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE = "an id-named Zod field is a raw string — use `typeIdSchema(ID_PREFIX.x)` or `brandedId<T>()` so the validated output preserves identity.";
+/** THE FAIL-CLOSED THIRD ANSWER (#944, added #2041), textually DISJOINT from `MESSAGE` rather than a
+ *  `${MESSAGE} …` suffix: the unreadable arm reports the same single finding under the same token as the
+ *  zod verdict and differs ONLY in message, so a shared prefix leaves both arms unpinnable (guide §4.1).
+ *
+ *  Until #2041 `isZodString` answered an unresolved builder root with `false` — an id field whose schema the
+ *  checker COULD NOT READ was silently admitted. The refusal now routes through the shared classifier, which
+ *  is the whole distinction: a root that PROVABLY binds a local object's method, a parameter or a project
+ *  declaration is a different builder and still passes (the `local same-named builder` mustPass row is
+ *  exactly that shape and a blanket flip reds it). Measured on the live tree before the flip: 603 candidate
+ *  `*Id:` call-rooted properties across the authored corpus — 510 resolved, 93 refusing as case (a), 0
+ *  unreadable — so the flip costs zero live findings. */
+const UNREADABLE =
+  "an id-named field is built by a chain whose ROOT call the shared readers cannot place, so whether it is a raw Zod string CANNOT be established. Reported rather than admitted: a brand-preserving boundary an unreadable builder can walk through is not one.";
 
 function memberReceiver(node: MorphNode): MorphNode | undefined {
   const callee = Node.isCallExpression(node) ? node.getExpression() : node;
@@ -54,17 +68,18 @@ function moduleName(target: ModuleMemberOrigin): string {
 
 /** Zod's `string` builder, reached as the bare export (`import { string } from "zod"`) or off the `z` object
  *  under any binding spelling — alias, namespace, computed member, or a re-export barrel. */
-function isZodString(root: CallExpression): boolean {
+function zodStringVerdict(root: CallExpression): "zod" | "other" | "unreadable" {
   const origin = resolveCallableOrigin(root);
   if (origin.kind === "unresolved") {
-    return false;
+    return classifyOriginRefusal(origin.reason, root.getExpression());
   }
   const target = origin.value.target;
   if (target.kind !== "module" || moduleName(target) !== "zod") {
-    return false;
+    return "other";
   }
   const path = [target.exportedName, ...target.memberPath];
-  return path.length === 1 ? path[0] === "string" : path.length === 2 && path[0] === "z" && path[1] === "string";
+  const named = path.length === 1 ? path[0] === "string" : path.length === 2 && path[0] === "z" && path[1] === "string";
+  return named ? "zod" : "other";
 }
 
 function idProperty(node: MorphNode): { readonly name: string; readonly nameNode: MorphNode; readonly initializer: MorphNode } | null {
@@ -96,8 +111,16 @@ export const gate = defineGate({
         visit: (node) => {
           const property = idProperty(node);
           const root = property === null ? null : builderRoot(property.initializer);
-          if (property !== null && root !== null && isZodString(root)) {
+          if (property === null || root === null) {
+            return;
+          }
+          const verdict = zodStringVerdict(root);
+          if (verdict === "zod") {
             ctx.report.node(property.nameNode, { token: property.name, offset: 0 });
+            return;
+          }
+          if (verdict === "unreadable") {
+            ctx.report.node(property.nameNode, { token: property.name, offset: 0, message: UNREADABLE });
           }
         },
       },
@@ -127,6 +150,12 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "ownerId" },
       why: "RED-FIRST (§4.7 planted break: this row reported 0 against the pre-conversion private import-specifier walk). The Zod door is an IDENTITY question, so one re-export barrel in contracts must not turn the policy off for every file importing through it",
+    },
+    {
+      mode: "types",
+      files: { "packages/contracts/src/opaque.ts": "declare const wire: any;\nexport const schema = { userId: wire.string().optional() };\n" },
+      expect: { count: 1, token: "userId", messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), and until #2041 this policy FAILED OPEN here: the builder ROOT is a member read off an OPAQUE `any`-typed receiver, so its leaf binds no declaration at all and `classifyOriginRefusal` answers case (b) — an id boundary whose schema cannot be read is REPORTED rather than admitted. It is the exact complement of the `local same-named builder` mustPass row, which is why the refusal is SCOPED and not blanket: a local object's `string` method provably binds a property assignment and still passes, while no binding at all is no evidence. The `messageIncludes` is the whole row — the unreadable arm emits the SAME single finding under the SAME token as the zod verdict",
     },
   ],
   mustPass: [

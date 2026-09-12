@@ -1,4 +1,15 @@
 // Reject casts that erase type checking or launder a value directly into a canonical id brand.
+//
+// NO #944 THIRD ANSWER EXISTS HERE, audited #2041 — recorded rather than faked. Both arms are decided
+// without a reference-origin reader, so there is no refusal to classify: `as never` is pure syntax, and the
+// brand arm asks the CHECKER for the target type's `[brand]` property, which answers "this type does not
+// carry the canonical brand" and never "I could not read this type". The construction attempted was
+// `value as unknown as Missing` with `Missing` unimported: the checker hands back an error type, whose
+// property list is empty, and that is literally indistinguishable from every legitimate non-brand target
+// (`as unknown as string`, `as unknown as Row`) — so a fail-closed arm here would accuse the whole
+// population rather than the unreadable subset. The identity is held by tsc, one tier up the enforcement
+// ladder, not by a shared origin reader. Its family siblings (`no-mint-via-cast`, `no-fake-disabled-id`,
+// `no-raw-id`) DO resolve origins and each carries the arm with a `messageIncludes` row.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";

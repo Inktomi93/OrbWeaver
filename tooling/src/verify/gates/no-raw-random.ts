@@ -35,6 +35,11 @@ const MESSAGE =
   "ambient Math.random() — determinism: inject a seeded PRNG / the seeded id generator instead (the same " +
   "seam tests pin). (Spine-Testing.md §3, UI-Gates-and-Lessons.md §11.5)";
 const FIX = "take an injected PRNG (the seeded generator threaded from the composition root) instead of drawing from the ambient `Math.random`.";
+/** THE FAIL-CLOSED THIRD ANSWER (#944), a SEPARATE text rather than a `${MESSAGE} …` suffix: the unreadable
+ *  arm produces the SAME finding count as the ambient verdict and differs only in message, so a shared
+ *  prefix leaves neither arm pinnable in either direction (guide §4.1). The two texts are disjoint. */
+const UNREADABLE =
+  "a call spelled like the ambient generator has a callee the shared readers cannot place, so whether it draws entropy from the runtime CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 
 /** THE CANDIDATE PREFILTER (perf): two arms cover every spelling that reaches the ambient generator under
  *  the name `random` — a `random` MEMBER read (every dotted/optional/computed spelling) and a BARE
@@ -69,7 +74,7 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const draws = new Map<string, MorphNode>();
+    const draws = new Map<string, { readonly node: MorphNode; readonly unreadable: boolean }>();
     return {
       visitors: [
         {
@@ -79,19 +84,21 @@ export const gate = defineGate({
               return;
             }
             // FAIL-CLOSED on an unreadable callee; a callee that PROVABLY binds an injected PRNG passes.
-            if (readAmbientInvocation(node, AMBIENT_RANDOM).kind === "other") {
+            const verdict = readAmbientInvocation(node, AMBIENT_RANDOM);
+            if (verdict.kind === "other") {
               return;
             }
             const subject = ctx.relativePath(sourceFile);
             if (!draws.has(subject)) {
-              draws.set(subject, node);
+              draws.set(subject, { node, unreadable: verdict.kind === "unreadable" });
             }
           },
         },
       ],
       evaluate: () => {
-        for (const [subject, node] of [...draws].toSorted(([left], [right]) => left.localeCompare(right))) {
-          ctx.report.node(node, { subject, operation: OPERATION, message: `${MESSAGE} Drawer: ${subject}.`, fix: FIX });
+        for (const [subject, found] of [...draws].toSorted(([left], [right]) => left.localeCompare(right))) {
+          const message = found.unreadable ? `${UNREADABLE} Drawer: ${subject}.` : `${MESSAGE} Drawer: ${subject}.`;
+          ctx.report.node(found.node, { subject, operation: OPERATION, message, fix: FIX });
         }
       },
     };
@@ -145,6 +152,15 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "the DESTRUCTURED global — the shared global reader resolves a binding element to its receiver's member, so this is the same generator one binding later",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/feature/opaque.ts":
+          "declare function opaque(): any;\nexport function rollDice(): number {\n  return opaque().random();\n}\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no declared row before #2041: the `random` member prefilter admits it, and off an OPAQUE `any`-typed receiver the leaf binds no declaration at all, so `classifyOriginRefusal` answers case (b) and the draw is REPORTED rather than passed on the strength of its spelling. It is the exact complement of the `shadow.ts` mustPass row — a LOCAL object's `random` is a proven different declaration and passes, no declaration at all is no evidence and fails closed. The `messageIncludes` is what separates them: the unreadable arm emits the SAME single finding as the ambient verdict",
     },
   ],
   mustPass: [

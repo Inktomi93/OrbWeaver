@@ -4,10 +4,23 @@
 // imported `Map` implementation are different constructors and pass, while `globalThis.Map` and an
 // immutable alias of the global are the same one. A constructor SPELLED like a global whose binding the
 // checker cannot resolve at all is fail-closed. DECLARED LIMITS live in the mustPass rows.
+//
+// THE THIRD ANSWER (#944, repaired #2041) — and the repair is a CORRECTION, not an addition. The arm was
+// `declarationOf(callee).kind === "unresolved"`, which no fixture could ever reach: the conformance harness
+// builds its virtual project with ts-morph's `useInMemoryFileSystem`, which LOADS the default lib files, so
+// a bare `Map` always binds `declare var Map` and always took the ambient arm. The row that advertised the
+// arm (`unbound.ts`, "with no ambient library loaded the checker binds no declaration for `Map` at all")
+// was therefore green through the ORDINARY verdict, and a `throw` planted in the fail-closed branch red
+// nothing. Worse, the predicate ACQUITTED the one shape it existed for: `import { Map } from "./missing.ts"`
+// binds an ImportSpecifier, so `declarationOf` answered "resolved" and an unreadable door named `Map` walked
+// straight through. The arm now asks the shared module-member reader and routes its refusal through
+// `classifyOriginRefusal`: a resolvable import is a different constructor and passes, a local class is a
+// different constructor and passes, and only a door with no reachable target is reported.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin } from "../lib/reference-fact.ts";
+import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
+import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 const IN_MEMORY_GLOBALS = new Set(["Map", "Set", "WeakMap", "WeakSet"]);
 
@@ -21,6 +34,12 @@ const FIX =
   "over the row set this call just returned, which does not survive the call — attach " +
   "`@orb-waive persistence-no-in-memory-state(<the reported constructor>): <why it is call-local, and what " +
   "would end it>` to that exact occurrence.";
+
+/** THE FAIL-CLOSED THIRD ANSWER (#944), a SEPARATE text rather than a `${MESSAGE} …` suffix: the unreadable
+ *  arm reports the same single finding under the same token as the ambient verdict and differs ONLY in
+ *  message, so a shared prefix would leave both arms unpinnable in either direction (guide §4.1). */
+const UNREADABLE =
+  "a collection constructor spelled like an ambient global enters through a door with no reachable target, so whether it is the runtime's own Map/Set/WeakMap/WeakSet CANNOT be established. Reported rather than admitted by a broken door: the spelling alone is not the identity.";
 
 /** Legacy `scanRoot` was `p.includes("/persistence/") && !p.includes(".test.") && !p.startsWith("tests/")`;
  *  the nine authored roots under any `persistence/` directory, minus the test tree and every `*.test.*`
@@ -81,9 +100,13 @@ export const gate = defineGate({
           }
           // NOT AMBIENT. A constructor that resolves to a DECLARATION — a local class, an imported
           // implementation — is a different constructor and is acquitted; that is the identity claim. A
-          // constructor with NO declaration at all is unprovable, and the spelling is fail-closed.
-          if (Node.isIdentifier(callee) && referenceResolutionServices.declarationOf(callee).kind === "unresolved") {
-            ctx.report.node(spelled.anchor, { token: spelled.name, offset: spelled.anchor.getText().indexOf(spelled.name) });
+          // constructor with NO reachable declaration is unprovable, and the spelling is fail-closed.
+          const moduleOrigin = resolveModuleMemberOrigin(callee);
+          if (moduleOrigin.kind !== "unresolved") {
+            return;
+          }
+          if (classifyOriginRefusal(moduleOrigin.reason, callee) === "unreadable") {
+            ctx.report.node(spelled.anchor, { token: spelled.name, offset: spelled.anchor.getText().indexOf(spelled.name), message: UNREADABLE });
           }
         },
       },
@@ -122,9 +145,12 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "packages/server/src/domain/feature/persistence/unbound.ts": "export const cache = new Map<string, string>();\n" },
-      expect: { count: 1, token: "Map" },
-      why: "FAIL-CLOSED — with no ambient library loaded the checker binds no declaration for `Map` at all. Unprovable is not innocent: the constructor is reported rather than admitted by a broken environment",
+      files: {
+        "packages/server/src/domain/feature/persistence/unreadable-door.ts":
+          'import { Map } from "./missing.ts";\nexport const cache = new Map<string, string>();\n',
+      },
+      expect: { count: 1, token: "Map", messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), and this row REPLACES a green-for-the-wrong-reason one (#2041). Its predecessor was a bare `new Map()` whose `why` claimed 'no ambient library is loaded' — but the conformance harness builds its project with ts-morph's `useInMemoryFileSystem`, which loads the default lib files, so `Map` bound `declare var Map` and the row was passing through the ORDINARY arm; a `throw` planted in the fail-closed branch red nothing at all. The genuine unreadable shape is an import DOOR that names the global's spelling and resolves to nothing: the specifier is still a module-alias declaration, `bindsProvenNonModuleDeclaration` is false, and the refusal fails closed. The OLD predicate acquitted exactly this — it asked only whether a declaration existed, and an ImportSpecifier is one",
     },
   ],
   mustPass: [
