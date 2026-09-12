@@ -198,5 +198,36 @@ export const gate = defineGate({
       },
       why: "the destructured twin of that counterfactual — a non-zod `issues` binding, which the legacy alias-following reader also had to exclude by hand",
     },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodError {\n  readonly issues: readonly { readonly path: readonly string[]; readonly message: string }[];\n}\n",
+        "packages/contracts/src/anchor.ts": "export const use = (): number => 1;\n",
+        "tooling/src/verify/ops/render.ts":
+          'import type { ZodError } from "zod";\nexport function summarize(parsed: { error: ZodError }): string {\n  return parsed.error.issues.map((issue) => issue.message).join("; ");\n}\n',
+      },
+      why: 'THE POPULATION FENCE (`population: "@packages"`), which nothing exercised: the SAME zod-declared `issues` read the founding `mustFlag` reports, written in `tooling/` — the instrument tree, which is above the package cake and is not what the legacy `scanRoot` admitted either. Widen the root and this row flags. The clean `packages/contracts` file is the in-population ANCHOR: a falsifier holding only the out-of-population file admits zero paths and comes back a `[population]` TOOL ERROR',
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodError {\n  readonly issues: readonly { readonly path: readonly string[]; readonly message: string }[];\n  readonly message: string;\n}\n",
+        "packages/contracts/src/other-member.ts":
+          'import type { ZodError } from "zod";\nexport function summarize(parsed: { error: ZodError }): string {\n  return parsed.error.message;\n}\n',
+      },
+      why: "THE MEMBER-NAME CLAUSE of `isIssuesMemberRead` (`member.value.name === ISSUES`), the converse of the two counterfactuals above and the half neither reaches: this read IS declared by the installed zod package, so `isZodIssuesProperty` says yes — only the NAME test rejects it. Reading `ZodError.message` is not the path-losing `issues` join this law is about. Cut the name test and this row flags",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodError {\n  readonly issues: readonly { readonly path: readonly string[]; readonly message: string }[];\n  readonly message: string;\n}\n",
+        "packages/contracts/src/destructure-other.ts":
+          'import type { ZodError } from "zod";\nexport function summarize(parsed: { error: ZodError }): string {\n  const failure = parsed.error;\n  const { message } = failure;\n  return message;\n}\n',
+      },
+      why: "the destructured twin of the clause above (`property !== ISSUES` in `isIssuesDestructure`), which is a SEPARATE test in a separate function: the binding resolves to a zod-declared member, so `declaredByPackage` says yes, and only the property-name comparison rejects it. Cut that comparison and this row flags — the member-read cut beside it leaves this row green, so the two clauses are pinned by disjoint rows",
+    },
   ],
 });

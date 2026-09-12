@@ -4,6 +4,7 @@
 // policies' whole authority rests on.
 import { Project, ScriptTarget } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
+import { tanstackReactFormProof } from "../../../../tooling/src/verify/gates/_proof/client-vendors.ts";
 import { gate as boundFieldViaHook } from "../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
 import { gate as chatStreamWritesInBusOnly } from "../../../../tooling/src/verify/gates/chat-stream-writes-in-bus-only.ts";
 import { gate as clientCacheSurgeryOnlyInData } from "../../../../tooling/src/verify/gates/client-cache-surgery-only-in-data.ts";
@@ -287,6 +288,84 @@ test("a grant row that matches nothing after a complete run is STALE", () => {
 
   expect(stale.authority.effectiveFindings).toEqual([]);
   expect(stale.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: BUS_GRANT.id }]);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// CANONICAL-OPERATION KEYING (#1997 class — wave 7 D4). `no-direct-useform` keys its grant operation on the
+// CANONICAL export (`exportedName ?? name`), never on the local spelling, so an ALIASED import must consume
+// the SAME row as the plain one. That was a CODE COMMENT with nothing behind it: a proof row cannot reach
+// it, because `verifyPolicyProofs` runs with `reviewedGrants: []` and therefore never keys a grant at all.
+// Pinned here on the real policy, in both directions.
+// ---------------------------------------------------------------------------------------------------
+const FORM_GRANT = {
+  id: "no-direct-useform:proof",
+  policyId: "no-direct-useform",
+  subject: "packages/client/src/forms/editor/toolkit.ts",
+  operation: "tanstack-form-mint:useForm",
+  why: "the proof's stand-in for the toolkit's own mint row",
+  endsWhen: "the pin no longer calls the mint",
+};
+
+test("no-direct-useform keys its grant on the CANONICAL export, so an ALIASED mint consumes the plain row", () => {
+  const aliased = passOf(
+    noDirectUseform,
+    {
+      ...tanstackReactFormProof(),
+      "packages/client/src/forms/editor/toolkit.ts":
+        'import { useForm as buildForm } from "@tanstack/react-form";\nexport const t = (): unknown => buildForm();\n',
+    },
+    [FORM_GRANT],
+  );
+
+  // The call is spelled `buildForm`. Keyed on the spelling it would produce `tanstack-form-mint:buildForm`,
+  // the row would match nothing, and the finding would stand while the row alarmed STALE.
+  expect(aliased.authority.effectiveFindings).toEqual([]);
+  expect(aliased.authority.grantedFindings).toHaveLength(1);
+  expect(aliased.authority.reviewedGrantConsumption).toEqual([{ id: FORM_GRANT.id, count: 1 }]);
+  expect(aliased.authority.authorityAlarms).toEqual([]);
+});
+
+test("the same row keyed on the LOCAL spelling licenses nothing — the control that makes the arm above a measurement", () => {
+  const spelled = passOf(
+    noDirectUseform,
+    {
+      ...tanstackReactFormProof(),
+      "packages/client/src/forms/editor/toolkit.ts":
+        'import { useForm as buildForm } from "@tanstack/react-form";\nexport const t = (): unknown => buildForm();\n',
+    },
+    [{ ...FORM_GRANT, operation: "tanstack-form-mint:buildForm" }],
+  );
+
+  expect(spelled.authority.effectiveFindings).toHaveLength(1);
+  expect(spelled.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: FORM_GRANT.id }]);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// MESSAGE / UNREADABLE DISJOINTNESS (wave 7 D8). `no-raw-matchmedia` is the one module in this family that
+// proves its fail-closed arm by MESSAGE, and every such pin is a SUBSTRING test: an edit folding the base
+// message into the unreadable one (`const UNREADABLE = `${MESSAGE} …``) leaves every `messageIncludes` row
+// green while destroying the arm's only discriminator. No proof row can catch that — a row asserts what a
+// message CONTAINS, never what it excludes — so the equality lives here, on the EMITTED text of one run
+// that produces both verdicts.
+// ---------------------------------------------------------------------------------------------------
+test("the ordinary and fail-closed messages are DISJOINT — neither contains the other", () => {
+  const mixed = domlessPassOf(ROOT_SPELLINGS);
+  // The reviewed-grant reporter appends a per-finding `Subject: …, operation: …, line(s): …` tail, so the
+  // comparison is on the POLICY-AUTHORED base alone; keeping the tail would make every message distinct for
+  // a reason that has nothing to do with the arm.
+  const bases = new Set(mixed.authority.effectiveFindings.map((finding) => (finding.message ?? "").split(" Subject: ")[0] ?? ""));
+  const unreadable = [...bases].filter((text) => text.includes("CANNOT be established"));
+  const ordinary = [...bases].filter((text) => !text.includes("CANNOT be established"));
+
+  // The control: this run must actually carry BOTH verdicts, or the assertions below are vacuous.
+  expect(bases.size).toBe(2);
+  expect(unreadable).toHaveLength(1);
+  expect(ordinary).toHaveLength(1);
+
+  // THE PIN. Folding the base message into the unreadable one (`const UNREADABLE = `${MESSAGE} …``) leaves
+  // every `messageIncludes: "CANNOT be established"` row green and destroys the arm's only discriminator.
+  expect(unreadable[0]?.includes(ordinary[0] ?? "")).toBe(false);
+  expect(ordinary[0]?.includes(unreadable[0] ?? "")).toBe(false);
 });
 
 test("a grant row keyed on the WRONG operation licenses nothing", () => {

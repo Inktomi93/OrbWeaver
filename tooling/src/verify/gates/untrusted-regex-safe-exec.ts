@@ -113,6 +113,16 @@ export const gate = defineGate({
       files: {
         "packages/server/src/kit/regex/index.ts":
           "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
+        [COMPOSE_ANCHOR]:
+          'import { createRegexTest } from "../../kit/regex/index.ts";\nexport const chat = {\n  testRegexKey: createRegexTest(),\n  matchLabel: (regex: RegExp, haystack: string): boolean => regex.test(haystack),\n};\n',
+      },
+      why: "THE CANONICAL-PROPERTY FENCE (`node.getName() !== PROPERTY`), which nothing exercised: a SECOND property on the same composed object, at the same anchor file, whose initializer is a bare native `.test` with no deadline — the exact shape `mustFlag[0]` reports when it sits at `testRegexKey`. Only the property NAME separates them, and this law's subject is the ONE named execution boundary, not every predicate composed beside it. Cut the name test and this row flags. NOTE what is NOT under test here: the `safe` verdict's ACQUITTING polarity (`readSealedOrigin(callee, REGEX_KIT_HOME).kind === \"sealed\"`) is deliberate on a hard security-adjacent policy — only a PROVEN sealed origin acquits, and an unreadable callee REPORTS, which `mustFlag[1]` pins. Scoping that refusal would weaken the policy, so it stays exactly as written",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/kit/regex/index.ts":
+          "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
         [COMPOSE_ANCHOR]: 'import { createRegexTest as guarded } from "../../kit/regex/index.ts";\nexport const chat = { testRegexKey: guarded() };\n',
       },
       why: "THE ALIAS: the same declaration under another local name is the same watchdog. The legacy reader required the callee text AND an import declaration naming `#kit/regex` with that exact named import, so this safe composition would have RED",

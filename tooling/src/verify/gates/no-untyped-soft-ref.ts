@@ -144,7 +144,15 @@ export const gate = defineGate({
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { id: text("id").primaryKey(), name: text("name") });\n',
       },
-      why: 'a PRIMARY KEY id and a non-id column are not soft refs — the pk exemption is the resolved operation, not a `.includes(".primaryKey(")` text probe',
+      why: "neither column is in subject at all: `id` does not match the `/Id$/` key shape and `name` is not id-named, so this row exits at the KEY test and never reaches the pk clause. It is the founding shape's green twin, and its `why` used to claim the primary-key exemption — which the row below is what actually proves",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { widgetId: text("widget_id").primaryKey() });\n',
+      },
+      why: "THE PRIMARY-KEY EXEMPTION (`!column.primaryKey`), and it is the only row that reaches it: the key ends `Id`, the builder is `text`, and there is no `.references()` — every other clause of `isSoftReference` says FINDING, so the pk operation alone acquits it. A row's own key IS its referent, so D24's FK obligation cannot apply to it. Cut the clause and this row flags. The exemption is the RESOLVED drizzle operation, never a `.includes(\".primaryKey(\")` text probe",
     },
     {
       mode: "types",

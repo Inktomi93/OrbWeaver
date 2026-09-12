@@ -90,6 +90,15 @@ export const gate = defineGate({
     },
     {
       mode: "source",
+      files: {
+        "packages/server/src/domain/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
+        "packages/server/src/domain/x/contract.ts": "export interface Foo {\n  readonly x: string;\n}\n",
+        "packages/server/src/domain/x/verb.test.ts": "export interface Bar {\n  readonly y: string;\n}\n",
+      },
+      why: 'THE TWO `notNamed` SPELLINGS, neither of which any row reached: the SINGLE-FILE type home (`contract.ts`, the flat spelling beside the `contract/` directory the row above covers) and the TEST MIRROR (`*.test.ts`). Both carry the exact exported interface the founding `mustFlag` reports, and both are subtracted by NAME rather than by directory — the `notUnder: ["**/contract/**"]` clause reaches neither. Drop either entry and this row flags. The clean `anchor.ts` is the in-population ANCHOR: a falsifier holding only subtracted files admits zero paths and comes back a `[population]` TOOL ERROR rather than a finding',
+    },
+    {
+      mode: "source",
       files: { "packages/server/src/domain/x/verb.ts": "interface Foo {\n  readonly x: string;\n}\nexport const use = (value: Foo): string => value.x;\n" },
       why: "an UNEXPORTED interface is file-local and has no second home to collide with",
     },

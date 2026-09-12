@@ -65,7 +65,7 @@ const MESSAGE =
 const UNREADABLE =
   "this expression is spelled like zustand's persistence api but the shared readers cannot place its binding, so whether it is the middleware CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 const FIX =
-  "use createEntityDraftStore / createPersistedStore instead of a bare persist(); drop a store through the durable-local door (`resetWithoutPersisting`), which blindfolds the storage first.";
+  'use createEntityDraftStore / createPersistedStore instead of a bare persist(); drop a store through the durable-local door (`resetWithoutPersisting`), which blindfolds the storage first. There is no inline waiver for this policy: a genuinely new sanctioned home needs an exact reviewed-grant row in `tooling/src/verify/lib/reviewed-grants.ts` — `{ id: "no-raw-zustand-persist:<short-kebab-subject>", policyId: "no-raw-zustand-persist", subject: <the reported file path>, operation: "zustand-persist-mint" | "destructive-store-reset" | "unblindfolded-registered-reset", why, endsWhen }` — with the `operation` taken from the finding, not guessed.';
 
 interface Ranged {
   readonly start: number;
@@ -478,6 +478,35 @@ export const gate = defineGate({
           "interface Thing {\n  readonly reset: () => void;\n}\nexport function drop(thing: Thing): void {\n  thing.reset();\n}\n",
       },
       why: "ARM C's SCOPE: a `reset()` on some other object OUTSIDE the registry file is not the registered-store drop — the arm's subject is the registry's own `RegisteredStore.reset`, in the registry's own file",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/state/index.ts": [
+          'export { registerDurableLocalStore } from "./durable-local.ts";',
+          "interface Held {",
+          "  readonly reset: () => void;",
+          "}",
+          "export function drop(held: Held): void {",
+          "  held.reset();",
+          "}",
+          "",
+        ].join("\n"),
+      },
+      why: "THE BARREL FENCE, the claim `visitFile`'s comment makes and nothing proved: a file that merely RE-EXPORTS `registerDurableLocalStore` is not the registry. `getExportSymbols()` offers the forwarded name, so only `declarations.every((declaration) => declaration.getSourceFile() === sourceFile)` rejects it — cut that clause and this barrel becomes an ARM C registry, its locally declared `Held.reset` satisfies `declaredByFile`, and the unblindfolded call flags. The real registry is present beside it, so the receipt still counts one member and this row cannot pass by refusal",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        ...storeLookalikeProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/vendor-reset.ts":
+          'import { create } from "store-lookalike";\nconst store = create<{ a: number }>(() => ({ a: 1 }));\nexport function wipe(): void {\n  store.setState(store.getInitialState(), true);\n}\n',
+      },
+      why: "ARM B's IDENTITY FENCE, the twin of the arm-A lookalike row above and the one axis no row covered: the shape is byte-for-byte the #837 destructive reset, and ONLY `classifyPackageMemberOrigin(callee, [ZUSTAND])` separates it from the real one. Another store library's `setState` does not write through a zustand `persist` patch, so it is not this defect — cut the origin test and this row flags",
     },
   ],
 });

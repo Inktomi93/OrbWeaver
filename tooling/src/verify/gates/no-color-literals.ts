@@ -21,6 +21,13 @@
 // receipt is its `defineGate` proof rows on `structure:policy-conformance` plus its family test; do not
 // re-add a real-tree citation to a suite whose subject is the engine this policy no longer uses.
 //
+// FAMILY: a declared SINGLETON under its own id. It shares its "split a class string into whitespace
+// fragments and classify each" SHAPE with `no-raw-container-widths` and `no-off-token-radius-shadow`, but
+// each owns a private, disjoint token vocabulary and none shares a `lib/` reader — a shape is not a family.
+// POPULATION PORT: BYTE-IDENTICAL. The legacy descriptor at `d6f36904f` (the commit before the conversion
+// at `99b7429e2`) scanned `p.startsWith("packages/client/src") || p.startsWith("packages/ui/src")`, which
+// is exactly `["@client", "@ui"]`; nothing is added and nothing is subtracted.
+//
 // The cost is accepted: a non-class string that happens to spell `bg-black` or `text-red-500` is a false
 // positive. This policy is ORDINARY precisely so that case has a door — `@orb-waive no-color-literals(<the
 // offending token>): <reason>` — and the position token is the offending class fragment, not the literal.
@@ -161,7 +168,12 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/ok-semantic.tsx": 'export const G = <div className="bg-primary text-muted-foreground border-border" />;\n' },
-      why: "semantic theme tokens (bg-primary / text-muted-foreground / border-border) have no numeric palette step — the palette arm must NOT catch them, passes",
+      why: "semantic theme tokens (bg-primary / text-muted-foreground / border-border) pass because they name no tailwind RAMP at all — `primary`, `muted-foreground` and `border` are not in `PALETTE_RE`'s ramp list. The row below is what proves the STEP requirement; this one would stay green with the step made optional",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/ok-ramp-no-step.tsx": 'export const G = <div className="bg-red text-slate" />;\n' },
+      why: "THE NUMERIC-STEP REQUIREMENT (`-\\d{2,3}` in `PALETTE_RE`), which the semantic-token row beside it cannot prove: these DO name tailwind ramps (`red`, `slate`) and are saved by the missing step alone. A bare ramp name with no step is not a tailwind palette utility — it is either a project token or nothing — so the palette arm must not claim it. Make the step optional and this row flags 2. The `-<ramp>-<step>` pair together is what makes this pattern self-identifying enough to carry the unfenced scan",
     },
   ],
 });
