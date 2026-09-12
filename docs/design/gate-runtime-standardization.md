@@ -1114,7 +1114,15 @@ that lives in `policy-legacy-imports`, corrected by the fresh verifier against t
 `policy-legacy-imports` (the open IMPORT classes) and `policy-binding-resolution` (the open RESOLUTION class). **An open
 class lives in its own module so the closed-class pin stays honest**; each open module's live findings are compared
 against a second opinion the arm did not compute — and that second opinion is SYNTACTIC (a call in code position),
-never a regex over module text, which counts the arm's own fixture strings.
+never a regex over module text, which counts the arm's own fixture strings. **The family's real-corpus arm is a
+CLASSIFICATION COMPLETENESS CHECK, never a per-member assertion list** (`bba5101db`, 2026-09-12): every member of
+`FAMILY` must be in `openWithOpinion` (an open class, held against its second opinion) or `closedAtZero` (a closed
+class pinned at zero), and a member in NEITHER fails the test. The per-member list is what rotted: two new
+members joined the family behind a 12/12 green because the arm asserted on only one of them, and both carried a
+gap (`policy-refusal-coverage` with no `fix` spelling and no §4.2 arm; `policy-fixture-substrate` blind to a bracket
+respelling of its own fixture). The durable fix for a partially-covering arm is a completeness check over the
+membership. The ordinary member's positive §4.2 arm lives in its module; its NEGATIVE arm lives in the family test on
+purpose — inside a gate's own rows `knownPolicies: [policy]` rides the unknown-policy short-circuit and proves nothing.
 
 ## 6. What is done and what remains
 
