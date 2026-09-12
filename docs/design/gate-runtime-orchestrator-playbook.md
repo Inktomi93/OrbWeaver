@@ -507,8 +507,10 @@ building; an undated one reads as current.
 2. `git -C <wt> rebase main` (repeat if `main` moved), then from `main`: `git -c core.hooksPath=/dev/null merge --ff-only <branch>`.
 3. Run the lane's named floor on `main`; `pnpm gate:contract` for the delta; **`pnpm check:policy-conformance` whole
    after EVERY merge that touches a gate module** (it is the bar the bypassed hooks would have run: three arms plus
-   the grant table, exit 2 = broken checker); regenerate `docs/test-baseline/manifest.json` on quiet `main` if a spec
-   was added (`pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest`, commit it alone). The
+   the grant table, exit 2 = broken checker); **`docs/test-baseline/manifest.json` and `monotonic-tests` are DELETED (#2217, `3f4bf19ef`, owner ruling 2026-09-12) —
+   there is no manifest to regenerate; test presence is DERIVED (`test-presence` / `test-layout` / the `mirror-index` kind)
+   and a deleted spec is judged by those, never by a count.** Any remaining instruction to regenerate that manifest is a
+   dead citer: fix it on sight (INSTRUCTION lines only — past-tense RECORDS in design docs stay as history). The
    whole-tree `check:structure` stays a BARRIER run (serialized, never beside a planter), and its receipt is the
    PER-POLICY delta against the previous main slot, never the aggregate exit — #2106 sat red under the baseline red
    for a day; #2110 builds the delta tool.
@@ -697,6 +699,17 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   whether the fold edits the SUITE FILE, not only what the suite measures** — twice in one night a planter was
   nearly skipped on that reasoning while a fold commit edited the suite itself (`bea887b49` rewrote
   `gate-ignore-grammar.repo.int`'s cleanup; it went 22 → 23 and was the one receipt #2200 owed).
+- **A RETIREMENT CENSUS SPLITS CITERS INTO INSTRUCTION VS RECORD, NOT ACTIVE VS ARCHIVED, and it runs `rg --hidden`
+  ON BOTH KEYS** (paid 2026-09-12, #2217's lane retiring `monotonic-tests` + its manifest): eight `status: active`
+  design docs cited the deleted manifest and most were past-tense per-program RECORDS ("regenerated (+1 spec)") —
+  rewriting those falsifies history; only lines a future reader would ACT on move. And `rg` skips dotted directories
+  by default, so `.claude/rules/**` — the highest-consequence citers, loaded into every dispatch — is invisible to a
+  default census; both rule files cited the ARTIFACT PATH and never the gate id, so a gate-id census missed them
+  twice. Every remaining C7 baseline-ratchet retirement has a committed artifact: census with `--hidden`, by artifact
+  path AND gate id. **And a stage registered in a tier that has never produced a verdict is invisible to a tier that
+  counts reds** (#2220, `lint:hook-syntax` exit 2 on every `pnpm check` since it was added on 09-11 because `bash`
+  resolved to `node_modules/.bin/bash`): a tier's own summary must name every stage whose exit class was 2 or whose
+  `code` is null, and a barrier reads that list before the red count (#2225).
 - **A cross-tool invariant needs a cross-tool pin in the PRODUCER's home** (#2175): a generator emitting bytes
   the formatter normalises away is a deadlock between two doors, and the pin that catches it lives in the
   generator's suite, run twice with the second byte-identical — otherwise the regression surfaces in a docs lane
