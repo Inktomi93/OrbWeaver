@@ -13,58 +13,15 @@ import type {
 import type { OrdinaryWaiverResourceFormat, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import { blankTsComments, commentSpansInText, forEachCommentRange } from "./comment-spans.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
+// THE POSITION GRAMMAR LIVES IN `lib/waivable-coordinate.ts` (#2155, arm B) — this engine builds its marker
+// regex from the SAME fragment every minting site reads, rather than respelling the class. The grammar moved
+// OUT rather than the helper moving in beside it: §12.5 forbids a gate module importing a marker parser, and
+// three gates need the coordinate helper, so the shared half had to land somewhere a gate may import.
+import { POSITION } from "./waivable-coordinate.ts";
 
 const MARKER = "@orb-waive";
 const KEBAB = String.raw`[a-z][a-z0-9]*(?:-[a-z0-9]+)*`;
-/** THE POSITION CHARACTER CLASS — the one home, because every other spelling of it is DERIVED from this
- *  set rather than retyped (#1957) — {@link POSITION} builds the regex character class from it and
- *  {@link waivableCoordinate} scans with it, so the two readers cannot disagree. The group is delimited by
- *  parentheses and lives on
- *  one comment line, so a position containing `(`, `)`, CR or LF cannot be expressed at all: a marker naming
- *  one parses as `malformed` and the finding it targets is UNWAIVABLE. That made the escape hatch a policy's
- *  `fix` string promises unreachable for any finding whose reported token carries a paren, with nothing
- *  saying so. The rule now binds at the REPORT door (`lib/policy-pass-context.ts`) through
- *  {@link isWaivablePosition}, so an unwaivable position is a loud tool error at the moment it is minted
- *  instead of a finding nobody can ever answer. */
-const POSITION_EXCLUDED = ["(", ")", "\r", "\n"] as const;
-const POSITION_EXCLUDED_SET: ReadonlySet<string> = new Set(POSITION_EXCLUDED);
-const POSITION = `[^${POSITION_EXCLUDED.join("")}]+`;
-const POSITION_RE = new RegExp(`^${POSITION}$`, "u");
 const EXACT_MARKER_RE = new RegExp(String.raw`^${MARKER}\s+(${KEBAB})\((${POSITION})\):[\t ]*(\S[^\r\n]*)$`, "u");
-
-/** Can the marker grammar hold this position at all? The one door every minting site asks, so the answer
- *  can never drift from {@link POSITION} above. A blank position is rejected for the same reason the parser
- *  rejects it: `parseMarker` treats an empty capture as `malformed`. */
-export function isWaivablePosition(position: string): boolean {
-  return position.trim() !== "" && POSITION_RE.test(position);
-}
-
-/** THE COORDINATE for a value the grammar cannot hold whole (#2107 arm c, guide §3): the value's own leading
- *  paren-free slice, so `oklch(0.5 0.2 30)` → `oklch` and `[&:where(.x:y)]:dark:bg-card` → `[&:where`. A
- *  value that IS waivable is returned unchanged, which is what keeps the split free for `#ff0000`.
- *
- *  `undefined` means NO anchorable head exists, and every caller must treat that as a refusal rather than
- *  dropping the finding — a finding nobody can name is the defect the split exists to remove.
- *
- *  WHY A PREFIX AND NOT SOMETHING MORE SPECIFIC: the position must be an EXACT SLICE of the source at the
- *  reported coordinate (`locateFinding` re-reads it out of comment-blanked text), so it can only be a
- *  contiguous run starting where the finding points. WHAT IT COSTS, statable in one line: two findings in one
- *  carrier sharing a coordinate are mutually unwaivable (`over-broad`, a loud alarm) — but a collision needs
- *  both values to share a paren-free PREFIX, which means both contain a paren, which means NEITHER was
- *  waivable before. The split therefore never takes waivability away from a site that had it. */
-export function waivableCoordinate(value: string): string | undefined {
-  if (isWaivablePosition(value)) {
-    return value;
-  }
-  let head = "";
-  for (const char of value) {
-    if (POSITION_EXCLUDED_SET.has(char)) {
-      break;
-    }
-    head += char;
-  }
-  return isWaivablePosition(head) ? head : undefined;
-}
 const ATTEMPT_RE = new RegExp(String.raw`^${MARKER}(?:\s|$)`, "u");
 const PARTIAL_POLICY_RE = new RegExp(String.raw`^${MARKER}(?:\s+([^\s(:]+))?`, "u");
 const UNKNOWN_POLICY = "ordinary-waiver";
