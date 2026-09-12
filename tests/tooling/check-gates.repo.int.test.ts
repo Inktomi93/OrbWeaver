@@ -1055,13 +1055,10 @@ function writeFixtures(): void {
 // `__g_` path (its discovery matches `tsconfig*.json`, not `__g_*`) and un-plantable without perturbing the
 // real type program. Its bite is proven by conformance (dead row, classifier, absent/unparseable config,
 // zero-rows, both exemption arms) and by its own permanent pin, tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts.
-// runner-config-path-liveness: the third legacy member of that family — its units are values inside the REPO-ROOT
-// runner configs (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts), which no `__g_` path
-// can express and which cannot be perturbed without changing WHICH TESTS RUN for every concurrent lane.
-// Vitest selectors are observed through the native config-snapshot boundary; the still-literal Playwright
-// fields use the static reader. Its bite is proven by conformance and its permanent pin, including native
-// derived selectors, exact-path containment, field-aware include semantics, and both refusal directions:
-// tests/tooling/verify/gates/runner-config-path-liveness.int.test.ts.
+// runner-config-path-liveness CONVERTED 2026-09-12 (#1584) and its row is GONE from the table below: a final
+// policy is partitioned out by the mixed roster, and leaving its name here would fail the two-sided arm that
+// refuses a row naming a converted policy. Its bite is `structure:policy-conformance` running its own rows,
+// plus tests/tooling/verify/gates/{grant-liveness-family.test.ts,runner-config-path-liveness.int.test.ts}.
 // tokens-contract reads seven exact canonical JSON/schema paths. A throwaway `__g_` file cannot perturb
 // them without mutating the live vault; its invalid-unit mustFlag and full-corpus mustPass are fs-backed.
 // css-family-ownership reads the five exact sanctioned product stylesheets and derives live TS/TSX hook
@@ -1077,7 +1074,6 @@ function writeFixtures(): void {
 const UNFIXTURABLE_GATES = new Set([
   "biome-grant-liveness",
   "tsconfig-entry-liveness",
-  "runner-config-path-liveness",
   "baseui-surface-manifest",
   "enforcement-registry-parity",
   "bus-payload-allowlist",

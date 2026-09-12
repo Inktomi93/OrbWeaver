@@ -22,6 +22,21 @@
 // nothing about what is STAGED there. A staged-blob capability was considered and DELIBERATELY NOT MINTED:
 // re-derived across the whole verify tree, this gate is its ONLY consumer, and a capability serving one gate
 // is that gate's private reader wearing a contract's clothes (guide §11.5). The refusal is the success.
+// REFUSAL RE-DERIVED AND RE-DATED 2026-09-12 (#2013), because a refusal that cites a capability is a
+// SNAPSHOT and this program has no mechanism that re-opens one when its blocker lands. What was measured
+// today, and the SCOPE of each measurement, so the next reader re-derives rather than inherits:
+//   · the one-consumer test still holds. `--cached` across `tooling/src/verify/**`: two hits, both in THIS
+//     module (`judgeIndex`, plus its own header), and `lib/repo-paths.ts:61-62`'s inventory of the git verbs
+//     this tree runs, which names this gate. Repo-wide across `tooling/` and `scripts/` the only other
+//     `--cached` uses are `snap/ops/stage-source.ts` (`git ls-files --cached --others` — a working-tree
+//     inventory) and `doc-catalog/ops/tree.ts` (`git diff --cached --name-only` — a path list). Neither
+//     reads a staged BLOB, so a staged-blob kind would still serve exactly one gate and §12.4's reopen
+//     condition (TWO independent consumers) is still unmet.
+//   · the refusal is now NARROWER than it was, and that is worth knowing before someone re-opens it: arms A
+//     and B are no longer blocked. `tracked-files` serves arm B's corpus and the `authored-text` demand door
+//     (minted 2026-09-11) serves its comment-aware text. ARM C ALONE is the blocker, and arm C is the whole
+//     #954 defence — a stale staged blob committing while every working-tree check reads clean — so
+//     converting the module without it would be a catch REGRESSION dressed as progress.
 // DECLARED LIMITS (each a mustPass row): arms B+C need a git work tree, so they run only on a root carrying
 // this module (the §4.5 anchor) — a conformance mini-project proves arm A, the pin proves B, C and the real
 // tree; a `// eslint-disable` LINE comment is not a block directive (eslint ignores it) and is not judged.
