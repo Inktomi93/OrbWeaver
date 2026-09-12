@@ -20,6 +20,23 @@
 // on an in-memory project with NO `node_modules`, so a bare specifier lands `external-door` and the
 // resolution path that refused is never exercised. `mustFlag[2]` is the barrel row; it reported 0 against the
 // pre-fix module, which is its §4.7 planted-break receipt.
+//
+// POPULATION PORT: an intentional WIDENING, plus one dead arm dropped. The legacy descriptor
+// (`0dd6f17c6^:tooling/src/verify/gates/no-raw-id.ts`) declared NO `scanRoot` at all, so it judged whatever
+// the legacy pass happened to load; the final population is `@authored` — the nine-root authored corpus —
+// which states that intent instead of inheriting it. The legacy `kinds` were
+// `[PropertyAssignment, PropertySignature]` and the final are `[PropertyAssignment]` alone: the
+// PropertySignature arm handed the declaration's TYPE node to the zod check, and a type node is never a
+// CallExpression, so that arm could never reach a verdict. It is a dead arm removed, not a class dropped —
+// the bare-`string` TYPE position is `brand-in-name-position`'s subject, the family sibling that owns it.
+//
+// RETIRED VOCABULARY: the legacy `EXEMPT_SYMBOL`/`EXEMPT_PAYLOAD_SYMBOL` pair — a DECLARATION-NAME allowlist
+// keyed on `triggerFactSchema`/`triggerFactPayloadSchema` (the guest-marshalling contract, whose ids are
+// unbranded by design) with a bespoke stale arm asserting the symbol still existed. It is retired into the
+// central ordinary-waiver plane, which makes each exempt FIELD name its own reason and end condition instead
+// of one symbol exempting every id beneath it. Census on this tree: **27 live `@orb-waive no-raw-id(...)`
+// markers**, of which the automation guest-marshalling block (`packages/contracts/src/automation/index.ts`)
+// carries 9 — the block the allowlist used to cover with a single symbol name.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -153,6 +170,18 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: { "packages/contracts/src/x.ts": 'import { string } from "zod";\nexport const schema = { userId: string() };\n' },
+      expect: { count: 1, token: "userId" },
+      why: 'THE BARE-CALLEE ARM (`path.length === 1`), exercised by no row before #2047: zod publishes `string` as a top-level export, so `import { string } from "zod"` reaches the builder without ever naming `z`. Retiring this half of `named` left every other row green — the three rows above all resolve through the `z` OBJECT arm — so half the identity check was proven by nothing',
+    },
+    {
+      mode: "types",
+      files: { "packages/contracts/src/x.ts": 'import * as z from "zod";\nexport const schema = { userId: z.string() };\n' },
+      expect: { count: 1, token: "userId" },
+      why: "the NAMESPACE spelling, and the row that records where it lands. A reader might expect `import * as z` to take the `z`-object arm; it does not — the shared reader canonicalises the namespace member to the module's own `string` export, so this resolves `path.length === 1` exactly like the bare import above. Kept as its own row because it is a distinct AUTHORED spelling whose resolution the private walk this module replaced could not follow at all",
+    },
+    {
+      mode: "types",
       files: { "packages/contracts/src/opaque.ts": "declare const wire: any;\nexport const schema = { userId: wire.string().optional() };\n" },
       expect: { count: 1, token: "userId", messageIncludes: "CANNOT be established" },
       why: "THE FAIL-CLOSED THIRD ANSWER (#944), and until #2041 this policy FAILED OPEN here: the builder ROOT is a member read off an OPAQUE `any`-typed receiver, so its leaf binds no declaration at all and `classifyOriginRefusal` answers case (b) — an id boundary whose schema cannot be read is REPORTED rather than admitted. It is the exact complement of the `local same-named builder` mustPass row, which is why the refusal is SCOPED and not blanket: a local object's `string` method provably binds a property assignment and still passes, while no binding at all is no evidence. The `messageIncludes` is the whole row — the unreadable arm emits the SAME single finding under the SAME token as the zod verdict",
@@ -178,6 +207,19 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/contracts/src/x.ts": 'import { z } from "zod";\nexport const schema = z.object({ username: z.string() });\n' },
       why: "ordinary strings with no id position are untouched",
+    },
+    {
+      mode: "types",
+      files: { "packages/contracts/src/x.ts": 'import { z } from "zod";\nexport const schema = z.object({ userId: z.number() });\n' },
+      why: '§4.1 NARROWING (WHICH MEMBER): the `"string"` half of `named`. An id position built by a DIFFERENT zod builder is not this policy\'s defect — the ban is on a raw STRING standing in for a brand, and a numeric id is a separate (and not yet declared) shape. Before #2047 nothing distinguished the member name: widening `named` to any zod member left every row green',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/local-zod.ts": "export const z = { string: () => ({}) };\n",
+        "packages/contracts/src/x.ts": 'import { z } from "./local-zod";\nexport const schema = { userId: z.string() };\n',
+      },
+      why: '§4.1 NARROWING (WHICH PACKAGE): `moduleName(target) !== "zod"`. The `local same-named builder` row above is a local OBJECT — it fails the `target.kind !== "module"` half and never reaches this one — so this row is the only fixture whose builder is a genuine MODULE export that is not zod\'s. That distinction is the whole point of routing through `resolveCallableOrigin`: the reader answers WHICH PACKAGE a door ultimately enters, so a project module spelling itself `z` is a different identity while a `zod` re-export barrel is the same one (`mustFlag[2]`)',
     },
     {
       mode: "types",

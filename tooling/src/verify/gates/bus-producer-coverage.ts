@@ -26,6 +26,16 @@
 // Identity — which call is a producer, which relay carries a member, which argument proves nothing — is the
 // shared `busProducerFact`'s question, not this policy's. It owns no name table, no path regex and no walk.
 //
+// POPULATION PORT for a 5→1 consolidation: an intentional correction, and the five legacy descriptors had
+// no `scanRoot` between them. Each was `scopeSafety: "whole-project"` with a `run` hook walking
+// `ctx.project`, carrying its path narrowing INLINE as a regex over the emit side
+// (`bus-coverage`'s `emitScope: /\/packages\/server\/src\/(?:domain|transport|entry\/compose)\//u`, per-union
+// variants in the other four). The final population is `{ in: ["@contracts", "@server"] }`: the declaration
+// side lives in `@contracts`, the producer side in `@server`, and NOTHING of the emit-scope regex moved into
+// the population — which call counts as a producer is the shared `busProducerFact`'s question, so this
+// policy holds no path predicate at all. That is the same 5→1 move the roster records: the narrowing did not
+// disappear, it changed OWNER, and the receipt that it did is the belted-roster denominator below.
+//
 // The legacy `bus-coverage` descriptor (f287dc6dbb2dc4959a0bf4bd5698fea70fa03df8) checked ONLY
 // `ChatBusEvent`'s producer coverage by name before this conversion retired it plus five siblings
 // (`automation-bus-coverage`, `bus-coverage-owner`, `domain-events-coverage`, `rpg-bus-coverage`,

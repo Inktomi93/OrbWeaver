@@ -1,4 +1,15 @@
 // An empty branded id is not a disabled-query sentinel; use a null/skipToken gate that cannot build a key.
+//
+// FAMILY (`id-brand-flow`): shared readers, no private door. The cast SEAM is `lib/id-brand.ts`
+// (`createKitIdCallMatcher`, the same matcher `no-mint-via-cast` uses — one identity for "is this the kit
+// castId", so the two policies cannot disagree about what a seam is); the argument's static value is
+// `lib/static-authored-value.ts` (`readStaticAuthoredScalar`). This module holds no table, walk or cache.
+//
+// POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
+// `(p) => p.includes("packages/client/src/")` (`1ee6bb982^:tooling/src/verify/gates/no-fake-disabled-id.ts`);
+// the final population is `@client`, whose single root is `packages/client/src/`. The client-only fence is
+// the law itself and not a convenience: the fake-disabled sentinel is a QUERY-KEY defect — the shape exists
+// to make `enabled:` unnecessary — so the server has no version of it.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { createKitIdCallMatcher, ID_BRAND_HOME } from "../lib/id-brand.ts";
@@ -80,8 +91,8 @@ export const gate = defineGate({
         [ID_BRAND_HOME]: idCastProofModule(),
         "packages/client/src/x.ts": 'import { castId as brand } from "../../kit/src/ids/index";\nconst empty = "";\nexport const x = brand(empty as string);\n',
       },
-      expect: { count: 1 },
-      why: "import aliases and static string aliases cannot hide the empty sentinel",
+      expect: { count: 1, token: "brand" },
+      why: "import aliases and static string aliases cannot hide the empty sentinel. THE TOKEN IS THE CLAIM (#1968): the `why` says ALIASES, and the report anchors on the CALLEE as written — `brand`, the local import alias, not the canonical `castId` that `mustPass[2]`'s waiver names. `token: \"castId\"` is RED here, so a bare `{ count: 1 }` left the alias half of this row's claim proven by nothing",
     },
     {
       mode: "types",
