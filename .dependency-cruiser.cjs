@@ -7,22 +7,30 @@
  * AppRouter bridge, drivers' param types), and (c) enforces everything INSIDE @orb/server — the server
  * tier order + per-feature isolation — which the resolver cannot see (it's all one package).
  *
- * Scanned via `pnpm depcruise` (= `depcruise packages --config .dependency-cruiser.cjs`); cross-package
- * `@orb/*` imports resolve through the workspace into `packages/<pkg>/src/...`, so the path regexes below
- * match resolved edges. Authoritative rule sources: structure.md §3/§7, the tier docs (foundation/infra/
- * providers/transport/db/entry), domains.md, and reports/PRE-SCAFFOLD-CHECKLIST.md §A1.
+ * Scanned via `pnpm depcruise` = `node scripts/depcruise.mjs`, which cruises `packages`, `tooling`, and
+ * every helper world root that exists (`HELPER_WORLD_DIRS` — tests/support/{iso,node,browser}). The scope
+ * is DERIVED there, not spelled here, so a new helper world joins the cruise without a header edit; this
+ * file's own tooling section (tooling-cli-via-index, tooling-shared-floor, tooling-no-provider-families,
+ * the tooling/src/<tool>/ slot rules) is inside that reach. Cross-package `@orb/*` imports resolve through
+ * the workspace into `packages/<pkg>/src/...`, so the path regexes below match resolved edges.
+ * Authoritative rule sources: Core-0-Architecture-and-Structure.md (the cake, the server tier order, the
+ * 8-slot feature template), the Tier-* docs under docs/architecture/core/, and AGENTS.md §6 (the domain
+ * map). Each rule's own `comment` carries its citation.
  *
  * HOUSE STYLE (from neo, kept): generic-over-enumerated (one capture-group rule auto-covers future
  * features); `dependencyTypesNot: ["type-only"]` is the contract-vs-coupling discriminator (a type-only
  * import declares an injected dep's SHAPE, wired at a composition root — allowed; a value import is real
  * coupling — blocked); every rule carries a `comment` saying WHY (it's what surfaces on a violation).
  *
- * NOT here (deferred / enforced elsewhere, per the docs): client layering (Phase 6 — structure undecided);
- * assets-single-writer / discovery-no-vector-write / serde-core-single-mapper / ASSUMES(single-replica)
- * presence (method-call/comment shape → ts-morph gates, see reports/ENFORCEMENT.md backlog);
- * persistence-no-in-memory-state (a grit plugin); no-inline-types / exhaustive-dispatch (biome + ts-morph);
- * "runner/family never leave providers" (compile-time + a grep). no-orphans is set to ignore until code
- * wires up (the placeholder tree is all orphans; knip is the dead-code authority — ENFORCEMENT backlog).
+ * NOT here (enforced elsewhere, by shape): assets-single-writer / discovery-no-vector-write /
+ * serde-core-single-mapper / ASSUMES(single-replica) presence — all method-call or comment shapes, so they
+ * are structural gates under tooling/src/verify/gates/, not import edges; persistence-no-in-memory-state
+ * (also a gate — the GritQL layer it used to be was retired in 64ab26501 and every plugin recreated as a
+ * ts-morph gate); no-inline-types / exhaustive-dispatch (biome + gates); "runner/family never leave
+ * providers" (compile-time + a gate). CLIENT LAYERING IS HERE, not deferred — 17 `client-*` rules carry
+ * the client's own tier order, decided at the client-foundation wave (see the section note at the
+ * client-lib-floor rule). `no-orphans` is ACTIVE at `severity: "warn"` (re-enabled 2026-07-13 when its own
+ * stated trigger arrived); knip remains the full dead-code/dead-export authority.
  *
  * FEATURES USED beyond the forbidden-list: `reachable` (the transitive credential firewall),
  * `dependencyTypesNot:["type-only"]` (the contract-vs-coupling discriminator), `tsPreCompilationDeps`
@@ -628,7 +636,7 @@ module.exports = {
     {
       name: "persistence-no-io",
       comment:
-        "persistence/ is db queries ONLY — no node:* I/O (no node:fs / node:net / raw fetch). A raw fetch vs a user URL is infra (e.g. fetchOpenAiModels → infra/network), reached via an injected op. (structure.md §7; tiers/infra.md openai-models move.) The no-module-scope-Map half is a grit plugin (persistence-no-in-memory-state).",
+        "persistence/ is db queries ONLY — no node:* I/O (no node:fs / node:net / raw fetch). A raw fetch vs a user URL is infra (e.g. fetchOpenAiModels → infra/network), reached via an injected op. (Core-0-Architecture-and-Structure.md §3; Tier-3-Infra.md openai-models move.) The no-module-scope-Map half is a structural gate (persistence-no-in-memory-state) — it was a GritQL plugin until 64ab26501 retired that layer.",
       severity: "error",
       from: { path: `${SRV}domain/[^/]+/persistence/` },
       to: { dependencyTypes: ["core"] },

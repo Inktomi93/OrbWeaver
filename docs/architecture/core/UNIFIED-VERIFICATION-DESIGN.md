@@ -86,6 +86,12 @@ resolver. `pnpm check` = `pnpm verify --static` (byte-compatible with the retire
 - Adding a stage is a registry row; `stagesForTier` / `manualStages` derive the run + the list from it.
   `verify --list` prints every row with its tiers + scope + manual reason. `tests/tooling/verify/ops/run.int.test.ts`
   pins the classifiers, the tier composition, and the scope derivations.
+- **TIER MEMBERSHIP IS DATA AND THIS DOC NEVER RE-SPELLS IT.** `pnpm verify --list` is the only roster;
+  the §3.2 table characterizes what each tier is FOR and cites the rationale a row cannot carry, never
+  which rows are in it. #1949 is why: the `static` cell enumerated 13 stages against a 19-stage tier, and
+  the drift was invisible because prose cannot be reconciled against a registry by any gate. The suite
+  above pins the ORDER, so a row that joins a tier reds there — which is the enforcement this sentence
+  leans on rather than replacing.
 
 ### 3.2 Tier composition (the ladder)
 
@@ -100,8 +106,8 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | tier | what it runs | role |
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
-| `static` | biome + eslint + `types:native` + `types:testd` + `types:ownership` + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `ledgers:fresh` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
-| `push` | static + `tests:node` (the PRODUCT vitest projects — never the instrument battery, #1842) + `browser:ct` (the WHOLE CT suite, its own stage again since #1848 so it carries its own profile-derived hang ceiling) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) + `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) + `quality:boot-chunk` (the client boot-chunk byte ratchet, §3.7 — it runs a real vite build, so never the structural-fast commit bar) | pre-push bar; `verify --push` |
+| `static` | every STRUCTURAL surface — lint, the type programs, the structure/registry/ledger reconciliations, imports, deps, docs — and **no behavioral suite**. That characterization is the doctrine; the MEMBERSHIP is data (`pnpm verify --list`) and is never enumerated here (#1949: this cell named 13 stages while the tier carried 19, missing `lint:hook-syntax`, `structure:asset-refs`, `structure:agent-config`, `structure:policy-conformance`, `config:biome-rule-liveness` and `docs:catalog` — a prose copy of a registry rots on the next row) | `pnpm check` = `verify --static`; the commit gate |
+| `push` | static + the BEHAVIORAL surfaces a commit gate cannot afford: the PRODUCT vitest projects (never the instrument battery, #1842), the WHOLE CT suite (its own stage again since #1848 so it carries its own profile-derived hang ceiling), e2e-smoke, the tool-guard suite, the export-rot ratchet (whole-graph liveness), `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) and the client boot-chunk byte ratchet (§3.7 — it runs a real vite build, so never the structural-fast commit bar). Membership is `pnpm verify --list` | pre-push bar; `verify --push` |
 | `full` | push + `tests:tooling` (the WHOLE instrument battery: the `tooling` and `tooling-serial` vitest projects) + `browser:e2e` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 **THE INSTRUMENT BATTERY IS `--full`-ONLY (#1523 split it, #1842 cut it loose).** `tests:tooling` runs at

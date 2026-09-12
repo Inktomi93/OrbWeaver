@@ -40,15 +40,19 @@ paths:
     the floor in the message.
   - **A CONVERSION'S FLOOR MUST ALSO RUN THE SUITES IT BREAKS THAT ARE NOT ITS OWN (measured 2026-09-11, #1983).**
     `loadGates()` (`lib/loader.ts:190`) returns `corpus.legacy` ALONE, so **every conversion SHRINKS the legacy
-    roster** and reds any suite asserting the converted gate's membership. Your floor names your OWN family test and
-    structurally cannot see this. **So grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL and run
+    roster** and reds any suite asserting the converted gate's membership. **So grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL and run
     every suite that names it — INCLUDING ids inside committed ledger JSON.** The predicate is *any assertion whose
     expected value derives from the legacy roster*, not just membership: `gate-spelling-twins.int.test.ts` compares a
     two-sided SHRINK-ONLY ledger with `toEqual` and **54 of its 79 gate names have already converted**, so it is red
-    with no membership assertion in the file. A grep filtered on membership-shaped matchers misses that shape. These suites sit in the seam the bullet above does not cover — not red-by-construction,
-    not in any scoped floor — and `tests/tooling/**` is `--full`-only (#1842), so the break is unobservable. **Three
-    instances in one five-day window:** `registry-family.test.ts` (#1953), `gate-ignore-grammar.repo.int.test.ts` (red
-    from 2026-09-06, broken by a #1584 conversion), `gate-conformance.repo.int.test.ts:49` (found by this rule at zero
+    with no membership assertion in the file. **Never "optimize" that grep into a matcher-filtered one** — keying on
+    `toContain`/`toEqual`/any matcher shape reads FALSE-CLEAN on exactly the suite that costs the most. Where the id is
+    ORDINARY VOCABULARY (`population`, `registry`) the bare literal matches hundreds of files and is not a
+    measurement: narrow to the module SPECIFIER and say which predicate you ran. These suites sit in the seam the bullet above
+    does not cover — your floor names your OWN family test, they are not red-by-construction, they are in no scoped
+    floor, and `tests/tooling/**` is `--full`-only (#1842) — so the break is unobservable. **Three
+    instances in one five-day window:** the `registry-family.test.ts` case the bullet above dates,
+    `gate-ignore-grammar.repo.int.test.ts` (red from 2026-09-06, broken by a #1584 conversion), and
+    `gate-conformance.repo.int.test.ts:49` (found by this rule at zero
     load). A carrier in such a suite is LEGACY BY REQUIREMENT, so those suites retire at the cutover rather than being
     re-pointed forever. **Beware the false positive:** most `tests/tooling` files naming a converted gate are that
     conversion's own family test and are fine — the ones that bite call `loadGates()`.
@@ -123,11 +127,12 @@ paths:
   about to invalidate.
 - `.claude/agent-doctrine.md` carries the marker-gate laws, the gates-land-on-a-fixed-tree rule, and the
   exemption-row coupled-site rule — the last applies to LEGACY descriptors only.
-- **Invoke through the `pnpm` rows, never a bare `node tooling/src/<tool>/cli.ts …`.** The bare
-  spelling bypasses the workspace-wide heap floor (`nodeOptions: --max-old-space-size=16384` in
-  `pnpm-workspace.yaml`) and dies at node's ~4GB self-cap. Paid 2026-08-23: two exit-134 OOMs on a bare
-  structure run; `pnpm check:structure` picked up the floor and ran clean. Read the verdict from
-  `reports/check-structure.json`, never from scrollback. `reports/check-structure.json` is a symlink to the last run that FINISHED; `pnpm check:show` prints the run id it read, and refuses when this checkout's last run DIED (its in-flight slot outlived its pid).
+- **Read a structure verdict from `reports/check-structure.json`, never from scrollback.** It is a symlink to the
+  last run that FINISHED; `pnpm check:show` prints the run id it read, and refuses when this checkout's last run DIED
+  (its in-flight slot outlived its pid). The heap-floor half of this rule — why a bare
+  `node tooling/src/<tool>/cli.ts` OOMs where the `pnpm` row does not — is `lane-standing-facts.md`
+  §"Verification floors", which every agent also loads; it was duplicated here and is not restated (paid 2026-08-23:
+  two exit-134 OOMs on a bare structure run).
 - **A committed SINGLE-WRITER ledger's freshness belongs on the static bar, not in a vitest suite** (#817).
   `ledgers:fresh` (`pnpm check:ledgers-fresh`, `tooling/src/verify/ops/ledgers-fresh.ts`) re-derives the
   caught-failure census and the test-baseline manifest on every `pnpm check` and names the drifting rows —

@@ -133,7 +133,7 @@
     "drizzle-orm": "catalog:",
     "eslint": "catalog:",
     "eslint-plugin-better-tailwindcss": "catalog:",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-jsx-a11y": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",
     "eslint-plugin-react-web-api": "catalog:",
     "eslint-plugin-react-you-might-not-need-an-effect": "catalog:",
