@@ -47,21 +47,28 @@ findings were already CLOSED. Do not repeat that.
 | # | Read | Size | Stop rule |
 | -: | - | -: | - |
 | 1 | `gate-runtime-standardization.md` — the LAW | **180 KB** | in full, always |
-| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **116 KB** | in full, always. §2b is where you decide what is next |
-| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **\~200 KB, growing daily** | **the WORK QUEUE — read its OPEN rows only, never front-to-back.** Re-run its counting method first (per-table print, `UNBINNED` reported), then read the rows whose state cell is `OPEN`/`PARTIAL`/`UNADJUDICATED`; a `CLOSED` row is a receipt, not reading. It is appended to by every verifier report (`## LEDGER ROWS (N rows)`) and by every fix lane's commit, so its size and counts on any given day are measured, never quoted (2026-09-12 evening: 165 rows / 20 tables / 44 open, of which 36 were that day's verifier finds and the original audit backlog was down to 8) |
-| 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | **164 KB** | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the \~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
-| 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | **80 KB** | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
-| 5b | **`tooling/src/verify/contract/*.ts` HEADERS — the law you will otherwise rediscover** | **112 KB of comment** in 66 files | **READ THE HEADERS, not the types.** Ten run 20-32 lines before the first export. Start with `resource-declaration` · `resource-json` · `resource-mirror` · `resource-path` · `resource-document` · `resource-installed` · `run-manifest`, plus `lib/resource-declaration.ts`'s `readyResourceValue` header |
-| 6 | `Core-Enforcement-Active-Gates.md` | **356 KB** | **ONCE per program, then by ROW.** **297 dense rows** (its own declared registered-gate count line, 2026-09-12); after one pass read only the row you are about to break |
-| 7 | the 16 family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | **324 KB** | **read the ONE whose family you are dispatching.** `schema-fact-family-1584.md`'s "Explicit blockers" names five Phase-D modules' exact missing reader |
-| — | **`v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch`** | **536 KB** | **DO NOT READ. Send a lane.** Their conclusions are in the ledger (#3) and their METHOD is in guide §4.1 |
+| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **113 KB** | in full, always. §2b is where you decide what is next |
+| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **195 KB** · 163 defect rows | **the WORK QUEUE — read its OPEN rows only, never front-to-back.** Re-run its counting method first (per-table print, `UNBINNED` reported), then read the rows whose state cell is `OPEN`/`PARTIAL`/`UNADJUDICATED`; a `CLOSED` row is a receipt, not reading. It is appended to by every verifier report (`## LEDGER ROWS (N rows)`) and by every fix lane's commit, so its size and counts on any given day are measured, never quoted (2026-09-12 evening: 165 rows / 20 tables / 44 open, of which 36 were that day's verifier finds and the original audit backlog was down to 8) |
+| 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | **152 KB** · 4 files | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the \~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
+| 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | **76 KB** · 2 files | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
+| 5b | **`tooling/src/verify/contract/*.ts` HEADERS — the law you will otherwise rediscover** | **221 KB** · 69 files | **READ THE HEADERS, not the types.** Ten run 20-32 lines before the first export. Start with `resource-declaration` · `resource-json` · `resource-mirror` · `resource-path` · `resource-document` · `resource-installed` · `run-manifest`, plus `lib/resource-declaration.ts`'s `readyResourceValue` header |
+| 6 | `Core-Enforcement-Active-Gates.md` | **356 KB** · 298 rows | **ONCE per program, then by ROW.** The row count is in the SIZE cell and is DERIVED from the roster's own table; `enforcement-registry-parity` separately holds the doc's declared registered-gate line against the discovered corpus. After one pass read only the row you are about to break |
+| 7 | the family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | **315 KB** · 15 files | **read the ONE whose family you are dispatching.** `schema-fact-family-1584.md`'s "Explicit blockers" names five Phase-D modules' exact missing reader |
+| — | **`v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch`** | **510 KB** · 11 files | **DO NOT READ. Send a lane.** Their conclusions are in the ledger (#3) and their METHOD is in guide §4.1 |
 
-**EVERY SIZE IN THIS TABLE WAS STALE ON 2026-09-12 AND ALL EIGHT ARE NOW MEASURED** (`du -k`, same day as
-the counts below). They had drifted low across the board — the LAW 139→180, the runbook 78→116, the roster
-281→356, the audit set 430→536 — and **the work queue by nearly 7x, 25 KB→172 KB.** That matters more here
-than anywhere else in the program: this is a BUDGET table, its whole purpose is telling a cold session what
-the reading costs before it commits, and a session budgeting 25 KB for the queue was reading 172. **Re-measure
-these rather than trusting them; the file that exists to prevent a context blowout understated its own set.**
+**THE SIZE COLUMN IS GENERATED — do not hand-edit it, and do not re-measure it** (#2017). Every cell is derived
+from the documents it prices by `pnpm exec node tooling/src/verify/cli.ts baseline read-first-costs`, and the
+`ledgers:fresh` stage on every `pnpm check` reds when the committed table differs from a fresh measurement.
+The Read and Stop-rule columns are authored prose; the row id in column 1 is the join. Sizes are CONTENT
+KiB, which runs a little under `du -k`'s 4 KiB disk blocks.
+
+**Why it stopped being authored.** On 2026-09-12 **all eight sizes were stale at once** — the LAW 139→180,
+the runbook 78→116, the roster 281→356, the audit set 430→536 — and **the work queue by nearly 7x, 25 KB
+against an actual 172.** That matters more here than anywhere else in the program: this is a BUDGET table,
+its whole purpose is telling a cold session what the reading costs before it commits, and a session
+budgeting 25 KB for the queue was reading 172. It was hand-repaired that day, which is the same repair it
+had already had once. **A number a human has to re-measure is a number that is wrong between
+re-measurements.**
 
 **WHY 5b IS RANKED ABOVE THE 356 KB ROSTER, and it is the correction that cost the most this session.**
 Constitution `AGENTS.md`: ***"Per-domain law is the CODE + its file headers — the per-domain docs were
@@ -127,8 +134,9 @@ errors above were sitting. Reading those documents END TO END is not the same ac
 
 ## 2. What NOT to re-derive, because it is already measured
 
-- **The corpus is 297 modules** (**237 final / 60 legacy**, re-derived 2026-09-12 from
-  `pnpm check:policy-conformance`, which is the roster) and the roster is a **PAIR**: the active half plus 28
+- **The corpus is 298 modules** (**238 final / 60 legacy**, re-derived 2026-09-12 from
+  `pnpm check:policy-conformance`, which is the roster — this partition is NOT derivable from any document
+  and is deliberately outside the generated SIZE column, so re-run the command rather than trusting it) and the roster is a **PAIR**: the active half plus 28
   deferred + 2 prebuilt + 3 dropped. The deferred half is one-sided (#2008). **This bullet read
   275 / 171 / 104 until 2026-09-12** — a stale count inside the section titled *what NOT to re-derive*, which
   is the reason every count here now carries its date and its command.

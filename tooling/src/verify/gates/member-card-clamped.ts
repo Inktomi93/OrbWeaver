@@ -55,14 +55,19 @@ export const gate = defineGate({
   // `@orb-gate-ignore` marker like any other gate — never a hard, unsuppressible boundary.
   authority: "ordinary",
   severity: "error",
-  // No scanRoot in the legacy shape: absence there means admit-all over the shared harness workspace,
-  // and `@authored` is the closest declared population (tooling/src/_shared/ts-workspace.ts harnessGlobs).
-  // `@authored` is a LITERAL nine-root list — client, ui, server, db, contracts, kit, tooling/src, tests/,
-  // scripts/ — so it is NOT "every packages/*/src": `packages/showcase-plugins/src` is a root of its own
-  // (`@showcase`) and is outside `@authored` today. See contract/population.ts, which records that gap as
-  // open rather than settled. The three arms scope themselves per-file (contracts / server-src /
-  // clamp-home) inside the visitor, unchanged from the legacy `visit`.
-  population: "@authored",
+  // No scanRoot in the legacy shape: absence there means admit-all over the shared harness workspace —
+  // `_shared/ts-workspace.ts#harnessGlobs`, whose first glob is `packages/*/src/**`, a WILDCARD over every
+  // workspace package. `@authored` alone is therefore NOT that corpus: it is a nine-root classification
+  // (contract/population.ts) that deliberately excludes `packages/showcase-plugins/src`, so declaring it by
+  // itself SILENTLY NARROWED this policy against its own legacy. Corrected 2026-09-12 (#1980) to the pair
+  // the other two `harnessGlobs`-derived conversions already declare — `pd-citation-integrity:92`,
+  // `dangling-doc-cite:222` — which is exactly the legacy corpus and nothing wider. This is NOT a widening
+  // of `@authored` itself (that remains the open, ruled question recorded at `AUTHORED_MEMBERSHIP`); it is
+  // one policy naming both roots. Blast radius measured at the correction: `packages/showcase-plugins/src`
+  // holds one file and it carries none of the three arms' tokens, so zero new findings today.
+  // The three arms scope themselves per-file (contracts / server-src / clamp-home) inside the visitor,
+  // unchanged from the legacy `visit`.
+  population: { in: ["@authored", "@showcase"] },
   analysis: "syntax",
   execution: "selected-files",
   facts: [],

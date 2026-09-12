@@ -44,12 +44,51 @@ import { existsSync, readFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { SourceFile } from "ts-morph";
+import type { ConversionRefusal } from "../contract/conversion-refusal.ts";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { commentSpansInText, parseScratch } from "../lib/comment-spans.ts";
 import { globMatcher, memberSources } from "../lib/grant-liveness.ts";
 import { repoRel } from "../lib/pass.ts";
 import type { SuppressionSite } from "../lib/suppression-directive.ts";
 import { readDirectiveComment, suppressionSites } from "../lib/suppression-directive.ts";
+
+/** THE REFUSAL ABOVE, AS DATA (#2017) — the half of it a machine can re-derive, so this module's legacy
+ *  status stops resting on a comment nobody re-reads. `gates/conversion-refusal-liveness.ts` re-runs the
+ *  census below on every static run and reports in BOTH directions; the prose above stays the reasoning and
+ *  this declaration is the CONDITION. Nothing here re-states the refusal — it states what must remain true
+ *  for the refusal to survive, which is the thing 2026-09-12 had to re-derive by hand. */
+export const CONVERSION_REFUSAL = {
+  gate: "no-blanket-suppression",
+  issue: "#1930",
+  rederived: "2026-09-12",
+  why:
+    "ARM C re-judges CANDIDATES FROM THE GIT INDEX and no shipped resource kind serves a staged blob — `TrackedResourceIndex` is " +
+    "`{ repoPaths }` only, which names the working-tree path set and can say nothing about what is STAGED there. Arms A and B are " +
+    "no longer blocked (`tracked-files` + the `authored-text` demand door serve them), so ARM C ALONE is the blocker, and it is the " +
+    "whole #954 defence: converting without it would be a catch REGRESSION dressed as progress.",
+  blockers: [
+    {
+      kind: "sole-consumer",
+      why:
+        "a staged-BLOB read. Guide §12.4 reopens the frozen kind set only for a read with TWO OR MORE independent consumers, because a " +
+        "capability serving one gate is that gate's private reader wearing a contract's clothes (§11.5) — so this policy staying the " +
+        "SOLE consumer inside the verify tree is precisely the condition the refusal rests on.",
+      under: "tooling/src/verify/",
+      // `--cached` is the discriminator for "this module talks to the git INDEX". The blob read itself is
+      // spelled `git show :${rel}`, whose only distinctive token is `:` — uncensusable, and stated in
+      // `unheld` rather than faked. A `--cached` used inside this scope for an unrelated purpose (an
+      // inventory, as `snap/ops/stage-source.ts` does OUTSIDE it) reports as a new consumer: the correct
+      // polarity for a snapshot tripwire, whose finding says RE-DERIVE, not convert.
+      spellings: ["--cached"],
+      consumers: ["tooling/src/verify/gates/no-blanket-suppression.ts"],
+    },
+  ],
+  unheld: [
+    "the ONE-CONSUMER claim outside `tooling/src/verify/` — `snap/ops/stage-source.ts` (`git ls-files --cached --others`) and `doc-catalog/ops/tree.ts` (`git diff --cached --name-only`) both spell the flag and neither reads a staged BLOB. Widening the census to all of `tooling/` would report both as consumers and would be wrong; distinguishing them needs a read of what the argv DOES, which is a judgment and not a census.",
+    "the staged-blob read itself (`git show :<path>`), which has no distinctive string spelling to census.",
+    "whether a staged-blob CAPABILITY is worth minting if a second consumer appears — that is §12.4's ruling to make, and this declaration only reports that the condition for asking has changed.",
+  ],
+} as const satisfies ConversionRefusal;
 
 const GATE_SELF = "tooling/src/verify/gates/no-blanket-suppression.ts";
 const CONFIG_REL = "biome.json";

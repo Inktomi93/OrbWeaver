@@ -19,6 +19,16 @@
 // and would report every row it did not walk as stale (the `whole-project-arms-need-scope-self-guard`
 // class, paid 2026-08-30 on `tooling-front-door`).
 //
+// THE SUBJECT WIDENED 2026-09-12 (#2017/#2008) AND THE STAGE'S NAME NOW UNDERSELLS IT. Three of the seven
+// rows are not single-writer ledgers at all: they are HAND-AUTHORED CLAIMS IN LAW DOCS that nothing held
+// two-sided, which is the same failure shape one substrate over — a list written against a tree, and then
+// the tree moved. The read-first cost table (all EIGHT sizes stale at once, the work queue by 7x), the
+// refutation ledger's appended sections against the verifier reports they were transcribed from (nothing
+// reconciled them, so a dropped row was silent), and the deferred gate roster (five rows reading
+// "not yet ported" while their gate shipped). Two are derivations with a `baseline` writer; the third is a
+// parity check between two AUTHORED texts and deliberately has no writer — a generator there would let a
+// transcription error overwrite the evidence it got wrong. Each says so at its own function.
+//
 // COST: the manifest half is `git ls-files` (milliseconds); the census half builds the whole-repo ts-morph
 // project and is ~19s measured on this box (2026-08-30, 408 sites). That is the price of the derivation
 // itself, not of this stage — the same project the `structure:full` row in the same tier already builds.
@@ -31,7 +41,9 @@ import type { CaughtFailurePopulation, CaughtFailureRow } from "../contract/caug
 import type { LedgerFreshness } from "../contract/scoped.ts";
 import type { TestBaselineManifest } from "../contract/test-baseline.ts";
 import { TEST_BASELINE_REL } from "../contract/test-baseline.ts";
+import { ledgerSections, readDoc, reportLedgerRows } from "../lib/gate-program-docs.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
+import { deriveReadFirstCosts, READ_FIRST_REL } from "./gen/read-first-costs.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
 import { deriveTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
 import { deriveTypeConfigFiles } from "./gen/type-configs.ts";
@@ -42,6 +54,15 @@ const REGEN_CENSUS = "pnpm exec node tooling/src/verify/cli.ts baseline caught-f
 const REGEN_MANIFEST = "pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest";
 const REGEN_SNAP_FLAGS_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index";
 const REGEN_TYPE_CONFIGS = "pnpm exec node tooling/src/verify/cli.ts baseline type-configs";
+const REGEN_READ_FIRST_COSTS = "pnpm exec node tooling/src/verify/cli.ts baseline read-first-costs";
+
+const GATE_REVIEWS_DIR = "docs/reviews/gate-runtime";
+const GATES_DIR = "tooling/src/verify/gates";
+const DEFERRED_ROSTER_REL = "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md";
+/** A trigger cell that has ALREADY been adjudicated. Caps are the document's own convention for a resolved
+ *  row, and the words are its own vocabulary — not a grammar invented here. */
+const RESOLVED_TRIGGER = /\b(PROMOTED|DROPPED|SUPERSEDED|UPGRADED|RETIRED)\b/;
+const REFUTATION_LEDGER_REL = `${GATE_REVIEWS_DIR}/refutation-ledger-2026-09-12.md`;
 
 /** How many drift lines to print before summarising the tail. A re-line after a big merge moves dozens of
  *  rows; the reader needs enough to recognise the shape, not the whole diff (the file is the diff). */
@@ -161,6 +182,107 @@ export function typeConfigsDrift(root: string): LedgerFreshness {
   };
 }
 
+/** The #1584 read-list table's SIZE column versus a fresh measurement — byte-for-byte over the whole
+ *  document, because the derivation rewrites cells in place and a partial compare would let a rewritten row
+ *  drift back. #2017: all EIGHT sizes were stale at once and the work queue was understated by 7x. */
+export function readFirstCostsDrift(root: string): LedgerFreshness {
+  const derivedText = deriveReadFirstCosts(root);
+  const base = { ledger: `${READ_FIRST_REL} (SIZE column)`, regen: REGEN_READ_FIRST_COSTS, derived: 1 } as const;
+  const committedText = readDoc(root, READ_FIRST_REL);
+  return { ...base, drift: committedText === derivedText ? [] : ["the table's SIZE cells differ from a fresh measurement of the documents they price"] };
+}
+
+/** THE REFUTATION LEDGER'S APPENDED SECTIONS versus the verifier reports they came from (#2017).
+ *
+ *  A verifier report declares its rows in its own `## LEDGER ROWS (N rows)` table and an agent appends that
+ *  table into the ledger under a `###` section whose heading CITES the report. Nothing reconciled the two,
+ *  so a row dropped in the transcription was silent — and the ledger is the program's work queue.
+ *
+ *  IT IS NOT A REGENERABLE LEDGER, deliberately, and that is why it has no `baseline` kind. Both sides are
+ *  authored: the fix for a mismatch is to append the missing row (or correct the report), never to
+ *  overwrite one text from the other — a generator here would let a transcription error rewrite the
+ *  evidence it got wrong. `regen` therefore names the ACTION rather than a command, which is a stated
+ *  deviation from this stage's other four rows.
+ *
+ *  THE UNRECONCILED COUNT IS REPORTED, never swallowed. Most ledger sections cite an AUDIT report that
+ *  declares no rows of its own (the ten waves are distilled INTO the ledger by their reader), so a bare
+ *  "fresh" over the handful that do reconcile would be the same clean-zero this row exists to end. */
+export function ledgerSectionDrift(root: string): LedgerFreshness {
+  const sections = ledgerSections(readDoc(root, REFUTATION_LEDGER_REL));
+  const drift: string[] = [];
+  let reconciled = 0;
+  for (const section of sections) {
+    const report = section.report;
+    if (report === undefined) {
+      continue;
+    }
+    const reportRel = `${GATE_REVIEWS_DIR}/${report}`;
+    // Membership is asked, never caught: an absent report is a VERDICT about the ledger (a section citing
+    // evidence that is not on the tree), and swallowing the read error would file it as an unreadable
+    // report instead — the one distinction this row exists to keep.
+    if (!existsSync(join(root, reportRel))) {
+      drift.push(`missing ${REFUTATION_LEDGER_REL}:${section.line} cites ${report}, which is not in ${GATE_REVIEWS_DIR}/`);
+      continue;
+    }
+    const table = reportLedgerRows(readDoc(root, reportRel));
+    if (table === undefined) {
+      continue;
+    }
+    reconciled += 1;
+    if (table.rows !== section.rows) {
+      drift.push(
+        `rows   ${REFUTATION_LEDGER_REL}:${section.line} carries ${section.rows} row(s); ${report}'s own LEDGER ROWS table declares ${table.rows} — append the missing row(s), or correct the report`,
+      );
+    }
+    if (table.declared !== undefined && table.declared !== table.rows) {
+      drift.push(`self   ${report}'s heading says (${table.declared} rows) and its table carries ${table.rows}`);
+    }
+  }
+  return {
+    ledger: `${REFUTATION_LEDGER_REL} sections vs their reports (${reconciled} of ${sections.length} reconcilable; the rest cite an audit report that declares no rows)`,
+    regen: "append the missing row(s) to the ledger section, or correct the source report — BOTH sides are authored and neither is generated",
+    derived: reconciled,
+    drift,
+  };
+}
+
+/** THE DEFERRED ROSTER HALF, held against the tree (#2008).
+ *
+ *  `Core-Enforcement-Deferred-Dropped.md` lists neo gates "not yet ported, with activation trigger". It is
+ *  ONE-SIDED: a row turns into a lie the moment its trigger fires and the gate lands, and nothing noticed.
+ *  Measured 2026-09-12: 8 of the 28 rows name a gate that is LIVE, and FIVE of those still read as
+ *  not-yet-ported — `assets-single-writer`, `suppressions`, `bus-payload-allowlist`, `dangling-refs`,
+ *  `fetch-fn-in-features`. Same class as the refusal that outlived its blocker, one document over.
+ *
+ *  THE REVERSE DIRECTION IS NOT HELD, and naming it is the point. A row marked PROMOTED whose gate is NOT a
+ *  module is not necessarily wrong: `dead-code` was promoted into the `deps:knip` STAGE under a different
+ *  id, and where a promotion landed is prose in the trigger cell, not a census. A tripwire that guessed at
+ *  it would fire on the one honest row and prove nothing. */
+export function deferredRosterDrift(root: string): LedgerFreshness {
+  // SCOPED TO THE DEFERRED TABLE, not to the file: the same document carries the PREBUILT seals and the
+  // DROPPED list, whose rows have the identical shape. Counting those would inflate the denominator, and a
+  // denominator nobody can check is how a census stops being a measurement.
+  const lines = readDoc(root, DEFERRED_ROSTER_REL).split("\n");
+  const start = lines.findIndex((line) => line.startsWith("## Deferred backlog"));
+  const end = lines.findIndex((line, index) => index > start && start !== -1 && line.startsWith("#") && !line.startsWith("## Deferred backlog"));
+  const rows = (start === -1 ? [] : lines.slice(start, end === -1 ? lines.length : end)).filter((line) => /^\| `[a-z0-9-]+`/.test(line));
+  const drift = rows.flatMap((line) => {
+    const id = /^\| `([a-z0-9-]+)`/.exec(line)?.[1];
+    const landed = id !== undefined && existsSync(join(root, `${GATES_DIR}/${id}.ts`));
+    return landed && !RESOLVED_TRIGGER.test(line)
+      ? [
+          `fired  ${DEFERRED_ROSTER_REL}: \`${id}\` reads as not-yet-ported and ${GATES_DIR}/${id}.ts is on the tree — mark the row PROMOTED with where it landed, or delete it`,
+        ]
+      : [];
+  });
+  return {
+    ledger: `${DEFERRED_ROSTER_REL} (${rows.length} deferred rows; the PROMOTED-but-absent direction is prose and is NOT held)`,
+    regen: "edit the deferred row: a trigger that FIRED says PROMOTED / DROPPED / SUPERSEDED and names where the rule now lives",
+    derived: rows.length,
+    drift,
+  };
+}
+
 /** Every single-writer output's freshness, cheap half first. The derivations run unconditionally — a stage that
  *  short-circuited on the first drift would hide the others from the same barrier run. */
 export function ledgerFreshness(root: string): readonly LedgerFreshness[] {
@@ -168,7 +290,7 @@ export function ledgerFreshness(root: string): readonly LedgerFreshness[] {
   const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
   const snapFlagsIndex = snapFlagsIndexDrift(root);
   const typeConfigs = typeConfigsDrift(root);
-  return [manifest, census, snapFlagsIndex, typeConfigs];
+  return [manifest, census, snapFlagsIndex, typeConfigs, readFirstCostsDrift(root), ledgerSectionDrift(root), deferredRosterDrift(root)];
 }
 
 /** A derivation that came back EMPTY is blindness, not cleanliness: a broken `scanRoot`, a `git ls-files`
@@ -230,5 +352,6 @@ export const LEDGER_CHECKS: Readonly<Record<string, (root: string) => number>> =
     verdict([censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root))]),
   "test-baseline-manifest": (root) => verdict([manifestDrift(readCommitted<TestBaselineManifest>(root, TEST_BASELINE_REL), deriveTestBaselineManifest(root))]),
   "snap-flags-index": (root) => verdict([snapFlagsIndexDrift(root)]),
+  "read-first-costs": (root) => verdict([readFirstCostsDrift(root)]),
   "type-configs": (root) => verdict([typeConfigsDrift(root)]),
 };

@@ -160,16 +160,20 @@ export { deriveCaughtFailurePopulation, generateCaughtFailurePopulation, POPULAT
 export { generateDensityBaseline } from "./ops/gen/density.ts";
 export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action-doors.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
+export { deriveReadFirstCosts, generateReadFirstCosts, READ_FIRST_REL } from "./ops/gen/read-first-costs.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";
 export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
 export { deriveTestBaselineManifest, generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
 export {
   censusDrift,
+  deferredRosterDrift,
   LEDGER_CHECKS,
   ledgerFreshness,
   ledgerReport,
+  ledgerSectionDrift,
   manifestDrift,
+  readFirstCostsDrift,
   runLedgersFresh,
   snapFlagsIndexDrift,
   typeConfigsDrift,
