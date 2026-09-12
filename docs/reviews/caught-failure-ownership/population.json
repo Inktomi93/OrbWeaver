@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 596,
+    "sites": 595,
     "reported": 23,
     "byVerdict": {
-      "deliberate-absorb": 573,
+      "deliberate-absorb": 572,
       "unproven": 23
     },
     "byGrammar": {
-      "default": 162,
+      "default": 161,
       "empty": 291,
       "promise": 143
     }
@@ -4334,7 +4334,7 @@
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::10",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 336,
+      "line": 351,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4342,7 +4342,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting).",
-      "markerLine": 333
+      "markerLine": 348
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::2",
@@ -4399,7 +4399,7 @@
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::6",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 249,
+      "line": 264,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -4407,12 +4407,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition \"this slot is no longer in flight\" holds either way. Ends if publishing twice must become an error.",
-      "markerLine": 246
+      "markerLine": 261
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::7",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 285,
+      "line": 300,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4420,12 +4420,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an absent or unparseable manifest means \"this slot published nothing a pointer could still resolve into\" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish \"never published\" from \"manifest lost\".",
-      "markerLine": 282
+      "markerLine": 297
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::8",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 300,
+      "line": 315,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4433,12 +4433,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a removed or replaced alias is the NEGATIVE answer to \"does this pointer still resolve into that slot?\" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable.",
-      "markerLine": 294
+      "markerLine": 309
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::9",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 319,
+      "line": 334,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4446,7 +4446,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable.",
-      "markerLine": 315
+      "markerLine": 330
     },
     {
       "siteId": "tooling/src/_shared/browser-capture.ts::wire::1",
@@ -4672,7 +4672,7 @@
     {
       "siteId": "tooling/src/_shared/proc.ts::error::1",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 35,
+      "line": 68,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -4680,12 +4680,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.",
-      "markerLine": 32
+      "markerLine": 65
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::error::2",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 251,
+      "line": 200,
       "column": 16,
       "grammar": "empty",
       "position": "error",
@@ -4693,12 +4693,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.",
-      "markerLine": 248
+      "markerLine": 197
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::settle::1",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 400,
+      "line": 293,
       "column": 7,
       "grammar": "promise",
       "position": "settle",
@@ -4706,7 +4706,7 @@
       "snippet": "settle(code).catch((error: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error.",
-      "markerLine": 399
+      "markerLine": 292
     },
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::cleanupError::1",
@@ -5699,7 +5699,7 @@
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::catch::1",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 121,
+      "line": 122,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -5707,12 +5707,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed capture may create no file; the primary error is retained by runHeapPage and exits 2. Ends if the caller stops preserving/printing that primary error.",
-      "markerLine": 118
+      "markerLine": 119
     },
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::error::1",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 275,
+      "line": 276,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -5720,12 +5720,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every caught capture failure enters errors, prints HEAP REFUSED, persists on CaptureOutcome, and forces page-arm exit 2. Ends if any one of those owners stops reading errors.",
-      "markerLine": 272
+      "markerLine": 273
     },
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::error::2",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 283,
+      "line": 284,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -5733,12 +5733,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every caught comparison failure enters errors, prints HEAP REFUSED, persists on CaptureOutcome, and forces page-arm exit 2. Ends if any one of those owners stops reading errors.",
-      "markerLine": 280
+      "markerLine": 281
     },
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::error::3",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 291,
+      "line": 292,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -5746,12 +5746,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every caught retainer failure enters errors, prints HEAP REFUSED, persists on CaptureOutcome, and forces page-arm exit 2. Ends if any one of those owners stops reading errors.",
-      "markerLine": 288
+      "markerLine": 289
     },
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::error::4",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 322,
+      "line": 323,
       "column": 18,
       "grammar": "empty",
       "position": "error",
@@ -5759,12 +5759,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.",
-      "markerLine": 319
+      "markerLine": 320
     },
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::error::5",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 337,
+      "line": 338,
       "column": 18,
       "grammar": "empty",
       "position": "error",
@@ -5772,12 +5772,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.",
-      "markerLine": 334
+      "markerLine": 335
     },
     {
       "siteId": "tooling/src/snap/ops/arms/heap.ts::error::6",
       "path": "tooling/src/snap/ops/arms/heap.ts",
-      "line": 352,
+      "line": 353,
       "column": 18,
       "grammar": "empty",
       "position": "error",
@@ -5785,7 +5785,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "the caught grammar detail enters Args.errors and the CLI refuses before browser work. Ends if parseSnapArgs stops surfacing Args.errors.",
-      "markerLine": 349
+      "markerLine": 350
     },
     {
       "siteId": "tooling/src/snap/ops/arms/lighthouse.ts::catch::1",
@@ -6193,7 +6193,7 @@
     {
       "siteId": "tooling/src/snap/ops/guards.ts::e::1",
       "path": "tooling/src/snap/ops/guards.ts",
-      "line": 124,
+      "line": 125,
       "column": 14,
       "grammar": "empty",
       "position": "e",
@@ -6201,7 +6201,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STAGE ERROR and returned as exit code 1, which the CLI process exits with. Ends if that exit code stops being surfaced.",
-      "markerLine": 109
+      "markerLine": 110
     },
     {
       "siteId": "tooling/src/snap/ops/heap-capture.ts::error::1",
@@ -6310,7 +6310,7 @@
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::error::1",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 381,
+      "line": 382,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -6318,12 +6318,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 377
+      "markerLine": 378
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::error::2",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 388,
+      "line": 389,
       "column": 14,
       "grammar": "empty",
       "position": "error",
@@ -6331,7 +6331,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 385
+      "markerLine": 386
     },
     {
       "siteId": "tooling/src/snap/ops/request-ring.ts::error::1",
@@ -7489,19 +7489,6 @@
       "verdict": "deliberate-absorb",
       "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.",
       "markerLine": 148
-    },
-    {
-      "siteId": "tooling/src/verify/ops/debt.ts::catch::1",
-      "path": "tooling/src/verify/ops/debt.ts",
-      "line": 158,
-      "column": 5,
-      "grammar": "default",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "returns null, which the doc comment above says is printed as \"unavailable\" WITH its reason — never as zeros. Ends if a caller starts treating null as zero admissions.",
-      "markerLine": 155
     },
     {
       "siteId": "tooling/src/verify/ops/orphan-export-ratchet.ts::err::1",
