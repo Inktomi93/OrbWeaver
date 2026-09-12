@@ -23,8 +23,11 @@
 // row, because `classifyProjectHomeOrigin` is what decides, and `lib/project-home-origin.ts` is a shared
 // PRIMITIVE seventeen policies read rather than a family key.
 //
-// FAMILY: SINGLETON under its own id. Its sibling arm (`register()` anywhere in client source) SPLIT into
-// `no-mutating-register-api` over a wider population; nothing else judges where a registry is assembled.
+// FAMILY `registry-assembly-at-door-only` — a two-member SPLIT family, NOT a singleton: its sibling arm
+// (`register()` anywhere in client source) split into `no-mutating-register-api`, which carries this same
+// `family` string over a wider population. The two share no `lib/` reader deliberately — that arm resolves
+// nothing while this one resolves a factory callee's identity — and the family string is what keeps them
+// visible as one law. Nothing else judges where a registry is assembled.
 // POPULATION PORT: an INTENTIONAL CORRECTION, stated above. The legacy `scanRoot:
 // (p) => p.startsWith("packages/client/src/")` (68c8f42d6) becomes `@client` MINUS the door, because the
 // door is a structural class the law itself names and carrying it as a run-time check would have kept the

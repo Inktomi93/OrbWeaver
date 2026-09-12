@@ -24,6 +24,22 @@
 // The legacy `user-bus-coverage` descriptor (d9ac09d580d98188caae64ba04f24deee7402ef6) carried the
 // DEFERRED allowlist as a citation string parked inside its single gate before this split gave the
 // deferral its own descriptor.
+//
+// FAMILY `bus-fact` — the shared reader is `lib/bus-fact.ts` (`busProducerFact`), plus
+// `contract/bus-fact.ts` (`busByUnion`, `recordReadyBusFact`), consumed identically by all three members
+// (`bus-producer-coverage`, `bus-fact-health` and this policy), so the producer census and the deferral
+// cannot drift apart. The `BUS_MEMBER_DEFERRALS` list below is exported rather than shared through `lib/`
+// on purpose: it is DEBT DATA with one owner and a deletion date, not a reader, and `bus-producer-coverage`
+// importing it from here is what makes deleting this module atomic.
+// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at d9ac09d58 (the parent of 001949630). The legacy
+// descriptor declared `scopeSafety: "whole-project"` with no `scanRoot` and walked `ctx.project`, so its
+// effective population was the entire tree. The final is `{ in: ["@contracts", "@server"] }` — and that set
+// is NOT a free choice: it must EQUAL `busProducerFact`'s own population (lib/bus-fact.ts:651), because
+// nothing checks that a provider's population is a subset of its consumers' (guide §4.5b) and a consumer
+// narrower than its provider is handed nodes it may not NAME, which is the `ctx.relativePath` throw. So
+// narrowing this to `@contracts` alone — the only package this policy's own arms NAME — is the tempting
+// simplification that must not be made. The worked receipt for that failure mode is the twin family's
+// `bus-definition-belts` `mustPass[0]`, which reproduces the real-tree throw inside conformance.
 import type { BusDeclarationIdentity, BusMemberDeferral } from "../contract/bus-fact.ts";
 import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -96,8 +112,8 @@ export const gate = defineGate({
         "packages/server/src/domain/connection/verbs/save.ts":
           'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function save(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "connectionsChanged" });\n}\n',
       },
-      expect: { count: 1 },
-      why: "the deferred member gained its canonical injected producer — the deferral is stale and must be deleted, which is the only self-cleaning direction a proof row can express",
+      expect: { count: 1, messageIncludes: "Member: connectionsChanged" },
+      why: "the deferred member gained its canonical injected producer — the deferral is stale and must be deleted, which is the only self-cleaning direction a proof row can express. The `messageIncludes` names WHICH member retired, which a bare count cannot: the report appends the member to a single policy-level message, so a reader that matched the wrong declared member — or dropped the `deferralsFor` union filter and retired a same-named member of another bus — would still produce exactly one finding here",
     },
   ],
   mustPass: [

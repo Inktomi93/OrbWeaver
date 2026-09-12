@@ -14,6 +14,24 @@
 // The legacy `bus-definition-belts` descriptor (001949630e8ae87b44c758fd4ba5614c8e63c15a) carried
 // `BELT_EXEMPT`/`SERVER_INTERNAL_REACH`/the belt-const name search as its four arms before this
 // conversion split them into `bus-belt-total`/`bus-consumer-belt`/`bus-coverage-owner` alongside this file.
+//
+// FAMILY `bus-definition` — the shared reader is `lib/bus-definition-fact.ts` (`busDefinitionFact`), over
+// `lib/bus-fact-read.ts`'s identity helpers, consumed identically by all three members (`bus-belt-total`,
+// `bus-consumer-belt` and this policy). It is a SECOND provider beside `busProducerFact` rather than fields
+// on it, because producers are a contracts/server question and definitions reach the client too — which is
+// the population line below.
+// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at 001949630 (the parent of bda39454c). The legacy
+// descriptor declared `scopeSafety: "whole-project"` with no `scanRoot` and read
+// `ctx.project.getSourceFiles()`, so its effective population was the entire tree, `@orb/ui` included. The
+// final is `{ in: ["@contracts", "@client", "@server"] }` — and that set is NOT a free choice: it must
+// EQUAL `busDefinitionFact`'s own population (lib/bus-definition-fact.ts:380), because nothing checks that
+// a provider's population is a subset of its consumers' (guide §4.5b) and a consumer narrower than its
+// provider is handed nodes it may not NAME, which is the `ctx.relativePath` throw. So "@contracts only" —
+// the sole package this policy's own arm ACCUSES (the fact admits bus-union aliases from
+// `packages/contracts/src/` alone, lib/bus-definition-fact.ts:88-93, which is what makes this module's
+// message clause "in @orb/contracts" TRUE) — is exactly the simplification a copying lane must not make.
+// `mustPass[0]` is the row that reproduces that failure: a union declared in `@orb/ui`, outside the
+// population, reached through a client total map.
 import { defineGate } from "../contract/policy.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 

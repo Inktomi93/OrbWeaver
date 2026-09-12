@@ -4,6 +4,24 @@
 // void silently. This policy shares the exact `SANCTIONED_HOMES` table with its sibling and runs over the
 // ENTIRE population (never a narrowed subset), because "does this row resolve to a file" is a whole-tree
 // question the occurrence policy's per-file dispatch cannot answer.
+//
+// FAMILY `raw-spacing-tier` — a two-member SPLIT family, and the shared reader is `lib/sanctioned-home.ts`
+// (`unresolvedSanctionedHomeKeys` here, `sanctionedHome` in the occurrence twin) over the ONE
+// `SANCTIONED_HOMES` table, which is imported from the sibling rather than re-spelled. The split is forced
+// by `execution`: the occurrence check is per-file and incremental-safe, this verdict needs the entire
+// declared population, and one descriptor carries one `execution` value.
+// POPULATION PORT: byte-identical. The legacy descriptor (d6f36904f, the parent of 99b7429e2 — its
+// `no-raw-spacing-in-features.ts` carried BOTH arms in one `GateDescriptor`) scoped with
+// `scanRoot: (p) => /\/packages\/(?:client|ui)\/src\//u.test(`/${p}`)`; `["@client", "@ui"]` is the same set.
+// The population is a STRUCTURAL non-narrowing, not an unenforced fence (guide §4.1's fourth outcome, wave 4):
+// `SANCTIONED_HOMES`' keys are hardcoded under one package, so no fixture placed under an added population
+// root can ever land on one and no discriminating row EXISTS.
+// CUT DIRECTION IS INVERTED HERE (guide §4.1) — this is a tripwire, so its fences ACQUIT and opening one
+// makes it flag FEWER. The ANCHOR self-guard's falsifier is `mustPass[1]` going RED; the resolution reader's
+// is `mustFlag[0]` going GREEN. A lane applying the occurrence direction reads both as unenforced.
+// §4.5 and §4.6 live in `tests/tooling/verify/gates/tier-home-health-family.int.test.ts`: the narrowed-request
+// DEFERRAL pin with its whole-project control (ec336d41c), and the split-arm differential replaying every
+// legacy example through the frozen d6f36904f descriptor and the UNION of both final policies (6f815e95e).
 import { defineGate } from "../contract/policy.ts";
 import { unresolvedSanctionedHomeKeys } from "../lib/sanctioned-home.ts";
 import { SANCTIONED_HOMES } from "./no-raw-spacing-in-features.ts";
@@ -46,8 +64,8 @@ export const gate = defineGate({
         [ANCHOR]: "export const tokens = {};\n",
         "packages/ui/src/layout/stack.tsx": "export const S = null;\n",
       },
-      expect: { count: 1 },
-      why: "THE RENAME TRIPWIRE: the anchor is loaded and the layout home still resolves, but the markdown home resolves to no file — that row permits nothing and ratchets down",
+      expect: { count: 1, messageIncludes: '"packages/ui/src/markdown/" resolves to no file' },
+      why: "THE RENAME TRIPWIRE: the anchor is loaded and the layout home still resolves, but the markdown home resolves to no file — that row permits nothing and ratchets down. The `messageIncludes` names WHICH row, which a bare count cannot: the finding is anchored on the ANCHOR file for every row (there is no file to point at), so the key is the only thing distinguishing 'the markdown row is dead' from 'the layout row is dead' — a reader that returned the wrong key would pass a count-only expectation. There is no `token` to pin: this is a `ctx.report.file` finding",
     },
   ],
   mustPass: [
