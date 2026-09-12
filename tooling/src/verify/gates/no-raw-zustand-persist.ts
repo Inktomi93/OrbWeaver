@@ -32,6 +32,7 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { classifyPackageMemberOrigin, readPackageExportOrigin } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
@@ -62,8 +63,18 @@ const MESSAGE =
   "durable storage (#879, from #837), so it belongs to those same factories; and inside the durable-local " +
   "registry a registered store's `reset()` may only run behind the storage blindfold. See " +
   "UI-Gates-and-Lessons.md §11.5.";
+/** DISJOINT FROM `MESSAGE` BY CONSTRUCTION, and that is load-bearing rather than stylistic: the fail-closed
+ *  arms are pinned by `messageIncludes`, so if this text were built by INTERPOLATING `MESSAGE` into it the
+ *  base string would be a substring of BOTH and neither arm would be pinnable. Checked by literal comparison — neither
+ *  string contains the other — and `home-client-family.test.ts` holds the same equality for the sibling
+ *  policy whose pair a future edit is most likely to fold.
+ *
+ *  It names all THREE arms because one string serves every candidate this policy reports: `persist` (the
+ *  middleware), the store api behind a destructive reset, and the registry's own `RegisteredStore.reset`.
+ *  The old text said "the middleware" only, which was already wrong for arm B and became a lie the moment
+ *  arm C could reach this message at all. */
 const UNREADABLE =
-  "this expression is spelled like zustand's persistence api but the shared readers cannot place its binding, so whether it is the middleware CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this expression is spelled like zustand's persistence api — the `persist` middleware, a store api's destructive reset, or the durable-local registry's own registered `reset` — but the shared readers cannot place its binding, so which of them it is CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 const FIX =
   'use createEntityDraftStore / createPersistedStore instead of a bare persist(); drop a store through the durable-local door (`resetWithoutPersisting`), which blindfolds the storage first. There is no inline waiver for this policy: a genuinely new sanctioned home needs an exact reviewed-grant row in `tooling/src/verify/lib/reviewed-grants.ts` — `{ id: "no-raw-zustand-persist:<short-kebab-subject>", policyId: "no-raw-zustand-persist", subject: <the reported file path>, operation: "zustand-persist-mint" | "destructive-store-reset" | "unblindfolded-registered-reset", why, endsWhen }` — with the `operation` taken from the finding, not guessed.';
 
@@ -205,15 +216,30 @@ function unblindfoldedReset(reset: ResetSite, registryFiles: ReadonlySet<object>
   if (!registryFiles.has(reset.source.compilerNode)) {
     return null;
   }
-  const origin = resolveTypeMemberOrigin(reset.node);
-  if (!(origin.kind === "resolved" && declaredByFile(origin.value.declarations, reset.source))) {
-    return null;
-  }
+  // THE BLINDFOLD IS ASKED FIRST, AND IT IS ASKED OF EVERY ANSWER. Installing the storage blindfold makes
+  // the drop legal whatever the callee turns out to be, so an unreadable call inside the sanctioned door is
+  // not an accusation. Ordering it ahead of the identity read is what keeps the fail-closed arm below from
+  // reporting `resetWithoutPersisting` itself.
   const body = reset.body;
   if (body !== null && blindfolds.some((installed) => contains(body, installed))) {
     return null;
   }
-  return { node: reset.node, subject: reset.subject, operation: OPERATIONS.unblindfoldedReset, token: RESET, unreadable: false };
+  const base = { node: reset.node, subject: reset.subject, operation: OPERATIONS.unblindfoldedReset, token: RESET };
+  const origin = resolveTypeMemberOrigin(reset.node);
+  if (origin.kind === "unresolved") {
+    // THE #944 THIRD ANSWER, which this arm could not express at all before #2050/cb-v-ledger-wave: one
+    // `return null` served BOTH "a proven different member" and "no member this run can place", and the only
+    // reporting path hardcoded `unreadable: false` — so an unreadable `reset()` in the ONE file where a
+    // registered store's drop is the #837 hazard was acquitted, silently. A proven non-module binding still
+    // passes (the classifier's case (a)); everything else REPORTS. The candidate set is already narrow —
+    // the callee is named `reset` AND the file declares the registry — which is the prefilter fail-closure
+    // requires before it may accuse.
+    return classifyOriginRefusal(origin.reason, reset.node) === "other" ? null : { ...base, unreadable: true };
+  }
+  if (!declaredByFile(origin.value.declarations, reset.source)) {
+    return null;
+  }
+  return { ...base, unreadable: false };
 }
 
 const REGISTRY_PROOF = {
@@ -404,6 +430,33 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: RESET },
       why: "ARM C: a SECOND caller of a registered store's `reset()` inside the registry, outside the function that installs the storage blindfold — #837 one layer up. The blindfolded caller in the same file passes, so the arm is not merely counting `reset()` calls",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        "packages/client/src/state/durable-local.ts": [
+          "interface RegisteredStore {",
+          "  readonly api: { readonly persist?: { readonly setOptions: (options: unknown) => void } };",
+          "  readonly reset: () => void;",
+          "}",
+          "const registry: RegisteredStore[] = [];",
+          "export function registerDurableLocalStore(entry: RegisteredStore): void {",
+          "  registry.push(entry);",
+          "}",
+          "function resetWithoutPersisting(entry: RegisteredStore): void {",
+          "  entry.api.persist?.setOptions({});",
+          "  entry.reset();",
+          "}",
+          "declare function opaque(): any;",
+          "export function forget(): void {",
+          "  opaque().reset();",
+          "}",
+          "",
+        ].join("\n"),
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944) ON ARM C, and it was UNREACHABLE BY CONSTRUCTION rather than merely unpinned: an OPAQUE receiver inside the registry file resolves no property symbol, so `resolveTypeMemberOrigin` refuses — and the arm collapsed that answer into the same silent `return null` it uses for a PROVEN different member, then hardcoded `unreadable: false` on its only reporting path. A `reset()` the readers cannot place, sitting in the one file where a registered store's drop is the #837 hazard, was acquitted. The `messageIncludes` is the whole pin: the unreadable arm emits ONE finding exactly like the ordinary verdict, so a bare `{ count: 1 }` would pass with the arm dead again",
     },
     {
       mode: "types",
