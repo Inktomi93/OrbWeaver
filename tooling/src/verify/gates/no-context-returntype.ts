@@ -14,6 +14,16 @@
 // context.ts that reaches the utility type through another module's alias (`type Ctx = Reflected<typeof
 // makeCtx>` where `Reflected<F> = ReturnType<F>` lives elsewhere) is not reported here — the reflection is
 // authored in the OTHER file, and this policy's population is the context.ts bundle.
+//
+// #1999 — TWO §4.1 CUTS DOCUMENTED, NEITHER OWES A ROW (v-audit-wave6-2026-09-12.md, cut ledger D1/D2):
+//   · MUTUALLY REDUNDANT — the spelling filter (`node.getText() !== UTILITY`, :51) and the resolved-origin
+//     identity check (`origin.value.globalName === UTILITY`, :56) each individually pin the same subject;
+//     cutting either ALONE stays clean because the sibling still catches it. Only the CLUSTER cut of both
+//     goes red (on a `Parameters<typeof makeCtx>` fixture), and the fix is not deletion — each is doing real
+//     work for a different reader (the visitor-level identifier filter vs. the origin classifier).
+//   · UNFALSIFIABLE — `origin.value.memberPath.length === 0` (:56) has no fixture that can reach it: a
+//     `ReturnType` identifier is always read bare here (never through a further member access), so no
+//     probe forces the clause to matter. Documented rather than faked (§4.1's fourth outcome).
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { resolveGlobalMemberOrigin } from "../lib/reference-fact.ts";

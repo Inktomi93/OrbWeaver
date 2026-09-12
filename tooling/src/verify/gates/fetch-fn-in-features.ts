@@ -230,5 +230,13 @@ export const gate = defineGate({
       },
       why: "POSITIONAL IDENTITY: the report anchors on the CALLEE and the token is `fetch` even under a member spelling (`globalThis.fetch` reports `fetch` at an offset, :119-122), so one waiver vocabulary covers every spelling of the global. The fixture is mustFlag[0] (:134, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes. The alias row (mustFlag[3]) is deliberately NOT the base — its callee text is `wire`, so its position is the alias name, not `fetch`",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/thing/lib/x.ts":
+          "declare function opaque(): any;\nexport async function load(): Promise<unknown> {\n  return await opaque().unrelatedMethod();\n}\n",
+      },
+      why: "#1999 — THE CANDIDATE-SPELLING PREFILTER, PINNED (`fetchCandidate`, :33-45): a member call whose leaf name is not `fetch` is not even a candidate, so it is never resolved — the same class of blindspot `origin-verdict.ts`'s header records for an unprefiltered arm (5/14 real-tree false accusations). Cutting `fetchCandidate` to always admit turns this red: the opaque `any` receiver then resolves to `unreadable` and this UNRELATED method call is accused of being the wire primitive",
+    },
   ],
 });

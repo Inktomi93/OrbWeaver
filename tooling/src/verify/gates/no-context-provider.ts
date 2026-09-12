@@ -162,5 +162,16 @@ export const gate = defineGate({
       },
       why: "POSITIONAL IDENTITY: the report anchors on the `.Provider` member access with the token `Provider`, so that member — not the context receiver and not the whole tag — is what an author waives. The fixture is mustFlag[0] (:73) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
     },
+    {
+      mode: "types",
+      files: {
+        [REACT_TYPES_HOME]: reactProofModule().replace(
+          "export interface Context<T> {\n  Provider: Provider<T>;\n  displayName?: string;\n}",
+          "export interface Context<T> {\n  Provider: Provider<T>;\n  Consumer: Provider<T>;\n  displayName?: string;\n}",
+        ),
+        "packages/client/src/feature/ui.tsx": `${CONTEXT_HOST}export function Host(): unknown {\n  return <ThemeContext.Consumer value="day" />;\n}\n`,
+      },
+      why: "#1999 — THE MEMBER-NAME FENCE, PINNED (`tagMemberAccess`, :33): a `.Consumer` access on the SAME react-declared context resolves to a real React member but is not `.Provider`, so it must pass untouched. Cutting `tagName.getName() !== MEMBER` turns this red — every react-declared tag member, not only `.Provider`, would then be reported",
+    },
   ],
 });

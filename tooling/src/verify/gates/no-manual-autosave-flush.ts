@@ -276,5 +276,25 @@ export const gate = defineGate({
       },
       why: "POSITIONAL IDENTITY: the verdict is about a PAIR of calls but the report anchors on the ARRAY-OP call site with that op's own name as the token (:134-138), so the waiver names `pushFieldValue` — a marker naming `handleSubmit` would be a dead position even though that call is half the offense. The fixture is mustFlag[0] (:151, count 1) plus the marker line inside the same function body, which is the carrier the finding sits in; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
     },
+    {
+      mode: "types",
+      files: {
+        ...tanstackFormProof(),
+        "packages/client/src/features/x/lib/x.ts":
+          'import type { FormApi } from "@tanstack/form-core";\nexport function onAdd(form: FormApi): void {\n  form.reset();\n  void form.handleSubmit();\n}\n',
+      },
+      why: "#1999 — THE MEMBER-NAME SET FENCE, PINNED: `ARRAY_OPS`/`SUBMIT` (:26-27) admit only the four structural array ops plus `handleSubmit`; `reset()` is a real FormApi member outside that set, so pairing it with `handleSubmit` in one body must pass untouched. Cutting `ARRAY_OPS.has(name) || name === SUBMIT` at :63 turns this red — `reset` would then be counted as the array-op half of the pair",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackFormProof(),
+        "packages/client/src/features/x/lib/x.ts":
+          'import type { FormApi } from "@tanstack/form-core";\nexport function onAdd(form: FormApi): void {\n  form.pushFieldValue("items", 1);\n}\n',
+        "packages/client/src/forms/editor/flush.ts":
+          'import type { FormApi } from "@tanstack/form-core";\nexport function onAdd(form: FormApi): void {\n  form.pushFieldValue("items", 1);\n  void form.handleSubmit();\n}\n',
+      },
+      why: "#1999 — THE `features/**` POPULATION FENCE, PINNED: the offending pair sits at `packages/client/src/forms/editor/flush.ts`, outside `population.under` (:93), and must pass untouched; `packages/client/src/features/x/lib/x.ts` (a legal array-op-alone shape, itself 0 findings) is the IN-POPULATION ANCHOR the row needs so an unfenced run admits at least one path instead of tool-erroring on an empty population (§4.1's population-falsifier rule). Cutting `under: ['packages/client/src/features/**']` turns the `forms/editor/flush.ts` half of this row red",
+    },
   ],
 });
