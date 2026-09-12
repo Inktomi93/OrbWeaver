@@ -9,9 +9,17 @@
 // `cn()` argument lists and plain exported constants, and a JSX-carrier fence would blind the gate to
 // exactly that surface. The header used to single PALETTE_RE out as "UNFENCED" while MESSAGE_NON_TOKEN and
 // MESSAGE_HEX asserted the hit was "in className" — a context nothing ever verified. The messages are now
-// context-free; the unfenced behaviour is pinned by the non-JSX mustFlag row below and, on the real tree,
-// by tests/tooling/gate-ignore-grammar.repo.int.test.ts, whose whole six-case probe rests on this gate
-// biting a bare `export const g1 = "bg-black";` under packages/ui/src.
+// context-free; the unfenced behaviour is pinned by the non-JSX mustFlag row below.
+//
+// THAT SENTENCE USED TO CITE A REAL-TREE PIN, AND THE CITATION IS DEAD (#1974, 2026-09-11). It named
+// tests/tooling/gate-ignore-grammar.repo.int.test.ts, "whose whole six-case probe rests on this gate
+// biting a bare exported `bg-black` class constant under packages/ui/src". That suite exercises the LEGACY
+// `@orb-gate-ignore` engine, and marker routing is FENCED (docs/design/gate-runtime-standardization.md
+// §7): its carriers must be LEGACY gates BY REQUIREMENT. This module converted at `99b7429e2`, left the
+// legacy roster, and took that pin with it — the suite went RED, unrun for days because tests/tooling/**
+// is `--full`-only (#1842), and has since been re-pointed at a still-legacy carrier. This module's own
+// receipt is its `defineGate` proof rows on `structure:policy-conformance` plus its family test; do not
+// re-add a real-tree citation to a suite whose subject is the engine this policy no longer uses.
 //
 // The cost is accepted: a non-class string that happens to spell `bg-black` or `text-red-500` is a false
 // positive. This policy is ORDINARY precisely so that case has a door — `@orb-waive no-color-literals(<the

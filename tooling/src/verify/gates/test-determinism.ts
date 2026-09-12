@@ -20,7 +20,10 @@
 // (plugin-host/{sandbox ×4,escape.suite ×2}, entry/{compose/chat ×2,lifecycle}), `performance.timeOrigin` ×1
 // (plugin-host/realm). The 22 raw grep hits minus 4 legacy-engine fixtures in
 // tests/tooling/gate-ignore-grammar.repo.int.test.ts, 3 file-header prose mentions and this header's own
-// quote = those 14.
+// quote = those 14. THAT ARITHMETIC IS FROZEN AT THE CONVERSION COMMIT and is no longer reproducible: this
+// policy was that suite's Finding-arm carrier, the conversion made the arm vacuous (a legacy marker cannot
+// reach a final policy), and #1974 re-pointed it at `no-test-fabrication` — so its 4 fixtures no longer
+// name this policy. Re-derive from the tree, never from this paragraph.
 // WIDENED SPELLINGS (#831): four real sites routed around the gate through spellings the old regex did
 // not recognise — process.hrtime()/process.hrtime.bigint() (an ambient monotonic clock; one member match
 // covers both call forms) and performance.timeOrigin (an ambient clock PROPERTY, not a call). All four
@@ -157,7 +160,7 @@ export const gate = defineGate({
       mode: "source",
       files: { "tests/server/literal.test.ts": 'export const src = "Date.now()";\n' },
       expect: { messageIncludes: "Date.now" },
-      why: "DECLARED LIMIT (issue #132): only COMMENTS are blanked. A banned call spelled inside a STRING is code a test could evaluate, and two live suites (check-gates.int, gate-ignore-grammar.int) assemble their fixtures precisely to stay clean of this arm — keeping it proven stops a future 'blank strings too' from silently disarming them",
+      why: "DECLARED LIMIT (issue #132): only COMMENTS are blanked. A banned call spelled inside a STRING is code a test could evaluate — tests/tooling/vitest-supervised.test.ts's SPIN_SRC is exactly that, a string spawned as a real grandchild — so keeping this row proven stops a future 'blank strings too' from silently disarming the arm. THE LIMIT CANNOT BE NARROWED (#1975, 2026-09-11): a syntax line-scanner cannot tell a string parsed by ts-morph from one that runs, and the parser fixtures that spell a banned call to prove a READER (tests/tooling/verify/lib/{ambient-determinism,origin-verdict,reference-fact-origin.suite}) each carry their own `@orb-waive` instead — nine of them, one reason apiece, which is the per-site door this arm is supposed to have",
     },
     {
       mode: "source",

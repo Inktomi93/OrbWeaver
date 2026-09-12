@@ -24,25 +24,31 @@ function invocation(source: string, needle: string, kind: SyntaxKind = SyntaxKin
 }
 
 test("the ambient clock resolves through an immutable alias and a computed-literal member alike", () => {
+  // @orb-waive test-determinism(Date.now): FIXTURE SOURCE for the ambient-clock arm — a string handed to ts-morph and parsed, never evaluated. Ends when this reader stops recognising Date.now(); the gate's DECLARED LIMIT (string literals scan) cannot be narrowed, since a syntax line-scanner cannot tell a parsed fixture from a string that runs.
   expect(readAmbientInvocation(invocation("export const t = Date.now();\n", "Date.now()"), CLOCK)).toMatchObject({ kind: "ambient" });
   expect(readAmbientInvocation(invocation('export const t = Date["now"]();\n', 'Date["now"]()'), CLOCK)).toMatchObject({ kind: "ambient" });
   expect(readAmbientInvocation(invocation("const clock = Date;\nexport const t = clock.now();\n", "clock.now()"), CLOCK)).toMatchObject({ kind: "ambient" });
 });
 
 test("the zero-argument constructor is the same source read through `new`", () => {
+  // @orb-waive test-determinism(new Date): FIXTURE SOURCE for the zero-argument-constructor arm — parsed by ts-morph, never evaluated.
   expect(readAmbientInvocation(invocation("export const d = new Date();\n", "new Date()", SyntaxKind.NewExpression), CONSTRUCTOR)).toMatchObject({
     kind: "ambient",
   });
 });
 
 test("ambient entropy resolves, and a DIFFERENT ambient global with the same member name does not", () => {
+  // @orb-waive test-determinism(Math.random): FIXTURE SOURCE for the ambient-entropy arm — parsed by ts-morph, never evaluated.
   expect(readAmbientInvocation(invocation("export const r = Math.random();\n", "Math.random()"), ENTROPY)).toMatchObject({ kind: "ambient" });
   // `performance.now()` is a real ambient global whose member is spelled exactly like the clock's.
+  // @orb-waive test-determinism(performance.now): FIXTURE SOURCE for the counterfactual — a DIFFERENT ambient global whose member is spelled exactly like the clock's. The arm does not exist unless the fixture spells it.
   expect(readAmbientInvocation(invocation("export const t = performance.now();\n", "performance.now()"), CLOCK)).toEqual({ kind: "other" });
 });
 
 test("a local shadow and an injected seam are OTHER — the half a text comparison gets backwards", () => {
+  // @orb-waive test-determinism(Date.now): FIXTURE SOURCE for the local-shadow arm — the reader must answer `other` here, which requires the fixture to spell the ambient call.
   const shadow = "class Date {\n  static now(): number {\n    return 0;\n  }\n}\nexport const t = Date.now();\n";
+  // @orb-waive test-determinism(Date.now): the NEEDLE that LOCATES the shadowed call inside the fixture above — a search string, not a call.
   expect(readAmbientInvocation(invocation(shadow, "Date.now()"), CLOCK)).toEqual({ kind: "other" });
   const injected = "export const t = (deps: { readonly now: () => number }): number => deps.now();\n";
   expect(readAmbientInvocation(invocation(injected, "deps.now()"), CLOCK)).toEqual({ kind: "other" });

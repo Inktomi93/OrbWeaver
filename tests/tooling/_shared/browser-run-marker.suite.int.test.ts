@@ -21,6 +21,7 @@ import { currentRunMarker, markedPids, mintRunMarker, processRunMarker, sweepAba
 import { chromium } from "@playwright/test";
 import { afterAll, vi } from "vitest";
 import { leakChromiumArgs } from "../../support/chromium-processes.ts";
+import { FROZEN_AT_MS } from "../../support/clock.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
@@ -138,8 +139,13 @@ test("an UNMARKED reparented-leak chromium is invisible to the abandoned sweep â
 });
 
 test("a MARKED reparented-leak chromium is reaped once its owner is gone, and left alone while its owner is alive (#1926)", async () => {
-  const deadOwnerMarker = mintRunMarker(999_999, Date.now());
-  const liveOwnerMarker = mintRunMarker(process.pid, Date.now());
+  // THE FROZEN CLOCK, NOT A WAIVER (#1975). `mintRunMarker`'s second argument is an OPAQUE segment of the
+  // marker string: `MARKER_RE` (tooling/src/_shared/run-marker.ts:48) matches it as `[1-9]\d*` and nothing
+  // ever reads the value â€” `runMarkerOwnerPid` reads only the pid, and the sweep decides on pid plus
+  // liveness. What separates these two markers is the PID and the crypto nonce, so the subject here is
+  // identity, never elapsed time, and a `test-determinism` waiver would have recorded a false reason.
+  const deadOwnerMarker = mintRunMarker(999_999, FROZEN_AT_MS);
+  const liveOwnerMarker = mintRunMarker(process.pid, FROZEN_AT_MS);
   const abandonedPid = await spawnLeakChromium("marked-abandoned", deadOwnerMarker);
   const liveOwnedPid = await spawnLeakChromium("marked-live", liveOwnerMarker);
   try {

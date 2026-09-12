@@ -8,17 +8,53 @@
 // substrate where "did the marker actually suppress, and how many things did it suppress" is answerable.
 // The grammar itself (parse/malformed) is proven by conformance; the EXEMPTION VOCABULARY is proven here.
 //
-// The carrier is `no-color-literals`: it is token-anchored, scans plain string literals under
-// packages/ui/src (no JSX carrier fence), and reports MULTIPLE tokens from ONE node — the only live shape
-// that reproduces §4.3a's "one line, two guarded things" (`record(chatId: string, sessionId: string)`).
-// The SCRIPTS side (2026-08-08) probes the same vocabulary inside the gate corpus — carrier
-// `no-raw-intl-time`, whose scanRoot admits it — plus the MENTION FENCE both ways: a quoted marker in
-// prose neither suppresses (the closed bypass) nor gets inventoried (what made the corpus scannable).
+// The carrier is `query-machine-seals`: it is token-anchored and reports TWO DISTINCT TOKENS FROM ONE
+// NODE — `import { useMutation, useInfiniteQuery } from "@tanstack/react-query"` is one ImportDeclaration
+// carrying two separately-guarded things, which is the live shape that reproduces §4.3a's "one line, two
+// guarded things" (`record(chatId: string, sessionId: string)`).
+// The SCRIPTS side (2026-08-08) probes the same vocabulary inside the gate corpus — the same carrier,
+// whose `scanRoot: () => true` admits it, which is exactly the property that arm exists to probe (a
+// wide-scanRoot gate DOES see the gate corpus, so a marker in a gate file is live vocabulary) — plus the
+// MENTION FENCE both ways: a quoted marker in prose neither suppresses (the closed bypass) nor gets
+// inventoried (what made the corpus scannable).
 // The FINDING-ARM side (#828, 2026-08-30) probes the same vocabulary against a gate that reports through
-// `ctx.report(finding)` and therefore has NO node to read leading trivia from — carrier `test-determinism`,
-// whose scanRoot is `tests/`. That arm binds LINE-ADJACENTLY, which is a different resolver from the node
-// arm's block-scoped walk, so its consumption verdicts (suppressed / stale / malformed / mention) need
-// their own real-tree cases; the fast unit-level resolver pins live in tests/tooling/verify/lib/gate-ignore.test.ts.
+// `ctx.report(finding)` and therefore has NO node to read leading trivia from — carrier
+// `no-test-fabrication`, whose scanRoot is `tests/`. That arm binds LINE-ADJACENTLY, which is a different
+// resolver from the node arm's block-scoped walk, so its consumption verdicts (suppressed / stale /
+// malformed / mention) need their own real-tree cases; the fast unit-level resolver pins live in
+// tests/tooling/verify/lib/gate-ignore.test.ts.
+//
+// ── ALL THREE CARRIERS RE-POINTED 2026-09-11 (#1974) ──────────────────────────────────────────────────
+// A CARRIER IS A PERISHABLE CHOICE, AND THIS SUITE IS THE PROOF. #1974 was filed against the Finding arm
+// alone (`test-determinism`, FINAL at `7be684811`); the measured tree said all three were dead —
+// `no-color-literals` and `no-raw-intl-time` had converted too, and the suite stood at 19 failed / 3
+// passed on `b4714536d`, unnoticed because `tests/tooling/**` is `--full`-only (#1842).
+//
+// WHY A CONVERSION KILLS A CARRIER: marker routing is FENCED (docs/design/gate-runtime-standardization.md
+// §7 and §5). The legacy `@orb-gate-ignore` engine this suite exercises reaches LEGACY owners ONLY. The
+// day a carrier converts, this suite stops measuring what it claims to measure: the arms that assert a
+// finding go RED (the gate is not in `loadGates`), and the one arm that asserts a SUPPRESSION goes
+// silently VACUOUS-GREEN. 104 legacy modules still depend on that engine, so the arms are re-pointed
+// rather than retired — arm 2, retirement with the legacy engine at Phase F, transplants this corpus into
+// `ordinary-waiver.test.ts`.
+//
+// WHY THESE TWO, AND WHAT RETIRES THEM. `pnpm gate:contract` is the authority on legacy-ness, never this
+// comment; re-derive before trusting a word of it.
+//   · `query-machine-seals` (node arm + scripts arm) — legacy, not `markerImmune`, node-anchored with a
+//     carried token, `scanRoot: () => true` (so it sees BOTH `DIR` and `SCRIPTS_DIR`), and it reports two
+//     DISTINCT tokens from ONE ImportDeclaration, which is the §4.3a shape nothing else live still has.
+//     `uncovered-gate-conversion-census.md:121` classifies it `X` (gate-owned vocabulary — central seam
+//     grants must land first), so it converts late.
+//   · `no-test-fabrication` (Finding arm) — legacy, not `markerImmune`, a pure Finding-arm reporter
+//     (`ctx.report(finding)` with a plain literal, `no-test-fabrication.ts:198-205`) which is the exact
+//     property that arm probes, and `scanRoot: p.startsWith("tests/")` admits `TESTS_DIR`.
+//     `uncovered-gate-conversion-census.md:200` classifies it `X` too (its gate-local `FABRICATION-OK:`
+//     grammar needs a central home first).
+//
+// THE TRIPWIRE: the first test below asserts every carrier is still in the LEGACY roster and says what to
+// do when it is not. That is the whole lesson of #1974 — a green run is not evidence a carrier is live,
+// and a red one must name the reason instead of spraying twenty assertion failures.
+//
 // Fixtures use the reserved `__g_` sentinel so every other tree consumer excludes them and a crashed run
 // leaves nothing that can red an independent pass (tooling/src/verify/lib/pass.ts PROBE_ARTIFACT_RE).
 import { execFileSync } from "node:child_process";
@@ -32,89 +68,99 @@ import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const DIR = "packages/ui/src/__g_gi";
-const CARRIER = "no-color-literals";
+const CARRIER = "query-machine-seals";
 const INVENTORY = "gate-ignore-inventory";
-/** The violation every fixture carries: a non-token color literal, reported with token `bg-black`. */
-const VIOLATION = "bg-black";
-/** The §4.3a sibling on the SAME line — a different token of the SAME gate. */
-const SIBLING = "text-[#abc]";
+/** The violation every fixture carries: a raw `useMutation` import outside the data/ seals. */
+const VIOLATION = "useMutation";
+/** The §4.3a sibling on the SAME line — a different token of the SAME gate, from the SAME node. */
+const SIBLING = "useInfiniteQuery";
+/** One guarded thing: a single raw-hook import. The carrier reads the specifier TEXT, so nothing has to
+ *  resolve and the fixture drags no package graph into the probe. */
+const ONE = `import { ${VIOLATION} } from "@tanstack/react-query";\n`;
+/** TWO guarded things on ONE line, from ONE ImportDeclaration — the §4.3a subject. */
+const TWO = `import { ${VIOLATION}, ${SIBLING} } from "@tanstack/react-query";\n`;
 /** The SCRIPTS-side fixture dir (the 2026-08-08 scanRoot extension): a SUBDIR of the gate corpus, so the
  *  workspace walk loads the fixtures (`tooling/src/verify/gates/**` glob) while the loader's flat `*.ts` glob
  *  and `discoverGateNames`'s flat readdir never see them — no import side effects, no name pollution. */
 const SCRIPTS_DIR = "tooling/src/verify/gates/__g_gi";
-/** The scripts-side carrier: node-anchored, token-carrying, and its scanRoot ADMITS the gate corpus
- *  (`(p) => !p.startsWith("packages/kit/src/time/")`), so a marker in a gate file is LIVE vocabulary. */
-const SCRIPTS_CARRIER = "no-raw-intl-time";
-const SCRIPTS_VIOLATION = "tolocale";
+/** The scripts-side carrier: the SAME node-anchored, token-carrying gate as the node arm, because its
+ *  `scanRoot: () => true` ADMITS the gate corpus — which is precisely what this arm exists to prove (a
+ *  marker in a gate file is LIVE vocabulary for every wide-scanRoot gate, and was uninventoried until the
+ *  2026-08-08 extension). One carrier, two dirs: the arm is about the DIRECTORY, not about a second gate. */
+const SCRIPTS_CARRIER = CARRIER;
+const SCRIPTS_VIOLATION = VIOLATION;
+/** A registered LEGACY gate that cannot possibly consume anything in the gate corpus — its scanRoot is
+ *  `tests/`. The STALE arm needs a well-formed, REGISTERED marker that suppresses nothing. */
+const ELSEWHERE_CARRIER = "no-test-fabrication";
 
 /** case → the fixture source planted at `${DIR}/__g_<case>.ts`. */
 const CASES: Readonly<Record<string, string>> = {
   // 1 — the gate bites at all: a violation with NO marker.
-  unmarked: 'export const g1 = "bg-black";\n',
+  unmarked: ONE,
   // 2 — the promise is honourable: a well-formed marker suppresses.
-  reasoned: '// @orb-gate-ignore no-color-literals: probe — a well-formed marker must suppress\nexport const g2 = "bg-black";\n',
+  reasoned: `// @orb-gate-ignore query-machine-seals: probe — a well-formed marker must suppress\n${ONE}`,
   // 3 — two-sided on the NAME: a marker naming a gate that does not exist.
-  deadgate: '// @orb-gate-ignore g-no-such-gate: probe — names a gate that does not exist\nexport const g3 = "bg-black";\n',
+  deadgate: `// @orb-gate-ignore g-no-such-gate: probe — names a gate that does not exist\n${ONE}`,
   // 3b — two-sided on the POSITION: a marker naming a position that is not live.
-  deadposition: '// @orb-gate-ignore no-color-literals(bg-white): probe — names a position not present\nexport const g4 = "bg-black";\n',
+  deadposition: `// @orb-gate-ignore query-machine-seals(useQuery): probe — names a position not present\n${ONE}`,
   // 4 — MALFORMED as its OWN flavour: bare, no `: <reason>`.
-  bare: '// @orb-gate-ignore no-color-literals\nexport const g5 = "bg-black";\n',
+  bare: `// @orb-gate-ignore query-machine-seals\n${ONE}`,
   // 4b — MALFORMED: an empty `()` names no position at all.
-  emptyposition: '// @orb-gate-ignore no-color-literals(): probe — empty position\nexport const g6 = "bg-black";\n',
+  emptyposition: `// @orb-gate-ignore query-machine-seals(): probe — empty position\n${ONE}`,
   // §4.3a POSITIVE — one line, two guarded things, the marker names ONE of them.
-  positioned: '// @orb-gate-ignore no-color-literals(bg-black): probe — position-scoped\nexport const g7 = "bg-black text-[#abc]";\n',
+  positioned: `// @orb-gate-ignore query-machine-seals(${VIOLATION}): probe — position-scoped\n${TWO}`,
   // §4.3a COUNTERFACTUAL — the same line under ONE unpositioned marker: the over-exemption.
-  overexempt: '// @orb-gate-ignore no-color-literals: probe — unpositioned, absolves BOTH\nexport const g8 = "bg-black text-[#abc]";\n',
+  overexempt: `// @orb-gate-ignore query-machine-seals: probe — unpositioned, absolves BOTH\n${TWO}`,
   // MENTION-FENCE COUNTERFACTUAL — a well-formed marker with a LIVE position, QUOTED inside a prose
   // comment. Until 2026-08-08 the suppressor's unanchored parse consumed this and the violation vanished.
-  quotation: '// see `// @orb-gate-ignore no-color-literals(bg-black): x` — a quotation must never suppress\nexport const g9 = "bg-black";\n',
+  quotation: `// see \`// @orb-gate-ignore query-machine-seals(${VIOLATION}): x\` — a quotation must never suppress\n${ONE}`,
 };
 
-/** case → the fixture source planted at `${SCRIPTS_DIR}/__g_<case>.ts` — the SAME vocabulary probed
- *  inside the gate corpus, where markers were UNINVENTORIED until the 2026-08-08 scanRoot extension.
- *  The carrier matches `.toLocale*()` by PROPERTY NAME, so the receiver is a deterministic `(0)` —
- *  fixture SOURCE must not spell ambient-clock calls (test-determinism scans this file's strings). */
+/** case → the fixture source planted at `${SCRIPTS_DIR}/__g_<case>.ts` — the SAME vocabulary AND the same
+ *  carrier probed inside the gate corpus, where markers were UNINVENTORIED until the 2026-08-08 scanRoot
+ *  extension. The carrier reads the import specifier's TEXT, so a corpus fixture needs no dependency. */
 const SCRIPTS_CASES: Readonly<Record<string, string>> = {
   // the carrier bites in the corpus at all — a violation with NO marker.
-  corpusUnmarked: "export const s0 = (0).toLocaleString();\n",
+  corpusUnmarked: ONE,
   // a marker in a gate file naming a gate that does not exist.
   corpusUnregistered: "// @orb-gate-ignore g-no-such-gate: probe — names a gate that does not exist\nexport const s1 = 1;\n",
   // MALFORMED: bare, no `: <reason>` — and it suppresses nothing, so the carrier reds too.
-  corpusBare: "// @orb-gate-ignore no-raw-intl-time\nexport const s2 = (0).toLocaleString();\n",
+  corpusBare: `// @orb-gate-ignore ${SCRIPTS_CARRIER}\n${ONE}`,
   // STALE: well-formed, registered, but the named gate consumes nothing in this file.
-  corpusStale: "// @orb-gate-ignore no-color-literals: probe — consumes nothing in the gate corpus\nexport const s3 = 1;\n",
+  corpusStale: `// @orb-gate-ignore ${ELSEWHERE_CARRIER}: probe — consumes nothing in the gate corpus\nexport const s3 = 1;\n`,
   // the promise is honourable IN the corpus: a positioned marker suppresses, and is not flagged.
-  corpusSuppressed: "// @orb-gate-ignore no-raw-intl-time(tolocale): probe — a corpus marker must still suppress\nexport const s4 = (0).toLocaleString();\n",
-  // §4.3a in the corpus: one unpositioned marker over TWO guarded calls in ONE statement.
-  corpusOverexempt:
-    "// @orb-gate-ignore no-raw-intl-time: probe — unpositioned, absolves BOTH calls\nexport const s5 = [(0).toLocaleString(), (0).toLocaleTimeString()];\n",
+  corpusSuppressed: `// @orb-gate-ignore ${SCRIPTS_CARRIER}(${SCRIPTS_VIOLATION}): probe — a corpus marker must still suppress\n${ONE}`,
+  // §4.3a in the corpus: one unpositioned marker over TWO guarded things in ONE statement.
+  corpusOverexempt: `// @orb-gate-ignore ${SCRIPTS_CARRIER}: probe — unpositioned, absolves BOTH\n${TWO}`,
   // the founding false-positive shape: gate prose QUOTING the grammar — a mention, and no shield.
-  corpusMention: "// the grammar is `// @orb-gate-ignore no-raw-intl-time(tolocale): <reason>` — a quotation\nexport const s6 = (0).toLocaleString();\n",
+  corpusMention: `// the grammar is \`// @orb-gate-ignore ${SCRIPTS_CARRIER}(${SCRIPTS_VIOLATION}): <reason>\` — a quotation\n${ONE}`,
 };
 
-/** The FINDING-ARM fixture dir (#828): under `tests/`, which is `test-determinism`'s scanRoot. */
+/** The FINDING-ARM fixture dir (#828): under `tests/`, which is `no-test-fabrication`'s scanRoot. */
 const TESTS_DIR = "tests/tooling/__g_gi";
-/** The Finding-arm carrier: a `visitFile` line scanner with no node, reporting file+line+column-0. */
-const TESTS_CARRIER = "test-determinism";
+/** The Finding-arm carrier: a `visitFile` line scanner with no node, reporting file+line+column-0. Its
+ *  choice is PINNED in the header — re-point it only after re-deriving `gate:contract`, never by filename. */
+const TESTS_CARRIER = "no-test-fabrication";
 
-/** The ambient-clock read the Finding-arm fixtures carry, ASSEMBLED rather than spelled: the carrier's own
- *  DECLARED LIMIT is that string literals scan, and this file lives under `tests/` — a literal spelling here
- *  would make the probe file itself a violation (the same reason SCRIPTS_CASES avoids clock calls). */
-const AMBIENT = ["performance", "now()"].join(".");
+/** The fabrication the Finding-arm fixtures carry: an `X as unknown as Y` double-cast, which the carrier
+ *  reports with token `double-cast`. Spelled literally rather than assembled — unlike the previous
+ *  ambient-clock carrier, this one reads the AST (`AsExpression` nodes), so the same spelling inside THIS
+ *  file's fixture strings is a StringLiteral and can never make the probe file its own violation. */
+const FABRICATION = "{} as unknown as { a: number }";
 
-/** case → the fixture planted at `${TESTS_DIR}/__g_<case>.ts`. The violation is that ambient-clock read; the
+/** case → the fixture planted at `${TESTS_DIR}/__g_<case>.ts`. The violation is that double-cast; the
  *  marker (when present) sits on the line IMMEDIATELY above it. */
 const TESTS_CASES: Readonly<Record<string, string>> = {
   // the Finding-arm carrier bites at all — a violation with NO marker.
-  findingUnmarked: `export const f0 = ${AMBIENT};\n`,
+  findingUnmarked: `export const f0 = ${FABRICATION};\n`,
   // the #828 fix: a well-formed marker one line above a Finding-arm violation suppresses it.
-  findingMarked: `// @orb-gate-ignore test-determinism: probe — the SUBJECT is elapsed real time\nexport const f1 = ${AMBIENT};\n`,
+  findingMarked: `// @orb-gate-ignore no-test-fabrication: probe — a deliberate invalid-input shape\nexport const f1 = ${FABRICATION};\n`,
   // LINE-ADJACENCY: one line too far suppresses nothing AND the marker reds as stale (two-sided).
-  findingFar: `// @orb-gate-ignore test-determinism: probe — one line too far to bind\n\nexport const f2 = ${AMBIENT};\n`,
+  findingFar: `// @orb-gate-ignore no-test-fabrication: probe — one line too far to bind\n\nexport const f2 = ${FABRICATION};\n`,
   // MALFORMED in the Finding arm: bare, no `: <reason>` — shields nothing, and reds as its own flavour.
-  findingBare: `// @orb-gate-ignore test-determinism\nexport const f3 = ${AMBIENT};\n`,
+  findingBare: `// @orb-gate-ignore no-test-fabrication\nexport const f3 = ${FABRICATION};\n`,
   // MENTION FENCE holds on the Finding arm too: a quoted marker in prose is not a marker.
-  findingMention: `// the grammar is \`// @orb-gate-ignore test-determinism: <reason>\` — a quotation\nexport const f4 = ${AMBIENT};\n`,
+  findingMention: `// the grammar is \`// @orb-gate-ignore no-test-fabrication: <reason>\` — a quotation\nexport const f4 = ${FABRICATION};\n`,
 };
 
 function clean(): void {
@@ -215,10 +261,22 @@ function fMessages(kase: keyof typeof TESTS_CASES): string {
     .join("\n");
 }
 
-test("the probe ran at all — the carrier gate is live and the corpus loaded", () => {
+// THE CARRIER TRIPWIRE (#1974). Every carrier below is a LEGACY gate BY REQUIREMENT — the engine under
+// test reaches legacy owners only — so every one of them is perishable: a #1584 conversion silently
+// removes it from this roster, and the arms that ASSERT A SUPPRESSION then pass vacuously while the arms
+// that assert a finding spray unrelated assertion failures. This test exists so the failure NAMES ITS
+// CAUSE. At the atomic cutover the legacy roster empties entirely and there is no fourth re-point: this
+// suite RETIRES with the `@orb-gate-ignore` grammar it exists to test, its corpus transplanted into
+// `tests/tooling/verify/lib/ordinary-waiver.test.ts`.
+test("the probe ran at all — every carrier gate is still LEGACY and the corpus loaded", () => {
   expect(pass.toolErrors).toEqual([]);
-  expect(pass.gates.map((g) => g.name)).toContain(CARRIER);
-  expect(pass.gates.map((g) => g.name)).toContain(INVENTORY);
+  const legacy = pass.gates.map((g) => g.name);
+  for (const carrier of [CARRIER, SCRIPTS_CARRIER, ELSEWHERE_CARRIER, INVENTORY]) {
+    expect(
+      legacy,
+      `carrier \`${carrier}\` is no longer in the LEGACY roster — it converted to \`defineGate\` (#1584). Marker routing is fenced, so every arm riding it now measures nothing. Re-point that arm at a legacy gate with the same reporting shape (see this file's header), or retire the suite if the legacy roster is empty.`,
+    ).toContain(carrier);
+  }
 });
 
 test("case 1 — a violation with NO marker is RED", () => {

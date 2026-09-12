@@ -27,6 +27,7 @@ function constructedCallee(files: Readonly<Record<string, string>>): import("ts-
 }
 
 test("the prefilter names an export through its own text, an import ALIAS, and immutable const hops", () => {
+  // @orb-waive test-determinism(new Date): FIXTURE SOURCE for the constructed-callee arm — parsed by ts-morph, never evaluated.
   expect(referenceNamesExport(constructedCallee({ "use.ts": "export const d = new Date();\n" }), "Date")).toBe(true);
   expect(referenceNamesExport(constructedCallee({ "use.ts": "const D = Date;\nexport const d = new D();\n" }), "Date")).toBe(true);
   expect(referenceNamesExport(constructedCallee({ "use.ts": "const A = Date;\nconst B = A;\nexport const d = new B();\n" }), "Date")).toBe(true);

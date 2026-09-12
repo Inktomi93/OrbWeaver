@@ -36,11 +36,29 @@
 //
 // The #780 half is also the integration guard for #751: when that branch's `caught-failure-ownership` gate
 // lands, its examples join the corpus sweep here automatically — no coupled edit.
+//
+// ── the corpus is MIXED, and the floor is no longer a number (#1969, 2026-09-11) ────────────────────────
+// The equivalence property above is about a SUBSTRATE, not about a descriptor contract, and both runtimes
+// amortize the same way: `ops/conformance.ts#loadInMemoryExample` gives each legacy example a unique
+// virtual root on one shared Project, and `ops/policy-conformance.ts#runVirtualExample` does exactly that
+// for every FINAL policy. So the sweep walks BOTH halves.
+//
+// It used to assert `compared > 1000` against the LEGACY corpus alone. `loadGates` returns the legacy
+// remnant (`lib/loader.ts:190`), which the #1584 program exists to drive to ZERO — so that floor was a
+// countdown wearing a gate's clothes: it stood at 749 and falling, red for reasons that had nothing to do
+// with the substrate, and re-read as a fresh finding on every verifier pass. Lowering the constant buys
+// one batch and re-breaks. The intent was never "at least N": it was "the harness actually compared the
+// corpus rather than silently skipping it", so the floor is now EXACTLY that — the sweep's own count must
+// equal the corpus's example count, derived independently, and the corpus must be non-empty. That
+// property holds identically at 749 legacy examples, at 2,400 mixed ones, and on the day the legacy
+// roster empties.
 import { join } from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateExample, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
-import { loadGates } from "../../../../tooling/src/verify/index.ts";
+import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
+import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { loadInMemoryExample, verifyGateProofs } from "../../../../tooling/src/verify/ops/conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -211,6 +229,60 @@ function sweep(
   return { compared, mismatches };
 }
 
+/** A FINAL policy's proofs that live on the amortized in-memory substrate. `resource` proofs materialize a
+ *  real temp tree with its own Project (`ops/policy-conformance.ts#runResourceExample`) and are the final
+ *  runtime's `fsBacked` — the same exclusion, for the same reason. */
+function virtualProofsOf(policy: GatePolicy): readonly GatePolicyProof[] {
+  return [...policy.mustFlag, ...policy.mustPass].filter((proof) => proof.mode !== "resource");
+}
+
+/** One FINAL policy example's full verdict, spelled out exactly like the legacy `verdictOf` so the two
+ *  halves of the sweep are comparable prose. Restated rather than imported for the same reason: this pin
+ *  is the SECOND opinion on the production runtime, so sharing its example loader would be circular. */
+function policyVerdictOf(policy: GatePolicy, project: Project, root: string): string {
+  const result = runPolicyPass({ knownPolicies: [policy], policies: [policy], root, project, reviewedGrants: [], failOnWarnings: false });
+  const own = result.policies.find((p) => p.id === policy.id);
+  const body = JSON.stringify({
+    toolErrors: result.toolErrors.map((e) => `${e.phase}:${e.message}`).sort(),
+    findings: (own?.findings ?? []).map((f) => `${f.file}|${f.line}|${f.column}|${f.token ?? ""}|${f.message ?? ""}`).sort(),
+  });
+  return body.split(root).join(VROOT);
+}
+
+/** The FINAL half of the differential: a fresh Project per example against the amortized shared one. Same
+ *  shape as `sweep`, kept separate because the two runtimes take different inputs and neither adapts. */
+function policySweep(policies: readonly GatePolicy[]): { readonly compared: number; readonly mismatches: readonly string[] } {
+  const shared = new Project({ useInMemoryFileSystem: true });
+  const mismatches: string[] = [];
+  let compared = 0;
+  let sequence = 0;
+  for (const policy of policies) {
+    for (const proof of virtualProofsOf(policy)) {
+      sequence += 1;
+      const fresh = new Project({ useInMemoryFileSystem: true });
+      for (const [rel, text] of Object.entries(proof.files)) {
+        fresh.createSourceFile(`${VROOT}/${rel}`, text);
+      }
+      const before = policyVerdictOf(policy, fresh, VROOT);
+      // The amortized substrate: ONE Project, a UNIQUE root per example, previous files removed — the
+      // production spelling at `ops/policy-conformance.ts#runVirtualExample`.
+      for (const previous of shared.getSourceFiles()) {
+        shared.removeSourceFile(previous);
+      }
+      const root = `${VROOT}-${String(sequence)}`;
+      for (const [rel, text] of Object.entries(proof.files)) {
+        shared.createSourceFile(`${root}/${rel}`, text);
+      }
+      const after = policyVerdictOf(policy, shared, root);
+      compared += 1;
+      if (before !== after) {
+        mismatches.push(`${policy.id} proof[${String(sequence)}] fresh=${before} amort=${after}`);
+      }
+    }
+  }
+  return { compared, mismatches };
+}
+
 // ── the two planted corruption classes ─────────────────────────────────────────────────────────────────
 
 const PROBE_AT = "packages/server/src/domain/probe/substrate/probe.ts";
@@ -328,20 +400,36 @@ test("a gate caching on PROJECT IDENTITY is caught by the equivalence sweep", ()
   expect(caught.mismatches.length).toBeGreaterThan(0);
 });
 
-// LOAD-HONEST BUDGET, same lever as the bite-proof's (#606): the sweep runs every in-memory example TWICE
-// (~24s solo — the fresh reference side is the expensive half and is the whole point), so the budget scales
-// with contention rather than false-timing-out under multi-lane load.
-const SWEEP_BUDGET = scaledBudget(90_000, 4);
+// LOAD-HONEST BUDGET, same lever as the bite-proof's (#606): the sweep runs every in-memory example of the
+// MIXED corpus TWICE (the fresh reference side is the expensive half and is the whole point), so the budget
+// scales with contention rather than false-timing-out under multi-lane load. The base was 90s for the
+// legacy half alone (~24s solo at 749 examples); the final half roughly quadruples the example count, so
+// the base moves with it rather than leaving a timeout to read like a substrate red.
+const SWEEP_BUDGET = scaledBudget(300_000, 4);
 
 test(
-  "every in-memory conformance example yields IDENTICAL findings on the amortized substrate",
+  "every in-memory conformance example — LEGACY and FINAL alike — yields IDENTICAL findings on the amortized substrate",
   async () => {
-    const gates = await loadGates(ROOT);
-    const result = sweep(gates, loadInMemoryExample);
+    const corpus = await loadMixedGateCorpus(ROOT);
+    const legacy = sweep(corpus.legacy, loadInMemoryExample);
+    const final = policySweep(corpus.final);
 
-    // A bare zero is "I could not measure": the corpus must actually have been walked.
-    expect(result.compared).toBeGreaterThan(1000);
-    expect(result.mismatches).toEqual([]);
+    // THE FLOOR IS A PROPERTY, NOT A NUMBER (#1969). What this asserts is "the sweep compared EVERY example
+    // the corpus offers, and the corpus offered something" — a bare zero is "I could not measure", and a
+    // count below the corpus's own is a silently skipped gate. Both halves are derived here independently
+    // of the sweeps' own traversals, so a `continue` that swallowed a policy goes red instead of quiet.
+    const legacyExamples = corpus.legacy.filter((g) => g.fsBacked !== true).reduce((n, g) => n + g.mustFlag.length + g.mustPass.length, 0);
+    const finalExamples = corpus.final.reduce((n, p) => n + virtualProofsOf(p).length, 0);
+    expect(
+      legacyExamples + finalExamples,
+      "the mixed corpus offered NO in-memory example — the loader is broken, or nothing survived to compare",
+    ).toBeGreaterThan(0);
+    expect(legacy.compared + final.compared, "the differential skipped examples the corpus offers — it is measuring less than it claims").toBe(
+      legacyExamples + finalExamples,
+    );
+
+    expect(legacy.mismatches).toEqual([]);
+    expect(final.mismatches).toEqual([]);
   },
   SWEEP_BUDGET,
 );
