@@ -213,7 +213,7 @@ export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value:
       return;
     }
     entry.disposed = true;
-    // @swallowed-ok(promise): disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.
+    // @orb-waive detached-work-traced(entry.promise): disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.
     // @orb-waive caught-failure-ownership(entry.promise): disposal has no request result; a failure only costs RAM until exit. Ends if disposal gains a caller-visible result.
     void entry.promise.then(dispose).catch(() => undefined);
   };

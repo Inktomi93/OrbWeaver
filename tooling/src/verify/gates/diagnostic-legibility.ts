@@ -1,14 +1,60 @@
-// Gate: diagnostic-legibility (Documentation-Law.md — machine-first: an error message IS the amnesiac
-// agent's documentation at the moment of blocking). Every custom-gate diagnostic STRING must
-// carry a resolvable pointer — a `*.md` doc path, a code-home path/file/`@orb/<pkg>` specifier, or an
-// explicit `// terse-ok: <reason>` marker on the diagnostic's line or the line above — so a blocked
-// cold agent gets a navigable next step, never a dead-end "no". Reads gate `message:` strings — never incidental strings.
-import type { SourceFile } from "ts-morph";
+// Policy: diagnostic-legibility (Documentation-Law.md — machine-first: an error message IS the amnesiac
+// agent's documentation at the moment of blocking). Every gate/policy diagnostic STRING in the gate corpus
+// must carry a resolvable pointer — a `*.md` doc path, a code-home path/file/`@orb/<pkg>` specifier — so a
+// blocked cold agent gets a navigable next step, never a dead-end "no".
+//
+// THE CORPUS IS MIXED AND THIS POLICY IS DELIBERATELY CONTRACT-AGNOSTIC. `tooling/src/verify/gates/**`
+// carries BOTH descriptor shapes in production (a branded `defineGate` result and a validated
+// `GateDescriptor`, gate-runtime-standardization.md §1) and will until the legacy set empties. A reader
+// that CLASSIFIED by contract identity would silently under-report on whichever half it did not model, and
+// the corpus moves daily. This policy never classifies: its subject is the AUTHORED SYNTAX both shapes
+// share — a `message:`/`unreadableMessage:` property assignment, plus the string values of a `const
+// MSG`/`MESSAGES` table (the shorthand-`{ message }` idiom) — so a legacy descriptor and a final policy are
+// read by the same code path. mustFlag[1] is a LEGACY `export const gate: GateDescriptor = {…}` and
+// mustFlag[2] is a FINAL `defineGate({…})` with the identical defect: the two halves are pinned as rows,
+// not asserted in prose.
+//
+// FAMILY `policy-soundness`, reader `lib/policy-descriptor-read.ts` — `staticSegments` for the diagnostic's
+// static text and `isMessageProperty` for the subject. That module is the gate corpus's one descriptor
+// reader and already serves `policy-soundness`, `policy-proof-expectations`, `policy-waiver-identity` and
+// `policy-waiver-spelling`; this policy asks a different QUESTION of the same subject through the same
+// reader, which is what §5b.4 means by a family (a shared `lib/` computation, not a theme). The private
+// `literalText`/`resolveMessageText`/`unwrap` trio it used to carry is DELETED, not moved.
+//
+// POPULATION PORT: legacy `scanRoot: p => p.startsWith("tooling/src/verify/gates/")` plus an in-run
+// `abs.includes("/tooling/src/verify/gates/") && abs.endsWith(".ts")` filter over the shared project →
+// `{ in: ["@tooling"], under: ["tooling/src/verify/gates/**"] }`. Byte-identical: the source universe is
+// authored `.ts`/`.tsx` only (§12.4), `_proof/` stays IN exactly as legacy had it, and no other tree
+// contains that prefix. The legacy `scanRoot` existed to keep the four whole-project scanners from also
+// reading this gate's example strings; the population field now IS that fence and the four are unaffected.
+//
+// MARKER CENSUS — the private `// terse-ok:` grammar is RETIRED (§12.5 bans a gate-specific exemption
+// vocabulary). Live sites on the tree at conversion: ZERO (`/usr/bin/grep -rn terse-ok packages tests
+// tooling scripts docs` returns only this module's own prose and fixtures, GATE-AUTHORING.md's
+// house-grammar list, `review-mirror/lib/strip.ts`'s strip list, and two docs — a fact
+// `gate-config-system.md:188` already records as "zero live sites"). So legacy 0 = current 0: no marker was
+// translated and none was dropped. The escape is now the central `@orb-waive diagnostic-legibility(<position>)`.
+//
+// THE DOOR, CHECKED (§3 "ordinary is a claim about the door"). The legacy arm reported a FILE finding with
+// a synthetic `{file, line, column: 0}` anchor, which `locateFinding` (lib/ordinary-waiver.ts:394) cannot
+// bind — it had no working waiver door at all. The finding is RE-ANCHORED on the property assignment node,
+// whose derived position is its own property NAME (`message`, or the table key). Authored text at its exact
+// offset, one position per diagnostic, so two pointerless values in one `MSG` table are separately waivable.
+//
+// §4.6 DIFFERENTIAL (real corpus, both sides executed — the result is in the landing commit message). Two
+// classified deltas, both WIDENING, neither a catch regression:
+//   1. `unreadableMessage:` joins `message:` — `isMessageProperty`'s set. A second diagnostic string the
+//      runtime reports from, invisible to the legacy `getName() === "message"` test.
+//   2. A diagnostic assembled from a template or a `+` chain is judged PER STATIC SEGMENT rather than over
+//      the legacy `getText()` blob. Legacy concatenated across an interpolation, so a pointer could be
+//      satisfied by text that never appears contiguously in any rendered message; per-segment is strictly
+//      stricter and is the intentional correction. A wholly dynamic value still yields no segments and is
+//      SKIPPED, exactly as the legacy `undefined` was.
+import type { ObjectLiteralExpression, PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
-
-const GATES_REL = "tooling/src/verify/gates";
+import { defineGate } from "../contract/policy.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
+import { isMessageProperty, staticSegments } from "../lib/policy-descriptor-read.ts";
 
 // A pointer token: a doc, a concrete source file, a code dir path, or an @orb package specifier.
 const MD = /[\w.-]+\.md\b/u;
@@ -16,207 +62,145 @@ const SRC_FILE = /\b[\w-]+\.(?:ts|tsx)\b/u;
 const CODE_DIR =
   /(?:^|[\s(/"'`])(?:packages|tooling|features|domain|infra|foundation|entry|transport|contracts?|kit|db|server|client|ui|tools|scripts|tests|lib|data|forms|state|hooks|surfaces|anchors|components|engine|substrate|persistence|verbs|guard)\//u;
 const PKG_SPEC = /@orb\/[\w-]+/u;
-const TERSE_OK = /terse-ok/u;
 const MSG_TABLE_NAME = /^(?:MSG|MESSAGES)$/u;
 
-const POINTER_HELP =
-  "diagnostic must carry a pointer — end the message with a `<Doc>.md §N` doc path, a code-home (packages/…, features/…, an @orb/… specifier, or a concrete file.ts), or mark it `// terse-ok: <reason>` if the fix is fully self-contained and no doc covers it (Documentation-Law.md — the error message IS the agent's doc).";
+const MESSAGE =
+  "a gate/policy diagnostic carries no pointer — end the message with a `<Doc>.md §N` doc path or a code-home (packages/…, features/…, an @orb/… specifier, or a concrete file.ts), because the error message IS the blocked amnesiac agent's documentation (Documentation-Law.md) and a pointerless message is a dead-end 'no'.";
+const FIX =
+  "end the message with a `<Doc>.md §N` doc path or a code-home (packages/…, an @orb/… specifier, or a concrete file.ts). A diagnostic that genuinely needs none waives with `@orb-waive diagnostic-legibility(<position>): <why the fix is self-contained + end condition>`, where the position is the PROPERTY NAME the diagnostic is bound to — `message` for a `message:` property, the table key for a `const MSG`/`MESSAGES` entry — never the string itself.";
 
-/** Does the diagnostic text itself carry a resolvable doc/code-home pointer? (terse-ok is checked
- *  separately, against the surrounding source comment, not the string.) */
+/** Does the diagnostic text itself carry a resolvable doc/code-home pointer? */
 export function hasPointer(text: string): boolean {
   return MD.test(text) || SRC_FILE.test(text) || CODE_DIR.test(text) || PKG_SPEC.test(text);
 }
 
-/** A `// terse-ok:` escape on the diagnostic's own line or the line directly above it. */
-function terseOkNear(lines: readonly string[], line1: number): boolean {
-  const cur = lines[line1 - 1] ?? "";
-  const prev = lines[line1 - 2] ?? "";
-  return TERSE_OK.test(cur) || TERSE_OK.test(prev);
+/** The `const MSG = { … }` / `const MESSAGES = { … }` object a property belongs to, or undefined. The
+ *  shorthand-`{ message }` idiom: the diagnostic never appears at a `message:` property at all, so the
+ *  TABLE is the subject. `as const` / `satisfies` / parentheses are unwrapped on the way up. */
+function messageTableOwner(object: ObjectLiteralExpression): boolean {
+  let cursor: Node = object.getParent();
+  while (Node.isAsExpression(cursor) || Node.isSatisfiesExpression(cursor) || Node.isParenthesizedExpression(cursor)) {
+    cursor = cursor.getParent();
+  }
+  return Node.isVariableDeclaration(cursor) && MSG_TABLE_NAME.test(cursor.getName());
 }
 
-interface Diag {
-  readonly line: number;
-  readonly text: string;
+/** Is this property assignment a gate diagnostic? Either a `message:`/`unreadableMessage:` property (the
+ *  shared reader's set) or any value of a `const MSG`/`MESSAGES` table. */
+function isDiagnosticProperty(property: PropertyAssignment): boolean {
+  if (isMessageProperty(property)) {
+    return true;
+  }
+  const parent = property.getParent();
+  return Node.isObjectLiteralExpression(parent) && messageTableOwner(parent);
 }
 
-/** Strip `as const` / `satisfies` / parentheses so the underlying literal or object is reachable. */
-function unwrap(node: Node): Node {
-  let n = node;
-  while (Node.isAsExpression(n) || Node.isSatisfiesExpression(n) || Node.isParenthesizedExpression(n)) {
-    n = n.getExpression();
-  }
-  return n;
-}
-
-/** The literal text of a string / no-substitution template / template-with-`${}` / concat node, else
- *  undefined (a non-literal, e.g. a bare param). Templates keep their `${…}` spans — fine for pointer
- *  detection (a `.md`/path is a literal chunk of the template regardless of interpolation). */
-function literalText(raw: Node): string | undefined {
-  const node = unwrap(raw);
-  if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
-    return node.getLiteralText();
-  }
-  if (Node.isTemplateExpression(node)) {
-    return node.getText();
-  }
-  if (!Node.isBinaryExpression(node)) {
-    return;
-  }
-  const combined = `${literalText(node.getLeft()) ?? ""}${literalText(node.getRight()) ?? ""}`;
-  return combined.length > 0 ? combined : undefined;
-}
-
-/** Resolve a `message:` initializer to its diagnostic text: inline literal or a same-file `const`. */
-function resolveMessageText(init: Node): string | undefined {
-  const direct = literalText(init);
-  if (direct !== undefined) {
-    return direct;
-  }
-  if (!Node.isIdentifier(init)) {
-    return;
-  }
-  const decl = init.getSymbol()?.getDeclarations()[0];
-  if (decl === undefined || !Node.isVariableDeclaration(decl)) {
-    return;
-  }
-  const declInit = decl.getInitializer();
-  return declInit === undefined ? undefined : literalText(declInit);
-}
-
-/** Every `message:` object-property value (inline or const-resolved). */
-function messagePropDiags(sf: SourceFile): Diag[] {
-  const out: Diag[] = [];
-  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
-    if (pa.getName() !== "message") {
-      continue;
-    }
-    const text = resolveMessageText(pa.getInitializerOrThrow());
-    if (text !== undefined) {
-      out.push({ line: pa.getStartLineNumber(), text });
-    }
-  }
-  return out;
-}
-
-/** Every string value of a `const MSG`/`MESSAGES` object table (reached via a `message` param). */
-function msgTableDiags(sf: SourceFile): Diag[] {
-  const out: Diag[] = [];
-  for (const vd of sf.getVariableDeclarations()) {
-    const init = vd.getInitializer();
-    if (!MSG_TABLE_NAME.test(vd.getName()) || init === undefined) {
-      continue;
-    }
-    const obj = unwrap(init);
-    if (!Node.isObjectLiteralExpression(obj)) {
-      continue;
-    }
-    for (const prop of obj.getProperties()) {
-      if (!Node.isPropertyAssignment(prop)) {
-        continue;
-      }
-      const text = literalText(prop.getInitializerOrThrow());
-      if (text !== undefined) {
-        out.push({ line: prop.getStartLineNumber(), text });
-      }
-    }
-  }
-  return out;
-}
-
-/** The shared verdict: a diagnostic passes iff its text carries a pointer OR it's terse-ok-marked. */
-function flag(diags: readonly Diag[], lines: readonly string[], file: string): Violation[] {
-  const out: Violation[] = [];
-  for (const d of diags) {
-    if (!(hasPointer(d.text) || terseOkNear(lines, d.line))) {
-      out.push({ file, line: d.line, message: POINTER_HELP });
-    }
-  }
-  return out;
-}
-
-// Reads the gate files from the shared project via `scanRoot: p => p.startsWith("tooling/src/verify/gates/")`.
-// The whole-project scanners (commented-code, no-caller-user-id, no-inline-union-redecl,
-// pd-citation-integrity) each pin their own `scanRoot` to packages+tests so they don't also see this
-// gate's example strings.
-const GATE_SCAN_ROOT = `${GATES_REL}/`;
-
-/** Every message-diagnostic Violation in ONE gate SourceFile (read from the shared project's AST). */
-function gateFileDiags(sf: SourceFile, root: string): Violation[] {
-  const abs = sf.getFilePath();
-  const rel = abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-  const lines = sf.getFullText().split("\n");
-  const diags = [...messagePropDiags(sf), ...msgTableDiags(sf)];
-  return flag(diags, lines, rel);
-}
-
-export const gate: GateDescriptor = {
-  name: "diagnostic-legibility",
-  docRow: "core/Documentation-Law.md",
-  status: "active",
-  scopeSafety: "whole-project",
-  message: POINTER_HELP,
-  fix: "end the message with a `<Doc>.md §N` doc path or a code-home (packages/…, an @orb/… specifier, or a concrete file.ts), or mark it `// terse-ok: <reason>` if the fix is fully self-contained (Documentation-Law.md).",
-  // The fold-in's opt-IN: THIS gate reads the gate corpus from the shared project. The four whole-project
-  // scanners pin their scanRoot to EXCLUDE it (see their gate files) — this one includes it.
-  scanRoot: (p) => p.startsWith(GATE_SCAN_ROOT),
-  run: (ctx) => {
-    // Gate-file message diagnostics — read from the SHARED project (the fold-in), scanRoot-pinned above.
-    for (const sf of ctx.project.getSourceFiles()) {
-      const abs = sf.getFilePath();
-      if (!(abs.includes(`/${GATES_REL}/`) && abs.endsWith(".ts"))) {
-        continue;
-      }
-      for (const v of gateFileDiags(sf, ctx.root)) {
-        ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-      }
-    }
-  },
+export const gate = defineGate({
+  id: "diagnostic-legibility",
+  family: "policy-soundness",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@tooling"], under: ["tooling/src/verify/gates/**"] },
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.PropertyAssignment],
+        visit: (node): void => {
+          if (!(Node.isPropertyAssignment(node) && isDiagnosticProperty(node))) {
+            return;
+          }
+          const { segments } = staticSegments(unwrapExpression(node.getInitializerOrThrow()));
+          // No readable static text at all is the legacy `undefined` — a dynamic diagnostic is a declared
+          // limit, never a guessed finding.
+          if (segments.length > 0 && !segments.some(hasPointer)) {
+            ctx.report.node(node, { message: MESSAGE, fix: FIX });
+          }
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
-      files: {
-        "tooling/src/verify/gates/x.ts": 'export const gate = { message: "a bare diagnostic with no home" };\n',
-      },
-      expect: { messageIncludes: "must carry a pointer" },
-      why: "a gate `message:` with no doc/code-home pointer — the amnesiac agent gets a dead-end 'no'",
+      mode: "types",
+      files: { "tooling/src/verify/gates/x.ts": 'export const gate = { message: "a bare diagnostic with no home" };\n' },
+      expect: { count: 1, token: "message" },
+      why: "the founding shape — a gate `message:` with no doc/code-home pointer, so the amnesiac agent it blocks gets a dead-end 'no'",
     },
     {
-      // a message resolved ONE level through a same-file const — the pointerless const still fires.
+      mode: "types",
       files: {
-        "tooling/src/verify/gates/x.ts": 'const MESSAGE = "no home for this rule";\nexport const gate = { message: MESSAGE };\n',
+        "tooling/src/verify/contract/gate.ts": "export interface GateDescriptor {\n  readonly name: string;\n  readonly message: string;\n}\n",
+        "tooling/src/verify/gates/legacy-half.ts":
+          'import type { GateDescriptor } from "../contract/gate.ts";\nexport const gate: GateDescriptor = { name: "legacy-half", message: "no home for this rule" };\n',
       },
-      expect: { messageIncludes: "must carry a pointer" },
-      why: "a `message:` resolved through a same-file const is checked — a pointerless const fires",
+      expect: { count: 1, token: "message" },
+      why: "THE MIXED-RUNTIME HALF #1: a LEGACY `GateDescriptor` object literal. The corpus carries both shapes in production until the legacy set empties, and a reader that classified by contract identity would under-report on one of them — this row is the legacy half asserted as a row rather than as prose",
     },
     {
-      // a `const MSG` object-table string value (the shorthand-`{ message }` idiom).
+      mode: "types",
       files: {
-        "tooling/src/verify/gates/x.ts": 'const MSG = { verb: "bare table diagnostic" } as const;\nexport const use = MSG.verb;\n',
+        "tooling/src/verify/contract/policy.ts": "export function defineGate<Policy>(policy: Policy): Policy {\n  return policy;\n}\n",
+        "tooling/src/verify/gates/final-half.ts":
+          'import { defineGate } from "../contract/policy.ts";\nconst MESSAGE = "no home for this rule either";\nexport const gate = defineGate({ id: "final-half", message: MESSAGE });\n',
       },
-      expect: { messageIncludes: "must carry a pointer" },
-      why: "a pointerless value in a `const MSG` object table fires (the shorthand-`{ message }` idiom)",
+      expect: { count: 1, token: "message" },
+      why: "THE MIXED-RUNTIME HALF #2: a FINAL `defineGate({…})` whose message is resolved one hop through a module const. Same defect, same single finding, same reported position as the legacy half above — which is what 'contract-agnostic' means, measured",
+    },
+    {
+      mode: "types",
+      files: { "tooling/src/verify/gates/table.ts": 'const MSG = { verb: "bare table diagnostic" } as const;\nexport const use = MSG.verb;\n' },
+      expect: { count: 1, token: "verb" },
+      why: "a pointerless value in a `const MSG` object table (the shorthand-`{ message }` idiom, where the diagnostic never sits at a `message:` property at all) — and the position is the TABLE KEY, so two bad entries in one table are separately waivable",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/verify/gates/unreadable.ts":
+          'export const gate = { message: "see Documentation-Law.md", unreadableMessage: "could not read it, give up" };\n',
+      },
+      expect: { count: 1, token: "unreadableMessage" },
+      why: 'INTENTIONAL WIDENING over legacy (§4.6 delta 1): `unreadableMessage` is the #944 third answer\'s own diagnostic and the shared reader counts it as a message property. The legacy `getName() === "message"` test was blind to it, so a fail-closed arm could ship a dead-end message while the pointer-bearing `message:` beside it passed. The pointer-bearing sibling in the SAME fixture is what makes the count exactly 1',
     },
   ],
   mustPass: [
     {
-      files: {
-        "tooling/src/verify/gates/x.ts": 'export const gate = { message: "the fix lives in packages/ui/src/x.ts" };\n',
-      },
+      mode: "types",
+      files: { "tooling/src/verify/gates/ok.ts": 'export const gate = { message: "the fix lives in packages/ui/src/x.ts" };\n' },
       why: "a gate message carrying a concrete code-home pointer (packages/…/x.ts) — a navigable next step, passes",
     },
     {
-      // a `// terse-ok:` marker on the line above the message escapes the gate.
+      mode: "types",
       files: {
-        "tooling/src/verify/gates/terse.ts":
-          'export const gate = {\n  // terse-ok: fix is fully self-contained, no doc covers it\n  message: "just do the obvious thing",\n};\n',
-      },
-      why: "a `// terse-ok:` marker on the line above the message is the sanctioned escape — passes",
-    },
-    {
-      files: {
-        "tooling/src/verify/gates/y.ts": 'export const gate = { message: "the name is not a real gate file in tooling/src/verify/gates/" };\n',
+        "tooling/src/verify/gates/tooling-home.ts": 'export const gate = { message: "the name is not a real gate file in tooling/src/verify/gates/" };\n',
       },
       why: "`tooling/` IS a code home — the @orb/tooling root joined the pointer vocabulary at the P6 verify move, and without it every message that navigates a reader to the tool tree reads as a dead-end",
     },
+    {
+      mode: "types",
+      files: { "tooling/src/verify/gates/dynamic.ts": "export const gate = { message: buildMessage(count) };\n" },
+      why: "DECLARED LIMIT, carried from the legacy `resolveMessageText` returning undefined: a diagnostic whose value is not statically readable yields NO segments and is skipped rather than guessed into a finding. The row dies if the reader ever starts inventing text for a dynamic value",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/outside.ts": 'export const gate = { message: "a bare diagnostic with no home" };\n',
+        "tooling/src/verify/gates/clean.ts": 'export const gate = { message: "see Documentation-Law.md" };\n',
+      },
+      why: "THE POPULATION FENCE, and the only row that dies without it: the identical pointerless `message:` outside `tooling/src/verify/gates/**` is not a gate diagnostic and is not this policy's business (the four whole-project scanners pin their own roots to exclude this tree; this population is the other side of that fence). Delete the `under:` and this row alone reds",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/verify/gates/waived.ts":
+          '// @orb-waive diagnostic-legibility(message): the proof\'s stand-in reason; ends when this fixture stops flagging.\nexport const gate = { message: "a bare diagnostic with no home" };\n',
+      },
+      why: "POSITIONAL IDENTITY (§4.2's twin): the finding is anchored on the PROPERTY ASSIGNMENT, so its derived position is the property name `message` — authored text at its exact offset, which the legacy file-anchored finding never was (it had no working waiver door at all). The fixture is mustFlag[1] plus the marker line, so exactly ONE occurrence exists for the one marker to consume",
+    },
   ],
-};
+});

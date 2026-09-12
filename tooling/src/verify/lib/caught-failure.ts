@@ -1299,7 +1299,7 @@ function memberNameNode(node: Node): Node | undefined {
 /** One call's anchors, WIDEST identity first: the whole callee chain (`a.save`), then just its member name
  *  (`save`). The chain is preferred because it is what keeps two same-named siblings in one marker carrier
  *  separately waivable; the name is what survives a MULTI-LINE chain, which the marker grammar cannot hold. */
-function calleeAnchorCandidates(call: CallExpression): readonly Node[] {
+export function calleeAnchorCandidates(call: CallExpression): readonly Node[] {
   const callee = unwrapExpression(call.getExpression());
   const name = memberNameNode(callee);
   return name === undefined ? [callee] : [callee, name];
@@ -1329,7 +1329,7 @@ function workAnchorCandidates(call: CallExpression, invocation: PromiseRejection
  *  `noUselessUndefined` deletes a trailing `return undefined;` and tsc's `noImplicitReturns` then reds the
  *  fall-through, and this is the sanctioned shape out of that pincer (.claude/rules/gates-and-tooling.md).
  *  `??=` still short-circuits, so a later candidate is never evaluated once one has anchored. */
-function firstAnchor(reported: Node, candidates: readonly Node[]): CaughtFailureAnchor | undefined {
+export function firstAnchor(reported: Node, candidates: readonly Node[]): CaughtFailureAnchor | undefined {
   let found: CaughtFailureAnchor | undefined;
   for (const candidate of candidates) {
     found ??= anchorWithin(reported, candidate);
@@ -1469,7 +1469,7 @@ export interface CaughtFailureSite {
 
 /** The catch arm's anchor: the caught BINDING's name, or the `catch` keyword when the clause is bindingless
  *  (always offset 0 of the clause, so it can never fail to anchor). */
-function catchAnchor(clause: CatchClause): CaughtFailureAnchor | undefined {
+export function catchAnchor(clause: CatchClause): CaughtFailureAnchor | undefined {
   const binding = clause.getVariableDeclaration()?.getNameNode();
   return (binding === undefined ? undefined : anchorWithin(clause, binding)) ?? { token: "catch", offset: 0 };
 }

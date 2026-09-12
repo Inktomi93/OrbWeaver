@@ -1903,7 +1903,7 @@
     {
       "siteId": "packages/server/src/domain/automation/substrate/serial-lanes.ts::tail::1",
       "path": "packages/server/src/domain/automation/substrate/serial-lanes.ts",
-      "line": 81,
+      "line": 79,
       "column": 3,
       "grammar": "promise",
       "position": "tail",
@@ -1911,7 +1911,7 @@
       "snippet": "tail",
       "verdict": "deliberate-absorb",
       "reason": "the lane sweep is bookkeeping over an in-RAM Map — a Map delete with nothing to trace and no caller to inform, deliberately detached so it cannot delay or fail the caller's own result. Ends if the sweep ever performs I/O or has an outcome a caller could act on.",
-      "markerLine": 80
+      "markerLine": 78
     },
     {
       "siteId": "packages/server/src/domain/automation/verbs/confirm-suggestion.ts::err::1",
@@ -2059,7 +2059,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::catch::2",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1857,
+      "line": 1855,
       "column": 13,
       "grammar": "empty",
       "position": "catch",
@@ -2072,7 +2072,7 @@
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::deltaErr::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 1883,
+      "line": 1881,
       "column": 14,
       "grammar": "empty",
       "position": "deltaErr",
@@ -2080,12 +2080,12 @@
       "snippet": "} catch (deltaErr) {",
       "verdict": "deliberate-absorb",
       "reason": "explicitly classified below — a `deltaErr` equal",
-      "markerLine": 1877
+      "markerLine": 1875
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/engine.ts::releasedBody::1",
       "path": "packages/server/src/domain/chat/engine/engine.ts",
-      "line": 2001,
+      "line": 1996,
       "column": 10,
       "grammar": "promise",
       "position": "releasedBody",
@@ -2093,7 +2093,7 @@
       "snippet": "void releasedBody.catch((): undefined => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.",
-      "markerLine": 2000
+      "markerLine": 1995
     },
     {
       "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::catch::1",
@@ -4074,7 +4074,7 @@
     {
       "siteId": "packages/server/src/transport/rate-limit.ts::where::1",
       "path": "packages/server/src/transport/rate-limit.ts",
-      "line": 93,
+      "line": 90,
       "column": 6,
       "grammar": "promise",
       "position": "where",
@@ -4082,7 +4082,7 @@
       "snippet": ".where(and(like(rateLimitBuckets.key, `${prefix}%`), lt(rateLimitBuckets.expiresAt, args.now)))",
       "verdict": "deliberate-absorb",
       "reason": "a best-effort expiry GC that runs on EVERY rate-limited request — giving it its own detached root would push one extra trace bucket per request through a 500-entry ring and evict the real traces. A failed sweep is self-healing (the next request re-runs it) and cannot affect the verdict above. Ends if the sweep ever moves off the per-request path (a scheduled job would get its own root).",
-      "markerLine": 90
+      "markerLine": 87
     },
     {
       "siteId": "packages/server/src/transport/trpc/stream/socket.ts::err::1",

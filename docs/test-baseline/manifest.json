@@ -2302,6 +2302,7 @@
     "tests/tooling/verify/gates/bus-fact-health.test.ts",
     "tests/tooling/verify/gates/bus-pair.test.ts",
     "tests/tooling/verify/gates/bus-payload-allowlist.test.ts",
+    "tests/tooling/verify/gates/callback-provenance-family.test.ts",
     "tests/tooling/verify/gates/caught-failure-ownership.repo.int.test.ts",
     "tests/tooling/verify/gates/chat-viewer-plane-canon-reads.test.ts",
     "tests/tooling/verify/gates/class-string-literal-wave.test.ts",
