@@ -158,6 +158,7 @@ function BeatBodyEditor({
   const bodyLabel = `${title} entry`;
   // An unwritten body still says something (empty states are load-bearing): the rest line is the invitation.
   const restText = content === "" ? "write the beat…" : content;
+  // @orb-waive sub-floor-disclosure("text"): the box is the rendered Button's own (`render` MERGES the trigger class onto it) — an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state. Placed on the return statement: the trigger sits inside `{open ? null : (…)}` between two authored siblings, and the central engine judges any marker inside such an expression ambiguous, so the enclosing statement is the nearest carrier that binds.
   return (
     <Collapsible
       open={open}
@@ -176,7 +177,6 @@ function BeatBodyEditor({
             the editor is OPEN the rest line is gone: the editor takes the body's place (expand IN PLACE),
             never sits under a copy of itself. */}
         {open ? null : (
-          // @sub-floor-ok: the box is the rendered Button's own (`render` MERGES the trigger class onto it) — an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state
           <CollapsibleTrigger
             chevron={false}
             size="text"

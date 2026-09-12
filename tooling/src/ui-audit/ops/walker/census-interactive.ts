@@ -314,7 +314,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
         height: Math.max(irect.height, effective),
         extentTruncated: lowerBound,
         // THE AUTHOR'S RULING, RENDERED (#1381). A priced sub-floor decision lived only in a source
-        // comment (@sub-floor-ok), which this walker cannot read, so cold audits re-filed the same P1
+        // comment (the @orb-waive sub-floor-disclosure waiver), which this walker cannot read, so cold audits re-filed the same P1
         // every time. The control declares it on the DOM instead; Node decides what the declaration
         // MEANS (checks-a11y.ts excludes it at fine pointer only) — the walker just carries the fact.
         ruledTargetFloor: iel.getAttribute("data-target-floor"),

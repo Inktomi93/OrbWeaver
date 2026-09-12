@@ -81,15 +81,15 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
           `::after` arms — MEASURED at 430×740 DPR3 `pointer:coarse` this row was 406×16 and its centre did
           not resolve to itself under `elementFromPoint`. The floor is a shared `#components` fragment
           because axis-3 device capability is banned from a feature className. */}
-      {/* THE SAME RULING, RENDERED (#1381). The `@sub-floor-ok` marker below is a SOURCE comment and the
+      {/* THE SAME RULING, RENDERED (#1381). The `@orb-waive sub-floor-disclosure` marker below is a SOURCE comment and the
           design-audit walker measures the DOM, so every cold audit of /chats re-filed this row as a P1
           tap-target at fine pointer — twice in one day. `data-target-floor="sub-floor-ok"` is that ruling
           as a fact the walker can read: it EXCLUDES the candidate at fine pointer with a named reason and
           counts it in the population row (never a silent skip), and it changes nothing at coarse, where
           the fragment above takes the real 44px floor and a genuine regression must still fire.
-          The marker itself stays IMMEDIATELY above the element — the `sub-floor-disclosure` gate reads the
-          line directly above the `size="text"` trigger, so nothing may be inserted between them. */}
-      {/* @sub-floor-ok: recorded ruling (pointer-variants.ts DISCLOSURE_TOUCH_FLOOR_AT_COARSE): coarse takes the 44px floor via the fragment; FINE stays a 16px line in a dense transcript footer — a control box here is the density cost that ruling priced and declined */}
+          The marker stays the JSX comment IMMEDIATELY before the element — the central waiver engine binds a
+          JSX comment carrier to its one adjacent significant sibling, so no other element may sit between them. */}
+      {/* @orb-waive sub-floor-disclosure("text"): recorded ruling (pointer-variants.ts DISCLOSURE_TOUCH_FLOOR_AT_COARSE): coarse takes the 44px floor via the fragment; FINE stays a 16px line in a dense transcript footer — a control box here is the density cost that ruling priced and declined */}
       <CollapsibleTrigger className={`w-full ${DISCLOSURE_TOUCH_FLOOR_AT_COARSE}`} size="text" data-target-floor="sub-floor-ok">
         {/* The count is the volatile half and stays SUFFIXED (N3). A failed round has no count to give — its
             suffix is the same word a dropped call's badge uses, so one turn's outcome reads the same whether

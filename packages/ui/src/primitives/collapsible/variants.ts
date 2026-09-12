@@ -29,7 +29,7 @@ export const collapsibleVariants = tv({
     // `--spacing-control-sm` floor (44px coarse / 32px fine), the same token every other tap-floor control
     // rides. `text` (the renamed `inline` arm) is the OPT-OUT for a disclosure sitting in running content,
     // where a control box would shear it off the copy it belongs to — and every `size="text"` mount owes a
-    // line-adjacent `@sub-floor-ok: <reason>` marker (gate `sub-floor-disclosure`, two-sided). It is a
+    // reasoned `@orb-waive sub-floor-disclosure("text"): <reason>` waiver (policy `sub-floor-disclosure`; central two-sided reconciliation). It is a
     // VARIANT and not a call-site `min-h-*` because tailwind-merge cannot classify custom-token utilities,
     // so an override would win or lose by stylesheet order (gate `ui-size-via-variant`).
     size: {

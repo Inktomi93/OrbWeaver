@@ -2318,6 +2318,7 @@
     "tests/tooling/verify/gates/db-structure.int.test.ts",
     "tests/tooling/verify/gates/depcruise-grant-liveness.int.test.ts",
     "tests/tooling/verify/gates/devtools-frontend-assets.int.test.ts",
+    "tests/tooling/verify/gates/disclosure-reservation-family.test.ts",
     "tests/tooling/verify/gates/drizzle-registry-conversion.test.ts",
     "tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts",
     "tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts",

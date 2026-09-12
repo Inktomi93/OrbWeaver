@@ -403,7 +403,133 @@ grant liveness; the blindness anchor; the element-access token; the undeclared-g
 coverage asserted: import family 3 of 6 examples flag; argv family 3 reads + 1 six-row stale sweep + 1
 blindness of 11 — every moved arm nonzero.
 
-## 3. Group 3 — `sub-floor-disclosure`, `query-boundary-reservation` — not yet designed
+## 3. Group 3 — `sub-floor-disclosure`, `query-boundary-reservation`
+
+### 3.1 Premises re-derived on the tree
+
+| Premise | Receipt |
+| - | - |
+| Both modules are byte-identical to their legacy SHAs | `git diff --stat 4e1bdb87e HEAD -- …/sub-floor-disclosure.ts` and `git diff --stat 370243fe7 HEAD -- …/query-boundary-reservation.ts` print nothing |
+| `@sub-floor-ok` live markers (marker form, opener-anchored) | exactly 2: `packages/client/src/features/rpg/components/turn-tool-calls-disclosure.tsx:92` (a `{/* */}` JSX carrier with NO significant sibling before it — the engine's adjacency rule binds it to the trigger that follows) and `rpg-beat-row.tsx:179` (a `//` in the leading trivia of a multi-line `<CollapsibleTrigger` whose `size="text"` sits three lines below) |
+| `@first-boot-only` live markers | 0 (the only mention is the central engine's foreign-grammar fixture list) — the grammar DELETES |
+| Central `@orb-gate-ignore` markers for either id | 0 |
+| Prose sites that teach the retired spelling | 8: `packages/ui/src/primitives/collapsible/{collapsible.tsx:31,variants.ts:32}`, the product comment at `turn-tool-calls-disclosure.tsx:90-91` ("the gate reads the line directly above"), `tests/ui/primitives/collapsible/collapsible.ct.tsx:118`, `tests/client/features/rpg/components/turn-tool-calls-disclosure.ct.tsx:382`, `tests/tooling/ui-audit/index.test.ts:575`, `tooling/src/ui-audit/ops/walker/census-interactive.ts:317`, `tooling/src/ui-audit/contract/samples-interactive.ts:37` — comment-only edits inside a conversion lane's fence (guide §7) |
+| The legacy fixture battery carries both gates | `tests/tooling/check-gates.repo.int.test.ts:324-327` (`__g_qbres`) and `:345-346` (`__g_subfloor`) — deleted with the conversion, the precedent every earlier conversion set |
+| The vocabulary homes are live | `packages/ui/src/primitives/collapsible/variants.ts:36-37` declares `text: {}` and `control: {…}`; `packages/client/src/components/query-boundary.tsx` spells `reserveKey` 13 times; no duplicate literal `reserveKey` on the client tree |
+| The roster row's "`tests/` is scope" claim is FALSE on the legacy code | both `scanRoot`s admit `packages/client/src/` (+ `packages/ui/src/` for sub-floor) only; a `size="text"` story at `tests/ui/primitives/collapsible/collapsible.ct.tsx:138` was never judged. The population port is byte-identical to the CODE; the roster row is corrected |
+
+### 3.2 `sub-floor-disclosure` → `sub-floor-disclosure` (ordinary) + `sub-floor-disclosure-health` (hard)
+
+**Ruling (§12.6):** "ordinary occurrence policy plus hard vocabulary-health policy". Implemented as ruled.
+
+**Family `sub-floor-disclosure`, shared reader `lib/collapsible-size-vocabulary.ts`** — the size vocabulary both
+policies judge against (`COLLAPSIBLE_TRIGGER`, the sub-floor arm `text`, the floor arm `control`, the
+variants home), so the occurrence policy and the tripwire cannot drift on which arm is the opt-out.
+
+**`sub-floor-disclosure`** — ordinary/error/`selected-files`/`["@client","@ui"]`/`syntax`. A
+`CollapsibleTrigger` (opening or self-closing) whose `size` attribute is the literal `"text"` is a finding
+anchored on the `"text"` STRING LITERAL (derived token `"text"`, quotes included — the house convention).
+The private `@sub-floor-ok` grammar RETIRES: the escape is `@orb-waive sub-floor-disclosure("text"): <reason>`,
+bound by the central engine (`//` leading trivia of the element or the attribute; a `{/* */}` JSX carrier
+with exactly one significant neighbour). Arm B (malformed / stale / over-exempting) is central
+reconciliation now; the successor proofs drive the retired shapes through `runPolicyPass` in the family
+test and assert the central alarm each produces. **Identity of the tag is a DECLARED LIMIT carried from the
+legacy** (a wrapped or re-exported trigger under another name is invisible): the tag resolves through the
+`@orb/ui` package door on the real tree and to nothing in the proof workspace, so an identity row would pass
+as `external-door` (§4.8b) until an `@orb/ui` proof plant exists — deferred with that receipt, not faked.
+
+**`sub-floor-disclosure-health`** — hard/error/`entire-population`, population EXACTLY the variants home
+(`{ in: ["@ui"], under: ["packages/ui/src/primitives/collapsible/variants.ts"] }`): an ABSENT home admits
+nothing and the runtime refuses at the population phase (louder than the legacy's silent skip). Visitors
+`PropertyAssignment` + `ShorthandPropertyAssignment` record which arm keys the home declares; `evaluate`
+reports one finding per missing arm at the home, line 1 — comment mentions cannot keep it healthy by
+construction (a comment is not a property). The legacy anchored this on the gate module's own path.
+
+**Marker reconciliation (§8.6), per file:** `turn-tool-calls-disclosure.tsx` legacy 1 → current 1;
+`rpg-beat-row.tsx` legacy 1 → current 1; total 2 = 2 = 2 (the census's two). Site 1's `{/* */}` carrier
+stays where it is. Site 2 MOVED: the real-site pin (the family test runs the final policy over both files
+read off disk) came back `ambiguous comment trivia spanning disjoint authored regions and suppressed none`
+for the in-place translation — the central engine records the ENCLOSING JSX expression for any comment
+inside one (`lib/ordinary-waiver.ts:134-140`) and judges it by sibling adjacency, and `{open ? null : (…)}`
+sits between `{lead}` and `{trailing}`. No placement inside that expression can bind, so the marker moved
+to the enclosing return statement's trivia — the nearest carrier that contains the finding — with the
+legacy reason verbatim plus the placement note. Engine finding reported: a `//` marker inside a non-empty,
+sibling-flanked JSX expression is unbindable even when its carrier contains the finding (loud, not silent).
+
+### 3.3 `query-boundary-reservation` → `query-boundary-reservation` (ordinary) + `query-boundary-reservation-health` (hard)
+
+**Ruling (§12.6):** "ordinary unreserved-boundary policy plus hard duplicate/seam-health policies". The two
+hard arms (B duplicate literal keys, D the seam tripwire) share authority, severity and execution
+(`entire-population` over `@client`), so they are ONE `-health` policy with two messages — the smallest
+complete contract; a split is owed only where an axis differs.
+
+**Family `query-boundary-reservation`, shared reader `lib/query-boundary-vocabulary.ts`** (`QUERY_BOUNDARY`,
+`SKELETON_ROWS`, `RESERVE_KEY`, the boundary home) — both policies judge the same vocabulary.
+
+**`query-boundary-reservation`** — ordinary/error/`selected-files`/`@client`/`syntax`: arm A byte-identical
+(a `QueryBoundary` with no `reserveKey`, whose `fallback` is a DIRECT `<SkeletonRows …/>` with a STATIC count —
+a numeric literal or a same-file const numeric), reported on the `fallback` attribute (derived token
+`fallback`, byte-identical to the legacy position). The `@first-boot-only` grammar is EMPTY and DELETES;
+the escape is `@orb-waive query-boundary-reservation(fallback): <reason>`; the legacy marker rows retire
+into central reconciliation with successor pins.
+
+**`query-boundary-reservation-health`** — hard/error/`entire-population`/`@client`: arm B collects every
+literal `reserveKey` value with its site and reports every duplicate at the literal (each site's message
+names the others — a cross-file verdict no single-site marker could speak for); arm D reads the boundary
+home through the shared `blankTsComments` (byte-identical predicate: `reserveKey` spelled in CODE, not a
+comment) and reports at the home, line 1, when the home is loaded and does not spell it. The legacy
+anchored arm D on the gate module's own path.
+
+### 3.4 Group 3 coupled sites
+
+| Site | Action |
+| - | - |
+| `lib/collapsible-size-vocabulary.ts` · `lib/query-boundary-vocabulary.ts` | NEW shared readers (the two families) |
+| the four policy modules | 2 rewritten, 2 new |
+| the two live `@sub-floor-ok` sites | translated in place to `@orb-waive sub-floor-disclosure("text"): <legacy reason verbatim>` |
+| the 8 prose sites | re-worded to the central spelling |
+| `tests/tooling/check-gates.repo.int.test.ts` | the two `__g_` fixture blocks deleted |
+| `tests/tooling/verify/gates/disclosure-reservation-family.test.ts` | NEW: conformance ×4, §4.2 arms (both real carrier shapes), the real-site binding pin, retired-arm successor pins, §4.5 deferral pins, §4.6 differentials ×2 |
+| roster | 2 rows rewritten (the false `tests/` claim corrected), 2 added, count +2 |
+| `docs/test-baseline/manifest.json` | regenerated (+1 spec) |
+
+### 3.5 Group 3 measured (2026-09-12, this worktree)
+
+§4.1 cut table, flag-MORE direction, sibling scratch copies, anchors asserted to occur exactly once:
+
+| Policy | Narrowing | Replaced with | Rows that died | Bucket |
+| - | - | - | - | - |
+| `sub-floor-disclosure` | the tag-name check (shared reader) | dropped | `mustPass[2]` (another tag) | ENFORCED |
+| `sub-floor-disclosure` | the arm comparison `=== "text"` (shared reader) | any literal | `mustPass[1]` (`control`) · `mustPass[3]` (a tool error — the variable row) | ENFORCED |
+| `sub-floor-disclosure` | the literal-shape fence (shared reader) | a non-literal initializer admitted | `mustPass[3]` (the variable) | ENFORCED |
+| `sub-floor-disclosure-health` | `ShorthandPropertyAssignment` in the visitor | dropped | `mustPass[1]` (shorthand arms) | ENFORCED |
+| `sub-floor-disclosure-health` | the declared-arm census | both arms always declared | `mustFlag[0..2]` | the rule |
+| `query-boundary-reservation` | the `reserveKey` short-circuit | dropped | `mustPass[0]` (keyed) | ENFORCED |
+| `query-boundary-reservation` | the `QueryBoundary` tag check | dropped | `mustPass[4]` (another tag) | ENFORCED |
+| `query-boundary-reservation` | `hasStaticCount` | dropped | `mustPass[1]` (dynamic count) | ENFORCED |
+| `query-boundary-reservation` | the `SkeletonRows` tag half of the fallback reader (shared reader) | dropped | none at first → `mustPass[3]` (a self-closing `<Spinner count={3} />`) once written — the `<Text>` row is refused by the self-closing half first | ENFORCED after the added row |
+| `query-boundary-reservation-health` | `sites.length < 2` | dropped | `mustPass[0]` · `mustPass[3]` | ENFORCED |
+| `query-boundary-reservation-health` | the home-loaded guard | dropped | `mustFlag[0]` · `mustPass[0]` · `[1]` · `[3]` (as `[evaluate]` tool errors — the fence firing) | ENFORCED |
+| `query-boundary-reservation-health` | string-literal keys only | expression keys admitted | `mustPass[1]` (the shared exported const) | ENFORCED |
+
+§4.6 differentials are committed in `disclosure-reservation-family.test.ts` (11/11): every legacy example
+of both descriptors (9 and 12) replayed through the frozen legacy `runPass` — over the fixture with the
+retired grammar BLANKED, which is the legacy verdict the final policies must reproduce since to them the
+marker is inert — and the union of each pair over the fixture as written. Classified: the retired grammar
+(marker verdicts vanish, consumed sites report), the position deltas (`text` → `"text"` −1 column; the
+duplicate key on its literal, +`reserveKey=` columns), the tripwire anchors (gate module → home), and the
+EMPTY ADMISSION of the sub-floor tripwire (its population is exactly the home; a legacy example without the
+home refuses at the population phase, pinned separately). Legacy-side coverage asserted per family:
+sub-floor — 3 occurrence, 2 marker verdicts + 1 consumed marker, 2 tripwire reds; query-boundary — 4
+occurrence, 2 marker verdicts + 1 consumed, 2 duplicate sites, 1 seam.
+
+**The engine finding.** The real-site pin refuted the in-place translation for `rpg-beat-row.tsx`: the
+central engine records the enclosing JSX expression for ANY comment inside one and judges it by sibling
+adjacency, so a `//` marker inside `{open ? null : (…)}` between `{lead}` and `{trailing}` is `ambiguous …
+suppressed none` even though its carrier (the element) contains the finding. The marker moved to the
+enclosing return statement; the family test pins BOTH the binding placement and the non-binding one so
+nobody moves it back. Loud, not silent — but an author has no working placement inside such an expression,
+which is worth an engine row.
 
 ## 4. Group 4 — `tooling-shared-plumbing` — not yet designed
 
