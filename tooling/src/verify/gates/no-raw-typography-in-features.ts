@@ -24,6 +24,10 @@
 //
 // THE REPORTED POSITION is the WHOLE QUOTED LITERAL (`token: text, offset: 0` — `text` is `node.getText()`,
 // which INCLUDES the quotes), so a waiver names `"text-sm"`, quotes and all; `fix` states the spelling.
+//
+// The legacy `no-raw-typography-in-features` descriptor (d6f36904fa6946238678e61760888aaf62ba0c93) ran a
+// hand-rolled allowlist sweep before this migration moved the raw-CSS-literal-in-features family onto
+// the shared `lib/sanctioned-home.ts` reader.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable } from "../contract/gate.ts";

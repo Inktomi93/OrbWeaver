@@ -17,6 +17,10 @@
 // tests/tooling/verify/gates/tenancy-scope-family.test.ts (a report-identity assertion, not a conformance
 // row: an authority alarm from a mismatched marker is itself a conformance FAILURE, so this case can only
 // be proven by driving the dispatcher directly and asserting the alarm).
+//
+// The legacy `owner-scoped-upserts` descriptor itself (40223a0915eda72dd8ab35fbdeaf9e9892089717) — created
+// as its own GateDescriptor 2026-08-02, distinct from the `owner-scoped-writes`/`-reads` twins named above
+// — ran this same check before this conversion.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

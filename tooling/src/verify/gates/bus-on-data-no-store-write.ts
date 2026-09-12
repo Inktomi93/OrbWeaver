@@ -10,6 +10,9 @@
 // parsed as `malformed`, the finding survived, and an authority alarm fired. The door was shut. The offset
 // is derived from the name node rather than an `indexOf` on the call text so a nested `.setState(` in an
 // argument cannot steal the anchor; the token stays an exact source slice, which `locateFinding` enforces.
+//
+// The legacy `bus-onData-no-store-write` descriptor (2f3f070c693f54f0f482c067b8627f21efec9da6) carried
+// this same check before the batch that converted the mechanical gates renamed it onto this file.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

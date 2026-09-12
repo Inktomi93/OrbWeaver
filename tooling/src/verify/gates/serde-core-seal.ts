@@ -18,6 +18,9 @@
 // POPULATION: `@server`, whole — the seal is about who imports, and every server tier can. The three narrowings below are all
 // carrier fences and each has a mustPass row that dies without it: the `packages/server/src/` + sanctioned-
 // domain prefix test (mustPass[0]/[1]), and the card-chunk SYMBOL set plus the module SPECIFIER (mustPass[2]).
+//
+// The legacy `serde-core-seal` descriptor (534c1327f682be2578e1dee7c7a2bfa488fb672a) carried BOTH the
+// occurrence check and the stale-sanction ratchet as one gate before this conversion split them.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

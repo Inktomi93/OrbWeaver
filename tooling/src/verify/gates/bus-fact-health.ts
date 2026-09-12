@@ -1,5 +1,9 @@
 // The shared bus fact must produce a complete nonempty census before any bus policy verdict is trusted.
 // Missing, empty, dynamic, written, cyclic, ambiguous, or unsupported identities fail hard here.
+//
+// The legacy `bus-coverage` descriptor (f287dc6dbb2dc4959a0bf4bd5698fea70fa03df8) held its own per-bus
+// identity/census logic inline before this conversion extracted it into the shared bus fact this policy
+// now guards.
 import { describeBusFactFailure } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
