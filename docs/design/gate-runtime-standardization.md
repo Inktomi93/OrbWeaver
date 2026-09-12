@@ -168,6 +168,19 @@ family.
      resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
      path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
 
+   **A POPULATION DIFFERENTIAL IS NOT A FINDING DIFFERENTIAL — it is ONE THIRD of what §4.6 asks, and records
+   call both “the differential” (measured 2026-09-12).** §4.6 requires comparing **findings, populations AND tool
+   errors**. A record headed *“Population equality, over one frozen 7,138-path candidate set”* proves only that the
+   admitted SET matches — it says nothing about what the gate REPORTS on that set, which is where a catch-regression
+   lives. `schema-fact-family-1584.md` is the worked case: its landing commit says *“and its differentials”*, that
+   claim resolves to a population table over **five** policies, and its other named policies have neither a
+   population nor a finding differential.
+
+   **So when crediting a record with parity evidence, read WHICH of the three it compared.** A population-only
+   comparison leaves the module in the backlog. And beware the inverse: the same doc carries an excellent finding
+   replay WITH a planted positive control — for a **retired** stage. Evidence being present in a document is not
+   evidence being present for the module you are asking about.
+
    **AND A REVIEW'S CELL COUNT DECAYS THE MOMENT ANY OTHER LANE LANDS A FIX IN ITS SCOPE — a second,
    independent staleness from the one below (paid 2026-09-11 on #1999).** Wave 6 reported 25 unenforced cells for
    the origin-client family. By the time a fix lane started, a DIFFERENT lane closing #1989/#1990 had already landed
