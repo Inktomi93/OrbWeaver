@@ -58,7 +58,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: 'wrap in <Container size="sm|md|lg"> instead of hardcoded length',
+  fix:
+    'wrap in <Container size="sm|md|lg"> instead of hardcoded length. A deliberate site is waived with ' +
+    "`@orb-waive no-raw-container-widths(<position>): <reason>` on the line above, where <position> is the " +
+    "raw width utility class token itself (e.g. `w-[600px]`, `max-w-96`).",
   create: (ctx) => ({
     visitors: [
       {

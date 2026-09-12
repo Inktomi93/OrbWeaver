@@ -35,7 +35,11 @@ const MESSAGE =
   "TEXT counts CODE POINTS, not bytes — a '64 KiB' cap silently admits up to 4x its stated limit of UTF-8. " +
   "Cast to BLOB first: `length(cast(<col> as blob)) <= <N>` (Tier-1-DB.md, #642).";
 
-const FIX = "wrap the column in `cast(<col> as blob)` inside the CHECK's length() call — `length(cast(value as blob)) <= VALUE_MAX_BYTES`.";
+const FIX =
+  "wrap the column in `cast(<col> as blob)` inside the CHECK's length() call — " +
+  "`length(cast(value as blob)) <= VALUE_MAX_BYTES`. A deliberate site is waived with " +
+  "`@orb-waive byte-check-cast(<position>): <reason>` on the line above, where <position> is the referenced " +
+  "byte-limit constant's own identifier name (e.g. `KV_VALUE_MAX_BYTES`) at its occurrence inside the CHECK clause.";
 
 /** Legacy `scanRoot` was `p.startsWith("packages/db/src/schema/")` — byte-equal to this expression, which is
  *  also `drizzleSchemaFact`'s own population. */

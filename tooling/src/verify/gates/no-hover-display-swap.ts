@@ -55,7 +55,9 @@ const FIX =
   "reserve the box and swap the PAINT: `invisible`/`visible` (visibility keeps the box) or " +
   "`opacity-0` → `opacity-100`, per ROW_REVEAL / ROW_REVEAL_SWAP in packages/client/src/components/row-reveal.ts. " +
   "A device-class swap (`pointer-coarse:hidden`, `pointer-fine:flex`, a breakpoint) stays legal — it cannot " +
-  "change while the pointer moves.";
+  "change while the pointer moves. A deliberate site is waived with `@orb-waive " +
+  "no-hover-display-swap(<position>): <reason>` on the line above, where <position> is the offending " +
+  "variant class token itself (e.g. `group-hover:hidden`).";
 
 /** Every Tailwind utility that sets `display` — the ones that move a box in or out of layout. Exact
  *  terminal match, never a prefix: `table-auto`/`table-fixed` are table-LAYOUT (not display) and must pass,

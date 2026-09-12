@@ -33,7 +33,11 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "delete the forwardRef wrapper and destructure `ref` out of props; the component keeps the same call signature.",
+  fix:
+    "delete the forwardRef wrapper and destructure `ref` out of props; the component keeps the same call " +
+    "signature. A deliberate site is waived with `@orb-waive no-forward-ref(<position>): <reason>` on the " +
+    "line above, where <position> is the literal `forwardRef` when its import binding is readable, else the " +
+    "derived position — the first identifier, literal or keyword of the reported node.",
   create: (ctx) => ({
     visitors: reactExportVisitors(EXPORT, (node, verdict) => {
       const at = anchor(node);

@@ -42,7 +42,10 @@ const MESSAGE =
   "them into ONE named-field bundle) or more than one callable render-prop parameter (two foreign panes means minting a " +
   "contribution seam). See client-architecture-lockdown.md §12 row 5.";
 const FIX =
-  "bundle the registries into one named-field parameter (`make<X>Section({ contextTabs, surfaces, … })`); for a second foreign pane, mint a contributor registry and assemble it at the main.tsx door.";
+  "bundle the registries into one named-field parameter (`make<X>Section({ contextTabs, surfaces, … })`); " +
+  "for a second foreign pane, mint a contributor registry and assemble it at the main.tsx door. A " +
+  "deliberate site is waived with `@orb-waive section-factory-contribution-bundle(<position>): <reason>` " +
+  "on the line above, where <position> is the excess parameter's own name.";
 
 /** A factory's declared parameters, across both authoring shapes (a function declaration, or a const
  *  holding an arrow/function expression). */

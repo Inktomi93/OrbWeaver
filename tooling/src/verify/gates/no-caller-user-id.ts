@@ -25,7 +25,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "use `triggeredBy` (the responsible human) or `runAsUserId` (the funded identity) — never the caller's id in credential/settings resolution.",
+  fix:
+    "use `triggeredBy` (the responsible human) or `runAsUserId` (the funded identity) — never the caller's " +
+    "id in credential/settings resolution. A deliberate site is waived with `@orb-waive " +
+    "no-caller-user-id(<position>): <reason>` on the line above, where <position> is the literal `callerUserId`.",
   create: (ctx) => ({
     visitors: [
       {

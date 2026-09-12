@@ -47,7 +47,11 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "move the plumbing into features/<x>/hooks/ behind optimisticOptions(), or extract a hook that wraps it.",
+  fix:
+    "move the plumbing into features/<x>/hooks/ behind optimisticOptions(), or extract a hook that wraps " +
+    "it. A deliberate site is waived with `@orb-waive no-inline-optimistic-in-surface(<position>): <reason>` " +
+    "on the line above, where <position> is the query-core method's own name (e.g. `setQueryData`) at its " +
+    "occurrence in the call chain.",
   create: (ctx) => ({
     visitors: [
       {

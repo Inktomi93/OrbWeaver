@@ -28,7 +28,11 @@ const MESSAGE =
   "`fetchOwned`/`OwnedTable`: chats are the MEMBERSHIP-scoped ownership category of D18's two-category " +
   "split, so the single-owned helpers structurally do not apply to a chat. (Spine-Identity-and-Auth.md)";
 
-const FIX = "authority is chat_participants via assertParticipant → the can() seam; the host is LOOKED UP from the loaded roster, never compared as an owner.";
+const FIX =
+  "authority is chat_participants via assertParticipant → the can() seam; the host is LOOKED UP from the " +
+  "loaded roster, never compared as an owner. A deliberate site is waived with `@orb-waive " +
+  "membership-enforcer(<position>): <reason>` on the line above, where <position> is the literal `ownerId` " +
+  "or the sealed-home import's own name (`fetchOwned`/`OwnedTable`), whichever arm fired.";
 
 /** Legacy `scanRoot` tested `/packages/server/src/(?:domain/chat/|transport/trpc/(?:routers/chat|chat-events-bus))`
  *  against a slash-prefixed repo path; the two trailing prefixes are open-ended, which `chat**` reproduces. */

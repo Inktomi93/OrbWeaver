@@ -103,7 +103,11 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "use form-level listeners.onChange (with onChangeDebounceMs) or form.Subscribe instead of reading form state in a useEffect dep array.",
+  fix:
+    "use form-level listeners.onChange (with onChangeDebounceMs) or form.Subscribe instead of reading form " +
+    "state in a useEffect dep array. A deliberate site is waived with `@orb-waive " +
+    "no-form-state-in-useeffect(<position>): <reason>` on the line above, where <position> is the exact " +
+    "member-access expression text read in the dep array (e.g. `form.state.values`, `myForm.store`).",
   create: (ctx) => ({
     visitors: [
       {

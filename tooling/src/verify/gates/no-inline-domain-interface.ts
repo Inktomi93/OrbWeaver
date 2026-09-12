@@ -28,7 +28,10 @@ const MESSAGE =
   "exported interface in a server domain outside a type home — a domain-internal shape lives in that " +
   "domain's contract/ (or @orb/contracts when it crosses a boundary), never in a verb/service/persistence " +
   "module. Move it to contract/ and import it. See Spine-TypeScript-and-Patterns.md §7.4.";
-const FIX = "move the interface to the domain's contract/ slot (or @orb/contracts) and import it.";
+const FIX =
+  "move the interface to the domain's contract/ slot (or @orb/contracts) and import it. A deliberate site " +
+  "is waived with `@orb-waive no-inline-domain-interface(<position>): <reason>` on the line above, where " +
+  "<position> is the interface/type's own declared name.";
 
 export const gate = defineGate({
   id: "no-inline-domain-interface",

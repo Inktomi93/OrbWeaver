@@ -44,7 +44,11 @@ const MESSAGE =
   "D72 — a machine ships WITH its seal.)";
 const UNREADABLE =
   "this call is spelled like React's `createContext` but the shared readers cannot place its binding, so whether it is the context constructor CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
-const FIX = "replace the hand `createContext<XRegistry | null>(null)` and its Provider with a `createRegistryContext<XRegistry>(name)` mint call from #lib.";
+const FIX =
+  "replace the hand `createContext<XRegistry | null>(null)` and its Provider with a " +
+  "`createRegistryContext<XRegistry>(name)` mint call from #lib. A deliberate site is waived with " +
+  "`@orb-waive registry-context-via-mint(<position>): <reason>` on the line above, where <position> is the " +
+  "derived position — the first identifier, literal or keyword of the reported node.";
 
 /** The type names written in a type argument: the reference itself, or each arm of a written union
  *  (`Registry<…> | null`). Structural child access only — no descendant traversal. */

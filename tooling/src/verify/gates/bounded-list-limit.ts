@@ -22,7 +22,9 @@ const MESSAGE =
 
 const FIX =
   "bound the field with `.max(<CONST>)` from a per-domain contract constant (the `CHARACTER_LIST_MAX_LIMIT` / " +
-  "`character.list` precedent) — e.g. `z.number().int().min(1).max(MY_LIST_MAX_LIMIT).optional()`.";
+  "`character.list` precedent) — e.g. `z.number().int().min(1).max(MY_LIST_MAX_LIMIT).optional()`. A " +
+  "deliberate site is waived with `@orb-waive bounded-list-limit(<position>): <reason>` on the line above, " +
+  "where <position> is the literal `limit` — the unbounded field's own property key.";
 
 /** Legacy `scanRoot` admitted the tRPC router tree plus all of `packages/contracts/src` — the two wire-schema
  *  homes. The two roots plus these `under` globs admit exactly that set. */

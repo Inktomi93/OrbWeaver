@@ -31,7 +31,9 @@ const MESSAGE =
 
 const FIX =
   "read the floor from SIDE_GEN_POSTURES.<kind> and fold it through resolveSideGenSampling(floor, presetParams); " +
-  "map to the seam with toSummarizeOptions where the seam takes `maxTokens`.";
+  "map to the seam with toSummarizeOptions where the seam takes `maxTokens`. A deliberate site is waived " +
+  "with `@orb-waive no-hardcoded-side-gen-sampling(<position>): <reason>` on the line above, where " +
+  "<position> is the hardcoded sampling param's own key name (e.g. `temperature`, `maxOutputTokens`, `topP`).";
 
 /** Legacy `scanRoot` admitted `packages/server/src/domain/**` and `packages/server/src/entry/**` minus every
  *  `*.test.ts`/`*.test.tsx` basename; `infra/` is deliberately outside — it is the wire/usage-accounting

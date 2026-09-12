@@ -77,7 +77,9 @@ const FIX =
   "@orb/contracts export) or `export type XRow = typeof <table>.$inferSelect` / `$inferInsert` (importing the " +
   "table from @orb/db). If the shape genuinely is NOT the owner's shape (a homonym, or a read-time aggregate " +
   "with computed fields), rename it so the collision stops lying — or take an ALLOWLIST row WITH that reason in " +
-  "tooling/src/verify/gates/contract-derives-not-respells.ts.";
+  "tooling/src/verify/gates/contract-derives-not-respells.ts. A deliberate site is waived with `@orb-waive " +
+  "contract-derives-not-respells(<position>): <reason>` on the line above, where <position> is the respelled " +
+  "shape's own declared name (the type/interface/const identifier itself).";
 
 /** The ARM tokens. Each carries the offending SHAPE NAME, which is the arm's stable position AND the
  *  identity a reader needs — `render.ts` prints the token, so putting the name there is strictly more

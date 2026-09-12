@@ -25,7 +25,9 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "move default values to the function signature.",
+  fix:
+    "move default values to the function signature. A deliberate site is waived with `@orb-waive " +
+    "no-default-props(<position>): <reason>` on the line above, where <position> is the literal `defaultProps`.",
   create: (ctx) => ({
     visitors: [
       {

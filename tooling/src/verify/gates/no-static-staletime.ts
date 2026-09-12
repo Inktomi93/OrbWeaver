@@ -47,7 +47,9 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "Change staleTime to Infinity.",
+  fix:
+    "Change staleTime to Infinity. A deliberate site is waived with `@orb-waive " +
+    "no-static-staletime(<position>): <reason>` on the line above, where <position> is the literal `staleTime`.",
   create: (ctx) => ({
     visitors: [
       {

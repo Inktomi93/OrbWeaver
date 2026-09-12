@@ -20,7 +20,11 @@ const MESSAGE =
   "whichever run currently owns that published pointer and rewrites its evidence invisibly " +
   "(docs/design/1208-instrument-substrate.md §3.7).";
 
-const FIX = 'resolve the path through tests/support/node/snap-out.ts ctSnapPath("name") instead of a hand-spelled "reports/…" literal or template.';
+const FIX =
+  'resolve the path through tests/support/node/snap-out.ts ctSnapPath("name") instead of a hand-spelled ' +
+  '"reports/…" literal or template. A deliberate site is waived with `@orb-waive ' +
+  "no-direct-reports-write(<position>): <reason>` on the line above, where <position> is the literal `path` " +
+  "— the object-literal property key.";
 
 /** Legacy `scanRoot` was `p.startsWith("tests/")` — the `@tests` root exactly. */
 const TESTS_POPULATION = { in: ["@tests"] } as const;

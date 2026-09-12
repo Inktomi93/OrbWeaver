@@ -82,7 +82,12 @@ export const gate = defineGate({
   resources: [],
   message:
     "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now/process.hrtime/performance.timeOrigin) — inject the frozen clock + seeded ids via the fixture seam (core/Spine-Testing.md §3).",
-  fix: "inject the frozen clock (tests/support/clock.ts) + seeded ids (tests/support/ids.ts) through the composition seam production uses.",
+  fix:
+    "inject the frozen clock (tests/support/clock.ts) + seeded ids (tests/support/ids.ts) through the " +
+    "composition seam production uses. A deliberate site (a test whose SUBJECT is elapsed real time) is " +
+    "waived with `@orb-waive test-determinism(<position>): <reason>` on the line IMMEDIATELY above the " +
+    "call, where <position> is the matched banned spelling trimmed of its call parens (`Date.now`, " +
+    "`process.hrtime`, `performance.timeOrigin`).",
   create: (ctx) => ({
     visitFile: (sf) => {
       const raw = sf.getFullText();

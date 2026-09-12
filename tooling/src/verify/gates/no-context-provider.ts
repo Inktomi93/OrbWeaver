@@ -47,7 +47,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "render the context directly — `<MyContext value={…}>` — and delete the `.Provider` access.",
+  fix:
+    "render the context directly — `<MyContext value={…}>` — and delete the `.Provider` access. A " +
+    "deliberate site is waived with `@orb-waive no-context-provider(<position>): <reason>` on the line " +
+    "above, where <position> is the literal `Provider`.",
   create: (ctx) => ({
     visitors: [
       {

@@ -52,7 +52,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "write the DI bundle as an explicit exported interface listing each dependency.",
+  fix:
+    "write the DI bundle as an explicit exported interface listing each dependency. A deliberate site is " +
+    "waived with `@orb-waive no-context-returntype(<position>): <reason>` on the line above, where " +
+    "<position> is the literal `ReturnType`.",
   create: (ctx) => ({
     visitors: [
       {

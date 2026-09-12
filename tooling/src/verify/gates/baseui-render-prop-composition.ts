@@ -28,7 +28,9 @@ const MESSAGE =
 const FIX =
   'pass the element to `render`: `<Menu.Trigger render={<Button intent="ghost" />}>Label</Menu.Trigger>`, or ' +
   "the function form `render={(props, state) => <Button {...props} data-open={state.open} />}` when the child " +
-  "needs the part's state. Base UI merges its own props into the rendered element for you.";
+  "needs the part's state. Base UI merges its own props into the rendered element for you. A deliberate site " +
+  "is waived with `@orb-waive baseui-render-prop-composition(<position>): <reason>` on the line above, where " +
+  "<position> is the literal `asChild` — the banned attribute/property-signature name itself.";
 
 export const gate = defineGate({
   id: "baseui-render-prop-composition",

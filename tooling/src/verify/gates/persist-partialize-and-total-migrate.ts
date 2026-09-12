@@ -79,7 +79,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "add the missing key(s) to the factory's persist() options object.",
+  fix:
+    "add the missing key(s) to the factory's persist() options object. A deliberate site is waived with " +
+    "`@orb-waive persist-partialize-and-total-migrate(<position>): <reason>` on the line above, where " +
+    "<position> is the `persist(...)` call's own callee text.",
   create: (ctx) => ({
     visitors: [
       {

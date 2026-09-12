@@ -19,7 +19,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "use <MessageMedia> (@orb/ui/content) instead of raw elements.",
+  fix:
+    "use <MessageMedia> (@orb/ui/content) instead of raw elements. A deliberate site is waived with " +
+    "`@orb-waive no-external-media-without-gate(<position>): <reason>` on the line above, where <position> " +
+    "is the derived position — the first identifier, literal or keyword of the reported element node.",
   create: (ctx) => ({
     visitors: [
       {

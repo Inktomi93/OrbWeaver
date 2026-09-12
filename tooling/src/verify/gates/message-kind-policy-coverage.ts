@@ -50,7 +50,10 @@ const MESSAGE =
   `a ${RECORD} axis has NO production reader — a policy cell nobody reads is law with no enforcer (the ` +
   "comment prompt:'never' cell was unenforced while assembly shipped comments to the wire). Home: " +
   `${HOME}.`;
-const FIX = `read the axis in packages/{server,client}/src, directly off ${RECORD} or through a home-file derived export.`;
+const FIX =
+  `read the axis in packages/{server,client}/src, directly off ${RECORD} or through a home-file derived export. ` +
+  "A deliberate site is waived with `@orb-waive message-kind-policy-coverage(<position>): <reason>` on the " +
+  "line above, where <position> is the axis's own declared name.";
 
 interface Axis {
   readonly name: string;

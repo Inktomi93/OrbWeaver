@@ -18,7 +18,10 @@ const MESSAGE =
   "the ONE source of a wire schema is `projectJsonSchema` (zod → JSON Schema). Core-Path-Registry.md D79.";
 
 const FIX =
-  'declare a zod payload schema and project it: `schema: projectJsonSchema(payloadSchema)` — never a hand-authored `{ type: "object", ... }` literal.';
+  "declare a zod payload schema and project it: `schema: projectJsonSchema(payloadSchema)` — never a " +
+  'hand-authored `{ type: "object", ... }` literal. A deliberate site is waived with `@orb-waive ' +
+  "no-handwritten-wire-json-schema(<position>): <reason>` on the line above, where <position> is the " +
+  "literal `schema` — the object-literal property key.";
 
 /** Legacy `scanRoot` admitted `packages/{server,contracts,kit}/src` minus every `.test.` and `.test-d.`
  *  path (its `scripts/` clause was already unreachable under those three prefixes). */

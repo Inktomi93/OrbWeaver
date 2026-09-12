@@ -24,7 +24,9 @@ const MESSAGE =
 
 const FIX =
   "consume the injected stats economics op (DiscoveryContext.characterEconomics / characterModelEconomics, " +
-  "wired at the entry root) — never a rollup table.";
+  "wired at the entry root) — never a rollup table. A deliberate site is waived with `@orb-waive " +
+  "discovery-no-stats-rollups(<position>): <reason>` on the line above, where <position> is the rollup " +
+  "identifier's own name (e.g. `ownerStats`, `characterStats`, `dailyStats`, `modelStats`).";
 
 /** Legacy `scanRoot` tested `/packages\\/server\\/src\\/domain\\/discovery\\//` against the repo path; the
  *  `@server` root plus this `under` glob admits exactly that set. */

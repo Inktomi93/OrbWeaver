@@ -24,7 +24,11 @@ const MESSAGE =
   "`principal` object may be NAMED in the engine; resolve the triple at the verb layer and pass it down " +
   "(D16/D17/D19).";
 
-const FIX = "resolve the identity triple (runAsUserId + triggeredBy) at the verb layer and pass it down; the caller's Principal stays at the verb layer.";
+const FIX =
+  "resolve the identity triple (runAsUserId + triggeredBy) at the verb layer and pass it down; the " +
+  "caller's Principal stays at the verb layer. A deliberate site is waived with `@orb-waive " +
+  "turn-identity(<position>): <reason>` on the line above, where <position> is the literal `Principal` or " +
+  "the literal `principal`, whichever arm fired.";
 
 /** Legacy `scanRoot` tested `/packages\\/server\\/src\\/domain\\/chat\\/engine\\//` against the repo path. */
 const ENGINE_POPULATION = { in: ["@server"], under: ["packages/server/src/domain/chat/engine/**"] } as const;
