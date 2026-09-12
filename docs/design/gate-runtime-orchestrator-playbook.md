@@ -443,7 +443,7 @@ counts), then the corpus `format:docs` LAST (frozen archaeology excluded — BOT
 `docs/architecture/history/**`, ruled 2026-09-12; the exclusion is a named list in the formatter, never an accident
 of which tree is nested where).
 
-**THE PLANTER STEP IS A QUIET-BOX STEP (ruled 2026-09-12, #2206).** `check-gates.repo.int` runs a whole-tree
+**ONE HEAVY WHOLE-TREE CONSUMER ON THE BOX AT A TIME — the criterion is LOAD, never the run's KIND** (paid 2026-09-12 23:09Z: a released verifier structure leg at 156% CPU ran into a live single-worker `pnpm e2e` because the release note said "e2e is not a structure run"; tests 8–16 of 39 ran contaminated and owe solo re-runs before they count). Structure legs, the instrument battery, the planters and the browser suites serialize against EACH OTHER, not only within their own kind; the all-clear is the other account's note that ITS heavy consumer has exited, never an inference from a finished slot. **THE PLANTER STEP IS A QUIET-BOX STEP (ruled 2026-09-12, #2206).** `check-gates.repo.int` runs a whole-tree
 `check:structure` TWICE under `scaledBudget(300_000, 4)`; a solo pass costs ~257 s wall (17% headroom), the
 session's cgroup fences it to 8 cores (`cpu-fence.sh`, `CPUQuota=800%`), and the load scaling engages only above
 `loadavg == cores`, precisely missing the band where a pass slips past 300 s. So the step runs ONLY when no lane is

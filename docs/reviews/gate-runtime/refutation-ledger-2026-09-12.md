@@ -731,6 +731,13 @@ is `--full`-only (#1842) and nothing runs `--full` on a cadence.
 | `.claude/agents/side-eye.md` | cb-v-fix-wave-4 L10 · `.claude/agents/side-eye.md:181` | the #2145 repair fixed the SPLIT and left three malformed code spans in the same cell: `…none>`on all four probes` (no space after the closing backtick), ``at least`--theme Light`beside the owner arm;`--theme none`is the fresh-account state`` (four spans with no flanking spaces, so the prose runs into the code), and ``—`<html>\` carries no data-theme there`` — whose span renders with a literal trailing backslash, because a backslash does not escape inside a CommonMark code span. Pre-existing, not caused by `e6994a62f` (byte-identical on both sides of it), and not named by the row — but it is in the one cell #2145 sent someone to repair, in the file every side-eye dispatch reads | ledger/doc staleness | **OPEN** (board #2240) | read `:181` at tip; compare `git show e6994a62f -- .claude/agents/side-eye.md` (the three shapes appear on both the `-` and `+` sides). Fix: four spaces and one deleted backslash, by hand — a formatter run cannot restore intent here (L9) |
 | `eslint.config.js` | cb-v-fix-wave-4 L11 · `eslint.config.js:12-13` | the header points a reader at "`--max-warnings=0` (see the `lint:eslint` script)" for the property that turns react-hooks' warn-level rules into hard gates. `package.json:60`'s `lint:eslint` is `node tooling/src/verify/cli.ts eslint` and carries no such flag; the flag lives in `tooling/src/verify/ops/eslint.ts:20`'s `CHILD_FLAGS`. The PROPERTY is true, the pointer is dead — and the same pointer is repeated in the #1331 tripwire at `:637` | ledger/doc staleness | **OPEN** (board #2236) | `grep -n 'max-warnings' package.json` → no hit; `tooling/src/verify/ops/eslint.ts:20` → `["--max-warnings","0","--cache",…]`. Fix: re-point both mentions at the ops module |
 
+### cb-barrier-structure-delta — the 2026-09-12 23:01 barrier's `check:structure-delta` (`main-586333-2026-09-12T18-47-45-941Z` → `main-1662184-2026-09-12T23-01-14-421Z`, measured by claude-b on `d968fc3fb`; no report file — the receipt is the two published slots); 2 rows asserted — the delta's first regression catch: two final hard policies went red under the baseline red and nothing else could see them (#2110's tool doing its job)
+
+| module | wave · `path:line` | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| `eslint-grant-liveness` · `eslint.config.js` | barrier delta · `gates/eslint-grant-liveness.ts:43,119,132,149` | REGRESSED 0 → 2 effective, ok → red. `c57e3c9b9` (#2213) changed the config's ignore from `.cache/**` to `**/.cache/**` and left the gate's RATIFIED row (`value: ".cache/**"`) and its three proof fixtures untouched, so the ratified identity no longer names the same selector and the new zero-member selector is unratified. The two-sided gate worked; the lane missed its coupled site | coupled site (grant row) | **OPEN** (board #2213, refuted) | `pnpm check:structure-delta` → `eslint-grant-liveness: raw 0 → 2 · ok true → false`; `check:show` lines 75–76 name both arms at `eslint.config.js:1:1`. Fix: re-point the ratified row + fixtures to `**/.cache/**`, prove both directions |
+| `tooling-size` · `_shared/proc.ts` · `lib/gate-program-docs.ts` | barrier delta · `proc.ts` 464 lines (`fc4e0fa03`) · `gate-program-docs.ts` 507 lines (`ee831a898`) | REGRESSED raw 22 → 24 on a hard/error final policy: two files crossed the 450 cap in the fold and neither commit's floor named `tooling-size`; the aggregate exit is red by construction so only the per-policy delta could show it — #2106's class one layer over | instrument (hard gate red under the baseline red) | **OPEN** (board #2242) | set-diff of the two slots' `tooling-size` finding lists: NEW = `tooling/src/_shared/proc.ts`, `tooling/src/verify/lib/gate-program-docs.ts`; GONE = none. Fix: decompose both by family (#1828 shape); a commit growing a `tooling/src/**` file runs `tooling-size` on that file in its floor |
+
 ## CLASS ROLLUP
 
 **REBUILT FROM THE BODY, 2026-09-11 (`v-ledger-sweep`, `64dfbf349`). The previous table read
@@ -774,8 +781,8 @@ its unbinned count** — the three defects above were all invisible to a run tha
 | **§5b.7** | 8 | 6 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 13 | 11 | 2 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 197 | 103 | 81 | 1 | 0 | 1 | 0 | 11 |
-| **TOTAL** | **360** | **225** | **115** | **5** | **1** | **1** | **0** | **13** |
+| **other** | 199 | 103 | 83 | 1 | 0 | 1 | 0 | 11 |
+| **TOTAL** | **362** | **225** | **117** | **5** | **1** | **1** | **0** | **13** |
 
 | free-text class in `other`, as written | rows |
 | - | -: |
