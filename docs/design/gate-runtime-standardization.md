@@ -174,6 +174,26 @@ INCLUDES its quotes. **Read the `report.node` call, never the message.** **AND `
 ordinary policy's `fix` owes the spelling — and why a token containing a paren makes the policy UNWAIVABLE, since the
 marker grammar's position group is `[^()\r\n]+` and every marker against it parses as malformed.
 
+**AN ABSENCE VERDICT CANNOT ANCHOR ON ITS OWN SUBJECT, AND EVERY LEGACY “X IS MISSING” ARM HITS THIS (measured
+2026-09-12).** `ctx.report.file` REFUSES a path outside the effective population, so a legacy descriptor that
+reported *“X is missing”* **at X** becomes a runtime THROW the moment it converts — the subject is missing, so it
+is in no population. The rule has one home: **`tooling/src/verify/lib/absent-subject-anchor.ts#subjectAnchor`** —
+anchor on the subject when present, else the first present named subject, else the lowest admitted path, and move
+the missing name into the MESSAGE.
+
+**AND A NO-ANCHOR BRANCH MUST REPORT WITHOUT A TOKEN, NEVER `return` — an early return is a SILENT CATCH LOSS
+dressed as a position problem (measured 2026-09-12, caught by the lane in its own first draft).** When a policy
+supplies no token the sink DERIVES one (`policy-pass-context.ts:109`), so reporting is always available. Returning
+instead drops the finding entirely, and **no conformance row sees it, because the row that would catch it is the one
+nobody writes.** Pin it: a fixture whose subject spans multiple lines, reporting zero findings if the early return
+is restored.
+
+**AND A GATE'S OWN “pinned to X” COMMENT IS NOT ITS POPULATION.** `no-inline-union-redecl`'s header claimed
+packages-and-tests; its real legacy corpus was `_shared/ts-workspace.ts#harnessGlobs`, which already carried
+`tooling/src/**` and `scripts/**`. **Derive the legacy corpus from the harness globs ∩ `scanRoot`, and prove the
+port with a SET DIFF in both directions plus planted controls** — that lane measured 7,165 admitted on both sides
+with symmetric difference zero. Never port a population from the header's prose.
+
 **AND "ORDINARY" IS A CLAIM ABOUT THE DOOR, NOT A FIELD — CHECK IT AT EVERY CONVERSION. MEASURED **NINE OF TEN**
 ACROSS THREE INDEPENDENT LANES WITH DISJOINT SUBJECTS (five of five 2026-09-12; four of four and one COUNTEREXAMPLE
 2026-09-13).** A legacy
@@ -430,6 +450,18 @@ family.
    - **A nonzero side is not self-validating.** The vacuity rules below teach you to distrust a ZERO; this teaches
      you to distrust a SMALL NONZERO on a policy whose population excludes its own home. The tell is a count that
      equals the number of fixture rows in the module.
+
+   **AND THE DIFFERENTIAL'S OWN HARNESS CAN CORRUPT BOTH ENGINES IDENTICALLY AND STILL READ “MATCHED”
+   (measured 2026-09-12).** A replay harness usually rewrites imports so the frozen legacy module resolves. Gate
+   modules **embed fixture SOURCE containing `import … from "../lib/…"`**, so an unanchored rewrite patches the
+   FIXTURE STRING too — both engines then judge against a broken specifier, both report an extra finding, and the
+   comparison table reads as a perfectly matched pair of WRONG numbers. **A count comparison cannot detect a fault
+   that is symmetric across the two engines.** Line-anchor the rewrite and assert no relative import survives it.
+
+   **AND THE SUBSTRATE IS PART OF THE METHOD: replay a filesystem-reading legacy gate on a REAL TMPDIR, never a
+   virtual root.** A legacy arm calling `existsSync` reports every registry row DEAD under a virtual root, which
+   manufactures a nonzero legacy side out of nothing and makes a vacuous replay look like evidence. Same family as
+   §4.8b: the substrate decides the verdict before the policy does.
 
    **Only a FIXTURE-LEVEL method reaches catch parity** — extract the pre-conversion descriptors, shim their
    contract import, and replay through the legacy `runPass` **over each proof's own file map**
