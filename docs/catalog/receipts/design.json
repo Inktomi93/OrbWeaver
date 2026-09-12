@@ -476,13 +476,13 @@
     },
     {
       "path": "docs/design/951-css-family-semantic-provenance.md",
-      "assignedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
+      "assignedSha256": "a9b997343d266da9b07928c097b903f9b56486708fa8f04ee6c822766a658b00",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
-      "verifiedCommit": "4fde7115f19215a66ba01248149b3c6d291c2880",
-      "verifiedAt": "2026-08-31",
+      "verifiedSha256": "a9b997343d266da9b07928c097b903f9b56486708fa8f04ee6c822766a658b00",
+      "verifiedCommit": "2c7f2c502e903e2792f7dd628fe06f5ccd5068f7",
+      "verifiedAt": "2026-09-12",
       "evidence": [
         "docs/design/951-css-family-semantic-provenance.md:1 (full read; terminal-carrier architecture, module boundaries, red-first plan, and static declared limits)",
         "git:4fde7115f19215a66ba01248149b3c6d291c2880 (integrated #951 design and implementation bytes)"

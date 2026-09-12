@@ -8,13 +8,10 @@ import type { GateRunCtx } from "../contract/gate.ts";
 import { blankCssComments } from "./comment-spans.ts";
 import type { DirectDeclaration, HookOwners, StylesheetCensus } from "./css-family-census.ts";
 import {
-  CENSUS_TOKEN,
   CLIENT_BLUR_FILL,
   CLIENT_COLORIZATION,
   DENSITY_SELECTORS,
   DENSITY_SPACING,
-  EXPECTED_DECLARATION_CENSUS,
-  EXPECTED_DECLARATION_TOTAL,
   EXPECTED_DIRECT_CLIENT_UI_MECHANISMS,
   EXPECTED_DIRECT_THEME_DECLARATIONS,
   EXPECTED_RUNTIME_WRITERS,
@@ -153,39 +150,22 @@ function fullHomeSet(census: readonly StylesheetCensus[]): boolean {
   return census.length === PRODUCT_STYLESHEETS.length && PRODUCT_STYLESHEETS.every((rel) => census.some((row) => row.rel === rel));
 }
 
+/** THE BLINDNESS ARM, and since #2181 it is the ONLY thing this function asks. The per-sheet count
+ *  ratchet it used to carry retired with `EXPECTED_DECLARATION_CENSUS` (the recorded disposition at
+ *  `exception-authority-census.md:178`); this arm never read that constant and is untouched by its
+ *  removal — a sheet the parser cannot read makes every ownership verdict below it vacuous. */
 function reportHomeCensus(row: StylesheetCensus, ctx: GateRunCtx): void {
   if (row.declarations === 0) {
     ctx.report(finding(row.rel, 0, "zero-declarations", `${row.rel} produced a zero declaration census — ownership verdict would be vacuous`));
   }
-  const expected = EXPECTED_DECLARATION_CENSUS[row.rel];
-  if (row.declarations !== expected) {
-    ctx.report(
-      finding(
-        row.rel,
-        1,
-        CENSUS_TOKEN[row.rel],
-        `${row.rel} contains ${row.declarations} declarations; the law-backed responsibility manifest expects ${expected}. An intentional ownership change updates this manifest in the same commit`,
-      ),
-    );
-  }
 }
 
-function reportExactCensus(census: readonly StylesheetCensus[], total: number, ctx: GateRunCtx): void {
+function reportExactCensus(census: readonly StylesheetCensus[], ctx: GateRunCtx): void {
   if (!fullHomeSet(census)) {
     return;
   }
   for (const row of census) {
     reportHomeCensus(row, ctx);
-  }
-  if (total !== EXPECTED_DECLARATION_TOTAL) {
-    ctx.report(
-      finding(
-        "tooling/src/verify/gates/css-family-ownership.ts",
-        1,
-        "census:total",
-        `the five product stylesheets contain ${total} declarations; the exact responsibility manifest expects ${EXPECTED_DECLARATION_TOTAL}`,
-      ),
-    );
   }
 }
 
@@ -213,7 +193,7 @@ function reportCensusHealth(census: readonly StylesheetCensus[], ctx: GateRunCtx
   const total = census.reduce((sum, row) => sum + row.declarations, 0);
   const complete = fullHomeSet(census);
   ctx.scan({ unit: "declaration", candidates: total, scanned: total });
-  reportExactCensus(census, total, ctx);
+  reportExactCensus(census, ctx);
   return reportDirectThemeCensus(
     census.find((row) => row.rel === THEME),
     complete,
