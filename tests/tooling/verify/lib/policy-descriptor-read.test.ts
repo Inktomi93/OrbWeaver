@@ -4,6 +4,7 @@
 // sink reached through destructuring or a const alias. Every direction has its control.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
+import type { StaticSegments } from "../../../../tooling/src/verify/contract/policy-descriptor-read.ts";
 import {
   contextParameterOf,
   descriptorValue,
@@ -89,6 +90,54 @@ test("staticSegments joins what is certain and breaks where text is dynamic", ()
   expect(staticText(initializer(sf, "broken"))).toBeUndefined();
 });
 
+// #2040: a message composed by a CALL was text the census could not see. A same-file function or arrow whose
+// body is ONE string-valued return expression is authored text and is read through; its parameters stay dynamic
+// exactly like an inline span. Everything else — a method, an import, several statements, recursion — keeps
+// returning the empty incomplete read the census counts as UNREADABLE, never as absence.
+test("staticSegments reads through a module-local text function and refuses every other call", () => {
+  const sf = moduleOf(
+    [
+      'const plain = (): string => "the entry is missing.";',
+      `const withParam = (subject: string): string => \`arm A: ${OPEN}subject} is not registered.\`;`,
+      "function blockForm(subject: string): string {",
+      `  return \`home ${OPEN}subject} tail\`;`,
+      "}",
+      `const nested = (subject: string): string => \`${OPEN}withParam(subject)} Its home is gone.\`;`,
+      "function twoStatements(subject: string): string {",
+      "  const local = subject;",
+      "  return local;",
+      "}",
+      "const recurse = (subject: string): string => recurse(subject);",
+      "declare const helper: { text: () => string };",
+      "declare function imported(): string;",
+      "declare const value: string;",
+      "const fromPlain = plain();",
+      `const insideTemplate = \`head ${OPEN}plain()} tail\`;`,
+      "const fromParam = withParam(value);",
+      "const fromBlock = blockForm(value);",
+      "const fromNested = nested(value);",
+      "const fromTwoStatements = twoStatements(value);",
+      "const fromRecurse = recurse(value);",
+      "const fromMethod = helper.text();",
+      "const fromImport = imported();",
+      `const methodInTemplate = \`head ${OPEN}helper.text()} tail\`;`,
+      "",
+    ].join("\n"),
+  );
+  expect(staticSegments(initializer(sf, "fromPlain"))).toEqual({ segments: ["the entry is missing."], complete: true });
+  expect(staticSegments(initializer(sf, "insideTemplate"))).toEqual({ segments: ["head the entry is missing. tail"], complete: true });
+  expect(staticSegments(initializer(sf, "fromParam"))).toEqual({ segments: ["arm A: ", " is not registered."], complete: false });
+  expect(staticSegments(initializer(sf, "fromBlock"))).toEqual({ segments: ["home ", " tail"], complete: false });
+  expect(staticSegments(initializer(sf, "fromNested"))).toEqual({ segments: ["arm A: ", " is not registered.", " Its home is gone."], complete: false });
+  // THE REFUSALS. Each is "I could not read this", which the census counts as an unreadable SOURCE.
+  expect(staticSegments(initializer(sf, "fromTwoStatements"))).toEqual({ segments: [], complete: false });
+  expect(staticSegments(initializer(sf, "fromRecurse"))).toEqual({ segments: [], complete: false });
+  expect(staticSegments(initializer(sf, "fromMethod"))).toEqual({ segments: [], complete: false });
+  expect(staticSegments(initializer(sf, "fromImport"))).toEqual({ segments: [], complete: false });
+  // A refused call INSIDE a template still breaks the segment and leaves the certain pieces certain.
+  expect(staticSegments(initializer(sf, "methodInTemplate"))).toEqual({ segments: ["head ", " tail"], complete: false });
+});
+
 test("a marker LINE names a policy; a mention mid-sentence, in a fix or in a regex does not", () => {
   expect(markerFormIdsOf("// @orb-waive no-inline-types(Foo): reason\nexport type Foo = string;\n")).toEqual(["no-inline-types"]);
   expect(markerFormIdsOf("  /* @orb-waive byte-check-cast(KV_MAX): reason */\n")).toEqual(["byte-check-cast"]);
@@ -99,16 +148,33 @@ test("a marker LINE names a policy; a mention mid-sentence, in a fix or in a reg
   expect(mentionsWaiverOf("waive with @orb-waive no-inline-types(<name>)", "no-inline")).toBe(false);
 });
 
+const whole = (...segments: readonly string[]): StaticSegments => ({ segments, complete: true });
+const partial = (...segments: readonly string[]): StaticSegments => ({ segments, complete: false });
+
 test("discriminationOf: tautology on one source, shared across two, discriminating on exactly one, unjudged when blind", () => {
-  const only = [["the only message"]];
+  const only = [whole("the only message")];
   expect(discriminationOf("only", only, 0)).toBe("tautology");
-  const two = [["arm A: not registered"], ["arm B: does not exist"]];
+  const two = [whole("arm A: not registered"), whole("arm B: does not exist")];
   expect(discriminationOf("not", two, 0)).toBe("shared");
   expect(discriminationOf("does not exist", two, 0)).toBe("discriminates");
   expect(discriminationOf("does not exist", two, 1)).toBe("unjudged");
   expect(discriminationOf("absent", two, 0)).toBe("unjudged");
   // The conditional's two branches are ONE source: a substring in both branches is still one hit.
-  expect(discriminationOf("n", [["no entry at all", '", not "x"'], ["ok."]], 0)).toBe("discriminates");
+  expect(discriminationOf("n", [partial("no entry at all", '", not "x"'), whole("ok.")], 0)).toBe("discriminates");
+});
+
+// #2040 arm B: `discriminates` is a claim of ABSENCE from every other source, so a NON-HITTING source that was
+// read only in part cannot support it — the piece nobody could see may carry the substring. The two verdicts
+// that FIND rest on certain hits and are unmoved, which is what keeps the refusal from costing enforcement.
+test("discriminationOf refuses to claim absence from a source it read only in part", () => {
+  const hitting = whole("arm A: does not exist");
+  expect(discriminationOf("does not exist", [hitting, whole("arm B: is missing")], 0)).toBe("discriminates");
+  expect(discriminationOf("does not exist", [hitting, partial("arm B: ", " is missing")], 0)).toBe("unjudged");
+  // The INCOMPLETE source is the one that hits: nothing is being claimed absent from it, so the read stands.
+  expect(discriminationOf("arm A", [partial("arm A: ", " is missing"), whole("arm B: is gone")], 0)).toBe("discriminates");
+  // A finding still fires on certain hits, however partial the sources are.
+  expect(discriminationOf("arm", [partial("arm A: ", " x"), partial("arm B: ", " y")], 0)).toBe("shared");
+  expect(discriminationOf("arm", [partial("arm A: ", " x")], 0)).toBe("tautology");
 });
 
 function callsOf(sf: SourceFile): readonly CallExpression[] {
