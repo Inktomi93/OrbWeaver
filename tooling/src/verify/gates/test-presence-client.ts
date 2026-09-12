@@ -67,11 +67,27 @@
 // `tests/tooling/verify/gates/mirror-index-family.test.ts` (guide §4.5b: no proof row can express a
 // refusal).
 //
-// DECLARED LIMITS, each naming the row that holds it: `data/trpc.ts` is excluded because its two exports
-// are thin `@trpc/client` constructors whose wire behaviour is exercised by every `.ct.tsx` mounting
-// `CtDataProviders` (`mustPass[7]`); a NESTED bucket (`data/bus/`, `forms/editor/bound-fields/`) is not a
-// direct child of any owner and keeps its shared CT home (`mustPass[5]`, the direct-child fence); bare
-// `primitives/` belong to `ui-primitive-structure` (`mustPass[8]`).
+// DECLARED LIMITS, each naming the row that holds it: a NESTED bucket (`data/bus/`,
+// `forms/editor/bound-fields/`) is not a direct child of any owner and keeps its shared CT home
+// (`mustPass[5]`, the direct-child fence); bare `primitives/` belong to `ui-primitive-structure`
+// (`mustPass[8]`).
+//
+// THE `data/trpc.ts` EXCLUSION IS GONE, AND ITS STATED REASON WAS FALSE (#2103, 2026-09-12). A
+// `CLIENT_EXCLUDE_FILES` list subtracted that ONE file by name from a population it otherwise belongs to
+// (it IS a direct child of the included `data/` home), on the ground that its two exports were "thin
+// `@trpc/client` constructors with no bespoke logic of their own to unit-test in isolation". The file
+// refutes that in four places — a `splitLink` condition routing subscriptions away from the batch branch,
+// a CSRF header attached to every non-subscription request (the server 403s a cookie-authed mutation
+// without it), a two-armed `loggerLink.enabled` predicate, and a `TRPC_URL` default mirroring the server's
+// own mount path — so the subtraction was §12.5's named ban (a sanctioned implementation home surviving as
+// a `notUnder`-shaped exclusion) resting on a premise its own subject contradicts.
+//
+// AND NOTHING RED WHEN IT ROTTED, which is the half a proof row cannot cover: `mustPass[7]` pinned that the
+// exclusion BITES, never that it was still EARNED — no arm fired if `data/trpc.ts` disappeared or grew
+// bespoke logic. **A `mustPass` proves the fence bites, never that the exemption is still earned.** The
+// disposition is the fix rather than a grant: `tests/client/data/trpc.test.ts` now pins the three wire
+// behaviours a node lane can reach, and the file is judged by clause A like every other direct child. No
+// path key was carried forward.
 import { dirname } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
@@ -88,10 +104,6 @@ const EXT_RE = /\.tsx?$/u;
 const STATE_STORE_FACTORY_RE = /\b(?:createGatedStore|createPersistedStore|createEntityDraftStore)(?:<[^(]*>)?\(/u;
 // Direct children of these source owners compose independently; bound fields retain their shared CT home.
 const CLIENT_MIRROR_HOMES = ["data/", "forms/", "forms/editor/", "state/"];
-// `data/trpc.ts`'s two exports are thin `@trpc/client` constructors with no bespoke logic of their
-// own to unit-test in isolation — their wire behavior is exercised end-to-end by every `.ct.tsx` that
-// mounts via `CtDataProviders`, so an isolated test here would just re-assert "the library was called".
-const CLIENT_EXCLUDE_FILES = ["data/trpc.ts"];
 // Non-primitive @orb/ui logic groups (primitives/ are covered by ui-primitive-structure's CT clause).
 const UI_LOGIC_GROUPS = ["charts/", "markdown/", "stream/", "content/", "code-editor/", "diff/", "fuzzy-search/"];
 const TEST_KINDS = TEST_KIND_DEFINITIONS.filter(({ family, mirror }) => family !== "type" && mirror === "module").map(({ suffix }) => suffix);
@@ -210,22 +222,20 @@ function actionReferencedInMirror(mirrorText: string, action: string): boolean {
   return new RegExp(`(?:[^\\w]|^)${action}${TYPE_ARGS}\\s*\\(`, "u").test(mirrorText);
 }
 
-/** Clause A — a DIRECT child of a client owner (`data/x.ts`, `forms/editor/x.ts`), minus the named per-file
- *  exclusions (`CLIENT_EXCLUDE_FILES`, each with its own reason above).
+/** Clause A — a DIRECT child of a client owner (`data/x.ts`, `forms/editor/x.ts`). There is no per-file
+ *  exclusion list: the one row it ever held was deleted at #2103 (see the header) and a future one is a
+ *  central reviewed grant, never a name in this module.
  *
  *  THE LEGACY `CLIENT_EXCLUDE_NESTED` LIST WAS DELETED AT THE CONVERSION, as dead decoration rather than as
  *  a behaviour change (§4.1's MUTUALLY REDUNDANT class, the `server-layout` / `ui-exports-map-complete`
  *  precedent). It named `data/bus/` and `forms/editor/bound-fields/`, and the DIRECT-CHILD test below
  *  already rejects both: `data/bus/apply-chat-bus-event.ts` leaves `bus/apply-chat-bus-event.ts` after the
  *  `data/` home, and `forms/editor/bound-fields/text-field.tsx` leaves a slash-bearing remainder after BOTH
- *  the `forms/` and `forms/editor/` homes. Measured: cutting the two lists TOGETHER killed only
- *  `mustPass[7]`, the `CLIENT_EXCLUDE_FILES` row — no fixture can cross the nested list, so it read like a
- *  guarantee and enforced nothing. `mustPass[5]` now names the direct-child fence, which its own cut
- *  reddens. */
+ *  the `forms/` and `forms/editor/` homes. Measured at the conversion: cutting the two lists TOGETHER killed
+ *  only the `CLIENT_EXCLUDE_FILES` row — no fixture can cross the nested list, so it read like a guarantee
+ *  and enforced nothing. That row is gone too (#2103), and `mustPass[5]` names the direct-child fence,
+ *  which its own cut reddens. */
 function clientTierRel(rel: string): string | undefined {
-  if (CLIENT_EXCLUDE_FILES.includes(rel)) {
-    return;
-  }
   return CLIENT_MIRROR_HOMES.some((home) => rel.startsWith(home) && !rel.slice(home.length).includes("/")) ? rel : undefined;
 }
 
@@ -541,7 +551,7 @@ export const gate = defineGate({
         "packages/client/src/forms/editor/bound-fields/text-field.tsx": "export function build(): number {\n  return 1;\n}\n",
         "tests/client/data/other.test.ts": "export const t = 1;\n",
       },
-      why: "clause A: a nested bucket (data/bus, forms/editor/bound-fields) is not a DIRECT child of any client owner, so it keeps its shared CT home — passes. THE DIRECT-CHILD FENCE: dropping `!rel.slice(home.length).includes(\"/\")` reds exactly this row, with two findings",
+      why: 'clause A: a nested bucket (data/bus, forms/editor/bound-fields) is not a DIRECT child of any client owner, so it keeps its shared CT home — passes. THE DIRECT-CHILD FENCE: dropping `!rel.slice(home.length).includes("/")` reds exactly this row, with two findings',
     },
     {
       mode: "resource",
@@ -556,9 +566,9 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "packages/client/src/data/trpc.ts": "export const createTrpcClient = () => 1;\n",
-        "tests/client/data/other.test.ts": "export const t = 1;\n",
+        "tests/client/data/trpc.test.ts": "export const t = 1;\n",
       },
-      why: "DECLARED LIMIT — `data/trpc.ts`: its exports are thin `@trpc/client` constructors exercised end to end by every `.ct.tsx` mounting `CtDataProviders`. THE `CLIENT_EXCLUDE_FILES` NARROWING: emptying that list reds exactly this row",
+      why: "`data/trpc.ts` IS an ordinary direct child of the `data/` home and is satisfied by its OWN mirror — the successor to the deleted `CLIENT_EXCLUDE_FILES` row (#2103). The polarity is the whole point: the old row passed because the file was SUBTRACTED (a sibling mirror at `other.test.ts` was enough), this one passes because the file is JUDGED and answers. Rename the mirror here and it reds, which the subtracted version could never do",
     },
     {
       mode: "resource",

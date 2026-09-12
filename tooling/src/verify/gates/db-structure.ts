@@ -3,6 +3,14 @@
 // dropped from `typeof schema` (tables vanish from migrations + the query API with no error). (2)
 // PRODUCER-SCHEMA MIRROR: every schema/<feature>.ts must mirror a domain/<feature>/ producer (a reserved
 // cross-cutting set + documented non-domain producers are mapped); skipped when domain/ is absent.
+//
+// THE BASELINE-RIDER TABLE IS GONE (authority census C1, #1922; deleted 2026-09-12). `BASELINE_RIDER_PRODUCERS`
+// exempted a schema file born while the `0000_baseline` squash window was open for a domain that had not
+// landed yet, and its stale arm red the moment the named producer directory appeared. It has been EMPTY
+// since 2026-08-08 — all five riders (crew, automation, rpg, roster-preset, refinery) burned down as their
+// producer domains landed, each recorded in the table's own comments — so the arm iterated nothing and the
+// rider branch in `mirrorViolation` was unreachable. Both are gone; `NON_DOMAIN_PRODUCERS` (6 live rows) is
+// a DIFFERENT artifact and stays. A future rider is a central reviewed grant, never a re-minted table.
 
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -50,40 +58,12 @@ const NON_DOMAIN_PRODUCERS: ExemptionTable<ProducerRow> = {
   },
 };
 
-// BASELINE RIDERS: schema born while the 0000_baseline window is open for a committed domain that
-// lands later (DDL rides the squash, code follows). Each entry names its future producer; the moment
-// that dir exists the entry is stale and this gate flags it.
-const BASELINE_RIDER_PRODUCERS: ExemptionTable<ProducerRow> = {
-  // crew removed 2026-07-17 — the producer domain now EXISTS (CW1-remainder), so the normal producer-mirror
-  // applies (Tier-1-DB.md producer-names-the-schema).
-  // automation removed 2026-07-17 — the producer domain now EXISTS (A3 global-variable slice), so the
-  // normal producer-mirror applies (Tier-1-DB.md producer-names-the-schema).
-  // rpg removed 2026-07-26 — the W1a stint landed `packages/server/src/domain/rpg/` (the producer domain now
-  // EXISTS), so the normal producer-mirror applies (Tier-1-DB.md producer-names-the-schema). It rode this
-  // entry only across W0→W1a (schema/rpg.ts landed in W0, before the domain dir).
-  // roster-preset removed 2026-07-17 — the producer domain now EXISTS (RP1 leaf + verbs), so the normal
-  // producer-mirror applies (Tier-1-DB.md producer-names-the-schema).
-  // refinery removed 2026-08-08 (same day it landed) — R1 built `packages/server/src/domain/refinery/`
-  // (the producer domain now EXISTS), so the normal producer-mirror applies. It rode this entry only
-  // across R0→R1, while the engine sat behind the mandatory security pass (docs/history/design/refinery-r0.md).
-};
-
 function findBarrel(ctx: CheckContext): SourceFile | undefined {
   return ctx.project.getSourceFiles().find((sf) => sf.getFilePath().endsWith(BARREL_SUFFIX));
 }
 
-/** Arm 2 for ONE schema file: the producer-mirror verdict (rider staleness / missing producer). */
+/** Arm 2 for ONE schema file: the producer-mirror verdict (the schema file has no producer). */
 function mirrorViolation(ctx: CheckContext, f: string, name: string): Violation | undefined {
-  const riderProducer = BASELINE_RIDER_PRODUCERS[name]?.producer;
-  if (riderProducer !== undefined) {
-    return existsSync(join(ctx.root, riderProducer))
-      ? {
-          file: `${SCHEMA_REL}/${f}`,
-          line: 0,
-          message: `the ${name} producer (${riderProducer}) now EXISTS — its BASELINE_RIDER_PRODUCERS entry is stale; remove it so the normal producer mirror applies (Tier-1-DB.md producer-names-the-schema).`,
-        }
-      : undefined;
-  }
   const nonDomainProducer = NON_DOMAIN_PRODUCERS[name]?.producer;
   const producerPath = nonDomainProducer === undefined ? join(ctx.root, DOMAIN_REL, name) : join(ctx.root, nonDomainProducer);
   return existsSync(producerPath)

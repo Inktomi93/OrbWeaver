@@ -59,6 +59,7 @@
     "tests/client/data/skeleton-row-metrics.test.ts",
     "tests/client/data/skeleton-rows.ct.tsx",
     "tests/client/data/stale-session.test.ts",
+    "tests/client/data/trpc.test.ts",
     "tests/client/data/upload-asset.test.ts",
     "tests/client/data/upload-document.test.ts",
     "tests/client/data/use-card-frame.ct.tsx",
