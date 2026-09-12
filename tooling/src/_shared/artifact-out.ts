@@ -7,10 +7,11 @@ import { readdirSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import { z } from "zod";
+import { artifactFilePath } from "./artifact-naming.ts";
 import type { InstrumentCurrentScope } from "./artifact-scope.ts";
 import { instrumentCurrentScopeSchema } from "./artifact-scope.ts";
 import type { RunAlias, RunSlot } from "./artifacts.ts";
-import { artifactFilePath, openRunSlot, print, publishRunSlot, REPO_ROOT, reportsPath } from "./artifacts.ts";
+import { openRunSlot, print, publishRunSlot, REPO_ROOT, reportsPath } from "./artifacts.ts";
 
 // ── THE RENDERED INSTRUMENTS' RUN (#1164) ────────────────────────────────────────────────────────────
 // #1029 slotted the VERDICT instruments (verify, structure, test, ct) and deliberately left the

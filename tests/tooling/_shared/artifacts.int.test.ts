@@ -120,6 +120,43 @@ test("a run names the LIVE sibling holding a slot — the racing-writer census, 
   expect(published(root).concurrent.join(" ")).toContain("planted-sibling");
 });
 
+// ── #2221: FINISHING IS NOT PUBLISHING ────────────────────────────────────────────────────────────────
+//
+// THE DEFECT. `publishRunSlot` was the ONLY unlinker of the `.inflight` marker, and TWO run shapes finish
+// without publishing: a GATE-SCOPED run (#1964) and a NON-VERDICT run (#2167). Both left a marker behind
+// forever, `abandonedRuns` reports a marker whose pid is gone as a run that DIED, and `check:show` refuses
+// the published pointer on exactly that signal — so a complete verdict was reported as "that run never
+// finished". Measured on main 2026-09-12 over `reports/runs/structure/` (N=32): 17 slots carried a marker
+// and 13 of those were FINISHED fixture-mode runs.
+//
+// BOTH DIRECTIONS, because a guard that only ever says "fine" is not a guard: closing DROPS the marker and
+// leaves nothing abandoned, while a slot that is genuinely IN FLIGHT still carries one and is still found.
+
+test("#2221 — a run that finishes WITHOUT publishing leaves no in-flight marker and nothing abandoned", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  const A = await import("@orb/tooling/_shared/artifacts");
+  const slot = A.openRunSlot(root, "closeprobe");
+  // the guard's own precondition: opening a slot DOES arm the marker, so its absence below is a removal
+  expect(existsSync(join(slot.dir, ".inflight"))).toBe(true);
+
+  A.closeRunSlot(root, slot);
+
+  expect(existsSync(join(slot.dir, ".inflight"))).toBe(false);
+  // and nothing was published — closing is the FINISH half alone, never a pointer
+  expect(existsSync(join(root, "reports", "closeprobe"))).toBe(false);
+  expect(A.abandonedRuns(root, "closeprobe")).toEqual([]);
+});
+
+test("#2221 NEGATIVE CONTROL — a slot whose run is genuinely DEAD is still reported abandoned", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  const A = await import("@orb/tooling/_shared/artifacts");
+  const slot = A.openRunSlot(root, "closeprobe");
+  // pid 1 is alive, so re-point the marker at a pid that cannot be: the marker + a DEAD pid IS the tell.
+  writeFileSync(join(slot.dir, ".inflight"), JSON.stringify({ runId: slot.runId, pid: 2 ** 30, checkout: "planted", startedAt: "2026-09-01T00:00:00.000Z" }));
+
+  expect(A.abandonedRuns(root, "closeprobe").map(({ runId }) => runId)).toEqual([slot.runId]);
+});
+
 test("an adopted run slot transfers its in-flight ownership without minting another identity", async ({ plantedTree }) => {
   const root = await plantedTree({});
   const A = await import("@orb/tooling/_shared/artifacts");

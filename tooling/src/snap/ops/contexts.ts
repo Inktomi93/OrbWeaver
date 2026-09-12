@@ -1,9 +1,10 @@
 // --contexts N / --as: N ISOLATED, differently-authenticated browser contexts against the multi-user
 // FIXTURE stack (never the shared single-user dev pair) — host-vs-member truth in one run.
 
+import { artifactKey, routeSlug } from "../../_shared/artifact-naming.ts";
 import { artifactFile } from "../../_shared/artifact-out.ts";
 import { aggregateScope, evidenceWindowId, factBatchId } from "../../_shared/artifact-scope.ts";
-import { artifactKey, print, routeSlug } from "../../_shared/artifacts.ts";
+import { print } from "../../_shared/artifacts.ts";
 import { buildUrl, closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";

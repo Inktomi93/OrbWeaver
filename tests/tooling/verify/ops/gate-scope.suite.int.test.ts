@@ -20,7 +20,7 @@
 // one loud) and three `defineGate` policies (a two-member family plus a singleton), so every selection shape
 // has something it must include AND something it must exclude. A selection that accidentally ran everything and
 // a selection that accidentally ran nothing both fail here.
-import { existsSync, lstatSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
@@ -396,6 +396,23 @@ test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and n
   expect(report.run.complete).toBe(true); // it FINISHED — that axis is untouched (#410)
   // and the pointer still resolves to the REAL run: the self-test's artifact never becomes `latest`
   expect(readPointer(root).run.runId).toBe(realRunId);
+
+  // #2222 — THE BANNER IS FIRST, and it is also last. It used to print ONCE, between the rosters and the
+  // counts: its own comment claimed "a reader must not meet the roster before the disclaimer" while the two
+  // rosters (hundreds of lines) printed above it. A reader scrolling from the top consumed a full gate
+  // roster about planted `__g_` props with nothing saying so — the #2167 incident one layer out. The tail
+  // copy stays because a `tail -20` reader must still meet it, so the assertion is BOTH ends.
+  const banner = "THIS RUN IS NOT A VERDICT";
+  expect(fixture.stdout.split(banner)).toHaveLength(3); // two occurrences
+  expect(fixture.stdout.indexOf(banner)).toBeLessThan(fixture.stdout.indexOf("single-pass:"));
+  // "first" means FIRST, not merely earlier than the counts: nothing but the leading newline precedes it.
+  expect(fixture.stdout.trimStart().startsWith(`‼ ${banner}`)).toBe(true);
+
+  // #2221 — a NON-VERDICT run FINISHES, so its slot is CLOSED even though it never published. While
+  // `publishRunSlot` was the marker's only unlinker this slot kept one forever and `check:show` then
+  // refused the REAL pointer above with "that run never finished".
+  const fixtureSlot = join(root, "reports", "runs", "structure", report.run.runId);
+  expect(existsSync(join(fixtureSlot, ".inflight"))).toBe(false);
 });
 
 test("a CONTAMINATED run is a non-verdict too — same field, different reason", { timeout: RUN_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
@@ -461,7 +478,7 @@ test("--void refuses what it cannot do: an absent slot, a missing reason, and a 
 // regression on every pair would pass the regression arm on its own.
 
 test("structure-delta: an identical pair is exit 0, a FALL is exit 0, and a RISE is exit 1 naming the policy", {
-  timeout: RUN_TIMEOUT_MS * 4,
+  timeout: RUN_TIMEOUT_MS * 5,
 }, async ({ plantedTree, repoRoot, runCli }) => {
   const root = await plantedTree(plantedTreeFiles(repoRoot));
   await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
@@ -486,9 +503,24 @@ test("structure-delta: an identical pair is exit 0, a FALL is exit 0, and a RISE
   await expect(fell).toExitWith(0); // a FALL is movement, not a regression
   expect(fell.stdout).toContain(ALPHA);
 
-  const rose = await runCli("verify", ["structure-delta", "--before", dropped, "--after", second], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  // THE RISE IS PRODUCED FORWARD IN TIME (#2223). This arm used to build it by TRANSPOSING the fall — by
+  // passing `--before dropped --after second`, i.e. the newer slot as the older end. That construction is
+  // now refused (exit 2), because accepting it is exactly the defect: a reversed pair inverts every
+  // comparison, so a real regression reads as a repair and the tool exits 0 on it. The pin that proved
+  // rise-detection therefore DEPENDED on the hole, and it is re-derived here rather than re-pointed:
+  // restore the subject, run again, and diff the fall's slot against the restored one.
+  writeFileSync(join(root, ALPHA_SUBJECT), subject("alpha"));
+  await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const restored = readPointer(root).run.runId;
+
+  const rose = await runCli("verify", ["structure-delta", "--before", dropped, "--after", restored], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(rose).toExitWith(1);
   expect(rose.stdout).toContain(`REGRESSED: ${ALPHA}`);
+
+  // …and the transposition itself is REFUSED rather than silently inverted — the same two slots, backwards.
+  const backwards = await runCli("verify", ["structure-delta", "--before", restored, "--after", dropped], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(backwards).toExitWith(2);
+  expect(backwards.stderr).toContain("TRANSPOSED");
 });
 
 test("structure-delta REFUSES rather than returning a serene zero: no prior slot, and a tombstoned end", {

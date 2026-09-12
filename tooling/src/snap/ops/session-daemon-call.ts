@@ -5,8 +5,9 @@
 // path runs — never a second capture path (invariant 4). Split from ops/session-daemon.ts (the process,
 // socket and lifecycle) by nature: this file is the capture half.
 import process from "node:process";
+import { artifactKey, routeSlug } from "../../_shared/artifact-naming.ts";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "../../_shared/artifact-out.ts";
-import { artifactKey, print, routeSlug } from "../../_shared/artifacts.ts";
+import { print } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { reassertOwnerViewport } from "../../_shared/browser-emulation-guard.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";

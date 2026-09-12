@@ -18,7 +18,21 @@
 //   • either run is a NON-VERDICT (#2167) — fixture-mode, contaminated, or operator-tombstoned;
 //   • either run was GATE-SCOPED (`selection.kind !== "all"`) — a one-policy run against a whole-corpus run
 //     shares no denominator, and differencing them manufactures ~300 phantom removals that read as a finding.
-//   • the two runs are from DIFFERENT CHECKOUTS — different trees, so the delta is not about a change.
+//   • the two runs are from DIFFERENT CHECKOUTS — different trees, so the delta is not about a change;
+//   • the two ends are TRANSPOSED (#2223) — an explicit `--before` that started AFTER its `--after` reverses
+//     every comparison, so a regression reads as a repair and the tool exits 0 on it.
+//
+// THE THREE SILENT ZEROES #2223 CLOSED, all found by auditing this module against its own promise:
+//   (a) a NEW AUTHORITY ALARM on an ALREADY-RED policy. `ok` is already false, so the `before.ok && !after.ok`
+//       clause cannot fire, and an alarm changes no finding count — the exact blind spot the mixed runtime
+//       makes permanent, because most final policies are red by construction while the loader is legacy.
+//   (b) a VANISHED policy. `no longer present:` was PRINTED and then dropped on the floor: a final policy that
+//       stops loading (a module that exports no gate, a conversion that broke registration) removed its own
+//       red row and the run exited 0 — the loader's silent `continue` wearing a delta's clothes.
+//   (c) a TRANSPOSED explicit pair. `resolveBefore` enforces `startedAt` ordering only on the DEFAULT path;
+//       two explicit slot ids were accepted in any order. Measured on the real pair
+//       `main-586333-2026-09-12T18-47-45-941Z` → `main-1662184-2026-09-12T23-01-14-421Z`: run forward it is a
+//       delta, run backward it exited 0.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -165,9 +179,23 @@ interface Counts {
   readonly withheld: boolean;
   readonly ok: boolean;
   readonly owner: string;
+  /** Authority alarms NAMING THIS POLICY (#2223 gap (a)). They live run-level, not on the row, and they move
+   *  NEITHER the finding count NOR `ok` once `ok` is already false — so without this field a policy that is
+   *  red today and grows a stale/over-broad grant tomorrow is a zero. */
+  readonly alarms: number;
 }
 
-function counts(row: FinalPolicyRow): Counts {
+/** Alarms per policy id for one slot. Built once per end rather than scanned per row: the list is run-level
+ *  and a per-row filter would be quadratic over ~160 policies. */
+function alarmsByPolicy(report: SlotReport): ReadonlyMap<string, number> {
+  const tally = new Map<string, number>();
+  for (const alarm of report.policy?.authority.alarms ?? []) {
+    tally.set(alarm.policyId, (tally.get(alarm.policyId) ?? 0) + 1);
+  }
+  return tally;
+}
+
+function counts(row: FinalPolicyRow, alarms: ReadonlyMap<string, number>): Counts {
   const effective = row.violations.length;
   return {
     effective,
@@ -177,24 +205,31 @@ function counts(row: FinalPolicyRow): Counts {
     withheld: row.withheld,
     ok: row.ok,
     owner: row.owner.status,
+    alarms: alarms.get(row.name) ?? 0,
   };
 }
 
 function line(name: string, before: Counts | null, after: Counts): string {
   const was = before === null ? "NEW" : `raw ${before.raw} (w ${before.waived} · g ${before.granted} · eff ${before.effective})`;
   const now = `raw ${after.raw} (w ${after.waived} · g ${after.granted} · eff ${after.effective})`;
-  const state = `ok ${before === null ? "—" : String(before.ok)} → ${String(after.ok)} · withheld ${before === null ? "—" : String(before.withheld)} → ${String(after.withheld)} · owner ${before === null ? "—" : before.owner} → ${after.owner}`;
+  const state =
+    `ok ${before === null ? "—" : String(before.ok)} → ${String(after.ok)} · withheld ${before === null ? "—" : String(before.withheld)} → ${String(after.withheld)}` +
+    ` · owner ${before === null ? "—" : before.owner} → ${after.owner} · alarms ${before === null ? "—" : String(before.alarms)} → ${String(after.alarms)}`;
   return `  ${name}: ${was} → ${now} · ${state}`;
 }
 
-/** REGRESSION, precisely: a final policy's EFFECTIVE count rose, or it went from ok to red (which catches a
- *  withheld owner and an authority alarm — both flip `ok` without moving the finding count). A policy that is
- *  NEW and already red regresses too: it went from nothing to a red row. */
+/** REGRESSION, precisely: a final policy's EFFECTIVE count rose, its ALARM count rose, or it went from ok to
+ *  red (which catches a withheld owner and a first authority alarm — both flip `ok` without moving the finding
+ *  count). A policy that is NEW and already red regresses too: it went from nothing to a red row.
+ *
+ *  THE ALARM ARM IS NOT REDUNDANT WITH `ok` (#2223 gap (a)): `before.ok && !after.ok` fires only on the
+ *  TRANSITION, and under the mixed runtime most final policies are ALREADY red, so every alarm a lane adds to
+ *  one of those lands in a policy whose `ok` cannot change and whose finding count the alarm does not touch. */
 function regressed(before: Counts | null, after: Counts): boolean {
   if (before === null) {
     return !after.ok;
   }
-  return after.effective > before.effective || (before.ok && !after.ok);
+  return after.effective > before.effective || after.alarms > before.alarms || (before.ok && !after.ok);
 }
 
 function toolErrorCount(report: SlotReport): number {
@@ -213,8 +248,9 @@ export const STRUCTURE_DELTA_USAGE =
   "  Diffs two published structure slots PER FINAL POLICY: raw / waived / granted / effective, withheld, owner.\n" +
   "  Defaults: --after is the published reports/check-structure.json; --before is the newest usable slot from\n" +
   "  the same checkout that started earlier. Slot ids are the directory names under reports/runs/structure/.\n" +
-  "  Exit 1 when any final policy's effective count ROSE or a policy went ok → red. Exit 2 when either end is\n" +
-  "  unreadable, died, is a NON-VERDICT (#2167), was gate-scoped, or when there is no prior slot at all.";
+  "  Exit 1 when any final policy's effective count ROSE, its authority ALARMS rose, it went ok → red, or it\n" +
+  "  VANISHED from the final roster. Exit 2 when either end is unreadable, died, is a NON-VERDICT (#2167), was\n" +
+  "  gate-scoped, TRANSPOSED (--before started at or after --after), or when there is no prior slot at all.";
 
 export function runStructureDelta(root: string, argv: readonly string[]): number {
   let values: { readonly before?: string; readonly after?: string };
@@ -236,6 +272,24 @@ export function runStructureDelta(root: string, argv: readonly string[]): number
   }
 }
 
+/** THE TRANSPOSITION REFUSAL (#2223 gap (c)). `resolveBefore` enforces `startedAt` ordering only while it is
+ *  CHOOSING a slot; two explicit ids bypassed it entirely, and a reversed pair inverts every comparison — a
+ *  rising effective count reads as a repair and the run exits 0. Ordering is asserted on the RUN's own
+ *  `startedAt`, the same clock `resolveBefore` picks by, never on the slot id or file mtime. */
+function refuseTransposed(before: Slot, after: Slot): void {
+  const beforeStart = before.report.run?.startedAt;
+  const afterStart = after.report.run?.startedAt;
+  if (beforeStart === undefined || afterStart === undefined || beforeStart < afterStart) {
+    return;
+  }
+  const same = beforeStart === afterStart;
+  throw new DeltaRefusal(
+    `the two ends are ${same ? "THE SAME RUN" : "TRANSPOSED"} — --before ${before.id} started ${beforeStart}, which is ` +
+      `${same ? "the same instant as" : "AFTER"} --after ${after.id} (${afterStart}). ` +
+      "A reversed pair inverts every comparison, so a regression reads as a repair and this exits 0. Swap the two ids.",
+  );
+}
+
 function compare(root: string, values: { readonly before?: string; readonly after?: string }): number {
   const after = resolveAfter(root, values.after);
   const afterWhy = unusable(after);
@@ -252,18 +306,21 @@ function compare(root: string, values: { readonly before?: string; readonly afte
       `the two slots are from DIFFERENT CHECKOUTS (${before.report.run?.checkout} vs ${after.report.run?.checkout}) — that is not a delta about a change`,
     );
   }
+  refuseTransposed(before, after);
   return render(before, after);
 }
 
 function render(before: Slot, after: Slot): number {
   const was = finalRows(before.report);
   const now = finalRows(after.report);
+  const wasAlarms = alarmsByPolicy(before.report);
+  const nowAlarms = alarmsByPolicy(after.report);
   const changed: string[] = [];
   const regressions: string[] = [];
   for (const [name, row] of [...now].toSorted(([a], [b]) => a.localeCompare(b))) {
     const prior = was.get(name);
-    const priorCounts = prior === undefined ? null : counts(prior);
-    const nowCounts = counts(row);
+    const priorCounts = prior === undefined ? null : counts(prior, wasAlarms);
+    const nowCounts = counts(row, nowAlarms);
     if (priorCounts !== null && JSON.stringify(priorCounts) === JSON.stringify(nowCounts)) {
       continue;
     }
@@ -272,24 +329,34 @@ function render(before: Slot, after: Slot): number {
       regressions.push(name);
     }
   }
+  // A policy that was in the BEFORE roster and is not in the AFTER one has VANISHED (#2223 gap (b)) — the
+  // loader's silent `continue` (a module that stopped exporting a gate, a conversion that broke registration)
+  // wearing a delta's clothes. It was printed and then dropped: a red policy that disappears removed its own
+  // red row, which is the largest possible regression, and this exited 0 on it.
   const removed = [...was.keys()].filter((name) => !now.has(name)).toSorted();
+  regressions.push(...removed);
   process.stdout.write(`structure-delta: ${before.id} → ${after.id}\n`);
   process.stdout.write(`  final policies: ${was.size} → ${now.size} · tool errors: ${toolErrorCount(before.report)} → ${toolErrorCount(after.report)}\n`);
   // "?" is the honest value for a PRE-MIXED artifact that has no final ledger at all — never a 0, which would
   // read as "nothing was withheld" about a run that could not answer the question.
   process.stdout.write(`  withheld: ${before.report.run?.final?.withheld ?? "?"} → ${after.report.run?.final?.withheld ?? "?"}\n`);
   if (removed.length > 0) {
-    process.stdout.write(`  no longer present: ${removed.join(", ")}\n`);
+    process.stdout.write(`  VANISHED — no longer in the final roster: ${removed.join(", ")}\n`);
   }
-  if (changed.length === 0) {
+  if (changed.length === 0 && regressions.length === 0) {
     process.stdout.write("  no per-policy change\n");
     return EXIT.clean;
   }
-  process.stdout.write(`${changed.join("\n")}\n`);
+  if (changed.length > 0) {
+    process.stdout.write(`${changed.join("\n")}\n`);
+  }
   if (regressions.length === 0) {
     return EXIT.clean;
   }
   process.stdout.write(`\n✗ ${regressions.length} final polic(ies) REGRESSED: ${regressions.join(", ")}\n`);
-  process.stdout.write("  A policy whose effective count rose, or that went ok → red, is a NEW red the mixed-runtime exit code cannot show you (#2110).\n");
+  process.stdout.write(
+    "  A policy whose effective count rose, whose AUTHORITY ALARMS rose, that went ok → red, or that VANISHED from the roster\n" +
+      "  is a NEW red the mixed-runtime exit code cannot show you (#2110, #2223).\n",
+  );
   return EXIT.violations;
 }

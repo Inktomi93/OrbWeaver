@@ -11,7 +11,7 @@
 // inheritance is trusted; inheritance never launders a misplaced flag into a valid-looking plan.
 import { basename, extname, join } from "node:path";
 import { splitPageSuffix } from "../../_shared/argv.ts";
-import { routeSlug } from "../../_shared/artifacts.ts";
+import { routeSlug } from "../../_shared/artifact-naming.ts";
 import { budget } from "../../_shared/load-budget.ts";
 import type { SessionAccess, SessionCallTarget, SessionLimits, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";

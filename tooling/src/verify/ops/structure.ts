@@ -46,7 +46,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
-import { checkoutName, openRunSlot, publishRunSlot, reportsPath } from "@orb/tooling/_shared/artifacts";
+import { checkoutName, closeRunSlot, openRunSlot, publishRunSlot, reportsPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
@@ -366,15 +366,34 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   // a CONTAMINATED run read a tree that stopped existing. Both used to publish, and the pointer is what every
   // casual reader follows — that is precisely how slot `main-2930600`'s fixture findings reached a verifier as
   // real-tree liveness. A non-verdict keeps its slot and never becomes `latest`.
-  if (request.selection.kind === "all" && run.verdict === "verdict") {
-    publishRunSlot(root, slot, [{ alias: REPORT_NAME, target: REPORT_NAME }]);
-  }
+  finishSlot(root, slot, request.selection, run);
 
   // A short run, a blind gate, a refused POPULATION receipt, a thrown gate and a refused final owner ride the SAME
   // severity: in all of them the run is not a verdict. The final side's exit rule has ONE home
   // (`policyPassExitCode`, the planner's) and is composed here by max, never re-spelled.
   const finalExit = final.result === null ? EXIT.clean : policyPassExitCode(final.result);
   return Math.max(legacyExit(legacyBroken, legacyTotal), finalExit);
+}
+
+/** END THE RUN: publish the pointer when this run may speak for the corpus, and CLOSE the slot either way.
+ *
+ *  PUBLISHING is narrow, and both narrowings are the same lie prevented twice: a GATE-SCOPED run (#1964)
+ *  answers a narrower question, and a NON-VERDICT run (#2167) answers about planted props or a tree that
+ *  stopped existing — republishing either hands every fixed-path reader something that looks exactly like
+ *  the corpus verdict.
+ *
+ *  CLOSING IS UNIVERSAL (#2221), and that is the half that was missing. The `.inflight` marker means "a
+ *  process is writing here", never "this slot became `latest`" — but `publishRunSlot` was its only unlinker,
+ *  so every selected or non-verdict run left one behind and `abandonedRuns` then read it as a run that DIED.
+ *  `pnpm check:show` refused the real, complete pointer with "that run never finished", about a run that
+ *  finished perfectly and only declined to speak. Measured on main 2026-09-12 over `reports/runs/structure/`
+ *  (N=32): 17 slots carried a marker, 13 of them FINISHED fixture-mode runs. */
+function finishSlot(root: string, slot: RunSlot, selection: PolicySelector, run: RunManifest): void {
+  if (selection.kind === "all" && run.verdict === "verdict") {
+    publishRunSlot(root, slot, [{ alias: REPORT_NAME, target: REPORT_NAME }]);
+    return;
+  }
+  closeRunSlot(root, slot);
 }
 
 /** The legacy side's exit under the unchanged contract: a broken run outranks a verdict, a verdict outranks clean. */
@@ -489,19 +508,36 @@ interface ConsoleInput {
   readonly slotRelDir: string;
 }
 
-/** The ONE console write, in the order a reader scans: the two rosters, then what the run WAS, then cost.
+/** THE NON-VERDICT BANNER (#2167), printed at BOTH ends of the console write (#2222).
+ *
+ *  It used to print once, between the rosters and the counts. Its own comment said "BEFORE the counts, not
+ *  after … a reader must not meet the roster before the disclaimer" — and the code did the opposite of the
+ *  second half: the two rosters are hundreds of lines and they printed FIRST, so a reader scrolling from the
+ *  top consumed a full gate roster about planted `__g_` props with nothing telling them so. That is the exact
+ *  #2167 incident repeating one layer out.
+ *
+ *  The old placement's RATIONALE survives — a `tail` reader must still meet it — so the fix is not a move, it
+ *  is BOTH: the head placement is what stops the roster being read as real-tree, the tail placement is what a
+ *  truncated read still sees. A banner is cheap; a roster mistaken for a verdict is not. */
+function nonVerdictBanner(run: RunManifest): string {
+  return `\n‼ THIS RUN IS NOT A VERDICT — ${run.nonVerdictReason ?? "no reason recorded"}\n`;
+}
+
+/** The ONE console write, in the order a reader scans: the non-verdict banner when there is one, the two
+ *  rosters, the banner again, then what the run WAS, then cost.
  *
  *  `zeroScanAlarm` is set HERE and nowhere else — this is the only entrypoint whose fileset is the real whole
  *  tree, so it is the only one where "this gate read nothing" means the checker is blind. */
 function renderConsole({ pass, gatesByName, selected, final, run, slotRelDir }: ConsoleInput): void {
+  if (run.nonVerdictReason !== null) {
+    process.stdout.write(nonVerdictBanner(run));
+  }
   process.stdout.write(renderPass(pass, gatesByName, { zeroScanAlarm: true }));
   if (final.report !== null) {
     process.stdout.write(`\n${renderPolicyPass(final.rows, final.report, selected.final)}`);
   }
   if (run.nonVerdictReason !== null) {
-    // BEFORE the counts, not after: the numbers below are real but they are not about the real tree, and a
-    // reader who scrolls to the tail first must not meet the roster before the disclaimer.
-    process.stdout.write(`\n‼ THIS RUN IS NOT A VERDICT — ${run.nonVerdictReason}\n`);
+    process.stdout.write(nonVerdictBanner(run));
   }
   process.stdout.write(`\n${completenessLine(run)}\n`);
   process.stdout.write(`${timingLine(pass.timing, pass.gates, `${slotRelDir}/${REPORT_NAME}`)}\n`);

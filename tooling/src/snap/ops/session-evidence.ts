@@ -2,10 +2,11 @@
 // snapshots the existing per-page CDP Network collector, so export adds no browser or capture path.
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+import { artifactFilePath } from "../../_shared/artifact-naming.ts";
 import type { InstrumentArtifactMetadata } from "../../_shared/artifact-out.ts";
 import { artifactDir, artifactFile, beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "../../_shared/artifact-out.ts";
 import { aggregateDimension, aggregateScope, exactDimension, contextIndex as mintContextIndex, scopeV1 } from "../../_shared/artifact-scope.ts";
-import { artifactFilePath, print } from "../../_shared/artifacts.ts";
+import { print } from "../../_shared/artifacts.ts";
 import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";

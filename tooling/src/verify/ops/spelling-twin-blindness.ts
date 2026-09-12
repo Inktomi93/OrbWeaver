@@ -27,6 +27,7 @@
 //     reported lines an in-memory pass cannot stand in for. A policy whose mustFlag rows are ALL
 //     resource-mode is skipped whole; one with a mix is censused on the rows that are reachable.
 
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { Project } from "ts-morph";
 import type { GateDescriptor, GateExample } from "../contract/gate.ts";
 import type { MixedGateCorpus } from "../contract/gate-corpus.ts";
@@ -40,6 +41,8 @@ import { runPolicyPass } from "../lib/policy-pass.ts";
 import { spellingTwinsOf } from "../lib/spelling-twins.ts";
 import { verifyGateProofs } from "./conformance.ts";
 import { verifyPolicyProofs } from "./policy-conformance.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/gate-spelling-twins.int.test.ts");
 
 const DEFAULT_LEGACY_AT = "packages/ui/src/x/x.tsx";
 

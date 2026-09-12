@@ -1,8 +1,9 @@
 // The single-run pass: launch, drive+capture every page, the watch series, report, baseline/diff,
 // the manifest, and the RESULT line. One browser run, many pieces of evidence.
+
+import { artifactKey } from "../../_shared/artifact-naming.ts";
 import { artifactFile } from "../../_shared/artifact-out.ts";
 import { aggregateScope, factBatchId } from "../../_shared/artifact-scope.ts";
-import { artifactKey } from "../../_shared/artifacts.ts";
 import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";

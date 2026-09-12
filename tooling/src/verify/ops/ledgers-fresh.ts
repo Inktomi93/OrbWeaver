@@ -40,16 +40,9 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { CaughtFailurePopulation, CaughtFailureRow } from "../contract/caught-failure.ts";
 import type { LedgerFreshness } from "../contract/scoped.ts";
-import type { ClassRollupRow } from "../lib/gate-program-docs.ts";
-import {
-  committedClassRollup,
-  deriveClassRollup,
-  ledgerSections,
-  readDoc,
-  reportLedgerRows,
-  STATE_BINS,
-  strayLedgerSections,
-} from "../lib/gate-program-docs.ts";
+import { ledgerSections, readDoc, reportLedgerRows, strayLedgerSections } from "../lib/gate-program-docs.ts";
+import type { ClassRollupRow } from "../lib/gate-program-rollup.ts";
+import { committedClassRollup, deriveClassRollup, STATE_BINS } from "../lib/gate-program-rollup.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
 import { READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./gen/read-first-costs.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";

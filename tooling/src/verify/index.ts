@@ -119,11 +119,12 @@ export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedF
 export { aggregateExit, asViolations, eslintScheme, ownScheme } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
-export { ledgerSections, markdownTables, reportLedgerRows, strayLedgerSections } from "./lib/gate-program-docs.ts";
+export { ledgerSections, reportLedgerRows, strayLedgerSections } from "./lib/gate-program-docs.ts";
 export { getProject } from "./lib/harness.ts";
 export { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "./lib/history.ts";
 export { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome, SCHEMA_BANNED_SHAPES } from "./lib/ledger-banned-shapes.ts";
 export { loadGateCorpus, loadGates, loadMixedGateCorpus } from "./lib/loader.ts";
+export { markdownTables } from "./lib/markdown-tables.ts";
 export { canonicalSort, fileLoaded, projectCtx, repoRel, runPass, stripProbeFindings, zeroScanGates } from "./lib/pass.ts";
 export { parsePolicyCommand } from "./lib/policy-command.ts";
 export { loadPolicies, loadPolicyCorpus } from "./lib/policy-loader.ts";
@@ -150,8 +151,8 @@ export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from 
 export { CONFIG_SNAPSHOT_HELP, runConfigSnapshot } from "./ops/config-snapshot.ts";
 export { verifyGateProofs } from "./ops/conformance.ts";
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";
-export type { Ledger } from "./ops/debt.ts";
-export { LEDGERS, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
+export type { Ledger, LiveAdmission } from "./ops/debt.ts";
+export { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
 export { runEslint } from "./ops/eslint.ts";
 export { runGateContract } from "./ops/gate-contract.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";

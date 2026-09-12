@@ -40,8 +40,14 @@ const RATIFIED: ExemptionTable<RatifiedRow> = {
     cite: "tooling/src/_shared/stryker-config.ts",
   },
   "config[0].ignores[5]": {
-    value: ".cache/**",
-    why: "local tools write derived, refetchable cache artifacts outside the tracked corpus. Delete this row when the cache root changes or the repository starts tracking authored files there.",
+    // `**/.cache/**`, NOT `.cache/**` (#2213, 2026-09-12). A flat-config glob is anchored at the config
+    // DIRECTORY, so the bare spelling covered only the ROOT cache and `playwright/.cache` was linted; the
+    // config was re-pointed in `c57e3c9b9` and this row was not, which is the coupled site that left a
+    // RATIFIED identity naming a selector that no longer exists. The value here is matched BYTE-FOR-BYTE
+    // against the evaluated config (`sameValue`), so it is a literal this gate references and it owes the
+    // repo-wide grep of the old spelling whenever eslint.config.js moves it again.
+    value: "**/.cache/**",
+    why: "local tools write derived, refetchable cache artifacts outside the tracked corpus, at the root and at every nesting depth. Delete this row when the cache root changes or the repository starts tracking authored files there.",
     cite: ".gitignore",
   },
 };
@@ -116,7 +122,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", ".cache/**"] }, { files: ["packages/ui/src/gone.ts"] }];\n',
+          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**"] }, { files: ["packages/ui/src/gone.ts"] }];\n',
         "reports/README.md": "reports\n",
         ".gitignore": "node_modules/\ndist/\n",
         [GATE_FIXTURE_LAW]: "fixture law\n",
@@ -129,7 +135,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", ".cache/**"] }, { files: ["packages/client/src/**/*.ts"], ignores: ["**/*.test.ts"] }];\n',
+          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**"] }, { files: ["packages/client/src/**/*.ts"], ignores: ["**/*.test.ts"] }];\n',
         "reports/README.md": "reports\n",
         ".gitignore": "node_modules/\ndist/\n",
         [GATE_FIXTURE_LAW]: "fixture law\n",
@@ -140,13 +146,38 @@ export const gate = defineGate({
       expect: { count: 1, token: "config[1].ignores[0]" },
       why: "a local ignore with no member inside its parent files scope — the parent-scoped-population arm the corpus-wide reader missed",
     },
+    {
+      // THE #2213 COUPLED-SITE ARM, red forever. The config here carries the PRE-`c57e3c9b9` spelling
+      // `.cache/**` at the identity the RATIFIED table ratifies as `**/.cache/**`. The identity still
+      // resolves and the selector is still zero-member, so nothing about LIVENESS has changed — what
+      // changed is the VALUE, and that is exactly the shape that reached main on 2026-09-12: the config
+      // was re-pointed and this table was not. `MSG_STALE` is the accusation; the `mustPass` twin below
+      // holds the same config at the CURRENT spelling and is silent. Two directions on one literal.
+      mode: "resource",
+      files: {
+        [CONFIG_REL]:
+          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", ".cache/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
+        "reports/README.md": "reports\n",
+        ".gitignore": "node_modules/\ndist/\n",
+        [GATE_FIXTURE_LAW]: "fixture law\n",
+        "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
+        "packages/ui/src/live.ts": "export const live = 1;\n",
+      },
+      // TWO findings, not one, and the pair IS the real-tree number (`raw 0 → 2`, `check:structure-delta`,
+      // 2026-09-12): `reportDeadSelectors` sees a zero-member selector whose ratified value does not match
+      // and reports it UNRATIFIED, while `reportRatifiedArms` sees a ratified identity whose value moved and
+      // reports it STALE. Both are correct and both are the same coupled site — asserting only one would
+      // let half the accusation rot.
+      expect: { count: 2, token: "config[0].ignores[5]", messageIncludes: "no longer names the same zero-member selector" },
+      why: "the RATIFIED value and the config's value DISAGREE — the coupled site #2213 left behind, pinned so a future re-point of eslint.config.js cannot strand this row silently again",
+    },
   ],
   mustPass: [
     {
       mode: "resource",
       files: {
         [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", ".cache/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
+          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
         "reports/README.md": "reports\n",
         ".gitignore": "node_modules/\ndist/\n",
         [GATE_FIXTURE_LAW]: "fixture law\n",
