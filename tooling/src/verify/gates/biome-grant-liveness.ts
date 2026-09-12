@@ -80,7 +80,7 @@
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ConfigGrantCandidate, ConfigGrantRow } from "../lib/config-grant-rows.ts";
-import { biomeGrantRows, groupGrantRows, readAcquiredConfigText, trackedPathOracle } from "../lib/config-grant-rows.ts";
+import { acquiredConfigText, biomeGrantRows, groupGrantRows, trackedPathOracle } from "../lib/config-grant-rows.ts";
 import { globMatcher, lineFinder, patternLivenessFindings } from "../lib/grant-liveness.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
@@ -166,7 +166,10 @@ export const gate = defineGate({
       const repoPaths = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
       // REFUSES rather than substituting empty text (#2121): a `?? ""` fallback here silently anchored
       // every finding at line 1 with nothing saying the position had been lost.
-      const rows = biomeGrantRows(config.value, lineFinder(readAcquiredConfigText(ctx.resources, CONFIG_REL)), CONFIG_REL);
+      // THE DOOR IS READ HERE (#2148): the host stays at the call site and the shared reader takes the ready
+      // corpus, so `policy-soundness` ARM E4 needs no hand-off exception to admit this module.
+      const text = acquiredConfigText(readyResourceValue(ctx.resources.authoredText([CONFIG_REL])), CONFIG_REL);
+      const rows = biomeGrantRows(config.value, lineFinder(text), CONFIG_REL);
       const exists = trackedPathOracle(repoPaths);
       reportCandidates(ctx, groupGrantRows(rows.exact.filter((row) => !exists(row.rooted))), EXACT_OPERATION, MESSAGE);
       reportCandidates(ctx, groupGrantRows(deadGlobs(rows.globs, repoPaths)), GLOB_OPERATION, GLOB_MESSAGE);

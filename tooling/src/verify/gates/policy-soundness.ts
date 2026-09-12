@@ -24,14 +24,21 @@
 //      (`client-structure.ts:18`, `server-layout.ts:27`, `ui-exports-map-complete.ts:35`), and NOTHING
 //      enforced it. Censused 2026-09-12 at this lane's tip: every `ctx.resources.<door>(…)` in the gate
 //      corpus is already wrapped, so the class is at ZERO and this arm holds it there. The ALIAS escape is the
-//      same arm: binding `ctx.resources` to a name hands the closed host to code this reader cannot follow.
-//      ONE ADMITTED HAND-OFF, and it is not a softening — passing the host as an ARGUMENT to an imported
-//      `tooling/src/verify/lib/` reader that narrows it itself. `lib/config-grant-rows.ts` `readTsconfigRoster`
-//      is the live shape (both `tsconfig-entry-liveness` modules call it, and it calls `readyResourceValue` at
-//      `:86`), and a first cut of this arm ACCUSED BOTH — a correct gate accusing correct code, caught by the
-//      family's real-corpus arm rather than by any fixture. The discriminator is the callee's HOME, resolved
-//      through the alias like the guard itself: a `lib/` reader is the sanctioned shared home and lives outside
-//      this policy's population, while a LOCAL function is code this module owns and could have wrapped.
+//      same arm: `ctx.resources` in ANY position other than the receiver of a wrapped door call hands the
+//      closed host to code this reader cannot follow.
+//
+//      A HAND-OFF EXCEPTION EXISTED HERE BETWEEN `bf9beb617` AND #2148, AND WAS REMOVED DELIBERATELY — it was
+//      not lost in a refactor, and this paragraph exists so a reader who meets it in `git log` can tell. The
+//      arm's first cut accused two CORRECT modules (`tsconfig-entry-liveness` and its `-health` sibling, which
+//      handed the host to `lib/config-grant-rows.ts` (`readTsconfigRoster` as it then was) — a reader that narrowed it
+//      correctly), caught by the family's real-corpus arm rather than by any fixture, and the repair was to
+//      admit that one shape. THE CARVE HAD A HOLE IT COULD NOT SEE: this policy's population is
+//      `tooling/src/verify/gates/**`, so the instant the closed host crossed into `lib/`, NOTHING policed what
+//      happened to it — the guard stopped exactly where the escape began, and the next `lib/` reader had no
+//      enforcer at all. #2148 ruled the stricter shape: readers take READY VALUES and the CALLER reads its own
+//      door, so the host never leaves the call site and no exception is needed. The three live hand-offs were
+//      inverted in the same commit (`lib/config-grant-rows.ts` `tsconfigRosterFrom` / `acquiredConfigText`).
+//      An exception you have to keep proving safe is worse than one you do not need.
 //
 // RECORDED NON-ARMS, so nobody re-adds them: a declared-but-unread `facts:` entry is already REFUSED by the
 // dispatcher (`lib/policy-pass.ts:703` "declared facts were not consumed" withholds the consumer), and
@@ -72,7 +79,6 @@ const LOADABLE_EXTENSIONS: ReadonlySet<string> = new Set(["ts", "tsx"]);
 const RESOURCE_GUARD = "readyResourceValue";
 const RESOURCE_GUARD_HOME = "/tooling/src/verify/lib/resource-declaration.ts";
 const RESOURCE_HOST_MEMBER = "resources";
-const SHARED_READER_HOME = "/tooling/src/verify/lib/";
 
 const MESSAGE =
   "a final policy module carries something the final contract forbids (gate-runtime-standardization.md §3, §12.3): " +
@@ -86,14 +92,14 @@ const RESOURCE_MESSAGE =
   "a final policy reads the resource host without `readyResourceValue` (lib/resource-declaration.ts). A declared resource is asserted READY during the " +
   'population phase and a broken one withholds every consumer at the receipt phase, so an in-module `if (fact.status !== "ready") return;` is unreachable ' +
   "code that teaches the next conversion a silent return is the right answer to a broken resource. It is not. Wrap the door call, or — if the host is being " +
-  "handed to something else — stop: the host may only be handed whole to an imported tooling/src/verify/lib/ reader that narrows it itself.";
+  "handed to something else — stop: the closed host may not leave the call site. A shared reader takes the NARROWED VALUE and the caller reads its own door (#2148).";
 const FS_MESSAGE =
   "a final policy imports the filesystem — §12.3 bans every filesystem read in a gate module; declare the read through the closed " +
   "ResourceHost vocabulary (contract/resource-declaration.ts) or STOP the conversion (a read no kind serves is a refusal, not a private door).";
 const FIX =
   "E1: delete the `ext` field. E2: replace the walk with kind-indexed visitors / `ctx.files` / a shared `lib/` reader, move state into " +
   "`create`, retire the ledger into exact grants or warning debt, delete the legacy field. E3: delete the `node:fs` import and declare a resource. " +
-  "E4: wrap the door in `readyResourceValue(ctx.resources.<door>(…))` imported from `../lib/resource-declaration.ts`, or hand `ctx.resources` whole to an imported `../lib/` reader that narrows it itself; never bind it to a name or pass it to a local function.";
+  "E4: wrap the door in `readyResourceValue(ctx.resources.<door>(…))` imported from `../lib/resource-declaration.ts`; never bind `ctx.resources` to a name and never pass it to a function. A shared `../lib/` reader takes the NARROWED VALUE — read the door here and hand that over.";
 const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the import-origin recognizer ` +
   "(lib/gate-contract-origin.ts isCanonicalDefineGate) is dead, so every module would read out of scope. Refusing the run.";
@@ -141,25 +147,11 @@ function declaredUnder(declarations: readonly MorphNode[], home: string): boolea
   return declarations.some((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes(home));
 }
 
-/** The host handed as an ARGUMENT to an imported shared `lib/` reader, which narrows it itself. Admitted, and
- *  narrowly: the callee must resolve THROUGH ITS IMPORT to a module under `tooling/src/verify/lib/`. A local
- *  function of any name is not this shape, which is the row that keeps the carve from becoming a hole. */
-function handedToSharedReader(access: PropertyAccessExpression): boolean {
-  const call = access.getParent();
-  if (!(Node.isCallExpression(call) && call.getArguments().includes(access))) {
-    return false;
-  }
-  return declaredUnder(calleeDeclarations(call.getExpression()), SHARED_READER_HOME);
-}
-
-/** The ONLY admitted shapes: `readyResourceValue(<ctx>.resources.<door>(…))` with the guard resolved to its
- *  home module, and the host handed whole to an imported `lib/` reader. Every other shape — a bare door call,
- *  a door call wrapped in something else, the host bound to a name, the host passed to a LOCAL function —
- *  answers true. */
+/** The ONE admitted shape: `readyResourceValue(<ctx>.resources.<door>(…))`, with the guard resolved to its
+ *  home module. Every other shape — a bare door call, a door call wrapped in something else, the host bound to
+ *  a name, the host passed to ANY function, shared or local — answers true. There is no hand-off exception;
+ *  the header records the one that existed and why it was removed. */
 function unguardedResourceRead(access: PropertyAccessExpression): boolean {
-  if (handedToSharedReader(access)) {
-    return false;
-  }
   const door = access.getParent();
   if (!Node.isPropertyAccessExpression(door) || door.getExpression() !== access) {
     return true;
@@ -374,7 +366,7 @@ export const gate = defineGate({
           `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { const host = ctx.resources; return host; } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
         ),
       ),
-      expect: { count: 1, token: "resources", messageIncludes: "may only be handed whole to an imported" },
+      expect: { count: 1, token: "resources", messageIncludes: "may not leave the call site" },
       why: "E4 the ALIAS escape, the same defect one hop out: the closed host bound to a name leaves the call site and nothing downstream of that binding can be proven to wrap anything. Without this arm the founding row is evadable by one `const`",
     },
     {
@@ -397,7 +389,19 @@ export const gate = defineGate({
         ),
       ),
       expect: { count: 1, token: "resources" },
-      why: "E4 the CARVE'S OWN CONTROL: the host handed to a LOCAL function is not the admitted shared-reader shape. Without this row the `lib/` carve below is a hole any same-named local helper walks through, and the carve exists only because a first cut of this arm accused two CORRECT modules on the real tree",
+      why: "E4 THE GENERAL ESCAPE: the host handed to a LOCAL function. This row predates the #2148 ruling and survives it unchanged — it is about handing the host to code at all, independent of where that code lives, which is why it stayed valuable when the shared-reader carve beside it was retired",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { readProbeRoster(ctx.resources); } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { readProbeRoster } from "../lib/probe-reader.ts";\n',
+        ),
+        { [LIB_READER_PATH]: LIB_READER_STUB, [RESOURCE_DECLARATION_PATH]: RESOURCE_DECLARATION_STUB },
+      ),
+      expect: { count: 1, token: "resources" },
+      why: "E4 THE RETIRED CARVE, ON THE BYTES IT USED TO ADMIT (#2148). Between `bf9beb617` and the ruling this exact fixture was a `mustPass`: the host handed whole to an IMPORTED `lib/` reader that narrows it itself. It is now an accusation, deliberately on the same bytes rather than deleted — a removed exception otherwise leaves an ABSENCE, and an absence cannot tell a later reader whether the carve was closed or never existed. The carve's hole: this policy's population is the gates tree, so once the host crossed into `lib/` nothing policed it, and that reader narrowing correctly was luck the next one would not inherit. The live hand-offs were inverted in the same commit",
     },
   ],
   // A refusal is the CORRECT outcome for an input that breaks a runtime guarantee, and no `mustFlag`/`mustPass`
@@ -430,17 +434,6 @@ export const gate = defineGate({
         { [RESOURCE_DECLARATION_PATH]: RESOURCE_DECLARATION_STUB },
       ),
       why: "E4 the ADMITTED shape, and the row that dies first if the arm over-reaches: the guard imported from its home module. Every resource read in the live gate corpus already takes this shape, which is what lands the arm on a fixed tree",
-    },
-    {
-      mode: "types",
-      files: familyFixture(
-        finalProbeModule(
-          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { readProbeRoster(ctx.resources); } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
-          'import { readProbeRoster } from "../lib/probe-reader.ts";\n',
-        ),
-        { [LIB_READER_PATH]: LIB_READER_STUB, [RESOURCE_DECLARATION_PATH]: RESOURCE_DECLARATION_STUB },
-      ),
-      why: "E4 the ADMITTED HAND-OFF, taken from the live tree: `lib/config-grant-rows.ts` `readTsconfigRoster` receives the closed host and calls `readyResourceValue` itself, and both `tsconfig-entry-liveness` modules consume it. A first cut of this arm accused both — a correct gate accusing correct code — so this row is the repair's pin and the discriminator is the callee's HOME, resolved through its import exactly like the guard",
     },
     {
       mode: "types",

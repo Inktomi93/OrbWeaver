@@ -88,8 +88,13 @@ RED, and the one that is prose-only is called out as the gap.
    does not exist on the union) AND, since #2019, LINT — `policy-soundness` ARM E4 reds a
    `ctx.resources.<door>(…)` result that is not the direct argument of `readyResourceValue`, plus the alias
    escape (`ctx.resources` bound to a name), with the guard resolved by IMPORT ORIGIN so a local lookalike
-   cannot acquit. Handing the host WHOLE to an imported `lib/` reader that narrows it itself is admitted and
-   pinned — that is this contract's own `readTsconfigRoster` shape, and the arm's first cut accused it. **This clause is no longer prose-only**; the earlier text here ("no `policy-soundness`
+   cannot acquit. **There is NO hand-off exception** (#2148): a carve admitting the host handed whole to an
+   imported `lib/` reader shipped in `bf9beb617` and was removed, because E4's population is the gates tree —
+   the instant the host crossed into `lib/`, nothing policed what the reader did with it, so the guard stopped
+   exactly where the escape began. The stricter shape is that a shared reader takes the NARROWED VALUE and the
+   caller reads its own door; this contract's own `readTsconfigRoster`/`readAcquiredConfigText` were inverted
+   into `tsconfigRosterPaths` + `tsconfigRosterFrom` and `acquiredConfigText` to match. The retired carve is
+   pinned as a `mustFlag` on the bytes it used to admit, so the removal is an assertion rather than an absence. **This clause is no longer prose-only**; the earlier text here ("no `policy-soundness`
    meta-policy reads `ctx.resources`") described the tree before that arm landed. §5 alt C remains the
    stronger ladder tier and remains a recorded fork. The guard is unreachable
    (fact 2 above), so `if (fact.status !== "ready") return;` is dead code that teaches a silent clean; `throw`

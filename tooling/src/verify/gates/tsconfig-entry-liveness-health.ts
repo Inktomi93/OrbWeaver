@@ -30,7 +30,7 @@
 // name resolving to nothing meant the gate scanned nothing. The roster is now DERIVED from the tracked
 // corpus, so a vanished root config leaves the other thirteen fully judged. The honest successor is the
 // EMPTY ROSTER — no `tsconfig*.json` tracked anywhere — and it lives in the shared reader
-// (`lib/config-grant-rows.ts` `readTsconfigRoster`) as a THROW, because it must refuse for BOTH siblings
+// (`lib/config-grant-rows.ts` `tsconfigRosterPaths`) as a THROW, because it must refuse for BOTH siblings
 // and because there is nothing left to anchor a finding on. §4.5b's proof runtime has no "expect a tool
 // error" arm, so both refusals are pinned in
 // `tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts`.
@@ -59,13 +59,13 @@
 // entries and reporting nothing. (A file that existed but could not be read did throw out of the pass.) The
 // converted reader distinguishes the case, and this arm is what carries the distinction to a reader.
 //
-// FAMILY: `grant-liveness`. Readers: `lib/config-grant-rows.ts` (`readTsconfigRoster`, `tsconfigGrantRows`)
+// FAMILY: `grant-liveness`. Readers: `lib/config-grant-rows.ts` (`tsconfigRosterPaths`, `tsconfigRosterFrom`, `tsconfigGrantRows`)
 // and, through it, `lib/policy-program-membership.ts` — the SAME classifier its sibling reports through,
 // which is the point: a tripwire re-implementing the classifier would be measuring its own copy rather than
 // the one that produced the ✓.
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
-import { readTsconfigRoster, tsconfigGrantRows } from "../lib/config-grant-rows.ts";
+import { tsconfigGrantRows, tsconfigRosterFrom, tsconfigRosterPaths } from "../lib/config-grant-rows.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const PRIMARY_REL = "tsconfig.json";
@@ -122,7 +122,10 @@ export const gate = defineGate({
   create: (ctx) => ({
     evaluate: () => {
       const repoPaths = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
-      const { configs, unreadable } = readTsconfigRoster(ctx.resources, repoPaths);
+      // THE DOOR IS READ HERE (#2148) — see the sibling's note. The empty-roster refusal still fires before
+      // the demand, because `tsconfigRosterPaths` is what produces the demand's subject.
+      const corpus = readyResourceValue(ctx.resources.authoredText(tsconfigRosterPaths(repoPaths)));
+      const { configs, unreadable } = tsconfigRosterFrom(corpus);
       // UNREADABLE FIRST, and it is a separate arm from UNPARSEABLE on purpose (#2120): the door could not
       // serve the bytes at all, so nothing was parsed and nothing CAN be. Reporting it is what stops a
       // refused member from shrinking the subject set in silence — at the limit every member refuses, the

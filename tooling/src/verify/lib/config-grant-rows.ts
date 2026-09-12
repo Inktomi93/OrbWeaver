@@ -12,12 +12,10 @@
 // through `tracked-files`. Nothing in this module opens a file.
 import { posix } from "node:path";
 import type { CompilerConfigEntries } from "../contract/policy-scope.ts";
-import type { ResourceHost } from "../contract/resource-host.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
-import type { AuthoredTextRefusal } from "../contract/resource-text.ts";
+import type { AuthoredTextCorpus, AuthoredTextRefusal } from "../contract/resource-text.ts";
 import { isFileExact } from "./grant-liveness.ts";
 import { compilerConfigRoster, readCompilerConfigEntries } from "./policy-program-membership.ts";
-import { readyResourceValue } from "./resource-declaration.ts";
 
 /** biome's include syntax treats a leading `!` as an EXCLUSION rather than a grant. */
 const NEGATION_PREFIX = "!";
@@ -93,19 +91,34 @@ export interface TsconfigRoster {
   readonly unreadable: readonly AuthoredTextRefusal[];
 }
 
-/** Every discovered config's RAW entries, read through the shared compiler reader over the demand text
- *  door. The ROSTER is derived from the tracked inventory rather than walked, so a config authored anywhere
- *  is judged; a roster of ZERO is not a clean tree, it is a policy whose whole subject set is gone, and it
- *  THROWS rather than returning an empty verdict — the same refusal `resolveResourceDeclarations` gives a
- *  non-ready resource, in the one place this family can still reach a blind state. */
-export function readTsconfigRoster(resources: Pick<ResourceHost, "authoredText">, repoPaths: readonly string[]): TsconfigRoster {
+/** WHICH configs the roster demands, derived from the tracked inventory rather than walked, so a config
+ *  authored anywhere is judged. A roster of ZERO is not a clean tree — it is a policy whose whole subject set
+ *  is gone — so it THROWS rather than returning an empty demand, the same refusal `resolveResourceDeclarations`
+ *  gives a non-ready resource, in the one place this family can still reach a blind state. */
+export function tsconfigRosterPaths(repoPaths: readonly string[]): readonly string[] {
   const roster = compilerConfigRoster(repoPaths);
   if (roster.length === 0) {
     throw new Error(
       "tsconfig roster is EMPTY: the tracked corpus admits no tsconfig*.json at all, so every entry-liveness verdict below would be vacuous and a clean result would be a lie",
     );
   }
-  const corpus = readyResourceValue(resources.authoredText(roster));
+  return roster;
+}
+
+/** The roster read, from TEXT THE CALLER ALREADY ACQUIRED AND NARROWED.
+ *
+ *  THE SEAM WAS INVERTED ON PURPOSE (#2148). This took `Pick<ResourceHost, "authoredText">` and called the
+ *  door itself, which `policy-soundness` ARM E4 had to carve an exception for — and the carve had a hole the
+ *  carve could not see: E4's population is `tooling/src/verify/gates/**`, so the moment the closed host
+ *  crossed into `lib/`, nothing policed what happened to it. This reader narrowed correctly; the NEXT one
+ *  had no enforcer. Taking the ready value removes the exception rather than tightening it, and an exception
+ *  you must keep proving safe is worse than one you do not need.
+ *
+ *  The signature stays honest: `AuthoredTextCorpus` is a CONTRACT type (`contract/resource-text.ts`), not a
+ *  door and not a resource-shaped host, so `lib/` gained no capability it did not already have — it lost
+ *  one. The empty-roster refusal keeps its one home in {@link tsconfigRosterPaths}, which the caller must
+ *  run to know WHICH paths to demand, so the throw still precedes the door exactly as before. */
+export function tsconfigRosterFrom(corpus: AuthoredTextCorpus): TsconfigRoster {
   return { configs: corpus.files.map((file) => readCompilerConfigEntries(file.path, file.text)), unreadable: corpus.refusals };
 }
 
@@ -118,9 +131,11 @@ export function readTsconfigRoster(resources: Pick<ResourceHost, "authoredText">
  *  ERROR, never a reportable finding and never a silent zero. So the branch THROWS; it does not `return`."
  *  The shape this replaces was `corpus.files.find(…)?.text ?? ""`, which substituted empty text: every
  *  finding silently lost its line identity and anchored at line 1, with nothing saying so. §4.5b has no
- *  "must refuse" arm, so the pin is a `runPolicyPass` row in the owning policy's permanent-pin test. */
-export function readAcquiredConfigText(resources: Pick<ResourceHost, "authoredText">, path: string): string {
-  const corpus = readyResourceValue(resources.authoredText([path]));
+ *  "must refuse" arm, so the pin is a `runPolicyPass` row in the owning policy's permanent-pin test.
+ *
+ *  TAKES THE NARROWED CORPUS, not the host (#2148, the same inversion as {@link tsconfigRosterFrom}): the
+ *  caller reads its own door, so `ctx.resources` never leaves the call site and E4 needs no exception. */
+export function acquiredConfigText(corpus: AuthoredTextCorpus, path: string): string {
   const served = corpus.files.find((file) => file.path === path);
   if (served !== undefined) {
     return served.text;
