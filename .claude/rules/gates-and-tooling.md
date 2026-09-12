@@ -18,12 +18,14 @@ paths:
 - **GATE-RUNTIME MIGRATION POSTURE (#1584; owner rulings 2026-09-11, binding until the atomic cutover).**
   - **Read first, in this order, in full:** `docs/design/gate-runtime-standardization.md` (THE program guide:
     mixed runtime, state of the tree, proof rules, order of work, per-conversion procedure, dispatch mechanics, and
-    the full `defineGate` contract in §12), `docs/reviews/gate-runtime/exemplars-2026-09-11.md` ("copy these shapes"),
-    `tooling/src/verify/contract/policy.ts` (+ `population.ts`, `resource-declaration.ts`), then the
-    converted exemplar modules and their family tests, then every assigned gate and its legacy source via
-    `git show <sha>:<path>`. **`tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide**
-    (`scanRoot`, `scopeSafety`, `run` hooks, `ExemptionRow` tables, `check-gates.int` fixtures, the
-    registered-gates count; it never mentions `defineGate`): read it only to understand a descriptor you are
+    the full `defineGate` contract in §12 — **§3's plane table is the copy set: one CONFIRMED exemplar per
+    evidence plane, verdict column authoritative**), `tooling/src/verify/contract/policy.ts` (+ `population.ts`,
+    `resource-declaration.ts`), then the exemplar modules §3 names and their family tests, then every assigned
+    gate and its legacy source via `git show <sha>:<path>`. **`docs/reviews/gate-runtime/exemplars-2026-09-11.md`
+    is HISTORICAL, not a shape source** — it now opens "REFUTED 2026-09-12 — NINE OF THESE TEN ARE NOT COPYABLE";
+    read only its banner and central-files table. **`tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY
+    descriptor guide** (`scanRoot`, `scopeSafety`, `run` hooks, `ExemptionRow` tables, `check-gates.int` fixtures,
+    the registered-gates count; it never mentions `defineGate`): read it only to understand a descriptor you are
     replacing; never copy its shapes or satisfy its coupled-site checklist in a `defineGate` module.
   - **Whole-tree checks are RED by construction mid-migration** (`pnpm check`/`verify`/`check:structure`,
     the lefthook hooks, `check-gates.repo.int.test.ts` throwing in setup). That red is baseline, never your
@@ -55,14 +57,25 @@ paths:
     stronger identity reader wins, with a successor proof for the retired arm); arms that differ in
     authority or severity SPLIT into an ordinary policy plus a hard `-health` sibling with the identical
     `family` string. A theme is not a family.
-  - **STOP-IF-MISSING-KIND:** a read outside the **eighteen** shipped `GateResourceRequest` kinds (the set is
-    FROZEN — re-derive it from `tooling/src/verify/contract/resource-declaration.ts`, never from a doc; it was
-    seven until 2026-09-11 and any prose still saying seven is stale), or a needed
-    shared reader that is not in `lib/`, stops that module (leave it legacy and armed), reports the exact read
-    with file:line, and continues; that refusal is a success and #1930 tracks the gap. Never a private reader,
-    walk, cache, scope predicate or exemption grammar behind `defineGate`.
-  - **The receipt is a committed family test** under `tests/tooling/verify/gates/` importing every converted
-    module and asserting `verifyPolicyProofs([...])` equals `[]`, plus for each ORDINARY policy the positive
+  - **NOTHING GETS TO REFUSE TO CONVERT (owner ruling, 2026-09-12 — retires the prior STOP-IF-MISSING-KIND
+    doctrine below; source: `gate-runtime-standardization.md` §"per-conversion procedure" + `gate-runtime-read-first.md`
+    §0).** Convert it or delete it; a missing capability with two-plus consumers is BUILD work, never a parked
+    module. The old exception survives ONLY for a resource kind serving exactly one consumer (that gate's
+    private reader wearing a contract's clothes), and even there the outcome is convert-or-delete, never park.
+    **#1930 (the capability freeze) is CLOSED** — do not cite it as open tracking. A read outside the
+    **eighteen** shipped `GateResourceRequest` kinds (FROZEN — re-derive from
+    `tooling/src/verify/contract/resource-declaration.ts`, never from a doc) is a decision point, not a stop:
+    report the exact read with file:line and either build the missing capability or delete the module, never a
+    private reader, walk, cache, scope predicate or exemption grammar behind `defineGate`.
+  - **A committed family test is owed only for what a ROW CANNOT EXPRESS** (stale since Phase A: the
+    conformance stage now runs every final policy's declared `mustFlag`/`mustPass`/`mustRefuse` rows on the
+    static tier, so the legacy six-arm carry-forward is proved there, not by a hand-written suite). Write one
+    under `tests/tooling/verify/gates/` for the §4.2 identity arm through `runPolicyPass`, §4.3 grant identity,
+    the §4.5 refusal/receipt pins, and the §4.6 differential — never to re-prove a row. `mustRefuse` (§4.5b) is
+    the OPTIONAL third proof arm for a designed refusal: never empty, and each row's `expect` is
+    `messageIncludes` ONLY (no `count`/`line`/`token`). Only a lane INVENTING a new property (a cross-file
+    index, an absent-subject arm) owes a planted-break receipt: break it in a scratch copy, show the row went
+    red, restore. For each ORDINARY policy the family test also carries the positive
     identity arm (the correct marker at the reported position suppresses; shape
     `ordinary-visitors-family.test.ts:187-196` — the POSITIVE arm ONLY. **`:198-205` beside it is a dead-position
     NEGATIVE arm; §4.2 forbids copying a negative arm into a gate (under `knownPolicies: [policy]` it rides the
@@ -74,17 +87,6 @@ paths:
     Retiring a private marker vocabulary for `@orb-waive` means COUNTING the live legacy markers (count /
     files / trailing-position) and recording the census in the header; translation of product files is a
     separate lane, never yours.
-  - **Proofs: carry the legacy rows, prove identity ONCE, invent nothing you cannot break** (owner +
-    verifier, 2026-09-11). The legacy six-arm `mustFlag`/`mustPass` rows carried into the converted module
-    ARE the bite proof once `verifyPolicyProofs` runs them in a committed family test — no extra receipt.
-    The per-policy identity proof is the exemplar's POSITIVE arm only: the correct `@orb-waive <id>(<pos>)`
-    marker at the reported position suppresses (0 findings, 1 waived, 0 alarms). Wrong-policy, stale,
-    malformed and over-broad markers are the CENTRAL engine's proof (`ordinary-waiver.test.ts`), run once —
-    do not copy a negative arm into every gate; a copied one rides the unknown-policy short-circuit and
-    proves nothing. Only when a lane INVENTS a new row for a NEW property (a cross-file index, an
-    absent-subject arm) does it owe a planted-break receipt: break the property in a scratch copy, show the
-    row went red, restore. A header that claims a row proves something it was never shown to catch is a
-    defect.
   - **Contract facts that bit:** `report.node` token is an exact slice of the node text; population
     `under: ["x/"]` matches nothing (use `"x/**"`); **a population fence cannot be falsified by a fixture that admits NOTHING — the run comes
     back a `[population]` TOOL ERROR, not a finding.** A `notUnder` needs a SECOND admitted file beside the one inside
