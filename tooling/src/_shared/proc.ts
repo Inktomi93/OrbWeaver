@@ -126,12 +126,17 @@ function withCapturedStderr(error: unknown): never {
 
 /** Sync exec under `nice -n 19` — THROWS on a non-zero status (execFileSync semantics), returns stdout.
  *  The git-helper shape: an unknown ref/failed command is an exception, not a verdict. */
-export function execNicedSync(cmd: string, args: readonly string[], opts: { readonly cwd?: string } = {}): string {
+export function execNicedSync(cmd: string, args: readonly string[], opts: { readonly cwd?: string; readonly maxBuffer?: number } = {}): string {
   try {
     return execFileSync("nice", ["-n", "19", cmd, ...args], {
       encoding: "utf8",
       stdio: capturedStdio(),
       ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
+      // #2211: without this the child inherits node's ~1MiB ceiling, and execFileSync does NOT truncate at
+      // it — it KILLS the child with ENOBUFS, so a large payload turns a verdict into a tool error. Its
+      // sibling `runNicedSync` has carried this option (and the warning above it) all along; this door did
+      // not, and `runEslint`'s discovery step outgrew 1MiB unnoticed.
+      ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
     });
   } catch (error) {
     return withCapturedStderr(error);

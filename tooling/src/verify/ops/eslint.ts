@@ -66,8 +66,26 @@ export function partitionEslintFiles(paths: readonly string[], programs: readonl
   return groups;
 }
 
+/** #2211: the discovery child writes the WHOLE admitted filename population to stdout and node's ~1MiB
+ *  default does not truncate — it KILLS the child with ENOBUFS. 64MiB is what `check-gates.repo.int` already
+ *  uses for the same class of payload. A ceiling is a fuse, not a fix: if this population keeps growing, hand
+ *  the list over a file rather than raising the number again. */
+const BYTES_PER_KIB = 1024;
+const KIB_PER_MIB = 1024;
+const DISCOVERY_BUFFER_MIB = 64;
+const DISCOVERY_MAX_BUFFER_BYTES = DISCOVERY_BUFFER_MIB * KIB_PER_MIB * BYTES_PER_KIB;
+
 export async function runEslint(root: string): Promise<number> {
-  const discoveredText = execNicedSync("pnpm", ["exec", "node", DISCOVERY_ENTRY, "eslint-discovery"], { cwd: root });
+  // #2211: the discovery child writes the WHOLE admitted filename population (~2300 paths for the root
+  // program alone) to stdout. Node's ~1MiB default ceiling does not truncate — it kills the child with
+  // ENOBUFS — so at current repo size this door could no longer enumerate its own population and the
+  // whole-repo tier verdict was unobtainable. 64MiB matches what `check-gates.repo.int` already uses for
+  // the same class of payload. A ceiling is still a fuse: if this population keeps growing, hand the list
+  // over a file rather than raising the number again.
+  const discoveredText = execNicedSync("pnpm", ["exec", "node", DISCOVERY_ENTRY, "eslint-discovery"], {
+    cwd: root,
+    maxBuffer: DISCOVERY_MAX_BUFFER_BYTES,
+  });
   const discovered = parsedDiscovery(discoveredText);
   const admitted = await eslintConfiguredPaths(root, CONFIG_REL, discovered);
   if (admitted.length !== discovered.length || admitted.some((path, index) => path !== discovered[index])) {
