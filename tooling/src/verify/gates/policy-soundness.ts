@@ -24,8 +24,14 @@
 //      (`client-structure.ts:18`, `server-layout.ts:27`, `ui-exports-map-complete.ts:35`), and NOTHING
 //      enforced it. Censused 2026-09-12 at this lane's tip: every `ctx.resources.<door>(…)` in the gate
 //      corpus is already wrapped, so the class is at ZERO and this arm holds it there. The ALIAS escape is the
-//      same arm: `ctx.resources` in any position other than the receiver of a wrapped door call hands the
-//      closed host to code this reader cannot follow.
+//      same arm: binding `ctx.resources` to a name hands the closed host to code this reader cannot follow.
+//      ONE ADMITTED HAND-OFF, and it is not a softening — passing the host as an ARGUMENT to an imported
+//      `tooling/src/verify/lib/` reader that narrows it itself. `lib/config-grant-rows.ts` `readTsconfigRoster`
+//      is the live shape (both `tsconfig-entry-liveness` modules call it, and it calls `readyResourceValue` at
+//      `:86`), and a first cut of this arm ACCUSED BOTH — a correct gate accusing correct code, caught by the
+//      family's real-corpus arm rather than by any fixture. The discriminator is the callee's HOME, resolved
+//      through the alias like the guard itself: a `lib/` reader is the sanctioned shared home and lives outside
+//      this policy's population, while a LOCAL function is code this module owns and could have wrapped.
 //
 // RECORDED NON-ARMS, so nobody re-adds them: a declared-but-unread `facts:` entry is already REFUSED by the
 // dispatcher (`lib/policy-pass.ts:703` "declared facts were not consumed" withholds the consumer), and
@@ -49,6 +55,8 @@ import {
   familyFixture,
   finalProbeModule,
   HARD_TRUNK,
+  LIB_READER_PATH,
+  LIB_READER_STUB,
   RESOURCE_DECLARATION_PATH,
   RESOURCE_DECLARATION_STUB,
   TS_MORPH_TYPES_PATH,
@@ -64,6 +72,7 @@ const LOADABLE_EXTENSIONS: ReadonlySet<string> = new Set(["ts", "tsx"]);
 const RESOURCE_GUARD = "readyResourceValue";
 const RESOURCE_GUARD_HOME = "/tooling/src/verify/lib/resource-declaration.ts";
 const RESOURCE_HOST_MEMBER = "resources";
+const SHARED_READER_HOME = "/tooling/src/verify/lib/";
 
 const MESSAGE =
   "a final policy module carries something the final contract forbids (gate-runtime-standardization.md §3, §12.3): " +
@@ -77,14 +86,14 @@ const RESOURCE_MESSAGE =
   "a final policy reads the resource host without `readyResourceValue` (lib/resource-declaration.ts). A declared resource is asserted READY during the " +
   'population phase and a broken one withholds every consumer at the receipt phase, so an in-module `if (fact.status !== "ready") return;` is unreachable ' +
   "code that teaches the next conversion a silent return is the right answer to a broken resource. It is not. Wrap the door call, or — if the host is being " +
-  "aliased — stop: the closed host may not leave the call site.";
+  "handed to something else — stop: the host may only be handed whole to an imported tooling/src/verify/lib/ reader that narrows it itself.";
 const FS_MESSAGE =
   "a final policy imports the filesystem — §12.3 bans every filesystem read in a gate module; declare the read through the closed " +
   "ResourceHost vocabulary (contract/resource-declaration.ts) or STOP the conversion (a read no kind serves is a refusal, not a private door).";
 const FIX =
   "E1: delete the `ext` field. E2: replace the walk with kind-indexed visitors / `ctx.files` / a shared `lib/` reader, move state into " +
   "`create`, retire the ledger into exact grants or warning debt, delete the legacy field. E3: delete the `node:fs` import and declare a resource. " +
-  "E4: wrap the door in `readyResourceValue(ctx.resources.<door>(…))` imported from `../lib/resource-declaration.ts`, and never bind `ctx.resources` to a name.";
+  "E4: wrap the door in `readyResourceValue(ctx.resources.<door>(…))` imported from `../lib/resource-declaration.ts`, or hand `ctx.resources` whole to an imported `../lib/` reader that narrows it itself; never bind it to a name or pass it to a local function.";
 const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the import-origin recognizer ` +
   "(lib/gate-contract-origin.ts isCanonicalDefineGate) is dead, so every module would read out of scope. Refusing the run.";
@@ -117,10 +126,40 @@ function isContextResourceAccess(node: MorphNode): node is PropertyAccessExpress
   return Node.isIdentifier(receiver) && (receiver.getSymbol()?.getDeclarations() ?? []).some((declaration) => Node.isParameterDeclaration(declaration));
 }
 
-/** The ONLY admitted shape: `readyResourceValue(<ctx>.resources.<door>(…))`, with the guard resolved to its
- *  home module. Every other shape — a bare door call, a door call wrapped in something else, the host bound
- *  to a name, the host passed as an argument — answers true. */
+/** The declarations a callee identifier resolves to, following the IMPORT ALIAS. An imported name binds to an
+ *  alias symbol whose declaration is the import specifier in THIS file, so without the hop every imported
+ *  callee reads as local — which is an ACQUITTAL for the guard and an ACCUSATION for the shared reader. */
+function calleeDeclarations(callee: MorphNode): readonly MorphNode[] {
+  if (!Node.isIdentifier(callee)) {
+    return [];
+  }
+  const symbol = callee.getSymbol();
+  return symbol === undefined ? [] : (symbol.getAliasedSymbol() ?? symbol).getDeclarations();
+}
+
+function declaredUnder(declarations: readonly MorphNode[], home: string): boolean {
+  return declarations.some((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes(home));
+}
+
+/** The host handed as an ARGUMENT to an imported shared `lib/` reader, which narrows it itself. Admitted, and
+ *  narrowly: the callee must resolve THROUGH ITS IMPORT to a module under `tooling/src/verify/lib/`. A local
+ *  function of any name is not this shape, which is the row that keeps the carve from becoming a hole. */
+function handedToSharedReader(access: PropertyAccessExpression): boolean {
+  const call = access.getParent();
+  if (!(Node.isCallExpression(call) && call.getArguments().includes(access))) {
+    return false;
+  }
+  return declaredUnder(calleeDeclarations(call.getExpression()), SHARED_READER_HOME);
+}
+
+/** The ONLY admitted shapes: `readyResourceValue(<ctx>.resources.<door>(…))` with the guard resolved to its
+ *  home module, and the host handed whole to an imported `lib/` reader. Every other shape — a bare door call,
+ *  a door call wrapped in something else, the host bound to a name, the host passed to a LOCAL function —
+ *  answers true. */
 function unguardedResourceRead(access: PropertyAccessExpression): boolean {
+  if (handedToSharedReader(access)) {
+    return false;
+  }
   const door = access.getParent();
   if (!Node.isPropertyAccessExpression(door) || door.getExpression() !== access) {
     return true;
@@ -137,12 +176,7 @@ function unguardedResourceRead(access: PropertyAccessExpression): boolean {
   if (!Node.isIdentifier(callee) || callee.getText() !== RESOURCE_GUARD) {
     return true;
   }
-  // The IMPORTED name binds to an ALIAS symbol whose declaration is the import specifier in THIS file, so the
-  // alias is followed before the home is read — without it the admitted shape reads as a local lookalike and
-  // the arm accuses every correct call site.
-  const symbol = callee.getSymbol();
-  const declarations = symbol === undefined ? [] : (symbol.getAliasedSymbol() ?? symbol).getDeclarations();
-  return !declarations.some((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(RESOURCE_GUARD_HOME));
+  return !declaredUnder(calleeDeclarations(callee), RESOURCE_GUARD_HOME);
 }
 
 interface JudgedModule {
@@ -340,7 +374,7 @@ export const gate = defineGate({
           `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { const host = ctx.resources; return host; } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
         ),
       ),
-      expect: { count: 1, token: "resources", messageIncludes: "aliased" },
+      expect: { count: 1, token: "resources", messageIncludes: "may only be handed whole to an imported" },
       why: "E4 the ALIAS escape, the same defect one hop out: the closed host bound to a name leaves the call site and nothing downstream of that binding can be proven to wrap anything. Without this arm the founding row is evadable by one `const`",
     },
     {
@@ -353,6 +387,17 @@ export const gate = defineGate({
       ),
       expect: { count: 1, token: "resources" },
       why: "E4 IDENTITY, not spelling — the DISCRIMINATION control for the admitted row below. A LOCAL function named `readyResourceValue` asserts nothing about the runtime guarantee, and a name-only test would ACQUIT it. An acquittal is the failure mode this arm cannot afford, so the guard is resolved to its declaring module",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { readProbeRoster(ctx.resources); } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "function readProbeRoster(resources: unknown): unknown {\n  return resources;\n}\n",
+        ),
+      ),
+      expect: { count: 1, token: "resources" },
+      why: "E4 the CARVE'S OWN CONTROL: the host handed to a LOCAL function is not the admitted shared-reader shape. Without this row the `lib/` carve below is a hole any same-named local helper walks through, and the carve exists only because a first cut of this arm accused two CORRECT modules on the real tree",
     },
   ],
   // A refusal is the CORRECT outcome for an input that breaks a runtime guarantee, and no `mustFlag`/`mustPass`
@@ -385,6 +430,17 @@ export const gate = defineGate({
         { [RESOURCE_DECLARATION_PATH]: RESOURCE_DECLARATION_STUB },
       ),
       why: "E4 the ADMITTED shape, and the row that dies first if the arm over-reaches: the guard imported from its home module. Every resource read in the live gate corpus already takes this shape, which is what lands the arm on a fixed tree",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { readProbeRoster(ctx.resources); } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { readProbeRoster } from "../lib/probe-reader.ts";\n',
+        ),
+        { [LIB_READER_PATH]: LIB_READER_STUB, [RESOURCE_DECLARATION_PATH]: RESOURCE_DECLARATION_STUB },
+      ),
+      why: "E4 the ADMITTED HAND-OFF, taken from the live tree: `lib/config-grant-rows.ts` `readTsconfigRoster` receives the closed host and calls `readyResourceValue` itself, and both `tsconfig-entry-liveness` modules consume it. A first cut of this arm accused both — a correct gate accusing correct code — so this row is the repair's pin and the discriminator is the callee's HOME, resolved through its import exactly like the guard",
     },
     {
       mode: "types",

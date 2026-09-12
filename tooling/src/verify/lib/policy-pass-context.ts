@@ -76,7 +76,7 @@ function assertOptionalText(value: unknown, label: string): void {
   }
 }
 
-/** THE UNWAIVABLE-POSITION CLASS (#1957), and why the fence that would close it is NOT armed here.
+/** THE UNWAIVABLE-POSITION FENCE (#1957, armed on the #2107 ruling).
  *
  *  A finding's position token is the only handle an `@orb-waive` marker has on it, and the marker grammar's
  *  position group cannot hold a paren, a CR or an LF ({@link isWaivablePosition}, the ONE home of that rule).
@@ -84,20 +84,37 @@ function assertOptionalText(value: unknown, label: string): void {
  *  `malformed`, so the policy's own `fix` string — "write an adjacent `@orb-waive <id>(<position>)`" —
  *  instructs the reader to do something the parser refuses.
  *
- *  The DERIVED path below already obeys the rule: `derivedNodePosition` skips any candidate carrying one. The
- *  EXPLICIT `{ token, offset }` path and `report.file`'s `token` do not, and that asymmetry is the class.
+ *  The DERIVED path below always obeyed the rule: `derivedNodePosition` skips any candidate carrying one. The
+ *  EXPLICIT `{ token, offset }` path and `report.file`'s `token` did not, and that asymmetry WAS the class.
  *
- *  THE FENCE WAS BUILT, ARMED ONCE AND DELIBERATELY NOT SHIPPED, because the run it produced is the finding:
- *  `pnpm check:policy-conformance` at this lane's tip named FIVE live rows in THREE policies that mint
- *  positions the grammar cannot hold — `no-raw-color-in-css` mustFlag[1] (`oklch(0.5 0.2 30)`, ORDINARY),
- *  `no-tailwind-dark-variant` mustFlag[13]/[14] (`[&:where(.x:y)]:dark:bg-card` and
- *  `supports-[selector(:has(*))]:dark:text-foreground`, ORDINARY) and `rest-transform-grid` mustFlag[4]/[6]
- *  (`translateX(-0.5px)`, hard, so latent rather than live). Those anchors are deliberate and correct about
- *  their SUBJECT — the defect is that the waiver grammar cannot express the subject — so the repair is a fork
- *  between narrowing three foreign policies' anchors (losing report precision) and widening the marker
- *  grammar to hold a quoted position. That decision is not this lane's, and arming a fence that reds two
- *  correct policies is not a fixed tree. The predicate stays here as the one home; the arming waits on the
- *  ruling. */
+ *  THE ORDER MATTERED AND IS RECORDED. The fence was built, armed once against the live corpus, and held back
+ *  because that run WAS the finding: it named five rows in three policies minting positions the grammar
+ *  cannot hold (`no-raw-color-in-css` mustFlag[1] `oklch(0.5 0.2 30)`, ORDINARY · `no-tailwind-dark-variant`
+ *  mustFlag[13]/[14], ORDINARY · `rest-transform-grid` mustFlag[4]/[6], hard and therefore latent). Owner
+ *  ruling #2107 (2026-09-12) took neither "narrow the anchor" nor "widen the grammar" but the arm the law
+ *  already described (guide §3): the value stays the CARRIER and moves into the MESSAGE, while the COORDINATE
+ *  narrows to its leading paren-free slice through `waivableCoordinate`. Those three landed FIRST, in this
+ *  commit, so the fence goes up on a tree where nothing correct reds.
+ *
+ *  It is a THROW rather than a silent drop because a policy that cannot express its own position has a defect
+ *  in its ANCHORING, not in its subject, and `lib/caught-failure.ts` is the worked answer (`anchorWithin` /
+ *  `calleeAnchorCandidates` / `firstAnchor` / `catchAnchor` take the widest candidate the grammar can hold and
+ *  fall back to the member NAME when a chain spans lines). A policy needing an exact-slice position CONSUMES
+ *  that; it never re-derives one. The fence binds regardless of AUTHORITY: a hard policy's findings are
+ *  unwaivable anyway, but authority is a field an owner can change, and a position minted under `hard` would
+ *  become silently unanswerable the day it flips — which is exactly why `rest-transform-grid` was repaired
+ *  alongside the two ordinary ones instead of being left as a declared limit. */
+function assertWaivablePosition(token: string, label: string): string {
+  if (!isWaivablePosition(token)) {
+    throw new Error(
+      `${label} ${JSON.stringify(token)} cannot be named by an @orb-waive marker: the position grammar admits no parenthesis, CR or LF, ` +
+        "so the finding would be permanently unwaivable. Keep the value as the CARRIER and in the MESSAGE, and hand back its leading " +
+        "paren-free slice as the COORDINATE (lib/ordinary-waiver.ts waivableCoordinate; guide §3, #2107).",
+    );
+  }
+  return token;
+}
+
 function requiredText(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`${label} must be a nonempty string`);
@@ -352,7 +369,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     }
     let anchoredToken: string;
     if (token !== undefined && offset !== undefined) {
-      anchoredToken = requiredText(token, "node finding token");
+      anchoredToken = assertWaivablePosition(requiredText(token, "node finding token"), "node finding token");
       const text = node.getText();
       if (
         !(
@@ -382,6 +399,9 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     exactKeys(details, FILE_DETAIL_KEYS, "file finding");
     findingDetails(details);
     assertOptionalText(details.token, "finding token");
+    if (details.token !== undefined) {
+      assertWaivablePosition(details.token, "finding token");
+    }
     input.findings.push(
       appendDetails({ file: path, line: assertCoordinate(details.line, "finding line"), column: assertCoordinate(details.column, "finding column") }, details),
     );

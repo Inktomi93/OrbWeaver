@@ -23,12 +23,32 @@
 // every consumer, both before `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready
 // branch: it reads the CSS inventory through `readyResourceValue`, whose throw is an assertion that the
 // runtime's own refusal already held.
+//
+// THE CARRIER / COORDINATE SPLIT (#2107 arm c, ruled 2026-09-12; guide §3). A functional color's own text
+// carries parentheses, and the `@orb-waive` position grammar admits none — so until this commit the `fix`
+// string below instructed a reader to write a marker that the parser rejects as `malformed`, and every
+// `oklch(…)`/`rgb(…)` finding was PERMANENTLY UNWAIVABLE while reading like an ordinary one. The repair is
+// neither a wider grammar nor a narrower subject: the whole value stays the CARRIER and is named in the
+// MESSAGE, while the COORDINATE handed to `report.file` is the value's leading paren-free slice. `#ff0000`
+// is already anchorable and keeps its whole self, so nothing that worked before loses precision.
+//
+// THE COST, CHECKED AND STATED (finding granularity = waiver granularity). A resource marker's carrier is
+// exactly the NEXT LINE (`lib/ordinary-waiver.ts` `followingResourceCarrier`), and candidates are the
+// findings in that carrier whose token equals the marker position. So two functional colors OF THE SAME
+// FUNCTION on ONE authored line now share a coordinate and every marker over them is `over-broad` — a LOUD
+// authority alarm, never a silent pass — where before they were unwaivable by paren anyway. Two colors of
+// DIFFERENT functions on one line stay separately waivable, and so do two hex values. The pre-existing
+// collision (the identical value twice on one line) is unchanged. The author's repair is to put the two
+// declarations on separate lines, which the alarm names.
 import { defineGate } from "../contract/policy.ts";
+import { waivableCoordinate } from "../lib/ordinary-waiver.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const GENERATED_THEME = "packages/ui/src/styles/theme.css";
 const MESSAGE =
   "raw color literal in CSS (UI-Architecture-and-Layout.md / D43) — use a var(--color-*) token or a token-derived relative color; raw literals live only in generated theme.css.";
+/** The whole raw value, named in the MESSAGE because the position can no longer carry it. */
+const valueMessage = (value: string): string => `${MESSAGE} Raw value: \`${value}\`.`;
 const HEX_RE = /#[0-9a-fA-F]{3,8}\b/u;
 const COLOR_FN_RE = /\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\s*\(/u;
 
@@ -57,6 +77,16 @@ function rawColor(value: string): boolean {
   return HEX_RE.test(authored) || (COLOR_FN_RE.test(authored) && !authored.includes("var(--"));
 }
 
+/** The COORDINATE for one raw value, through the grammar's own shared reader. A value with no anchorable
+ *  head at all REFUSES rather than reporting an unnameable finding. */
+function valueCoordinate(value: string): string {
+  const coordinate = waivableCoordinate(value);
+  if (coordinate === undefined) {
+    throw new Error(`raw color value has no anchorable coordinate: ${value}`);
+  }
+  return coordinate;
+}
+
 function valuePosition(text: string, declarationOffset: number, value: string): { readonly line: number; readonly column: number } {
   const offset = text.indexOf(value, declarationOffset);
   if (offset === -1) {
@@ -80,8 +110,9 @@ export const gate = defineGate({
   message: MESSAGE,
   fix:
     "use a var(--color-*) token or oklch(from var(--color-*) l c h / α). A deliberate site is waived with " +
-    "`@orb-waive no-raw-color-in-css(<position>): <reason>` on the line above, where <position> is the " +
-    "WHOLE raw color value text itself (e.g. `#ff0000`, `oklch(0.5 0.2 30)`).",
+    "`@orb-waive no-raw-color-in-css(<position>): <reason>` on the line above, where <position> is the value's " +
+    "own text when it has no parenthesis (`#ff0000`) and its leading function name when it does (`oklch`) — the " +
+    "waiver grammar admits no parenthesis, so the full value is in the finding's message rather than its position.",
   create: (ctx) => ({
     evaluate: () => {
       const inventory = readyResourceValue(ctx.resources.cssInventory("authored"));
@@ -93,7 +124,8 @@ export const gate = defineGate({
           }
           ctx.report.file(declaration.file, {
             ...valuePosition(source.text, declaration.offset, declaration.value),
-            token: declaration.value,
+            token: valueCoordinate(declaration.value),
+            message: valueMessage(declaration.value),
           });
         }
       }
@@ -106,8 +138,8 @@ export const gate = defineGate({
         "packages/client/src/features/x/x.css": ".a {\n  color: #ff0000;\n}\n",
         "packages/ui/src/styles/clean.css": ".clean { color: var(--color-foreground); }\n",
       },
-      expect: { count: 1, line: 2, token: "#ff0000" },
-      why: "one raw declaration produces one exact declaration finding",
+      expect: { count: 1, line: 2, token: "#ff0000", messageIncludes: "Raw value: `#ff0000`" },
+      why: "one raw declaration produces one exact declaration finding, and a hex value is its own coordinate — the #2107 split costs a paren-free value nothing",
     },
     {
       mode: "resource",
@@ -115,8 +147,8 @@ export const gate = defineGate({
         "packages/client/src/styles/clean.css": ".clean { color: var(--color-foreground); }\n",
         "packages/ui/src/x/x.css": ".a { background: oklch(0.5 0.2 30); }\n",
       },
-      expect: { count: 1, token: "oklch(0.5 0.2 30)" },
-      why: "raw functional color outside generated theme.css",
+      expect: { count: 1, token: "oklch", messageIncludes: "Raw value: `oklch(0.5 0.2 30)`" },
+      why: "raw functional color outside generated theme.css, WAIVABLE (#2107 arm c): the coordinate is the paren-free leading slice the marker grammar can hold, and the whole value is in the message. Before this split the position was `oklch(0.5 0.2 30)` and every marker naming it parsed malformed",
     },
   ],
   mustPass: [

@@ -26,6 +26,7 @@ import { Scanner } from "@tailwindcss/oxide";
 import type { Node } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import { waivableCoordinate } from "../lib/ordinary-waiver.ts";
 import type { RuntimeClassPrefix, StaticClassCandidate, StaticClassSegment } from "../lib/static-class-expression.ts";
 import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
 
@@ -161,7 +162,23 @@ function runtimeToken(value: RuntimeClassPrefix): AnchoredToken | undefined {
 function reportAnchored(report: GatePolicyContext["report"], anchored: AnchoredToken): void {
   const text = anchored.node.getText();
   if (text.slice(anchored.offset, anchored.offset + anchored.token.length) === anchored.token) {
-    report.node(anchored.node, { token: anchored.token, offset: anchored.offset });
+    // THE CARRIER / COORDINATE SPLIT (#2107 arm c, guide §3). An arbitrary-variant class carries parentheses
+    // (`[&:where(.x:y)]:dark:bg-card`, `supports-[selector(:has(*))]:dark:…`) and the `@orb-waive` position
+    // grammar admits none, so naming the whole candidate made the finding PERMANENTLY UNWAIVABLE while this
+    // ordinary policy's `fix` string promised otherwise. The node stays the carrier, the coordinate narrows to
+    // the candidate's leading paren-free slice at the SAME offset, and the whole candidate goes in the message.
+    // A paren-free candidate is returned unchanged, so `dark:bg-card` and `hover:dark:text-foreground` are
+    // untouched — the split can only ever collide two candidates that both contain a paren, i.e. two that were
+    // already unwaivable.
+    const coordinate = waivableCoordinate(anchored.token);
+    if (coordinate === undefined) {
+      throw new Error(`dark-variant candidate has no anchorable coordinate: ${anchored.token}`);
+    }
+    report.node(anchored.node, {
+      token: coordinate,
+      offset: anchored.offset,
+      ...(coordinate === anchored.token ? {} : { message: `${MESSAGE} Token: ${anchored.token}.` }),
+    });
     return;
   }
   // A candidate that spans a resolved template/concatenation substitution carries an EVALUATED value; the
@@ -334,16 +351,16 @@ export const x = <div className={\`dark:\${tone}\`} />;
     {
       mode: "source",
       files: { "packages/ui/src/x.tsx": 'export const A = <div className="[&:where(.x:y)]:dark:bg-card" />;\n' },
-      expect: { count: 1, token: "[&:where(.x:y)]:dark:bg-card" },
-      why: "a top-level dark segment stays exact across bracket/paren/colon nesting inside :where()",
+      expect: { count: 1, token: "[&:where", messageIncludes: "Token: [&:where(.x:y)]:dark:bg-card." },
+      why: "a top-level dark segment stays exact across bracket/paren/colon nesting inside :where(), and the finding is WAIVABLE (#2107 arm c): the coordinate is the candidate's leading paren-free slice at the same offset while the whole candidate is named in the message. Before this split the position was the parenthesised candidate and every marker naming it parsed malformed",
     },
     {
       mode: "source",
       files: {
         "packages/ui/src/x.tsx": 'export const A = <div className="supports-[selector(:has(*))]:dark:text-foreground" />;\n',
       },
-      expect: { count: 1, token: "supports-[selector(:has(*))]:dark:text-foreground" },
-      why: "a top-level dark segment stays exact across bracket/paren/colon nesting inside an @supports arbitrary selector",
+      expect: { count: 1, token: "supports-[selector", messageIncludes: "Token: supports-[selector(:has(*))]:dark:text-foreground." },
+      why: "a top-level dark segment stays exact across bracket/paren/colon nesting inside an @supports arbitrary selector, WAIVABLE by the same #2107 split — and the second shape proves the coordinate is the leading slice of THIS candidate rather than a fixed prefix",
     },
   ],
   mustPass: [
