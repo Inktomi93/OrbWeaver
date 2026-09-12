@@ -5,6 +5,15 @@
 // the shared origin reader, so an alias, a namespace member and a bracket read are the same table while a
 // same-named export elsewhere is not; the write method is read the same way. Limits live in mustPass.
 //
+// BOTH THE IMPORT AND THE WRITE ARM FAIL CLOSED, and until #2057 only the import arm did. The write arm
+// read the sealed verdict RAW (`kind === "sealed"`) and was SILENT on `unreadable`, so an insert through a
+// door nobody can read walked the chokepoint while this header already claimed the write method was "read
+// the same way". The claim was right and the code was not: both arms now route through
+// `sealedOriginReports`, and the write arm's unreadable answer carries its own disjoint text
+// (`UNREADABLE_WRITE`) so the two verdicts are told apart by a `messageIncludes` row rather than by a count.
+// The bare-identifier branch gained the NAME PREFILTER that fail-closure structurally requires
+// (`lib/origin-verdict.ts`) — it had none, because before this it only ever acquitted.
+//
 // FAMILY `vector-scope-derived` — a declared SINGLETON. It is a THREE-ARM policy (import · write · cosine)
 // over one substrate, and no sibling shares an arm; `lib/sealed-origin.ts` and `lib/reference-fact.ts` are
 // shared readers, which guide §3 says is not a family.
@@ -16,6 +25,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { referenceNamesExport } from "../lib/origin-verdict.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
@@ -56,6 +66,13 @@ const MESSAGE =
   "discovery is in-RAM pairwiseCosine, memory delegates to the injected searchDigests op) — D20; " +
   "Knowledge-Cluster.md inv 1-2.";
 
+/** THE FAIL-CLOSED THIRD ANSWER (#944) on the WRITE arm, a SEPARATE text rather than a `${MESSAGE} …`
+ *  suffix: the unreadable arm reports the SAME single finding under the SAME token as the sealed verdict
+ *  and differs ONLY in message, so a shared prefix would leave both arms unpinnable in either direction
+ *  (guide §4.1). The two texts share no fragment — `MESSAGE` contains no "CANNOT be established". */
+const UNREADABLE_WRITE =
+  "an insert/update/delete is aimed at an argument SPELLED like one of the six vector tables whose declaration cannot be read, so whether this write lands on the vector substrate CANNOT be established. Reported rather than admitted by a broken door: a chokepoint an unreadable barrel can walk through is not one (D20; Knowledge-Cluster.md inv 1-2).";
+
 const FIX =
   "go through the ONE search engine with a mandatory producer scope; writes are embeddings.store lens " +
   "arms, cosine is search/persistence's alone (D20). A deliberate site is waived with `@orb-waive " +
@@ -81,18 +98,39 @@ function vectorCandidate(node: MorphNode): { readonly name: string; readonly anc
   return member.kind === "resolved" && VECTOR_TABLE_HOME.exportedNames.has(member.value.name) ? { name: member.value.name, anchor: node } : null;
 }
 
-/** Is this expression a vector table, in any spelling? A bare identifier bound to a vector-table import is
- *  the same table as the namespace member and the bracket read. */
-function vectorTableArgument(argument: MorphNode): string | null {
-  const candidate = vectorCandidate(argument);
-  if (candidate !== null) {
-    return readSealedOrigin(candidate.anchor, VECTOR_TABLE_HOME).kind === "sealed" ? candidate.name : null;
-  }
-  if (!Node.isIdentifier(argument)) {
+/** Does this bare reference NAME one of the six tables — through an import ALIAS or a const-alias hop as
+ *  well as directly? THE MANDATORY COMPANION OF FAIL-CLOSURE (`lib/origin-verdict.ts`): the member/import
+ *  spellings are prefiltered by `vectorCandidate`, and the bare-identifier spelling had no gate at all
+ *  because it only ever ACQUITTED. Fail-closing it without one would turn every unreadable argument of
+ *  every insert/update/delete in `@server` into an accusation. */
+function namesVectorTable(node: MorphNode): boolean {
+  return [...VECTOR_TABLE_HOME.exportedNames].some((name) => referenceNamesExport(node, name));
+}
+
+/** Is this write aimed at a vector table? The NAME is the candidate gate; the shared DECISION is the
+ *  verdict. A proven seal and an UNREADABLE door both report — differing only in message — while a `foreign`
+ *  origin and a reference that provably binds something else (a local object, a project interface's
+ *  property) are not subjects.
+ *
+ *  THE WRITE ARM USED TO READ THE VERDICT RAW (`kind === "sealed"`) and was SILENT on `unreadable`, so a
+ *  write through a door nobody can read walked the chokepoint while the header claimed the write method was
+ *  "read the same way" as the import arm (#2057). That is a FOURTH polarity the guide's §4.6 table did not
+ *  name: not accusing-with-verdict, not accusing-with-decision, not the acquitting shape — an ACCUSING arm
+ *  whose predicate is an identity ACQUITTAL, which fails OPEN exactly where the import arm fails closed. */
+function writeVerdict(anchor: MorphNode): "sealed" | "unreadable" | null {
+  const verdict = readSealedOrigin(anchor, VECTOR_TABLE_HOME);
+  if (!sealedOriginReports(verdict, anchor)) {
     return null;
   }
-  const verdict = readSealedOrigin(argument, VECTOR_TABLE_HOME);
-  return verdict.kind === "sealed" ? verdict.exportedName : null;
+  return verdict.kind === "sealed" ? "sealed" : "unreadable";
+}
+
+function vectorTableWrite(argument: MorphNode): "sealed" | "unreadable" | null {
+  const candidate = vectorCandidate(argument);
+  if (candidate !== null) {
+    return writeVerdict(candidate.anchor);
+  }
+  return Node.isIdentifier(argument) && namesVectorTable(argument) ? writeVerdict(argument) : null;
 }
 
 export const gate = defineGate({
@@ -141,10 +179,11 @@ export const gate = defineGate({
               return;
             }
             const argument = node.getArguments()[0];
-            const table = argument === undefined ? null : vectorTableArgument(argument);
-            if (table !== null) {
+            const target = argument === undefined ? null : vectorTableWrite(argument);
+            if (target !== null) {
               const nameNode = callee.value.nameNode;
-              ctx.report.node(nameNode, { token: callee.value.name, offset: nameNode.getText().indexOf(callee.value.name) });
+              const details = { token: callee.value.name, offset: nameNode.getText().indexOf(callee.value.name) };
+              ctx.report.node(nameNode, target === "unreadable" ? { ...details, message: UNREADABLE_WRITE } : details);
             }
           },
         },
@@ -235,6 +274,16 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: COSINE },
       why: "the BRACKET-SPELLED cosine call flags EXACTLY ONCE, and that count is the receipt for `LITERAL_KINDS` (w9 :262, #2046) — the ElementAccessExpression carries the string literal as its own child, so the literal arm already reaches it. Adding the member-access kinds to the subscription makes the wrapper node report a SECOND finding at the same site, which the count-1 expectation reds: a double report is one occurrence the author cannot waive, because two findings sharing a carrier and a token make every marker over-broad",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/embeddings.ts": 'export const chatDigests = { name: "chat_digests" };\n',
+        "packages/server/src/domain/search/persistence/unreadable-write.ts":
+          'import { chatDigests } from "./missing.ts";\nexport const w = (db: { insert: (t: unknown) => void }): void => db.insert(chatDigests);\n',
+      },
+      expect: { count: 1, token: "insert", messageIncludes: "CANNOT be established" },
+      why: 'THE FAIL-CLOSED THIRD ANSWER (#944) ON THE WRITE ARM, and this row REPLACES one that asserted the opposite (#2057). Its predecessor was a mustPass whose `why` called the acquittal a DECLARED LIMIT — but the module header claims the write method is read the SAME WAY as the import arm, and the import arm fails CLOSED, so the limit was a fail-OPEN wearing a limit\'s clothes: a write through a door nobody can read walked the chokepoint. The file is a SANCTIONED IMPORTER, so the import arm abstains and the bare-identifier write branch is the only one speaking — which is what makes this a clean single-arm receipt. The `messageIncludes` is load-bearing: the unreadable arm emits the SAME one finding under the SAME `insert` token as the sealed verdict, so a bare `{ count: 1, token }` would pass identically whether the arm fired or was failed open, and `MESSAGE` contains no "CANNOT be established" fragment for it to match by accident',
     },
   ],
   mustPass: [
@@ -333,10 +382,18 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "packages/db/src/schema/embeddings.ts": 'export const chatDigests = { name: "chat_digests" };\n',
-        "packages/server/src/domain/search/persistence/unreadable-write.ts":
-          'import { chatDigests } from "./missing.ts";\nexport const w = (db: { insert: (t: unknown) => void }): void => db.insert(chatDigests);\n',
+        "packages/server/src/domain/search/persistence/unreadable-other.ts":
+          'import { chatSummaries } from "./missing.ts";\nexport const w = (db: { insert: (t: unknown) => void }): void => db.insert(chatSummaries);\n',
       },
-      why: 'DECLARED LIMIT, and the receipt for the WRITE arm\'s `verdict.kind === "sealed"` ASYMMETRY (w9 :262, #2046). The IMPORT arm fails CLOSED through `sealedOriginReports`, so an unreadable door reports there; the WRITE arm asks the opposite question — *is this argument PROVABLY the vector table* — and only a proven seal makes a call a vector write. This file is a sanctioned IMPORTER, so the import arm abstains and the bare-identifier write branch is the only one left; relaxing `=== "sealed"` to `!== "foreign"` turns an unreadable door into a proven write and reds this row',
+      why: "THE MANDATORY COMPANION OF THE WRITE ARM'S FAIL-CLOSURE (#2057) — an insert through an equally unreadable door whose argument is NOT spelled like any of the six tables. `lib/origin-verdict.ts` states the rule and the live measurement behind it: fail-closed reporting is correct for a CANDIDATE whose identity cannot be read, and applied to every node of a kind it converts each unreadable node into an accusation. The bare-identifier branch had no gate at all because it only ever ACQUITTED; closing it without `referenceNamesExport` makes every unreadable write argument in `@server` a finding, and dropping the prefilter reds this row",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/search/persistence/local-table.ts":
+          "const chatDigests = { rows: [] as readonly unknown[] };\nexport const w = (db: { insert: (t: unknown) => void }): void => db.insert(chatDigests);\n",
+      },
+      why: 'THE REFUSAL SCOPING on the write arm (#2057) — a LOCAL const SPELLED exactly like a sealed table, so it clears the name prefilter and is still NOT A SUBJECT: it provably binds a local declaration rather than an unreadable module door. This is the write-arm twin of the `local-bag.ts` row the import arm carries, and the reason the fail-closure goes through `sealedOriginReports` rather than through `verdict.kind !== "foreign"` — relaxing the decision to the raw verdict reds this row',
     },
   ],
 });
