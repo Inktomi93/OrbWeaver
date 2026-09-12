@@ -36,6 +36,20 @@
 // The REAL-TREE ANCHOR guards both arms off a mini fixture run, where every subject would falsely "prove"
 // itself dead. It is also the anchor both findings report on, because neither has a node when it fires:
 // a table that is not declared has no declaration to point at, and a tree with no writers has no write.
+//
+// FAMILY `freeze-provenance` — the shared reader is `lib/freeze-provenance.ts` (`GUARDED_TABLE` and the
+// `CONTENT`/`RAW`/`FREEZES` triple, `WRITE_POPULATION`, `guardedTableVerdict` and `writeChainVerdict`).
+// The family exists for one reason and the reader's header states it: a two-sided ratchet is only a ratchet
+// while both halves answer "is this write OURS" with the SAME predicate, and two copies of a table-identity
+// reader drift apart while each module's own proofs stay green.
+// POPULATION PORT: INHERITED, not ported — this half has no legacy population of its own. It declares
+// `WRITE_POPULATION` (the same constant, not a copy of its value) precisely so the guarded writer set
+// cannot differ between the halves; the port of that constant, including the one-package narrowing and its
+// measurement, is recorded once beside the constant in `lib/freeze-provenance.ts`.
+// LEGACY SHA: NONE, and none is possible. This module was BORN FINAL at `5c17068b7`, the commit that split
+// it out of the occurrence policy — `git show 5c17068b7^:<this file>` refuses with "exists on disk, but not
+// in 5c17068b7^", and that refusal is the receipt (the `scrubber-factory-home` precedent). The occurrence
+// half cites `5c17068b7^` for the legacy module both came from.
 
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

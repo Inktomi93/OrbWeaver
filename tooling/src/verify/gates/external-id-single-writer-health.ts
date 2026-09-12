@@ -35,7 +35,16 @@
 // suppression vocabulary for a dead carve-out or a broken caller either (its `finalize` unconditionally
 // reported), so `hard` preserves rather than escalates the legacy behavior.
 // COMMENT POSTURE: comment-SAFE — pure node-kind subscription, no file text is matched.
-// LEGACY SHA: (35bf7d328^) — the parent of the commit that split this policy out.
+// LEGACY SHA: (35bf7d328^) — the parent of the commit that split this policy out. Note what that sentence
+// is doing, because it is the `contract-banned-shapes` shape and not a mis-assignment: THIS FILE DOES NOT
+// EXIST AT THE CITED SHA. It was BORN FINAL at `35bf7d328` (`git show 35bf7d328^:<this file>` refuses with
+// "exists on disk, but not in 35bf7d328^" — that refusal is the receipt), so the sha names the LEGACY
+// MODULE this half was split out of, never this file's own predecessor.
+// POPULATION PORT: INHERITED, not ported. This half never had a legacy population of its own; it declares
+// `@server` because its occurrence sibling does, and the two MUST be identical — a two-sided ratchet is
+// only a ratchet while both halves judge the same writer set. The legacy predicate behind that `@server`
+// is the sibling's `scanRoot: (p) => p.startsWith("packages/server/src/")`, byte-identical, recorded in
+// `external-id-single-writer.ts`.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import {

@@ -27,7 +27,24 @@
 //
 // The legacy `no-raw-typography-in-features` descriptor (d6f36904fa6946238678e61760888aaf62ba0c93) ran a
 // hand-rolled allowlist sweep before this migration moved the raw-CSS-literal-in-features family onto
-// the shared `lib/sanctioned-home.ts` reader.
+// the shared `lib/sanctioned-home.ts` reader. That sha is the CONVERSION PARENT, verified rather than
+// assumed: `git log -S 'defineGate({' --reverse -- <this file>` gives `99b7429e2`, and
+// `git rev-parse 99b7429e2^` IS `d6f36904fa6946238678e61760888aaf62ba0c93`, whose blob has `defineGate`
+// count 0. It is spelled here in the 40-char form without a caret, which is one of the spellings a
+// length-pinned census pattern drops.
+//
+// FAMILY `raw-typography-tier` — a two-member SPLIT family with TWO shared `lib/` modules that are
+// different kinds of thing, as the `-health` twin's header states in full: the shared READER is
+// `lib/sanctioned-home.ts` (`sanctionedHome` here, `unresolvedSanctionedHomeKeys` there) and the shared
+// TABLE is `lib/raw-typography-tier.ts#SANCTIONED_HOMES`. The table moved out of THIS module on 2026-09-12
+// because the twin used to import it from here, which #2096 / §12.3 banned.
+// POPULATION PORT: byte-identical. The legacy `scanRoot: (p) => SCOPE_REGEX.test(`/${p}`)` with
+// `SCOPE_REGEX = /\/packages\/(?:client|ui)\/src\//` becomes `["@client", "@ui"]` =
+// `packages/client/src/` + `packages/ui/src/`. The only change is that a regex matching the segment
+// ANYWHERE in a path becomes two anchored roots, and that distinction is empty on this tree: 1324 tracked
+// paths contain `packages/client/src/` and the same 1324 begin with it; 399 and 399 for
+// `packages/ui/src/`. The sanctioned tier home stays SCANNED rather than scoped out, exactly as
+// legacy had it — an excluded home carries its exemption silently through a rename.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
