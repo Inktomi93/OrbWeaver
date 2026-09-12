@@ -40,8 +40,16 @@
 //
 // §4.1 NARROWING MATRIX, measured 2026-09-12 by cutting each fence OPEN in a scratch copy and re-running
 // this module's own rows:
-//   factory-name `infiniteQueryOptions`     → RED ×2 (the `queryOptions` row; and the arm rows, which lose
-//                                              their cap once every member call is a factory)
+//   factory-name `infiniteQueryOptions`     → RED ×3 (the `queryOptions` row; and the two ARM rows, which
+//                                              lose their cap once every member call is a factory and the
+//                                              lens branch stops being reached)
+//     MATRIX CORRECTION (#2087, 2026-09-12). This cell read "RED ×2 (the `queryOptions` row; and the arm
+//     rows)" and BOTH halves of that sentence were false of the tree: measured, the cut reddened
+//     `mustFlag[4]`/`[5]` ONLY, and `mustPass[3]` — the row whose own `why` promised it dies under this
+//     exact cut — stayed GREEN, because its fixture carried no `maxPages` and so produced no subject on
+//     either side of the cut. A fixture that cannot reach the fence measures the FIXTURE, not the fence
+//     (§4.1). The row now carries a cap, so the factory name is the only thing standing between it and a
+//     finding, and the count above is the re-measured one.
 //   property-access receiver                → RED ×1 (the bare-call row)
 //   `neverRewinds`                          → RED ×3 (the real-rewind row, the reshape row, the ARM-B row)
 //   `LENS_METHODS` membership               → RED ×1 (the `.map` reshape row)
@@ -319,8 +327,10 @@ export const gate = defineGate({
     },
     {
       mode: "source",
-      files: { "packages/client/src/features/character/hooks/use-one.ts": "export const q = (trpc) => trpc.character.get.queryOptions({ id });\n" },
-      why: 'THE FACTORY-NAME NARROWING, pinned, and a DECLARED LIMIT besides: a non-infinite query has no pages to window. Cutting the `callee.getName() === "infiniteQueryOptions"` test (admitting every member call) turns this red',
+      files: {
+        "packages/client/src/features/character/hooks/use-one.ts": "export const q = (trpc) => trpc.character.get.queryOptions({ id }, { maxPages: 5 });\n",
+      },
+      why: 'THE FACTORY-NAME NARROWING, pinned, and a DECLARED LIMIT besides: a non-infinite query has no pages to window, so a `maxPages` left behind by a migration off `infiniteQueryOptions` is inert and is not this policy\'s offense. Cutting the `callee.getName() === "infiniteQueryOptions"` test (admitting every member call) turns this red — measured 2026-09-12. THE CAP IS WHAT MAKES THE ROW DISCRIMINATE (#2087): without it the fixture produced no subject under the cut either, and the row was green for a reason unrelated to the factory name while its `why` claimed otherwise',
     },
     {
       mode: "source",
