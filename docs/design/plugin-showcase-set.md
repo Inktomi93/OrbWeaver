@@ -38,20 +38,20 @@ vocabulary arm.
 
 ## §2 Ground truth the design is built on (recon receipts)
 
-| Fact | Receipt | |
-| - | - | - |
-| The full API is landed: 20 capabilities / 33 gated host fns incl. U5–U8 (commands+typed args, toast, dialog, page, footer, display transforms, macros, frame, pubsub, ingest ×2, card\_state) | `packages/contracts/src/plugin/manifest.ts:13-64` · `host-v1.ts:489-548` | |
-| Adding a seeded plugin = source dir + one tuple member; the packer + `pnpm plugin:pack` + the seeder all derive from `EXAMPLE_PLUGIN_SLUGS` | `seed-example-plugins.ts:38` · `seed-assets/index.ts:88-108` · `scripts/pack-plugin.ts` | |
-| A STATIC surface's collection nodes are SPEC-fixed in cardinality; `setState` feeds values only — ghost tiles render for unresolved bindings (no skip in `SurfaceGrid` or `MediaTileGrid`) | `contracts/plugin/ui.ts:441-465` · `features/plugin/components/plugin-browse-nodes.tsx:53-71` · `ui/src/primitives/media-tile-grid/media-tile-grid.tsx:110-121` | |
-| A SCRIPTED surface renders dynamic trees but CANNOT fire effects: events go only into `ui.js`; the proxy tuple is reads + 2 KV planes (no fetch, no ingest) | `plugin-scripted-surface.tsx:144-146` · `host-v1.ts:624-634` | |
-| A `message-footer` spec must be STATIC (bound specs are skipped at the mount) and decoration-only — per-row facts are inexpressible | `plugin-message-footer-surfaces.tsx:57-66` · `ui.ts:220-244` | |
-| A pubsub subscriber is invoked with a NULL chat scope — no `chat.current()`, no room writes; per-install state + global `setState` only | `domain/plugin/substrate/plugin-event-bus.ts:61-63` | |
-| The U7 frame's host-call bridge is UNWIRED at every mount (`hostCall` prop never passed) — a frame is self-contained pixels; theme reaches it as exactly `--sandbox-bg`/`--sandbox-fg` + the font | `plugin-frame.tsx:59-98` + zero `hostCall` call sites · `ui/src/content/sandbox-frame/use-sandbox-theme.ts:17-22` | |
-| Tier-C guest surface: `orb.ui(1)` = version/grants/clock/random/log/render/onEvent/host.{chat×2,variables×3,storage×4}; the event payload is \`{surfaceId, event: {type:"action",actionId} | {type:"field",name,value}, values}\` | `ui-guest-realm.ts:150-238` · `ui-guest.worker.ts:143-156` |
-| `host-v1.d.ts` does not exist anywhere on the tree (git ls-files + rg --files, both empty) | absence check 2026-08-28 | |
-| `character.ingest` consumes `parseCardJson`, which accepts the minimal canonical `{data:{…}}` shape (defaults applied; repair-then-validate) | `domain/import/substrate/card.ts:131-160` | |
-| **Live sources (probed 2026-08-28):** Character Tavern search `GET character-tavern.com/api/search/cards?q&page` (Meilisearch hits/totalHits/totalPages) + detail `GET /api/character/:author/:slug` returning full `definition_*` fields; RisuRealm search `GET realm.risuai.net/__data.json?search=` (devalue-flattened, 57 KB « the 1 MiB plugin cap) + documented download `GET /api/v1/download/json-v3/:id`; **chub.ai geo-blocks this box** ("not available in your country") | probes in lane log; legacy adapters `legacy-main:packages/server/src/infra/network/hubs/{chartavern,risurealm}.ts` | |
-| The legacy hub's PROVEN logic to carry as semantics: the chartavern `definition_*`→canonical `{data:{…}}` reshape (deterministic key order ⇒ stable importHash), its two-mapper search/detail split, the realm devalue un-flatten + compact-count parse, cheapest-first admission | legacy files above, re-probed against today's wire | |
+| Fact | Receipt |
+| - | - |
+| The full API is landed: 20 capabilities / 33 gated host fns incl. U5–U8 (commands+typed args, toast, dialog, page, footer, display transforms, macros, frame, pubsub, ingest ×2, card_state) | `packages/contracts/src/plugin/manifest.ts:13-64` · `host-v1.ts:489-548` |
+| Adding a seeded plugin = source dir + one tuple member; the packer + `pnpm plugin:pack` + the seeder all derive from `EXAMPLE_PLUGIN_SLUGS` | `seed-example-plugins.ts:38` · `seed-assets/index.ts:88-108` · `scripts/pack-plugin.ts` |
+| A STATIC surface's collection nodes are SPEC-fixed in cardinality; `setState` feeds values only — ghost tiles render for unresolved bindings (no skip in `SurfaceGrid` or `MediaTileGrid`) | `contracts/plugin/ui.ts:441-465` · `features/plugin/components/plugin-browse-nodes.tsx:53-71` · `ui/src/primitives/media-tile-grid/media-tile-grid.tsx:110-121` |
+| A SCRIPTED surface renders dynamic trees but CANNOT fire effects: events go only into `ui.js`; the proxy tuple is reads + 2 KV planes (no fetch, no ingest) | `plugin-scripted-surface.tsx:144-146` · `host-v1.ts:624-634` |
+| A `message-footer` spec must be STATIC (bound specs are skipped at the mount) and decoration-only — per-row facts are inexpressible | `plugin-message-footer-surfaces.tsx:57-66` · `ui.ts:220-244` |
+| A pubsub subscriber is invoked with a NULL chat scope — no `chat.current()`, no room writes; per-install state + global `setState` only | `domain/plugin/substrate/plugin-event-bus.ts:61-63` |
+| The U7 frame's host-call bridge is UNWIRED at every mount (`hostCall` prop never passed) — a frame is self-contained pixels; theme reaches it as exactly `--sandbox-bg`/`--sandbox-fg` + the font | `plugin-frame.tsx:59-98` + zero `hostCall` call sites · `ui/src/content/sandbox-frame/use-sandbox-theme.ts:17-22` |
+| Tier-C guest surface: `orb.ui(1)` = version/grants/clock/random/log/render/onEvent/host.{chat×2,variables×3,storage×4}; the event payload is `{surfaceId, event: {type:"action",actionId}\|{type:"field",name,value}, values}` | `ui-guest-realm.ts:150-238` · `ui-guest.worker.ts:143-156` |
+| `host-v1.d.ts` does not exist anywhere on the tree (git ls-files + rg --files, both empty) | absence check 2026-08-28 |
+| `character.ingest` consumes `parseCardJson`, which accepts the minimal canonical `{data:{…}}` shape (defaults applied; repair-then-validate) | `domain/import/substrate/card.ts:131-160` |
+| **Live sources (probed 2026-08-28):** Character Tavern search `GET character-tavern.com/api/search/cards?q&page` (Meilisearch hits/totalHits/totalPages) + detail `GET /api/character/:author/:slug` returning full `definition_*` fields; RisuRealm search `GET realm.risuai.net/__data.json?search=` (devalue-flattened, 57 KB « the 1 MiB plugin cap) + documented download `GET /api/v1/download/json-v3/:id`; **chub.ai geo-blocks this box** ("not available in your country") | probes in lane log; legacy adapters `legacy-main:packages/server/src/infra/network/hubs/{chartavern,risurealm}.ts` |
+| The legacy hub's PROVEN logic to carry as semantics: the chartavern `definition_*`→canonical `{data:{…}}` reshape (deterministic key order ⇒ stable importHash), its two-mapper search/detail split, the realm devalue un-flatten + compact-count parse, cheapest-first admission | legacy files above, re-probed against today's wire |
 
 Memory lessons consulted (by file): `plugin-tool-handler-no-room-identity` (deck state is per-install),
 `plugin-frame-hatch-rides-card-frame` (frame walls), `ui-proxyable-excludes-host-mediated-effects` (Tier-C
@@ -133,7 +133,7 @@ is a belt; the staleness itself is filed with the orchestrator as a fix-tools ro
 `docs/` would be a second home for the same concept (and invisible in a deployed image). It is STALE against
 U4–U8 and gets the full rewrite: the three-entry bundle (`ui.js`), all 20 capabilities with their postures,
 the UI plane (anchors/tiers/nodes/bindings/state), commands + typed args, toasts/dialogs, macros, display
-transforms, the pubsub plane, the ingest + card\_state pair, the frame hatch (with its honest consent story),
+transforms, the pubsub plane, the ingest + card_state pair, the frame hatch (with its honest consent story),
 `host-v1.d.ts` usage, and the archetype index over NINE examples. Per-plugin READMEs (no frontmatter —
 `packages/**` markdown is outside the doc catalog, as the five existing ones already are) each state: what
 it does, which capabilities and WHY each, the file tour, what to copy it for, and how to modify/repack.
@@ -146,7 +146,7 @@ at merge — flagged to the orchestrator).
 
 Orchestrator ruling 2026-08-28, conditions binding this lane: build ARM C LAST and only after #793 merges
 (re-sync first; message before starting); STRICTLY append-only on `ui.ts` (existing `tiles` specs untouched;
-re-flag if the coupled-site count grows past \~6 or the change stops being append-only); the owner-scoped
+re-flag if the coupled-site count grows past ~6 or the change stops being append-only); the owner-scoped
 assetId resolve for bound tiles is a SECURITY-LOAD-BEARING seam (a foreign assetId resolves to NO-PAINT,
 never a cross-owner cover leak — red-first receipt owed; a focused security-executor pass follows on this
 seam + the bound-action dispatch); the count clamp at `PLUGIN_GRID_TILES_MAX` at resolve; the arm lands in
