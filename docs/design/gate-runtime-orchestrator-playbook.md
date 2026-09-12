@@ -419,7 +419,18 @@ gone.** Mutable state has exactly two homes and this file is neither:
 (#2069: a planter and a reader on one tree is a NON-VERDICT):** `check-gates.repo.int.test.ts`,
 `gate-ignore-grammar.repo.int.test.ts`, `gate-conformance.repo.int.test.ts`, `gate-spelling-twins.int.test.ts`
 (all four plant `__g_` fixtures), then `check:structure` ONCE, then `ledgers:fresh`, then the doc-catalog
-re-attest of every review doc a lane rewrote (a regeneration never attests a document nobody read).
+re-attest of every review doc a lane rewrote (a regeneration never attests a document nobody read), **then the
+`tests/tooling/**` battery ONCE PER MERGE TRAIN** (ruled 2026-09-12 on #1983 part 2: not on `push` — #1842 stands —
+and not nightly; the barrier is the only moment the box is quiet enough for the verdict to be about redness rather
+than load, and it caps unobserved red at one train; a failure under battery load gets a SOLO re-run before it
+counts), then the corpus `format:docs` LAST (frozen archaeology excluded — BOTH `docs/history/**` and
+`docs/architecture/history/**`, ruled 2026-09-12; the exclusion is a named list in the formatter, never an accident
+of which tree is nested where).
+
+**A row body's central claim carries the DATE and SHA it was measured at** (paid 2026-09-12: two of five rows in one
+leg described a tree the same lane had already changed — "there is no helper", "the rules half is not written" —
+neither wrong when filed, both costing a re-derivation). A lane reading a dated claim knows to re-derive before
+building; an undated one reads as current.
 
 ## 3. Dispatching a lane (the brief, in this order)
 

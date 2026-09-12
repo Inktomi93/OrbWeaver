@@ -48,6 +48,17 @@ announcement was owed.
 
 ## REAL-TREE LIVENESS, from the published slot (plants subtracted by name)
 
+> **REFUTED 2026-09-12 (primary, note 639; re-derived on both slots).** The slot this section reads,
+> `main-2930600-2026-09-12T13-42-50-932Z`, was VOIDED under #2069 before this audit ran: a fixture-planting suite
+> wrote into the working tree while the run read it, so its 961 total carries **650 `__g_`/`__dc_` findings** that are
+> fixture files, not positive controls. The clean slot `main-3632865-2026-09-12T15-40-44-410Z` (total 263) carries 0.
+> Consequences: **the "20 of 28 carry a planted control, 8 do not" partition below does not exist** — zero final
+> policies plant, by construction (guide §4.8), so "no planted control" is vacuously true of all 246 finals; the class
+> the eight modules name ("silent when healthy AND silent when broken") is real but is **228 of 246**, not 8 (#2149
+> carries the corrected scope and the ruling that every final owes one real-corpus liveness pin). The verifier acted
+> correctly by every rule it had: a published slot carried no tombstone (#2167). Read the section below as the
+> method it used, not as its numbers.
+
 Read from `reports/runs/structure/main-2930600-2026-09-12T13-42-50-932Z/check-structure.json` (checkout
 `main`, `complete: true`, 297 ran, `total 961`). **`__g_*` planted paths subtracted by name:** 20 of the 28
 carry exactly one (or more) `__g_` finding, which is a POSITIVE CONTROL that those 20 fire on the real tree.

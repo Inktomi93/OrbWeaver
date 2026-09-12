@@ -804,6 +804,17 @@ family.
    the header says which pins are which. A clean zero
    from a detector that might be blind is not evidence.
 
+   **AND EVERY FINAL POLICY OWES ONE REAL-CORPUS LIVENESS PIN (ruled 2026-09-12, #2149): nothing else distinguishes
+   silent-because-clean from silent-because-dead, and on the clean structure slot that is 228 of 246 finals.** The pin
+   is a virtual overlay on the loaded Project (`project.createSourceFile`, the shared liveness helper) driven through
+   `runPolicyPass` and asserting the policy REPORTS on it — never a working-tree plant, never a fifth `__g_` planter,
+   never a `-health`-only subset or a ratchet. An enforcer arm reds a final policy with no such pin under
+   `tests/tooling/verify/gates/**`; the corpus migrates by family in chunks. The audit that first sized this class at
+   "8 modules" read a VOIDED structure slot (`main-2930600`, 650 planted `__g_` findings taken as controls); a
+   published slot carries no tombstone yet (#2167), so **until it does, check a slot id against the voids in the notes
+   and the board before reading it, and treat any `__g_`/`__dc_` path inside a slot as proof the run overlapped a
+   planter.**
+
 6. **Conversion differential — AND ITS EVIDENCE MAY NO LONGER VANISH (#2000).** This section used to end
    *“conversion evidence for the landing commit, not standing law”*, which permitted the differential to be run and
    then retired. **Measured 2026-09-11: of 171 converted policies, ~18 carry a differential in a committed test and
