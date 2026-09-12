@@ -474,7 +474,7 @@ ever rewritten between measurements; every cut module was deleted in the same co
    `lib/policy-pass-context.ts` (`:249`, `:257`, `:280`, `:347`, `:354`, `:396`, `:411`, `:415`, `:418`, `:421`) compose
    from `POLICY_PASS_REFUSALS` (eight keys); `:236` "outside the policy root" needs a NEW key + envelope member if composed.
 
-## 9. LEDGER ROWS (53 rows)
+## 9. LEDGER ROWS (54 rows)
 
 | module | wave · `path:line` | defect | class | state | receipt |
 | - | - | - | - | - | - |
