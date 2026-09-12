@@ -1,206 +1,210 @@
-// A feature `surfaces/*.tsx` manages focus during mount/lifecycle, OR declares — in source, with an owner and a reason —
-// that its section's arrival focus is owned by ANOTHER pane. Four arms: missing focus · a valid declaration
-// (pass) · a declaration on a surface that DOES focus (stale, two-sided) · a malformed declaration.
-// COMMENT POSTURE: comment-SAFE for focus detection (call/JSX AST identity) and comments-INTENDED for the
-// marker, which is read from raw comment text. DECLARED LIMIT: app-shell/topbar surfaces do not transition.
-import type { CallExpression, SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
-import { renderedTagNames } from "../lib/baseui-read.ts";
-import { repoRel } from "../lib/pass.ts";
-
-const FEATURES = "packages/client/src/features";
-
-// Base UI primitives that inherently trap/manage focus on mount. Surfaces returning these as their root
-// are exempt from manual focus restoration.
-const AUTO_FOCUS_PRIMITIVES = new Set(["Popover", "Dialog", "Tooltip", "Dropdown", "Sheet"]);
-
-// We check if a surface explicitly calls `.focus()` (usually via a `useLayoutEffect` and a `surfaceRef`).
-// Or if it uses the shared `useFocusOnMount` hook, or delegates focus management to an internal component.
-const FOCUS_HOOK = "useFocusOnMount";
-const LIFECYCLE_HOOKS = new Set(["useEffect", "useLayoutEffect"]);
-
-// ── THE DECLARED EXEMPTION (side-eye corpus re-pass #2 P2-4, ruled 2026-08-19) ────────────────────────
-// The absolute rule was structurally incomplete for a REAL composition: a section whose LIST pane owns
-// arrival focus (the corpus omnibox) and whose CONTENT surface must NOT compete for it. CONTENT mounts
-// second, so a focus-on-mount there always wins — and the corpus overview's target was its own
-// `tabIndex={-1}` root: an 869x7831 unnamed div with `outline: none`, announced as nothing.
+// Policy: surface-a11y-focus (UI-Gates-and-Lessons.md §8) — a feature `surfaces/*.tsx` manages focus during
+// mount/lifecycle, OR a waiver says in source, with a reason, that its section's arrival focus is owned by
+// ANOTHER pane. Drill-down/SPA surfaces that take neither leave a keyboard user on `<body>`.
 //
-// WHY A MARKER AND NOT THE HOUSE'S TYPED ROW (§4.1): the exemption is a property of the surface's
-// COMPOSITION, and a path-keyed table is exactly the shape §3 warns about — it goes silently stale the day
-// the file moves, while the declaration travels with the file it describes and is read by the next person
-// who opens it. The MANDATORY parts do the work a row's `why` does: `<owner>` names the control that
-// actually takes arrival focus (so the claim is checkable against that pane), and the reason carries the
-// proof — the CT that pins it.
+// FAMILY `surface-a11y-focus` — a SINGLETON today, and the reason is worth the line because the shape says
+// otherwise. The shared reader `lib/surface-composition.ts` (`managesArrivalFocus` + `exportedComponentAnchor`)
+// was built for TWO members: `surface-in-a-container` judges the same population from the other angle and is
+// designed to report the SAME position — one anchor, so one `@orb-waive` line can carry both ids, which is
+// the payoff guide §3 names. That sibling is PARKED rather than converted (owner call pending, 2026-09-13):
+// its `SHELL_EXEMPT` row encodes `UI-Architecture-and-Layout.md` §4's SHELL-vs-ANCHOR role distinction, and
+// the open question is whether the shell belongs in that policy's POPULATION at all rather than being
+// exempted inside it. The reader therefore carries ONLY what this policy consumes — a dead export held
+// against a future second member is exactly the rot the constitution bans — and it gains the containment
+// half, plus the `surface-composition` family string, in the same commit that converts the sibling. A
+// singleton family must equal its sole policy id until then (`lib/policy-module.ts:79`).
 //
-// It is TWO-SIDED (§4.4): a surface carrying this marker AND managing focus is RED, because the promise it
-// makes is no longer the truth of the file, and the next author would inherit an exemption nobody granted.
-const MARKER = "@surface-focus-elsewhere";
-/** The whole grammar: a `//` comment whose own text OPENS with the vocabulary (the mention fence — a
- *  quotation of it inside prose or a string is inert), a non-empty owner in parens, a non-empty reason. */
-const MARKER_RE = /^[^\S\n]*\/\/[^\S\n]*@surface-focus-elsewhere\([^\S\n]*([^)\n]*?\S)[^\S\n]*\)[^\S\n]*:[^\S\n]*(\S[^\n]*)$/mu;
-/** Any line that OPENS a comment with the vocabulary — the malformed arm's net. */
-const MARKER_OPENER_RE = /^[^\S\n]*\/\/[^\S\n]*@surface-focus-elsewhere/mu;
+// POPULATION PORT: `@client` under `packages/client/src/features/*/surfaces/**`, `tsx` only, MINUS the
+// app-shell and topbar features. LEGACY at 854c81c80: `scopeSafety: "whole-project"` with no `scanRoot`,
+// filtered inside `run` by
+// `SURFACE_RE = /^packages\/client\/src\/features\/([^/]+)\/surfaces\/[^/]+\.tsx$/u` and then
+// `if (rel.includes("app-shell") || rel.includes("topbar")) continue;`.
+// ONE INTENTIONAL CORRECTION, stated rather than absorbed: the legacy skip was a SUBSTRING test over the whole
+// repo-relative path, so a file merely NAMED `app-shell-*.tsx` in any feature was skipped too. The population
+// expresses it as two `notUnder` feature roots. Measured on this tree (2026-09-13): 32 files match the
+// surfaces pattern, exactly ONE of them matches either substring — `features/app-shell/surfaces/app-shell.tsx`
+// — so the admitted set is byte-identical today and the correction only narrows a future false skip.
+// The `topbar` root matches nothing today; it is carried rather than dropped because dropping it would
+// silently change the verdict the day a topbar surface lands, and the population algebra has no liveness on
+// an inert `notUnder` (a limit worth stating, not a defect this lane invents a ratchet for).
+// The population is pinned by `mustPass[3]` (`@ui`, out of root) and `mustPass[4]` (the app-shell fence),
+// each with an in-population anchor file beside it — a falsifier admitting nothing tool-errors instead of
+// passing.
+//
+// THE §4.6 BLINDNESS TRIPWIRE IS RETIRED INTO THE RUNTIME, AND THAT IS AN UPGRADE, NOT A LOSS. Legacy carried
+// its own arm: `if (featuresSeen && surfacesSeen === 0) report(FEATURES, BLIND_MESSAGE)` — a hand-rolled
+// guard against `surfaces/` being renamed out from under a directory-name-keyed scan, reported at a DIRECTORY
+// path. Under this contract the same failure is a REFUSAL: the population is declared data, and a declared
+// population that resolves to zero paths refuses the run rather than passing it (guide §12.2, "missing/empty
+// population refusal"). The runtime says "I could not judge" where the gate used to say "the tree is wrong",
+// which is the more honest of the two — and a directory is not a member of any population, so the legacy
+// anchor could not survive regardless. Pinned by the empty-population drive in the family test.
+//
+// THE CUSTOM `@surface-focus-elsewhere` GRAMMAR IS DELETED, AND ITS TWO-SIDEDNESS SURVIVES CENTRALLY.
+// Legacy owned a whole-file regex pair (`MARKER_RE` / `MARKER_OPENER_RE`), a `markerLine` scanner, a MALFORMED
+// arm (an opener that does not parse) and a STALE arm (a declaration on a surface that DOES manage focus).
+// All four retire, and none of the behaviour does: `@orb-waive surface-a11y-focus(<position>): <reason>` is
+// parsed centrally, a malformed marker is a central `malformed` authority finding, and a marker that
+// suppressed nothing is a central `stale`/`dead-position` alarm — which IS the stale arm, now applying to
+// every policy rather than to this one. The mention fence survives too, and by construction: the central
+// grammar requires the comment's own text to OPEN with the marker, so a quotation inside prose is inert.
+//
+// MARKER TRANSLATION (in this commit, per guide §8.6). 2 live marker-form sites, both file-level comment
+// openers; census and per-file reconciliation in the lane report.
+//   packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx      1 -> 1
+//   packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx     1 -> 1
+// The legacy position was an OWNER LABEL (`CharacterPicker`, `SearchOmnibox`) — a free-form discriminator
+// under `lib/gate-ignore.ts:180`'s plain string equality, naming a control in ANOTHER file. Under this
+// contract a position is a SOURCE COORDINATE, so it becomes this surface's own exported component name; the
+// owner it used to name moves into the reason, where it is still checkable and no longer pretends to be a
+// coordinate. The picker's marker also MOVES: it sat ~94 lines above its export inside a file-level comment
+// block, which binds to nothing under the central engine (leading trivia on the node or its ancestors up to
+// the enclosing statement). Both translations are proven on the REAL FILES read off disk in the family test,
+// not on fixtures — an in-place translation is a claim about the ENGINE, and only a real-site run tests it.
+//
+// COMMENT POSTURE: comment-SAFE throughout. Legacy was comments-INTENDED for its marker half only, and that
+// half is gone — the central waiver engine owns comment reading now, so this policy reads no comment text at
+// all. The permissive-direction fixture (a surface whose COMMENT names `.focus(` and `<Dialog>`) is kept as
+// `mustFlag[1]`: it is the row that dies if anyone ever re-introduces a file-text scan.
+import type { SourceFile } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import { exportedComponentAnchor, managesArrivalFocus } from "../lib/surface-composition.ts";
 
-const A11Y_MESSAGE =
-  "surface is missing A11y focus restoration. Drill-down/SPA surfaces must manage focus on mount (e.g. `ref.current?.focus()`) unless wrapped in a focus-trapping primitive (Popover, Dialog, etc.), or declaring `// @surface-focus-elsewhere(<owner>): <reason>` when another pane owns the section's arrival focus (UI-Gates-and-Lessons.md §8).";
-const STALE_MESSAGE = `stale \`${MARKER}\` — this surface DOES manage focus on mount, so the declaration exempts nothing and would silently absolve the next author who removes that focus. Delete the marker (UI-Gates-and-Lessons.md §8).`;
-const MALFORMED_MESSAGE = `malformed \`${MARKER}\` — the grammar is \`// ${MARKER}(<owner>): <reason>\`, and BOTH parts are required: the owner names the control that actually takes the section's arrival focus, the reason states why and names the test that pins it. A marker that exempts nothing must not sit there looking like protection (UI-Gates-and-Lessons.md §8).`;
-const BLIND_MESSAGE = `${FEATURES} exists but this gate found ZERO surface files — its \`surfaces/\` derivation came back empty, so it is a no-op reporting green. Re-point the derivation (tooling/src/verify/gates/GATE-AUTHORING.md §4).`;
+const SURFACES = "packages/client/src/features/*/surfaces/**";
 
-const SURFACE_RE = /^packages\/client\/src\/features\/([^/]+)\/surfaces\/[^/]+\.tsx$/u;
+const MESSAGE =
+  "surface is missing A11y focus restoration. Drill-down/SPA surfaces must manage focus on mount " +
+  "(`ref.current?.focus()` in a mount lifecycle, or `useFocusOnMount`) unless wrapped in a focus-trapping " +
+  "primitive (Popover, Dialog, Tooltip, Dropdown, Sheet) — or declare that another pane owns the section's " +
+  "arrival focus (UI-Gates-and-Lessons.md §8). A section has ONE arrival target; a surface that takes none " +
+  "and declares none leaves a keyboard user on `<body>` with no ring on screen to explain why.";
 
-/** 1-based line of the first marker opener, for a finding that points at the declaration itself. */
-function markerLine(raw: string): number {
-  const lines = raw.split("\n");
-  const index = lines.findIndex((line) => MARKER_OPENER_RE.test(line));
-  return index + 1;
-}
+const FIX =
+  "manage focus on mount (`ref.current?.focus()` inside a `useEffect`/`useLayoutEffect`, or `useFocusOnMount`), " +
+  "wrap the surface in a focus-trapping primitive (Popover/Dialog/Tooltip/Dropdown/Sheet), or — when another " +
+  "pane owns the section's arrival focus — declare it: " +
+  "`// @orb-waive surface-a11y-focus(<ExportedComponentName>): <which control takes arrival focus, and the " +
+  "test that pins it>` on the line above the surface's exported component. The position is THIS surface's own " +
+  "exported component name, never the owning control's — the owner belongs in the reason, where it is " +
+  "checkable against that pane.";
 
-/** The verdict for ONE surface file, given its raw text. Split out so the report shape below has exactly
- *  one construction site (`finding-overload-provenance`: one literal, not four). */
-function isFocusCall(call: CallExpression): boolean {
-  const callee = call.getExpression();
-  if (Node.isIdentifier(callee) && callee.getText() === FOCUS_HOOK) {
-    return true;
-  }
-  if (!(Node.isPropertyAccessExpression(callee) && callee.getName() === "focus")) {
-    return false;
-  }
-  const callback = call.getFirstAncestor((ancestor) => Node.isArrowFunction(ancestor) || Node.isFunctionExpression(ancestor));
-  if (callback === undefined) {
-    return false;
-  }
-  const lifecycleCall = callback.getParentIfKind(SyntaxKind.CallExpression);
-  if (lifecycleCall === undefined || lifecycleCall.getArguments()[0] !== callback) {
-    return false;
-  }
-  const lifecycleCallee = lifecycleCall.getExpression();
-  return Node.isIdentifier(lifecycleCallee) && LIFECYCLE_HOOKS.has(lifecycleCallee.getText());
-}
-
-function verdictFor(sf: SourceFile): { readonly message: string; readonly line: number } | null {
-  const raw = sf.getFullText();
-  const tags = renderedTagNames(sf);
-  const managesFocus = [...tags.keys()].some((tag) => AUTO_FOCUS_PRIMITIVES.has(tag)) || sf.getDescendantsOfKind(SyntaxKind.CallExpression).some(isFocusCall);
-  // The marker is read from RAW text on purpose — it IS a comment (comments-INTENDED).
-  const declared = MARKER_RE.exec(raw);
-  const opens = MARKER_OPENER_RE.test(raw);
-  if (opens && declared === null) {
-    return { message: MALFORMED_MESSAGE, line: markerLine(raw) };
-  }
-  if (declared !== null) {
-    // Two-sided: a declaration on a surface that manages its own focus is stale, not free.
-    return managesFocus ? { message: STALE_MESSAGE, line: markerLine(raw) } : null;
-  }
-  return managesFocus ? null : { message: A11Y_MESSAGE, line: 0 };
-}
-
-/** The shared-workspace AST scan used by the single-pass `run` descriptor. */
-function scanSurfaceA11yFocus(root: string, files: readonly SourceFile[]): Violation[] {
-  const out: Violation[] = [];
-  let surfacesSeen = 0;
-  let featuresSeen = false;
-  for (const sf of files) {
-    const rel = repoRel(root, sf.getFilePath());
-    if (rel.startsWith(`${FEATURES}/`)) {
-      featuresSeen = true;
-    }
-    const match = SURFACE_RE.exec(rel);
-    if (match === null) {
-      continue;
-    }
-    if (rel.includes("app-shell") || rel.includes("topbar")) {
-      continue;
-    }
-    surfacesSeen += 1;
-    const verdict = verdictFor(sf);
-    if (verdict !== null) {
-      out.push({ file: rel, line: verdict.line, message: verdict.message });
-    }
-  }
-  // §4.6 BLINDNESS TRIPWIRE: this gate is keyed on an exact directory NAME. The day `surfaces/` is renamed
-  // (or the features root moves under it), the loop above walks nothing and the gate reports ✓ forever.
-  if (featuresSeen && surfacesSeen === 0) {
-    out.push({ file: `${FEATURES}`, line: 0, message: BLIND_MESSAGE });
-  }
-  return out;
-}
-
-export const gate: GateDescriptor = {
-  name: "surface-a11y-focus",
-  docRow: "UI-Gates-and-Lessons.md §8",
-  status: "active",
-  scopeSafety: "whole-project",
-  message: A11Y_MESSAGE,
-  fix: "manage focus on mount (`ref.current?.focus()` / `useFocusOnMount`), wrap the surface in a focus-trapping primitive (Popover/Dialog), or — when another pane owns the section's arrival focus — declare `// @surface-focus-elsewhere(<owner>): <reason>` in the surface.",
-  run: (ctx) => {
-    for (const v of scanSurfaceA11yFocus(ctx.root, ctx.files)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
+export const gate = defineGate({
+  id: "surface-a11y-focus",
+  family: "surface-composition",
+  authority: "ordinary",
+  severity: "error",
+  population: {
+    in: ["@client"],
+    under: [SURFACES],
+    notUnder: ["packages/client/src/features/app-shell/**", "packages/client/src/features/topbar/**"],
+    ext: ["tsx"],
   },
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    visitFile: (sourceFile: SourceFile): void => {
+      if (managesArrivalFocus(sourceFile)) {
+        return;
+      }
+      const anchor = exportedComponentAnchor(sourceFile);
+      if (anchor === undefined) {
+        // DECLARED LIMIT (`mustPass[5]`): a surface file that exports no component has no authored position,
+        // and an ordinary finding with no position has no waiver door at all. Reporting one would raise a
+        // central binding failure on the author's first real waiver rather than naming a defect.
+        return;
+      }
+      ctx.report.node(anchor, { token: anchor.getText(), offset: 0, message: MESSAGE, fix: FIX });
+    },
+  }),
+
   mustFlag: [
     {
-      files: {
-        "packages/client/src/features/x/surfaces/pane.tsx": "export const Pane = () => <div>content</div>;\n",
-      },
-      expect: { messageIncludes: "focus restoration" },
-      why: "a full-page surface with no .focus()/useFocusOnMount and no focus-trapping primitive (a11y gap)",
+      mode: "source",
+      files: { "packages/client/src/features/x/surfaces/pane.tsx": "export const Pane = () => <div>content</div>;\n" },
+      expect: { count: 1, token: "Pane" },
+      why: "the founding shape: a full-page surface with no `.focus()`/`useFocusOnMount` and no focus-trapping primitive. The token is the exported component NAME, which is the §4.2 waiver position",
     },
     {
+      mode: "source",
       files: {
         "packages/client/src/features/x/surfaces/commented-focus.tsx":
           "// Focus: the anchor's <Dialog> owns it today; when this becomes a drill-down pane, call ref.focus() here.\nexport const Pane = () => <div>content</div>;\n",
       },
-      expect: { messageIncludes: "focus restoration" },
-      why: "COMMENT POSTURE (issue #117/#132) in the PERMISSIVE direction: a surface whose COMMENT names `.focus(` and a focus-trapping primitive manages no focus at all — a file-text scan hands it the exemption, which is the silent-green half of the comment-blindness class",
+      expect: { count: 1, token: "Pane" },
+      why: "COMMENT POSTURE (issue #117/#132) in the PERMISSIVE direction: a surface whose COMMENT names `.focus(` and a focus-trapping primitive manages no focus at all — a file-text scan hands it the exemption, which is the silent-green half of the comment-blindness class. This is the row that dies if anyone re-introduces one",
     },
     {
+      mode: "source",
       files: {
-        "packages/client/src/features/x/surfaces/no-owner.tsx":
-          "// @surface-focus-elsewhere(): the list pane takes it\nexport const Pane = () => <div>content</div>;\n",
+        "packages/client/src/features/x/surfaces/handler-only.tsx":
+          'export function Pane(): unknown {\n  const ref = { current: null as { focus: () => void } | null };\n  return <button type="button" onClick={() => ref.current?.focus()}>go</button>;\n}\n',
       },
-      expect: { messageIncludes: "malformed" },
-      why: "MALFORMED, its own flavour (§5 case 4): an empty owner names no control, so the claim cannot be checked against the pane that supposedly takes focus — and a marker that exempts nothing must not sit there looking like protection",
+      expect: { count: 1, token: "Pane" },
+      why: "A `.focus()` in an EVENT HANDLER is not arrival focus. This is the row that dies when the lifecycle test in `isLifecycleFocusCall` is cut to a bare `.focus()` scan — without it the policy acquits every surface with a focus button and the rule stops meaning anything. Carried from `tests/tooling/ui-gate-structural-regressions.int.test.ts` at this conversion",
     },
     {
+      mode: "source",
       files: {
-        "packages/client/src/features/x/surfaces/no-reason.tsx": "// @surface-focus-elsewhere(SearchOmnibox)\nexport const Pane = () => <div>content</div>;\n",
+        "packages/client/src/features/x/surfaces/string-focus.tsx": 'export const Pane = () => <div>{"call ref.focus() after mount"}</div>;\n',
       },
-      expect: { messageIncludes: "malformed" },
-      why: "MALFORMED, the other half: the house grammar is `marker:\\s*\\S` — a reason is REQUIRED, and a bare marker must exempt NOTHING (§4.3)",
-    },
-    {
-      files: {
-        "packages/client/src/features/x/surfaces/stale.tsx":
-          "// @surface-focus-elsewhere(SearchOmnibox): the list pane owns arrival focus\nexport const Pane = () => {\n  useLayoutEffect(() => { ref.current?.focus(); }, []);\n  return <div>content</div>;\n};\n",
-      },
-      expect: { messageIncludes: "stale" },
-      why: "TWO-SIDED (§4.4): the surface manages its own focus, so the declaration promises something that is no longer true — and a stale marker is a loaded gun for the next author who deletes that focus call",
+      expect: { count: 1, token: "Pane" },
+      why: "the STRING spelling of the same blindness, distinct from the comment one above and also carried from `ui-gate-structural-regressions.int.test.ts`: a string literal spelling `.focus(` is a JSX text node, not a call, and it survives comment blanking — so a scan that blanked comments but grepped text would still be fooled by it",
     },
   ],
   mustPass: [
     {
+      mode: "source",
       files: {
         "packages/client/src/features/x/surfaces/ok.tsx":
           "export const Ok = () => {\n  useLayoutEffect(() => { ref.current?.focus(); }, []);\n  return <div>content</div>;\n};\n",
       },
-      why: "the surface calls .focus() on mount — manages its own focus restoration, passes",
+      why: "the surface calls .focus() on mount inside a lifecycle — it manages its own focus restoration, passes",
     },
     {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/surfaces/trap.tsx": 'import { Dialog } from "@orb/ui/dialog";\nexport const Trap = () => <Dialog>content</Dialog>;\n',
+      },
+      why: "the focus-TRAPPING primitive arm: the surface's root is a Dialog, which owns the caret itself. Cut `AUTO_FOCUS_PRIMITIVES` out of `managesArrivalFocus` and this is the row that dies",
+    },
+    {
+      mode: "source",
       files: {
         "packages/client/src/features/x/surfaces/declared.tsx":
-          "// @surface-focus-elsewhere(SearchOmnibox): the corpus LIST pane's omnibox takes arrival focus; this CONTENT surface mounts second and must not steal it (pinned by corpus-list-surface.ct.tsx)\nexport const Declared = () => <div>content</div>;\n",
+          "// @orb-waive surface-a11y-focus(Declared): the corpus LIST pane's omnibox takes arrival focus; this CONTENT surface mounts second and must not steal it (pinned by corpus-list-surface.ct.tsx).\nexport const Declared = () => <div>content</div>;\n",
       },
-      why: "the DECLARED arm: owner + reason present, no focus of its own — the composition the absolute rule could not express",
+      why: "§4.2 POSITIONAL IDENTITY, and the successor to the retired `@surface-focus-elsewhere` grammar: the marker names THIS surface's exported component and carries its reason. The fixture is mustFlag[0] plus the marker line, so exactly ONE occurrence exists for the one marker to consume; the arm ends if that row changes",
     },
     {
+      mode: "source",
       files: {
-        "packages/client/src/features/x/surfaces/mention.tsx":
-          "/** Prose that MENTIONS the vocabulary: a surface may declare @surface-focus-elsewhere when another pane owns arrival focus. */\nexport const Mention = () => {\n  useLayoutEffect(() => { ref.current?.focus(); }, []);\n  return <div>content</div>;\n};\n",
+        "packages/client/src/features/x/surfaces/anchor.tsx":
+          "export const Anchor = () => {\n  useLayoutEffect(() => { ref.current?.focus(); }, []);\n  return <div>content</div>;\n};\n",
+        "packages/ui/src/primitives/pane/pane.tsx": "export const Pane = () => <div>content</div>;\n",
       },
-      why: "THE MENTION FENCE (§4.3): the vocabulary quoted inside a JSDoc block is an inert mention, not a declaration — so it is neither an exemption nor a stale-marker accusation against a surface that does manage focus",
+      why: "THE ROOT FENCE, pinned with an in-population anchor beside it: the identical founding shape under `@ui` is not a feature surface and is not this policy's finding. Widen the population past `@client` and this is the only row that dies",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/surfaces/anchor.tsx":
+          "export const Anchor = () => {\n  useLayoutEffect(() => { ref.current?.focus(); }, []);\n  return <div>content</div>;\n};\n",
+        "packages/client/src/features/app-shell/surfaces/app-shell.tsx": "export const AppShell = () => <div>content</div>;\n",
+      },
+      why: "THE DECLARED LIMIT, pinned: app-shell/topbar surfaces do not TRANSITION, so there is no arrival to land. Delete the `notUnder` and this is the only row that dies — which is what makes the legacy substring skip's port a measured fence rather than a copied line",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/surfaces/anchor.tsx":
+          "export const Anchor = () => {\n  useLayoutEffect(() => { ref.current?.focus(); }, []);\n  return <div>content</div>;\n};\n",
+        "packages/client/src/features/x/surfaces/constants.tsx": 'export const PANE_TITLE = "Corpus";\n',
+      },
+      why: "THE DECLARED LIMIT the anchor creates, written down rather than hidden: a surfaces file that exports no COMPONENT has no authored position, and an ordinary finding with no position has no waiver door — it raises a central binding failure instead of naming a defect. The honest outcome is silence, and this row is what states it",
     },
   ],
-};
+});

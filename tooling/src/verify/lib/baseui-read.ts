@@ -8,11 +8,34 @@
 // `.d.ts` surface is NOT the workspace — it is not in `harnessGlobs`, no gate can subscribe to its nodes,
 // and it must be read out of `node_modules` or the manifest has nothing to be compared against. Measured
 // 788 files / ~270ms, loaded lazily and cached per process.
+//
+// WHO STILL USES THE FILESYSTEM HALF, after the #1584 conversion of the `baseui-read` family: ONLY
+// `ops/gen/baseui-surface.ts` (the baseline WRITER, a generator rather than a policy) and
+// `lib/css-selector-writers.ts` (read by a gate that has not converted yet). Every CONVERTED `baseui-*`
+// policy reaches the same data through declared ResourceHost doors — `json:baseui-manifest` for the
+// committed ledger — and narrows it here, through `surfaceManifestFrom`, so the manifest's SHAPE has one
+// home whichever side reads it. That is why this module keeps its fs imports while the gate modules have
+// none: `gate:contract`'s non-negotiables are about what a GATE MODULE does, and a policy that calls
+// `surfaceManifestFrom(readyResourceValue(ctx.resources.json(...)).value)` touches no filesystem at all.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ExportDeclaration, ExportSpecifier, SourceFile } from "ts-morph";
+import type { ExportDeclaration, ExportSpecifier, Identifier, Node, ParameterDeclaration, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import type { BaseUiBinding, InstalledComponent, InstalledPart, InstalledSurface, RenderSite, SurfaceManifest } from "../contract/baseui.ts";
+import type {
+  BaseUiBinding,
+  Disposition,
+  ExportKind,
+  InstalledComponent,
+  InstalledPart,
+  InstalledSurface,
+  ManifestComponent,
+  ManifestPart,
+  RenderSite,
+  SurfaceManifest,
+} from "../contract/baseui.ts";
+import { DISPOSITIONS, EXPORT_KINDS } from "../contract/baseui.ts";
+import type { JsonValue } from "../contract/resource-json.ts";
+import { unwrapExpression } from "./ast-read.ts";
 import { declarationFile, propsOf, TRUNCATED } from "./baseui-expand.ts";
 
 /** Where the package is installed. `@orb/ui` is its only dependent, so pnpm hangs the symlink here. */
@@ -209,7 +232,127 @@ export function truncatedParts(surface: InstalledSurface | SurfaceManifest): str
 
 export function readManifest(root: string): SurfaceManifest | undefined {
   const path = join(root, BASE_UI_MANIFEST_REL);
-  return existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as SurfaceManifest) : undefined;
+  if (!existsSync(path)) {
+    return;
+  }
+  const read = surfaceManifestFrom(JSON.parse(readFileSync(path, "utf8")) as JsonValue);
+  return read.ok ? read.manifest : undefined;
+}
+
+/** The committed ledger's SHAPE, narrowed from a strict-JSON resource fact — or the exact reason it is not
+ *  a manifest. Both doors reach it (`readManifest` above for the generator, `ctx.resources.json(...)` for
+ *  every converted policy), so the shape has ONE home and cannot drift between them.
+ *
+ *  WHY A REASON RATHER THAN `undefined`. A `json` resource that PARSED is `ready`; the runtime has already
+ *  said "this file exists and is JSON". A committed artifact that is valid JSON and not a manifest is a
+ *  PRODUCT defect, not a broken resource, so the honest outcome is a FINDING carrying what was wrong —
+ *  which is why this returns the reason rather than collapsing to "absent" (`resource-policy-contract.md`
+ *  §2, the READY-but-degenerate case). */
+export type SurfaceManifestRead = { readonly ok: true; readonly manifest: SurfaceManifest } | { readonly ok: false; readonly reason: string };
+
+function refuseManifest(reason: string): SurfaceManifestRead {
+  return { ok: false, reason };
+}
+
+function isRecord(value: JsonValue | undefined): value is { readonly [key: string]: JsonValue } {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: JsonValue | undefined): value is readonly string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function isArityMap(value: JsonValue | undefined): value is { readonly [key: string]: number } {
+  return isRecord(value) && Object.values(value).every((entry) => typeof entry === "number");
+}
+
+/** One `parts` entry.
+ *
+ *  ABSENT COLLECTION KEYS DEFAULT TO EMPTY; ONLY A PRESENT-AND-WRONG VALUE REFUSES. That asymmetry is the
+ *  LEGACY CONTRACT preserved deliberately, and it was paid for: the first draft of this reader required all
+ *  four collections and reported a shape refusal without them, which silenced `baseui-derives-not-respells`
+ *  on every fixture that omits `state` — a gate that reads `handlers`/`props` and never touches `state`, so
+ *  the legacy `as SurfaceManifest` cast let it through. `tests/tooling/ui-gate-structural-regressions.int.test.ts`
+ *  caught it. The real committed ledger carries all nine keys on all 292 parts (measured 2026-09-13), so the
+ *  tolerance costs nothing there; what it buys is that TIGHTENING A SHARED READ does not silently disarm a
+ *  consumer that never wanted the tightened field. The identity fields — `kind`, `symbol`, `from`,
+ *  `disposition`, `why` — are required, because a part with no ruling or no alias target is not a row. */
+function manifestPart(value: JsonValue, at: string): ManifestPart | string {
+  if (!isRecord(value)) {
+    return `${at} is not an object`;
+  }
+  const { kind, symbol, from, props, handlers, state, inherits, disposition, why } = value;
+  if (typeof kind !== "string" || !(EXPORT_KINDS as readonly string[]).includes(kind)) {
+    return `${at}.kind is not one of ${EXPORT_KINDS.join("/")}`;
+  }
+  if (typeof symbol !== "string" || typeof from !== "string" || typeof why !== "string") {
+    return `${at} is missing a string symbol/from/why`;
+  }
+  const wrongCollection = Object.entries({ props, state, inherits }).find(([, entry]) => entry !== undefined && !isStringArray(entry));
+  if (wrongCollection !== undefined) {
+    return `${at}.${wrongCollection[0]} is present but is not a string array`;
+  }
+  if (handlers !== undefined && !isArityMap(handlers)) {
+    return `${at}.handlers is present but is not a name-to-arity map`;
+  }
+  if (typeof disposition !== "string" || !(DISPOSITIONS as readonly string[]).includes(disposition)) {
+    return `${at}.disposition is not one of ${DISPOSITIONS.join("/")}`;
+  }
+  return {
+    kind: kind as ExportKind,
+    symbol,
+    from,
+    props: isStringArray(props) ? props : [],
+    handlers: isArityMap(handlers) ? handlers : {},
+    state: isStringArray(state) ? state : [],
+    inherits: isStringArray(inherits) ? inherits : [],
+    disposition: disposition as Disposition,
+    why,
+  };
+}
+
+function manifestComponent(value: JsonValue, at: string): ManifestComponent | string {
+  if (!isRecord(value)) {
+    return `${at} is not an object`;
+  }
+  const { module, namespaced, parts } = value;
+  if (typeof module !== "string" || typeof namespaced !== "boolean") {
+    return `${at} is missing a string module or a boolean namespaced`;
+  }
+  if (!isRecord(parts)) {
+    return `${at}.parts is not an object`;
+  }
+  const read: Record<string, ManifestPart> = {};
+  for (const [name, part] of Object.entries(parts)) {
+    const one = manifestPart(part, `${at}.parts.${name}`);
+    if (typeof one === "string") {
+      return one;
+    }
+    read[name] = one;
+  }
+  return { module, namespaced, parts: read };
+}
+
+export function surfaceManifestFrom(value: JsonValue): SurfaceManifestRead {
+  if (!isRecord(value)) {
+    return refuseManifest("the manifest is not a JSON object");
+  }
+  if (typeof value["version"] !== "string") {
+    return refuseManifest("the manifest has no string `version`");
+  }
+  const components = value["components"];
+  if (!isRecord(components)) {
+    return refuseManifest("the manifest has no `components` object");
+  }
+  const read: Record<string, ManifestComponent> = {};
+  for (const [name, component] of Object.entries(components)) {
+    const one = manifestComponent(component, `components.${name}`);
+    if (typeof one === "string") {
+      return refuseManifest(one);
+    }
+    read[name] = one;
+  }
+  return { ok: true, manifest: { version: value["version"], components: read } };
 }
 
 // ── what @orb/ui actually IMPORTS and RENDERS ───────────────────────────────────────────────────────
@@ -293,6 +436,106 @@ function collectRenderedParts(
     byPart.set(part, [...(byPart.get(part) ?? []), { file: where.file, line }]);
     out.set(binding.exported, byPart);
   }
+}
+
+// ── SEAL-SHAPE READERS (the `baseui-read` family's subtree walks live HERE, never in a policy) ───────
+//
+// Every one of these takes a node and answers a question about the subtree under it. They are in `lib/`
+// rather than in the `baseui-*` policies for a CONTRACT reason, not a taste one: `gate:contract`'s
+// `direct-walk` rule forbids `getDescendantsOfKind` inside a gate module regardless of receiver, and the
+// sanctioned alternative it names is "visitors, ctx.files, or a shared reader". A `className` expression's
+// identifiers and a portal's `container` target are both SUBTREE questions about ONE delivered node, which
+// no kind-indexed visitor can answer without re-deriving the ancestor chain — so they are readers.
+
+const HOOK_CALL_RE = /^use[A-Z]/u;
+const CONTAINER_PROP = "container";
+
+/** Local identifiers bound by a hook call in this file (`const [open, setOpen] = useState(false)`,
+ *  `const open = useSomething()`), at ANY depth — a seal's state lives inside its component function.
+ *  A PROP of the same name is deliberately NOT local state: threading a controlled prop into a variant
+ *  call is the house convention in ~40 seals, not a parallel source of truth. */
+export function localReactStateBindings(sf: SourceFile): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const decl of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+    const init = decl.getInitializer();
+    if (init === undefined || !init.isKind(SyntaxKind.CallExpression) || !HOOK_CALL_RE.test(init.getExpression().getText())) {
+      continue;
+    }
+    const name = decl.getNameNode();
+    if (name.isKind(SyntaxKind.Identifier)) {
+      out.add(name.getText());
+      continue;
+    }
+    for (const element of name.getDescendantsOfKind(SyntaxKind.Identifier)) {
+      out.add(element.getText());
+    }
+  }
+  return out;
+}
+
+/** Genuine VALUE reads of one of `keys` inside `node`, in source order.
+ *
+ *  The `.value` half of a property access and a property NAME in an object literal are excluded:
+ *  `slots.value()` and `{ value: x }` MENTION the word without reading the binding, and counting them is how
+ *  `baseui-state-data-attributes` once false-positived on our own slot helpers (`select.tsx`'s
+ *  `slots.value()` is the live case). */
+export function stateKeyReads(node: Node, keys: readonly string[]): readonly Identifier[] {
+  return node.getDescendantsOfKind(SyntaxKind.Identifier).filter((id) => keys.includes(id.getText()) && isValueRead(id));
+}
+
+function isValueRead(id: Identifier): boolean {
+  const parent = id.getParent();
+  if (parent.isKind(SyntaxKind.PropertyAccessExpression) && parent.getNameNode() === id) {
+    return false;
+  }
+  return !(parent.isKind(SyntaxKind.PropertyAssignment) && parent.getNameNode() === id);
+}
+
+/** Does `expression` read `document.body` — the unsafe Base UI portal default, spelled explicitly? */
+export function readsDocumentBody(expression: Node): boolean {
+  return [expression, ...expression.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)].some(
+    (node) => node.isKind(SyntaxKind.PropertyAccessExpression) && node.getName() === "body" && node.getExpression().getText() === "document",
+  );
+}
+
+function isParameterRead(node: Node, parameters: readonly ParameterDeclaration[]): boolean {
+  return node.isKind(SyntaxKind.Identifier) && node.getDefinitionNodes().some((definition) => parameters.includes(definition as ParameterDeclaration));
+}
+
+function bindingFromParameter(binding: Node, parameters: readonly ParameterDeclaration[]): boolean {
+  const parameter = binding.getFirstAncestorByKind(SyntaxKind.Parameter);
+  if (parameter !== undefined) {
+    return parameters.includes(parameter);
+  }
+  const initializer = binding.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
+  return initializer !== undefined && isParameterRead(unwrapExpression(initializer), parameters);
+}
+
+/** Does `expression` consume a `container` prop of one of `parameters` — as `props.container`, or as a
+ *  destructured `{ container }` binding (directly, or via a `const { container } = props` statement)?
+ *
+ *  PRESENCE IS NOT WIRING, which is the whole point: a `container={somethingElse}` attribute satisfies a
+ *  naive attribute check while delivering exactly the unsafe default. */
+export function consumesContainerProp(expression: Node, parameters: readonly ParameterDeclaration[]): boolean {
+  for (const access of [expression, ...expression.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)]) {
+    if (
+      access.isKind(SyntaxKind.PropertyAccessExpression) &&
+      access.getName() === CONTAINER_PROP &&
+      isParameterRead(unwrapExpression(access.getExpression()), parameters)
+    ) {
+      return true;
+    }
+  }
+  for (const id of [expression, ...expression.getDescendantsOfKind(SyntaxKind.Identifier)]) {
+    if (
+      id.isKind(SyntaxKind.Identifier) &&
+      id.getText() === CONTAINER_PROP &&
+      id.getDefinitionNodes().some((definition) => definition.isKind(SyntaxKind.BindingElement) && bindingFromParameter(definition, parameters))
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Absolute ts-morph path → the repo-relative posix path gates report with. */
