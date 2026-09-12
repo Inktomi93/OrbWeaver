@@ -5,20 +5,10 @@
 // repo-relative path a policy was handed, owns no glob, no filesystem access, and no regex over the tree.
 // The four definition-integrity policies share it so their co-location law cannot drift apart.
 
+import type { DefinitionSlot } from "../contract/registry-definition-home.ts";
+
 const FEATURE_ROOT = ["packages", "client", "src", "features"] as const;
 const SOURCE_EXTENSIONS = [".ts", ".tsx"] as const;
-
-/** The definition slot a co-located file name ends with, before its extension. */
-export const DEFINITION_SLOTS = {
-  section: "-section",
-  modal: "-modal",
-  chrome: "-chrome",
-  tile: "-tile",
-  group: "-group",
-  collection: "-collection",
-} as const;
-
-export type DefinitionSlot = (typeof DEFINITION_SLOTS)[keyof typeof DEFINITION_SLOTS];
 
 /** The feature that owns `repoRelativePath`'s definition slot, or undefined when the path is not one. */
 export function definitionHomeOwner(repoRelativePath: string, slot: DefinitionSlot): string | undefined {

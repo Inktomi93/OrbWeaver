@@ -18,10 +18,11 @@
 // the `1bf7ff7d9` split commit, verified 2026-09-12 to hold a `GateDescriptor` at this path) checked both
 // this schema partition and the contract partition (now `contract-banned-shapes`) in one combined gate
 // with its own inline schema read before this split.
+
+import type { SchemaBannedShape } from "../contract/ledger-banned-shapes.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumn, SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import type { SchemaBannedShape } from "../lib/ledger-banned-shapes.ts";
 import { bannedMessage, SCHEMA_BANNED_SHAPES } from "../lib/ledger-banned-shapes.ts";
 import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
 

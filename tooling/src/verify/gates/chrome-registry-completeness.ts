@@ -23,11 +23,12 @@
 // (9055cfe6a); the final population is `@client`.
 import type { ObjectLiteralExpression } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { DEFINITION_SLOTS } from "../contract/registry-definition-home.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
 import { declarationHome } from "../lib/declaration-home.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionStringField } from "../lib/registry-definition-field.ts";
-import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
+import { isDefinitionHome } from "../lib/registry-definition-home.ts";
 import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 

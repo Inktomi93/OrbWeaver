@@ -20,6 +20,7 @@
 // A pure reader over nodes the dispatcher delivered: no walk, no Project, no cache, no filesystem.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { RoleAxisVerdict } from "../contract/role-vocabulary.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";
 import { readMemberReference, readStaticString } from "./reference-fact.ts";
 
@@ -94,13 +95,6 @@ function literalMembers(read: MorphNode): ReadonlySet<string> | undefined {
   }
   return members.size === 0 ? undefined : members;
 }
-
-/** The three answers a caller needs, and the reason this is not a boolean. A boolean forced the two role
- *  policies to fail OPEN on everything the checker could not close: a read typed `any`, a read typed plain
- *  `string`, and a read whose type is a strict SUPERSET of the vocabulary all passed silently, while the
- *  legacy hardcoded-literal readers caught the `string` case. Only a CLOSED literal union that provably
- *  omits a vocabulary member is another axis; everything else is fail-closed evidence. */
-export type RoleAxisVerdict = "on-axis" | "foreign" | "unreadable";
 
 /** Judge a role read against one vocabulary.
  *

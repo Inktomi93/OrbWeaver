@@ -29,8 +29,8 @@
 // the final `TEST_POPULATION` is that expression, and each of its three exclusions now owns a mustPass row.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import type { FixtureDoor } from "../contract/test-runner-door.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
-import type { FixtureDoor } from "../lib/test-runner-door.ts";
 import { FIXTURE_NAMES, readFixtureDoor, registersSnapshotSerializer } from "../lib/test-runner-door.ts";
 
 const TOOLING_MIRROR = "tests/tooling/";

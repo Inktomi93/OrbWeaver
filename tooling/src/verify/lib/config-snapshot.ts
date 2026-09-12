@@ -10,7 +10,7 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type {
   ConfigSelectorSnapshot,
   ConfigSnapshot,
-  ConfigSnapshotByRunner,
+  ConfigSnapshotRead,
   ConfigSnapshotReadOptions,
   ConfigSnapshotRunner,
   DepcruiseConfigSnapshot,
@@ -30,10 +30,6 @@ const SNAPSHOT_ENTRY = fileURLToPath(new URL("../ops/config-snapshot-entry.ts", 
 const SNAPSHOT_TIMEOUT_BASE_MS = 30_000;
 const SNAPSHOT_TIMEOUT_MS = budget(SNAPSHOT_TIMEOUT_BASE_MS);
 const SNAPSHOT_MAX_BUFFER = 16_777_216;
-
-export type ConfigSnapshotRead<R extends ConfigSnapshotRunner> =
-  | { readonly kind: "ok"; readonly snapshot: ConfigSnapshotByRunner[R] }
-  | { readonly kind: "unreadable"; readonly detail: string };
 
 function deletedByOverlay(path: string, overlay: Readonly<Record<string, string | null>>): boolean {
   return Object.entries(overlay).some(([entry, value]) => value === null && (path === entry || path.startsWith(`${entry}/`)));

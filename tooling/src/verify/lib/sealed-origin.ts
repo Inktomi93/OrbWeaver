@@ -5,16 +5,10 @@
 // because a canonical declaration is routinely OUTSIDE the consuming policy's population, where
 // `ctx.relativePath` refuses by contract.
 import type { Node as MorphNode } from "ts-morph";
-import type { ModuleMemberOrigin, ReferenceFact } from "../contract/reference-fact.ts";
+import type { ModuleMemberOrigin } from "../contract/reference-fact.ts";
+import type { SealedOriginVerdict } from "../contract/sealed-origin.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { resolveModuleMemberOrigin } from "./reference-fact.ts";
-
-/** The verdict for one candidate reference. `unresolved` is never absence: a candidate whose origin cannot
- *  be read is fail-closed evidence for the caller, not a silent pass. */
-export type SealedOriginVerdict =
-  | { readonly kind: "sealed"; readonly exportedName: string; readonly origin: ModuleMemberOrigin }
-  | { readonly kind: "foreign"; readonly origin: ModuleMemberOrigin }
-  | { readonly kind: "unresolved"; readonly fact: Extract<ReferenceFact<ModuleMemberOrigin>, { readonly kind: "unresolved" }> };
 
 export interface SealedHome {
   /** Absolute-path infix of the implementation home, e.g. `/packages/server/src/infra/providers/`. */

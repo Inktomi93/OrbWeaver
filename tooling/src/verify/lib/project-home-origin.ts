@@ -13,6 +13,7 @@
 // A pure reader over delivered nodes: no walk, no Project, no filesystem, no cache.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
+import type { ProjectHomeVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "./reference-fact.ts";
 import { declaredByAnyPackage, resolveTypeMemberOrigin } from "./type-member-origin.ts";
@@ -31,10 +32,6 @@ export interface LocatedProjectHome {
   readonly members: number;
   readonly unresolved: number;
 }
-
-/** Three answers, never two: the reference IS the home's symbol, is provably a different one, or could not
- *  be read at all — the third is a finding, never a silent pass (GATE-AUTHORING §5, #944). */
-export type ProjectHomeVerdict = "home" | "other" | "unreadable";
 
 /** A package-export verdict plus the CANONICAL export name it resolved to — an aliased import spells a
  *  different local name, and a grant operation must be keyed on the export, never on the local spelling. */

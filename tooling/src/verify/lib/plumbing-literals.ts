@@ -25,6 +25,7 @@
 // for. Moving it into the gate would make the gate a walker and the parser private.
 import type { CallExpression, Node as MorphNode, NumericLiteral } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { RunnerConfigLiteral, RunnerConfigRead } from "../contract/plumbing-literals.ts";
 import { parseStaticSourceText } from "./config-static-read.ts";
 
 /** A declaration/property NAME that means "this number is a TCP port". `port`, `ctPort`, `serverPort`,
@@ -133,18 +134,6 @@ export function fixedClockOf(node: MorphNode): FixedClock | null {
   }
   return Node.isCallExpression(node) ? ceilingSleepOf(node) : null;
 }
-
-export interface RunnerConfigLiteral {
-  readonly kind: "port" | "clock";
-  readonly line: number;
-  /** The literal's exact text — the finding token. */
-  readonly token: string;
-  readonly label: string;
-}
-
-export type RunnerConfigRead =
-  | { readonly kind: "unparseable"; readonly detail: string }
-  | { readonly kind: "ok"; readonly literals: readonly RunnerConfigLiteral[] };
 
 /** Both literal laws over ONE root runner config's TEXT, delivered by the `exact-file` door. The walk is a
  *  scratch parse, never the shared workspace; a config that does not parse REFUSES rather than yielding a

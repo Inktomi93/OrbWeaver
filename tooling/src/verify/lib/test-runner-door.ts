@@ -7,6 +7,7 @@
 // bakes unnormalized inline snapshots). Both are read structurally, so a rename of either door is free.
 import type { ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { FixtureDoor } from "../contract/test-runner-door.ts";
 import { readMemberReference, referenceResolutionServices } from "./reference-fact.ts";
 
 /** The runner packages a test may never enter directly (core/Spine-Testing.md §4). */
@@ -16,16 +17,6 @@ export const TEST_RUNNER_MODULES: ReadonlySet<string> = new Set(["vitest", "@pla
 export const FIXTURE_NAMES: ReadonlySet<string> = new Set(["test", "it", "expect"]);
 
 const SERIALIZER_REGISTRATION = "addSnapshotSerializer";
-
-export type FixtureDoor =
-  /** The consumer named a runner package directly. */
-  | { readonly kind: "runner"; readonly specifier: string }
-  /** The consumer named a project module — a composed door, judged further by the caller. */
-  | { readonly kind: "project"; readonly specifier: string; readonly sourceFile: SourceFile }
-  /** Some other package (a third-party assertion helper). Out of the doctrine's subject. */
-  | { readonly kind: "external"; readonly specifier: string }
-  /** A relative/alias door that resolves to no module. Absence is never a verdict. */
-  | { readonly kind: "unresolved"; readonly detail: string };
 
 /** A DOOR RESOLVING TO A FILE IS NOT A PROJECT DOOR. A typed workspace resolves a package specifier to its
  *  shipped declarations, so `@playwright/experimental-ct-react` answers `getModuleSpecifierSourceFile()`

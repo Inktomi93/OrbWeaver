@@ -12,24 +12,9 @@
 // A pure function over nodes the dispatcher delivered: no walk, no Project, no cache, no filesystem.
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
+import type { AmbientInvocationVerdict, AmbientSource } from "../contract/ambient-determinism.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { resolveGlobalMemberOrigin } from "./reference-fact.ts";
-
-/** One ambient source: the global's own name plus the property path below it (`Date` + `["now"]`). */
-export interface AmbientSource {
-  readonly globalName: string;
-  readonly memberPath: readonly string[];
-  /** The token a finding carries, so one policy's two arms stay distinguishable in a waiver/grant. */
-  readonly token: string;
-}
-
-export type AmbientInvocationVerdict =
-  | { readonly kind: "ambient"; readonly source: AmbientSource }
-  /** The callee provably binds something else — an injected clock, a seeded PRNG, a local helper. */
-  | { readonly kind: "other" }
-  /** The callee could not be read at all; fail-closed evidence for the caller, never a silent pass. */
-  | { readonly kind: "unreadable"; readonly reason: ReferenceUnresolvedReason; readonly detail: string };
 
 function samePath(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((segment, index) => segment === right[index]);

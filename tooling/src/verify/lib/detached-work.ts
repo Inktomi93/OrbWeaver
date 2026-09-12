@@ -29,6 +29,7 @@
 // both — `entry.promise` under each, never `entry.promise` there and a bare `promise` here.
 import type { Block, CallExpression, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { DetachedWorkArm } from "../contract/detached-work.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import type { CaughtFailureAnchor } from "./caught-failure.ts";
 import { calleeAnchorCandidates, catchAnchor, firstAnchor } from "./caught-failure.ts";
@@ -273,9 +274,6 @@ function callsOpener(node: Node, openers: ReadonlySet<string>): boolean {
     return name !== undefined && openers.has(name);
   });
 }
-
-export const DETACHED_WORK_ARMS = ["untraced", "swallowed-catch", "blinded-rejection"] as const;
-export type DetachedWorkArm = (typeof DETACHED_WORK_ARMS)[number];
 
 export interface DetachedWorkSite {
   readonly arm: DetachedWorkArm;

@@ -15,9 +15,9 @@
 // A pure reader over delivered nodes: no walk, no Project, no filesystem, no cache.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import type { OriginVerdict } from "../contract/origin-verdict.ts";
+import type { PathCalleeVerdict, ProjectHomeVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import type { LocatedProjectHome, ProjectHomeDeclaration, ProjectHomeVerdict } from "./project-home-origin.ts";
+import type { LocatedProjectHome, ProjectHomeDeclaration } from "./project-home-origin.ts";
 import { classifyProjectHomeOrigin } from "./project-home-origin.ts";
 import { readMemberReference, readStaticString } from "./reference-fact.ts";
 import { resolveCallableOrigin } from "./reference-fact-call.ts";
@@ -32,8 +32,6 @@ const PATH_CALLEES: ReadonlySet<string> = new Set(["join", "resolve", "mkdir", "
 const PATH_DOORS: ReadonlySet<string> = new Set(["node:path", "path", "node:path/posix", "path/posix", "node:fs", "fs", "node:fs/promises", "fs/promises"]);
 const REPORTS = "reports";
 const REPORTS_PREFIX = `${REPORTS}/`;
-
-export type PathCalleeVerdict = OriginVerdict<"path-call">;
 
 /** The name a callee is spelled with — the identifier, or the member name of a property access — so a
  *  policy can PREFILTER by name before any identity work (the prefilter is what keeps fail-closure honest:

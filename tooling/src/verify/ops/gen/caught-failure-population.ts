@@ -20,10 +20,11 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { SourceFile } from "ts-morph";
 import type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureVerdict } from "../../contract/caught-failure.ts";
+import { CAUGHT_FAILURE_ARMS } from "../../contract/caught-failure.ts";
 import type { CoordinatedGateFinding } from "../../contract/gate-authority.ts";
 import type { OrdinaryWaiverSource } from "../../contract/ordinary-waiver-source.ts";
 import { gate } from "../../gates/caught-failure-ownership.ts";
-import { CAUGHT_FAILURE_ARMS, caughtFailureReviewSites } from "../../lib/caught-failure.ts";
+import { caughtFailureReviewSites } from "../../lib/caught-failure.ts";
 import { createOrdinaryWaiverEngine } from "../../lib/ordinary-waiver.ts";
 // NOT `harness.ts`'s `getProject` — MEASURED 2026-08-28: its fileset is deliberately narrower than
 // `harnessGlobs` and EXCLUDES `tooling/src/**`, which this gate scans. Deriving the census from it reported

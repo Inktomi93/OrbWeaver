@@ -1,7 +1,15 @@
 // Canonical identity and authored-value composition for the visitor-fed bus fact collector.
 import type { CallExpression, Node as MorphNode, Symbol as MorphSymbol, Type, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
-import type { BusAnchor, BusDeclarationIdentity, BusMemberIdentity, BusOperationIdentity, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
+import type {
+  BusAnchor,
+  BusDeclarationIdentity,
+  BusMemberIdentity,
+  BusOperationIdentity,
+  BusTypedDiscriminators,
+  BusUnresolvedIdentity,
+  EmitterSinkKind,
+} from "../contract/bus-fact.ts";
 import type { GateFactContext } from "../contract/fact.ts";
 import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
 import { declarationHome } from "./declaration-home.ts";
@@ -278,10 +286,6 @@ export function discriminatorValues(
   return typeof value.value === "string" ? [{ value: value.value, node: value.trace.origin }] : [];
 }
 
-export type BusTypedDiscriminators =
-  | { readonly kind: "resolved"; readonly values: readonly string[] }
-  | { readonly kind: "refused"; readonly reason: ReferenceUnresolvedReason; readonly detail: string };
-
 /** The FLOW type of one argument delivered to a proven emitter sink, read as its discriminator set.
  *
  *  WHY THE FLOW TYPE AND NOT MORE SYNTAX: TypeScript narrows a union-annotated binding to the constituents
@@ -384,8 +388,6 @@ function injectedReceiver(receiver: MorphNode): boolean {
   const stable = resolveStableExpression(root);
   return stable.kind === "unresolved" && Node.isParameterDeclaration(stable.node);
 }
-
-export type EmitterSinkKind = "channel" | "injected";
 
 /** Prove the call reaches an injected callable or the one bus-channel publisher, not a same-typed decoy. */
 export function emitterSink(context: GateFactContext, call: CallExpression): EmitterSinkKind | undefined {

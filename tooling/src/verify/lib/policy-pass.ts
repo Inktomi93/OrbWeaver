@@ -12,6 +12,7 @@ import type {
   GateFactOwnerResult,
   GateFactPhase,
   GateFactToolError,
+  PolicyFactValueRegistry,
   PolicyOwnerPlan,
   PolicyOwnerResult,
   PolicyPassInput,
@@ -28,7 +29,6 @@ import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
-import type { PolicyFactValueRegistry } from "./policy-pass-context.ts";
 import { makeFactContext, makePolicyContext } from "./policy-pass-context.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import {

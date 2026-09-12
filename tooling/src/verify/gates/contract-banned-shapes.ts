@@ -27,8 +27,8 @@
 // plane.
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { ContractBannedShape } from "../contract/ledger-banned-shapes.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { ContractBannedShape } from "../lib/ledger-banned-shapes.ts";
 import { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome } from "../lib/ledger-banned-shapes.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
 import { objectEntries, SchemaRefusal, terminalCall } from "../lib/schema-fact-value.ts";
