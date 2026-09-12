@@ -17,8 +17,16 @@
 //   `workload-contributions.ts` — I/O-touching, not a verb, cross-domain by construction.
 // - A handful of domain-specific root singletons, each individually justified inline below
 //   (`DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES`) but not yet promoted to the cross-domain ledger.
+//
+// WHERE A BROKEN RESOURCE REFUSES — not here (mirrors `server-layout.ts`'s header). A declared resource
+// that comes back missing/empty/unresolved/malformed makes `resolveResourceDeclarations`
+// (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, and the receipt phase withholds
+// every consumer, both before `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready
+// branch: it reads the domain tree through `readyResourceValue`, whose throw is an assertion that the
+// runtime's own refusal already held.
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const DOMAIN_REL = "packages/server/src/domain";
 const REQUIRED_FILES = ["index.ts", "service.ts", "context.ts"] as const;
@@ -184,11 +192,7 @@ export const gate = defineGate({
   fix: "add the missing template slot, or move the loose file into verbs/ / substrate/ / a subsystem (only index/service/context/guard + documented singletons live at the feature root).",
   create: (ctx) => ({
     evaluate: () => {
-      const domainTree = ctx.resources.authoredTree("server-domain");
-      if (domainTree.status !== "ready") {
-        return;
-      }
-      const entries = domainTree.value;
+      const entries = readyResourceValue(ctx.resources.authoredTree("server-domain"));
       const byPath = new Map(entries.map((entry) => [entry.path, entry]));
       const findings: Report[] = [];
       for (const feature of featureNames(entries)) {
