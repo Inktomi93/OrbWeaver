@@ -633,6 +633,9 @@ test("declared fact providers collect once over their own population and reset a
         evaluate: () => {
           const value = ctx.fact(provider);
           seen.add(value);
+          // A fact-declaring policy owes its OWN semantic receipt (#1966, `policyReceiptFailures`) — the
+          // consumer half of the receipt law. It states what this consumer measured (one fact), never the census.
+          ctx.receipt({ kind: "population", source: id, members: 1 });
           if (value.visits !== 1) {
             throw new Error("fact did not collect its exact independent population once");
           }
@@ -831,6 +834,8 @@ test("a resource fact owns acquisition and receipts independently of its consume
         if (ctx.fact(provider) !== "orb") {
           throw new Error("consumer received the wrong package fact");
         }
+        // The consumer's own receipt (#1966) — independent of the provider's resource receipt asserted below.
+        ctx.receipt({ kind: "population", source: "package-fact-consumer", members: 1 });
       },
     }),
   });

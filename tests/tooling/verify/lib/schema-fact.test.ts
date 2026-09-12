@@ -88,6 +88,10 @@ test("the first-class schema provider uses dispatcher declarations once and expo
     create: (ctx) => ({
       evaluate: () => {
         captured = ctx.fact(drizzleSchemaFact);
+        // THE POSITIVE ARM of the consumer-receipt refusal (#1966): a fact-declaring policy that DOES file a
+        // semantic receipt runs to a clean `success`. The receipt states what this consumer MEASURED — the one
+        // fact it read — never the census it found, so an empty census still reaches the consumer's own verdict.
+        ctx.receipt({ kind: "population", source: "schema-provider-control", members: 1 });
       },
     }),
     mustFlag: [{ mode: "types", files: { "packages/db/src/schema/flag.ts": "export const flag = true;\n" }, why: "provider control" }],
@@ -108,22 +112,29 @@ test("the first-class schema provider uses dispatcher declarations once and expo
     },
   ]);
   expect(captured?.schema()).toMatchObject({ status: "ready", receipt: { tables: 1, columns: 1, members: 2 } });
+  expect(result.policies[0]).toMatchObject({
+    owner: { status: "success" },
+    receipts: [{ kind: "population", source: "schema-provider-control", members: 1 }],
+  });
 });
 
-test("THE FAIL-OPEN SHAPE: a consumer that neither re-receipts nor reads the status renders a clean verdict over an EMPTY census", () => {
-  // THE PLANTED CONTROL the phase move owes (#1962, coordinator-required). Moving the emptiness verdict off
-  // the PROVIDER receipt and onto the consumer changes a UNIVERSAL refusal into a PER-CONSUMER one, and
-  // `policyReceiptFailures` judges only the receipts a policy DID file — it has no "policy produced no
-  // semantic receipt" arm, unlike `factReceiptFailures`. So a consumer that declares the fact, consumes it,
-  // and files nothing passes SILENTLY over a schema tree that declares no table. Asserted here as the
-  // runtime's actual shape rather than assumed either way.
+test("THE FAIL-OPEN SHAPE, NOW CLOSED: a consumer that declares a fact and files no receipt is REFUSED, not passed silently", () => {
+  // THIS WAS THE FAIL-OPEN PIN (#1962), and it asserted the gap as a fact of the runtime:
+  //   factErrors: [] · toolErrors: [] · owner.status "success" · receipts: [] · withheldPolicyIds: []
+  // It recorded that moving the emptiness verdict off the PROVIDER receipt and onto the consumer turned a
+  // UNIVERSAL refusal into a PER-CONSUMER one, while `policyReceiptFailures` judged only the receipts a
+  // policy DID file — it had no "policy produced no semantic receipt" arm, unlike `factReceiptFailures`. So
+  // a consumer that declared the fact, consumed it and filed nothing rendered a clean verdict over a schema
+  // tree that declares no table. The guarantee then held only by CONVENTION: the 18 production consumers of
+  // `drizzleSchemaFact` all route through `recordReadySchemaFact`, so nothing on the tree had this shape.
   //
-  // WHAT MAKES THE GUARANTEE UNIVERSAL TODAY IS THE SHARED HELPER, NOT THE RUNTIME: all 18 production
-  // consumers of `drizzleSchemaFact` call `recordReadySchemaFact`, which THROWS on any non-`ready` status
-  // AND files the census receipt (`contract/schema-fact.ts`; census by `grep -c recordReadySchemaFact` over
-  // every module importing the provider, 2026-09-11). The probe below is deliberately the one shape no
-  // production consumer has. A new consumer that skips the helper inherits no blindness door — which is why
-  // the helper, not the receipt, is where a reviewer must look.
+  // WHAT CHANGED (#1966): `policyReceiptFailures` gained the missing arm — a policy that declares `facts`
+  // and produces no semantic receipt REFUSES in its own receipt phase. The identical probe below is now the
+  // refusal proof: the run yields a `receipt`-phase tool error and the policy is WITHHELD, so the guarantee
+  // is the runtime's rather than the helper's. The blast-radius census taken before the change was
+  // 35 declaring policies / 35 receipting / 0 failing, so closing it red-lined nothing on the live corpus.
+  // The twin POSITIVE arm — a fact-declaring policy that DOES receipt still passing — is the provider
+  // control above.
   let seen: SchemaFact<SchemaModel> | undefined;
   const silent: GatePolicy = defineGate({
     id: "schema-silent-consumer-probe",
@@ -153,12 +164,20 @@ test("THE FAIL-OPEN SHAPE: a consumer that neither re-receipts nor reads the sta
     failOnWarnings: false,
   });
 
+  // The consumer still SAW the empty census — the refusal is about the receipt it never filed, not about
+  // what the fact reported — and the provider itself stays healthy: its own receipt is the walked denominator.
   expect(seen?.status).toBe("empty");
   expect(result.factErrors).toEqual([]);
-  expect(result.toolErrors).toEqual([]);
-  expect(result.policies[0]?.owner.status).toBe("success");
+  expect(result.toolErrors).toEqual([
+    {
+      policyId: "schema-silent-consumer-probe",
+      phase: "receipt",
+      message: "policy receipt refused: declared facts produced no semantic receipt",
+    },
+  ]);
+  expect(result.policies[0]?.owner).toMatchObject({ status: "incomplete" });
   expect(result.policies[0]?.receipts).toEqual([]);
-  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual(["schema-silent-consumer-probe"]);
 });
 
 test("derives canonical tables, columns, FK, indexes, and open JSON through aliases and namespaces", () => {
