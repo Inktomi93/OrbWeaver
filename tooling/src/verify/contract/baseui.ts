@@ -5,7 +5,7 @@
 /** `part` = an anatomy part (its declaration file declares `<Symbol>Props`); `hook` / `type` = the other
  *  things a component module re-exports (`useFilteredItems`, `Field.ValidityData`). Only a `part` owes a
  *  disposition — a hook has no anatomy to expose or seal away. */
-const EXPORT_KINDS = ["part", "hook", "type"] as const;
+export const EXPORT_KINDS = ["part", "hook", "type"] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
 
 export interface InstalledPart {
@@ -54,7 +54,7 @@ export interface InstalledSurface {
  *  - `sealed-away`  — deliberately not rendered, `why` states the decision AND what would end it;
  *  - `n-a`          — nothing in `@orb/ui` wraps this component at all;
  *  - `unresolved`   — the birth state a version bump mints. ALWAYS RED; a human adjudicates it away. */
-const DISPOSITIONS = ["exposed", "sealed-away", "n-a", "unresolved"] as const;
+export const DISPOSITIONS = ["exposed", "sealed-away", "n-a", "unresolved"] as const;
 export type Disposition = (typeof DISPOSITIONS)[number];
 
 export interface ManifestPart extends InstalledPart {

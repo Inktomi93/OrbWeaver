@@ -1,0 +1,116 @@
+// Policy: surface-in-a-container-health — the two-sided RATCHET on `surface-in-a-container`'s shell
+// exemption. The excluded feature directory must still EXIST; an exemption naming a feature that is gone has
+// stopped exempting anything and would silently un-scan the name the day someone reuses it.
+//
+// FAMILY `surface-composition`, and this is a SPLIT rather than an arm of its sibling. `surface-in-a-container`
+// is `ordinary` — its finding anchors on a surface's exported component and an author can waive one. This
+// verdict is an ABSENCE claim about an exact PATH: it has no node, therefore no position, therefore no
+// ordinary door by construction (guide §3, door-failure class 2: *"re-anchor on authored text, or split to
+// `hard`"*), and there is nothing a site-local waiver could correctly say about a directory that is not
+// there. One authority per descriptor (§12.1) makes that a separate policy id under the shared family string.
+//
+// SUCCESSOR PROOF for the retired legacy arm (§4.6). LEGACY at 854c81c80, `surface-in-a-container.ts:131-143`:
+// a `STALE_PREFIX` finding reported at the GATE'S OWN SOURCE FILE when a `SHELL_EXEMPT` name had no feature
+// dir, guarded by `ANCHOR_FEATURE = "chat"` so a synthetic conformance tree could not "prove" the shell tier
+// had vanished. Three things change and each is deliberate:
+//   1. THE SUBJECT IS DECLARED DATA, NOT A GATE-OWNED TABLE. §12.5 forbids a gate-local exemption table in a
+//      final policy, so the excluded feature is the `notUnder` root on the sibling's population and this
+//      policy holds the one name it ratchets. Both spellings name `app-shell`, which is the whole content of
+//      the retired `SHELL_EXEMPT` Set.
+//   2. THE ANCHOR MOVES from the gate's own source file to `packages/client/package.json`. A finding must sit
+//      inside the policy's own resource population, and a gate module is not in one — the client manifest is,
+//      and it is the `server-layout` precedent for an absence verdict (a declared resource read for its PATH,
+//      `resource-policy-contract.md` §3.1). The manifest's `name` is read so the declaration is CONSUMED; an
+//      unconsumed declaration is a receipt-phase refusal.
+//   3. THE `ANCHOR_FEATURE` GUARD RETIRES INTO THE RUNTIME. It existed because the legacy gate ran over a
+//      synthetic mini-project that had no real features. This policy's subject is a DECLARED `authored-tree`
+//      resource: a fixture that supplies no client feature tree at all is refused at the population phase
+//      rather than judged, which is the same protection stated as a refusal instead of a hand-rolled guard.
+//      `mustPass[1]` is the positive control that a tree WITH other features still reds when app-shell is the
+//      one missing — i.e. the arm is not passing merely because the fixture is thin.
+//
+// CATCH DELTA: none. The condition, the exempted name and the two-sidedness are identical; only the anchor
+// and the guard mechanism moved, and both are stated above.
+import { defineGate } from "../contract/policy.ts";
+import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
+
+const FEATURES = AUTHORED_TREE_PATHS["client-feature"];
+/** The one feature `surface-in-a-container` excludes from its population. Kept in ONE place per side: the
+ *  sibling spells it as a `notUnder` root, this policy spells it as the name it ratchets. */
+const EXEMPT_FEATURE = "app-shell";
+const EXEMPT_DIR = `${FEATURES}/${EXEMPT_FEATURE}`;
+const CLIENT_MANIFEST = "packages/client/package.json";
+
+const MESSAGE =
+  `stale shell exemption — \`surface-in-a-container\` excludes \`${EXEMPT_DIR}\` from its population because ` +
+  "the shell tier is the top-level container PROVIDER (UI-Architecture-and-Layout.md §4's role table), and " +
+  "that directory no longer exists. An exemption that outlives its feature exempts nothing today and " +
+  "silently un-scans the name the day a future feature reuses it, so it ratchets down with the feature " +
+  "rather than sitting there looking like a decision.";
+
+const FIX =
+  `delete the \`notUnder: ["${EXEMPT_DIR}/**"]\` root from \`surface-in-a-container\`'s population and the ` +
+  "`EXEMPT_FEATURE` constant here, in the same commit. If the shell tier MOVED rather than went away, " +
+  "re-point both at its new directory — the exclusion follows the ROLE, not the path.";
+
+const CLIENT_TREE = { "packages/client/src/features/chat/surfaces/chat.tsx": "export const Chat = () => <div>x</div>;\n" } as const;
+const CLIENT_PKG = { [CLIENT_MANIFEST]: '{"name":"@orb/client","private":true}' } as const;
+const SHELL = { "packages/client/src/features/app-shell/surfaces/app-shell.tsx": "export const AppShell = () => <div>x</div>;\n" } as const;
+
+export const gate = defineGate({
+  id: "surface-in-a-container-health",
+  family: "surface-composition",
+  authority: "hard",
+  severity: "error",
+  population: {
+    of: "none",
+    why: "the client feature tree and the client manifest are closed ResourceHost facts; this policy judges a DIRECTORY's existence, which no compiler population can answer",
+  },
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [
+    { kind: "authored-tree", id: "client-feature" },
+    { kind: "package-metadata", id: "client" },
+  ],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    evaluate: (): void => {
+      const features = readyResourceValue(ctx.resources.authoredTree("client-feature"));
+      // The manifest is declared for its PATH — it is this verdict's only in-population anchor — so its
+      // value is read here to CONSUME the declaration (an unconsumed one is a receipt-phase refusal).
+      const manifest = readyResourceValue(ctx.resources.packageMetadata("client"));
+      if (manifest.name === "" || features.some((entry) => entry.path === EXEMPT_DIR || entry.path.startsWith(`${EXEMPT_DIR}/`))) {
+        return;
+      }
+      ctx.report.file(CLIENT_MANIFEST, { message: MESSAGE, fix: FIX });
+    },
+  }),
+
+  mustFlag: [
+    {
+      mode: "resource",
+      files: { ...CLIENT_TREE, ...CLIENT_PKG },
+      expect: { count: 1, messageIncludes: "stale shell exemption" },
+      why: "THE RATCHET, and the successor to the legacy `STALE_PREFIX` arm: the client feature tree is populated and real, and the exempted `app-shell` feature is not in it. The exemption has outlived its feature and must red rather than quietly un-scan the name",
+    },
+  ],
+  mustPass: [
+    {
+      mode: "resource",
+      files: { ...CLIENT_TREE, ...CLIENT_PKG, ...SHELL },
+      why: "the row STILL EARNED: the exempted feature exists, so the exclusion on the sibling's population is doing real work and this policy is silent. THE POSITIVE CONTROL for mustFlag[0] — the two fixtures differ by exactly the app-shell directory, so the red above cannot be coming from a thin tree",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/client/src/features/app-shell-lookalike/surfaces/pane.tsx": "export const Pane = () => <div>x</div>;\n",
+        ...CLIENT_PKG,
+        ...SHELL,
+      },
+      why: "the PREFIX fence: membership is tested on the exact directory or a `/`-terminated prefix of it, so a feature merely NAMED `app-shell-lookalike` neither satisfies the ratchet nor is mistaken for the shell. Drop the `/` from the `startsWith` and this row still passes but the previous one starts acquitting on a lookalike — which is why both exist",
+    },
+  ],
+});

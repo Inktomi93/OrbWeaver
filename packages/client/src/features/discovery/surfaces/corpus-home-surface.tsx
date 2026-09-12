@@ -105,7 +105,7 @@ import { deriveCorpusAnalysisState } from "../lib/corpus-analysis-state.ts";
 // LIST surface deliberately focuses, C7) one Tab further away than it looks. A section has ONE arrival
 // target; this is not it. Nothing else here focused anything, so the fix is the removal — and the removal
 // is DECLARED rather than silent, because `surface-a11y-focus` is otherwise right about every other surface:
-// @surface-focus-elsewhere(SearchOmnibox): the corpus LIST pane's omnibox owns this section's arrival focus (corpus-list-surface.tsx, C7); this CONTENT surface mounts second and must not steal it — pinned by tests/client/features/discovery/surfaces/corpus-list-surface.ct.tsx "arriving in the SECTION lands focus in the omnibox".
+// @orb-waive surface-a11y-focus(CorpusHomeSurface): the corpus LIST pane's omnibox (SearchOmnibox in corpus-list-surface.tsx, C7) owns this section's arrival focus; this CONTENT surface mounts second and must not steal it — pinned by tests/client/features/discovery/surfaces/corpus-list-surface.ct.tsx "arriving in the SECTION lands focus in the omnibox". Ends when this surface becomes a section's sole pane and has an arrival target of its own.
 export function CorpusHomeSurface(): ReactElement {
   return (
     // No height/scroll/inset of its own — the CONTENT region owns all three for both corpus surfaces

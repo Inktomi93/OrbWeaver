@@ -36,9 +36,9 @@
 // cannot serve, because at open time this body is still the suspense fallback with nothing tabbable in it.
 // The "the two would fight over the caret" note on that prop is retired by the same move: nothing here
 // claims focus any more.
-// @surface-focus-elsewhere(CharacterPicker): the picker body owns arrival focus — its `autoFocusSearch`
-// lands the caret in the search combobox when the rows mount, and a `useFocusOnMount` here is exactly the
-// defect #440 fixed (it parked focus on a dead wrapper and swallowed every keystroke).
+// The `surface-a11y-focus` waiver that records this decision is on `NewChatPicker` itself below, because a
+// waiver POSITION is a source coordinate under the central engine and binds only to its own declaration's
+// leading trivia — a marker up here would bind to nothing.
 //
 // THE ACTION FOOTER ADAPTS TO ITS OWN BOX, NOT THE VIEWPORT (#439). At the mobile mount (a 366px dialog)
 // the two buttons at desktop label widths are wider than the footer's content box, and a `justify-end`
@@ -130,6 +130,7 @@ function selectionStatusFor(count: number): string {
   return count === 0 ? "No characters selected" : `${count} character${count === 1 ? "" : "s"} selected`;
 }
 
+// @orb-waive surface-a11y-focus(NewChatPicker): the picker BODY owns arrival focus — `CharacterPicker`'s own `autoFocusSearch` lands the caret in the search combobox when the rows mount, and a `useFocusOnMount` here is exactly the defect #440 fixed (it parked focus on a dead wrapper and swallowed every keystroke). Ends when this surface stops delegating to `CharacterPicker`, or when that prop stops taking focus.
 export function NewChatPicker(): ReactElement {
   const [selected, setSelected] = useState<ReadonlySet<CharacterId>>(() => new Set<CharacterId>());
   // The creation parameters this open was PRE-ARMED with (the home temp-chat tile's `temporary: true`).
