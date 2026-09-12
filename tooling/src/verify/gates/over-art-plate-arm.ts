@@ -50,7 +50,7 @@
 // must slice the authored text at its reported column — and that is also what makes the two subjects of one
 // rule separately waivable. Every translated marker's binding was verified on the real tree.
 //
-// THE RATCHET IS GONE, AND IT WAS NOT MY CALL — `severity: "warning"` + `workItem: 626` REPLACES IT. The
+// THE RATCHET IS GONE, AND IT WAS NOT MY CALL — `severity: "warning"` + `workItem: 2024` REPLACES IT. The
 // conversion was first built with the ledger preserved behind a declared `ledger:ratchet-baselines`
 // resource, and `pnpm gate:contract` REFUSED it at the `.baseline.json` literal:
 //   `[baseline-ledger] gate-owned baseline ledgers are forbidden; use exact grants or warning debt`
@@ -62,7 +62,7 @@
 // run clean". Both standing censuses reached the same answer independently:
 // `exception-authority-census.md:35,73` ("4 rows / 4 burnable findings … four current violations become
 // warning debt") and `ordinary-waiver-source-migration.md:80` ("the four live plate findings become
-// `workItem: 626` warning debt").
+// `workItem: 2024` warning debt").
 //
 // THE COST IS REAL AND IS THE LANE'S ONE ESCALATION: this gate was `error` and is now `warning`, so a NEW
 // unpaired glass surface warns where it used to RED. That is a downgrade of an enforcement bar, not a
@@ -157,7 +157,7 @@ export const gate = defineGate({
   family: "over-art-plate-arm",
   authority: "ordinary",
   severity: "warning",
-  workItem: 626,
+  workItem: 2024,
   population: { of: "none", why: "CSS is a ResourceHost fact population, never a compiler population" },
   analysis: "resource",
   execution: "entire-population",
