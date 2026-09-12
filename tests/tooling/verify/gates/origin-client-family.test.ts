@@ -95,3 +95,24 @@ test("the mutation-result home is a blindness tripwire on the same contract", ()
   expect(renamed.authority.withheldPolicyIds).toEqual(["no-multiplexed-mutation-error"]);
   expect(renamed.authority.effectiveFindings).toEqual([]);
 });
+
+// #1990/D5 — the third sibling with this exact contract had no pin at all: the audit measured both sides
+// by hand and the tripwire works, but nothing in a committed test proved it. Copied from the two above.
+test("the token-estimator home is a blindness tripwire on the same contract", () => {
+  const healthy = passOf(noManualTokenEstimate, {
+    "packages/kit/src/tokens/index.ts": "export function estimateTokens(text: string): number {\n  return text.length / 4;\n}\n",
+    "packages/server/src/domain/x/verb.ts": "export const g = (text: string): number => text.length / 4;\n",
+  });
+  expect(healthy.toolErrors).toEqual([]);
+  expect(healthy.authority.effectiveFindings).toMatchObject([{ policyId: "no-manual-token-estimate" }]);
+  expect(healthy.policies[0]?.receipts).toEqual([{ kind: "population", source: "estimateTokens", members: 1, unresolved: 0 }]);
+
+  // The home file still exists but no longer exports `estimateTokens` — the exact shape of a rename.
+  const renamed = passOf(noManualTokenEstimate, {
+    "packages/kit/src/tokens/index.ts": "export function estimateChars(text: string): number {\n  return text.length / 4;\n}\n",
+    "packages/server/src/domain/x/verb.ts": "export const g = (text: string): number => text.length / 4;\n",
+  });
+  expect(renamed.toolErrors).toMatchObject([{ policyId: "no-manual-token-estimate", phase: "receipt", message: expect.stringContaining("estimateTokens") }]);
+  expect(renamed.authority.withheldPolicyIds).toEqual(["no-manual-token-estimate"]);
+  expect(renamed.authority.effectiveFindings).toEqual([]);
+});

@@ -108,6 +108,15 @@ export const gate = defineGate({
       expect: { count: 2 },
       why: "the verdict is per OCCURRENCE, not per context — two provider tags are two findings and two waiver positions",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/feature/ui.tsx":
+          'declare const AnyThing: any;\nexport function Host(): unknown {\n  return <AnyThing.Provider value="day" />;\n}\n',
+      },
+      expect: { count: 1, token: "Provider", messageIncludes: "CANNOT be established" },
+      why: "#1990/D1 — THE UNREADABLE ARM, PROVEN: the tag's receiver is opaque (`any`-typed), so `resolveTypeMemberOrigin` cannot place the `.Provider` member and every unresolved origin here reports unconditionally (:60-64) — not merely on a proven-foreign refusal. Reported rather than passed (#944)",
+    },
   ],
   mustPass: [
     {

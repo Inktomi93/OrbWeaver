@@ -117,6 +117,16 @@ export const gate = defineGate({
       expect: { count: 1, token: "setQueryData" },
       why: "THE CAST DODGE: a cast declares the method in its own type literal, so asking the property symbol alone answered 'a proven different identity' and this surface passed while its uncast twin reported. The receiver is still `useQueryClient()` — the shared reader asks it (found by the #1584 sanctioned-home client family's review, which shares this reader)",
     },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/some-feature/surfaces/some-surface.tsx":
+          'declare function opaque(): any;\nexport function Surface(): void {\n  opaque().setQueryData(["key"], 1);\n}\n',
+      },
+      expect: { count: 1, token: "setQueryData", messageIncludes: "CANNOT be established" },
+      why: "#1990/D1 — THE UNREADABLE ARM, PROVEN: the receiver is opaque (`any`-typed), so `classifyPackageMemberOrigin` cannot place `setQueryData` and refuses. Reported rather than passed (#944)",
+    },
   ],
   mustPass: [
     {

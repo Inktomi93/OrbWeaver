@@ -83,6 +83,14 @@ export const gate = defineGate({
       expect: { count: 2 },
       why: "the verdict is per OCCURRENCE — two reflected bundles are two findings and two waiver positions",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/chat/context.ts": "declare function makeCtx(): { db: number };\nexport const x: unknown = ReturnType;\n",
+      },
+      expect: { count: 1, token: "ReturnType", messageIncludes: "CANNOT be established" },
+      why: "#1990/D1 — THE UNREADABLE ARM, PROVEN: `ReturnType` is only ever declared as a TYPE, so reading it in VALUE position binds no symbol at all — `identifier.getSymbol()` is undefined, so both `resolveGlobalMemberOrigin` and `bindsAnyDeclaration` (:30-32) refuse. Reported rather than passed (#944)",
+    },
   ],
   mustPass: [
     {

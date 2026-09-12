@@ -160,6 +160,15 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "A CONST ALIAS of the global: the spelling at the call site is `wire`, so only the resolved binding reaches the ban. The `fetch` reference in the alias declaration is not a CALL, so this is exactly one finding",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/thing/lib/load.ts":
+          'declare function opaque(): any;\nexport async function load(): Promise<unknown> {\n  return await opaque().fetch("/api/x");\n}\n',
+      },
+      expect: { count: 1, token: "fetch", messageIncludes: "CANNOT be established" },
+      why: "#1990/D1 — THE UNREADABLE ARM, PROVEN: the callee is spelled `.fetch` off an opaque `any`-typed receiver, so `resolveGlobalMemberOrigin` and `resolveModuleMemberOrigin` both refuse and `classifyOriginRefusal` fails closed. Reported rather than passed (#944)",
+    },
   ],
   mustPass: [
     {

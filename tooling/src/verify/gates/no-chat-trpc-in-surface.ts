@@ -148,6 +148,18 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "the fully COMPUTED-LITERAL chain is the same reference — the shared member reader normalizes each hop, where the legacy three-hop PropertyAccess walk was offered nothing (#1506)",
     },
+    {
+      mode: "types",
+      files: {
+        ...trpcProxyProof(),
+        "packages/client/src/features/chat/surfaces/local-root.tsx":
+          'import type { DecorateMutationProcedure } from "@trpc/tanstack-react-query";\n' +
+          "declare const local: { chat: { send: DecorateMutationProcedure } };\n" +
+          "export const go = (): unknown => local.chat.send.mutationOptions();\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "#1989/D2 — `isProxyRoot` (:61-64), PROVEN: `mutationOptions` is a proven trpc-declared member, but its CHAIN ROOT (`local`) is not the resolved `TRPCOptionsProxy`, so whether this is the chat router's verb CANNOT be established. Cutting `isProxyRoot` down to `identity.kind === 'resolved'` leaves this fixture at the SAME count with the ORDINARY message instead — a count-only row is blind to that, so this row also closes the unreadable arm (#1990/D1) for the same fixture",
+    },
   ],
   mustPass: [
     {
