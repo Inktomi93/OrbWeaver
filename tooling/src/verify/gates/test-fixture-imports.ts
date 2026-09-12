@@ -17,6 +17,16 @@
 // The claim no longer rests on that prose: `tests/tooling/verify/gates/test-fixture-imports.repo.int.test.ts`
 // replays the frozen descriptor beside this policy over the SAME real workspace on every run and asserts
 // SET EQUALITY of the reported sites, armed in both directions (§4.6).
+//
+// FAMILY `test-fixture-imports` — a declared SINGLETON. The reader it owns, `lib/test-runner-door.ts`, has
+// exactly ONE importer (this module), which §5b.7 names as a shape to justify rather than assume: it lives in
+// `lib/` because it answers a question canonical ORIGIN structurally cannot (both composed doors re-export the
+// same vitest declaration, so the AUTHORED door and its serializer registration are the only discriminators),
+// and that is a reader, not a policy detail. A second consumer inherits the door vocabulary unchanged.
+//
+// POPULATION PORT: byte-identical, legacy at `ef2251957^`
+// (`scanRoot: (p) => p.includes("tests/") && !p.includes("tests/e2e/") && !p.includes("tests/support/") && !p.endsWith(".test-d.ts")`);
+// the final `TEST_POPULATION` is that expression, and each of its three exclusions now owns a mustPass row.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
@@ -218,6 +228,22 @@ export const gate = defineGate({
           '// @orb-waive test-fixture-imports(test): this spec drives the fixture composition itself and must reach the bare runner; ends when the composition has a testable seam.\nimport { test } from "vitest";\nexport const t = test;\n',
       },
       why: "the ONE central positioned waiver naming the exact reported binding — malformed, stale and over-broad markers are proven CENTRALLY, never re-proved per policy",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/e2e/flow.spec.ts": 'import { expect, test } from "@playwright/test";\nexport const t = [test, expect];\n',
+        "tests/server/anchor.test.ts": "export const quiet = 1;\n",
+      },
+      why: "THE POPULATION FENCE, `tests/e2e/**` half — the Playwright runner entered DIRECTLY inside the e2e lane, beside an in-population anchor. e2e runs its own runner and has no composed db/clock/ids fixture to enter through, which is exactly why the legacy `scanRoot` subtracted it; the `e2e-mirror` mustFlag row above is the control showing the exclusion is a PATH, not the word 'e2e'. Dropping the e2e exclusion reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/support/fixtures.ts": 'import { expect, test } from "vitest";\nexport { expect, test };\n',
+        "tests/server/anchor.test.ts": "export const quiet = 1;\n",
+      },
+      why: "THE POPULATION FENCE, `tests/support/**` half — the composed door's OWN source, which must import the runner directly or there is no door at all. A rule banning the runner import cannot apply to the one file whose job is making that import once. Dropping the support exclusion reds this row (w9 :262, #2046)",
     },
   ],
 });

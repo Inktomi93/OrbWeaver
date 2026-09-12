@@ -4,6 +4,18 @@
 // `db["insert"]()` are the same query while a same-named method on a local class is not. The loop test is a
 // BOUNDED ancestor walk up from the delivered await, stopping at the first function boundary — an await
 // inside a nested callback is not executed by the loop body. DECLARED LIMITS live in the mustPass rows.
+//
+// FAMILY `no-await-db-in-loop` — a declared SINGLETON. The reader it owns, `lib/drizzle-client-call.ts`, has
+// exactly ONE importer (this module), which §5b.7 names as a shape to justify rather than assume: it lives in
+// `lib/` because it is a substantial three-verdict identity reader over the installed drizzle package
+// (drizzle · foreign · unresolved, with the method name and its anchor), and a policy module may not hold a
+// private reader of that weight behind the contract (§5b.7). A second consumer — any policy asking "is this
+// call a Drizzle round trip" — inherits it without a rewrite.
+//
+// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^`
+// (`scanRoot: (p) => !(p.includes(".test.") || p.startsWith("tests/"))` over the whole harness corpus); the
+// final `PRODUCTION_POPULATION` is that expression, and each of its two exclusion clauses owns its own
+// mustPass row rather than sharing one.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyNodeFindingDetails } from "../contract/policy.ts";
@@ -222,9 +234,39 @@ export const gate = defineGate({
       files: {
         "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  insert(table: unknown): Promise<void>;\n}\n",
         "packages/server/src/domain/x/persistence/nested.ts":
-          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, xs: readonly string[]): Promise<void> {\n  const runs = xs.map(async (x) => {\n    void x;\n    await db.insert({});\n  });\n  await Promise.all(runs);\n}\n',
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, chunks: readonly (readonly string[])[]): Promise<void> {\n  for (const xs of chunks) {\n    const runs = xs.map(async (x) => {\n      void x;\n      await db.insert({});\n    });\n    await Promise.all(runs);\n  }\n}\n',
       },
-      why: "the FUNCTION BOUNDARY: an await inside a callback the loop merely CONSTRUCTS is not executed per iteration — the walk stops there deliberately, which is what makes the batched `Promise.all` fan-out legal",
+      why: "the FUNCTION BOUNDARY: an await inside a callback the loop merely CONSTRUCTS is not executed per iteration — the walk stops there deliberately, which is what makes the batched `Promise.all` fan-out legal. THE FIXTURE CONTAINS THE LOOP THE LIMIT IS ABOUT (w9 D5, #2046): the previous version had no loop statement at all, so it proved the ABSENCE of a loop and the boundary stop could be deleted with every row staying green. The `await Promise.all(runs)` IS executed per iteration and is correctly silent — it is not a drizzle call",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/persistence/other-verb.ts":
+          "export async function f(db: Record<string, (table: unknown) => Promise<void>>, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db.hydrate({});\n  }\n}\n",
+      },
+      why: "DECLARED LIMIT, and the receipt for `QUERY_VERBS` — the SAME unbindable INDEX-SIGNATURE receiver as the fail-closed row, awaited in a loop, whose method is NOT spelled like a query verb. The backstop is a VOCABULARY claim: an unprovable call is reported only when its spelling is one of the ten Drizzle verbs, because reporting every unbindable awaited call in a loop is not this policy's subject. Widening the verb set to any non-empty method reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  insert(table: unknown): Promise<void>;\n}\n",
+        "packages/server/src/domain/x/persistence/anchor.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db): Promise<void> {\n  await db.insert({});\n}\n',
+        "tests/server/domain/x/loop-fixture.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db.insert({});\n  }\n}\n',
+      },
+      why: "THE POPULATION FENCE, `notUnder: tests/**` half — the founding N+1 shape inside the test tree, beside an in-population anchor. A spec that drives N rows one at a time is describing the round trips, not committing them; the N+1 rule is about production round trips. Dropping the `tests/**` exclusion reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/index.ts": "export declare class Db {\n  insert(table: unknown): Promise<void>;\n}\n",
+        "packages/server/src/domain/x/persistence/anchor.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db): Promise<void> {\n  await db.insert({});\n}\n',
+        "packages/server/src/domain/x/persistence/loops.test.ts":
+          'import type { Db } from "drizzle-orm";\nexport async function f(db: Db, xs: readonly string[]): Promise<void> {\n  for (const x of xs) {\n    void x;\n    await db.insert({});\n  }\n}\n',
+      },
+      why: "THE POPULATION FENCE, `notNamed: *.test.*` half — the same shape in a COLOCATED-basename spec inside a production tree, which the `tests/**` clause above cannot reach. The two clauses are separately falsifiable and each has its own row (w9 :262, #2046)",
     },
     {
       mode: "types",

@@ -4,10 +4,24 @@
 // shared module-origin reader (`z`/`z.coerce`/a namespace/a direct `number` import all resolve to zod's
 // `number`; a local object named `z` does not), and the field VALUE resolves through the shared binding
 // reader, so a schema held in a const or imported by name is judged rather than skipped. Limits: mustPass.
+//
+// FAMILY `bounded-list-limit` — a declared SINGLETON, because no other policy judges a BUILDER CHAIN. Its
+// verdict walks a zod chain hop by hop asking whether a `.max()` appears anywhere before the factory root;
+// that walk is this module's own and nothing else in the corpus wants it. The shared machinery it consumes
+// is `lib/reference-fact.ts` (`resolveModuleMemberOrigin` for the chain root, `readMemberReference` per hop,
+// `resolveStableExpression` for a named schema), `lib/sealed-origin.ts`'s `originModuleSpecifier`, and
+// `lib/property-assignment-name.ts` for the field key — consuming four shared readers is not a family
+// (guide §3, §5b.4), so it declares itself rather than inventing one around "wire schemas".
+//
+// POPULATION PORT: byte-identical, legacy at `0d83d99f1^`. That descriptor's `scanRoot` was
+// `p.startsWith("packages/server/src/transport/trpc/routers/") || p.startsWith("packages/contracts/src/")`;
+// the final expression beside `WIRE_SCHEMA_POPULATION` admits exactly that set, and its `under` half is
+// pinned by a mustPass row placing the same unbounded field one directory outside it.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference, readStaticString, resolveModuleMemberOrigin, resolveStableExpression } from "../lib/reference-fact.ts";
+import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
+import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression } from "../lib/reference-fact.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 
 const ZOD_MODULE = "zod";
@@ -32,25 +46,6 @@ const WIRE_SCHEMA_POPULATION = {
   in: ["@server", "@contracts"],
   under: ["packages/server/src/transport/trpc/routers/**", "packages/contracts/src/**"],
 } as const;
-
-/** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. */
-function propertyName(property: MorphNode): string | null {
-  if (!Node.isPropertyAssignment(property)) {
-    return null;
-  }
-  const nameNode = property.getNameNode();
-  if (Node.isIdentifier(nameNode)) {
-    return nameNode.getText();
-  }
-  if (Node.isStringLiteral(nameNode) || Node.isNoSubstitutionTemplateLiteral(nameNode)) {
-    return nameNode.getLiteralText();
-  }
-  if (!Node.isComputedPropertyName(nameNode)) {
-    return null;
-  }
-  const computed = readStaticString(nameNode.getExpression());
-  return computed.kind === "resolved" ? computed.value : null;
-}
 
 /** Is this callee zod's `number` factory, in any spelling? `z.number`, `z.coerce.number`, a namespace
  *  member and a direct `import { number } from "zod"` all resolve to the same module path ending in
@@ -122,7 +117,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.PropertyAssignment],
         visit: (node) => {
-          if (!Node.isPropertyAssignment(node) || propertyName(node) !== LIMIT_KEY) {
+          if (!Node.isPropertyAssignment(node) || propertyAssignmentName(node) !== LIMIT_KEY) {
             return;
           }
           const initializer = node.getInitializer();
@@ -220,7 +215,49 @@ export const gate = defineGate({
         "packages/server/src/transport/trpc/routers/local-z.ts":
           "const z = { number: () => ({ int: () => ({ optional: () => ({}) }) }), object: (shape: unknown): unknown => shape };\nexport const s = z.object({ limit: z.number().int().optional() });\n",
       },
-      why: 'THE IDENTITY COUNTERFACTUAL — a LOCAL object named `z` with a `number` builder, unbounded, in a router file. The legacy `recvText === "z"` comparison accused it; deleting the zod-origin check turns this row red',
+      why: 'THE RESOLUTION COUNTERFACTUAL — a LOCAL object named `z` with a `number` builder, unbounded, in a router file. The legacy `recvText === "z"` comparison accused it. It falsifies the `origin.kind !== "resolved"` half ALONE: a local object resolves to no module origin at all, so the two comparisons behind it never run. The MODULE and exported-NAME halves are pinned by the two RESOLVING rows below (w9 D2, #2046)',
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.ts":
+          "interface NumberSchema {\n  int(): NumberSchema;\n  max(value: number): NumberSchema;\n  optional(): NumberSchema;\n}\nexport declare const z: { number: () => NumberSchema; object: (shape: unknown) => unknown };\n",
+        "packages/server/src/transport/trpc/routers/vendor-zod.ts":
+          "interface VendorNumberSchema {\n  int(): VendorNumberSchema;\n  optional(): VendorNumberSchema;\n}\nexport declare const z: { number: () => VendorNumberSchema; object: (shape: unknown) => unknown };\n",
+        "packages/server/src/transport/trpc/routers/vendored.ts":
+          'import { z } from "./vendor-zod.ts";\nexport const s = z.object({ limit: z.number().int().optional() });\n',
+      },
+      why: "THE MODULE COUNTERFACTUAL, AND IT RESOLVES — a sibling project module exporting its own `z` with a `number` factory, unbounded, with real zod present in the same project. The origin resolves cleanly and the exported-NAME tail IS `number`; only `originModuleSpecifier(…) !== ZOD_MODULE` rejects it. A LOCAL object never resolves, so the row above cannot reach this comparison (w9 D2, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.ts":
+          "interface StringSchema {\n  trim(): StringSchema;\n  optional(): StringSchema;\n}\ninterface NumberSchema {\n  int(): NumberSchema;\n  max(value: number): NumberSchema;\n}\nexport declare const z: { string: () => StringSchema; number: () => NumberSchema; object: (shape: unknown) => unknown };\n",
+        "packages/server/src/transport/trpc/routers/string-limit.ts":
+          'import { z } from "zod";\nexport const s = z.object({ limit: z.string().trim().optional() });\n',
+      },
+      why: "THE EXPORTED-NAME COUNTERFACTUAL — a genuine zod chain on the `limit` field whose ROOT FACTORY is `string`, not `number`. The module origin IS zod and there is no `.max()`, so only `path.at(-1) === NUMBER_FACTORY` acquits it. A string field has no unbounded-page-size bomb: the subject is the numeric page size (w9 F2, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.ts":
+          "interface NumberSchema {\n  int(): NumberSchema;\n  max(value: number): NumberSchema;\n  optional(): NumberSchema;\n}\nexport declare const z: { number: () => NumberSchema; object: (shape: unknown) => unknown };\n",
+        "packages/server/src/domain/chat/lib/page.ts": 'import { z } from "zod";\nexport const s = z.object({ limit: z.number().int().optional() });\n',
+        "packages/server/src/transport/trpc/routers/anchor.ts": 'import { z } from "zod";\nexport const s = z.object({ limit: z.number().int().max(50) });\n',
+      },
+      why: "THE POPULATION FENCE — the SAME unbounded shape inside `@server` but OUTSIDE the two wire-schema homes. `limit` is an ordinary field name in a domain helper; the #45/#46 ceiling is a TRUST-BOUNDARY rule, so the subject is the tRPC router tree and `packages/contracts/src`, not every numeric field on the server. Widening `under` to all of `packages/server/src/**` reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.ts":
+          "interface NumberSchema {\n  int(): NumberSchema;\n  max(value: number): NumberSchema;\n}\nexport declare const z: { number: () => NumberSchema; object: (shape: unknown) => unknown };\n",
+        "packages/server/src/transport/trpc/routers/dynamic-key.ts":
+          'import { z } from "zod";\ndeclare const limit: string;\nexport const s = z.object({ [limit]: z.number().int() });\n',
+      },
+      why: "THE COMPUTED-KEY REFUSAL of the shared `propertyAssignmentName` reader, proven ONCE for all four consumers (§5b.7, w9 D6, #2046) — a computed key whose expression has no static value authors no knowable field name, and the binding here is SPELLED `limit`. The naive repair is to fall back on the key expression's TEXT; that text is the identifier's spelling, not the key it evaluates to, so this row reds the moment the refusal is replaced by `nameNode.getExpression().getText()`. The four modules that carried this helper privately reached its refusal branch with zero rows between them",
     },
     {
       mode: "types",

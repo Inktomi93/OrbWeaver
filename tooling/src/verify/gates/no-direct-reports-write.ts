@@ -5,10 +5,20 @@
 // is a shared one: the method and the `path` key through the member reader (so `page["screenshot"]` and
 // `{ ["path"]: … }` are the same shapes), and the value through the static-text reader, which follows a
 // const or an imported constant one hop the legacy literal-only arm could not. Limits are in mustPass.
+//
+// FAMILY `no-direct-reports-write` — a declared SINGLETON. Its subject is ONE instrument-substrate hazard
+// (§3.7's published `latest` pointer) at ONE call shape, and no sibling policy judges a write target. The
+// machinery is shared rather than private: `lib/reference-fact.ts` (member identity, binding stability,
+// member-write inspection), `lib/template-static-text.ts` for the authored path, and
+// `lib/property-assignment-name.ts` for the option key. A shared hazard TOPIC is not a family (guide §3).
+//
+// POPULATION PORT: byte-identical, legacy at `ef2251957^` (`scanRoot: (p) => p.startsWith("tests/")`); the
+// final `TESTS_POPULATION` is the `@tests` root, which is that prefix exactly.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { inspectReferenceWrites, readMemberReference, readStaticString, resolveStableExpression } from "../lib/reference-fact.ts";
+import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
+import { inspectReferenceWrites, readMemberReference, resolveStableExpression } from "../lib/reference-fact.ts";
 import { readStaticTextOf } from "../lib/template-static-text.ts";
 
 const SCREENSHOT = "screenshot";
@@ -28,26 +38,6 @@ const FIX =
 
 /** Legacy `scanRoot` was `p.startsWith("tests/")` — the `@tests` root exactly. */
 const TESTS_POPULATION = { in: ["@tests"] } as const;
-
-/** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. A
- *  computed key resolves through the shared static-string reader, so `{ ["path"]: … }` is the same key. */
-function propertyName(property: MorphNode): string | null {
-  if (!Node.isPropertyAssignment(property)) {
-    return null;
-  }
-  const nameNode = property.getNameNode();
-  if (Node.isIdentifier(nameNode)) {
-    return nameNode.getText();
-  }
-  if (Node.isStringLiteral(nameNode) || Node.isNoSubstitutionTemplateLiteral(nameNode)) {
-    return nameNode.getLiteralText();
-  }
-  if (!Node.isComputedPropertyName(nameNode)) {
-    return null;
-  }
-  const computed = readStaticString(nameNode.getExpression());
-  return computed.kind === "resolved" ? computed.value : null;
-}
 
 /** The options object a call was handed, following a stable binding so a hoisted options const is the same
  *  argument. Never a descendant sweep — one delivered node, resolved through the shared reader. */
@@ -69,7 +59,7 @@ function needlePathKeys(options: MorphNode): readonly MorphNode[] {
   }
   const keys: MorphNode[] = [];
   for (const property of options.getProperties()) {
-    if (!Node.isPropertyAssignment(property) || propertyName(property) !== PATH_KEY) {
+    if (!Node.isPropertyAssignment(property) || propertyAssignmentName(property) !== PATH_KEY) {
       continue;
     }
     const initializer = property.getInitializer();
@@ -229,6 +219,30 @@ export const gate = defineGate({
           '// @orb-waive no-direct-reports-write(path): this spec writes the run-slot fixture the pointer publisher itself is tested against; ends when the publisher takes an injected root.\nexport async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ path: "reports/snaps/x.png" });\n}\n',
       },
       why: "the ONE central positioned waiver naming the exact reported key — malformed, stale and over-broad markers are proven CENTRALLY, never re-proved per policy",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/other-method.ct.tsx":
+          'export async function x(page: { snapshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.snapshot({ path: "reports/snaps/x.png" });\n}\n',
+      },
+      why: "DECLARED LIMIT, and the receipt for the METHOD name — a same-shaped `snapshot({ path })` call carrying the identical `reports/` literal. The §3.7 defect is specifically the PLAYWRIGHT screenshot write, whose sanctioned door is `ctSnapPath`; every other method that happens to take a `path` option has its own door and its own reviewer. Widening the method to any resolved callee reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/other-key.ct.tsx":
+          'export async function x(page: { screenshot: (o: unknown) => Promise<unknown> }): Promise<void> {\n  await page.screenshot({ outputPath: "reports/snaps/x.png" });\n}\n',
+      },
+      why: "DECLARED LIMIT, and the receipt for the KEY name — the same `reports/` literal under a key that is NOT `path`. Only `path` names the file Playwright writes; a differently-keyed option carrying the same text is data the call never opens. Widening the key to any property reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/ui/wrapper-arity.ct.tsx":
+          'declare const target: unknown;\nexport async function x(capture: { screenshot: (t: unknown, o: unknown) => Promise<unknown> }): Promise<void> {\n  await capture.screenshot(target, { path: "reports/snaps/x.png" });\n}\n',
+      },
+      why: "DECLARED LIMIT, and the receipt for the ARGUMENT POSITION — a same-named WRAPPER whose signature is `(target, options)`, so the `reports/` bag is the second argument. The subject is Playwright's `screenshot(options)` shape, where the options bag is argument ZERO; reading `.at(-1)` instead would make every trailing object literal in a same-named call the options bag. Widening the position reds this row (w9 :262, #2046)",
     },
   ],
 });

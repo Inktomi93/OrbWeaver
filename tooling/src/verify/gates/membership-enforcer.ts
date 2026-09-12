@@ -4,6 +4,13 @@
 // and `x?.ownerId` are the same property as `x.ownerId`. `fetchOwned`/`OwnedTable`: the single-owned db
 // helpers, sealed by their DECLARATION HOME rather than their spelling. Not gated: participant-role
 // literals (host LOOKUP, D18-sanctioned). DECLARED LIMITS live in the mustPass rows.
+//
+// FAMILY `membership-enforcer` — a declared SINGLETON, for the same reason its near-twin
+// `discovery-no-stats-rollups` is: `lib/sealed-origin.ts` is a shared READER, not a family, and the two
+// policies seal different homes under different laws. Nothing computes a membership verdict but this module.
+//
+// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^` (`scanRoot: (p) => CHAT_SCOPE.test(\`/\${p}\`)`);
+// the final expression beside the population const admits exactly that set.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";

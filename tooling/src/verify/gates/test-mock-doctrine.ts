@@ -4,6 +4,14 @@
 // named `vi` is not it, and `vi["mock"]` is the same call), and the TARGET is read through the shared
 // static-string resolver, so a specifier held in a const no longer hides. A target the reader cannot
 // resolve is fail-closed. DECLARED LIMITS live in the mustPass rows.
+//
+// FAMILY `test-mock-doctrine` — a declared SINGLETON. Its subject is ONE doctrine rule about ONE runner API;
+// it consumes `lib/reference-fact.ts` and `lib/sealed-origin.ts`'s `originModuleSpecifier`, and sharing those
+// with the rest of the canonical-origin corpus is not a family (guide §3). "Test-tree policies" is a theme.
+//
+// POPULATION PORT: byte-identical, legacy at `ef2251957^` (`scanRoot: (p) => p.includes("tests/")` — every
+// authored `tests/` tree, including the nested ones); the final `TEST_POPULATION` is that expression, pinned
+// by a mustPass row placing the same internal `vi.mock` in production source.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference, readStaticString, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
@@ -161,7 +169,33 @@ export const gate = defineGate({
         "node_modules/vitest/index.ts": "export const vi = { mock: (target: string): void => { void target; } };\n",
         "tests/tooling/local-vi.test.ts": 'const vi = { mock: (target: string): void => { void target; } };\nvi.mock("./local-module.ts");\n',
       },
-      why: 'THE IDENTITY COUNTERFACTUAL — a LOCAL object named `vi` with a `mock` method, called on an internal target, with vitest present in the same project. The legacy `expr.getText() === "vi.mock"` comparison accused it; deleting the origin check turns this row red',
+      why: 'THE RESOLUTION COUNTERFACTUAL — a LOCAL object named `vi` with a `mock` method, called on an internal target, with vitest present in the same project. The legacy `expr.getText() === "vi.mock"` comparison accused it. It falsifies the `origin.kind !== "resolved"` half ALONE: a local object resolves to no module member, so the MODULE comparison behind it never runs. That comparison is pinned by the RESOLVING row below (w9 D2/F1, #2046)',
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": "export const vi = { mock: (target: string): void => { void target; } };\n",
+        "tests/tooling/vendor-vi.ts": "export const vi = { mock: (target: string): void => { void target; } };\n",
+        "tests/tooling/vendored-vi.test.ts": 'import { vi } from "./vendor-vi.ts";\nvi.mock("./local-module.ts");\n',
+      },
+      why: "THE MODULE COUNTERFACTUAL, AND IT RESOLVES (w9 F1, #2046) — a PROJECT module exporting its own `vi` with a `mock`, called on an internal target, with real vitest present. The origin resolves cleanly and the member name IS `mock`; only `originModuleSpecifier(…) !== VITEST_MODULE` rejects it. A LOCAL object never resolves, so the row above cannot reach this comparison — `bounded-list-limit` and `byte-check-cast` carry the same pair for the same reason",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": "export const vi = { mock: (target: string, fallback?: string): void => { void target; void fallback; } };\n",
+        "tests/tooling/second-argument.test.ts": 'import { vi } from "vitest";\nvi.mock("node:fs", "./local-module.ts");\n',
+      },
+      why: "DECLARED LIMIT, and the receipt for the ARGUMENT POSITION — the mocked TARGET is argument ZERO and nothing else is. A later argument is the factory/options slot, so reading `.at(-1)` would judge whatever the author passed last; here the trailing string is an internal specifier and the real target is a legal node edge. Widening the position reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/vitest/index.ts": "export const vi = { mock: (target: string): void => { void target; } };\n",
+        "tests/tooling/anchor.test.ts": 'import { vi } from "vitest";\nvi.mock("node:fs");\n',
+        "packages/server/src/domain/x/harness.ts": 'import { vi } from "vitest";\nvi.mock("./local-module.ts");\n',
+      },
+      why: "THE POPULATION FENCE — the same internal `vi.mock` in PRODUCTION source rather than a test tree, beside an in-population anchor. §3 is a rule about how a TEST fakes its subject; a `vi.mock` outside the test trees is a different defect with a different owner (a product module importing a test runner at all), and this policy does not claim it. Dropping the `tests/**` restriction reds this row (w9 :262, #2046)",
     },
     {
       mode: "types",
