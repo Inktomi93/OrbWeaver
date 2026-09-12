@@ -131,6 +131,11 @@ paths:
   caught-failure census and the test-baseline manifest on every `pnpm check` and names the drifting rows —
   the barrier regen is now the FIX for a red, not a scheduled guess. Its per-ledger door is
   `cli.ts baseline <kind> --check` (derives and diffs, writes nothing).
+- **A FAMILY TEST OFTEN LIVES UNDER THE WAVE'S NAME, NOT THE GATE'S — so grepping for the gate's FILENAME returns a
+  false “no family test”.** Conformance entries for #1584 conversions are routinely filed as `contract-shape-wave-1.test.ts`,
+  `simple-visitors-wave-2.test.ts` and the like. **Grep the gate ID as a STRING across `tests/tooling/verify/gates/`**,
+  never the filename. Paid 2026-09-11: a lane drafted two headers claiming its family had no test file, caught itself
+  before commit, and deleted a duplicate `verifyPolicyProofs` suite it had already written.
 - **`tests/tooling/check-gates.repo.int.test.ts` is NOT concurrency-safe with itself** (shared `__g_`
   fixture paths). It must never overlap a sibling lane's floor or a drain battery — during a train it
   is the orchestrator's to run.

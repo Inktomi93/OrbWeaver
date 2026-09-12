@@ -367,6 +367,19 @@ family.
    happened at the worst possible scale: `caught-failure-ownership`, the program's largest conversion at 336 files,
    shipped with no differential (#1970).
 
+   **A LEGACY GATE'S CODE WAS OFTEN STRICTER THAN ITS OWN MESSAGE — convert the PREDICATE, then fix the message
+   (measured 2026-09-11, #2000 Tier 1, and it produced the program's first real catch-regression).**
+   `injected-op-caller-param`'s legacy `seenOps.add(…)` sat INSIDE the visitor, behind the entity-id trigger, so a
+   `CALLER_FREE_OPS` row whose op no longer took a branded entity id was reported STALE. Its own message said only
+   *"no domain contract declares an op function type of that name"* — which describes a WEAKER predicate. The
+   conversion implemented the message, and the row now survives forever: a standing caller-free exemption on an op
+   that reaches no tenant data, which is the rot the two-sided ratchet exists to kill.
+
+   **So when a conversion's predicate disagrees with the legacy predicate, the MESSAGE is the thing to fix, not the
+   predicate.** Reading the message instead of the code is how a catch gets lost while every check stays green.
+   General form: **a tripwire must apply the same predicate as the thing it guards, or it is weaker than the
+   exemption it polices.**
+
    **A CLEAN DIFFERENTIAL OVER AN ARM THE LEGACY SUITE NEVER EXERCISED IS EVIDENCE OF NOTHING — and this is
    exactly where a SPLIT is riskiest (measured 2026-09-11, #2000 Tier 1).** Four of the eight `-health` split arms
    guard their `finalize` verdict on a REAL-TREE ANCHOR, and **not one legacy `mustFlag`/`mustPass` example loads
