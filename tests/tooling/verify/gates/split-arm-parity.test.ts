@@ -149,7 +149,7 @@ function finalReplay(policies: readonly GatePolicy[], files: Files, label: Label
             file: rel(finding.file),
             line: finding.line,
             token: finding.token,
-            message: finding.message ?? messageOf.get(finding.policyId ?? "") ?? "",
+            message: finding.message ?? messageOf.get(finding.policyId) ?? "",
             policyId: finding.policyId,
           },
           files,
