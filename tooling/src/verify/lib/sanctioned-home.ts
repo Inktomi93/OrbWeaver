@@ -57,8 +57,8 @@ export const HOME_SWEEP_ANCHOR = "packages/db/src/schema/index.ts";
  *  the new path is judged by nobody. Mode A (the home still exists but no longer carries the shape) is
  *  deliberately NOT swept here: a home legitimately holds zero instances between edits, and reding that
  *  would make the sanctioned path the unbuildable one. A gate whose home MUST carry the shape (the
- *  definition site of a symbol, a producer stamp) adds its own mode-A arm on top — `scrubber-home` and
- *  `tooling-shared-plumbing` are the worked examples.
+ *  definition site of a symbol, a producer stamp) adds its own mode-A arm on top — `scrubber-home` is the
+ *  worked example (the retired plumbing gate's split now LOCATES and receipts its homes instead).
  *
  *  Guarded on a REAL-TREE ANCHOR, never on `ctx.scope.kind` alone: `scope.kind === "project"` is TRUE
  *  inside gate-conformance's synthetic mini-projects, where no row's path exists and every row would

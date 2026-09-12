@@ -13,14 +13,14 @@
 // tests/tooling/verify/gates/tooling-ops-direct-invocation.test.ts, because conformance has no must-refuse
 // arm). Two receipts rather than one summed pair, because a sum lets one absent home read as `members: 1`.
 //
-// FAMILY: a SINGLETON under its own id today — the loader refuses a one-member family whose name is not the
-// policy id (`lib/policy-module.ts#policyFamilyNames`), so the family string can only become
-// `tooling-program-entry` when its sibling lands. The shared readers are `_shared/ts-workspace.ts`
-// (`moduleScopeCalls`, the statement-level "what runs when this module loads" read) and
-// `lib/project-home-origin.ts` (`locateProjectHome` + `classifyProjectHomeOrigin`, the declaration-identity
-// judgment against a located home). §12.6 rules `tooling-shared-plumbing`'s exit/CLI arm ("every tool
-// cli.ts enters through `runTool`") into a policy that reads the SAME runner home through the same two
-// readers; when it converts, both take the shared family name.
+// FAMILY `tooling-program-entry`, shared with `tooling-cli-entry` ("every tool cli.ts enters through
+// `runTool`" — §12.6's exit/CLI arm of the retired `tooling-shared-plumbing`, which reads the SAME runner home
+// through the same readers). The shared readers are `_shared/ts-workspace.ts` (`moduleScopeCalls`, the
+// statement-level "what runs when this module loads" read) and `lib/project-home-origin.ts`
+// (`locateProjectHome` + `classifyProjectHomeOrigin`, the declaration-identity judgment against a located
+// home). The family name was minted WITH the second member: the loader refuses a one-member family whose
+// name is not the policy id (`lib/policy-module.ts#policyFamilyNames`), so this module was a singleton
+// under its own id until group 4 of #1950 landed the sibling.
 //
 // IDENTITY, NOT SPELLING: the legacy check DERIVED each name as "the sole exported function of its home"
 // and compared the callee's TEXT, so a local `function refuseDirectInvocation()` in an ops module passed as
@@ -75,7 +75,7 @@ function entersHome(sourceFile: SourceFile, home: LocatedProjectHome): boolean {
 
 export const gate = defineGate({
   id: "tooling-ops-direct-invocation",
-  family: "tooling-ops-direct-invocation",
+  family: "tooling-program-entry",
   authority: "hard",
   severity: "error",
   population: { in: ["@tooling"], under: ["tooling/src/*/ops/**", GUARD_HOME.path, RUNNER_HOME.path], ext: ["ts"] },

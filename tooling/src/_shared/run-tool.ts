@@ -1,4 +1,4 @@
-// The ONE exit-honesty runner — every tool cli enters through it (gate: tooling-shared-plumbing).
+// The ONE exit-honesty runner — every tool cli enters through it (policy `tooling-cli-entry`; its one hard exit carries the reviewed grant `tooling-process-exit-home:run-tool`).
 // It owns the three behaviors the historical tools each hand-rolled and diverged on:
 //  1. CRASH ≠ VERDICT: node's default crash exit is 1, which COLLIDES with "1 = violations" — a crash
 //     read as a verdict (probe-fire's own hand-rolled handler exited 1 on uncaught, the live instance).

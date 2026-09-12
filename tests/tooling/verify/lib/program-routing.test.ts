@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
 import { planTypecheckPrograms } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 function present(path: string): { readonly path: string; readonly status: "present"; readonly previousPath: null } {
   return { path, status: "present" as const, previousPath: null };
@@ -57,7 +58,9 @@ test("non-TypeScript inputs are explicit not-applicable results", ({ repoRoot })
   expect(plan.subjects.every((subject) => subject.disposition === "not-applicable")).toBe(true);
 });
 
-test("affected routing includes native imported consumers while direct DOM roots remain in their one world", { timeout: 30_000 }, ({ repoRoot }) => {
+test("affected routing includes native imported consumers while direct DOM roots remain in their one world", { timeout: scaledBudget(30_000) }, ({
+  repoRoot,
+}) => {
   const plan = planTypecheckPrograms(repoRoot, [present("packages/kit/src/ids/index.ts"), present("tests/client/agent-nav/index.dom.test.ts")], "affected");
   const kit = plan.subjects.find((subject) => subject.path === "packages/kit/src/ids/index.ts");
   const dom = plan.subjects.find((subject) => subject.path === "tests/client/agent-nav/index.dom.test.ts");

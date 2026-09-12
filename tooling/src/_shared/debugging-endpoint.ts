@@ -1,8 +1,8 @@
 // The ephemeral Chromium DEBUGGING ENDPOINT — ONE home for the launch shape a stateful session, the
 // DevTools-SDK cascade runtime and an attaching sibling all share: a persistent profile launched with
 // `--remote-debugging-port=0`, whose OS-assigned port Chrome publishes in `<profile>/DevToolsActivePort`
-// only after it binds. The launch itself stays in ./browser.ts (gate `tooling-shared-plumbing` arm B) and
-// the attach stays there too (arm H); this module owns the profile-dir lifecycle and the port READ.
+// only after it binds. The launch itself stays in ./browser.ts (policy `tooling-browser-door`) and
+// the attach stays there too (the same policy); this module owns the profile-dir lifecycle and the port READ.
 // ./devtools-runtime.ts carried a private copy of the reader until #1231 promoted it here.
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";

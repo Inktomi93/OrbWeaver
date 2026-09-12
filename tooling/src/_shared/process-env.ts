@@ -2,7 +2,7 @@
 // `noProcessEnv` suppression at your call site (which is the drawer this package exists to end).
 //
 // It lived inside proc.ts until #1848, and the split is the tooling law's own §4.3 trigger: proc.ts is the
-// ONE `node:child_process` home (tooling-shared-plumbing arm F) and reached its 450-line cap when the
+// ONE `node:child_process` home (policy `tooling-child-process-door`) and reached its 450-line cap when the
 // run-marker sweep was wired into its timeout path. Reading the ambient environment is not a subprocess
 // capability — it is what a launcher does BEFORE it spawns — so this is where the seam falls. The three
 // exported doors keep their exact behaviour and their names; only their file changed.

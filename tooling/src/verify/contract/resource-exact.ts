@@ -30,6 +30,14 @@ export const EXACT_RESOURCE_PATHS = {
   /** `playwright-css-topology`: the CT half, which lives in no authored tree at all. */
   "ct-boot": "playwright/index.tsx",
   "ct-extension-css": "playwright/index.css",
+  /** `tooling-runner-config-literals`: the three ROOT runner configs, which no authored tree contains and
+   *  which carry the wall clocks and the port literal that cost the most (the vitest lane timeouts, the CT
+   *  `mount()` timeout, the CT vite port). The legacy plumbing gate read them off disk past a real-tree
+   *  anchor; naming them here makes that read a declared fact. `static-config` cannot serve this consumer:
+   *  it publishes SELECTOR rows, and the subject here is a numeric literal. */
+  "vitest-config": "vitest.config.ts",
+  "playwright-config": "playwright.config.ts",
+  "playwright-ct-config": "playwright-ct.config.ts",
 } as const;
 
 export type ExactResourceId = keyof typeof EXACT_RESOURCE_PATHS;

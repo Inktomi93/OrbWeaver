@@ -1,6 +1,7 @@
 // Git index membership is independent of authored disk/overlay liveness and loaded once by the host.
 
 import { resolve } from "node:path";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ResourceLoad, ResourceSubprocessReceipt, TrackedResourceIndex } from "../contract/resource.ts";
@@ -9,7 +10,8 @@ import { repoGitEnvironment } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
-const GIT_INDEX_TIMEOUT_MS = 30_000;
+const GIT_INDEX_TIMEOUT_BASE_MS = 30_000;
+const GIT_INDEX_TIMEOUT_MS = budget(GIT_INDEX_TIMEOUT_BASE_MS);
 const GIT_INDEX_MAX_BYTES = 16_777_216;
 
 export function loadTrackedFiles(root: string): ResourceLoad<TrackedResourceIndex> {

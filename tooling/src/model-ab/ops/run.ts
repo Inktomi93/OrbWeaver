@@ -3,7 +3,7 @@
 // 2 missing apparatus · 3 malformed selection.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { print, REPO_ROOT, reportsPath } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
@@ -107,7 +107,7 @@ export async function runModelAb(argv: readonly string[]): Promise<ExitCode> {
   }
 
   const stamp = new Date().toISOString().slice(0, STAMP_CHARS).replace(STAMP_SEPARATORS, "-");
-  const outDir = path.join(REPO_ROOT, "reports", "ab", stamp);
+  const outDir = reportsPath(REPO_ROOT, "ab", stamp);
   mkdirSync(outDir, { recursive: true });
 
   if (cli.baseUrl !== undefined) {

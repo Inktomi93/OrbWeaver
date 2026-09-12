@@ -1,6 +1,6 @@
 // Project bootstrap — CONSOLIDATED onto _shared/ts-workspace at P4 (#393): the kit's own
-// `new Project(` site died; getWorkspace(types:true) is the ONE bootstrap (tooling-shared-plumbing
-// arm A proves it). `projectOptionsOverride`/`extraGlobs` were deleted at the move (zero users —
+// `new Project(` site died; getWorkspace(types:true) is the ONE bootstrap (`tooling-project-home`
+// proves it). `projectOptionsOverride`/`extraGlobs` were deleted at the move (zero users —
 // stated clean cut); `tsConfigFilePath`+`replaceGlobs` survive (the int test drives a scratch root).
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";

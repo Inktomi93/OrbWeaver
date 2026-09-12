@@ -14,7 +14,7 @@
 // reuse, our rebuild, a sibling's `shared-reuse`), and spawns — once per band, idempotently — a detached,
 // NICED child in its own process group: `node tooling/src/snap/cli.ts --stage-keeper <band>`. The argv
 // front door stays cli.ts's (gate `tooling-argv-front-door`), exactly as `--session-daemon` does, and the
-// child rides `spawnNicedChild` (gate `tooling-shared-plumbing` arm F) rather than a raw spawn.
+// child rides `spawnNicedChild` (policy `tooling-child-process-door`) rather than a raw spawn.
 //
 // WHO RE-ARMS IT: nobody, explicitly — and that is the design. The keeper POLLS the row rather than
 // holding a resettable in-memory timer, so every write the substrate already makes (`touchRow` from

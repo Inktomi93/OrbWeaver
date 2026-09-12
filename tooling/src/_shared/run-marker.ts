@@ -55,7 +55,7 @@ const PPID_RE = /^PPid:\s+(\d+)$/mu;
 
 /** How long a TERMed process may take to leave before the sweep escalates to KILL. Short by design — the
  *  processes this reaches are ALREADY orphans of a dead run, so the grace buys an orderly chromium exit,
- *  not a chance to finish work. Load-scaled like every wall clock in tooling (tooling-shared-plumbing J). */
+ *  not a chance to finish work. Load-scaled like every wall clock in tooling (`tooling-clock-budget`). */
 const SWEEP_GRACE_BASE_MS = 2000;
 
 /** One sweep's receipt. `terminated` got SIGTERM, `killed` were still alive after the grace. */

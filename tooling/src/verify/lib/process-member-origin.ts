@@ -1,7 +1,8 @@
-// The ONE answer to "is this member read taken off the real `process`?" — the family reader shared by
-// `tooling-argv-front-door` (the reviewed argv-reader policy) and `tooling-argv-front-door-health` (the
-// blindness tripwire that counts cli.ts readers), so what counts as a read of the operator's argv is one
-// predicate in two policies.
+// The ONE answer to "is this member read taken off the real `process`?" — the family reader (family
+// `process-member`) shared by `tooling-argv-front-door` (the reviewed argv-reader policy),
+// `tooling-argv-front-door-health` (the blindness tripwire that counts cli.ts readers) and
+// `tooling-process-exit-home` (the reviewed exit-home policy over the `exit` member), so what counts as a
+// member read of the real process is one predicate in three policies.
 //
 // IDENTITY, NOT SPELLING. The legacy gate compared the receiver's text to `process`, which a local object
 // named `process` false-reds and a re-bound one walks past. The subject is a member of the REAL `process`:
