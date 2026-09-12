@@ -20,6 +20,17 @@
 //
 // The legacy `owner-scoped-reads` descriptor (40223a0915eda72dd8ab35fbdeaf9e9892089717) carried the
 // `@owner-scope-ok` marker grammar and its own inline schema read before this conversion.
+//
+// FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts` (`ownerScopedTableIdents` for the
+// (a)-class set, `reportBlindWhenEmpty` for the zero-derivation refusal), plus `lib/tenancy-read.ts` for
+// the call SHAPES this member and its two write siblings ask about. All four members answer "which tables
+// are ownerId-scoped" from the one registry, so the read half and the write half cannot disagree about
+// which table is even in scope — which is precisely how a cross-tenant hole hides.
+// POPULATION PORT: the same set, byte-for-byte in membership. The legacy
+// `scanRoot: (p) => p.includes("packages/server/src/")` (40223a0915eda72dd8ab35fbdeaf9e9892089717)
+// becomes `@server`, which is `packages/server/src/`; the only change is substring matching becoming
+// anchored, and 1560 tracked paths contain that segment while the same 1560 begin with it. The
+// derivation and its measurement have ONE home, in the shared reader's own header.
 import type { Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

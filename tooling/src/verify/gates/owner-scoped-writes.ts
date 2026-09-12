@@ -14,6 +14,17 @@
 // The legacy `owner-scoped-writes` descriptor (40223a0915eda72dd8ab35fbdeaf9e9892089717) carried the
 // `@owner-scope-ok` marker grammar and its own inline schema read before this conversion, and treated
 // `onConflictDoUpdate` as out of scope entirely.
+//
+// FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts` (`ownerScopedTableIdents`,
+// `schemaTableIdents`, `reportBlindWhenEmpty`), plus `lib/tenancy-read.ts` for the write-statement fence
+// and the predicate readers. Reading the (a)-class set from the same registry as `owner-scoped-reads` is
+// what makes the read/write split a DECLARED LIMIT rather than a coverage gap: the two halves cannot
+// disagree about which tables are in scope, only about which statement shape each judges.
+// POPULATION PORT: the same set, byte-for-byte in membership. The legacy
+// `scanRoot: (p) => p.includes("packages/server/src/")` (40223a0915eda72dd8ab35fbdeaf9e9892089717)
+// becomes `@server`, which is `packages/server/src/`; the only change is substring matching becoming
+// anchored, and 1560 tracked paths contain that segment while the same 1560 begin with it. The derivation
+// and its measurement have ONE home, in the shared reader's own header.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

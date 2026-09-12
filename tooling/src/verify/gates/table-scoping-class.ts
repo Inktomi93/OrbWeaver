@@ -6,6 +6,20 @@
 // the verdict is a reviewed edit to TABLE_SCOPING_ROWS in lib/tenancy-scope.ts. DECLARED LIMIT: this gate proves the DECLARATION
 // is coherent with the schema — it does NOT prove any read actually applies the class's predicate (the
 // membership rung is control-flow-dependent; the cross-tenant behavioral sweep stays that proof).
+//
+// FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts`, and this member is the one that
+// DECLARES the data the other three consume: `TABLE_SCOPING_ROWS` plus `tableScopingClasses` /
+// `tableShapeOf`. It is the family's coherence check, which is why it alone is HARD with no exemption
+// vocabulary — the three `owner-scoped-*` members can waive a call site, but nothing may waive the
+// classification their (a)-class set is read from.
+// POPULATION PORT: the same set, byte-for-byte in membership. The legacy
+// `scanRoot: (p) => p.includes("packages/db/src/schema/")` (40223a0915eda72dd8ab35fbdeaf9e9892089717 —
+// the whole family converted in one commit, `b54b2c34e`) becomes `DRIZZLE_SCHEMA_POPULATION`
+// (`{ in: ["@db"], under: ["packages/db/src/schema/**"] }`); the only change is substring matching
+// becoming anchored, and 30 tracked paths contain that segment while the same 30 begin with it. Note which
+// population that is: this member declares the DRIZZLE-SCHEMA family's shared constant while belonging to
+// THIS family. The classification data is tenancy's, the files it reads are the schema's, and the two are
+// deliberately not merged — the shared reader's header records the same split.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ReadySchemaFact, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
