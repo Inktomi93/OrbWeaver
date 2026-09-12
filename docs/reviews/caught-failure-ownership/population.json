@@ -7142,7 +7142,7 @@
     {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::catch::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
-      "line": 175,
+      "line": 171,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7150,12 +7150,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot.",
-      "markerLine": 172
+      "markerLine": 168
     },
     {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::error::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
-      "line": 227,
+      "line": 223,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7519,7 +7519,7 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::1",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 71,
+      "line": 108,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7532,7 +7532,7 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::2",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 119,
+      "line": 156,
       "column": 12,
       "grammar": "empty",
       "position": "error",
