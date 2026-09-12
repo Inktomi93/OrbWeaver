@@ -538,7 +538,7 @@
     {
       "siteId": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx::startChat::1",
       "path": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx",
-      "line": 173,
+      "line": 174,
       "column": 5,
       "grammar": "promise",
       "position": "startChat",
@@ -546,7 +546,7 @@
       "snippet": "startChat({ ...intent, ...(characterIds.length > 0 ? { characterIds } : {}) })",
       "verdict": "deliberate-absorb",
       "reason": "useStartChat's mutation carries",
-      "markerLine": 170
+      "markerLine": 171
     },
     {
       "siteId": "packages/client/src/features/credentials/components/add-credential-dialog.tsx::mutateAsync::1",
