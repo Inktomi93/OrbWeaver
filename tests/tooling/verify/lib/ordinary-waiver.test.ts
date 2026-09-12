@@ -312,3 +312,57 @@ test("duplicate known policy identities refuse engine construction", () => {
   const duplicate = [...POLICIES, POLICIES[0] as SelectedGatePolicy];
   expect(() => fixture({ [FILE]: source }, duplicate)).toThrow(`ordinary waiver engine received duplicate known policy ${ORDINARY}`);
 });
+
+// ─── #2205: `unbound-trivia` only survives while RELOCATION IS AN AVAILABLE REMEDY ───────────────────
+//
+// A MINIMAL PAIR, and it has to be a pair. Both files below are byte-identical except for ONE marker, and
+// both put the waiver on a statement that holds no finding — so every input the old predicate looked at is
+// the same in the two cases and it called them both `unbound-trivia`. The discriminator is not in the
+// marker or its trivia at all: it is whether the same-token finding elsewhere in the file is ALREADY
+// CLAIMED by another matched marker, which decides whether the advice `unbound-trivia` gives ("move it onto
+// the occurrence it names") is possible or provably yields `duplicate-target`.
+//
+// A one-directional control would let the label flip back silently, which is why neither of these is
+// written alone. The wrong-statement pin above (`a marker whose matching position exists outside its trivia
+// block fails loud as unbound`) is the third leg and is deliberately NOT modified — if satisfying #2205
+// ever requires editing it, the fix has drifted back into collapsing two real states into one.
+
+test("#2205 — a marker over a NON-SITE whose same-token finding is already waived reads STALE, not unbound", () => {
+  // The shape that mislabelled on the real tree: `lib/biome-rule-liveness.ts:303` waived a `catch` that
+  // `{ cause }` chaining already owns, so the site was never in the population; its `error` position
+  // collided with the genuinely-waived absorb 140 lines up and the engine advertised a relocation that
+  // would have produced a duplicate.
+  const source = [
+    `// @orb-waive ${ORDINARY}(forbidden): the real site, waived since the file was written`,
+    "export const owned = forbidden();",
+    `// @orb-waive ${ORDINARY}(forbidden): waives nothing — this statement is not a site at all`,
+    "export const notASite = allowed();",
+    "",
+  ].join("\n");
+  // nth 2: the first `forbidden` in the text is the one inside the first marker's position.
+  const result = completed(fixture({ [FILE]: source }).engine, [finding(source, "forbidden", { nth: 2 })]);
+
+  expect(result.match.markers.map(({ outcome }) => outcome)).toEqual(["matched", "stale"]);
+  // The real site is still suppressed by its own marker — the downgrade must not disturb the claim.
+  expect(result.match.waiverIds).toEqual([`${FILE}:1:1`]);
+  expect(result.alarms.map(({ message }) => message)).toEqual([expect.stringContaining("stale ordinary waiver")]);
+  // And it must NOT tell the reader to relocate, which is the whole defect.
+  expect(result.alarms[0]?.message).not.toContain("cannot bind through comment trivia");
+});
+
+test("#2205 — the SAME shape with the finding UNCLAIMED still reads unbound: relocation is still available", () => {
+  // Byte-identical to the case above minus the claiming marker. The stray waiver is equally useless to its
+  // own statement, but the finding it names has no owner, so `unbound-trivia` remains the honest label and
+  // "move it there" remains a coherent instruction — this is the DECLARED LIMIT the fix leaves standing.
+  const source = [
+    "export const owned = forbidden();",
+    `// @orb-waive ${ORDINARY}(forbidden): waives nothing here either, but the target is unowned`,
+    "export const notASite = allowed();",
+    "",
+  ].join("\n");
+  const result = completed(fixture({ [FILE]: source }).engine, [finding(source, "forbidden")]);
+
+  expect(result.match.markers.map(({ outcome }) => outcome)).toEqual(["unbound-trivia"]);
+  expect(result.match.waiverIds).toEqual([null]);
+  expect(result.alarms.map(({ message }) => message)).toEqual([expect.stringContaining("cannot bind through comment trivia")]);
+});

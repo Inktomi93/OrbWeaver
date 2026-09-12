@@ -63,6 +63,9 @@ interface LocatedFinding {
 interface EvaluatedMarker {
   readonly marker: AcquiredMarker;
   readonly candidates: readonly number[];
+  /** For an UNBOUND marker only: the same-token findings elsewhere in its file — the set a relocation could
+   *  reach. Empty for every other outcome. Read once, by `downgradeUnreachableUnbound`. */
+  readonly reachable: readonly number[];
   outcome: OrdinaryWaiverMarkerOutcome;
 }
 
@@ -527,33 +530,70 @@ function hasAmbiguousTrivia(marker: AcquiredMarker, root: ts.SourceFile): boolea
 
 function evaluateMarker(marker: AcquiredMarker, findings: readonly LocatedFinding[], sources: ReadonlyMap<string, OrdinaryWaiverSource>): EvaluatedMarker {
   if (marker.initialOutcome !== "matched") {
-    return { marker, candidates: [], outcome: marker.initialOutcome };
+    return { marker, candidates: [], reachable: [], outcome: marker.initialOutcome };
   }
   const source = sources.get(marker.file);
   if (source === undefined) {
-    return { marker, candidates: [], outcome: "unbound-trivia" };
+    return { marker, candidates: [], reachable: [], outcome: "unbound-trivia" };
   }
   if (source.kind === "typescript" && hasAmbiguousTrivia(marker, source.sourceFile.compilerNode)) {
-    return { marker, candidates: [], outcome: "ambiguous-trivia" };
+    return { marker, candidates: [], reachable: [], outcome: "ambiguous-trivia" };
   }
   const inFile = findings.filter(({ finding, offset }) => finding.file === marker.file && finding.policyId === marker.policyId && offset !== undefined);
   const root = source.kind === "typescript" ? source.sourceFile.compilerNode : undefined;
   const inCarrier = inFile.filter(({ offset }) => markerBinds(marker, offset as number, root));
   const candidates = inCarrier.filter(({ finding }) => finding.token === marker.position).map(({ index }) => index);
   if (candidates.length > 1) {
-    return { marker, candidates, outcome: "over-broad" };
+    return { marker, candidates, reachable: [], outcome: "over-broad" };
   }
   if (candidates.length === 1) {
-    return { marker, candidates, outcome: "matched" };
+    return { marker, candidates, reachable: [], outcome: "matched" };
   }
   if (inCarrier.length > 0) {
-    return { marker, candidates, outcome: "dead-position" };
+    return { marker, candidates, reachable: [], outcome: "dead-position" };
   }
-  return {
-    marker,
-    candidates,
-    outcome: inFile.some(({ finding }) => finding.token === marker.position) ? "unbound-trivia" : "stale",
-  };
+  // NOTHING IN THE CARRIER. Two different authoring errors land here and position data alone cannot tell
+  // them apart, which is why `reachable` is carried forward rather than collapsed to a boolean:
+  //   (A) the marker sits on the WRONG STATEMENT and the finding it meant is one statement over — remedy
+  //       RELOCATE, which is what `unbound-trivia` tells its reader to do;
+  //   (B) the marker sits on something that is not a site at all, and the same-token finding elsewhere is
+  //       not its business — remedy DELETE.
+  // `downgradeUnreachableUnbound` separates them one pass later, once it is known which findings other
+  // markers have already claimed.
+  const reachable = inFile.filter(({ finding }) => finding.token === marker.position).map(({ index }) => index);
+  return { marker, candidates, reachable, outcome: reachable.length > 0 ? "unbound-trivia" : "stale" };
+}
+
+/** RELOCATION MUST BE AN AVAILABLE REMEDY FOR `unbound-trivia` TO BE THE HONEST LABEL (#2205).
+ *
+ *  `unbound-trivia` tells its reader to move the marker onto the occurrence it names. That advice is only
+ *  true while some reachable finding is still UNCLAIMED. If every same-token finding in the file already
+ *  has its own matched marker, relocating this one cannot bind it — the pair would report
+ *  `duplicate-target` instead — so the marker is not mis-aimed: it waives nothing and belongs deleted.
+ *  That is `stale`, whose message ("no live finding is bound to its comment carrier") is the true one.
+ *
+ *  MEASURED, and it is why this exists: `lib/biome-rule-liveness.ts:303` carried a waiver over a `catch`
+ *  that `{ cause }` chaining already owns, so the site was never in the policy's population at all. Its
+ *  `error` position collided with the genuinely-waived EPERM absorb 140 lines up, the engine reported
+ *  `unbound-trivia`, and the repair it advertised would have produced a duplicate.
+ *
+ *  THE NARROW SUBSET IS THE POINT. "Reserve `unbound-trivia` for the case it actually names" was the first
+ *  proposal and it over-fixes: the wrong-statement case is REAL, is pinned
+ *  (`tests/tooling/verify/lib/ordinary-waiver.test.ts`, the unbound marker whose target is unclaimed), and
+ *  its remedy really is relocation. Only "relocation is impossible" moves.
+ *
+ *  DECLARED LIMIT, seen and priced rather than missed: a marker on a non-site whose same-token sibling
+ *  elsewhere in the file is UNCLAIMED still reports `unbound-trivia`, and for that author the true remedy
+ *  is delete. It is left alone on purpose. No position-data discriminator separates it from a genuine
+ *  wrong-statement marker — both are "carrier empty, unclaimed same-token finding present" — and unlike
+ *  the claimed case, "relocate onto it" stays a coherent suggestion, because that finding needs a waiver
+ *  or a fix either way. Narrowing further would need author intent, which this engine does not have. */
+function downgradeUnreachableUnbound(evaluated: readonly EvaluatedMarker[], claimed: ReadonlySet<number>): void {
+  for (const entry of evaluated) {
+    if (entry.outcome === "unbound-trivia" && entry.reachable.length > 0 && entry.reachable.every((index) => claimed.has(index))) {
+      entry.outcome = "stale";
+    }
+  }
 }
 
 function matchBatch(
@@ -577,6 +617,7 @@ function matchBatch(
       }
     }
   }
+  downgradeUnreachableUnbound(evaluated, new Set(waiverIds.flatMap((waiverId, index) => (waiverId === null ? [] : [index]))));
   const markerMatches: OrdinaryWaiverMarkerMatch[] = evaluated.map(({ marker, outcome, candidates }) => ({
     id: marker.id,
     policyId: marker.policyId,
