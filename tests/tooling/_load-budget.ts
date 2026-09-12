@@ -131,6 +131,12 @@ function runCommandWithBudget(run: CommandBudget): string {
       encoding: "utf8",
       maxBuffer: opts.maxBuffer,
       timeout: budgetMs,
+      // #2197: execFileSync's DEFAULT leaves the child's stderr inherited by the parent, so `err.stderr` is
+      // null and the generic-status throw below reports a bare `child exit 2` with the reason discarded into
+      // the vitest stream. A tool error that prints its number and drops its cause is an instrument lying by
+      // omission — it cost a barrier step in archaeology on 2026-09-12. Piping puts the child's own words
+      // into the assertion message; stdout is already piped because the callers read the report from it.
+      stdio: ["ignore", "pipe", "pipe"],
     });
   } catch (err) {
     const e = err as { code?: string; signal?: string | null; stdout?: string };

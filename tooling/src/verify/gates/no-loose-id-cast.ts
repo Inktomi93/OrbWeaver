@@ -23,9 +23,30 @@
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";
+import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE = "a cast bypasses branded-id type safety with `as never` or `as unknown as <canonical brand>` — use the owning mint/parser/cast seam.";
+/** THE ANCHOR for a cast's operand (#2197). A PARENTHESIZED operand's own text starts with `(`, so
+ *  `waivableCoordinate` finds no leading paren-free head, returns `undefined`, and the report door refuses
+ *  the finding as permanently unwaivable (#2107) — a refusal that withholds the WHOLE policy, not just the
+ *  one finding. Unwrapping reaches the expression the reader actually means, whose head is nameable. The
+ *  violation, its arm and its severity are unchanged; only the COORDINATE moves. Recursive because `((x))`
+ *  is legal.
+ *
+ *  DECLARED LIMIT: this does not make every operand nameable, and it must not pretend to. An unwrapped
+ *  expression whose own text still begins with `(` — a zero-arg arrow `() => x`, a parenthesized call
+ *  receiver — has no leading paren-free slice either, and such a finding still refuses LOUDLY at the door.
+ *  That is the correct outcome (a finding nobody can name is the defect #2107 exists to surface), and the
+ *  fallback below deliberately hands the raw text back so the door refuses rather than silently dropping it. */
+function castAnchor(expression: Node): Node {
+  let current = expression;
+  while (Node.isParenthesizedExpression(current)) {
+    current = current.getExpression();
+  }
+  return current;
+}
+
 export const gate = defineGate({
   id: "no-loose-id-cast",
   family: "id-brand-flow",
@@ -51,15 +72,20 @@ export const gate = defineGate({
             return;
           }
           const expression = node.getExpression();
-          const token = expression.getText().trim();
+          const anchor = castAnchor(expression);
+          const raw = anchor.getText().trim();
+          // `?? raw` is the REFUSAL path, not a fallback that hides one: an operand with no anchorable head
+          // hands the raw text to the door, which refuses it loudly (#2107). Dropping the finding here would
+          // trade a visible tool error for a silent blind spot.
+          const token = waivableCoordinate(raw) ?? raw;
           if (node.getTypeNode()?.isKind(SyntaxKind.NeverKeyword) === true) {
-            ctx.report.node(expression, { token, offset: 0 });
+            ctx.report.node(anchor, { token, offset: 0 });
             return;
           }
           const inner = Node.isAsExpression(expression) && expression.getTypeNode()?.isKind(SyntaxKind.UnknownKeyword) === true;
           const target = node.getTypeNode();
           if (inner && target !== undefined && canonicalIdBrand(ctx.checker().getTypeAtLocation(target), target, ctx.checker()) !== null) {
-            ctx.report.node(expression, { token, offset: 0 });
+            ctx.report.node(anchor, { token, offset: 0 });
           }
         },
       },
@@ -71,6 +97,12 @@ export const gate = defineGate({
       files: { "packages/server/src/x.ts": "export const x = value as never;\n" },
       expect: { count: 1, token: "value" },
       why: "as never disables every assignability check",
+    },
+    {
+      mode: "types",
+      files: { "packages/server/src/x.ts": "export const x = (async () => value) as never;\n" },
+      expect: { count: 1, token: "async " },
+      why: "A PARENTHESIZED OPERAND IS STILL NAMEABLE (#2197). Reported on the UNWRAPPED arrow, so the coordinate is its leading paren-free slice `async ` rather than the parenthesized text, which starts with `(` and would be refused as permanently unwaivable (#2107) — withholding the whole policy. That is not hypothetical: `check-gates.repo.int`'s `__g_vpcr` fixture, planted for a DIFFERENT gate, is `(async (a: never) => await loadCanonHistory(a, a)) as never`, and it took the barrier's planter to a tool-error exit 2 with this policy reporting zero violations. This row pins the anchor so the paren-leading coordinate cannot come back unnoticed",
     },
     {
       mode: "types",
