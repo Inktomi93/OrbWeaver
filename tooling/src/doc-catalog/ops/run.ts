@@ -166,7 +166,17 @@ export function runCatalog(mode: CatalogMode, request: CatalogWriteRequest = { p
 
 /** `pnpm format:docs / check:docs`. Exit 1 = unformatted files under `--check` (a real violation the
  *  push gate reads), or — in EITHER mode — a file the formatter refused because formatting it would
- *  change what it renders (#2067). */
+ *  change what it renders (#2067) or lose a code span the source carried (#2235).
+ *
+ *  THE EXIT CODE OF A REFUSAL IS 1, NEVER 2, and the distinction is the whole contract: a refusal is a
+ *  VERDICT ABOUT THE DOCUMENT (this file has a defect an author must repair), not a checker that broke.
+ *  Exit 2 would tell every reader the run produced no verdict at all and that the other N files were
+ *  never judged, which is false — they were judged and they passed.
+ *
+ *  THE TWO CENSUSES ARE MACHINE-DISTINGUISHABLE, by line prefix and not by prose. A refused file's line
+ *  begins `REFUSED `; an unformatted file's line carries the bare path, the shape the barrier already
+ *  reads. A caller asking "did the formatter refuse, or is this ordinary dirt?" keys on that token
+ *  rather than on the banner sentence above it. */
 export function runFormat(mode: FormatMode, explicit: readonly string[]): ExitCode {
   const files = formatTargets(explicit);
   const outcome = formatDocs(files, mode === "--write");
@@ -175,20 +185,24 @@ export function runFormat(mode: FormatMode, explicit: readonly string[]): ExitCo
   // backtick run). It reds BOTH doors: a silent skip under `--write` is how a lossy edit would hide.
   if (outcome.refused.length > 0) {
     warn(
-      `${mode === "--write" ? "format:docs" : "check:docs"} — ${outcome.refused.length} file(s) NOT FORMATTED: formatting them would change what they render (repair the markdown, not the formatter):`,
+      `${mode === "--write" ? "format:docs" : "check:docs"} — ${outcome.refused.length} file(s) REFUSED: formatting them would LOSE CONTENT (repair the markdown, not the formatter):`,
     );
     for (const refusal of outcome.refused) {
-      warn(`  ${refusal.file}\n    ${refusal.reason.split("\n").join("\n    ")}`);
+      warn(`  REFUSED ${refusal.file}\n    ${refusal.reason.split("\n").join("\n    ")}`);
     }
   }
   if (mode === "--write") {
     print(`format:docs — formatted ${outcome.dirty.length}/${outcome.scanned} file(s)`);
     return outcome.refused.length > 0 ? EXIT.violations : EXIT.clean;
   }
-  if (outcome.refused.length > 0) {
-    return EXIT.violations;
-  }
+  // BOTH CENSUSES, ALWAYS — a refusal must never SWALLOW the dirty list. Returning here on the first
+  // refusal (the shape before #2235) made `check:docs` print "2 file(s)" on a corpus carrying 163
+  // unformatted ones: the refusal arm going from 0 to 2 would have read as the debt evaporating, and the
+  // barrier's reformat plans off this number.
   if (outcome.dirty.length === 0) {
+    if (outcome.refused.length > 0) {
+      return EXIT.violations;
+    }
     print(`check:docs — ${outcome.scanned} file(s) formatted`);
     return EXIT.clean;
   }
