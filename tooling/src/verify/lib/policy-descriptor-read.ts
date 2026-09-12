@@ -8,8 +8,8 @@
 // import origin to `contract/policy.ts` (`isCanonicalDefineGate`) — a same-named local `defineGate` registers
 // nothing; (2) a `fix`, a `message`, a `messageIncludes` and a fixture's content are read through the stable
 // binding resolver as CONTIGUOUS STATIC SEGMENTS — const aliases, `+` concatenation and template spans that
-// resolve are joined, a dynamic span breaks the segment, and a conditional contributes BOTH branches — so a
-// substring is only ever judged against text that can actually appear in one finding; (3) the report SINK is
+// resolve are joined, a dynamic span breaks the segment — so a substring is only ever judged against text that
+// can actually appear in one finding; (3) the report SINK is
 // recognised through `resolveCallableMember`, so `ctx.report.node`, a destructured `report.node` and a const
 // alias of the sink all read as the same site.
 //
@@ -18,6 +18,13 @@
 // `JSON.stringify`, a callee with statements — yields the empty incomplete read, which every consumer treats as
 // UNREADABLE rather than as absent text. And because a HIT is certain while an ABSENCE is not, `complete` is
 // load-bearing at the verdict: see `discriminationOf`.
+//
+// TWO READS, NOT ONE, AND THE DIFFERENCE IS THE CONDITIONAL (#2055). `staticSegments` answers "which pieces of
+// text are CERTAIN in this expression" and folds a conditional's branches into one record — right for judging
+// one subject (a `fix` sentence, a diagnostic's text), WRONG for a message CENSUS, where a site spelled
+// `cond ? A : B` is two sources and never one text containing both. `messageAlternatives` is that second read:
+// one entry per possible text. Consumers counting message SOURCES use it; every other consumer stays on the
+// single read.
 //
 // Segments, not values, on purpose: `readExpressionString` (config-static-read.ts) answers "what WHOLE strings
 // does this expression contribute" and refuses a template with a dynamic span outright; this family needs
@@ -28,6 +35,7 @@ import type {
   CallExpression,
   FunctionDeclaration,
   FunctionExpression,
+  Identifier,
   Node as MorphNode,
   ObjectLiteralExpression,
   PropertyAssignment,
@@ -199,9 +207,20 @@ function callSegments(call: CallExpression, seen: Set<object>): StaticSegments {
   return result;
 }
 
+/** How many alternative texts one message expression may yield before this reader refuses. A conditional
+ *  doubles the set and a template multiplies it, so the bound is a real one; past it the expression reads
+ *  UNREADABLE rather than as a union, because a union of alternatives is exactly the false-TAUTOLOGY shape
+ *  `messageAlternatives` exists to remove (#2055). */
+const ALTERNATIVE_CAP = 32;
+const UNREADABLE_ALTERNATIVE: StaticSegments = { segments: [], complete: false };
+
 /** Every contiguous piece of static text an expression can contribute to ONE string value. A conditional
  *  contributes both branches (each is possible text), marked incomplete because which one appears is dynamic.
- *  `seen` is the cycle fence for the call reader; callers never pass it. */
+ *  `seen` is the cycle fence for the call reader; callers never pass it.
+ *
+ *  THIS IS THE "which pieces are certain" READ, and it is the right answer for a `fix` sentence or a
+ *  diagnostic's text, where one expression is one subject. It is the WRONG answer for a message CENSUS —
+ *  see `messageAlternatives`. */
 export function staticSegments(expression: MorphNode, seen: Set<object> = new Set()): StaticSegments {
   const node = unwrapExpression(expression);
   let result: StaticSegments = { segments: [], complete: false };
@@ -225,6 +244,105 @@ export function staticSegments(expression: MorphNode, seen: Set<object> = new Se
     ) {
       result = staticSegments(fact.node, seen);
     }
+  }
+  return result;
+}
+
+/** One template span appended to one accumulated alternative, by `templateSegments`' own joining rule. */
+function appendSpan(base: StaticSegments, part: StaticSegments, tail: string): StaticSegments {
+  const segments = [...base.segments];
+  const last = segments.length - 1;
+  let complete = base.complete;
+  if (part.complete && part.segments.length === 1) {
+    segments[last] = `${segments[last] ?? ""}${part.segments[0] ?? ""}${tail}`;
+  } else {
+    complete = false;
+    segments.push(...part.segments, tail);
+  }
+  return { segments, complete };
+}
+
+/** The template's alternatives: the cartesian product over its spans, each combination joined exactly as the
+ *  single-read `templateSegments` joins one. `head ${a ? "x" : "y"} tail` is TWO texts, not one union. */
+function templateAlternatives(node: TemplateExpression, seen: Set<object>): readonly StaticSegments[] {
+  let accumulated: StaticSegments[] = [{ segments: [node.getHead().getLiteralText()], complete: true }];
+  for (const span of node.getTemplateSpans()) {
+    const parts = messageAlternatives(span.getExpression(), seen);
+    if (accumulated.length * parts.length > ALTERNATIVE_CAP) {
+      return [UNREADABLE_ALTERNATIVE];
+    }
+    const tail = span.getLiteral().getLiteralText();
+    const next: StaticSegments[] = [];
+    for (const base of accumulated) {
+      for (const part of parts) {
+        next.push(appendSpan(base, part, tail));
+      }
+    }
+    accumulated = next;
+  }
+  return accumulated.map((alternative) => ({ segments: nonEmpty(alternative.segments), complete: alternative.complete }));
+}
+
+/** A call's alternatives: the callee's single return expression, read in place under the same cycle fence and
+ *  the same "arguments are not substituted" rule `callSegments` uses. */
+function callAlternatives(call: CallExpression, seen: Set<object>): readonly StaticSegments[] {
+  const fn = textFunctionOf(unwrapExpression(call.getExpression()));
+  const returned = fn === undefined ? undefined : returnExpressionOf(fn);
+  const identity: object | undefined = fn?.compilerNode;
+  let result: readonly StaticSegments[] = [UNREADABLE_ALTERNATIVE];
+  if (returned !== undefined && identity !== undefined && !seen.has(identity)) {
+    seen.add(identity);
+    result = messageAlternatives(returned, seen);
+    seen.delete(identity);
+  }
+  return result;
+}
+
+/** An alias's alternatives, through the same stable-binding resolver the single read uses. */
+function identifierAlternatives(node: Identifier, seen: Set<object>): readonly StaticSegments[] {
+  const fact = resolveStableExpression(node);
+  let result: readonly StaticSegments[] = [UNREADABLE_ALTERNATIVE];
+  if (fact.kind === "resolved") {
+    result = messageAlternatives(fact.value, seen);
+  } else if (
+    fact.reason === "dynamic" &&
+    (Node.isTemplateExpression(fact.node) || Node.isBinaryExpression(fact.node) || Node.isConditionalExpression(fact.node))
+  ) {
+    result = messageAlternatives(fact.node, seen);
+  }
+  return result;
+}
+
+/** EVERY DISTINCT TEXT one message expression can produce, one entry per alternative — the read a message
+ *  CENSUS needs, and the one `staticSegments` cannot give (#2055).
+ *
+ *  `staticSegments` answers "which pieces of text are certain in this expression", and for a conditional it
+ *  answers with the UNION of both branches in one record. That is correct for judging a substring against a
+ *  single subject and WRONG as a census: a module whose one report site emits `found.unreadable ? A : B` has
+ *  TWO message sources, and folding them made a substring living only in A read as matching the module's
+ *  ONLY source — the TAUTOLOGY verdict, on three fail-closed `#2041` rows whose `messageIncludes` is the ONLY
+ *  thing telling their arm from its sibling. Deleting it, which the finding's own remedy asked for, would
+ *  have removed the discriminator from a HARD arm.
+ *
+ *  Every entry is certain in the branch it came from; an entry with no segments is a branch this reader could
+ *  not read, and consumers count it as an unreadable SOURCE rather than as absent text. Past `ALTERNATIVE_CAP`
+ *  the whole expression reads unreadable — the refusal, never a union. */
+export function messageAlternatives(expression: MorphNode, seen: Set<object> = new Set()): readonly StaticSegments[] {
+  const node = unwrapExpression(expression);
+  let result: readonly StaticSegments[] = [staticSegments(node, seen)];
+  if (Node.isTemplateExpression(node)) {
+    result = templateAlternatives(node, seen);
+  } else if (Node.isBinaryExpression(node) && node.getOperatorToken().getKind() === SyntaxKind.PlusToken) {
+    const left = messageAlternatives(node.getLeft(), seen);
+    const right = messageAlternatives(node.getRight(), seen);
+    result = left.length * right.length > ALTERNATIVE_CAP ? [UNREADABLE_ALTERNATIVE] : left.flatMap((half) => right.map((rest) => concatSegments(half, rest)));
+  } else if (Node.isConditionalExpression(node)) {
+    const branches = [...messageAlternatives(node.getWhenTrue(), seen), ...messageAlternatives(node.getWhenFalse(), seen)];
+    result = branches.length > ALTERNATIVE_CAP ? [UNREADABLE_ALTERNATIVE] : branches;
+  } else if (Node.isCallExpression(node)) {
+    result = callAlternatives(node, seen);
+  } else if (Node.isIdentifier(node)) {
+    result = identifierAlternatives(node, seen);
   }
   return result;
 }
@@ -361,8 +479,8 @@ export function reportSiteMessage(call: CallExpression): ReportSiteMessage {
     } else {
       const message = descriptorValue(object, "message");
       if (message !== undefined) {
-        const text = staticSegments(message);
-        verdict = text.segments.length === 0 ? { kind: "unreadable" } : { kind: "override", text };
+        const texts = messageAlternatives(message);
+        verdict = texts.every(({ segments }) => segments.length === 0) ? { kind: "unreadable" } : { kind: "override", texts };
       }
     }
   }
@@ -465,6 +583,26 @@ export function isContextRooted(expression: MorphNode, contextSymbol: object, se
 export function isStringTyped(expression: MorphNode): boolean {
   const type = expression.getType();
   return type.isString() || type.isStringLiteral() || type.isTemplateLiteral();
+}
+
+/** Does this module bind `name` at MODULE SCOPE — a const/let/var, a function, a class, an enum, or an
+ *  import (named, aliased, default or namespace)? The resolution test behind `expect.countFrom` (#2001): the
+ *  named driver must exist in the module whose row cites it, or the declared exemption names nothing and the
+ *  row is back to asserting only "at least one finding". Shared so the STATIC arm (`policy-proof-expectations`
+ *  ARM C) and the RUNTIME runner (`ops/policy-conformance.ts`) ask the identical question. */
+export function declaresModuleName(sourceFile: SourceFile, name: string): boolean {
+  let declared =
+    sourceFile.getVariableDeclaration(name) !== undefined ||
+    sourceFile.getFunction(name) !== undefined ||
+    sourceFile.getClass(name) !== undefined ||
+    sourceFile.getEnum(name) !== undefined;
+  for (const declaration of sourceFile.getImportDeclarations()) {
+    declared ||=
+      declaration.getNamedImports().some((specifier) => (specifier.getAliasNode() ?? specifier.getNameNode()).getText() === name) ||
+      declaration.getDefaultImport()?.getText() === name ||
+      declaration.getNamespaceImport()?.getText() === name;
+  }
+  return declared;
 }
 
 const GATES_DIR = "tooling/src/verify/gates/";

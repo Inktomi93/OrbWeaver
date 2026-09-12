@@ -1,9 +1,10 @@
 // Runs every final policy proof through runPolicyPass on an isolated example population.
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
+import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { CoordinatedGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation } from "../contract/policy.ts";
@@ -11,13 +12,15 @@ import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { ResourceHostOptions } from "../contract/resource-host.ts";
+import { declaresModuleName } from "../lib/policy-descriptor-read.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
 import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";
-import { repoGitEnvironment } from "../lib/repo-paths.ts";
+import { ROOT, repoGitEnvironment } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/ops/policy-conformance.test.ts");
 
+const countFromProject = new Project({ useInMemoryFileSystem: true });
 const VIRTUAL_ROOT = "/orb-policy-conformance";
 const TEMP_PREFIX = "orb-policy-conformance-";
 /** The reader's own non-authored vocabulary (`ops/resource-reader.ts`), in path-segment form. */
@@ -40,6 +43,40 @@ interface ProofRunInput {
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** The policy modules already parsed for a `countFrom` resolution, by repo-relative path. Reading a module is
+ *  per-POLICY work, not per-row, and a corpus run asks the same question once per module at most. */
+const countFromModules = new Map<string, SourceFile | undefined>();
+
+function policyModule(path: string, project: Project): SourceFile | undefined {
+  if (countFromModules.has(path)) {
+    return countFromModules.get(path);
+  }
+  const absolute = join(ROOT, path);
+  // ABSENT is the ROW's failure and is reported as one below. UNREADABLE is a TOOL error and propagates
+  // deliberately: a conformance run that could not read the corpus it is judging is not a verdict.
+  const sourceFile = existsSync(absolute) ? project.createSourceFile(`/orb-countfrom/${path}`, readFileSync(absolute, "utf8"), { overwrite: true }) : undefined;
+  countFromModules.set(path, sourceFile);
+  return sourceFile;
+}
+
+/** `expect.countFrom` is a DECLARED EXEMPTION and it reds when the thing it declares is not there (#2001).
+ *  The runner cannot compute the count a registry drives — that is the whole reason the row exists — so what
+ *  it proves is the exemption's honesty: the named driver is a real module-level binding in the policy's own
+ *  module. A name that does not resolve is a row back to asserting only "at least one finding", wearing an
+ *  exemption's clothes. `id` equals the filename by contract (`lib/policy-validation.ts`). */
+function countFromFailure(policy: GatePolicy, expectation: GatePolicyProofExpectation | undefined): string | null {
+  const name = expectation?.countFrom;
+  if (name === undefined) {
+    return null;
+  }
+  const path = `tooling/src/verify/gates/${policy.id}.ts`;
+  const sourceFile = policyModule(path, countFromProject);
+  if (sourceFile === undefined) {
+    return `expect.countFrom names ${name} but the policy module ${path} could not be read`;
+  }
+  return declaresModuleName(sourceFile, name) ? null : `expect.countFrom names ${name}, which ${path} declares nowhere at module scope`;
 }
 
 function removeSources(project: Project): void {
@@ -192,6 +229,9 @@ function expectationFailure(
   if (expectation === undefined) {
     return null;
   }
+  // `countFrom` rows carry no literal to compare — their count is a registry's cardinality and the row says
+  // so by name; `countFromFailure` has already proven the name resolves, and the identity fields below are
+  // what carry the row (#2001).
   if (expectation.count !== undefined && findings.length !== expectation.count) {
     return `expected effective finding count=${expectation.count} but got ${findings.length}`;
   }
@@ -226,7 +266,7 @@ function proofFailure({ policy, arm, proof, exampleIndex, sequence, shared }: Pr
     if (detail === null) {
       const findings = result.authority.effectiveFindings;
       if (arm === "mustFlag") {
-        detail = expectationFailure(findings, proof.expect, policy.message);
+        detail = countFromFailure(policy, proof.expect) ?? expectationFailure(findings, proof.expect, policy.message);
       } else {
         detail =
           findings.length === 0 ? null : `expected zero effective findings but got ${findings.length}: ${formatFindingMessages(findings, policy.message)}`;

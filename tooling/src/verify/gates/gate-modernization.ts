@@ -68,10 +68,13 @@ const MESSAGE =
   "so every finding its budgets absolve is missing from the single-pass's admitted total — declared debt " +
   "that renders as ZERO declared debt, which is the one number a reader uses to know the debt is still " +
   "there (#551). " +
-  'An `analysis` token: the policy DECLARES `analysis: "syntax"` and its body calls `getType(`/`getSymbol(`. ' +
-  "`ctx.checker()` refuses a syntax owner, but a ts-morph node reaches the compiler WITHOUT the context, so " +
-  "the declaration is simply untrue — the gate reads types on a tier priced for syntax, and the " +
-  "smallest-complete-contract rule has no other enforcer on this axis. " +
+  'An `analysis` token: the policy DECLARES `analysis: "syntax"` and its MODULE calls one of the closed ' +
+  "set of compiler-reaching members (`getType`, `getContextualType`, `getSymbol`, the aliased/export symbol " +
+  "hops, the type- and signature-level reads, `getTypeAtLocation`, `getTypeChecker`, or `ctx.checker()` " +
+  "itself). `ctx.checker()` refuses a syntax owner at RUNTIME, but a ts-morph node reaches the compiler " +
+  "WITHOUT the context and a runtime throw only fires if the branch executes, so the declaration is simply " +
+  "untrue — the gate reads types on a tier priced for syntax, and the smallest-complete-contract rule has " +
+  "no other enforcer on this axis. " +
   "Any other " +
   "token is an EXEMPTION TABLE by that name with no STALE arm: this gate module contains no diagnostic that " +
   "fires when a row stops matching a live violation, and a one-sided exemption rots into a lie — the " +
@@ -88,8 +91,8 @@ const FIX =
   `D: call \`ctx.scan({ admitted: <the findings your budgets absolved> })\` in the gate's \`run\`/\`finalize\` (${LAW} §1) — ` +
   "`density-tier` and `duplicate-action-doors` are the worked examples; `pnpm debt` enumerates the rows behind the number. " +
   'E: declare `analysis: "types"` if the policy genuinely needs compiler-resolved semantics, or delete the ' +
-  "`getType`/`getSymbol` calls and judge the node's syntax — a type read through a ts-morph node is still a " +
-  "type read, and `ctx.checker()` is the only spelling the runtime can price.";
+  "compiler-reaching calls ANYWHERE IN THE MODULE and judge the node's syntax — a type read through a ts-morph " +
+  "node is still a type read, and the declared plane is what the runtime prices.";
 
 // ── ARM A ────────────────────────────────────────────────────────────────────────────────────────────
 const NO_DESCRIPTOR = (rel: string): string =>
@@ -145,7 +148,7 @@ function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | und
     return;
   }
   if (registration.contract === "final") {
-    armSyntaxAnalysis(registration.obj, ctx);
+    armSyntaxAnalysis(registration.obj, sf, ctx);
     return;
   }
   const { obj } = registration;
@@ -173,7 +176,36 @@ function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | und
 // IDENTITY, not text: the reads are matched as CALL EXPRESSIONS through a member access, so a `getType` in
 // a comment, a message string or a proof fixture cannot trip it — which matters here because this module's
 // own `mustFlag` row contains the literal string it hunts.
-const TYPE_READ_METHODS: ReadonlySet<string> = new Set(["getType", "getSymbol"]);
+/** THE CLOSED TUPLE of members that reach the compiler (#1958). `getType`/`getSymbol` were the founding
+ *  two and the arm was shown to catch only those; a `getContextualType()` — or any of the ten below — walked
+ *  straight past an arm written to police exactly this claim. Each member has its OWN mustFlag row: a tuple
+ *  widened without a control per member is the shape where one member silently never matches.
+ *
+ *  AND EACH ROW REACHES ITS MEMBER ALONE. The first draft spelled six of them as chains
+ *  (`ctx.node.getSymbol().getAliasedSymbol()`), and all six passed under the OLD two-member tuple — the
+ *  `getSymbol()` in the chain was doing the work, so they were controls for nothing. The narrow-back control
+ *  is what caught it: with the tuple reverted, twelve rows must red, and six did not.
+ *
+ *  `checker` is in the SAME tuple on purpose. `ctx.checker()` under a syntax owner throws at RUNTIME
+ *  (`lib/policy-pass-context.ts`), which is a different tier and only fires if the branch executes; the
+ *  DECLARATION is false either way, and this arm is the one that reads declarations. It is not a load-time
+ *  validation refusal because `lib/policy-validation.ts` receives the descriptor OBJECT and has no source to
+ *  read — seeing a call inside `create`'s body would mean stringifying a function, which no validation does. */
+const TYPE_READ_METHODS: ReadonlySet<string> = new Set([
+  "getType",
+  "getContextualType",
+  "getSymbol",
+  "getSymbolOrThrow",
+  "getAliasedSymbol",
+  "getAliasedSymbolOrThrow",
+  "getExportSymbol",
+  "getDeclaredType",
+  "getApparentType",
+  "getReturnType",
+  "getTypeAtLocation",
+  "getTypeChecker",
+  "checker",
+]);
 const SYNTAX_ANALYSIS = "syntax";
 const ANALYSIS_PROP = "analysis";
 
@@ -204,9 +236,14 @@ function readsTypes(node: Node): boolean {
 /** ARM E for one FINAL module. One finding per module, anchored on the descriptor with the `analysis` token:
  *  the defect is the DECLARATION, not each read, and the repair is to change that one word (or drop the
  *  reads). Reporting per call site would also make several findings share one carrier and one token, which
- *  is the shape that has no working suppression door at all. */
-function armSyntaxAnalysis(obj: Node | undefined, ctx: GateRunCtx): void {
-  if (obj === undefined || analysisText(obj) !== SYNTAX_ANALYSIS || !readsTypes(obj)) {
+ *  is the shape that has no working suppression door at all.
+ *
+ *  THE SUBTREE IS THE WHOLE MODULE, not the descriptor literal (#1958). The claim `analysis: "syntax"` is
+ *  about what the POLICY reads, and a policy reads through its module-level helpers as readily as inline —
+ *  scanning only the literal left the one-line extraction (`function isX(node) { return node.getType()… }`)
+ *  as a free evasion of an arm whose entire subject is that claim. */
+function armSyntaxAnalysis(obj: Node | undefined, sf: SourceFile, ctx: GateRunCtx): void {
+  if (obj === undefined || analysisText(obj) !== SYNTAX_ANALYSIS || !readsTypes(sf)) {
     return;
   }
   ctx.report(obj, { token: ANALYSIS_PROP, offset: 0 });
@@ -553,6 +590,103 @@ export const gate: GateDescriptor = {
       },
       expect: { count: 1, token: ANALYSIS_PROP },
       why: "ARM E — `getSymbol` is the second door onto the same compiler and is flagged identically; without this row the arm would be shown to catch only half its own vocabulary",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getContextualType()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getContextualType` — the member #1958 was filed on: the contextual type of an expression is the checker answering a question about the node, reached without ever asking the context",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getSymbolOrThrow()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getSymbolOrThrow` — the throwing twin of `getSymbol` — a different spelling of the same read, and a tuple that named only the non-throwing form would miss every module that prefers the assertive one",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.symbol.getAliasedSymbol()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getAliasedSymbol` — import-alias resolution is a SYMBOL read through the compiler, and it is the exact call an origin recognizer reaches for",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.symbol.getAliasedSymbolOrThrow()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getAliasedSymbolOrThrow` — the throwing twin again — the pair is the rule, not the exception",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.symbol.getExportSymbol()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getExportSymbol` — the local-to-export symbol hop, the read a module-boundary policy wants and the one it must declare `types` for",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.symbol.getDeclaredType()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getDeclaredType` — a symbol's declared type is the checker's answer, not the node's syntax",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.resolved.getApparentType()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getApparentType` — a TYPE-level read chained off a type read: the arm must see the whole chain, not only its first link",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.signature.getReturnType()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getReturnType` — signature return types are the deepest of these reads and the most expensive, which is precisely why the declared plane must be honest",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.checkerLike.getTypeAtLocation(ctx.node)'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getTypeAtLocation` — the TypeChecker's own spelling — reachable through any handle a module gets on a checker, so naming only the node-side members would leave the front door open",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.project.getTypeChecker()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `getTypeChecker` — taking the checker off a Project is a type read with an extra step; §12.3 bans the gate-owned Project separately, and this arm names the CLAIM",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.checker()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E MEMBER `checker` — `ctx.checker()` under a syntax owner throws at RUNTIME and only if the branch executes — a different tier. The DECLARATION is false the moment the call is written, and this arm is the one that reads declarations (#1958, cb-v-instruments)",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts":
+          'import { defineGate } from "../contract/policy.ts";\nfunction placed(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: (ctx) => placed(ctx.node), mustFlag: [1], mustPass: [1] });\n',
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E SUBTREE — the read sits in a MODULE-LEVEL helper, not in the descriptor literal. Scanning only the literal made a one-line extraction a free evasion of an arm whose whole subject is what the policy reads; the claim is about the module, so the subtree is the module",
     },
     {
       files: {

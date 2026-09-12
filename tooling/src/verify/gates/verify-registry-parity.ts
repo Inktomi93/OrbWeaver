@@ -106,8 +106,8 @@ export const gate = defineGate({
         // every registered `pnpm <script>` argv is then a DEAD_ROW. `verify` is allowlisted so arm 1 stays clean.
         "package.json": '{ "name": "orbweaver", "scripts": { "verify": "tsx tooling/src/verify/ops/run.ts" } }\n',
       },
-      expect: { messageIncludes: "but package.json has no" },
-      why: "arm 2 DEAD_ROW: the `verify` guard is present so arm 2 activates, but the registry names stages absent from this package.json — a registry row pointing at a missing script",
+      expect: { countFrom: "registryScriptNames", messageIncludes: "but package.json has no" },
+      why: "arm 2 DEAD_ROW: the `verify` guard is present so arm 2 activates, but the registry names stages absent from this package.json — a registry row pointing at a missing script. `countFrom: registryScriptNames` (#2001): arm 2 emits one DEAD_ROW per registered stage, so the count is the stage registry's cardinality and a new stage would otherwise turn this row red; `messageIncludes` pins WHICH arm",
     },
     {
       mode: "resource",

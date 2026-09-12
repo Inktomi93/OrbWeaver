@@ -14,8 +14,18 @@ export interface ProofRows {
   readonly unreadable: readonly Node[];
 }
 
-/** One report site's message provenance: the descriptor's own `message`, a readable override, or unreadable. */
-export type ReportSiteMessage = { readonly kind: "policy" } | { readonly kind: "override"; readonly text: StaticSegments } | { readonly kind: "unreadable" };
+/** One report site's message provenance: the descriptor's own `message`, a readable override, or unreadable.
+ *
+ *  An override carries ALTERNATIVES, never one folded read (#2055): a site whose message is
+ *  `cond ? A : B` emits A or B and never a text containing both, so it is TWO sources — folding them into
+ *  one union made a substring that lives in exactly one branch read as matching the module's only source,
+ *  and the TAUTOLOGY arm fired on a row that discriminates. Every entry is one text the site can emit; an
+ *  entry with no segments is a branch this reader could not read at all, which the census counts as an
+ *  unreadable SOURCE. */
+export type ReportSiteMessage =
+  | { readonly kind: "policy" }
+  | { readonly kind: "override"; readonly texts: readonly StaticSegments[] }
+  | { readonly kind: "unreadable" };
 
 /** What a `messageIncludes` substring can tell apart, given a module's message sources. */
 export const DISCRIMINATIONS = ["discriminates", "tautology", "shared", "unjudged"] as const;

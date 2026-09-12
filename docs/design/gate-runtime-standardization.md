@@ -297,7 +297,20 @@ family.
    population). **Every `mustFlag` row carries an `expect`.** `expectationFailure` returns early once one
    finding exists, so a row without `expect` asserts only that the fixture produced at least one effective finding, and
    passes when the gate flags the WRONG node or flags several where one was meant. Name `count` always, and `token`
-   (or `line`/`messageIncludes`) whenever the row's `why` claims WHICH node flags. `token` is available on EVERY
+   (or `line`/`messageIncludes`) whenever the row's `why` claims WHICH node flags.
+
+   **THE ONE DECLARED EXEMPTION: `expect: { countFrom: "<DRIVER>" }`** (owner ruling 2026-09-12, #2001; landed with
+   nine live rows across `domain-freshness-plane`, `lifecycle-portability` and `verify-registry-parity`). Where the
+   finding count is driven by a MODULE-LEVEL registry the fixture cannot control — the domain roster,
+   `PORTABLE_CANON_TABLES`, `registryScriptNames()` — a literal `count` makes a legitimate registry addition a RED
+   PROOF, a rule whose effect is *"classifying a table correctly breaks the build"*. `countFrom` names the driver
+   instead. It is EXACT, not free text: the named binding must resolve at module scope in that very module, checked
+   BOTH statically (`policy-proof-expectations` ARM C) and at runtime (`verifyPolicyProofs`), and a name that resolves
+   nowhere is a hard failure. `count` and `countFrom` are mutually exclusive and the loader refuses both together.
+   **Implemented TIGHTER than ruled, deliberately:** the gate also requires a `countFrom` row to carry
+   `token`/`line`/`messageIncludes`. The ruling accepted `countFrom` and required only that the constant resolve; a
+   row with neither a count nor an identity field asserts nothing at all, which is strictly worse than the literal it
+   replaces, so the companion requirement is the gate's own and is recorded here as such. `token` is available on EVERY
    node-reporting policy because the position is derived when not supplied (§3). The expectation shape has no
    `column`, so `count + line + token` is the ceiling: add `line` when the derived token repeats inside the fixture
    (a statement's first identifier is weak identity). Before reaching for `messageIncludes`, check that the module
@@ -896,7 +909,18 @@ planted lookalike global. **A single row that passes under both branches proves 
 the simpler stub resolved cleanly through the branch the live tree never uses — again invisible to conformance, because
 both branches resolve. **The tell: a stub that is easier to write than the real declaration is usually taking a
 different branch.** The landed plant carries the augmentation form for the SUBJECT and leaves the lookalikes
-script-global on purpose, so the corpus now exercises both branches.
+script-global on purpose.
+
+**AND THE "BOTH BRANCHES" HALF OF THAT SENTENCE WAS ITSELF FALSE — corrected 2026-09-12 (#2037).** The predicate is
+`trusted && isDeclFile && (scriptGlobal || isGlobalAugmentation)` and `||` **short-circuits**. The planted subject,
+both lookalikes AND the installed `@types/node/process.d.ts` all carry **zero top-level import/export declarations**
+(the package's imports sit inside `declare module`), so `scriptGlobal` is true for every one of them and the
+augmentation branch is **never evaluated by any proof row**. The plant's SHAPE claim is correct and stands; the branch
+claim was not, and a branch nothing reaches is a branch that rots silently. A declaration file reaches the augmentation
+branch only when a **TOP-LEVEL import** makes it a module, and that fixture is now pinned where the claim belongs — on
+the reader, at `tests/tooling/verify/lib/reference-fact-origin.suite.test.ts`, with an untrusted-path control beside
+it. **Writing "this fixture exercises branch B" is a claim that owes a control that dies without branch B**, exactly
+like a §4.1 narrowing.
 
 9. **One family test may cover several siblings**; a file per gate is unnecessary. **A conversion no longer owes a
    family test for its DECLARED rows** — the conformance stage (§5) runs every final policy's `mustFlag`/`mustPass` on
