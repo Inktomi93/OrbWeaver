@@ -26,6 +26,16 @@
 // Identity — which call is a producer, which relay carries a member, which argument proves nothing — is the
 // shared `busProducerFact`'s question, not this policy's. It owns no name table, no path regex and no walk.
 //
+// FAMILY `bus-fact` — the shared reader is `lib/bus-fact.ts` (`busProducerFact`), read identically by the
+// three policies that SPLIT by authority and severity rather than by subject: this ordinary/error one, the
+// hard/error `bus-fact-health` that guards the census before any verdict is trusted, and the hard/warning
+// `user-bus-deferred-member` that owns the owner-deferred rows. The `family` string is identical across all
+// three by construction. This policy ALSO reads the sibling family's provider, `lib/bus-definition-fact.ts`
+// (`busDefinitionFact`) — not for identity, but solely so the two independently derived belted rosters can
+// be required to AGREE, which is the guarantee that retired `bus-coverage-owner` (see below). Identity —
+// which call is a producer, which relay carries a member — is the fact's question, never this module's; it
+// owns no name table, no path regex and no walk.
+//
 // POPULATION PORT for a 5→1 consolidation: an intentional correction, and the five legacy descriptors had
 // no `scanRoot` between them. Each was `scopeSafety: "whole-project"` with a `run` hook walking
 // `ctx.project`, carrying its path narrowing INLINE as a regex over the emit side

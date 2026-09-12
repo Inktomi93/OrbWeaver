@@ -13,6 +13,21 @@
 // two-sidedness survives: a bus with neither belt reports, whichever kind of consumer it was supposed to
 // have.
 //
+// FAMILY `bus-definition` — the shared reader is `lib/bus-definition-fact.ts` (`busDefinitionFact`, one
+// provider walked once per invocation), read identically by all three members of the split: this policy
+// asks whether each belted union has a CONSUMER, `bus-definition-belts` asks which unions own a belt at
+// all, and `bus-belt-total` asks whether a belt is total over its union. None of them derives a belt, which
+// is why they cannot disagree about what one is. This module owns no table, walk, path regex or cache —
+// the `SERVER_INTERNAL_REACH` row above was the last one and its successor is a checker proof, not a name.
+//
+// POPULATION PORT: an intentional NARROWING of an unstated legacy scope, taken by all three split siblings
+// in the same commit. The legacy descriptor declared NO `scanRoot` — it was `scopeSafety: "whole-project"`
+// with a `run` hook over `ctx.project` — so it judged whatever the legacy pass loaded. The final population
+// is `{ in: ["@contracts", "@client", "@server"] }`, and for THIS policy all three roots are load-bearing
+// rather than incidental: the union is declared in `@contracts`, the client total map is located BY SHAPE
+// anywhere in `@client`, and the server-side exhaustive dispatch that acquits a never-browser bus is in
+// `@server`. Drop any one root and a legal consumer becomes invisible, which is a false accusation.
+//
 // The legacy `bus-definition-belts` descriptor (001949630e8ae87b44c758fd4ba5614c8e63c15a) carried the
 // `SERVER_INTERNAL_REACH` row and the consumer-belt check as two of its four arms before this split.
 import { defineGate } from "../contract/policy.ts";
