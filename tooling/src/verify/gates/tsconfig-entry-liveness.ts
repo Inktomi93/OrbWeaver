@@ -51,7 +51,7 @@
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ConfigGrantCandidate, ConfigGrantRow } from "../lib/config-grant-rows.ts";
-import { groupGrantRows, readTsconfigRoster, trackedPathOracle, tsconfigGrantRows } from "../lib/config-grant-rows.ts";
+import { groupGrantRows, trackedPathOracle, tsconfigGrantRows, tsconfigRosterFrom, tsconfigRosterPaths } from "../lib/config-grant-rows.ts";
 import { globMatcher, patternLivenessFindings } from "../lib/grant-liveness.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
@@ -162,7 +162,14 @@ export const gate = defineGate({
       // text door REFUSED is a condition about this policy's own subject set that it cannot measure, and
       // "I could not read my subject" must not be licensable by the grant door these findings carry. The
       // `-health` sibling reports it, unsuppressibly, off the same total partition.
-      const rows = tsconfigGrantRows(readTsconfigRoster(ctx.resources, repoPaths).configs);
+      // THE DOOR IS READ HERE, not inside the shared reader (#2148). `ctx.resources` never leaves the call
+      // site: `tsconfigRosterPaths` says WHICH configs to demand (and carries the empty-roster refusal, so it
+      // still precedes the door), this line acquires and narrows them, and `tsconfigRosterFrom` takes the
+      // ready value. The seam used to hand the closed host to `lib/`, which `policy-soundness` ARM E4 had to
+      // carve an exception for — and E4's population is the gates tree, so the carve stopped policing exactly
+      // where the host crossed into `lib/`.
+      const corpus = readyResourceValue(ctx.resources.authoredText(tsconfigRosterPaths(repoPaths)));
+      const rows = tsconfigGrantRows(tsconfigRosterFrom(corpus).configs);
       const exists = trackedPathOracle(repoPaths);
       reportCandidates(ctx, groupGrantRows(rows.exact.filter((row) => !exists(row.rooted))), EXACT_OPERATION, MESSAGE);
       reportCandidates(ctx, groupGrantRows(deadGlobs(rows.globs, repoPaths)), GLOB_OPERATION, GLOB_MESSAGE);

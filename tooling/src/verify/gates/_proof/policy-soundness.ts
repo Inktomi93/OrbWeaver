@@ -19,9 +19,11 @@ export const TS_MORPH_TYPES_STUB =
 export const RESOURCE_DECLARATION_PATH = "tooling/src/verify/lib/resource-declaration.ts";
 export const RESOURCE_DECLARATION_STUB = "export function readyResourceValue<T>(fact: T): T {\n  return fact;\n}\n";
 
-/** A shared `lib/` reader that takes the closed host and narrows it ITSELF — the sanctioned shape E4 must
- *  admit, and the one the live corpus uses (`lib/config-grant-rows.ts` `readTsconfigRoster`, consumed by both
- *  `tsconfig-entry-liveness` modules). Its HOME is what admits it, so the fixture plants it under `lib/`. */
+/** A shared `lib/` reader that takes the closed host and narrows it ITSELF — the shape E4 briefly ADMITTED and
+ *  now ACCUSES (#2148). It stays planted under `lib/` on purpose: the retired carve keyed on exactly that home,
+ *  so a fixture anywhere else would prove the removal against bytes the carve never covered. The live corpus
+ *  had three of these (`lib/config-grant-rows.ts`, consumed by both `tsconfig-entry-liveness` modules and by
+ *  `biome-grant-liveness`); all three were inverted to take the narrowed value in the same commit. */
 export const LIB_READER_PATH = "tooling/src/verify/lib/probe-reader.ts";
 export const LIB_READER_STUB =
   'import { readyResourceValue } from "./resource-declaration.ts";\nexport function readProbeRoster(resources: { trackedFiles: () => unknown }): unknown {\n  return readyResourceValue(resources.trackedFiles() as never);\n}\n';
