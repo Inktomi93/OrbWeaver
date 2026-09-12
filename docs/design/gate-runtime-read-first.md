@@ -65,7 +65,15 @@ with a defect **already closed on `main`** — wave 3's #1966 fail-open (closed 
 wave 2's D1 `ctx.relativePath` escape (closed by `lib/declaration-home.ts`, with each repaired module citing
 that audit in its own `mustPass` `why`). An audit wave is an UPPER BOUND with a timestamp.
 
-## 1b. THE TWO PROGRAM DOCS IN FULL. THE REST IS ON DEMAND. (owner, 2026-09-12)
+## 1b. THE THREE GATE DOCS IN FULL. THE REST IS ON DEMAND. (owner, 2026-09-12)
+
+**THE SET IS THREE, AND THIS FILE IS ONE OF THEM** (owner, amended 2026-09-13): *"it should be three docs
+— it should be gate runbook, the gate plan doc, and then the gate read this first."* So the whole-read set
+is **THIS FILE → [`gate-runtime-standardization.md`](gate-runtime-standardization.md) (the plan/law) →
+[`gate-runtime-orchestrator-playbook.md`](gate-runtime-orchestrator-playbook.md) (the runbook)** — rows 1
+and 2 of the table above plus this file, which carries the standing rulings that override both. The earlier
+"two docs" phrasing counted only the pair this file points AT, which read as licence to skip the pointer
+itself; it is preserved below as the dated original because it is the ruling that set the boundary.
 
 **"I literally just meant the two docs, not everything they connect to."** Tiers 1 and 2 are read WHOLE,
 every time, no skipping inside them. **Tiers 4-7 are looked up when you need them** — by section, for the

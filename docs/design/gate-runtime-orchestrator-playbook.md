@@ -61,7 +61,7 @@ order); §12 is what lanes read. This file is what YOU do, in order.
 
    | Tier | Docs | Size | Read it? |
    | - | - | -: | - |
-   | **LAW — you** | the two program docs | 216 KB | **ALWAYS, in full.** They are the control. |
+   | **LAW — you** | the THREE gate docs — `gate-runtime-read-first.md` + this file + `gate-runtime-standardization.md` | 222 KB | **ALWAYS, in full** (owner, amended 2026-09-13: *“it should be three docs — gate runbook, the gate plan doc, and then the gate read this first”*). They are the control. |
    | **LAW — you** | `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | 155 KB | **ALWAYS.** These are the four the guide delegates to, and re-deriving one cost a full session on 2026-09-11, four separate times. **Skip `ordinary-waiver-source-migration`'s 1,600-line `path:line` appendix** — its own banner says every count in it is to re-derive, never to quote. |
    | **LAW — you** | `shared-semantic-readers` (M/O/G/V are COMPUTATION GROUPS — a lane must prove shared consumption before naming a `family`) · `checkpoint-2026-09-05` §"Resume order" + its per-wave lessons | 78 KB | **ALWAYS.** Mechanism law that reads like a receipt. |
    | **COUPLED SITE — you, once** | `Core-Enforcement-Active-Gates.md` | **281 KB** | **Once per program, then by ROW.** It is a coupled site you maintain and 270 dense rows; after one full pass, read only the row you are about to break. |
