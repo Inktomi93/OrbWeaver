@@ -58,11 +58,16 @@
 //   · the field fence (`FILE_ONLY_FIELDS`) → widened to every directory identity: RED across both arms.
 //   · the glob classifier (`classifyGlob` returning every value) → RED across both arms.
 //   · the containment arm (`status === "outside"` no longer reported) → RED on the two containment rows (`mustFlag[1]`, `mustFlag[2]`), which is the receipt that the new SYMLINK row discriminates rather than passing by luck.
-//   · the real-tree anchor (`anchorOk` forced true) → CLEAN, and that is UNFALSIFIABLE rather than
-//     unenforced (guide §4.1's fourth outcome): `EXEMPT` is empty, so the anchor gates only the two
-//     exemption arms — which have no rows to judge — and the NO-ROWS arm, whose own `mustFlag` row fires
-//     under a forced-true anchor too. No fixture can discriminate it, and inventing one would be a false
-//     pin. The anchor stays because a row added to EXEMPT inherits both arms from the shared reader.
+//   · the real-tree anchor (`anchorOk` forced true) → RED on `mustPass[5]`, which is the row that exists to
+//     hold it. The anchor decides ONE thing no other fence decides: whether a zero-exact corpus is the
+//     classifier having ROTTED (report MSG_NO_ROWS) or a corpus that legitimately derives no exact row
+//     (stay silent). Forced true, a five-value all-glob config is accused of blindness — the tripwire firing
+//     FALSELY, which is the failure mode a blindness tripwire cannot have. Recorded UNFALSIFIABLE until
+//     2026-09-12; the cut came back clean only because EVERY row then in the module went through `configs()`,
+//     which plants two exact playwright `testDir` values and so never reaches the zero-exact branch the anchor
+//     guards. The clean cut measured THE HELPER, not the fence (guide §4.1) — `mustPass[5]` stops using it.
+//     (`EXEMPT`'s two arms also read the anchor; that table is an empty #1922 carry-forward tracked
+//     separately and is NOT part of this row's claim.)
 // MEASURED INTERACTION worth knowing before you write a fixture: a TRACKED symlink whose target escapes the
 // repository makes `readPolicyRepositoryInventory` throw ("resolves outside repository"), which refuses
 // every `native-config` consumer at the population phase. So the OUTSIDE-through-a-symlink finding is
@@ -326,6 +331,10 @@ function configsWithGlobTestDir(vitest: string): Record<string, string> {
   };
 }
 
+/** A value set too SMALL to be the real configs — the below-anchor half of the NO-ROWS pair (`mustPass[5]`),
+ *  which with the two planted glob `testDir` values derives five candidates against a floor of 40. */
+const BELOW_ANCHOR_GLOBS = 3;
+
 /** `count` distinct glob entries — filler that clears the anchor while deriving zero exact rows. */
 function globFiller(count: number): string {
   return Array.from({ length: count }, (_, i) => `"tests/p${i}/**"`).join(", ");
@@ -470,7 +479,7 @@ export const gate = defineGate({
       why:
         "DECLARED LIMIT — every glob spelling (`**`, a brace set, a `*` segment) is a pattern, never resolved as a path. The legacy row's `why` also claimed the " +
         "config stays UNDER the anchor so NO-ROWS cannot fire; that reason is RETIRED as false — the two planted Playwright `testDir` values are exact rows, so " +
-        "this fixture never reaches the zero-exact branch at all, whatever the anchor says (measured: forcing `anchorOk` true leaves every row green)",
+        "this fixture never reaches the zero-exact branch at all, whatever the anchor says (measured: forcing `anchorOk` true leaves THIS row green — `mustPass[5]` below is the row that does reach that branch and does red)",
     },
     {
       mode: "resource",
@@ -478,6 +487,18 @@ export const gate = defineGate({
         [LIVE_REL]: LIVE_SOURCE,
       }),
       why: "DECLARED LIMIT — only the file-SELECTION keys are judged; a reporter module or an output directory is not a selection row, and a missing reporter fails the runner LOUDLY at start-up rather than silently changing which files run",
+    },
+    {
+      mode: "resource",
+      files: configsWithGlobTestDir(`export default { test: { include: [${globFiller(BELOW_ANCHOR_GLOBS)}] } };\n`),
+      why:
+        "THE ROW THAT HOLDS THE §4.5 ANCHOR, and the only one that reaches the zero-exact branch BELOW it: five derived " +
+        "values (three vitest globs plus the two glob `testDir` values), all patterns, so `exact` is empty and `count` is " +
+        "under REAL_CONFIG_MIN_CANDIDATES. A corpus that small has not PROVED the classifier rotted — it has proved nothing " +
+        "— so the blindness tripwire must stay silent. Forcing `anchorOk` true reds exactly this row, which is the anchor's " +
+        "whole job: MSG_NO_ROWS is an accusation that this gate's ✓ is a lie, and a tripwire that fires on any small corpus " +
+        "would make that accusation constantly. Its mustFlag twin plants REAL_CONFIG_MIN_CANDIDATES values through the same " +
+        "helper, so the pair differ only in the anchor",
     },
   ],
 });

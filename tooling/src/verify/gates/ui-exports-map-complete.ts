@@ -66,8 +66,14 @@ interface ModuleDir {
 /** The direct child DIRECTORIES of `parent`. Two fences survive, both measured by the §4.1 cut:
  *  `kind === "directory"` is enforced at the FAMILY-CHILD position by `mustPass[1]` (a file inside a family
  *  dir — `styles/globals.css` — must not become a "module" with no front door) and is UNFALSIFIABLE at the
- *  depth-1 position (an unfenced depth-1 file has no children, so no fixture can make it flag — documented,
- *  not faked); `!path.includes("/")` is enforced by seven rows. A former `path.length > 0` companion was
+ *  depth-1 position — documented, not faked, and the constructions that were ATTEMPTED (guide §4.1: name
+ *  them) are these. A depth-1 FILE admitted by an unfenced walk yields `top = "x.ts"`, whose `topIndex`
+ *  (`packages/ui/src/x.ts/index.ts`) cannot be a tree entry while `packages/ui/src/x.ts` is a file, and
+ *  whose `childDirectories` set is empty because no path can start with `packages/ui/src/x.ts/` — so the
+ *  loop body runs zero times and the output is byte-identical with and without the fence. The inverse
+ *  construction, a real DIRECTORY at depth 1 named like a file, is what `mustFlag[6]` builds one level
+ *  DOWN; it does not discriminate here, because a directory is admitted by the fenced walk too.
+ *  `!path.includes("/")` is enforced by seven rows. A former `path.length > 0` companion was
  *  DELETED: an entry equal to `parent` itself fails the `startsWith(prefix)` test, so the remainder is never
  *  empty, and cutting it killed no row — the tell for a fence that reads like a guarantee and enforces nothing. */
 function childDirectories(entries: readonly ResourceTreeEntry[], parent: string): readonly string[] {
@@ -80,8 +86,14 @@ function childDirectories(entries: readonly ResourceTreeEntry[], parent: string)
 }
 
 /** Every directory the exports map is REQUIRED to name, derived from the tree's own two-level shape. The
- *  `kind === "file"` filter on the index set is UNFALSIFIABLE by construction — it would matter only for a
- *  DIRECTORY named `index.ts` — so no row claims to enforce it; it is type honesty, not a fence. */
+ *  `kind === "file"` filter on the index set is a real fence, pinned by `mustFlag[6]`: a DIRECTORY named
+ *  `index.ts` is constructible under `mode: "resource"` (`packages/ui/src/primitives/index.ts/x.ts`), and
+ *  with the filter cut that directory satisfies `files.has(topIndex)`, so the family is silently promoted to
+ *  a MODULE with a directory for a front door and the "has no index.ts" finding vanishes. Recorded
+ *  UNFALSIFIABLE until 2026-09-12 on the argument that it "would matter only for a DIRECTORY named
+ *  index.ts" — the construction was never attempted, and every existing row reached this line through a
+ *  fixture helper that plants only real files, so the clean cut measured the FIXTURES, not the fence
+ *  (guide §4.1). */
 function modules(entries: readonly ResourceTreeEntry[]): readonly ModuleDir[] {
   const files = new Set(entries.filter((entry) => entry.kind === "file").map((entry) => entry.path));
   const out: ModuleDir[] = [];
@@ -259,6 +271,22 @@ export const gate = defineGate({
       // proof row can express; it is pinned through `runPolicyPass` in resource-layout-wave-1.test.ts.
       expect: { count: 2, messageIncludes: "no entry at all" },
       why: "a manifest with no exports key seals every module out — one A1 finding per derived module, never a silent zero",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/package.json": '{"name":"@orb/ui","private":true,"exports":{}}',
+        "packages/ui/src/primitives/index.ts/x.ts": "export const x = 1;\n",
+      },
+      // The falsifier for `modules`' `kind === "file"` index fence, which was recorded UNFALSIFIABLE on the
+      // argument that it "would matter only for a DIRECTORY named index.ts" — a `mode: "resource"` fixture
+      // writes a real tree, so it can create exactly that. FENCED (today): the directory is not in `files`,
+      // `primitives` stays a FAMILY, and its one child — the directory `index.ts` — is a module with no
+      // front door. CUT (`entries.filter(kind === "file")` → `entries.map`): the directory satisfies
+      // `files.has(topIndex)`, `primitives` is promoted to a MODULE whose export target is a DIRECTORY, and
+      // the finding becomes "no entry at all". Same COUNT either way, so the message is what discriminates.
+      expect: { count: 1, messageIncludes: "has no index.ts" },
+      why: "a DIRECTORY named index.ts is not a front door — the index set is files only, or a family is silently promoted to a module whose export target cannot be imported",
     },
   ],
   mustPass: [
