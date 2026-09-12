@@ -37,20 +37,41 @@ order); §12 is what lanes read. This file is what YOU do, in order.
 6. Read `~/.claude/bridge/to-primary/` (ack SELF notes by `mv` into `done/`). Write a SELF note ONLY when a context
    sentinel fires or you are handing the session off. A SELF note is a POINTER, never a source: verify every state
    claim in it before acting (two of note 522's were false within the hour).
-7. **Know the doc layer before you brief anyone — the guide's opening section is the routing table, read it.** Of the
-   23 documents in `docs/reviews/gate-runtime/`, four are LIVE LAW the guide delegates to (which resource capability,
-   what blocks this gate, where this exemption table goes, what a marker is) and roughly thirteen are completed-family
-   evidence. **You will be tempted to re-derive an answer one of those four already holds. Do not** — that cost a full
-   session on 2026-09-11, four separate times, each caught by a lane or the owner rather than by me. Also live:
-   `shared-semantic-readers.md` (the M/O/G/V foundations, and its binding constraint that those are COMPUTATION GROUPS,
-   so a lane must prove real shared consumption before naming a `family`) and `checkpoint-2026-09-05.md` (whose
-   §"Resume order" and per-wave lessons list are dense with mechanism law that reads like a receipt).
+7. **THE DOC LAYER IS A BUDGET, NOT A READING LIST — read the tier, not the directory (measured 2026-09-12, by
+   reading the whole thing and paying for it).** The owner asked for "the two docs and every doc they mention, in
+   full." That set is **\~1.3 MB** and it consumed 60% of an orchestrator's context window. It is the right
+   instruction for the LAW tiers and the wrong one for the EVIDENCE tiers, and nobody had measured which was which.
+   Here is the split, with what each tier actually bought:
 
-   **Apply the guide's STALENESS RULE to every one of them**: the gate program predates the type-worlds program
+   | Tier | Docs | Size | Read it? |
+   | - | - | -: | - |
+   | **LAW — you** | the two program docs | 216 KB | **ALWAYS, in full.** They are the control. |
+   | **LAW — you** | `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | 155 KB | **ALWAYS.** These are the four the guide delegates to, and re-deriving one cost a full session on 2026-09-11, four separate times. **Skip `ordinary-waiver-source-migration`'s 1,600-line `path:line` appendix** — its own banner says every count in it is to re-derive, never to quote. |
+   | **LAW — you** | `shared-semantic-readers` (M/O/G/V are COMPUTATION GROUPS — a lane must prove shared consumption before naming a `family`) · `checkpoint-2026-09-05` §"Resume order" + its per-wave lessons | 78 KB | **ALWAYS.** Mechanism law that reads like a receipt. |
+   | **COUPLED SITE — you, once** | `Core-Enforcement-Active-Gates.md` | **281 KB** | **Once per program, then by ROW.** It is a coupled site you maintain and 270 dense rows; after one full pass, read only the row you are about to break. |
+   | **EVIDENCE — you, selectively** | the 16 family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | \~300 KB | **Read the ONE whose family you are dispatching.** These carry §4.6 differentials, per-module blockers and declared limits that exist nowhere else — `schema-fact-family-1584.md`'s "Explicit blockers" section alone names five Phase-D modules' exact missing reader. |
+   | **EVIDENCE — a LANE, not you** | `v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch` | \~430 KB | **DO NOT READ THESE WHOLE.** Their conclusions are already distilled into §2b, and §4.1's decay rule forbids building from their cells without re-cutting. When you need one, dispatch it. |
+
+   **The receipt that the audit tier decays, and it is TWO FOR TWO, not a guess.** Both audit waves read in full on
+   2026-09-12 led with a defect that is **already closed on `main`**:
+
+   - `v-audit-wave3`'s headline is a two-arm reproduction that a schema policy narrowing `fact.status` by hand and
+     filing no receipt *"renders a CLEAN verdict over an EMPTY census and the runtime says nothing."* CLOSED —
+     `policy-pass.ts:729` reds on `run.policy.facts.length > 0 && run.receipts.length === 0` (#1966, `178ee3a4c`),
+     landed between that wave's baseline (167 policies) and today (171).
+   - `v-audit-wave2`'s D1 — the #1972 `ctx.relativePath` escape firing in five of five registry modules — CLOSED.
+     All five read their home through the shared `lib/declaration-home.ts`, and each carries a `mustPass` row whose
+     `why` CITES that audit by path. The audit's own receipt is now the module's pin.
+
+   Two waves, two headlines, both dead. **An audit wave is an UPPER BOUND with a timestamp; the two docs are the
+   control.** What survives a wave is its METHOD (the four-bucket cut classification, the falsifier-in-both-arms
+   rule, the sibling-arm transplant) — and that already lives in guide §4.1, which is where you read it.
+
+   **Apply the guide's STALENESS RULE to every tier above**: the gate program predates the type-worlds program
    (#1351), so a 2026-09-05/06 document's "blocked", "required" or "missing" may have been satisfied or retired by
    \#1351 rather than by us. Re-derive against the tree before acting. Two carry superseded ATOMIC-premise banners —
-   read the banner before citing the body, and brief a lane off the banner. Constitution §0.1 makes a lane follow a doc
-   over your brief, so an unbannered stale premise misbriefs silently.
+   read the banner before citing the body, and brief a lane off the banner. Constitution §0.1 makes a lane follow a
+   doc over your brief, so an unbannered stale premise misbriefs silently.
 
 ## 1. Standing rules for this program (owner, 2026-09-11)
 
@@ -283,7 +304,41 @@ cannot ADD to that backlog.** The 126 is closed, not growing. What #2000 DOES ga
 the shape whose behaviour is reproduced by two policies together with nothing checking the union, and copying that
 shape 104 times before verifying one of them is the defect-multiplication this program exists to prevent.
 
-### ⚠ #2006 — FIVE GATES ACCUSE CORRECT CODE. **P1, and it outranks everything below.**
+### THE PHASE-D BLOCKER LIST NOBODY HAS READ — it is in the family records, not here (2026-09-12)
+
+**`schema-fact-family-1584.md` §"Explicit blockers" names SIX modules and, for each, the exact reader that does
+not exist yet.** That is Phase-D ordering data, it exists in no other document, and it was written 2026-09-06 so
+every claim owes a re-derive — but the SHAPE of each blocker is engineering, not a count, and engineering does not
+rot the way a roster does:
+
+| Module | What it is actually blocked on |
+| - | - |
+| `own-tables-only` | canonical table import/write provenance · exact central grants · invocation-local state · a THREE-way split (reviewed-read / hard-write / hard-health) |
+| `table-scoping-class` | its registry/helper surface has 13 importers plus four semantic duplicators; ONE canonical scoping fact and an authority ruling must land first |
+| `json-column-write-parity` | shared writer-taint, helper-hop, SQL-write and dominance facts; reviewed-grant and hard-health arms must split |
+| `open-json-column-key-parity` | shared reader/writer/key provenance; a permanent reviewed grant, #184 warning debt and hard health must split |
+| `lifecycle-portability` | shared carrier/door facts and policy splits; only `rosterPresets` has a valid issue number (#26), the other deferred rows have no work-item identity |
+| `no-untyped-soft-ref` | **CONVERTED since** — its six semantic permissions found their grant home. Left in the table as the shape of a blocker that CLEARED |
+
+**The general rule this is an instance of:** when you are about to order a Phase-D family, read that family's own
+`*-family-1584.md` record before the census. The census gives you a blocker CLASS (`reader`, `grant`, `state`);
+the family record gives you the NAMED reader and the split. `uncovered-gate-conversion-census.md` is the ordering
+source; the family record is why a row is where it is.
+
+### ~~#2006 — five gates accuse correct code~~ **CLOSED `ae2e935d3`, and the PRICE was wrong, not the finding**
+
+**Re-priced P1 → P2 by the one measurement nobody had taken: the real-tree instance count is ZERO on all six.**
+Read as RAW (`violations + waived + granted` off each policy record in `reports/check-structure.json`) — NOT as
+`violations.length`, which is post-waiver and reads as a clean zero over a fully waived population. Raw 0 is
+decisive: an unresolved-not-a-subject hit in those populations *would be* a finding, so there are none. It was a
+latent COPY-SHAPED trap, not live accusations — which is still worth fixing before the shape is copied 104 times,
+and is not worth outranking a backlog. **The lesson is the ordering: measure the instance count BEFORE you price
+the row.** Fix landed as one line per module plus a local-object `mustPass` each; all five roster rows rewritten
+as mechanisms (they named COORDINATES — "no `Principal` import" — which each module's own home-counterfactual
+falsifies). The two extras were checked and correctly left alone: `untrusted-regex-safe-exec` is the ACQUITTING
+polarity (guide §4.6 shape 3) and `empty-state-has-action` already calls the decision.
+
+The mechanism below is now guide §4.6 law (the three shapes of sealed-origin reading). Kept here for the receipt.
 
 Five modules compare `readSealedOrigin(…).kind !== "foreign"` instead of calling `sealedOriginReports(verdict,
 anchor)`, which **skips `classifyOriginRefusal`**, so a purely local object whose KEY is spelled like the sealed
