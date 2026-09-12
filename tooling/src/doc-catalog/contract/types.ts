@@ -102,6 +102,31 @@ export interface AttestPlan {
   readonly refusals: readonly AttestRefusal[];
 }
 
+/** One row of the GENERATED catalog — the projection `catalogValue` writes. Declared because the SCOPED
+ *  write (#2165) reads the committed catalog BACK as its base: every field a `Doc` carries is already in
+ *  the row, so an unnamed document's row is reproduced from what was committed rather than re-derived from
+ *  a working tree that belongs to four other lanes. */
+export interface CatalogDocumentRow {
+  readonly path: string;
+  readonly lane: string;
+  readonly issue: number;
+  readonly lines: number;
+  readonly bytes: number;
+  readonly sha256: string;
+  readonly frontmatter: Frontmatter;
+  readonly receipt: ReceiptEntry | null;
+  readonly receiptCurrent: boolean;
+}
+
+/** The `catalog --write` tail (#2165). `paths` EMPTY means the whole-tree form, which regenerates every
+ *  row from the current working tree and is therefore a BARRIER operation: on a busy day it sweeps every
+ *  document any lane has changed into one commit, attributed to whoever ran it. `barrier` is the operator
+ *  saying so out loud. */
+export interface CatalogWriteRequest {
+  readonly paths: readonly string[];
+  readonly barrier: boolean;
+}
+
 /** One HAND-AUTHORED catalog artifact's bytes on disk beside its canonical (biome-formatted) form (#968).
  *  `current !== canonical` is exactly "the repo's own formatter would rewrite this file" — the signal
  *  `check:doc-catalog` used to lack, which is how a receipt could be attested in a shape `lint:biome`

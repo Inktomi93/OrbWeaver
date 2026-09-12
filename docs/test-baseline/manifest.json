@@ -2105,6 +2105,7 @@
     "tests/tooling/doc-catalog/cli.int.test.ts",
     "tests/tooling/doc-catalog/index.test.ts",
     "tests/tooling/doc-catalog/ops/attest.test.ts",
+    "tests/tooling/doc-catalog/ops/catalog-scope.test.ts",
     "tests/tooling/doc-catalog/ops/catalog.int.test.ts",
     "tests/tooling/doc-catalog/ops/format.test.ts",
     "tests/tooling/doc-catalog/ops/tree.int.test.ts",

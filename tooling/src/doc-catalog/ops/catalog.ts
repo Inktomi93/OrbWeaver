@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ArtifactForm, DebtPaths, Doc, Lane, LaneConfig, Receipt, ReceiptEntry, State } from "../contract/types.ts";
+import type { ArtifactForm, CatalogDocumentRow, DebtPaths, Doc, Lane, LaneConfig, Receipt, ReceiptEntry, State } from "../contract/types.ts";
 import { migrationDebt, migrationMetrics, newDebtPathErrors } from "../lib/debt.ts";
 import { catalogReceipt } from "../lib/receipt-rules.ts";
 import { LANES_PATH, OUTPUT_PATH, RECEIPTS_DIR, SCHEMA_VERSION, STATE_PATH } from "../lib/vocab.ts";
@@ -55,6 +55,132 @@ export function expectedCatalog(docs: readonly Doc[], assignments: ReadonlyMap<s
 
 export function writeCatalog(contents: string): void {
   writeFileSync(join(root, OUTPUT_PATH), contents);
+}
+
+/** The catalog as it stands on disk — the SCOPED write's base. Null when absent, which that door refuses
+ *  rather than treating as an empty catalog it may fill in. */
+export function readCatalog(): string | null {
+  const path = join(root, OUTPUT_PATH);
+  return existsSync(path) ? readFileSync(path, "utf8") : null;
+}
+
+/** The catalog's INPUT CLOSURE — everything `expectedCatalog` reads. A whole-tree regeneration bakes the
+ *  current state of every one of these into a COMMITTED artifact, so uncommitted movement in any of them
+ *  is movement the run would attribute to whoever ran it. */
+function isCatalogInput(path: string): boolean {
+  return path === LANES_PATH || path === STATE_PATH || path.startsWith(`${RECEIPTS_DIR}/`) || (path.startsWith("docs/") && path.endsWith(".md"));
+}
+
+/** Uncommitted movement inside the catalog's input closure (#2165). A `null` census is DIRT, not clean:
+ *  "I could not ask Git" is never "nothing is there". Sorted, so the refusal reads the same twice. */
+export function catalogInputDirt(indexVsHead: ReadonlySet<string> | null, worktreeVsIndex: ReadonlySet<string> | null): readonly string[] {
+  if (indexVsHead === null || worktreeVsIndex === null) {
+    return [`${OUTPUT_PATH}: the Git census is unavailable, so a whole-tree regeneration cannot be shown to be safe`];
+  }
+  return [...new Set([...indexVsHead, ...worktreeVsIndex])].filter(isCatalogInput).toSorted((left, right) => left.localeCompare(right));
+}
+
+/** Every document row of a committed catalog, or null when the bytes are not the shape this tool writes.
+ *  Null is a REFUSAL upstream — scoping against a catalog nobody can parse would silently write a whole
+ *  new one, which is the exact blast radius the scoped door exists to avoid. */
+function catalogRows(contents: string): readonly CatalogDocumentRow[] | null {
+  let parsed: unknown;
+  // @orb-waive caught-failure-ownership(catch): unparseable catalog bytes and a parseable non-catalog shape are the SAME refusal to the caller — "not the shape this tool writes", which names the file and the consequence — so the parse error carries nothing a reader could act on. Ends if that refusal starts naming the parse position.
+  try {
+    parsed = JSON.parse(contents);
+  } catch {
+    return null;
+  }
+  const documents = typeof parsed === "object" && parsed !== null ? (parsed as { readonly documents?: unknown }).documents : undefined;
+  return Array.isArray(documents) ? (documents as readonly CatalogDocumentRow[]) : null;
+}
+
+/** THE SCOPED WRITE (#2165). The whole-tree form regenerates every row from the working tree; run on a
+ *  shared tree after a ONE-FILE re-attest it produced 184 insertions across every document that had
+ *  changed that day, exit 1, and a written file — a blast radius the operator had to catch by reading
+ *  `git diff` because the exit code could not tell them. This form takes the COMMITTED catalog as its base
+ *  and re-derives ONLY the named documents' rows, so an unnamed row keeps the bytes it was committed with
+ *  no matter what any other lane has in flight.
+ *
+ *  It is the SAME generator: the named documents' `Doc`s come from the tree and every other row is turned
+ *  back into the `Doc` it recorded (the row carries every field a `Doc` has), then `expectedCatalog` runs
+ *  over the union. `stats` therefore stays internally consistent with the rows beside it without importing
+ *  a sibling's uncommitted document.
+ *
+ *  ALL-OR-NOTHING, like `attest`: any refusal returns no contents at all. */
+export function scopedCatalog(input: {
+  readonly base: string | null;
+  readonly named: readonly string[];
+  readonly docs: readonly Doc[];
+  readonly receipts: readonly Receipt[];
+  readonly config: LaneConfig;
+  /** Lane ownership for the NAMED documents only. The caller resolves it, because `laneAssignments`
+   *  globs the real filesystem — an UNNAMED row's lane is read off the row instead, which is both purer
+   *  and more faithful: what the row was committed with is what it keeps. */
+  readonly assignments: ReadonlyMap<string, Lane>;
+}): { readonly contents?: string; readonly refusals: readonly string[] } {
+  if (input.base === null) {
+    return { refusals: [`${OUTPUT_PATH}: absent, so there is no committed base to scope against — run the whole form once (--barrier) to mint it`] };
+  }
+  const rows = catalogRows(input.base);
+  if (rows === null) {
+    return { refusals: [`${OUTPUT_PATH}: not the shape this tool writes, so scoping against it would silently regenerate the whole catalog`] };
+  }
+  const named = new Set(input.named);
+  const freshByPath = new Map(input.docs.map((doc) => [doc.path, doc] as const));
+  const rowByPath = new Map(rows.map((row) => [row.path, row] as const));
+  const refusals = [...named]
+    .filter((path) => !(freshByPath.has(path) || rowByPath.has(path)))
+    .map((path) => `${path}: not a catalogued document — it is neither on the tree nor a row of the committed catalog`);
+  if (refusals.length > 0) {
+    return { refusals };
+  }
+  // ROW ORDER IS THE BASE'S, NOT A FRESH SORT. Measured 2026-09-12: re-sorting with `localeCompare`
+  // produced a 4141-line diff on a ONE-DOCUMENT write, because the committed order is the tracked-file
+  // order (`docs/Mission.md` before `docs/architecture/…`, capital-M first) and a locale sort is
+  // case-insensitive. A scoped write whose diff is the whole file is not a scoped write.
+  // A named document absent from the tree is a DELETION: its row simply does not join the union, and a
+  // named document with no row yet is an ADDITION, appended where a fresh whole run would eventually
+  // place it — the base has no opinion about where a row it has never seen belongs.
+  const rowAsDoc = (row: CatalogDocumentRow): readonly Doc[] => {
+    if (!named.has(row.path)) {
+      return [{ path: row.path, lines: row.lines, bytes: row.bytes, sha256: row.sha256, frontmatter: row.frontmatter }];
+    }
+    return freshByPath.has(row.path) ? [freshByPath.get(row.path) as Doc] : [];
+  };
+  const docs = [
+    ...rows.flatMap(rowAsDoc),
+    ...[...named].filter((path) => !rowByPath.has(path) && freshByPath.has(path)).map((path) => freshByPath.get(path) as Doc),
+  ];
+  const freshEntries = new Map(input.receipts.flatMap((receipt) => receipt.entries.map((entry) => [entry.path, entry] as const)));
+  const entries = docs.flatMap((doc) => {
+    const entry = named.has(doc.path) ? freshEntries.get(doc.path) : (rowByPath.get(doc.path)?.receipt ?? undefined);
+    return entry === undefined ? [] : [entry];
+  });
+  const lanesById = new Map(input.config.lanes.map((lane) => [lane.id, lane] as const));
+  const unowned = docs.filter((doc) => !(named.has(doc.path) ? input.assignments.has(doc.path) : lanesById.has(rowByPath.get(doc.path)?.lane ?? "")));
+  if (unowned.length > 0) {
+    return {
+      refusals: unowned.map(
+        (doc) => `${doc.path}: no lane owns this row, so the scoped write cannot reproduce it — the whole form (--barrier) owns a re-assignment`,
+      ),
+    };
+  }
+  const assignments = new Map(
+    docs.map(
+      (doc) =>
+        [doc.path, named.has(doc.path) ? (input.assignments.get(doc.path) as Lane) : (lanesById.get(rowByPath.get(doc.path)?.lane ?? "") as Lane)] as const,
+    ),
+  );
+  // `catalogValue`/`migrationMetrics` read receipts only as a FLAT entry list keyed by path, so the
+  // synthetic grouping below carries no claim beyond which lane owns each row.
+  const receipts = input.config.lanes.map((lane) => ({
+    schemaVersion: SCHEMA_VERSION,
+    lane: lane.id,
+    issue: lane.issue,
+    entries: entries.filter((entry) => assignments.get(entry.path)?.id === lane.id),
+  }));
+  return { contents: expectedCatalog(docs, assignments, receipts), refusals: [] };
 }
 
 /** The catalog artifacts written BY HAND — every lane receipt (a lane attests its rows straight into the

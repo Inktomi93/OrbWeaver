@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 597,
+    "sites": 598,
     "reported": 23,
     "byVerdict": {
-      "deliberate-absorb": 574,
+      "deliberate-absorb": 575,
       "unproven": 23
     },
     "byGrammar": {
-      "default": 161,
+      "default": 162,
       "empty": 293,
       "promise": 143
     }
@@ -4993,6 +4993,19 @@
       "verdict": "deliberate-absorb",
       "reason": "warn receives the caught cleanup error and prints it as BOOT TRACE CLEANUP; the surrounding session close remains the terminal cleanup owner. Ends if this warning stops carrying the failure or session close stops following this block.",
       "markerLine": 93
+    },
+    {
+      "siteId": "tooling/src/doc-catalog/ops/catalog.ts::catch::1",
+      "path": "tooling/src/doc-catalog/ops/catalog.ts",
+      "line": 91,
+      "column": 5,
+      "grammar": "default",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "unparseable catalog bytes and a parseable non-catalog shape are the SAME refusal to the caller — \"not the shape this tool writes\", which names the file and the consequence — so the parse error carries nothing a reader could act on. Ends if that refusal starts naming the parse position.",
+      "markerLine": 88
     },
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::catch::1",
