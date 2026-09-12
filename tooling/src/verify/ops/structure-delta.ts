@@ -23,6 +23,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
+import { reportsPath, reportsRelPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
@@ -44,7 +45,10 @@ type LateManifestFields = "legacy" | "final" | "selection" | "quiet" | "verdict"
 type SlotRun = Omit<RunManifest, LateManifestFields> & Partial<Pick<RunManifest, LateManifestFields>>;
 type SlotReport = Omit<StructureReport, "run"> & { readonly run?: SlotRun };
 
-const INSTRUMENT_DIR = ["reports", "runs", "structure"] as const;
+/** The slot directory's segments BENEATH the artifact root — never including `"reports"` itself. The root is
+ *  spelled ONCE, in `_shared/artifacts.ts#reportsPath` (#1164): a second `"reports"` literal fed to a path call
+ *  is a second answer to "where do runs live", and the #1029 run-slot layout would never see it move. */
+const SLOT_SEGMENTS = ["runs", "structure"] as const;
 const REPORT_NAME = "check-structure.json";
 
 /** One slot's artifact plus the id it came from, so every refusal can name WHICH run it is refusing. */
@@ -54,7 +58,7 @@ interface Slot {
 }
 
 function slotDir(root: string): string {
-  return join(root, ...INSTRUMENT_DIR);
+  return reportsPath(root, ...SLOT_SEGMENTS);
 }
 
 function readSlot(root: string, id: string): Slot {
@@ -78,7 +82,7 @@ class DeltaRefusal extends Error {}
 function slotIds(root: string): readonly string[] {
   const dir = slotDir(root);
   if (!existsSync(dir)) {
-    throw new DeltaRefusal(`no ${INSTRUMENT_DIR.join("/")} directory — nothing has published a structure slot in this checkout`);
+    throw new DeltaRefusal(`no ${reportsRelPath(...SLOT_SEGMENTS)} directory — nothing has published a structure slot in this checkout`);
   }
   return readdirSync(dir)
     .filter((id) => existsSync(join(dir, id, REPORT_NAME)))
@@ -111,7 +115,7 @@ function resolveAfter(root: string, requested: string | undefined): Slot {
   if (requested !== undefined) {
     return readSlot(root, requested);
   }
-  const pointer = join(root, "reports", REPORT_NAME);
+  const pointer = reportsPath(root, REPORT_NAME);
   if (!existsSync(pointer)) {
     throw new DeltaRefusal(`no published reports/${REPORT_NAME} — run \`pnpm check:structure\` first, or name a slot with --after`);
   }
