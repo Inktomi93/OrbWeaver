@@ -186,6 +186,25 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
       "adjudicates a Stryker report's Survived/NoCoverage rows by PLANTING each mutant — takes a report path + a source path, so it has no whole-tree form; the report itself is the on-demand input",
   },
   {
+    name: "structure:delta",
+    group: "structure",
+    // MANUAL BY INPUT, not by cost or by confidence — the `quality:mutation-arid` / `mutation:probe` shape:
+    // it needs an EXISTING prior slot at invocation time, and a clean checkout has none, so an automatic tier
+    // row would turn every `pnpm check` on a fresh tree into an exit-2 ("no usable PRIOR slot"). That refusal
+    // is correct and is the whole point of the instrument — "there is nothing to compare against" is never
+    // "nothing changed" — which is exactly why it must not be wired where it would fire by construction.
+    //
+    // It is NOT on verify-registry-parity's NON_STAGE_ALLOWLIST, and the distinction is real: `check:show` is
+    // allowlisted as a read-only INSPECTOR, while this stage returns a VERDICT (exit 1 on a per-policy
+    // regression). A row here keeps it discoverable in `verify --list` instead of living only in a script
+    // nobody remembers — which is the failure mode #2110 was filed for.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:structure-delta"],
+    classify: asViolations,
+    manualReason:
+      "per-policy diff of two published structure slots (#2110) — needs a PRIOR slot from the same checkout, so it has no argument-free form on a clean tree; run it after a merge train's structure run, when `check:structure`'s own exit code is red by construction and cannot show a NEW per-policy red",
+  },
+  {
     name: "tests:coverage",
     group: "tests",
     tiers: ["manual"],

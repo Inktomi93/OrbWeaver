@@ -3,7 +3,8 @@
 // one argv parse and one exit-honesty runner for the harness that judges everything else.
 //
 //   check / verify           → cli.ts run [--static|--push|--full|--changed|--list|…]
-//   check:structure          → cli.ts structure [--fail-on-warnings]  (warning promotion is OPT-IN, #2025)
+//   check:structure          → cli.ts structure [--fail-on-warnings] [--check|--family …] [--void <slot> --reason …]
+//   check:structure-delta    → cli.ts structure-delta [--before <slot>] [--after <slot>]  (per-policy diff, #2110)
 //   check:show               → cli.ts show [--errors-only|--gate|--file|--limit]
 //   (scoped, from selection) → cli.ts scoped (--scope|--package|--changed)
 //   test:scoped / test:ct  → cli.ts scoped-test <node|ct> [paths…] (the path preflight, #1192)
@@ -51,6 +52,7 @@ import {
   runScopedTest,
   runShow,
   runStructure,
+  runStructureDelta,
   runTestsExecutionMembership,
   runTestsTypeMembership,
   runTypecheck,
@@ -59,6 +61,7 @@ import {
   SCOPED_TEST_USAGE,
   SCOPED_USAGE,
   SHOW_HELP,
+  STRUCTURE_DELTA_USAGE,
   STRUCTURE_USAGE,
   TYPECHECK_HELP,
   TYPECHECK_PLAN_HELP,
@@ -80,6 +83,7 @@ const USAGE = `usage: node tooling/src/verify/cli.ts <${VERIFY_VERBS.join("|")}>
 const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   run: "usage: node tooling/src/verify/cli.ts run [--static|--push|--full|--changed] [--scope <glob>|--package <name>|--file <paths…>] [--tier <name>] [--strict-scope] [--list] [--json] [--verbose]",
   structure: STRUCTURE_USAGE,
+  "structure-delta": STRUCTURE_DELTA_USAGE,
   show: SHOW_HELP,
   scoped: SCOPED_USAGE,
   "scoped-test": SCOPED_TEST_USAGE,
@@ -130,6 +134,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
     }
     case "structure":
       return await runStructure(root, rest);
+    case "structure-delta":
+      return runStructureDelta(root, rest);
     case "show":
       return runShow(root, rest);
     case "scoped":

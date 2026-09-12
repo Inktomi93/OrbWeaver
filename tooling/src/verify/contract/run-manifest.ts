@@ -32,7 +32,31 @@
 // signal, which could not distinguish "my run died" from "a sibling lane is mid-run".
 import type { PolicySelector } from "./policy-plan.ts";
 
+/** IS THIS ARTIFACT A STATEMENT ABOUT THE REAL TREE? (#2167) — the axis `complete` was never able to carry.
+ *
+ *  `complete` answers "did the run FINISH" (#410). A run can finish perfectly and still be worthless as
+ *  evidence, and that is the gap a fresh-context verifier fell into on 2026-09-12: it built a whole
+ *  REAL-TREE LIVENESS section on slot `main-2930600`, whose 443 `__g_` findings are a fixture suite's props.
+ *  The artifact said `complete: true` and carried no marker, so the reader acted correctly on every rule it
+ *  had. THREE of the twelve published slots are that shape — derived, not remembered, with the predicate
+ *  "any `__g_`/`__dc_` path in a slot's violations": a real-tree run STRIPS those (lib/pass.ts
+ *  `stripProbeFindings`), so a slot that CONTAINS them is by construction a run that opted out, i.e. the
+ *  gate self-test's own child (`ORB_GATE_FIXTURES=1`).
+ *
+ *  So the two axes are orthogonal and both are recorded: `complete` = the run finished · `verdict` = what it
+ *  finished is about the real tree. Every reader refuses a `non-verdict` LOUDLY and names the reason. */
+export const RUN_VERDICT_KINDS = ["verdict", "non-verdict"] as const;
+export type RunVerdictKind = (typeof RUN_VERDICT_KINDS)[number];
+
 export interface RunManifest {
+  /** `non-verdict` when this run cannot speak for the real tree: it is in flight, it ran in FIXTURE MODE, it
+   *  OBSERVED planted paths it did not plant, or an operator TOMBSTONED it (`structure --void`). A
+   *  `non-verdict` run never publishes `reports/check-structure.json`, so the pointer can only ever resolve
+   *  to a run that both finished AND meant it. */
+  readonly verdict: RunVerdictKind;
+  /** WHY, in the operator's words or the run's own — printed verbatim by every refusing reader. Null exactly
+   *  when `verdict` is `"verdict"`: a non-verdict without a reason is a refusal nobody can act on. */
+  readonly nonVerdictReason: string | null;
   /** WHICH gates this run was asked about (#1964). `{kind:"all"}` is the whole corpus — the only shape that
    *  publishes `reports/check-structure.json`. Anything else is a GATE-SCOPED run: every count below is a
    *  denominator over the SELECTION, and the artifact is reachable only through its own slot, so a partial

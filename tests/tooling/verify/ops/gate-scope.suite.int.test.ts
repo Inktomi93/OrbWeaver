@@ -20,7 +20,7 @@
 // one loud) and three `defineGate` policies (a two-member family plus a singleton), so every selection shape
 // has something it must include AND something it must exclude. A selection that accidentally ran everything and
 // a selection that accidentally ran nothing both fail here.
-import { existsSync, lstatSync, readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
@@ -353,4 +353,165 @@ test("the PLANTER's own child run is exempt: ORB_GATE_FIXTURES=1 must see what i
   });
   await expect(own).toExitWith(0);
   expect(readSlotArtifact(root, own.stdout).run.quiet).toBe(true);
+});
+
+// ── #2167: IS THIS ARTIFACT ABOUT THE REAL TREE? ──────────────────────────────────────────────────────────
+//
+// `complete` answers "did the run FINISH". It never answered "is what it finished ABOUT THE REAL TREE", and on
+// 2026-09-12 a fresh-context verifier built a REAL-TREE LIVENESS section on slot `main-2930600` — a
+// FIXTURE-MODE run whose `__g_` findings are the gate self-test's own props. THREE of twelve published slots
+// were that shape. Those runs were complete, correct and legitimate; the LABEL was missing, not the content.
+//
+// The quiet arm above is this section's negative control, asserted again here on the field itself: a build
+// that stamped EVERY run a non-verdict would pass every positive arm below.
+
+test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and never publishes the pointer", {
+  timeout: RUN_TIMEOUT_MS * 2,
+}, async ({ plantedTree, repoRoot, runCli }) => {
+  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  // a REAL run first, so "the pointer was not republished" is a claim about an existing pointer
+  await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const realRunId = readPointer(root).run.runId;
+  expect(readPointer(root).run.verdict).toBe("verdict");
+  expect(readPointer(root).run.nonVerdictReason).toBeNull();
+
+  const fixture = await runCli("verify", ["structure"], {
+    cwd: root,
+    timeoutMs: RUN_TIMEOUT_MS,
+    // biome-ignore lint/style/noProcessEnv: passthrough env for the spawned child — harness plumbing, not app config.
+    // biome-ignore lint/correctness/noProcessGlobal: same passthrough; this file is node-run tooling.
+    // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
+    env: { ...process.env, ORB_GATE_FIXTURES: "1" } as Record<string, string>,
+  });
+  // THE EXIT CODE IS UNCHANGED, deliberately: check-gates.repo.int.test.ts parses its own child's stdout
+  // roster and tolerates 0/1 only, so making the planter's run exit 2 would red the suite that produces the
+  // artifact. The refusal lives in the READERS and in the publisher, never in the producer's exit.
+  await expect(fixture).toExitWith(1);
+  expect(fixture.stdout).toContain("THIS RUN IS NOT A VERDICT");
+  expect(fixture.stdout).toContain("FIXTURE MODE");
+
+  const report = readSlotArtifact(root, fixture.stdout);
+  expect(report.run.verdict).toBe("non-verdict");
+  expect(report.run.nonVerdictReason).toContain("ORB_GATE_FIXTURES=1");
+  expect(report.run.complete).toBe(true); // it FINISHED — that axis is untouched (#410)
+  // and the pointer still resolves to the REAL run: the self-test's artifact never becomes `latest`
+  expect(readPointer(root).run.runId).toBe(realRunId);
+});
+
+test("a CONTAMINATED run is a non-verdict too — same field, different reason", { timeout: RUN_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
+  const root = await plantedTree({ ...plantedTreeFiles(repoRoot), [PLANTED_FILE]: subject("planted") });
+  const run = await runCli("verify", ["structure", "--check", SILENT_LEGACY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(run).toExitWith(2);
+  const report = readSlotArtifact(root, run.stdout);
+  expect(report.run.verdict).toBe("non-verdict");
+  expect(report.run.nonVerdictReason).toContain(PLANTED_FILE);
+  expect(report.run.nonVerdictReason).not.toContain("FIXTURE MODE");
+});
+
+test("--void tombstones an existing slot, and check:show then REFUSES it and prints the reason", {
+  timeout: RUN_TIMEOUT_MS * 2,
+}, async ({ plantedTree, repoRoot, runCli }) => {
+  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const slot = readPointer(root).run.runId;
+
+  // THE NEGATIVE CONTROL FIRST: before the void, `show` consumes this artifact and reports the tree's verdict
+  const before = await runCli("verify", ["show"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(before).toExitWith(1); // planted violations — a verdict, not a refusal
+  expect(before.stdout).not.toContain("NOT a verdict about the real tree");
+
+  const reason = "voided by the orchestrator: this run overlapped a planting suite";
+  const voided = await runCli("verify", ["structure", "--void", slot, "--reason", reason], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(voided).toExitWith(0);
+  expect(voided.stdout).toContain("TOMBSTONED");
+
+  const after = await runCli("verify", ["show"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(after).toExitWith(2);
+  expect(after.stdout).toContain("NOT a verdict about the real tree");
+  expect(after.stdout).toContain(reason);
+});
+
+test("--void refuses what it cannot do: an absent slot, a missing reason, and a run flag beside it", { timeout: RUN_TIMEOUT_MS }, async ({
+  plantedTree,
+  repoRoot,
+  runCli,
+}) => {
+  const root = await plantedTree(plantedTreeFiles(repoRoot));
+
+  const absent = await runCli("verify", ["structure", "--void", "no-such-slot", "--reason", "x"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(absent).toExitWith(3);
+  expect(absent.stderr).toContain("no readable artifact");
+
+  // a tombstone without a stated reason is a refusal nobody can act on
+  const noReason = await runCli("verify", ["structure", "--void", "whatever"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(noReason).toExitWith(3);
+  expect(noReason.stderr).toContain("used together");
+
+  // and it runs NOTHING, so it cannot carry a run's flags
+  const mixed = await runCli("verify", ["structure", "--void", "whatever", "--reason", "x", "--check", ALPHA], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(mixed).toExitWith(3);
+  expect(mixed.stderr).toContain("runs nothing");
+});
+
+// ── #2110: THE PER-POLICY DELTA ───────────────────────────────────────────────────────────────────────────
+//
+// `check:structure` exits 1 by construction mid-migration, so a NEW red on ONE final policy is invisible in
+// the aggregate: `conversion-refusal-liveness` was red on main from the commit that landed it and no run ever
+// surfaced it (#2106). The IDENTICAL-PAIR arm is the load-bearing control here — an instrument that reported a
+// regression on every pair would pass the regression arm on its own.
+
+test("structure-delta: an identical pair is exit 0, a FALL is exit 0, and a RISE is exit 1 naming the policy", {
+  timeout: RUN_TIMEOUT_MS * 4,
+}, async ({ plantedTree, repoRoot, runCli }) => {
+  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const first = readPointer(root).run.runId;
+  await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const second = readPointer(root).run.runId;
+
+  // THE CONTROL: two runs over one unchanged tree must report no per-policy movement at all.
+  const same = await runCli("verify", ["structure-delta", "--before", first, "--after", second], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(same).toExitWith(0);
+  expect(same.stdout).toContain("no per-policy change");
+
+  // Move exactly ONE policy. It has to be the FILE, not its contents: `scoped-alpha` reports on the PATH, so
+  // rewriting the line leaves its count untouched — measured here as a false "no per-policy change" before the
+  // mutation became a delete. Nothing else moves: `Counts` carries no population figure, so the shared
+  // denominator shrinking by one file is invisible to every other policy's row.
+  rmSync(join(root, ALPHA_SUBJECT));
+  await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const dropped = readPointer(root).run.runId;
+
+  const fell = await runCli("verify", ["structure-delta", "--before", second, "--after", dropped], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(fell).toExitWith(0); // a FALL is movement, not a regression
+  expect(fell.stdout).toContain(ALPHA);
+
+  const rose = await runCli("verify", ["structure-delta", "--before", dropped, "--after", second], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(rose).toExitWith(1);
+  expect(rose.stdout).toContain(`REGRESSED: ${ALPHA}`);
+});
+
+test("structure-delta REFUSES rather than returning a serene zero: no prior slot, and a tombstoned end", {
+  timeout: RUN_TIMEOUT_MS * 3,
+}, async ({ plantedTree, repoRoot, runCli }) => {
+  const root = await plantedTree(plantedTreeFiles(repoRoot));
+  await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const only = readPointer(root).run.runId;
+
+  // ONE slot exists: "there is nothing to compare against" is exit 2, never "nothing changed"
+  const alone = await runCli("verify", ["structure-delta"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(alone).toExitWith(2);
+  expect(alone.stderr).toContain("no usable PRIOR slot");
+
+  await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const second = readPointer(root).run.runId;
+  // two usable slots now — the control proving the refusal above was about the MISSING prior, not the tool
+  const usable = await runCli("verify", ["structure-delta"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(usable).toExitWith(0);
+
+  await runCli("verify", ["structure", "--void", only, "--reason", "voided for this pin"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  const refused = await runCli("verify", ["structure-delta", "--before", only, "--after", second], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(refused).toExitWith(2);
+  expect(refused.stderr).toContain("NON-VERDICT");
+  expect(refused.stderr).toContain("voided for this pin");
 });

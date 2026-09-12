@@ -9,6 +9,7 @@
 //
 // "own" is not a hole — it names the verb whose tail is parsed STRICTLY somewhere else, one home each:
 //   run          lib/run-argv.ts  (node:util parseArgs, strict:true)
+//   structure-delta ops/structure-delta.ts (optional `--before`/`--after` slot ids, #2110)
 //   structure    ops/structure.ts (zero or one `--fail-on-warnings`, plus a repeatable `--check`/`--family`
 //                                  gate selection — every token reached from lib/policy-command.ts, #1964)
 //   show         ops/show.ts      (its parse switch defaults to UsageError)
@@ -40,6 +41,7 @@ const NO_TAIL = { tail: "none" } as const;
 const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   run: "own",
   structure: "own",
+  "structure-delta": "own",
   show: "own",
   scoped: "own",
   "scoped-test": "own",

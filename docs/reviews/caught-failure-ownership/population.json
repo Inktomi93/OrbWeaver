@@ -7519,7 +7519,7 @@
     {
       "siteId": "tooling/src/verify/ops/debt.ts::catch::1",
       "path": "tooling/src/verify/ops/debt.ts",
-      "line": 152,
+      "line": 158,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7527,7 +7527,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "returns null, which the doc comment above says is printed as \"unavailable\" WITH its reason — never as zeros. Ends if a caller starts treating null as zero admissions.",
-      "markerLine": 149
+      "markerLine": 155
     },
     {
       "siteId": "tooling/src/verify/ops/orphan-export-ratchet.ts::err::1",
