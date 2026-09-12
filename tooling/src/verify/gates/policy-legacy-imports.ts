@@ -51,6 +51,17 @@
 // import-origin recognizer is dead and the run THROWS rather than reporting ✓ over the corpus forever (the
 // family's tripwire, pinned by a `mustRefuse` row and through `runPolicyPass` in the family test).
 // `hard`/`error`: an enforcer a gate module could waive out of would be the door §12.5 closed, reopened.
+//
+// FAMILY `policy-soundness` — the shared reader is `lib/policy-descriptor-read.ts` (`finalRegistrationOf` /
+// `gateRegistrationOf` for the contract kind, so "is this module final" is answered by IMPORT ORIGIN in one
+// place rather than by each member's own idea of the word). Nine modules declare this family; that reader's
+// own header still says four, which was true when it was written.
+// POPULATION PORT: NONE — there is no legacy population to port, because this module was BORN FINAL. It
+// first appears at `b2c6a8553` already carrying `defineGate`, and `git show b2c6a8553^:<this file>` refuses
+// with "exists on disk, but not in b2c6a8553^". That refusal IS the receipt (the `scrubber-factory-home`
+// precedent); an invented pre-conversion sha would be worse than the absence. The population
+// `{ in: ["@tooling"], under: ["tooling/src/verify/gates/**"], notUnder: [".../_proof/**"] }` was therefore
+// authored, not derived: the `_proof/` exclusion is a fixture fence, not a translated legacy predicate.
 import type { ExportDeclaration, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateContractKind } from "../contract/gate-corpus.ts";
