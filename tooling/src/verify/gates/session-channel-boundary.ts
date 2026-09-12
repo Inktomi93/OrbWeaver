@@ -30,6 +30,17 @@
 // Legacy descriptor: `774231540` (`tooling/src/verify/gates/session-channel-boundary.ts`). No private marker
 // grammar; zero live `@orb-gate-ignore session-channel-boundary` markers at conversion (rg over packages/,
 // tests/, tooling/, scripts/), so no translation was owed.
+//
+// LEGACY SHA, made precise rather than replaced: `774231540` above is a tree where the legacy descriptor is
+// readable (`git show 774231540:<this file>` has `defineGate` count 0), but it is NOT this module's
+// conversion parent — it is an unrelated docs-retirement commit from 2026-08-30. The canonical form is
+// **`f1bbc34e7^`** (= `011233309`): `git log -S 'defineGate({' --reverse -- <this file>` gives the
+// introducing commit `f1bbc34e7`, and the cited parent carries the legacy descriptor by construction. Both
+// are true; the second is the one a §4.6 differential can replay against, which is what the field is for.
+// TWO CENSUS TRAPS IN ONE LINE, recorded because this field has now under-reported four distinct ways: a
+// `[0-9a-f]{7,40}` pattern with a "contains a digit AND a letter" filter — the filter that correctly
+// rejects `defaced` — DROPS `774231540`, which is all digits, so a census reads this header as carrying no
+// sha at all; and a census that found it would have counted a NON-PORT citation as satisfying the field.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyBroadcastChannelConstruction, SESSION_CHANNEL_HOME } from "../lib/broadcast-channel-origin.ts";

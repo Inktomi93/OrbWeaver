@@ -21,6 +21,16 @@
 // stays silent rather than "proving" the home dead (mustPass[1]).
 //
 // Legacy descriptor: `774231540` (`tooling/src/verify/gates/session-channel-boundary.ts`, arm B).
+//
+// LEGACY SHA: THIS FILE HAS NONE and cannot. It was BORN FINAL at `f1bbc34e7`, the commit that split arm B
+// out — `git show f1bbc34e7^:<this file>` refuses with "exists on disk, but not in f1bbc34e7^", and that
+// refusal is the receipt (the `scrubber-factory-home` precedent). The sha in the line above names the
+// LEGACY MODULE this half came from, not a predecessor of this file; its canonical parent form is
+// `f1bbc34e7^` (= `011233309`), recorded in the occurrence half.
+// POPULATION PORT: INHERITED, not ported — no legacy population of this module's own exists. It declares
+// `@client` because the occurrence half does, and the two must be identical or the ratchet is one-sided;
+// the legacy predicate behind it is that half's `scanRoot: (p) => p.includes("packages/client/src/")`,
+// byte-identical to `@client` on this tree.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyBroadcastChannelConstruction, SESSION_CHANNEL_ANCHOR, SESSION_CHANNEL_HOME } from "../lib/broadcast-channel-origin.ts";

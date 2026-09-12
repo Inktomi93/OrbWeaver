@@ -12,6 +12,16 @@
 // GATE MODULE — the shape the owner banned that day (#2096 / §12.3: a gate module never imports another
 // gate module; a shared predicate moves to `lib/<family>.ts`), with `lib/contract-derives-not-respells.ts`
 // as the worked precedent.
+//
+// POPULATION PORT: INHERITED, not ported — this half has no legacy population of its own. It declares
+// `["@client", "@ui"]` because the occurrence twin does, and the two must be the same set or the tripwire
+// would police a table over files the occurrence policy never reads. The legacy predicate behind it is that
+// twin's `SCOPE_REGEX = /\/packages\/(?:client|ui)\/src\//`, byte-identical to the two roots, recorded once
+// in `no-raw-typography-in-features.ts`.
+// LEGACY SHA: NONE, and none is possible. This module was BORN FINAL at `99b7429e2`, the commit that split
+// the tripwire out — `git show 99b7429e2^:<this file>` refuses with "exists on disk, but not in
+// 99b7429e2^", and that refusal is the receipt (the `scrubber-factory-home` precedent). The twin cites
+// `99b7429e2^` (spelled `d6f36904fa…`) for the legacy module both halves came from.
 import { defineGate } from "../contract/policy.ts";
 import { SANCTIONED_HOMES } from "../lib/raw-typography-tier.ts";
 import { unresolvedSanctionedHomeKeys } from "../lib/sanctioned-home.ts";

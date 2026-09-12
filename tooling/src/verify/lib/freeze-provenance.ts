@@ -35,7 +35,17 @@ export const FREEZES = "macroFreezes";
  *  fact it would otherwise declare and barely read. */
 export const TRIPLE: readonly string[] = [CONTENT, RAW, FREEZES];
 
-/** Shared so both halves judge exactly the same writer set. */
+/** Shared so both halves judge exactly the same writer set.
+ *
+ *  THE FAMILY'S POPULATION PORT IS DERIVED ONCE HERE (§5b.5), beside the constant rather than copied into
+ *  two headers. The legacy descriptor's `scanRoot: (p) => p.includes("packages/") && p.includes("/src/")`
+ *  (`5c17068b7^`) becomes `@packages`, the explicit six-root list — an INTENTIONAL NARROWING BY EXACTLY ONE
+ *  PACKAGE, `packages/showcase-plugins/src`, which #1980 keeps deliberately outside the composite sets.
+ *  Lossless, and measured rather than assumed: that package holds ONE file carrying ZERO drizzle write
+ *  calls, so no write this policy would have judged leaves the population. The legacy DECLARED LIMIT is
+ *  unchanged — `tests/**` was outside `scanRoot` and is outside `@packages`, because scanning tests reds
+ *  the family's own proofs. The `-health` half declares this CONSTANT, never its value, so the two writer
+ *  sets cannot drift even by a correct-looking copy. */
 export const WRITE_POPULATION = "@packages" as const;
 
 /** A declaration's HOME is read off the declaration's OWN path — the house spelling for this question

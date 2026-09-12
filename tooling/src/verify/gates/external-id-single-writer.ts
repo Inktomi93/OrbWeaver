@@ -29,7 +29,14 @@
 // definition, not a call to a write verb) and `contracts` carries wire shapes, neither of which this
 // predicate's AST shapes match. Widening bought no coverage and would have let a db/contracts file "carry"
 // this family's reads/writes with no real consumer having asked for it.
-// LEGACY SHA: (35bf7d328^) — the conversion's parent.
+// LEGACY SHA: (35bf7d328^) — the conversion's parent. Re-verified by the three-question test rather than
+// inherited: the introducing commit is `35bf7d328` (`git log -S 'defineGate({' --reverse`), the cited sha is
+// its parent by construction, and `git show 35bf7d328^:<this file>` is a LEGACY descriptor (`defineGate`
+// count 0).
+// POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot: (p) => p.startsWith("packages/server/src/")`
+// becomes `@server`, which IS `packages/server/src/` — same predicate, same anchoring, no delta. The
+// paragraph above states the widening that was CONSIDERED and refused (`@db`/`@contracts`), which is the
+// decision worth recording here; the port itself moved nothing.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

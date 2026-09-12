@@ -40,6 +40,18 @@
 //     (with a comment blanker in front of it, because a header discussing the rule would otherwise arm the
 //     tripwire). A visitor cannot see a comment: relevance is now "this file imports a binding whose origin
 //     is the table", which is prose-blind by construction. The COMMENT-POSTURE row is carried as its pin.
+//
+// POPULATION PORT: an INTENTIONAL NARROWING BY EXACTLY ONE PACKAGE, and it is lossless. The legacy
+// `scanRoot: (p) => p.includes("packages/") && p.includes("/src/")` (`5c17068b7^`) becomes
+// `WRITE_POPULATION` = `@packages`, the explicit six-root list — so `packages/showcase-plugins/src` leaves
+// the population (#1980: `@showcase` is authored but deliberately outside the composite sets). Measured,
+// not assumed: that package holds ONE file with ZERO drizzle write calls, so nothing it could have carried
+// is dropped. The legacy DECLARED LIMIT survives unchanged — `tests/**` was outside `scanRoot` and is
+// outside `@packages`, for the same reason (scanning tests would red this policy's own proofs). The
+// derivation has ONE home, beside the constant itself in `lib/freeze-provenance.ts`.
+// LEGACY SHA `5c17068b7^`, by the three-question test: `git log -S 'defineGate({' --reverse -- <this file>`
+// gives `5c17068b7`, the cited sha is its parent by construction, and the blob there has `defineGate`
+// count 0.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
