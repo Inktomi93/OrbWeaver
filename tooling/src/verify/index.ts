@@ -167,6 +167,7 @@ export { deriveTestBaselineManifest, generateTestBaselineManifest } from "./ops/
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
 export {
   censusDrift,
+  classRollupDrift,
   deferredRosterDrift,
   LEDGER_CHECKS,
   ledgerFreshness,

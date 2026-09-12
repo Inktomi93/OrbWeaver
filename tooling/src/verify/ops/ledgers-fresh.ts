@@ -41,7 +41,16 @@ import type { CaughtFailurePopulation, CaughtFailureRow } from "../contract/caug
 import type { LedgerFreshness } from "../contract/scoped.ts";
 import type { TestBaselineManifest } from "../contract/test-baseline.ts";
 import { TEST_BASELINE_REL } from "../contract/test-baseline.ts";
-import { ledgerSections, readDoc, reportLedgerRows, strayLedgerSections } from "../lib/gate-program-docs.ts";
+import type { ClassRollupRow } from "../lib/gate-program-docs.ts";
+import {
+  committedClassRollup,
+  deriveClassRollup,
+  ledgerSections,
+  readDoc,
+  reportLedgerRows,
+  STATE_BINS,
+  strayLedgerSections,
+} from "../lib/gate-program-docs.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
 import { READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./gen/read-first-costs.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
@@ -306,7 +315,91 @@ export function ledgerFreshness(root: string): readonly LedgerFreshness[] {
   const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
   const snapFlagsIndex = snapFlagsIndexDrift(root);
   const typeConfigs = typeConfigsDrift(root);
-  return [manifest, census, snapFlagsIndex, typeConfigs, readFirstCostsDrift(root), ledgerSectionDrift(root), deferredRosterDrift(root)];
+  return [
+    manifest,
+    census,
+    snapFlagsIndex,
+    typeConfigs,
+    readFirstCostsDrift(root),
+    ledgerSectionDrift(root),
+    classRollupDrift(root),
+    deferredRosterDrift(root),
+  ];
+}
+
+const REGEN_CLASS_ROLLUP = "rebuild the `## CLASS ROLLUP` table from the body by the method printed under that heading";
+
+/** THE CLASS ROLLUP versus the body it claims to summarise (#2207).
+ *
+ *  A DERIVED TABLE THAT NOTHING RE-DERIVED. The rollup summarises every ledger row above it, and the
+ *  reconciler one row up reports the file FRESH — correctly: `ledgerSectionDrift` checks each SECTION
+ *  against the REPORT it cites, and the rollup cites no report. So the two staleness events were both
+ *  caught by a human reading the table: `91 rows · 33/7/3/48` against a body of 99, then `100 rows`
+ *  against a body of 303 — a 203-row error that survived every `pnpm check` for a day. Twice is the
+ *  argument for an arm rather than for more care.
+ *
+ *  IT IS NOT REGENERABLE FROM HERE, exactly like `ledgerSectionDrift`: both sides are authored, the table
+ *  is rebuilt once at the barrier on a quiet tree by the account holding main's checkout, and a generator
+ *  in this stage would let a lane's half-appended section rewrite the summary mid-flight. `regen` names
+ *  the ACTION, which is this stage's stated deviation for authored-both-sides ledgers.
+ *
+ *  PER-TABLE COUNTS AND THE UNBINNED COUNT ARE PRINTED ON EVERY RUN, fresh or stale, because the ledger's
+ *  own counting paragraph requires it in those words: "the three defects above were all invisible to a run
+ *  that printed only the totals". A totals-only reader is how the method silently stopped covering the
+ *  file — it kept summing, over a shrinking set. */
+/** ONE LINE PER DIFFERING CELL, both values — the shape `readFirstCostsDrift` uses and for the same
+ *  reason: a bare "the rollup differs" makes regenerating on a copy the only way to learn WHICH cell moved.
+ *  A bin the committed table has no column for is SKIPPED here and reported once as a schema defect. */
+function rowDrift(own: ClassRollupRow | undefined, derived: ClassRollupRow, missingBins: readonly string[]): readonly string[] {
+  if (own === undefined) {
+    return [`row ${derived.klass}: the rollup has no such row; the body holds ${String(derived.rows)}`];
+  }
+  const drift = own.rows === derived.rows ? [] : [`cell ${derived.klass}.rows: ${String(own.rows)} → ${String(derived.rows)}`];
+  for (const state of STATE_BINS) {
+    const before = own.states[state] ?? 0;
+    const after = derived.states[state] ?? 0;
+    if (!missingBins.includes(state) && before !== after) {
+      drift.push(`cell ${derived.klass}.${state}: ${String(before)} → ${String(after)}`);
+    }
+  }
+  return drift;
+}
+
+export function classRollupDrift(root: string): LedgerFreshness {
+  const text = readDoc(root, REFUTATION_LEDGER_REL);
+  const derived = deriveClassRollup(text);
+  const committed = committedClassRollup(text);
+  const label =
+    `${REFUTATION_LEDGER_REL} (CLASS ROLLUP: ${derived.tables} tables · ${derived.total.rows} rows · ` +
+    `unbinned ${derived.unbinned.length} · per-table ${derived.perTable.join(",")})`;
+  const drift: string[] = [];
+  // A table the binner cannot read is the blindness this arm exists for, never a silent skip.
+  for (const columns of derived.statelessTables) {
+    drift.push(`unreadable  an in-fence table has no \`state\` column, so its rows bin nowhere: header \`${columns.join(" | ")}\``);
+  }
+  for (const cell of derived.unbinned) {
+    drift.push(`unbinned  a state cell bins to none of ${STATE_BINS.join("/")}: ${JSON.stringify(cell)}`);
+  }
+  if (committed === undefined) {
+    drift.push("missing  no `class`-headed rollup table under `## CLASS ROLLUP` — the summary this ledger documents is absent");
+    return { ledger: label, regen: REGEN_CLASS_ROLLUP, derived: derived.total.rows, drift };
+  }
+  // A SHORT SCHEMA IS ITS OWN DEFECT, reported before any cell comparison: a bin with no column cannot
+  // disagree with the body, it simply cannot see it, and calling that a cell mismatch would send the
+  // reader to fix numbers that are not wrong.
+  for (const bin of committed.missingBins) {
+    drift.push(`schema  the rollup has no \`${bin}\` column, so every ${bin} row in the body is invisible to it rather than miscounted`);
+  }
+  const byClass = new Map(committed.rows.map((row) => [row.klass, row]));
+  for (const row of [...derived.rows, derived.total]) {
+    drift.push(...rowDrift(byClass.get(row.klass), row, committed.missingBins));
+  }
+  for (const own of committed.rows) {
+    if (!(own.klass === "TOTAL" || derived.rows.some((row) => row.klass === own.klass))) {
+      drift.push(`row ${own.klass}: the rollup carries a class the body no longer names`);
+    }
+  }
+  return { ledger: label, regen: REGEN_CLASS_ROLLUP, derived: derived.total.rows, drift };
 }
 
 /** A derivation that came back EMPTY is blindness, not cleanliness: a broken `scanRoot`, a `git ls-files`
