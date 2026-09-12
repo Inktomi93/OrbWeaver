@@ -36,7 +36,7 @@ findings were already CLOSED. Do not repeat that.
 | 1 | `gate-runtime-standardization.md` — the LAW | 139 KB | in full, always |
 | 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | 78 KB | in full, always. §2b is where you decide what is next |
 | 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | 25 KB | **in full — this is the work queue.** 91 defects, each with its state on today's tree |
-| 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | 155 KB | in full — **except** the last one's 1,600-line `path:line` appendix, whose own banner says every count in it is to re-derive, never quote |
+| 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | 155 KB | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the \~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
 | 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | 78 KB | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
 | 5b | **`tooling/src/verify/contract/*.ts` HEADERS — the law you will otherwise rediscover** | **112 KB of comment** in 66 files | **READ THE HEADERS, not the types.** Ten run 20-32 lines before the first export. Start with `resource-declaration` · `resource-json` · `resource-mirror` · `resource-path` · `resource-document` · `resource-installed` · `run-manifest`, plus `lib/resource-declaration.ts`'s `readyResourceValue` header |
 | 6 | `Core-Enforcement-Active-Gates.md` | 281 KB | **ONCE per program, then by ROW.** 275 dense rows; after one pass read only the row you are about to break |
@@ -64,6 +64,29 @@ headers state the mechanism, and the mechanism is what a lane needs.
 with a defect **already closed on `main`** — wave 3's #1966 fail-open (closed by `policy-pass.ts:729`) and
 wave 2's D1 `ctx.relativePath` escape (closed by `lib/declaration-home.ts`, with each repaired module citing
 that audit in its own `mustPass` `why`). An audit wave is an UPPER BOUND with a timestamp.
+
+## 1b. THE TIERS ARE NOT CONDITIONAL, AND THE ONE THAT BIT IS 4 (measured 2026-09-12)
+
+A session read tiers 1, 2, 3 and 5b, skipped 4, 5, 6 and 7, and justified it with a STOP rule **this file
+does not contain** — *"nothing is being dispatched that needs them."* It then dispatched twice. Rows 4 and 5
+say "in full, ALWAYS"; row 7 says read the record for the family you dispatch. What that cost, in one hour:
+
+- **`shared-semantic-readers.md:33`** — *"The legacy `ast-read.ts` and `symbol-reference.ts` APIs still have
+  capped/undefined-returning readers … **They are not the new fact boundary.**"* A six-module conversion
+  brief was one call from dispatch describing exactly those as *"readers that already exist."* `ast-read` has
+  26 gate importers. The brief would have told a lane to PRESERVE the thing the program exists to delete.
+- **`exception-authority-census.md:93`** — `firehose-import-allowlist` carries three `ALLOWED` regex zones
+  needing reviewed-grant migration. The pre-dispatch table scan missed it because it searched `ALLOWLIST`
+  and the constant is named `ALLOWED`. **A spelling-shaped blind spot in the orchestrator's own
+  measurement.**
+- **`exception-authority-census.md:163`** — `runner-config-path-liveness.EXEMPT` is a named empty
+  `ExemptionTable`. The conversion merged an hour earlier carried it into a FINAL module, making it the
+  **tenth** such module, where the refutation ledger records nine.
+
+**The general shape:** tiers 1-3 tell you what the program IS; tier 4 tells you what each gate CARRIES. You
+cannot price or brief a conversion from the first three. **Read 4 and 5 before the first dispatch of a
+session, not before the first dispatch that "needs" them** — you cannot know which one that is until after
+you have read them.
 
 ## 2. What NOT to re-derive, because it is already measured
 
