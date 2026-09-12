@@ -917,6 +917,24 @@ Sequencing note: two of the five gates path-liveness was supposed to unblock (`d
 `eslint-grant-liveness`) are ALREADY converted without it, so the row's own blocked-count needs re-deriving as part
 of step 1 rather than trusted.
 
+**PHASE D's SHAPE CHANGED ON 2026-09-12 AND THE NEXT SESSION SHOULD NOT PLAN IT AS CONVERSION THROUGHPUT.**
+Twenty-four modules converted that night, taking the corpus from **190 final / 88 legacy to 237 / 60**, and
+**all thirteen §12.6 mixed-hook modules are done** (`tooling-shared-plumbing` became ten policies). What is
+left is a different kind of work:
+
+**Of the 60 remaining legacy modules, only TWO are `O`** — `appearance-carrier-contract` and
+`firehose-import-allowlist`. **The other 58 are `X`**: each carries a gate-local table, sanction, deferred
+row, stale arm or custom marker that needs a CENTRAL HOME before it can convert. So the spine is no longer
+"pick a family and convert it" — **it is AUTHORITY MIGRATION (#1922), read per row from
+`exception-authority-census.md`**, which has already classified 97 tables, 319 rows, 25 sanctioned-home
+tables, 9 baselines and 11 duplicate grammars. Point a lane at the CENSUS ROW, never at a family.
+
+**Two measured warnings for whoever plans that work.** A grant row minted for a subject that produces no
+finding is **stale on arrival and reds** — that killed one row mid-flight on 2026-09-12 (`surface-in-a-container`,
+where a sibling rule acquitted before the exemption was ever consulted). And **a ruled disposition is a claim
+about the tree**: two of §12.6's own arities were wrong when finally checked, both because an exemption table
+had drained to `{}` since the ruling. **Verify the table is non-empty before designing a policy around it.**
+
 **Phase D — conversions, cap 3 minus the running prerequisite lane.** Pick families from the legacy roster (re-derived
 in §0.5) in this order: direct-walking visitors and file hooks whose reader already exists → run-only evaluators on an
 existing provider → resource families as their kind lands. One family per lane (4–8 modules), family named by its
