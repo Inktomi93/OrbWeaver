@@ -1,6 +1,16 @@
 // A signature position whose name is owned by a canonical @orb/kit/ids brand cannot stay bare string.
 // Compiler-resolved brand identity and the central ordinary-waiver plane replace the legacy text vocabulary,
 // three descendant walks, module-global pass state, @foreign-id-ok parser, and local stale-marker logic.
+//
+// NO #944 THIRD ANSWER EXISTS HERE, audited #2041 — recorded rather than faked. The subject is a CENSUS
+// join, not a reference: canonical positions are collected from the type aliases declared in
+// `ID_BRAND_HOME` (with a `population` receipt naming their count) and joined by NAME against bare-string
+// declarations. Nothing resolves an origin, so no reader ever refuses and there is no refusal to classify.
+// The two constructions attempted both land elsewhere by design: a canonical alias whose type carries no
+// `[brand]` property is simply not a position (`collectCanonicalPosition` returns early), and an alias with
+// no type node at all is a TOOL ERROR that withholds the whole policy — which is the correct fail-closure
+// for a census, since a partial roster would silently stop claiming positions. Its family siblings
+// (`no-mint-via-cast`, `no-fake-disabled-id`, `no-raw-id`) DO resolve origins and each carries the arm.
 import type { Node as MorphNode, TypeChecker, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

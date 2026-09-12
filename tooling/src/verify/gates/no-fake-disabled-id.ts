@@ -8,6 +8,18 @@ import { idCastProofModule } from "./_proof/id-brand.ts";
 const MESSAGE =
   "empty-string branded id creates a fake disabled sentinel that can reach the server if its guard drifts — use useGatedQuery/skipToken so no key exists.";
 
+/** THE FAIL-CLOSED THIRD ANSWER (#944, added #2041), textually DISJOINT from `MESSAGE` rather than a
+ *  `${MESSAGE} …` suffix: the unreadable arm reports the same single finding on the same callee as the
+ *  sentinel verdict and differs ONLY in message, so a shared prefix leaves both arms unpinnable (§4.1).
+ *
+ *  The refusal is the SEAM's, not the argument's, and the asymmetry is deliberate. An argument the static
+ *  reader cannot fold is the helper's ORDINARY use — `castId(row.id)` is most of the corpus — so widening
+ *  there would accuse the whole population. A `castId` SPELLING whose door cannot be read is a different
+ *  question: the shared matcher used to answer it `false`, and a sentinel behind an unreadable door walked
+ *  through. Only a PROVEN non-module binding (the `local same-named function` mustPass row) still passes. */
+const UNREADABLE =
+  "a cast seam spelled like the canonical kit `castId` enters through a door the shared readers cannot place, so whether this manufactures a branded disabled sentinel CANNOT be established. Reported rather than admitted: the spelling alone is not the identity.";
+
 export const gate = defineGate({
   id: "no-fake-disabled-id",
   family: "id-brand-flow",
@@ -31,7 +43,12 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node) => {
-            if (!(Node.isCallExpression(node) && isCastId(node))) {
+            const seam = Node.isCallExpression(node) ? isCastId(node) : "other";
+            if (seam === "other" || !Node.isCallExpression(node)) {
+              return;
+            }
+            if (seam === "unreadable") {
+              ctx.report.node(node.getExpression(), { message: UNREADABLE });
               return;
             }
             const argument = node.getArguments()[0];
@@ -65,6 +82,12 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "import aliases and static string aliases cannot hide the empty sentinel",
+    },
+    {
+      mode: "types",
+      files: { "packages/client/src/x.ts": 'import { castId } from "./nowhere.ts";\nexport const x = castId("");\n' },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no declared row before #2041 because the SHARED `createKitIdCallMatcher` answered a boolean and collapsed an unresolved origin into `false`: the import door names `castId` but resolves to nothing, so the specifier is still a module-alias declaration, `bindsProvenNonModuleDeclaration` is false and the refusal fails closed. It is the exact complement of the `local same-named function` mustPass row — a local declaration is proven foreign and passes, an unreachable door is no evidence and reports. The `messageIncludes` is the whole row: the unreadable arm emits the SAME single finding on the same callee as the sentinel verdict",
     },
   ],
   mustPass: [

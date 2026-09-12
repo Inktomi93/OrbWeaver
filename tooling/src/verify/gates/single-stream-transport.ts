@@ -37,6 +37,13 @@ const MESSAGE =
   "a tRPC `.subscription(` outside transport/trpc/routers/stream.ts — a browser allows ~6 concurrent " +
   "connections per origin and every SSE subscription pins one for its lifetime, so a second always-on " +
   "stream re-opens the starvation class the multiplex closed (sse-multiplex-spec.md §11).";
+/** THE FAIL-CLOSED THIRD ANSWER (#944), a SEPARATE text rather than a `${MESSAGE} …` suffix: the unreadable
+ *  arm reports the same single finding on the same node under the same `(subject, operation)` grant key as
+ *  the tRPC verdict and differs ONLY in message, so a shared prefix would leave both arms unpinnable in
+ *  either direction (guide §4.1). The two texts are disjoint; both carry the proc tail, which is the grant
+ *  grain and belongs to the finding rather than to either arm. */
+const UNREADABLE =
+  "a `.subscription(` on a builder whose TYPE the shared readers cannot place — whether this opens a tRPC SSE socket CANNOT be established, so a socket budget an unreadable module can walk through is reported rather than admitted. The spelling alone is not the identity.";
 const FIX =
   "make it a ROOM on the multiplexed socket: add the channel to `@orb/contracts/stream` plus a `ROOM_SOURCES` entry (transport/trpc/stream/room-sources.ts) and have the client use `useBusRoom`. Only stream.ts may open the socket.";
 
@@ -56,13 +63,17 @@ function procName(node: MorphNode): string | undefined {
 }
 
 /** Is this call the tRPC procedure builder's own `subscription` method? Fail-closed on an unreadable
- *  receiver; a `subscription` property that PROVABLY belongs to another declaration is not a subject. */
-function opensSocket(callee: MorphNode): boolean {
+ *  receiver; a `subscription` property that PROVABLY belongs to another declaration is not a subject.
+ *
+ *  THE VERDICT IS THREE-VALUED, not boolean (#944, #2041): the unreadable arm and the tRPC arm produce the
+ *  SAME finding on the same node, so collapsing them to `true` left the fail-closed answer indistinguishable
+ *  from the ordinary one in every direction a proof row can look. */
+function opensSocket(callee: MorphNode): "trpc" | "other" | "unreadable" {
   const origin = resolveTypeMemberOrigin(callee);
   if (origin.kind === "unresolved") {
-    return classifyOriginRefusal(origin.reason, callee) === "unreadable";
+    return classifyOriginRefusal(origin.reason, callee);
   }
-  return declaredByPackage(origin.value.declarations, TRPC_SERVER);
+  return declaredByPackage(origin.value.declarations, TRPC_SERVER) ? "trpc" : "other";
 }
 
 export const gate = defineGate({
@@ -78,7 +89,7 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const opened = new Map<string, { readonly node: MorphNode; readonly subject: string; readonly operation: string }>();
+    const opened = new Map<string, { readonly node: MorphNode; readonly subject: string; readonly operation: string; readonly unreadable: boolean }>();
     return {
       visitors: [
         {
@@ -93,7 +104,8 @@ export const gate = defineGate({
             }
             const member = readMemberReference(callee);
             const isSubscription = member.kind === "resolved" && member.value.name === SUBSCRIPTION_MEMBER;
-            if (!(isSubscription && opensSocket(callee))) {
+            const verdict = isSubscription ? opensSocket(callee) : "other";
+            if (verdict === "other") {
               return;
             }
             const subject = ctx.relativePath(sourceFile);
@@ -103,7 +115,7 @@ export const gate = defineGate({
             // in one router are two rows while a re-declared proc cannot make its own row OVER-BROAD.
             const key = `${subject} :: ${operation}`;
             if (!opened.has(key)) {
-              opened.set(key, { node, subject, operation });
+              opened.set(key, { node, subject, operation, unreadable: verdict === "unreadable" });
             }
           },
         },
@@ -113,7 +125,7 @@ export const gate = defineGate({
           ctx.report.node(found.node, {
             subject: found.subject,
             operation: found.operation,
-            message: `${MESSAGE} Proc: ${found.operation} in ${found.subject}.`,
+            message: `${found.unreadable ? UNREADABLE : MESSAGE} Proc: ${found.operation} in ${found.subject}.`,
             fix: FIX,
           });
         }
@@ -167,8 +179,8 @@ export const gate = defineGate({
         "packages/server/src/transport/trpc/routers/unreadable.ts":
           'import { authedProcedure, router } from "./missing-trpc.ts";\nexport const r = router({ live: authedProcedure.subscription(() => null) });\n',
       },
-      expect: { count: 1 },
-      why: "FAIL-CLOSED — a builder whose type cannot be read at all is reported rather than silently admitted; a socket budget an unreadable module can walk through is not one",
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944) — a builder whose type cannot be read at all is reported rather than silently admitted; a socket budget an unreadable module can walk through is not one. The row REACHED the arm before #2041 but could not PROVE it in both directions: `opensSocket` returned a BOOLEAN, so the unreadable answer and the tRPC answer produced the identical finding, and the old `{ count: 1 }` could only fail if the arm was failed CLOSED to zero — never if it was widened to accuse. The verdict is three-valued now and the `messageIncludes` pins which arm ran",
     },
   ],
   mustPass: [

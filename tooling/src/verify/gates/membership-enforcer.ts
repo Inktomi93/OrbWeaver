@@ -34,6 +34,13 @@ const FIX =
   "membership-enforcer(<position>): <reason>` on the line above, where <position> is the literal `ownerId` " +
   "or the sealed-home import's own name (`fetchOwned`/`OwnedTable`), whichever arm fired.";
 
+/** THE FAIL-CLOSED THIRD ANSWER (#944) on the sealed-helper arm, kept textually DISJOINT from `MESSAGE`
+ *  rather than built as a `${MESSAGE} …` suffix: the unreadable arm reports the same single finding the
+ *  sealed verdict does and differs ONLY in message, so a shared prefix would leave both arms unpinnable in
+ *  either direction (guide §4.1). No fragment of either text occurs in the other. */
+const UNREADABLE =
+  "a single-owned helper NAME reached through a door the shared readers cannot place — whether this binds the db kit's own `fetchOwned`/`OwnedTable` CANNOT be established, so a chat-scope seam an unreadable module can walk through is reported rather than admitted. The spelling alone is not the identity.";
+
 /** Legacy `scanRoot` tested `/packages/server/src/(?:domain/chat/|transport/trpc/(?:routers/chat|chat-events-bus))`
  *  against a slash-prefixed repo path; the two trailing prefixes are open-ended, which `chat**` reproduces. */
 const CHAT_SCOPE_POPULATION = {
@@ -100,9 +107,15 @@ export const gate = defineGate({
           // is reported — the arm the legacy name-only match never had — while a proven foreign declaration
           // and a candidate that provably binds a non-module declaration (a local object's key) both acquit.
           // `readSealedOrigin` returns the VERDICT; `sealedOriginReports` is the decision.
-          if (sealedOriginReports(readSealedOrigin(hit.anchor, OWNED_HELPER_HOME), hit.anchor)) {
-            ctx.report.node(hit.anchor, { token: hit.name, offset: hit.anchor.getText().indexOf(hit.name) });
+          const verdict = readSealedOrigin(hit.anchor, OWNED_HELPER_HOME);
+          if (!sealedOriginReports(verdict, hit.anchor)) {
+            return;
           }
+          // Past the decision, `unresolved` can only be the UNREADABLE half of it — a `foreign` verdict
+          // already returned and a refusal that provably binds elsewhere is not a subject.
+          const unreadable = verdict.kind === "unresolved";
+          const offset = hit.anchor.getText().indexOf(hit.name);
+          ctx.report.node(hit.anchor, unreadable ? { token: hit.name, offset, message: UNREADABLE } : { token: hit.name, offset });
         },
       },
     ],
@@ -150,6 +163,14 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "fetchOwned" },
       why: "AN ALIAS of the single-owned helper, in the chat ROUTER half of the scope — the seal is the declaration home, so renaming the binding is not an escape",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/verbs/unreadable.ts": 'import { fetchOwned } from "./missing.ts";\nexport const f = fetchOwned;\n',
+      },
+      expect: { count: 1, token: "fetchOwned", messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no declared row before #2041: the import DOOR names the sealed helper but resolves to nothing, so the specifier is still a module-alias declaration, `bindsProvenNonModuleDeclaration` is false and the refusal fails closed. It is the exact complement of the `local-bag.ts` mustPass row — a local object's KEY provably binds a property and is not a subject, an unreachable door is no evidence and reports. The `messageIncludes` is what holds the pair apart: the unreadable arm emits the SAME single finding the sealed verdict does, so a bare `{ count: 1, token }` would pass with the arm failed open",
     },
   ],
   mustPass: [

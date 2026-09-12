@@ -39,6 +39,12 @@ const MESSAGE =
   "ambient one (determinism: the same seam tests pin). `new Date(ms)` to parse a known timestamp is fine. " +
   "(Spine-Testing.md §3)";
 const FIX = "take the injected clock (`@orb/kit/time`'s `nowMs`/`createClock`, threaded from the composition root) instead of reading the ambient clock.";
+/** THE FAIL-CLOSED THIRD ANSWER (#944), and it is a SEPARATE text rather than a `${MESSAGE} …` suffix on
+ *  purpose: the unreadable arm produces the SAME finding count as the ambient verdict and differs only in
+ *  message, so a shared prefix would make neither arm pinnable in either direction (guide §4.1). Nothing in
+ *  `MESSAGE` occurs here and nothing here occurs in `MESSAGE`. */
+const UNREADABLE =
+  "a call spelled like the ambient clock has a callee the shared readers cannot place, so whether it asks the runtime for the current instant CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 
 /** THE CANDIDATE PREFILTER (perf): resolving an origin on every call in a 3,367-file population does not
  *  finish. Three arms cover every spelling that reaches the ambient clock under the name `now`: a `now`
@@ -82,7 +88,7 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const readers = new Map<string, MorphNode>();
+    const readers = new Map<string, { readonly node: MorphNode; readonly unreadable: boolean }>();
     return {
       visitors: [
         {
@@ -93,19 +99,21 @@ export const gate = defineGate({
               return;
             }
             // FAIL-CLOSED on an unreadable callee; a callee that PROVABLY binds an injected clock passes.
-            if (readAmbientInvocation(node, candidate.sources).kind === "other") {
+            const verdict = readAmbientInvocation(node, candidate.sources);
+            if (verdict.kind === "other") {
               return;
             }
             const subject = ctx.relativePath(sourceFile);
             if (!readers.has(subject)) {
-              readers.set(subject, node);
+              readers.set(subject, { node, unreadable: verdict.kind === "unreadable" });
             }
           },
         },
       ],
       evaluate: () => {
-        for (const [subject, node] of [...readers].toSorted(([left], [right]) => left.localeCompare(right))) {
-          ctx.report.node(node, { subject, operation: OPERATION, message: `${MESSAGE} Reader: ${subject}.`, fix: FIX });
+        for (const [subject, found] of [...readers].toSorted(([left], [right]) => left.localeCompare(right))) {
+          const message = found.unreadable ? `${UNREADABLE} Reader: ${subject}.` : `${MESSAGE} Reader: ${subject}.`;
+          ctx.report.node(found.node, { subject, operation: OPERATION, message, fix: FIX });
         }
       },
     };
@@ -163,6 +171,14 @@ export const gate = defineGate({
       files: { "packages/server/src/domain/feature/ctor-alias.ts": "const D = Date;\nexport function doThing(): Date {\n  return new D();\n}\n" },
       expect: { count: 1 },
       why: "the CONST-ALIASED CONSTRUCTOR — the name prefilter follows an immutable const hop, so `new D()` is a candidate and the origin reader then proves it is the ambient `Date`",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/feature/opaque.ts": "declare function opaque(): any;\nexport function doThing(): number {\n  return opaque().now();\n}\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no declared row before #2041: the `now` member prefilter admits it, and off an OPAQUE `any`-typed receiver the leaf binds no declaration at all, so `classifyOriginRefusal` answers case (b) and the read is REPORTED rather than passed on the strength of its spelling. The `messageIncludes` is the whole row — the unreadable arm emits the SAME single finding the ambient verdict does and differs ONLY in message, so a bare `{ count: 1 }` passes identically whether the arm fires or is unreachable",
     },
   ],
   mustPass: [
