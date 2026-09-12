@@ -978,6 +978,24 @@ ERROR, never a reportable finding and never a silent zero.** So the branch THROW
 readyResourceValue(fact) // lib/resource-declaration.ts — the module that owns the refusal law at :182
 ```
 
+**A `-health` POLICY IS THE DESIGNATED ACCUSER, SO THE PROTECTIONS THAT GUARD AN ORDINARY CONSUMER MUST NOT APPLY
+TO IT.** Every mechanism in this section — refuse, withhold, throw — exists to stop a policy reporting on evidence it
+could not gather. A `-health` sibling's entire job is to report **exactly that condition**, so applying the same
+protection to it silences the accuser with the thing it accuses. Three measured instances, all one shape:
+
+1. **A provider must not receipt its own findings** (§12.3 below) — an empty census would become a fact TOOL ERROR
+   instead of reaching the `-health` policy whose job is to report it (#1953, #1955).
+2. **A `-health` consumer receipts a CONSTANT `members: 1`, never its census** — otherwise `receiptFailures`'
+   `count === 0` turns its own finding into a receipt refusal (#1966, §4.5b).
+3. **A `-health` consumer REPORTS a non-ready fact rather than throwing on it.** `bus-fact-health.ts:24-30` does
+   exactly this while its siblings `bus-producer-coverage` and `user-bus-deferred-member` throw through
+   `recordReadyBusFact` — and that asymmetry is the design, not a defect. **Do not "fix" a `-health` policy to
+   throw**; it throws only on a genuinely broken guarantee (an empty effective population), which is a different
+   condition from the one it reports.
+
+**The tell that you are looking at this shape**: the policy's `family` matches an ordinary sibling's, its authority
+is `hard`, and the branch you are about to "correct" is the only thing that would ever report the failure.
+
 Measured 2026-09-12: **nine of ten resource policies answered a broken resource with a silent `return`**, and
 `depcruise-grant-liveness.ts:157-164` was the only one that refused loudly. A silent return there is a policy
 reporting CLEAN on a run it could not perform — and the exemplars document was teaching it as a headline virtue, so it
