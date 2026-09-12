@@ -68,6 +68,8 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { resolveModuleMemberOrigin, resolveStableExpression } from "../lib/reference-fact.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
+import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 /** The write verbs, by EXPORTED NAME on a filesystem door. A read (`readFileSync`, `existsSync`) is not this
  *  policy's business — reading the checkout is what a family test is FOR. */
@@ -132,18 +134,20 @@ function fsWriteCall(call: CallExpression): boolean {
   return FS_SPECIFIERS.has(moduleSpecifier) && WRITE_VERBS.has(verb);
 }
 
-/** `process.cwd()` — the call, not the property. */
+/** `process.cwd()` — the call, not the property. HOWEVER SPELLED: the member is read through the shared
+ *  `lib/symbol-reference.ts#readMemberAccess`, so `process["cwd"]()` is the same anchor as `process.cwd()`. */
 function isCwdCall(node: MorphNode): boolean {
   if (!Node.isCallExpression(node)) {
     return false;
   }
-  const callee = node.getExpression();
-  return Node.isPropertyAccessExpression(callee) && callee.getName() === CWD && callee.getExpression().getText() === PROCESS;
+  const read = readMemberAccess(node.getExpression());
+  return read !== undefined && read.name === CWD && read.receiver.getText() === PROCESS;
 }
 
-/** `import.meta.dirname` / `import.meta.url` / `import.meta.filename`. */
+/** `import.meta.dirname` / `.url` / `.filename`, dotted or bracketed — same reader, same reason. */
 function isImportMetaRoot(node: MorphNode): boolean {
-  return Node.isPropertyAccessExpression(node) && META_ROOTS.has(node.getName()) && node.getExpression().getKind() === SyntaxKind.MetaProperty;
+  const read = readMemberAccess(node);
+  return read !== undefined && META_ROOTS.has(read.name) && read.receiver.getKind() === SyntaxKind.MetaProperty;
 }
 
 function isRepoAnchor(node: MorphNode): boolean {
@@ -235,7 +239,11 @@ function judgeWrite(ctx: GatePolicyContext, call: CallExpression): void {
     // conformance TOOL ERROR before the slice was narrowed. `process.cwd()` hands back its callee `process.cwd`,
     // which is a leading slice at the same offset; every other anchor is already a bare name.
     const coordinate = Node.isCallExpression(anchor) ? anchor.getExpression() : anchor;
-    ctx.report.node(call, { token: coordinate.getText(), offset: coordinate.getStart() - call.getStart(), message: MESSAGE });
+    const raw = coordinate.getText();
+    // `?? raw` is the REFUSAL path, not a fallback that hides one (`no-loose-id-cast`'s shape, #2197): a value
+    // with no anchorable head is handed to the report door, which refuses it LOUDLY. Dropping the finding here
+    // would trade a visible tool error for a silent blind spot.
+    ctx.report.node(call, { token: waivableCoordinate(raw) ?? raw, offset: coordinate.getStart() - call.getStart(), message: MESSAGE });
   }
 }
 
@@ -282,6 +290,23 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "ROOT" },
       why: "THE ANCHOR WALK THROUGH A BINDING and a second verb: the repo root is a const one hop away and the verb is `mkdirSync`, not `writeFileSync`. Without the identifier hop the dominant real-world spelling (`const ROOT = join(import.meta.dirname, …)`) would be invisible",
+    },
+    {
+      mode: "types",
+      files: { "tests/tooling/verify/gates/probe.test.ts": PLANT('writeFileSync(join(process["cwd"](), "tooling/src/verify/gates/x.ts"), "planted");\n') },
+      expect: { count: 1, token: 'process["cwd"]' },
+      why: 'THE BRACKET TWIN of the founding shape (#2208). `process["cwd"]()` is the SAME anchor respelled, and this module read it through `PropertyAccessExpression` alone until `gate-spelling-twins` grew by one on the folded tree — a gate blind to a respelling of its own subject is a false clean, and the ledger\'s growth is a READER defect, never a new baseline row. Now resolved through `lib/symbol-reference.ts#readMemberAccess`; its dotted control is the row above',
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/tooling/verify/gates/probe.test.ts": PLANT(
+          'const ROOT = join(import.meta["dirname"], "..", "..", "..");\nmkdirSync(join(ROOT, "packages/client/src/probe"), { recursive: true });\n',
+          'import { mkdirSync } from "node:fs";\nimport { join } from "node:path";\n',
+        ),
+      },
+      expect: { count: 1, token: "ROOT" },
+      why: "THE BRACKET TWIN of the import-meta anchor (#2208), through the SAME binding hop as its dotted control above — so the respelling is proven at the far end of the walk rather than only at a direct argument, which is where a member-kind blind spot actually hides",
     },
     {
       mode: "types",
