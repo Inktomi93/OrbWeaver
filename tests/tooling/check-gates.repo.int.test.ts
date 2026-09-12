@@ -638,7 +638,7 @@ function writeFixtures(): void {
     "packages/db/src/schema/__g_lifecycle.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gLifecycle = sqliteTable("__g_lifecycle", { id: text("id").primaryKey(), ownerId: text("owner_id") });\n',
   );
-  // table-scoping-class: a schema table with NO row in TABLE_SCOPING_CLASSES — unclassified at birth.
+  // table-scoping-class: a schema table with NO row in TABLE_SCOPING_ROWS (lib/tenancy-scope.ts) — unclassified at birth.
   fx(
     "packages/db/src/schema/__g_scopeclass.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gScopeclass = sqliteTable("__g_scopeclass", { id: text("id").primaryKey() });\n',

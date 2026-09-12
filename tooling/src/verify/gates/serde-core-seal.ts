@@ -11,9 +11,17 @@
 // its own policy id, because that claim needs the ENTIRE declared population and must never be
 // suppressible (spacing-tier-home-health's precedent).
 //
-// FAMILY "serde-core-seal": a REAL two-policy family, and the shared reader is `pngChunkImport` exported
-// from this module and imported by the health sibling — the no-raw-spacing-in-features / SANCTIONED_HOMES
-// precedent, so both arms judge one import identity and cannot drift apart.
+// FAMILY "serde-core-seal": a REAL two-policy family, and the shared reader is
+// `lib/serde-core-seal.ts#pngChunkImport`, imported by BOTH halves — so both arms judge one import identity
+// and cannot drift apart.
+//
+// THIS SENTENCE USED TO CITE A PRECEDENT THAT NOW SAYS THE OPPOSITE (#2177). It read: "the shared reader is
+// `pngChunkImport` exported from this module and imported by the health sibling — the
+// no-raw-spacing-in-features / SANCTIONED_HOMES precedent". That precedent was REVERSED by the commit that
+// moved the spacing family's table into `lib/raw-spacing-tier.ts` under the same #2096 ruling, and the
+// commit which falsified it is the one that left this module fenced — so a live comment spent a day citing
+// a dead arrangement as its justification. Recorded rather than quietly swapped, because "a citation can be
+// falsified by the very commit that is required to leave it alone" is the failure mode, not the typo.
 //
 // POPULATION: `@server`, whole — the seal is about who imports, and every server tier can. The three narrowings below are all
 // carrier fences and each has a mustPass row that dies without it: the `packages/server/src/` + sanctioned-
@@ -28,33 +36,14 @@
 // compiler-source candidate set: 1,493 admitted on both sides, symmetric difference ZERO in both directions.
 // SHA FORM NOTE: the legacy sha is the bare 40-char spelling in the paragraph above rather than the
 // `(<sha>^)` form; it names this conversion's parent directly, so both spellings resolve to one commit.
-import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { DOMAIN_ROOT, pngChunkImport, SANCTIONED_DOMAINS } from "../lib/serde-core-seal.ts";
 
-export const PNG_CHUNK_SYMBOLS = new Set(["readCardChunk", "writeCardChunk", "isPng"]);
-export const PNG_CHUNK_SPECIFIER = /^@orb\/kit\/png-card-chunk(?:\/|$)/u;
-/** The sanctioned serde homes, named individually so the health sibling can name the dead one. */
-export const SANCTIONED_DOMAINS = ["import", "export"] as const;
-export const DOMAIN_ROOT = "packages/server/src/domain/";
 const SERVER_SRC_PREFIX = "packages/server/src/";
 
 const MESSAGE =
   'the PNG card-chunk engine (@orb/kit/png-card-chunk) imported outside the sanctioned serde homes — it is shared byte surgery for domain/import (read) and domain/export (write) only (Core-Enforcement-Deferred-Dropped.md "serde-core"; Spine-Config-and-Serialization.md §Serialization/serde core).';
-
-/** Is this ImportSpecifier a card-chunk engine symbol imported from `@orb/kit/png-card-chunk`? Exported for
- *  the health sibling, which re-derives the same import identity independently. */
-export function pngChunkImport(node: Node): string {
-  if (!node.isKind(SyntaxKind.ImportSpecifier)) {
-    return "";
-  }
-  const name = node.getName();
-  if (!PNG_CHUNK_SYMBOLS.has(name)) {
-    return "";
-  }
-  const decl = node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
-  return decl !== undefined && PNG_CHUNK_SPECIFIER.test(decl.getModuleSpecifierValue()) ? name : "";
-}
 
 export const gate = defineGate({
   id: "serde-core-seal",

@@ -19,7 +19,7 @@
 import type { TypeAliasDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { CALLER_FREE_OPS, deriveEntityIdTypes, IDS_MODULE } from "./injected-op-caller-param.ts";
+import { CALLER_FREE_OP_ROWS, deriveEntityIdTypes, IDS_MODULE } from "../lib/injected-op-caller-param.ts";
 
 const CONTRACT_RE = /^packages\/server\/src\/domain\/[^/]+\/contract\//u;
 
@@ -113,7 +113,7 @@ export const gate = defineGate({
             seenOps.add(name);
           }
         }
-        for (const op of Object.keys(CALLER_FREE_OPS)) {
+        for (const { op } of CALLER_FREE_OP_ROWS) {
           if (!seenOps.has(op)) {
             ctx.report.file(REAL_TREE_ANCHOR, { line: 1, message: STALE(op) });
           }
@@ -129,7 +129,7 @@ export const gate = defineGate({
         [REAL_TREE_ANCHOR]: "export const schema = {};\n",
         [IDS_MODULE]: 'export type AssetId = TypeIdOf<"asset">;\n',
       },
-      expect: { count: Object.keys(CALLER_FREE_OPS).length, messageIncludes: "no domain contract declares an op function type" },
+      expect: { count: CALLER_FREE_OP_ROWS.length, messageIncludes: "no domain contract declares an op function type" },
       why: "THE STALE ARM: the anchor is loaded and the id vocabulary is nonempty, but no contract declares any CALLER_FREE_OPS name — every row is stale and ratchets down",
     },
     {
@@ -139,7 +139,7 @@ export const gate = defineGate({
         [IDS_MODULE]: "export type NotAnEntityId = string;\n",
         "packages/server/src/domain/character/contract/service.ts": "export type ReapAssetsOp = (assetIds: readonly string[]) => Promise<void>;\n",
       },
-      expect: { count: Object.keys(CALLER_FREE_OPS).length + 1, messageIncludes: "derived ZERO entity-id type names" },
+      expect: { count: CALLER_FREE_OP_ROWS.length + 1, messageIncludes: "derived ZERO entity-id type names" },
       why: "THE BLIND ARM: the anchor is loaded but the ids module derives no TypeIdOf-shaped export at all — the vocabulary the gate scans for no longer exists. The count is one BLIND finding plus one STALE per row: with an empty vocabulary no op can take a branded entity id, so `ReapAssetsOp` (declared here over `readonly string[]`) is NOT seen either — the restored census predicate, and the reason this row's count is rows+1 rather than rows",
     },
   ],
