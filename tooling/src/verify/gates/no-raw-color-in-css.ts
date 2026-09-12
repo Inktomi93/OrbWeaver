@@ -186,4 +186,15 @@ export const gate = defineGate({
       why: "token-derived relative color",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "resource",
+      files: {
+        "packages/client/src/styles/unanchorable.css": ".a {\n  color: (#ff0000);\n}\n",
+        "packages/ui/src/styles/clean.css": ".clean { color: var(--color-foreground); }\n",
+      },
+      expect: { messageIncludes: "raw color value has no anchorable coordinate" },
+      why: "a value whose FIRST character is a paren has no leading paren-free slice, so no coordinate the marker grammar can hold exists at all — the policy refuses loudly rather than minting a permanently unwaivable finding (#2160, ledger row 534)",
+    },
+  ],
 });
