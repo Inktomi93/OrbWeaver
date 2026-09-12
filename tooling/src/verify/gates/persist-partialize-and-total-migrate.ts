@@ -84,6 +84,14 @@
 // at the reported line/column, and an ABSENT key has no authored text to anchor on. So the offense is the
 // CALL SITE, the missing keys are named in the per-finding message, and one `@orb-waive
 // persist-partialize-and-total-migrate(persist): <reason>` above the statement reaches it.
+//
+// POPULATION PORT: a deliberate NARROWING, and the reason is ARM A's retirement above. Legacy
+// `scanRoot: (p) => p.includes("packages/client/src/")` had to reach the whole client tree because ARM A
+// judged every `persist(` call anywhere; with ARM A retired to `no-raw-zustand-persist`, the only
+// surviving question is whether the two MINTING FACTORIES pass complete options, so the population is
+// exactly those two files. The narrowing is what makes the out-of-factory `mustPass` row meaningful, and
+// the §4.1 matrix above pins it (population widened to the whole `@client` → RED x1).
+// LEGACY SHA: (61aa46279^) — the conversion's parent.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

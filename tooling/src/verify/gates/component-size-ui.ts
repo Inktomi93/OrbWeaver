@@ -1,5 +1,15 @@
 // Gate: component-size-ui — the @orb/ui member of the component-size family. Primitive sources have a
 // hard 450-line cap. Test, CT, fixture, generated, and ambient declaration files are outside the subject.
+//
+// FAMILY: `component-size`, shared with `component-size`. The shared reader is
+// `lib/source-line-count.ts#authoredLineCount` (module + function) — the same function both halves count
+// with, which is what makes this a family rather than two policies that happen to be about file length.
+// POPULATION PORT: BYTE-IDENTICAL. The legacy gate WALKED `packages/ui/src` with the same skipped
+// directories and the WIDER name exclusion `/\.(?:test|spec|ct|fixtures|gen)\.tsx?$/` plus `.d.ts` —
+// which is why this half's `notNamed` carries `*.ct.*`/`*.fixtures.*` and the client half does not.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 364 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (70a944751^) — the conversion's parent.
 import { defineGate } from "../contract/policy.ts";
 import { authoredLineCount } from "../lib/source-line-count.ts";
 

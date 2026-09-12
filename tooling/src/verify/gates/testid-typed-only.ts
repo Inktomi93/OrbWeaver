@@ -10,6 +10,11 @@
 // POPULATION: `@client` — the typed registry and every e2e selector
 // live there. The root is a NARROWING and mustPass[1] is the row that dies without it. The other narrowing
 // is the attribute NAME test, which is the subject itself rather than a fence.
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot` was `/\/packages\/client\/src\//u` over `/${p}`,
+// which is exactly `@client`.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 1,319 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (45743d76d^) — the conversion's parent.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";

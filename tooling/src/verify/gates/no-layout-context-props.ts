@@ -8,6 +8,7 @@
 // POPULATION PORT: byte-identical to the legacy `@client` + `@ui` scan roots — the two packages that author
 // JSX. The root fence is a NARROWING, so mustPass[2] places the same attribute in `@server` and proves it
 // bites; without that row, deleting the fence would only ever ADD findings at sites no row visits.
+// LEGACY SHA: (45743d76d^) — the conversion's parent.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

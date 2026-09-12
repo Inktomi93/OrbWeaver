@@ -1,5 +1,14 @@
 // Gate: commented-code — parked `//` code statements are deleted; comments explain why.
 // TypeScript's shared trivia reader distinguishes real comments from string and template data.
+//
+// FAMILY: a declared SINGLETON under its own id. `lib/comment-spans.ts#forEachCommentRange` is a shared
+// PRIMITIVE many policies ride, not a family reader — a shared primitive is not a family — and no other
+// policy asks whether a comment is parked code.
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: (p) => !p.startsWith("tooling/src/verify/gates/")`
+// is `of: "all"` minus that same directory.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 7,228 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (e656ce65d^) — the conversion's parent.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { forEachCommentRange } from "../lib/comment-spans.ts";

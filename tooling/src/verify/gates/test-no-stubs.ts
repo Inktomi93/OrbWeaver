@@ -20,6 +20,15 @@
 // the ASSERTION file out of `tests/` and the policy stops seeing it — the stub still flags, the row
 // still reads `count: 1`, and the cross-file claim becomes vacuous while staying green. That is why the
 // paths are load-bearing and not decoration.
+//
+// FAMILY: a declared SINGLETON under its own id. No sibling asks whether a test block carries an
+// assertion, and there is no shared `lib/` computation behind reconciling calls by node range.
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: (p) => p.includes("tests/")` is exactly `@tests`.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 2,928 admitted on both sides, symmetric difference ZERO in both directions.
+// (The `POPULATION COORDINATES` paragraph above is about a proof row's `files` map, NOT about this port —
+// a §5b.5 census keying on the word alone reads it as one, which is why this is its own labelled field.)
+// LEGACY SHA: (61aa46279^) — the conversion's parent.
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

@@ -29,6 +29,7 @@
 // definition, not a call to a write verb) and `contracts` carries wire shapes, neither of which this
 // predicate's AST shapes match. Widening bought no coverage and would have let a db/contracts file "carry"
 // this family's reads/writes with no real consumer having asked for it.
+// LEGACY SHA: (35bf7d328^) — the conversion's parent.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

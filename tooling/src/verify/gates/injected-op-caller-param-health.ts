@@ -3,6 +3,19 @@
 // shared verbatim), plus the blindness tripwire on the `@orb/kit/ids` entity-id derivation both policies
 // share. Reuses the sibling's own AST-attribution machinery (the TypeAliasDeclaration + Identifier
 // ancestor-walk pair) rather than re-deriving a second reader for the same subject.
+//
+// FAMILY: `injected-op-caller-param`, shared with the occurrence sibling this was split out of. The
+// shared computation is `CALLER_FREE_OPS` / `deriveEntityIdTypes` / `IDS_MODULE`, and TODAY those are
+// imported FROM THE SIBLING GATE MODULE — the shape the owner banned on 2026-09-12 (#2091/#2096: a gate
+// module never imports another gate module; a shared predicate moves to `lib/<family>.ts`). Recorded as
+// what it is rather than as a `lib/` reader that does not exist; the move is code work, not a header edit.
+// POPULATION PORT: a CORRECTION, inherited — no legacy descriptor of its own, so the port is the parent's.
+// Legacy `scanRoot` was `packages/server/src/domain/*/contract/` OR the one `@orb/kit/ids` module; the
+// declaration above is `["@server", "@kit", "@db"]`. Re-derived 2026-09-12 over the same 7,537-path
+// compiler-source candidate set: 178 legacy vs 1,596 final, 1,418 admitted only by the final and ZERO
+// only by legacy — a pure WIDENING, which is the direction a two-sided ratchet needs: it must see every
+// op declaration AND every caller, not only the contract directories the legacy predicate named.
+// LEGACY SHA: (f693a27a9^) — the parent of the commit that split this policy out.
 import type { TypeAliasDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

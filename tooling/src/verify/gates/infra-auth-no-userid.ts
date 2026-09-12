@@ -11,6 +11,11 @@
 // POPULATION: `@server` narrowed to `infra/auth/**`, a tier directory rather than a package. The
 // `under` fence is what makes the policy a tier rule rather than a spelling ban, so mustPass[1] places the
 // same identifier in `domain/sessions/verbs/` and proves the fence bites.
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot` was `/\/packages\/server\/src\/infra\/auth\//u`
+// over `/${p}`, which is exactly the `@server` root plus the `under` fence above.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 16 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (45743d76d^) — the conversion's parent.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

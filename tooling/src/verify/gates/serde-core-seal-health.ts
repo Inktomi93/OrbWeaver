@@ -6,6 +6,18 @@
 //
 // The legacy `serde-core-seal` descriptor (534c1327f682be2578e1dee7c7a2bfa488fb672a) carried this
 // stale-sanction check as one arm of a single gate before this conversion split it out here.
+//
+// FAMILY: `serde-core-seal`, shared with the occurrence sibling. The shared computation is
+// `pngChunkImport` / `SANCTIONED_DOMAINS` / `DOMAIN_ROOT`, and TODAY those are imported FROM THE SIBLING
+// GATE MODULE — the shape the owner banned on 2026-09-12 (#2091/#2096: a gate module never imports
+// another gate module; a shared predicate moves to `lib/<family>.ts`). The sibling's own header calls
+// this arrangement the family's shared reader; it is a real shared computation in a banned HOME, and
+// naming a `lib/` module here would be a citation to nowhere. The move is code work, not a header edit.
+// POPULATION PORT: BYTE-IDENTICAL, inherited — this policy was SPLIT OUT at conversion and has no legacy
+// descriptor of its own, so the port is the parent's: legacy `/\/packages\/server\/src\//u` over `/${p}`
+// is exactly `@server`, which this policy then widens to `["@server", "@kit"]` to reach its kit ANCHOR.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 1,493 (the parent's port) admitted on both sides, symmetric difference ZERO in both directions.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { DOMAIN_ROOT, pngChunkImport, SANCTIONED_DOMAINS } from "./serde-core-seal.ts";

@@ -1,5 +1,16 @@
 // Gate: verb-naming — each server verb module exports the callable create<Pascal(filename)> factory.
 // Export and callable identity use the compiler surface; comments and same-spelled types are inert.
+//
+// FAMILY: a declared SINGLETON under its own id. `lib/ast-read.ts#unwrapExpression` is a shared PRIMITIVE,
+// not a family reader, and no sibling policy reads a verb module's exported factory name.
+// POPULATION PORT: a CORRECTION. Legacy `scanRoot` was
+// `/\/packages\/server\/src\/domain\/[^/]+\/(?:[^/]+\/)*verbs\/(?:[^/]+\/)*[^/]+\.ts$/u` over `/${p}`,
+// which admits a verbs BARREL. Re-derived 2026-09-12 over the same 7,537-path compiler-source candidate
+// set: 469 legacy vs 458 final, ZERO admitted only by the final and 11 only by legacy — every one a
+// `verbs/**/index.ts`. A barrel re-exports factories rather than declaring one, so the legacy predicate
+// could only ever have false-positived on them; `notNamed: ["index.ts"]` is that fix — a narrowing with a
+// stated reason, not a port.
+// LEGACY SHA: (b27a8950d^) — the conversion's parent.
 import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
