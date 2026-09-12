@@ -439,6 +439,31 @@ rot the way a roster does:
 the family record gives you the NAMED reader and the split. `uncovered-gate-conversion-census.md` is the ordering
 source; the family record is why a row is where it is.
 
+### THE CHECKPOINT'S RESUME ORDER, SWEPT — item 1 and item 2b were open for six days (2026-09-12)
+
+`checkpoint-2026-09-05.md` §"Resume order" is a five-item work list written 2026-09-06, and the read list
+ranks it tier 5 for exactly this reason: **it is a live queue, not a receipt.** Item 2a
+(the barrel-re-export refusal) was rediscovered from the other end by a lane on 2026-09-12 after being
+skipped through 41 conversions. So the whole list was swept, per item, against the tree. **Re-derive a
+state cell before acting; the SHAPES below are engineering and do not rot.**
+
+| # | Item | State on 2026-09-12 |
+| - | - | - |
+| 1a | move the 15 exported reader verdict types from `verify/lib/**` into `verify/contract/` | **OPEN — #1988**, and the row sits at **Needs owner while this document already picked the arm** (the code edit, not a population edit), twice. The count ratcheting 15 → 18 → 19 is an unexecuted item, not an undecided one. What is genuinely owner scope is only *now vs at the Phase F cutover* |
+| 1b | give `origin-verdict.test.ts`'s Project-building rows the house `scaledBudget` | **OPEN — folded into #1985** as a second instance. Measured: **3** Projects built, **zero** budget lines, on vitest's bare 5000 ms default, while **11** specs in the same directory already use `scaledBudget`. A missed site in an established idiom |
+| 2a | the barrel-re-exported-import refusal, as a NARROWER condition | **IN FLIGHT — #2009**, lane `p-rawid-door`, arm A |
+| 2b | the `QualifiedName` normalizer | **OPEN — #2015 (filed by this sweep).** Measured: the only `Node.isQualifiedName` under `verify/lib/` is `browser-contract-reader.ts:435`, a single-consumer DOM-world reader; no origin reader handles the shape. It is **#2009's defect one syntactic space over** — value-space door vs type-space reference — so it is the WARM LEG for that lane, never a fresh spawn |
+| 2c | the DOM-global receiver precision | **UNADJUDICATED, and the STALENESS RULE bites hardest here.** The claim ("the DOM-less program leaves `window`/`self`/bare DOM globals fail-closed rather than precise") predates #1351's browser-world work. Two tree facts pull against it: `lib/reference-fact-global.ts:19` names `globalThis`/`self`/`window` explicitly, and guide §4.1 records a MEASURED case where a bare `localStorage` resolves as the ambient global with an empty member path and takes the **PRECISE** message. **Owes a probe, not an assertion** |
+| 2d | remeasure the composed pass idle as the cutover cost row | Phase F work; the guide's §7 retirement list already carries it |
+| 3 | static-class parity, then the class/style family | LARGELY LANDED — the raw-CSS family, ui-token-surface (3) and both tier-home twins converted; guide §6 carries the receipts |
+| 4 | the conversion bulk, 12–15 per lane | **IS Phase D.** This is the spine |
+| 5 | the atomic loader/CLI/report/scaffold cutover | **IS Phase F**, and its own framing is superseded — mixed runtime replaced atomic cutover (guide §1) |
+
+**The rule this sweep is an instance of:** a resume order, a deferred roster and a recorded refusal are the
+same shape — a list written against a tree that then moved, with nothing two-sided holding it. Each has now
+cost this program a rediscovery (item 2a here, 5 silently-stale rows in #2008, `runner-config-path-liveness`
+in #2013). **When you inherit a list, sweep it per row before you work from it.**
+
 ### ~~#2006 — five gates accuse correct code~~ **CLOSED `ae2e935d3`, and the PRICE was wrong, not the finding**
 
 **Re-priced P1 → P2 by the one measurement nobody had taken: the real-tree instance count is ZERO on all six.**
