@@ -38,11 +38,29 @@ findings were already CLOSED. Do not repeat that.
 | 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | 25 KB | **in full — this is the work queue.** 91 defects, each with its state on today's tree |
 | 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | 155 KB | in full — **except** the last one's 1,600-line `path:line` appendix, whose own banner says every count in it is to re-derive, never quote |
 | 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | 78 KB | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
+| 5b | **`tooling/src/verify/contract/*.ts` HEADERS — the law you will otherwise rediscover** | **112 KB of comment** in 66 files | **READ THE HEADERS, not the types.** Ten run 20-32 lines before the first export. Start with `resource-declaration` · `resource-json` · `resource-mirror` · `resource-path` · `resource-document` · `resource-installed` · `run-manifest`, plus `lib/resource-declaration.ts`'s `readyResourceValue` header |
 | 6 | `Core-Enforcement-Active-Gates.md` | 281 KB | **ONCE per program, then by ROW.** 275 dense rows; after one pass read only the row you are about to break |
 | 7 | the 16 family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | \~300 KB | **read the ONE whose family you are dispatching.** `schema-fact-family-1584.md`'s "Explicit blockers" names five Phase-D modules' exact missing reader |
 | — | **`v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch`** | \~430 KB | **DO NOT READ. Send a lane.** Their conclusions are in the ledger (#3) and their METHOD is in guide §4.1 |
 
-**The evidence that row 8 is a rule and not a preference:** both audit waves read in full on 2026-09-12 led
+**WHY 5b IS RANKED ABOVE THE 281 KB ROSTER, and it is the correction that cost the most this session.**
+Constitution `AGENTS.md`: ***"Per-domain law is the CODE + its file headers — the per-domain docs were
+gutted (the code is the doc)."*** A session that plans its reading out of `docs/` is reading the wrong half
+of this repo. Measured 2026-09-12: **over HALF of `contract/`'s bytes are comment**, and three things this
+session "discovered" the hard way were already written there or in the checkpoint —
+
+- that a resource policy can never observe a non-ready resource (so a `-health` sibling is impossible):
+  **`lib/resource-declaration.ts`'s header, directly above `readyResourceValue`**;
+- the refusal doctrine AND its reopening bar of two-or-more independent consumers:
+  **`contract/resource-declaration.ts`'s header**;
+- the barrel-re-export reader gap: `checkpoint-2026-09-05.md:206`, and it is **item 2 of that document's own
+  Resume order**, open for six days.
+
+**So: when a question is about a CONTRACT — what a declaration means, what a status guarantees, what a phase
+orders — read the contract file's header before any design doc.** The design docs state the program; the
+headers state the mechanism, and the mechanism is what a lane needs.
+
+**The evidence that the audit-wave row is a rule and not a preference:** both audit waves read in full on 2026-09-12 led
 with a defect **already closed on `main`** — wave 3's #1966 fail-open (closed by `policy-pass.ts:729`) and
 wave 2's D1 `ctx.relativePath` escape (closed by `lib/declaration-home.ts`, with each repaired module citing
 that audit in its own `mustPass` `why`). An audit wave is an UPPER BOUND with a timestamp.
