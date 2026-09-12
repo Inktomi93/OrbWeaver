@@ -189,8 +189,29 @@ tree tells you the moment a fix breaks a row.
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
 
-   **THE SWEEP IS OVER — RULED 2026-09-12. Audit only a family you are about to hand a lane as a copy
-   target.** Waves 1-10 audited **112 of 167**; the remaining \~55 do NOT get swept. The reason is #1971:
+   **THE BAR IS PLANE COVERAGE, NOT A MODULE COUNT — AMENDED 2026-09-12 by the owner, hours after I set it
+   wrong.** I first ruled the sweep over at "112 of 167", which is a count with no relationship to what the
+   audit is FOR. The owner's correction: *"isn't the audit to make sure the new gates we already have are
+   actually properly set and exemplar pristine so future gates can copy off them?"* That is §5b's own stated
+   purpose, and it makes the finish line **one CONFIRMED exemplar per evidence plane, named in guide §3** —
+   which is small and finishable, where 167 is neither.
+
+   **Measured against that bar the corpus was FAILING, and in the law doc.** Guide §3's plane→exemplar table
+   named a REFUTED module for **six of seven planes** — a Phase-D lane sent there picked a refuted shape and
+   copied it. §3 is rewritten with a verdict column; the audit's copy set is now the table a lane reads.
+
+   **ONE PLANE HAS NO CONFIRMED EXEMPLAR: closed RESOURCE.** Both candidates are refuted (`server-layout`
+   SEVERE, `ui-exports-map-complete`), and its class defect #1979 — a silent not-ready return reading CLEAN
+   over a broken fact — has six sites open. **No resource-backed Phase-D family dispatches until one resource
+   module is confirmed.** That is the remaining audit work, and it is ONE family, not \~55 modules.
+
+   **And my justification for stopping was too strong — the verifier refuted it the same day.** I argued
+   \#1971 "mechanized the cheap half". Measured: its arm M judges **27 of 252** `messageIncludes` rows (167
+   unjudged from unreadable modules, 58 from an UNDECLARED zero-hit branch) and carries a reproducible FALSE
+   POSITIVE — a report sink passed as a function PARAMETER is invisible to its census, so an honest row reads
+   as a tautology (live shape in `no-tailwind-dark-variant.ts:158`, `member-card-clamped.ts:46`). The enforcer
+   is real and its four counts reproduce, but it does not replace a reading lane. Waves 1-10 audited
+   **112 of 167**; the remaining \~55 are not swept for their own sake. The reason is #1971:
    the §5b soundness enforcer landed and MECHANIZED the four defect classes a script can catch (wave 1's
    D1, D3, D7, D10), and it reports its own worklist on the commit bar. Spending Opus verifier lanes on
    what a gate now catches every commit is paying twice. What the enforcer still cannot see is §5b.2 (is

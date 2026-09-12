@@ -97,10 +97,25 @@ Gates do NOT all need every capability. Use the smallest complete contract for t
 | `execution: "entire-population"` | the verdict cannot compose over a subset (liveness, completeness, grants, tripwires) |
 | `-health` sibling | an arm that differs in authority or severity from the rest of the module (identical `family`) |
 
-Shape by plane, from the exemplars: pure syntax → `no-array-literal-querykey.ts`; entire-population tripwire →
-`spacing-tier-home-health.ts`; closed resource → `server-layout.ts`; fact consumer → `schema-branding.ts`;
-reviewed-grant identity → `no-raw-matchmedia.ts`; warning debt → `user-bus-deferred-member.ts`; split family →
-`no-raw-spacing-in-features.ts` + its `-health`.
+**SHAPE BY PLANE — and this table was POISONED until 2026-09-12, so read the verdict column.** The §5b audit
+refuted SIX of the seven modules this paragraph used to name, including both it called "Wart: none found". A
+lane sent here picked a refuted shape and copied it, which is the transmission failure §5b exists to stop.
+**The bar for this program is therefore ONE CONFIRMED EXEMPLAR PER PLANE, named here — not a module count.**
+
+| Plane | Copy THIS | Audit verdict | Do NOT copy |
+| - | - | - | - |
+| pure syntax / name-by-law | `no-mutating-register-api.ts` | CONFIRMED (wave 5-6): its `mustPass[3]` `why` says *"the only row that dies without it"* and the cut proved that sentence TRUE | ~~`no-array-literal-querykey`~~ REFUTED — `fix` names no waiver spelling, name fence unenforced |
+| entire-population tripwire | `spacing-tier-home-health.ts` — **HARD tripwire only, and only once it lands its one §4.5 pin** | REFUTED minor; the ANCHOR self-guard IS enforced | its occurrence sibling's HEADER |
+| **closed resource (ResourceHost)** | **NONE. There is no confirmed resource exemplar.** | Both candidates REFUTED: `server-layout` SEVERE (a not-ready guard that CANNOT EXECUTE, `mustFlag[0]` tolerating 8 findings under a one-finding `why`) and `ui-exports-map-complete` (a `messageIncludes` that discriminates nothing, a roster row declaring an arm A4 the module lacks) | ~~both~~. **The class defect is #1979 — a silent not-ready return reads CLEAN over a broken fact, six sites open.** A resource-backed Phase-D family MUST NOT dispatch until one resource module is confirmed |
+| fact consumer (`defineFact`) | `db-enum-from-tuple.ts` | CONFIRMED (wave 3): *"the module to hand a conversion lane"* — 4 of 4 narrowings enforced, 10 exact counts, the strongest identity-counterfactual set in its family | ~~`schema-branding`~~ REFUTED minor — three arm narrowings unenforced |
+| reviewed-grant identity | `no-raw-matchmedia.ts` — **fix #1998 first** (header and roster row say "all four" grants; there are FIVE) | REFUTED SEVERE at wave 1, REPAIRED `b157bb9be`, **wave 7 re-audited and confirmed the repair HELD** — the only module in 26 whose #944 third answer is actually REACHED | — |
+| warning debt | `user-bus-deferred-member.ts` | **CONFIRMED TWICE** (wave 1's sole survivor; wave 10 re-audited it against all five new method rules and it survived). The densest honest header in the corpus | — |
+| split family | `bus-definition-belts.ts` | CONFIRMED (wave 10) — the bus headers are among the corpus's best | ~~`no-raw-spacing-in-features` + `-health`~~ REFUTED — both halves of the carrier-fence claim unenforced in both twins |
+| registry / completeness | `section-registry-completeness.ts` | CONFIRMED (wave 2): 4 of 4 narrowings enforced, both fence rows state their own cut result and both are TRUE, header AND roster row accurate | — |
+
+**The §5b.5 caveat that applies to the whole column:** several confirmed modules still carry an INCOMPLETE
+header (no FAMILY line, no POPULATION PORT, no legacy SHA — #2005). Where that is so, tell the lane to copy
+the module's PROOF shape and take its HEADER from `section-registry-completeness`, which is complete.
 
 Non-negotiables inside a module: no `Project#getSourceFiles`, `getDescendants*`, `forEachDescendant`, `new Project`,
 private cache, private marker parser, gate-owned exemption table, scope predicate or filesystem read; state in
