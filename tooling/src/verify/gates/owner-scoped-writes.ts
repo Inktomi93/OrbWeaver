@@ -20,8 +20,7 @@ import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { isDrizzleWriteStatement, predicatesOwnId, predicatesTableColumn, tableTargetOf, whereArgOf } from "../lib/tenancy-read.ts";
-import { reportBlindWhenEmpty } from "../lib/tenancy-scope.ts";
-import { ownerScopedTableIdents, schemaTableIdents } from "./table-scoping-class.ts";
+import { ownerScopedTableIdents, reportBlindWhenEmpty, schemaTableIdents } from "../lib/tenancy-scope.ts";
 
 const OWNER_COL = "ownerId";
 /** The drizzle write verbs. A `Set`, not a `switch`: the two arms are judged identically — what differs is

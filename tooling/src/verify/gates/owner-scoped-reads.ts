@@ -26,8 +26,7 @@ import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { enclosingFn, hasPostFetchFilter, predicatesOwnId, whereArgOf } from "../lib/tenancy-read.ts";
-import { reportBlindWhenEmpty } from "../lib/tenancy-scope.ts";
-import { ownerScopedTableIdents } from "./table-scoping-class.ts";
+import { ownerScopedTableIdents, reportBlindWhenEmpty } from "../lib/tenancy-scope.ts";
 
 const OWNER_COL = "ownerId";
 
