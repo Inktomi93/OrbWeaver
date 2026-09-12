@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
+import { refusalEnvelope } from "../../../../tooling/src/verify/lib/policy-refusal-envelope.ts";
 import { assertGateFactDescriptor, assertGatePolicyDescriptor } from "../../../../tooling/src/verify/lib/policy-validation.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -423,6 +424,69 @@ test("resource proof file identity comes from descriptor declarations rather tha
     }).replace(/resources\/policy\.json/gu, "tooling/src/proof.ts"),
   });
   await expect(loadPolicyCorpus(scratch)).resolves.toMatchObject({ gates: [{ id: "typescript-resource" }] });
+});
+
+/** A minimal valid policy to hang a `mustRefuse` arm on, one field at a time. */
+function refusingPolicy(mustRefuse: unknown): unknown {
+  return defineGate({
+    id: "refuse-shape",
+    family: "refuse-shape",
+    authority: "hard",
+    severity: "error",
+    population: "@tooling",
+    analysis: "syntax",
+    execution: "selected-files",
+    facts: [],
+    resources: [],
+    message: "fixture",
+    create: () => ({ evaluate: () => undefined }),
+    mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, expect: { count: 1 }, why: "founding defect" }],
+    mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
+    mustRefuse,
+  } as never);
+}
+const REFUSE_ROW = { mode: "source", files: { "tooling/src/proof.ts": "export const refuse = true;\n" }, why: "the designed refusal" } as const;
+
+test("the mustRefuse arm is optional, never empty, and every row carries messageIncludes and nothing else in expect (§4.5b)", () => {
+  // These rules shipped with #1977 and had no pin under tests/tooling until #2111 measured the gap.
+  expect(() => assertGatePolicyDescriptor(refusingPolicy(undefined))).not.toThrow();
+  expect(() => assertGatePolicyDescriptor(refusingPolicy([]))).toThrow(/mustRefuse must contain at least one/i);
+  expect(() => assertGatePolicyDescriptor(refusingPolicy([REFUSE_ROW]))).toThrow(/mustRefuse\[0\]\.expect\.messageIncludes is required/i);
+  expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: " " } }]))).toThrow(
+    /messageIncludes must be a nonempty/i,
+  );
+  for (const key of ["count", "line", "token"] as const) {
+    const forbidden = { ...REFUSE_ROW, expect: { messageIncludes: "BLINDNESS", [key]: key === "token" ? "x" : 1 } };
+    expect(() => assertGatePolicyDescriptor(refusingPolicy([forbidden]))).toThrow(new RegExp(`mustRefuse\\[0\\]\\.expect\\.${key} is forbidden`, "u"));
+  }
+  expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: "BLINDNESS" } }]))).not.toThrow();
+});
+
+test("a mustRefuse messageIncludes that names only the runner's generic refusal envelope is refused at load (#2111, #2109 item 3)", () => {
+  // PER MEMBER: every envelope entry, as the whole needle, is refused — a tuple widened without a control per
+  // member is the shape where one member silently never matches. The envelope's own suite proves what it holds.
+  const members = refusalEnvelope();
+  expect(members.length).toBeGreaterThan(50);
+  for (const member of members) {
+    expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: member } }]))).toThrow(
+      /names only the runner's generic refusal text/u,
+    );
+  }
+  // A SUBSTRING of a member is generic too — containment, not equality.
+  for (const needle of ["ERROR", "OWNER", "[evaluate]", "incomplete", "resolved zero members", "refused: population", "admitted zero paths from"]) {
+    expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: needle } }]))).toThrow(
+      /names only the runner's generic refusal text/u,
+    );
+  }
+  // Policy-AUTHORED text beside the generic words is admitted: the generic piece is a prefix or a slot, never the whole.
+  for (const needle of [
+    "BLINDNESS",
+    'population "final policy modules" resolved zero members',
+    "OWNER incomplete/incomplete: evaluate: BLINDNESS",
+    "resource declaration json:biome is malformed",
+  ]) {
+    expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: needle } }]))).not.toThrow();
+  }
 });
 
 test("the second-wave kinds admit their own closed id vocabularies, and refuse anything else", () => {

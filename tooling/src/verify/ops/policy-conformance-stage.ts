@@ -28,6 +28,7 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { validateReviewedGrants } from "../lib/gate-authority-validation.ts";
 import { loadMixedGateCorpus } from "../lib/loader.ts";
+import { policyProofArmCounts } from "../lib/policy-proof-rows.ts";
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "./policy-conformance.ts";
 
@@ -59,8 +60,9 @@ export async function runPolicyConformance(root: string): Promise<number> {
   const elapsedMs = Math.round(performance.now() - started);
   // Every arm the runner EXECUTES, counted separately: a summary that totals only two of three arms reports a
   // stable row count while a third arm's rows run unmentioned, which is the reading that hid them (#1977).
-  const proofs = corpus.final.reduce((n, policy) => n + policy.mustFlag.length + policy.mustPass.length, 0);
-  const refusals = corpus.final.reduce((n, policy) => n + (policy.mustRefuse?.length ?? 0), 0);
+  const armCounts = corpus.final.map(policyProofArmCounts);
+  const proofs = armCounts.reduce((n, counts) => n + counts.mustFlag + counts.mustPass, 0);
+  const refusals = armCounts.reduce((n, counts) => n + counts.mustRefuse, 0);
   const grantScope = tableInCorpus ? "whole table" : "rows naming loaded policies";
   process.stdout.write(
     `policy-conformance: ${corpus.final.length} final policies · ${proofs} proof rows · ${refusals} refusal rows · ${failures.length} failure(s) · ${rows.length} grant rows (${grantScope}) · ${grants.errors.length} invalid · ${elapsedMs}ms (corpus: ${corpus.files.length} module(s), ${corpus.legacy.length} legacy proven by gate-conformance)\n`,

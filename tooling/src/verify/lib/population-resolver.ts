@@ -2,6 +2,7 @@
 // Every public door validates instead of treating malformed descriptor data as an admit-all default.
 import type { LoadableExt, PopulationExpr, PopulationRef, PopulationRoot, ResolvedPopulation } from "../contract/population.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../contract/population.ts";
+import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 
 const ROOT_REFS = new Set<string>(Object.keys(POPULATION_ROOTS));
 const SET_REFS = new Set<string>(Object.keys(POPULATION_SETS));
@@ -325,10 +326,10 @@ export function resolvePopulation(expr: PopulationExpr, candidatePaths: readonly
   const paths = candidates.filter(includes).sort();
   const explicitNone = isRecord(expr) && "of" in expr && expr["of"] === "none";
   if (!explicitNone && candidates.length === 0) {
-    throw new Error("Invalid population resolution: candidate corpus is empty");
+    throw new Error(POLICY_PASS_REFUSALS.populationEmptyCorpus);
   }
   if (!explicitNone && paths.length === 0) {
-    throw new Error(`Invalid population resolution: expression admitted zero paths from ${candidates.length} candidate(s)`);
+    throw new Error(`${POLICY_PASS_REFUSALS.populationAdmittedZero} ${candidates.length} candidate(s)`);
   }
   return {
     paths,

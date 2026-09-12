@@ -11,6 +11,7 @@ import {
   discriminationOf,
   enclosingStringExpression,
   finalDescriptorOf,
+  finalRegistrationOf,
   isContextRooted,
   markerFormIdsOf,
   mentionsWaiverOf,
@@ -60,6 +61,22 @@ test("finalDescriptorOf reads a canonical import and refuses a local lookalike a
 
   const aliased = moduleOf('import { defineGate as declare } from "../contract/policy.ts";\nexport const gate = declare({ id: "probe" });\n');
   expect(finalDescriptorOf(aliased)?.getText()).toBe('{ id: "probe" }');
+});
+
+test("finalRegistrationOf sees a NON-LITERAL argument as a registration with no descriptor — the blind spot finalDescriptorOf could not name (#2111 A42)", () => {
+  const indirect = moduleOf(`${CANONICAL_HEAD}const DESCRIPTOR = { id: "probe" };\nexport const gate = defineGate(DESCRIPTOR);\n`);
+  const registration = finalRegistrationOf(indirect);
+  expect(registration).toBeDefined();
+  expect(registration?.descriptor).toBeUndefined();
+  expect(registration?.argument?.getText()).toBe("DESCRIPTOR");
+  // The two readers agree on the literal shape, and on the lookalike.
+  expect(finalDescriptorOf(indirect)).toBeUndefined();
+  const canonical = moduleOf(`${CANONICAL_HEAD}export const gate = defineGate({ id: "probe" });\n`);
+  expect(finalRegistrationOf(canonical)?.descriptor?.getText()).toBe('{ id: "probe" }');
+  const lookalike = moduleOf(
+    'function defineGate(policy: unknown): unknown {\n  return policy;\n}\nexport const gate = defineGate(DESCRIPTOR);\nconst DESCRIPTOR = { id: "probe" };\n',
+  );
+  expect(finalRegistrationOf(lookalike)).toBeUndefined();
 });
 
 test("staticSegments joins what is certain and breaks where text is dynamic", () => {

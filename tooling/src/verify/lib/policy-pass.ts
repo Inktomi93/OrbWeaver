@@ -23,7 +23,7 @@ import type {
   PolicyTiming,
   PolicyToolError,
 } from "../contract/policy-pass.ts";
-import { GATE_FACT_PHASES, POLICY_OWNER_PLAN_MODES, POLICY_PHASES } from "../contract/policy-pass.ts";
+import { GATE_FACT_PHASES, POLICY_OWNER_PLAN_MODES, POLICY_PASS_REFUSALS, POLICY_PHASES } from "../contract/policy-pass.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
@@ -265,7 +265,7 @@ function newRun(policy: GatePolicy): PolicyRun {
     timing: { phaseMs: phaseRecord() },
     findings: [],
     population: EMPTY_POPULATION,
-    owner: { status: "incomplete", population: "incomplete", reason: "population has not resolved" },
+    owner: { status: "incomplete", population: "incomplete", reason: POLICY_PASS_REFUSALS.populationUnresolved },
     files: [],
     effectivePathSet: new Set(),
     hooks: undefined,
@@ -307,10 +307,10 @@ interface ResolutionInput {
 function resolveRun({ run, candidates, sourceFiles, requestedPaths, resources }: ResolutionInput): void {
   const declared = resolvePopulation(run.policy.population, candidates).paths;
   if (run.policy.analysis !== "resource" && resources.length > 0) {
-    throw new Error(`non-resource policy ${run.policy.id} received resource paths`);
+    throw new Error(`non-resource policy ${run.policy.id} ${POLICY_PASS_REFUSALS.nonResourceReceivedResources}`);
   }
   if (isExplicitNone(run.policy) && resources.length === 0) {
-    throw new Error(`resource-only policy ${run.policy.id} resolved no resource paths`);
+    throw new Error(`resource-only policy ${run.policy.id} ${POLICY_PASS_REFUSALS.resourceOnlyNoPaths}`);
   }
   const requestedSet = requestedPaths === null ? null : new Set(requestedPaths);
   const effectiveSourcePaths = requestedSet === null ? declared : declared.filter((path) => requestedSet.has(path));
@@ -333,9 +333,9 @@ function resolveRun({ run, candidates, sourceFiles, requestedPaths, resources }:
   });
   run.effectivePathSet = new Set([...effectiveSourcePaths, ...effectiveResourcePaths]);
   if (requestedSet !== null && effectiveTotal === 0) {
-    run.owner = { status: "not-applicable", population: "complete", reason: "requested selection has an empty policy intersection" };
+    run.owner = { status: "not-applicable", population: "complete", reason: POLICY_PASS_REFUSALS.emptyIntersection };
   } else if (run.policy.execution === "entire-population" && effectiveTotal < declaredTotal) {
-    run.owner = { status: "not-applicable", population: "complete", reason: "entire-population policy deferred for a proper subset selection" };
+    run.owner = { status: "not-applicable", population: "complete", reason: POLICY_PASS_REFUSALS.entireDeferred };
   } else {
     run.owner = { status: "success", population: "complete" };
   }
@@ -454,10 +454,10 @@ function resolveFactRuns({ facts, sourceFiles, resources, control }: ResolveFact
         const declaredSourcePaths = resolvePopulation(fact.population, candidates).paths;
         const declaredResourcePaths = resolveResourceDeclarations(resources, fact.resources);
         if (isExplicitNone(fact) && declaredResourcePaths.length === 0) {
-          throw new Error(`resource-only fact ${fact.id} resolved no resource paths`);
+          throw new Error(`resource-only fact ${fact.id} ${POLICY_PASS_REFUSALS.resourceOnlyNoPaths}`);
         }
         if (declaredSourcePaths.length + declaredResourcePaths.length === 0) {
-          throw new Error(`fact ${fact.id} resolved an empty declared population`);
+          throw new Error(`fact ${fact.id} ${POLICY_PASS_REFUSALS.factEmptyPopulation}`);
         }
         run.population = {
           declaredSourcePaths,
@@ -519,6 +519,12 @@ function createRuns({ runs, paths, resources, checker, errors, factValues }: Cre
     guard(run, "create", errors, () => {
       const hooks = run.policy.create(runtime.context);
       assertGatePolicyHooks(hooks);
+      // `execution` is a CLAIM about composition (§12.1): `entire-population` says the verdict cannot compose over
+      // a subset. The only hook that runs after the WHOLE walk is `evaluate`, so a policy exposing none reports
+      // per node or per file — its verdict composes by construction and the declaration is false (#2111, A21).
+      if (run.policy.execution === "entire-population" && hooks.evaluate === undefined) {
+        throw new Error(`policy ${run.policy.id} ${POLICY_PASS_REFUSALS.entireWithoutEvaluate}`);
+      }
       run.hooks = hooks;
     });
   }
@@ -638,10 +644,10 @@ function receiptFailures(receipt: PolicySemanticReceipt): readonly string[] {
   const label = receipt.kind === "population" ? "members" : "resources";
   const failures: string[] = [];
   if (count === 0) {
-    failures.push(`${receipt.kind} ${JSON.stringify(receipt.source)} resolved zero ${label}`);
+    failures.push(`${receipt.kind} ${JSON.stringify(receipt.source)} ${POLICY_PASS_REFUSALS.receiptResolvedZero} ${label}`);
   }
   if (receipt.unresolved > 0) {
-    failures.push(`${receipt.kind} ${JSON.stringify(receipt.source)} left ${receipt.unresolved} unresolved`);
+    failures.push(`${receipt.kind} ${JSON.stringify(receipt.source)} ${POLICY_PASS_REFUSALS.receiptLeftUnresolvedHead} ${receipt.unresolved} ${POLICY_PASS_REFUSALS.receiptLeftUnresolvedTail}`);
   }
   return failures;
 }
@@ -649,18 +655,18 @@ function receiptFailures(receipt: PolicySemanticReceipt): readonly string[] {
 function factReceiptFailures(run: FactRun): string[] {
   const failures = run.receipts.flatMap(receiptFailures);
   if (run.receipts.length === 0) {
-    failures.push("fact produced no semantic receipt");
+    failures.push(POLICY_PASS_REFUSALS.factNoReceipt);
   }
   if (run.population.effectiveResourcePaths.length > 0 && !run.receipts.some((receipt) => receipt.kind === "resource")) {
-    failures.push("declared fact resource population produced no resource receipt");
+    failures.push(POLICY_PASS_REFUSALS.factNoResourceReceipt);
   }
   const unconsumed = run.unconsumedResources?.() ?? [];
   if (unconsumed.length > 0) {
-    failures.push(`declared fact resource population has unconsumed paths: ${unconsumed.join(", ")}`);
+    failures.push(`${POLICY_PASS_REFUSALS.factUnconsumedPaths}: ${unconsumed.join(", ")}`);
   }
   const unconsumedRequests = run.unconsumedResourceRequests?.() ?? [];
   if (unconsumedRequests.length > 0) {
-    failures.push(`declared fact resource population has unconsumed requests: ${unconsumedRequests.join(", ")}`);
+    failures.push(`${POLICY_PASS_REFUSALS.factUnconsumedRequests}: ${unconsumedRequests.join(", ")}`);
   }
   return failures;
 }
@@ -678,7 +684,7 @@ function finishFactRuns(runs: readonly FactRun[], control: FactControl): void {
     guardFact(run, "receipt", control, () => {
       const failures = factReceiptFailures(run);
       if (failures.length > 0) {
-        throw new Error(`fact receipt refused: ${failures.join("; ")}`);
+        throw new Error(`${POLICY_PASS_REFUSALS.factReceiptRefused}: ${failures.join("; ")}`);
       }
     });
   }
@@ -693,7 +699,7 @@ function withholdFactDependents(runs: readonly PolicyRun[], errors: PolicyToolEr
     if (failed !== undefined) {
       const value = values.get(failed);
       const message = value?.status === "failed" ? value.message : "unknown fact failure";
-      markIncomplete(run, "evaluate", new Error(`declared fact failed: ${failed.id}: ${message}`), errors);
+      markIncomplete(run, "evaluate", new Error(`${POLICY_PASS_REFUSALS.factFailed}: ${failed.id}: ${message}`), errors);
     }
   }
 }
@@ -725,21 +731,21 @@ function policyReceiptFailures(run: PolicyRun): string[] {
   const failures = run.receipts.flatMap(receiptFailures);
   const unconsumedFacts = run.unconsumedFacts?.() ?? [];
   if (unconsumedFacts.length > 0) {
-    failures.push(`declared facts were not consumed: ${unconsumedFacts.join(", ")}`);
+    failures.push(`${POLICY_PASS_REFUSALS.factsNotConsumed}: ${unconsumedFacts.join(", ")}`);
   }
   if (run.policy.facts.length > 0 && run.receipts.length === 0) {
-    failures.push("declared facts produced no semantic receipt");
+    failures.push(POLICY_PASS_REFUSALS.factsNoReceipt);
   }
   if (run.population.effectiveResourcePaths.length > 0 && !run.receipts.some((receipt) => receipt.kind === "resource")) {
-    failures.push("declared resource population produced no resource receipt");
+    failures.push(POLICY_PASS_REFUSALS.resourcesNoReceipt);
   }
   const unconsumed = run.unconsumedResources?.() ?? [];
   if (unconsumed.length > 0) {
-    failures.push(`declared resource population has unconsumed paths: ${unconsumed.join(", ")}`);
+    failures.push(`${POLICY_PASS_REFUSALS.resourcesUnconsumedPaths}: ${unconsumed.join(", ")}`);
   }
   const unconsumedRequests = run.unconsumedResourceRequests?.() ?? [];
   if (unconsumedRequests.length > 0) {
-    failures.push(`declared resource population has unconsumed requests: ${unconsumedRequests.join(", ")}`);
+    failures.push(`${POLICY_PASS_REFUSALS.resourcesUnconsumedRequests}: ${unconsumedRequests.join(", ")}`);
   }
   return failures;
 }
@@ -753,7 +759,7 @@ function evaluateRuns(runs: readonly PolicyRun[], errors: PolicyToolError[]): vo
     guard(run, "receipt", errors, () => {
       const failures = policyReceiptFailures(run);
       if (failures.length > 0) {
-        throw new Error(`policy receipt refused: ${failures.join("; ")}`);
+        throw new Error(`${POLICY_PASS_REFUSALS.policyReceiptRefused}: ${failures.join("; ")}`);
       }
     });
   }

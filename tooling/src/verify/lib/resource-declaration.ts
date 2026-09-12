@@ -3,6 +3,7 @@
 import { PRODUCT_STYLESHEETS } from "../contract/css-family.ts";
 import type { GateFact } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
+import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { ResourceFact } from "../contract/resource.ts";
 import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../contract/resource-artifact.ts";
 import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
@@ -29,7 +30,7 @@ import { assertGateResourceDeclarations, assertRepoPathIdentity } from "./policy
  *  each resource policy. */
 export function readyResourceValue<T>(fact: ResourceFact<T>): T {
   if (fact.status !== "ready") {
-    throw new Error(`resource ${fact.receipt.source} was declared ready by population resolution but came back ${fact.status}: ${fact.reason}`);
+    throw new Error(`resource ${fact.receipt.source} ${POLICY_PASS_REFUSALS.resourceCameBack} ${fact.status}: ${fact.reason}`);
   }
   return fact.value;
 }
@@ -134,7 +135,7 @@ function requestFact(host: ResourceHost, request: GateResourceRequest): Resource
       // A demand kind has no subject at planning time. `resolveResourceDeclarations` never reaches here —
       // it partitions the declarations first — and this arm exists so a future caller that forgets that
       // rule fails LOUDLY instead of acquiring a fact with an empty subject and reading it as a clean zero.
-      throw new Error(`resource declaration ${request.kind} is demand-driven and cannot be acquired without a subject`);
+      throw new Error(`${POLICY_PASS_REFUSALS.resourceDeclaration} ${request.kind} ${POLICY_PASS_REFUSALS.resourceDeclarationDemand}`);
   }
 }
 
@@ -196,15 +197,15 @@ export function resolveResourceDeclarations(host: ResourceHost, requests: readon
     const fact = requestFact(host, request);
     const identity = resourceRequestIdentity(request);
     if (fact.status !== "ready") {
-      throw new Error(`resource declaration ${identity} is ${fact.status}: ${fact.reason}`);
+      throw new Error(`${POLICY_PASS_REFUSALS.resourceDeclaration} ${identity} is ${fact.status}: ${fact.reason}`);
     }
     if (fact.paths.length === 0 || fact.members === 0) {
-      throw new Error(`resource declaration ${identity} resolved an empty fact`);
+      throw new Error(`${POLICY_PASS_REFUSALS.resourceDeclaration} ${identity} ${POLICY_PASS_REFUSALS.resourceDeclarationEmpty}`);
     }
     for (const path of fact.paths) {
       assertRepoPathIdentity(path, `resource declaration ${identity} path`);
       if (!pathBelongsToRequest(request, path)) {
-        throw new Error(`resource declaration ${identity} returned a cross-root fact: ${path}`);
+        throw new Error(`${POLICY_PASS_REFUSALS.resourceDeclaration} ${identity} ${POLICY_PASS_REFUSALS.resourceDeclarationCrossRoot}: ${path}`);
       }
       paths.add(path);
     }

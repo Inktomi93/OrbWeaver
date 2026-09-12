@@ -11,9 +11,11 @@ import type { CoordinatedGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type { PolicyConformanceFailure, PolicyProofArm } from "../contract/policy-conformance.ts";
+import { POLICY_REFUSAL_PREFIXES } from "../contract/policy-conformance.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { declaresModuleName } from "../lib/policy-descriptor-read.ts";
+import { policyProofRows } from "../lib/policy-proof-rows.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
 import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";
@@ -197,31 +199,31 @@ function sanitizeProofRoot(detail: string, root: string): string {
 
 function toolFailure(result: PolicyPassResult, policy: GatePolicy, examplePaths: ReadonlySet<string>): string | null {
   if (result.factErrors.length > 0) {
-    return `FACT TOOL ERROR ${result.factErrors.map(({ factId, phase, message }) => `[${factId}:${phase}] ${message}`).join("; ")}`;
+    return `${POLICY_REFUSAL_PREFIXES.factToolError} ${result.factErrors.map(({ factId, phase, message }) => `[${factId}:${phase}] ${message}`).join("; ")}`;
   }
   if (result.toolErrors.length > 0) {
-    return `PASS TOOL ERROR ${result.toolErrors.map(({ phase, message }) => `[${phase}] ${message}`).join("; ")}`;
+    return `${POLICY_REFUSAL_PREFIXES.passToolError} ${result.toolErrors.map(({ phase, message }) => `[${phase}] ${message}`).join("; ")}`;
   }
   if (result.authority.toolErrors.length > 0) {
-    return `AUTHORITY TOOL ERROR ${result.authority.toolErrors.map(({ kind, message }) => `[${kind}] ${message}`).join("; ")}`;
+    return `${POLICY_REFUSAL_PREFIXES.authorityToolError} ${result.authority.toolErrors.map(({ kind, message }) => `[${kind}] ${message}`).join("; ")}`;
   }
   if (result.authority.authorityAlarms.length > 0) {
-    return `AUTHORITY ALARM ${result.authority.authorityAlarms.map(({ kind, message }) => `[${kind}] ${message}`).join("; ")}`;
+    return `${POLICY_REFUSAL_PREFIXES.authorityAlarm} ${result.authority.authorityAlarms.map(({ kind, message }) => `[${kind}] ${message}`).join("; ")}`;
   }
   const owner = result.policies.find(({ id }) => id === policy.id);
   if (owner === undefined) {
-    return "OWNER RESULT missing";
+    return POLICY_REFUSAL_PREFIXES.ownerMissing;
   }
   if (owner.owner.status !== "success") {
     const reason = "reason" in owner.owner ? `: ${owner.owner.reason}` : "";
-    return `OWNER ${owner.owner.status}/${owner.owner.population}${reason}`;
+    return `${POLICY_REFUSAL_PREFIXES.owner} ${owner.owner.status}/${owner.owner.population}${reason}`;
   }
   if (result.authority.withheldPolicyIds.includes(policy.id)) {
-    return "OWNER complete result was withheld by authority coordination";
+    return POLICY_REFUSAL_PREFIXES.ownerWithheld;
   }
   const outside = result.authority.effectiveFindings.find(({ file }) => !examplePaths.has(file));
   if (outside !== undefined) {
-    return `FINDING OUTSIDE EXAMPLE ${outside.file}:${outside.line}:${outside.column}`;
+    return `${POLICY_REFUSAL_PREFIXES.findingOutsideExample} ${outside.file}:${outside.line}:${outside.column}`;
   }
   return null;
 }
@@ -292,7 +294,7 @@ function proofFailure({ policy, arm, proof, exampleIndex, sequence, shared }: Pr
   if (arm === "mustRefuse") {
     detail = refusalFailure(run, policy, proof);
   } else if (run.thrown !== undefined) {
-    detail = `PASS THREW ${run.thrown}`;
+    detail = `${POLICY_REFUSAL_PREFIXES.passThrew} ${run.thrown}`;
   } else {
     const result = run.result as PolicyPassResult;
     detail = toolFailure(result, policy, proofIdentities(proof));
@@ -337,15 +339,14 @@ export function verifyPolicyProofs(policies: readonly GatePolicy[]): readonly Po
   const shared = new Project({ useInMemoryFileSystem: true });
   let sequence = 0;
   for (const policy of ordered) {
-    // `mustRefuse` is OPTIONAL, so the arm list is derived per policy: a corpus in which no module declares
-    // one runs byte-identically to before the arm existed.
-    for (const arm of ["mustFlag", "mustPass", "mustRefuse"] as const) {
-      for (const [exampleIndex, proof] of (policy[arm] ?? []).entries()) {
-        sequence += 1;
-        const failure = proofFailure({ policy, arm, proof, exampleIndex, sequence, shared });
-        if (failure !== null) {
-          failures.push(failure);
-        }
+    // Every arm the contract names (`POLICY_PROOF_ARMS`, through the one enumeration in `lib/policy-proof-rows.ts`):
+    // `mustRefuse` is OPTIONAL, so an absent arm contributes no row and a corpus in which no module declares one
+    // runs byte-identically to before the arm existed.
+    for (const { arm, index: exampleIndex, proof } of policyProofRows(policy)) {
+      sequence += 1;
+      const failure = proofFailure({ policy, arm, proof, exampleIndex, sequence, shared });
+      if (failure !== null) {
+        failures.push(failure);
       }
     }
   }

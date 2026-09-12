@@ -71,15 +71,21 @@ export interface AuthorityConsumption {
   readonly count: number;
 }
 
+/** The alarm kinds, as ONE tuple: the three alarm interfaces below narrow on it, and the conformance runner's
+ *  refusal envelope (`lib/policy-refusal-envelope.ts`) derives its `[<kind>]` tokens from it — so a fourth
+ *  alarm is one row here and `tsc` finds every reader (string-union dispatch discipline). */
+export const GATE_AUTHORITY_ALARM_KINDS = ["ordinary-waiver", "stale-reviewed-grant", "over-broad-reviewed-grant"] as const;
+export type GateAuthorityAlarmKind = (typeof GATE_AUTHORITY_ALARM_KINDS)[number];
+
 export interface OrdinaryAuthorityAlarm {
-  readonly kind: "ordinary-waiver";
+  readonly kind: Extract<GateAuthorityAlarmKind, "ordinary-waiver">;
   readonly policyId: string;
   readonly message: string;
   readonly waiverId?: string;
 }
 
 export interface StaleGrantAuthorityAlarm {
-  readonly kind: "stale-reviewed-grant";
+  readonly kind: Extract<GateAuthorityAlarmKind, "stale-reviewed-grant">;
   readonly policyId: string;
   readonly grantId: string;
   readonly subject: string;
@@ -88,7 +94,7 @@ export interface StaleGrantAuthorityAlarm {
 }
 
 interface OverBroadGrantAuthorityAlarm {
-  readonly kind: "over-broad-reviewed-grant";
+  readonly kind: Extract<GateAuthorityAlarmKind, "over-broad-reviewed-grant">;
   readonly policyId: string;
   readonly grantId: string;
   readonly subject: string;

@@ -54,7 +54,7 @@
 import type { CallExpression, ObjectLiteralExpression, PropertyAssignment, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
-import { defineGate } from "../contract/policy.ts";
+import { defineGate, POLICY_EXPECTATION_IDENTITY_KEYS } from "../contract/policy.ts";
 import type { StaticSegments } from "../contract/policy-descriptor-read.ts";
 import {
   contextParameterOf,
@@ -196,8 +196,9 @@ function messageCensus(descriptor: ObjectLiteralExpression, walk: ModuleWalk): M
   return { sources: [...state.sources.values()], unreadable: state.unreadable };
 }
 
-/** The identity fields a row can carry BESIDE its count — what tells one arm's findings from another's. */
-const IDENTITY_FIELDS = ["token", "line", "messageIncludes"] as const;
+/** The identity fields a row can carry BESIDE its count — what tells one arm's findings from another's — read
+ *  off the contract's one vocabulary, never re-spelled here (#2111). */
+const IDENTITY_FIELDS = POLICY_EXPECTATION_IDENTITY_KEYS;
 
 /** ARM C's declared exemption (#2001): `countFrom` names the module-level driver whose cardinality the fixture
  *  cannot control, and it is EXACT — the name must resolve in this very module, and the row must still say

@@ -4,9 +4,17 @@ import { SyntaxKind } from "ts-morph";
 import type { GateFact, GateFactHooks } from "../contract/fact.ts";
 import { isDefinedGateFact } from "../contract/fact.ts";
 import { GATE_AUTHORITIES, GATE_SEVERITIES } from "../contract/gate-authority.ts";
-import type { GatePolicy, GatePolicyHooks, GatePolicyProof, GatePolicyProofMode } from "../contract/policy.ts";
-import { GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "../contract/policy.ts";
-import type { PolicyProofArm } from "../contract/policy-conformance.ts";
+import type { GatePolicy, GatePolicyHooks, GatePolicyProof, GatePolicyProofMode, PolicyField, PolicyProofArm } from "../contract/policy.ts";
+import {
+  GATE_POLICY_EXECUTIONS,
+  GATE_POLICY_PROOF_MODES,
+  POLICY_EXPECTATION_KEYS,
+  POLICY_FIELDS,
+  POLICY_HOOK_KEYS,
+  POLICY_OPTIONAL_FIELDS,
+  POLICY_PROOF_ARMS,
+  POLICY_PROOF_KEYS,
+} from "../contract/policy.ts";
 import type { GatePolicyAnalysis } from "../contract/policy-primitives.ts";
 import { GATE_POLICY_ANALYSES } from "../contract/policy-primitives.ts";
 import type { PopulationExpr } from "../contract/population.ts";
@@ -19,45 +27,19 @@ import { INSTALLED_PACKAGE_IDS, INSTALLED_PACKAGE_MODES } from "../contract/reso
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { MIRROR_FAMILY_DEFINITIONS } from "../contract/resource-mirror.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
+import { genericRefusalTextContaining } from "./policy-refusal-envelope.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertPopulationExpr } from "./population-resolver.ts";
 
-const POLICY_KEYS = new Set([
-  "id",
-  "family",
-  "authority",
-  "severity",
-  "workItem",
-  "population",
-  "analysis",
-  "execution",
-  "facts",
-  "resources",
-  "message",
-  "fix",
-  "create",
-  "mustFlag",
-  "mustPass",
-  "mustRefuse",
-]);
-const REQUIRED_POLICY_KEYS = [
-  "id",
-  "family",
-  "authority",
-  "severity",
-  "population",
-  "analysis",
-  "execution",
-  "facts",
-  "resources",
-  "message",
-  "create",
-  "mustFlag",
-  "mustPass",
-] as const;
-const PROOF_KEYS = new Set(["mode", "files", "links", "expect", "why"]);
-const EXPECT_KEYS = new Set(["count", "countFrom", "line", "token", "messageIncludes"]);
-const HOOK_KEYS = new Set(["visitors", "visitFile", "evaluate"]);
+// The key sets DERIVE from the contract's vocabularies (`contract/policy.ts`, one table per vocabulary, held
+// two-sided against the interfaces by `tsc`): a field, arm or key added there is refused, required and admitted
+// here with no second edit (#2111).
+const POLICY_KEYS: ReadonlySet<string> = new Set(POLICY_FIELDS);
+const OPTIONAL_POLICY_KEYS: ReadonlySet<PolicyField> = new Set(POLICY_OPTIONAL_FIELDS);
+const REQUIRED_POLICY_KEYS: readonly PolicyField[] = POLICY_FIELDS.filter((field) => !OPTIONAL_POLICY_KEYS.has(field));
+const PROOF_KEYS: ReadonlySet<string> = new Set(POLICY_PROOF_KEYS);
+const EXPECT_KEYS: ReadonlySet<string> = new Set(POLICY_EXPECTATION_KEYS);
+const HOOK_KEYS: ReadonlySet<string> = new Set(POLICY_HOOK_KEYS);
 const VISITOR_KEYS = new Set(["kinds", "visit"]);
 const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const ASCII_C0_MAX = 0x1f;
@@ -178,7 +160,14 @@ function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: strin
 /** The `mustRefuse` expectation is the INVERSE of the other two arms': the pass produces no findings at all,
  *  so `count`/`line`/`token` have nothing to describe, and `messageIncludes` is the only thing that can
  *  discriminate a fired refusal from an unreachable branch. Requiring it here — at load, for every row — is
- *  what stops the arm becoming the sanctioned home for a proof that passes either way (#1977). */
+ *  what stops the arm becoming the sanctioned home for a proof that passes either way (#1977).
+ *
+ *  AND THE SUBSTRING MUST NAME THE POLICY'S OWN REFUSAL, NOT THE RUNNER'S WRAPPER (#2111, #2109 item 3). The
+ *  runner proves the row by `refusal.includes(messageIncludes)` over a text it wraps in its own words, so a
+ *  needle that sits inside a GENERIC piece — `"ERROR"` in `PASS TOOL ERROR`, `"[evaluate]"`, `"OWNER"`,
+ *  `"resolved zero members"` — holds on ANY refusal of that shape and proves nothing about this policy. The
+ *  envelope is derived from the same contract constants the runner and the dispatcher compose from
+ *  (`lib/policy-refusal-envelope.ts`), so the refusal here cannot drift from the text out there. */
 function assertRefusalExpectation(value: unknown, label: string): void {
   const expectation = record(value, label);
   exactKeys(expectation, EXPECT_KEYS, label);
@@ -188,6 +177,12 @@ function assertRefusalExpectation(value: unknown, label: string): void {
     }
   }
   nonBlank(expectation["messageIncludes"], `${label}.messageIncludes`);
+  const generic = genericRefusalTextContaining(expectation["messageIncludes"] as string);
+  if (generic !== undefined) {
+    invalid(
+      `${label}.messageIncludes names only the runner's generic refusal text (${JSON.stringify(expectation["messageIncludes"])} sits inside ${JSON.stringify(generic)}), which every refusal of that shape carries — name the text this policy's OWN refusal emits`,
+    );
+  }
 }
 
 function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string, allowExpectation: boolean): asserts value is GatePolicyProof {
@@ -465,12 +460,14 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
   if (isExplicitNone(policy["population"] as PopulationExpr) && policy["analysis"] !== "resource") {
     invalid('population {of:"none"} is valid only for resource analysis');
   }
-  assertProofArm(policy["mustFlag"], policy["analysis"] as GatePolicyAnalysis, "mustFlag");
-  assertProofArm(policy["mustPass"], policy["analysis"] as GatePolicyAnalysis, "mustPass");
-  // OPTIONAL, and an EMPTY array is refused rather than tolerated: `mustRefuse: []` reads as "this policy has
-  // a refusal arm" while proving nothing, which is the declared-limit-shaped lie the arm exists to replace.
-  if (Object.hasOwn(policy, "mustRefuse")) {
-    assertProofArm(policy["mustRefuse"], policy["analysis"] as GatePolicyAnalysis, "mustRefuse");
+  // Every arm the contract names, in its order. An OPTIONAL arm (`mustRefuse`) is validated only when present,
+  // and an EMPTY array is refused rather than tolerated: `mustRefuse: []` reads as "this policy has a refusal
+  // arm" while proving nothing, which is the declared-limit-shaped lie the arm exists to replace.
+  for (const arm of POLICY_PROOF_ARMS) {
+    if (OPTIONAL_POLICY_KEYS.has(arm) && !Object.hasOwn(policy, arm)) {
+      continue;
+    }
+    assertProofArm(policy[arm], policy["analysis"] as GatePolicyAnalysis, arm);
   }
 }
 

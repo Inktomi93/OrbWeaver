@@ -7,6 +7,7 @@ import { SyntaxKind } from "ts-morph";
 import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import { gate as verifyRegistryParity } from "../../../../tooling/src/verify/gates/verify-registry-parity.ts";
 import { POLICY_CONFORMANCE_TEMP_PREFIX, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -266,6 +267,30 @@ test("tool failures, authority failures, bad receipts, and population mismatch f
   expect(failures.find(({ policyId }) => policyId === "bad-receipt")?.detail).toMatch(/^PASS TOOL ERROR .*resolved zero members/u);
   expect(failures.find(({ policyId }) => policyId === "bad-reviewed-finding")?.detail).toMatch(/^AUTHORITY TOOL ERROR /u);
   expect(failures.find(({ policyId }) => policyId === "population-mismatch")?.detail).toMatch(/OWNER .*incomplete|PASS TOOL ERROR/u);
+});
+
+test("a countFrom row names a driver the policy's own module declares, and an unknown driver fails the row by name (#2001, pinned #2111)", () => {
+  // `countFromFailure` reads the policy's REAL module off the checkout (`tooling/src/verify/gates/<id>.ts`), so
+  // the carrier is a live corpus policy that declares one — mutating a COPY of its descriptor keeps the module
+  // on disk untouched and never plants anything. The positive arm is that policy's own rows, which the stage
+  // already runs; the negative arm is the same row naming a driver the module binds nowhere.
+  const declared: readonly GatePolicyProof[] = verifyRegistryParity.mustFlag;
+  const rows = declared.map((row, index) => ({ row, index })).filter(({ row }) => row.expect?.countFrom !== undefined);
+  expect(rows.length).toBeGreaterThan(0);
+  const [first] = rows;
+  if (first === undefined) {
+    throw new Error("unreachable: asserted above");
+  }
+  const forged = defineGate({
+    ...verifyRegistryParity,
+    mustFlag: [{ ...first.row, expect: { ...first.row.expect, countFrom: "NO_SUCH_DRIVER" } }],
+    mustPass: verifyRegistryParity.mustPass.slice(0, 1),
+  } as GatePolicy);
+  const failures = verifyPolicyProofs([forged]);
+  expect(failures.map(({ arm, exampleIndex }) => `${arm}[${exampleIndex}]`)).toEqual(["mustFlag[0]"]);
+  expect(failures[0]?.detail).toMatch(
+    /expect\.countFrom names NO_SUCH_DRIVER, which tooling\/src\/verify\/gates\/verify-registry-parity\.ts declares nowhere at module scope/u,
+  );
 });
 
 test("resource proofs materialize exact content and clean temp roots after success and throw", () => {
