@@ -429,7 +429,12 @@ export const gate = defineGate({
     {
       mode: "types",
       files: { "packages/ui/src/probe.ts": 'const label = `Hello ${"world"}!`;\n' },
-      why: "DECLARED LIMIT — a template outside any class-carrying position is prose, not paint; only className/class-callee/`base` sites are judged. §4.1: delete the `isClassCarrier` guard and this row reds",
+      why: "DECLARED LIMIT — a template outside any class-carrying position is prose, not paint; only className/class-callee/`base` sites are judged. §4.1: delete the `isClassCarrier` guard and this row reds. WHICH BRANCH it holds, stated exactly because the guard has four: this template's walk reaches a `VariableStatement` and stops on the BOUNDARY branch — it never meets a `JsxAttribute`, so it says nothing about the attribute-NAME test. The row below is that branch's",
+    },
+    {
+      mode: "types",
+      files: { "packages/ui/src/probe.tsx": 'const side = "end";\nconst x = <div title={`inset-${side}-0 p-2`} />;\n' },
+      why: "THE ATTRIBUTE-NAME HALF of `carrierVerdict` (`CLASS_ATTRIBUTE.test(a.getNameNode().getText())`), which nothing reached: the splice is `mustFlag[0]` BYTE FOR BYTE — an unsafe `inset-${side}-0` junction that paints nothing — and the ONLY thing saving it is that the JSX attribute is named `title` rather than `class`/`className`. A `title` is prose; Tailwind's scanner never reads it. Make the attribute test unconditionally true and this row flags. Note the branch is a DEFINITE `false`, not `undefined`: a non-class JSX attribute STOPS the ancestor walk rather than deferring to an outer carrier, which is what keeps a class-named ancestor from reclaiming it",
     },
     {
       mode: "types",
