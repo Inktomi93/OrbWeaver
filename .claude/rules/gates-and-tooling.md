@@ -100,7 +100,7 @@ paths:
     evaluate/visitFile/visitors; every anchor inside the policy's own population; `facts: []` explicit;
     direct walks are banned regardless of receiver.
   - **Conversions are program work:** no board row per gate or batch; the orchestrator posts your receipt on
-    #1584. Only defects, prerequisites and decisions get rows, and only the orchestrator files them.
+    \#1584. Only defects, prerequisites and decisions get rows, and only the orchestrator files them.
 - **NATIVE CONFIG OWNERSHIP — two mechanisms, do not confuse them (world program #1351).**
   - **GENERATED:** the TypeScript configs. `tooling/src/_shared/type-config-intent.ts` is the source;
     `verify baseline type-configs` writes the world templates and runnable configs, `--check` verifies freshness
