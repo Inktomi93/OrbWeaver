@@ -408,9 +408,8 @@ family.
    has no prefilter because it never needed one, so the requirement is invisible until the branch is flipped. **Two
    lanes converged on that header independently on 2026-09-12**, neither knowing the other's work: one took
    `tooling-instrument-proof` from **654 unsuppressible findings to 0** where the ruled global-first fix had reached
-   57 — all of them the same defect — (lane `p-hooks-wave-refute`; its sha is on the `tooling-instrument-proof` row
-   of `../reviews/gate-runtime/refutation-ledger-2026-09-12.md`, because a commit cannot cite itself and a rebase
-   orphans one that tries) and the other repaired `vector-scope-derived` (`b36f782a8`). **Keep the
+   57 — all of them the same defect — (`960e21cf9`, lane `p-hooks-wave-refute`) and the other repaired
+   `vector-scope-derived` (`b36f782a8`). **Keep the
    builtin/foreign row as the prefilter's §4.1 pin, never as a dead global-first branch:** under a name prefilter a
    builtin never reaches the origin reader, so that branch is unreachable and its `mustPass` would be green for the
    wrong reason (§4.5b's dead-arm class).
