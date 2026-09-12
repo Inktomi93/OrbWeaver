@@ -63,6 +63,15 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "rollResolved" },
       why: 'the array-belt hole: `satisfies readonly U["type"][]` proves membership, never totality, so an omitted member type-checks and disappears from every ratchet',
     },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/rpg/bus.ts":
+          'export type RpgBusEvent = { type: "sheetChanged" } | { type: "rollResolved" };\nexport const RPG_BUS_EVENT_TYPES = ["sheetChanged", "rollResolved", "ghost"] as const satisfies readonly RpgBusEvent["type"][];\n',
+      },
+      expect: { count: 1, messageIncludes: "not in the union: ghost" },
+      why: "THE FOREIGN ARM (#2047), which no row exercised before: the belt is TOTAL, so the `missing` half reports nothing and only `foreign` can produce this finding — cut that filter and the row goes silent. It also settles the question the shape invites: a foreign member IS a `satisfies` error, so the arm looks compile-time-impossible and therefore unfalsifiable, but the conformance runtime never asserts zero TS diagnostics, so the fixture runs and the arm fires. The `messageIncludes` is load-bearing twice over — a belt that is BOTH short and foreign keeps `count` at 1 across the cut, so a bare count proves neither half",
+    },
   ],
   mustPass: [
     {

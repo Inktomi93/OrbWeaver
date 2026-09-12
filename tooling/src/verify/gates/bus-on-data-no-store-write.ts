@@ -11,8 +11,24 @@
 // is derived from the name node rather than an `indexOf` on the call text so a nested `.setState(` in an
 // argument cannot steal the anchor; the token stays an exact source slice, which `locateFinding` enforces.
 //
-// The legacy `bus-onData-no-store-write` descriptor (2f3f070c693f54f0f482c067b8627f21efec9da6) carried
-// this same check before the batch that converted the mechanical gates renamed it onto this file.
+// FAMILY: a DECLARED SINGLETON, and the reason is that its subject has no second asker. Every other bus
+// policy asks a question about the bus VOCABULARY — which unions exist, which members are belted, which
+// members have a producer — and reads it from a shared fact (`lib/bus-definition-fact.ts`,
+// `lib/bus-fact.ts`). This one asks nothing about the vocabulary at all: it is a pure SYNTAX fence over one
+// callback's body inside one directory, and it would not be improved by a reader. A shared theme ("bus") is
+// explicitly not a family (§5b.4), which is why it does not join `bus-definition` or `bus-fact`.
+//
+// POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
+// `(p) => p.includes("packages/client/src/data/bus/")` (`45743d76d^:tooling/src/verify/gates/
+// bus-onData-no-store-write.ts:35`); the final population is `{ in: ["@client"], under:
+// ["packages/client/src/data/bus/**"] }`, the same prefix expressed in the algebra. The `under:` subtree is
+// the SUBSCRIPTION SEAM's own directory — the only place a bus `onData` is wired — so the fence is a
+// statement about where the subject lives, not a narrowing of the law.
+//
+// The legacy `bus-onData-no-store-write` descriptor is at `45743d76d^` (the mechanical-gate conversion
+// commit deleted the camelCase file and landed this one). The SHA this header carried until #2047
+// (`2f3f070c693f54f0f482c067b8627f21efec9da6`) named a later unrelated checkpoint commit where NEITHER
+// filename exists — a citation that resolved to nothing, found by `git cat-file -e`.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -93,7 +109,24 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/data/bus/setup.ts": "export function init() {\n  useX.setState({ a: 1 });\n}\n" },
-      why: "a .setState OUTSIDE any onData/onConnectionStateChange body (top-level) — the insideHandler false branch, passes",
+      why: "a .setState OUTSIDE any onData/onConnectionStateChange body (top-level) — the insideHandler false branch, passes. THIS ROW IS CARRIED BY THE NODE-KIND HALF ALONE: `init()` is a FunctionDeclaration, so it has no PropertyAssignment/MethodDeclaration ancestor at all and this row reds with `HANDLER_NAMES` deleted. The two rows below split the fence's other halves apart",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/data/bus/other-handler.ts": "export const sub = {\n  onError: () => {\n    useX.setState({ a: 1 });\n  },\n};\n" },
+      why: "§4.1 NARROWING (WHICH HANDLER): `HANDLER_NAMES.has(cur.getName())`. A raw .setState inside a subscription callback this policy does NOT name — `onError` is an error path, not the canon-carrying data path — passes. The fence was unpinned before #2047: `mustPass[1]` above reds on the node-KIND half alone, so deleting the handler-NAME set left every row green and the policy would have banned .setState in EVERY object-literal method in the directory",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/data/bus/replace.ts": "export const sub = {\n  onData: () => {\n    useX.replace({ a: 1 });\n  },\n};\n" },
+      why: '§4.1 NARROWING (WHICH MEMBER): `node.getName() !== "setState"`. A different store member inside a NAMED handler passes — `.setState` identity is the whole policy, and with the name fence cut this row dies as a PASS TOOL ERROR rather than a finding, because the reported `token: "setState"` stops being an exact slice of the anchored call',
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/data/bus/ref.ts": "export const sub = {\n  onData: () => {\n    const write = useX.setState;\n    void write;\n  },\n};\n",
+      },
+      why: "§4.1 NARROWING (THE CALL SITE): `call?.isKind(CallExpression)`. A bare `.setState` REFERENCE inside a named handler is not a write — handing the function to something else is a different (and far rarer) shape than invoking it here, and this policy bans the invocation",
     },
     {
       mode: "source",

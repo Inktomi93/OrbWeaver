@@ -10,6 +10,21 @@
 // Measured on the live tree before the flip: 20 `castId<T>(<call>)` sites in `@packages` (ast-grep, both
 // languages, scanned 2589 ts + 806 tsx), 5 resolved, 15 refusing as case (a), 0 unreadable — the flip
 // costs zero live findings, which is why it is a fix and not a burn-down.
+//
+// FAMILY (`id-brand-flow`): shared readers, no private door. The cast SEAM is `lib/id-brand.ts`
+// (`createKitIdCallMatcher`, shared with `no-fake-disabled-id`); the argument's callee identity is
+// `lib/reference-fact-call.ts` (`resolveCallableOrigin`, shared with `no-raw-id`'s Zod door); the refusal is
+// `lib/origin-verdict.ts` (`classifyOriginRefusal`, shared with both). `MODULE_GENERATORS` below is the one
+// table, and it is a generator VOCABULARY — the set of library mints this policy names — not an exemption
+// list: adding a row makes the policy flag MORE.
+//
+// POPULATION PORT: an intentional NARROWING, and this is the one to re-open if a finding is ever missed.
+// The legacy descriptor (`1ee6bb982^:tooling/src/verify/gates/no-mint-via-cast.ts:156`) subtracted rather
+// than selected — `scanRoot: (p) => !(p.includes("tests/") || p.includes("tools/") || p.includes("scripts/")
+// || TEST_FILE_REGEX.test(p))` — so it also judged `tooling/src`, which `@packages` does not. That is the
+// deliberate reading of the law (`castId` is a product-code mint seam and `@packages` is the six-root set
+// every sibling was authored against), not an oversight, and the `tests are outside this production mint
+// policy` mustPass row is the surviving half of the legacy subtraction stated positively.
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -105,8 +120,17 @@ export const gate = defineGate({
         "packages/server/src/x.ts":
           'import { randomUUID as uuid } from "node:crypto";\nimport { castId as brand } from "../../kit/src/ids/index";\nexport const x = brand(uuid());\n',
       },
-      expect: { count: 1 },
-      why: "aliases cannot hide the canonical cast seam or Node randomUUID",
+      expect: { count: 1, token: "brand" },
+      why: "aliases cannot hide the canonical cast seam or Node randomUUID. THE TOKEN IS THE CLAIM (#1968): the `why` says ALIASES, and `brand` — the local import alias, not `castId` — is what the report anchors on, so a bare `{ count: 1 }` would pass just as happily if the policy had anchored on the canonical name and the alias claim were untested",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/server/src/x.ts": 'import { castId } from "../../kit/src/ids/index";\nexport const x = castId(crypto.randomUUID());\n',
+      },
+      expect: { count: 1, token: "castId" },
+      why: 'THE GLOBAL ARM (`target.kind === "global"`), reached by no row before #2047 — a `throw` planted in it left every row green. The ambient `crypto` needs no plant: the proof workspace loads TypeScript\'s own lib files, which `isAmbientGlobalDeclaration` trusts, so the browser/worker spelling `crypto.randomUUID()` resolves to the global rather than to a `node:crypto` import and takes the branch the two `mustFlag` rows above cannot. Its twin is the `local same-named function` mustPass row, which uses the SAME global expression through a non-canonical seam',
     },
     {
       mode: "types",
@@ -141,6 +165,42 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/server/src/x.ts": "function castId(value: string): string { return value; }\nexport const x = castId(crypto.randomUUID());\n" },
       why: "a local same-named function is not the kit cast seam",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/server/src/x.ts": 'import { castId } from "../../kit/src/ids/index";\nexport const x = castId(crypto.getRandomValues(new Uint8Array(1)));\n',
+      },
+      why: '§4.1 NARROWING (THE GLOBAL ARM\'S MEMBER): `target.memberPath.join(".") === "randomUUID"`. The SAME ambient global, a DIFFERENT member — `crypto.getRandomValues` is entropy, not an id mint. THE ARGUMENT MUST BE THE GLOBAL CALL ITSELF: `argumentVerdict` resolves the origin of the argument call\'s OWN callee, so a first draft of this row wrapping it in `.toString()` asked about `Uint8Array#toString`, passed for a reason unrelated to this fence, and SURVIVED the cut — which is how it was caught. Its twin below plants a different global carrying the same member name, so the arm\'s two clauses are falsified separately',
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/@types/crypto-lookalike/index.d.ts": "declare var lookalikeCrypto: { randomUUID(): string };\n",
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/server/src/x.ts": 'import { castId } from "../../kit/src/ids/index";\nexport const x = castId(lookalikeCrypto.randomUUID());\n',
+      },
+      why: "§4.1 NARROWING (THE GLOBAL ARM'S NAME): `target.globalName === \"crypto\"`. Nothing but the resolved global NAME separates this row from the `crypto.randomUUID()` mustFlag row — same member, same shape, same call. The lookalike is planted under `node_modules/@types/` because `isAmbientGlobalDeclaration` trusts only TypeScript's own lib files and `@types` packages; a bare script-global would be refused before the comparison and the row would pass for the wrong reason (`_proof/node-types.ts` records that asymmetry). Widening the trust rule to make a fixture resolve would weaken a real identity fence, so the fixture moves instead",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/server/src/slug.ts": 'export function makeSlug(): string { return "s"; }\n',
+        "packages/server/src/x.ts":
+          'import { castId } from "../../kit/src/ids/index";\nimport { makeSlug } from "./slug";\nexport const x = castId(makeSlug());\n',
+      },
+      why: "§4.1 NARROWING (THE GENERATOR VOCABULARY): `MODULE_GENERATORS`. A project function returning a string, called through the CANONICAL cast seam, passes — `castId(<call>)` is not the offence, `castId(<a library mint>)` is. Before #2047 the table was unpinned: replacing the lookup with `true` left every row green, so the policy would have banned branding the result of ANY call and nothing said otherwise",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/server/src/x.ts":
+          'import { nanoid } from "nanoid";\nimport { castId } from "../../kit/src/ids/index";\nexport const x = castId(nanoid.customAlphabet());\n',
+      },
+      why: '§4.1 NARROWING (THE EXPORT ITSELF, NOT A MEMBER OF IT): `target.memberPath.length === 0`. A MEMBER call hanging off a named generator export is a different function from the generator — `nanoid.customAlphabet()` builds a generator, it does not mint. Note which fixture does NOT discriminate here and why: `castId(ids.nanoid())` through `import * as ids from "nanoid"` still FLAGS at tip, because the shared reader canonicalises a namespace member down to the module\'s own export and hands back an EMPTY member path. The distinction the fence draws is about the resolved origin, not about the authored dots',
     },
     {
       mode: "types",

@@ -11,14 +11,64 @@
 // no type node at all is a TOOL ERROR that withholds the whole policy — which is the correct fail-closure
 // for a census, since a partial roster would silently stop claiming positions. Its family siblings
 // (`no-mint-via-cast`, `no-fake-disabled-id`, `no-raw-id`) DO resolve origins and each carries the arm.
+//
+// FAMILY (`id-brand-flow`): the shared reader is `lib/id-brand.ts` — `canonicalIdBrand` (the checker-backed
+// `[brand]`-property test, shared with `no-loose-id-cast`) and `ID_BRAND_HOME`, the one spelling of the ids
+// module every member of the family resolves against. The per-pass accumulators in `create` are invocation
+// state, which the contract allows; there is no private reader, table, walk or filesystem read.
+//
+// POPULATION PORT: an intentional NARROWING of an unstated legacy scope, and the reason the array is written
+// out rather than spelled `@authored`. The legacy descriptor (`d10462449^`) declared NO `scanRoot` — it
+// judged whatever the legacy pass loaded — and carried a `FILE_CLASS_EXEMPT` table (empty since #1692) plus
+// a `REAL_TREE_ANCHOR` instead. The final population is the seven AUTHORED PRODUCT roots: `@authored` minus
+// `@tooling` and `@scripts`. That subtraction is the decision — an instrument or a script naming a variable
+// `chatId` is not an id-confusion hole in the product's type surface, and this policy's message is about the
+// product's boundaries. `@tests` is IN, deliberately and against the same instinct, because a fixture can
+// launder a raw id into a typed call (`mustFlag[4]` is that row).
+//
+// RETIRED VOCABULARY, WITH THE COUNT (§5b.5). The `@foreign-id-ok(<position>): <reason>` parser, its
+// module-global stale-marker state and the `FILE_CLASS_EXEMPT` table all retired into the central
+// ordinary-waiver plane. Census re-derived 2026-09-12 over `packages/ tooling/ tests/ scripts/`:
+// **76 live `@orb-waive brand-in-name-position(<position>)` markers** — the translated set — against
+// **ZERO live `@foreign-id-ok` markers**. The two surviving `@foreign-id-ok` occurrences in the repo are
+// both non-markers: this sentence, and a NEGATIVE fixture listing it as a foreign spelling
+// (`tests/tooling/verify/lib/ordinary-waiver.test.ts:151`). Nothing parses the old grammar any more, which
+// is why the roster row advertising it was a live defect (#2047).
+//
+// DECLARED LIMITS, each with a `mustPass` row below rather than only this paragraph:
+//   - a QUOTED declaration name (`{ "chatId": string }`) is not claimed — `declaredBarePosition` requires an
+//     Identifier name node. Measured 2026-09-12 across the policy's own seven roots: **0 live sites** of a
+//     quoted canonical position typed bare `string`, against a positive control of **116 unquoted ones**.
+//     So this is a declared limit and not a live escape — but note the FAMILY ASYMMETRY, because it is the
+//     thing to reconsider if a site ever appears: `no-raw-id.ts#idProperty` DOES accept a StringLiteral name
+//     and strips the quotes. TWO clauses hold this limit, not one, which is why its row is labelled a limit
+//     rather than a §4.1 falsifier: `Node.isIdentifier(name)` AND the unstripped `name.getText()`. Cut either
+//     alone and the row stays green; the JOINT cut (§4.1's mutual-redundancy procedure) reds it, and it reds
+//     as `PASS TOOL ERROR … token "chatId" is not anchored at its declared offset` — which is the price of
+//     widening, measured rather than guessed: the reported token must stay an exact source slice, so a
+//     quoted name needs its own offset and cannot ride `offset: 0`.
+//   - a TYPE ALIAS is not a signature position, even though `TypeAliasDeclaration` is in the visitor's
+//     `kinds` (it is there to collect canonical brands from the ids home, not to be judged).
+//   - a canonical brand alias declared OUTSIDE `ID_BRAND_HOME` does not mint a position. The vocabulary has
+//     exactly one home, by design: a domain-local `Branded<"RoomId">` cannot silently claim `roomId:` across
+//     the whole product.
 import type { Node as MorphNode, TypeChecker, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
+/** #2047, §5b.2: this text used to end *"wrong-id values therefore type-check AT THIS BOUNDARY."* That clause
+ *  was untrue of one of the policy's own two live real-tree findings. `tests/kit/ids/index.test-d.ts:60:59`
+ *  is a property signature inside an inline type literal handed to `toEqualTypeOf` as a TYPE ARGUMENT —
+ *  a position nothing can be passed through, so it is not a boundary and no value crosses it. The finding
+ *  itself is TRUE by the policy's letter (the population deliberately admits `@tests`, per `mustFlag[4]`);
+ *  it was the MESSAGE that overclaimed. The PREDICATE is untouched — §4.6: a legacy gate's code is routinely
+ *  stricter than its own message, and implementing the message is how a catch gets lost while every check
+ *  stays green. The replacement states the assignability fact, which holds in every position the policy
+ *  reports — parameter, property signature, property declaration, and a type-literal member alike. */
 const MESSAGE =
-  "a parameter or field uses bare `string` even though @orb/kit/ids owns the same name as a canonical brand — wrong-id values therefore type-check at this boundary.";
+  "a parameter or field uses bare `string` even though @orb/kit/ids owns the same name as a canonical brand — every other id brand is assignable to it, so a wrong-id value type-checks wherever this declaration is read.";
 const FIX =
   "use the canonical branded type and mint or parse it at the owning boundary. For a foreign wire that only shares the name, add `@orb-waive brand-in-name-position(<position>): <whose id + end condition>` on the exact declaration.";
 const POPULATION = ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@tests"] as const;
@@ -231,6 +281,31 @@ export const gate = defineGate({
         "packages/server/src/domain/chat/verbs/post.ts": "export function post(roomId: string): void { void roomId; }\n",
       },
       why: "a name no canonical brand owns is not guessed from suffixes",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
+        "packages/server/src/domain/rpg/ids.ts": 'import type { Branded } from "../../../../kit/src/ids/index";\nexport type RoomId = Branded<"RoomId">;\n',
+        "packages/server/src/domain/rpg/verbs/post.ts": "export function post(roomId: string): void { void roomId; }\n",
+      },
+      why: "§4.1 NARROWING (THE VOCABULARY HAS ONE HOME): `sourcePath !== ID_BRAND_HOME` in `collectCanonicalPosition`. A brand alias declared in a DOMAIN file — built from the canonical `Branded` helper, so `canonicalIdBrand` accepts it — still mints no position, and `roomId: string` beside it passes. Before #2047 the fence was unpinned: every fixture declared its aliases in the ids home, so dropping the home test left all eleven rows green while the policy quietly claimed every `Branded<…>` alias anywhere in the product. The `ChatId` alias in the ids home is the in-population anchor that keeps this row a real comparison rather than an empty derivation",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
+        "packages/contracts/src/x/views.ts": 'export interface Row { readonly "chatId": string; }\n',
+      },
+      why: 'DECLARED LIMIT, and honestly labelled: a QUOTED declaration name is not claimed. This row is NOT a §4.1 narrowing falsifier and no single cut kills it — cutting `Node.isIdentifier(name)` alone leaves it green, because `name.getText()` then yields `"chatId"` WITH its quotes and misses the brands map anyway. The two clauses are MUTUALLY REDUNDANT, so the §4.1 procedure is the JOINT cut, and it was run: dropping the kind test AND stripping quotes in the same patch reds this row — as a `PASS TOOL ERROR [evaluate] node finding token "chatId" is not anchored at its declared offset`, which is the third fact and the reason widening is not free. Measured 2026-09-12 over this policy\'s own seven roots: 0 live quoted sites against 116 unquoted',
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type ChatId = TypeIdOf<"chat">;\n'),
+        "packages/server/src/domain/chat/verbs/post.ts": "export type chatId = string;\n",
+      },
+      why: "§4.1 NARROWING (THE DECLARATION KIND): `declaredBarePosition`'s parameter/property-signature/property-declaration test. This row exists because the obvious reading is wrong — `TypeAliasDeclaration` IS in the visitor's `kinds`, so the kind test is NOT redundant with the walk: an alias outside the ids home falls straight through `collectCanonicalPosition` into the bare-position check, and with the kind test cut this alias is claimed as a signature position. It is not one; the policy's subject is what a CALLER can hand you",
     },
   ],
 });
