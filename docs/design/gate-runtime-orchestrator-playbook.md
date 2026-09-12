@@ -894,6 +894,25 @@ idle composed-pass remeasurement; catalog re-attest.
   the behavioural suites for a control-flow-dependent or per-request property, because that is where the
   doctrine PUTS those. This is the namesake trap one level out: there, a matching name was not a matching
   gate; here, a missing gate was not a missing guarantee.
+- **READ THE CONTRACT HEADER BEFORE THE DESIGN DOC — the design docs state the PROGRAM, the headers state
+  the MECHANISM, and a lane needs the mechanism** (owner, 2026-09-12: *"look up the resource thing in docs,
+  guarantee you'll find what you need and surprise yourself"*). The constitution says it outright —
+  ***"Per-domain law is the CODE + its file headers — the per-domain docs were gutted (the code is the
+  doc)"*** — and I planned 1.3 MB of reading entirely out of `docs/` without opening one. Measured:
+  `tooling/src/verify/contract/*.ts` is 214 KB of which **112 KB is COMMENT**, ten headers running 20-32
+  lines before the first export. Highest law-per-byte surface in the program. **Three things this session
+  derived the hard way were already written**: that a resource policy can never observe a non-ready resource
+  (`lib/resource-declaration.ts`, above `readyResourceValue`), the refusal doctrine and its two-consumer
+  reopening bar (`contract/resource-declaration.ts`), and the barrel-re-export reader gap
+  (`checkpoint-2026-09-05.md:206`, **item 2 of that doc's own Resume order, open six days**). When the
+  question is about a CONTRACT — what a declaration MEANS, what a status GUARANTEES, what a phase ORDERS —
+  the header is the answer and the design doc is the summary.
+- **AN AUDIT VERDICT IS A CLAIM ABOUT THE TREE ON ITS DATE, and citing one into a LAW doc propagates it.**
+  I wrote guide §3's resource cell from wave 1's verdicts twelve hours after `0fab76771` repaired both
+  modules and `2bacd5ef9` closed #1979 — into the table a conversion lane reads to pick its shape. Four
+  instances in one day of building on a closed defect. **Before any audit cell reaches a brief or a doc,
+  check the module.** The refutation ledger carries each defect's state; where it says UNADJUDICATED, that
+  is an instruction.
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
 - **CLAIM AT DISPATCH. It bit TWICE on 2026-09-11 and the second time was after I had already named it.** A row
   dispatched without `claim` sits at **Ready with no Lane while an agent builds it** — invisible in-flight work, and
