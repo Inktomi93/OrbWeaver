@@ -91,7 +91,11 @@ export const gate = defineGate({
   facts: [busProducerFact, busDefinitionFact],
   resources: [],
   message: MESSAGE,
-  fix: "wire the member's canonical server producer — the domain/transport call on its injected emit operation, or the bus-channel publisher it is relayed through.",
+  fix:
+    "wire the member's canonical server producer — the domain/transport call on its injected emit " +
+    "operation, or the bus-channel publisher it is relayed through. A deliberate site is waived with " +
+    "`@orb-waive bus-producer-coverage(<position>): <reason>` on the line above, where <position> is the " +
+    "derived position — the first identifier, literal or keyword of the reported member declaration.",
   create: (ctx) => ({
     evaluate: () => {
       const fact = ctx.fact(busProducerFact);

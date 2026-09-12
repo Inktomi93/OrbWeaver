@@ -67,7 +67,10 @@ export const gate = defineGate({
   facts: [],
   resources: [{ kind: "authored-css" }],
   message: MESSAGE,
-  fix: "use a var(--color-*) token or oklch(from var(--color-*) l c h / α)",
+  fix:
+    "use a var(--color-*) token or oklch(from var(--color-*) l c h / α). A deliberate site is waived with " +
+    "`@orb-waive no-raw-color-in-css(<position>): <reason>` on the line above, where <position> is the " +
+    "WHOLE raw color value text itself (e.g. `#ff0000`, `oklch(0.5 0.2 30)`).",
   create: (ctx) => ({
     evaluate: () => {
       const inventory = readyResourceValue(ctx.resources.cssInventory("authored"));

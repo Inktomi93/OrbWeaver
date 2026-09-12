@@ -49,7 +49,11 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "route events into the pure reducer (data/bus/apply-chat-bus-event.ts), buffer through the chatStream api, or drive the invalidation seam — never a raw .setState.",
+  fix:
+    "route events into the pure reducer (data/bus/apply-chat-bus-event.ts), buffer through the chatStream " +
+    "api, or drive the invalidation seam — never a raw .setState. A deliberate site is waived with " +
+    "`@orb-waive bus-on-data-no-store-write(<position>): <reason>` on the line above, where <position> is " +
+    "the literal `setState` — the bare property name, free of the parens the marker grammar forbids.",
   create: (ctx) => ({
     visitors: [
       {

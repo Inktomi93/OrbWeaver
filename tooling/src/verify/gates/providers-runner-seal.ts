@@ -20,7 +20,11 @@ const MESSAGE =
   "production consumer ABOVE infra — a domain/transport/entry module must route through the providers role " +
   "surface, never the runner key (core/Tier-3b-Providers.md inv #3).";
 
-const FIX = "route through the providers role surface — never import the runner derivation/vocabulary into domain/transport/entry.";
+const FIX =
+  "route through the providers role surface — never import the runner derivation/vocabulary into " +
+  "domain/transport/entry. A deliberate site is waived with `@orb-waive providers-runner-seal(<position>): " +
+  "<reason>` on the line above, where <position> is the sealed runner symbol's own name " +
+  "(`deriveRunner`/`backendForSource`/`BackendKey`/`BACKEND_KEYS`) at its occurrence.";
 
 /** The legacy `scanRoot` was `/packages/server/src/(?:domain|transport|entry)/` tested against a
  *  slash-prefixed repo path; the `@server` root plus these three `under` globs admit exactly that set. */

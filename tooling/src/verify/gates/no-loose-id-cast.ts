@@ -16,7 +16,11 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "use `castId<T>(raw)` only at the seam that owns an already-valid id, or validate with the canonical schema; remove broad cast laundering.",
+  fix:
+    "use `castId<T>(raw)` only at the seam that owns an already-valid id, or validate with the canonical " +
+    "schema; remove broad cast laundering. A deliberate site is waived with `@orb-waive " +
+    "no-loose-id-cast(<position>): <reason>` on the line above, where <position> is the cast expression's " +
+    "own text (the value being cast).",
   create: (ctx) => ({
     visitors: [
       {

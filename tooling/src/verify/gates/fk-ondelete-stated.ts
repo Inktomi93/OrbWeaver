@@ -8,7 +8,10 @@ import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact
 const MESSAGE =
   "a `.references(...)` has no `onDelete` action — SQLite's silent default is `NO ACTION`, a real policy that must be stated at the column. Tier-1-DB.md §Invariants.";
 const FIX =
-  'pass `{ onDelete: "cascade" | "set null" | "restrict" | "no action" }` to `.references(...)`, choosing what the child row means without its parent; then regenerate the baseline.';
+  'pass `{ onDelete: "cascade" | "set null" | "restrict" | "no action" }` to `.references(...)`, choosing ' +
+  "what the child row means without its parent; then regenerate the baseline. A deliberate site is waived " +
+  "with `@orb-waive fk-ondelete-stated(<position>): <reason>` on the line above, where <position> is the FK " +
+  "column's own property name (e.g. `chatId`).";
 
 export const gate = defineGate({
   id: "fk-ondelete-stated",

@@ -68,7 +68,12 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: GROUP_MESSAGE,
-  fix: "MemberCardView has ONE home (@orb/contracts/chat); the clamp lives ONLY in domain/chat/substrate/auth/; getRosterCardView is deleted — use the matrix's roster-card-read.",
+  fix:
+    "MemberCardView has ONE home (@orb/contracts/chat); the clamp lives ONLY in domain/chat/substrate/auth/; " +
+    "getRosterCardView is deleted — use the matrix's roster-card-read. A deliberate site is waived with " +
+    "`@orb-waive member-card-clamped(<position>): <reason>` on the line above, where <position> is whichever " +
+    "of the three arms fired: the literal `MemberCardView`, the clamp symbol's own name " +
+    "(`clampMemberCard`/`resolveCardVisibility`), or the literal `getRosterCardView`.",
   create: (ctx) => ({
     visitors: [
       {

@@ -125,7 +125,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: 'import { estimateTokens } from "@orb/kit/tokens" and use it',
+  fix:
+    'import { estimateTokens } from "@orb/kit/tokens" and use it. A deliberate site is waived with ' +
+    "`@orb-waive no-manual-token-estimate(<position>): <reason>` on the line above, where <position> is the " +
+    "literal `length`.",
   create: (ctx) => {
     const candidates: MorphNode[] = [];
     return {

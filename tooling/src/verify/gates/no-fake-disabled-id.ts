@@ -19,7 +19,11 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "represent absence as null and use `useGatedQuery` or `skipToken`; never manufacture an empty branded id.",
+  fix:
+    "represent absence as null and use `useGatedQuery` or `skipToken`; never manufacture an empty branded " +
+    "id. A deliberate site is waived with `@orb-waive no-fake-disabled-id(<position>): <reason>` on the " +
+    "line above, where <position> is the derived position — the first identifier, literal or keyword of the " +
+    "reported expression.",
   create: (ctx) => {
     const isCastId = createKitIdCallMatcher("castId");
     return {

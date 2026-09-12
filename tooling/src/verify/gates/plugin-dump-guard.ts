@@ -246,6 +246,38 @@ export const gate = defineGate({
       expect: { count: 1, token: DUMP },
       why: "THE COUNTERFACTUAL ON THE GUARD: a same-named function IMPORTED from another module is not the membrane's own iterative walk. The legacy check compared the callee's text and accepted any of them",
     },
+    {
+      mode: "types",
+      files: {
+        ...quickjsProof(),
+        [MEMBRANE]:
+          'import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";\n' +
+          "function handleSafeToDump(ctx: QuickJSContext, handle: QuickJSHandle): boolean {\n  return ctx !== null && handle.alive;\n}\n" +
+          "export function tryDumpGuestValue(ctx: QuickJSContext, handle: QuickJSHandle): unknown {\n" +
+          "  if (handleSafeToDump(ctx, handle)) {\n    return { ok: false };\n  }\n  return { ok: true, value: ctx.dump(handle) };\n}\n",
+      },
+      expect: { count: 1, token: DUMP },
+      why:
+        "AN INVERTED GUARD: the condition is NOT negated, so the guard's TRUE (safe) branch exits and the " +
+        "dump runs only when the guard says UNSAFE — backwards protection. `negatedGuardCall` requires a " +
+        "`!`-prefixed condition, so this shape is never recognized as a guard and the dump still reports",
+    },
+    {
+      mode: "types",
+      files: {
+        ...quickjsProof(),
+        [MEMBRANE]:
+          'import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";\n' +
+          "function handleSafeToDump(ctx: QuickJSContext, handle: QuickJSHandle): boolean {\n  return ctx !== null && handle.alive;\n}\n" +
+          "export function otherHelper(ctx: QuickJSContext, handle: QuickJSHandle): unknown {\n" +
+          "  if (!handleSafeToDump(ctx, handle)) {\n    return { ok: false };\n  }\n  return { ok: true, value: ctx.dump(handle) };\n}\n",
+      },
+      expect: { count: 1, token: DUMP },
+      why:
+        "A GUARDED DUMP IN A NON-CANONICAL HELPER: the guard is correctly negated and dominates the dump, " +
+        "but the dump sits in a function other than `tryDumpGuestValue` — `guardedHelperDump` trusts only " +
+        "that one declared home, so a well-formed local guard in a differently-named helper still reports",
+    },
   ],
   mustPass: [
     {

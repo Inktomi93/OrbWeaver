@@ -44,7 +44,10 @@ const MESSAGE =
   "offer a next-step affordance so the user is not stranded at a dead end. A state that genuinely has no " +
   "next step (the affordance lives in a sibling pane, or the dialog's own Close is the only move) takes an " +
   "`@orb-waive empty-state-has-action(EmptyState): <reason and end condition>` at the occurrence.";
-const FIX = "pass an `action` prop (an @orb/ui Button, typically), or waive the occurrence with the reason it has no next step.";
+const FIX =
+  "pass an `action` prop (an @orb/ui Button, typically), or waive the occurrence with the reason it has no " +
+  "next step. A deliberate site is waived with `@orb-waive empty-state-has-action(<position>): <reason>` on " +
+  "the line above, where <position> is the Empty-state component's own JSX tag name as imported (e.g. `Empty`).";
 
 /** Does this tag carry an `action` prop, or a SPREAD that might (a conditional CTA no static read resolves)? */
 function hasAction(element: JsxOpeningElement | JsxSelfClosingElement): boolean {

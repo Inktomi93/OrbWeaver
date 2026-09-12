@@ -37,7 +37,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "read the context with `use(MyContext)` from react and drop the useContext import.",
+  fix:
+    "read the context with `use(MyContext)` from react and drop the useContext import. A deliberate site " +
+    "is waived with `@orb-waive no-use-context(<position>): <reason>` on the line above, where <position> " +
+    "is the literal `useContext`.",
   create: (ctx) => ({
     visitors: reactExportVisitors(EXPORT, (node, verdict) => {
       const at = anchor(node);

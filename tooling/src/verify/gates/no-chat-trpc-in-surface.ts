@@ -74,7 +74,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "move the verb into features/chat/hooks/ and call the verb hook from this surface.",
+  fix:
+    "move the verb into features/chat/hooks/ and call the verb hook from this surface. A deliberate site is " +
+    "waived with `@orb-waive no-chat-trpc-in-surface(<position>): <reason>` on the line above, where " +
+    "<position> is the literal `mutationOptions` — the tRPC member at the end of the call chain.",
   create: (ctx) => ({
     visitors: [
       {

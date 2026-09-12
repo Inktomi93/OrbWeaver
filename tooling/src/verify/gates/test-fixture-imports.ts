@@ -20,7 +20,9 @@ const MESSAGE =
 
 const FIX =
   "import { test, expect } from the composed fixture door — 'support/fixtures' everywhere, " +
-  "'support/tool-fixtures' under tests/tooling/ — never from vitest or @playwright/test directly.";
+  "'support/tool-fixtures' under tests/tooling/ — never from vitest or @playwright/test directly. A " +
+  "deliberate site is waived with `@orb-waive test-fixture-imports(<position>): <reason>` on the line " +
+  "above, where <position> is the banned import specifier's own name (`test`/`expect`).";
 
 /** The legacy `scanRoot` admitted any path containing `tests/`, minus `tests/e2e/`, minus `tests/support/`,
  *  minus every basename ending in `.test-d.ts`. The authored roots under any `tests/` tree, minus the e2e

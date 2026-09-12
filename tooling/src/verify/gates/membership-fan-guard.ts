@@ -23,7 +23,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "fan member-visible state through emitChatChanged (or the chat bus) — never emitUserEvent inside domain/chat.",
+  fix:
+    "fan member-visible state through emitChatChanged (or the chat bus) — never emitUserEvent inside " +
+    "domain/chat. A deliberate site is waived with `@orb-waive membership-fan-guard(<position>): <reason>` " +
+    "on the line above, where <position> is the literal `emitUserEvent`.",
   create: (ctx) => ({
     visitors: [
       {

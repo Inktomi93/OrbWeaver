@@ -81,7 +81,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "render each mutation's own .error, or use createEntityMutation's per-mutation { error, clearError } channel",
+  fix:
+    "render each mutation's own .error, or use createEntityMutation's per-mutation { error, clearError } " +
+    "channel. A deliberate site is waived with `@orb-waive no-multiplexed-mutation-error(<position>): " +
+    "<reason>` on the line above, where <position> is the literal `error` — the multiplexed `.error` member.",
   create: (ctx) => {
     const candidates: MorphNode[] = [];
     return {

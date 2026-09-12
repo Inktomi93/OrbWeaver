@@ -70,7 +70,11 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "move the raw fetch into a data/ fetch fn (the auth-session.ts / upload-asset.ts precedent) and import it from #data; use tRPC for non-multipart/binary/streaming.",
+  fix:
+    "move the raw fetch into a data/ fetch fn (the auth-session.ts / upload-asset.ts precedent) and import " +
+    "it from #data; use tRPC for non-multipart/binary/streaming. A deliberate site is waived with " +
+    "`@orb-waive fetch-fn-in-features(<position>): <reason>` on the line above, where <position> is the " +
+    "literal `fetch` identifier (or, on the rare callee whose text does not contain it, the callee's own full text).",
   create: (ctx) => {
     // Per-file names bound to something that could BE the global, so `const wire = fetch; wire("/x")` is a
     // candidate at its call site. Filled by the VariableDeclaration visitor, which the dispatcher delivers

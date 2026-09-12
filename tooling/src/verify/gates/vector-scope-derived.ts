@@ -48,7 +48,10 @@ const MESSAGE =
   "Knowledge-Cluster.md inv 1-2.";
 
 const FIX =
-  "go through the ONE search engine with a mandatory producer scope; writes are embeddings.store lens arms, cosine is search/persistence's alone (D20).";
+  "go through the ONE search engine with a mandatory producer scope; writes are embeddings.store lens " +
+  "arms, cosine is search/persistence's alone (D20). A deliberate site is waived with `@orb-waive " +
+  "vector-scope-derived(<position>): <reason>` on the line above, where <position> is whichever arm fired: " +
+  "the sealed table/call's own name at its occurrence, or the literal `vector_distance_cos`.";
 
 /** Legacy `scanRoot` tested `/packages\\/server\\/src\\//` against a slash-prefixed repo path — the `@server`
  *  root exactly. The sanctioned homes stay IN the population and are decided per arm below, so a re-home

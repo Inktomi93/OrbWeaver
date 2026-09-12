@@ -104,7 +104,10 @@ const FIX =
   "add the scope to the op's params — a `principal: Principal`, an `ownerId`/`userId: UserId`, or the " +
   "`chatId` the membership check runs on — and apply it in the implementing factory's WHERE (the " +
   "`AttachCardTagOp`/`DetachCardTagOp` shape: `{ ownerId, characterId, tagName }`). If the op's authority is " +
-  "genuinely structural or un-principal (D20), add a CALLER_FREE_OPS row saying why AND what would end it.";
+  "genuinely structural or un-principal (D20), add a CALLER_FREE_OPS row saying why AND what would end it. " +
+  "A deliberate site is waived with `@orb-waive injected-op-caller-param(<position>): <reason>` on the line " +
+  "above, where <position> is the caller-scope parameter's own alias name as it appears in the op's " +
+  "destructure/passthrough.";
 
 /** Every branded ENTITY-row id type name in `@orb/kit/ids`: every `export type X = TypeIdOf<"…">`.
  *  Exported for the health sibling's blindness tripwire. */
