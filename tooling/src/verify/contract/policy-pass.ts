@@ -11,6 +11,58 @@ export type PolicyPhase = (typeof POLICY_PHASES)[number];
 export const GATE_FACT_PHASES = ["population", "create", "visitFile", "visit", "finish", "receipt"] as const;
 export type GateFactPhase = (typeof GATE_FACT_PHASES)[number];
 
+/** THE DISPATCHER'S REFUSAL VOCABULARY — every fixed sentence the final runtime says when it REFUSES an owner
+ *  (a receipt that resolved nothing, a fact read too early, a finding outside the population, a resource that
+ *  came back broken), as ONE data home (#2111). The emitters in `lib/policy-pass.ts`, `lib/policy-pass-context.ts`,
+ *  `lib/resource-declaration.ts`, `lib/resource-policy.ts` and `lib/population-resolver.ts` compose their messages
+ *  from these, and `lib/policy-refusal-envelope.ts` reads the same constants to refuse a `mustRefuse` row whose
+ *  `messageIncludes` is nothing but one of them — a row naming `"resolved zero members"` holds on EVERY receipt
+ *  refusal of every policy and discriminates nothing (§4.5b). The policy-AUTHORED slots (a receipt source, a fact
+ *  id, a resource identity, a path) are what a row must name, and they are deliberately not here. Same bytes as
+ *  before the extraction: every test asserting these by literal still holds. */
+export const POLICY_PASS_REFUSALS = Object.freeze({
+  populationUnresolved: "population has not resolved",
+  emptyIntersection: "requested selection has an empty policy intersection",
+  entireDeferred: "entire-population policy deferred for a proper subset selection",
+  entireWithoutEvaluate:
+    "declares execution entire-population but exposes no evaluate hook — with no post-walk phase its verdict composes per file, and selected-files is the honest execution",
+  nonResourceReceivedResources: "received resource paths",
+  resourceOnlyNoPaths: "resolved no resource paths",
+  factEmptyPopulation: "resolved an empty declared population",
+  receiptResolvedZero: "resolved zero",
+  receiptLeftUnresolvedHead: "left",
+  receiptLeftUnresolvedTail: "unresolved",
+  factNoReceipt: "fact produced no semantic receipt",
+  factNoResourceReceipt: "declared fact resource population produced no resource receipt",
+  factUnconsumedPaths: "declared fact resource population has unconsumed paths",
+  factUnconsumedRequests: "declared fact resource population has unconsumed requests",
+  factReceiptRefused: "fact receipt refused",
+  factFailed: "declared fact failed",
+  factsNotConsumed: "declared facts were not consumed",
+  factsNoReceipt: "declared facts produced no semantic receipt",
+  resourcesNoReceipt: "declared resource population produced no resource receipt",
+  resourcesUnconsumedPaths: "declared resource population has unconsumed paths",
+  resourcesUnconsumedRequests: "declared resource population has unconsumed requests",
+  policyReceiptRefused: "policy receipt refused",
+  sourceOutsidePopulation: "source file is outside the effective population",
+  sourcePathOutsidePopulation: "sourceFile path is absent or outside the effective population",
+  findingOutsidePopulation: "finding file is outside the effective population",
+  factUndeclared: "requested undeclared fact",
+  factAbsent: "declared fact is absent from this pass",
+  factNotFinished: "declared fact is not finished",
+  syntaxOwnerChecker: "cannot access the type checker",
+  resourceDeclaration: "resource declaration",
+  resourceDeclarationEmpty: "resolved an empty fact",
+  resourceDeclarationCrossRoot: "returned a cross-root fact",
+  resourceDeclarationDemand: "is demand-driven and cannot be acquired without a subject",
+  resourceCameBack: "was declared ready by population resolution but came back",
+  resourceRequestUndeclared: "is undeclared",
+  resourceOutsidePopulation: "is outside the effective resource population",
+  exactFilesZeroIds: "exact files were demanded for zero ids",
+  populationEmptyCorpus: "Invalid population resolution: candidate corpus is empty",
+  populationAdmittedZero: "Invalid population resolution: expression admitted zero paths from",
+});
+
 export interface PolicyPopulationReceipt {
   readonly declaredSourcePaths: readonly string[];
   readonly declaredResourcePaths: readonly string[];

@@ -10,16 +10,21 @@ import { Project } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POLICY_CONTRACT_PATH, POLICY_CONTRACT_STUB } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
+import { gate as policyLegacyImports } from "../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
 import { gate as policyWaiverIdentity } from "../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
 import { gate as policyWaiverSpelling } from "../../../../tooling/src/verify/gates/policy-waiver-spelling.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const FAMILY: readonly GatePolicy[] = [policyProofExpectations, policySoundness, policyWaiverIdentity, policyWaiverSpelling];
+const FAMILY: readonly GatePolicy[] = [policyLegacyImports, policyProofExpectations, policySoundness, policyWaiverIdentity, policyWaiverSpelling];
+/** The second opinion for `policy-legacy-imports`' live class: the one import shape the nine carriers share,
+ *  restated as a text test so the arm's real-corpus findings are compared against something it did not compute. */
+const LEGACY_CONTRACT_IMPORT_RE = /^import type \{[^}]*\} from "\.\.\/contract\/gate\.ts";$/mu;
 
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(300_000);
 const PER_ROW_TIMEOUT_MS = scaledBudget(120_000);
@@ -75,19 +80,29 @@ test(
     const shared = new Project({ useInMemoryFileSystem: true });
     const dangling: string[] = [];
     let sequence = 0;
+    // `policy-legacy-imports` and E3's origin arm each carry ONE row whose relative import deliberately resolves
+    // to nothing — the fail-closed UNREADABLE control — so the specifier-resolution control excludes exactly the
+    // rows whose `why` declares that, and asserts the count of those it excused.
+    let declaredUnreadable = 0;
     for (const policy of FAMILY) {
-      for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
+      for (const { proof } of policyProofRows(policy)) {
         sequence += 1;
         const root = `${ROOT}-proof-${sequence}`;
         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
-        dangling.push(...danglingSpecifiers(files).map((row) => `${policy.id}: ${row}`));
+        const rows = danglingSpecifiers(files).map((row) => `${policy.id}: ${row}`);
+        if (/FAIL-CLOSED/u.test(proof.why)) {
+          declaredUnreadable += rows.length;
+        } else {
+          dangling.push(...rows);
+        }
         for (const file of files) {
           shared.removeSourceFile(file);
         }
       }
     }
     expect(dangling).toEqual([]);
-    const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length + (policy.mustRefuse?.length ?? 0), 0);
+    expect(declaredUnreadable).toBe(2);
+    const declared = FAMILY.reduce((sum, policy) => sum + policyProofRows(policy).length, 0);
     expect(sequence).toBe(declared);
     expect(sequence).toBeGreaterThan(0);
   },
@@ -157,8 +172,23 @@ test(
     const identity = result.policies.find(({ id }) => id === policyWaiverIdentity.id);
     expect(identity?.receipts).toEqual([{ kind: "population", source: "final policy modules", members: shapeCount, unresolved: 0 }]);
 
-    // The error policy pins three CLOSED classes; the tree is the proof they are closed.
+    // The error policy pins its CLOSED classes; the tree is the proof they are closed.
     expect(result.authority.effectiveFindings.filter(({ policyId }) => policyId === policySoundness.id)).toEqual([]);
+
+    // `policy-legacy-imports` is the one error policy whose class is OPEN on the tree (#1922's migration set).
+    // Its live findings are compared against a SECOND OPINION — the import-shape text test over the same corpus
+    // — so the arm's real-tree bite is measured by something it did not compute, and a hardcoded count never
+    // rots into a false pin (#1969). A migration that lands moves BOTH sides to zero together.
+    const secondOpinion = project
+      .getSourceFiles()
+      .filter((sourceFile) => sourceFile.getFilePath().startsWith(`${repoRoot}/${GATES_DIR}`) && !sourceFile.getFilePath().includes("/_proof/"))
+      .filter((sourceFile) => FINAL_SHAPE_RE.test(sourceFile.getFullText()) && LEGACY_CONTRACT_IMPORT_RE.test(sourceFile.getFullText()))
+      .map((sourceFile) => sourceFile.getFilePath().slice(repoRoot.length + 1))
+      .toSorted();
+    const accused = [
+      ...new Set(result.authority.effectiveFindings.filter(({ policyId }) => policyId === policyLegacyImports.id).map(({ file }) => file)),
+    ].toSorted();
+    expect(accused).toEqual(secondOpinion);
   },
   REAL_CORPUS_TIMEOUT_MS,
 );

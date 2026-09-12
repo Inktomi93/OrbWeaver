@@ -43,7 +43,7 @@ import type {
   TemplateExpression,
 } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { Discrimination, ProofRows, ReportSiteMessage, StaticSegments } from "../contract/policy-descriptor-read.ts";
+import type { Discrimination, FinalRegistration, ProofRows, ReportSiteMessage, StaticSegments } from "../contract/policy-descriptor-read.ts";
 import { isCanonicalDefineGate, resolveCallableMember } from "./gate-contract-origin.ts";
 import { resolveStableExpression } from "./reference-fact.ts";
 
@@ -65,23 +65,33 @@ function unwrapExpression(node: MorphNode): MorphNode {
   return current;
 }
 
-/** The FINAL descriptor literal of a gate module, or undefined: a `gate` variable whose initializer is a call
- *  whose callee resolves by import origin to `contract/policy.ts`, taking a direct object literal. A legacy
- *  descriptor object, a local lookalike and a non-literal argument all read as "not a final descriptor". */
-export function finalDescriptorOf(sourceFile: SourceFile): ObjectLiteralExpression | undefined {
+/** How a gate module REGISTERS under the final contract, or undefined: a `gate` variable whose initializer is a
+ *  call whose callee resolves by import origin to `contract/policy.ts`. The descriptor is the argument WHEN it is
+ *  a direct object literal; a non-literal argument (`defineGate(DESCRIPTOR)`) is still a registration — the loader
+ *  brands the object it receives — with no readable descriptor, which is the §12.1 shape `policy-soundness` E7
+ *  reports rather than the blind spot every arm used to skip (#2111, A42). A legacy descriptor object and a local
+ *  lookalike read as no registration at all. */
+export function finalRegistrationOf(sourceFile: SourceFile): FinalRegistration | undefined {
   const initializer = sourceFile.getVariableDeclaration("gate")?.getInitializer();
-  let descriptor: ObjectLiteralExpression | undefined;
+  let registration: FinalRegistration | undefined;
   if (initializer !== undefined) {
     const value = unwrapExpression(initializer);
     if (Node.isCallExpression(value)) {
       const callee = value.getExpression();
       const argument = value.getArguments()[0];
-      if (Node.isIdentifier(callee) && argument !== undefined && Node.isObjectLiteralExpression(argument) && isCanonicalDefineGate(callee)) {
-        descriptor = argument;
+      if (Node.isIdentifier(callee) && isCanonicalDefineGate(callee)) {
+        registration = { callee, argument, descriptor: argument !== undefined && Node.isObjectLiteralExpression(argument) ? argument : undefined };
       }
     }
   }
-  return descriptor;
+  return registration;
+}
+
+/** The FINAL descriptor literal of a gate module, or undefined: the registration's direct object literal. A
+ *  legacy descriptor object, a local lookalike and a non-literal argument all read as "not a final descriptor" —
+ *  an arm that must judge the non-literal shape reads `finalRegistrationOf` instead. */
+export function finalDescriptorOf(sourceFile: SourceFile): ObjectLiteralExpression | undefined {
+  return finalRegistrationOf(sourceFile)?.descriptor;
 }
 
 /** The value expression of one descriptor property (a shorthand property's value is its own name node). */

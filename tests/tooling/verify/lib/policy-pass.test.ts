@@ -218,6 +218,23 @@ test("selected policies run intersections while entire-population policies visib
   expect(result.authority.withheldPolicyIds).toEqual(["entire-policy"]);
 });
 
+test("an entire-population policy that exposes no evaluate hook is refused at create — its verdict composes per file (#2111 A21)", () => {
+  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
+  const perFile = policy("entire-per-file", { execution: "entire-population", create: () => ({ visitFile: () => undefined }) });
+  const refused = run([perFile], project);
+  expect(refused.toolErrors).toMatchObject([{ policyId: "entire-per-file", phase: "create" }]);
+  expect(refused.toolErrors[0]?.message).toMatch(/declares execution entire-population but exposes no evaluate hook/u);
+  expect(refused.authority.withheldPolicyIds).toEqual(["entire-per-file"]);
+
+  // The other direction: the same declaration WITH the post-walk phase runs clean, and a selected-files policy
+  // with no evaluate is the ordinary composing shape and is never asked.
+  const whole = policy("entire-whole", { execution: "entire-population", create: () => ({ visitFile: () => undefined, evaluate: () => undefined }) });
+  const composing = policy("selected-per-file", { create: () => ({ visitFile: () => undefined }) });
+  const clean = run([whole, composing], project);
+  expect(clean.toolErrors).toEqual([]);
+  expect(clean.authority.withheldPolicyIds).toEqual([]);
+});
+
 test("an empty selected intersection is not-applicable and missing source populations are incomplete", () => {
   const project = projectOf({ "packages/server/src/a.ts": "export const a = 1;\n" });
   const missing = policy("missing-source");

@@ -140,6 +140,76 @@ interface WarningGatePolicy extends GatePolicyBase {
 
 export type GatePolicy = ErrorGatePolicy | WarningGatePolicy;
 
+// THE DESCRIPTOR'S KEY VOCABULARIES HAVE ONE DATA HOME EACH (#2111). Before this, a field, a proof arm, a
+// proof-row key or an expectation key was spelled in the interfaces above AND in `lib/policy-validation.ts`'s
+// key sets AND in `ops/policy-conformance.ts`'s arm loop AND in `gate-modernization`'s example-field carve AND
+// in every family test's `[...mustFlag, ...mustPass, ...(mustRefuse ?? [])]` spread — five to nine hand edits
+// per vocabulary change, each a place the pair could silently disagree (the owner's question, 2026-09-12: "if
+// we add or adjust something, at least four surfaces need updating?"). Each table below is the ONE literal: its
+// keys are the tuple, its key union is the type, and `satisfies Record<keyof <interface>, true>` holds it
+// two-sided against the interface above at compile time — a key present on one side and not the other fails
+// `tsc` naming the key. The validator's key sets, the runtime's arm loop, the conformance runner, the stage's
+// counts, the meta-gates and the family tests DERIVE from these, the way `GATE_POLICY_EXECUTIONS` and
+// `GATE_RESOURCE_REQUEST_KINDS` already work.
+function keysOf<const Table extends Readonly<Record<string, true>>>(table: Table): readonly (keyof Table & string)[] {
+  return Object.freeze(Object.keys(table) as (keyof Table & string)[]);
+}
+
+const POLICY_FIELD_TABLE = {
+  id: true,
+  family: true,
+  authority: true,
+  severity: true,
+  workItem: true,
+  population: true,
+  analysis: true,
+  execution: true,
+  facts: true,
+  resources: true,
+  message: true,
+  fix: true,
+  create: true,
+  mustFlag: true,
+  mustPass: true,
+  mustRefuse: true,
+} as const satisfies Record<keyof GatePolicy, true>;
+
+/** Every own property a `defineGate` descriptor may carry, in the order the contract states them. */
+export const POLICY_FIELDS = keysOf(POLICY_FIELD_TABLE);
+export type PolicyField = keyof typeof POLICY_FIELD_TABLE;
+
+/** The fields a descriptor may OMIT: `workItem` is required exactly when `severity` is `warning` (the union
+ *  above), `fix` is owed by the ordinary door and read by a soundness arm rather than by the loader, and
+ *  `mustRefuse` is the optional third proof arm (§4.5b). Everything else is required. */
+export const POLICY_OPTIONAL_FIELDS = ["workItem", "fix", "mustRefuse"] as const satisfies readonly PolicyField[];
+
+/** The proof arms, in execution order. `mustRefuse` is optional on the descriptor (never empty when present). */
+export const POLICY_PROOF_ARMS = ["mustFlag", "mustPass", "mustRefuse"] as const satisfies readonly PolicyField[];
+export type PolicyProofArm = (typeof POLICY_PROOF_ARMS)[number];
+
+const POLICY_PROOF_KEY_TABLE = { mode: true, files: true, links: true, expect: true, why: true } as const satisfies Record<keyof GatePolicyProof, true>;
+/** The keys of one proof row. */
+export const POLICY_PROOF_KEYS = keysOf(POLICY_PROOF_KEY_TABLE);
+
+const POLICY_EXPECTATION_KEY_TABLE = {
+  count: true,
+  countFrom: true,
+  line: true,
+  token: true,
+  messageIncludes: true,
+} as const satisfies Record<keyof GatePolicyProofExpectation, true>;
+/** The keys of a `mustFlag` expectation; a `mustRefuse` expectation admits `messageIncludes` alone. */
+export const POLICY_EXPECTATION_KEYS = keysOf(POLICY_EXPECTATION_KEY_TABLE);
+export type PolicyExpectationKey = keyof typeof POLICY_EXPECTATION_KEY_TABLE;
+
+/** The expectation keys that name WHICH finding a row is about — the companions a `countFrom` row must carry
+ *  (#2001) and the fields `expectationFailure` matches per finding. `count`/`countFrom` count; these identify. */
+export const POLICY_EXPECTATION_IDENTITY_KEYS = ["line", "token", "messageIncludes"] as const satisfies readonly PolicyExpectationKey[];
+
+const POLICY_HOOK_KEY_TABLE = { visitors: true, visitFile: true, evaluate: true } as const satisfies Record<keyof GatePolicyHooks, true>;
+/** The hooks `create` may return, in the order the dispatcher runs them. */
+export const POLICY_HOOK_KEYS = keysOf(POLICY_HOOK_KEY_TABLE);
+
 const definedPolicies = new WeakSet<object>();
 type ExactPolicy<Policy extends GatePolicy> = Policy & Record<Exclude<keyof Policy, keyof GatePolicy>, never>;
 

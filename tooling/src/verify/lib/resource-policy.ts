@@ -1,5 +1,6 @@
 // The PolicyContext integration seam: one consumed-resource receipt per owner, including cache hits.
 import type { GatePolicyContext } from "../contract/policy.ts";
+import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { ResourceFact } from "../contract/resource.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
@@ -24,7 +25,7 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     const requestIdentity = resourceRequestIdentity(request);
     if (!declaredRequests.has(requestIdentity)) {
       context.receipt({ kind: "resource", source: requestIdentity, resources: 0, unresolved: 1 });
-      throw new Error(`resource request ${requestIdentity} is undeclared`);
+      throw new Error(`resource request ${requestIdentity} ${POLICY_PASS_REFUSALS.resourceRequestUndeclared}`);
     }
     const fact = acquire();
     // An UNPOPULATED kind (`installed-package`) legitimately publishes zero authored paths: its subject is a
@@ -33,7 +34,7 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     const emptyReady = fact.status === "ready" && fact.paths.length === 0 && !isGateResourceUnpopulatedKind(request.kind);
     if (fact.paths.some((path) => !allowedPaths.has(path)) || emptyReady) {
       context.receipt({ kind: "resource", source: fact.receipt.source, resources: fact.members, unresolved: 1 });
-      throw new Error(`resource ${fact.receipt.source} is outside the effective resource population`);
+      throw new Error(`resource ${fact.receipt.source} ${POLICY_PASS_REFUSALS.resourceOutsidePopulation}`);
     }
     if (fact.status === "ready") {
       onConsumed?.(requestIdentity, fact.paths);
@@ -53,7 +54,7 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     const requestIdentity = resourceRequestIdentity(request);
     if (!declaredRequests.has(requestIdentity)) {
       context.receipt({ kind: "resource", source: requestIdentity, resources: 0, unresolved: 1 });
-      throw new Error(`resource request ${requestIdentity} is undeclared`);
+      throw new Error(`resource request ${requestIdentity} ${POLICY_PASS_REFUSALS.resourceRequestUndeclared}`);
     }
     const fact = acquire();
     if (fact.status === "ready") {
@@ -78,7 +79,7 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     const outside = paths.find((path) => !allowedPaths.has(path));
     if (outside !== undefined) {
       context.receipt({ kind: "resource", source: "authored-text", resources: 0, unresolved: 1 });
-      throw new Error(`authored text ${outside} is outside the effective resource population`);
+      throw new Error(`authored text ${outside} ${POLICY_PASS_REFUSALS.resourceOutsidePopulation}`);
     }
     return acceptDemand({ kind: "authored-text" }, () => host.authoredText(paths));
   };
@@ -90,12 +91,12 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     const [first] = ids;
     if (first === undefined) {
       context.receipt({ kind: "resource", source: "exact-file", resources: 0, unresolved: 1 });
-      throw new Error("exact files were demanded for zero ids");
+      throw new Error(POLICY_PASS_REFUSALS.exactFilesZeroIds);
     }
     const undeclared = ids.find((id) => !declaredRequests.has(resourceRequestIdentity({ kind: "exact-file", id })));
     if (undeclared !== undefined) {
       context.receipt({ kind: "resource", source: `exact-file:${undeclared}`, resources: 0, unresolved: 1 });
-      throw new Error(`resource request exact-file:${undeclared} is undeclared`);
+      throw new Error(`resource request exact-file:${undeclared} ${POLICY_PASS_REFUSALS.resourceRequestUndeclared}`);
     }
     // Consumption is marked for every demanded id, because every one of them was a declaration this call
     // satisfied; crediting only the first would leave the rest reported as unconsumed requests.

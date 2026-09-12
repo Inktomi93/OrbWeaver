@@ -21,6 +21,7 @@ import { join } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { POLICY_PROOF_ARMS } from "../contract/policy.ts";
 import { isCanonicalDefineGate } from "../lib/gate-contract-origin.ts";
 import { fileLoaded, repoRel } from "../lib/pass.ts";
 
@@ -512,7 +513,7 @@ const NO_ADMITTED_TRIPWIRE =
  *  `ratchet-row-integrity` gate JUDGES ledgers and admits nothing, so its example files legitimately name
  *  `*.baseline.json` paths and ARM D accused it three times over). Narrow on purpose: a real reader's path
  *  constant lives at module scope, so this carve cannot absolve one. */
-const EXAMPLE_FIELDS: ReadonlySet<string> = new Set(["mustFlag", "mustPass", "mustRefuse"]);
+const EXAMPLE_FIELDS: ReadonlySet<string> = new Set(POLICY_PROOF_ARMS);
 
 /** Is this literal inside a `mustFlag`/`mustPass` example block? */
 function inExampleBlock(node: Node): boolean {

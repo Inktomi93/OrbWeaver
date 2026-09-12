@@ -30,3 +30,39 @@ export type ReportSiteMessage =
 /** What a `messageIncludes` substring can tell apart, given a module's message sources. */
 export const DISCRIMINATIONS = ["discriminates", "tautology", "shared", "unjudged"] as const;
 export type Discrimination = (typeof DISCRIMINATIONS)[number];
+
+/** The marker GRAMMARS the final contract retired (gate-runtime-standardization.md §7 kinds 1 and 3, plus the
+ *  three the census found parsed gate-locally): the central legacy `@orb-gate-ignore` and every gate-owned custom
+ *  opener. A FINAL module has exactly one waiver vocabulary, the central `@orb-waive`, and receives no marker
+ *  parser (§12.5) — so a regex literal, a `new RegExp(…)` or a membership test that names one of these is a
+ *  private grammar carried across a conversion, and `policy-soundness` E6 reports it. A MENTION in prose (a
+ *  `why`, a `message`, a `fix` naming the retired spelling) is not a parse and is acquitted. */
+export const RETIRED_MARKER_OPENERS = [
+  "@orb-gate-ignore",
+  "@foreign-id-ok",
+  "@owner-scope-ok",
+  "@owner-scope-write-ok",
+  "@owner-scope-upsert-ok",
+  "@nullable-cmp-ok",
+  "@sub-floor-ok",
+  "@swallowed-ok",
+  "@surface-focus-elsewhere",
+  "@finding-overload-ok",
+  "@first-boot-only",
+  "@over-art-plate-ok",
+  "@column-ok",
+  "FABRICATION-OK",
+  "ONESHOT-OK",
+  "PROSE-OK",
+] as const;
+export type RetiredMarkerOpener = (typeof RETIRED_MARKER_OPENERS)[number];
+
+/** How a final module registers under the contract, as the family reader sees it: the callee resolved by import
+ *  origin to `contract/policy.ts`, and the descriptor literal when the argument IS one. A non-literal argument
+ *  (`defineGate(DESCRIPTOR)`) is a registration with no readable descriptor — §12.1 requires the direct object
+ *  literal, and `policy-soundness` E7 reports the shape; every arm that reads fields needs the literal. */
+export interface FinalRegistration {
+  readonly callee: Node;
+  readonly argument: Node | undefined;
+  readonly descriptor: ObjectLiteralExpression | undefined;
+}

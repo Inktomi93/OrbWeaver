@@ -13,8 +13,11 @@
 //      field, a descriptor spread or computed key). That reader already exists as the manual `pnpm
 //      gate:contract` census, which is not a verify stage and is red by construction on the legacy corpus;
 //      this arm runs it on the FINAL subset only, which is the half that can be on the commit bar today.
-//   E3 a `node:fs` import in a final module — §12.3 bans filesystem reads outright; the closed
-//      ResourceHost vocabulary is the only door.
+//   E3 an I/O or dynamic-loading door in a final module — §12.3 bans filesystem reads outright and the
+//      closed ResourceHost vocabulary is the only door. The closed set (#2111 D1, each member its own row):
+//      the `fs` / `node:fs` / `fs/promises` / `node:fs/promises` / `fs-extra` / `child_process` /
+//      `node:child_process` specifiers, `_shared/proc.ts` (the subprocess home, judged by IMPORT ORIGIN),
+//      a value-position `import(…)`, a `require(…)` call, and `process.binding(…)`. All at ZERO on the tree.
 //   E4 a resource door read that does not go through `lib/resource-declaration.ts` `readyResourceValue`
 //      (#2019). A declared resource is acquired and asserted READY in the population phase, and a non-ready
 //      one withholds every consumer at the receipt phase — so a non-ready fact can never reach a policy, and
@@ -39,6 +42,18 @@
 //      door, so the host never leaves the call site and no exception is needed. The three live hand-offs were
 //      inverted in the same commit (`lib/config-grant-rows.ts` `tsconfigRosterFrom` / `acquiredConfigText`).
 //      An exception you have to keep proving safe is worse than one you do not need.
+//   E6 a RETIRED marker grammar parsed in a final module (#2111 B8; `RETIRED_MARKER_OPENERS`, the §7 kind-1
+//      and kind-3 vocabulary): a regex literal, a `new RegExp(<static text>)` or a `.includes/.startsWith/
+//      .test/.exec/.indexOf` argument carrying `@orb-gate-ignore`, `FABRICATION-OK`, `@swallowed-ok`, … is a
+//      PARSER of a grammar §12.5 retired — the private marker parser a conversion must delete, not carry.
+//      Prose is not a parse: a `why`, a `message` or a `fix` naming the retired spelling is a MENTION (the
+//      guide §7 census rule) and is acquitted. Zero on the tree, one row per opener.
+//   E7 the `defineGate` argument is not a direct object literal (#2111 A42; §12.1 *"a direct
+//      `defineGate({...})` object literal"*). Before this arm the whole family skipped such a module:
+//      `finalDescriptorOf` returned `undefined` for `defineGate(DESCRIPTOR)` while the loader accepted it
+//      (the brand is on the object it receives). The registration is now read through `finalRegistrationOf`,
+//      E2's `inspectGateContract` runs on every canonical registration and its `descriptor-wrapper` code names
+//      the shape; the field arms (E1, E4) still need the literal. Zero on the tree.
 //
 // RECORDED NON-ARMS, so nobody re-adds them: a declared-but-unread `facts:` entry is already REFUSED by the
 // dispatcher (`lib/policy-pass.ts:703` "declared facts were not consumed" withholds the consumer), and
@@ -52,12 +67,23 @@
 // (`gate-modernization` names the lookalike). BLINDNESS: this module is inside its own population, so when
 // it is delivered and does not read as final the recognizer is dead and the run THROWS rather than reporting
 // ✓ over the corpus forever (pinned through `runPolicyPass` in the family test).
-import type { ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, PropertyAccessExpression, SourceFile } from "ts-morph";
+import type { CallExpression, ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, PropertyAccessExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import type { FinalRegistration } from "../contract/policy-descriptor-read.ts";
+import { RETIRED_MARKER_OPENERS } from "../contract/policy-descriptor-read.ts";
 import { inspectGateContract } from "../lib/gate-contract.ts";
-import { descriptorProperty, descriptorValue, finalDescriptorOf, objectLiteralOf, rootOf, stableTerminal, staticText } from "../lib/policy-descriptor-read.ts";
+import {
+  descriptorProperty,
+  descriptorValue,
+  finalRegistrationOf,
+  objectLiteralOf,
+  rootOf,
+  stableTerminal,
+  staticSegments,
+  staticText,
+} from "../lib/policy-descriptor-read.ts";
 import {
   familyFixture,
   finalProbeModule,
@@ -71,7 +97,26 @@ import {
 } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-soundness.ts";
-const FS_MODULE_RE = /^(?:node:)?fs(?:\/promises)?$/u;
+/** E3's closed set of I/O doors by SPECIFIER — node builtins and the one npm filesystem wrapper have no import
+ *  origin to resolve (a bare specifier is its own identity), so the spelling IS the door. */
+const FORBIDDEN_IO_SPECIFIERS: ReadonlySet<string> = new Set([
+  "fs",
+  "node:fs",
+  "fs/promises",
+  "node:fs/promises",
+  "fs-extra",
+  "child_process",
+  "node:child_process",
+]);
+/** E3's one door judged by IMPORT ORIGIN: the repo's subprocess home. A same-named module elsewhere is not it. */
+const PROC_HOME = "/tooling/src/_shared/proc.ts";
+const PROC_BASENAME = "proc.ts";
+const REQUIRE = "require";
+const PROCESS = "process";
+const BINDING = "binding";
+/** The membership/parse methods a private grammar is fed through (E6); `test`/`exec` on a regex receiver, the
+ *  string methods on a text receiver — the ARGUMENT is what carries the opener in every one. */
+const GRAMMAR_CALL_METHODS: ReadonlySet<string> = new Set(["includes", "startsWith", "test", "exec", "indexOf"]);
 const LOADABLE_EXTENSIONS: ReadonlySet<string> = new Set(["ts", "tsx"]);
 /** The ONE guarded door onto a declared resource, and the module that must declare it. The home is checked by
  *  IMPORT ORIGIN rather than by the callee's spelling: a local function of the same name asserts nothing, and
@@ -94,12 +139,19 @@ const RESOURCE_MESSAGE =
   "code that teaches the next conversion a silent return is the right answer to a broken resource. It is not. Wrap the door call, or — if the host is being " +
   "handed to something else — stop: the closed host may not leave the call site. A shared reader takes the NARROWED VALUE and the caller reads its own door (#2148).";
 const FS_MESSAGE =
-  "a final policy imports the filesystem — §12.3 bans every filesystem read in a gate module; declare the read through the closed " +
+  "a final policy opens an I/O or dynamic-loading door — §12.3 bans every filesystem read and subprocess in a gate module (`fs`, `fs/promises`, " +
+  "`fs-extra`, `child_process`, `_shared/proc.ts`, a value-position `import()`, `require()`, `process.binding()`); declare the read through the closed " +
   "ResourceHost vocabulary (contract/resource-declaration.ts) or STOP the conversion (a read no kind serves is a refusal, not a private door).";
+const GRAMMAR_MESSAGE =
+  "a final policy PARSES a retired marker grammar — a regex, a `new RegExp` or a membership test naming a `RETIRED_MARKER_OPENERS` spelling " +
+  "(contract/policy-descriptor-read.ts). §12.5: a gate module receives no marker parser and the one waiver vocabulary is the central `@orb-waive`; " +
+  "a private grammar carried across a conversion re-opens the door the conversion closed. A MENTION in prose is not a parse and is not this finding.";
 const FIX =
   "E1: delete the `ext` field. E2: replace the walk with kind-indexed visitors / `ctx.files` / a shared `lib/` reader, move state into " +
-  "`create`, retire the ledger into exact grants or warning debt, delete the legacy field. E3: delete the `node:fs` import and declare a resource. " +
-  "E4: wrap the door in `readyResourceValue(ctx.resources.<door>(…))` imported from `../lib/resource-declaration.ts`; never bind `ctx.resources` to a name and never pass it to a function. A shared `../lib/` reader takes the NARROWED VALUE — read the door here and hand that over.";
+  "`create`, retire the ledger into exact grants or warning debt, delete the legacy field, and hand `defineGate` a direct object literal (E7). " +
+  "E3: delete the I/O door and declare a resource. E4: wrap the door in `readyResourceValue(ctx.resources.<door>(…))` imported from " +
+  "`../lib/resource-declaration.ts`; never bind `ctx.resources` to a name and never pass it to a function — a shared `../lib/` reader takes the " +
+  "NARROWED VALUE, read the door here and hand that over (#2148). E6: delete the private grammar; the central `@orb-waive` engine is the one parser.";
 const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the import-origin recognizer ` +
   "(lib/gate-contract-origin.ts isCanonicalDefineGate) is dead, so every module would read out of scope. Refusing the run.";
@@ -117,6 +169,68 @@ function inertExtension(descriptor: ObjectLiteralExpression): MorphNode | undefi
     }
   }
   return anchor;
+}
+
+/** E3: an import whose specifier is a forbidden I/O door, or whose ORIGIN is the subprocess home. The origin
+ *  half fails closed inside its candidate set: a `proc.ts` specifier that resolves nowhere is reported. */
+function isForbiddenIoImport(declaration: ImportDeclaration): boolean {
+  const specifier = declaration.getModuleSpecifierValue();
+  if (FORBIDDEN_IO_SPECIFIERS.has(specifier)) {
+    return true;
+  }
+  if (specifier.slice(specifier.lastIndexOf("/") + 1) !== PROC_BASENAME) {
+    return false;
+  }
+  const target = declaration.getModuleSpecifierSourceFile()?.getFilePath().replaceAll("\\", "/");
+  return target === undefined || target.endsWith(PROC_HOME);
+}
+
+/** E3: a `process` receiver that is the Node global or the `node:process` import — never a local binding of the
+ *  same name, which is somebody's data (the same discipline as E4's parameter test). */
+function isNodeProcess(receiver: MorphNode): boolean {
+  if (!Node.isIdentifier(receiver) || receiver.getText() !== PROCESS) {
+    return false;
+  }
+  const declarations = receiver.getSymbol()?.getDeclarations() ?? [];
+  return declarations.length === 0 || declarations.every((declaration) => declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration) !== undefined);
+}
+
+/** E3: a value-position `import(…)`, a `require(…)` call, or `process.binding(…)`. */
+function isDynamicLoadingDoor(call: CallExpression): boolean {
+  const callee = call.getExpression();
+  if (callee.getKind() === SyntaxKind.ImportKeyword) {
+    return true;
+  }
+  if (Node.isIdentifier(callee) && callee.getText() === REQUIRE) {
+    return true;
+  }
+  return Node.isPropertyAccessExpression(callee) && callee.getName() === BINDING && isNodeProcess(callee.getExpression());
+}
+
+/** E6: the retired opener a piece of parser text carries, or undefined. */
+function retiredOpenerIn(text: string): string | undefined {
+  return RETIRED_MARKER_OPENERS.find((opener) => text.includes(opener));
+}
+
+/** E6: the first argument's static text when the call is a membership/parse method — the receiver is a regex or a
+ *  string and the OPENER rides the argument (`text.includes("@orb-gate-ignore")`, `RE.test(line)` is judged at the
+ *  regex literal instead). */
+function grammarCallArgumentText(call: CallExpression): string | undefined {
+  const callee = call.getExpression();
+  const argument = call.getArguments()[0];
+  if (!(Node.isPropertyAccessExpression(callee) && GRAMMAR_CALL_METHODS.has(callee.getName())) || argument === undefined) {
+    return;
+  }
+  return staticSegments(argument).segments.join("");
+}
+
+/** E6: the static text handed to `new RegExp(…)` — a grammar built from a string is still a grammar. */
+function regExpConstructionText(construction: MorphNode): string | undefined {
+  if (!Node.isNewExpression(construction) || construction.getExpression().getText() !== "RegExp") {
+    return;
+  }
+  const argument = construction.getArguments()[0];
+  return argument === undefined ? undefined : staticSegments(argument).segments.join("");
 }
 
 /** Is this `<identifier>.resources` a read of the CONTEXT host? The receiver must be a bare identifier
@@ -171,28 +285,39 @@ function unguardedResourceRead(access: PropertyAccessExpression): boolean {
   return !declaredUnder(calleeDeclarations(callee), RESOURCE_GUARD_HOME);
 }
 
+interface GrammarSite {
+  readonly node: MorphNode;
+  readonly opener: string;
+}
+
 interface JudgedModule {
   readonly sourceFile: SourceFile;
   readonly path: string;
-  readonly descriptor: ObjectLiteralExpression;
-  readonly fsImports: readonly ImportDeclaration[];
+  readonly registration: FinalRegistration;
+  readonly ioDoors: readonly MorphNode[];
   readonly resourceReads: readonly PropertyAccessExpression[];
+  readonly grammarSites: readonly GrammarSite[];
 }
 
-/** The three arms over ONE final module. */
-function judgeModule(ctx: GatePolicyContext, { sourceFile, path, descriptor, fsImports, resourceReads }: JudgedModule): void {
-  const ext = inertExtension(descriptor);
+/** The arms over ONE final module. E2 (which names the E7 shape) runs on every registration; the field arm E1
+ *  needs the descriptor literal and is skipped — not acquitted — when there is none, because E2 has already
+ *  reported the module for the shape that makes its fields unreadable. */
+function judgeModule(ctx: GatePolicyContext, { sourceFile, path, registration, ioDoors, resourceReads, grammarSites }: JudgedModule): void {
+  const ext = registration.descriptor === undefined ? undefined : inertExtension(registration.descriptor);
   if (ext !== undefined) {
     ctx.report.node(ext, Node.isPropertyAssignment(ext) ? { token: "ext", offset: 0, message: EXT_MESSAGE } : { message: EXT_MESSAGE });
   }
   for (const finding of inspectGateContract([sourceFile], rootOf(sourceFile, path)).findings) {
     ctx.report.file(path, { line: finding.line, column: finding.column, message: `${finding.detail} [${finding.code}]` });
   }
-  for (const declaration of fsImports) {
-    ctx.report.node(declaration, { message: FS_MESSAGE });
+  for (const door of ioDoors) {
+    ctx.report.node(door, { message: FS_MESSAGE });
   }
   for (const access of resourceReads) {
     ctx.report.node(access.getNameNode(), { message: RESOURCE_MESSAGE });
+  }
+  for (const site of grammarSites) {
+    ctx.report.node(site.node, { message: `${GRAMMAR_MESSAGE} Opener: ${site.opener}.` });
   }
 }
 
@@ -210,16 +335,44 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const fsImports = new Map<SourceFile, ImportDeclaration[]>();
+    const ioDoors = new Map<SourceFile, MorphNode[]>();
     const resourceReads = new Map<SourceFile, PropertyAccessExpression[]>();
+    const grammarSites = new Map<SourceFile, GrammarSite[]>();
+    const noteDoor = (sourceFile: SourceFile, node: MorphNode): void => {
+      ioDoors.set(sourceFile, [...(ioDoors.get(sourceFile) ?? []), node]);
+    };
+    const noteGrammar = (sourceFile: SourceFile, node: MorphNode, text: string | undefined): void => {
+      const opener = text === undefined ? undefined : retiredOpenerIn(text);
+      if (opener !== undefined) {
+        grammarSites.set(sourceFile, [...(grammarSites.get(sourceFile) ?? []), { node, opener }]);
+      }
+    };
     return {
       visitors: [
         {
           kinds: [SyntaxKind.ImportDeclaration],
           visit: (node, sourceFile): void => {
-            if (Node.isImportDeclaration(node) && FS_MODULE_RE.test(node.getModuleSpecifierValue())) {
-              fsImports.set(sourceFile, [...(fsImports.get(sourceFile) ?? []), node]);
+            if (Node.isImportDeclaration(node) && isForbiddenIoImport(node)) {
+              noteDoor(sourceFile, node);
             }
+          },
+        },
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node, sourceFile): void => {
+            if (!Node.isCallExpression(node)) {
+              return;
+            }
+            if (isDynamicLoadingDoor(node)) {
+              noteDoor(sourceFile, node);
+            }
+            noteGrammar(sourceFile, node, grammarCallArgumentText(node));
+          },
+        },
+        {
+          kinds: [SyntaxKind.RegularExpressionLiteral, SyntaxKind.NewExpression],
+          visit: (node, sourceFile): void => {
+            noteGrammar(sourceFile, node, Node.isRegularExpressionLiteral(node) ? node.getText() : regExpConstructionText(node));
           },
         },
         {
@@ -234,14 +387,15 @@ export const gate = defineGate({
       evaluate: (): void => {
         for (const sourceFile of ctx.files) {
           const path = ctx.relativePath(sourceFile);
-          const descriptor = finalDescriptorOf(sourceFile);
-          if (descriptor !== undefined) {
+          const registration = finalRegistrationOf(sourceFile);
+          if (registration !== undefined) {
             judgeModule(ctx, {
               sourceFile,
               path,
-              descriptor,
-              fsImports: fsImports.get(sourceFile) ?? [],
+              registration,
+              ioDoors: ioDoors.get(sourceFile) ?? [],
               resourceReads: resourceReads.get(sourceFile) ?? [],
+              grammarSites: grammarSites.get(sourceFile) ?? [],
             });
           } else if (path === SELF) {
             throw new Error(BLIND);
@@ -346,7 +500,7 @@ export const gate = defineGate({
           'import { readFileSync } from "node:fs";\n',
         ),
       ),
-      expect: { count: 1, token: "import", messageIncludes: "imports the filesystem" },
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
       why: "E3 the filesystem door: a `node:fs` import in a final module is a private resource reader wearing a contract's clothes (§12.4) — the import declaration is the anchor because deleting it is the repair",
     },
     {
@@ -402,6 +556,349 @@ export const gate = defineGate({
       ),
       expect: { count: 1, token: "resources" },
       why: "E4 THE RETIRED CARVE, ON THE BYTES IT USED TO ADMIT (#2148). Between `bf9beb617` and the ruling this exact fixture was a `mustPass`: the host handed whole to an IMPORTED `lib/` reader that narrows it itself. It is now an accusation, deliberately on the same bytes rather than deleted — a removed exception otherwise leaves an ABSENCE, and an absence cannot tell a later reader whether the carve was closed or never existed. The carve's hole: this policy's population is the gates tree, so once the host crossed into `lib/` nothing policed it, and that reader narrowing correctly was luck the next one would not inherit. The live hand-offs were inverted in the same commit",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { readFileSync } from "fs";\n',
+        ),
+      ),
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `fs` — the bare builtin specifier is the same door as `node:fs`",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { readFile } from "fs/promises";\n',
+        ),
+      ),
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `fs/promises` — the promise-returning filesystem, same door",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { readFile } from "node:fs/promises";\n',
+        ),
+      ),
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `node:fs/promises`",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { readJson } from "fs-extra";\n',
+        ),
+      ),
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `fs-extra` — the npm wrapper over the same filesystem (#2111 D1)",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { execFileSync } from "child_process";\n',
+        ),
+      ),
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `child_process` — a subprocess is a filesystem read by proxy and a git shell is the §12.4 residual-1 door",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { execFileSync } from "node:child_process";\n',
+        ),
+      ),
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `node:child_process`",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { runNicedSync } from "../../_shared/proc.ts";\n',
+        ),
+        { "tooling/src/_shared/proc.ts": "export const runNicedSync = 1;\n" },
+      ),
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `_shared/proc.ts` — the subprocess home, judged by IMPORT ORIGIN: the planted target makes the specifier resolve to the real home suffix",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { runNicedSync } from "../../_shared/proc.ts";\n',
+        ),
+      ),
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
+      why: "E3 FAIL-CLOSED: a `proc.ts` specifier that resolves NOWHERE is reported — the origin cannot be established, and acquitting it on its spelling would be the failure mode (#944)",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'export async function load(): Promise<unknown> {\n  return import("./sibling.ts");\n}\n',
+        ),
+      ),
+      expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER value-position `import(…)` — a dynamic import is a loader a policy reaches at run time, outside every static reader",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'declare function require(id: string): unknown;\nexport const loaded = require("fs");\n',
+        ),
+      ),
+      expect: { count: 1, token: "require", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `require(…)` — the CommonJS door smuggled into an ESM module",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'export const bound = process.binding("fs");\n',
+        ),
+      ),
+      expect: { count: 1, token: "process", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `process.binding(…)` on the Node global (no declaration in the proof project, exactly as no `@types/node` ships to a policy)",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import process from "node:process";\nexport const bound = process.binding("fs");\n',
+        ),
+      ),
+      expect: { count: 1, token: "process", messageIncludes: "opens an I/O" },
+      why: "E3 MEMBER `process.binding(…)` through the `node:process` import — the receiver's declaration is an import, not a local binding",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@orb-gate-ignore/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @orb-gate-ignore." },
+      why: "E6 MEMBER `@orb-gate-ignore` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@foreign-id-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @foreign-id-ok." },
+      why: "E6 MEMBER `@foreign-id-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@owner-scope-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @owner-scope-ok." },
+      why: "E6 MEMBER `@owner-scope-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@owner-scope-write-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @owner-scope-write-ok." },
+      why: "E6 MEMBER `@owner-scope-write-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@owner-scope-upsert-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @owner-scope-upsert-ok." },
+      why: "E6 MEMBER `@owner-scope-upsert-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@nullable-cmp-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @nullable-cmp-ok." },
+      why: "E6 MEMBER `@nullable-cmp-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@sub-floor-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @sub-floor-ok." },
+      why: "E6 MEMBER `@sub-floor-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@swallowed-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @swallowed-ok." },
+      why: "E6 MEMBER `@swallowed-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@surface-focus-elsewhere/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @surface-focus-elsewhere." },
+      why: "E6 MEMBER `@surface-focus-elsewhere` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@finding-overload-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @finding-overload-ok." },
+      why: "E6 MEMBER `@finding-overload-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@first-boot-only/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @first-boot-only." },
+      why: "E6 MEMBER `@first-boot-only` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@over-art-plate-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @over-art-plate-ok." },
+      why: "E6 MEMBER `@over-art-plate-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /@column-ok/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @column-ok." },
+      why: "E6 MEMBER `@column-ok` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /FABRICATION-OK/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: FABRICATION-OK." },
+      why: "E6 MEMBER `FABRICATION-OK` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /ONESHOT-OK/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: ONESHOT-OK." },
+      why: "E6 MEMBER `ONESHOT-OK` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const GRAMMAR = /PROSE-OK/u;\n",
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: PROSE-OK." },
+      why: "E6 MEMBER `PROSE-OK` parsed by a regex literal in a final module — one row per retired opener, so a spelling the reader stops matching cannot go silent behind its siblings",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'const GRAMMAR = new RegExp("^\\\\s*//\\\\s*@orb-gate-ignore");\n',
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: @orb-gate-ignore." },
+      why: "E6 the `new RegExp(<static text>)` shape — a grammar built from a string is still a grammar; the argument is read through the static-segment reader",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'export const marked = (line: string): boolean => line.includes("FABRICATION-OK");\n',
+        ),
+      ),
+      expect: { count: 1, messageIncludes: "Opener: FABRICATION-OK." },
+      why: "E6 the membership-test shape — `.includes/.startsWith/.test/.exec/.indexOf` with the opener as its argument is a parser without a regex",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+        )
+          .replace("export const gate = defineGate({", "const DESCRIPTOR = {")
+          .replace("\n});\n", "\n};\nexport const gate = defineGate(DESCRIPTOR);\n"),
+      ),
+      expect: { count: 1, messageIncludes: "[descriptor-wrapper]" },
+      why: "E7 THE BLIND SPOT, CLOSED (#2111 A42): `defineGate(DESCRIPTOR)` is a registration the loader brands and every field arm of this family used to skip — `finalDescriptorOf` read `undefined` and the module was judged by nobody. E2 now runs on the REGISTRATION and its `descriptor-wrapper` code names the non-literal argument; red-first on the pre-fix family: 0 findings",
     },
   ],
   // A refusal is the CORRECT outcome for an input that breaks a runtime guarantee, and no `mustFlag`/`mustPass`
@@ -464,6 +961,67 @@ export const gate = defineGate({
         { [TS_MORPH_TYPES_PATH]: TS_MORPH_TYPES_STUB },
       ),
       why: "E2 DECLARED LIMIT inherited from the reader: `getSourceFile` on a NODE is the delivered node's own file, not a Project walk — `isTsMorphWalk` admits it, so this arm does too",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'const process = { binding: (name: string): string => name };\nexport const bound = process.binding("fs");\n',
+        ),
+      ),
+      why: "E3 NEAR-MISS: a LOCAL binding named `process` is somebody's data, not the Node global — the receiver test reads the declaration, never the spelling",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'export function calleeName(call: import("ts-morph").CallExpression): string {\n  return call.getText();\n}\n',
+        ),
+      ),
+      why: 'E3 NEAR-MISS: a TYPE-position `import("ts-morph")` is an `ImportType` node, not a dynamic import — three live modules use it and none opens a door',
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { runNicedSync } from "./proc.ts";\n',
+        ),
+        { "tooling/src/verify/gates/proc.ts": "export const runNicedSync = 1;\n" },
+      ),
+      why: "E3 IDENTITY, NOT SPELLING: a sibling `gates/proc.ts` shares the basename and resolves to an unrelated path — acquitted by its resolved suffix",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { dirname } from "node:path";\nexport const home = dirname("a/b");\n',
+        ),
+      ),
+      why: "E3 NEAR-MISS: `node:path` is pure string arithmetic, not a door — the one Node builtin a live final module imports (`test-presence-client`)",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const LIVE = /^[ \\t]*\\/\\/[ \\t]*@orb-waive /u;\n",
+        ),
+      ),
+      why: "E6 NEAR-MISS: the LIVE central grammar `@orb-waive` in a regex is not a retired opener — the family reader itself carries one (lib/policy-descriptor-read.ts), and the arm is about the retired set",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'const WHY = "the legacy grammar was @orb-gate-ignore and FABRICATION-OK; both are retired";\n',
+        ),
+      ),
+      why: "E6 NEAR-MISS (guide §7): a retired spelling in PROSE — a `why`, a header, a `fix` — is a MENTION, never a parse; only a regex, a `new RegExp` or a membership test names a grammar",
     },
     {
       mode: "types",
