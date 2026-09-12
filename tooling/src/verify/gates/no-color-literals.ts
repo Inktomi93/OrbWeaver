@@ -27,6 +27,22 @@
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
+// THE THREE ARM MESSAGES ARE THE DIAGNOSTIC; THE POLICY `message` IS THE HEADER (#1991, 2026-09-11).
+// This policy flags three DISJOINT patterns and reports a per-finding message for each, but it used to
+// DECLARE `message: MESSAGE_HEX` — and the policy-level message is what `lib/render.ts` prints as the group
+// header above a run's occurrence lines, so a palette-only or black/white-only run handed its author the
+// HEX remedy. §5b.2 makes "the message is TRUE of what the code flags" unconditional, so the declared
+// message is now an umbrella that is true of all three arms and names all three remedies.
+//
+// THE FOUR STRINGS ARE KEPT DISJOINT ON PURPOSE. `expectationFailure` matches `messageIncludes` against
+// `finding.message ?? policyMessage` (ops/policy-conformance.ts), so a needle drawn from one arm must not
+// appear in another — building one arm as `${OTHER} …`, or letting the umbrella quote an arm's opening
+// clause verbatim, defeats the discriminator in BOTH directions and makes every arm unpinnable. The
+// discriminating needles are the three opening clauses below ("named non-token color class",
+// "Tailwind PALETTE-scale color class", "arbitrary hex color class"); each `mustFlag` row names its own,
+// and the transplant control in the family test proves a sibling's needle does NOT match.
+const MESSAGE_POLICY =
+  "a hardcoded color class — all three banned shapes bypass the theme, and EACH FINDING CARRIES ITS OWN REMEDY: black/white literals (bg-black → bg-backdrop, or a token), Tailwind numeric ramps (text-red-500 → text-destructive / text-success / bg-primary), and bracket hexes (bg-[#0a0a0a] → a theme.css token). D43 / UI-Architecture-and-Layout.md / UI-Gates-and-Lessons.md §11.4.";
 const MESSAGE_NON_TOKEN =
   "named non-token color class (bg-black/bg-white/…-black/…-white) — D43 / UI-Gates-and-Lessons.md §11.4: use a theme token; for overlays use bg-backdrop (a bg-black/50 scrim is invisible on a true-black theme).";
 const MESSAGE_HEX =
@@ -81,8 +97,14 @@ export const gate = defineGate({
   execution: "selected-files",
   facts: [],
   resources: [],
-  message: MESSAGE_HEX,
-  fix: "use a design token (bg-card, text-foreground, text-success, text-destructive).",
+  message: MESSAGE_POLICY,
+  fix:
+    "use a design token (bg-card, text-foreground, text-success, text-destructive) — the per-finding message " +
+    "names the remedy for the arm that fired. A deliberate literal is waived with " +
+    "`// @orb-waive no-color-literals(<position>): <reason>` on a line above the offending statement, where " +
+    "<position> is the OFFENDING CLASS FRAGMENT alone — `bg-black`, `text-red-500`, `text-[#abc]` — never the " +
+    "quoted literal that contains it. One fragment is one finding, so a class string carrying two banned " +
+    "fragments takes two markers.",
   create: (ctx) => ({
     visitors: [
       {
@@ -100,34 +122,34 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/x.tsx": 'export const G = <div className="text-[#abc]" />;\n' },
-      expect: { count: 1 },
-      why: "arbitrary hex color",
+      expect: { count: 1, token: "text-[#abc]", messageIncludes: "arbitrary hex color class" },
+      why: "arbitrary hex color — pinned to the HEX arm's own message (#1991). Without the needle this row passed identically when the hex fixture was swapped for a palette class, because the count is 1 either way and the policy-level message was MESSAGE_HEX",
     },
     {
       mode: "source",
       files: { "packages/ui/src/x.tsx": 'export const G = <div className="bg-black" />;\n' },
-      expect: { count: 1 },
-      why: "named non-token color",
+      expect: { count: 1, token: "bg-black", messageIncludes: "named non-token color class" },
+      why: "named non-token color — pinned to the NON-TOKEN arm's own message, which no sibling arm emits",
     },
     {
       mode: "source",
       files: { "packages/client/src/palette.tsx": 'export const G = <div className="text-red-500" />;\n' },
-      expect: { count: 1 },
-      why: "a Tailwind palette scale (text-red-500) — the tighten's new arm: a fixed palette step bypasses the theme, RED",
+      expect: { count: 1, token: "text-red-500", messageIncludes: "Tailwind PALETTE-scale color class" },
+      why: "a Tailwind palette scale (text-red-500) — the tighten's new arm: a fixed palette step bypasses the theme, RED. The needle is the PALETTE arm's own message, so a hex/non-token regression cannot satisfy this row",
     },
     {
       mode: "source",
       files: { "packages/ui/src/palette-multi.tsx": 'export const G = <div className="rounded-md border bg-blue-300/50 ring-emerald-600" />;\n' },
-      expect: { count: 2 },
-      why: "two palette-scale tokens (bg-blue-300/50 with an opacity step + ring-emerald-600) in one className — one finding PER offending token, RED",
+      expect: { count: 2, token: "bg-blue-300/50", messageIncludes: "Tailwind PALETTE-scale color class" },
+      why: "two palette-scale tokens (bg-blue-300/50 with an opacity step + ring-emerald-600) in one className — one finding PER offending token, RED. `token` + `messageIncludes` are matched against ONE finding, so this also pins that the opacity-suffixed fragment (not the bare ramp) is the reported position",
     },
     {
       mode: "source",
       files: {
         "packages/ui/src/variants.ts": 'export const badge = { variants: { tone: { danger: "bg-red-500 text-white", ghost: "text-[#abc]" } } };\n',
       },
-      expect: { count: 3, token: "bg-red-500" },
-      why: "THE UNFENCED DECISION (#1954): a tv()-style variant map in a .ts file — no JSX, no className attribute, no cn() call anywhere — and ALL THREE patterns still bite (palette bg-red-500, non-token text-white, hex text-[#abc]). This is where most class strings in this repo actually live, so a className/cn ancestry fence would be a hole, not a narrowing; the messages must therefore not assert a className context",
+      expect: { count: 3, token: "bg-red-500", messageIncludes: "Tailwind PALETTE-scale color class" },
+      why: "THE UNFENCED DECISION (#1954): a tv()-style variant map in a .ts file — no JSX, no className attribute, no cn() call anywhere — and ALL THREE patterns still bite (palette bg-red-500, non-token text-white, hex text-[#abc]). This is where most class strings in this repo actually live, so a className/cn ancestry fence would be a hole, not a narrowing; the messages must therefore not assert a className context. `count: 3` is what pins all three arms firing here; the per-arm message discrimination lives in the three single-pattern rows above, because one `expect` can name only one finding's message",
     },
   ],
   mustPass: [
