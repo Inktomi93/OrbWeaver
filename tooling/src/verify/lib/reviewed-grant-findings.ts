@@ -108,9 +108,14 @@ export interface ReviewedGrantFileCandidate extends ReviewedGrantIdentity {
   readonly unreadable?: boolean;
 }
 
+/** The site list, in the caller's PATH/LINE order. It must NOT re-sort: the only ordering available to a
+ *  rendered `file:line` string is lexical, and lexically `…:10` precedes `…:2`, so a class with sites at
+ *  lines 2 and 10 in one file named them out of order (#2135). `reportReviewedGrantFileCandidates` already
+ *  computes the correct order numerically — this renders THAT array and only dedupes, which is load-bearing
+ *  because two occurrences can share a coordinate and a note. */
 function fileSiteList(candidates: readonly ReviewedGrantFileCandidate[]): string {
   const rendered = candidates.map((candidate) => `${candidate.file}:${candidate.line}${candidate.note === undefined ? "" : ` (${candidate.note})`}`);
-  return [...new Set(rendered)].toSorted((left, right) => left.localeCompare(right)).join(", ");
+  return [...new Set(rendered)].join(", ");
 }
 
 /** The FILE-anchored door over the same law: one finding per `(subject, operation)`, anchored at the first
