@@ -27,6 +27,22 @@
 // the world program's shared compiler reader already owns the config grammar (`lib/policy-program-membership.ts`
 // `parseConfig`, which keeps exactly that `raw` object beside the folded `ParsedCommandLine`, #1351). So the
 // conversion route is exposing that raw half through the shared reader. Until then: legacy, and fully armed.
+// REFUSAL RE-DERIVED AND RE-DATED 2026-09-12 (#2013) — a refusal is a SNAPSHOT, and nothing re-opens one
+// when its blocker lands, so here is what was measured today rather than inherited:
+//   · the one-consumer measurement HOLDS: `ts.parseConfigFileTextToJson` / `ts.readConfigFile` across
+//     `tooling/src/verify/gates/**` is this module's `foldConfig` and nothing else (the only other `jsonc`
+//     mentions in the gate corpus are extension lists in `no-nul-bytes-in-source.ts` and
+//     `no-blanket-suppression.ts`). A `jsonc` kind would still serve one gate. §12.4's ruling stands.
+//   · the shared-READER exposure is still UNBUILT, and it is not a one-line change. `parseConfig`
+//     (`lib/policy-program-membership.ts`) does keep the unfolded `raw` config object beside the folded
+//     `ParsedCommandLine`, but `ParsedConfig` is module-private and nothing it publishes carries raw
+//     `include`/`exclude`. Exposing it is THREE coupled decisions, not one: (a) a new public shape on the
+//     #1351 compiler reader — a world-program surface this program does not own; (b) LINE identity, which
+//     `readConfigFile` structurally drops (it returns a value, not an AST), and every finding this gate
+//     emits is anchored at its entry's own line, so the exposure must carry positions or the gate loses its
+//     anchor; (c) the tsconfig ROSTER, which this module discovers by `readdirSync` and which would have to
+//     become declared data. So this is its own lane with #1351's reader as its coupled site, and the
+//     decision it needs is a READER design ruling, not a capability.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { ts } from "ts-morph";

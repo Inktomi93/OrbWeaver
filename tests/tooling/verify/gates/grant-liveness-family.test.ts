@@ -4,10 +4,15 @@
 // `native-config` ResourceHost fact) and the liveness/exemption reconciler
 // (`lib/grant-liveness.ts` `livenessFindings` / `patternLivenessFindings`).
 //
-// Three more members of that family are still LEGACY descriptors and therefore cannot appear here:
-// `runner-config-path-liveness` (conversion refused 2026-09-11 — its module header states the two reads the
-// closed ResourceHost cannot serve), `biome-grant-liveness` and `tsconfig-entry-liveness`. Each keeps its
-// own permanent-pin int test until it converts; add it to `policies` below in the converting commit.
+// `runner-config-path-liveness` JOINED 2026-09-12 (#1584): the `authored-path` door its 2026-09-11 refusal
+// specified shipped inside the frozen 18-kind vocabulary, so the refusal's premise is retired and the module
+// converted. It adds a third shared reader to the family — the authored-path IDENTITY door
+// (`contract/resource-path.ts`), which answers containment and normalization for a selector read out of
+// another resource.
+//
+// Two more members of that family are still LEGACY descriptors and therefore cannot appear here:
+// `biome-grant-liveness` and `tsconfig-entry-liveness`. Each keeps its own permanent-pin int test until it
+// converts; add it to `policies` below in the converting commit.
 //
 // WHY THIS FILE EXISTS (#1932): both converted policies' permanent-pin int tests previously cited
 // `tests/tooling/verify/ops/policy-conformance.test.ts` as the harness that runs their `mustFlag`/`mustPass`
@@ -17,12 +22,18 @@
 // is the receipt that every arm still fires on its own fixture.
 import { gate as depcruiseGrantLiveness } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
 import { gate as eslintGrantLiveness } from "../../../../tooling/src/verify/gates/eslint-grant-liveness.ts";
+import { gate as runnerConfigPathLiveness } from "../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const policies = [depcruiseGrantLiveness, eslintGrantLiveness] as const;
+const policies = [depcruiseGrantLiveness, eslintGrantLiveness, runnerConfigPathLiveness] as const;
 
-test("every grant-liveness policy's own proofs hold through the production dispatcher", () => {
+// Every row in this family is `mode: "resource"`: each one materialises a real temp repository and drives a
+// NATIVE loader in a niced child (dependency-cruiser, ESLint's ConfigArray, Vitest's `resolveConfig`). That is
+// seconds per row by construction, so the arm carries an explicit load-scaled budget instead of sitting one
+// contention spike away from vitest's 5s default.
+test("every grant-liveness policy's own proofs hold through the production dispatcher", { timeout: scaledBudget(180_000) }, () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 
@@ -35,5 +46,6 @@ test("the family is one family, and its authority carries no suppression door", 
   expect(policies.map((policy) => [policy.id, policy.family, policy.authority])).toEqual([
     ["depcruise-grant-liveness", "grant-liveness", "hard"],
     ["eslint-grant-liveness", "grant-liveness", "hard"],
+    ["runner-config-path-liveness", "grant-liveness", "hard"],
   ]);
 });
