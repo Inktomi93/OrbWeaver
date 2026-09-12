@@ -105,6 +105,18 @@ export function localEvidenceLines(): ReadonlyMap<string, number> {
   return new Map(paths.map((path) => [path, countLines(readFileSync(join(root, path)))] as const));
 }
 
+/** The commit a re-attestation names (#1996). Null when HEAD does not resolve — an unborn branch or a
+ *  broken checkout — which the attest verb reports rather than writing a receipt nothing can verify. */
+export function headCommit(): string | null {
+  return gitResult(["rev-parse", "HEAD"])?.trim() ?? null;
+}
+
+/** The attestation DATE, as UTC YYYY-MM-DD. One home, so the verb's only clock read is here and the
+ *  plan itself stays a pure function of its inputs. */
+export function today(): string {
+  return (new Date().toISOString().split("T")[0] ?? "") as string;
+}
+
 export function headAncestors(): ReadonlySet<string> {
   return new Set(
     gitResult(["rev-list", "HEAD"])
