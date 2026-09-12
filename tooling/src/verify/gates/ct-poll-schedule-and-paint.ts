@@ -36,20 +36,18 @@
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import {
+  ancestorContains,
+  barrierNames,
+  EVALUATE,
+  isBarrierCall,
+  isMotionPoll,
+  isUntrustedTrigger,
+  pollOptionsArg,
+  reportSharedSchedule,
+} from "../lib/ct-poll-schedule-and-paint.ts";
 
-const INTERVALS = "intervals";
-const EXPECT = "expect";
-const POLL = "poll";
-const TO_PASS = "toPass";
-const EVALUATE = "evaluate";
-export const PAINT_API = "requestAnimationFrame";
 const TEST_CALLEE = "test";
-
-/** The reads that only exist because a `layout-shift` entry was delivered — the values ARM B protects. */
-export const MOTION_READS: ReadonlySet<string> = new Set(["cls", "observedCls", "virtualizedCls", "nonVirtualizedCls"]);
-/** Untrusted triggers `locator.click()`'s two-stable-frame actionability wait does NOT cover. */
-const UNTRUSTED_TRIGGERS: ReadonlySet<string> = new Set(["click", "dispatchEvent"]);
-
 const MESSAGE =
   "a Playwright poll idiom that loses its evidence silently: an `intervals` schedule reached by identifier " +
   "(Playwright's pollAgainstDeadline pops/shifts the caller's array, so every later poll falls back to the " +
@@ -62,151 +60,6 @@ const FIX =
   "mint the schedule fresh per call (`intervals: [50, 100, 200, 250]` inline, or a factory call like " +
   "`evidencePoll()`), and await two presented animation frames (`settlePaint`) before an untrusted " +
   "evaluate-click whose evidence is a layout shift — tests/client/lib/motion-stats.ct.tsx.";
-
-/** The options argument of a Playwright poll door — `expect.poll(fn, OPTS)` / `<expect>.toPass(OPTS)`. */
-export function pollOptionsArg(call: CallExpression): TsNode | undefined {
-  const callee = call.getExpression();
-  if (!Node.isPropertyAccessExpression(callee)) {
-    return;
-  }
-  if (callee.getName() === TO_PASS) {
-    return call.getArguments()[0];
-  }
-  const isExpectPoll = callee.getName() === POLL && callee.getExpression().getText() === EXPECT;
-  return isExpectPoll ? call.getArguments()[1] : undefined;
-}
-
-/** A MODULE-SCOPE `const X = …` initializer in this file, by name. Deliberately module-scope only: that is
- *  the shared-across-calls shape ARM A is about, and `getVariableDeclaration` reads exactly that tier. */
-function moduleConstInit(sf: SourceFile, name: string): TsNode | undefined {
-  return sf.getVariableDeclaration(name)?.getInitializer();
-}
-
-/** Does this identifier name a module-scope object literal that carries an `intervals` key? */
-function namesSharedSchedule(sf: SourceFile, id: TsNode): boolean {
-  const init = moduleConstInit(sf, id.getText());
-  return init !== undefined && Node.isObjectLiteralExpression(init) && init.getProperty(INTERVALS) !== undefined;
-}
-
-/** The node to report for ONE options property, or undefined when that property is legal. Three spellings
- *  of the same shared reference: `intervals: IDENT`, `{ intervals }`, and `{ ...SHARED }` (a spread copies
- *  the object, never the array inside it). */
-function sharedScheduleNode(prop: TsNode, sf: SourceFile): TsNode | undefined {
-  if (Node.isShorthandPropertyAssignment(prop) && prop.getName() === INTERVALS) {
-    return prop;
-  }
-  if (Node.isPropertyAssignment(prop) && prop.getName() === INTERVALS) {
-    const value = prop.getInitializerOrThrow();
-    return Node.isIdentifier(value) ? value : undefined;
-  }
-  if (!Node.isSpreadAssignment(prop)) {
-    return;
-  }
-  const expr = prop.getExpression();
-  return Node.isIdentifier(expr) && namesSharedSchedule(sf, expr) ? expr : undefined;
-}
-
-/** ARM A — every identifier-carried route to a shared interval array in one options argument. */
-function reportSharedSchedule(options: TsNode, sf: SourceFile, report: (node: TsNode, token: string) => void): void {
-  if (Node.isIdentifier(options)) {
-    if (namesSharedSchedule(sf, options)) {
-      report(options, options.getText());
-    }
-    return;
-  }
-  if (!Node.isObjectLiteralExpression(options)) {
-    return;
-  }
-  for (const prop of options.getProperties()) {
-    const hit = sharedScheduleNode(prop, sf);
-    if (hit !== undefined) {
-      report(hit, Node.isShorthandPropertyAssignment(hit) ? INTERVALS : hit.getText());
-    }
-  }
-}
-
-/** Is this options argument a FRESH mint — an inline array literal or a factory call? (the health arm's
- *  read.) */
-export function isFreshSchedule(options: TsNode | undefined): boolean {
-  if (options === undefined) {
-    return false;
-  }
-  if (Node.isCallExpression(options)) {
-    return true;
-  }
-  if (!Node.isObjectLiteralExpression(options)) {
-    return false;
-  }
-  const prop = options.getProperty(INTERVALS);
-  return prop !== undefined && Node.isPropertyAssignment(prop) && Node.isArrayLiteralExpression(prop.getInitializerOrThrow());
-}
-
-/** Does `scope`'s subtree contain `node`? Walks UP from `node` via its ancestor chain (never a descendant
- *  walk of `scope`) — the shared kind-indexed walk already delivers every identifier/call in the file, so
- *  "is this occurrence inside that scope" is answered by ancestry, never by re-walking down from `scope`. */
-function ancestorContains(scope: TsNode, node: TsNode): boolean {
-  return node === scope || node.getAncestors().includes(scope);
-}
-
-/** Does `scope`'s subtree contain a `requestAnimationFrame` identifier, from the file's own
- *  pre-collected identifier list? */
-function reachesPaintApi(scope: TsNode, identifiers: readonly TsNode[]): boolean {
-  return identifiers.some((id) => id.getText() === PAINT_API && ancestorContains(scope, id));
-}
-
-/** The names of same-file helpers whose body reaches `requestAnimationFrame` — the barrier vocabulary,
- *  DERIVED rather than hard-coded so a rename of `settlePaint` cannot silently disarm ARM B. */
-export function barrierNames(sf: SourceFile, identifiers: readonly TsNode[]): ReadonlySet<string> {
-  const names = new Set<string>();
-  for (const fn of sf.getFunctions()) {
-    const name = fn.getName();
-    if (name !== undefined && reachesPaintApi(fn, identifiers)) {
-      names.add(name);
-    }
-  }
-  for (const decl of sf.getVariableDeclarations()) {
-    const init = decl.getInitializer();
-    if (init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init)) && reachesPaintApi(init, identifiers)) {
-      names.add(decl.getName());
-    }
-  }
-  return names;
-}
-
-/** A barrier: a call to a derived helper, or an inline `page.evaluate(() => requestAnimationFrame(…))`. */
-function isBarrierCall(call: CallExpression, names: ReadonlySet<string>, identifiers: readonly TsNode[]): boolean {
-  const callee = call.getExpression();
-  if (Node.isIdentifier(callee) && names.has(callee.getText())) {
-    return true;
-  }
-  return Node.isPropertyAccessExpression(callee) && callee.getName() === EVALUATE && reachesPaintApi(call, identifiers);
-}
-
-/** An UNTRUSTED trigger: `<locator>.evaluate(el => el.click())` / a dispatched event — no actionability wait. */
-export function isUntrustedTrigger(call: CallExpression, calls: readonly CallExpression[]): boolean {
-  const callee = call.getExpression();
-  if (!(Node.isPropertyAccessExpression(callee) && callee.getName() === EVALUATE)) {
-    return false;
-  }
-  return call.getArguments().some((arg) =>
-    calls.some((inner) => {
-      if (!ancestorContains(arg, inner)) {
-        return false;
-      }
-      const target = inner.getExpression();
-      return Node.isPropertyAccessExpression(target) && UNTRUSTED_TRIGGERS.has(target.getName());
-    }),
-  );
-}
-
-/** A poll whose asserted value is layout-shift-derived (the read that needs a painted "before"). */
-export function isMotionPoll(call: CallExpression, identifiers: readonly TsNode[]): boolean {
-  if (pollOptionsArg(call) === undefined) {
-    return false;
-  }
-  const statement = call.getFirstAncestorByKind(SyntaxKind.ExpressionStatement) ?? call;
-  return identifiers.some((id) => MOTION_READS.has(id.getText()) && ancestorContains(statement, id));
-}
 
 /** This node's own `test(…)` body, if it IS a test call. */
 function testBodyOf(node: TsNode): TsNode | undefined {

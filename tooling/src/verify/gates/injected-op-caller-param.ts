@@ -19,14 +19,12 @@
 // occurrence check is `ordinary` (a genuinely structural/un-principal op takes a reviewed CALLER_FREE_OPS
 // row); the two-sided stale-exemption ratchet AND the empty-derivation blindness tripwire are whole-tree,
 // unsuppressible claims and live in their own `hard` policy id under the same family.
-import type { SourceFile, TypeAliasDeclaration } from "ts-morph";
+import type { TypeAliasDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable } from "../contract/gate.ts";
 import { defineGate } from "../contract/policy.ts";
+import { callerFreeOps, deriveEntityIdTypes } from "../lib/injected-op-caller-param.ts";
 
-export const IDS_MODULE = "packages/kit/src/ids/index.ts";
 const CONTRACT_RE = /^packages\/server\/src\/domain\/[^/]+\/contract\//u;
-const TYPEID_OF = "TypeIdOf";
 
 /** The scope vocabulary: a param NAME, a destructured element, or an object-member name that carries the
  *  caller. `Principal` / `UserId` are the TYPE spellings of the same thing. */
@@ -47,53 +45,6 @@ const SCOPE_NAMES = new Set([
 ]);
 const SCOPE_TYPES = new Set(["Principal", "UserId"]);
 
-/** Ops that legitimately carry NO caller. Each row says WHY the authority is elsewhere and what would END
- *  the exemption. Two-sided: a row naming an op no contract declares is RED (the health sibling). Exported
- *  for the health sibling's staleness sweep. */
-export const CALLER_FREE_OPS: ExemptionTable = {
-  ReapAssetsOp: {
-    why:
-      "the authority is STRUCTURAL, not the caller's: `reapIfOrphan` purges an id only when the whole " +
-      "asset-ref REGISTRY holds no reference to it (`selectReferencedAmong`), so a foreign id that is still " +
-      "referenced is skipped and a foreign id referenced by nothing is an orphan blob `collectGarbage` would " +
-      "reap anyway. UN-PRINCIPAL by design (D20, stated in `assets/verbs/reap-if-orphan.ts`'s header) and it " +
-      "returns no row data. Ends the day the reap stops consulting the reference registry first.",
-  },
-  ListCharacterSpriteAssetsOp: {
-    why:
-      "expressions-design/01 §8 — OPTIONAL and currently UNWIRED (no compose root supplies it; the FK cascade " +
-      "plus the next GC sweep is the live behavior). It is now a READ of the assetIds bound to a character, " +
-      "taken before the owner-scoped delete that actually frees them, and it returns ids the caller already " +
-      "proved it owns; it no longer DELETES anything (renamed from `ReapCharacterSpritesOp` when the detach " +
-      "was moved behind the delete). Ends the day the expressions leaf lands: the wiring must carry the " +
-      "caller then, because the ids it returns would be reachable by characterId alone.",
-  },
-  ResolveAssetHashOp: {
-    why:
-      "the un-principal indexer/assembly read (D20): it returns a CAS content hash, never row data, and its " +
-      "assetId comes from the chat's own already-authorized canon (a seated card's avatar), not from caller " +
-      "input. Ends if it ever returns owner-identifying fields.",
-  },
-  LoadAssetBytesOp: {
-    why:
-      "D20 un-principal blob read for the databank INGEST path, which runs after the enqueue authority check " +
-      "(the workload row's owner is the gate). `assets/contract/service.ts` names this the un-principal read " +
-      "explicitly, distinct from the principal-carrying door. Ends if ingest ever runs on caller-supplied ids.",
-  },
-  LoadAssetBytes: {
-    why: "the embeddings twin of LoadAssetBytesOp — the indexer sweeps ids IT enumerated (D20 un-principal). Ends if the indexer starts taking ids from a request.",
-  },
-  LoadAssetMime: {
-    why: "the embeddings mime probe over ids the indexer enumerated itself (D20 un-principal); returns a mime string, no row data. Ends with LoadAssetBytes.",
-  },
-  LoadCardText: {
-    why:
-      "the embeddings/admin card-text read over ids the indexer enumerated itself (`listEmbeddableCharacterIds`) " +
-      "— D20 un-principal, the bulk pass sweeps the whole corpus by construction. Ends if a request-supplied " +
-      "characterId ever reaches it.",
-  },
-};
-
 const MESSAGE =
   "a cross-domain op takes an entity id but NO caller — the op is the domain boundary (AGENTS §2: a verb " +
   "declares the op's TYPE in its contract/ and the runtime op is wired at the composition root), so the " +
@@ -108,24 +59,6 @@ const FIX =
   "A deliberate site is waived with `@orb-waive injected-op-caller-param(<position>): <reason>` on the line " +
   "above, where <position> is the caller-scope parameter's own alias name as it appears in the op's " +
   "destructure/passthrough.";
-
-/** Every branded ENTITY-row id type name in `@orb/kit/ids`: every `export type X = TypeIdOf<"…">`.
- *  Exported for the health sibling's blindness tripwire. */
-export function deriveEntityIdTypes(files: readonly SourceFile[], relativePath: (sf: SourceFile) => string): ReadonlySet<string> {
-  const names = new Set<string>();
-  for (const sf of files) {
-    if (relativePath(sf) !== IDS_MODULE) {
-      continue;
-    }
-    for (const ta of sf.getTypeAliases()) {
-      const tn = ta.getTypeNode();
-      if (tn?.isKind(SyntaxKind.TypeReference) === true && tn.getTypeName().getText() === TYPEID_OF) {
-        names.add(ta.getName());
-      }
-    }
-  }
-  return names;
-}
 
 /** True when a FunctionType is an OP — a Promise-returning boundary, not a pure/sync computation. */
 function isOpFunctionType(alias: TypeAliasDeclaration): boolean {
@@ -186,7 +119,7 @@ export const gate = defineGate({
           if (paramNames.some((n) => SCOPE_NAMES.has(n) || SCOPE_TYPES.has(n))) {
             continue;
           }
-          if (name in CALLER_FREE_OPS) {
+          if (callerFreeOps().has(name)) {
             continue;
           }
           ctx.report.node(alias, { token: name, offset: alias.getText().indexOf(name) });

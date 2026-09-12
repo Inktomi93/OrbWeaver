@@ -6,7 +6,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { blankCssComments, blankTsCommentsInText } from "../lib/comment-spans.ts";
 import { readStaticSource } from "../lib/config-static-read.ts";
-import { SANCTIONED_CSS_HOMES } from "./sanctioned-css-homes.ts";
+import { SANCTIONED_CSS_HOMES } from "../lib/sanctioned-css-homes.ts";
 
 const MAIN = "packages/client/src/main.tsx";
 const APP_SHELL = "packages/client/src/features/app-shell/surfaces/app-shell.tsx";

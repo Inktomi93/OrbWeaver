@@ -38,8 +38,9 @@ import { pathToFileURL } from "node:url";
 import { Project } from "ts-morph";
 import type { GateDescriptor, GateExample } from "../../../../tooling/src/verify/contract/gate.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { CALLER_FREE_OPS, IDS_MODULE, gate as occurrence } from "../../../../tooling/src/verify/gates/injected-op-caller-param.ts";
+import { gate as occurrence } from "../../../../tooling/src/verify/gates/injected-op-caller-param.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/injected-op-caller-param-health.ts";
+import { CALLER_FREE_OP_ROWS, IDS_MODULE } from "../../../../tooling/src/verify/lib/injected-op-caller-param.ts";
 import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -50,7 +51,7 @@ const BASE = "7993f264c43f96f5b3595d184919d4cdee253a43";
 const LEGACY_PATH = "tooling/src/verify/gates/injected-op-caller-param.ts";
 const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
 const CONTRACT_FILE = "packages/server/src/domain/character/contract/service.ts";
-const CALLER_FREE_NAMES = Object.keys(CALLER_FREE_OPS);
+const CALLER_FREE_NAMES = CALLER_FREE_OP_ROWS.map(({ op }) => op);
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });

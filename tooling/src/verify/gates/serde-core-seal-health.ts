@@ -20,7 +20,7 @@
 // compiler-source candidate set: 1,493 (the parent's port) admitted on both sides, symmetric difference ZERO in both directions.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { DOMAIN_ROOT, pngChunkImport, SANCTIONED_DOMAINS } from "./serde-core-seal.ts";
+import { DOMAIN_ROOT, pngChunkImport, SANCTIONED_DOMAINS } from "../lib/serde-core-seal.ts";
 
 /** Real-tree anchor: the kit module that DEFINES the byte-surgery engine. Also the report anchor, since a
  *  finding must land inside this policy's own declared population. */

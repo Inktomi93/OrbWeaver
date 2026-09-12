@@ -5,15 +5,8 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract/gate.ts";
+import { SANCTIONED_CSS_HOMES } from "../lib/sanctioned-css-homes.ts";
 
-export const SANCTIONED_CSS_HOMES = [
-  "packages/ui/src/tokens/tokens.json",
-  "packages/ui/src/styles/theme.css",
-  "packages/ui/src/styles/globals.css",
-  "packages/ui/src/styles/tiers.css",
-  "packages/client/src/styles/globals.css",
-  "packages/client/src/features/app-shell/surfaces/shell.css",
-] as const;
 const SANCTIONED_PATHS = new Set<string>(SANCTIONED_CSS_HOMES);
 const GENERATED_DIRS = new Set(["dist", "node_modules"]);
 const GATE_SELF = "tooling/src/verify/gates/sanctioned-css-homes.ts";

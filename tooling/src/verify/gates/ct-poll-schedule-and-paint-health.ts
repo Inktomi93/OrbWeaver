@@ -32,7 +32,7 @@
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { barrierNames, isFreshSchedule, isMotionPoll, isUntrustedTrigger, MOTION_READS, PAINT_API, pollOptionsArg } from "./ct-poll-schedule-and-paint.ts";
+import { barrierNames, isFreshSchedule, isMotionPoll, isUntrustedTrigger, MOTION_READS, PAINT_API, pollOptionsArg } from "../lib/ct-poll-schedule-and-paint.ts";
 
 const ANCHOR_UNDER = "tests/client/lib/**";
 const ANCHOR_NAME = "motion-stats.ct.tsx";
