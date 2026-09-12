@@ -16,7 +16,6 @@
     "ct-story-single-import": ["namespace"],
     "discovery-no-stats-rollups": ["namespace"],
     "duplicate-action-doors": ["bracket"],
-    "evaluate-no-scope-capture": ["bracket"],
     "external-id-single-writer": ["bracket"],
     "finding-overload-provenance": ["bracket"],
     "fk-columns-indexed": ["bracket", "namespace"],

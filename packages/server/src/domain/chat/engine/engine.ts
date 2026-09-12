@@ -1849,11 +1849,9 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
           // warning code.
           getLog().warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
           // @orb-waive caught-failure-ownership(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
+          // @orb-waive detached-work-traced(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
           try {
             await deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" });
-            // @swallowed-ok(catch): a failed WARNING emit must not mask `memErr` — the build failure the
-            // outer catch rethrows below is what the span must record, and it already reached the log.
-            // Ends if the emit ever becomes retryable (then it owns its own reporting).
           } catch {
             // A failed warning emit must never re-throw out of the fire-and-forget.
           }
@@ -1993,10 +1991,7 @@ async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: 
     return await Promise.race([releasedBody, lockLostBarrier]);
   } finally {
     clearInterval(beat);
-    // @swallowed-ok(releasedBody): this is not a second dispatch — it is the SAME promise the race above
-    // returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's
-    // `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still
-    // pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
+    // @orb-waive detached-work-traced(releasedBody): this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
     // @orb-waive caught-failure-ownership(releasedBody): this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
     void releasedBody.catch((): undefined => undefined);
   }

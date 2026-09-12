@@ -74,9 +74,7 @@ export function runInLane<T>(key: string, job: () => Promise<T>): Promise<T> {
   // function stops returning `run`, i.e. if the tail ever becomes the only holder of the rejection.
   const tail = run.catch(() => undefined);
   lanes.set(key, tail);
-  // @swallowed-ok(tail): the lane sweep is bookkeeping over an in-RAM Map — a Map delete with nothing to
-  // trace and no caller to inform, deliberately detached so it cannot delay or fail the caller's own result.
-  // Ends if the sweep ever performs I/O or has an outcome a caller could act on.
+  // @orb-waive detached-work-traced(tail): the lane sweep is bookkeeping over an in-RAM Map — a Map delete with nothing to trace and no caller to inform, deliberately detached so it cannot delay or fail the caller's own result. Ends if the sweep ever performs I/O or has an outcome a caller could act on.
   // @orb-waive caught-failure-ownership(tail): the lane sweep is bookkeeping over an in-RAM Map — a Map delete with nothing to trace and no caller to inform, deliberately detached so it cannot delay or fail the caller's own result. Ends if the sweep ever performs I/O or has an outcome a caller could act on.
   tail
     .then(() => {

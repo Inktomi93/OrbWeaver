@@ -247,12 +247,10 @@ function writeFixtures(): void {
   // into a STRING here on purpose: the fixture proves the check is AST-positional, since a text search would
   // call this module armed.
   fx("tooling/src/__g_opsguard/ops/x.ts", 'export const SCAFFOLD = `refuseDirectInvocation(import.meta.url, "pnpm x");`;\n');
-  // evaluate-no-scope-capture: an inline `.evaluate()` callback closing over a module-scope const (#660,
-  // the markContrastCandidates shape) instead of threading it through the explicit arg parameter.
-  fx(
-    "tooling/src/__g_evalcap/x.ts",
-    'const MARK = "x";\nexport async function tag(loc: { evaluate: (fn: unknown) => Promise<void> }): Promise<void> {\n  await loc.evaluate((el: { setAttribute: (n: string, v: string) => void }) => el.setAttribute(MARK, "1"));\n}\n',
-  );
+  // evaluate-no-scope-capture: fixture RETIRED with its #1584 conversion — the policy's own `mustFlag`
+  // rows carry all three arms and run on the static bar through `structure:policy-conformance`, and a
+  // fixture for a converted gate reports UNFIRED here forever because `loadGates` returns the legacy
+  // list alone.
   // tooling-instrument-proof: a reasoned marker in an UNREGISTERED tool's tree (the real registry is
   // armed-empty at P1) — the stale-vocabulary arm. This suite file itself is FLAT under tests/tooling,
   // which the gate's tool-dir derivation skips, so the literal below is inert here.
@@ -307,9 +305,8 @@ function writeFixtures(): void {
   fx("tests/support/factories/__g_factory.ts", "export function makeWrong(db: any) {}\nexport function seedWrong(a: any) {}\n");
   // test-no-stubs: a test block with no assertions.
   fx("tests/__g_stub.test.ts", `import { test } from "support/test";\ntest("stub", () => {\n  const x = 1;\n});\n`);
-  // audit-client-tests: an async test with no await — the assertion is present so test-no-stubs stays
-  // quiet; only the deep auditor's missing-await arm fires (activated 2026-07-17).
-  fx("tests/__g_audit.test.ts", `import { expect, test } from "support/test";\ntest("g async", async () => {\n  expect(1).toBe(1);\n});\n`);
+  // audit-client-tests: fixture RETIRED with its #1584 conversion — all five arms are its own `mustFlag`
+  // rows now, each with an `expect` naming the arm's own position and message.
   // server-layout: an illegal directory at the root of server/src.
   fx("packages/server/src/__g_rogue_drawer/index.ts", "export const x = 1;\n");
   // package-layout: a loose file at the root of kit/src.
@@ -549,10 +546,10 @@ function writeFixtures(): void {
   );
   // member-card-clamped: a re-spelled MemberCardView declaration outside contracts (D22/PD-111).
   fx(`${D}/character/__g_mcv.ts`, "export interface MemberCardView {\n  readonly name: string;\n}\n");
-  // diagnostic-legibility: a gate-corpus `message:` string carrying no doc/code-home pointer (the
-  // meta-gate reads tooling/src/verify/gates from the shared project, so its fixture lives there, not under
-  // packages/; no `gate` export, so the loader skips it as un-ported).
-  fx("tooling/src/verify/gates/__g_diaglegi.ts", 'export const stub = { message: "a bare diagnostic with no home" };\n');
+  // diagnostic-legibility: fixture RETIRED with its #1584 conversion — its own `mustFlag` rows carry both
+  // descriptor halves of the mixed corpus and run on the static bar. The `finding-overload-provenance`
+  // fixture below no longer needs to carry a pointer for this gate's sake, but keeps one anyway: the note
+  // documents an authoring convention, not a live coupling.
   // finding-overload-provenance: a NEW gate-corpus module building a node-anchored `Finding` literal (a
   // derived column) with no marker — the authoring-time red this gate exists for (born-compliant since
   // its ratchet baseline reached `{}` and was deleted, GATE-AUTHORING.md §4.8: nothing absolves it any
@@ -673,12 +670,9 @@ function writeFixtures(): void {
   // Post-terminal-state (the baseline was burned to {} and deleted, 2026-08-03) every finding reports
   // directly — this planted signature is the gate's standing live-tree bite proof.
   fx("packages/server/src/domain/__g_brandpos/verbs/__g_brandpos.ts", "export function gPost(chatId: string): void {\n  void chatId;\n}\n");
-  // detached-work-traced: statement-position fire-and-forget with a DISCARDING rejection handler and no
-  // detached root span. The real tracing module supplies the derived `withRequestSpan` vocabulary.
-  fx(
-    "packages/server/src/domain/__g_detached/__g_detached.ts",
-    "export function gFire(ctx: C): void {\n  void ctx.rpg.onUserCommit(a, b).catch(() => undefined);\n}\n",
-  );
+  // detached-work-traced: fixture RETIRED with its #1584 conversion, which also SPLIT the blindness arm
+  // into `detached-work-traced-health`. Both halves carry their own rows; the health arm's real-tree anchor
+  // probe is replaced by `execution: "entire-population"`.
   // caught-failure-ownership: a reasonless empty catch is syntactically handled and names no runtime owner.
   fx("packages/server/src/domain/__g_caught/__g_caught.ts", "export function gCaught(): void {\n  try { risky(); } catch {}\n}\n");
   // infra-auth-no-userid: a `userId` identifier under infra/auth/** (D40 — infra never yields a userId).

@@ -19,32 +19,16 @@
 // At the #1584 atomic cutover the legacy roster empties, this file's subject ceases to exist, and the
 // suite RETIRES with `verifyGateProofs` rather than being re-pointed again.
 import { join } from "node:path";
-import { Project } from "ts-morph";
 import type { GateDescriptor, GateExample } from "../../tooling/src/verify/contract/gate.ts";
-import { gate as evaluateGate } from "../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { gate as wireVocabGate } from "../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
 import { loadGates, verifyGateProofs } from "../../tooling/src/verify/index.ts";
-import { runPass } from "../../tooling/src/verify/lib/pass.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
-const VROOT = "/repo";
 
 function withMustFlag(gate: GateDescriptor, example: GateExample): GateDescriptor {
   return { ...gate, mustFlag: [example], mustPass: [] };
-}
-
-function passFor(gate: GateDescriptor, source: string): ReturnType<typeof runPass> {
-  const project = new Project({ useInMemoryFileSystem: true });
-  const file = project.createSourceFile(`${VROOT}/tooling/src/snap/ops/probe.ts`, source);
-  return runPass([gate], {
-    root: VROOT,
-    project,
-    scope: { kind: "project" },
-    files: [file],
-    checker: () => project.getTypeChecker(),
-  });
 }
 
 // LOAD-HONEST BUDGET (#606). `verifyGateProofs` runs the WHOLE gate corpus's mustFlag/mustPass examples
@@ -114,37 +98,9 @@ test("wire vocabulary evidence missing its engine fails closed", () => {
   expect(failures).toEqual([]);
 });
 
-test("an unresolved runtime identifier in a browser callback is a tool error", () => {
-  const result = passFor(
-    evaluateGate,
-    "async function run(page: { evaluate: (fn: unknown) => Promise<void> }): Promise<void> { await page.evaluate(() => missingRuntime()); }\n",
-  );
-  expect(result.toolErrors).toEqual([
-    expect.objectContaining({ gate: "evaluate-no-scope-capture", phase: "finalize", message: expect.stringContaining("missingRuntime") }),
-  ]);
-});
-
-test("the built-in undefined value is resolved without weakening arbitrary-identifier fail-loud", () => {
-  const builtIn = passFor(
-    evaluateGate,
-    "async function run(page: { evaluate: (fn: unknown) => Promise<boolean> }): Promise<boolean> { return await page.evaluate(() => document.title !== undefined); }\n",
-  );
-  const unresolved = passFor(
-    evaluateGate,
-    "async function run(page: { evaluate: (fn: unknown) => Promise<boolean> }): Promise<boolean> { return await page.evaluate(() => document.title !== userSentinel); }\n",
-  );
-
-  expect(builtIn.toolErrors).toEqual([]);
-  expect(unresolved.toolErrors).toEqual([
-    expect.objectContaining({ gate: "evaluate-no-scope-capture", phase: "finalize", message: expect.stringContaining("userSentinel") }),
-  ]);
-});
-
-test("a self-contained browser callback remains a clean, resolved control", () => {
-  const result = passFor(
-    evaluateGate,
-    "async function run(page: { evaluate: (fn: unknown) => Promise<number> }): Promise<number> { return await page.evaluate(() => document.title.length); }\n",
-  );
-  expect(result.toolErrors).toEqual([]);
-  expect(result.gates[0]?.findings).toEqual([]);
-});
+// The three `evaluate-no-scope-capture` fail-loud pins that lived here MOVED with its #1584 conversion:
+// `passFor` drives the LEGACY dispatcher, which cannot run a `defineGate` policy at all. They are now
+// `runPolicyPass` pins in `tests/tooling/verify/gates/callback-provenance-family.test.ts` — same three
+// claims (an unresolved runtime identifier refuses, the built-in `undefined` does not, a self-contained
+// callback is a clean resolved control), asserted against `phase: "evaluate"` rather than `"finalize"`,
+// because the final contract has no `finalize` hook.

@@ -2,7 +2,6 @@
 // the RED-FIRST proof compiles against the old gate source and fails on behavior, not a new gate API.
 import { gate as derivesGate } from "../../tooling/src/verify/gates/baseui-derives-not-respells.ts";
 import { gate as portalGate } from "../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
-import { gate as evaluateGate } from "../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { gate as fabricationGate } from "../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { gate as focusGate } from "../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as containerGate } from "../../tooling/src/verify/gates/surface-in-a-container.ts";
@@ -67,22 +66,11 @@ test("portal wiring belongs to the owning callable and actual Base UI target", (
   ).toEqual([]);
 });
 
-test("an imported evaluate callback is checked in its declaring module", () => {
-  expect(
-    failuresFor(evaluateGate, [
-      {
-        files: {
-          "tooling/src/snap/ops/callback.ts":
-            'const MARK = "data-mark";\nexport function mark(el: { setAttribute(name: string, value: string): void }): void { el.setAttribute(MARK, "1"); }\n',
-          "tooling/src/snap/ops/caller.ts":
-            'import { mark } from "./callback.ts";\nexport async function run(page: { evaluate(fn: unknown): Promise<void> }): Promise<void> { await page.evaluate(mark); }\n',
-        },
-        expect: { count: 1, token: "MARK" },
-        why: "Playwright serializes an imported callback too; its declaring module constant is absent in the browser",
-      },
-    ]),
-  ).toEqual([]);
-});
+// evaluate-no-scope-capture migrated off the old `GateDescriptor` + `failuresFor` shape at its #1584
+// conversion. Its cross-module ARM-B case — an imported callback checked in its DECLARING module — is now
+// its own `mustFlag[2]`, run through `verifyPolicyProofs` on the static bar and pinned again in
+// `tests/tooling/verify/gates/callback-provenance-family.test.ts`, which also carries the §4.5 tool-error
+// refusals and the §4.2 identity arm that a proof row cannot express.
 
 test("a lookalike type identifier is not a Base UI derivation", () => {
   expect(
