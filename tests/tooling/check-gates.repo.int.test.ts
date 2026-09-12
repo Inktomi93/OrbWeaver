@@ -381,9 +381,18 @@ function writeFixtures(): void {
   // no-parallel-section-map: a ConfigGroupId-keyed object literal outside the sanctioned homes.
   fx("packages/client/src/features/__g_g2config/lib/parallel.ts", "export const M = { personas: 1, appearance: 1, admin: 1 };\n");
   // context-definition-shape: a hand-rolled `{kind:"tabs",useResolved}` object literal outside
-  // lib/registry-contracts.ts — a badge-wearing tabs renderer bypassing the mint (arm 1).
+  // lib/registry-contracts.ts — a badge-wearing tabs renderer bypassing the mint (arm 1). Converted to a
+  // final `defineGate` occurrence policy (gate-runtime-standardization.md, #1584) — same per-file AST
+  // bite, still driven by this real-tree fixture, only the reported POSITION moved (`useResolved`, an
+  // authored token a waiver can bind to; the legacy arms carried no token at all). Its new
+  // entire-population `context-definition-shape-health` sibling holds the two single-writer COUNT arms
+  // and is proven separately by its own conformance rows
+  // (tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts).
   fx("packages/client/src/features/__g_g3ctx/lib/g3-badge.ts", 'export const gBadgeCtx = { kind: "tabs", useResolved: () => null };\n');
   // state-files: a flat state/ file exporting the minted store handle (rule 3 — no exported handle).
+  // Converted to a final `defineGate` occurrence policy (#1584) — same per-file AST bite, still driven by
+  // this real-tree fixture; the finding now anchors on the exported DECLARATION NAME (`useGStore`) rather
+  // than a synthetic `exported-handle` token, and a file leaking two handles reports twice instead of once.
   fx("packages/client/src/state/__g_state.ts", 'export const useGStore = createGatedStore("g", () => ({ n: 0 }));\n');
   // duplicate-action-doors: one tRPC mutation wired from TWO components on one plane, with no baseline
   // budget for the pair — the second door is a NEW door (#252).
@@ -589,6 +598,12 @@ function writeFixtures(): void {
     "declare const store: { setState: (s: unknown) => void };\nexport const sub = {\n  onData: (): void => {\n    store.setState({ x: 1 });\n  },\n};\n",
   );
   // no-form-reset-in-autosave: a file importing createAutosaveEntityForm that calls .reset() on a form.
+  // Converted to a final `defineGate` occurrence policy (#1584) — same per-file AST bite, still driven by
+  // this real-tree fixture; the position moved from the unwaivable synthetic token `reset()` (its
+  // parentheses make every `@orb-waive` marker parse as MALFORMED) to the member NAME `reset`. The third
+  // legacy arm — the `Omit<…, "reset">` type-strip presence check on forms/editor/autosave-contract.ts —
+  // is now the hard, entire-population `no-form-reset-in-autosave-health` sibling, proven by its own
+  // conformance rows (tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts).
   fx(
     "packages/client/src/features/__g_autoreset/hooks/__g_autoreset.ts",
     'import { createAutosaveEntityForm } from "#forms/editor";\nexport const useGThing = createAutosaveEntityForm<{ a: string }>({ defaultValues: { a: "" } });\nexport function gBad(form: { reset: () => void }): void {\n  form.reset();\n}\n',
@@ -600,7 +615,11 @@ function writeFixtures(): void {
   );
   // form-factory-for-multifield: a feature component hand-rolling ≥3 controlled form inputs (value/checked
   // + an onChange-family handler) while importing NEITHER editor factory — the ≥3-field form that dodges
-  // Form entirely (D54 §13.4).
+  // Form entirely (D54 §13.4). Converted to a final `defineGate` occurrence policy (#1584) — same
+  // per-component AST bite and the same #620 exclusive-arm count, still driven by this real-tree fixture;
+  // the position moved from the unwaivable `GMultiField (3 fields)` (parentheses make every marker parse
+  // as MALFORMED) to the first controlled field's TAG NAME, with the component name and count in the
+  // message.
   fx(
     "packages/client/src/features/__g_multifield/components/__g_multifield.tsx",
     "export function GMultiField() {\n  return (\n    <div>\n      <Input value={a} onChange={set} />\n      <Select value={b} onValueChange={set} />\n      <Switch checked={c} onCheckedChange={set} />\n    </div>\n  );\n}\n",
@@ -867,6 +886,8 @@ function writeFixtures(): void {
   // route-trpc-lifo-order: page.route("**/api/trpc/**", ...) registered BEFORE routeTrpc(page, ...) in
   // the same test body — the LIFO inversion (#643/#629). routeTrpc is a bare imported identifier here
   // (no real support/node/route-trpc.ts import needed — the gate matches on callee NAME, AST-only).
+  // Converted to a final `defineGate` occurrence policy (#1584) — same AST bite and the same `page.route`
+  // position token, still driven by this real-tree fixture.
   fx(
     "tests/ui/primitives/__g_lifo/__g_lifo.ct.tsx",
     'import { test } from "@playwright/experimental-ct-react";\ndeclare function routeTrpc(page: unknown, routes: unknown): Promise<unknown>;\ntest("g", async ({ page }) => {\n  await page.route("**/api/trpc/**", () => new Promise(() => undefined));\n  await routeTrpc(page, {});\n});\n',
