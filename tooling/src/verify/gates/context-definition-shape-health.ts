@@ -33,7 +33,7 @@
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { DEFINE_CONTEXT_REGION, REGION_ATTR, REGISTRY_CONTRACTS_RE } from "./context-definition-shape.ts";
+import { DEFINE_CONTEXT_REGION, REGION_ATTR, REGISTRY_CONTRACTS_RE } from "../lib/context-definition-shape.ts";
 
 interface CountedSite {
   readonly path: string;

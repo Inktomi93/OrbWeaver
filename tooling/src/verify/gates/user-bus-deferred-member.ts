@@ -15,7 +15,7 @@
 // RUN must catch is the two ways this deferral can rot, and both are covered:
 //   • the member GAINS a producer -> this policy reports (warning, unsuppressible: `hard` authority), and
 //     the message is the exact retirement instruction. Its sibling then owns the member by construction,
-//     because `bus-producer-coverage` imports the list below;
+//     because `bus-producer-coverage` reads the same `lib/bus-deferred-member.ts` registry;
 //   • the member STOPS BEING DECLARED (renamed, deleted) -> this policy REFUSES. A silent pass over a
 //     vanished subject is how a standing exception becomes a loaded gun, so the run reports a tool error
 //     instead. A refusal cannot be expressed as a proof row, so it is pinned through `runPolicyPass` in
@@ -28,9 +28,15 @@
 // FAMILY `bus-fact` — the shared reader is `lib/bus-fact.ts` (`busProducerFact`), plus
 // `contract/bus-fact.ts` (`busByUnion`, `recordReadyBusFact`), consumed identically by all three members
 // (`bus-producer-coverage`, `bus-fact-health` and this policy), so the producer census and the deferral
-// cannot drift apart. The `BUS_MEMBER_DEFERRALS` list below is exported rather than shared through `lib/`
-// on purpose: it is DEBT DATA with one owner and a deletion date, not a reader, and `bus-producer-coverage`
-// importing it from here is what makes deleting this module atomic.
+// cannot drift apart. The DEFERRAL REGISTRY is a second shared module, `lib/bus-deferred-member.ts`
+// (`BUS_MEMBER_DEFERRALS`, `deferralsFor`), read identically by this policy and by `bus-producer-coverage`.
+// Until 2026-09-12 that list was declared HERE and exported, and this paragraph argued the arrangement was
+// deliberate — "exported rather than shared through `lib/` on purpose: it is DEBT DATA with one owner and a
+// deletion date, not a reader". The owner banned the shape that day (#2096 / §12.3: a gate module never
+// imports another gate module; a shared predicate moves to `lib/<family>.ts`), so the sentence is corrected
+// rather than left as precedent — debt data read by two policies is shared data, whatever its lifespan, and
+// its lifespan is recorded in the new module instead. The atomic-deletion property it claimed was RE-DRIVEN
+// at the move rather than restated; the three-arm measurement is in that module's header.
 // POPULATION PORT: an INTENTIONAL CORRECTION, legacy at d9ac09d58 (the parent of 001949630). The legacy
 // descriptor declared `scopeSafety: "whole-project"` with no `scanRoot` and walked `ctx.project`, so its
 // effective population was the entire tree. The final is `{ in: ["@contracts", "@server"] }` — and that set
@@ -40,33 +46,15 @@
 // narrowing this to `@contracts` alone — the only package this policy's own arms NAME — is the tempting
 // simplification that must not be made. The worked receipt for that failure mode is the twin family's
 // `bus-definition-belts` `mustPass[0]`, which reproduces the real-tree throw inside conformance.
-import type { BusDeclarationIdentity, BusMemberDeferral } from "../contract/bus-fact.ts";
 import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
+import { deferralsFor } from "../lib/bus-deferred-member.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
 
 const UNION = { path: "packages/contracts/src/user-bus/index.ts", exportName: "UserBusEvent" } as const;
 
-/** The ONE home for "which bus members are owner-deferred", keyed by `(union, member)`.
- *  `bus-producer-coverage` imports it, so deleting this module when #1822 lands is atomic: the sibling stops
- *  excluding the member in the same edit that removes the deferral, and `tsc` refuses any half of that
- *  removal. The union half is load-bearing since the coverage policy became generic over every belted bus —
- *  a bare member NAME would defer a same-named member of any other bus with it. */
-export const BUS_MEMBER_DEFERRALS: readonly BusMemberDeferral[] = Object.freeze([{ union: UNION, member: "connectionsChanged" }]);
-
-/** The deferred members of ONE bus — the only way either policy is allowed to read the list, so the union
- *  half of the key cannot be dropped in one reader and honoured in the other.
- *
- *  `rows` is injectable because the union filter is otherwise UNREACHABLE: the live list holds exactly one
- *  row today, so a reader that ignored the union entirely would behave identically and no proof could tell
- *  the two apart (measured — an unfiltered mutant left every bus spec green). A proof plants a second bus's
- *  row and the filter becomes observable. */
-export function deferralsFor(union: BusDeclarationIdentity, rows: readonly BusMemberDeferral[] = BUS_MEMBER_DEFERRALS): readonly string[] {
-  return rows.filter((row) => row.union.path === union.path && row.union.exportName === union.exportName).map(({ member }) => member);
-}
-
 const MESSAGE =
-  "owner-deferred UserBusEvent member now HAS a server producer — the deferral is retired. Delete tooling/src/verify/gates/user-bus-deferred-member.ts (its sibling `bus-producer-coverage` then owns the member by construction) and close the work item.";
+  "owner-deferred UserBusEvent member now HAS a server producer — the deferral is retired. Delete BOTH tooling/src/verify/gates/user-bus-deferred-member.ts AND tooling/src/verify/lib/bus-deferred-member.ts, then drop the now-unresolvable deferral read from bus-producer-coverage (which then owns the member by construction), and close the work item.";
 
 export const gate = defineGate({
   id: "user-bus-deferred-member",

@@ -57,17 +57,12 @@ import type { Node as MorphNode, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
+import { DEFINE_CONTEXT_REGION, REGISTRY_CONTRACTS_RE } from "../lib/context-definition-shape.ts";
 
-/** The ONE legal minter of both context-definition literal shapes; shared with the `-health` sibling. */
-export const REGISTRY_CONTRACTS_RE = /\/lib\/registry-contracts\.ts$/u;
 export const FEATURES_RE = /\/packages\/client\/src\/features\//u;
 export const APP_SHELL_RE = /\/packages\/client\/src\/features\/app-shell\//u;
 /** The live shell-chrome class vocabulary a feature may not paint (hud-home-spec §3.6 fence 2). */
 export const SHELL_CHROME_CLASSES = ["shell-panel-header"] as const;
-/** The probe attribute whose single-writer invariant the `-health` sibling counts. */
-export const REGION_ATTR = "data-context-bracket";
-/** The region mint whose single-call-site invariant the `-health` sibling counts. */
-export const DEFINE_CONTEXT_REGION = "defineContextRegion";
 
 const BODIES_RECORD_RE = /^(?:readonly\s+)?(?:Partial<\s*)?Record<\s*string\s*,\s*ReactNode\s*>>?$/u;
 const DEFINE_CONTEXT_TABS = "defineContextTabs";

@@ -54,9 +54,9 @@ import type { Node as MorphNode } from "ts-morph";
 import type { BusDeclarationIdentity, BusRecord } from "../contract/bus-fact.ts";
 import { recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
+import { deferralsFor } from "../lib/bus-deferred-member.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
-import { deferralsFor } from "./user-bus-deferred-member.ts";
 
 const MESSAGE =
   "declared bus member has NO server emit site — a declared-never-emitted bus member is silently dead wire (D50; Core-Laws-and-Precedents.md §7 D50).";
