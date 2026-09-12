@@ -1138,6 +1138,18 @@
       ]
     },
     {
+      "path": "docs/design/gate-runtime-read-first.md",
+      "assignedSha256": "b143042eb05106a5de4a608a84762410479fbe6dc1eb650afafb2c8bf64b9945",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/design/gate-runtime-standardization.md",
       "assignedSha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
       "disposition": "current",
@@ -1317,6 +1329,18 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/design/mixed-hook-splits-1950.md",
+      "assignedSha256": "ca2953e02b98db35852d1ee47234636737bb46087359e3486c5c7f5a5a360dce",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/design/mocks/characters-landing/DESIGN.md",
@@ -2159,6 +2183,18 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/design/resource-policy-contract.md",
+      "assignedSha256": "afdadbcb0016abd25cc628d97a322c0b0da5dae0b0f09863f2a4ad6c7e351896",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
     },
     {
       "path": "docs/design/rpg-extraction-one-call-spike.md",

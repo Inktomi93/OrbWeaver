@@ -284,26 +284,56 @@
     {
       "path": "docs/reviews/gate-runtime/bus-family-1584.md",
       "assignedSha256": "a856748e374733d39956ba4b04d8afb2848eb33b251f45343b6afca1d3eed92c",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "a856748e374733d39956ba4b04d8afb2848eb33b251f45343b6afca1d3eed92c",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/bus-family-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the bus producer family conversion: shared busProducerFact, five policies, the conditional-publisher fix and consolidation into bus-producer-coverage.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/bus-pair-1584.md",
       "assignedSha256": "85077c568cd82252aeebda3bfabc0ea405b8cce6c8acdb48ba1059f955f9d574",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "85077c568cd82252aeebda3bfabc0ea405b8cce6c8acdb48ba1059f955f9d574",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/bus-pair-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the bus pair conversion (user-bus-coverage, bus-definition-belts): the conditional-publisher model and the producer-coverage consolidation.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/checkpoint-2026-09-05.md",
@@ -320,31 +350,75 @@
     {
       "path": "docs/reviews/gate-runtime/exception-authority-census.md",
       "assignedSha256": "b6a5bddc070c82e523482a5d3518acd1210827a3625403182596bed17f28c15d",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "b6a5bddc070c82e523482a5d3518acd1210827a3625403182596bed17f28c15d",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/exception-authority-census.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the exception/authority migration census: exemption tables, sanctioned homes, waiver grammars classified into reviewed grants, warning debt, hard data, and delete/fix.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/exemplar-pristine-matrix-2026-09-11.md",
+      "assignedSha256": "3931097eee9ecf8f510a46a6137be3eeeaccb56c78262c9216462029fea2d746",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "3931097eee9ecf8f510a46a6137be3eeeaccb56c78262c9216462029fea2d746",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/exemplar-pristine-matrix-2026-09-11.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the nine-exemplar by seven-criteria pristine matrix (#2005): measured non-PASS cells, owner rulings on two forks, and the planted-control receipt for the fixes.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/exemplars-2026-09-11.md",
-      "assignedSha256": "24b73abe8680067bea98273e227a9a69d10b38f04dcc5b6a320e255d97aaddca",
+      "assignedSha256": "94896a5b8a5bee9b7e269a41c550a12775568660712234ebebe6d833df8d69c3",
       "disposition": "current",
-      "authority": "review",
+      "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "1241bec2a5e172b9ce035fe2f43563193551ee47a1d28edded9efaaf53f2adbc",
-      "verifiedCommit": "a4816ef1bb5deb0479ea0c350a93f45e9918a3c5",
-      "verifiedAt": "2026-09-11",
+      "verifiedSha256": "94896a5b8a5bee9b7e269a41c550a12775568660712234ebebe6d833df8d69c3",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
       "evidence": [
-        "produced by a read-only scout at f898b14b1 and landed 1bd6ba107; read in full by the orchestrator, GATE-AUTHORING row corrected at a4816ef1b (owner ruling 2026-09-11: legacy guide, not a conversion input)"
+        "docs/reviews/gate-runtime/exemplars-2026-09-11.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "One converted exemplar per defineGate capability with its tests and the central files a conversion lane reads first; the copy-these-shapes reference every #1584 conversion brief names.",
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the gate-runtime conversion exemplars scout report, REFUTED 2026-09-12 for nine of ten modules; only user-bus-deferred-member survives as copyable; corrections recorded in place.",
       "claims": [
         {
-          "claim": "Each cited exemplar was read in full at f898b14b1 and demonstrates one final defineGate capability (pure syntax, entire-population evaluate, closed ResourceHost facts, defineFact consumption, reviewed-grant, ordinary marker identity, split family, warning debt, verifyPolicyProofs, frozen differential); GATE-AUTHORING.md is the legacy descriptor guide and not a conversion input.",
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
           "evidence": [
             {
               "kind": "issue",
@@ -357,50 +431,110 @@
     {
       "path": "docs/reviews/gate-runtime/home-client-family-1584.md",
       "assignedSha256": "a186fed7c8e4889963c6df479ccf0f6f5960e7f7dd48acbe32e9686c2189bc90",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "a186fed7c8e4889963c6df479ccf0f6f5960e7f7dd48acbe32e9686c2189bc90",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/home-client-family-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the sanctioned-home CLIENT family: 14 policies to reviewed-grant authority, the cast-dodge shared-reader defect and its fix.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/home-server-family-1584.md",
       "assignedSha256": "ff75f62b58e6da676e49f6ce24027bbbbbc4e643f42105ac4183dbd3ae25b917",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "ff75f62b58e6da676e49f6ce24027bbbbbc4e643f42105ac4183dbd3ae25b917",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/home-server-family-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the sanctioned-home SERVER family: ten gates plus one new sibling to reviewed-grant authority, the fail-closed-without-prefilter defect and its fix.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/id-brand-family-1584.md",
       "assignedSha256": "8fa602ea1819f0fe5ff29c73c32ea9e4663d5a3a88a102e80eca331fdf92f927",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "8fa602ea1819f0fe5ff29c73c32ea9e4663d5a3a88a102e80eca331fdf92f927",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/id-brand-family-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the ID brand flow family checkpoint: shared lib/id-brand.ts reader, six converted identity policies, waiver-grammar migration receipts.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/mechanical-gates-1584.md",
       "assignedSha256": "22758d4bdea5c4f5aa24204339b1652a2cb63460ffb05fa38d8e9b9ea588d15a",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "22758d4bdea5c4f5aa24204339b1652a2cb63460ffb05fa38d8e9b9ea588d15a",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/mechanical-gates-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the mechanical gate conversion of 14 syntax-only singleton policies, with differential/proof/verification receipts.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/mixed-runtime-front-door.md",
@@ -501,14 +635,29 @@
     {
       "path": "docs/reviews/gate-runtime/ordinary-visitors-family-1584.md",
       "assignedSha256": "65efc796f9a3f966580c085abac84104734ea4390d4759699573f71878236aa8",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "65efc796f9a3f966580c085abac84104734ea4390d4759699573f71878236aa8",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/ordinary-visitors-family-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the ordinary simple-visitor wave: ten legacy gates to fifteen final policies, five forced splits, and real-tree differential receipts.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/ordinary-waiver-source-migration.md",
@@ -525,30 +674,114 @@
     {
       "path": "docs/reviews/gate-runtime/origin-client-family-1584.md",
       "assignedSha256": "c9e787ad0411b68f83aeac372fe3bb36591e20863bf47dbf9ded22d4e37ce830",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "c9e787ad0411b68f83aeac372fe3bb36591e20863bf47dbf9ded22d4e37ce830",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/origin-client-family-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the canonical-origin CLIENT family: twelve policies, the estimator-home identity fork, and fail-closed/fail-open repairs on two axes.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/origin-server-family-1584.md",
       "assignedSha256": "c074b34e26873312acd6cd24b64dd659e73df72bebfa9eb52bd03ab789cc1c9d",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "c074b34e26873312acd6cd24b64dd659e73df72bebfa9eb52bd03ab789cc1c9d",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/origin-server-family-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the canonical-origin server/contract/test-side family: 14 gates converted, three shared readers, real-tree pass receipts.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/planner-cli-integration.md",
       "assignedSha256": "90ca11af0ff621be30b4bb90e1aa11208dd63e2506ca50a032b9b760e8ea757e",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "90ca11af0ff621be30b4bb90e1aa11208dd63e2506ca50a032b9b760e8ea757e",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/planner-cli-integration.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the final policy planner/CLI integration design and its behavioral proof receipts.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/policy-soundness-family-1584.md",
+      "assignedSha256": "5a0adaf62a77d629f781472a38ac9ef29e979bb46be29214267274b161761648",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "5a0adaf62a77d629f781472a38ac9ef29e979bb46be29214267274b161761648",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/policy-soundness-family-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the policy-soundness meta-policy family design (#1971): four final policies auditing the gate corpus itself, premises re-derived, and the wave-1 re-find receipts.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
+      "assignedSha256": "a5a4c9a191b79c8690c2d0ecfb03704ccd1e9e699cccce6ca675f89dd50e91ca",
       "disposition": "pending",
       "authority": "unclassified",
       "fullRead": false,
@@ -561,14 +794,29 @@
     {
       "path": "docs/reviews/gate-runtime/registry-family-1584-checkpoint.md",
       "assignedSha256": "820027b56a9989cfd76ad7ec4bf526f134c255c167da083585d6d4241295614a",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "820027b56a9989cfd76ad7ec4bf526f134c255c167da083585d6d4241295614a",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/registry-family-1584-checkpoint.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the registry/completeness family conversion: nine legacy gates to eleven final policies, with the registryDefinitionFact repair.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/resource-gate-access-patterns.md",
@@ -585,66 +833,195 @@
     {
       "path": "docs/reviews/gate-runtime/resource-host-foundation.md",
       "assignedSha256": "9535a9012e9065a0438512d8fd25335f175b609dbdcaab4ba560de203fd9cb0e",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "9535a9012e9065a0438512d8fd25335f175b609dbdcaab4ba560de203fd9cb0e",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/resource-host-foundation.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the typed ResourceHost foundation: closed resource facts, PolicyContext binding, and verification receipts.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/resource-layout-size-inventory.md",
       "assignedSha256": "ccc45ed735f2d47dc79fa57c3225796cf6ef784e64ee42ad0948dcb535fe0b6a",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "ccc45ed735f2d47dc79fa57c3225796cf6ef784e64ee42ad0948dcb535fe0b6a",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/resource-layout-size-inventory.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the resource layout/size/inventory family census: zero eligible at base, six converted at current-tip re-derivation.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/schema-fact-family-1584.md",
       "assignedSha256": "cc3353d29b963f30c2a5129e5bc4cacee6ed11071ce0a658e7ec7312563484bb",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "cc3353d29b963f30c2a5129e5bc4cacee6ed11071ce0a658e7ec7312563484bb",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/schema-fact-family-1584.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the schema fact family checkpoint: drizzleSchemaFact provider, cold-review repairs, and the second conversion slice (asset-refs retirement, schema-banned-shapes split, db-enum-from-tuple, nullable-column-inequality, ownerid-registry).",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/shared-semantic-readers.md",
       "assignedSha256": "24f24c5dee3f12c5d19f436cd1d1afc0622ae97bf91b5882e1033d35cf306abe",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "24f24c5dee3f12c5d19f436cd1d1afc0622ae97bf91b5882e1033d35cf306abe",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/shared-semantic-readers.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the shared semantic reader map for the first visitor wave: reference-fact and static-authored-value foundations.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/simple-visitors-a-m.md",
       "assignedSha256": "46340e81488b1cf7c9d16987ceadd803d64fb425e69ae62849b41fdb57aeb769",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "46340e81488b1cf7c9d16987ceadd803d64fb425e69ae62849b41fdb57aeb769",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/simple-visitors-a-m.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the first-wave A-M simple-visitor migration manifest: 17 gates, population/authority/family classification and conversion blockers.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/gate-runtime/simple-visitors-n-z.md",
       "assignedSha256": "00c1a0778f5ead75928e1d7655116ad5d6a9925ed8c6be9aab93de5698ab6900",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "00c1a0778f5ead75928e1d7655116ad5d6a9925ed8c6be9aab93de5698ab6900",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/simple-visitors-n-z.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the first-wave N-Z simple-visitor migration manifest: 69 gates, population/authority/family classification and conversion blockers.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md",
+      "assignedSha256": "a636edf109b67c9ac101c1d984aeb1e34425e0fc11cb2e586da7ba41609b8ed0",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "a636edf109b67c9ac101c1d984aeb1e34425e0fc11cb2e586da7ba41609b8ed0",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the uncovered (non-first-wave, non-resource) 116-gate conversion census, partitioned by hook shape; durable per-gate analysis, roster counts superseded (owner note, 2026-09-11).",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-audit-wave10-2026-09-12.md",
+      "assignedSha256": "3d03234884576640fb3fd7d53f900e5ae401899c16c55e15f461a2e0d3f66ef6",
       "disposition": "pending",
       "authority": "unclassified",
       "fullRead": false,
@@ -655,8 +1032,161 @@
       "summary": ""
     },
     {
-      "path": "docs/reviews/gate-runtime/uncovered-gate-conversion-census.md",
-      "assignedSha256": "c007029479ffe0fa84c7ad5ccd0a749c17d93cbd56d4e4bc2ec7302d6682abae",
+      "path": "docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md",
+      "assignedSha256": "24c020ff9d2e2e37a4c87c8049e6937380a73ed3b2e86f3f6898424d03b917d1",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-audit-wave3-2026-09-12.md",
+      "assignedSha256": "93fa63ac7c0725e696bf0a3f2cc6d7a833e5a4227bf144bb784281e11bfe710d",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-audit-wave4-2026-09-12.md",
+      "assignedSha256": "18da8cfd167ebb6af43eafd82af97b46daf6d8f6a9b539f7c0149b212c5907f0",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-audit-wave5-2026-09-12.md",
+      "assignedSha256": "cbcd429a6e5cc12c155352caf61ddbc160611853f94d0b77e8c48ab87fbf1fad",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-audit-wave6-2026-09-12.md",
+      "assignedSha256": "fd1c4779025df504d69a6d9b518e009f0099e812ad68a38fa3c07f1d8eacd901",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "fd1c4779025df504d69a6d9b518e009f0099e812ad68a38fa3c07f1d8eacd901",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/v-audit-wave6-2026-09-12.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. adversarial §5b audit of the origin-client family (12 policies): all final and passing conformance, all twelve REFUTED on the advertised third-answer arm (9 of 12 unreached) and waiver-spelling (1 of 12); zustand-selector-stability is the copy candidate.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-audit-wave7-2026-09-12.md",
+      "assignedSha256": "d100927b0c6597dda6a71783e0f45aa4a1f54a169c640d35f752d8a7eb56ea2f",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-audit-wave8-2026-09-12.md",
+      "assignedSha256": "79f622e4d1cb30ace48f19d592e5e06f981bb99e29770a4388573622774e9e4e",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "79f622e4d1cb30ace48f19d592e5e06f981bb99e29770a4388573622774e9e4e",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/v-audit-wave8-2026-09-12.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. adversarial §5b audit of the SERVER plane (home-server 11 + origin-server 14, partial): 24 of 25 REFUTED; §5b.5 header gap systemic (0 of 25); the content-part-seam dead-visitor-arm anti-pattern generalized into a durable lesson.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-audit-wave9-2026-09-12.md",
+      "assignedSha256": "296574b1bd6c843eff4888449ce067585bd51d088f4b653cdf52e16afc93e1ed",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-conversions-2026-09-13.md",
+      "assignedSha256": "bdff65a78283c8c904f4bfbb2b7e879a8ab5f20c63982880ce878ba0906832f2",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "bdff65a78283c8c904f4bfbb2b7e879a8ab5f20c63982880ce878ba0906832f2",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/v-conversions-2026-09-13.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. fresh-context verifier report on the text-citation and callback-provenance conversion wave: floor reproduced, four ordinary waiver doors confirmed, two premises refuted (audit-client-tests reachability, diagnostic-legibility final-only count).",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-exemplar-audit-2026-09-12.md",
+      "assignedSha256": "d39521cc8c5af41c4ff8ef632a6c7d603a3a15c933e3a0675422cd0d9c619dc2",
       "disposition": "pending",
       "authority": "unclassified",
       "fullRead": false,
@@ -677,6 +1207,33 @@
       "verifiedAt": null,
       "evidence": [],
       "summary": ""
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-2026-09-13.md",
+      "assignedSha256": "55d95256c9cedda7afcc712a0737797a962717e13eb7f48ec40c7c0792da877c",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "55d95256c9cedda7afcc712a0737797a962717e13eb7f48ec40c7c0792da877c",
+      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/v-wave-2026-09-13.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "summary": "Full-read current authority; lane p-catalog-barrier attestation. fresh-context verification of the 2026-09-11 wave (#2022/#2024/#2025/#2005): #2022 and #2024 confirmed, #2025's enforcement-downgrade retraction REFUTED (warnings do not block), #2005's nine exemplars confirmed on substance with two documentation defects.",
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/reviews/interaction-build-audit/scout-P-substrate-A-B1-6.md",
