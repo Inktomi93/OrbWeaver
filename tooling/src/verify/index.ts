@@ -121,6 +121,7 @@ export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedF
 export { aggregateExit, asViolations, eslintScheme, ownScheme } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
+export { ledgerSections, markdownTables, reportLedgerRows } from "./lib/gate-program-docs.ts";
 export { getProject } from "./lib/harness.ts";
 export { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "./lib/history.ts";
 export { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome, SCHEMA_BANNED_SHAPES } from "./lib/ledger-banned-shapes.ts";
@@ -143,7 +144,6 @@ export { parse } from "./lib/run-argv.ts";
 export { failReason, printSummary } from "./lib/run-render.ts";
 export { resolveSelection } from "./lib/selection.ts";
 export { refuseVerbTail } from "./lib/verb-tail.ts";
-
 export type { AssetRefsCoverageInput } from "./ops/asset-refs-coverage.ts";
 export { AssetRefsCoverageRefusal, compareAssetRefsCoverage, runAssetRefsCoverage } from "./ops/asset-refs-coverage.ts";
 export { BASELINE_HELP, runBaseline } from "./ops/baseline.ts";
@@ -160,7 +160,7 @@ export { deriveCaughtFailurePopulation, generateCaughtFailurePopulation, POPULAT
 export { generateDensityBaseline } from "./ops/gen/density.ts";
 export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action-doors.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
-export { deriveReadFirstCosts, generateReadFirstCosts, READ_FIRST_REL } from "./ops/gen/read-first-costs.ts";
+export { deriveReadFirstCosts, generateReadFirstCosts, READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./ops/gen/read-first-costs.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";
 export { deriveTestBaselineManifest, generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";

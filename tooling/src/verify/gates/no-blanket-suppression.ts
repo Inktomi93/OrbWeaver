@@ -82,11 +82,21 @@ export const CONVERSION_REFUSAL = {
       spellings: ["--cached"],
       consumers: ["tooling/src/verify/gates/no-blanket-suppression.ts"],
     },
+    {
+      kind: "missing-kind",
+      why:
+        "the OTHER half of the refusal, and the one #2013 is about: no shipped kind serves a STAGED BLOB. A staged-blob " +
+        "capability was considered and deliberately NOT minted (guide §11.5 — a kind serving one gate is that gate's private " +
+        "reader wearing a contract's clothes), so the claim is that this name does not exist. The day it does, this refusal " +
+        "has no ground left and the module converts or is re-derived, rather than sitting legacy the way " +
+        "`runner-config-path-liveness` did after its own cited door shipped.",
+      wouldBeKind: "staged-blob",
+    },
   ],
   unheld: [
     "the ONE-CONSUMER claim outside `tooling/src/verify/` — `snap/ops/stage-source.ts` (`git ls-files --cached --others`) and `doc-catalog/ops/tree.ts` (`git diff --cached --name-only`) both spell the flag and neither reads a staged BLOB. Widening the census to all of `tooling/` would report both as consumers and would be wrong; distinguishing them needs a read of what the argv DOES, which is a judgment and not a census.",
     "the staged-blob read itself (`git show :<path>`), which has no distinctive string spelling to census.",
-    "whether a staged-blob CAPABILITY is worth minting if a second consumer appears — that is §12.4's ruling to make, and this declaration only reports that the condition for asking has changed.",
+    "whether a staged-blob CAPABILITY is worth minting if a second consumer appears — that is §12.4's ruling to make, and this declaration only reports that the condition for asking has changed. What IS now held is the other direction: the `missing-kind` blocker above reds the day `staged-blob` becomes a shipped kind.",
   ],
 } as const satisfies ConversionRefusal;
 

@@ -49,6 +49,11 @@
 //   D WRONG SELF — `gate` READ and not equal to the module basename (the loader's own id law), which is how
 //     a copy-pasted refusal accuses the module it was copied from. It FAILS OPEN on an unreadable `gate`
 //     (#2106): an accusation needs the field to have been read, not merely to differ from `undefined`.
+//   F CAPABILITY LANDED — a `missing-kind` blocker whose `wouldBeKind` is now a shipped
+//     `GateResourceRequest` kind. This is the #2013 failure ITSELF rather than a relative of it: the
+//     capability a refusal cited got built, and nothing re-opened the refusal. Added #2116, because the
+//     property this header opens with was neither held nor named unheld — only §12.4's SECOND conjunct
+//     (the reopen bar) was.
 //   E UNREADABLE OR UNSCOPED — a MACHINE field the shared reader cannot read, or a blocker whose `under`
 //     admits nothing in this policy's population. Both are the shape that reads as a clean pass while
 //     measuring nothing, and E is the arm that keeps D's fail-open from becoming a silent skip: an
@@ -80,6 +85,7 @@ import { SyntaxKind } from "ts-morph";
 import { CONVERSION_REFUSAL_BINDING } from "../contract/conversion-refusal.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import { GATE_RESOURCE_REQUEST_KINDS } from "../contract/resource-declaration.ts";
 import type { AuthoredBlocker, AuthoredRefusal } from "../lib/conversion-refusal.ts";
 import { readAuthoredRefusal, refusalOpenerLine, stringPositionText } from "../lib/conversion-refusal.ts";
 
@@ -146,7 +152,30 @@ function censusConsumers(state: Map<string, ModuleFacts>, blocker: AuthoredBlock
     .toSorted((a, b) => a.localeCompare(b));
 }
 
+/** ARM F — the #2013 tripwire, and the half of §12.4 this policy did not hold until #2116.
+ *
+ *  A refusal whose ground is "no shipped resource kind serves this read" names the kind it WOULD need. The
+ *  claim is that the name is not in the frozen eighteen; the day it is, the refusal's stated reason is gone
+ *  and the module is due a re-derivation. That is exactly what happened to `runner-config-path-liveness` —
+ *  it refused citing a missing `authored-path` door, the door was SPECIFIED BY that refusal and shipped,
+ *  and the gate still sat legacy and refusing because nothing re-opens a refusal when its blocker lands. */
+function reportMissingKind(ctx: GatePolicyContext, module: ModuleFacts, blocker: AuthoredBlocker): void {
+  const wouldBeKind = blocker.wouldBeKind;
+  if (wouldBeKind === undefined) {
+    return;
+  }
+  if ((GATE_RESOURCE_REQUEST_KINDS as readonly string[]).includes(wouldBeKind)) {
+    ctx.report.node(blocker.node, {
+      message: `${module.path}'s refusal rests on ${JSON.stringify(wouldBeKind)} not existing, and it is now a shipped GateResourceRequest kind — the capability this refusal cites HAS LANDED, so the refusal is a snapshot of a tree that no longer exists (#2013). Convert the module or re-derive the refusal.`,
+    });
+  }
+}
+
 function reportBlocker(ctx: GatePolicyContext, module: ModuleFacts, blocker: AuthoredBlocker, state: Map<string, ModuleFacts>): void {
+  if (blocker.kind === "missing-kind") {
+    reportMissingKind(ctx, module, blocker);
+    return;
+  }
   const under = blocker.under;
   if (under === undefined) {
     return;
@@ -377,6 +406,16 @@ export const gate = defineGate({
       files: {
         "tooling/src/verify/gates/probe-anchor.ts": "export const anchor = 1;\n",
         "tooling/src/verify/gates/probe-refuser.ts":
+          'export const CONVERSION_REFUSAL = {\n  gate: "probe-refuser",\n  issue: "#1930",\n  rederived: "2026-09-12",\n  why: "no shipped kind serves the read",\n  blockers: [{ kind: "missing-kind", why: "the read", wouldBeKind: "tracked-files" }],\n  unheld: [],\n};\nexport const descriptor = 1;\n',
+      },
+      expect: { count: 1, messageIncludes: "HAS LANDED" },
+      why: "ARM F — the #2013 failure itself: the refusal rests on a kind not existing and `tracked-files` is one of the frozen eighteen, so the capability it cites has shipped and nothing else would re-open it. The fixture names a REAL member, so the row dies the day the kind list is read from somewhere other than the contract",
+    },
+    {
+      mode: "source",
+      files: {
+        "tooling/src/verify/gates/probe-anchor.ts": "export const anchor = 1;\n",
+        "tooling/src/verify/gates/probe-refuser.ts":
           'export const CONVERSION_REFUSAL = {\n  gate: "probe" + "-refuser",\n  issue: "#1930",\n  rederived: "2026-09-12",\n  why: "no shipped kind serves the read",\n  blockers: [{ kind: "sole-consumer", why: "the read", under: "tooling/src/verify/", spellings: ["--probe-read"], consumers: ["tooling/src/verify/gates/probe-refuser.ts"] }],\n  unheld: [],\n};\nexport const descriptor = ["--probe-read"];\n',
       },
       // COUNT 1 IS THE ASSERTION, not the message. ARM D must stay SILENT here: before #2106 an unreadable
@@ -423,6 +462,33 @@ export const gate = defineGate({
           'export const CONVERSION_REFUSAL = {\n  gate: "probe-refuser",\n  issue: "#1930",\n  rederived: "2026-09-12",\n  why:\n    "a sentence past the line cap, so the house style splits it with a plus, " +\n    "which is also exactly what the biome formatter produces.",\n  blockers: [\n    {\n      kind: "sole-consumer",\n      why:\n        "the blocker prose is split the same way, " +\n        "and the census must not care.",\n      under: "tooling/src/verify/",\n      spellings: ["--probe-read"],\n      consumers: ["tooling/src/verify/gates/probe-refuser.ts"],\n    },\n  ],\n  unheld: ["the reader-design half is a ruling, not a census"],\n};\nexport const descriptor = ["--probe-read"];\n',
       },
       why: "THE #2106 REGRESSION PIN — the EXACT live shape. `why` is a CONCATENATED string at both the declaration and the blocker level, which is the house spelling for any sentence past the line cap and what the biome formatter emits. `readStaticAuthoredValue` is ATOMIC over an object literal, so before the repair this one prose field made the whole declaration unreadable and the policy reported TWO findings against correct code on a HARD gate, whose only author-side move would have been a waiver. Nothing here is machine-read; the prose presence is held by `satisfies ConversionRefusal` at compile time instead",
+    },
+    {
+      mode: "source",
+      files: {
+        "tooling/src/verify/gates/probe-anchor.ts": "export const anchor = 1;\n",
+        "tooling/src/verify/gates/probe-refuser.ts":
+          'export const CONVERSION_REFUSAL = {\n  gate: "probe-refuser",\n  issue: "#1930",\n  rederived: "2026-09-12",\n  why: "no shipped kind serves the read",\n  blockers: [{ kind: "missing-kind", why: "the read", wouldBeKind: "staged-blob" }],\n  unheld: [],\n};\nexport const descriptor = 1;\n',
+      },
+      why: "ARM F, the surviving direction — `staged-blob` is not a member of the frozen eighteen, which is the claim, so the refusal stands. Note the blocker declares no `under` and no `spellings` and is NOT accused of missing them: the malformed rules are per KIND, or a well-formed `missing-kind` blocker would be reported for fields it does not own",
+    },
+    {
+      mode: "source",
+      files: {
+        "tooling/src/verify/gates/probe-anchor.ts": "export const anchor = 1;\n",
+        "tooling/src/verify/gates/probe-quoter.ts":
+          "// Gate: probe-quoter — an ordinary header with no refusal in it.\nexport const descriptor = 1;\n// CONVERSION TO `defineGate` REFUSED 2026-09-12 (#1930): quoted BELOW the first statement.\n",
+      },
+      why: "THE HEADER-SPAN FENCE (§4.1). `refusalOpenerLine` scopes to everything before the first statement, so a module QUOTING the grammar further down — in a comment beside the code it is describing — is an inert mention. Cut the span scoping to a whole-file scan and this row reds with ARM A's message, which is what it had no proof of before",
+    },
+    {
+      mode: "source",
+      files: {
+        "tooling/src/verify/gates/probe-anchor.ts": "export const anchor = 1;\n",
+        "tooling/src/verify/lib/probe-reader.ts":
+          "// Reader: probe-reader.\n// CONVERSION TO `defineGate` REFUSED 2026-09-12 (#1930): a lib module is not a gate module.\nexport const read = 1;\n",
+      },
+      why: "THE `GATES_DIR` FENCE ON ARM A (§4.1). The population is the whole verify tree because ARM B needs a census over it, so a `lib/` module IS admitted — but only a GATE module can refuse to convert, and a refusal opener anywhere else is prose. Drop the fence and this row reds; the anchor file keeps the population non-empty so the fence is falsifiable at all",
     },
   ],
 });

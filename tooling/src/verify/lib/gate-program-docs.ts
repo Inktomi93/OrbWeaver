@@ -21,11 +21,77 @@
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-/** A body row of a GitHub-flavoured table: a leading `| `, and not the `| - | - |` alignment rule. The
- *  heading row is excluded by its caller, which knows the column name; excluding it here by shape would
- *  also drop a legitimate body row whose first cell is a column name. */
-export function isTableBodyRow(line: string): boolean {
-  return line.startsWith("| ") && !/^\|[\s:-]+\|/.test(line);
+/** A GFM alignment rule: the `| - | - |` line that makes the row above it a HEADER. */
+const ALIGNMENT_RULE = /^\|[\s:|-]+\|\s*$/;
+
+export interface MarkdownTableRow {
+  readonly cells: readonly string[];
+  /** 1-based, absolute in the document. */
+  readonly line: number;
+}
+
+export interface MarkdownTable {
+  /** Column names read off the header row, trimmed, in authored order. */
+  readonly columns: readonly string[];
+  readonly rows: readonly MarkdownTableRow[];
+}
+
+/** Split one `| a | b |` line into its cells. Authored `\|` escapes stay inside their cell. */
+function cells(line: string): readonly string[] {
+  return line
+    .split(/(?<!\\)\|/)
+    .slice(1, -1)
+    .map((cell) => cell.trim());
+}
+
+/** EVERY TABLE IN `lines`, IDENTIFIED BY SHAPE — the ONE row predicate both readers share (#2075).
+ *
+ *  A table is a header row IMMEDIATELY FOLLOWED BY AN ALIGNMENT RULE, then data rows until the first line
+ *  that is not a table line. The header is therefore recognised by its POSITION, never by its text, and the
+ *  column names are read OFF it rather than assumed.
+ *
+ *  WHY THE TEXT PREDICATE FAILED, measured. Both readers previously excluded the header by the literal
+ *  `| module |`, so the ONE ledger section whose schema is `| subject | defect | class | state | receipt |`
+ *  (`p-suite-honesty`) counted its own header as a defect row: 210 against the ledger's own documented
+ *  method's 209, an off-by-one carried in a GENERATED column and knowingly shipped once because the
+ *  alternative was a stale column. `reportLedgerRows` read a 2-row `subject`-headed table as three. A
+ *  literal predicate assumes every section shares a schema, and they do not.
+ *
+ *  AND IT CLOSES THE SEPARATOR-LESS SIBLING OF A REAL INCIDENT — stated precisely, because the tempting
+ *  version of this sentence is not true. Appending two verifier sections on 2026-09-12 dropped the
+ *  `| - | - |` separator; remark could then no longer parse the block as a table, serialised it as a
+ *  PARAGRAPH, and escaped every leading pipe to `\|`. Seventeen rows landed as prose and the reconciler
+ *  said so ("carries 0 row(s); the report declares 17"). **The RETIRED predicate also read that as 0** —
+ *  `\|` fails its `startsWith("| ")` — so the catch was owed to remark's escaping, not to the predicate.
+ *  Measured differential over the same inputs: a separator-less block whose pipes are NOT escaped reads
+ *  TWO rows under the retired predicate and ZERO under this one. That is the case the shape rule closes:
+ *  with no alignment rule there is no table, whether or not the serialiser happened to escape. */
+export function markdownTables(lines: readonly string[], firstLine = 1): readonly MarkdownTable[] {
+  const tables: MarkdownTable[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const header = lines[index];
+    const rule = lines[index + 1];
+    if (header === undefined || rule === undefined || !header.startsWith("| ") || !ALIGNMENT_RULE.test(rule)) {
+      continue;
+    }
+    const rows: MarkdownTableRow[] = [];
+    let cursor = index + 2;
+    for (; cursor < lines.length; cursor += 1) {
+      const row = lines[cursor];
+      if (row === undefined || !row.startsWith("| ") || ALIGNMENT_RULE.test(row)) {
+        break;
+      }
+      rows.push({ cells: cells(row), line: firstLine + cursor });
+    }
+    tables.push({ columns: cells(header), rows });
+    index = cursor - 1;
+  }
+  return tables;
+}
+
+/** Total data rows across every table in `lines` — the count both readers ask for. */
+function tableRowCount(lines: readonly string[]): number {
+  return markdownTables(lines).reduce((total, table) => total + table.rows.length, 0);
 }
 
 export interface LedgerSection {
@@ -36,6 +102,10 @@ export interface LedgerSection {
   /** 1-based line of the heading. */
   readonly line: number;
   readonly rows: number;
+  /** Column names of the section's FIRST table, read off its header row. Empty when the section carries no
+   *  table at all — which is a real state (an escaped-pipe paragraph, a prose-only section) and is what a
+   *  drift line must be able to say rather than reporting a bare zero. */
+  readonly columns: readonly string[];
 }
 
 const H3_MARKER_LENGTH = "### ".length;
@@ -46,40 +116,51 @@ const REPORT_CITE = /`([a-z0-9][a-z0-9.-]*\.md)`/;
 /** Every `###` section under the ledger's `## THE LEDGER` heading, with its defect-row count.
  *
  *  The fence is the ENCLOSING `##`: sections after it (the class rollup, the ranked list) carry tables of
- *  their own, and counting those as defect rows is how the total goes wrong in the direction nobody
- *  checks. A section's rows are every table body row between its heading and the next heading of ANY
- *  depth, so a `####` subheading ends the count rather than silently extending it. */
+ *  their own, and counting those as defect rows is how the total goes wrong in the direction nobody checks.
+ *  A section's body ends at the next heading of ANY depth, so a `####` subheading ends the count rather
+ *  than silently extending it. Within that body the rows are `markdownTables`'s, so the header is excluded
+ *  by SHAPE and no section's schema is assumed (#2075). */
 export function ledgerSections(text: string): readonly LedgerSection[] {
+  const lines = text.split("\n");
   const sections: LedgerSection[] = [];
   let inLedger = false;
-  let current: { heading: string; report: string | undefined; line: number; rows: number } | undefined;
+  let current: { heading: string; report: string | undefined; line: number; body: string[] } | undefined;
   const flush = (): void => {
     if (current !== undefined) {
-      sections.push({ ...current });
+      const tables = markdownTables(current.body);
+      sections.push({
+        heading: current.heading,
+        report: current.report,
+        line: current.line,
+        rows: tables.reduce((total, table) => total + table.rows.length, 0),
+        columns: tables[0]?.columns ?? [],
+      });
       current = undefined;
     }
   };
-  text.split("\n").forEach((line, index) => {
+  // A plain indexed loop rather than a callback: biome's flow analysis narrows a `let … | undefined`
+  // captured by a closure to non-optional, and then calls the guard that IS needed unnecessary.
+  for (const [index, line] of lines.entries()) {
     if (line.startsWith("## ")) {
       flush();
       inLedger = line.trim() === "## THE LEDGER";
-      return;
+      continue;
     }
     if (!inLedger) {
-      return;
+      continue;
     }
     if (line.startsWith("#")) {
       flush();
       if (line.startsWith("### ")) {
         const heading = line.slice(H3_MARKER_LENGTH).trim();
-        current = { heading, report: REPORT_CITE.exec(heading)?.[1], line: index + 1, rows: 0 };
+        current = { heading, report: REPORT_CITE.exec(heading)?.[1], line: index + 1, body: [] };
       }
-      return;
+      continue;
     }
-    if (current !== undefined && isTableBodyRow(line) && !line.startsWith("| module |")) {
-      current.rows += 1;
+    if (current !== undefined) {
+      current.body.push(line);
     }
-  });
+  }
   flush();
   return sections;
 }
@@ -98,8 +179,8 @@ export interface ReportRowTable {
  *  reconciliation must report how many sections it could NOT hold rather than printing a serene count of
  *  the ones it could. */
 export function reportLedgerRows(text: string): ReportRowTable | undefined {
+  const body: string[] = [];
   let inRows = false;
-  let rows = 0;
   let declared: number | undefined;
   let found = false;
   for (const line of text.split("\n")) {
@@ -112,11 +193,13 @@ export function reportLedgerRows(text: string): ReportRowTable | undefined {
       }
       continue;
     }
-    if (inRows && isTableBodyRow(line) && !line.startsWith("| module |")) {
-      rows += 1;
+    if (inRows) {
+      body.push(line);
     }
   }
-  return found ? { rows, declared } : undefined;
+  // Same shape rule as the ledger side, which is the point: the two counts being compared must be produced
+  // by ONE predicate, or the comparison measures the readers against each other rather than the documents.
+  return found ? { rows: tableRowCount(body), declared } : undefined;
 }
 
 /** Gate rows of the enforcement roster's main table — a body row whose first cell is a backticked id. The

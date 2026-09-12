@@ -24,6 +24,7 @@ import {
   LEDGER_CHECKS,
   ledgerReport,
   ledgerSectionDrift,
+  ledgerSections,
   manifestDrift,
   READ_FIRST_REL,
   REGISTRY,
@@ -489,4 +490,108 @@ test("the committed deferred roster has no row whose gate has quietly landed", (
   expect(result.drift).toEqual([]);
   // Five rows were stale when this arm was written; a zero denominator would print the same clean green.
   expect(result.derived).toBeGreaterThan(20);
+});
+
+// ─── #2075: the header is excluded by SHAPE, and the two readers share ONE predicate ────────────────
+//
+// Both readers previously excluded the header by the literal `| module |`, so the ONE ledger section whose
+// schema is `| subject | … |` counted its own header as a defect row. The count rode a GENERATED column and
+// was knowingly shipped once because the alternative was a stale column. These arms pin the fix in both
+// directions: a foreign schema counts correctly, and a block that is NOT a table counts ZERO.
+
+/** A ledger whose section header is `subject`, not `module` — the real `p-suite-honesty` schema. */
+function foreignSchemaLedgerRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), "orb-foreign-schema-"));
+  const dir = join(root, "docs/reviews/gate-runtime");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, "v-foreign-2026-09-12.md"),
+    ["## LEDGER ROWS (2 rows)", "", "| subject | defect |", "| - | - |", "| `a` | x |", "| `b` | y |", ""].join("\n"),
+  );
+  writeFileSync(
+    join(dir, "refutation-ledger-2026-09-12.md"),
+    ["## THE LEDGER", "", "### foreign (`v-foreign-2026-09-12.md`)", "", "| subject | defect |", "| - | - |", "| `a` | x |", "| `b` | y |", ""].join("\n"),
+  );
+  return root;
+}
+
+test("a section whose header is NOT `module` counts its header as a HEADER, on both sides (#2075)", () => {
+  const root = foreignSchemaLedgerRoot();
+  try {
+    const result = ledgerSectionDrift(root);
+    // Under the retired literal predicate BOTH sides read 3 and still agreed, so a count comparison alone
+    // could never have caught this — the defect surfaced in the GENERATED cost cell, one consumer over.
+    // The section total is what that cell prices, so the assertion is the count itself.
+    expect(result.drift).toEqual([]);
+    expect(ledgerSections(readFileSync(join(root, "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md"), "utf8"))[0]).toMatchObject({
+      rows: 2,
+      columns: ["subject", "defect"],
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a section that LOST its `| - | - |` separator is not a table and counts ZERO — the shape that caught real damage", () => {
+  const root = mkdtempSync(join(tmpdir(), "orb-escaped-pipes-"));
+  try {
+    const dir = join(root, "docs/reviews/gate-runtime");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "v-drop-2026-09-12.md"),
+      ["## LEDGER ROWS (2 rows)", "", "| module | defect |", "| - | - |", "| `a` | x |", "| `b` | y |", ""].join("\n"),
+    );
+    // EXACTLY what remark produced on 2026-09-12 when an append dropped the separator: with no alignment
+    // rule the block is not a table, so it serialised as a PARAGRAPH and every leading pipe was escaped.
+    writeFileSync(
+      join(dir, "refutation-ledger-2026-09-12.md"),
+      ["## THE LEDGER", "", "### dropped (`v-drop-2026-09-12.md`)", "", "\\| module | defect |", "\\| `a` | x |", "\\| `b` | y |", ""].join("\n"),
+    );
+    const result = ledgerSectionDrift(root);
+    // ZERO, and therefore LOUD. The RETIRED predicate also read this exact input as 0 (`\|` fails its
+    // `startsWith("| ")`), so the real catch was owed to remark's ESCAPING rather than to the predicate —
+    // which is why the sibling arm below, where the serialiser did NOT escape, is the discriminating one.
+    expect(result.drift.join("\n")).toContain("carries 0 row(s)");
+    expect(result.drift.join("\n")).toContain("declares 2");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a stale SIZE cell names the ROW and both cells, never a bare difference count (#2117)", () => {
+  const { root } = costTableRoot();
+  try {
+    writeFileSync(join(root, READ_FIRST_REL), READ_FIRST_ROWS.join("\n"));
+    const result = readFirstCostsDrift(root);
+    // Nine placeholder rows all differ, and each names itself — the regeneration-on-a-backed-up-copy that
+    // was previously the only way to learn WHICH row moved is no longer needed.
+    expect(result.drift).toHaveLength(9);
+    expect(result.drift[0]).toBe('row 1: "**999 KB**" → "**4 KB**"');
+    // The denominator is the priced-row count, so a green is a measurement over nine rows rather than a 1.
+    expect(result.derived).toBe(9);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a separator-less block with UNESCAPED pipes also counts zero — the case the shape rule actually closes", () => {
+  const root = mkdtempSync(join(tmpdir(), "orb-no-separator-"));
+  try {
+    const dir = join(root, "docs/reviews/gate-runtime");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "v-nosep-2026-09-12.md"),
+      ["## LEDGER ROWS (2 rows)", "", "| module | defect |", "| - | - |", "| `a` | x |", "| `b` | y |", ""].join("\n"),
+    );
+    // No alignment rule and no escaping. The RETIRED literal predicate reads TWO rows here, the section
+    // matches its report exactly, and the run passes silently over a block Markdown does not render as a
+    // table at all. Measured differential: retired 2, shipped 0.
+    writeFileSync(
+      join(dir, "refutation-ledger-2026-09-12.md"),
+      ["## THE LEDGER", "", "### nosep (`v-nosep-2026-09-12.md`)", "", "| module | defect |", "| `a` | x |", "| `b` | y |", ""].join("\n"),
+    );
+    expect(ledgerSectionDrift(root).drift.join("\n")).toContain("carries 0 row(s)");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

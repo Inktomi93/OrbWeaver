@@ -39,7 +39,13 @@ export type AuthoredMembership = { readonly authored: true } | { readonly author
  *
  *  `populationResolver`'s own test asserts `POPULATION_ROOTS` and `POPULATION_SETS` by literal, which REDS
  *  when a root is added — but it reds on the ROOT list alone and asks the author nothing about `@authored`,
- *  which is exactly how the 2026-09-11 omission passed a green suite. A mirror is not a classification. */
+ *  which is exactly how the 2026-09-11 omission passed a green suite. A mirror is not a classification.
+ *
+ *  THE REASON LIVES IN THE `why` FIELD AND NOWHERE ELSE. An `authoredExclusionReason(root)` accessor shipped
+ *  beside this map and was DELETED 2026-09-12 (#2114): `pnpm ast refs` found one hit — its own definition —
+ *  over `scanned=7518 status=complete`, while its JSDoc named two consumers ("a gate diagnostic, this
+ *  contract's own test") that did not exist. A reader with no reader is a claim about an architecture
+ *  nobody built; the `why` string below is the one home, and a future diagnostic reads it directly. */
 const AUTHORED_MEMBERSHIP = {
   "@client": { authored: true },
   "@ui": { authored: true },
@@ -68,13 +74,6 @@ const AUTHORED_MEMBERSHIP = {
 const AUTHORED_ROOTS: readonly PopulationRoot[] = (Object.keys(AUTHORED_MEMBERSHIP) as readonly PopulationRoot[]).filter(
   (root) => AUTHORED_MEMBERSHIP[root].authored,
 );
-
-/** Why a root is not in `@authored`, or `undefined` when it is — the reader for anything that has to
- *  EXPLAIN the boundary rather than merely apply it (a gate diagnostic, this contract's own test). */
-export function authoredExclusionReason(root: PopulationRoot): string | undefined {
-  const row = AUTHORED_MEMBERSHIP[root];
-  return row.authored ? undefined : row.why;
-}
 
 export const POPULATION_SETS = {
   "@frontend": ["@client", "@ui"],

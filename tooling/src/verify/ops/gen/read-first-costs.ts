@@ -91,6 +91,10 @@ const COST_ROWS: Readonly<Record<string, CostRow>> = {
   "—": { paths: auditWaves },
 };
 
+/** Every priced row id, in declaration order — the denominator the freshness arm reports, so a green there
+ *  is a measurement over nine rows rather than a bare 1. */
+export const READ_FIRST_COST_ROW_IDS: readonly string[] = Object.keys(COST_ROWS);
+
 function sizeCell(root: string, row: CostRow): string {
   const paths = row.paths(root);
   const size = pathSetSize(root, paths);
@@ -110,29 +114,61 @@ function cells(line: string): readonly string[] {
   return line.split(/(?<!\\)\|/);
 }
 
-/** The whole document with column 3 of every recognised row replaced. Returns the text; the writer and the
- *  freshness arm are both callers, so the committed file and the verdict cannot disagree. */
-export function deriveReadFirstCosts(root: string): string {
+/** One priced row, as COMMITTED and as MEASURED. The drift arm names rows rather than reporting a bare
+ *  "the cells differ" (#2117): a regeneration on a backed-up copy was the only way to learn WHICH of the
+ *  nine had moved, while every sibling row in the same stage names its drifting rows. */
+export interface CostRowDrift {
+  readonly id: string;
+  readonly committed: string;
+  readonly derived: string;
+}
+
+interface CostDerivation {
+  readonly text: string;
+  readonly drift: readonly CostRowDrift[];
+}
+
+/** The whole document with column 3 of every recognised row replaced, plus the per-row comparison. ONE
+ *  producer for the writer and the freshness arm, so the committed file and the verdict cannot disagree
+ *  about either the bytes or the reason. */
+function deriveCosts(root: string): CostDerivation {
   const text = readFileSync(join(root, READ_FIRST_REL), "utf8");
+  const drift: CostRowDrift[] = [];
   let rewritten = 0;
   const lines = text.split("\n").map((line) => {
     const parts = cells(line);
     if (parts.length !== TABLE_CELL_PARTS) {
       return line;
     }
-    const row = COST_ROWS[parts[ID_CELL]?.trim() ?? ""];
+    const id = parts[ID_CELL]?.trim() ?? "";
+    const row = COST_ROWS[id];
     if (row === undefined) {
       return line;
     }
     rewritten += 1;
-    return parts.map((cell, index) => (index === SIZE_CELL ? ` ${sizeCell(root, row)} ` : cell)).join("|");
+    const derived = ` ${sizeCell(root, row)} `;
+    const committed = parts[SIZE_CELL] ?? "";
+    if (committed !== derived) {
+      drift.push({ id, committed: committed.trim(), derived: derived.trim() });
+    }
+    return parts.map((cell, index) => (index === SIZE_CELL ? derived : cell)).join("|");
   });
   if (rewritten !== Object.keys(COST_ROWS).length) {
     throw new Error(
       `read-first-costs: rewrote ${rewritten} of ${Object.keys(COST_ROWS).length} declared rows in ${READ_FIRST_REL} — a declared row id is no longer a table row, so the derivation is measuring a table that has moved.`,
     );
   }
-  return lines.join("\n");
+  return { text: lines.join("\n"), drift };
+}
+
+/** The regenerated document. */
+export function deriveReadFirstCosts(root: string): string {
+  return deriveCosts(root).text;
+}
+
+/** Which priced rows moved, and to what. Empty when the committed table is fresh. */
+export function readFirstCostRowDrift(root: string): readonly CostRowDrift[] {
+  return deriveCosts(root).drift;
 }
 
 export function generateReadFirstCosts(root: string): number {
