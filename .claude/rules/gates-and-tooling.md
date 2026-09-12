@@ -36,6 +36,17 @@ paths:
     before/after (the corpus total must not rise; zero for each converted module), biome/eslint on touched
     files, `pnpm typecheck --config tsconfig.json`. Commit with `git -c core.hooksPath=/dev/null` and name
     the floor in the message.
+  - **A CONVERSION'S FLOOR MUST ALSO RUN THE SUITES IT BREAKS THAT ARE NOT ITS OWN (measured 2026-09-11, #1983).**
+    `loadGates()` (`lib/loader.ts:190`) returns `corpus.legacy` ALONE, so **every conversion SHRINKS the legacy
+    roster** and reds any suite asserting the converted gate's membership. Your floor names your OWN family test and
+    structurally cannot see this. **So grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL and run
+    every suite that names it.** These suites sit in the seam the bullet above does not cover — not red-by-construction,
+    not in any scoped floor — and `tests/tooling/**` is `--full`-only (#1842), so the break is unobservable. **Three
+    instances in one five-day window:** `registry-family.test.ts` (#1953), `gate-ignore-grammar.repo.int.test.ts` (red
+    from 2026-09-06, broken by a #1584 conversion), `gate-conformance.repo.int.test.ts:49` (found by this rule at zero
+    load). A carrier in such a suite is LEGACY BY REQUIREMENT, so those suites retire at the cutover rather than being
+    re-pointed forever. **Beware the false positive:** most `tests/tooling` files naming a converted gate are that
+    conversion's own family test and are fine — the ones that bite call `loadGates()`.
   - **Every conversion records a FAMILY decision** in the module header and the report: the shared `lib/`
     reader (module + function) or "singleton"; siblings that are two spellings of one concept MERGE (the
     stronger identity reader wins, with a successor proof for the retired arm); arms that differ in

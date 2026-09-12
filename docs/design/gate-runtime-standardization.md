@@ -603,6 +603,25 @@ dependencies that constrain ANY sequence, because they are law rather than sched
    (comment-only edits still owe the compile); **the step-6 per-file marker count reconciliation, with every mismatch
    classified — a lane that translated markers and cannot show this table has not finished.** After §5 lands: the mixed `check:structure` before/after on the real
    tree with the finding delta explained.
+
+   **THE ROSTER COUPLED SITE — a conversion breaks suites that are not its own (measured 2026-09-11).**
+   `loadGates()` (`tooling/src/verify/lib/loader.ts:190`) returns `corpus.legacy` ALONE — its own comment says
+   *the legacy descriptor list alone* — so **every conversion SHRINKS that roster**, and any suite asserting the
+   converted gate's membership goes red. A lane's floor names its OWN family test and therefore never sees this.
+   So: **grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL, and run every suite that names
+   it.** Cheap, mechanical, complete.
+
+   This is the one gap the migration posture does not cover. `.claude/rules/gates-and-tooling.md` declares the
+   baseline-red list EXHAUSTIVE and a scoped red never-baseline, but these suites are in NEITHER set: not
+   red-by-construction, and not in any lane's scoped floor. Because `tests/tooling/**` is `--full`-only (#1842)
+   and nothing runs `--full` on a cadence, the break is unobservable. **It has now happened three times in one
+   five-day window** — `registry-family.test.ts` (#1953), `gate-ignore-grammar.repo.int.test.ts` (red from
+   2026-09-06, broken by a #1584 conversion commit), and `gate-conformance.repo.int.test.ts:49` (found by this
+   rule, at zero load, the day `no-off-token-radius-shadow` converted). Tracked as #1983.
+
+   **A carrier in such a suite is LEGACY BY REQUIREMENT, so re-pointing it is a treadmill with an end:** at the
+   atomic cutover the legacy roster is EMPTY and there is no carrier for any arm. Those suites RETIRE with the
+   legacy `@orb-gate-ignore` grammar they exist to test. Say that in the suite header rather than per carrier.
 9. One commit, `git -c core.hooksPath=/dev/null commit` (owner-authorized until `check:structure` is green), the floor
    named in the message, `git status --short` empty, `git show --stat` in the report.
 10. Report: per-module population port, authority/severity, family + reader, proof rows added, differential result,
