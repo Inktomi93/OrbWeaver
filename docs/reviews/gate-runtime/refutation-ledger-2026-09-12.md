@@ -716,50 +716,53 @@ its unbinned count** — the three defects above were all invisible to a run tha
 
 | class | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJUDICATED | N/A | FIXED |
 | - | -: | -: | -: | -: | -: | -: | -: | -: |
-| **§4.1** | 74 | 64 | 5 | 2 | 1 | 0 | 0 | 2 |
-| **§4.2** | 3 | 2 | 0 | 1 | 0 | 0 | 0 | 0 |
+| **§4.1** | 79 | 64 | 10 | 2 | 1 | 0 | 0 | 2 |
+| **§4.2** | 4 | 3 | 0 | 1 | 0 | 0 | 0 | 0 |
 | **§4.5** | 7 | 6 | 1 | 0 | 0 | 0 | 0 | 0 |
 | **§4.6** | 4 | 2 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§5b.1** | 2 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
 | **§5b.2** | 6 | 6 | 0 | 0 | 0 | 0 | 0 | 0 |
-| **§5b.3** | 8 | 6 | 1 | 1 | 0 | 0 | 0 | 0 |
-| **§5b.5** | 15 | 13 | 2 | 0 | 0 | 0 | 0 | 0 |
+| **§5b.3** | 9 | 7 | 1 | 1 | 0 | 0 | 0 | 0 |
+| **§5b.5** | 16 | 13 | 3 | 0 | 0 | 0 | 0 | 0 |
 | **§5b.7** | 8 | 6 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
-| **roster** | 12 | 11 | 1 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 161 | 80 | 68 | 1 | 0 | 1 | 0 | 11 |
-| **TOTAL** | **303** | **200** | **83** | **5** | **1** | **1** | **0** | **13** |
+| **roster** | 13 | 11 | 2 | 0 | 0 | 0 | 0 | 0 |
+| **other** | 176 | 103 | 60 | 1 | 0 | 1 | 0 | 11 |
+| **TOTAL** | **327** | **225** | **82** | **5** | **1** | **1** | **0** | **13** |
 
 | free-text class in `other`, as written | rows |
 | - | -: |
 | other | 16 |
 | local binding resolution | 14 |
+| instrument | 11 |
 | gate→gate import | 11 |
 | proof-expectation debt | 11 |
-| instrument | 9 |
 | #2147 | 7 |
 | gate-source conformance | 4 |
 | #1968 | 3 |
+| ledger/doc staleness | 3 |
+| unmeasured verdict | 3 |
 | correctness | 2 |
 | marker translation dropped by a conversion | 2 |
 | a literal another lane's correct work invalidates | 2 |
 | stale ledger | 2 |
 | doc | 2 |
 | proof | 2 |
-| ledger/doc staleness | 2 |
 | same | 2 |
 | judgment | 2 |
-| *1-offs (distinct phrases, one row each)* | 68 |
-| **`other` TOTAL** | **161** |
+| ledger staleness | 2 |
+| ledger freshness | 2 |
+| *1-offs (distinct phrases, one row each)* | 73 |
+| **`other` TOTAL** | **176** |
 
 **`other` is the majority bin BY CONSTRUCTION** — most sections write a FREE-TEXT class rather than a
 §-number, so the **STATE axis is load-bearing and the CLASS axis is indicative only**. The second table
 below counts what those cells actually say, binned by the cell's first named phrase; counting what the
 cells say is not a taxonomy, it is the census that would inform one later, if ever.
 
-**Rebuilt 2026-09-12 at `a7d88287b` over the WHOLE BODY by the counting paragraph's own method** (unescaped-pipe
+**Rebuilt 2026-09-12 at `2fea1bd15` over the WHOLE BODY by the counting paragraph's own method** (unescaped-pipe
 split · `state` index off the header BY NAME · first-bolded-word-else-first-word), reproducing
-`31 tables · 303 rows · UNBINNED 0`. The previous table read `100 rows · 45/48/4/1/1/1` and had been stale
+`34 tables · 327 rows · UNBINNED 0`. The previous table read `100 rows · 45/48/4/1/1/1` and had been stale
 by 203 rows since `64dfbf349` — **the second time this table has gone stale the same way** (its own opening
 paragraph records the first). **`ledgers:fresh` does NOT hold this table**: its ledger arm reconciles each
 SECTION against the REPORT that section cites and never reads the rollup, which is why a 203-row error
