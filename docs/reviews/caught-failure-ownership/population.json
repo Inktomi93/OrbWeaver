@@ -5023,7 +5023,7 @@
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::catch::3",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 143,
+      "line": 155,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -5031,7 +5031,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "null means the candidate-path census is unavailable; every receipt pair is then treated as touched and must pass the exact-index proof, so failure widens verification instead of reading clean. Ends if null stops selecting every pair.",
-      "markerLine": 130
+      "markerLine": 142
     },
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::catch::1",
@@ -7519,7 +7519,7 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::1",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 108,
+      "line": 116,
       "column": 12,
       "grammar": "empty",
       "position": "error",
@@ -7532,7 +7532,7 @@
     {
       "siteId": "tooling/src/verify/ops/policy-conformance.ts::error::2",
       "path": "tooling/src/verify/ops/policy-conformance.ts",
-      "line": 156,
+      "line": 164,
       "column": 12,
       "grammar": "empty",
       "position": "error",
