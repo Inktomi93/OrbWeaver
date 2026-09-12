@@ -194,18 +194,19 @@ atlas README names the extension seam (one source object per hub).
   during build, then removed.
 - Floors: per-package `pnpm typecheck` (owns `.test-d` via `types:testd` + any `.ct.tsx` — none planned),
   `types:graph` (sees `tests/`), scoped biome on touched files, `pnpm check:docs` (this file), the seed
-  int-suite + the contracts plugin suites if the 6.1 arm lands (`tests/contracts/plugin/ui.contract.test.ts`
-  - a grid-arm CT is NOT owed — the renderer change is covered by the contract test + the live drive; if a
-    CT exists asserting grid behavior it is swept by the literal grep).
+  int-suite + the contracts plugin suites if the 6.1 arm lands
+  (`tests/contracts/plugin/ui.contract.test.ts` + a grid-arm CT is NOT owed — the renderer change is
+  covered by the contract test + the live drive; if a CT exists asserting grid behavior it is swept by
+  the literal grep).
 - Shared-value law: no enum/label/wire literals change except fork 6.1 (new members, no renames) — the
   repo-wide grep of `tilesFrom`/`tileAction` and the touched tuples runs before READY.
 
 ## §8 Build order (stop-anywhere; each row a coherent unit)
 
-1. affinity guard fix (+ its red-first receipt) · 2. draft-polish display transform · 3. oracle upgrades
-   (typed args, macro, pubsub, footer, README) · 4. scene-chips subscriber · 5. research-familiar clip arm ·
-2. story-clocks · 7. keepsake-camera · 8. pocket-arcade · 9. card-atlas (+ fork-6.1 arm unless overridden) ·
-3. `host-v1.d.ts` + pin · 11. the guide rewrite + READMEs · 12. int-test extension rides each row.
+1\. affinity guard fix (+ its red-first receipt) · 2. draft-polish display transform · 3. oracle upgrades
+(typed args, macro, pubsub, footer, README) · 4. scene-chips subscriber · 5. research-familiar clip arm ·
+6\. story-clocks · 7. keepsake-camera · 8. pocket-arcade · 9. card-atlas (+ fork-6.1 arm unless overridden) ·
+10\. `host-v1.d.ts` + pin · 11. the guide rewrite + READMEs · 12. int-test extension rides each row.
 
 **Status 2026-08-28: rows 1-11 BUILT and suite-green** (seed int-suite 13/13 over the real WASM host;
 ui.contract 43/43; bindings unit 4/4; the touched plugin CTs 16/16; the host-v1 pin 5/5 with both-direction
