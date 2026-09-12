@@ -367,6 +367,29 @@ family.
    happened at the worst possible scale: `caught-failure-ownership`, the program's largest conversion at 336 files,
    shipped with no differential (#1970).
 
+   **A CLEAN DIFFERENTIAL OVER AN ARM THE LEGACY SUITE NEVER EXERCISED IS EVIDENCE OF NOTHING — and this is
+   exactly where a SPLIT is riskiest (measured 2026-09-11, #2000 Tier 1).** Four of the eight `-health` split arms
+   guard their `finalize` verdict on a REAL-TREE ANCHOR, and **not one legacy `mustFlag`/`mustPass` example loads
+   that anchor.** So replaying the legacy rows exercises the arm zero times and comes back green whatever the split
+   did to it.
+
+   The assumption this inverts is the dangerous one: the differential feels strongest on a split, because a split is
+   the biggest behavioural change. It is **weakest** there, because **the arms that get carved into a `-health`
+   sibling are the awkward ones nobody wrote proof rows for in the first place** — that is often WHY they were
+   carved out.
+
+   **So a split's differential owes a coverage statement, not just a verdict.** Where a moved arm has no legacy
+   coverage: say so **PER EXAMPLE in the test rather than in prose**, and CONSTRUCT the successor proof from the
+   arm's own trigger conditions instead of replaying. Asserting the zero-coverage fact is what stops the next reader
+   mistaking a vacuous replay for a passing one.
+
+   **This is not hypothetical.** The same Tier 1 pass found a real catch-regression in the one split whose arm WAS
+   exercised: `injected-op-caller-param` populated its census INSIDE the visitor, after the entity-id trigger, so an
+   exemption row whose op no longer took a branded entity id was reported STALE. The `-health` sibling counts every
+   Promise-returning op function type with no entity-id condition, so that row now survives silently — a standing
+   caller-free exemption on an op that reaches no tenant data, which is the rot the two-sided ratchet exists to kill.
+   **A tripwire must apply the same predicate as the thing it guards, or it is weaker than the exemption it polices.**
+
 6b. **The original procedure.** For a converted policy, load the legacy descriptor from the pre-conversion SHA, replay
 every original example through the legacy dispatcher and the same bytes through the final policy, compare findings,
 populations and tool errors, and CLASSIFY each intended difference (split, retired arm, marker vocabulary, stronger
