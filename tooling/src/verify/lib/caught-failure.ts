@@ -67,6 +67,7 @@
 import type { BindingElement, Block, CallExpression, CatchClause, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";
+import { isWaivablePosition } from "./ordinary-waiver.ts";
 
 const LOG_METHODS: ReadonlySet<string> = new Set(["error", "fatal", "warn"]);
 /** The GOVERNED operator-logger doors. A log-shaped method on an arbitrary object proves nothing — provenance
@@ -1271,16 +1272,19 @@ export interface CaughtFailureAnchor {
   readonly offset: number;
 }
 
-/** A position the marker grammar can hold: its group is `[^()\r\n]+`, and `locateFinding` re-reads the slice
- *  out of COMMENT-BLANKED source, so a token spanning internal trivia would not match itself. A SOLIDUS is
- *  therefore rejected too — it is the one character both comment openers share, and no legitimate callee or
- *  caught-binding position contains one. */
-const ANCHORABLE_TOKEN_RE = /^[^()\r\n/]+$/u;
+/** A position the marker grammar can hold, PLUS this reader's own belt. The grammar half is DERIVED from
+ *  `lib/ordinary-waiver.ts` through {@link isWaivablePosition} rather than respelled here (#1957) — a second
+ *  copy of `[^()\r\n]+` is a rule that can drift from the parser it is supposed to mirror. The belt is the
+ *  SOLIDUS: `locateFinding` re-reads the slice out of COMMENT-BLANKED source, so a token spanning internal
+ *  trivia would not match itself, and no legitimate callee or caught-binding position contains one. */
+function isAnchorableToken(token: string): boolean {
+  return isWaivablePosition(token) && !token.includes("/");
+}
 
 function anchorWithin(reported: Node, anchor: Node): CaughtFailureAnchor | undefined {
   const offset = anchor.getStart() - reported.getStart();
   const token = anchor.getText();
-  if (offset < 0 || !ANCHORABLE_TOKEN_RE.test(token)) {
+  if (offset < 0 || !isAnchorableToken(token)) {
     return;
   }
   return reported.getText().slice(offset, offset + token.length) === token ? { token, offset } : undefined;

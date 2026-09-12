@@ -15,6 +15,17 @@
 //      this arm runs it on the FINAL subset only, which is the half that can be on the commit bar today.
 //   E3 a `node:fs` import in a final module — §12.3 bans filesystem reads outright; the closed
 //      ResourceHost vocabulary is the only door.
+//   E4 a resource door read that does not go through `lib/resource-declaration.ts` `readyResourceValue`
+//      (#2019). A declared resource is acquired and asserted READY in the population phase, and a non-ready
+//      one withholds every consumer at the receipt phase — so a non-ready fact can never reach a policy, and
+//      `readyResourceValue` is the ASSERTION of that guarantee. Answering a broken resource with a silent
+//      `return` is unreachable code that teaches the next conversion a silent return is the right answer; the
+//      law says so in `resource-declaration.ts`'s own JSDoc and in three module headers
+//      (`client-structure.ts:18`, `server-layout.ts:27`, `ui-exports-map-complete.ts:35`), and NOTHING
+//      enforced it. Censused 2026-09-12 at this lane's tip: every `ctx.resources.<door>(…)` in the gate
+//      corpus is already wrapped, so the class is at ZERO and this arm holds it there. The ALIAS escape is the
+//      same arm: `ctx.resources` in any position other than the receiver of a wrapped door call hands the
+//      closed host to code this reader cannot follow.
 //
 // RECORDED NON-ARMS, so nobody re-adds them: a declared-but-unread `facts:` entry is already REFUSED by the
 // dispatcher (`lib/policy-pass.ts:703` "declared facts were not consumed" withholds the consumer), and
@@ -28,32 +39,52 @@
 // (`gate-modernization` names the lookalike). BLINDNESS: this module is inside its own population, so when
 // it is delivered and does not read as final the recognizer is dead and the run THROWS rather than reporting
 // ✓ over the corpus forever (pinned through `runPolicyPass` in the family test).
-import type { ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
+import type { ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, PropertyAccessExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { inspectGateContract } from "../lib/gate-contract.ts";
 import { descriptorProperty, descriptorValue, finalDescriptorOf, objectLiteralOf, rootOf, stableTerminal, staticText } from "../lib/policy-descriptor-read.ts";
-import { familyFixture, finalProbeModule, HARD_TRUNK, TS_MORPH_TYPES_PATH, TS_MORPH_TYPES_STUB } from "./_proof/policy-soundness.ts";
+import {
+  familyFixture,
+  finalProbeModule,
+  HARD_TRUNK,
+  RESOURCE_DECLARATION_PATH,
+  RESOURCE_DECLARATION_STUB,
+  TS_MORPH_TYPES_PATH,
+  TS_MORPH_TYPES_STUB,
+} from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-soundness.ts";
 const FS_MODULE_RE = /^(?:node:)?fs(?:\/promises)?$/u;
 const LOADABLE_EXTENSIONS: ReadonlySet<string> = new Set(["ts", "tsx"]);
+/** The ONE guarded door onto a declared resource, and the module that must declare it. The home is checked by
+ *  IMPORT ORIGIN rather than by the callee's spelling: a local function of the same name asserts nothing, and
+ *  a name-only test would ACQUIT it — the acquittal being the failure mode, not the accusation. */
+const RESOURCE_GUARD = "readyResourceValue";
+const RESOURCE_GUARD_HOME = "/tooling/src/verify/lib/resource-declaration.ts";
+const RESOURCE_HOST_MEMBER = "resources";
 
 const MESSAGE =
   "a final policy module carries something the final contract forbids (gate-runtime-standardization.md §3, §12.3): " +
   'an inert `ext: ["ts","tsx"]`, a ts-morph walk / gate-owned Project / module state / baseline ledger / legacy ' +
-  "field, or a `node:fs` import. The `ext` token names E1; a `[code]` suffix names the `lib/gate-contract.ts` code; " +
-  "an `import` token names the filesystem door.";
+  "field, a `node:fs` import, or an unguarded resource-host read. The `ext` token names E1; a `[code]` suffix names the " +
+  "`lib/gate-contract.ts` code; an `import` token names the filesystem door; a `resources` token names E4.";
 const EXT_MESSAGE =
   '`ext: ["ts","tsx"]` is INERT — every policy source is already pre-filtered to .ts/.tsx (lib/policy-source-candidate.ts), ' +
   'so the full set declares nothing and teaches the next lane a no-op (#1959). Delete it; a narrowing (`ext: ["tsx"]`) is live and stays.';
+const RESOURCE_MESSAGE =
+  "a final policy reads the resource host without `readyResourceValue` (lib/resource-declaration.ts). A declared resource is asserted READY during the " +
+  'population phase and a broken one withholds every consumer at the receipt phase, so an in-module `if (fact.status !== "ready") return;` is unreachable ' +
+  "code that teaches the next conversion a silent return is the right answer to a broken resource. It is not. Wrap the door call, or — if the host is being " +
+  "aliased — stop: the closed host may not leave the call site.";
 const FS_MESSAGE =
   "a final policy imports the filesystem — §12.3 bans every filesystem read in a gate module; declare the read through the closed " +
   "ResourceHost vocabulary (contract/resource-declaration.ts) or STOP the conversion (a read no kind serves is a refusal, not a private door).";
 const FIX =
   "E1: delete the `ext` field. E2: replace the walk with kind-indexed visitors / `ctx.files` / a shared `lib/` reader, move state into " +
-  "`create`, retire the ledger into exact grants or warning debt, delete the legacy field. E3: delete the `node:fs` import and declare a resource.";
+  "`create`, retire the ledger into exact grants or warning debt, delete the legacy field. E3: delete the `node:fs` import and declare a resource. " +
+  "E4: wrap the door in `readyResourceValue(ctx.resources.<door>(…))` imported from `../lib/resource-declaration.ts`, and never bind `ctx.resources` to a name.";
 const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the import-origin recognizer ` +
   "(lib/gate-contract-origin.ts isCanonicalDefineGate) is dead, so every module would read out of scope. Refusing the run.";
@@ -73,15 +104,57 @@ function inertExtension(descriptor: ObjectLiteralExpression): MorphNode | undefi
   return anchor;
 }
 
+/** Is this `<identifier>.resources` a read of the CONTEXT host? The receiver must be a bare identifier
+ *  declared as a PARAMETER, which is what a policy `create` context and a fact context both are — and what a
+ *  local data object carrying its own `resources` field is not (the live near-miss is
+ *  `devtools-frontend-assets.ts:103`, `assets.manifest.resources`, whose receiver is not an identifier at
+ *  all). Anything reached through a longer receiver chain is somebody's data, not the closed host. */
+function isContextResourceAccess(node: MorphNode): node is PropertyAccessExpression {
+  if (!Node.isPropertyAccessExpression(node) || node.getName() !== RESOURCE_HOST_MEMBER) {
+    return false;
+  }
+  const receiver = node.getExpression();
+  return Node.isIdentifier(receiver) && (receiver.getSymbol()?.getDeclarations() ?? []).some((declaration) => Node.isParameterDeclaration(declaration));
+}
+
+/** The ONLY admitted shape: `readyResourceValue(<ctx>.resources.<door>(…))`, with the guard resolved to its
+ *  home module. Every other shape — a bare door call, a door call wrapped in something else, the host bound
+ *  to a name, the host passed as an argument — answers true. */
+function unguardedResourceRead(access: PropertyAccessExpression): boolean {
+  const door = access.getParent();
+  if (!Node.isPropertyAccessExpression(door) || door.getExpression() !== access) {
+    return true;
+  }
+  const call = door.getParent();
+  if (!Node.isCallExpression(call) || call.getExpression() !== door) {
+    return true;
+  }
+  const guard = call.getParent();
+  if (!Node.isCallExpression(guard) || guard.getArguments()[0] !== call) {
+    return true;
+  }
+  const callee = guard.getExpression();
+  if (!Node.isIdentifier(callee) || callee.getText() !== RESOURCE_GUARD) {
+    return true;
+  }
+  // The IMPORTED name binds to an ALIAS symbol whose declaration is the import specifier in THIS file, so the
+  // alias is followed before the home is read — without it the admitted shape reads as a local lookalike and
+  // the arm accuses every correct call site.
+  const symbol = callee.getSymbol();
+  const declarations = symbol === undefined ? [] : (symbol.getAliasedSymbol() ?? symbol).getDeclarations();
+  return !declarations.some((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(RESOURCE_GUARD_HOME));
+}
+
 interface JudgedModule {
   readonly sourceFile: SourceFile;
   readonly path: string;
   readonly descriptor: ObjectLiteralExpression;
   readonly fsImports: readonly ImportDeclaration[];
+  readonly resourceReads: readonly PropertyAccessExpression[];
 }
 
 /** The three arms over ONE final module. */
-function judgeModule(ctx: GatePolicyContext, { sourceFile, path, descriptor, fsImports }: JudgedModule): void {
+function judgeModule(ctx: GatePolicyContext, { sourceFile, path, descriptor, fsImports, resourceReads }: JudgedModule): void {
   const ext = inertExtension(descriptor);
   if (ext !== undefined) {
     ctx.report.node(ext, Node.isPropertyAssignment(ext) ? { token: "ext", offset: 0, message: EXT_MESSAGE } : { message: EXT_MESSAGE });
@@ -91,6 +164,9 @@ function judgeModule(ctx: GatePolicyContext, { sourceFile, path, descriptor, fsI
   }
   for (const declaration of fsImports) {
     ctx.report.node(declaration, { message: FS_MESSAGE });
+  }
+  for (const access of resourceReads) {
+    ctx.report.node(access.getNameNode(), { message: RESOURCE_MESSAGE });
   }
 }
 
@@ -109,6 +185,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const fsImports = new Map<SourceFile, ImportDeclaration[]>();
+    const resourceReads = new Map<SourceFile, PropertyAccessExpression[]>();
     return {
       visitors: [
         {
@@ -119,13 +196,27 @@ export const gate = defineGate({
             }
           },
         },
+        {
+          kinds: [SyntaxKind.PropertyAccessExpression],
+          visit: (node, sourceFile): void => {
+            if (isContextResourceAccess(node) && unguardedResourceRead(node)) {
+              resourceReads.set(sourceFile, [...(resourceReads.get(sourceFile) ?? []), node]);
+            }
+          },
+        },
       ],
       evaluate: (): void => {
         for (const sourceFile of ctx.files) {
           const path = ctx.relativePath(sourceFile);
           const descriptor = finalDescriptorOf(sourceFile);
           if (descriptor !== undefined) {
-            judgeModule(ctx, { sourceFile, path, descriptor, fsImports: fsImports.get(sourceFile) ?? [] });
+            judgeModule(ctx, {
+              sourceFile,
+              path,
+              descriptor,
+              fsImports: fsImports.get(sourceFile) ?? [],
+              resourceReads: resourceReads.get(sourceFile) ?? [],
+            });
           } else if (path === SELF) {
             throw new Error(BLIND);
           }
@@ -232,6 +323,47 @@ export const gate = defineGate({
       expect: { count: 1, token: "import", messageIncludes: "imports the filesystem" },
       why: "E3 the filesystem door: a `node:fs` import in a final module is a private resource reader wearing a contract's clothes (§12.4) — the import declaration is the anchor because deleting it is the repair",
     },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { ctx.resources.trackedFiles(); } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+        ),
+      ),
+      expect: { count: 1, token: "resources", messageIncludes: "without `readyResourceValue`" },
+      why: "E4 the founding shape (#2019): a bare door call. The declared resource was already asserted READY during the population phase and a broken one withholds every consumer at the receipt phase, so the only thing an unwrapped read can grow is an in-module non-ready branch — unreachable code that teaches the next conversion a silent return answers a broken resource",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { const host = ctx.resources; return host; } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+        ),
+      ),
+      expect: { count: 1, token: "resources", messageIncludes: "aliased" },
+      why: "E4 the ALIAS escape, the same defect one hop out: the closed host bound to a name leaves the call site and nothing downstream of that binding can be proven to wrap anything. Without this arm the founding row is evadable by one `const`",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { readyResourceValue(ctx.resources.trackedFiles()); } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "function readyResourceValue<T>(fact: T): T {\n  return fact;\n}\n",
+        ),
+      ),
+      expect: { count: 1, token: "resources" },
+      why: "E4 IDENTITY, not spelling — the DISCRIMINATION control for the admitted row below. A LOCAL function named `readyResourceValue` asserts nothing about the runtime guarantee, and a name-only test would ACQUIT it. An acquittal is the failure mode this arm cannot afford, so the guard is resolved to its declaring module",
+    },
+  ],
+  // A refusal is the CORRECT outcome for an input that breaks a runtime guarantee, and no `mustFlag`/`mustPass`
+  // row can hold one: `toolFailure` runs before the arm verdict, so such a row is neither (guide §4.5b, #1977).
+  mustRefuse: [
+    {
+      mode: "types",
+      files: { [SELF]: 'export const gate = { id: "policy-soundness", message: "m" };\n' },
+      expect: { messageIncludes: "BLINDNESS" },
+      why: "THE BLINDNESS TRIPWIRE, FIRED. This module sits inside its own population, so if the import-origin recognizer ever dies every module reads out of scope and the family renders a clean corpus forever. The fixture is this module's OWN path carrying a descriptor the recognizer does not admit; the run must REFUSE rather than report zero. Constructing it also answers whether the property is falsifiable — it is, in one file, which is why this is a row and not a paragraph",
+    },
   ],
   mustPass: [
     {
@@ -242,6 +374,27 @@ export const gate = defineGate({
         ),
       ),
       why: "a clean final module: no ext, no residue, no filesystem — the ordinary shape of the converted corpus",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => readyResourceValue(ctx.resources.trackedFiles()) }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { readyResourceValue } from "../lib/resource-declaration.ts";\n',
+        ),
+        { [RESOURCE_DECLARATION_PATH]: RESOURCE_DECLARATION_STUB },
+      ),
+      why: "E4 the ADMITTED shape, and the row that dies first if the arm over-reaches: the guard imported from its home module. Every resource read in the live gate corpus already takes this shape, which is what lands the arm on a fixed tree",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => assets.manifest.resources.length }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          "const assets = { manifest: { resources: [1] } };\n",
+        ),
+      ),
+      why: "E4 NEAR-MISS, taken from the live tree (`devtools-frontend-assets.ts:103` reads `assets.manifest.resources.length`): a `.resources` DATA field is not the closed host. The arm is keyed on a bare-identifier receiver declared as a PARAMETER, which a context is and a local object is not",
     },
     {
       mode: "types",

@@ -85,7 +85,7 @@ test("a corpus whose final policies all prove is CLEAN, and the summary names th
   // The real policy's OWN row count is the denominator; the legacy module is counted, never proven here. The
   // grant table is NOT part of this planted world, so only rows naming loaded policies are judged — none here.
   expect(res.stdout).toContain(
-    `policy-conformance: 1 final policies · ${String(proofRows(baseuiRenderProp))} proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
+    `policy-conformance: 1 final policies · ${String(proofRows(baseuiRenderProp))} proof rows · 0 refusal rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
   );
   expect(res.stdout).toContain("(corpus: 2 module(s), 1 legacy proven by gate-conformance)");
 });
@@ -99,7 +99,7 @@ test("a planted root that carries a REVIEWED-GRANT target judges that policy's r
   });
   const judged = await runCli("verify", ["policy-conformance"], { cwd: partial, timeoutMs: CLI_TIMEOUT_MS });
   await expect(judged).toExitWith(0);
-  expect(judged.stdout).toContain(`1 final policies · ${String(proofRows(routeImportsNoFeature))} proof rows · 0 failure(s) · `);
+  expect(judged.stdout).toContain(`1 final policies · ${String(proofRows(routeImportsNoFeature))} proof rows · 0 refusal rows · 0 failure(s) · `);
   expect(judged.stdout).toMatch(/· [1-9]\d* grant rows \(rows naming loaded policies\) · 0 invalid/u);
 
   // Arm 2 — THE WHOLE-TABLE CONTROL: the same one-policy corpus, but the table's own module is planted under the
@@ -135,10 +135,91 @@ test("a policy whose own proof fails is a TOOL ERROR naming policy, arm, row ind
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
-  expect(res.stdout).toContain(`2 final policies · ${String(proofRows(baseuiRenderProp) + BROKEN_PROOF_ROWS)} proof rows · 1 failure(s)`);
+  expect(res.stdout).toContain(`2 final policies · ${String(proofRows(baseuiRenderProp) + BROKEN_PROOF_ROWS)} proof rows · 0 refusal rows · 1 failure(s)`);
   expect(res.stdout).toContain(`✗ planted-broken · mustFlag[0] · ${BROKEN_WHY}`);
   expect(res.stdout).toContain("expected at least one effective finding but got 0");
   expect(res.stdout).toContain("the checker is broken, not the tree (exit 2)");
+});
+
+// ---------------------------------------------------------------------------------------------------
+// THE REFUSAL ARM (#1977). `mustRefuse` proves the outcome the other two arms structurally cannot hold — the
+// pass REFUSING — because `toolFailure` runs BEFORE the arm verdict, so a designed refusal is neither a
+// mustFlag (no finding) nor a mustPass (the owner did not succeed). Both directions are here, because an arm
+// that only ever runs green is indistinguishable from one that cannot run: the SAME policy is planted twice,
+// differing only in whether the refusal branch exists.
+// ---------------------------------------------------------------------------------------------------
+const REFUSAL_WHY = "the designed refusal: a policy that cannot read its subject withholds rather than rendering a clean zero";
+const REFUSAL_MESSAGE = "PLANTED REFUSAL: this policy cannot read its subject";
+const REFUSAL_MUST_FLAG: readonly GatePolicyProof[] = [
+  { mode: "source", files: { "tooling/src/proof.ts": "export const bad = 1;\n" }, why: "the ordinary finding this policy reports" },
+];
+const REFUSAL_MUST_PASS: readonly GatePolicyProof[] = [
+  { mode: "source", files: { "tooling/src/proof.ts": "export const good = 1;\n" }, why: "nothing to report" },
+];
+const REFUSAL_MUST_REFUSE: readonly GatePolicyProof[] = [
+  {
+    mode: "source",
+    files: { "tooling/src/proof.ts": "export const refuse = 1;\n" },
+    expect: { messageIncludes: REFUSAL_MESSAGE },
+    why: REFUSAL_WHY,
+  },
+];
+const REFUSAL_PROOF_ROWS = REFUSAL_MUST_FLAG.length + REFUSAL_MUST_PASS.length;
+
+/** A policy that reports on `bad` and, in the ARMED variant only, refuses outright on `refuse`. The two
+ *  variants differ by exactly that branch, so the mustFlag/mustPass rows hold in both and only the refusal
+ *  arm moves. */
+function refusingPolicy(repoRoot: string, armed: boolean): string {
+  const contract = pathToFileURL(join(repoRoot, "tooling/src/verify/contract/policy.ts")).href;
+  const refusal = armed ? `if (text.includes("refuse")) { throw new Error(${JSON.stringify(REFUSAL_MESSAGE)}); } ` : "";
+  return `import { defineGate } from ${JSON.stringify(contract)};
+export const gate = defineGate({
+  id: "planted-refusing",
+  family: "planted-refusing",
+  authority: "hard",
+  severity: "error",
+  population: "@tooling",
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: "planted refusing policy",
+  create: (ctx) => ({
+    evaluate: () => {
+      for (const file of ctx.files) {
+        const text = file.getFullText();
+        ${refusal}if (text.includes("bad")) { ctx.report.file(ctx.relativePath(file), { token: "bad" }); }
+      }
+    },
+  }),
+  mustFlag: ${JSON.stringify(REFUSAL_MUST_FLAG)},
+  mustPass: ${JSON.stringify(REFUSAL_MUST_PASS)},
+  mustRefuse: ${JSON.stringify(REFUSAL_MUST_REFUSE)},
+} as never);
+`;
+}
+
+test("a mustRefuse row is COUNTED and PROVEN, and the same row goes RED when the policy does not refuse", { timeout: CLI_TIMEOUT_MS }, async ({
+  plantedTree,
+  repoRoot,
+  runCli,
+}) => {
+  // POSITIVE: the refusal branch exists, the row names the refusal TEXT, and the summary counts the arm apart
+  // from the other two — a third arm folded into the `proof rows` total would run unmentioned.
+  const armed = await plantedTree({ [`${GATES}/planted-refusing.ts`]: refusingPolicy(repoRoot, true) });
+  const clean = await runCli("verify", ["policy-conformance"], { cwd: armed, timeoutMs: CLI_TIMEOUT_MS });
+  await expect(clean).toExitWith(0);
+  expect(clean.stdout).toContain(
+    `1 final policies · ${String(REFUSAL_PROOF_ROWS)} proof rows · ${String(REFUSAL_MUST_REFUSE.length)} refusal rows · 0 failure(s)`,
+  );
+
+  // NEGATIVE, on a BYTE-IDENTICAL row: without the branch the pass completes, the refusal never happens, and
+  // the row must go RED. Without this direction the arm is unfalsifiable by construction.
+  const unarmed = await plantedTree({ [`${GATES}/planted-refusing.ts`]: refusingPolicy(repoRoot, false) });
+  const red = await runCli("verify", ["policy-conformance"], { cwd: unarmed, timeoutMs: CLI_TIMEOUT_MS });
+  await expect(red).toExitWith(2);
+  expect(red.stdout).toContain(`✗ planted-refusing · mustRefuse[0] · ${REFUSAL_WHY}`);
+  expect(red.stdout).toContain("expected the pass to REFUSE but it completed");
 });
 
 test("a corpus with ZERO final policies is a TOOL ERROR — a bare zero is not a conformance verdict", { timeout: CLI_TIMEOUT_MS }, async ({
@@ -148,6 +229,6 @@ test("a corpus with ZERO final policies is a TOOL ERROR — a bare zero is not a
   const root = await plantedTree({ [`${GATES}/planted-legacy.ts`]: LEGACY_GATE });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
-  expect(res.stdout).toContain("0 final policies · 0 proof rows");
+  expect(res.stdout).toContain("0 final policies · 0 proof rows · 0 refusal rows");
   expect(res.stderr).toContain("resolved ZERO final policies");
 });

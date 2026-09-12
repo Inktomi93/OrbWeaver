@@ -443,7 +443,7 @@ const NO_ADMITTED_TRIPWIRE =
  *  `ratchet-row-integrity` gate JUDGES ledgers and admits nothing, so its example files legitimately name
  *  `*.baseline.json` paths and ARM D accused it three times over). Narrow on purpose: a real reader's path
  *  constant lives at module scope, so this carve cannot absolve one. */
-const EXAMPLE_FIELDS: ReadonlySet<string> = new Set(["mustFlag", "mustPass"]);
+const EXAMPLE_FIELDS: ReadonlySet<string> = new Set(["mustFlag", "mustPass", "mustRefuse"]);
 
 /** Is this literal inside a `mustFlag`/`mustPass` example block? */
 function inExampleBlock(node: Node): boolean {
