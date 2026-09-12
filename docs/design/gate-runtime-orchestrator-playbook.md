@@ -11,32 +11,48 @@ Steps, not history. The law and the contract are in [gate-runtime-standardizatio
 rebuilding something that shipped. Then §2 (tree state), §3 (contract), §4 (proof rules), §7 (what constrains any
 order); §12 is what lanes read. This file is what YOU do, in order.
 
+> **READ [`gate-runtime-read-first.md`](gate-runtime-read-first.md) BEFORE THIS FILE** if you are cold or
+> compacted. It is the ordered read list with costs and STOP rules, and it carries the standing rulings.
+
 ## 0. Session start (every time, in this order)
+
+0. **NOTHING GETS TO REFUSE TO CONVERT** (owner, 2026-09-12). Convert it or delete it; a missing capability is
+   BUILD work. **And a LANE never refuses for that reason — it ASKS.** A lane missing a reader, a helper, a
+   fixture shape or a ruling SendMessages you, states its DEFAULT, and keeps working; refuse-and-stop is only
+   for work outside its fence or a design decision you have not made. **Brief that distinction explicitly every
+   time** — it was briefed wrong for most of 2026-09-11 and cost at least one lane, and on 2026-09-12 I ruled a
+   lane into parking a shared-reader gap that the owner reversed within the hour.
 
 1. Prove the guard is bound: run `git stash` (bare) and expect the hook to DENY it. If it passes, relaunch from `main`
    before touching anything (hooks bind at launch).
+
 2. Pre-flight, cheapest probe FIRST: `free -g` and `grep Shmem /proc/meminfo`. A sleeping vLLM fleet parks \~37 GiB as
    `Shmem`; under \~1 GiB means engines are already down and you need no launcher call at all. Only if `Shmem` is high
    do you touch `pnpm engines status` / `pnpm stack status`, and then take prod down and stop engines from `main`'s
    checkout. The launcher family has no help guard — a bare `node scripts/dev/engines.ts --help` once REAPED three live
    pids — so never invoke it merely to look.
+
 3. `git -C <main> status --short` empty, `git log --oneline -3`, `git worktree list` (every worktree is a lane; resume,
    never respawn — a killed lane's worktree keeps its uncommitted work). **For each worktree run
    `git -C <wt> rev-list --count main..HEAD` and `git -C <wt> status --short`. A dead lane showing 0 commits and a large
    dirty set is one `worktree remove` from annihilation: CHECKPOINT it immediately** (`git -C <wt> add -u`, then
    `git -C <wt> -c core.hooksPath=/dev/null commit`) with a message that says explicitly it is a durability checkpoint
    and not a completion receipt. `add -u` stages tracked modifications only, so lane scratch files stay untracked.
+
 4. `pnpm work:item overview`. The program row is #1584. Rows that matter: Verify (needs an Opus verifier), Ready (claim
    at dispatch), Needs owner (ask, do not build).
+
 5. Re-derive the census: `pnpm gate:contract > <scratch>/census.log`; the total line and the distinct `gates/*.ts`
    in the descriptor-wrapper findings are the legacy roster. Never quote a number from a document — EVERY roster in
    `docs/reviews/gate-runtime/` is a frozen snapshot and they are all stale (the conversion census counts a 255-module
    corpus against 270 today). Run this AFTER lanes drain, never beside a live lane. **The sharper roster is
    `pnpm check:policy-conformance`** — it names every final policy and runs its rows, so it tells you what is
    CONVERTED AND PROVEN, which `gate:contract` (a shape check) cannot.
+
 6. Read `~/.claude/bridge/to-primary/` (ack SELF notes by `mv` into `done/`). Write a SELF note ONLY when a context
    sentinel fires or you are handing the session off. A SELF note is a POINTER, never a source: verify every state
    claim in it before acting (two of note 522's were false within the hour).
+
 7. **THE DOC LAYER IS A BUDGET, NOT A READING LIST — read the tier, not the directory (measured 2026-09-12, by
    reading the whole thing and paying for it).** The owner asked for "the two docs and every doc they mention, in
    full." That set is **\~1.3 MB** and it consumed 60% of an orchestrator's context window. It is the right

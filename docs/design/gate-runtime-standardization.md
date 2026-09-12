@@ -6,6 +6,8 @@ updated: 2026-09-12
 
 # One ts-morph runtime for every Orb gate — the program guide (#1584)
 
+> **A COLD OR COMPACTED SESSION READS [`gate-runtime-read-first.md`](gate-runtime-read-first.md) BEFORE THIS FILE.** It is the ordered onboarding read list with its costs and its STOP rules, and it carries the standing rulings that override anything here. It exists because reading this doc's full citation set (\~1.3 MB) consumed 60% of an orchestrator's context window on 2026-09-12, most of it on evidence whose headline findings were already closed.
+
 The single operating document for the gate-runtime standardization program: the transition model, the state of the tree, the proof rules, the order of work, the per-conversion procedure, the dispatch mechanics, and the contract itself. It supersedes [gate-config-system.md](gate-config-system.md) and every earlier resume or atomic-cutover order. Native Biome/ESLint/community rules continue to own generic ecosystem lint; every Orb-specific policy uses one ts-morph runtime and one capability contract. `tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide and is not an input to a conversion.
 
 **The review layer under [`docs/reviews/gate-runtime/`](../reviews/gate-runtime/) is not all one thing, and treating it as "evidence" cost a full session of re-deriving answers it already held.** Four of its documents are LIVE LAW this guide delegates to; the rest are completed-family evidence. **Before proposing a capability, a family, a table's disposition or a marker translation, read the one that owns the question:**
@@ -120,9 +122,40 @@ the module's PROOF shape and take its HEADER from `section-registry-completeness
 Non-negotiables inside a module: no `Project#getSourceFiles`, `getDescendants*`, `forEachDescendant`, `new Project`,
 private cache, private marker parser, gate-owned exemption table, scope predicate or filesystem read; state in
 `create`; every anchor inside the policy's own resolved population; population `under: ["x/**"]` (a `"x/"` matches
-nothing). A read the 18 FROZEN resource kinds (§12.4) cannot serve, or a shared reader that does not exist in `lib/`,
-STOPS that module — it stays legacy and armed, and the exact read goes to #1930. That refusal is a SUCCESS; keeping a
-private reader behind `defineGate` lowers the census while leaving the forbidden machinery in place.
+nothing). A read the 18 FROZEN resource kinds (§12.4) cannot serve STOPS that module — it stays legacy and armed, and the
+exact read goes to #1930. That refusal is a SUCCESS; keeping a private reader behind `defineGate` lowers the census
+while leaving the forbidden machinery in place.
+
+**NOTHING GETS TO REFUSE TO CONVERT — owner ruling, 2026-09-12, and it is the stronger form of the paragraph
+above.** *"Convert or die, and we build what we need."* A gate that needs a capability the tree does not have is a
+reason to BUILD THE CAPABILITY, or — if it is not worth building — to DELETE THE GATE. It is not a reason to park
+the module and record a refusal. The refusal sentence above survives only in its ORIGINAL narrow subject (a
+resource KIND that would serve exactly one consumer, §11.5), and even there the outcome is convert-or-delete, not
+park-indefinitely: mixed runtime makes a legacy module tolerable forever, and *tolerating it forever is the skimp
+that produced this program* (§"Phase C"). **And a lane never makes this call by refusing: it ASKS** (§9's
+escalation model — SendMessage, state a DEFAULT, keep working).
+
+**A SHARED-READER GAP IS BUILD WORK AND WAS NEVER COVERED BY THAT DOCTRINE.** The refusal above exists because §12.4 FROZE the capability vocabulary, and a
+kind minted for a single consumer is that gate's private reader wearing a contract's clothes (§11.5). **A missing or
+refusing `lib/` READER is the opposite case and is BUILD work, not refusal work.** §12.4's own reopening condition
+says so from the other side — a read with **two or more independent consumers** reopens the set — and a shared
+reader has them by construction (`resolveModuleMemberOrigin` has 22 callers). The owner's words: *"legacy shit
+doesn't get to stay alive — it's a conversion process; if it doesn't have what you need then build it."*
+
+**The worked case, and it is the template.** `resolveModuleMemberOrigin` refused an OVERLOADED export as
+`ambiguous`, which closed `defineBusChannel.publish` for every channel on the tree and cost three families their
+precise verdict. The fix was NOT a per-gate workaround and NOT a recorded gap: it was
+`reference-fact-module.ts#overloadHome`, built in the SHARED reader, proven by an armed red-first spec, a
+**reached-arm census over the whole authored tree** (775 specifiers newly resolving, 182 still refusing as genuine
+merges) and a **composed pre/post over the same corpus** that was EMPTY in every direction — the census is what
+makes an empty diff evidence rather than a false clean. It also DELETED the two gate-local workarounds it
+superseded, with a byte-identical fact receipt as the receipt.
+
+**A REFUSAL IS A SNAPSHOT, NOT A STANDING VERDICT, and nothing re-opens one when its blocker lands** (#2013).
+`runner-config-path-liveness` refused citing a missing `authored-path` identity door; §12.4's `authored-path` row
+records that the kind was **specified BY that refusal** — it shipped, and the gate is still legacy. Same shape as
+the deferred roster's 8 entries still reading "not yet ported" after landing (#2008). **Before inheriting any
+recorded refusal, re-derive its condition against today's tree.**
 
 **The reported position, which is also the waiver position.** `report.node`'s token is an exact slice of the node
 text, and when a policy passes NO token the sink DERIVES one (`policy-pass-context.ts:109`): the first identifier,
@@ -536,6 +569,31 @@ This is conversion evidence for the landing commit, not standing law.
 
    A fixture's relative import that resolves to nothing makes every identity row pass by fail-closure while
    conformance stays green, so a specifier-resolution control is part of every family floor.
+
+8b. **A PROOF ROW CAN BE GREEN FOR THE WRONG REASON, BECAUSE THE VIRTUAL PROJECT RESOLVES A REAL PACKAGE DOOR
+DIFFERENTLY THAN THE TREE DOES (measured 2026-09-12, and it nearly shipped a repair that killed a live
+policy).** §5 already says conformance runs on `useInMemoryFileSystem: true` with no `node_modules`. The
+consequence nobody had drawn: a fixture naming a package specifier resolves to NOTHING, which the origin
+readers classify as `external-door` — **a clean, resolvable answer**. On the real tree the same specifier
+resolves into the installed package's own `.d.ts`, whose declaration shape may be one the reader REFUSES.
+
+Worked case: `no-raw-id`'s Zod door. zod 4.4.3's `index.d.cts:1,3` is
+`import * as z from "./v4/classic/external.cjs";` then `export { z };` — a namespace-forwarding export
+specifier that `reference-fact-module.ts:185` refuses as
+`unsupported | local export z forwards an imported binding without a proven canonical export`. Routing the
+policy's door through the shared reader took it from **21 real-tree findings to 0** in `packages/contracts`
+alone, corroborated by 21 `stale ordinary waiver … no live finding bound` alarms proving it used to bite
+there. **Every conformance row stayed green**, because in the virtual project "zod" resolves to nothing and
+lands as `external-door`.
+
+**So an identity row that names a REAL package door proves nothing about that door until it is driven
+against the real program.** Two rules follow:
+
+- **Plant the package** (`gates/_proof/react.ts`, `client-vendors.ts`, `zustand.ts` are the shape) so the
+  specifier resolves to a declaration whose SHAPE matches what the installed package actually ships — not a
+  convenience stub with a simpler shape than the real thing.
+- **Before crediting a door-identity claim, measure it once against the real tree**, the way §8.8's
+  `check:structure` line exists for the withheld-policy class. The same blindness, one layer over.
 
 9. **One family test may cover several siblings**; a file per gate is unnecessary. **A conversion no longer owes a
    family test for its DECLARED rows** — the conformance stage (§5) runs every final policy's `mustFlag`/`mustPass` on
