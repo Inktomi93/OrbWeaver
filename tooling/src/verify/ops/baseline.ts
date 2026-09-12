@@ -14,7 +14,6 @@ import { generateDuplicateActionDoorsBaseline } from "./gen/duplicate-action-doo
 import { generateProseBaseline } from "./gen/prose.ts";
 import { generateReadFirstCosts } from "./gen/read-first-costs.ts";
 import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
-import { generateTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
 import { generateTypeConfigs } from "./gen/type-configs.ts";
 import { LEDGER_CHECKS } from "./ledgers-fresh.ts";
 
@@ -35,7 +34,6 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   // those eight numbers was stale at once, the work queue by 7x.
   "read-first-costs": generateReadFirstCosts,
   "snap-flags-index": generateSnapFlagsIndex,
-  "test-baseline-manifest": generateTestBaselineManifest,
   "type-configs": generateTypeConfigs,
 };
 

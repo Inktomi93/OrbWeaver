@@ -92,8 +92,6 @@ export type { ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-t
 export { SCOPED_TEST_RUNNERS } from "./contract/scoped-test.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
 export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "./contract/stage.ts";
-export type { TestBaselineDeletion, TestBaselineManifest } from "./contract/test-baseline.ts";
-export { TEST_BASELINE_REL } from "./contract/test-baseline.ts";
 export type { MembershipOutcome, MembershipReport, MembershipRow } from "./contract/tests-type-membership.ts";
 export { MEMBERSHIP_OUTCOMES } from "./contract/tests-type-membership.ts";
 export type { TypecheckExecutionResult, TypecheckProgramResult, TypecheckProgramStatus } from "./contract/typecheck.ts";
@@ -163,16 +161,15 @@ export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { deriveReadFirstCosts, generateReadFirstCosts, READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./ops/gen/read-first-costs.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";
-export { deriveTestBaselineManifest, generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
 export {
   censusDrift,
+  classRollupDrift,
   deferredRosterDrift,
   LEDGER_CHECKS,
   ledgerFreshness,
   ledgerReport,
   ledgerSectionDrift,
-  manifestDrift,
   readFirstCostsDrift,
   runLedgersFresh,
   snapFlagsIndexDrift,

@@ -204,7 +204,7 @@ const GATING_STAGES: readonly StageDef[] = [
     argv: ["pnpm", "check:ledgers-fresh"],
     // Our OWN 0/1/2/3-speaking op (tooling/src/verify/ops/ledgers-fresh.ts): the two committed single-writer
     // ledgers — the caught-failure census (line-number-coupled: any merge inserting lines above a marker
-    // re-stales it) and the test-baseline manifest — vs a FRESH derivation. Both already had a freshness
+    // re-stales it) — vs a FRESH derivation. It already had a freshness
     // check, but each was a VITEST suite, so `pnpm check` stayed green while main sat red on the next whole
     // node run and regeneration was an unscheduled barrier ritual (#817; three re-lines in one night). It
     // USES the tool-error code: a derivation that comes back EMPTY is blindness, not a clean ledger.

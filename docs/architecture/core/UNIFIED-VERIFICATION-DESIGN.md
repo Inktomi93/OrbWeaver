@@ -472,11 +472,12 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
   (\~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
   `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` calls (one home, two callers).
-- **`ledgers:fresh`** (`static`/`push`/`full`, #817 — `tooling/src/verify/ops/ledgers-fresh.ts`) — the two
-  committed SINGLE-WRITER ledgers vs a fresh derivation of themselves:
+- **`ledgers:fresh`** (`static`/`push`/`full`, #817 — `tooling/src/verify/ops/ledgers-fresh.ts`) — every
+  committed SINGLE-WRITER output vs a fresh derivation of itself, the oldest being
   `docs/reviews/caught-failure-ownership/population.json` (the caught-failure census — every row carries the
-  `line`/`markerLine` of a site, so ANY merge that inserts lines above one re-stales it) and
-  `docs/test-baseline/manifest.json` (every tracked spec). Both already had a freshness check, but each was a
+  `line`/`markerLine` of a site, so ANY merge that inserts lines above one re-stales it). The test-baseline
+  manifest was the second and was DELETED with `monotonic-tests` (#2217). The census already had a freshness
+  check, but it was a
   VITEST suite, so `pnpm check` stayed GREEN while main sat red on the next whole node run and regeneration
   was an unscheduled orchestrator barrier ritual — three re-lines in one night (2026-08-30: the #799 merge
   shifted `plugin-frame.ts` +5 and re-staled the census twenty minutes after the first regen). It runs the

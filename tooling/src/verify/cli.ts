@@ -102,7 +102,7 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "orphan-ratchet": "usage: node tooling/src/verify/cli.ts orphan-ratchet [--update]\n  The orphan-export ratchet; --update rewrites its committed baseline.",
   "boot-chunk": "usage: node tooling/src/verify/cli.ts boot-chunk\n  Measures the client boot chunk against its committed ceiling.",
   "ledgers-fresh":
-    "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census, the test-baseline manifest) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
+    "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census and its siblings) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
   debt: "usage: node tooling/src/verify/cli.ts debt [--gate <substr>] [--age]\n  A LENS over the ratchet ledgers — reports parked rows, oldest first with --age.",
   "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
   "config-snapshot": CONFIG_SNAPSHOT_HELP,

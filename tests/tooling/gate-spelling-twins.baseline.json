@@ -20,7 +20,6 @@
     "json-column-write-parity": ["bracket"],
     "list-row-adoption": ["bracket"],
     "macro-resolution-home": ["namespace"],
-    "monotonic-tests": ["bracket"],
     "no-default-props": ["bracket"],
     "no-form-reset-in-autosave": ["bracket"],
     "no-handwritten-wire-json-schema": ["namespace"],

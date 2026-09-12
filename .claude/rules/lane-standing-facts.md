@@ -59,11 +59,14 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   baseline, suppressions, `drizzle generate`): it recomputes from the WHOLE working tree and bakes a
   sibling's in-flight edits into your committed baseline. Hand-edit the single row, or use the gate's own
   line-adjacent escape marker.
-- **The two line-coupled ledgers RED at `pnpm check`** — `ledgers:fresh` re-derives
-  `docs/reviews/caught-failure-ownership/population.json` and `docs/test-baseline/manifest.json` and names
-  the differing rows plus the regen command. A lane that adds a TRACKED spec regenerates the manifest in
-  its OWN worktree (`git add` the spec first — the derivation reads `git ls-files`); on a SHARED tree,
-  re-derive on the merged tree at the barrier.
+- **The line-coupled ledger REDS at `pnpm check`** — `ledgers:fresh` re-derives
+  `docs/reviews/caught-failure-ownership/population.json` (every row carries the `line`/`markerLine` of a
+  caught-failure site, so any merge that inserts lines above one re-stales it) and names the differing rows
+  plus the regen command. On a SHARED tree, re-derive on the merged tree at the barrier.
+  **ADDING A TRACKED SPEC NOW REGENERATES NOTHING** (#2217, owner ruling): the test-baseline manifest and
+  its `monotonic-tests` gate are DELETED, so the old "a lane that adds a tracked spec regenerates the
+  manifest in its own worktree" instruction is retired — there is no manifest to regenerate and no
+  test-count baseline to keep monotonic.
 
 ## Forks, rulings and premises
 

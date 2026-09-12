@@ -119,7 +119,6 @@ false-mismatch. Two ` ```dod ` blocks in one body is ambiguity → refuse loudly
 | `tests/tooling/workboard/cli.test.ts` | fake gh learns `body` (create/edit/context); the DoD behavioral pins |
 | `tests/tooling/workboard/lib/dod.test.ts` (new) | pure mirror: fence/stamp/normalize/validate |
 | `tests/tooling/workboard/contract/types.test-d.ts` | closed-kind list += `dod`; per-arm payload pins |
-| `docs/test-baseline/manifest.json` | regenerated in-lane (new tracked test file; `ledgers:fresh`) |
 | Project 1 itself | **deployment step, orchestrator at merge: add a TEXT field named `DoD`** — until it exists, minting refuses loudly (`Project 1 has no field named DoD`) and rows without DoDs are unaffected |
 
 New workboard test files auto-join the `pnpm test:ratchets` train-gate aggregate
