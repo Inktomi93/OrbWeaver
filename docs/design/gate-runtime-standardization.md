@@ -1182,7 +1182,7 @@ defineGate({
 One sanctioned `pnpm` command with tier plus file/folder/package/project/changed/whole scope; explicit `--check`,
 `--family`, strict-scope refusal, list/explain, JSON report, stable exit codes; requested and effective population
 manifests including deleted/renamed semantic paths; compiler-derived program membership and one lazy checker per
-workspace; error/warning severity with opt-in warning promotion; hard unsuppressible policy, exact ordinary occurrence
+workspace; error/warning severity (**the "opt-in warning promotion" this list used to claim is NOT BUILT — see §12.5 and #2025**); hard unsuppressible policy, exact ordinary occurrence
 waivers, exact reviewed subject/operation grants; missing/empty/unresolved population refusal and failed-owner
 reconciliation withholding; per-gate files/members/resources/timing receipts; one pass-local shared-fact registry (one
 collector over an exact population, read-only sibling consumers); one fixture runtime for `mustFlag`/`mustPass`.
@@ -1445,7 +1445,7 @@ trivia on the node or its ancestors up to the enclosing statement; a file/resour
 immediately above; one marker consumes exactly one occurrence; unused, malformed and over-broad markers are central
 reconciliation findings. `reviewed-grant` findings may consume only a typed central grant keyed by policy id, subject and
 operation, with `why` and `endsWhen`; after a complete owner run zero consumption is stale and more than one match is
-over-broad and suppresses none. `error` blocks; `warning` is visible and blocks only under warning promotion; unresolved
+over-broad and suppresses none. `error` blocks. **`warning` ALSO BLOCKS — the "warning promotion" this sentence used to condition it on DOES NOT EXIST (measured 2026-09-12, #2025).** `ops/structure.ts` computes `ok: violations.length === 0` with no severity partition, and severity is read in exactly four places corpus-wide: two append a `[warning]` label (`render.ts:196`, `show-policy.ts:97`) and two carry `workItem` into a report (`policy-plan.ts:42`, `structure-report.ts:74`). **So `severity` is a label today, and declaring `warning` does NOT make a finding non-blocking** — five policies are authored against the promise that it does, including three #1971 meta-policies and §3's warning-debt exemplar. Which way that resolves is #2025, an owner decision. Unresolved
 debt is a warning tied to a positive `workItem`. Reconciliation runs only after every selected owner completed its
 population; a thrown, incomplete, empty or unresolved owner withholds liveness rather than falsely staling grants. Gate
 modules receive neither grant tables nor marker parsers. Current-population declaration counts, every-file manifests and
