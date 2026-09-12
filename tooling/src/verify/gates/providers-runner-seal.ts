@@ -4,6 +4,14 @@
 // The seal is the DECLARATION HOME, read through the shared module-origin reader: an alias, a namespace
 // member and a name-preserving re-export are the same sealed symbol, while a same-named export of another
 // module is not. DECLARED LIMITS live in the mustPass rows.
+//
+// FAMILY `providers-runner-seal` — a declared SINGLETON. `lib/sealed-origin.ts` is a shared READER used by
+// five policies that seal five different homes under five different laws; a reader is not a family
+// (guide §3). Nothing else judges the infra/providers boundary.
+//
+// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^` (`scanRoot: (p) => CONSUMER.test(\`/\${p}\`)`, the
+// `domain|transport|entry` alternation); the final `CONSUMER_POPULATION` admits exactly that set. Both halves
+// of the candidate prefilter — the import arm and the member arm — carry their own DECLARED LIMIT row.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
@@ -199,6 +207,13 @@ export const gate = defineGate({
           'import { resolveRunnerKey } from "../../infra/providers/barrel.ts";\nexport const r = resolveRunnerKey;\n',
       },
       why: "DECLARED LIMIT — a barrel that RE-EXPORTS a sealed symbol under a DIFFERENT name is outside the candidate prefilter. The legacy name reader missed it too, so this is a written baseline rather than a regression; closing it means resolving an origin on every identifier in the population, which does not finish",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/unreadable-member.ts": 'import * as providers from "./missing-barrel.ts";\nexport const r = providers.resolveChat;\n',
+      },
+      why: "DECLARED LIMIT — the MEMBER arm of the same candidate prefilter, and the receipt the import arm's `renamed.ts` row gives for its half (w9 :262, #2046). A namespace member read through an UNREADABLE door, whose name is NOT one of the four sealed symbols, is not a subject: the fail-closure is about a door that could have carried a SEALED symbol, not about every unreadable member read above infra. Widening the member gate to any resolved member reds this row, because the unreadable door then reports under `resolveChat`",
     },
   ],
 });

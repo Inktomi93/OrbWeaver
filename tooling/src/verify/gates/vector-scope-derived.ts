@@ -4,6 +4,15 @@
 // (`vector_distance_cos` outside domain/search/persistence). Table identity is the DECLARATION HOME through
 // the shared origin reader, so an alias, a namespace member and a bracket read are the same table while a
 // same-named export elsewhere is not; the write method is read the same way. Limits live in mustPass.
+//
+// FAMILY `vector-scope-derived` — a declared SINGLETON. It is a THREE-ARM policy (import · write · cosine)
+// over one substrate, and no sibling shares an arm; `lib/sealed-origin.ts` and `lib/reference-fact.ts` are
+// shared readers, which guide §3 says is not a family.
+//
+// POPULATION PORT: byte-identical, legacy at `0d83d99f1^` (`scanRoot: (p) => SERVER_SRC.test(\`/\${p}\`)` —
+// the `@server` root exactly). The sanctioned homes stay IN the population and are decided per arm, so a
+// re-home reds at its new path instead of carrying its exemption silently; all FIVE `IMPORT_SANCTIONED`
+// entries now carry a row each, which is what stops a future re-home deleting one silently.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -218,6 +227,15 @@ export const gate = defineGate({
       expect: { count: 1, token: "chatDigests" },
       why: "FAIL-CLOSED — a vector-table name whose door does not resolve is reported; a leak chokepoint an unreadable module can walk through is not one",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/bracket-cosine.ts":
+          'export const q = (db: Record<string, (a: unknown, b: unknown) => unknown>): unknown => db["vector_distance_cos"](1, 2);\n',
+      },
+      expect: { count: 1, token: COSINE },
+      why: "the BRACKET-SPELLED cosine call flags EXACTLY ONCE, and that count is the receipt for `LITERAL_KINDS` (w9 :262, #2046) — the ElementAccessExpression carries the string literal as its own child, so the literal arm already reaches it. Adding the member-access kinds to the subscription makes the wrapper node report a SECOND finding at the same site, which the count-1 expectation reds: a double report is one occurrence the author cannot waive, because two findings sharing a carrier and a token make every marker over-broad",
+    },
   ],
   mustPass: [
     {
@@ -274,6 +292,51 @@ export const gate = defineGate({
           '// @orb-waive vector-scope-derived(chatDigests): a one-off migration read of the digest table; ends when the backfill lands behind embeddings.store.\nimport { chatDigests } from "../../../../db/src/schema/embeddings.ts";\nexport const t = chatDigests;\n',
       },
       why: "the ONE central positioned waiver naming the exact reported token — the three arms are distinguished by token (the table name, the write method, the cosine function), which is what makes a per-arm waiver expressible",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/embeddings.ts": 'export const chatDigests = { name: "chat_digests" };\n',
+        "packages/server/src/domain/chat/memory/persistence/digests.ts":
+          'import { chatDigests } from "../../../../../../db/src/schema/embeddings.ts";\nexport const t = chatDigests;\n',
+      },
+      why: "SANCTIONED HOME 3 of 5 — chat/memory's own persistence does the digest BOOKKEEPING (which segments are indexed), so it names the table while delegating every vector read to the injected `searchDigests` op. Each `IMPORT_SANCTIONED` entry now owns a row: an unexercised list entry is a §5b.1 declaration the module does not use, and the one a future re-home deletes silently (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/embeddings.ts": 'export const chatDigests = { name: "chat_digests" };\n',
+        "packages/server/src/domain/discovery/persistence/near-duplicates.ts":
+          'import { chatDigests } from "../../../../../db/src/schema/embeddings.ts";\nexport const t = chatDigests;\n',
+      },
+      why: "SANCTIONED HOME 4 of 5 — discovery/persistence reads the substrate for ANALYTICS (hubness, near-duplicates) on its own in-RAM cosine; that is why it may name the table and may not use `vector_distance_cos`, which the cosine arm still enforces here",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/embeddings.ts": 'export const chatDigests = { name: "chat_digests" };\n',
+        "packages/server/src/foundation/observability/debug/vectors.ts":
+          'import { chatDigests } from "../../../../../db/src/schema/embeddings.ts";\nexport const t = chatDigests;\n',
+      },
+      why: "SANCTIONED HOME 5 of 5 — the `/api/_debug` probes report on the substrate's health and are the one non-domain reader the seal admits",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/embeddings.ts": 'export const chatDigests = { name: "chat_digests" };\n',
+        "packages/server/src/domain/search/persistence/upsert.ts":
+          'import { chatDigests } from "../../../../../db/src/schema/embeddings.ts";\nexport const w = (db: { upsert: (t: unknown) => void }): void => db.upsert(chatDigests);\n',
+      },
+      why: "DECLARED LIMIT, and the receipt for `WRITE_METHODS` — a sanctioned READER calling a method that is NOT one of the three Drizzle write verbs on the vector table. The write arm is scoped to `insert`/`update`/`delete` because those are the Drizzle client's mutation surface; widening it to any resolved method makes every method call on a vector table a write and reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/embeddings.ts": 'export const chatDigests = { name: "chat_digests" };\n',
+        "packages/server/src/domain/search/persistence/unreadable-write.ts":
+          'import { chatDigests } from "./missing.ts";\nexport const w = (db: { insert: (t: unknown) => void }): void => db.insert(chatDigests);\n',
+      },
+      why: 'DECLARED LIMIT, and the receipt for the WRITE arm\'s `verdict.kind === "sealed"` ASYMMETRY (w9 :262, #2046). The IMPORT arm fails CLOSED through `sealedOriginReports`, so an unreadable door reports there; the WRITE arm asks the opposite question — *is this argument PROVABLY the vector table* — and only a proven seal makes a call a vector write. This file is a sanctioned IMPORTER, so the import arm abstains and the bare-identifier write branch is the only one left; relaxing `=== "sealed"` to `!== "foreign"` turns an unreadable door into a proven write and reds this row',
     },
   ],
 });

@@ -4,6 +4,16 @@
 // the barrel), so the seal is the TABLE'S DECLARATION HOME read through the shared module-origin reader: a
 // same-named table exported by another module is a different table and passes, while an alias, a namespace
 // member and a re-export of the real one do not. DECLARED LIMITS live in the mustPass rows.
+//
+// FAMILY `discovery-no-stats-rollups` — a declared SINGLETON. Its subject is ONE cross-domain boundary
+// (Knowledge-Cluster.md's stats fence) named by ONE home, and the only machinery it shares is
+// `lib/sealed-origin.ts` (`readSealedOrigin` for the verdict, `sealedOriginReports` for the decision) with
+// its near-twin `membership-enforcer` and with `providers-runner-seal`/`turn-identity`/`vector-scope-derived`.
+// A shared READER is not a family (guide §3): those five seal different homes for different laws and share
+// no computation beyond the reader itself.
+//
+// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^` (`scanRoot: (p) => SCAN_DIR.test(p)` over the
+// discovery domain); the final expression beside the population const admits exactly that set.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";

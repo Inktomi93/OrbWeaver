@@ -4,9 +4,20 @@
 // field NAME through the member/static readers (so a computed `["schema"]` key is the same field) and the
 // VALUE through the stable-binding resolver, which follows a const or an imported constant to the literal
 // it names — the indirection the legacy same-file-only arm could not cross. Limits live in mustPass.
+//
+// FAMILY `no-handwritten-wire-json-schema` — a declared SINGLETON. D79's T6 seal is one rule about one wire
+// field; no sibling policy asks what fills it. It consumes `lib/reference-fact.ts` (stable-binding
+// resolution, member-write inspection, static strings) and `lib/property-assignment-name.ts` for both key
+// tests, and sharing readers with three other modules is not a family (guide §3, §5b.4).
+//
+// POPULATION PORT: byte-identical, legacy at `0d83d99f1^` — that `scanRoot` admitted
+// `packages/{server,contracts,kit}/src` minus every `.test.`/`.test-d.` path (its `scripts/` clause was
+// already unreachable under those three prefixes). The final `WIRE_HOME_POPULATION` is the same set, and its
+// `notNamed` half is pinned by a mustPass row placing the founding literal in a co-located spec.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
 import { inspectReferenceWrites, readStaticString, resolveStableExpression } from "../lib/reference-fact.ts";
 
 const SCHEMA_KEY = "schema";
@@ -26,25 +37,6 @@ const FIX =
 /** Legacy `scanRoot` admitted `packages/{server,contracts,kit}/src` minus every `.test.` and `.test-d.`
  *  path (its `scripts/` clause was already unreachable under those three prefixes). */
 const WIRE_HOME_POPULATION = { in: ["@server", "@contracts", "@kit"], notNamed: ["*.test.*", "*.test-d.*"] } as const;
-
-/** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. */
-function propertyName(property: MorphNode): string | null {
-  if (!Node.isPropertyAssignment(property)) {
-    return null;
-  }
-  const nameNode = property.getNameNode();
-  if (Node.isIdentifier(nameNode)) {
-    return nameNode.getText();
-  }
-  if (Node.isStringLiteral(nameNode) || Node.isNoSubstitutionTemplateLiteral(nameNode)) {
-    return nameNode.getLiteralText();
-  }
-  if (!Node.isComputedPropertyName(nameNode)) {
-    return null;
-  }
-  const computed = readStaticString(nameNode.getExpression());
-  return computed.kind === "resolved" ? computed.value : null;
-}
 
 /** The terminal expression a value names, following stable bindings through consts and imports. A value the
  *  shared reader refuses (a call, a member read) is returned unchanged, which is what keeps a projected
@@ -71,7 +63,7 @@ function isJsonSchemaObjectLiteral(value: MorphNode): boolean {
     return false;
   }
   return value.getProperties().some((property) => {
-    if (!Node.isPropertyAssignment(property) || propertyName(property) !== TYPE_KEY) {
+    if (!Node.isPropertyAssignment(property) || propertyAssignmentName(property) !== TYPE_KEY) {
       return false;
     }
     const initializer = property.getInitializer();
@@ -100,7 +92,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.PropertyAssignment],
         visit: (node) => {
-          if (!Node.isPropertyAssignment(node) || propertyName(node) !== SCHEMA_KEY) {
+          if (!Node.isPropertyAssignment(node) || propertyAssignmentName(node) !== SCHEMA_KEY) {
             return;
           }
           const initializer = node.getInitializer();
@@ -203,6 +195,29 @@ export const gate = defineGate({
           '// @orb-waive no-handwritten-wire-json-schema(schema): a fixed provider handshake shape that has no zod source to project from; ends when the provider contract is modelled.\nexport const rf = { name: "x", schema: { type: "object", properties: {} } };\n',
       },
       why: "the ONE central positioned waiver naming the exact reported field — malformed, stale and over-broad markers are proven CENTRALLY, never re-proved per policy",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/verbs/other-field.ts": 'export const rf = { name: "x", payload: { type: "object", properties: {} } };\n',
+      },
+      why: 'DECLARED LIMIT, and the receipt for the SCHEMA field name — the identical hand-authored JSON-Schema literal under a key that is NOT `schema`. D79 seals the WIRE `schema` field; an object literal with a `type: "object"` member elsewhere is an ordinary shape, not a structured-output contract. Widening the field name to any key reds this row (w9 :262, #2046)',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/verbs/other-tell.ts": 'export const rf = { name: "x", schema: { kind: "object", properties: {} } };\n',
+      },
+      why: 'DECLARED LIMIT, and the receipt for the `type` KEY — a `schema` object whose `"object"` value sits under `kind`, not `type`. The tell is `type: "object"` because that is the JSON-Schema keyword every retired site carried; a `kind` discriminant is a different vocabulary and this policy does not own it. Widening the tell key to any property reds this row (w9 :262, #2046)',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/verbs/anchor.ts":
+          'declare function projectJsonSchema(input: unknown): unknown;\ndeclare const payloadSchema: unknown;\nexport const rf = { name: "x", schema: projectJsonSchema(payloadSchema) };\n',
+        "packages/server/src/domain/x/verbs/forge.test.ts": 'export const rf = { name: "x", schema: { type: "object", properties: {} } };\n',
+      },
+      why: "THE POPULATION FENCE — the founding hand-authored literal in a `*.test.*` basename inside a wire home, beside an in-population anchor. A spec asserting what the projector PRODUCES must be free to spell the expected JSON Schema by hand; D79 is a rule about what the PRODUCTION wire path may author. Dropping the `*.test.*`/`*.test-d.*` exclusion reds this row (w9 :262, #2046)",
     },
   ],
 });

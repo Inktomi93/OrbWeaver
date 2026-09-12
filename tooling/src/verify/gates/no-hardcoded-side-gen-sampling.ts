@@ -4,10 +4,21 @@
 // KEY vocabulary is the subject BY DESIGN (an untyped `{ temperature: 0.3 }` options bag has no contextual
 // type to key on, and it is the exact shape the burn-down removed). What the shared readers add is the
 // VALUE: a number one binding hop away is the same buried constant, unless it derives from the CATALOG.
+//
+// FAMILY `no-hardcoded-side-gen-sampling` — a declared SINGLETON. Its verdict is a VOCABULARY judgement with
+// an object-level corroboration rule (`maxTokens` is a sampling knob only beside an unambiguous one), which
+// nothing else in the corpus computes. It consumes `lib/reference-fact.ts` (static numbers, module origin)
+// and `lib/property-assignment-name.ts`; a shared reader is not a family (guide §3).
+//
+// POPULATION PORT: byte-identical, legacy at `0d83d99f1^` — that `scanRoot` admitted
+// `packages/server/src/domain/**` and `packages/server/src/entry/**` minus every `*.test.ts`/`*.test.tsx`
+// basename, with `infra/` deliberately outside. The final `SIDE_GEN_POPULATION` is that set, and BOTH of its
+// clauses now own a mustPass row (the `infra/` wire translator, and a co-located spec).
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readStaticNumber, readStaticString, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { propertyAssignmentName } from "../lib/property-assignment-name.ts";
+import { readStaticNumber, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 /** The knobs that name a sampling posture and NOTHING else. */
 const UNAMBIGUOUS_SAMPLING_KEYS = new Set(["temperature", "maxOutputTokens", "topP"]);
@@ -44,25 +55,6 @@ const SIDE_GEN_POPULATION = {
   notNamed: ["*.test.ts", "*.test.tsx"],
 } as const;
 
-/** The authored NAME of an object member, across identifier, string-literal and computed-literal keys. */
-function propertyName(property: MorphNode): string | null {
-  if (!Node.isPropertyAssignment(property)) {
-    return null;
-  }
-  const nameNode = property.getNameNode();
-  if (Node.isIdentifier(nameNode)) {
-    return nameNode.getText();
-  }
-  if (Node.isStringLiteral(nameNode) || Node.isNoSubstitutionTemplateLiteral(nameNode)) {
-    return nameNode.getLiteralText();
-  }
-  if (!Node.isComputedPropertyName(nameNode)) {
-    return null;
-  }
-  const computed = readStaticString(nameNode.getExpression());
-  return computed.kind === "resolved" ? computed.value : null;
-}
-
 /** Does the object literal this property belongs to carry an UNAMBIGUOUS sampling knob? That is the
  *  corroboration the shared `maxTokens` word needs before it can be read as a generation cap. */
 function inSamplingBag(property: MorphNode): boolean {
@@ -71,7 +63,7 @@ function inSamplingBag(property: MorphNode): boolean {
     return false;
   }
   return bag.getProperties().some((sibling) => {
-    const name = propertyName(sibling);
+    const name = propertyAssignmentName(sibling);
     return name !== null && UNAMBIGUOUS_SAMPLING_KEYS.has(name);
   });
 }
@@ -105,7 +97,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.PropertyAssignment],
         visit: (node) => {
-          const name = Node.isPropertyAssignment(node) ? propertyName(node) : null;
+          const name = Node.isPropertyAssignment(node) ? propertyAssignmentName(node) : null;
           if (name === null || !SAMPLING_KEYS.has(name) || !Node.isPropertyAssignment(node)) {
             return;
           }
@@ -203,6 +195,31 @@ export const gate = defineGate({
           "// @orb-waive no-hardcoded-side-gen-sampling(temperature): a provider handshake probe that must pin a deterministic value; ends when the probe rides the ladder's own floor.\nexport const opts = { temperature: 0 };\n",
       },
       why: "the ONE central positioned waiver naming the exact reported knob — malformed, stale and over-broad markers are proven CENTRALLY, never re-proved per policy",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/kit/src/side-gen-posture/floor.ts": "export const SUMMARIZE_TEMPERATURE = 0.3;\n",
+        "packages/server/src/domain/chat/memory/summarize.ts":
+          'import { SUMMARIZE_TEMPERATURE } from "../../../../../kit/src/side-gen-posture/floor.ts";\nexport const opts = { temperature: SUMMARIZE_TEMPERATURE };\n',
+      },
+      why: "THE SECOND `CATALOG_HOMES` ENTRY, which no row exercised (w9 :262, #2046). `packages/kit/src/side-gen-posture/` is the PURE LADDER's home — the other half of the sanctioned rung beside the preset catalog — and a floor named there is data, not a buried constant. A declared list entry no row derives from is the entry a future re-home deletes silently, so each home now owns a row: dropping this one reds this row and dropping the preset one reds the `catalog-scalar.ts` row above",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/verbs/anchor.ts": 'export const opts = { model: "x", topK: 40 };\n',
+        "packages/server/src/infra/providers/backends/wire.ts": "export const body = { temperature: 0.3, topP: 0.9 };\n",
+      },
+      why: "THE POPULATION FENCE, `under` half — the same authored sampling literals inside `packages/server/src/infra/**`, beside an in-population anchor. `infra/` is the WIRE and usage-accounting layer: it legitimately names these fields because it is TRANSLATING a resolved posture onto a provider body, not choosing one. The ladder seal binds the callers (`domain/`, `entry/`), which is why the population is those two subtrees rather than `@server`. Widening `under` to all of `packages/server/src/**` reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/verbs/anchor.ts": 'export const opts = { model: "x", topK: 40 };\n',
+        "packages/server/src/domain/chat/verbs/posture.test.ts": "export const opts = { temperature: 0.3 };\n",
+      },
+      why: "THE POPULATION FENCE, `notNamed` half — the same literal in a co-located spec, beside an in-population anchor. A test that asserts what the ladder RESOLVES to must be free to spell the expected posture; the seal is about what a production call site may author. Dropping the `*.test.ts`/`*.test.tsx` exclusion reds this row (w9 :262, #2046)",
     },
   ],
 });

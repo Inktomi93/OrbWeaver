@@ -4,6 +4,12 @@
 // re-export included, a same-named export of another module excluded. VOCABULARY: a lowercase `principal`
 // identifier, an intentional NAME ban (if the caller's id cannot be NAMED here it cannot flow to
 // `resolveCredential`/`loadUserSettings`). The token distinguishes the arms; limits are in mustPass.
+//
+// FAMILY `turn-identity` — a declared SINGLETON. `lib/sealed-origin.ts` is a shared READER, not a family: it
+// serves five seals over five homes. No sibling policy judges the chat engine's identity boundary.
+//
+// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^` (`scanRoot: (p) => ENGINE_ANCHORED.test(p)`); the
+// final expression beside the population const admits exactly that set.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";

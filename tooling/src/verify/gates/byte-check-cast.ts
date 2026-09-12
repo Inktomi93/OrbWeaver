@@ -5,6 +5,17 @@
 // builder, a local helper is not), the SQL through the shared template reader (quasis and holes apart, so a
 // non-identifier cap is still read), and the capped COLUMN through `drizzleSchemaFact` — which is what
 // acquits a cap over a BLOB column, where `length()` already counts bytes. Limits live in mustPass.
+//
+// FAMILY `drizzle-schema` — a REAL shared family, and the reader is `lib/schema-fact.ts`'s
+// `drizzleSchemaFact` (plus `contract/schema-fact.ts`'s `recordReadySchemaFact`), the one provider that
+// resolves a Drizzle table declaration to its columns and their builders. Every member judges a different
+// property of the same fact rather than sharing a theme; here the fact is what acquits a byte cap over a
+// BLOB column, which no text reader could.
+//
+// POPULATION PORT: byte-identical, legacy at `0d83d99f1^` (`scanRoot: (p) => p.startsWith("packages/db/src/schema/")`).
+// The final `SCHEMA_POPULATION` is that expression and also `drizzleSchemaFact`'s own population, which is
+// why widening it to the bare `@db` root reds a mustPass row: outside the schema directory there is no
+// table fact to judge the capped column against.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -310,7 +321,63 @@ export const gate = defineGate({
           'export const t = sqliteTable("t", { value: text("value") });\n' +
           `export const note = check("t_value_check", sql.raw(${TICK}${sqlText("value", BYTE_HOLE)}${TICK}));\n`,
       },
-      why: "THE IDENTITY COUNTERFACTUAL — a LOCAL `check` and a local `sql.raw`, byte-named cap, no cast, in a schema file with drizzle imported alongside. The legacy text comparison accused it; deleting the origin checks turns this row red",
+      why: 'THE RESOLUTION COUNTERFACTUAL — a LOCAL `check` and a local `sql.raw`, byte-named cap, no cast, in a schema file with drizzle imported alongside. The legacy text comparison accused it. It falsifies the `origin.kind !== "resolved"` half ALONE: a local declaration is no module member, so the two comparisons behind it never run. The MODULE and exported-NAME halves are pinned by the two RESOLVING rows below (w9 D2, #2046)',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/vendor-sql.ts":
+          "export declare const sql: { raw: (text: string) => string };\nexport declare function check(name: string, expression: string): string;\n",
+        "packages/db/src/schema/vendored.ts":
+          'import { check, sql } from "./vendor-sql.ts";\n' +
+          `import { sqliteTable, text } from "${DRIZZLE_SQLITE}";\n` +
+          BYTE_CONST +
+          'export const t = sqliteTable("t", { value: text("value") });\n' +
+          `export const note = check("t_value_check", sql.${RAW_MEMBER}(${TICK}${sqlText("value", BYTE_HOLE)}${TICK}));\n`,
+      },
+      why: "THE MODULE COUNTERFACTUAL, AND IT RESOLVES — a sibling project module exporting its own `check` and `sql`, with the byte-named cap and no cast. Both origins resolve cleanly and both exported-NAME tails are the right ones (`check`, `raw`); only `originModuleSpecifier(…) !== moduleSpecifier` rejects them. A LOCAL declaration never resolves to a module member, so the row above cannot reach this comparison (w9 D2, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/wrong-export.ts":
+          `import { sql } from "${DRIZZLE_ORM}";\n` +
+          `import { sqliteTable, text, unique } from "${DRIZZLE_SQLITE}";\n` +
+          BYTE_CONST +
+          `export const t = sqliteTable("t", { value: text("value") }, () => [\n  unique("t_value_check", sql.${RAW_MEMBER}(${TICK}${sqlText("value", BYTE_HOLE)}${TICK})),\n]);\n`,
+      },
+      why: "THE EXPORTED-NAME COUNTERFACTUAL — the constraint builder is drizzle's `unique`, not its `check`, carrying the identical byte-named cap. The MODULE origin IS `drizzle-orm/sqlite-core`, so only `path.at(-1) === exportedName` rejects it. A UNIQUE constraint has no length predicate to get wrong; the subject is the CHECK (w9 D2, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/json-array.ts":
+          `import { sql } from "${DRIZZLE_ORM}";\n` +
+          `import { ${CHECK_EXPORT}, sqliteTable, text } from "${DRIZZLE_SQLITE}";\n` +
+          BYTE_CONST +
+          `export const t = sqliteTable("t", { value: text("value") }, () => [\n  ${CHECK_EXPORT}("t_value_check", sql.${RAW_MEMBER}(${TICK}json_array_length(value) <= ${BYTE_HOLE}${TICK})),\n]);\n`,
+      },
+      why: "DECLARED LIMIT, and the receipt for `LENGTH_CAP_TAIL_RE`'s leading character class — `json_array_length()` is a DIFFERENT SQLite function that counts ARRAY ELEMENTS, so its cap has no character-vs-byte gap to cast away. Dropping the `[^A-Za-z0-9_]` class makes the tail regex match the `_length(` suffix and reds this row (w9 :262, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/quoted-blob.ts": schemaFixture({
+          declarations: BYTE_CONST,
+          capExpression: '"value"',
+          capHole: BYTE_HOLE,
+          builder: "blob",
+        }),
+      },
+      why: 'the QUOTED spelling of the blob acquittal, and the receipt for `SQL_QUOTES` — the fact names the column `value`, the SQL spells it `"value"`, and only the quote stripping makes those the same column. Without it the cap reads as capping an UNKNOWN column and fails closed, so this correctly-byte-counting BLOB cap would be accused (w9 :262, #2046)',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/anchor.ts": schemaFixture({ declarations: BYTE_CONST, capExpression: "cast(value as blob)", capHole: BYTE_HOLE }),
+        "packages/db/src/outside.ts": schemaFixture({ declarations: BYTE_CONST, capExpression: "value", capHole: BYTE_HOLE }),
+      },
+      why: "THE POPULATION FENCE — the identical defect shape inside `@db` but OUTSIDE `packages/db/src/schema/**`, beside an in-population anchor. `drizzleSchemaFact`'s own population is the schema directory, so a CHECK authored anywhere else has no table fact to judge its column against; widening the population to the whole `@db` root reds this row (w9 :262, #2046)",
     },
     {
       mode: "types",

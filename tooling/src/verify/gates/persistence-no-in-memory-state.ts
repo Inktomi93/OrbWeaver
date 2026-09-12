@@ -16,6 +16,25 @@
 // straight through. The arm now asks the shared module-member reader and routes its refusal through
 // `classifyOriginRefusal`: a resolvable import is a different constructor and passes, a local class is a
 // different constructor and passes, and only a door with no reachable target is reported.
+//
+// FAMILY `persistence-no-in-memory-state` — a declared SINGLETON. It is the only policy whose subject is an
+// AMBIENT GLOBAL constructor; the readers it consumes (`lib/reference-fact.ts`'s global and module origin
+// resolvers, `lib/origin-verdict.ts`'s `classifyOriginRefusal`) are shared with policies asking entirely
+// different questions, and a shared reader is not a family (guide §3).
+//
+// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^`
+// (`scanRoot: (p) => p.includes("/persistence/") && !p.includes(".test.") && !p.startsWith("tests/")`); the
+// final `PERSISTENCE_POPULATION` is that expression, and both exclusion clauses already carry rows.
+//
+// DECLARED LIMIT, §4.1 fourth outcome (UNFALSIFIABLE, with the construction attempted — #2046). The ambient
+// arm's `origin.value.memberPath.length === 0` half cannot be falsified: `lib/reference-fact-global.ts`'s
+// `appendMember` COLLAPSES `globalThis`/`self`/`window` member reads onto the bare global with an EMPTY
+// path, and every other receiver yields a `globalName` equal to the RECEIVER rather than to the member — so
+// `globalName === spelled.name` already implies an empty path. The one shape that would separate them is a
+// trusted ambient global itself named `Map` carrying a `Map` member; planting
+// `declare var Map: { Map: MapConstructor }` merges with the loaded default lib's own `declare var Map` and
+// the checker answers `no property symbol for Map`, so the fixture reaches the fail-closed arm instead. The
+// clause stays because it states the collapse invariant locally; no row enforces it.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -212,6 +231,15 @@ export const gate = defineGate({
         "packages/server/src/domain/feature/persistence/quiet.ts": "export const quiet = 1;\n",
       },
       why: "a co-located `*.test.*` file is outside the population — tests build in-memory fixtures by design",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/typescript/lib/lib.es5.d.ts":
+          "interface Map<K, V> { get(key: K): V | undefined }\ninterface MapConstructor { new <K, V>(): Map<K, V> }\ndeclare var Map: MapConstructor;\ninterface Array<T> { length: number }\ninterface ArrayConstructor { new <T>(): Array<T> }\ndeclare var Array: ArrayConstructor;\ndeclare var globalThis: { Map: MapConstructor; Array: ArrayConstructor };\n",
+        "packages/server/src/domain/feature/persistence/other-global.ts": "export const rows = new globalThis.Array<string>();\n",
+      },
+      why: "DECLARED LIMIT, and the receipt for the MEMBER-ARM candidate gate (w9 :262, #2046) — `globalThis.Array` is an ambient global collection constructed in a persistence file, resolving exactly as `globalThis.Map` does. It passes because `IN_MEMORY_GLOBALS` is the four KEYED collections: an array is a row set, which is what a query RETURNS, while a Map/Set/WeakMap/WeakSet is an INDEX that outlives the call. Widening the member gate to any resolved member reds this row",
     },
   ],
 });
