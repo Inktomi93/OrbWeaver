@@ -30,11 +30,11 @@ import type { DepcruiseConfigSnapshotField, DepcruiseSelectorSnapshot } from "..
 import type { ExemptionTable, Finding } from "../contract/gate.ts";
 import type { GatePolicyContext, GatePolicyFileFindingDetails } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { ResourceFact } from "../contract/resource.ts";
 import type { PackageResourceId } from "../contract/resource-config.ts";
 import { PACKAGE_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GrantExemption, LivenessMessages, PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
 import { dependencyModulesFromManifests, irreducibleBudgetFindings, livenessFindings, patternLivenessFindings } from "../lib/grant-liveness.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const CONFIG_REL = ".dependency-cruiser.cjs";
 /** Regex metacharacters that make a pattern a CLASS of paths rather than one file. A pattern still carrying
@@ -152,15 +152,6 @@ interface NativeGrantRow {
   readonly owner: string;
   readonly field: DepcruiseConfigSnapshotField;
   readonly position: number;
-}
-
-/** Every resource this policy declares is checked ready by `resolveResourceDeclarations` before `create`
- *  ever runs — a non-ready fact here means the runtime's own guard broke, not a reportable finding. */
-function readyValue<T>(fact: ResourceFact<T>): T {
-  if (fact.status !== "ready") {
-    throw new Error(`resource declared ready by population resolution came back ${fact.status}: ${fact.reason}`);
-  }
-  return fact.value;
 }
 
 /** Map a shared-lib `Finding` (file/line/column/token?/message?) onto the final contract's
@@ -309,9 +300,9 @@ export const gate = defineGate({
       // Every declared resource must be ACQUIRED every run (the receipt phase reds an unconsumed
       // declaration), regardless of which arms end up firing below. Population resolution already refuses a
       // non-ready declared resource before `create` ever runs, so every fact here is guaranteed "ready".
-      const native = readyValue(ctx.resources.nativeConfig("depcruise"));
-      const repoPaths = readyValue(ctx.resources.trackedFiles()).repoPaths;
-      const manifests = PACKAGE_IDS.map((id) => readyValue(ctx.resources.packageMetadata(id)));
+      const native = readyResourceValue(ctx.resources.nativeConfig("depcruise"));
+      const repoPaths = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
+      const manifests = PACKAGE_IDS.map((id) => readyResourceValue(ctx.resources.packageMetadata(id)));
       const trackedSet = new Set(repoPaths);
       const exists = (path: string): boolean => trackedSet.has(path);
       const { exact, skipped } = classifySelectors(native.selectors);

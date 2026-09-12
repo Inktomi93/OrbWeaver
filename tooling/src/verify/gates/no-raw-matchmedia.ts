@@ -17,12 +17,34 @@
 // same-named method on any project object red. The subject is the AMBIENT GLOBAL, resolved through
 // `resolveGlobalMemberOrigin`.
 //
+// FAMILY: a declared SINGLETON (`family` equals the id). The identity work is entirely borrowed — the cast
+// axis is `lib/project-home-origin.ts` `readsAmbientGlobalPath` (shared with `no-raw-intl-time`), the origin
+// readers are `lib/reference-fact.ts` `resolveGlobalMemberOrigin`/`resolveModuleMemberOrigin`, the two-answer
+// refusal is `lib/origin-verdict.ts` `classifyOriginRefusal`, and the dedupe is
+// `lib/reviewed-grant-findings.ts` — so there is no gate-owned reader to share and no sibling arm to split
+// off. One api, one law, one population; a family string would only name itself.
+//
 // DECLARED NARROWING (its own mustPass row): a bare `typeof x.matchMedia` CAPABILITY PROBE is not plumbing —
 // it reads whether the environment has the api at all, which every one-home does before using it.
 //
 // DECLARED LIMIT (its own mustPass row): `Reflect.get(globalThis, "matchMedia")` names the api in a STRING
 // ARGUMENT rather than in a member read, so there is no member node to judge; closing it needs a reflective
 // access fact no shared reader supplies today.
+//
+// NARROWING CENSUS (§4.1, measured by cutting each fence and running every row, 2026-09-11). Each narrowing
+// names the row that DIES without it: the name prefilter -> `mustFlag[3]`; `readsAmbientGlobalPath` (the cast
+// axis) -> `mustFlag[4]`; the `"other"` early return -> `mustPass[2]`/`mustPass[3]`; `isCapabilityProbe` ->
+// `mustPass[1]`; `isExpressionReference` -> `mustPass[4]`; the imported-origin arm -> `mustPass[5]`; the
+// `population` fence -> `mustPass[6]`; the fail-closed refusal -> `mustFlag[8]`. `mustPass[1]` dies under the
+// `isExpressionReference` cut too (the probe's member NAME becomes its own candidate), so `mustPass[4]` is the
+// row that isolates that fence.
+// ONE narrowing has no row and CANNOT have one: `memberPath.length === 0` in `classify`. The only expression
+// that reaches the shared reader with `globalName === "matchMedia"` and a NON-empty member path is a read off
+// an already-flagging read (`globalThis.matchMedia["matchMedia"]`), and reviewed-grant findings dedupe by
+// `(subject, operation)` — so the inner occurrence produces the same single finding whether the clause is
+// there or not (measured: one PRECISE finding both ways). The clause stays because it is the shared reader's
+// own contract — `globalName` names the api only when nothing was read off it — but it is enforced by no
+// fixture, and saying so is cheaper than a row that pretends.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -89,10 +111,20 @@ function classify(node: MorphNode): MediaVerdict {
   // that spelling, so any feature could have left this law by casting `globalThis`. Whatever the property is
   // annotated as, the object it is read off cannot be cast away.
   //
-  // PRECISE ONLY WHERE THE ROOT RESOLVES, which on this tree means `globalThis` — it is declared in the base
-  // lib, while `window`/`self` and a bare `matchMedia` are DOM-lib declarations the analysis program does not
-  // load. Those spellings fall through to the fail-closed UNREADABLE finding below: still reported, never
-  // silently passed, and each carries its own proof row.
+  // WHICH ROOTS RESOLVE IS A PROPERTY OF THE ANALYSIS PROGRAM'S `lib`, and this module used to state the
+  // wrong one. It claimed `window`/`self`/a bare `matchMedia(q)` were DOM-lib declarations the program does
+  // not load and therefore landed on the fail-closed UNREADABLE finding. MEASURED 2026-09-11 and FALSE in
+  // both runtimes: the live structure pass builds `new Project({ skipAddingFilesFromTsConfig: true })`
+  // (`lib/pass.ts` `projectCtx` -> `_shared/ts-workspace.ts` `getWorkspace`) and the conformance runtime
+  // builds its virtual project the same way (`ops/policy-conformance.ts`), so both run under ts-morph's
+  // DEFAULT compiler options — hence the DEFAULT lib, which INCLUDES DOM. All four root spellings resolve
+  // through `resolveGlobalMemberOrigin` and carry the PRECISE message; `mustFlag[5]`/`mustFlag[6]` now pin
+  // that text with `messageIncludes`, which is what makes a change show up there instead of silently.
+  // The fail-closed UNREADABLE finding below is NOT reached by a root spelling. It is reached by a reference
+  // whose binding no shared reader can place at all — a member of an OPAQUE receiver (`mustFlag[8]`), and any
+  // ambiguous `write`/`cycle` binding. A DOM-LESS program would additionally move the three root spellings
+  // onto it rather than into silence; that is a `lib` a proof row cannot choose, so it is pinned in
+  // `tests/tooling/verify/gates/home-client-family.test.ts` beside the refusal control.
   if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [MATCH_MEDIA])) {
     return "global";
   }
@@ -200,16 +232,16 @@ export const gate = defineGate({
       files: {
         "packages/client/src/features/x/bare.ts": 'export const G = (): unknown => matchMedia("(pointer: coarse)");\n',
       },
-      expect: { count: 1 },
-      why: "THE ROOT-SPELLING MATRIX, and the honest limit: `window.matchMedia` / `self.matchMedia` / a bare `matchMedia(q)` are the SAME api, but `window` and `self` are DOM-lib declarations the analysis program does not load, so the receiver rule cannot name them and they land on the FAIL-CLOSED unreadable finding instead. Reported either way — which is what this row pins — but only the `globalThis` root gets the precise message",
+      expect: { count: 1, messageIncludes: "outside the named media-query one-homes" },
+      why: "THE ROOT-SPELLING MATRIX: `window.matchMedia` / `self.matchMedia` / a bare `matchMedia(q)` are the SAME api as the `globalThis` root, and MEASURED 2026-09-11 they get the SAME precise message — the analysis program (live pass and conformance alike) runs under ts-morph's default compiler options, whose default lib includes DOM, so all four roots resolve. The `messageIncludes` is the pin: a lib change, a DOM-aware program or a precise `window` reader moves this row's message to the fail-closed text and reds HERE rather than passing silently. This row's claim was wrong until #1584's exemplar audit; the header records the measurement",
     },
     {
       mode: "types",
       files: {
         "packages/client/src/features/x/window.ts": 'export const G = (): unknown => window.matchMedia("(prefers-reduced-motion: reduce)");\n',
       },
-      expect: { count: 1 },
-      why: "the second spelling of that matrix, pinned separately so a future DOM-aware program (or a precise `window` reader) shows up here as a message change rather than as a silent one",
+      expect: { count: 1, messageIncludes: "outside the named media-query one-homes" },
+      why: "the second spelling of that matrix, pinned separately WITH the message it actually gets, so a future program change shows up here as a message change rather than as a silent one — which the row promised while carrying no message pin at all, and could not deliver",
     },
     {
       mode: "types",
@@ -218,6 +250,14 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "THE TRANSLATED MARKER: the pointer-capability read carried a permanent `@orb-gate-ignore` because no coarse-pointer one-home exists. Under reviewed-grant authority there is no inline door, so the standing permission is an exact row with an `endsWhen` naming the missing home — and it reds here so the row is what licenses it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/opaque.ts": 'declare const host: any;\nexport const G = (): unknown => host.matchMedia("(pointer: coarse)");\n',
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED ARM ITSELF, which no row exercised until #1584's exemplar audit: a member read off an OPAQUE receiver is case (b) of the shared refusal classifier — no shared reader can place the binding, so the spelling MIGHT be the browser api and is REPORTED with the unreadable message rather than passed. The `messageIncludes` is what separates the two arms (it is the only other message this policy emits), and the row dies outright if `classifyOriginRefusal` is ever made to fail OPEN",
     },
   ],
   mustPass: [
@@ -233,10 +273,9 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "packages/ui/src/lib/reduced-motion-now.ts":
-          'export function now(globals: { matchMedia?: (q: string) => { matches: boolean } }): boolean {\n  return typeof globals.matchMedia === "function";\n}\n',
+        "packages/ui/src/lib/reduced-motion-now.ts": 'export function has(): boolean {\n  return typeof globalThis.matchMedia === "function";\n}\n',
       },
-      why: "THE DECLARED NARROWING: a bare `typeof` CAPABILITY PROBE is not a read of the api — every one-home performs it before using the api, and a probe alone forks no fact",
+      why: "THE DECLARED NARROWING: a bare `typeof` CAPABILITY PROBE is not a read of the api — every one-home performs it before using the api, and a probe alone forks no fact. The subject is the `globalThis` root DELIBERATELY, so the probe fence is the ONLY thing keeping this row green: it flags the moment `isCapabilityProbe` is cut. The row used to read the api off a PARAMETER, which `mustPass[3]` already covers — two fences protected one fixture and the row credited the wrong one (#1584 exemplar audit)",
     },
     {
       mode: "types",
@@ -253,6 +292,33 @@ export const gate = defineGate({
           'export function read(matchMedia: (q: string) => { matches: boolean }): boolean {\n  return matchMedia("(pointer: fine)").matches;\n}\n',
       },
       why: "A PARAMETER named `matchMedia` shadows the global — an injected reader is the testable shape, not a fork",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/host.ts":
+          'declare const host: Window;\nexport const G = (): boolean => host.matchMedia("(pointer: coarse)").matches;\n',
+      },
+      why: "THE EXPRESSION-POSITION NARROWING: an INJECTED `Window` is read like a parameter, and the only `matchMedia` identifier in the file sits in a member NAME position — a name is not a reference to the global, so the policy judges the member READ (whose receiver is a local binding, a different identity) and not the name. The name's own symbol is the DOM lib's ambient `Window.matchMedia`, so the moment `isExpressionReference` is cut this file flags: the row dies without the narrowing it is named after",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/ui/src/lib/media-query-shim.ts": "export declare function matchMedia(query: string): { matches: boolean };\n",
+        "packages/client/src/features/x/imported.ts":
+          'import { matchMedia } from "../../../../ui/src/lib/media-query-shim.ts";\nexport const G = (): boolean => matchMedia("(pointer: coarse)").matches;\n',
+      },
+      why: "THE IMPORTED-ORIGIN ARM: an imported `matchMedia` is a proven DIFFERENT identity (a project shim, a polyfill, a one-home's reader), which is the sanctioned shape this law points people at. Cut the `resolveModuleMemberOrigin` arm and the same file lands on the fail-closed unreadable finding instead, so this row is what holds the arm — nothing did before #1584's exemplar audit",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/ok.ts":
+          'import { usePrefersReducedMotion } from "../../../../ui/src/lib/use-prefers-reduced-motion.ts";\nexport const G = (): unknown => usePrefersReducedMotion();\n',
+        "packages/ui/src/lib/use-prefers-reduced-motion.ts": "export declare function usePrefersReducedMotion(): boolean;\n",
+        "packages/server/src/domain/x/render.ts": 'export const G = (): unknown => globalThis.matchMedia("(prefers-reduced-motion: reduce)");\n',
+      },
+      why: "THE POPULATION FENCE: the identical founding violation in a SERVER file is not this policy's business — media-query plumbing is a browser concern and the population is `@client`/`@ui`. The two in-population files are what keeps the example from being an empty population; add `@server` to the fence and the server file flags, so this row is the fence's proof",
     },
     {
       mode: "types",

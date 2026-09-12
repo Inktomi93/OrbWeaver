@@ -1,4 +1,5 @@
 import { Project } from "ts-morph";
+import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as chromeRegistryCompleteness } from "../../../../tooling/src/verify/gates/chrome-registry-completeness.ts";
 import { gate as configAnchorInRegistry } from "../../../../tooling/src/verify/gates/config-anchor-in-registry.ts";
 import { gate as configGroupCompleteness } from "../../../../tooling/src/verify/gates/config-group-completeness.ts";
@@ -265,4 +266,92 @@ test("a zone vocabulary that stops resolving withholds the chrome verdict instea
   expect(result.toolErrors).toMatchObject([{ policyId: "chrome-registry-completeness", phase: "receipt", message: expect.stringContaining("CHROME_ZONES") }]);
   expect(result.authority.withheldPolicyIds).toEqual(["chrome-registry-completeness"]);
   expect(result.authority.effectiveFindings).toEqual([]);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// §4.5 refusal pins for the two registry-family policies whose denominators were sound but UNPINNED
+// (v-audit-wave2-2026-09-12.md D6). Both are INVENTED rows, so each carries a planted-break receipt in
+// the landing commit: the module's receipt call was cut in a `cp`-backed copy and the pin went RED.
+// ---------------------------------------------------------------------------------------------------
+
+function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, source] of Object.entries(files)) {
+    project.createSourceFile(`${ROOT}/${path}`, source);
+  }
+  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+}
+
+/** The config types plus one registered group/collection pair — everything except the content HOST. */
+const CONFIG_GROUP_PRELUDE = {
+  "packages/client/src/state/config-group-registry.ts": "export interface ConfigGroupDefinition { readonly id: string }\n",
+  "packages/client/src/lib/collection-contracts.ts": "export interface CollectionContribution { readonly create: unknown }\n",
+  "packages/client/src/features/base/lib/base-collection.tsx":
+    'import type { CollectionContribution } from "../../../lib/collection-contracts.ts";\nexport const baseCollection: CollectionContribution = { create: { label: "New base", useRun: () => () => undefined } };\n',
+  "packages/client/src/features/base/lib/base-group.tsx":
+    'import type { ConfigGroupDefinition } from "../../../state/config-group-registry.ts";\nimport { baseCollection } from "./base-collection.tsx";\nexport const baseGroup: ConfigGroupDefinition = { id: "base", body: { collection: baseCollection } };\n',
+} as const;
+const CONFIG_HOST = "packages/client/src/features/config/surfaces/config-content-surface.tsx";
+const HOST_IMPORTS_A_FEATURE = 'import { Panel } from "#features/persona";\nexport const ConfigContentSurface = (): unknown => Panel;\n';
+
+test("a RENAMED config content host withholds the verdict instead of retiring its import arm", () => {
+  // config-group-completeness declares THREE denominators, and the third exists for exactly this: the host
+  // is keyed BY PATH, so a renamed surface would leave the import arm with no file to judge and every other
+  // arm still green — a silently retired wall, which is the half-migration the doctrine bans. The byte-
+  // identical host body sits at a renamed path here; only the path differs from the control below.
+  const renamed = passOf(configGroupCompleteness, {
+    ...CONFIG_GROUP_PRELUDE,
+    "packages/client/src/features/config/surfaces/config-content-pane.tsx": HOST_IMPORTS_A_FEATURE,
+  });
+
+  expect(renamed.factErrors).toEqual([]);
+  expect(renamed.toolErrors).toMatchObject([
+    { policyId: "config-group-completeness", phase: "receipt", message: expect.stringContaining("config content host") },
+  ]);
+  expect(renamed.authority.withheldPolicyIds).toEqual(["config-group-completeness"]);
+  expect(renamed.authority.effectiveFindings).toEqual([]);
+
+  // THE CONTROL, proving the withholding is the RENAME and not the fixture: the same bytes at the real host
+  // path render a verdict, and the accusation that vanished above is present here.
+  const present = passOf(configGroupCompleteness, { ...CONFIG_GROUP_PRELUDE, [CONFIG_HOST]: HOST_IMPORTS_A_FEATURE });
+
+  expect(present.toolErrors).toEqual([]);
+  expect(present.authority.withheldPolicyIds).toEqual([]);
+  expect(present.authority.effectiveFindings).toMatchObject([{ policyId: "config-group-completeness", token: "import" }]);
+});
+
+const SECTION_TYPE_HOME = "packages/client/src/state/section-registry.ts";
+const DUPLICATE_COPY_PAIR = {
+  "packages/client/src/features/a/lib/a-section.ts":
+    'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", placeholder: { title: "T", description: "D" } };\n',
+  "packages/client/src/features/b/lib/b-section.ts":
+    'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const bSection: SectionDefinition = { id: "b", placeholder: { title: "T", description: "D" } };\n',
+} as const;
+
+test("a renamed SectionDefinition withholds the placeholder verdict instead of comparing an empty corpus", () => {
+  // placeholder-copy-registry's whole subject is a CROSS-FILE distinctness comparison, so its denominator is
+  // the definition corpus itself: renamed past the canonical type, the fact resolves no targets, the policy
+  // compares nothing and would otherwise report a clean pass over zero sections — the §4.6 blindness shape.
+  const renamed = passOf(placeholderCopyRegistry, {
+    [SECTION_TYPE_HOME]: "export interface SectionContribution { readonly id: string }\n",
+    ...DUPLICATE_COPY_PAIR,
+  });
+
+  expect(renamed.factErrors).toEqual([]);
+  expect(renamed.toolErrors).toMatchObject([
+    { policyId: "placeholder-copy-registry", phase: "receipt", message: expect.stringContaining("SectionDefinition") },
+  ]);
+  expect(renamed.authority.withheldPolicyIds).toEqual(["placeholder-copy-registry"]);
+  expect(renamed.authority.effectiveFindings).toEqual([]);
+
+  // THE CONTROL: the identical sections under the canonical type name are read, and the duplicate pair the
+  // silence above would have hidden is accused.
+  const present = passOf(placeholderCopyRegistry, {
+    [SECTION_TYPE_HOME]: "export interface SectionDefinition { readonly id: string }\n",
+    ...DUPLICATE_COPY_PAIR,
+  });
+
+  expect(present.toolErrors).toEqual([]);
+  expect(present.authority.withheldPolicyIds).toEqual([]);
+  expect(present.authority.effectiveFindings).toMatchObject([{ policyId: "placeholder-copy-registry", token: "bSection" }]);
 });

@@ -54,7 +54,7 @@ const SNAP_CLI = join(REPO_ROOT, "tooling/src/snap/cli.ts");
 // WALL CLOCK, deliberately, and through ONE door: the subject of every arm below is a SPAWNED keeper's elapsed
 // real time against its TTL, and a child process has no injectable clock — so every row stamp and every
 // deadline this file writes must be measured on the clock the keeper reads. Nothing else here reads time.
-// @orb-gate-ignore test-determinism: the SUBJECT is a spawned keeper's elapsed real time against its TTL — a child process has no injectable clock, and every stamp and deadline here must share its wall clock
+// @orb-waive test-determinism(Date.now): the SUBJECT is a spawned keeper's elapsed real time against its TTL — a child process has no injectable clock, and every stamp and deadline here must share its wall clock
 const wallNowMs = (): number => Date.now();
 /** The same instant as the ISO stamp the band table stores. */
 const wallNowIso = (): string => new Date(wallNowMs()).toISOString();

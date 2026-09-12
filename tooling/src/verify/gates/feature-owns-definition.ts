@@ -1,9 +1,15 @@
 // Gate: feature-owns-definition (client-architecture-lockdown.md §3/§18 O2). Every feature directory
 // owns a registered definition or is deleted. The rule has no exemption; directory identity comes from
 // the closed client-feature ResourceHost tree rather than a gate-owned filesystem walk.
+// A broken declared resource refuses one phase EARLIER than this module: `resolveResourceDeclarations`
+// (`lib/resource-declaration.ts:182`) throws during the POPULATION phase and the receipt phase withholds
+// every consumer, both before `create`/`evaluate` (guide §11 ruling 3). So the read goes through
+// `readyResourceValue` — a loud assertion that the runtime's refusal held — and never through an in-module
+// not-ready branch, which would be unreachable and would model a silent return as the right answer.
 
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const FEATURES = "packages/client/src/features";
 const DEFINITION_SUFFIXES = ["-section.ts", "-section.tsx", "-modal.ts", "-modal.tsx", "-group.ts", "-group.tsx", "-chrome.ts", "-chrome.tsx"] as const;
@@ -42,12 +48,9 @@ export const gate = defineGate({
   fix: "add the feature's registered SectionDefinition/ModalDefinition/ConfigGroupDefinition/ChromeEntry under lib/, or delete the dir if it has no product surface.",
   create: (ctx) => ({
     evaluate: () => {
-      const tree = ctx.resources.authoredTree("client-feature");
-      if (tree.status !== "ready") {
-        return;
-      }
-      const owners = new Set(tree.value.map(definitionOwner).filter((value): value is string => value !== undefined));
-      for (const feature of tree.value
+      const entries = readyResourceValue(ctx.resources.authoredTree("client-feature"));
+      const owners = new Set(entries.map(definitionOwner).filter((value): value is string => value !== undefined));
+      for (const feature of entries
         .map(featureName)
         .filter((value): value is string => value !== undefined)
         .toSorted()) {

@@ -17,7 +17,8 @@
 // string literal, so the probes must reference the stubs without spelling that dotted member call. The one
 // PROPERTY-read probe (`typeof performance.timeOrigin`) is dot-notation on purpose — bracket access on a
 // property read (not a call) reads the same either way — and #831 widened the gate to recognise that exact
-// spelling, so it now carries the shared `@orb-gate-ignore` marker instead of a bracket dodge.
+// spelling, so it now carries the shared `@orb-waive test-determinism(performance.timeOrigin)` marker
+// instead of a bracket dodge.
 
 import { estimateTokens } from "@orb/kit/tokens";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
@@ -177,7 +178,7 @@ describe("installRealm — ambient denial", () => {
       // via host functions) and handing a hostile guest a timer for the DoS deadline + timing side channels.
       expect(evalString(ctx, "try { performance['now'](); 'NO-THROW' } catch (e) { e.message }")).toContain("disabled");
       // `timeOrigin` goes with it — the stub is a fresh object, not a patched one.
-      // @orb-gate-ignore test-determinism: the SUBJECT is the guest realm's ambient-clock DENIAL — this probe asserts the stub carries no timeOrigin, it never reads a real clock (#831)
+      // @orb-waive test-determinism(performance.timeOrigin): the SUBJECT is the guest realm's ambient-clock DENIAL — this probe asserts the stub carries no timeOrigin, it never reads a real clock (#831)
       expect(evalString(ctx, "typeof performance.timeOrigin")).toBe("undefined");
       // POSITIVE CONTROL for the assertion itself: the name IS still there (the stub is an overwrite, so a
       // silently-failed assignment would leave a WORKING clock here and this probe must be able to see it).

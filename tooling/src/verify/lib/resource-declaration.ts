@@ -18,6 +18,22 @@ import { VENDOR_MIRROR_ROOT } from "../contract/resource-vendor.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { assertGateResourceDeclarations, assertRepoPathIdentity } from "./policy-validation.ts";
 
+/** Narrow a DECLARED resource fact to its value. A policy that declares a resource never observes a
+ *  non-ready one: `resolveResourceDeclarations` below throws on every non-ready declaration and on an
+ *  empty fact during the POPULATION phase, and the receipt phase withholds every consumer — both before
+ *  `create`/`evaluate` run at all (guide §11 ruling 3). So this is an ASSERTION about the runtime, not a
+ *  withhold a policy owns: an in-module `if (fact.status !== "ready") return;` is unreachable code that
+ *  also teaches the next author that a silent return is the right answer to a broken resource. It is not.
+ *  The narrowing is unavoidable — `ResourceFact<T>` is a discriminated union and `.value` lives only on
+ *  the ready arm — so it lives HERE, beside the refusal it is asserting, rather than being re-spelled in
+ *  each resource policy. */
+export function readyResourceValue<T>(fact: ResourceFact<T>): T {
+  if (fact.status !== "ready") {
+    throw new Error(`resource ${fact.receipt.source} was declared ready by population resolution but came back ${fact.status}: ${fact.reason}`);
+  }
+  return fact.value;
+}
+
 export function resourceRequestIdentity(request: GateResourceRequest): string {
   if (request.kind === "installed-package") {
     // The MODE and the named file are part of the identity: `text` of one file and `ast` of the same

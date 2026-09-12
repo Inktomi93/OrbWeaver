@@ -81,6 +81,17 @@ export const gate = defineGate({
       files: {
         "packages/contracts/src/chat/bus.ts":
           'export type ChatBusEvent = { type: "delta" };\nexport const CHAT_BUS_EVENT_TYPES = { delta: true } satisfies Record<ChatBusEvent["type"], true>;\n',
+        "packages/client/src/features/x/lib/x-map.ts":
+          'import type { ForeignEvent } from "../../../../../ui/src/foreign-bus.ts";\nexport const handlers: Record<ForeignEvent["type"], string> = { foreign: "x" };\n',
+        "packages/ui/src/foreign-bus.ts": 'export type ForeignEvent = { type: "foreign" };\n',
+      },
+      why: "A CLIENT TOTAL MAP KEYED ON A UNION FROM OUTSIDE THE POPULATION, and the row that dies without a TOTAL home read: `attachClientMaps` resolves the map's key through `canonicalTypeAlias`, which follows the binding wherever it was declared — here into a file the `bus-definitions` population never admitted, exactly as the real tree resolves an imported symbol into a node_modules `.d.ts`. `busDeclarationIdentity` used to ask `ctx.relativePath` for that alias's path, which REFUSES any file outside the effective population (lib/policy-pass-context.ts:211-217), so the whole FACT threw and withheld every bus consumer — the failure that left `freeze-provenance-write-pairing` reporting nothing for an entire run (guide §12.3). THIS ROW REDS AS A FACT TOOL ERROR against the unmodified reader rather than as an unexpected finding, and that is the real-tree failure reproduced inside conformance (receipt 2026-09-12: `FACT TOOL ERROR [bus-definitions:finish] source file is outside the effective population: packages/ui/src/foreign-bus.ts`). The foreign identity now keeps a real comparable path, misses `byUnion` exactly as it always would have, and this belted root still passes",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/chat/bus.ts":
+          'export type ChatBusEvent = { type: "delta" };\nexport const CHAT_BUS_EVENT_TYPES = { delta: true } satisfies Record<ChatBusEvent["type"], true>;\n',
       },
       why: "a belted root union",
     },

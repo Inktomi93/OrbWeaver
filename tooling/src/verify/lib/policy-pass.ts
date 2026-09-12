@@ -698,11 +698,37 @@ function withholdFactDependents(runs: readonly PolicyRun[], errors: PolicyToolEr
   }
 }
 
+/** The CONSUMER half of the receipt law — the twin of `factReceiptFailures`, and the one arm it lacked (#1966).
+ *
+ *  A fact's emptiness verdict lives with its CONSUMERS, never with the provider (§12.3: a provider that receipts
+ *  its census preempts its own designated accuser). That move is only sound while every consumer actually files a
+ *  receipt, and until now nothing made it: `policyReceiptFailures` judged the receipts a policy DID file, so a
+ *  policy that declared `facts`, consumed one, and receipted nothing rendered a clean verdict over an empty or
+ *  holed census. The guarantee held by per-family CONVENTION alone — the shared helpers (`recordReadySchemaFact`,
+ *  the registry/tuple receipt writers) — which every NEW consumer is one forgotten `ctx.receipt` from leaving.
+ *
+ *  PHASE: this runs in the CONSUMER phase (`evaluateRuns` → evaluate, then collect, then judge), so it does not
+ *  recreate the provider-side inversion — nothing here is judged before a dependent runs, and the fact's own
+ *  `status`/`unresolved` fields still reach the policy that reports them.
+ *
+ *  WHY THIS IS NOT A LOAD-TIME CONTRACT REQUIREMENT (the arm a reader will reach for next): a receipt is a
+ *  RUNTIME call, and its `source` is free text with ZERO fact-id correspondence — a two-fact policy may file
+ *  one, two or three receipts under names of its own choosing (`chrome-registry-completeness` declares two facts
+ *  and receipts `CHROME_ZONES`/`ChromeEntry`). So "a receipt per DECLARED fact" is not derivable at validation
+ *  time OR at run time, and the arm demands at least ONE semantic receipt — the same cardinality
+ *  `factReceiptFailures` demands of a provider. Closing that correspondence is a receipt-CONTRACT change, not a
+ *  stronger predicate here.
+ *
+ *  Blast radius when it landed (measured by running the dispatcher over the whole corpus, not by grep):
+ *  167 final policies, 35 declaring `facts:`, 35 receipting, 0 newly refused. */
 function policyReceiptFailures(run: PolicyRun): string[] {
   const failures = run.receipts.flatMap(receiptFailures);
   const unconsumedFacts = run.unconsumedFacts?.() ?? [];
   if (unconsumedFacts.length > 0) {
     failures.push(`declared facts were not consumed: ${unconsumedFacts.join(", ")}`);
+  }
+  if (run.policy.facts.length > 0 && run.receipts.length === 0) {
+    failures.push("declared facts produced no semantic receipt");
   }
   if (run.population.effectiveResourcePaths.length > 0 && !run.receipts.some((receipt) => receipt.kind === "resource")) {
     failures.push("declared resource population produced no resource receipt");

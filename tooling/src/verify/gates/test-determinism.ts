@@ -5,9 +5,22 @@
 // names the banned call, and reading prose as code cost two CTs a reworded comment. DECLARED LIMIT: string
 // literals still scan (a fixture that spells the call is code the test could evaluate). Exempts support/ +
 // e2e/ via population, so a predicate that stops matching REDs on the zero-scan alarm instead of passing.
-// PER-SITE ESCAPE (#828): the shared `@orb-gate-ignore test-determinism: <reason>` marker on the line
-// IMMEDIATELY above the call — for a test whose SUBJECT is elapsed real time. Two-sided via
-// gate-ignore-inventory; comments are blanked, so the marker line can never itself match.
+// PER-SITE ESCAPE (#828, RESPELLED at the conversion): the central `@orb-waive test-determinism(<position>):
+// <reason>` marker on the line IMMEDIATELY above the call — for a test whose SUBJECT is elapsed real time.
+// The position is the finding's `token`: the matched banned spelling trimmed of its call parens
+// (`Date.now`, `process.hrtime`, `performance.timeOrigin`). Comments are blanked, so the marker line can
+// never itself match.
+// MARKER CENSUS (#1963, 2026-09-11). The conversion commit (`7be684811`) converted this module's own proof
+// rows to `@orb-waive` but did NOT translate the live tree, and marker routing is FENCED (design §7):
+// legacy `@orb-gate-ignore` reaches only LEGACY owners, so all 14 real-tree markers naming this now-FINAL
+// policy went inert in one commit — 14 suppressions LOST, reported by `gate-ignore-inventory` as 14 STALE
+// markers and by this policy as 14 newly-effective findings. Translated 1:1 (14 legacy = 14 waives, no
+// MULTI split, no DEAD marker) across 9 files: `Date.now` ×4 (tests/tooling/{vitest-supervised,
+// snap/ops/session-client,snap/ops/stage-keeper,_shared/proc}), `process.hrtime` ×9
+// (plugin-host/{sandbox ×4,escape.suite ×2}, entry/{compose/chat ×2,lifecycle}), `performance.timeOrigin` ×1
+// (plugin-host/realm). The 22 raw grep hits minus 4 legacy-engine fixtures in
+// tests/tooling/gate-ignore-grammar.repo.int.test.ts, 3 file-header prose mentions and this header's own
+// quote = those 14.
 // WIDENED SPELLINGS (#831): four real sites routed around the gate through spellings the old regex did
 // not recognise — process.hrtime()/process.hrtime.bigint() (an ambient monotonic clock; one member match
 // covers both call forms) and performance.timeOrigin (an ambient clock PROPERTY, not a call). All four

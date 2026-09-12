@@ -4,6 +4,7 @@ import { Node } from "ts-morph";
 import type { BusAnchor, BusDeclarationIdentity, BusMemberIdentity, BusOperationIdentity, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { GateFactContext } from "../contract/fact.ts";
 import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
+import { declarationHome } from "./declaration-home.ts";
 import { resolveCallableMember } from "./gate-contract-origin.ts";
 import { readMemberReference, readStaticString, resolveStableExpression } from "./reference-fact.ts";
 import { resolveCallableOrigin } from "./reference-fact-call.ts";
@@ -18,10 +19,12 @@ export const EVENT_TYPES_SUFFIX = "_EVENT_TYPES";
 
 export const busIdentityKey = ({ path, exportName }: BusDeclarationIdentity): string => `${path}\0${exportName}`;
 
-/** Compare a resolved declaration to one delivered source without probing foreign dependency files. */
-function deliveredSourceIs(context: GateFactContext, sourceFile: import("ts-morph").SourceFile, path: string): boolean {
-  const absolute = sourceFile.getFilePath().replaceAll("\\", "/");
-  return (absolute === path || absolute.endsWith(`/${path}`)) && context.relativePath(sourceFile) === path;
+/** Is a RESOLVED declaration's own home this exact repo-relative path? Read through {@link declarationHome}
+ *  because the declarations reaching here come from a property symbol, not from this pass's walk: the
+ *  absolute-suffix prefilter this used to carry still let `ctx.relativePath` decide, so a `bus-channel.ts`
+ *  sitting in the Project but outside the effective population THREW instead of answering "not our door". */
+function declaredAt(context: GateFactContext, sourceFile: import("ts-morph").SourceFile, path: string): boolean {
+  return declarationHome(context, sourceFile) === path;
 }
 
 export function busAnchor(context: GateFactContext, node: MorphNode): BusAnchor {
@@ -29,8 +32,13 @@ export function busAnchor(context: GateFactContext, node: MorphNode): BusAnchor 
   return { path: context.relativePath(node.getSourceFile()), line: at.line, column: at.column, node };
 }
 
+/** The identity of a union alias. Its `path` is read through {@link declarationHome} because HALF the call
+ *  sites hand it a RESOLVED alias — `canonicalTypeAlias(node.getType())` follows a `Record<SomeLibUnion, …>`
+ *  key straight out of the population — and `ctx.relativePath` throws there (guide §12.3). `undefined` is not
+ *  the alternative: a foreign alias keeps a real, comparable path, misses `byUnion` exactly as it always did,
+ *  and the caller's existing refusal arm reports it. */
 export function busDeclarationIdentity(context: GateFactContext, declaration: TypeAliasDeclaration): BusDeclarationIdentity {
-  return { path: context.relativePath(declaration.getSourceFile()), exportName: declaration.getName() };
+  return { path: declarationHome(context, declaration.getSourceFile()), exportName: declaration.getName() };
 }
 
 /** Every declaration a symbol names, INCLUDING the ones behind an import alias. `getAliasedSymbol()`
@@ -361,7 +369,7 @@ const BUS_CHANNEL_HOME = "packages/server/src/transport/trpc/bus-channel.ts";
 
 function busChannelPublisher(context: GateFactContext, receiver: MorphNode, name: string): boolean {
   const declarations = receiver.getType().getNonNullableType().getProperty(name)?.getDeclarations() ?? [];
-  return declarations.length > 0 && declarations.every((declaration) => deliveredSourceIs(context, declaration.getSourceFile(), BUS_CHANNEL_HOME));
+  return declarations.length > 0 && declarations.every((declaration) => declaredAt(context, declaration.getSourceFile(), BUS_CHANNEL_HOME));
 }
 
 function injectedReceiver(receiver: MorphNode): boolean {
@@ -408,7 +416,10 @@ export function operationIdentity(context: GateFactContext, call: CallExpression
     return {
       kind: "module",
       module: {
-        path: context.relativePath(callable.value.target.canonical.sourceFile),
+        // The canonical source of a resolved callable is a RESOLUTION, not a visited node — the sharpest
+        // instance of the class in guide §12.3, and `ctx.relativePath` throws for the first one that lands
+        // in a dependency `.d.ts`.
+        path: declarationHome(context, callable.value.target.canonical.sourceFile),
         exportName: callable.value.target.canonical.exportedName,
       },
       memberPath: callable.value.target.memberPath,
