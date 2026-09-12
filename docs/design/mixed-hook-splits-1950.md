@@ -259,7 +259,149 @@ POSITION (`0:0` → `1:1`), BLINDNESS (a finding → a receipt refusal with the 
 catches ADDED (not in any legacy row): the const alias, the ambient-receiver spelling, the local lookalike
 function in an ops module, the unreadable guard door; legacy false positives DROPPED: the aliased guard import.
 
-## 2. Group 2 — `tooling-front-door`, `tooling-argv-front-door` — not yet designed
+## 2. Group 2 — `tooling-front-door`, `tooling-argv-front-door`
+
+### 2.1 Premises re-derived on the tree
+
+| Premise | Receipt |
+| - | - |
+| Both modules are byte-identical to their legacy SHAs | `git diff --stat 1f5e25c00 HEAD -- …/tooling-front-door.ts` and `git diff --stat 4097be20d HEAD -- …/tooling-argv-front-door.ts` print nothing |
+| Zero live `@orb-gate-ignore` markers for either id | `rg` over `packages/`, `tests/`, `tooling/`, `scripts/`: 0 lines (control: 4 in `lib/gate-ignore.ts`) |
+| Coupled suites | `tests/tooling/verify/gates/tooling-front-door.int.test.ts` drives the LEGACY descriptor's `begin`/`visit`/`run` directly (5 tests) — it retires into the family test; `tests/tooling/_shared/entrypoint.int.test.ts:14,150` imports `isGovernedArgvEntry` (the ARGV\_ENTRIES table's door) |
+| The ROOT\_CONFIG row is live | `tooling/src/ast/ops/prodonly.ts:7` `import knipConfig from "../../../../knip.ts"` — the only relative `knip.ts` importer outside gate fixtures |
+| All six ARGV\_ENTRIES subjects still read argv | the real-tree `process.argv` reader census: 17 `cli.ts`, the 6 rows, and 4 comment-only mentions (`codemod/contract/types.ts`, `codemod/lib/example.ts`, `snap/lib/run-report-columns.ts`, `stack/ops/prod.ts` — the gate is green on the tree) |
+| Five of the six ARGV\_ENTRIES rows are module-scope `runTool` programs | `stack/ops/{dev-identity-entry,engines,engines-ctl,prod-entry}.ts`, `verify/ops/config-snapshot-entry.ts`; only `_shared/entrypoint.ts` is not |
+| The `process` receiver identity already has a house reader | `gates/sole-env-reader.ts#readsProcessEnv` (ambient global OR the `node:process` default export, fail-closed on unreadable) — the `process.env` twin of this rule |
+
+### 2.2 `tooling-front-door` → `tooling-front-door` (ordinary) + `tooling-root-config-import` (reviewed-grant)
+
+**Ruling (§12.6):** "ordinary import-boundary policy plus reviewed root-config grant policy". Implemented as ruled.
+
+**Family `tooling-front-door`, reader `lib/tooling-import-door.ts`** — the specifier classification both policies
+share: `toolOf(rel)`, `isToolCli(rel)` (the `tooling/src/<tool>/cli.ts` shape at exactly four segments), and
+`resolveRelativeImport(rel, spec)` (posix-normalized against the importing file; `null` for a `#` map entry
+or a package specifier, which the resolver and the cruiser own). Pure syntax over the ImportDeclaration's
+specifier — no identity question exists here, the SPELLING is the subject.
+
+**`tooling-front-door`** — ordinary/error/`selected-files`/`@tooling`/`syntax`. Two arms, each with its own
+message so a row can discriminate them: a cross-tool DEEP import (resolves into sibling `<b>` anywhere but
+`<b>/index.ts`; `_shared/*` is per-module by design), and a `cli.ts` importing anything of its own tool but
+`./index.ts`. A relative ESCAPE out of `tooling/src/` is NOT this policy's arm any more — it is the grant
+policy's. Reported position: the module-specifier STRING LITERAL, quotes included (the derived token of the
+specifier node), so the waiver is `@orb-waive tooling-front-door("../../bb/ops/y.ts")` — an ANCHOR MOVE
+from the legacy `token: spec, offset: 0` (which was not even an exact slice of the ImportDeclaration text;
+the final sink would have thrown). Population byte-identical (`@tooling` = `scanRoot startsWith("tooling/src/")`).
+
+**`tooling-root-config-import`** — reviewed-grant/error/`entire-population`/`@tooling`/`syntax`. Every relative
+import that resolves OUTSIDE `tooling/src/` is a finding with `subject: <importing file>` and
+`operation: root-config-import:<resolved target>`, deduped per `(subject, operation)` through
+`reportReviewedGrantCandidates`. The one legacy `ROOT_CONFIG_IMPORTS` row becomes the grant
+`tooling-root-config-import:prodonly-knip` (`tooling/src/ast/ops/prodonly.ts` × `root-config-import:knip.ts`);
+the legacy two-sided stale sweep IS central grant liveness (a row consumed zero times after a complete run
+is STALE). `entire-population` because liveness is only sound after a complete owner run — which is also
+what retires the legacy int test's scoped-run defect (a scoped run never adjudicates the row: it DEFERS)
+and its `fileLoaded(exit-contract)` anchor guard (a proof row cannot carry a grant, so the knip import is
+a `mustFlag` and its licensing is proven in the family test with the real row).
+
+**Rejected — keep the escape arm ordinary with the root-config row as a carve-out.** The row is a
+recurring repository PERMISSION with a two-sided liveness demand, which is the reviewed-grant shape by
+definition (§12.5); an ordinary policy has no liveness and would need a gate-owned table, which §12.5 bans.
+
+### 2.3 `tooling-argv-front-door` → `tooling-argv-front-door` (reviewed-grant) + `tooling-argv-front-door-health` (hard)
+
+**Ruling (§12.6):** "ordinary illegal-reader, reviewed entry-grant, and hard population-health policies" —
+THREE. **Refuted on the tree and approved by the orchestrator as a two-policy shape (2026-09-12):** the
+legacy has ONE predicate (a `process.argv` read outside a `cli.ts`, `:92-110`) and one exemption table
+(`ARGV_ENTRIES`, `:33-52`); an ordinary and a reviewed-grant policy over that predicate would both report
+every non-cli read unless one partitioned by the table's subjects, which §12.5 keeps out of gate modules.
+The only DERIVABLE partition — a module-scope `runTool` program counts as a front door like `cli.ts` (five
+of the six rows are such programs) — was REFUSED because it narrows the catch: a new `runTool` program
+reading argv would pass unreviewed where today it needs a censused row (the catch-regression §4.6 exists
+to find). Zero live markers ever used the ordinary door.
+
+**Family `tooling-argv-front-door`, reader `lib/process-member-origin.ts#readsProcessMember`** — the
+`process` receiver identity: the read's receiver is the AMBIENT global `process` or the DEFAULT export of
+the `node:process`/`process` door (how every live reader spells it), never its text; a local object named
+`process` is provably different and passes; an unreadable receiver is reported fail-closed. This is
+`sole-env-reader.ts#readsProcessEnv` generalized over the member name; that module keeps its private copy
+(outside this lane's fence) and is the recorded MERGE CANDIDATE — re-home it onto the shared reader in a
+follow-up, which is the §8.3 rule applied across waves.
+
+**`tooling-argv-front-door`** — reviewed-grant/error/`entire-population`/`@tooling`/`types`. A `process.argv`
+read (dotted, optional, or computed-literal `process["argv"]`, through `readMemberReference`) in any file
+that is not a `cli.ts` by shape is a finding with `subject: <file>`, `operation: process-argv-read`,
+deduped per subject. The six ARGV\_ENTRIES rows become six grant rows carrying their legacy `why` verbatim
+plus an `endsWhen`; arm B's two-sided stale sweep IS central liveness. Reported position: the whole member
+read (`process.argv` / `process["argv"]`, the node's own text) — the legacy normalized the element form to
+`process.argv`, which is not an exact slice and would throw in the final sink.
+
+**`tooling-argv-front-door-health`** — hard/error/`entire-population`/`@tooling`/`types`, same family and
+reader: arm C, the §4.6 blindness tripwire — zero `cli.ts` readers on a run where the real-tree anchor
+(`tooling/src/_shared/exit-contract.ts`, the legacy anchor) is loaded is ONE file-level finding at the
+anchor (the legacy anchored on the gate module's own path, which is inside `@tooling` but is the WRONG
+subject — a policy anchoring a verdict on itself teaches the next lane a self-anchor; the anchor file is
+what the legacy guarded on and is the honest subject).
+
+### 2.4 Group 2 coupled sites
+
+| Site | Action |
+| - | - |
+| `tooling/src/verify/lib/tooling-import-door.ts` · `lib/process-member-origin.ts` | NEW shared readers (the two families) |
+| `gates/tooling-front-door.ts` · `gates/tooling-argv-front-door.ts` | rewritten |
+| `gates/tooling-root-config-import.ts` · `gates/tooling-argv-front-door-health.ts` | NEW |
+| `lib/reviewed-grants.ts` | +7 rows (1 root-config, 6 argv), sorted by `policyId` then `id` |
+| `tests/tooling/verify/gates/tooling-front-door-family.test.ts` | NEW: conformance ×4, §4.2 arm, §4.3 grant identity for both grant policies, §4.5 deferral pins, §4.6 differentials ×2, the real-tree prodonly/knip fact |
+| `tests/tooling/verify/gates/tooling-front-door.int.test.ts` | DELETED (drove the legacy descriptor's hooks directly; every pin has a successor above) |
+| `tests/tooling/_shared/entrypoint.int.test.ts` | derives the governed argv entries from `REVIEWED_GRANTS` instead of importing the gate's table door |
+| roster | 2 rows rewritten, 2 rows added, count +2 |
+| `Core-Tooling-Law.md` §4.2 / §4.9 | mechanism sentences truth-repaired (rows → grants, stale sweep → central liveness, arm C → `-health`) |
+| `docs/test-baseline/manifest.json` | regenerated (+1 spec, 1 deletion ledgered) |
+
+### 2.5 Group 2 measured (2026-09-12, this worktree)
+
+**Two build-time findings, both recorded in the modules.** (a) The shared global resolver
+(`lib/reference-fact-global.ts#isAmbientGlobalDeclaration`) trusts only `node_modules/typescript/lib/lib.*`
+and `node_modules/@types/` declaration files, so in the proof workspace a bare `process` binds nothing and
+the family reader answers UNREADABLE — every ambient-spelling row passed for the WRONG reason (the
+fail-closed report counts the same as the precise one; guide §4.8b). Closed by planting `@types/node`'s
+`declare var process` as a trusted declaration (`gates/_proof/node-types.ts`), so the global branch is
+exercised, and by keeping the undeclared shape as its own row proving the fail-closed answer. The same
+class is live in `sole-env-reader`'s ambient rows (outside this fence; reported). (b) The global-branch name
+comparison is reachable only by a member some TRUSTED global declares: `process.env.argv` and a
+`const process = console` alias are refused as unreadable one step earlier, so the discriminating fixture is
+a planted lookalike global (`declare var lookalike: { argv }`), the zustand-lookalike pattern.
+
+§4.1 cut table, flag-MORE direction, sibling scratch copies, anchor asserted to occur exactly once:
+
+| Policy | Narrowing | Replaced with | Rows that died | Bucket |
+| - | - | - | - | - |
+| `tooling-front-door` | the `_shared` allowance | dropped | `mustPass[0]` | ENFORCED |
+| `tooling-front-door` | the sibling `index.ts` allowance | dropped | `mustPass[0]` | ENFORCED |
+| `tooling-front-door` | the escape short-circuit (`!resolved.startsWith(TOOLING_PREFIX)`) | dropped | `mustPass[2]` (both escapes read as deep imports) | ENFORCED |
+| `tooling-front-door` | the cli own-`index.ts` check | `isToolCli(rel)` alone | `mustPass[1]` | ENFORCED |
+| `tooling-front-door` | `isToolCli` depth (shared reader) | `endsWith("/cli.ts")` | the nested `ops/cli.ts` row | ENFORCED |
+| `tooling-front-door` | the non-relative short-circuit (shared reader) | dropped | none at first → the cli.ts `node:process`/`#bb` row once written (an unfenced package specifier posix-joins INSIDE the tool and reads as cli internals) | ENFORCED after the added row |
+| `tooling-root-config-import` | the prefix test | dropped | `mustPass[0]` | ENFORCED |
+| `tooling-root-config-import` | the non-relative short-circuit (shared reader) | dropped | none | UNFALSIFIABLE for this policy, documented in the row: an unfenced non-relative specifier joins inside the importing directory and is never an escape (tried `#bb`, `node:path`, `@orb/kit`); the fence is pinned by the ordinary sibling |
+| `tooling-argv-front-door` | the `isToolCli` skip | dropped | `mustPass[0]` | ENFORCED |
+| `tooling-argv-front-door` | the global-branch name/path comparison (shared reader) | `"reads"` | none at first → `mustPass[6]` (the planted lookalike global) | ENFORCED after the added row |
+| `tooling-argv-front-door` | the door comparison (shared reader) | `"reads"` | `mustPass[7]` (`import process from "node:fs"`) | ENFORCED |
+| `tooling-argv-front-door` | the unreadable arm | `"other"` | `mustFlag[3]` (undeclared) · `mustFlag[4]` (written binding) | the #944 third answer is REACHED |
+| `tooling-argv-front-door` | the member-name prefilter (shared reader) | dropped | `mustFlag[2]` (token) · `mustPass[3]` · `mustPass[6]` | ENFORCED |
+| `tooling-argv-front-door-health` | the anchor guard | dropped | `mustPass[2]` (as an `[evaluate]` tool error — the fence firing) | ENFORCED |
+| `tooling-argv-front-door-health` | `isToolCli` in the counter | dropped | `mustFlag[0]` · `mustFlag[2]` | ENFORCED |
+| `tooling-argv-front-door-health` | `isToolCli` depth (shared reader) | `endsWith("/cli.ts")` | `mustFlag[2]` | ENFORCED |
+| `tooling-argv-front-door-health` | the global-branch comparison (shared reader) | `"reads"` | `mustFlag[3]` (the lookalike global in a cli.ts) | ENFORCED after the added row |
+| `tooling-argv-front-door-health` | the global-branch comparison (shared reader) | `"other"` | `mustPass[1]` (the ambient cli reader) | the global branch is EXERCISED by the planted types |
+| `tooling-argv-front-door-health` | the unreadable arm | `"reads"` | `mustFlag[1]` · `mustFlag[3]` | REACHED |
+
+§4.6 differentials are committed in `tooling-front-door-family.test.ts` (14/14): every legacy example of
+both descriptors (6 and 11) replayed through the frozen legacy `runPass` and the union of each pair, with
+the classified differences enumerated in the test header (position → quoted specifier; the root-config row
+and the six entry rows are findings licensed by grants the differential does not carry; the stale sweep is
+grant liveness; the blindness anchor; the element-access token; the undeclared-global message). Legacy-side
+coverage asserted: import family 3 of 6 examples flag; argv family 3 reads + 1 six-row stale sweep + 1
+blindness of 11 — every moved arm nonzero.
 
 ## 3. Group 3 — `sub-floor-disclosure`, `query-boundary-reservation` — not yet designed
 

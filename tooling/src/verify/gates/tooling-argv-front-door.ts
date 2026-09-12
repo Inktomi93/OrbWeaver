@@ -1,214 +1,211 @@
-// Gate: tooling-argv-front-door (docs/architecture/core/Core-Tooling-Law.md §4.9) — the OPERATOR'S ARGV enters a
-// tooling program at exactly ONE place and flows DOWN as a parameter. Arms: (A) a `process.argv` read
-// (dotted or `process["argv"]`) outside a tool `cli.ts` / a censused ARGV_ENTRIES row; (B) the two-sided
-// stale sweep over ARGV_ENTRIES; (C) the §4.6 blindness tripwire — zero cli.ts readers on a real-tree run.
-// Scan-and-allowlist over the entries (GATE-AUTHORING §4). Comment posture: comment-SAFE (node kinds only).
+// Policy: tooling-argv-front-door (docs/architecture/core/Core-Tooling-Law.md §4.9) — the OPERATOR'S ARGV enters
+// a tooling program at exactly ONE place and flows DOWN as a `readonly string[]` parameter. A `process.argv`
+// read is legal only in a tool's `cli.ts` — derived by SHAPE (`tooling/src/<tool>/cli.ts`), so a cli.ts that
+// moves reds at its new path — or in a censused ENTRY: the node half a `.sh` execs, which has no cli.ts by
+// §2.5, plus `_shared/entrypoint.ts`, whose subject is `argv[1]` (the ENTRY IDENTITY), never the operator's
+// flags. A library reading the GLOBAL argv makes its behaviour depend on how the process was started: it
+// cannot be driven at its own seam, it silently re-admits flags the front door refused, and two callers of
+// the same helper get different answers. Comment posture: comment-SAFE (node kinds only).
 //
-// DECLARED LIMIT — the RESEARCH ZONE is out of scope, by derivation (#1118, and its own mustPass row
-// below). `scripts/**` is the explicitly throwaway zone where KISS/YAGNI still apply (Core-Tooling-Law
-// §2.7): 13 readers there today (10 `.ts` probes + the three launcher shims `ts7.cjs`,
-// `review-mirror.mjs`, `vitest-supervised.mjs`), none of them a product surface, none of them a LIBRARY a
-// second caller drives — each IS its own program, which is the very shape this gate sanctions in a
-// `cli.ts`. The exclusion is not an allowlist and not a fence bolted on: `scanRoot` admits
-// `tooling/src/` and nothing else, so a research script is never a candidate, and a probe PROMOTED into
-// `tooling/src/<tool>/` (the §2.7 promotion path) enters the gate the moment it lands. That direction —
-// zone in, immediately judged — is what the mustPass pair below writes down.
-import type { Node } from "ts-morph";
+// AUTHORITY IS reviewed-grant — TWO policies, not the three guide §12.6 first ruled (refuted on the tree and
+// approved by the orchestrator, 2026-09-12, #1950). The legacy descriptor had ONE predicate (a non-cli
+// `process.argv` read) and one exemption table (`ARGV_ENTRIES`, six rows); an ordinary policy and a
+// reviewed-grant policy over that predicate would both report every non-cli read unless one partitioned by
+// the table's subjects, which §12.5 keeps out of gate modules. The entries are recurring repository
+// PERMISSIONS, so the six rows are six exact `(subject, operation)` rows in the central reviewed-grant table,
+// each carrying its legacy `why` and an `endsWhen`; the legacy arm-B two-sided stale sweep IS central grant
+// liveness (a row consumed zero times after a complete run is STALE, whether its file stopped reading argv or
+// is gone). Zero live `@orb-gate-ignore` markers ever used the legacy ordinary door. The blindness tripwire
+// (arm C) is `tooling-argv-front-door-health`, hard, in this family.
+//
+// THE PARTITION DELIBERATELY NOT TAKEN: five of the six entries are module-scope `runTool` PROGRAMS, so
+// "a runTool program is a front door like cli.ts" was derivable and would have emptied the table to one
+// row. It was REFUSED because it NARROWS the catch — a new `runTool` program reading argv would pass
+// unreviewed where today it needs a censused row, which is the catch-regression guide §4.6 exists to find.
+// Do not re-propose it.
+//
+// FAMILY `tooling-argv-front-door` — the shared reader is `lib/process-member-origin.ts`
+// (`classifyProcessMemberRead`): IDENTITY, NOT SPELLING. The legacy check compared the receiver's TEXT to
+// `process`; the subject is now the `argv` member of the REAL `process` — the ambient global or the default
+// export of the `node:process` door (mustFlag[2], the live spelling) — so a local object named `process` is
+// provably different and passes (mustPass[5]), and a receiver the readers cannot place is REPORTED under the
+// disjoint UNREADABLE text (mustFlag[3], #944). Both the dotted and the computed-literal `process["argv"]`
+// spelling are one read (mustFlag[1]).
+//
+// THE REPORTED POSITION is the whole member read as written (`process.argv` / `process["argv"]`). The legacy
+// normalized the element form to `process.argv`, which is not an exact slice of that node and would throw
+// in the final sink. `entire-population` because grant liveness is only sound after a complete run; a
+// narrowed request DEFERS this policy (pinned in tests/tooling/verify/gates/tooling-front-door-family.test.ts).
+//
+// POPULATION PORT: byte-identical — the legacy `scanRoot: p.startsWith("tooling/src/")` is `@tooling`, and
+// the DECLARED LIMIT it carried is unchanged: `scripts/**` (the research zone, #1118) is outside the
+// population by derivation, never by an allowlist row, so a probe PROMOTED into `tooling/src/<tool>/` is
+// judged from its first day there (mustPass[4], with an in-population anchor file because a fixture that
+// admits nothing is a population tool error).
+//
+// Legacy descriptor: `4097be20d` (`tooling/src/verify/gates/tooling-argv-front-door.ts`). No private marker
+// grammar; zero live `@orb-gate-ignore tooling-argv-front-door` markers at conversion (rg over packages/,
+// tests/, tooling/, scripts/), so no translation was owed. The `isGovernedArgvEntry` door the legacy
+// exported for `tests/tooling/_shared/entrypoint.int.test.ts` is gone with the table: that twin derives the
+// governed entries from `REVIEWED_GRANTS` itself.
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { readStringValue } from "../lib/ast-read.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import { defineGate } from "../contract/policy.ts";
+import { classifyProcessMemberRead } from "../lib/process-member-origin.ts";
+import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { isToolCli } from "../lib/tooling-import-door.ts";
+import { argvLookalikeProof, nodeTypesProof } from "./_proof/node-types.ts";
 
-const TOOLING_PREFIX = "tooling/src/";
-const ANCHOR = "tooling/src/_shared/exit-contract.ts";
-/** The five-slot template's argv front door: `tooling/src/<tool>/cli.ts` (Core-Tooling-Law §2.5). Derived
- *  by shape, not by a path list — a cli.ts that moves stops being one and its read goes RED at the new
- *  path, which is the rot a hand-written home table cannot have. */
-const CLI_RE = /^tooling\/src\/[^/]+\/cli\.ts$/u;
+const ARGV_MEMBER = "argv";
+const OPERATION = "process-argv-read";
 
-/** The NON-`cli.ts` programs: a BASH-FRONTED tool has no cli.ts by §2.5 (its `.sh` is the argv front
- *  door), so the node half it execs reads argv itself — plus the one module whose SUBJECT is `argv[1]`,
- *  the entry identity, rather than the operator's argv. Every row states what would end it; the sweep in
- *  `run` REDs a row whose file stopped reading argv (both staleness modes — GATE-AUTHORING §4.4a). */
-const ARGV_ENTRIES: ExemptionTable = {
-  "tooling/src/_shared/entrypoint.ts": {
-    why: "reads argv[1] — the ENTRY IDENTITY ('was this module the program?'), never the operator's flags; it is the one home for that question. Ends if the direct-invocation refusal moves or stops asking it.",
-  },
-  "tooling/src/stack/ops/dev-identity-entry.ts": {
-    why: "the node half stack.sh execs for the dev-identity verbs — a BASH_FRONTED_TOOLS tool has no cli.ts (Core-Tooling-Law §2.5/§4.1). Ends if stack grows a cli.ts or this entry is retired.",
-  },
-  "tooling/src/stack/ops/engines-ctl.ts": {
-    why: "the node half engines.sh execs for status/stop/sleep/wake/reconcile — same bash-fronted exception. Ends if the fleet front door stops being bash.",
-  },
-  "tooling/src/stack/ops/engines.ts": {
-    why: "the node half engines.sh setsid-execs to boot the fleet (`--detach`) — same bash-fronted exception. Ends if the launcher moves behind a cli.ts.",
-  },
-  "tooling/src/stack/ops/prod-entry.ts": {
-    why: "the node half stack.sh execs for every PROD invocation — same bash-fronted exception. Ends if stack grows a cli.ts or this entry is retired.",
-  },
-  "tooling/src/verify/ops/config-snapshot-entry.ts": {
-    why: "the private process boundary reads native config snapshots and ESLint's discovery-only filename list without eagerly importing the whole verify CLI; its argv is a parent-authored request validated by those operations, never a second operator door. Ends if both observations move in-process or behind a different worker.",
-  },
-};
+const MESSAGE =
+  "a second argv reader — the operator's argv enters a tooling program at ONE place (the tool's cli.ts, or a reviewed bash-fronted entry) and flows DOWN as a `readonly string[]` parameter. An ops/lib/contract module reading the GLOBAL argv makes its behaviour depend on how the process was started: it cannot be driven at its own seam, it silently re-admits flags the front door refused, and two callers of the same helper get different answers (docs/architecture/core/Core-Tooling-Law.md §2.5/§4.9).";
+const UNREADABLE =
+  "a member read spelled like process.argv whose receiver the shared readers cannot place, so whether it is the operator's argv CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+const FIX =
+  "take `argv: readonly string[]` as a parameter and let the cli.ts pass `process.argv.slice(2)` down — the strict grammar stays in the tool's own parse module. A bash-fronted node half that IS the program takes an exact reviewed grant `(file, process-argv-read)`.";
 
-/** The governed non-cli argv-entry authority, shared with the behavioural direct-invocation census. */
-export function isGovernedArgvEntry(rel: string): boolean {
-  return rel in ARGV_ENTRIES;
-}
-
-const seenEntries = new Set<string>();
-let seenCliReaders = 0;
-
-function relOf(abs: string): string | null {
-  const norm = abs.replace(/\\/gu, "/");
-  const i = norm.indexOf(`/${TOOLING_PREFIX}`);
-  return i === -1 ? null : norm.slice(i + 1);
-}
-
-/** Both spellings of the read, so a dotted-only matcher is not the loophole (`ts` and `tsx` are already
- *  one language here; the ELEMENT-access form is the one a sweep habitually misses). */
-function argvRead(node: Node): boolean {
-  if (node.isKind(SyntaxKind.PropertyAccessExpression)) {
-    return node.getName() === "argv" && node.getExpression().getText() === "process";
-  }
-  if (node.isKind(SyntaxKind.ElementAccessExpression)) {
-    const key = node.getArgumentExpression();
-    return key !== undefined && readStringValue(key) === "argv" && node.getExpression().getText() === "process";
-  }
-  return false;
-}
-
-export const gate: GateDescriptor = {
-  name: "tooling-argv-front-door",
-  docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.9)",
-  status: "active",
-  scopeSafety: "whole-project",
-  message:
-    "a second argv reader — the operator's argv enters a tooling program at ONE place (the tool's cli.ts, or a censused bash-fronted entry) and flows DOWN as a `readonly string[]` parameter. An ops/lib/contract module reading the GLOBAL argv makes its behaviour depend on how the process was started: it cannot be driven at its own seam, it silently re-admits flags the front door refused, and two callers of the same helper get different answers (docs/architecture/core/Core-Tooling-Law.md §2.5/§4.9).",
-  fix: "take `argv: readonly string[]` as a parameter and let the cli.ts pass `process.argv.slice(2)` down — the strict grammar stays in the tool's own parse module.",
-  scanRoot: (p) => p.startsWith(TOOLING_PREFIX),
-  kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-  begin: () => {
-    seenEntries.clear();
-    seenCliReaders = 0;
-  },
-  visit: (node, sf, ctx) => {
-    const rel = relOf(sf.getFilePath());
-    if (rel === null || !argvRead(node)) {
-      return;
-    }
-    if (CLI_RE.test(rel)) {
-      seenCliReaders += 1;
-      return;
-    }
-    if (isGovernedArgvEntry(rel)) {
-      seenEntries.add(rel);
-      return;
-    }
-    ctx.report(node, { token: "process.argv", offset: 0 });
-  },
-  run: (ctx) => {
-    // Both cross-file arms are anchored on the real tree, never on a row's own path and never on
-    // `scope.kind` (GATE-AUTHORING §4.5 / #505 — a scoped run builds the full Project).
-    if (!fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    // Arm C: the §4.6 blindness tripwire. Eighteen tool cli.ts files front this tree; if NONE of them
-    // read argv the matcher stopped recognising the shape and every arm above is silently green.
-    if (seenCliReaders === 0) {
-      ctx.report({
-        file: "tooling/src/verify/gates/tooling-argv-front-door.ts",
-        line: 0,
-        column: 0,
-        message:
-          "blind gate — no tool cli.ts was seen reading process.argv on a real-tree run, so the matcher recognises nothing and every arm is vacuously green. Re-derive the read shape (docs/architecture/core/Core-Tooling-Law.md §4.9).",
-      });
-    }
-    // Arm B: the two-sided sweep. A row is stale whether its file merely stopped reading argv (mode A)
-    // or is gone from the tree entirely (mode B) — `seenEntries` is populated only by a LIVE match, so
-    // one unconditional check covers both.
-    for (const [entry, row] of Object.entries(ARGV_ENTRIES)) {
-      if (!seenEntries.has(entry)) {
-        ctx.report({
-          file: entry,
-          line: 0,
-          column: 0,
-          message: `stale ARGV_ENTRIES row — "${entry}" no longer reads process.argv (row why: ${row.why}). Re-key or delete the row (docs/architecture/core/Core-Tooling-Law.md §4.9).`,
-        });
-      }
-    }
+export const gate = defineGate({
+  id: "tooling-argv-front-door",
+  family: "tooling-argv-front-door",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: "@tooling",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const candidates: ReviewedGrantCandidate[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node, sourceFile) => {
+            const verdict = classifyProcessMemberRead(node, ARGV_MEMBER);
+            if (verdict === "other") {
+              return;
+            }
+            const subject = ctx.relativePath(sourceFile);
+            if (isToolCli(subject)) {
+              return;
+            }
+            candidates.push({
+              node,
+              subject,
+              operation: OPERATION,
+              token: node.getText(),
+              offset: 0,
+              ...(verdict === "unreadable" ? { unreadable: true } : {}),
+            });
+          },
+        },
+      ],
+      evaluate: () => {
+        reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'import process from "node:process";\nexport const limit = process.argv.slice(2).length;\n',
-      at: "tooling/src/codemod/lib/diagnostics.ts",
-      expect: { count: 1, token: "process.argv" },
-      why: "the founding shape — a LIBRARY helper reading the global argv, so its behaviour depends on how the process was started and no caller can drive it",
+      mode: "types",
+      files: { "tooling/src/codemod/lib/diagnostics.ts": 'import process from "node:process";\nexport const limit = process.argv.slice(2).length;\n' },
+      expect: { count: 1, token: "process.argv", messageIncludes: "a second argv reader" },
+      why: "the founding shape — a LIBRARY helper reading the global argv through the `node:process` door (the live spelling), so its behaviour depends on how the process was started and no caller can drive it. `messageIncludes` names the PRECISE text, which the unreadable arm never emits, so this row proves the door branch resolved rather than fail-closed",
     },
     {
-      files: 'import process from "node:process";\nexport const sep = process.argv.indexOf("--");\n',
-      at: "tooling/src/stack/ops/prod.ts",
-      expect: { count: 1, token: "process.argv" },
-      why: "an ops module reaching past its own entry for the `--` forwarding split — the same read, one directory up from the front door",
+      mode: "types",
+      files: { "tooling/src/ast/lib/emit.ts": 'import process from "node:process";\nexport const v = process["argv"][2];\n' },
+      expect: { count: 1, token: 'process["argv"]' },
+      why: "the ELEMENT-ACCESS spelling — a dotted-only matcher would be the loophole, and an index sweep habitually misses it; the position is the read as written",
     },
     {
-      files: 'import process from "node:process";\nexport const v = process["argv"][2];\n',
-      at: "tooling/src/ast/lib/emit.ts",
-      expect: { count: 1, token: "process.argv" },
-      why: "the ELEMENT-ACCESS spelling — a dotted-only matcher would be the loophole, and an index sweep habitually misses it",
+      mode: "types",
+      files: { ...nodeTypesProof(), "tooling/src/stack/ops/prod.ts": 'export const sep = process.argv.indexOf("--");\n' },
+      expect: { count: 1, token: "process.argv", messageIncludes: "a second argv reader" },
+      why: "the AMBIENT GLOBAL spelling — no import at all — resolves through the planted `@types/node` declaration to the global `process` (the branch every real-tree read without an import takes); the same read one directory up from the front door. Precise, not fail-closed: the message fragment is MESSAGE-only",
     },
     {
+      mode: "types",
+      files: { "tooling/src/stack/ops/undeclared.ts": 'export const sep = process.argv.indexOf("--");\n' },
+      expect: { count: 1, token: "process.argv", messageIncludes: "CANNOT be established" },
+      why: "THE UNDECLARED GLOBAL: the same ambient spelling in a project WITHOUT `@types/node` binds no trusted declaration, so the shared global resolver refuses it and the policy reports fail-closed under the UNREADABLE text — a read it cannot prove is never a silent pass. This is the §4.8b hazard made explicit: without the planted types the row above would pass for THIS reason",
+    },
+    {
+      mode: "types",
       files: {
-        "tooling/src/_shared/exit-contract.ts": "export const EXIT = { clean: 0 } as const;\n",
-        "tooling/src/snap/cli.ts": 'import process from "node:process";\nexport const a = process.argv.slice(2);\n',
+        "tooling/src/snap/ops/written.ts": 'import proc from "node:process";\nlet process = proc;\nprocess = proc;\nexport const a = process.argv.slice(2);\n',
       },
-      expect: { messageIncludes: "stale ARGV_ENTRIES row" },
-      why: "staleness mode (B) — the anchor loads and a live cli.ts reader satisfies the blindness tripwire, but NO ARGV_ENTRIES file is on the tree, so every row must red as naming nothing",
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944): a WRITTEN local binding named `process` might still hold the real process, so the readers refuse it as ambiguous and the policy reports under the disjoint UNREADABLE text instead of passing",
     },
     {
+      mode: "types",
+      files: { "tooling/src/stack/ops/engines.ts": 'import process from "node:process";\nexport const d = process.argv.includes("--detach");\n' },
+      expect: { count: 1, messageIncludes: "Subject: tooling/src/stack/ops/engines.ts, operation: process-argv-read" },
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a reviewed bash-fronted entry reds like any other reader and is licensed by its exact grant row (`tooling-argv-front-door:stack-engines`), so a new entry is a finding until someone reviews it. A proof row cannot carry a grant; the family test proves the row consumes exactly this",
+    },
+    {
+      mode: "types",
       files: {
-        "tooling/src/_shared/exit-contract.ts": "export const EXIT = { clean: 0 } as const;\n",
-        "tooling/src/_shared/entrypoint.ts": 'import process from "node:process";\nexport const e = process.argv[1];\n',
-        "tooling/src/stack/ops/dev-identity-entry.ts": 'import process from "node:process";\nexport const d = process.argv.slice(2);\n',
-        "tooling/src/stack/ops/engines-ctl.ts": 'import process from "node:process";\nexport const c = process.argv[2];\n',
-        "tooling/src/stack/ops/engines.ts": 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n',
-        "tooling/src/stack/ops/prod-entry.ts": 'import process from "node:process";\nexport const p = process.argv.slice(2);\n',
-        "tooling/src/verify/ops/config-snapshot-entry.ts": 'import process from "node:process";\nexport const s = process.argv.slice(2);\n',
+        "tooling/src/snap/ops/twice.ts":
+          'import process from "node:process";\nexport const a = process.argv.slice(2);\nexport const b = process.argv.length;\n',
       },
-      expect: { messageIncludes: "blind gate" },
-      why: "the §4.6 blindness tripwire — every censused entry reads argv but NO cli.ts does, which is what a matcher that stopped recognising the read looks like from the inside",
+      expect: { count: 1 },
+      why: "GRANT GRANULARITY: two reads in one carrier are ONE `(subject, operation)` finding, because a reviewed grant licenses one identity and two matching findings would make the row OVER-BROAD and license neither",
     },
   ],
   mustPass: [
     {
-      files: 'import process from "node:process";\nexport const a = process.argv.slice(2);\n',
-      at: "tooling/src/seed/cli.ts",
-      why: "the sanctioned front door — a tool cli.ts is SCANNED and admitted by shape, not scanRoot-excluded, so a cli.ts that moves reds at its new path",
+      mode: "types",
+      files: { "tooling/src/seed/cli.ts": 'import process from "node:process";\nexport const a = process.argv.slice(2);\n' },
+      why: "the sanctioned front door — a tool cli.ts is SCANNED and admitted by shape, not population-excluded, so a cli.ts that moves reds at its new path. Dropping the `isToolCli` skip reds this row",
     },
     {
-      files: 'import process from "node:process";\nexport const d = process.argv.includes("--detach");\n',
-      at: "tooling/src/stack/ops/engines.ts",
-      why: "a censused ARGV_ENTRIES row — the node half a `.sh` execs has no cli.ts to enter through (Core-Tooling-Law §2.5)",
+      mode: "types",
+      files: { "tooling/src/snap/ops/parse.ts": "export function parseArgs(argv: readonly string[]): number {\n  return argv.length;\n}\n" },
+      why: "the house shape the policy exists to force — a parse module takes argv as a PARAMETER and reads no global; the declared limit is that the policy says nothing about that grammar's strictness",
     },
     {
-      files: "export function parseArgs(argv: readonly string[]): number {\n  return argv.length;\n}\n",
-      at: "tooling/src/snap/ops/parse.ts",
-      why: "the house shape the gate exists to force — a parse module takes argv as a PARAMETER and reads no global; the declared limit is that the gate says nothing about that grammar's strictness",
+      mode: "types",
+      files: {
+        "tooling/src/stack/ops/prod.ts": "// process.argv is [node, script, verb, ...] — the operator's own argv starts here.\nexport const AFTER_VERB = 3;\n",
+      },
+      why: "comment posture: comment-SAFE. The policy subscribes to node kinds, so a header explaining the argv layout must never be read as a read (the #117/#132 class)",
     },
     {
-      files: "// process.argv is [node, script, verb, ...] — the operator's own argv starts here.\nexport const AFTER_VERB = 3;\n",
-      at: "tooling/src/stack/ops/prod.ts",
-      why: "comment posture: comment-SAFE. The gate subscribes to node kinds, so a header explaining the argv layout must never be read as a read (the #117/#132 class)",
+      mode: "types",
+      files: {
+        "tooling/src/verify/lib/selection.ts":
+          "export function pick(opts: { readonly argv: readonly string[] }): string | undefined {\n  return opts.argv[0];\n}\n",
+      },
+      why: "a `.argv` property read on something that is NOT `process` — the reader keys on the receiver's identity, so an options bag carrying argv is untouched",
     },
     {
-      files: 'import process from "node:process";\nexport const args = process.argv.slice(2);\n',
-      at: "scripts/probes/some-probe.ts",
-      why: "THE DECLARED LIMIT (#1118): the research zone is outside scanRoot BY DERIVATION, not by an allowlist row — same language, same read, only the ZONE differs from the mustFlag rows above, which is what makes this pair a proof rather than an assertion. `scripts/**` is throwaway probes + launcher shims where KISS applies (Core-Tooling-Law §2.7); a probe PROMOTED into tooling/src/<tool>/ is judged from its first day there. Ends if the research zone ever becomes a product surface.",
+      mode: "types",
+      files: {
+        "tooling/src/snap/lib/clean.ts": "export const clean = true;\n",
+        "scripts/probes/some-probe.ts": 'import process from "node:process";\nexport const args = process.argv.slice(2);\n',
+      },
+      why: "THE DECLARED LIMIT (#1118): the research zone is outside the population BY DERIVATION, not by an allowlist row — same language, same read, only the ZONE differs from the mustFlag rows above. `scripts/**` is throwaway probes + launcher shims where KISS applies (Core-Tooling-Law §2.7); a probe PROMOTED into tooling/src/<tool>/ is judged from its first day there. The clean tooling file keeps the fixture admitted",
     },
     {
-      files: "export function pick(opts: { readonly argv: readonly string[] }): string | undefined {\n  return opts.argv[0];\n}\n",
-      at: "tooling/src/verify/lib/selection.ts",
-      why: "a `.argv` property read on something that is NOT `process` — the matcher keys on the receiver, so an options bag carrying argv is untouched",
+      mode: "types",
+      files: { "tooling/src/snap/ops/local.ts": 'const process = { argv: ["a", "b"] };\nexport const a = process.argv.slice(2);\n' },
+      why: 'THE IDENTITY COUNTERFACTUAL: a LOCAL object named `process` is provably a different declaration, so its `argv` is not the operator\'s. The legacy `getText() === "process"` comparison red it — the readers refuse it as a proven non-module binding, which is `other`',
+    },
+    {
+      mode: "types",
+      files: { ...argvLookalikeProof(), "tooling/src/snap/ops/lookalike.ts": "export const a = lookalike.argv;\n" },
+      why: "THE GLOBAL-BRANCH COMPARISON, pinned: an `argv` member of a DIFFERENT trusted global (`lookalike.argv`, planted as a `@types/` declaration) resolves to that global, and the name comparison refuses it. Replacing the global-branch comparison with a bare `reads` reds this row. (`process.env.argv` and `const process = console` were tried first and do NOT reach the comparison — a member no trusted declaration names is refused as unreadable one step earlier)",
+    },
+    {
+      mode: "types",
+      files: { "tooling/src/snap/ops/door.ts": 'import process from "node:fs";\nexport const a = process.argv;\n' },
+      why: "THE DOOR COMPARISON, pinned: a default import NAMED `process` from another module enters a different door (`node:fs`), which is not the process. Replacing the door comparison with a bare `reads` reds this row",
     },
   ],
-};
+});
