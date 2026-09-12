@@ -2331,7 +2331,7 @@
     "tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts",
     "tests/tooling/verify/gates/external-id-single-writer-family.test.ts",
     "tests/tooling/verify/gates/freeze-provenance-conversion.test.ts",
-    "tests/tooling/verify/gates/gate-modernization-arm-b.test.ts",
+    "tests/tooling/verify/gates/gate-modernization.test.ts",
     "tests/tooling/verify/gates/grant-liveness-family.test.ts",
     "tests/tooling/verify/gates/home-client-family.test.ts",
     "tests/tooling/verify/gates/home-server-family.test.ts",
@@ -3049,6 +3049,9 @@
     },
     "tests/tooling/verify/gates/test-presence-client.int.test.ts": {
       "why": "RETIRED WITH THE LEGACY DESCRIPTOR IT DROVE (#2061/#2062), same shape as its `test-presence` sibling: it built a `GateRunCtx` and called `gate.run?.(ctx)`, and `test-presence-client` is now a `defineGate` policy with no `run` hook. Every clause-C control it held — the #619 founding silence on a `.test.ts`-mirrored store, the unreadable-corpus tripwire, the comment and string postures, the type-argument matcher, the bare-mention fence and the no-store case — is a `mustFlag`/`mustPass` row on the policy and runs on the static tier through `pnpm check:policy-conformance`. The ONE arm that did not depend on the gate's code, 'state store mirrors are NOT all .ct.tsx', was MOVED verbatim in intent to `tests/tooling/verify/gates/mirror-index-family.test.ts`, where it still reads the live tree and still reds a re-narrowing to one suffix. Un-deletes only if `test-presence-client` is ever returned to a legacy `GateDescriptor`."
+    },
+    "tests/tooling/verify/gates/gate-modernization-arm-b.test.ts": {
+      "why": "RENAMED to `tests/tooling/verify/gates/gate-modernization.test.ts`, not dropped: all three tests moved with the file and none was weakened. The old name was itself a live `test-layout` violation (#2174) — named after an ARM (`arm-b`) rather than after its source module, so the mirror rule's mechanical source-to-test transformation resolved to `tooling/src/verify/gates/gate-modernization-arm-b.ts`, which has never existed; `gate-modernization.ts` is the only `gate-modernization*` source on the tree. It moved the whole-tree `test-layout` count 51 to 52 and stayed invisible for a day because the standing #1584 `check:structure` red hides a new one — it surfaced only from a per-policy diff between two named structure slots (#2110's method, run by hand). Un-deletes only if a source module is ever added at the old mirror target, which would mean the arm had become its own gate."
     }
   }
 }
