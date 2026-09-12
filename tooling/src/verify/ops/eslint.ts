@@ -33,12 +33,30 @@ function ownerFor(path: string, owners: readonly string[]): string {
   throw new Error(`ESLint file ${path} has ${owners.length === 0 ? "no native compiler owner" : `ambiguous native compiler owners {${owners.join(", ")}}`}`);
 }
 
-function parsedDiscovery(text: string): readonly string[] {
+/** THE COMPLETION CONTROL (#2212), and it is deliberately not a did-not-throw check. The child states the
+ *  COUNT it enumerated beside the list; a delivered list that disagrees is a TRUNCATION and is refused here
+ *  by name. #2211's failure was a KILLED child (ENOBUFS terminates, it does not clip) and the failure its fix
+ *  must not introduce is the quiet short list — the two are indistinguishable to "the call returned", so the
+ *  only thing that separates them is an executing assertion over the producer's own claim. */
+export function parsedDiscovery(text: string): readonly string[] {
   const value = JSON.parse(text) as unknown;
-  if (!(Array.isArray(value) && value.every((path): path is string => typeof path === "string" && path !== ""))) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("ESLint discovery child emitted a malformed population envelope (expected { count, files })");
+  }
+  const { count, files } = value as { readonly count?: unknown; readonly files?: unknown };
+  if (!(Array.isArray(files) && files.every((path): path is string => typeof path === "string" && path !== ""))) {
     throw new Error("ESLint discovery child emitted a malformed filename list");
   }
-  return value;
+  if (!Number.isSafeInteger(count)) {
+    throw new Error("ESLint discovery child emitted no usable population count; a list with no stated size cannot be proven complete");
+  }
+  if (files.length !== count) {
+    throw new Error(
+      `ESLint discovery delivered ${String(files.length)} filenames but the child enumerated ${String(count)} — the population was TRUNCATED in transit, ` +
+        "so no lint verdict is available (raise the discovery maxBuffer in tooling/src/verify/ops/eslint.ts, or hand the list over a file)",
+    );
+  }
+  return files;
 }
 
 export function partitionEslintFiles(paths: readonly string[], programs: readonly CompilerProgram[]): ReadonlyMap<string, readonly string[]> {
@@ -75,18 +93,45 @@ const KIB_PER_MIB = 1024;
 const DISCOVERY_BUFFER_MIB = 64;
 const DISCOVERY_MAX_BUFFER_BYTES = DISCOVERY_BUFFER_MIB * KIB_PER_MIB * BYTES_PER_KIB;
 
+/** THE DISCOVERY DOOR, and the ceiling is NAMED HERE rather than left to node (#2211/#2212). The child writes
+ *  the WHOLE admitted filename population (~2300 paths for the root program alone) to stdout; node's ~1MiB
+ *  default does not truncate at the ceiling, it KILLS the child with ENOBUFS, so at current repo size this
+ *  door could no longer enumerate its own population and the whole-repo tier verdict was UNOBTAINABLE.
+ *
+ *  A BLOWN CEILING REFUSES BY NAME. `spawnSync`'s bare "spawnSync nice ENOBUFS" names the wrapper, not the
+ *  population that outgrew it, and an operator reading that has no way to know WHICH door died or what to do
+ *  — #2211 took a barrier tail plus a stack frame to attribute. The translation below states the site, the
+ *  ceiling it was given, and the remedy, so the next occurrence is self-describing at the point of failure.
+ *  `maxBuffer` is a parameter so a control can drive the refusal with a deliberately tiny ceiling; a fuse
+ *  nobody has ever seen blow is a fuse nobody knows is wired. */
+export function readDiscoveredPopulation(root: string, maxBuffer: number = DISCOVERY_MAX_BUFFER_BYTES): readonly string[] {
+  try {
+    return parsedDiscovery(execNicedSync("pnpm", ["exec", "node", DISCOVERY_ENTRY, "eslint-discovery"], { cwd: root, maxBuffer }));
+  } catch (error) {
+    if (!isBufferOverflow(error)) {
+      throw error;
+    }
+    throw new Error(
+      `ESLint discovery outgrew its ${String(maxBuffer)}-byte stdout ceiling (tooling/src/verify/ops/eslint.ts, DISCOVERY_BUFFER_MIB): the child was ` +
+        "KILLED with ENOBUFS rather than truncated, so the admitted population could not be enumerated and NO lint verdict exists for this run. " +
+        "Raise the ceiling, or hand the population over a file instead of stdout.",
+      { cause: error },
+    );
+  }
+}
+
+/** ENOBUFS as node reports it from `execFileSync`: the code on the error, with the message as the fallback
+ *  for a wrapper that rebuilds the error (`withCapturedStderr` folds captured stderr into `.message`). */
+function isBufferOverflow(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, message } = error as { readonly code?: unknown; readonly message?: unknown };
+  return code === "ENOBUFS" || (typeof message === "string" && message.includes("ENOBUFS"));
+}
+
 export async function runEslint(root: string): Promise<number> {
-  // #2211: the discovery child writes the WHOLE admitted filename population (~2300 paths for the root
-  // program alone) to stdout. Node's ~1MiB default ceiling does not truncate — it kills the child with
-  // ENOBUFS — so at current repo size this door could no longer enumerate its own population and the
-  // whole-repo tier verdict was unobtainable. 64MiB matches what `check-gates.repo.int` already uses for
-  // the same class of payload. A ceiling is still a fuse: if this population keeps growing, hand the list
-  // over a file rather than raising the number again.
-  const discoveredText = execNicedSync("pnpm", ["exec", "node", DISCOVERY_ENTRY, "eslint-discovery"], {
-    cwd: root,
-    maxBuffer: DISCOVERY_MAX_BUFFER_BYTES,
-  });
-  const discovered = parsedDiscovery(discoveredText);
+  const discovered = readDiscoveredPopulation(root);
   const admitted = await eslintConfiguredPaths(root, CONFIG_REL, discovered);
   if (admitted.length !== discovered.length || admitted.some((path, index) => path !== discovered[index])) {
     throw new Error("ESLint discovery and native ConfigArray admission resolved different filename populations");

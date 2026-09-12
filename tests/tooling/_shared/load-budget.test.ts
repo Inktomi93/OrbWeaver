@@ -16,11 +16,13 @@ import { cpus } from "node:os";
 import {
   annotateRateLoad,
   BOX_LOAD_ENV,
+  boxFactor,
   boxLoadKnobError,
   budget,
   cgroupQuotaCores,
   computeLoadFactor,
   effectiveCpuCount,
+  FACTOR_CAP,
   hasMeasurement,
   isJudgeableMeasurement,
   isLoadKill,
@@ -38,6 +40,7 @@ import {
   loadSuspectSummary,
   ratePair,
   readBoxLoad,
+  readCpuThrottle,
 } from "@orb/tooling/_shared/load-budget";
 import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -316,4 +319,64 @@ test("#1985 — under the live session fence a real multi-lane loadavg finally M
   expect(budget(60_000, () => ({ loadavg1: 16, cpuCount: 8 }))).toBe(120_000);
   // …and the quiet-box invariant is UNTOUCHED: below one load per available core, still byte-identical.
   expect(budget(60_000, () => ({ loadavg1: 6.8, cpuCount: 8 }))).toBe(60_000);
+});
+test("#2206 — QUOTA THROTTLING stretches a budget in the band loadavg alone calls quiet", () => {
+  // THE HOLE, stated as the pair that used to disagree with reality. `computeLoadFactor` is
+  // `max(1, loadavg/cores)`, so EVERY load below one-per-core priced at exactly 1.00 — including a fenced
+  // session pinned at 99% of its quota. The barrier's planter died there: a 257s pass against a 300s
+  // budget, killed at `loadavg 6.0/8 cores`, where the factor was 1.00 and the uplift never engaged.
+  const fenced = { loadavg1: 6, cpuCount: 8 } as const;
+  expect(computeLoadFactor(fenced.loadavg1, fenced.cpuCount)).toBe(1);
+  expect(budget(300_000, () => fenced)).toBe(300_000);
+
+  // With the kernel's own throttling record the same reading is no longer "quiet": 12.4% of periods ended
+  // stopped by the quota (the live measurement on this session's scope, 2026-09-12), and the identity
+  // 1/(1-r) prices that at ~1.14 — the order of the ≥1.17 slip that killed the pass.
+  const throttled = { ...fenced, throttle: { periods: 1_282_742, throttled: 158_691 } } as const;
+  expect(boxFactor(throttled)).toBeCloseTo(1.142, 2);
+  expect(budget(300_000, () => throttled)).toBe(342_354);
+
+  // The two signals compose as a MAXIMUM, never a product: whichever says the box is worse wins, so a
+  // genuinely loaded box is unaffected by a low throttle rate and vice versa.
+  expect(boxFactor({ loadavg1: 32, cpuCount: 8, throttle: { periods: 100, throttled: 10 } })).toBe(4);
+  expect(boxFactor({ loadavg1: 1, cpuCount: 8, throttle: { periods: 100, throttled: 50 } })).toBe(2);
+  // …and the cap still binds, so a fully-throttled tree cannot inflate a budget without limit.
+  expect(boxFactor({ loadavg1: 1, cpuCount: 8, throttle: { periods: 100, throttled: 100 } })).toBe(FACTOR_CAP);
+});
+
+test("#2206 — the QUIET-BOX INVARIANT survives: no fence, no plant, no throttle ⇒ byte-identical budgets", () => {
+  // This is the control that keeps the arm above honest. If a throttle sample could raise a budget on an
+  // UNFENCED box, every solo measurement would silently grow headroom and the policy's core promise —
+  // "a quiet box leaves every budget byte-identical to its base" — would be gone.
+  expect(boxFactor({ loadavg1: 6, cpuCount: 8 })).toBe(1);
+  expect(boxFactor({ loadavg1: 6, cpuCount: 8, throttle: { periods: 1000, throttled: 0 } })).toBe(1);
+  expect(budget(300_000, () => ({ loadavg1: 6, cpuCount: 8, throttle: { periods: 1000, throttled: 0 } }))).toBe(300_000);
+  // A malformed or empty sample is "no reading", never a divide-by-zero and never an uplift.
+  expect(boxFactor({ loadavg1: 6, cpuCount: 8, throttle: { periods: 0, throttled: 0 } })).toBe(1);
+
+  // A RATE arm deliberately does NOT take the throttle signal (the counters are cumulative over a session
+  // scope that lives for hours, so they are a prior, not a statement about the measurement window). This
+  // asserts that deliberate non-change, so a later edit that folds it in has to argue with a test.
+  expect(judgeMeasurementLoad({ loadavg1: 6, cpuCount: 8, throttle: { periods: 100, throttled: 50 } }, "x").disposition).toBe("complete");
+});
+
+test("#2206 — the throttle reading is the TIGHTEST over the cgroup ancestry, or nothing at all", () => {
+  const tree =
+    (stats: Readonly<Record<string, string>>) =>
+    (path: string): string | undefined =>
+      path === "/proc/self/cgroup" ? "0::/user.slice/app.scope\n" : stats[path];
+  // An ancestor throttled harder than the leaf is what actually bounds this tree, so it is what counts.
+  const sample = readCpuThrottle(
+    tree({
+      "/sys/fs/cgroup/user.slice/app.scope/cpu.stat": "nr_periods 1000\nnr_throttled 50\n",
+      "/sys/fs/cgroup/user.slice/cpu.stat": "nr_periods 1000\nnr_throttled 400\n",
+    }),
+  );
+  expect(sample).toEqual({ periods: 1000, throttled: 400 });
+  // No counters anywhere ⇒ undefined, which `throttleFactor` reads as factor 1 (the unfenced box).
+  expect(readCpuThrottle(tree({}))).toBeUndefined();
+  // A cpu.stat without the throttle counters is not a zero reading, it is NO reading.
+  expect(readCpuThrottle(tree({ "/sys/fs/cgroup/user.slice/app.scope/cpu.stat": "usage_usec 5\n" }))).toBeUndefined();
+  // A v1-only cgroup line is unreadable here for the same reason the quota walk refuses it.
+  expect(readCpuThrottle(() => "3:cpu:/user.slice\n")).toBeUndefined();
 });

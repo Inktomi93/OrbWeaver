@@ -79,10 +79,21 @@ export const DEFAULT_BUDGET_CEILING_MS = 600_000;
  *  spelling: the read below uses this constant, never a second string literal. */
 const BUDGET_CEILING_ENV = "ORB_BUDGET_CEILING_MS";
 
+/** THE KERNEL'S OWN RECORD OF THE FENCE BITING (#2206). `cpu.stat` counts scheduling PERIODS and how many
+ *  of them ended with this tree THROTTLED — i.e. the quota, not the machine, stopped the work. */
+export interface CpuThrottleSample {
+  readonly periods: number;
+  readonly throttled: number;
+}
+
 /** The box's contention inputs, as ONE value so the reader is injectable. */
 export interface BoxLoad {
   readonly loadavg1: number;
   readonly cpuCount: number;
+  /** The cgroup throttling record for this process tree, or `undefined` on an UNFENCED box (no cgroup v2,
+   *  `cpu.max` = `max`, `ORB_DEDICATED_BOX=1`) and for every PLANTED reading — a planted box states a
+   *  loadavg and nothing else, so plants keep the exact behaviour they had before this field existed. */
+  readonly throttle?: CpuThrottleSample | undefined;
   /** PROVENANCE, carried by the VALUE (#1666): `true` only for a reading `readBoxLoad` took from
    *  {@link BOX_LOAD_ENV}. The receipt printers stamp `(planted)` on exactly this, so the stamp certifies
    *  the number it is printed beside rather than the process it was printed in. Absent ⇒ the live box, or
@@ -249,8 +260,58 @@ export function effectiveCpuCount(read: CgroupFileReader = readCgroupFile): numb
   return quotaCores === undefined ? physical : Math.max(1, Math.min(physical, quotaCores));
 }
 
+/** PURE (given the reader): the `nr_periods` / `nr_throttled` pair from a `cpu.stat` body, or `undefined`
+ *  when the file is absent or does not carry both counters. */
+function parseCpuStat(body: string | undefined): CpuThrottleSample | undefined {
+  if (body === undefined) {
+    return;
+  }
+  const read = (key: string): number | undefined => {
+    const line = body.split("\n").find((candidate) => candidate.startsWith(`${key} `));
+    const value = line === undefined ? Number.NaN : Number(line.slice(key.length + 1).trim());
+    return Number.isFinite(value) && value >= 0 ? value : undefined;
+  };
+  const periods = read("nr_periods");
+  const throttled = read("nr_throttled");
+  return periods === undefined || throttled === undefined || periods === 0 ? undefined : { periods, throttled };
+}
+
+/** PURE (given the reader): the TIGHTEST throttling record over this tree's cgroup ANCESTRY — the same walk
+ *  `cgroupQuotaCores` makes, for the same reason: a quota on any ancestor bounds this tree, so the
+ *  enforcement that hurts most is the one that counts. `undefined` on an unfenced box. */
+export function readCpuThrottle(read: CgroupFileReader): CpuThrottleSample | undefined {
+  const own = read(PROC_SELF_CGROUP)
+    ?.split("\n")
+    .find((line) => line.startsWith(CGROUP_V2_PREFIX))
+    ?.slice(CGROUP_V2_PREFIX.length);
+  if (own === undefined || !own.startsWith("/")) {
+    return;
+  }
+  const segments = own.split("/").filter((segment) => segment !== "");
+  let worst: CpuThrottleSample | undefined;
+  for (let depth = segments.length; depth >= 0; depth -= 1) {
+    const sample = parseCpuStat(read(`${CGROUP_V2_ROOT}/${segments.slice(0, depth).join("/")}/cpu.stat`));
+    if (sample !== undefined && (worst === undefined || sample.throttled / sample.periods > worst.throttled / worst.periods)) {
+      worst = sample;
+    }
+  }
+  return worst;
+}
+
+/** Read ONCE, same reasoning as the quota: these are cumulative counters on a scope created at session
+ *  start, and a per-budget filesystem walk would sit on the hot path of every budget in the fleet. */
+let throttleSample: CpuThrottleSample | undefined | "unread" = "unread";
+
+function liveThrottle(): CpuThrottleSample | undefined {
+  if (throttleSample === "unread") {
+    throttleSample = readCpuThrottle(readCgroupFile);
+  }
+  return throttleSample;
+}
+
 export function readBoxLoad(): BoxLoad {
-  return plantedBoxLoad() ?? { loadavg1: loadavg()[0] ?? 0, cpuCount: effectiveCpuCount() };
+  const throttle = liveThrottle();
+  return plantedBoxLoad() ?? { loadavg1: loadavg()[0] ?? 0, cpuCount: effectiveCpuCount(), ...(throttle === undefined ? {} : { throttle }) };
 }
 
 /** PURE: a wall-clock multiplier ≥1 derived from the 1-minute loadavg vs the core count. A quiet box
@@ -260,6 +321,40 @@ export function computeLoadFactor(loadavg1: number, cpuCount: number, cap = FACT
     return 1;
   }
   return Math.min(cap, Math.max(1, loadavg1 / cpuCount));
+}
+
+/** PURE: the wall-clock stretch implied by QUOTA THROTTLING, which is the contention `computeLoadFactor`
+ *  structurally cannot see (#2206).
+ *
+ *  THE HOLE IT CLOSES. `computeLoadFactor` is `max(1, loadavg/cores)`, so it returns EXACTLY 1 for the whole
+ *  band `0 < loadavg < cores` — a fenced session at 99% utilisation gets no uplift at all. That band is not
+ *  a quiet box: `.claude/hooks/cpu-fence.sh` enforces `CPUQuota` through cgroup v2's 100ms period, and a
+ *  tree that wants more CPU than its slice IS STOPPED for the rest of each period it exceeds. Measured on
+ *  this session's own scope while writing this (2026-09-12): `cpu.max` = `800000 100000` (8 cores),
+ *  `nr_periods` 1,282,742, `nr_throttled` 158,691 — 12.4% of periods ended in a throttle, while loadavg sat
+ *  well under 8 and the factor read a flat 1. The row that found it (#2206) is the barrier's planter dying
+ *  at a 300s budget on a pass that costs 257s solo: a ≥1.17× stretch the loadavg model priced at 1.00.
+ *
+ *  THE CURVE HAS NO FREE CONSTANT, which is why it can be landed without a calibration drive: if a fraction
+ *  `r` of periods is spent stopped, the same work takes `1/(1-r)` as long. At the measured r = 0.124 that is
+ *  1.14× — the right order for the ≥1.17× slip above, from an independent signal. It is ONE corroborating
+ *  point, not a calibration: the shape is a queueing identity rather than a fitted curve, and a drive that
+ *  samples a known-cost pass at several throttle rates would confirm or refute it.
+ *
+ *  It only ever RAISES a budget (`budget` takes the max of the two factors) and is `undefined` on an
+ *  unfenced or planted box, so a solo-box budget and every planted control keep their exact former value. */
+export function throttleFactor(sample: CpuThrottleSample | undefined, cap = FACTOR_CAP): number {
+  if (sample === undefined || sample.periods <= 0 || sample.throttled <= 0) {
+    return 1;
+  }
+  const rate = Math.min(sample.throttled / sample.periods, 1);
+  return rate >= 1 ? cap : Math.min(cap, Math.max(1, 1 / (1 - rate)));
+}
+
+/** The ONE contention factor for a WALL CLOCK: the worse of what loadavg says about the machine and what
+ *  `cpu.stat` says about the fence. Deliberately NOT used by `judgeMeasurementLoad` — see the note there. */
+export function boxFactor(box: BoxLoad, cap = FACTOR_CAP): number {
+  return Math.max(computeLoadFactor(box.loadavg1, box.cpuCount, cap), throttleFactor(box.throttle, cap));
 }
 
 /** The env override, read ONCE at module load — the `_shared/browser.ts` DEFAULT_BASE precedent, and
@@ -283,7 +378,7 @@ export function budgetCeilingMs(): number {
  *  honesty mechanism into the false-red generator it exists to end). */
 export function budget(baseMs: number, read: BoxLoadReader = readBoxLoad, cap = FACTOR_CAP): number {
   const box = read();
-  const scaled = Math.ceil(baseMs * computeLoadFactor(box.loadavg1, box.cpuCount, cap));
+  const scaled = Math.ceil(baseMs * boxFactor(box, cap));
   return Math.max(baseMs, Math.min(budgetCeilingMs(), scaled));
 }
 
@@ -291,7 +386,7 @@ export function budget(baseMs: number, read: BoxLoadReader = readBoxLoad, cap = 
  *  reader can tell a stretched run from a quiet one without the argv. */
 export function loadPairs(read: BoxLoadReader = readBoxLoad): readonly string[] {
   const box = read();
-  return [`load=${loadValue(box)}`, `budget-factor=${computeLoadFactor(box.loadavg1, box.cpuCount).toFixed(2)}`];
+  return [`load=${loadValue(box)}`, `budget-factor=${boxFactor(box).toFixed(2)}`];
 }
 
 /** The `load=` VALUE every receipt site shares — one home, so the planted stamp cannot land on one line
@@ -316,7 +411,7 @@ export function loadResultPairs(read: BoxLoadReader = readBoxLoad): readonly (re
   const box = read();
   return [
     ["load", loadValue(box)],
-    ["budget-factor", computeLoadFactor(box.loadavg1, box.cpuCount).toFixed(2)],
+    ["budget-factor", boxFactor(box).toFixed(2)],
   ];
 }
 
@@ -356,6 +451,12 @@ export function hasMeasurement(verdict: MeasurementVerdict): boolean {
  *  a new constant: a measurement is `load-suspect` exactly when `computeLoadFactor` leaves 1 — the same
  *  boundary that starts stretching wall clocks. Below it the factor is exactly 1 and solo behaviour is
  *  untouched. IT NEVER RETURNS `withheld`: under the #1616 ruling load labels, it does not withhold. */
+//  #2206, DELIBERATE NON-CHANGE: this judge stays on LOADAVG ALONE and does not take `throttleFactor`.
+//  The throttle counters are CUMULATIVE over a session scope that lives for hours, so they are a PRIOR
+//  about how fenced this session is — fine for stretching a wall clock (which may only ever grow), and
+//  wrong for a rate arm, which needs a statement about the box DURING the measurement. Folding it in here
+//  would mark essentially every rate arm in every fenced lane `load-suspect` forever, which is the
+//  withhold-everything failure the #1616 ruling already reversed once.
 export function judgeMeasurementLoad(box: BoxLoad, what: string): MeasurementVerdict {
   // The SAME stamped figure the RESULT pairs carry (#1666): a `load-suspect` reason taken under a planted
   // box used to read exactly like a live-box sentence, and this string is what a reader sees FIRST.
