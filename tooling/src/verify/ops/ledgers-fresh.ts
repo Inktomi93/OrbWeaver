@@ -1,14 +1,15 @@
 // The `ledgers:fresh` stage (#817) — the STATIC tripwire for committed single-writer outputs that
-// lag the tree SILENTLY: `docs/reviews/caught-failure-ownership/population.json` (every row carries the
-// `line`/`markerLine` of a caught-failure site, so ANY merge that inserts lines above one re-stales it) and
-// `docs/test-baseline/manifest.json` (every tracked spec). Both already have a freshness check — but each
-// is a VITEST suite, so `pnpm check` stayed green while main sat red on the next whole node run, and
+// lag the tree SILENTLY, the founding one being `docs/reviews/caught-failure-ownership/population.json`
+// (every row carries the `line`/`markerLine` of a caught-failure site, so ANY merge that inserts lines
+// above one re-stales it). The test-baseline manifest was the second and was DELETED with its
+// `monotonic-tests` gate (#2217, owner ruling). The census already had a freshness check — but it
+// was a VITEST suite, so `pnpm check` stayed green while main sat red on the next whole node run, and
 // regeneration was an orchestrator barrier ritual that nothing stopped from lagging again (three re-lines
 // in one night, 2026-08-30: the #799 merge shifted `plugin-frame.ts` +5 and re-staled the census twenty
 // minutes after the first regen).
 //
-// It runs the SAME derivations the regenerators run (`deriveCaughtFailurePopulation` /
-// `deriveTestBaselineManifest` — one home each, GATE-AUTHORING §4.8's single-writer door keeps the WRITE)
+// It runs the SAME derivations the regenerators run (`deriveCaughtFailurePopulation` and its siblings —
+// one home each, GATE-AUTHORING §4.8's single-writer door keeps the WRITE)
 // and writes nothing. The existing vitest suites stay: they are the behavioural proof (bijection against
 // the gate's live findings, exemption hygiene); this is the tripwire that makes the drift visible at the
 // COMMIT bar instead of at the next `pnpm test`.
@@ -39,8 +40,6 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { CaughtFailurePopulation, CaughtFailureRow } from "../contract/caught-failure.ts";
 import type { LedgerFreshness } from "../contract/scoped.ts";
-import type { TestBaselineManifest } from "../contract/test-baseline.ts";
-import { TEST_BASELINE_REL } from "../contract/test-baseline.ts";
 import type { ClassRollupRow } from "../lib/gate-program-docs.ts";
 import {
   committedClassRollup,
@@ -54,13 +53,11 @@ import {
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
 import { READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./gen/read-first-costs.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
-import { deriveTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
 import { deriveTypeConfigFiles } from "./gen/type-configs.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:ledgers-fresh");
 
 const REGEN_CENSUS = "pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population";
-const REGEN_MANIFEST = "pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest";
 const REGEN_SNAP_FLAGS_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index";
 const REGEN_TYPE_CONFIGS = "pnpm exec node tooling/src/verify/cli.ts baseline type-configs";
 const REGEN_READ_FIRST_COSTS = "pnpm exec node tooling/src/verify/cli.ts baseline read-first-costs";
@@ -130,22 +127,6 @@ export function censusDrift(committed: CaughtFailurePopulation | undefined, deri
   if (stable(committed.totals) !== stable(derived.totals)) {
     drift.push(`totals ${stable(committed.totals)} → ${stable(derived.totals)}`);
   }
-  return { ...base, drift: drift.sort((a, b) => a.localeCompare(b)) };
-}
-
-/** The committed test-baseline manifest vs a fresh `git ls-files` derivation. `deletions` cannot drift —
- *  the derivation carries the committed ledger forward verbatim — so only `testFiles` is compared. */
-export function manifestDrift(committed: TestBaselineManifest | undefined, derived: TestBaselineManifest): LedgerFreshness {
-  const base = { ledger: TEST_BASELINE_REL, regen: REGEN_MANIFEST, derived: derived.testFiles.length } as const;
-  if (committed === undefined) {
-    return { ...base, drift: [MISSING(REGEN_MANIFEST)] };
-  }
-  const listed = new Set(committed.testFiles);
-  const tracked = new Set(derived.testFiles);
-  const drift = [
-    ...derived.testFiles.filter((f) => !listed.has(f)).map((f) => `new    ${f} — a tracked spec the manifest does not list`),
-    ...committed.testFiles.filter((f) => !tracked.has(f)).map((f) => `gone   ${f} — listed but no longer a tracked spec`),
-  ];
   return { ...base, drift: drift.sort((a, b) => a.localeCompare(b)) };
 }
 
@@ -311,20 +292,10 @@ export function deferredRosterDrift(root: string): LedgerFreshness {
 /** Every single-writer output's freshness, cheap half first. The derivations run unconditionally — a stage that
  *  short-circuited on the first drift would hide the others from the same barrier run. */
 export function ledgerFreshness(root: string): readonly LedgerFreshness[] {
-  const manifest = manifestDrift(readCommitted<TestBaselineManifest>(root, TEST_BASELINE_REL), deriveTestBaselineManifest(root));
   const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
   const snapFlagsIndex = snapFlagsIndexDrift(root);
   const typeConfigs = typeConfigsDrift(root);
-  return [
-    manifest,
-    census,
-    snapFlagsIndex,
-    typeConfigs,
-    readFirstCostsDrift(root),
-    ledgerSectionDrift(root),
-    classRollupDrift(root),
-    deferredRosterDrift(root),
-  ];
+  return [census, snapFlagsIndex, typeConfigs, readFirstCostsDrift(root), ledgerSectionDrift(root), classRollupDrift(root), deferredRosterDrift(root)];
 }
 
 const REGEN_CLASS_ROLLUP = "rebuild the `## CLASS ROLLUP` table from the body by the method printed under that heading";
@@ -459,7 +430,6 @@ export function runLedgersFresh(root: string): number {
 export const LEDGER_CHECKS: Readonly<Record<string, (root: string) => number>> = {
   "caught-failure-population": (root) =>
     verdict([censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root))]),
-  "test-baseline-manifest": (root) => verdict([manifestDrift(readCommitted<TestBaselineManifest>(root, TEST_BASELINE_REL), deriveTestBaselineManifest(root))]),
   "snap-flags-index": (root) => verdict([snapFlagsIndexDrift(root)]),
   "read-first-costs": (root) => verdict([readFirstCostsDrift(root)]),
   "type-configs": (root) => verdict([typeConfigsDrift(root)]),
