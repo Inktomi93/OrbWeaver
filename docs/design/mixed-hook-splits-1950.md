@@ -616,6 +616,90 @@ honest declaration, and it names the reader rather than a topic.
 | `docs/test-baseline/manifest.json` | regenerated (+1 spec) |
 
 ## 5. Group 5 — `design-audit-rule-proof`, `testid-liveness`, `tooling-instrument-proof`
+### 4.4 What was built (2026-09-12) — deviations from §4.2 recorded
+
+- **Ten policies as tabled**, with two id-level corrections to the table: the port policy's population is the
+  legacy's exactly (`tooling/src/**` + `tests/e2e/support/**`, never `tests/tooling/**`), and the clock
+  policy's is `tooling/src/**` + `tests/tooling/**`. The e2e support tree and the tooling test tree are each
+  ONE arm's jurisdiction, as the legacy fenced them per arm.
+- **Identity runs FIRST; the spelled name gates only the fail-closed answer.** The first build prefiltered
+  every door arm by the callee's spelled name and then resolved — which passed every ALIASED import
+  (`import { withInstrumentRun as slot }`, `spawnFullPriorityChild as detach`, `join as j`): the proofs
+  went red on exactly those rows. The corrected order (`lib/artifact-filing.ts#classifyFilingCall`,
+  `#classifyPathCallee`, the child-process door arm) resolves the declaration first and consults the name
+  only to decide whether an UNPLACEABLE callee is reported — otherwise every unplaceable call in the tree
+  would be a finding. A `mustFlag` row per alias pins it.
+- **The grant table grew by 19, not the 20 briefly asked for**: the `surface-in-a-container:app-shell` row
+  the orchestrator requested was withdrawn on measurement (the exemption reaches nothing; it would have been
+  born stale) and is not in the tree.
+- **The eight clock fixes and the playwright routing, per id (quiet-box value before → after):**
+  `home-server-family.test.ts` `FAMILY_TIMEOUT_MS` 300\_000 → `scaledBudget(300_000)` (300\_000);
+  `origin-server-family.test.ts` same; `test-world-browser-contracts.repo.int.test.ts` `timeout`
+  120\_000 → `scaledBudget(120_000)`; `program-routing.test.ts` 30\_000 → `scaledBudget(30_000)`;
+  `reviewed-grants.test.ts` `ROSTER_TIMEOUT_MS` 120\_000 → `scaledBudget(120_000)`; `_shared/test-tags.ts`
+  `slow.timeout` 30\_000 → `budget(SLOW_TIMEOUT_BASE_MS)` (30\_000); `verify/lib/config-snapshot.ts`
+  `SNAPSHOT_TIMEOUT_MS` 30\_000 → `budget(SNAPSHOT_TIMEOUT_BASE_MS)`; `verify/ops/resource-tracked.ts`
+  `GIT_INDEX_TIMEOUT_MS` 30\_000 → `budget(GIT_INDEX_TIMEOUT_BASE_MS)`; `playwright.config.ts`
+  `webServer.timeout` 180\_000 → `budget(180_000)`, test `timeout` 60\_000 → `budget(60_000)`,
+  `use.actionTimeout` 15\_000 → `budget(15_000)`. `budget()` returns EXACTLY its base on a quiet box
+  (`computeLoadFactor` → 1; `Math.max(base, min(ceiling, scaled))`), so every effective quiet-box value
+  is preserved; under contention each stretches by the per-core factor, capped at 8× and at the 10-minute
+  absolute ceiling — the semantics every other clock in the tree already had. `tool-guard.int.test.ts:739`
+  keeps its literal 120\_000 under `@orb-waive tooling-clock-budget(120_000)` (it is the guard's input
+  under test). `model-ab/ops/run.ts:110` `path.join(REPO_ROOT, "reports", "ab", stamp)` →
+  `reportsPath(REPO_ROOT, "ab", stamp)`.
+- **The ambient branch of `tooling-process-exit-home`** is pinned in the family test against a plant
+  DERIVED from `_proof/node-types.ts` (the augmentation shape plus `exit(code?: number): never`), because
+  the shared plant declares no `exit` and is three policies' shared fixture; a module row can take the pin
+  over the day the shared plant carries `exit`. The undeclared-global refusal is a module row.
+
+### 4.5 §4.1 cuts (measured 2026-09-12; the anchor occurs exactly once on a sibling scratch copy, flag-MORE direction)
+
+| Policy · fence | Cut | Rows that died |
+| - | - | - |
+| project-home · the package comparison | admit every construction | mustPass\[0] (local class), mustPass\[1] (project door) |
+| project-home · the package name | `ts-morph-lookalike` | mustFlag\[0..3] |
+| browser-door · the attach set | `launch` only | mustFlag\[1], \[2], \[3] (count 2 → 1) |
+| browser-door · the door set | admit every receiver | mustFlag\[5] (unreadable), mustPass\[0] (puppeteer), \[1] (local), \[2] (project door) |
+| artifact-path-home · the literal fence (lib) | any string | mustFlag\[0..2], \[4]; mustPass\[1] (`report-cards`) |
+| artifact-path-home · the door set (lib) | any module door | mustPass\[2] (project-declared `join`) |
+| artifact-run-slot · the cli-only slot | a slot anywhere | mustFlag\[1] (slot in ops/) |
+| artifact-run-slot · the `_shared` skip | judge the home dir | mustPass\[3] |
+| process-exit-home · the member name | `exitCode` | mustFlag\[0..4] |
+| cli-entry · the home export name | admit `other` | mustFlag\[2]; every other row REFUSES at the receipt (the widened name is unresolved) — the receipt fence measured in the same cut |
+| cli-entry · the cli shape in `evaluate` | judge every admitted file | **0** — UNFALSIFIABLE by row: the population glob `tooling/src/*/cli.ts` is the enforcer and the only admitted non-cli file is the receipted runner home, which the cut excluded by hand; recorded, the belt stays |
+| child-process-door · the specifier set | `node:` only | mustFlag\[1] (bare `child_process`) |
+| child-process-door · the identity | spelling instead | mustFlag\[6] (count 1 → 2), mustPass\[0] (local declaration) |
+| port-registry · the value half (lib) | drop | mustFlag\[0], \[1], \[5] |
+| port-registry · the name half (lib) | drop | mustFlag\[3], \[4] |
+| clock-budget · the BASE exemption (lib) | drop | **0 on the first cut** — the legacy mustPass spelled `NAV_TIMEOUT_BASE_MS`, which the suffix regex already rejects (the cut measured the helper, not the fence); mustPass\[2] (`BASE_NAV_TIMEOUT_MS`) added, re-cut: 1 row died |
+| clock-budget · the settle ceiling (lib) | 0 | mustPass\[3] (settle 400) |
+| clock-budget · the option key set (lib) | drop `timeout` | mustFlag\[0], \[3] |
+| runner-config-literals · the unparseable branch | skip silently | mustFlag\[4] |
+
+### 4.6 Differential and real-tree receipts
+
+- **Legacy side first**: all 36 legacy examples (21 mustFlag, 15 mustPass) replayed through the frozen
+  `runPass` of `2c1a1d37c`; per-arm coverage A1 B1 C1 D1 E1 F2 F2×2 G1 H2 I6 J3 plus the stale/blind
+  example (nonzero on every arm the descriptor carried). Then through the UNION of the nine tree policies
+  with the three located homes planted beside each example (the legacy verdict is asserted identical with
+  and without the plant). Seven classified differences (identity · granularity · grants · homes ·
+  stale/blind · position · message) are stated in the family test header and applied so every comparison
+  is one `toEqual`. The resource policy has no legacy proof rows: its differential is the real-tree replay
+  below (legacy 0 findings on the two configs it read; final 3 on the third it never read).
+- **Real tree, ten policies with the central grant table** (`fmh-g4-real` scratch, then the committed
+  family test): 0 tool errors · 0 effective findings · 19 grants consumed ×1 · 1 waiver bound
+  (`tool-guard.int.test.ts:739 120_000`) · 261 alarms, ALL `ordinary-waiver … targets unknown policy` for
+  other policies' live markers (a narrowed-roster artefact: `knownPolicies` = the ten), none naming a
+  plumbing policy; populations: 1,127 files for the `@tooling` policies, 16 for `tooling-cli-entry`, 1,142
+  for the port policy, 1,606 for the clock policy, 0 for the resource policy.
+- **Red-first over the PRE-FIX tree** (the eleven fixed files probe-copied back from `b6a4e012d`): **13
+  effective findings** — the 8 legacy-visible clocks, the tool-guard row no longer censused (un-waived),
+  the 3 `playwright.config.ts` clocks the legacy never read, and `model-ab/ops/run.ts:110`; the legacy's 3
+  `policy-conformance.ts` Projects are licensed by their grant. Restored; `git status` clean.
+- Floor and counts: in the completion commit's message.
+
+## 5. Group 5 — `design-audit-rule-proof`, `testid-liveness`, `tooling-instrument-proof` — not yet designed
 
 `testid-liveness` is designed and landed below by lane `p-hooks-split`; `design-audit-rule-proof` and
 `tooling-instrument-proof` belong to lane `p-hooks-single` and are not yet designed here.

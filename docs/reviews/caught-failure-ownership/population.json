@@ -7129,7 +7129,7 @@
     {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::catch::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
-      "line": 173,
+      "line": 175,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7137,12 +7137,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot.",
-      "markerLine": 170
+      "markerLine": 172
     },
     {
       "siteId": "tooling/src/verify/lib/config-snapshot.ts::error::1",
       "path": "tooling/src/verify/lib/config-snapshot.ts",
-      "line": 225,
+      "line": 227,
       "column": 12,
       "grammar": "empty",
       "position": "error",

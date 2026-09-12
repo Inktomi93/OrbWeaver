@@ -2372,6 +2372,7 @@
     "tests/tooling/verify/gates/tier-home-health-family.int.test.ts",
     "tests/tooling/verify/gates/tooling-front-door-family.test.ts",
     "tests/tooling/verify/gates/tooling-ops-direct-invocation.test.ts",
+    "tests/tooling/verify/gates/tooling-plumbing-family.test.ts",
     "tests/tooling/verify/gates/tooling-slot-template.test.ts",
     "tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts",
     "tests/tooling/verify/gates/ui-token-surface-wave-1.test.ts",

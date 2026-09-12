@@ -119,6 +119,11 @@ export const gate = defineGate({
     },
     {
       mode: "source",
+      files: { "tooling/src/motion-audit/lib/base.ts": "const BASE_NAV_TIMEOUT_MS = 15_000;\nexport const x = BASE_NAV_TIMEOUT_MS;\n" },
+      why: "THE ROW THAT HOLDS THE BASE FENCE: a name that ENDS in the clock suffix and carries BASE elsewhere is admitted only by the BASE exemption — `NAV_TIMEOUT_BASE_MS` above never reaches it (the suffix regex already rejects it), so dropping the exemption left that row green and this one reds (§4.1 cut, measured 2026-09-12)",
+    },
+    {
+      mode: "source",
       files: { "tooling/src/snap/ops/drive.ts": "export const settle = (): void => {\n  setTimeout(() => undefined, 400);\n};\n" },
       why: "a SETTLE is a sleep the run always pays, not a ceiling — settles are never scaled (§7.1), so a short setTimeout must not trip the arm",
     },
