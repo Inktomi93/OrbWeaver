@@ -19,6 +19,7 @@ import { isNodeTestContractRoot } from "../../../../tooling/src/verify/lib/brows
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { ctxFor } from "../../_support.ts";
 
 interface Verdict {
@@ -151,7 +152,7 @@ test("a relevant re-export cycle refuses instead of passing through an intermedi
   expect(result.toolErrors.some(({ message }) => message.includes("cycle"))).toBe(true);
 });
 
-test("the current full Node-intent test census has no browser-contract findings or unresolved relevant origins", { timeout: 120_000 }, () => {
+test("the current full Node-intent test census has no browser-contract findings or unresolved relevant origins", { timeout: scaledBudget(120_000) }, () => {
   const root = process.cwd();
   const project = getWorkspace({ root });
   const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });

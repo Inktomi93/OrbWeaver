@@ -270,7 +270,7 @@ export function finishInstrumentRun(): readonly string[] {
   return publishRunSlot(run.root, run.slot, slotArtifactAliases(run.slot));
 }
 
-/** The one door a rendered instrument's cli.ts uses (gate: tooling-shared-plumbing arm G): open the run,
+/** The one door a rendered instrument's cli.ts uses (policy `tooling-artifact-run-slot`): open the run,
  *  NAME it on stdout with the racing census, run, and publish whatever it wrote. The slot is announced at
  *  the START — a run's artifacts are findable while it is still going, and the RESULT line stays last. */
 export async function withInstrumentRun(

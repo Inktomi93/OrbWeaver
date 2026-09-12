@@ -10,10 +10,11 @@ import { isDefinedGatePolicy } from "../../../../tooling/src/verify/contract/pol
 import { validateReviewedGrants } from "../../../../tooling/src/verify/lib/gate-authority-validation.ts";
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 // Importing every gate module once is the whole cost of this file; memoized so both roster tests pay it once.
 let rosterOnce: Promise<ReadonlyMap<string, SelectedGatePolicy>> | undefined;
-const ROSTER_TIMEOUT_MS = 120_000;
+const ROSTER_TIMEOUT_MS = scaledBudget(120_000);
 
 function finalRoster(repoRoot: string): Promise<ReadonlyMap<string, SelectedGatePolicy>> {
   rosterOnce ??= discoverFinalRoster(repoRoot);

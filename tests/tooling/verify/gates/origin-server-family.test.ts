@@ -18,8 +18,9 @@ import { gate as turnIdentity } from "../../../../tooling/src/verify/gates/turn-
 import { gate as vectorScopeDerived } from "../../../../tooling/src/verify/gates/vector-scope-derived.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const FAMILY_TIMEOUT_MS = 300_000;
+const FAMILY_TIMEOUT_MS = scaledBudget(300_000);
 
 test(
   "every canonical-origin policy judges declaration homes, member identity and static values rather than written names",

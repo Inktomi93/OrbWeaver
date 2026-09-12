@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type {
   ConfigSelectorSnapshot,
@@ -26,7 +27,8 @@ import { materializeConfigSnapshotTransaction } from "../ops/config-snapshot-tra
 import { readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
 
 const SNAPSHOT_ENTRY = fileURLToPath(new URL("../ops/config-snapshot-entry.ts", import.meta.url));
-const SNAPSHOT_TIMEOUT_MS = 30_000;
+const SNAPSHOT_TIMEOUT_BASE_MS = 30_000;
+const SNAPSHOT_TIMEOUT_MS = budget(SNAPSHOT_TIMEOUT_BASE_MS);
 const SNAPSHOT_MAX_BUFFER = 16_777_216;
 
 export type ConfigSnapshotRead<R extends ConfigSnapshotRunner> =

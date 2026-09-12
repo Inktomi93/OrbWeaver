@@ -24,8 +24,9 @@ import { gate as twoClassRoleAuthority } from "../../../../tooling/src/verify/ga
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const FAMILY_TIMEOUT_MS = 300_000;
+const FAMILY_TIMEOUT_MS = scaledBudget(300_000);
 const ROOT = "/home-server-family";
 
 const FAMILY: readonly GatePolicy[] = [

@@ -27,7 +27,7 @@ function realOrSelf(path: string): string {
  * `realEntry` is the command the caller actually meant, printed verbatim so the refusal is a fix.
  *
  * It sets `process.exitCode` rather than calling `process.exit`: `run-tool.ts` owns the only hard exit in
- * the tree (gate `tooling-shared-plumbing` arm D), and a library module has no top-level work to abort —
+ * the tree (policy `tooling-process-exit-home`), and a library module has no top-level work to abort —
  * evaluating its declarations and falling off the end IS the stop.
  */
 export function refuseDirectInvocation(moduleUrl: string, realEntry: string): void {

@@ -278,7 +278,7 @@ deliberately NOT inside its slot (the enumerating finish would publish it as a p
   instrument's `cli.ts` around its RUN leg only — the help/misuse legs write nothing and must not mint an
   empty slot. It NAMES the slot on stdout at the start (`run slot reports/runs/<instrument>/<runId>`) plus
   the racing census; the publish is silent so the `RESULT` line stays last.
-- **Enforcer: gate `tooling-shared-plumbing` arm G** — a tool that calls `artifactDir`/`artifactFile` and
+- **Enforcer: policy `tooling-artifact-run-slot`** (family `tooling-artifact`; the arm-G successor of the retired `tooling-shared-plumbing`) — a tool that calls `artifactDir`/`artifactFile` and
   whose `cli.ts` does not open a run slot is RED, so the next instrument cannot regress into the shared dir.
 - **A RED run publishes normally** (a failing verdict is still a complete artifact, and the failure shot is
   the receipt the reviewer came for); a CRASHED one publishes nothing and leaves the `.inflight` marker —

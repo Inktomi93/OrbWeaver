@@ -1,17 +1,21 @@
 // Canonical Vitest tag vocabulary. Tags carry runner policy, so names and options derive from this one
 // registry and strictTags rejects every unregistered spelling.
 import type { TestTagDefinition } from "vitest/config";
+import { budget } from "./load-budget.ts";
 
 // Vitest's native `name` reads its augmentable TestTags interface. Our augmentation derives from this
 // registry, so retaining that one field would form TestTag -> TEST_TAGS -> TestTagDefinition -> TestTag.
 // Project only the circular field to string; every executable tag option remains vendor-owned.
 type AuthoredTagDefinition = Omit<TestTagDefinition, "name"> & { readonly name: string };
 
+/** The quiet-box ceiling a `slow` test is allowed; the runner pays `budget()` of it on a contended box. */
+const SLOW_TIMEOUT_BASE_MS = 30_000;
+
 export const TEST_TAGS = [
   {
     name: "slow",
     description: "A test whose proven runtime needs the existing 30 second timeout.",
-    timeout: 30_000,
+    timeout: budget(SLOW_TIMEOUT_BASE_MS),
   },
   {
     name: "requires-process-chdir",

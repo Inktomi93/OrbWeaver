@@ -1,4 +1,4 @@
-// The ONE subprocess home (gate: tooling-shared-plumbing arm F): every tooling spawn rides `nice -n 19`
+// The ONE subprocess home (policy `tooling-child-process-door`): every tooling spawn rides `nice -n 19`
 // (owner-endorsed 2026-08-21 — the box co-hosts the homelab; an un-niced fleet starved it, and a direct
 // child_process import silently bypasses the floor). `nice` execs the command in-process, so the child
 // pid IS the command and timeout kills land on it directly. Three seams: spawnNiced (async, collected,
@@ -154,7 +154,7 @@ export function execNicedSyncBuffer(cmd: string, args: readonly string[], opts: 
 }
 
 /** The ONE full-priority door — NO nice wrapper, loudly named so its callers ARE the exception census
- *  (gate: tooling-shared-plumbing's FULL_PRIORITY_CALLERS allowlist). Reserved for a process a USER
+ *  (policy `tooling-child-process-door`: one `full-priority-spawn` reviewed grant per caller). Reserved for a process a USER
  *  interactively waits on whose children serve requests (the snap stage's stack boot: a -19 staged app
  *  times out navigations under load, skewing the very receipts the stage exists to take). Everything
  *  else rides the niced doors above. */
@@ -204,8 +204,8 @@ export interface FullPriorityChild {
   readonly wait: () => Promise<ChildExit>;
 }
 
-/** The DETACHED-child twin of spawnFullPrioritySync — NO nice wrapper, same census discipline (gate:
- *  tooling-shared-plumbing arm F2, FULL_PRIORITY_CALLERS). Reserved for a long-lived child that IS the
+/** The DETACHED-child twin of spawnFullPrioritySync — NO nice wrapper, same census discipline (policy
+ *  `tooling-child-process-door`, the same per-caller grants). Reserved for a long-lived child that IS the
  *  interactive workload a human is waiting on (vLLM inference or a stateful browser session); everything
  *  else rides spawnNicedChild. */
 export function spawnFullPriorityChild(cmd: string, args: readonly string[], opts: FullPriorityChildOptions = {}): FullPriorityChild {

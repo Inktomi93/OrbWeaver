@@ -5,7 +5,7 @@
 // whole-tree HARD verdict — nobody may license "the matcher is blind" — while the sibling's findings are
 // reviewed permissions; one authority per policy.
 //
-// FAMILY `tooling-argv-front-door` — the shared reader is `lib/process-member-origin.ts`
+// FAMILY `process-member` (with `tooling-argv-front-door` and `tooling-process-exit-home`) — the shared reader is `lib/process-member-origin.ts`
 // (`classifyProcessMemberRead`), the SAME predicate the sibling judges reads with, so what counts as "a
 // cli.ts reads argv" here is exactly what counts as "a read" there; `lib/tooling-import-door.ts#isToolCli`
 // is the shared cli shape.
@@ -34,7 +34,7 @@ const MESSAGE =
 
 export const gate = defineGate({
   id: "tooling-argv-front-door-health",
-  family: "tooling-argv-front-door",
+  family: "process-member",
   authority: "hard",
   severity: "error",
   population: "@tooling",

@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import process from "node:process";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import type { ReporterDescription } from "@playwright/test";
 import { defineConfig, devices } from "@playwright/test";
 import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER } from "./tests/e2e/support/modes.ts";
@@ -60,7 +61,7 @@ const webServers = MODE_PROJECTS.map((mode) => ({
   command: "bash tooling/src/stack/stack.sh start-fg",
   url: mode.baseUrl,
   reuseExistingServer: mode.name === SINGLE_USER.name && DEV_TARGET_ALLOWED && !inCI,
-  timeout: 180_000,
+  timeout: budget(180_000),
   env: mode.webServerEnv,
   stdout: "pipe" as const,
   stderr: "pipe" as const,
@@ -82,7 +83,7 @@ export default defineConfig({
   // test-timeout context close). Raising it again would only restart that treadmill, so globalSetup now
   // WARMS each mode's client before the first spec and no spec pays cold compile at all. This stays at 60s
   // as headroom for the slowest WARM spec (the room drives real turns), not as a cold-boot budget.
-  timeout: 60_000,
+  timeout: budget(60_000),
   ...(e2eLive ? {} : { grepInvert: /@live/u }),
   forbidOnly: inCI,
   retries: inCI ? 2 : 0,
@@ -92,7 +93,7 @@ export default defineConfig({
     // plain local failure — the exact runs that need diagnosing.
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    actionTimeout: 15_000,
+    actionTimeout: budget(15_000),
     // Determinism: date/locale-rendering assertions must not depend on the host machine's settings.
     timezoneId: "UTC",
     locale: "en-US",

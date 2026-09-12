@@ -735,7 +735,7 @@ test("rewrite: the piped-harness rewrite preserves the reader chain, the log tar
   const expected = `pnpm check > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`;
   expect(r.rewrite?.command).toBe(expected);
   expect(r.rewrite?.timeout).toBe(600_000); // verify/check legitimately outrun the 120s default
-  // an agent-chosen timeout is never overridden
+  // @orb-waive tooling-clock-budget(120_000): the guard's INPUT UNDER TEST — an agent-chosen value handed to runBatch so the suite can assert the guard does not override it; fixture data, not a clock this run pays, and scaling it would make the fixture describe a box instead of an agent. Ends if the suite stops feeding a literal timeout to the guard.
   const withTimeout = at(runBatch([{ command: "pnpm check 2>&1 | tail -40", timeout: 120_000 }]), 0);
   expect(withTimeout.rewrite?.timeout).toBeUndefined();
   // the rewritten command must not re-fire the guard (no rewrite loops)

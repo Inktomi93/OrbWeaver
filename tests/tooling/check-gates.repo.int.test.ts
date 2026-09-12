@@ -233,11 +233,6 @@ function writeFixtures(): void {
   fx("tooling/src/__g_ta/x.ts", `import "../__g_tb/ops/y.ts";\n`);
   // tooling-size: one line over the 450 default cap.
   fx("tooling/src/__g_big/ops/big.ts", "export const x = 1;\n".repeat(451));
-  // tooling-shared-plumbing: a second ts-morph Project construction outside _shared/ts-workspace.ts.
-  fx("tooling/src/__g_plumb/ops/p.ts", "declare const Project: new (o: object) => unknown;\nexport const p = new Project({});\n");
-  // tooling-shared-plumbing arm J: a fixed wall clock outside the one budget policy. Its own fixture,
-  // because arm A's proves nothing about a node kind arm A never subscribes to.
-  fx("tooling/src/__g_clock/lib/b.ts", "export const opts = { timeout: 30_000 };\n");
   // tooling-argv-front-door: a LIBRARY module reading the GLOBAL argv — legal only in a cli.ts or a
   // censused bash-fronted entry (#971). The fixture is under lib/ so it does not also trip the
   // ops-direct-invocation arm below.

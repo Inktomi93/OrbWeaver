@@ -3,7 +3,7 @@
 // surface is derived from the package on disk exactly once, in one spelling. The prop EXPANDER it delegates
 // to is ./baseui-expand.ts; the shapes are ../contract/baseui.ts.
 //
-// WHY A PRIVATE ts-morph Project (a cited row in `tooling-shared-plumbing`'s PROJECT_SITES, not an ambient
+// WHY A PRIVATE ts-morph Project (the reviewed grant `tooling-project-home:baseui-read`, not an ambient
 // exception): the one-loader rule protects the shared WORKSPACE from being re-loaded per gate. The installed
 // `.d.ts` surface is NOT the workspace — it is not in `harnessGlobs`, no gate can subscribe to its nodes,
 // and it must be read out of `node_modules` or the manifest has nothing to be compared against. Measured

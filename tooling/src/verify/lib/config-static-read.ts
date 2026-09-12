@@ -285,7 +285,8 @@ export function readExpressionString(node: Node): StaticRead {
  *  and Playwright's CT bootstrap are intentionally outside that corpus (`harnessGlobs` covers
  *  `packages/*​/src`, `tests/`, `tooling/src/` — never a root `.js`/`.cjs` or `playwright/`), so `getWorkspace()` structurally
  *  cannot serve them without widening every gate's jurisdiction. This is the `comment-spans.ts` /
- *  `baseui-read.ts` precedent and carries a cited `PROJECT_SITES` row in `tooling-shared-plumbing.ts`.
+ *  `baseui-read.ts` precedent and carries the reviewed grant `tooling-project-home:config-static-read`
+ *  in `lib/reviewed-grants.ts` (the construction below is the licensed non-workspace Project).
  *  Each file is created at its OWN path, so the overwrite-identity trap (GATE-AUTHORING.md §5 — one reused SourceFile
  *  object answering every later call with the FIRST file's text) cannot arise between reads. */
 let scratch: Project | undefined;
@@ -297,13 +298,11 @@ function scratchProject(): Project {
   return scratch;
 }
 
-/** Read + parse one repo-relative source. Missing and SYNTACTICALLY BROKEN both refuse loudly. */
-export function readStaticSource(root: string, rel: string): ConfigRead {
-  const abs = `${root}/${rel}`;
-  if (!existsSync(abs)) {
-    return { kind: "missing" };
-  }
-  const text = readFileSync(abs, "utf-8");
+/** Parse one repo-relative source whose TEXT already arrived — the door a policy takes when the file
+ *  came through a declared resource fact (`exact-file`) rather than off disk, so the ONE scratch parser
+ *  serves a resource-fed read without the gate touching the filesystem. `missing` is the disk reader's
+ *  verdict alone: a text that arrived has, by definition, been read. SYNTACTICALLY BROKEN refuses loudly. */
+export function parseStaticSourceText(rel: string, text: string): Exclude<ConfigRead, { readonly kind: "missing" }> {
   const project = scratchProject();
   const sf = project.createSourceFile(rel, text, { overwrite: true });
   const diags = project.getProgram().getSyntacticDiagnostics(sf);
@@ -313,6 +312,15 @@ export function readStaticSource(root: string, rel: string): ConfigRead {
     return { kind: "unparseable", detail: typeof message === "string" ? message : message.getMessageText() };
   }
   return { kind: "ok", sf, text };
+}
+
+/** Read + parse one repo-relative source. Missing and SYNTACTICALLY BROKEN both refuse loudly. */
+export function readStaticSource(root: string, rel: string): ConfigRead {
+  const abs = `${root}/${rel}`;
+  if (!existsSync(abs)) {
+    return { kind: "missing" };
+  }
+  return parseStaticSourceText(rel, readFileSync(abs, "utf-8"));
 }
 
 /** Config-owner spelling retained for the two registry readers; parsing still has one implementation. */

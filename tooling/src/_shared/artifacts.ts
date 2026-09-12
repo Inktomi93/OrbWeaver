@@ -36,7 +36,7 @@ export function printResult(tool: string, pairs: readonly ResultPair[]): void {
 // constitution names them by exactly those paths as the read-don't-rerun surfaces (AGENTS.md §4:
 // `reports/verify.json`, `reports/check-structure.json`, `reports/verify/<stage>.log`,
 // `reports/ct-flaky.json`). They ride the SAME home as every other artifact — the `reports` literal has one
-// spelling in this repo and it is here (gate: tooling-shared-plumbing arm C).
+// spelling in this repo and it is here (policy `tooling-artifact-path-home`).
 
 /** The ABSOLUTE path of a report artifact under `<root>/reports/…`. `root` is explicit (never REPO_ROOT)
  *  because the verify harness runs against the caller's cwd, which is the worktree it is judging. */

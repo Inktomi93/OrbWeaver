@@ -24,7 +24,8 @@
 // unreviewed where today it needs a censused row, which is the catch-regression guide §4.6 exists to find.
 // Do not re-propose it.
 //
-// FAMILY `tooling-argv-front-door` — the shared reader is `lib/process-member-origin.ts`
+// FAMILY `process-member` (with `tooling-argv-front-door-health` and, since #1950 group 4,
+// `tooling-process-exit-home`, the same reader over the `exit` member) — the shared reader is `lib/process-member-origin.ts`
 // (`classifyProcessMemberRead`): IDENTITY, NOT SPELLING. The legacy check compared the receiver's TEXT to
 // `process`; the subject is now the `argv` member of the REAL `process` — the ambient global or the default
 // export of the `node:process` door (mustFlag[2], the live spelling) — so a local object named `process` is
@@ -68,7 +69,7 @@ const FIX =
 
 export const gate = defineGate({
   id: "tooling-argv-front-door",
-  family: "tooling-argv-front-door",
+  family: "process-member",
   authority: "reviewed-grant",
   severity: "error",
   population: "@tooling",

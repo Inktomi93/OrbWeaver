@@ -124,7 +124,7 @@ async function waitHealthy(engine: string, port: number, child: FullPriorityChil
   return "timeout";
 }
 
-/** FULL PRIORITY, deliberately (gate: tooling-shared-plumbing FULL_PRIORITY_CALLERS): these engines ARE
+/** FULL PRIORITY, deliberately (policy `tooling-child-process-door`, reviewed grant `tooling-child-process-door:stack-engines`): these engines ARE
  *  the inference workload the operator waits on — a `nice -19` vLLM degrades the interactive token
  *  latency the fleet exists to provide. */
 function spawnEngine(engine: string, spec: EngineSpawnSpec): FullPriorityChild {

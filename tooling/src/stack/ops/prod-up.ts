@@ -2,7 +2,7 @@
 // `restart`, plus the spawn-window lock and `--debug` arming. Every decision comes from lib/ (pure);
 // this file only performs them.
 //
-// FULL PRIORITY, deliberately (gate: tooling-shared-plumbing FULL_PRIORITY_CALLERS): the process spawned
+// FULL PRIORITY, deliberately (policy `tooling-child-process-door`, reviewed grant `tooling-child-process-door:stack-prod-up`): the process spawned
 // here IS the application serving the operator's requests — a `nice -19` production server degrades the
 // very thing the launcher exists to run.
 import { mkdirSync, writeFileSync } from "node:fs";
