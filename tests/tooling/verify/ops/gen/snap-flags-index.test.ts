@@ -3,20 +3,19 @@
 //   · drift from the registry — held by `ledgers:fresh` (123 derived rows, re-derived every `pnpm check`);
 //   · SEARCH fidelity — held by nothing, until this file.
 //
-// The second is live, not hypothetical. `flags.md` is deliberately OUTSIDE the docs formatter's population
-// (`doc-catalog/ops/format.ts`, the `GENERATED` fence) because the formatter wants four of its 123 rows
-// escaped, and those escapes DESTROY grep targets: measured 2026-09-12, `__orb` goes 2 hits -> 0 and
-// `path[,path]` goes 2 -> 0. The tempting way to retire that fence is to let the generator emit the
-// escaped bytes so both doors agree — which closes the deadlock by making a law file unsearchable.
+// THE EXCLUSION THIS PIN WAS WRITTEN BESIDE IS GONE, AND THE PIN IS STRICTLY BETTER FOR IT (#2178).
+// `flags.md` used to sit OUTSIDE the docs formatter's population because the formatter wanted four of its
+// 123 rows escaped, and those escapes DESTROY grep targets: measured 2026-09-12, `__orb` goes 2 hits -> 0
+// and `path[,path]` goes 2 -> 0. The tempting way to retire that fence was to let the generator emit the
+// escaped bytes so both doors agreed — closing the deadlock by making a law file unsearchable. It was
+// refused, and the fix went to the SOURCE: the four registry summaries carry CODE SPANS
+// (`snap/ops/flags-metadata.ts`), inside which `_` and `[` are literal, so the output is canonical AND
+// greppable and the file is now admitted to `check:docs` with no exclusion at all.
 //
-// THIS IS A PIN AGAINST A FUTURE WRONG FIX, not against a current defect — an unusual shape, stated
-// plainly because a reader's instinct on meeting an exclusion is to remove it, and one of the two ways to
-// remove this one is catastrophic. It asserts the GREP TARGETS, so escaping them reds HERE, at the
-// generator, naming the token — rather than surfacing later as "why can nobody find `__orb`".
-// `git grep -l '__orb'` is 255 tracked files across every layer; this document is where a lane LEARNS
-// that vocabulary. The sanctioned removal is the opposite direction and is recorded in the fence comment:
-// put those tokens in CODE SPANS in `snap/ops/flags-metadata.ts`, after which the output is canonical AND
-// greppable and the fence can be deleted for the right reason.
+// So this stopped guarding an EXCLUSION and now guards the PROPERTY directly — which is what it was
+// really for. `git grep -l '__orb'` on `main` is 255 tracked files across every layer, and this document
+// is where a lane LEARNS that vocabulary. Anyone who later "simplifies" those summaries by dropping the
+// backticks reds HERE, at the generator, naming the token, instead of shipping an index nobody can search.
 import { deriveSnapFlagsIndexMarkdown } from "../../../../../tooling/src/verify/ops/gen/snap-flags-index.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 

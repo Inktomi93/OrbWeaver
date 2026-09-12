@@ -5,11 +5,31 @@
 // literal-key union to hang a compile-time completeness check on without reshaping three established
 // tables. This module is therefore the closest available REQUIRED shape: a single flat map, completeness
 // asserted at runtime by `nonArmFlagMeta()` below (thrown before any row is produced) and pinned by a
-// committed test (`tests/tooling/snap/ops/flag-grammar.test.ts`) that fails the instant a new non-arm flag
-// ships without an entry here — the same "cannot ship without its row" guarantee `ArmDef.help` gives arms.
+// committed test that fails the instant a new non-arm flag ships without an entry here — the same "cannot
+// ship without its row" guarantee `ArmDef.help` gives arms. That test is
+// `tests/tooling/snap/ops/cli-truth.suite.int.test.ts` ("descriptor-owned help grammar covers every public
+// accepted spelling exactly once"): it calls `snapFlagDescriptors()`, which this module's completeness
+// throw runs inside. Corrected 2026-09-12 — this line cited `tests/tooling/snap/ops/flag-grammar.test.ts`,
+// a path that has never existed on the tree, so the "it is pinned" claim pointed at nothing.
 //
 // `group` names match the section headings in `.claude/skills/snap-driving/reference/flags.md` (the ONE
 // vocabulary a flag's group is drawn from); `summary` is one line, ≤160 chars, no trailing period.
+//
+// `summary` IS MARKDOWN, because its only render is a table cell in that generated index (#2178). Code-ish
+// tokens therefore take CODE SPANS — ``​`__orb`​``, ``​`selector=path[,path]`​`` — and that is load-bearing, not
+// decoration: inside a code span `_` and `[` are literal, so the docs formatter leaves them alone. Written
+// bare they are correctly escaped to `\_\_orb` / `path\[,path]`, which renders identically and is
+// GREP-DEAD, and `__orb` is 255 tracked files' worth of vocabulary (measured on `main`) in the document a
+// lane reads to LEARN it. That escape is why the index sat outside `check:docs` until this row.
+//
+// THE `--help` BLOCK IS A DIFFERENT SURFACE AND IS DELIBERATELY NOT KEPT IDENTICAL. `contract/help.ts` is a
+// terminal render where a backtick is noise, and the two already diverge on their own terms — measured
+// 2026-09-12: of the four flags this note is about, only `--checkpoint` reads the same in both, while
+// `--upload`/`--drop-files` carry a fuller grammar there (`<selector>=<path[,path...]>`) and `--goto` has no
+// row of its own at all. So they are two renders of one fact, not a copy and its stale twin, and the
+// `--checkpoint` coincidence is a coincidence. A pin asserting the two agree was CONSIDERED AND REFUSED:
+// it would assert a property that is already false for three of the four. What a MEANING change owes is
+// both surfaces — the flag spellings and grammar codes are what `cli-truth.suite.int.test.ts` holds.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { armFlags } from "./arms/registry.ts";
 import { OPTIONAL_NAME_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
@@ -45,7 +65,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--no-failure-evidence": { group: "Pixels", summary: "skip the Playwright trace a red run retains under reports/traces/" },
   "--strict-console": { group: "Look", summary: "console warnings go red too (errors are always red)" },
   "--diagnostics": { group: "Look", summary: "print deduped structured browser diagnostics" },
-  "--checkpoint": { group: "Reach", summary: "reset __orb evidence after readiness; scope console verdicts to actions" },
+  "--checkpoint": { group: "Reach", summary: "reset `__orb` evidence after readiness; scope console verdicts to actions" },
   "--include-hidden": { group: "Look", summary: "widen --map/CSS/counts to attached hidden/inert DOM" },
   "--vnc": { group: "Stateful sessions", summary: "boot only: watch the daemon's browser" },
   "--wait": { group: "Where", summary: "after app readiness, require this selector to become visible before anything else runs" },
@@ -60,11 +80,11 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--fill": { group: "Reach", summary: "selector=value — type into a field; the selector may be an engine form" },
   "--key": { group: "Reach", summary: "Key or selector=Key — the bare form walks focus without re-focusing; the selector form focuses then presses" },
   "--wait-for": { group: "Reach", summary: "selector or text=phrase — wait for a selector to become visible, or for rendered text" },
-  "--upload": { group: "Reach", summary: "selector=path[,path] — choose file(s) through an input or a trigger's filechooser" },
-  "--drop-files": { group: "Reach", summary: "selector=path[,path] — dispatch dragenter/dragover/drop with a real DataTransfer" },
+  "--upload": { group: "Reach", summary: "`selector=path[,path]` — choose file(s) through an input or a trigger's filechooser" },
+  "--drop-files": { group: "Reach", summary: "`selector=path[,path]` — dispatch dragenter/dragover/drop with a real DataTransfer" },
   "--goto": {
     group: "Reach",
-    summary: "SPA navigation through __orb.nav — a section id, a dotted settings address group.sub.setting, or a modal slot",
+    summary: "SPA navigation through `__orb.nav` — a section id, a dotted settings address group.sub.setting, or a modal slot",
   },
   "--open-chat": { group: "Reach", summary: "open a room by id, exact title, latest, or current" },
   "--open-character": { group: "Reach", summary: "Characters section + select by id or name" },

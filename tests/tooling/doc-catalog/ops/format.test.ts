@@ -147,17 +147,23 @@ test("FROZEN ARCHAEOLOGY: neither tree appears in the resolved corpus", () => {
   expect(targets.some((path) => path.startsWith("docs/architecture/core/"))).toBe(true);
 });
 
-test("WIDENING: class 2 is admitted, and the bytes this repo does not author are not", () => {
-  // Class 2 (#2144) is the skills tree plus the `tooling/` guides the constitution cites as law. The two
-  // exclusions are the `docs/vendor/**` rule applied to a new tree, and each would fail differently:
-  // the DevTools closure is hash-validated (formatting it reds `devtools-frontend-assets`), and
-  // `flags.md` is DERIVED, so admitting it would deadlock `check:docs` against `check:ledgers-fresh`.
+test("WIDENING: class 2 is admitted, and only the bytes this repo does not AUTHOR are fenced", () => {
+  // Class 2 (#2144) is the skills tree plus the `tooling/` guides the constitution cites as law. ONE
+  // exclusion survives and it is the `docs/vendor/**` rule applied to a new tree: the DevTools closure is
+  // vendored AND hash-validated, so formatting the one `.md` in it reds `devtools-frontend-assets` rather
+  // than tidying a doc.
+  //
+  // The GENERATED `flags.md` was the second, until #2178. It is asserted PRESENT here now: its deadlock
+  // (`check:docs` wanting escapes that `check:ledgers-fresh` would overwrite) was closed at the SOURCE —
+  // code spans in `snap/ops/flags-metadata.ts` — rather than by widening the fence, so admitting it is the
+  // state to defend. `tests/tooling/verify/ops/gen/snap-flags-index.test.ts` holds the other half: the
+  // derived index must keep the literals (`__orb`, `path[,path]`) that escaping would have destroyed.
   const targets = formatTargets([]);
 
   expect(targets).toContain("tooling/src/verify/gates/GATE-AUTHORING.md");
   expect(targets).toContain(".claude/skills/orchestrator-runbook/SKILL.md");
+  expect(targets).toContain(".claude/skills/snap-driving/reference/flags.md");
   expect(targets.filter((path) => path.startsWith("tooling/src/snap/lib/devtools-frontend/"))).toStrictEqual([]);
-  expect(targets).not.toContain(".claude/skills/snap-driving/reference/flags.md");
 });
 
 test("CLASS 3: every root entry point is admitted — including the generated-block file", () => {
