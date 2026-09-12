@@ -531,7 +531,89 @@ enclosing return statement; the family test pins BOTH the binding placement and 
 nobody moves it back. Loud, not silent — but an author has no working placement inside such an expression,
 which is worth an engine row.
 
-## 4. Group 4 — `tooling-shared-plumbing` — not yet designed
+## 4. Group 4 — `tooling-shared-plumbing`
+
+### 4.1 Premises re-derived on the tree
+
+| Premise | Receipt |
+| - | - |
+| The module is byte-identical to its legacy SHA | `git diff --stat 2c1a1d37c HEAD -- …/tooling-shared-plumbing.ts` prints nothing |
+| Zero live `@orb-gate-ignore tooling-shared-plumbing` markers | `rg` over `packages/`, `tests/`, `tooling/`, `scripts/`, the repo-root `*.ts`: 0 lines |
+| **The legacy gate is RED on the live tree, hidden under the `check:structure` baseline red** | the legacy descriptor run through the frozen `runPass` over its own jurisdiction (tooling/src + tests/tooling + tests/e2e/support, 1,596 files): **12 findings** — 8 fixed wall clocks (arm J drift in `home-server-family.test.ts:28`, `origin-server-family.test.ts:22`, `test-world-browser-contracts.repo.int.test.ts:154`, `program-routing.test.ts:60`, `reviewed-grants.test.ts:16`, `_shared/test-tags.ts:14`, `verify/lib/config-snapshot.ts:29`, `verify/ops/resource-tracked.ts:12`), 1 stale `CLOCK_SITES` row (`structure.int.test.ts` no longer carries its 4 s kill literal), 3 un-censused `new Project(` in `verify/ops/policy-conformance.ts`. Orchestrator ruling 2026-09-12: pre-existing-exposed violations are fixed IN LANE (route the clocks through `scaledBudget`/`budget`, let the stale row die, grant the conformance runner's Projects) — `ops/policy-conformance.ts` itself is another lane's and is NOT edited |
+| The five HOMES still carry their capability | ts-workspace 3 `new Project(`, browser.ts 2 launch/attach, artifacts.ts 2 `"reports` literals, run-tool.ts 2 `process.exit(`, proc.ts 1 `node:child_process` |
+| All 7 `PROJECT_SITES` rows still construct; the 4 `FULL_PRIORITY_CALLERS` still call a door | measured per file (`rg -c`) |
+| The root runner configs | `vitest.config.ts`, `playwright.config.ts`, `playwright-ct.config.ts` exist; the legacy run reported ZERO findings in them (their clocks are derived, they hold no port literals) — both root-config halves are silent tripwires today |
+| `static-config` cannot serve the root-config halves | its rows are SELECTION rows (`key`, `value: row.path`, `line`) from the preserved selector evaluator — no numeric literals; `authored-text` cannot admit a repo-root file (no authored tree contains one) |
+| `withInstrumentRun` / artifact filers | 15 tool `cli.ts`; filers under `snap` and `verify`; the legacy run reported no arm-G finding |
+
+### 4.2 The ruling and its realization
+
+**Ruling (§12.6):** "separate family ids for Project home, browser doors, artifact/run-slot, exit/CLI,
+child-process priority, ports, and clock budgets; each id has one authority". Realized as TEN policies. Two
+refinements the loader and the family law force, both recorded rather than silently taken: (a) a one-member
+family must be named by its policy id (`lib/policy-module.ts:79`), so a "family id" with one policy is that
+policy's own id; (b) a family is a shared READER, so the ruling's "exit/CLI" splits by reader into two
+EXISTING families — `process.exit` reads the real `process` through `lib/process-member-origin.ts` (the
+argv pair's family, renamed `process-member` to say what it shares), and the cli.ts entry reads
+`run-tool.ts`'s export through the readers `tooling-ops-direct-invocation` already uses (family
+`tooling-program-entry`, which that policy now joins as §1.3 promised).
+
+| Policy | Authority · execution · analysis | Population | Legacy arm(s) | Family / reader | Grants |
+| - | - | - | - | - | - |
+| `tooling-project-home` | reviewed-grant · entire · types | `@tooling` | A | singleton; `lib/reference-fact-call.ts#resolveCallableOrigin` (the `ts-morph` door, fail-closed) | 9: ts-workspace + 7 `PROJECT_SITES` + `ops/policy-conformance.ts`, op `ts-morph-project-construction` |
+| `tooling-browser-door` | reviewed-grant · entire · types | `@tooling` | B, H | singleton; the receiver resolves to the playwright door (`@playwright/test` / `playwright` / `playwright-core`), member `chromium\|firefox\|webkit` — puppeteer's `connect` is a proven different door, not a text limit | 2: browser.ts × `browser-launch`, × `browser-attach` |
+| `tooling-artifact-path-home` | reviewed-grant · entire · types | `@tooling` | C | `tooling-artifact` / `lib/artifact-filing.ts` | 1: artifacts.ts × `reports-path-literal` |
+| `tooling-artifact-run-slot` | hard · entire · types | `@tooling` | G | `tooling-artifact` / `lib/artifact-filing.ts` (filer + slot exports resolved against `_shared/artifacts.ts` by identity; the home receipted) | — |
+| `tooling-process-exit-home` | reviewed-grant · entire · types | `@tooling` | D | `process-member` / `lib/process-member-origin.ts` | 1: run-tool.ts × `process-exit` |
+| `tooling-cli-entry` | hard · entire · types | `tooling/src/*/cli.ts` + `_shared/run-tool.ts` | E | `tooling-program-entry` / `moduleScopeCalls`… no: ANY call in the cli whose callee resolves to `runTool` (the legacy accepted a call anywhere) through `lib/project-home-origin.ts`; the home receipted | — |
+| `tooling-child-process-door` | reviewed-grant · entire · types | `@tooling` | F, F2 | singleton; the import door by specifier, the full-priority call by identity against `proc.ts`'s exports (home receipted) | 5: proc.ts × `child-process-import`, proc.ts + 4 callers × `full-priority-spawn` |
+| `tooling-port-registry` | reviewed-grant · entire · syntax | `tooling/src/**` + `tests/e2e/support/**` | I (tree half) | `plumbing-literals` / `lib/plumbing-literals.ts#portLiteralOf` (REGISTRY\_PORTS imported from `_shared/ports.ts`, as the legacy did) | 1: ports.ts × `port-literal` |
+| `tooling-clock-budget` | **ordinary** · selected-files · syntax | `tooling/src/**` + `tests/tooling/**` | J (tree half) | `plumbing-literals` / `lib/plumbing-literals.ts#fixedClockOf` | — (the shrink-only census becomes per-site waivers: the tool-guard row translates to `@orb-waive tooling-clock-budget(<literal>)` at its site; the structure.int.test row is stale and dies) |
+| `tooling-runner-config-literals` | hard · entire · **resource** | `{ of: "none" }` + `exact-file` × `vitest-config`, `playwright-config`, `playwright-ct-config` | I, J (root-config halves) | `plumbing-literals` / the same literal readers over the shared scratch parse (`lib/config-static-read.ts#parseStaticSourceText`, new) | — |
+
+**Why clocks are ORDINARY and every other permission is a grant.** The legacy `CLOCK_SITES` census was
+declared SHRINK-ONLY ("a new fixed clock is RED, never a new row") and each of its two reasons is a
+per-site argument (the guard's INPUT UNDER TEST; the kill whose assertion IS the timeout) — that is the
+shape of a reasoned per-occurrence waiver, not of a recurring repository permission, and a grant table
+would invite exactly the rows the census forbade. The reported node is the NUMERIC LITERAL (token
+`30_000`), never the legacy `setTimeout(…, 30_000)` composite, which contains parens and is unwaivable
+under the marker grammar. Everything else (a home, a censused caller, a scratch-parser site) is a
+permission that outlives any one edit, which is the reviewed-grant shape and how liveness is owned.
+
+**The root-config reader (fork 2, ruled BUILD).** Three `exact-file` ids are a contract edit with a named
+consumer, not a reopening (§12.4's own sentence). The reader arithmetic over them — parse the text through
+the ONE scratch parser, list the port/clock literal facts — lives in `lib/`, single-consumer today; the
+header states that plainly, names the natural second consumer (`runner-config-path-liveness`, which reads
+the same three files through `static-config` for their selectors and would take the literal facts the day
+it judges a numeric option), and why `lib/` is still right: the ids ARE the capability, the reader is
+arithmetic over them, a weaker claim than a kind. DECLARED LIMIT recorded: the legacy DISCOVERED
+`playwright*.config.ts` by readdir; the closed ids name the three files that exist, and a fourth runner
+config would be unjudged until it gets an id — the price of no gate-owned filesystem read.
+
+**Rejected — keep arm G (run-slot) inside the artifact-path policy.** Different authority (a missing run
+slot is not a permission anyone reviews; it is a defect) and a different subject (a TOOL, cross-file) — one
+authority per policy.
+
+**Rejected — one `tooling-process-exit` singleton.** It would re-spell `readsProcessMember`, which is the
+two-spellings-of-one-concept merge case the family law forbids; joining the existing reader's family is the
+honest declaration, and it names the reader rather than a topic.
+
+### 4.3 Coupled sites
+
+| Site | Action |
+| - | - |
+| `gates/tooling-shared-plumbing.ts` | DELETED; ten policy modules replace it |
+| `lib/plumbing-literals.ts` · `lib/artifact-filing.ts` | NEW shared readers |
+| `lib/config-static-read.ts` | `parseStaticSourceText(rel, text)` added beside `readStaticSource` (the one scratch parser, now also fed by a resource fact) |
+| `contract/resource-exact.ts` | +3 ids with their named consumer |
+| `lib/reviewed-grants.ts` | +19 rows |
+| `gates/tooling-ops-direct-invocation.ts` · `tooling-argv-front-door(-health).ts` | family strings → `tooling-program-entry` / `process-member`; roster rows follow |
+| the 8 clock drift sites | routed through `scaledBudget` (tests) / `budget` (tooling libs); `tests/tooling/tool-guard.int.test.ts` gains the translated waiver |
+| roster | the plumbing row replaced by ten rows; count +9 |
+| `docs/architecture/core/Core-Tooling-Law.md` §4.4 | mechanism sentences truth-repaired |
+| `tests/tooling/verify/gates/tooling-plumbing-family.test.ts` | NEW: conformance ×10, §4.2 arm for the clock policy, §4.3 grant identity per grant policy, §4.5 pins (home receipts, exact-file refusals, deferral), §4.6 differential over all 36 legacy examples through the union, plus the real-tree replay of the 12-finding baseline |
+| `tests/tooling/gate-spelling-twins.baseline.json` | untouched — a legacy-roster ledger that retires at cutover (already red for 54 converted gates; its `tooling-shared-plumbing` row is one more) |
+| `docs/test-baseline/manifest.json` | regenerated (+1 spec) |
 
 ## 5. Group 5 — `design-audit-rule-proof`, `testid-liveness`, `tooling-instrument-proof` — not yet designed
 
