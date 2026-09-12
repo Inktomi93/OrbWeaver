@@ -293,7 +293,7 @@ So the corpus is NOT uniformly bad; the exemplar set was the bad part, which is 
 than the count, because most of the remaining 104 are ordinary: **`no-mutating-register-api`** (ordinary; its
 `mustPass[3]` `why` says *“this is the only row that dies without it”* and the audit cut the population and proved that
 sentence TRUE; `fix` names the waiver spelling AND the position rule) and **`no-raw-interactive-intrinsics`** /
-**`zustand-selector-stability`** (reviewed-grant; zero unenforced narrowings, 6/6 exact `count`+`token`). **ANTI-patterns,
+**`zustand-selector-stability`** (**ORDINARY** — `zustand-selector-stability.ts:110`; this row said reviewed-grant for a day and was WRONG about the tree, corrected 2026-09-12 by the lane it misbriefed; zero unenforced narrowings, 6/6 exact `count`+`token`). **ANTI-patterns,
 never point a lane at these:** `no-raw-spacing-in-features`'s header, `no-manual-token-estimate`, `no-inline-types`,
 `zod-modern-spellings`, `persistence-boundary`, `no-rejected-cors-proxy`. Prior two, still valid: (wave 4 named `spacing-tier-home-health` as a third candidate for a HARD tripwire only, and only after it lands one §4.5 pin; it also named an ANTI-pattern — never point a lane at `no-raw-spacing-in-features`'s header): `user-bus-deferred-member` (wave 1) and `section-registry-completeness` (wave 2 —
 4/4 narrowings enforced, both fence rows state their own cut result and both are TRUE, header and roster row
@@ -744,7 +744,7 @@ the column says NO, tell the lane to copy the module's PROOF shape and take its 
 | `user-bus-deferred-member` | warning debt | wave 1's sole survivor — **but §5b.5: FAILS ALL THREE** (no FAMILY line, no POPULATION PORT, no legacy SHA). The longest-standing copy candidate has the weakest header in the set |
 | `section-registry-completeness` | registry | 4/4 narrowings enforced · **§5b.5 COMPLETE — the header to copy** (FAMILY + byte-identical POPULATION PORT citing `dd862e988^` + legacy SHA) |
 | **`no-mutating-register-api`** | **ORDINARY** | its `mustPass[3]` `why` says *“the only row that dies without it”* and the audit proved that sentence TRUE · §5b.5: has a POPULATION PORT (intentional correction, stated), **no FAMILY line, no legacy SHA** |
-| `no-raw-interactive-intrinsics` · `zustand-selector-stability` | reviewed-grant | fix `zustand`'s J4/J5 first · §5b.5: `no-raw-interactive-intrinsics` **fails all three**; `zustand` has a real singleton rationale but **no POPULATION PORT and no legacy SHA** |
+| `no-raw-interactive-intrinsics` (reviewed-grant) · `zustand-selector-stability` (**ORDINARY**, `:110` — this cell labelled BOTH reviewed-grant and was wrong about the second; guide §3's reviewed-grant exemplar is `no-raw-matchmedia`, not either of these) | mixed | fix `zustand`'s J4/J5 first · §5b.5: `no-raw-interactive-intrinsics` **fails all three**; `zustand` has a real singleton rationale but **no POPULATION PORT and no legacy SHA** |
 | **`no-raw-matchmedia`** | **reviewed-grant** | wave 1 refuted it SEVERE, it was repaired (`b157bb9be`), and wave 7 re-audited and **confirmed the repair HELD**. The only module in 26 audited (waves 6–7) whose #944 third answer is actually REACHED. **Fix #1998 first** — its header and roster row both say “all four” grants and there are five |
 | `spacing-tier-home-health` | HARD tripwire only | owes one §4.5 pin |
 
