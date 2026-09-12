@@ -15,6 +15,22 @@ export type GatePolicyProofMode = (typeof GATE_POLICY_PROOF_MODES)[number];
 
 export interface GatePolicyProofExpectation {
   readonly count?: number;
+  /** The MODULE-LEVEL DECLARATION whose cardinality drives this row's finding count (#2001, owner ruling
+   *  2026-09-12) — the declared, exact alternative to `count` for the one measured shape where a literal is
+   *  the wrong instrument.
+   *
+   *  A `count` is a PROXY for "this row ratifies its own arm's findings and no other". Where the count is
+   *  driven by a registry constant the fixture cannot control (`PORTABLE_CANON_TABLES`, the domain roster,
+   *  `registryScriptNames()`), pinning a literal makes a legitimate registry addition a RED PROOF — a rule
+   *  whose effect is "classifying a table correctly breaks the build". `countFrom` names the driver instead:
+   *  it is an EXACT exemption (the constant is checked to resolve in the policy's own module, by
+   *  `verifyPolicyProofs` and by `policy-proof-expectations` ARM C), never free text and never a standing
+   *  warning. `count` and `countFrom` are mutually exclusive.
+   *
+   *  A `countFrom` row still owes a SECOND discriminator (`token` / `line` / `messageIncludes`) — the gate
+   *  requires it, deliberately tighter than the ruling, because without one the row asserts nothing at all,
+   *  which is strictly worse than the literal it replaces. */
+  readonly countFrom?: string;
   readonly line?: number;
   readonly token?: string;
   readonly messageIncludes?: string;

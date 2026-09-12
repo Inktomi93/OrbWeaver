@@ -54,7 +54,7 @@ const REQUIRED_POLICY_KEYS = [
   "mustPass",
 ] as const;
 const PROOF_KEYS = new Set(["mode", "files", "links", "expect", "why"]);
-const EXPECT_KEYS = new Set(["count", "line", "token", "messageIncludes"]);
+const EXPECT_KEYS = new Set(["count", "countFrom", "line", "token", "messageIncludes"]);
 const HOOK_KEYS = new Set(["visitors", "visitFile", "evaluate"]);
 const VISITOR_KEYS = new Set(["kinds", "visit"]);
 const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
@@ -136,10 +136,15 @@ function assertExpectation(value: unknown, label: string): void {
   if (expectation["line"] !== undefined && !(Number.isInteger(expectation["line"]) && (expectation["line"] as number) > 0)) {
     invalid(`${label}.line must be a positive integer`);
   }
-  for (const key of ["token", "messageIncludes"] as const) {
+  for (const key of ["token", "messageIncludes", "countFrom"] as const) {
     if (expectation[key] !== undefined) {
       nonBlank(expectation[key], `${label}.${key}`);
     }
+  }
+  // A row declares its count EITHER as a literal OR as the registry constant that drives it, never both —
+  // two answers to one question is the shape where the pair silently disagrees (#2001).
+  if (expectation["count"] !== undefined && expectation["countFrom"] !== undefined) {
+    invalid(`${label} declares both count and countFrom — a row names the literal or the constant driving it, not both`);
   }
 }
 

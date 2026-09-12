@@ -22,9 +22,21 @@
 // script-global branch proves nothing about the branch the live tree actually takes. The subject below is
 // therefore the augmentation, which also serves the `node:process` / `process` MODULE doors from one plant.
 //
-// The LOOKALIKES are deliberately script-global: they mimic no shipped package, their whole job is to differ
-// from the subject in the resolved NAME, and keeping them on the other acceptance branch means both branches
-// of `isAmbientGlobalDeclaration` are exercised by this corpus rather than one.
+// The LOOKALIKES are deliberately script-global: they mimic no shipped package, and their whole job is to
+// differ from the subject in the resolved NAME.
+//
+// WHAT THIS PLANT DOES **NOT** PROVE, corrected 2026-09-12 (#2037, cb-v-instruments). An earlier version of
+// this header claimed the lookalikes kept "both branches of `isAmbientGlobalDeclaration` exercised". THAT IS
+// FALSE. The predicate is `trusted && isDeclFile && (scriptGlobal || isGlobalAugmentation)` and `||`
+// SHORT-CIRCUITS — and the subject above, both lookalikes AND the installed `@types/node/process.d.ts` all
+// have ZERO TOP-LEVEL import/export declarations (the package's imports sit inside `declare module`), so
+// `scriptGlobal` is true for every one of them and the augmentation branch is never evaluated here. The plant
+// still matches the package byte-for-byte, which is what §4.8b actually requires; the branch claim was the
+// error. A declaration file can only reach the augmentation branch when a TOP-LEVEL import makes it a module,
+// and that fixture is pinned where the claim belongs — on the READER, at
+// `tests/tooling/verify/lib/reference-fact-origin.suite.test.ts`. Reach for the top-level-import form if you
+// ever need that branch from a proof row; the simpler script-global spelling takes the branch the live tree
+// never uses, which is #2037 repeating.
 export const NODE_TYPES_HOME = "node_modules/@types/node/index.d.ts";
 /** A SECOND trusted ambient global carrying an `env` bag under a different NAME — the same-shape/different-name
  *  twin that pins a policy's `globalName` comparison on the env door. */

@@ -190,10 +190,20 @@ export function renderPass(result: PassResult, gatesByName: ReadonlyMap<string, 
 // so a reader (and check-gates.repo.int's scrape) sees ONE roster; the suffix carries the final vocabulary (authority,
 // severity, the population and receipt denominators, waived/granted) instead of a file scan count.
 
-function policyOccurrenceLine(v: Violation): string {
+/** THE PER-FINDING MESSAGE IS PRINTED WHEN IT DIFFERS FROM THE POLICY'S (#2002, owner arm A).
+ *  `lib/structure-report.ts` already puts `finding.message ?? policy.message` on every violation, and the
+ *  group header prints `policy.message` ONCE — so a multi-arm policy printed ONE remedy for all of its arms
+ *  while the correct text sat unread in the JSON. The console line is what the person the gate fires on
+ *  actually reads, so for some fraction of a multi-arm policy's findings it was systematically the wrong
+ *  remedy. An EQUAL message is still printed once, in the header: the comparison is what keeps the ordinary
+ *  single-message policy's output byte-identical. A policy the roster cannot supply has no header at all,
+ *  which is why `undefined` prints. */
+function policyOccurrenceLine(v: Violation, policyMessage: string | undefined): string {
   const loc = v.line > 0 ? `${v.file}:${v.line}:${v.column ?? 0}` : v.file;
   const suffix = v.token === undefined ? "" : `  ${v.token}`;
-  return `      ${loc}${suffix}${v.severity === "warning" ? "  [warning]" : ""}`;
+  const warning = v.severity === "warning" ? "  [warning]" : "";
+  const own = v.message === policyMessage ? "" : `  — ${v.message}`;
+  return `      ${loc}${suffix}${warning}${own}`;
 }
 
 /** The denominator suffix every final line carries: what the policy resolved, what its receipts counted, and what
@@ -224,9 +234,10 @@ function renderPolicyRow(row: FinalPolicyRow, policy: GatePolicy | undefined): r
   }
   const errors = row.violations.filter(({ severity }) => severity === "error").length;
   const warnings = row.violations.length - errors;
+  const occurrence = (violation: Violation): string => policyOccurrenceLine(violation, policy?.message);
   if (row.ok) {
     const head = warnings > 0 ? `  ✓ ${row.name} (${warnings} warning(s))${suffix}` : `  ✓ ${row.name}${suffix}`;
-    return [head, ...row.violations.map(policyOccurrenceLine)];
+    return [head, ...row.violations.map(occurrence)];
   }
   const lines = [`  ✗ ${row.name} (${row.violations.length})${suffix}`];
   if (policy !== undefined) {
@@ -235,7 +246,7 @@ function renderPolicyRow(row: FinalPolicyRow, policy: GatePolicy | undefined): r
       lines.push(`      fix: ${policy.fix}`);
     }
   }
-  lines.push(...row.violations.map(policyOccurrenceLine));
+  lines.push(...row.violations.map(occurrence));
   return lines;
 }
 

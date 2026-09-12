@@ -704,8 +704,8 @@ export const gate = defineGate({
       mode: "types",
       // The ROSTER anchor — present only in the arms that deliberately arm the whole-roster sweeps.
       files: { ...CHAT_BUS, ...CHATS_SCHEMA, [ROSTER_ANCHOR]: SCHEMA_BARREL_SOURCE },
-      expect: { token: "credentials", messageIncludes: "writes nothing" },
-      why: "the ORPHAN direction — every other registry row names a domain this mini-tree does not have. A row that survives its domain's deletion is a standing verdict about nothing. NO `count`: the count is the registry's own cardinality, so pinning it would make every registry edit a two-site edit; the `token` pins WHICH row instead",
+      expect: { countFrom: "DOMAIN_FRESHNESS", token: "credentials", messageIncludes: "writes nothing" },
+      why: "the ORPHAN direction — every other registry row names a domain this mini-tree does not have. A row that survives its domain's deletion is a standing verdict about nothing. `countFrom: DOMAIN_FRESHNESS` rather than a literal (#2001): this fixture carries ROSTER_ANCHOR, so the whole-roster sweep fires once per registry row and the count IS the registry's cardinality — pinning it would make a legitimate registry edit a two-site edit and a red proof. The `token` pins WHICH row instead",
     },
     {
       mode: "types",
@@ -722,7 +722,7 @@ export const gate = defineGate({
         [`${DOMAIN_PREFIX}credentials/verbs/rotate.ts`]:
           'import { credentials } from "@orb/db";\nexport async function rotate(ctx) {\n  await ctx.db.update(credentials).set({ n: 1 });\n  ctx.emitUserEvent(1, { type: "credentialsChanged" });\n}\n',
       },
-      expect: { token: "update", messageIncludes: "is ROOM-SEATED" },
+      expect: { countFrom: "DOMAIN_FRESHNESS", token: "update", messageIncludes: "is ROOM-SEATED" },
       why: "THE SEATED ARM — the honesty ratchet the bridge was built to leave behind. `credentials` answers `roomReach: none`, and this mini-tree seats its rows in a room via a chat-anchored junction; the row is now a lie and the gate says so. It is keyed on a REAL `none` domain deliberately (a probe domain has no registry row at all, so it is MISSING-red and never reaches this arm), and on the one `none` whose reason can never flip to `bridge` — a credential rendered to a room member would be the credential-firewall defect, not a freshness gap",
     },
     {
@@ -738,7 +738,7 @@ export const gate = defineGate({
         [`${DOMAIN_PREFIX}character/verbs/update.ts`]:
           'import { characters } from "@orb/db";\nexport async function update(ctx) {\n  await ctx.db.update(characters).set({ n: 1 });\n  ctx.emitUserEvent(1, { type: "charactersChanged" });\n}\n',
       },
-      expect: { token: "update", messageIncludes: "claims room seating" },
+      expect: { countFrom: "DOMAIN_FRESHNESS", token: "update", messageIncludes: "claims room seating" },
       why: "the SEATED arm's OTHER side — `character` declares `roomReach: bridge`, and in a tree where nothing seats a character in a room that claim is a standing verdict about a junction that is gone. Without this direction the ratchet is one-sided, which is how a `bridge` row survives the deletion of the seating it was granted for",
     },
     {
@@ -752,7 +752,7 @@ export const gate = defineGate({
           'export const chatWidgets = sqliteTable("chat_widgets", {\n  chatId: text("chat_id").references(() => chats.id),\n  widgetId: text("widget_id").references(() => widgets.id),\n});\n',
         "packages/db/src/schema/nobody.ts": `${DRIZZLE_IMPORT}export const widgets = sqliteTable("widgets", { id: text("id").primaryKey() });\n`,
       },
-      expect: { token: "nobody", messageIncludes: "cannot be attributed to any domain" },
+      expect: { countFrom: "DOMAIN_FRESHNESS", token: "nobody", messageIncludes: "cannot be attributed to any domain" },
       why: "THE ATTRIBUTION TOTALITY ARM — seating that lands on a schema file with no same-named domain is un-attributable, so SEATED-red would be SILENTLY blind to it. It is the `users` case generalized: the one real instance is classified in UNSEATABLE_SCHEMA with its reason, and any second one has to be classified too rather than vanishing",
     },
     {
@@ -766,7 +766,7 @@ export const gate = defineGate({
           `${DRIZZLE_IMPORT}export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n` +
           'export const chatInjections = sqliteTable("chat_injections", { chatId: text("chat_id").references(() => chats.id) });\n',
       },
-      expect: { token: "users", messageIncludes: "ratchet down" },
+      expect: { countFrom: "DOMAIN_FRESHNESS", token: "users", messageIncludes: "ratchet down" },
       why: "THE OTHER SIDE OF THE TOTALITY ARM, and the first proof it has ever had: the seating derivation works and reaches NOTHING un-attributable, so the one `UNSEATABLE_SCHEMA` row classifies a junction that no longer exists. Without this direction the classification outlives its subject exactly the way an unrowed seating hides from SEATED-red — the same two-sided rot, one table down",
     },
     {
@@ -778,7 +778,7 @@ export const gate = defineGate({
         // that means the spelling or the root moved.
         "packages/db/src/schema/character.ts": `${DRIZZLE_IMPORT}export const characters = sqliteTable("characters", { id: text("id").primaryKey() });\n`,
       },
-      expect: { token: "schema", messageIncludes: "DERIVED NO CHAT-ANCHORED TABLES" },
+      expect: { countFrom: "DOMAIN_FRESHNESS", token: "schema", messageIncludes: "DERIVED NO CHAT-ANCHORED TABLES" },
       why: "the §4.6 BLINDNESS tripwire for the SEATING derivation, which is a SECOND derivation and therefore owes its own: the plane axis's blindness arm watches the write spelling, and would stay perfectly green while the FK graph moved and SEATED-red silently stopped existing",
     },
     {

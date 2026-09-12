@@ -14,6 +14,7 @@ import {
   isContextRooted,
   markerFormIdsOf,
   mentionsWaiverOf,
+  messageAlternatives,
   policyIdOfPath,
   proofRowsOf,
   reportSiteMessage,
@@ -209,9 +210,48 @@ test("reportSiteOf recognises the sink through the context, destructuring and a 
   expect(sites.filter((site) => site !== undefined)).toEqual(["node", "file", "node"]);
   const reportCalls = callsOf(sf).filter((call) => reportSiteOf(call) !== undefined);
   expect(reportCalls.map((call) => reportSiteMessage(call))).toEqual([
-    { kind: "override", text: { segments: ["one"], complete: true } },
+    { kind: "override", texts: [{ segments: ["one"], complete: true }] },
     { kind: "policy" },
-    { kind: "override", text: { segments: ["two"], complete: true } },
+    { kind: "override", texts: [{ segments: ["two"], complete: true }] },
+  ]);
+});
+
+// #2055: `staticSegments` answers with the UNION of a conditional's branches in ONE record, which is the right
+// answer for one subject and the WRONG one for a message CENSUS — a site emitting `cond ? A : B` emits A or B
+// and never a text carrying both, so folding them made a substring living only in A read as matching the
+// module's ONLY source (TAUTOLOGY) on rows whose `messageIncludes` is their only discriminator.
+test("messageAlternatives splits a conditional message into one source per branch, through templates and aliases", () => {
+  const sf = moduleOf(
+    [
+      "declare const unreadable: boolean;",
+      "declare const operation: string;",
+      'const UNREADABLE = "whether this opens a socket CANNOT be established.";',
+      'const MESSAGE = "this opens a socket.";',
+      `const composed = \`${OPEN}unreadable ? UNREADABLE : MESSAGE} Proc: ${OPEN}operation}.\`;`,
+      'const plain = "just the one text.";',
+      'const nested = unreadable ? (operation === "" ? "a" : "b") : "c";',
+      "",
+    ].join("\n"),
+  );
+  // TWO sources, one per branch — each carrying the certain pieces of THAT branch and nothing from the other.
+  expect(messageAlternatives(initializer(sf, "composed"))).toEqual([
+    { segments: ["whether this opens a socket CANNOT be established. Proc: ", "."], complete: false },
+    { segments: ["this opens a socket. Proc: ", "."], complete: false },
+  ]);
+  // The UNION read is still what `staticSegments` answers — one record holding both branches' text, which is
+  // exactly the fold that made the census lie.
+  expect(staticSegments(initializer(sf, "composed")).segments).toEqual([
+    "whether this opens a socket CANNOT be established.",
+    "this opens a socket.",
+    " Proc: ",
+    ".",
+  ]);
+  // A message with no conditional is ONE alternative, identical to the single read — no behaviour moved.
+  expect(messageAlternatives(initializer(sf, "plain"))).toEqual([{ segments: ["just the one text."], complete: true }]);
+  expect(messageAlternatives(initializer(sf, "nested"))).toEqual([
+    { segments: ["a"], complete: true },
+    { segments: ["b"], complete: true },
+    { segments: ["c"], complete: true },
   ]);
 });
 

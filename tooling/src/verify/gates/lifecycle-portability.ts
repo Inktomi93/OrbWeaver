@@ -554,8 +554,8 @@ export const gate = defineGate({
         "packages/db/src/schema/journal.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const journalEntries = sqliteTable("journal_entries", { body: text("body") });\n',
       },
-      expect: { token: "characters", messageIncludes: "PORTABLE_CANON_TABLES names a table the schema no longer declares" },
-      why: "THE RATCHET ARM, mode (B) of §4.4a, and the first proof it has ever had: the barrel resolves so this IS the production schema, and every carried/classified table is gone — a registry row that outlives its subject must RED rather than sit there looking like a ruling. NO `count`: the count is the registry's own cardinality (14 carried + 17 classified + 11 door cites), so pinning it would make every registry edit a two-site edit and turn a legitimate row addition into a red proof. The `token` pins WHICH row instead",
+      expect: { countFrom: "PORTABLE_CANON_TABLES", token: "characters", messageIncludes: "PORTABLE_CANON_TABLES names a table the schema no longer declares" },
+      why: "THE RATCHET ARM, mode (B) of §4.4a, and the first proof it has ever had: the barrel resolves so this IS the production schema, and every carried/classified table is gone — a registry row that outlives its subject must RED rather than sit there looking like a ruling. `countFrom: PORTABLE_CANON_TABLES` rather than a literal (#2001): the count is the registry's own cardinality (14 carried + 17 classified + 11 door cites), so pinning it would make every registry edit a two-site edit and turn a legitimate row addition into a red proof. The `token` pins WHICH row instead",
     },
     {
       mode: "types",
@@ -565,8 +565,8 @@ export const gate = defineGate({
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const journalEntries = sqliteTable("journal_entries", { body: text("body") });\n',
         "packages/server/src/transport/trpc/routers/persona.ts": "export const personaRouter = t.router({ list: 1 });\n",
       },
-      expect: { token: "persona.export", messageIncludes: "the door table is lying" },
-      why: "ARM B, and the first proof IT has ever had: a real router source that declares `list` but not `export`, so the `persona` single-export door cites a proc nothing declares. The router IS read (its `list` proc resolves), which is what makes this a cite failure rather than an empty-corpus artefact — the distinction the legacy arm could not express at all, because it only ever ran on the real tree",
+      expect: { countFrom: "PORTABLE_CANON_TABLES", token: "persona.export", messageIncludes: "the door table is lying" },
+      why: "ARM B, and the first proof IT has ever had: a real router source that declares `list` but not `export`, so the `persona` single-export door cites a proc nothing declares. The router IS read (its `list` proc resolves), which is what makes this a cite failure rather than an empty-corpus artefact — the distinction the legacy arm could not express at all, because it only ever ran on the real tree. `countFrom: PORTABLE_CANON_TABLES` (#2001): this fixture also arms the whole ratchet sweep, so the door cite is ONE finding among the registry's cardinality; the `token` is what pins this arm",
     },
   ],
   mustPass: [

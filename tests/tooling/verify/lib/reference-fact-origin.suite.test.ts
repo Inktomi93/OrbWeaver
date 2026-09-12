@@ -431,6 +431,49 @@ test("project-authored ambient declarations do not become trusted global origins
   expect(resolveCallableOrigin(call)).toMatchObject({ kind: "unresolved", reason: "missing" });
 });
 
+// #2037: `isAmbientGlobalDeclaration` is `trusted && isDeclFile && (scriptGlobal || isGlobalAugmentation)`,
+// and `||` SHORT-CIRCUITS. Every fixture the gate corpus plants — `_proof/node-types.ts`'s `process` subject,
+// both lookalikes — AND the installed `@types/node/process.d.ts` itself have ZERO top-level import/export
+// declarations (the package's imports sit inside `declare module`), so `scriptGlobal` is true for all of them
+// and the AUGMENTATION branch is never evaluated by any proof row. The plant header and guide §4.8b both
+// claimed the corpus exercised both branches; it did not, and a branch nothing reaches is a branch that can
+// rot silently. This is the only shape that can be admitted by the second branch alone.
+test("a trusted declaration file with a TOP-LEVEL import reaches the global-augmentation branch alone", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true } });
+  project.createSourceFile("/node_modules/@types/augmented/marker.d.ts", "export interface Marker {\n  readonly id: string;\n}\n");
+  const plant = project.createSourceFile(
+    "/node_modules/@types/augmented/index.d.ts",
+    'import type { Marker } from "./marker.js";\ndeclare global {\n  var augmented: { readonly marker: Marker; run(): number };\n}\nexport {};\n',
+  );
+  project.createSourceFile("/repo/use.ts", "export const value = augmented.run();");
+
+  // THE MECHANISM, asserted rather than assumed: a top-level import makes this file a MODULE, so the
+  // script-global branch cannot be what admits it.
+  expect(plant.getImportDeclarations()).toHaveLength(1);
+  expect(plant.isDeclarationFile()).toBe(true);
+
+  const call = project.getSourceFileOrThrow("/repo/use.ts").getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  expect(resolveCallableOrigin(call)).toMatchObject({
+    kind: "resolved",
+    value: expect.objectContaining({ target: expect.objectContaining({ kind: "global", globalName: "augmented", memberPath: ["run"] }) }),
+  });
+});
+
+// The control isolates the TRUST fence, so its global is `const`: a project-authored `var` global refuses
+// first as a mutable-write hazard, which would pass this test for the wrong reason.
+test("the augmentation branch does not widen TRUST — the same shape outside @types still refuses", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true } });
+  project.createSourceFile("/repo/marker.d.ts", "export interface Marker {\n  readonly id: string;\n}\n");
+  project.createSourceFile(
+    "/repo/augmented.d.ts",
+    'import type { Marker } from "./marker.js";\ndeclare global {\n  const augmented: { readonly marker: Marker; run(): number };\n}\nexport {};\n',
+  );
+  project.createSourceFile("/repo/use.ts", "export const value = augmented.run();");
+
+  const call = project.getSourceFileOrThrow("/repo/use.ts").getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  expect(resolveCallableOrigin(call)).toMatchObject({ kind: "unresolved", reason: "missing" });
+});
+
 test("standard DOM declarations normalize window and self carriers beside lexical shadows", () => {
   const project = new Project({ useInMemoryFileSystem: true });
   const source = project.createSourceFile(

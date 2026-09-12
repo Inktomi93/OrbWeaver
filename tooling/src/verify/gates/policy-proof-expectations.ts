@@ -6,6 +6,12 @@
 //   C a `mustFlag` row with no `expect.count` asserts only "at least one finding" — it passes when the policy
 //     flags the WRONG node or flags eight where one was meant (wave-1 D1: `server-layout` `mustFlag[0]`
 //     tolerated 8 findings from two arms under a one-finding `why`). §4.1: "Name `count` always."
+//     THE ONE DECLARED EXEMPTION (#2001, owner 2026-09-12): `expect: { countFrom: "<DRIVER>" }`, for the
+//     measured class where the finding count is a module-level registry's cardinality the fixture cannot
+//     control — pinning a literal there makes a legitimate registry addition a RED PROOF. It is EXACT: the
+//     named driver must resolve at module scope in this very module (the same question `verifyPolicyProofs`
+//     asks at runtime, through the shared `declaresModuleName`), and — tighter than the ruling, because the
+//     alternative is a row asserting nothing — the row must still carry `token`/`line`/`messageIncludes`.
 //   M a `messageIncludes` that cannot discriminate — the substring sits inside the static text of the
 //     module's ONLY message source (a tautology: it matches every finding the policy can emit), or inside the
 //     static text of TWO OR MORE sources (wave-1 D3: `ui-exports-map-complete`'s `"not"` lives in both the
@@ -23,8 +29,15 @@
 // source this reader cannot read makes the module UNJUDGED on arm M — a declared limit, never a guess, and
 // exactly the conservative direction: an unreadable module produces no finding here, ever.
 //
-// A conditional (`cond ? "no entry at all" : \`"${t}", not …\``) contributes BOTH branches, which is what makes
-// D3 reachable: the substring must be judged against every text one site can emit.
+// A conditional message is TWO SOURCES, one per branch (#2055) — the census reads through
+// `messageAlternatives`, never through the folded `staticSegments` union. One `ctx.report` spelled
+// `found.unreadable ? UNREADABLE : MESSAGE` emits one text or the other and never a text carrying both, so
+// folding them made a substring that lives in exactly one branch read as matching the module's ONLY source:
+// TAUTOLOGY, on three live #2041 rows whose `messageIncludes` is the only thing telling their fail-closed arm
+// from its sibling, and whose remedy as written ("drop it") would have deleted that discriminator from a HARD
+// arm. Splitting keeps the FINDING direction intact — a substring in BOTH branches is still two hits, still
+// SHARED — which is the pair of rows that pins it. The same widening is what makes D3 reachable: the substring
+// is judged against every text one site can emit, one text at a time.
 //
 // THE CALL HALF (#2040). A message COMPOSED BY A CALL was text the census could not see, and a partially-read
 // source was counted as if it had been read whole — so a substring that also lives in the invisible piece read
@@ -45,6 +58,7 @@ import { defineGate } from "../contract/policy.ts";
 import type { StaticSegments } from "../contract/policy-descriptor-read.ts";
 import {
   contextParameterOf,
+  declaresModuleName,
   descriptorProperty,
   descriptorValue,
   discriminationOf,
@@ -52,11 +66,11 @@ import {
   isContextRooted,
   isMessageProperty,
   isStringTyped,
+  messageAlternatives,
   objectLiteralOf,
   proofRowsOf,
   reportSiteMessage,
   reportSiteOf,
-  staticSegments,
   staticText,
 } from "../lib/policy-descriptor-read.ts";
 import { familyFixture, finalProbeModule, HARD_TRUNK } from "./_proof/policy-soundness.ts";
@@ -66,7 +80,9 @@ const SELF = "tooling/src/verify/gates/policy-proof-expectations.ts";
 const MESSAGE =
   "a `mustFlag` proof row is under-specified (gate-runtime-standardization.md §4.1): it carries no `expect.count` (the only " +
   "field the conformance runner compares exactly — without it the row passes on the WRONG node and on N findings where one " +
-  "was meant), or its `messageIncludes` discriminates nothing, or the row is not a statically readable object literal.";
+  "was meant), or its `messageIncludes` discriminates nothing, or the row is not a statically readable object literal. " +
+  "A `countFrom` token: the row DECLARES a registry-driven count, and the declaration is not exact — the named driver does not resolve in " +
+  "this module, or the row carries no identity field beside it.";
 const NO_COUNT_MESSAGE =
   "`mustFlag` row carries no `expect.count` — `expectationFailure` (ops/policy-conformance.ts) returns early once one finding " +
   "exists, so this row passes when the policy flags the wrong node or flags several where one was meant. Name `count` always (§4.1).";
@@ -76,6 +92,13 @@ const TAUTOLOGY_MESSAGE =
 const SHARED_MESSAGE =
   "`messageIncludes` is contained in the static text of MORE THAN ONE of this module's message sources, so it cannot tell the arm the " +
   'row is about from its sibling (the `"not"`-matches-both-arms shape). Pick a substring only the intended message carries.';
+const COUNT_FROM_UNRESOLVED_MESSAGE =
+  "`expect.countFrom` names a driver this module declares NOWHERE at module scope — the declared exemption names nothing, so the row is " +
+  "back to asserting only `at least one finding` while wearing an exemption's clothes. Name the module-level constant (or import) whose " +
+  "cardinality actually drives the count (#2001, gate-runtime-standardization.md §4.1).";
+const COUNT_FROM_BARE_MESSAGE =
+  "`expect.countFrom` replaces `count` but this row carries NO other identity field — `token`, `line` or `messageIncludes` — so it asserts " +
+  "nothing at all, which is strictly worse than the literal it replaces. A registry-driven row still names WHICH node or WHICH arm (#2001, gate-runtime-standardization.md §4.1).";
 const UNREADABLE_ROW_MESSAGE =
   "a proof row is not a statically readable object literal — §12.1 requires every self-proof row to declare its fixture explicitly; " +
   "a row assembled at runtime cannot be checked for `expect.count` by any reader.";
@@ -116,12 +139,22 @@ function addText(state: CensusState, text: StaticSegments | undefined): void {
   }
 }
 
+/** Each ALTERNATIVE is its own source (#2055) — a site whose message is `cond ? A : B` contributes two, and
+ *  an alternative this reader could not read contributes one unreadable source. */
+function addTexts(state: CensusState, texts: readonly StaticSegments[]): void {
+  for (const text of texts) {
+    addText(state, text);
+  }
+}
+
 function censusSite(state: CensusState, call: CallExpression): void {
   const provenance = reportSiteMessage(call);
   if (provenance.kind === "policy") {
     state.bare = true;
+  } else if (provenance.kind === "override") {
+    addTexts(state, provenance.texts);
   } else {
-    addText(state, provenance.kind === "override" ? provenance.text : undefined);
+    addText(state, undefined);
   }
 }
 
@@ -130,7 +163,7 @@ function censusSite(state: CensusState, call: CallExpression): void {
 function censusEscape(state: CensusState, call: CallExpression): void {
   for (const argument of call.getArguments()) {
     if (isStringTyped(argument)) {
-      addText(state, staticSegments(argument));
+      addTexts(state, messageAlternatives(argument));
     }
   }
 }
@@ -149,20 +182,48 @@ function messageCensus(descriptor: ObjectLiteralExpression, walk: ModuleWalk): M
   for (const property of walk.messageProperties) {
     const initializer = property.getInitializer();
     if (property.getParent() !== descriptor && initializer !== undefined) {
-      addText(state, staticSegments(initializer));
+      addTexts(state, messageAlternatives(initializer));
     }
   }
   if (state.bare) {
     const own = descriptorValue(descriptor, "message");
-    addText(state, own === undefined ? undefined : staticSegments(own));
+    if (own === undefined) {
+      addText(state, undefined);
+    } else {
+      addTexts(state, messageAlternatives(own));
+    }
   }
   return { sources: [...state.sources.values()], unreadable: state.unreadable };
 }
 
+/** The identity fields a row can carry BESIDE its count — what tells one arm's findings from another's. */
+const IDENTITY_FIELDS = ["token", "line", "messageIncludes"] as const;
+
+/** ARM C's declared exemption (#2001): `countFrom` names the module-level driver whose cardinality the fixture
+ *  cannot control, and it is EXACT — the name must resolve in this very module, and the row must still say
+ *  WHICH node or arm it is about. The second requirement is deliberately TIGHTER than the owner's ruling,
+ *  which accepted `countFrom` and required only that the constant resolve: without an identity field the
+ *  exemption leaves the row asserting nothing, which is worse than the literal `count` it replaces. */
+function judgeCountFrom(ctx: GatePolicyContext, expectation: ObjectLiteralExpression, sourceFile: SourceFile): void {
+  const property = descriptorProperty(expectation, "countFrom");
+  const name = property === undefined ? undefined : staticText(property.getInitializer());
+  if (property === undefined) {
+    return;
+  }
+  if (name === undefined || !declaresModuleName(sourceFile, name)) {
+    ctx.report.node(property, { token: "countFrom", offset: 0, message: COUNT_FROM_UNRESOLVED_MESSAGE });
+  }
+  if (!IDENTITY_FIELDS.some((field) => expectation.getProperty(field) !== undefined)) {
+    ctx.report.node(property, { token: "countFrom", offset: 0, message: COUNT_FROM_BARE_MESSAGE });
+  }
+}
+
 /** Arms C and M over ONE `mustFlag` row. */
-function judgeRow(ctx: GatePolicyContext, row: ObjectLiteralExpression, census: MessageCensus): void {
+function judgeRow(ctx: GatePolicyContext, row: ObjectLiteralExpression, census: MessageCensus, sourceFile: SourceFile): void {
   const expectation = objectLiteralOf(descriptorValue(row, "expect"));
-  if (expectation === undefined || expectation.getProperty("count") === undefined) {
+  if (expectation !== undefined && expectation.getProperty("countFrom") !== undefined) {
+    judgeCountFrom(ctx, expectation, sourceFile);
+  } else if (expectation === undefined || expectation.getProperty("count") === undefined) {
     ctx.report.node(row, { message: NO_COUNT_MESSAGE });
   }
   const includes = expectation === undefined ? undefined : descriptorProperty(expectation, "messageIncludes");
@@ -178,14 +239,14 @@ function judgeRow(ctx: GatePolicyContext, row: ObjectLiteralExpression, census: 
   }
 }
 
-function judgeModule(ctx: GatePolicyContext, descriptor: ObjectLiteralExpression, walk: ModuleWalk): void {
+function judgeModule(ctx: GatePolicyContext, descriptor: ObjectLiteralExpression, walk: ModuleWalk, sourceFile: SourceFile): void {
   const rows = proofRowsOf(descriptorValue(descriptor, "mustFlag"));
   for (const node of rows.unreadable) {
     ctx.report.node(node, { message: UNREADABLE_ROW_MESSAGE });
   }
   const census = messageCensus(descriptor, walk);
   for (const row of rows.rows) {
-    judgeRow(ctx, row, census);
+    judgeRow(ctx, row, census, sourceFile);
   }
 }
 
@@ -208,6 +269,25 @@ const TWO_SOURCE_MODULE = (rowExpect: string): string =>
 const CONDITIONAL_MODULE = (rowExpect: string): string =>
   finalProbeModule(
     `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ visitors: [{ kinds: [1], visit: (node: MorphNode) => { const target = node.getText(); const detail = target === "" ? "no entry at all" : \`"\${target}", not "x"\`; ctx.report.node(node, { message: \`exports has \${detail} for the key.\` }); ctx.report.node(node, { message: \`points at "\${target}", which does not exist.\` }); } }] }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: ${rowExpect}, why: "w" }],`,
+    'import type { Node as MorphNode } from "ts-morph";\n',
+  );
+
+/** The #2001 declared exemption, with the driver constant present or absent and the row's identity field
+ *  present or absent — the four combinations ARM C's exact-exemption rule turns on. */
+const REGISTRY_DRIVEN_MODULE = (rowExpect: string, prelude: string): string =>
+  finalProbeModule(
+    `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ visitors: [{ kinds: [1], visit: (node) => ctx.report.node(node) }] }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: ${rowExpect}, why: "w" }],`,
+    prelude,
+  );
+
+const DRIVER = 'const PORTABLE_CANON_TABLES = ["a", "b"];\n';
+
+/** THE #2055 SHAPE: ONE report site whose message is a CONDITIONAL. The module emits two texts from one
+ *  `ctx.report`, which the census must read as TWO sources — the fold that read them as one made a substring
+ *  living in a single branch match "the module's only source" and fired TAUTOLOGY. */
+const ONE_SITE_CONDITIONAL_MODULE = (rowExpect: string): string =>
+  finalProbeModule(
+    `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ visitors: [{ kinds: [1], visit: (node: MorphNode) => { const unreadable = node.getText() === ""; ctx.report.node(node, { message: unreadable ? "whether this opens a socket CANNOT be established." : "this opens a tRPC socket." }); } }] }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: ${rowExpect}, why: "w" }],`,
     'import type { Node as MorphNode } from "ts-morph";\n',
   );
 
@@ -253,7 +333,7 @@ export const gate = defineGate({
           const path = ctx.relativePath(sourceFile);
           const descriptor = finalDescriptorOf(sourceFile);
           if (descriptor !== undefined) {
-            judgeModule(ctx, descriptor, walkOf(walks, sourceFile));
+            judgeModule(ctx, descriptor, walkOf(walks, sourceFile), sourceFile);
           } else if (path === SELF) {
             throw new Error(BLIND);
           }
@@ -303,6 +383,24 @@ export const gate = defineGate({
       files: familyFixture(CONDITIONAL_MODULE('{ count: 1, messageIncludes: "not" }')),
       expect: { count: 1, token: "messageIncludes", messageIncludes: "MORE THAN ONE" },
       why: "M D3 EXACTLY: the first site's message is a template over a CONDITIONAL whose false branch carries `not`, the second site's static text carries `not` too — reachable only because a conditional contributes both branches",
+    },
+    {
+      mode: "types",
+      files: familyFixture(REGISTRY_DRIVEN_MODULE('{ countFrom: "PORTABLE_CANON_TABLES", token: "x" }', "")),
+      expect: { count: 1, token: "countFrom", messageIncludes: "declares NOWHERE at module scope" },
+      why: "C THE DECLARED EXEMPTION IS EXACT (#2001): `countFrom` names a driver this module binds nowhere, so the exemption names nothing and the row is back to `at least one finding` wearing an exemption's clothes — the planted break for the new row shape (§4.7)",
+    },
+    {
+      mode: "types",
+      files: familyFixture(REGISTRY_DRIVEN_MODULE('{ countFrom: "PORTABLE_CANON_TABLES" }', DRIVER)),
+      expect: { count: 1, token: "countFrom", messageIncludes: "NO other identity field" },
+      why: "C TIGHTER THAN THE RULING, deliberately: the driver resolves, but the row names no `token`/`line`/`messageIncludes`, so it asserts NOTHING — strictly worse than the literal `count` it replaces. The ruling accepted `countFrom` and required only resolution; this companion requirement is the gate's, and it is why `verify-registry-parity`'s bare row gained a `token` rather than an exemption",
+    },
+    {
+      mode: "types",
+      files: familyFixture(ONE_SITE_CONDITIONAL_MODULE('{ count: 1, messageIncludes: "socket" }')),
+      expect: { count: 1, token: "messageIncludes", messageIncludes: "MORE THAN ONE" },
+      why: "M THE CONDITIONAL SPLIT, FINDING DIRECTION (#2055): one site, two branch texts, and `socket` sits in BOTH — splitting the branches into two sources keeps the SHARED verdict reachable, so the arm did not go blind when the fold was removed",
     },
     {
       mode: "types",
@@ -367,6 +465,16 @@ export const gate = defineGate({
         ),
       ),
       why: "M messages behind const aliases and a concatenation are read like inline strings — `registered` sits in exactly one of the two",
+    },
+    {
+      mode: "types",
+      files: familyFixture(REGISTRY_DRIVEN_MODULE('{ countFrom: "PORTABLE_CANON_TABLES", token: "x", line: 1 }', DRIVER)),
+      why: "C THE HONEST REGISTRY-DRIVEN ROW (#2001): the driver resolves at module scope and the row still names WHICH node and WHICH arm. This is the shape the nine live rows carry — a registry addition changes the count and breaks nothing, which is the whole reason the literal was the wrong instrument",
+    },
+    {
+      mode: "types",
+      files: familyFixture(ONE_SITE_CONDITIONAL_MODULE('{ count: 1, messageIncludes: "CANNOT be established" }')),
+      why: "M THE CONDITIONAL SPLIT, CLEAN DIRECTION (#2055) — the row this policy used to accuse falsely. ONE `ctx.report` whose message is `unreadable ? A : B` emits A or B and never a text carrying both, so the substring living only in A discriminates. Under the folded read it matched the module's ONLY source and fired TAUTOLOGY on three live #2041 rows whose `messageIncludes` is the sole thing telling their fail-closed arm from its sibling; the finding's own remedy would have deleted that discriminator",
     },
     {
       mode: "types",
