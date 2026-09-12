@@ -188,12 +188,13 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 
 ## Tool hazards
 
-- **`vitest list --filesOnly --json <path>` OVERWRITES `<path>`.** `--json`'s value is OPTIONAL, so the next
-  positional is consumed as the JSON OUTPUT path rather than as a filter — a lane probing with
-  `--json tests/tooling/smoke.test.ts` replaced that TRACKED TEST FILE with a JSON array (recovered via
-  `git show HEAD:<path> > <path>`). Always `=`-join it to an absolute scratch path
-  (`--json=/tmp/.../out.json`). Same shape as the `rg -r` hazard below: an optional-value flag turns the
-  next argument into a destination.
+- **A REFUSED multi-command Bash call DROPS THE WHOLE CHAIN — including the restore half of a probe.** A
+  `git show HEAD:<path> > <path>` chained with a later `cp`/`mv` restore trips the "too complex to verify" guard;
+  the files sit reverted, nothing visibly fails, and it reads as "my edits never happened". **One command per call
+  for probe-and-restore**, then verify with `git status` (two lanes, 2026-09-12).
+- **AN OPTIONAL-VALUE FLAG TURNS THE NEXT ARGUMENT INTO A DESTINATION.** `vitest list --filesOnly --json
+  <path>` OVERWRITES `<path>` — it replaced a TRACKED TEST FILE with a JSON array. Always `=`-join
+  (`--json=/tmp/.../out.json`). Same class as the `rg -r` hazard below.
 - **The sanctioned `__probe` path is INVISIBLE to biome.** `.gitignore` covers the constitution §4 scratch-probe idiom
   (`features/__probe/...`) and `biome.json` sets `vcs.useIgnoreFile: true`, so `biome check` on a probe reports
   "No files were processed in the specified paths" and exits as if nothing was wrong — a false green that reads exactly
