@@ -26,8 +26,11 @@ findings were already CLOSED. Do not repeat that.
    explicitly every time — it was briefed wrong for most of 2026-09-11 and cost at least one lane.
 3. **A RECORDED REFUSAL IS A SNAPSHOT, NOT A STANDING VERDICT.** Nothing re-opens one when its blocker
    lands. `runner-config-path-liveness` refused citing a missing `authored-path` door; the kind was
-   **specified by that refusal**, shipped, and the gate is still legacy (#2013). Same shape as the deferred
-   roster's 8 entries still reading "not yet ported" after landing (#2008). **Re-derive before inheriting.**
+   **specified by that refusal**, shipped — and the gate STILL sat legacy afterwards because nothing re-opens
+   a refusal when its blocker lands. It has since converted and is FINAL (#2013 closed); the lesson is
+   sharper for having been paid twice, and this paragraph itself went stale claiming otherwise until
+   2026-09-12. Same shape as the deferred roster's 8 entries still reading "not yet ported" after landing
+   (#2008). **Re-derive before inheriting.**
 
 ## 1. The read list, in order, with what it costs
 
@@ -96,8 +99,9 @@ Below is what the lookup would have answered on 2026-09-12, kept because each on
   and the constant is named `ALLOWED`. **A spelling-shaped blind spot in the orchestrator's own
   measurement.**
 - **`exception-authority-census.md:163`** — `runner-config-path-liveness.EXEMPT` is a named empty
-  `ExemptionTable`. The conversion merged an hour earlier carried it into a FINAL module, making it the
-  **tenth** such module, where the refutation ledger records nine.
+  `ExemptionTable`. The conversion merged an hour earlier carried it into a FINAL module. **The "tenth such
+  module" figure was a bare grep and is wrong: it is EIGHT** — `ownerid-registry` and
+  `persisted-store-registry` declare none (corrected 2026-09-12).
 
 **The general shape:** tiers 1-3 tell you what the program IS; tier 4 tells you what each gate CARRIES.
 So before you BRIEF a conversion, open the tier-4 rows for the modules in that brief — the census row, the
@@ -106,14 +110,21 @@ errors above were sitting. Reading those documents END TO END is not the same ac
 
 ## 2. What NOT to re-derive, because it is already measured
 
-- **The corpus is 275 modules** (171 final / 104 legacy) and the roster is a **PAIR**: 275 active + 28
-  deferred + 2 prebuilt + 3 dropped = 308 rows. The deferred half is one-sided (#2008).
+- **The corpus is 297 modules** (**237 final / 60 legacy**, re-derived 2026-09-12 from
+  `pnpm check:policy-conformance`, which is the roster) and the roster is a **PAIR**: the active half plus 28
+  deferred + 2 prebuilt + 3 dropped. The deferred half is one-sided (#2008). **This bullet read
+  275 / 171 / 104 until 2026-09-12** — a stale count inside the section titled *what NOT to re-derive*, which
+  is the reason every count here now carries its date and its command.
 - **The remaining legacy count understates its work.** A conversion can SPLIT — one authority, one severity,
-  one execution per policy. §12.6 already rules 13 mixed-hook modules into \~32 policies. Price lanes
-  against **\~123 policies from the 104 modules**, not 104.
+  one execution per policy. **§12.6's 13 mixed-hook modules are now CONVERTED**, so the largest known
+  multiplier is already spent and the old "\~123 policies from 104 modules" pricing no longer applies.
+  Re-derive the multiplier for what is left rather than quoting one: of the 60 remaining, only two are `O`
+  and 58 are `X` (a gate-local table, sanction, deferred row, stale arm or custom marker needing a central
+  home first), so the spine is authority migration and not conversion throughput.
 - **The §5b audit is at 112 of 167 and the sweep is CLOSED.** The bar is **one CONFIRMED exemplar per
-  evidence plane, named in guide §3** — not a module count. §3 carries the verdict column; **the closed
-  RESOURCE plane is the one empty cell.**
+  evidence plane, named in guide §3** — not a module count. §3 carries the verdict column, and **every plane
+  now has a confirmed exemplar**: the closed RESOURCE cell was filled at `be4cdebcd`, so the bar is MET.
+  Point a resource conversion at `resource-policy-contract.md`, not at a module.
 - **`pnpm check:policy-conformance` is the roster**, never a grep. A bare `defineGate` grep overcounts by
   two.
 
