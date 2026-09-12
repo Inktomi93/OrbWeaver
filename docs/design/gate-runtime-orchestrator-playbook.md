@@ -437,6 +437,13 @@ session's cgroup fences it to 8 cores (`cpu-fence.sh`, `CPUQuota=800%`), and the
 doing heavy work — not "serialized against structure legs" but with the box genuinely idle — and its budget is NEVER
 widened (300 s is what surfaced the 257 s; a wider number hides the next regression) and its kill path is never
 carved (its self-identifying text is the only reason a load kill and a real child exit 2 could be told apart tonight).
+**And the EXPENSIVE HALF of the barrier (`check:structure` → `structure-delta` → the `tests/tooling/**` battery →
+the `lint:eslint` tier → SIZE → `format:docs`) runs ONCE, on the tree that will stand:** fold the waiting lanes
+first, fix any red the post-fold planters surface (a warm leg on the lane that authored it, before the tail), then run
+the tail. "A merge under a running check voids the check" is a CONCURRENCY rule; certifying a tree that exists for ten
+more minutes buys nothing, and a `format:docs` run before the fold is stale on arrival on exactly the multi-lane files
+where a re-format is the rebase hazard. A barrier reported "not clean" names every open red with its row; it is never
+reported clean with one standing.
 **And an in-place correction inside a LIVE-LAW review doc carries the form `**LANDED <date> (<sha>)**` beside the
 original sentence, never a deletion** (ratified 2026-09-12 from `p-unaudited-fix-b`'s chunk-B leg, which invented it
 because the brief falsely claimed the doc already had a correction idiom): the original stays as the dated claim,
@@ -670,6 +677,13 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   files, so any `tests/tooling/**` PASS from it is vacuous; `tooling/tsconfig.json` (1175 roots) holds the verify
   ENGINE but not its spec, `tsconfig.json` (2297 roots) holds the SPEC but not the engine — an engine-plus-spec change
   owes BOTH programs. Before trusting a PASS, confirm the program's include list actually carries the file.
+- **THE ACCOUNT THAT MEASURED A FINDING FILES IT; THE OTHER ACKS, NEVER RE-FILES** (paid 2026-09-12, #2208/#2209 filed
+  thirty seconds apart): the bridge's round trip is longer than the time it takes to file, so a simultaneous find
+  produces a duplicate row, not a visible collision. A static read that predicts a red is a HEADS-UP note, never a
+  row; the row comes from the run. **And "the fold does not change this suite's subject" is decided by checking
+  whether the fold edits the SUITE FILE, not only what the suite measures** — twice in one night a planter was
+  nearly skipped on that reasoning while a fold commit edited the suite itself (`bea887b49` rewrote
+  `gate-ignore-grammar.repo.int`'s cleanup; it went 22 → 23 and was the one receipt #2200 owed).
 - **A cross-tool invariant needs a cross-tool pin in the PRODUCER's home** (#2175): a generator emitting bytes
   the formatter normalises away is a deadlock between two doors, and the pin that catches it lives in the
   generator's suite, run twice with the second byte-identical — otherwise the regression surfaces in a docs lane
