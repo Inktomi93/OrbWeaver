@@ -175,6 +175,19 @@ contains `unresolved:*` (`:30`), so `messageIncludes: "unresolved"` is in every 
 pins; `config-group-completeness` (a prototype false positive) is now UNJUDGED because its report helper takes the
 message as a parameter.
 
+### 9a. Re-derived after merging `main` at `5bf484118` (the lane's merge commit)
+
+Main landed `0fab76771` (the two resource exemplars repaired — D1's `count`, D3's discriminator), `bb1a896e1`,
+`2766684e3` and the wave 2–6 audits while this lane ran. On the merged tree: `check:policy-conformance` **171 · 1,726 · 0
+failures**; `gate:contract` 761; `pnpm test:scoped` over the two family suites plus
+`enforcement-registry-parity.int.test.ts` (the roster count is its real-tree arm) **30 passed / 30**; the live corpus
+through the dispatcher (34 s, 0 tool errors, nothing withheld, receipt 171): `policy-soundness` **0** ·
+`policy-proof-expectations` **78** (58 no-`count` rows, 18 tautologies, 2 shared — `server-layout` and
+`ui-exports-map-complete` dropped out exactly as their repairs landed, which is the burn-down working) ·
+`policy-waiver-identity` **4** (unchanged; `no-form-state-in-useeffect`'s +50 lines on main are #1951 narrowing rows,
+and its only marker is still wave-4's negative arm at `simple-visitors-wave-4.test.ts:94`) · `policy-waiver-spelling`
+**51** (unchanged; D7's two still among them).
+
 ## 10. The wave-1 re-find table — the ten exemplars against the finished family
 
 | Wave-1 defect | Reachable? | Re-found by | Evidence |
