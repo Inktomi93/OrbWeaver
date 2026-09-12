@@ -70,7 +70,9 @@ test("an explicit changed path outside the repository is CLI misuse, not a tool 
 // receipt for them is the refusal below, taken before either door opens.
 const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] = [
   ["ledgers-fresh", ["--scope", "packages/ui"], "takes no arguments"],
-  ["structure", ["--changed"], "takes no arguments"],
+  // `structure` grew a tail on 2026-09-12 (#2025): zero or one `--fail-on-warnings`, refused before the run
+  // slot opens. `--changed` is still not it — a scope flag on the whole-tree verb is the same #1117 defect.
+  ["structure", ["--changed"], "takes at most --fail-on-warnings"],
   ["gate-contract", ["--changed"], "takes no arguments"],
   ["policy-conformance", ["--changed"], "takes no arguments"],
   ["db-baseline", ["extra"], "takes no arguments"],

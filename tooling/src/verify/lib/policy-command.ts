@@ -6,6 +6,19 @@ import { POLICY_RUN_TIERS } from "../contract/policy-plan.ts";
 import type { PolicyScopeRequest } from "../contract/policy-scope.ts";
 import { assertPolicyScopeRequest } from "./policy-scope.ts";
 
+/** The warning-promotion opt-in's parseArgs key, and below it the ONE user-typed spelling of the flag.
+ *
+ *  Owner ruling 2026-09-13: a final `severity: "warning"` stays genuinely non-blocking, with OPT-IN
+ *  promotion to error. The mechanism is `lib/gate-authority.ts:404`
+ *  (`blocking: errors + alarmErrors + (failOnWarnings ? warnings : 0)`); this grammar is where the
+ *  operator asks for it. The real-tree entrypoints that carry NOTHING ELSE from this grammar
+ *  (`ops/structure.ts`, `ops/scoped.ts`) import `FAIL_ON_WARNINGS_FLAG` instead of re-spelling the token,
+ *  so there is exactly one door spelling on the tree — and when the atomic cutover points `structure` at
+ *  `planPolicyArgv` (docs/reviews/gate-runtime/planner-cli-integration.md), the flag an operator already
+ *  types is the flag the planner already parses. */
+const FAIL_ON_WARNINGS_OPTION = "fail-on-warnings";
+export const FAIL_ON_WARNINGS_FLAG = `--${FAIL_ON_WARNINGS_OPTION}`;
+
 const OPTIONS = {
   tier: { type: "string" },
   static: { type: "boolean" },
@@ -20,7 +33,7 @@ const OPTIONS = {
   check: { type: "string", multiple: true },
   family: { type: "string", multiple: true },
   "strict-scope": { type: "boolean" },
-  "fail-on-warnings": { type: "boolean" },
+  [FAIL_ON_WARNINGS_OPTION]: { type: "boolean" },
   json: { type: "boolean" },
   list: { type: "boolean" },
   explain: { type: "boolean" },
@@ -154,7 +167,7 @@ function hasRunShape(values: Values): boolean {
     values.package !== undefined ||
     values.project !== undefined ||
     values["strict-scope"] === true ||
-    values["fail-on-warnings"] === true
+    values[FAIL_ON_WARNINGS_OPTION] === true
   );
 }
 
@@ -223,7 +236,7 @@ export function parsePolicyCommand(argv: readonly string[]): PolicyCommandParseR
       scope: requestedScope,
       selector: selected,
       strictScope: values["strict-scope"] === true,
-      failOnWarnings: values["fail-on-warnings"] === true,
+      failOnWarnings: values[FAIL_ON_WARNINGS_OPTION] === true,
       json: values.json === true,
     },
   };
