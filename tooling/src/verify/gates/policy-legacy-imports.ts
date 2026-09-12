@@ -1,53 +1,64 @@
-// Policy: policy-legacy-imports — a FINAL module may not import the legacy descriptor contract or the central
-// authority machinery (#2111; family `policy-soundness`, reader `lib/policy-descriptor-read.ts` for the
-// registration and `lib/gate-contract-origin.ts`'s import-origin discipline for the identity). §12.5:
-// *"gate modules receive neither grant tables nor marker parsers"*; §3's non-negotiables: no gate-owned
-// exemption table; §12.8: zero `ExemptionRow` tables, no private runtime. NOTHING held any of it for a final
-// module until this policy: `gate-modernization` ARM B judges only whether an exemption table carries a STALE
-// arm (the legacy law), and the loader validates the descriptor OBJECT, which cannot see an import. Measured
-// 2026-09-12 across the 246 final modules: NINE import `contract/gate.ts` (`ExemptionTable` ×8, `ExemptionRow`
-// ×2, `Finding` ×2), every one a legacy exemption artifact carried across its conversion — the #1922 authority
-// migration's exact work list, and this policy is the enforcer that keeps it from growing while that migration
-// drains. Those nine are RED on the real tree by design (owner ruling 2026-09-12: the red is the finding).
+// Policy: policy-legacy-imports — a FINAL module's IMPORT DOORS are judged by where they RESOLVE (#2111, #2096;
+// family `policy-soundness`, readers `lib/policy-descriptor-read.ts` for both registrations and
+// `lib/gate-contract-origin.ts`'s import-origin discipline for the identity). Two arms, one visitor:
 //
-// THE ONE ARM, PER MEMBER. An `ImportDeclaration` whose specifier RESOLVES — by `getModuleSpecifierSourceFile()`,
-// never by the specifier's spelling — to one of `FORBIDDEN_IMPORT_HOMES`:
-//   `contract/gate.ts`        the legacy descriptor law (`ExemptionTable`, `ExemptionRow`, `Finding`,
-//                             `GateDescriptor`, `GateRunCtx`, `GateExample`)
-//   `lib/pass.ts`             the legacy single-pass dispatcher (`runPass`, `fileLoaded`, `repoRel`)
-//   `lib/gate-ignore.ts`      the legacy `@orb-gate-ignore` parser (§7 kind 1)
-//   `lib/reviewed-grants.ts`  the central grant table (§12.5: a module receives no grant table)
-//   `lib/ordinary-waiver.ts`  the central `@orb-waive` engine (§12.5: a module receives no marker parser)
-//   `lib/gate-authority.ts`   the central coordinator
-//   `lib/policy-pass.ts`      the final dispatcher (a pass inside a pass is a private workspace cache, §12.3)
-//   `lib/loader.ts` · `lib/policy-loader.ts`   the registry (a module that loads the corpus judges itself)
-// IDENTITY, NOT SPELLING, with the `lib/origin-verdict.ts` discipline: the candidate set is NAME-prefiltered
-// (a specifier whose basename is a forbidden home's), the identity is the RESOLVED path's suffix, and the
-// refusal fails closed only inside the candidate set — a candidate that resolves to NOTHING is reported under
-// the disjoint UNREADABLE text rather than acquitted on its spelling, and a same-basename module elsewhere
-// (`gates/pass.ts` beside the module) is acquitted by its resolved path. A specifier whose basename is not a
-// forbidden home's is never resolved at all, which is what keeps `react`, `ts-morph` and every `../lib/`
-// reader out of the accusation.
+//   A the legacy descriptor contract or the central authority machinery (§12.5: *"gate modules receive neither
+//     grant tables nor marker parsers"*; §3's non-negotiables: no gate-owned exemption table; §12.8: zero
+//     `ExemptionRow` tables, no private runtime). NOTHING held any of it for a final module until this policy:
+//     `gate-modernization` ARM B judges only whether an exemption table carries a STALE arm (the legacy law), and
+//     the loader validates the descriptor OBJECT, which cannot see an import. Measured 2026-09-12 across the 246
+//     final modules: NINE import `contract/gate.ts` (`ExemptionTable` ×8, `ExemptionRow` ×2, `Finding` ×2), every
+//     one a legacy exemption artifact carried across its conversion — the #1922 authority migration's exact work
+//     list (row #2147); THREE more import the central marker engine for a coordinate helper (#2155). All twelve are
+//     RED on the real tree by design (owner ruling 2026-09-12: the red is the finding).
+//   B ANOTHER GATE MODULE (§12.3, owner ruling #2096, 2026-09-12: *"a gate module never imports another gate
+//     module; shared predicates move to `lib/<family>.ts`"*). A `-health` sibling reading its twin's exports was
+//     two homes for one reader wearing a family's clothes, and thirteen final modules do it at this arm's landing
+//     (lane `p-family-readers` migrates them by module). The predicate is NOT the directory: `gates/_proof/**`
+//     holds shared proof surfaces that register nothing (`persist-partialize-and-total-migrate` imports
+//     `./_proof/zustand.ts` by right, guide §4.8b), so the arm resolves the specifier and asks the loader's own
+//     question of the TARGET — does it register under either contract (`gateRegistrationOf`)? A module that does
+//     is a gate module wherever it sits; a module that does not is a surface, a reader or a helper.
+//
+// THE CANDIDATE SETS, per arm, with the `lib/origin-verdict.ts` discipline (identity, not spelling; fail closed
+// only inside the candidate set):
+//   A a specifier whose BASENAME is a forbidden home's — the identity is the RESOLVED path's suffix in
+//     `FORBIDDEN_IMPORT_HOMES`: `contract/gate.ts` (`ExemptionTable`, `ExemptionRow`, `Finding`, `GateDescriptor`,
+//     `GateRunCtx`, `GateExample`), `lib/pass.ts` (the legacy dispatcher), `lib/gate-ignore.ts` (the legacy
+//     `@orb-gate-ignore` parser, §7 kind 1), `lib/reviewed-grants.ts` (the grant table), `lib/ordinary-waiver.ts`
+//     (the central `@orb-waive` engine), `lib/gate-authority.ts` (the coordinator), `lib/policy-pass.ts` (the final
+//     dispatcher — a pass inside a pass is a private workspace cache, §12.3), `lib/loader.ts` · `lib/policy-loader.ts`
+//     (the registry — a module that loads the corpus judges itself). A same-basename module elsewhere
+//     (`gates/pass.ts` beside the module) is acquitted by its resolved path.
+//   B a RELATIVE specifier (`./…`, `../…`) — a package door cannot name a gate module. The identity is the target's
+//     registration. An `export … from` re-export is an import in effect and is judged the same way; a type-only
+//     import is coupling all the same (a type has ONE home, `contract/` or `lib/`, never a sibling gate).
+//   A candidate of either arm that resolves to NOTHING is reported under the disjoint UNREADABLE text rather than
+//   acquitted on its spelling (#944 fail-closed). A specifier in neither set is never resolved at all, which is
+//   what keeps `react`, `ts-morph` and every `../lib/` reader out of the accusation.
 //
 // WHAT THIS IS NOT. `../contract/policy.ts`, `../contract/fact.ts` and every other `contract/*` are the FINAL
-// contract and its type homes — imported by every policy. `lib/gate-contract.ts` and `lib/gate-contract-origin.ts`
-// are the shared readers the family itself consumes. The list is closed on purpose; a directory-class member
-// (`ops/**`, measured at zero consumers) is a contract edit with a named consumer, not a widening here.
+// contract and its type homes — imported by every policy. `lib/gate-contract.ts`, `lib/gate-contract-origin.ts`
+// and `lib/policy-descriptor-read.ts` are the shared readers the family itself consumes. The home list is closed
+// on purpose; a directory-class member (`ops/**`, measured at zero consumers) is a contract edit with a named
+// consumer, not a widening here. And a top-level `gates/*.ts` module that registers NOTHING is
+// `gate-modernization` ARM A's finding (UNREGISTERED), not this policy's: importing it is not importing a gate.
 //
 // BLINDNESS: this module sits inside its own population, so when it is delivered and does not read as final the
 // import-origin recognizer is dead and the run THROWS rather than reporting ✓ over the corpus forever (the
 // family's tripwire, pinned by a `mustRefuse` row and through `runPolicyPass` in the family test).
 // `hard`/`error`: an enforcer a gate module could waive out of would be the door §12.5 closed, reopened.
-import type { ImportDeclaration, SourceFile } from "ts-morph";
+import type { ExportDeclaration, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateContractKind } from "../contract/gate-corpus.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { finalRegistrationOf } from "../lib/policy-descriptor-read.ts";
+import { finalRegistrationOf, gateRegistrationOf } from "../lib/policy-descriptor-read.ts";
 import { familyFixture, finalProbeModule, HARD_TRUNK } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-legacy-imports.ts";
 
-/** The closed set, as REPO-RELATIVE suffixes the resolved path is judged by. Each member has its own row. */
+/** ARM A's closed set, as REPO-RELATIVE suffixes the resolved path is judged by. Each member has its own row. */
 const FORBIDDEN_IMPORT_HOMES = [
   "/tooling/src/verify/contract/gate.ts",
   "/tooling/src/verify/lib/pass.ts",
@@ -60,6 +71,7 @@ const FORBIDDEN_IMPORT_HOMES = [
   "/tooling/src/verify/lib/policy-loader.ts",
 ] as const;
 const FORBIDDEN_BASENAMES: ReadonlySet<string> = new Set(FORBIDDEN_IMPORT_HOMES.map((home) => home.slice(home.lastIndexOf("/") + 1)));
+const TOOLING_SRC = "/tooling/src/";
 
 const MESSAGE =
   "a FINAL policy module imports the legacy descriptor contract or the central authority machinery (gate-runtime-standardization.md §12.5, §12.8): " +
@@ -67,57 +79,112 @@ const MESSAGE =
   "engine, the coordinator, the final dispatcher or the loader. A gate module receives neither grant tables nor marker parsers, owns no " +
   "exemption table, and runs no pass of its own; a legacy artifact carried across a conversion is the #1922 migration's work, never a keep. " +
   "The `from` token names the import; the message names the resolved home.";
+const SIBLING_MESSAGE =
+  "a FINAL policy module imports ANOTHER GATE MODULE (gate-runtime-standardization.md §12.3, owner ruling #2096): a gate module never imports a gate " +
+  "module. A split family's shared predicate lives in `lib/<family>.ts` and BOTH siblings import it from there; a sibling reading its twin's " +
+  "exports is two homes for one reader. The target is judged by REGISTRATION, never by directory — a shared proof surface under `gates/_proof/` " +
+  "registers nothing and is not this finding. The `from` token names the import; the message names the target and its contract.";
 const UNREADABLE_MESSAGE =
-  "a FINAL policy module imports a specifier whose basename is a forbidden home's (`gate.ts`, `pass.ts`, `gate-ignore.ts`, `reviewed-grants.ts`, " +
-  "`ordinary-waiver.ts`, `gate-authority.ts`, `policy-pass.ts`, `loader.ts`, `policy-loader.ts`) and the specifier resolves to NOTHING — the import " +
-  "origin CANNOT be established, so the module is reported rather than acquitted on the strength of a spelling (#944 fail-closed).";
+  "a FINAL policy module imports a candidate specifier that resolves to NOTHING — a basename in the forbidden-home set (`gate.ts`, `pass.ts`, " +
+  "`gate-ignore.ts`, `reviewed-grants.ts`, `ordinary-waiver.ts`, `gate-authority.ts`, `policy-pass.ts`, `loader.ts`, `policy-loader.ts`) or a " +
+  "relative path that could name a sibling gate module. The import origin CANNOT be established, so the module is reported rather than " +
+  "acquitted on the strength of a spelling (#944 fail-closed).";
 const FIX =
-  "migrate the exemption table to exact reviewed grants (#1922, §12.5), replace a `Finding`-typed helper with `ctx.report.node`/`ctx.report.file`, " +
-  "and delete every import of the legacy or central machinery; a final module reads only `contract/*` and the shared `lib/` readers.";
+  "ARM A: migrate the exemption table to exact reviewed grants (#1922, §12.5), replace a `Finding`-typed helper with `ctx.report.node`/`ctx.report.file`, " +
+  "and delete every import of the legacy or central machinery; a final module reads only `contract/*` and the shared `lib/` readers. " +
+  "ARM B: move the shared predicate to `lib/<family>.ts` and import it there from BOTH modules (#2096); debt data with one owner (a deferral " +
+  "list) moves to `contract/` or `lib/` the same way — the sibling never becomes the home.";
 const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the import-origin recognizer ` +
   "(lib/gate-contract-origin.ts isCanonicalDefineGate) is dead, so every module would read out of scope. Refusing the run.";
+
+/** An `import … from` or an `export … from` — both open a door to another module and both are judged. */
+type ModuleDoor = ImportDeclaration | ExportDeclaration;
+
+type DoorVerdict =
+  | { readonly kind: "forbidden-home"; readonly home: string }
+  | { readonly kind: "sibling-gate"; readonly contract: GateContractKind; readonly target: string }
+  | { readonly kind: "unreadable" };
 
 function basenameOf(specifier: string): string {
   return specifier.slice(specifier.lastIndexOf("/") + 1);
 }
 
-/** The forbidden home a declaration resolves to, `"unreadable"` for a candidate that resolves nowhere, or
- *  undefined for an import that is not a candidate at all or resolves to an unrelated module. */
-function forbiddenOrigin(declaration: ImportDeclaration): string | undefined {
-  if (!FORBIDDEN_BASENAMES.has(basenameOf(declaration.getModuleSpecifierValue()))) {
-    return;
-  }
-  const target = declaration.getModuleSpecifierSourceFile()?.getFilePath().replaceAll("\\", "/");
-  if (target === undefined) {
-    return "unreadable";
-  }
-  return FORBIDDEN_IMPORT_HOMES.find((home) => target.endsWith(home));
+/** The target's path as a reader spells it — repo-relative under `tooling/src/`, else the basename. Never
+ *  `ctx.relativePath`, which is partial (it throws for a target outside the effective population). */
+function displayPath(absolute: string): string {
+  const index = absolute.indexOf(TOOLING_SRC);
+  return index === -1 ? basenameOf(absolute) : absolute.slice(index + 1);
 }
 
-function judgeModule(ctx: GatePolicyContext, imports: readonly ImportDeclaration[]): void {
-  for (const declaration of imports) {
-    const origin = forbiddenOrigin(declaration);
-    if (origin === undefined) {
+/** The verdict on one door, or undefined for a door that is not a candidate of either arm or resolves to an
+ *  unrelated module. Resolution happens ONLY for a candidate, and a candidate that resolves nowhere fails closed. */
+function judgeDoor(door: ModuleDoor): DoorVerdict | undefined {
+  const specifier = door.getModuleSpecifierValue();
+  if (specifier === undefined) {
+    return;
+  }
+  const homeCandidate = FORBIDDEN_BASENAMES.has(basenameOf(specifier));
+  const siblingCandidate = specifier.startsWith("./") || specifier.startsWith("../");
+  if (!(homeCandidate || siblingCandidate)) {
+    return;
+  }
+  const target = door.getModuleSpecifierSourceFile();
+  if (target === undefined) {
+    return { kind: "unreadable" };
+  }
+  const path = target.getFilePath().replaceAll("\\", "/");
+  const home = homeCandidate ? FORBIDDEN_IMPORT_HOMES.find((candidate) => path.endsWith(candidate)) : undefined;
+  if (home !== undefined) {
+    return { kind: "forbidden-home", home };
+  }
+  const contract = siblingCandidate ? gateRegistrationOf(target) : undefined;
+  return contract === undefined ? undefined : { kind: "sibling-gate", contract, target: displayPath(path) };
+}
+
+function messageOf(verdict: DoorVerdict): string {
+  switch (verdict.kind) {
+    case "forbidden-home":
+      return `${MESSAGE} Resolved home: ${verdict.home.slice(1)}.`;
+    case "sibling-gate":
+      return `${SIBLING_MESSAGE} Resolved target: ${verdict.target}, a ${verdict.contract} gate module.`;
+    case "unreadable":
+      return UNREADABLE_MESSAGE;
+  }
+}
+
+function judgeModule(ctx: GatePolicyContext, doors: readonly ModuleDoor[]): void {
+  for (const door of doors) {
+    const verdict = judgeDoor(door);
+    const specifier = door.getModuleSpecifier();
+    if (verdict === undefined || specifier === undefined) {
       continue;
     }
-    const specifier = declaration.getModuleSpecifier();
-    const offset = specifier.getStart() - declaration.getStart();
-    ctx.report.node(declaration, {
-      token: specifier.getText(),
-      offset,
-      message: origin === "unreadable" ? UNREADABLE_MESSAGE : `${MESSAGE} Resolved home: ${origin.slice(1)}.`,
-    });
+    ctx.report.node(door, { token: specifier.getText(), offset: specifier.getStart() - door.getStart(), message: messageOf(verdict) });
   }
 }
 
 /** A final module importing `named` from `specifier`, beside the planted target so the origin resolves. */
-const IMPORTING = (specifier: string, named: string): string =>
+const IMPORTING = (specifier: string, named: string, prelude = ""): string =>
   finalProbeModule(
     `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
-    `import type { ${named} } from "${specifier}";\n`,
+    `${prelude}import type { ${named} } from "${specifier}";\n`,
   );
 const TARGET = (path: string, named: string): Readonly<Record<string, string>> => ({ [path]: `export type ${named} = unknown;\n` });
+/** A registering FINAL sibling beside the probe: its own canonical `defineGate` through the planted contract stub. */
+const FINAL_SIBLING =
+  'import { defineGate } from "../contract/policy.ts";\nexport const HELPER = 1;\nexport type Helper = number;\nexport const gate = defineGate({ id: "sibling" });\n';
+/** A registering LEGACY sibling: a `gate` descriptor object, the loader's rule 2. */
+const LEGACY_SIBLING =
+  'export const SANCTIONED = ["a"];\nexport const gate = { name: "legacy-sibling", docRow: "x", message: "m", mustFlag: [1], mustPass: [1] };\n';
+const SIBLING_PATH = "tooling/src/verify/gates/sibling.ts";
+const LEGACY_SIBLING_PATH = "tooling/src/verify/gates/legacy-sibling.ts";
+/** A value import of a sibling's export, the live shape (thirteen modules at landing). */
+const IMPORTING_VALUE = (specifier: string, named: string): string =>
+  finalProbeModule(
+    `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+    `import { ${named} } from "${specifier}";\n`,
+  );
 
 export const gate = defineGate({
   id: "policy-legacy-imports",
@@ -132,14 +199,14 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const imports = new Map<SourceFile, ImportDeclaration[]>();
+    const doors = new Map<SourceFile, ModuleDoor[]>();
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.ImportDeclaration],
+          kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration],
           visit: (node, sourceFile): void => {
-            if (Node.isImportDeclaration(node)) {
-              imports.set(sourceFile, [...(imports.get(sourceFile) ?? []), node]);
+            if (Node.isImportDeclaration(node) || Node.isExportDeclaration(node)) {
+              doors.set(sourceFile, [...(doors.get(sourceFile) ?? []), node]);
             }
           },
         },
@@ -148,7 +215,7 @@ export const gate = defineGate({
         for (const sourceFile of ctx.files) {
           const path = ctx.relativePath(sourceFile);
           if (finalRegistrationOf(sourceFile) !== undefined) {
-            judgeModule(ctx, imports.get(sourceFile) ?? []);
+            judgeModule(ctx, doors.get(sourceFile) ?? []);
           } else if (path === SELF) {
             throw new Error(BLIND);
           }
@@ -161,61 +228,61 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture(IMPORTING("../contract/gate.ts", "ExemptionTable"), TARGET("tooling/src/verify/contract/gate.ts", "ExemptionTable")),
       expect: { count: 1, token: '"../contract/gate.ts"', messageIncludes: "Resolved home: tooling/src/verify/contract/gate.ts" },
-      why: "THE FOUNDING SHAPE and the live class (nine modules at mint): the legacy `ExemptionTable` carried behind `defineGate` — the position is the specifier, because deleting the import is the repair",
+      why: "ARM A THE FOUNDING SHAPE and the live class (nine modules at mint): the legacy `ExemptionTable` carried behind `defineGate` — the position is the specifier, because deleting the import is the repair",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("../lib/pass.ts", "PassResult"), TARGET("tooling/src/verify/lib/pass.ts", "PassResult")),
       expect: { count: 1, messageIncludes: "Resolved home: tooling/src/verify/lib/pass.ts" },
-      why: "MEMBER `lib/pass.ts` — the legacy dispatcher; a final module that reaches it runs a pass of its own",
+      why: "ARM A MEMBER `lib/pass.ts` — the legacy dispatcher; a final module that reaches it runs a pass of its own",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("../lib/gate-ignore.ts", "GateIgnoreMarker"), TARGET("tooling/src/verify/lib/gate-ignore.ts", "GateIgnoreMarker")),
       expect: { count: 1, messageIncludes: "Resolved home: tooling/src/verify/lib/gate-ignore.ts" },
-      why: "MEMBER `lib/gate-ignore.ts` — the legacy `@orb-gate-ignore` parser (§7 kind 1); a final module consuming it re-opens the retired grammar",
+      why: "ARM A MEMBER `lib/gate-ignore.ts` — the legacy `@orb-gate-ignore` parser (§7 kind 1); a final module consuming it re-opens the retired grammar",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("../lib/reviewed-grants.ts", "Grants"), TARGET("tooling/src/verify/lib/reviewed-grants.ts", "Grants")),
       expect: { count: 1, messageIncludes: "Resolved home: tooling/src/verify/lib/reviewed-grants.ts" },
-      why: "MEMBER `lib/reviewed-grants.ts` — the grant table; §12.5 says a gate module receives none, because a module that reads its own grants decides its own exemptions",
+      why: "ARM A MEMBER `lib/reviewed-grants.ts` — the grant table; §12.5 says a gate module receives none, because a module that reads its own grants decides its own exemptions",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("../lib/ordinary-waiver.ts", "Engine"), TARGET("tooling/src/verify/lib/ordinary-waiver.ts", "Engine")),
       expect: { count: 1, messageIncludes: "Resolved home: tooling/src/verify/lib/ordinary-waiver.ts" },
-      why: "MEMBER `lib/ordinary-waiver.ts` — the central marker engine; a module that parses markers is a private marker parser by another address",
+      why: "ARM A MEMBER `lib/ordinary-waiver.ts` — the central marker engine; a module that parses markers is a private marker parser by another address, and importing the engine's module for a pure helper hands the gate the parser's whole export surface (the three live #2155 sites)",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("../lib/gate-authority.ts", "Coordinator"), TARGET("tooling/src/verify/lib/gate-authority.ts", "Coordinator")),
       expect: { count: 1, messageIncludes: "Resolved home: tooling/src/verify/lib/gate-authority.ts" },
-      why: "MEMBER `lib/gate-authority.ts` — the central coordinator that owns severity and suppression; a detector never selects its own door",
+      why: "ARM A MEMBER `lib/gate-authority.ts` — the central coordinator that owns severity and suppression; a detector never selects its own door",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("../lib/policy-pass.ts", "PassInput"), TARGET("tooling/src/verify/lib/policy-pass.ts", "PassInput")),
       expect: { count: 1, messageIncludes: "Resolved home: tooling/src/verify/lib/policy-pass.ts" },
-      why: "MEMBER `lib/policy-pass.ts` — the final dispatcher; a pass inside a pass is the private workspace cache §12.3 forbids",
+      why: "ARM A MEMBER `lib/policy-pass.ts` — the final dispatcher; a pass inside a pass is the private workspace cache §12.3 forbids",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("../lib/loader.ts", "Corpus"), TARGET("tooling/src/verify/lib/loader.ts", "Corpus")),
       expect: { count: 1, messageIncludes: "Resolved home: tooling/src/verify/lib/loader.ts" },
-      why: "MEMBER `lib/loader.ts` — the registry; a module that loads the corpus it belongs to judges itself",
+      why: "ARM A MEMBER `lib/loader.ts` — the registry; a module that loads the corpus it belongs to judges itself",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("../lib/policy-loader.ts", "PolicyCorpus"), TARGET("tooling/src/verify/lib/policy-loader.ts", "PolicyCorpus")),
       expect: { count: 1, messageIncludes: "Resolved home: tooling/src/verify/lib/policy-loader.ts" },
-      why: "MEMBER `lib/policy-loader.ts` — the final-only registry view, the same door one module over",
+      why: "ARM A MEMBER `lib/policy-loader.ts` — the final-only registry view, the same door one module over",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("../contract/gate.ts", "ExemptionTable")),
       expect: { count: 1, token: '"../contract/gate.ts"', messageIncludes: "resolves to NOTHING" },
-      why: "FAIL-CLOSED (#944): a candidate specifier that resolves nowhere is reported under the disjoint UNREADABLE text — the origin cannot be established, and acquitting it on its spelling would be the failure mode",
+      why: "ARM A FAIL-CLOSED (#944): a candidate specifier that resolves nowhere is reported under the disjoint UNREADABLE text — the origin cannot be established, and acquitting it on its spelling would be the failure mode",
     },
     {
       mode: "types",
@@ -227,7 +294,49 @@ export const gate = defineGate({
         TARGET("tooling/src/verify/contract/gate.ts", "ExemptionTable | Finding"),
       ),
       expect: { count: 2, messageIncludes: "Resolved home: tooling/src/verify/contract/gate.ts" },
-      why: "TWO declarations are TWO findings, each at its own specifier — the live `depcruise-grant-liveness` and `runner-config-path-liveness` shape (`ExemptionTable` and `Finding` on separate lines)",
+      why: "ARM A TWO declarations are TWO findings, each at its own specifier — the live `depcruise-grant-liveness` and `runner-config-path-liveness` shape (`ExemptionTable` and `Finding` on separate lines)",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING_VALUE("./sibling.ts", "HELPER"), { [SIBLING_PATH]: FINAL_SIBLING }),
+      expect: { count: 1, token: '"./sibling.ts"', messageIncludes: "Resolved target: tooling/src/verify/gates/sibling.ts, a final gate module" },
+      why: "ARM B THE FOUNDING SHAPE (#2096) and the live class (thirteen modules at landing): a value import of a sibling FINAL gate's export — `owner-scoped-reads` reading `table-scoping-class`'s idents, `bus-producer-coverage` reading `user-bus-deferred-member`'s deferral list. The target REGISTERS (a canonical `defineGate` through the planted contract), which is the whole predicate",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING_VALUE("./legacy-sibling.ts", "SANCTIONED"), { [LEGACY_SIBLING_PATH]: LEGACY_SIBLING }),
+      expect: { count: 1, token: '"./legacy-sibling.ts"', messageIncludes: "a legacy gate module" },
+      why: "ARM B the LEGACY contract registers too (the loader's rule 2, a `gate` descriptor object): `playwright-css-topology` reads `sanctioned-css-homes`' table, a legacy module. Either contract is a gate module; the arm names which",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING_VALUE("../gates/sibling.ts", "HELPER"), { [SIBLING_PATH]: FINAL_SIBLING }),
+      expect: { count: 1, token: '"../gates/sibling.ts"', messageIncludes: "a final gate module" },
+      why: "ARM B IDENTITY, NOT SPELLING: the same sibling reached through the parent directory resolves to the same registering module — a spelling-keyed arm would admit it",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING("./sibling.ts", "Helper"), { [SIBLING_PATH]: FINAL_SIBLING }),
+      expect: { count: 1, token: '"./sibling.ts"', messageIncludes: "a final gate module" },
+      why: "ARM B a TYPE-ONLY import is coupling all the same: a type has one home (`contract/` or `lib/`), and a sibling gate is not it — the ruling says NEVER imports, and a type door is an import",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'export { HELPER } from "./sibling.ts";\n',
+        ),
+        { [SIBLING_PATH]: FINAL_SIBLING },
+      ),
+      expect: { count: 1, token: '"./sibling.ts"', messageIncludes: "a final gate module" },
+      why: "ARM B an `export … from` RE-EXPORT is an import in effect — the module republishes its sibling's export and the coupling is the same door spelled outward; an `ImportDeclaration`-only visitor would miss it",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING_VALUE("./nowhere.ts", "HELPER")),
+      expect: { count: 1, token: '"./nowhere.ts"', messageIncludes: "resolves to NOTHING" },
+      why: "ARM B FAIL-CLOSED (#944): a RELATIVE specifier that resolves nowhere could have named a sibling gate, and its origin cannot be established — reported under the disjoint UNREADABLE text, never acquitted on its spelling",
     },
   ],
   mustRefuse: [
@@ -246,12 +355,12 @@ export const gate = defineGate({
           `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
         ),
       ),
-      why: "a clean final module importing only the final contract — the ordinary shape of the converted corpus",
+      why: "a clean final module importing only the final contract — the ordinary shape of the converted corpus (the `../contract/policy.ts` door is a relative candidate of ARM B, resolves to the contract stub, and the stub registers nothing)",
     },
     {
       mode: "types",
       files: familyFixture(IMPORTING("./pass.ts", "Local"), TARGET("tooling/src/verify/gates/pass.ts", "Local")),
-      why: "IDENTITY, NOT SPELLING: a sibling module named `pass.ts` under `gates/` shares the basename and resolves to an unrelated path — the prefilter admits it as a candidate and the resolved suffix acquits it",
+      why: "IDENTITY, NOT SPELLING, both arms at once: a sibling module named `pass.ts` under `gates/` shares a forbidden basename and resolves to an unrelated path (ARM A acquits it by suffix), and it registers no gate (ARM B acquits it by registration — an unregistered top-level module is `gate-modernization` ARM A's finding, not an import defect)",
     },
     {
       mode: "types",
@@ -265,7 +374,18 @@ export const gate = defineGate({
           "tooling/src/verify/lib/gate-contract.ts": "export const inspectGateContract = 1;\n",
         },
       ),
-      why: "the shared readers a final module DOES consume — `lib/policy-descriptor-read.ts`, `lib/gate-contract.ts` — are not candidates: their basenames are outside the closed set, so they are never resolved",
+      why: "the shared readers a final module DOES consume — `lib/policy-descriptor-read.ts`, `lib/gate-contract.ts` — resolve to modules that are neither a forbidden home nor a registering gate: ARM B's relative candidates, acquitted by registration",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: () => ({ evaluate: () => undefined }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+          'import { SURFACE } from "./_proof/surface.ts";\n',
+        ),
+        { "tooling/src/verify/gates/_proof/surface.ts": "export const SURFACE = 1;\n" },
+      ),
+      why: "ARM B THE SHARED PROOF SURFACE: `gates/_proof/**` holds fixture sources that register nothing (`persist-partialize-and-total-migrate` imports `./_proof/zustand.ts` by right, guide §4.8b; this family imports `./_proof/policy-soundness.ts`). A directory-keyed arm would red every one of them; the registration test acquits them by construction",
     },
     {
       mode: "types",
@@ -284,6 +404,14 @@ export const gate = defineGate({
         TARGET("tooling/src/verify/contract/gate.ts", "ExemptionTable"),
       ),
       why: "IDENTITY of the REGISTRATION too: a same-named LOCAL `defineGate` registers nothing, so its imports are out of scope — `gate-modernization` ARM A names the lookalike",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING_VALUE("./sibling.ts", "HELPER"), {
+        [SIBLING_PATH]:
+          'function defineGate(policy: unknown): unknown {\n  return policy;\n}\nexport const HELPER = 1;\nexport const gate = defineGate({ id: "sibling" });\n',
+      }),
+      why: "ARM B IDENTITY of the TARGET's registration: a sibling whose `gate` is a LOCAL `defineGate` lookalike registers nothing (the loader records it UNREGISTERED), so importing it is not importing a gate — the same import-origin discipline the family applies to itself, applied to the target",
     },
   ],
 });

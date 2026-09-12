@@ -4,8 +4,9 @@
 // reported position is routinely not what a reader would call the offense (a type argument is waived at its
 // first identifier; a string-literal token includes its quotes), so a `fix` that omits it makes the policy
 // unusable by the very author it fires on. Wave 1's D7 named two modules; the AST census at 8257071ee found
-// 51 of 88 — so this is WARNING DEBT tied to its own row (#1978), never an error that blocks the tree, and
-// never a grant: the burn-down is one `fix` string per module, read off that module's `report.node` call.
+// 51 of 88 — WARNING DEBT tied to its own row (#1978) until the owner ruled `hard` + `warning` a contradiction
+// (#2025, 2026-09-12): it is `hard`/`error` now and BLOCKS, and it is still never a grant — the burn-down is
+// one `fix` string per module, read off that module's `report.node` call.
 //
 // The read is a MENTION test over static text, not a marker-form test: a `fix` is prose the author copies
 // from, so `@orb-waive <id>(` anywhere in it is the whole requirement; const aliases and `+` concatenation
@@ -65,8 +66,7 @@ export const gate = defineGate({
   id: "policy-waiver-spelling",
   family: "policy-soundness",
   authority: "hard",
-  severity: "warning",
-  workItem: 1978,
+  severity: "error",
   population: { in: ["@tooling"], under: ["tooling/src/verify/gates/**"], notUnder: ["tooling/src/verify/gates/_proof/**"] },
   analysis: "types",
   execution: "selected-files",

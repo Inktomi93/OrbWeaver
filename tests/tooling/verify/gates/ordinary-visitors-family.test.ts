@@ -22,6 +22,7 @@ import { gate as untrustedRegexSafeExec } from "../../../../tooling/src/verify/g
 import { gate as zodErrorIssuesHome } from "../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { gate as zodModernSpellings } from "../../../../tooling/src/verify/gates/zod-modern-spellings.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -99,7 +100,7 @@ test(
     const dangling: string[] = [];
     let sequence = 0;
     for (const policy of FAMILY) {
-      for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
+      for (const { proof } of policyProofRows(policy)) {
         sequence += 1;
         const root = `${ROOT}-proof-${sequence}`;
         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
@@ -113,7 +114,7 @@ test(
     // AND THE SWEEP ACTUALLY RAN: emptying one project between rows buys speed at the cost of a silent
     // failure mode, because "zero dangling" and "no row was visited" look identical. The expected count is
     // DERIVED from the descriptors, so it cannot rot into a hand-carried number either.
-    const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
+    const declared = FAMILY.reduce((sum, policy) => sum + policyProofRows(policy).length, 0);
     expect(sequence).toBe(declared);
     expect(sequence).toBeGreaterThan(0);
   },

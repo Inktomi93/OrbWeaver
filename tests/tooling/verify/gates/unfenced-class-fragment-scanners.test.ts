@@ -30,6 +30,7 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { gate as noColorLiterals } from "../../../../tooling/src/verify/gates/no-color-literals.ts";
 import { gate as noRawContainerWidths } from "../../../../tooling/src/verify/gates/no-raw-container-widths.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -88,7 +89,7 @@ test("every relative import in every proof of this family resolves inside the pr
   const dangling: string[] = [];
   let sequence = 0;
   for (const policy of FAMILY) {
-    for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
+    for (const { proof } of policyProofRows(policy)) {
       sequence += 1;
       const root = `${ROOT}-proof-${sequence}`;
       const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
@@ -101,7 +102,7 @@ test("every relative import in every proof of this family resolves inside the pr
   expect(dangling).toEqual([]);
   // AND THE SWEEP ACTUALLY RAN: "zero dangling" and "no row was visited" look identical, so the expected
   // count is DERIVED from the descriptors rather than hand-carried.
-  const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
+  const declared = FAMILY.reduce((sum, policy) => sum + policyProofRows(policy).length, 0);
   expect(sequence).toBe(declared);
   expect(sequence).toBeGreaterThan(0);
 });

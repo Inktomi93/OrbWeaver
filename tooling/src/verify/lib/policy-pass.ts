@@ -647,7 +647,9 @@ function receiptFailures(receipt: PolicySemanticReceipt): readonly string[] {
     failures.push(`${receipt.kind} ${JSON.stringify(receipt.source)} ${POLICY_PASS_REFUSALS.receiptResolvedZero} ${label}`);
   }
   if (receipt.unresolved > 0) {
-    failures.push(`${receipt.kind} ${JSON.stringify(receipt.source)} ${POLICY_PASS_REFUSALS.receiptLeftUnresolvedHead} ${receipt.unresolved} ${POLICY_PASS_REFUSALS.receiptLeftUnresolvedTail}`);
+    failures.push(
+      `${receipt.kind} ${JSON.stringify(receipt.source)} ${POLICY_PASS_REFUSALS.receiptLeftUnresolvedHead} ${receipt.unresolved} ${POLICY_PASS_REFUSALS.receiptLeftUnresolvedTail}`,
+    );
   }
   return failures;
 }

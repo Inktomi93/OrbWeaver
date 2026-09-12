@@ -74,7 +74,9 @@ import { defineGate } from "../contract/policy.ts";
 import type { FinalRegistration } from "../contract/policy-descriptor-read.ts";
 import { RETIRED_MARKER_OPENERS } from "../contract/policy-descriptor-read.ts";
 import { inspectGateContract } from "../lib/gate-contract.ts";
+import { bindsProvenNonModuleDeclaration } from "../lib/origin-verdict.ts";
 import {
+  bindsParameter,
   descriptorProperty,
   descriptorValue,
   finalRegistrationOf,
@@ -84,6 +86,7 @@ import {
   staticSegments,
   staticText,
 } from "../lib/policy-descriptor-read.ts";
+import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import {
   familyFixture,
   finalProbeModule,
@@ -186,13 +189,11 @@ function isForbiddenIoImport(declaration: ImportDeclaration): boolean {
 }
 
 /** E3: a `process` receiver that is the Node global or the `node:process` import — never a local binding of the
- *  same name, which is somebody's data (the same discipline as E4's parameter test). */
+ *  same name, which is somebody's data (the same discipline as E4's parameter test). Judged through the shared
+ *  origin verdict (#2097): a `process` that PROVABLY binds a non-module declaration is data; the ambient global
+ *  (no declaration in the project) and the import alias are the Node process. */
 function isNodeProcess(receiver: MorphNode): boolean {
-  if (!Node.isIdentifier(receiver) || receiver.getText() !== PROCESS) {
-    return false;
-  }
-  const declarations = receiver.getSymbol()?.getDeclarations() ?? [];
-  return declarations.length === 0 || declarations.every((declaration) => declaration.getFirstAncestorByKind(SyntaxKind.ImportDeclaration) !== undefined);
+  return Node.isIdentifier(receiver) && receiver.getText() === PROCESS && !bindsProvenNonModuleDeclaration(receiver);
 }
 
 /** E3: a value-position `import(…)`, a `require(…)` call, or `process.binding(…)`. */
@@ -242,23 +243,23 @@ function isContextResourceAccess(node: MorphNode): node is PropertyAccessExpress
   if (!Node.isPropertyAccessExpression(node) || node.getName() !== RESOURCE_HOST_MEMBER) {
     return false;
   }
-  const receiver = node.getExpression();
-  return Node.isIdentifier(receiver) && (receiver.getSymbol()?.getDeclarations() ?? []).some((declaration) => Node.isParameterDeclaration(declaration));
+  return bindsParameter(node.getExpression());
 }
 
-/** The declarations a callee identifier resolves to, following the IMPORT ALIAS. An imported name binds to an
- *  alias symbol whose declaration is the import specifier in THIS file, so without the hop every imported
- *  callee reads as local — which is an ACQUITTAL for the guard and an ACCUSATION for the shared reader. */
-function calleeDeclarations(callee: MorphNode): readonly MorphNode[] {
-  if (!Node.isIdentifier(callee)) {
-    return [];
+/** Is this callee THE guard — `readyResourceValue` resolved by import origin to its home module? Through the
+ *  shared reader (#2097): the import-alias hop, a re-export and a namespace all resolve to the canonical project
+ *  export; a same-named LOCAL function is not a module member and never resolves, which is the accusation. */
+function isResourceGuard(callee: MorphNode): boolean {
+  const fact = resolveModuleMemberOrigin(callee);
+  if (fact.kind === "unresolved" || fact.value.memberPath.length > 0) {
+    return false;
   }
-  const symbol = callee.getSymbol();
-  return symbol === undefined ? [] : (symbol.getAliasedSymbol() ?? symbol).getDeclarations();
-}
-
-function declaredUnder(declarations: readonly MorphNode[], home: string): boolean {
-  return declarations.some((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes(home));
+  const { canonical } = fact.value;
+  return (
+    canonical.kind === "project" &&
+    canonical.exportedName === RESOURCE_GUARD &&
+    canonical.sourceFile.getFilePath().replaceAll("\\", "/").endsWith(RESOURCE_GUARD_HOME)
+  );
 }
 
 /** The ONE admitted shape: `readyResourceValue(<ctx>.resources.<door>(…))`, with the guard resolved to its
@@ -278,11 +279,7 @@ function unguardedResourceRead(access: PropertyAccessExpression): boolean {
   if (!Node.isCallExpression(guard) || guard.getArguments()[0] !== call) {
     return true;
   }
-  const callee = guard.getExpression();
-  if (!Node.isIdentifier(callee) || callee.getText() !== RESOURCE_GUARD) {
-    return true;
-  }
-  return !declaredUnder(calleeDeclarations(callee), RESOURCE_GUARD_HOME);
+  return !isResourceGuard(guard.getExpression());
 }
 
 interface GrammarSite {

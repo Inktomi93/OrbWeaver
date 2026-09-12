@@ -42,6 +42,7 @@ import { gate as noFormResetInAutosaveHealth } from "../../../../tooling/src/ver
 import { gate as routeTrpcLifoOrder } from "../../../../tooling/src/verify/gates/route-trpc-lifo-order.ts";
 import { gate as stateFiles } from "../../../../tooling/src/verify/gates/state-files.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -99,7 +100,7 @@ test(
     const dangling: string[] = [];
     let sequence = 0;
     for (const policy of WAVE) {
-      for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
+      for (const { proof } of policyProofRows(policy)) {
         sequence += 1;
         const root = `${ROOT}-proof-${sequence}`;
         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));

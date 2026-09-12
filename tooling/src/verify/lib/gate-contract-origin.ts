@@ -116,6 +116,16 @@ function callableDeclarations(member: CallableMember): readonly MorphNode[] {
   return [...declarations, ...signatures];
 }
 
+/** True only when the member declaration and receiver type prove a ts-morph member — and, when `owner` is
+ *  given, one declared on THAT ts-morph class or interface. The owner half is what tells `Symbol#getDeclarations`
+ *  (binding resolution) from `VariableStatement#getDeclarations` (a syntax accessor of the same name): identity,
+ *  not spelling, exactly as the walk test below reads `getSourceFiles` off `Project` and nothing else. */
+export function isTsMorphMember(member: CallableMember, owner?: string): boolean {
+  return callableDeclarations(member).some(
+    (declaration) => comesFromTsMorph(declaration) && (owner === undefined || declarationOwnerName(declaration) === owner),
+  );
+}
+
 /** True only when the member declaration and receiver type prove a ts-morph Project/Node walk. */
 export function isTsMorphWalk(member: CallableMember): boolean {
   const declarations = callableDeclarations(member);

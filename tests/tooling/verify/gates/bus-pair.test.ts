@@ -15,6 +15,7 @@ import { gate as busProducerCoverage } from "../../../../tooling/src/verify/gate
 import { gate as userBusDeferredMember } from "../../../../tooling/src/verify/gates/user-bus-deferred-member.ts";
 import { deferralsFor } from "../../../../tooling/src/verify/lib/bus-deferred-member.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -72,7 +73,7 @@ test(
     const dangling: string[] = [];
     let sequence = 0;
     for (const policy of PAIR) {
-      for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
+      for (const { proof } of policyProofRows(policy)) {
         sequence += 1;
         const root = `${ROOT}-proof-${sequence}`;
         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
@@ -88,7 +89,7 @@ test(
     // failure mode a fresh-project loop did not have: if the rows stopped being visited, "zero dangling"
     // would read exactly like "every specifier resolves". The count is derived from the descriptors, so it
     // cannot rot into a hand-carried number either.
-    const declared = PAIR.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
+    const declared = PAIR.reduce((sum, policy) => sum + policyProofRows(policy).length, 0);
     expect(sequence).toBe(declared);
     expect(sequence).toBeGreaterThan(0);
   },
@@ -126,7 +127,9 @@ test(
     };
     expect(passOf(busProducerCoverage, retired).authority.effectiveFindings).toEqual([]);
     const retirement = passOf(userBusDeferredMember, retired).authority.effectiveFindings;
-    expect(retirement.map(({ policyId, severity }) => `${policyId}/${severity}`)).toEqual(["user-bus-deferred-member/warning"]);
+    // `error` since #2025 (2026-09-12): the deferral was born `hard` + `warning`, the pair the owner ruled a contradiction;
+    // the retirement instruction now BLOCKS, which is what a hard finding is for.
+    expect(retirement.map(({ policyId, severity }) => `${policyId}/${severity}`)).toEqual(["user-bus-deferred-member/error"]);
   },
   PER_ROW_TIMEOUT_MS,
 );

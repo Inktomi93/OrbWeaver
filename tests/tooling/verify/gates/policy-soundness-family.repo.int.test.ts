@@ -1,4 +1,4 @@
-// Conformance entry for the `policy-soundness` family (#1971) — the four final policies that enforce the
+// Conformance entry for the `policy-soundness` family (#1971, #2111) — the six final policies that enforce the
 // mechanizable half of gate-runtime-standardization.md §5b over the gate corpus itself. Every declared row runs
 // through the production dispatcher on an isolated population (`verifyPolicyProofs`); the pins below cover
 // what a row structurally cannot express: the BLINDNESS refusals (a throw and a zero-count receipt are tool
@@ -6,10 +6,11 @@
 // over the gate corpus is exactly the shape that can sit at 0 conformance failures while reading nothing on
 // the live tree (guide §5), so the recognizer's live count is checked against a second opinion.
 import type { SourceFile } from "ts-morph";
-import { Project } from "ts-morph";
+import { Node, Project, SyntaxKind } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POLICY_CONTRACT_PATH, POLICY_CONTRACT_STUB } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
+import { gate as policyBindingResolution } from "../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
 import { gate as policyLegacyImports } from "../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
@@ -21,10 +22,47 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const FAMILY: readonly GatePolicy[] = [policyLegacyImports, policyProofExpectations, policySoundness, policyWaiverIdentity, policyWaiverSpelling];
-/** The second opinion for `policy-legacy-imports`' live class: the one import shape the nine carriers share,
- *  restated as a text test so the arm's real-corpus findings are compared against something it did not compute. */
-const LEGACY_CONTRACT_IMPORT_RE = /^import type \{[^}]*\} from "\.\.\/contract\/gate\.ts";$/mu;
+const FAMILY: readonly GatePolicy[] = [
+  policyBindingResolution,
+  policyLegacyImports,
+  policyProofExpectations,
+  policySoundness,
+  policyWaiverIdentity,
+  policyWaiverSpelling,
+];
+/** The second opinions for the two OPEN classes, restated as TEXT tests so each arm's real-corpus findings are
+ *  compared against something the arm did not compute (#1969: a hardcoded count rots into a false pin).
+ *  `policy-legacy-imports` ARM A: an import line whose specifier names one of the nine forbidden homes. */
+const FORBIDDEN_HOME_IMPORT_RE =
+  /^import (?:type )?\{[^}]*\} from "\.\.\/(?:contract\/gate|lib\/(?:pass|gate-ignore|reviewed-grants|ordinary-waiver|gate-authority|policy-pass|loader|policy-loader))\.ts";$/mu;
+/** ARM B: a single-line import or re-export of a top-level sibling (`./<name>.ts`, never a subdirectory); whether
+ *  the sibling REGISTERS is read off its text with the registration shapes below. */
+const SIBLING_IMPORT_RE = /^(?:import|export) (?:type )?\{[^}]*\} from "\.\/([^/"]+)\.ts";$/gmu;
+const REGISTERS_RE = /^export const gate(?::| =)/mu;
+/** `policy-binding-resolution`: the members whose NAME alone is unambiguous (every one is declared only on a
+ *  ts-morph node or symbol), so a module CALLING one must be accused; `getDeclarations` is ambiguous by name
+ *  (`VariableStatement#getDeclarations` is a syntax accessor) and joins only the SUPERSET side. The census is
+ *  SYNTACTIC — a member call in code position — because a text regex counts the member spelled inside fixture
+ *  strings and comments (this very arm's own rows), the same overcount the guide records for `defineGate`. */
+const UNAMBIGUOUS_RESOLUTION_MEMBERS: ReadonlySet<string> = new Set([
+  "getDefinitionNodes",
+  "getDefinitions",
+  "findReferences",
+  "findReferencesAsNodes",
+  "getImplementations",
+  "getAliasedSymbol",
+  "getAliasedSymbolOrThrow",
+  "getValueDeclaration",
+  "getValueDeclarationOrThrow",
+]);
+const ANY_RESOLUTION_MEMBERS: ReadonlySet<string> = new Set([...UNAMBIGUOUS_RESOLUTION_MEMBERS, "getDeclarations"]);
+/** Does the module CALL a member of `names` — `x.<name>(…)` in code position, never in a string or a comment? */
+function callsMemberNamed(sourceFile: SourceFile, names: ReadonlySet<string>): boolean {
+  return sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
+    const callee = call.getExpression();
+    return Node.isPropertyAccessExpression(callee) && names.has(callee.getName());
+  });
+}
 
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(300_000);
 const PER_ROW_TIMEOUT_MS = scaledBudget(120_000);
@@ -80,9 +118,9 @@ test(
     const shared = new Project({ useInMemoryFileSystem: true });
     const dangling: string[] = [];
     let sequence = 0;
-    // `policy-legacy-imports` and E3's origin arm each carry ONE row whose relative import deliberately resolves
-    // to nothing — the fail-closed UNREADABLE control — so the specifier-resolution control excludes exactly the
-    // rows whose `why` declares that, and asserts the count of those it excused.
+    // `policy-legacy-imports` (one per arm) and E3's origin arm each carry a row whose relative import deliberately
+    // resolves to nothing — the fail-closed UNREADABLE control — so the specifier-resolution control excludes exactly
+    // the rows whose `why` declares that, and asserts the count of those it excused.
     let declaredUnreadable = 0;
     for (const policy of FAMILY) {
       for (const { proof } of policyProofRows(policy)) {
@@ -101,7 +139,7 @@ test(
       }
     }
     expect(dangling).toEqual([]);
-    expect(declaredUnreadable).toBe(2);
+    expect(declaredUnreadable).toBe(3);
     const declared = FAMILY.reduce((sum, policy) => sum + policyProofRows(policy).length, 0);
     expect(sequence).toBe(declared);
     expect(sequence).toBeGreaterThan(0);
@@ -172,20 +210,44 @@ test(
     const identity = result.policies.find(({ id }) => id === policyWaiverIdentity.id);
     expect(identity?.receipts).toEqual([{ kind: "population", source: "final policy modules", members: shapeCount, unresolved: 0 }]);
 
-    // `policy-legacy-imports` is the one error policy whose class is OPEN on the tree (#1922's migration set).
-    // Its live findings are compared against a SECOND OPINION — the import-shape text test over the same corpus
-    // — so the arm's real-tree bite is measured by something it did not compute, and a hardcoded count never
-    // rots into a false pin (#1969). A migration that lands moves BOTH sides to zero together.
-    const secondOpinion = project
+    // `policy-legacy-imports` and `policy-binding-resolution` are the error policies whose classes are OPEN on the
+    // tree (#1922's migration set + #2155; #2096's split families; #2097's local resolvers). Their live findings are
+    // compared against SECOND OPINIONS — text tests over the same corpus — so each arm's real-tree bite is measured
+    // by something it did not compute, and a hardcoded count never rots into a false pin (#1969). A migration that
+    // lands moves both sides together.
+    const finals = project
       .getSourceFiles()
       .filter((sourceFile) => sourceFile.getFilePath().startsWith(`${repoRoot}/${GATES_DIR}`) && !sourceFile.getFilePath().includes("/_proof/"))
-      .filter((sourceFile) => FINAL_SHAPE_RE.test(sourceFile.getFullText()) && LEGACY_CONTRACT_IMPORT_RE.test(sourceFile.getFullText()))
-      .map((sourceFile) => sourceFile.getFilePath().slice(repoRoot.length + 1))
+      .filter((sourceFile) => FINAL_SHAPE_RE.test(sourceFile.getFullText()));
+    const relative = (sourceFile: SourceFile): string => sourceFile.getFilePath().slice(repoRoot.length + 1);
+    const accusedBy = (policyId: string): readonly string[] =>
+      [...new Set(result.authority.effectiveFindings.filter((finding) => finding.policyId === policyId).map(({ file }) => file))].toSorted();
+    const importsSiblingGate = (text: string): boolean =>
+      [...text.matchAll(SIBLING_IMPORT_RE)].some((match) =>
+        REGISTERS_RE.test(project.getSourceFile(`${repoRoot}/${GATES_DIR}${match[1]}.ts`)?.getFullText() ?? ""),
+      );
+    const importOpinion = finals
+      .filter((sourceFile) => FORBIDDEN_HOME_IMPORT_RE.test(sourceFile.getFullText()) || importsSiblingGate(sourceFile.getFullText()))
+      .map(relative)
       .toSorted();
-    const accused = [
-      ...new Set(result.authority.effectiveFindings.filter(({ policyId }) => policyId === policyLegacyImports.id).map(({ file }) => file)),
-    ].toSorted();
-    expect(accused).toEqual(secondOpinion);
+    expect(accusedBy(policyLegacyImports.id)).toEqual(importOpinion);
+    expect(importOpinion.length).toBeGreaterThan(0);
+    // The resolution arm is two-sided by CONTAINMENT, not equality: every module the unambiguous spellings name must
+    // be accused (the arm is not blind), and every accused module must carry some member's spelling (the arm is not
+    // inventing) — `getDeclarations` alone cannot be judged by text, which is the whole reason the arm reads types.
+    const resolutionAccused = accusedBy(policyBindingResolution.id);
+    const unambiguous = finals
+      .filter((sourceFile) => callsMemberNamed(sourceFile, UNAMBIGUOUS_RESOLUTION_MEMBERS))
+      .map(relative)
+      .toSorted();
+    const anySpelling = new Set(finals.filter((sourceFile) => callsMemberNamed(sourceFile, ANY_RESOLUTION_MEMBERS)).map(relative));
+    expect(unambiguous.filter((path) => !resolutionAccused.includes(path))).toEqual([]);
+    expect(resolutionAccused.filter((path) => !anySpelling.has(path))).toEqual([]);
+    expect(resolutionAccused.length).toBeGreaterThanOrEqual(unambiguous.length);
+    expect(unambiguous.length).toBeGreaterThan(0);
+    // And the family's own modules are CLEAN under the resolution arm: the enforcer never reds its host (#2097 —
+    // `policy-soundness`'s three former chains read through the shared readers now).
+    expect(resolutionAccused.filter((path) => FAMILY.some((policy) => path === `${GATES_DIR}${policy.id}.ts`))).toEqual([]);
 
     // The error policy pins its CLOSED classes; the tree is the proof they are closed. Asserted LAST so a red here
     // (a foreign module landing an unwrapped read, as `97e68be91` did for E4) still lets every receipt above print.
