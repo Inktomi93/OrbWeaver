@@ -75,8 +75,6 @@
     "turn-identity": ["namespace"],
     "two-class-role-authority": ["bracket"],
     "warning-code-coverage": ["namespace"],
-    "windowed-infinite-query": ["bracket"],
-    "zod-modern-spellings": ["bracket", "namespace"],
-    "zustand-selector-derived": ["bracket"]
+    "zod-modern-spellings": ["bracket", "namespace"]
   }
 }

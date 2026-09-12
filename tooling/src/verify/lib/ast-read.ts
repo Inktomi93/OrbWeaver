@@ -11,7 +11,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { ObjectLiteralRead } from "../contract/ast-read.ts";
 
 /** Strip `as X` / `satisfies X` / parentheses wrappers so the underlying literal/object/call is reachable.
- *  Mirrors the local `unwrap` in zustand-selector-derived.ts / diagnostic-legibility.ts. */
+ *  Mirrors the local `unwrap` in diagnostic-legibility.ts. */
 export function unwrapExpression(node: Node): Node {
   let n = node;
   while (Node.isAsExpression(n) || Node.isSatisfiesExpression(n) || Node.isParenthesizedExpression(n)) {
