@@ -13,6 +13,14 @@
 //
 // No identity reader is involved: an exported interface is authored syntax, and `export` cannot be
 // aliased, re-exported or computed into existence at the declaration site.
+//
+// §4.6 SPLIT DIFFERENTIAL (#2000, committed at `tests/tooling/verify/gates/split-arm-parity.test.ts`).
+// LEGACY-SIDE COVERAGE: 2 of the parent's 9 examples — `no-inline-types` mustFlag[1] and mustFlag[4] —
+// both reproduced at the same file. The NARROWING this split exists to preserve (an exported interface
+// OUTSIDE `domain/**` is not a finding) had ZERO legacy mustPass coverage, so its rows are CONSTRUCTED;
+// drop `under: ["packages/server/src/domain/**"]` and they are the rows that die (measured 2026-09-12).
+// The only deltas are tool errors: a fixture holding nothing but a type HOME admits zero paths, which the
+// final runtime reports rather than scanning silently. No catch changed.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
