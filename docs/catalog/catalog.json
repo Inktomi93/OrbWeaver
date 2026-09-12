@@ -452,8 +452,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 458,
-      "bytes": 338386,
-      "sha256": "2a86fb29e7cea979ddefd5e0eec02bae884893aa6c14234dd61f85ea083af625",
+      "bytes": 360968,
+      "sha256": "1512f210398cc2e513170f0f7e82a9e8d8fb4044133aee41152f33ed4e58981b",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -996,8 +996,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 433,
-      "bytes": 53450,
-      "sha256": "7de54aa34c1523487d14a35ad05a846c8c065aa0c6b8e2193614090403b6cae9",
+      "bytes": 53603,
+      "sha256": "20f1bbede79a979c64792a9736ea1d6966a5d1f7700367d4d8379fb7bf52b851",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11514,8 +11514,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 101,
-      "bytes": 9232,
-      "sha256": "9fce97e2c7d7a717e96a68621afbb4dbc12fa40f2271f7695b0af1bf31827195",
+      "bytes": 8107,
+      "sha256": "2c5ff7775592f2838e268b1d3c56e420ae97a84c97c9b14279188bf43c1308a9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11565,7 +11565,7 @@
         ],
         "summary": "Snap filmstrip design: one bounded PNG contact-sheet arm over the existing run-arm lifecycle (new `afterSettle` seam), replacing Record's WebM/GIF path entirely."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
@@ -11888,8 +11888,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 723,
-      "bytes": 54881,
-      "sha256": "d72515b14ba7a8f886b8cfa3a7065cc2214b4f3fe118ecb3bb09e247b8b9f838",
+      "bytes": 54883,
+      "sha256": "5bc6f812a9c5d7c154177270d95c854d768f0edac4ab964c0a48658b45847ae7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11951,7 +11951,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/995-production-boot-boundary.md",
@@ -12541,9 +12541,9 @@
       "path": "docs/design/docker-modern-practices-research.md",
       "lane": "design",
       "issue": 5,
-      "lines": 529,
-      "bytes": 27783,
-      "sha256": "543bdf62e156d3391528c4799336a1646adc72e4f248fa003fd7fdb26c46673b",
+      "lines": 528,
+      "bytes": 27781,
+      "sha256": "a25912f43f822e2f1a979585027170e86ad724c036d6d5a27e1be376bec259f4",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12570,15 +12570,15 @@
         ],
         "summary": "Modern Docker/BuildKit/Compose practices — builder brief for the two-profile prod image: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/entity-room-member-freshness-bridge.md",
       "lane": "design",
       "issue": 5,
-      "lines": 454,
-      "bytes": 39551,
-      "sha256": "204037c2090707d8d2b17851d3d95b63b8f815690af1f5472bf7cad12a3cc681",
+      "lines": 455,
+      "bytes": 39559,
+      "sha256": "825e247e15f57cc0d32dacd3eacc66d90ecdafe8dc7bcb255e39bc7e39754200",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12623,7 +12623,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/gate-config-system.md",
@@ -12660,9 +12660,9 @@
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
       "lane": "design",
       "issue": 5,
-      "lines": 1239,
-      "bytes": 115516,
-      "sha256": "a00a9550aace65791f6b710cab5adc243c26c19bc37404aa7c7466e6333413b2",
+      "lines": 1237,
+      "bytes": 115517,
+      "sha256": "df043c2059f2af47d7c7ef83b9b84d059c221693c42ea09c63f4348efbab0b24",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12702,9 +12702,9 @@
       "path": "docs/design/gate-runtime-read-first.md",
       "lane": "design",
       "issue": 5,
-      "lines": 143,
-      "bytes": 12266,
-      "sha256": "b143042eb05106a5de4a608a84762410479fbe6dc1eb650afafb2c8bf64b9945",
+      "lines": 161,
+      "bytes": 14393,
+      "sha256": "d2cae52f381f4785b549588b678da49a7a99c1a7fcebdc0caa1c878042b3d761",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12733,9 +12733,9 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 1742,
-      "bytes": 181212,
-      "sha256": "04584da3f132504122aea7c18bdb1851cd3be6497335e20134555b52408ab5ba",
+      "lines": 1774,
+      "bytes": 184259,
+      "sha256": "eed1cc50f3958c2a122ada49094130d0078d5e18e74d1b69e09dfd5b16ccb91a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13368,9 +13368,9 @@
       "path": "docs/design/mocks/regex-section/DESIGN.md",
       "lane": "design",
       "issue": 5,
-      "lines": 150,
+      "lines": 149,
       "bytes": 15380,
-      "sha256": "1bf8b73a50ee6f734a997b38c13372f87f10af97a51ff9110b5f0174a95320fc",
+      "sha256": "2164edab29adefe74253fbca68524fbf6416d0cf922cb9270cb286f457f2f0bc",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13410,15 +13410,15 @@
         ],
         "summary": "The room's Regex section (#1742), owner-approved 2026-09-05 ('regex approved' on v2): a This-chat DisclosureSection with a lever strip (master + per-tier switches incl. Everywhere), the effective prompt-side list in run order, the On-screen roster, the member view and the phone; §4 mints the vocabulary; five boards in both themes."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/mocks/regex-section/PROPOSAL-ia.md",
       "lane": "design",
       "issue": 5,
       "lines": 566,
-      "bytes": 48700,
-      "sha256": "95ae188c15124db6f1c8ec59a2c5c8710bc8d8702dd0c57d061511fefbe2c757",
+      "bytes": 48702,
+      "sha256": "cd3231ced42fbda0053cd695d17babf226c9bd46c1d924ef18fe7708a96e1d3f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13452,15 +13452,15 @@
         ],
         "summary": "Information-architecture proposal for the regex one-place (lane cb-regex-ia): where the section sits, what it lists, what it hides; an input to DESIGN.md."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/mocks/regex-section/PROPOSAL-sys.md",
       "lane": "design",
       "issue": 5,
-      "lines": 378,
-      "bytes": 33613,
-      "sha256": "4a0a9793b41c02ff9576c66923225a8944399120185e1035339e97adcaad681f",
+      "lines": 377,
+      "bytes": 33617,
+      "sha256": "2060855451c3529c35f7866e2780f524c4718f3654ca508d7cdc07b7b4fc313f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13503,15 +13503,15 @@
         ],
         "summary": "Systems-lens proposal for the regex panel (lane cb-regex-sys): tiers, precedence, dedup at the winning tier, the room fan — the half that became the server read."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/mocks/regex-section/PROPOSAL-ux.md",
       "lane": "design",
       "issue": 5,
       "lines": 610,
-      "bytes": 41462,
-      "sha256": "7c031afc1ebf37a1972a9011bbb239425c1427fbc89be925c43dcce65b2695eb",
+      "bytes": 41470,
+      "sha256": "528bd591b6a1a624d04253628268515dd37db2d1d502130417dc960fa5a172e0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13545,15 +13545,15 @@
         ],
         "summary": "Interaction-design proposal for the Regex section (lane cb-regex-ux): the lever strip, switch sizes, the member view, the phone sheet."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/mocks/regex-section/REVIEW-sideeye.md",
       "lane": "design",
       "issue": 5,
-      "lines": 529,
-      "bytes": 46494,
-      "sha256": "661c33d1b0cb9e7cb0afda7407c466a440fb524590e8dc5f46791b67ef59af7f",
+      "lines": 528,
+      "bytes": 46508,
+      "sha256": "4b058e9291bfdd6bebd4c862e65e21daa45b6e5d3359b2517fdfc875d3a5bb27",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13589,15 +13589,15 @@
         ],
         "summary": "Side-eye review of the regex panel mock v1 (UX/visual/a11y, both themes) — the findings v2 was redrawn to answer."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/mocks/regex-section/REVIEW-stickler.md",
       "lane": "design",
       "issue": 5,
       "lines": 438,
-      "bytes": 43126,
-      "sha256": "7584f5cb75f795055467e847073f52795afb9c3d591d0e0c172951ed8489bfb0",
+      "bytes": 43127,
+      "sha256": "306ca43dd811cec723aac90ff49ba611225e1f7d04d4a39bd9e849ad922d7e12",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13638,15 +13638,15 @@
         ],
         "summary": "Stickler review of the regex section mock v1 (IA vs law, coupled sites): the findings v2 answered, plus #1739 (chat-tier regex survives a host handoff but the new host cannot switch/detach it)."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/mocks/regex-section/STUDY.md",
       "lane": "design",
       "issue": 5,
       "lines": 123,
-      "bytes": 11012,
-      "sha256": "d00e89a960e3351ed7b9da64ef3c0f5af0c52ebaeab51fa5f5b6500a07acb697",
+      "bytes": 11016,
+      "sha256": "77f8d44a322fb30d7dc1aef5f3d84b0586bbc4abb0b96bc38531abb8f89c3da4",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13680,7 +13680,7 @@
         ],
         "summary": "A study of SillyTavern's Regex panel and what the one-place panel must be — the parity floor the design was drawn against."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/motion-audit-mobile-environment-977.md",
@@ -14043,8 +14043,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 271,
-      "bytes": 18641,
-      "sha256": "dc2e79665dd98a69e0333c2f574d1856ee1cf5a3a84a8026dcecd28896298038",
+      "bytes": 18642,
+      "sha256": "49c20485c4bdf717f470b317cc91fa3b9803a0f3f4b6f1c7ecd706abed1f8a26",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14087,7 +14087,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/parked-options-persona-prose.md",
@@ -14145,9 +14145,9 @@
       "path": "docs/design/parked-options-tag-contract.md",
       "lane": "design",
       "issue": 5,
-      "lines": 322,
-      "bytes": 24759,
-      "sha256": "d52842f01c25eb0ed9d951b9e5edd646c5334d59cadd773d4c1af183387c3087",
+      "lines": 327,
+      "bytes": 24765,
+      "sha256": "703ff185ebd5e074bc3191fc173553139b3d114fbee4257061742ef80cf7a4fc",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14190,15 +14190,15 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/plugin-showcase-set.md",
       "lane": "design",
       "issue": 5,
-      "lines": 225,
-      "bytes": 20903,
-      "sha256": "ad5703c68f7ce56526117aadaee24d13561b4b2b82565488c60bfb6eba92b2b1",
+      "lines": 224,
+      "bytes": 20943,
+      "sha256": "9576bca3f89b4c39c983095003acd2eaf5401102ebf34c84e87cc6de505babe2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14251,7 +14251,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/plugin-ui-plane.md",
@@ -14527,8 +14527,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 821,
-      "bytes": 53972,
-      "sha256": "04b9e754cc269e77beb1d4fd4b29ef85596f8852dea2025d65fd50e1b55fc629",
+      "bytes": 53969,
+      "sha256": "3d150eef1b1be68789758bea7bdcc0413259406c346600c97e090ad4d0a207fb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14573,7 +14573,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/theme-pivot-foreground-contract.md",
@@ -14749,8 +14749,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 193,
-      "bytes": 46003,
-      "sha256": "530f5503606d3d11f8a1684fc983acc41cbd396b56bf493975ff03726d1ae0e2",
+      "bytes": 46004,
+      "sha256": "ff427d9cbc6d1fc05301354c3ba736c2666bda124a3587171104adb859d7fab1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14835,7 +14835,7 @@
         ],
         "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/work-item-dod.md",
@@ -29244,8 +29244,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 125,
-      "bytes": 7427,
-      "sha256": "5df901a281982de3ed27c62f1ef59c1531ae9b9fdb75558d394e4ed4dfcaeab7",
+      "bytes": 7429,
+      "sha256": "e887d17695ce61ccd730ac0af08995ad211d27ad81a49136605a0efefe70b85c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29281,15 +29281,15 @@
         ],
         "summary": "Board re-derivation of #798/#801/#802/#774/#778: #798 (net.fetchAsset+character.ingestAsset) and #801 (egress belt split) are DONE-ON-MAIN and closeable; #802 (plugin-fetched CAS assets missing ASSET_REFS coverage, GC-bait) is confirmed still unaddressed; #774 (seeded showcase plugins) is DONE-ON-MAIN; #778 (64-key surface-state LRU) is a deliberately parked wake-condition row, code confirms no eviction landed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/board-rederive/scout-B-plugin-ui.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 86,
-      "bytes": 6159,
-      "sha256": "9b552265081b9361648f41f72521469dd4c398665ce4e4f96642d701541e730c",
+      "lines": 94,
+      "bytes": 6171,
+      "sha256": "d7159fd26b3684efbc13040b24975a4e87903d6c6f34157c3eed0bfe54a2ca97",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29325,15 +29325,15 @@
         ],
         "summary": "Board re-derivation of #796/#797/#799/#800/#791/#792: #791 (typed-arg grammar+autocomplete) and #792 (URL-install client surface) are DONE-ON-MAIN; #796 (Plugins pane mobile/a11y) has its base rework landed but residual polish items are unverified; #797 (design-audit viewport-edge phantom P1s + htmlFor-blindness) and #799 (plugin visual-vocabulary gaps — missing node kinds, no primary button variant, 2-token sandbox theme) are both confirmed still NOT-STARTED by direct code read; #800 (SFW/botbooru toggle) has zero code on main or its named branch, work is uncommitted in a live lane."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/board-rederive/scout-C-running.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 99,
-      "bytes": 7003,
-      "sha256": "7921c84543328fa63ad41ed670f99e24ebe426dba29aeb1550455f806aa01ae3",
+      "lines": 107,
+      "bytes": 7040,
+      "sha256": "3a6a5915cc705c3cb71ab9880c8c94dd73fd9bb11568b2bfc4fc75a1b5db798f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29369,15 +29369,15 @@
         ],
         "summary": "Board re-derivation of the RUNNING-column rows #777, #784, #599 (C-series), #751, #23, #26: all six are DONE-ON-MAIN with dedicated closing commits and recommended for verify-and-close; #599's C1-C5 interaction-direction rows all read 'committed' in the spec's own phase table, cross-checked independently for the reactions (#23) and roster (#26) chunks."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/board-rederive/scout-D1-server.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 67,
-      "bytes": 5389,
-      "sha256": "a831106cf3993a15c25a0ead582de2ace5bd34e0666d7524af247b50bff7429a",
+      "lines": 75,
+      "bytes": 5406,
+      "sha256": "7635167be59d9a3be1e53be353da55f12be18d7304ec0f441f1661537e6ee047",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29413,15 +29413,15 @@
         ],
         "summary": "Board re-derivation of server rows #788, #794, #795, #84, #595, #676: #788 (ST-parity gaps) is 2-of-5 sub-items done (worldInfo.read, search.query), 3 remain unbuilt (character.read, tokens.count, seam-11 assets); #794 (refinery/distill batch-atomicity cleanup) is confirmed NOT STARTED on both cited call sites; #795 (cross-tenant sweep write-IDOR completeness) looks likely-done by pattern volume but not line-by-line certified; #84/#595/#676 are parked rows whose wake conditions remain unmet, premises confirmed still valid."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/board-rederive/scout-D2-oidc-infra.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 156,
-      "bytes": 9177,
-      "sha256": "8ec2107c9e932bfdb0addfd01addd8c1037801f40e775e1ac205522b61c0522f",
+      "bytes": 9199,
+      "sha256": "dc2f785ec5935563a399b13a054438b845f5b0ed7eb2def054dfdf7549674461",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29466,15 +29466,15 @@
         ],
         "summary": "Board re-derivation of D2 OIDC/infra rows: #141 (id_token_hint + post_logout_redirect_uri) is stale-premise — the code deliberately sends the end-session URL BARE by design (a prior attempt was reverted after it broke against a real IdP), genuinely blocked on an owner-gated id_token-persistence decision; #762 (OIDC discovery caching) is settled-result-only with a cold-start double-fetch race, not true single-flight; #803/#316/#403/#124 premises are all confirmed still valid and parked; #495 could not be corroborated from the repo (an operational/infra fact, not code)."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/board-rederive/scout-E1-client-analytics.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 100,
-      "bytes": 7038,
-      "sha256": "aa5e6fdf87c9e0e3e5026b1c26c1998262be9c13659ce59e43593ea706aaca5d",
+      "lines": 107,
+      "bytes": 7049,
+      "sha256": "5056d2fe3ecf9e1a25b2efd1c542312d15cbeda37b1a542b607a6b94cdfddbfb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29511,15 +29511,15 @@
         ],
         "summary": "Board re-derivation of E1 client/analytics rows #159, #160, #227, #306, #418: #159 (Analytics+tag-management-into-Corpus design research) remains unbuilt, owner-gated, no design doc exists; #160 (analytics/memory dead-click rows) was not independently re-located this pass, premise treated as unrefuted; #227 (You-sheet buries notifications) is stale-premise by source read — notifications render before the bulk 'More' list, not after — flagged for a rendered snap before closing; #306 and #418 premises are both confirmed unchanged, owner-gated."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/board-rederive/scout-E2-client-misc.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 78,
-      "bytes": 5508,
-      "sha256": "647ab0f9708d66e3ac28ed2cfb6bec728f17bc227c5b2c885b987fed6eaa656d",
+      "lines": 83,
+      "bytes": 5521,
+      "sha256": "ff8035f8d1cf06dfa44ad8fb94521c20066943a18c21736dabe243e5fdebb33a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29555,15 +29555,15 @@
         ],
         "summary": "Board re-derivation of E2 client-misc rows #63, #69, #587, #604, #771: #63 (comment-density gate) stays parked, gate undeclared; #69 (ast lens audit counts) is stale-premise — both cited counts (33 unwired procs, 9 client-gap contracts) are materially wrong today (now 15 and 13 respectively), underlying finding still holds directionally but numbers need re-derivation; #587 is parked but the cited owner-ruling isn't evidenced in the GitHub issue thread itself; #604 and #771 premises are both confirmed via direct code/issue-comment read, correctly parked."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/board-rederive/scout-F-test-presence.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 66,
-      "bytes": 4218,
-      "sha256": "4470b8cabed3ba9627885ecf509c4c46497a4a1c429390a0a8cd215000d434e7",
+      "lines": 67,
+      "bytes": 4221,
+      "sha256": "0596f25a2156ef2fc7f4ccd6290375ec8cc2c90735288767f0188b877636551a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29608,15 +29608,15 @@
         ],
         "summary": "Board re-derivation of the test-presence gate rows #772/#773: the gate's domain arm is demand-by-default with a 72-row committed debt baseline unchanged since its 2026-08-28 authoring commit (#772 zero cleared, NOT-STARTED); the gate has zero entry/transport coverage today (#773's core premise confirmed structurally), though its cited 25-untested (18+7) headline count is inherited from the prior #767 survey and was not independently re-run."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/board-rederive/scout-G-599-b4-b11.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 89,
-      "bytes": 5251,
-      "sha256": "a93db4081b6a24712c09e7c77cceb3a63473102294407f16a0778d41368355c5",
+      "lines": 90,
+      "bytes": 5252,
+      "sha256": "3db5fdb8201d2cef9236b8226fea32964bdbdbd3149fb91308cf076957fd1925",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29652,15 +29652,15 @@
         ],
         "summary": "Re-derivation of #599's B4 (per-rule opt-out knob) and B11 (Activity tab + listChatActivity): B4 is confirmed UNBUILT by the implementer's own contemporaneous in-code comment (domain/automation/engine/dispatch.ts:211) — no field, persistence, read path, or UI exists; B11 is confirmed BUILT end-to-end (verb → contract → service → trpc router → client component → registered at the composition root's chat-context tab registry). Recommends closing #599 against everything else and filing B4 as its own follow-up issue (#804)."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/board-rederive/scout-H-227-160.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 64,
-      "bytes": 4927,
-      "sha256": "c666f2a04c2b426150864403c97277a895e075e82d24058e1f7fca09f1059c4e",
+      "bytes": 4928,
+      "sha256": "d8f571accd50e55685daa20c890e5cd75bef5e721e0a9303e8c17c654ce71903",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29705,7 +29705,7 @@
         ],
         "summary": "Scout findings on #227 (mobile You-sheet notifications placement) and #160 (analytics/memory row click): both verdicts are STALE-PREMISE, claims FALSE as currently worded. #227: the notifications-inbox overflow chrome renders in the THIRD slot, ahead of the 'More' bulk section list, not buried at its foot. #160: the closest matching surface (discovery's corpus-hit-rows.tsx) has every row type real-click-bound, including a documented history of prior side-eye passes explicitly fixing dead-click defects on this exact file; the one non-clickable row (an image no card uses) is intentionally non-interactive, not a bug."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/gate-runtime/bus-family-1584.md",
@@ -30532,9 +30532,9 @@
       "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 450,
-      "bytes": 101462,
-      "sha256": "a5a4c9a191b79c8690c2d0ecfb03704ccd1e9e699cccce6ca675f89dd50e91ca",
+      "lines": 551,
+      "bytes": 188118,
+      "sha256": "fe77cc42fb97c2a4ab64f83d04052230078beceb2d3d39f44ffe15357a454bfd",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -30610,8 +30610,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 309,
-      "bytes": 36980,
-      "sha256": "f7441548020fb3242ed1568b1a59d21decbf9ea8acf46d9271ad36c987f42ce4",
+      "bytes": 37032,
+      "sha256": "2ce58ad0353129032a60f733ebf9830d2ec9a58a9139022d79a363ffbfe3e696",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31376,6 +31376,106 @@
       "receiptCurrent": false
     },
     {
+      "path": "docs/reviews/gate-runtime/v-hooks-wave-2026-09-12.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 454,
+      "bytes": 30718,
+      "sha256": "7486bccc9eec132b7836724f760b1073df8e9f30fca601bec9968734d6581107",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-12"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-instruments-2026-09-12.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 506,
+      "bytes": 42606,
+      "sha256": "fd915b8f59442171e92e79102db8948fa8adce06027130ac7c8717b4a9ec4c88",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-12"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-ledger-fixes-2026-09-12.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 359,
+      "bytes": 27997,
+      "sha256": "0279c9599fb556d28289569d0461821f9db7cd1f11f06649ea0d17890f500573",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-12"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-mixed-hooks-1-3-2026-09-12.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 375,
+      "bytes": 28372,
+      "sha256": "7d8724bf366ca3ac87f110ff38c7109f3cd24975afa618c48a68d14e018d6402",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-12"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-night-conversions-2026-09-12.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 501,
+      "bytes": 36386,
+      "sha256": "f400f4330c97b1b421610c5001dfd1b86712c92b1085dc340a6a0975c8570f29",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-12"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/gate-runtime/v-wave-2026-09-13.md",
       "lane": "reviews",
       "issue": 7,
@@ -31422,12 +31522,32 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/gate-runtime/v-world-gates-2026-09-12.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 520,
+      "bytes": 53453,
+      "sha256": "856a9b2e5881a7a0c6b95b2ceb2329460b55846ab411a2bb0da0d39dc61ad4eb",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-12"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/interaction-build-audit/scout-P-substrate-A-B1-6.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 148,
-      "bytes": 10370,
-      "sha256": "bceca4c52ce66fcaecc82a9164eea9cd82ae661dd3a94a7ddbbc31d19f8b7605",
+      "lines": 168,
+      "bytes": 10391,
+      "sha256": "063975c487546429200b8c1ccccd288a060ad1377f73402095693e192a872a32",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31463,15 +31583,15 @@
         ],
         "summary": "Interaction-direction build audit of S1-S5, A1-A4, B1-B6: every row climbs to at least composition-root registration or a passing-shaped test file; all are confirmed BUILT with no walked-back rows in this range. The one concrete gap found is B4's per-rule opt-out knob for confirm cards (already tracked as #804 per dispatch.ts:208-212), which is not a defect in the card mechanism itself. B2 (Rules section inside chat CONTEXT) is confirmed the non-blocker for the deferred B10 '+rules on a cast' leg."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/interaction-build-audit/scout-Q-B7-11-C-presets.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 128,
-      "bytes": 9319,
-      "sha256": "11d4af17044558edb82403644cddec050dd7229d4b1fcda834a19c8134683bbd",
+      "lines": 143,
+      "bytes": 9342,
+      "sha256": "74a4c97045f6d1d31828fc4771742e77efe022fce288ab6bf39061aa08315013",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31507,15 +31627,15 @@
         ],
         "summary": "Interaction-direction build audit of B7-B11, C1-C5, the preset catalogue, and cast/rules-apply: B7-B9 and B11 are confirmed BUILT full-ladder; the preset catalogue (22 specified) is an exact 22-built match, tsc-enforced exhaustive; C1-C5 are all confirmed BUILT. B10 (saved casts) is PARTIAL — the character/persona/group-config half is fully built and wired, but the '+rules' leg (re-minting a cast's enabled automation rule-presets at apply) has zero code anywhere: no schema column, no verb wiring, no client picker. Ships a 4-step build-order recommendation for that gap."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/misc/2026-08-08-import-fidelity-audit.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 566,
-      "bytes": 41114,
-      "sha256": "4f844a4f1d70ee2881297e8ae527706a9d79ff44deb69a4f159b64d962105851",
+      "bytes": 41124,
+      "sha256": "a22ee24a99afa6c1df26b8f0cad9dc3d5fc81268f4d00fdca772aaf5bafa8b4b",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31556,7 +31676,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/misc/2026-08-09-refinery-live-e2e.md",
@@ -31793,8 +31913,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 150,
-      "bytes": 12252,
-      "sha256": "da7c2f465cfac2c12c8aa91ba4fc83cddfa520ffaf701bb7cc0d83cfd3b4b861",
+      "bytes": 12254,
+      "sha256": "cd6eb3ec59660f48c79566aad61e4bd1e04f721b237c5ada2d329ff5264a7ee0",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31864,7 +31984,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/misc/2026-09-05-external-review-claim-adjudication.md",
@@ -32149,8 +32269,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 101,
-      "bytes": 13888,
-      "sha256": "2f2d3605605a26779afa3aabd0b81fbff43e06a39400c0e7224a8f3ef11babe6",
+      "bytes": 13889,
+      "sha256": "33fb28c6776cf6956ae1f082c75408dfafc583b40ca8b856e28ccffaf213d77c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32214,7 +32334,7 @@
         ],
         "summary": "Owner research hand-off (lane nate-research @ 7f574337a): §1 class corrections for 19 mis-attributed rows, §2 nineteen build items with enforcer/size/priority, §3 lane packaging, §4 per-lane hazards; the reports-must-land instruction (§0) is discharged by this landing."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/research/2026-08-30-ts-morph-speedups.md",
@@ -32473,8 +32593,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 244,
-      "bytes": 13590,
-      "sha256": "5e0099e553035266025bbfcbb985793d47160f6555d3590a569644a2b3cc3592",
+      "bytes": 13598,
+      "sha256": "4c5b1ba80c4fdc7c85770ae8a28885eb391192cb03cf950cf6701378e3a45d32",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32508,7 +32628,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/research/2026-09-03-snap-instrument-bundle-battery.md",
@@ -32569,7 +32689,7 @@
       "issue": 7,
       "lines": 71,
       "bytes": 7393,
-      "sha256": "e09d978716af88c4c48c192eac9ee42d8d3fa175f982ca995c0a6c6aeafa40b8",
+      "sha256": "54fdb837a5eaa0b43c0f71c48cf952ab49519ead158f278c375020ab7bdee4ec",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32605,7 +32725,7 @@
         ],
         "summary": "Agent browser-escape workflow census: 3,388 separate-browser events, 3,028 candidate escapes, no missing Snap capability found; the residual work is a documented Snap-first recipe plus the explicit owner-profile Chrome exception."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/research/2026-09-04-agent-cli-artifact-usage-census.md",
@@ -32613,7 +32733,7 @@
       "issue": 7,
       "lines": 253,
       "bytes": 21618,
-      "sha256": "af83ada2dfd5049d2056b41b9312807ab2d97f47093969e0c7ff6da02119f5c7",
+      "sha256": "53b72227aa3cf647362ca4ef2200d52f0adcc0b0e37650fae153a061ad2aa228",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32658,15 +32778,15 @@
         ],
         "summary": "Agent CLI/artifact usage census: Snap is the dominant rendered-instrument CLI by an order of magnitude; motion-audit/perf-meter/record retirement into Snap arms is supported by the usage and consumption data."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/research/2026-09-04-agent-mcp-usage-recovery-census.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 265,
-      "bytes": 15323,
-      "sha256": "a29ec65f51b8372b9cf324a292c53786761712e75ef4d03ac141dc6a96d0e53a",
+      "lines": 264,
+      "bytes": 15322,
+      "sha256": "90cce1a6192ba68633426ba4100ba4e40fd1b6874512aa07011e92bc8e077835",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32711,15 +32831,15 @@
         ],
         "summary": "Agent browser/MCP usage recovery census: the retired headless DevTools MCP's load-bearing surface is fully replaced by Snap; the owner's logged-in Chrome MCP remains a separate authenticated-profile authority; page-bound recovery verbs are the confirmed operational gap."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/research/2026-09-04-agent-orb-selector-choreography-census.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 309,
+      "lines": 308,
       "bytes": 16192,
-      "sha256": "5ec34c0cb89f748bb9825733333d7a0c4b00a63117cf1334e78b5ad3cfb7741f",
+      "sha256": "94591ba038a7e46ba3d23ae9386d9c8f9e770d0e6ac642e87243ad08e00fd594",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32755,7 +32875,7 @@
         ],
         "summary": "Agent __orb/selector/choreography census: five dominant journeys, brittle bare-selector waits versus stable data-slot/test-id handles, and RPG bridge usage already real before #1304 landed its discovery affordances."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/research/2026-09-04-agent-snap-result-discoverability-census.md",
@@ -32850,9 +32970,9 @@
       "path": "docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 671,
-      "bytes": 45547,
-      "sha256": "33f4d3ed1eec0a939a3f390b6a3dc5349e8c538763c2491a6fb82b151139278c",
+      "lines": 672,
+      "bytes": 45581,
+      "sha256": "5c44a372c235479a01efeb7cf75d28debac4b20e83da00c56ac5e6cff7751c24",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32889,15 +33009,15 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-23-rail-corpus.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 693,
-      "bytes": 46128,
-      "sha256": "3fd70d0fb6484a31efd425e9f66c39894cb018f248605db156a84f4450b42969",
+      "lines": 697,
+      "bytes": 46156,
+      "sha256": "9e284704c00a38a34745389261c21e8a18d5c292844bf4e6b772ff187fbbc66c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32935,15 +33055,15 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-29-plugin-automation.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 222,
-      "bytes": 16162,
-      "sha256": "8f837108e228f14e92feb363ed91c43fd81d97809babe79f5b198f9d18764d8d",
+      "lines": 235,
+      "bytes": 16180,
+      "sha256": "f2fd0f3c309f3305fbb1fe93d3e38d0f52eb45e81b780c00efc2d0aeda2732f2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32980,15 +33100,15 @@
         ],
         "summary": "side-eye acceptance pass on the plugin + automation surfaces (live dev app, 9 showcase plugins seeded): verdict SHIP WITH FIXES. Consent/onboarding writing and information design are the strongest reviewed here; confirmed defects are fixable within scope."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-29-plugins-rework-scored.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 182,
-      "bytes": 13794,
-      "sha256": "1398f11f85e44d541e8a149a5f4f3d6896976a49be4b3f0fecb81e7175608dda",
+      "lines": 192,
+      "bytes": 13778,
+      "sha256": "4c66bae7ad38563723cf8061cc80f2b3d9ac4fe62a44a8d74d0e2d91987f354b",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -33022,15 +33142,15 @@
         ],
         "summary": "side-eye scored review of the Plugins settings pane rework (commit 0789a0718, isolated stage): verdict SHIP (owner can merge). Scored via design-audit + Lighthouse against the bordered-card/checkbox-leading rework."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-29-saved-casts-rules.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 448,
-      "bytes": 34375,
-      "sha256": "fb5b1e8ad9a20cb970d5fba0ee5bd5acc545aafb557760b6b11b811f44c3a1fc",
+      "lines": 447,
+      "bytes": 34373,
+      "sha256": "7ff01ea1e2eea524400d9f3262ae3917790428937eb45b1a22a78eee3f24f38f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -33074,7 +33194,7 @@
         ],
         "summary": "side-eye of B10 saved casts +rules: SHIP WITH FIXES — the rider's mechanism proven with stored data (non-default knob captured, re-minted, enabled; re-apply idempotent); two P1s (mobile CastRow erases the name and the rules badge overlaps Start; the Start door applies rules silently, discarding rulesSkipped reasons), a rules-as-count cluster, editor/picker polish, two stumbled-on B2 defects, and a design-audit blind spot (0px label + 48px overlap passed clean)."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-30-bracket-verify.md",
@@ -33288,8 +33408,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 726,
-      "bytes": 49541,
-      "sha256": "710766b1af63a723f7e728a52a9e7a918883fde2577144784115b41011055046",
+      "bytes": 49567,
+      "sha256": "4baf046db3f4860b2feb260940eb7d94a558922b14e51325f8b0889249ce9fd8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -33329,15 +33449,15 @@
         ],
         "summary": "side-eye CHARACTERS delta pass: SHIP WITH FIXES 28/40 (was 25) — three of four 2026-08-22 P1s verifiably dead (keyboard 563→2 stops, filter chrome 272→180px and density-responsive, library stays docked); new P1: one character has three disjoint action menus and Export is unreachable from the open character; six P2s (28 dead tag facets, an inverted spoiler toggle, raw oklch values, an exit-less Import dialog, a mouse-only Own-look gloss, a 2253px Options tab burying History); five retractions incl. a Light-theme misread killed by a framebuffer decode; hub-ingest and scale arms not reachable on the seed db."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-30-rail-chats-delta.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 689,
-      "bytes": 49692,
-      "sha256": "e99fa31c64aa5d00e7b105c3c30292b59e952c6e9c2c26b1eea3b56acb57de1a",
+      "bytes": 49713,
+      "sha256": "58dc87f240bf648750ad7e5049b7f5395e0eb9d5a66e13b66161030a83eabde5",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -33378,15 +33498,15 @@
         ],
         "summary": "side-eye CHATS delta pass: SHIP WITH FIXES 27/40 — the message plate is now opaque in the shipped default (framebuffer: one RGB value across every text row), #489's cold-open freeze is fixed (click 248→32ms), mobile transcript 35%→59%; NEW P1: the context-panel tab strip forks by room type (RPG rooms lose tablist semantics and the strip moves 700px); five P2s (title crush at 1280 with both panes docked, inert injection clamp, two confusable CAST add-doors, an unlabelled single-variant chevron, 12–22px RPG editor targets) and a duplicate-action-door instrument false positive at coarse pointer; five retractions."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-30-rail-home-delta.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 341,
-      "bytes": 25820,
-      "sha256": "bb11cf319691d18dac0e62f000e050f3420994400f1146f824d5db42b2fd9d87",
+      "lines": 340,
+      "bytes": 25826,
+      "sha256": "1e6da181c34a4af0f1cad8ecc4f052bea1bbd9c853d3a0e658b7b4303305b29d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -33426,15 +33546,15 @@
         ],
         "summary": "side-eye HOME delta pass (rail sweep re-run): SHIP 33/40 — #453/#454/#457/#458 landed and hold under re-measurement; zero console/page errors across ~25 runs; a stale core-law line (NINE rail sections vs the shipped ten) nearly minted a false P1; the #453 refusal premise does not reproduce under a true boot-two + planted control; Lighthouse mobile CLS 0.122 vs probes 0.0295 unreconcilable on the dev build; taste: top-heavy above 800px, six caps kickers + one unvoiced block."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-30-rail-presets-delta.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 565,
-      "bytes": 41261,
-      "sha256": "53badc6a84eb4c3f6307e6038490d0177a3041ad7acf7351a0d35e927f691677",
+      "bytes": 41281,
+      "sha256": "1642c1b4e43effc3addcd1634f5637d93b4f9d42836c87b1e0abef9040f5c9bd",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -33478,7 +33598,7 @@
         ],
         "summary": "side-eye PRESETS delta pass: SHIP WITH FIXES 31/40 (was 29) — thirteen of fourteen re-drivable 2026-08-22 arms fixed, #481 proven dead by mutation count (arrows: 0 settings writes; Space: exactly 1), 95 mapped controls with 0 DOM fallbacks, Lighthouse a11y 100; new P1: Used-by calls the active built-in unused (preset-usage.ts reads the null pick as a non-match); new P2s: silent un-announced copy-on-write that does not activate and forks as kind=system, mobile knob value cells aligned to nothing, a 133ms rAF gap opening a preset; six retractions; the Lighthouse mobile arm void."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-30-rpg-start-exit.md",
@@ -33537,8 +33657,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 293,
-      "bytes": 13385,
-      "sha256": "1fe15b561bd57c83b2198809a9690a6af55d733c5c30b78fdc5e37b0c3162c45",
+      "bytes": 13387,
+      "sha256": "0cb81569c4e42ca57fa6072c3b44710cbe5e963604a417c340f2ae9865170b17",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -33578,7 +33698,7 @@
         ],
         "summary": "#821 re-verify on 76ee75493: PASS — mobile 430×932 at 4× CPU, real click, zero paid layout-shift entries in two identical runs (last wave +275/+219ms vs +795ms pre-fix; §Injections 920→307px); desktop after-click 0.145→0.075 observed, 0 paid; the residual §Documents >0h0 mover is free first-wave mount churn at 0.017, judged not the defect; Lorebooks still below the fold (→ #830); the ❗8 dev badge is a stale checker worker."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/side-eye/2026-08-30-this-chat-cls.md",
@@ -33952,8 +34072,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 297,
-      "bytes": 30503,
-      "sha256": "180d3f0a3bc59f04642e9e5dd7d974f5541180e2bf10cad55c9a210df20942d7",
+      "bytes": 30518,
+      "sha256": "7222b06d1030b9d8a88198d59d9b574bb15dec7bdfda3210b2a8ad63d55e399c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -33997,7 +34117,7 @@
         ],
         "summary": "side-eye re-derivation of #980's six control-grammar items against the post-#1725 Config surface: F10/E3 FIXED, F12 DEAD, F13 + F22 LIVE (build), F23/F24/E2 re-file narrower; two new P1s (#1823 unmarked LIST location, #1824 library-row void) and one open instrument question (SELECTION_CONTROL hit area)."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
@@ -34054,8 +34174,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 293,
-      "bytes": 24583,
-      "sha256": "80f6b176f2d9ea87bdf0f06a8b0c2f14e5727d0d2e15fead57d1f523fdc757bd",
+      "bytes": 24592,
+      "sha256": "21393f10e45284c7bb2b27c4c7860a4fe4401ebce547baafd22d40cf633e1eb3",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34082,15 +34202,15 @@
         ],
         "summary": "Superseded lineage: the 2026-08-23 interaction systems audit; its findings were folded through the 2026-08-24 panel into the committed spec (spec §10). Kept as the argument record."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-24-automation-platform-axes.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 249,
-      "bytes": 20941,
-      "sha256": "75a62e9914be411a9665510dcf51367fbe652f2f6ae62c51fcc9e50d8f4b03ee",
+      "lines": 251,
+      "bytes": 20943,
+      "sha256": "e5248f26517ee3ab7c41888be057b9279ab741a6029e98df18a426f95357537d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34116,15 +34236,15 @@
         ],
         "summary": "Provenance for the committed interaction spec: the platform-axes born-whole audit + the stale-claim lens (41 claims checked, 6 stale). Conclusions live in the spec (§3-S3 scope axis, §8 platform re-scope); this doc carries the arguments and the proposed Documentation-Law rule (§7)."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-24-final-interaction-specification-RULED.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 665,
-      "bytes": 70504,
-      "sha256": "2521c4a2e6282fcf7b4580769be8a7c1b34b6c35e33b87c3cb4e5ec01f1bbd0c",
+      "lines": 669,
+      "bytes": 70520,
+      "sha256": "47834614a9c2f6c8a4cc2c7fb893049da440b0daa0dcd24ac6e4c638b2a729ff",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34150,15 +34270,15 @@
         ],
         "summary": "Provenance: the five-lens panel output with owner rulings folded (39 findings adjudicated, 6 structural refolds). Superseded as reading material by docs/design/interaction-direction-spec.md, which consolidates it (spec header + §10)."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-24-final-interaction-specification.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 481,
-      "bytes": 45386,
-      "sha256": "1181cca40e5ba1220265558799dad1aebd5fbf8c787efc3442dd23308cddcb2f",
+      "lines": 486,
+      "bytes": 45394,
+      "sha256": "642b4dcffbfbda6a00dca7e36e33b6711a09e18bee1b80956e76b8dd19818265",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34185,15 +34305,15 @@
         ],
         "summary": "Provenance: the pre-RULED five-lens panel draft; superseded by the -RULED revision and then by the committed spec (spec §10)."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-24-interaction-ia-placement.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 208,
-      "bytes": 19254,
-      "sha256": "55a1b9470f8f5534f196334ee0bd28e672e18b6bec4f3eff49d9175a4c193b6e",
+      "bytes": 19256,
+      "sha256": "c08e7f0cb257350a64c9d44255d9ecd70303ffc0addff759ade9479bfdf2a544",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34216,15 +34336,15 @@
         "evidence": ["docs/design/interaction-direction-spec.md:576-577 (§10) names interaction-ia-placement.md", "committed as provenance at dd1921de7"],
         "summary": "Provenance: every HOME in the spec's §7 path tables derives from this IA placement doc (one adversarial round, 7 findings folded — spec §10)."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-24-plugin-automation-juice.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 282,
-      "bytes": 22480,
-      "sha256": "13118c158824683d33a56ddd59c5cfe502a119a085fe748f4d1aa4fb4a24f174",
+      "lines": 298,
+      "bytes": 22499,
+      "sha256": "e8395b632ceddead662fc3c197300eaa0b480bda214c487c6bda9d54cf480764",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34252,15 +34372,15 @@
         ],
         "summary": "Provenance: the preset-catalogue ideation corpus (three fable generations, two fun-honesty passes, a completed two-lens law/cost round — 16 findings, twelve survivors changed) behind the spec §4 catalogue and its graveyard."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-28-interaction-program-soundness.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 358,
-      "bytes": 27921,
-      "sha256": "357382ac8952e793b858086ba9df746cee365204c85043c42a96e2792abc940a",
+      "lines": 359,
+      "bytes": 27927,
+      "sha256": "bdd7bf40814f04de0e4446736560259f3a9a6da2e3b4d3ee8387aabbb0061fca",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34300,15 +34420,15 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-28-juice-optional-completeness.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 268,
-      "bytes": 27904,
-      "sha256": "9e53ae20b669712d06a0dfd2027f0e7891f8fb437d945a3ffdd7dfd92f84af0f",
+      "bytes": 27910,
+      "sha256": "60905b59477953cdcb4075ddec218f1f45ac8e354baae7b3d9b02b351b101ef1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34349,15 +34469,15 @@
         ],
         "summary": "Completeness audit vs our own plan (juice doc + plugin-ui-plane + interaction-spec catalogue): 15/15 juice survivors, 20/20 presets, 9/9 plugin phases, 0/13 graveyarded rebuilt, 1/5 §5a purchased (plugin_events). Findings: R1 URL-install client surface missing (#792, MEDIUM), R3 seed exercisers (#774), R4 /vote optional. No completeness lies; three stale doc tenses."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-28-roster-preset-26-premerge.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 337,
-      "bytes": 26374,
-      "sha256": "a0ad9821b735f8647cad5cb3e00470725ee84c6cfb78dacdfbeabce42076a266",
+      "bytes": 26383,
+      "sha256": "f5148d061b5d7f265c0e687cb1712805a0608f5a0449e1095143267d323ac000",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34398,7 +34518,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-28-st-extension-parity.md",
@@ -34463,8 +34583,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 191,
-      "bytes": 16562,
-      "sha256": "3d4fa55e74fecff3e474bb7eac22f78313d633b6608adde91fd2d7e34b9d0c52",
+      "bytes": 16567,
+      "sha256": "30a68d585e46e3908d6f8ded90ed1e582f1aaef527f62e2a4a0d25b1a57e78cb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34505,15 +34625,15 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-29-issue-711-reaudit.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 226,
-      "bytes": 30357,
-      "sha256": "a54498989f22f544f3d857177536b76cd28fefb91dfac137a7e78dfa9376372d",
+      "bytes": 30454,
+      "sha256": "da11882cc088037ce0e099221993f42711975fc9b19cad4935b343c38258971e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34553,15 +34673,15 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-29-plugin-visual-capability.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 359,
-      "bytes": 26515,
-      "sha256": "794e45a6ea8edcfefa3778633c4d5d752b00a7d1b1927bd3152e42e6dcee172e",
+      "lines": 371,
+      "bytes": 26539,
+      "sha256": "fc9a1cb5199348418588c5c46ead68fc8a652375de98a4c2e1833f25e8ddb8a2",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34597,7 +34717,7 @@
         ],
         "summary": "stickler frontier investigation into whether plugin surfaces (esp. card-atlas hub) can look genuinely good: node-based tiers inherit house visual styles by construction; the iframe/frame tier is limited to two color tokens + a font. Findings ranked with security tradeoffs for proposed additions."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
@@ -34716,9 +34836,9 @@
       "path": "docs/reviews/stickler/2026-08-31-961-static-class-provenance.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 294,
-      "bytes": 16947,
-      "sha256": "814492d2e894699b2a402efa37454747863d8a96f89ded7c8ad428a686c4169d",
+      "lines": 295,
+      "bytes": 16941,
+      "sha256": "ed30f14ba83e85a7ac9023edf6ff75895f33766eba2f3406cc74cd7cb099b0d5",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34756,15 +34876,15 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-31-css-review-train-f83aa7071.md",
       "lane": "reviews",
       "issue": 7,
       "lines": 221,
-      "bytes": 18319,
-      "sha256": "433e76b53c432cbae165dd9ac74723692bf367eec2f685a2718fdd97b9e6d25c",
+      "bytes": 18314,
+      "sha256": "93d25b8a5ef400cdb1721775c8f945bfd6a076c74d6e309a49f6c9f9c0ef07bb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -34804,7 +34924,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md",
