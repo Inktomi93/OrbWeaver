@@ -160,6 +160,38 @@ test("WIDENING: class 2 is admitted, and the bytes this repo does not author are
   expect(targets).not.toContain(".claude/skills/snap-driving/reference/flags.md");
 });
 
+test("CLASS 3: the root entry points are admitted, and the generated-block file is not", () => {
+  // Widened by PATH, not by the pair the row enumerated: `README.md` is a third root file matching the
+  // row's own description, and enumerating would have missed it the way omission missed the second
+  // archaeology tree. `AGENTS.md` is fenced because its lines 1-37 are written by `pnpm agents:sync`,
+  // whose array emits no blank line at either marker seam — the exact two blanks this formatter wants —
+  // and whose freshness is the REGISTERED `check:agents` stage. Admitting it makes two stages unable to
+  // be green at once. That fence is temporary; its successor is two blank lines in the generator.
+  const targets = formatTargets([]);
+
+  expect(targets).toContain("CLAUDE.md");
+  expect(targets).toContain("README.md");
+  expect(targets).not.toContain("AGENTS.md");
+});
+
+test("CLASS 3: the `@` import directive survives a REAL write, not just an empty pass", ({ scratch }) => {
+  // `CLAUDE.md` line 1 is `@docs/architecture/core/AGENTS.md` — a directive the harness resolves, not
+  // prose. The file happens to be canonical today, so "the formatter proposed nothing" would prove
+  // nothing about what happens when it DOES write. So the defect is planted ELSEWHERE (a `\~` the
+  // formatter removes, far from line 1) and the assertion is that the write happened AND line 1 came
+  // through byte-exact. A blank line inserted above or below it would fail this too, since it pins the
+  // first two lines. Same construction for `README.md`'s own first line.
+  const directive = "@docs/architecture/core/AGENTS.md";
+  const body = `${directive}\n\n# Root entry point\n\nA line with a \\~250 escape the formatter removes.\n`;
+
+  const { bytes, outcome } = format(scratch, "CLAUDE-like.md", body);
+
+  expect(outcome.dirty).toStrictEqual([join(scratch, "CLAUDE-like.md")]); // it really did write
+  expect(bytes).toContain("~250"); // the planted defect really was repaired
+  expect(bytes.split("\n")[0]).toBe(directive); // …and the directive is untouched
+  expect(bytes.split("\n")[1]).toBe("");
+});
+
 test("IDEMPOTENCE: a second pass over formatted bytes changes nothing", ({ scratch }) => {
   // Half the original defect was the reformat's OWN second pass adding escapes, so a single-pass receipt
   // was never enough. This battery carries one of every construct the measurements touched.
