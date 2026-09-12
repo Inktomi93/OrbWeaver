@@ -170,7 +170,7 @@ type in `@orb-waive <id>(<position>)`. **It is routinely NOT the thing a reader 
 reporting the type argument `Registry<string, number> | null` is waived at `Registry`; `no-manual-autosave-flush` at
 `pushFieldValue` though `handleSubmit` is half the defect; `bounded-list-limit` at the field name rather than the
 unbounded chain, because both report a pair- or chain-level verdict anchored on one locus. A string-literal token
-INCLUDES its quotes. **Read the `report.node` call, never the message.** Unguessable is the norm, which is why an
+INCLUDES its quotes. **Read the `report.node` call, never the message.** **AND `report.node` SPLITS THE CARRIER FROM THE COORDINATE, which resolves an apparent contradiction in this section (measured 2026-09-12).** The reported NODE is the CARRIER — a `getByTestId(…)` call, say — while `{token, offset}` is the COORDINATE, and the finding's `file:line:column` comes out at the coordinate rather than at the node's start. So *“report the literal, never the whole call”* and *“report the call”* are **both satisfiable at once**, which the contract does not make obvious and which is why two policies governing one site can share an anchor and report ONE position. Unguessable is the norm, which is why an
 ordinary policy's `fix` owes the spelling — and why a token containing a paren makes the policy UNWAIVABLE, since the
 marker grammar's position group is `[^()\r\n]+` and every marker against it parses as malformed.
 
@@ -297,6 +297,22 @@ family.
      reports "0 rows died". Five consecutive cuts read clean for this reason in one lane and **four of the five were
      fully enforced.** `lastIndexOf` is not the fix either — the `why` strings come last. **Assert the anchor occurs
      EXACTLY ONCE in the file and refuse otherwise.**
+   - **IN A SPLIT FAMILY, THE CUT MUST NAME THE POLICY IT WAS DRIVEN AGAINST — a patched `lib/` reader with the
+     WRONG SIBLING imported reads exactly like an unenforced fence (measured 2026-09-12).** A cut that patches a
+     shared reader has to re-import the GATE as well, and a split family has TWO. A lane drove the ORDINARY sibling
+     against a patched registry reader and its harness reported **`0 rows died` for both `-health` fences**; re-run
+     against the `-health` module, both reddened. This is the third false-clean in this harness and the only one
+     where **the cut reached the code and the wrong policy was driven** — the other two never reach it. **So a clean
+     cut in a split family owes the POLICY NAME it was driven against**, not just its result and direction.
+
+   - **AND A CLEAN CUT IS MORE OFTEN AN UNENFORCED FIXTURE THAN AN UNENFORCED FENCE (same lane, both of its clean
+     cells).** Each was a fixture that could not structurally reach the fence: one *declared* the helper but never
+     *called* it inside the axis home, and none handed a recipe IDENTIFIER to a non-door call, because
+     `cn(thingVariants({…}))` passes a CALL and so can never credit whatever the door set is. **Each fix was one
+     line and each turned the cut RED.** This is the mechanism behind §4.1's rule that UNFALSIFIABLE owes a
+     constructed row rather than an argument: the row you cannot think of is usually a fixture you have not written,
+     not a property that cannot be falsified.
+
    - **Re-importing a rewritten module with a `?query` suffix returns the CACHED module**, so the run measures the
      UNPATCHED policy while printing a population that still carries the fence you just deleted. Write the patched
      source to a **sibling scratch module in the same directory** (so relative imports still resolve), import that,
