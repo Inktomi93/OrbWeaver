@@ -69,18 +69,40 @@ test("SEARCH FIDELITY: a backslash INSIDE a code span is literal content and sur
   expect(bytes).toContain("`2\\*3`");
 });
 
-test("RENDER FIDELITY: a table whose body out-widths its header is REFUSED, not silently widened", ({ scratch }) => {
-  // The destructive shape, measured in 3 living docs. An unescaped `|` inside a code span inside a cell
-  // splits that row into more cells than the header declares; serialization then sizes the delimiter row
-  // to the WIDEST row, so the rendered table GAINS columns and the header gains empty cells. remark's
-  // round trip is not total here, so the only honest answer is to leave the file alone and say so.
+test("OVERFLOW ROW: a table whose body out-widths its header is REFUSED, not silently widened", ({ scratch }) => {
+  // THE PLANTED POSITIVE CONTROL. This arm's corpus count is ZERO by design — the three live instances
+  // were repaired in #2104 and every older one was already normalized — so a real-tree receipt would be
+  // an unmeasurable zero. The fixture is the defect reduced: an unescaped `|` inside a code span inside
+  // a cell splits that row to 3 cells under a 2-cell header, and GFM DROPS the third. The formatter's
+  // instinct is to widen the header to match, which makes the dropped cell appear under a blank heading
+  // and leaves the table self-consistent forever. Refusing is the only answer that preserves the render.
   const body = `${FRONTMATTER}| Gate | Why |\n| - | - |\n| \`lifecycle\` | a \`RULED-OUT | DERIVED\` classification |\n`;
 
   const { bytes, outcome } = format(scratch, "table.md", body);
 
-  expect(outcome.refused).toStrictEqual([join(scratch, "table.md")]);
   expect(outcome.dirty).toStrictEqual([]);
   expect(bytes).toBe(body); // NOT written — the refusal is the point
+  expect(outcome.refused.map((r) => r.file)).toStrictEqual([join(scratch, "table.md")]);
+  // The MESSAGE is the deliverable, not the verdict: without the census a reader cannot tell a stray
+  // pipe (one occupied row) from content that has no column (several), and those need opposite repairs.
+  const reason = outcome.refused[0]?.reason ?? "";
+  expect(reason).toContain("header declares 2 column(s)");
+  expect(reason).toContain("1 row(s) carry more");
+  expect(reason).toContain("3 cells vs header 2");
+  expect(reason).toContain("occupancy over 1 body rows, by column: 1 · 1 · 1");
+});
+
+test("OVERFLOW ROW: the NARROW direction is not a finding — GFM pads it and it renders as written", ({ scratch }) => {
+  // Direction is the whole rule. A row with FEWER cells than its header loses nothing: GFM pads it and
+  // the render matches the source. Refusing here would red the corpus on a harmless shape, so this arm
+  // is the fence that keeps the guard from over-firing — and it is a REAL risk, not a hypothetical, since
+  // a two-sided "row width must equal header width" check is the obvious way to write this wrong.
+  const body = `${FRONTMATTER}| Gate | Why | When |\n| - | - | - |\n| \`lifecycle\` | a reason |\n| \`other\` | a reason | now |\n`;
+
+  const { outcome } = format(scratch, "narrow.md", body);
+
+  expect(outcome.refused).toStrictEqual([]);
+  expect(outcome.dirty).toStrictEqual([join(scratch, "narrow.md")]);
 });
 
 test("RENDER FIDELITY: the well-formed corpus shapes are accepted, so the refusal is not a blanket", ({ scratch }) => {
