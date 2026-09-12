@@ -174,8 +174,9 @@ INCLUDES its quotes. **Read the `report.node` call, never the message.** Unguess
 ordinary policy's `fix` owes the spelling — and why a token containing a paren makes the policy UNWAIVABLE, since the
 marker grammar's position group is `[^()\r\n]+` and every marker against it parses as malformed.
 
-**AND "ORDINARY" IS A CLAIM ABOUT THE DOOR, NOT A FIELD — CHECK IT AT EVERY CONVERSION. MEASURED **NINE OF NINE**
-ACROSS TWO INDEPENDENT LANES WITH DISJOINT SUBJECTS (five of five 2026-09-12; four of four 2026-09-13).** A legacy
+**AND "ORDINARY" IS A CLAIM ABOUT THE DOOR, NOT A FIELD — CHECK IT AT EVERY CONVERSION. MEASURED **NINE OF TEN**
+ACROSS THREE INDEPENDENT LANES WITH DISJOINT SUBJECTS (five of five 2026-09-12; four of four and one COUNTEREXAMPLE
+2026-09-13).** A legacy
 policy can carry `authority: "ordinary"` while having **no working waiver door at all** under THIS contract.
 
 **AND THE REASON IS NOT THAT THE LEGACY GATES WERE BROKEN — read this before repeating the 9/9 number, because an
@@ -214,7 +215,7 @@ a defect report against the legacy author.
 
 **The practical consequence is unchanged, which is why the checks below still bind:** under this contract those
 positions do not work, an author cannot waive with them, and `report.node` throws. Fix them. **At a 9/9 base rate this is not a hazard to check for — it is the DEFAULT EXPECTATION, and a
-conversion that reports an ordinary door working is the claim that owes evidence.** The second lane's four were: three
+conversion that reports an ordinary door working is the claim that owes evidence.** **AND THE COUNTEREXAMPLE IS WHY THAT SENTENCE SAYS “owes evidence” RATHER THAN “is wrong” (measured 2026-09-13, `testid-liveness`).** Its legacy positions were `indexOf` SLICES OF THE REPORTED NODE'S OWN TEXT — authored code at their offset, which WOULD have bound under this contract. So a legacy gate CAN have had a working door, and a lane that finds one records it rather than assuming it misread. The base rate stays the default and the check stays mandatory; what changes is that “my door works” is a REPORTABLE measurement, not a suspected error. That lane still moved its anchor — deliberately, to share one position with a sibling policy so a single marker waives both, and free because its marker census was 0 = 0 = 0. **A move for that reason is an improvement; a move to repair a door that already worked is churn, and the receipt distinguishing them is the marker census.** The second lane's four were: three
 reporting SYNTHETIC LABELS at `offset: 0` (`no-assertion`, `async-no-await`, `bare-expect`, and `cancel_2`/`detached`,
 strings appearing nowhere in any source so `locateFinding` could never bind them), one reporting an authored token at
 the wrong offset, and one file finding with a synthetic `column: 0`. THREE classes, all silent:
