@@ -246,23 +246,12 @@ function writeFixtures(): void {
   // rows carry all three arms and run on the static bar through `structure:policy-conformance`, and a
   // fixture for a converted gate reports UNFIRED here forever because `loadGates` returns the legacy
   // list alone.
-  // tooling-instrument-proof: a reasoned marker in an UNREGISTERED tool's tree (the real registry is
-  // armed-empty at P1) — the stale-vocabulary arm. This suite file itself is FLAT under tests/tooling,
-  // which the gate's tool-dir derivation skips, so the literal below is inert here.
-  fx("tests/tooling/__g_rogue/x.test.ts", "// @instrument-proof: plants a fake defect and asserts the instrument reds\nexport const t = 1;\n");
-  // design-audit-rule-proof: a proof ROW whose rule id is absent from the closed live registry. The old
-  // spelling here was a `// @rule-fires(...)` comment marker, and the gate migrated to executable
-  // `auditRuleTest` rows in 180b8dbb3 WITHOUT sweeping this fixture — so the gate has been silently
-  // UNFIRED in the anti-drift assertion ever since (found by this lane's floor, 2026-09-01). The row shape
-  // and the bound-helper requirement are the gate's own BOUND_HELPER_FIXTURE constant.
-  fx(
-    "tests/tooling/ui-audit/__g_ruleproof.test.ts",
-    'import { test } from "../../support/tool-fixtures.ts";\nfunction auditRuleTest(proofs: unknown, title: string, fn: () => void): void { void proofs; test(title, fn); }\nauditRuleTest([{ rule: "__g-ghost-rule", kind: "fires", reason: "planted stale proof id" }], "fixture", () => {});\n',
-  );
-  // agent-bridge-lock: a SECOND production installer of `globalThis.__orb` outside the sanctioned door.
-  // The gate landed in 5d64aa1c6 with no fixture and no UNFIXTURABLE row, so it too has never fired in the
-  // anti-drift assertion; the shape is lifted from the gate's own first mustFlag row.
-  fx("packages/client/src/lib/__g_rogue-bridge.ts", 'window["__orb"] = globalThis.__orb;\n');
+  // tooling-instrument-proof · design-audit-rule-proof · agent-bridge-lock: the three §12.6 single-policy
+  // fixtures RETIRED with their #1584 conversions, for the reason stated above `evaluate-no-scope-capture`
+  // — `loadGates` returns the legacy descriptor list ALONE, so a fixture for a converted gate reports
+  // UNFIRED here forever. Every arm each fixture carried is now a declared `mustFlag` row running on the
+  // static bar through `structure:policy-conformance`, and the conversion differential replaying the
+  // legacy examples through both engines is `verify/gates/mixed-hook-singletons-conversion.test.ts`.
   // test-determinism: ambient clock in a test (tooling/ is scanned; only support/+e2e/ are exempt).
   // The banned call is assembled so the literal isn't present in THIS file's source (which the gate
   // also scans) — only the written fixture resolves to the ambient-clock call.
