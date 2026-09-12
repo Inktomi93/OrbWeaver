@@ -20,6 +20,17 @@
 // do with the registry vocabulary red, and a registry aliased to a name without "Registry" in it walked
 // past; it is now the canonical `Registry`/`ContributorRegistry` declared in `client/src/lib/registry.ts`,
 // followed through declared type-alias hops, with the home located in the population and receipted.
+//
+// FAMILY `react-origin` — the shared reader is `lib/react-origin.ts` (canonical React export identity),
+// consumed here as `createReactExportMatcher("createContext")` for the CALLEE half. The type-argument half
+// is `lib/project-home-origin.ts`, a different reader for a different question; what this family owns is
+// only "is this REACT's export", which is the half the legacy `getText() === "createContext"` got wrong.
+// POPULATION PORT: an INTENTIONAL WIDENING BY EXACTLY ONE PATH. The legacy
+// `scanRoot: (p) => p.startsWith("packages/client/src/") && p !== "packages/client/src/lib/create-registry-context.tsx"`
+// (`47fc0ae01^`) becomes `@client`, which is `packages/client/src/` exactly — so the ONLY delta is the mint
+// home, whose exclusion is DELETED rather than translated for the reason stated above: the mint's
+// `createContext<R | null>` is over a TYPE PARAMETER, which is not the `Registry` type, so the exclusion
+// licensed nothing and the home is now simply scanned like every other file.
 import type { Node as MorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
