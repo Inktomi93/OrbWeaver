@@ -29,6 +29,16 @@
 // Entire-population by necessity — the verdict joins a module to tests in another directory. Warning, not
 // error: four ordinary policies carry no arm at mint (#1952 recorded the closure that missed them). Hard:
 // the proof of a waiver door is not itself waivable.
+//
+// FAMILY `policy-soundness` — the shared reader is `lib/policy-descriptor-read.ts` (`mentionsWaiverOf` and
+// `markerFormIdsOf` for the marker grammar, `enclosingTestCall` for the arm join). Reading the waiver
+// grammar from the same module its sibling `policy-waiver-spelling` reads means the two cannot disagree
+// about what a marker IS while disagreeing about where it must be named.
+// POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL at
+// `fe8c9cc84`, the commit that created the family; `git show fe8c9cc84^:<this file>` refuses with "exists
+// on disk, but not in fe8c9cc84^", and that refusal IS the receipt (the `scrubber-factory-home`
+// precedent). The population is authored and is the family's WIDEST — it joins `@tooling` gate modules to
+// `@tests` family tests, because the verdict is exactly that join.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";

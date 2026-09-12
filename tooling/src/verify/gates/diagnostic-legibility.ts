@@ -27,6 +27,11 @@
 // authored `.ts`/`.tsx` only (§12.4), `_proof/` stays IN exactly as legacy had it, and no other tree
 // contains that prefix. The legacy `scanRoot` existed to keep the four whole-project scanners from also
 // reading this gate's example strings; the population field now IS that fence and the four are unaffected.
+// LEGACY SHA `1e81658b4^` — this is the ONE member of the nine-module `policy-soundness` family that is a
+// CONVERSION rather than a module born final; the other eight have no legacy population and say so. Read
+// by the three-question test rather than inherited: the introducing commit is `1e81658b4`
+// (`git log -S 'defineGate({' --reverse -- <this file>`), the cited sha is its parent by construction, and
+// the blob there is legacy (`git show 1e81658b4^:<this file>` has `defineGate` count 0).
 //
 // MARKER CENSUS — the private `// terse-ok:` grammar is RETIRED (§12.5 bans a gate-specific exemption
 // vocabulary). Live sites on the tree at conversion: ZERO (`/usr/bin/grep -rn terse-ok packages tests

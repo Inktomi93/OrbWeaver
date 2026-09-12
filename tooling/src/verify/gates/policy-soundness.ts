@@ -67,6 +67,19 @@
 // (`gate-modernization` names the lookalike). BLINDNESS: this module is inside its own population, so when
 // it is delivered and does not read as final the recognizer is dead and the run THROWS rather than reporting
 // ✓ over the corpus forever (pinned through `runPolicyPass` in the family test).
+//
+// FAMILY `policy-soundness` — this module is the family's namesake and the shared reader is
+// `lib/policy-descriptor-read.ts`, whose `finalRegistrationOf` decides by IMPORT ORIGIN which modules any
+// member may judge at all. Nine modules declare the family; the closed classes live here and each OPEN
+// class lives in its own module (`policy-legacy-imports`, `policy-binding-resolution`) so that this
+// module's held-at-zero pin cannot quietly absorb a class that is still moving.
+// POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL at
+// `fe8c9cc84`, the commit that created the family. `git show fe8c9cc84^:<this file>` refuses with "exists
+// on disk, but not in fe8c9cc84^", and that refusal IS the receipt (the `scrubber-factory-home`
+// precedent). READ THE SHA ALREADY IN THIS HEADER CORRECTLY: `8257071ee` at E1 is a SWEEP reference — the
+// commit the inert-`ext` class was swept to zero at — and is NOT a pre-conversion sha. A census that
+// word-matches hex in a header counts it as a legacy-SHA citation; it is not one, and this module cannot
+// have one.
 import type { CallExpression, ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";

@@ -14,6 +14,17 @@
 // reader cannot read at all (a call, a parameter) is left unjudged rather than guessed. A `fix` naming a
 // DIFFERENT policy's spelling is a finding — the author would type a marker the central engine binds to
 // nothing. Hard, reviewed-grant and legacy modules are out of scope: only the ordinary door has a spelling.
+//
+// FAMILY `policy-soundness` — the shared reader is `lib/policy-descriptor-read.ts` (`staticSegments` and
+// `staticText` for the `fix` prose, `mentionsWaiverOf` for the marker grammar it shares with
+// `policy-waiver-identity`). One reader for the grammar is what makes "names the spelling" and "names the
+// RIGHT spelling" two questions about one definition.
+// POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL at
+// `fe8c9cc84`, the commit that created the family; `git show fe8c9cc84^:<this file>` refuses with "exists
+// on disk, but not in fe8c9cc84^", and that refusal IS the receipt (the `scrubber-factory-home`
+// precedent). READ THE SHA ALREADY IN THIS HEADER CORRECTLY: `8257071ee` above is the tip the 51-of-88 AST
+// CENSUS was taken at, not a pre-conversion sha — this module cannot have one. A census that word-matches
+// hex in a header counts it as a legacy-SHA citation; it is not one.
 import type { ObjectLiteralExpression } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
