@@ -392,11 +392,16 @@ gone.** Mutable state has exactly two homes and this file is neither:
   a CLASS** (a defect present in N modules through a shared reader) **or when it BLOCKS a dispatch.**
 - **A conversion can SPLIT** (one authority, one severity, one execution per policy), so price a chunk in
   POLICIES, never in modules; §12.6's thirteen mixed-hook modules became 32 policies and are all converted.
-- **Of the remaining legacy modules, almost all are `X`** — each carries a gate-local table, sanction, deferred
-  row, stale arm or custom marker that needs a CENTRAL HOME before it converts. The spine is authority migration
-  (#1922), read per ROW from `exception-authority-census.md` re-derived against the tree (its base is
-  2026-09-05 and it is keyed on table TYPE, so it cannot see a table inside a final module or one declared under
-  another type). Verify a table is NON-EMPTY before designing a policy around it; two ruled arities were wrong
+- **The remaining legacy modules are NOT "almost all `X`" — that letter was a census residual** (2026-09-12,
+  `cb-v-authority-census`): the 2026-09-05 census lettered 27 of 60 and defaulted the rest. Measured per row:
+  3 `O` · 8 `H` (no exemption artifact at all — zero authority work) · 4 `MI` · 6 `B` · the rest `X`, each `X`
+  carrying a gate-local table, sanction, deferred row, stale arm or custom marker that needs a CENTRAL HOME before
+  it converts. The spine is authority migration (#1922), priced from
+  `docs/reviews/gate-runtime/v-authority-census-2026-09-12.md` §5 (chunks C0–C9, in that order — C1's four
+  empty-table deletions mint no grant at all and were hidden by the residual) and read per ROW from
+  `exception-authority-census.md` re-derived against the tree (its base is 2026-09-05 and it is keyed on table
+  TYPE, so it cannot see a table inside a final module, one declared under another type, or a comment-justified
+  bare path array). Verify a table is NON-EMPTY before designing a policy around it; two ruled arities were wrong
   for that reason.
 - **A grant row minted for a subject that produces no finding is STALE ON ARRIVAL and reds.**
 - **`ast-read.ts` and `symbol-reference.ts` are NOT the new fact boundary** (`shared-semantic-readers.md`); a
@@ -427,6 +432,10 @@ re-attest of every review doc a lane rewrote (a regeneration never attests a doc
    not break:** the lane re-reads the CURRENT implementation on `main`, re-derives the delta against the anchor
    (`git diff 6c8424806 HEAD -- <the policy and its readers>`), and carries the row's named proof, including its
    do-not-restore prohibitions. Those rows are why a conversion can look green and still destroy an invariant.
+   **A reading task is FULL READS, divvied across lanes, and the report names what it did not read** — *"I read 47
+   of 57; here are the 10 I did not"*. "Grep-derived, spot-verified" is not an answer to a reading task (§5b's
+   items 2, 3 and 5 are judgment about prose against behaviour, and a grep returns a false clean on exactly those);
+   refuse it at landing and send the lane back to the files it skipped.
 4. The exact module list with the pre-conversion SHA; the family hypothesis (a hypothesis until the lane names the
    reader); **the escalation model below — ASK vs REFUSE, and it is not one rule**; markers translated in-commit with the
    census recorded.

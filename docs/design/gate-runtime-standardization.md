@@ -104,6 +104,22 @@ lane sent here picked a refuted shape and copied it, which is the transmission f
 | split family | `bus-definition-belts.ts` | CONFIRMED (wave 10) — the bus headers are among the corpus's best | ~~`no-raw-spacing-in-features` + `-health`~~ REFUTED — both halves of the carrier-fence claim unenforced in both twins |
 | registry / completeness | `section-registry-completeness.ts` | CONFIRMED (wave 2): 4 of 4 narrowings enforced, both fence rows state their own cut result and both are TRUE, header AND roster row accurate | — |
 
+**ADDED 2026-09-12 evening by the standing audit over the 28 never-audited finals (`v-unaudited-finals-2026-09-12.md`,
+every module read in full on `c97de9d2f`; 10 of 28 REFUTED, rows on the ledger and the board):** for a **`-health`
+sibling**, copy **`windowed-infinite-query-health`** — it states the tripwire CUT DIRECTION, pins every acquitting
+fence with a `mustFlag`-goes-green row, receipts a CONSTANT, and carries FAMILY + POPULATION PORT + legacy SHA; for a
+**two-policy family**, copy **`external-id-single-writer` + `-health`** (a real shared `lib/` reader, a recorded
+population CORRECTION with its re-derivation, an absent-subject arm, `messageIncludes` rows naming WHICH carve-out
+died); for **TYPE IDENTITY**, copy **`section-factory-contribution-bundle`** (same-name/wrong-module and
+local-declaration counterfactuals, an eleven-hop alias row, per-arm anchors); for an **ordinary singleton**, copy
+`no-if-is-group` / `no-layout-context-props` / `infra-auth-no-userid`. Copy `ct-no-oneshot-live-read-assert`'s
+EXPECTATION-DISCRIMINATOR paragraph verbatim (why constant `token` + single `message` make those tautologies, so rows
+carry `count` + `line`), and `test-no-stubs`'s cross-file leak control. **Anti-patterns from the same audit, never
+point a lane at them:** `ct-story-single-import`'s `jsxTreeRoot` (a hand-listed JSX-kind climb that omits the
+opening-element kind — a false clean on a `hard` gate), `serde-core-seal-health`'s bare-`count` multi-arm row,
+`config-anchor-in-registry`'s `isAnchorCall` (an accusing identity predicate with no fail-closed branch),
+`component-size`'s proof set beside `component-size-ui`'s, and any header that uses `ordinary`/`hard` as English.
+
 **CORRECTION, 2026-09-12: this table's resource cell was written from wave 1's verdicts WITHOUT re-deriving
 against the tree, twelve hours after the repair landed.** That is the error the refutation ledger exists to
 prevent — an audit verdict is a claim about the tree ON ITS DATE. **Before citing any audit cell in this
@@ -701,12 +717,22 @@ family.
         not the shape this section names. Do not read this row as *no stronger predicate exists at all*; read it as
         *no predicate that establishes correspondence exists*. Nothing today distinguishes an honest constant
         `members` from a lazy one (#1982).
-   - **Nothing checks that a provider's population is a SUBSET of its consumers'.** `tupleVocabularyFact`
-     (`@client`+`@server`+`@contracts`) is a strict superset of `warning-code-coverage`'s, so the provider hands the
-     policy nodes the policy may not NAME — the structural form of the `ctx.relativePath` throw, needing no unusual
-     import. Mechanically checkable at load from `fact.population` vs `policy.population`, both `PopulationExpr`
-     (#1976). Same family as #1953 one axis over: there the provider's FAILURE granularity mismatched its consumers',
-     here its POPULATION does.
+   - **A shared provider's population is the UNION of its consumers', so it hands every consumer nodes that consumer
+     may not NAME — and the prescription this bullet carried until 2026-09-12 had the direction BACKWARDS.**
+     `tupleVocabularyFact` declares `{ in: ["@client", "@server", "@contracts"] }`; its four consumers declare
+     `@client`, `@server`, `{ in: ["@server"], under: ["packages/server/src/domain/**"] }` and
+     `{ in: ["@server", "@contracts"] }` — every one a STRICT SUBSET, by construction, because a shareable index has
+     to cover all of them. The earlier text asked for a load-time check that the provider's population is a subset
+     of each consumer's; implemented as written it refuses all four. **The SYMPTOM is real** (`lib/policy-pass-context.ts`'s
+     `relativePath` throws *"source file is outside the effective population"* and `reportFile` throws the finding
+     twin), and the repair is on the CONSUMER side, not a population fence: a home question about a fact-delivered
+     declaration goes through `lib/declaration-home.ts#declarationHome` (the declaration's own path, §12.3), never
+     `ctx.relativePath`; and the refusal DIAGNOSES — when the refused file is admitted by one of the policy's own
+     declared facts, it names the fact and points at `declaration-home` (#1976, repriced 2026-09-12). Three
+     hand-rolled escapes from this class already live in the corpus (`declarationHome` in two modules,
+     `vocabularyAtHome`'s absolute-path infix in two more), which is the argument for naming it centrally. Same family
+     as #1953 one axis over: there the provider's FAILURE granularity mismatched its consumers', here its POPULATION
+     does.
 
    **The common shape: the runtime can PRODUCE a behaviour it cannot PROVE.** When you meet one, the honest output is
    a measured pair of messages in the header plus a row on the board — never a proof row that does not discriminate.
@@ -949,7 +975,14 @@ A converted module is pristine when all seven hold. The first six are the contra
 4. **The family is a real shared `lib/` reader** (module + function, named in the header) or a declared singleton with
    its reason. A theme, a filename prefix and a shared topic are not families.
 5. **The header records the decisions**: the family and its reader, the population port (byte-identical, or the
-   intentional correction and why), and the marker census if a private vocabulary was retired.
+   intentional correction and why), and the marker census if a private vocabulary was retired. **Censusing this
+   criterion is a HAND READ over the header span, because every instrument tried lies in one direction or the
+   other** (measured 2026-09-12, ledger rows `:189`/`:238`/`:268`): a word-match over the whole file OVER-reports
+   legacy-SHA carriers by 78% (incident cross-cites and ruling shas read as port citations); a bare
+   `[0-9a-f]{7,40}` UNDER-reports because it EATS the rev-spec caret — `section-registry-completeness`'s
+   `(dd862e988^)` is the measured miss — and a length-pinned pattern drops whichever of the 9-char and 40-char
+   spellings it was not written for. Teaching one direction of a two-directional failure is the defect; state both,
+   plant a control for each, and read the field by hand.
 6. **The proofs meet §4 in full**: legacy rows carried; `expect` on every `mustFlag`; a row that dies without each
    narrowing (§4.1); the positive identity arm for every ordinary policy (§4.2); refusal/receipt pins where the verdict
    depends on a derived population (§4.5).
@@ -981,7 +1014,7 @@ harness (4 incl. `ct-poll-schedule-and-paint` split), `verify-registry-parity`, 
 `no-form-state-in-useeffect`, `persist-partialize-and-total-migrate` with its ARM A retired into
 `no-raw-zustand-persist`).
 
-**Remaining: 60 modules (2026-09-12 evening; re-derive with `pnpm check:policy-conformance`, never quote this) — only two are `O`, the rest are `X` and convert through AUTHORITY MIGRATION (#1922), read per row from `exception-authority-census.md` re-derived against the tree. THE PER-GATE BLOCKER IS NOT LISTED HERE — it is in
+**Remaining: 60 modules at the 2026-09-12 evening roster, 58 after `97e68be91` converted the config-liveness pair (re-derive with `pnpm check:policy-conformance`, never quote this). The "two are `O`, the rest `X`" letters this sentence carried were a RESIDUAL of the 2026-09-05 census, which lettered only 27 of the 60; measured per row on 2026-09-12 by `cb-v-authority-census` (`../reviews/gate-runtime/v-authority-census-2026-09-12.md`): 3 `O` · 8 `H` (no gate-owned exemption artifact — see §7's notation) · 4 `MI` · 6 `B` · the rest `X`, with the denominator stated as CONVERTIBLE + REFUSED (`no-blanket-suppression` is the one standing refusal). The `X` majority converts through AUTHORITY MIGRATION (#1922), read per row from `exception-authority-census.md` re-derived against the tree and priced from that report's §5 chunks C0–C9. THE PER-GATE BLOCKER IS NOT LISTED HERE — it is in
 [`uncovered-gate-conversion-census.md`](../reviews/gate-runtime/uncovered-gate-conversion-census.md), one row per gate,
 and that document is the Phase D ordering source.** The shape below is for dispatch planning only; no bucket count in
 it is current.
@@ -1041,14 +1074,18 @@ dependencies that constrain ANY sequence, because they are law rather than sched
 
   **The `uncovered-gate-conversion-census.md` authority notation is the per-gate classification: `O` ordinary shared
   marker · `X` gate-local table, sanction, deferred row, stale arm OR custom marker · `MI` marker-immune · `B` baseline
-  ratchet.** A gate marked `X` has something gate-owned that must find a central home before it converts. Read your
-  gate's row.
+  ratchet · `H` HARD — no gate-owned exemption artifact of any kind (no table, no zone, no custom grammar, no
+  baseline, no marker door; added 2026-09-12 because the four-letter set forced eight such modules into `X` and
+  priced them as authority work they do not owe).** A gate marked `X` has something gate-owned that must find a
+  central home before it converts. Read your gate's row — and read the MODULE, because a comment-justified bare
+  `readonly string[]` path subtraction (`test-presence-client.ts:20`, `data/trpc.ts` by name, no stale arm) is
+  invisible to both censuses and to a skeleton read.
 
   | # | Kind | Spelling / home | Reaches | Disposition |
   | -: | - | - | - | - |
   | 1 | central LEGACY marker | `@orb-gate-ignore <gate>`; parser `lib/gate-ignore.ts:10-43`, consumption `lib/pass.ts:192-234`, auditor `gate-ignore-inventory.ts` | LEGACY owners ONLY | translate per converted owner; parser + auditor delete at Phase F |
   | 2 | central FINAL waiver | `@orb-waive <policy-id>(<position>): <reason>`; `contract/ordinary-waiver.ts` + `lib/ordinary-waiver.ts` | FINAL **ordinary** policies ONLY | the one surviving vocabulary |
-  | 3 | eleven gate-owned CUSTOM grammars | each gate's own regex + maps + stale loop (receipts in both censuses) | that gate only | 7 CENTRALIZE · 3 DELETE EMPTY · 1 DELETE WITH ITS GATE |
+  | 3 | TWELVE gate-owned CUSTOM grammars (eleven in both censuses; the twelfth, `no-test-fabrication`'s `FABRICATION-OK`, was in NEITHER and carries \~424 live anchored markers in 197 files — 2.7× the other eleven together, found 2026-09-12) | each gate's own regex + maps + stale loop (receipts in both censuses) | that gate only | 7 CENTRALIZE · 3 DELETE EMPTY · 1 DELETE WITH ITS GATE · 1 TRANSLATE WITH ITS GATE as its own lane (C8), positions derived from the converted policy's reported `token` — the grammar has no `(position)` |
   | 4 | `markerImmune` (`MI`) | `contract/gate.ts:181-194`, a legacy DESCRIPTOR door | refuses every marker | deletes with `GateDescriptor` — authority is required data on `GatePolicy`, so a hard policy has no parser door BY CONSTRUCTION |
   | 5 | reviewed grants | typed central `(policy, subject, operation)` + `why`/`endsWhen` | FINAL **reviewed-grant** policies ONLY | 97 `ExemptionTable` decls / 73 files / 319 rows · 20 equivalent non-`ExemptionTable` collections / 79 rows · 25 `SANCTIONED_HOMES` tables / 42 rows (#1922) |
   | 6 | baseline ratchets (`B`) | 9 tracked `*.baseline.json` | their own gate | retire to a fix, an exact grant, or `workItem` warning debt |
@@ -1056,7 +1093,10 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   | 8 | `@public` | push-tier reader for `orphan-export-ratchet` | that ratchet | **OUTSIDE this migration.** A hard semantic fact, not a waiver |
   | 9 | the AST lens's own `@swallowed-ok` | `tooling/src/ast/ops/swallowed.ts:32-43,149-193` — a SECOND consumer of a spelling a gate also reads | the lens, on demand | **explicitly NOT an alias.** Translating the six shared source files can silently change the LENS verdict; resolve it as its own migrate-or-retire decision |
 
-  **So a marker census names its grammar, its carrier test and its universe, or it is not a census.** The honest
+  **So a marker census names its grammar, its carrier test and its universe, or it is not a census — and it ships a
+  positive AND a negative control in the same invocation.** Measured 2026-09-12: a loose `grep -F "// @opener"`
+  reports **86** central markers where the anchored predicate reports **10**; the 76 are fixture strings inside gate
+  proofs. The honest
   marker-form predicate is a comment whose CONTENT BEGINS with the opener (`^\s*(//|/\*|\{/\*)\s*<opener>`) — the same
   fence §"Exact central grammar" states as *"a spelling inside a string, template, JSX text, regular expression, or
   later in explanatory prose is a mention, not a marker."* Counting mentions instead of markers inflates every
@@ -1077,9 +1117,13 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   | `@finding-overload-ok` | 21 | 24 | n/a | DELETE with its gate; never translate |
   | `@owner-scope-upsert-ok` · `@over-art-plate-ok` | 0 | 0 | — | delete the empty grammar at Phase F (`@first-boot-only` already deleted at `6563946a0`) |
 
-  **The 12 parked markers are correctly parked, not missed.** All four owners are still legacy `GateDescriptor`s, and
-  the fence above is the reason: translating them would lose the legacy suppression AND bind the new marker to
-  nothing, silently in both directions. They convert with their gates.
+  **What is parked today (re-derived 2026-09-12 evening; the earlier "12 parked, four owners still legacy" sentence
+  is refuted — `sub-floor-disclosure`, `detached-work-traced` and `surface-a11y-focus` are all FINAL and their
+  grammars measure 0 / 3 / 0):** `@finding-overload-ok` (21, DELETE with its gate), `@swallowed-ok`'s 3 survivors
+  (kind 9 — the AST lens's own consumer, its own migrate-or-retire decision, NOT a parked translation), and
+  `FABRICATION-OK` (row 3 above, translates with `no-test-fabrication` as chunk C8). The fence above is still the
+  reason a grammar waits for its owner: translating ahead loses the legacy suppression AND binds the new marker to
+  nothing, silently in both directions.
 
 - **THE MARKER BACKLOG IS NOT A BACKLOG — it is one conversion.** Measured 2026-09-11 over the tracked `.ts`/`.tsx`
   universe: **681** central `@orb-gate-ignore` markers name **36** distinct gates, and **578 of them name one gate,
@@ -1468,10 +1512,15 @@ protection to it silences the accuser with the thing it accuses. Three measured 
 **The tell that you are looking at this shape**: the policy's `family` matches an ordinary sibling's, its authority
 is `hard`, and the branch you are about to "correct" is the only thing that would ever report the failure.
 
-Measured 2026-09-12: **nine of ten resource policies answered a broken resource with a silent `return`**, and
+Measured 2026-09-12 morning: **nine of ten resource policies answered a broken resource with a silent `return`**, and
 `depcruise-grant-liveness.ts:157-164` was the only one that refused loudly. A silent return there is a policy
 reporting CLEAN on a run it could not perform — and the exemplars document was teaching it as a headline virtue, so it
-was propagating into every future resource conversion.
+was propagating into every future resource conversion. **CLOSED the same day (#1979, `2bacd5ef9`), and re-measured
+2026-09-12 evening on `c97de9d2f`: 29 policies declare `analysis: "resource"`, 49 `ctx.resources` reads, 49 of 49
+wrapped in `readyResourceValue`, ZERO silent returns.** The only bare `status !== "ready"` branch left in `gates/` is
+`bus-fact-health`, the FACT-family accuser, which is correct by the paragraph above; the other three matches are
+comments saying an in-module return would be unreachable. The morning sentence is kept as the dated incident, not
+as the state of the tree.
 
 Shared whole-population work is a branded `defineFact` provider with its own id, population, analysis, resources,
 collector, finish hook, receipts, timing and errors. Policies declare provider tokens in `facts` and read them only via
@@ -1614,10 +1663,13 @@ control must REFUSE and a planted control must be ADMITTED.
    program's shared compiler reader (`lib/policy-program-membership.ts:78-85`, `readConfigFile` +
    `parseJsonConfigFileContent`, #1351, completed 2026-09-10 — AFTER the inputs §11.4 was drafted against, so THE
    STALENESS RULE applies). A `jsonc` resource kind would therefore be one gate's private reader AND a second home for
-   config folding. **`tsconfig-entry-liveness` stays legacy; its conversion route is a shared-READER question — the
-   compiler reader exposing per-config RAW `include`/`exclude` entries, unfolded and unexpanded, which is what that
-   gate actually judges — not a capability question.** `biome.json` does not reopen this: §11.4 ruled it a strict
-   `json()` read and that shipped.
+   config folding. **`tsconfig-entry-liveness`'s conversion route was a shared-READER question — the compiler reader
+   exposing per-config RAW `include`/`exclude` entries, unfolded and unexpanded, which is what that gate actually
+   judges — not a capability question. CONVERTED 2026-09-12 at `97e68be91` by exactly that route (#2021, ruled NOT
+   superseded; it split into `tsconfig-entry-liveness` + `-health`), with `biome-grant-liveness` + `-health` in the
+   same commit — which deleted biome's rule-liveness arm six, an UNPOLICED property until its successor verify op
+   lands (#2074).** The `jsonc` ruling stands. `biome.json` does not reopen this: §11.4 ruled it a strict `json()`
+   read and that shipped.
 3. **`authored-text`'s provenance** — see its row above.
 
 ##### Is `node_modules` traversal declarable? — RULED: YES, and ONLY through `installed-package`

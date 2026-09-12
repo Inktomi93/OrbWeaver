@@ -143,9 +143,14 @@ errors above were sitting. Reading those documents END TO END is not the same ac
 - **The remaining legacy count understates its work.** A conversion can SPLIT — one authority, one severity,
   one execution per policy. **§12.6's 13 mixed-hook modules are now CONVERTED**, so the largest known
   multiplier is already spent and the old "\~123 policies from 104 modules" pricing no longer applies.
-  Re-derive the multiplier for what is left rather than quoting one: of the 60 remaining, only two are `O`
-  and 58 are `X` (a gate-local table, sanction, deferred row, stale arm or custom marker needing a central
-  home first), so the spine is authority migration and not conversion throughput.
+  Re-derive the multiplier for what is left rather than quoting one. **The "2 `O` / 58 `X`" split this bullet
+  carried was a RESIDUAL, not a measurement** (`cb-v-authority-census`, 2026-09-12 evening): the 2026-09-05 census
+  lettered only 27 of the 60, and the other 33 were `X` by default. Measured per row on the tree: **3 `O` · 8 `H`
+  (no gate-owned exemption artifact at all — a letter the notation lacked) · 4 `MI` · 6 `B` · the rest `X`**; and
+  the denominator is CONVERTIBLE + REFUSED — after `tsconfig-entry-liveness` converted at `97e68be91`, the one
+  standing refusal is `no-blanket-suppression` (§12.4 residual 1). The spine is still authority migration, priced
+  per row from `docs/reviews/gate-runtime/v-authority-census-2026-09-12.md` §5 (chunks C0–C9), never from a
+  letter.
 - **The §5b audit is at 112 of 167 and the sweep is CLOSED.** The bar is **one CONFIRMED exemplar per
   evidence plane, named in guide §3** — not a module count. §3 carries the verdict column, and **every plane
   now has a confirmed exemplar**: the closed RESOURCE cell was filled at `be4cdebcd`, so the bar is MET.
