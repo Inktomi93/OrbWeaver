@@ -27,7 +27,18 @@ order); §12 is what lanes read. This file is what YOU do, in order.
    before touching anything (hooks bind at launch).
 
 2. Pre-flight, cheapest probe FIRST: `free -g` and `grep Shmem /proc/meminfo`. A sleeping vLLM fleet parks \~37 GiB as
-   `Shmem`; under \~1 GiB means engines are already down and you need no launcher call at all. Only if `Shmem` is high
+   `Shmem`; **under \~8 GiB means engines are already down** and you need no launcher call at all. Only if `Shmem` is high
+   **THE THRESHOLD IS A BINARY DETECTOR, NOT A MEMORY-PRESSURE GATE, AND IT WAS SET FAR TOO TIGHT (owner
+   correction, 2026-09-13: *“a 1 GB threshold is awfully precious on a 128 GB box”*).** It exists only to answer
+   *is the fleet resident* without invoking the launcher — which has no help guard and once REAPED THREE LIVE PIDS
+   for being run to look. Measured on this box with engines DOWN: **`Shmem` = 609 MiB**. The old \~1 GiB trip point
+   therefore sat at **59% of the idle floor**, leaving \~415 MiB of margin, while the signal it separates from is
+   **37 GiB — thirty-seven times the threshold**. Tmpfs growth or the co-hosted homelab containers drifting a few
+   hundred megabytes would have reported FLEET UP with nothing running. **8 GiB is \~13× the idle floor and \~4.6×
+   below a resident fleet**, so it is wrong in neither direction. The general rule: **a binary detector's threshold
+   belongs in the MIDDLE of its two measured states on a log scale, never a hair above the noise floor** — and if
+   you cannot state both measured states, you do not have a detector.
+
    do you touch `pnpm engines status` / `pnpm stack status`, and then take prod down and stop engines from `main`'s
    checkout. The launcher family has no help guard — a bare `node scripts/dev/engines.ts --help` once REAPED three live
    pids — so never invoke it merely to look.
