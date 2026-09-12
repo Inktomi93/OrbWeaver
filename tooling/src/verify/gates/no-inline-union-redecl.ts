@@ -215,6 +215,12 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: { "tooling/src/verify/lib/reader.ts": 'export type ReaderVerdict = "reads" | "other" | "unreadable";\n' },
+      expect: { count: 1, token: "ReaderVerdict", messageIncludes: "TYPE ALIAS" },
+      why: 'ARM A ON THE SHAPE THIS PROGRAM ITSELF RE-SPELLS (#2051). #1584\'s identity readers each declared a private `<hit> | "other" | "unreadable"` — the #944 three answers — and this gate reported SIX of them on the real tree, three minted by the wave that converted this very policy. They now derive from `contract/origin-verdict.ts`\'s `OriginVerdict<Hit>`; this row is the ratchet that reds the seventh reader to re-spell it, and it is under `@tooling` deliberately, because that is where the re-spelling happened and where a lane would otherwise assume the policy does not look',
+    },
+    {
+      mode: "types",
       files: {
         "packages/contracts/src/home.ts": "export const AXIS = ['a', 'b', 'c'] as const;\n",
         "packages/server/src/x.ts": "export interface T { mode: 'a' | 'b' | 'c' }\n",

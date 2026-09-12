@@ -48,19 +48,51 @@
 // silent. It now locates `tooling/src/_shared/artifacts.ts` as a PROJECT HOME and classifies each candidate
 // call through `classifyProjectHomeOrigin`, so an alias, a namespace member in either spelling, and a
 // name-preserving re-export all resolve to the same canonical export — and a same-named `printResult` from
-// another module resolves to `other` rather than needing a hand-written negative. The prefilter in front of
-// it (the file must import the artifacts specifier) is the legacy fence kept verbatim so the candidate set
-// cannot widen. IT WAS WRITTEN HERE AS "a declared performance prefilter that cuts clean by design" AND THE
-// CUT REFUTED THAT: removing it REDS `mustPass[4]`, because an instrument that reaches the verdict door
-// through `_shared/evidence.ts` then has its `printVerdict` call classified too, and a home the fixture
-// never plants comes back `unreadable` — the fail-closed arm firing on an honourable file. So the prefilter
-// is ENFORCED and load-bearing for the third answer, not a speed optimisation, and it is pinned rather than
-// documented. A home that cannot be located at all is arm F's own blindness tripwire (`mustFlag[9]`).
+// another module resolves to `other` rather than needing a hand-written negative. The FILE prefilter in front
+// of it (the file must import the artifacts specifier) is the legacy fence kept verbatim so the candidate
+// set cannot widen; it is what makes the barrel DECLARED LIMIT below exactly the legacy limit.
+//
+// THAT FENCE'S §4.1 CELL WAS RE-CUT AND ITS RECORDED VERDICT NO LONGER HOLDS (lane `p-hooks-wave-refute`,
+// and the reason is a change in this same commit). It was recorded as ENFORCED — *"removing it REDS
+// `mustPass[4]`, because … `printVerdict` … comes back `unreadable`"* — which was TRUE while arm F
+// classified every call in the file. With the NAME prefilter below, `printVerdict` is not a candidate at
+// all, so the file fence no longer guards that subject: re-cut in the §4.1 direction
+// (`if (tool === null || !importsArtifacts(sourceFile))` → `if (tool === null)`), driven against THIS
+// policy through `verifyPolicyProofs` with the anchor asserted to occur exactly once, it now comes back
+// `ROWS_DIED=0`. Harness control in the same session: cutting `namesTheDoor` reds exactly one row
+// (`mustPass[5]`), so the cut reaches the code. The honest classification is §4.1 MUTUALLY REDUNDANT for
+// CORRECTNESS — it is kept as a per-file speed fence and as the carrier of the barrel limit, both of which
+// a proof row cannot express, and it is documented here rather than given a row that discriminates
+// nothing. A home that cannot be located at all is arm F's own blindness tripwire (`mustFlag[9]`).
+//
+// AND ARM F HAD NO NAME PREFILTER, SO ITS FAIL-CLOSED THIRD ANSWER ACCUSED 654 CORRECT CALLS (#1950 D1,
+// refuted at `ac0085c91` by a real-tree run). The identity upgrade above is right; what shipped with it
+// was a CANDIDATE SET of every call in a file that imports the artifacts door. `classifyProjectHomeOrigin`
+// routes through `resolveModuleMemberOrigin`, which cannot place a language builtin or a method on a local
+// value, so `classifyOriginRefusal` answered `unreadable` and arm F reported it as never-a-pass: 654
+// findings across 67 files — 582 ambient globals (`String` 259, `JSON` 89, `Promise` 78, `Number` 48,
+// `Math` 39, `Object` 29, `Date` 27, `Array` 13) and 57 ordinary method calls (`file.write(…)`,
+// `cdp.send(…)`, `arg.startsWith(…)`), not one of which could ever have been the door.
+//
+// THE FIX IS THE COMPANION RULE `lib/origin-verdict.ts` ALREADY OWNS, not a per-shape exclusion: *"prefilter
+// on the name, resolve the identity, and fail closed only inside the candidate set."* That module's header
+// records the identical failure one family over — an unprefiltered `NewExpression` arm accusing
+// `new TRPCError(…)` of being node's `EventEmitter`. `referenceNamesExport` is the prefilter, and it is a
+// NAME test that survives every spelling this arm exists to catch (alias, namespace, bracket, barrel), so
+// identity still decides every candidate. Real tree after: 654 → 0, measured over one workspace Project
+// with all three of this lane's policies driven through `runPolicyPass`. `mustPass[5]` is its row.
+//
+// THE DEVIATION, STATED (lane `p-hooks-wave-refute`): the refutation ruled a narrower fix — resolve the
+// ambient global first and classify it `other`. That is correct and it was built and MEASURED: it takes
+// the real tree to 57, leaving every non-global unjudgeable call still accused. The name prefilter
+// subsumes it (a builtin does not name the door), which would leave the global reader unreachable behind
+// it — dead code with a confident paragraph — so only one of the two ships.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { AuthoredPathIdentity } from "../contract/resource-path.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
+import { referenceNamesExport } from "../lib/origin-verdict.ts";
 import type { LocatedProjectHome } from "../lib/project-home-origin.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
@@ -140,6 +172,26 @@ function calleeReference(call: MorphNode): MorphNode | undefined {
   const callee = call.getExpression();
   return Node.isIdentifier(callee) || Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee) ? callee : undefined;
 }
+
+/** Is this callee a CANDIDATE — does it NAME the home's export, in any spelling this policy must catch?
+ *
+ *  THE NAME PREFILTER IS WHAT MAKES FAIL-CLOSURE SAFE HERE, and it is `lib/origin-verdict.ts`'s own rule,
+ *  quoted in that module's header: *"Fail-closed reporting is correct for a CANDIDATE whose identity cannot
+ *  be read; applied to every node of a kind in a population it converts each unreadable node into an
+ *  accusation. Prefilter on the name, resolve the identity, and fail closed only inside the candidate
+ *  set."* Arm F shipped without it and classified EVERY call in a candidate file, so every call whose
+ *  origin the module reader cannot place became an `unreadable` accusation: 654 findings across 67 files
+ *  on the real tree (#1950 D1) — 582 language builtins (`String` 259, `JSON` 89, `Promise` 78, `Number`
+ *  48, `Math` 39, `Object` 29, `Date` 27, `Array` 13) and 57 ordinary method calls on local values
+ *  (`file.write(…)`, `cdp.send(…)`, `arg.startsWith(…)`), none of which could ever have been the door.
+ *
+ *  IT DOES NOT WEAKEN THE IDENTITY UPGRADE, which is the whole point of the arm: `referenceNamesExport`
+ *  follows an import ALIAS to its original exported name and reads a member in either spelling, so the
+ *  aliased (`mustFlag[10]`), namespace (`[11]`), bracket (`[12]`) and name-preserving barrel (`[13]`)
+ *  bypasses all stay candidates, and the same-named `printResult` from another module (`mustPass[6]`) is
+ *  still admitted as a candidate and acquitted by IDENTITY rather than by spelling. What the prefilter
+ *  removes is only nodes that do not name the door at all. */
+const namesTheDoor = (callee: MorphNode): boolean => referenceNamesExport(callee, PRINT_RESULT);
 
 export const gate = defineGate({
   id: "tooling-instrument-proof",
@@ -286,7 +338,7 @@ export const gate = defineGate({
               return;
             }
             const callee = calleeReference(node);
-            if (callee === undefined) {
+            if (callee === undefined || !namesTheDoor(callee)) {
               return;
             }
             const verdict = classifyProjectHomeOrigin(callee, artifactsHome());
@@ -578,6 +630,19 @@ export const gate = defineGate({
           "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
       },
       why: "a registered instrument entering the shared verdict door with an explicit non-zero denominator — the honourable arm F shape, and the file imports no artifacts door at all",
+    },
+    {
+      mode: "resource",
+      files: {
+        [REGISTRY]: `export const ${REGISTRY_CONST} = ["snapx"] as const;\n`,
+        [ANCHOR]: "export const EXIT = 0;\n",
+        [ARTIFACTS_HOME.path]: `export function ${PRINT_RESULT}(_tool: string, _pairs: unknown): void {}\n`,
+        "tooling/src/snapx/index.ts": "export {};\n",
+        "tooling/src/snapx/ops/run.ts": `import { ${PRINT_RESULT} } from "../../_shared/artifacts.ts";\nexport async function run(handle: { write(text: string): Promise<void> }): Promise<string> { void ${PRINT_RESULT}; await handle.write(String(1)); return JSON.stringify({ n: Math.round(1.5) }); }\n`,
+        "tests/tooling/snapx/proof.test.ts":
+          "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
+      },
+      why: "THE NAME-PREFILTER NARROWING (#1950 D1), and the row that dies without it: an instrument file that DOES import the artifacts door and calls four things that are not it — a language builtin as a bare callee (`String`), as a namespace member (`JSON.stringify`, `Math.round`), and a method on a local value the module reader cannot place (`handle.write`). Cut `namesTheDoor` and every one of them becomes an `unreadable` accusation, which is exactly what shipped: 654 findings across 67 files on the real tree, 582 builtins and 57 local method calls, while every conformance row here stayed green because no legacy fixture ever called anything but the door inside a candidate file",
     },
     {
       mode: "resource",

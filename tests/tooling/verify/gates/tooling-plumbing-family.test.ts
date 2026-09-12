@@ -536,7 +536,8 @@ function legacyFiles(example: GateExample): Readonly<Record<string, string>> {
   return typeof example.files === "string" ? { [example.at ?? "tooling/src/x.ts"]: example.files } : example.files;
 }
 
-type LegacyArm = "A" | "B" | "C" | "D" | "E" | "F" | "F2" | "G" | "H" | "I" | "J" | "STALE" | "BLIND";
+const LEGACY_ARMS = ["A", "B", "C", "D", "E", "F", "F2", "G", "H", "I", "J", "STALE", "BLIND"] as const;
+type LegacyArm = (typeof LEGACY_ARMS)[number];
 
 interface LegacyFinding {
   readonly file: string;

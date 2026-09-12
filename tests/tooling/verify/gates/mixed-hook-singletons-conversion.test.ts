@@ -127,7 +127,8 @@ function finalSide(policy: GatePolicy, files: Readonly<Record<string, string>>):
 
 /** The three comparable outcomes. CARDINALITY is compared first and separately, because it is the axis a
  *  catch regression lives on; an anchor move changes WHERE a verdict is reported, never WHETHER. */
-type Delta = "identical" | "anchor-line" | "anchor-file";
+const DELTAS = ["identical", "anchor-line", "anchor-file"] as const;
+type Delta = (typeof DELTAS)[number];
 
 function classify(legacy: readonly Hit[], final: readonly Hit[]): Delta {
   if (JSON.stringify(legacy) === JSON.stringify(final)) {

@@ -42,6 +42,16 @@
 // that would let the fact serve these — an `as const` assertion PROVES immutability, so an invoked member
 // on it is not evidence of dynamism — is corpus-wide build work and has its own row, not a line here.
 //
+// THE RULING SURVIVES; ITS INPUT CHANGED (#1950 D2, landed by lane `p-hooks-wave-refute`). A NARROWER
+// widening than the `as const` one above has now landed in the shared reader: `collectInvokedMembers`
+// (`lib/reference-fact-writes.ts` READ_ONLY_MEMBERS) no longer records a single named read-only
+// `Array.prototype` member, so a binding consumed ONLY through `.includes(v)` is no longer `dynamic`.
+// The measured 0-members refusal above therefore describes a condition that no longer holds, and the
+// paragraph is kept for its MECHANISM rather than its number. What has NOT changed and is why this module
+// still reads through `readTupleDeclaration`: nothing has re-measured `tupleVocabularyFact` against the
+// real client tree since, and switching a live policy's vocabulary source on an unmeasured premise is the
+// exact class this header exists to record. Re-measure before proposing the switch.
+//
 // AND A VOCABULARY THAT STOPS RESOLVING NOW WITHHOLDS THE VERDICT INSTEAD OF RETIRING ITS ARM. Legacy
 // skipped a vocabulary whose tuple read empty (`if (vocab.ids.size === 0) continue`), so a renamed or moved
 // `CONFIG_GROUP_IDS` silently retired that arm while the other four stayed green — exactly the half-migration

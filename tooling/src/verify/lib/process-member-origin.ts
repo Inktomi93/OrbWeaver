@@ -18,6 +18,7 @@
 //
 // A pure reader over one delivered node: no walk, no Project, no filesystem, no cache.
 import type { Node as MorphNode } from "ts-morph";
+import type { OriginVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "./reference-fact.ts";
 import { originModuleSpecifier } from "./sealed-origin.ts";
@@ -26,7 +27,7 @@ export const PROCESS_GLOBAL = "process";
 /** The two authored spellings of node's own process door; the canonical origin reports the one it entered. */
 const PROCESS_DOORS: readonly string[] = ["node:process", "process"];
 
-export type ProcessMemberVerdict = "reads" | "other" | "unreadable";
+export type ProcessMemberVerdict = OriginVerdict<"reads">;
 
 /** Judge one member-access node (dotted, optional or computed-literal): is it `process.<member>` off the real
  *  `process`? A node that is not a member read of that NAME answers `other` before any identity work — the

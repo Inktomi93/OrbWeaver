@@ -13,6 +13,7 @@
 // canonical-origin policies cannot drift apart on the answer.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
+import type { OriginRefusalVerdict } from "../contract/origin-verdict.ts";
 import type { ReferenceUnresolvedReason } from "../contract/reference-fact.ts";
 import { readMemberReference } from "./reference-fact.ts";
 
@@ -44,7 +45,7 @@ export function bindsProvenNonModuleDeclaration(node: MorphNode): boolean {
 
 /** Classify one refusal into the policy's two answers. Fail-closed by default: only a PROVEN foreign
  *  binding earns silence, and never for an ambiguous reason. */
-export function classifyOriginRefusal(reason: ReferenceUnresolvedReason, node: MorphNode): "other" | "unreadable" {
+export function classifyOriginRefusal(reason: ReferenceUnresolvedReason, node: MorphNode): OriginRefusalVerdict {
   if (AMBIGUOUS_REASONS.has(reason)) {
     return "unreadable";
   }
