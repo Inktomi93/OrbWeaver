@@ -7,6 +7,30 @@
 // Split from `bus-definition-belts` because the FIX differs (add the missing element vs. add a belt) even
 // though both are hard/error facts about the same subject; they share the family and its provider.
 //
+// THE TWO PARAGRAPHS BELOW LANDED LATE, AND THE CENSUS THAT SAID OTHERWISE WAS WRONG (#2047, 2026-09-12).
+// `ee6dab949` claimed §5b.5 closed for all seven bus modules. It was closed for four. `bus-belt-total` had
+// NEITHER a FAMILY line nor a POPULATION PORT — its family was only implied by the prose "they share the
+// family and its provider", which names no reader and is exactly the shape §5b.4 rejects — `bus-consumer-belt`
+// had neither, and `bus-producer-coverage` had the port but no FAMILY line. Refuted by `cb-v-ledger-wave` for
+// two of the three; the third (`bus-consumer-belt`) fell out of re-deriving the field BY HAND over the header
+// span alone, with `section-registry-completeness` and `no-raw-id` as planted positive controls — a whole-file
+// grep reads "FAMILY" out of the proof rows' own `why` strings and scores every one of the three as present.
+//
+// FAMILY `bus-definition` — the shared reader is `lib/bus-definition-fact.ts` (`busDefinitionFact`, one
+// provider walked once per invocation), read identically by all three members of the split
+// (`bus-definition-belts` asks WHICH unions own a belt, `bus-consumer-belt` asks whether each belted union
+// has a consumer, this one asks whether each belt is TOTAL). Naming the reader is the point: the three
+// policies cannot drift about what a belt IS, because none of them derives one. This module owns no table,
+// walk, regex or cache, and its only state is the loop below.
+//
+// POPULATION PORT: an intentional NARROWING of an unstated legacy scope. The legacy `bus-definition-belts`
+// descriptor declared NO `scanRoot` — it was `scopeSafety: "whole-project"` with a `run` hook over
+// `ctx.project` — so it judged whatever the legacy pass loaded. The final population is
+// `{ in: ["@contracts", "@client", "@server"] }`, the three roots the subject actually inhabits: unions and
+// belts are declared in `@contracts`, consumer maps live in `@client`, server dispatch in `@server`. All
+// three split siblings took the same port in the same commit, which is why the roster-agreement refusal in
+// `bus-producer-coverage` is a meaningful cross-check rather than a comparison of one population with itself.
+//
 // The legacy `bus-definition-belts` descriptor (001949630e8ae87b44c758fd4ba5614c8e63c15a) checked the
 // tuple-belt totality as one of its four arms before this split gave it its own policy id.
 import { defineGate } from "../contract/policy.ts";
