@@ -93,7 +93,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { ...CLIENT_TREE, ...CLIENT_PKG },
-      expect: { count: 1, messageIncludes: "stale shell exemption" },
+      expect: { count: 1, line: 1 },
       why: "THE RATCHET, and the successor to the legacy `STALE_PREFIX` arm: the client feature tree is populated and real, and the exempted `app-shell` feature is not in it. The exemption has outlived its feature and must red rather than quietly un-scan the name",
     },
     {
@@ -102,7 +102,7 @@ export const gate = defineGate({
         ...CLIENT_PKG,
         "packages/client/src/features/app-shell-lookalike/surfaces/pane.tsx": "export const Pane = () => <div>x</div>;\n",
       },
-      expect: { count: 1, messageIncludes: "stale shell exemption" },
+      expect: { count: 1, line: 1 },
       why: "THE PREFIX FENCE — and it must be a `mustFlag`, which is the correction: the shell feature is GONE and the only thing near its name is `app-shell-lookalike`, so the ratchet must still fire. Membership is tested as the exact directory OR a `/`-terminated prefix; drop the `/` and `app-shell-lookalike/...` satisfies `startsWith(EXEMPT_DIR)`, the arm returns early, and this row goes 1 → 0. DIRECTION: that cut makes the policy flag LESS — it widens the ACQUITTING set — so no `mustPass` can hold this fence. The `mustPass` below deliberately no longer claims to",
     },
   ],

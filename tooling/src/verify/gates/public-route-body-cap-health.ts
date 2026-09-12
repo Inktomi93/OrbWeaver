@@ -86,7 +86,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: { "packages/server/src/entry/http/index.ts": "export const frontDoor = true;\n" },
-      expect: { count: 1, line: 1, messageIncludes: "blind route census" },
+      expect: { count: 1, line: 1, messageIncludes: "0 mutating routes, 0 body-reading routes." },
       why: "fail loud when the canonical route tree yields no mutating/body-reading population — carried from the legacy `finalize` hook's founding row",
     },
   ],

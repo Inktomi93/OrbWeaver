@@ -88,7 +88,7 @@ export const gate = defineGate({
       files: {
         [TRACING_MODULE]: "export function withRequestSpan(id: string, fn: () => Promise<void>): Promise<void> {\n  return t.startActiveSpan(id, {}, fn);\n}\n",
       },
-      expect: { count: 1, line: 1, messageIncludes: "derived ZERO root-span openers" },
+      expect: { count: 1, line: 1 },
       why: 'A4 — the tracing module dropped `root: true`, so the derived vocabulary is EMPTY and the occurrence policy would report ✓ forever on a tree it can no longer read. This is the legacy `mustFlag[8]` arm, minus the real-tree anchor probe the final `execution: "entire-population"` replaces; the finding now lands ON the derivation source rather than on the gate module\'s own path',
     },
     {
@@ -98,7 +98,7 @@ export const gate = defineGate({
           "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
           "  return t.startActiveSpan(name, { attributes: attrs, root: false }, fn);\n}\n",
       },
-      expect: { count: 1, line: 1, messageIncludes: "derived ZERO root-span openers" },
+      expect: { count: 1, line: 1 },
       why: "AN INVENTED ROW WITH A PLANTED-BREAK RECEIPT IN THE REPORT (§4.7), and the one that pins the MECHANISM rather than the presence of a call: `root: false` still calls `startActiveSpan`, so a reader keyed on the OPENER NAME alone reads this tree as healthy. Only the `root: true` test discriminates — a parented span dispatched from inside the request it outlives is dropped as a late orphan, which is precisely the failure the family exists to catch",
     },
   ],

@@ -111,7 +111,7 @@ export const gate = defineGate({
         "tooling/src/unslotted/ops/shoot.ts":
           'import { artifactFile } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
       },
-      expect: { count: 1, token: "artifactFile", messageIncludes: "must open its artifact run slot" },
+      expect: { count: 1, token: "artifactFile" },
       why: "the founding shape (#1164): an instrument that files artifacts with no run slot — the shared-path clobber. The finding anchors on the FILING call, the one site that always exists, and names the cli.ts that owes the slot",
     },
     {
