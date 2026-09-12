@@ -1391,6 +1391,17 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
       contract change owing every coupled site; **#2002** → the renderer prints `finding.message` when it differs;
       **#2021** → not superseded, expose raw `include`/`exclude` with positions through the shared compiler reader
       and convert; **#2066** (a §4.1 cut harness) parked pending an owner price.
+  12. **Evening rulings (owner, via the question tool, "do it right once even if it means more work"):**
+      **#2025** → `hard` + `warning` REFUSED at load; the three soundness enforcers become `error` (§12.5).
+      **#2096** → a gate module never imports another gate module; shared predicates move to `lib/` (§12.3, 14
+      families). **#2097** → gate-local binding/origin resolution is FORBIDDEN; ~25 sites migrate to the shared
+      readers (§12.3). **#2142** → `test-layout`'s 51 real findings PARKED behind a test-mirror revamp the owner
+      wants first. **#2144** → the docs formatter AND its guards widen to every tracked markdown file, class by
+      class, rules and agents first. **#2146** → the trailing-unnamed-column arm is BUILT and the ~19 tables it reds
+      are narrowed in one barrier-window commit (width only, never content; the leading-label idiom admitted). And
+      the policing matrix lane (#2111, an owner-authorized forge) owns every enforcement gap it names, with its
+      `policy-legacy-imports` arm ruled `hard`/`error` — nine final modules red by design, their tables retiring
+      into grants under #1922.
 
 - **2026-09-11 — PHASE C: THE DESIGN ALREADY EXISTS; ONLY THE DELTA IS RULED HERE (#1930).**
   **[`resource-gate-access-patterns.md`](../reviews/gate-runtime/resource-gate-access-patterns.md) §§1–8 IS the Phase C
@@ -1524,6 +1535,18 @@ collector over an exact population, read-only sibling consumers); one fixture ru
 Gate modules may inspect the node delivered to a visitor, iterate their resolved `ctx.files`, request a canonical source
 file, request the shared checker, and call shared readers. They may not call `Project#getSourceFiles`,
 `SourceFile#getDescendants*`, `forEachDescendant`, `new Project`, or maintain their own workspace cache.
+
+**TWO MORE BANS, RULED BY THE OWNER 2026-09-12 (each was "allowed by silence" until then, and each has an enforcer arm
+being built by the policing-matrix lane, #2111):**
+
+- **A gate module never imports another gate module** (#2096). A split family's shared predicate lives in
+  `lib/<family>.ts` and BOTH siblings import it from there; a `-health` sibling reading its twin's export was two homes
+  for one reader wearing a family's clothes, and 14 families did it. Migration by module, lane `p-family-readers`.
+- **No gate-local binding or origin resolution** (#2097). `getDefinitionNodes()` and hand-rolled
+  `getSymbol().getDeclarations()` chains inside a gate module are the private-reader shape one member at a time; the
+  sanctioned route is the shared readers (`resolveStableExpression`, `lib/reference-fact*`, `lib/origin-verdict.ts`).
+  About 25 sites in 21 modules migrate by module, lane `p-binding-readers`. "Binding identity is a shared primitive" is
+  now enforced, not prose.
 
 **`ctx.relativePath` IS PARTIAL — IT THROWS, AND IT KILLED A CONVERTED EXEMPLAR FOR AN ENTIRE RUN** (measured
 2026-09-11). `lib/policy-pass-context.ts:211-217` raises `source file is outside the effective population: …` for any
@@ -1816,7 +1839,7 @@ over-broad and suppresses none. `error` blocks. **`warning` does NOT block on th
 
 **And the production artifact says it plainly** (`reports/check-structure.json` → `runs/structure/main-152313-2026-09-12T02-44-32-393Z/`): `verdict: { errors: 66, warnings: 12, blocking: 66, failOnWarnings: false }` — **12 warning findings, `blocking` equals errors alone.** Per-policy, every row `ok: true`: `policy-proof-expectations` **11 violations**, `policy-waiver-identity` 1. Adding `over-art-plate-arm`'s 4 (driven directly: `findings=4 alarms=0 BLOCKING=0 exit=0`) gives **16 warning findings, none blocking**. Note what that means for this program's own claims: **the §5b soundness enforcer (#1971) "reports its own worklist on the commit bar" and its 11 findings stop nothing.**
 
-**STILL OPEN (#2025):** what to do about `hard` + `warning`, which asserts both unsuppressible and non-blocking — the door lane deliberately touched no policy's `severity` or `authority`, because changing an authority silently changes a waiver door. The other two halves are answered above: the entrypoint defaults stay `false`, and the reach is `structure`/`scoped`'s `--fail-on-warnings`, not a new verb. Unresolved
+**RULED 2026-09-12 (#2025, owner): `hard` + `warning` is a CONTRADICTION and the validator REFUSES it at load** — a policy that is unsuppressible and non-blocking at once means neither word. The three §5b soundness enforcers (`policy-proof-expectations`, `policy-waiver-identity`, `policy-waiver-spelling`) become `severity: "error"` and their findings BLOCK from the day the flip lands; the work they report is fixed or granted honestly, never downgraded back. `over-art-plate-arm` (ordinary + warning) keeps its warning with a LIVE `workItem` (#2070). The door's other two halves stand: entrypoint defaults `false`, reach through `--fail-on-warnings`. Built by the policing-matrix lane (#2111). Unresolved
 debt is a warning tied to a positive `workItem`. Reconciliation runs only after every selected owner completed its
 population; a thrown, incomplete, empty or unresolved owner withholds liveness rather than falsely staling grants. Gate
 modules receive neither grant tables nor marker parsers. Current-population declaration counts, every-file manifests and

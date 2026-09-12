@@ -1,0 +1,291 @@
+diff --git a/docs/architecture/core/Core-Enforcement-Active-Gates.md b/docs/architecture/core/Core-Enforcement-Active-Gates.md
+index a03238707..b934d72b5 100644
+--- a/docs/architecture/core/Core-Enforcement-Active-Gates.md
++++ b/docs/architecture/core/Core-Enforcement-Active-Gates.md
+@@ -333,7 +333,7 @@ policy's bite to `structure:policy-conformance` (its own `mustFlag` rows through
+ | `lifecycle-portability` | docs/architecture/history/export-import-portability.md — a family whose canon a full-account BACKUP silently drops is the F1 defect class (`documents` was owned canon for months while every backup lost the whole databank library, and nothing on the tree could notice). TWO arms over live sources of truth. Arm A (COMPLETENESS): every OWNER-STAMPED table the schema declares — derived from the literal `text("owner_id")` column of the table's RESOLVED columns (#945/#1035 — an imported columns object, or an ownership stamp written as a SHORTHAND member, used to make an owner-stamped table read as unowned, i.e. owing no portability at all), so a new domain is caught AT BIRTH — is either carried by a `PORTABLE_KINDS` member (`PORTABLE_CANON_TABLES`, exhaustive over the kind union by tsc) or classified in `NON_PORTABLE_CANON` with a \`RULED-OUT | DERIVED | RUNTIME | DEFERRED | ACCEPTED-LOSSY`classification, a reason, and the condition that ENDS the exemption; both registries ratchet DOWN (a row naming a vanished table is RED, and a table claimed by both is RED — one answer per family). Arm B (DOORS):`LIFECYCLE\_DOORS`declares, per kind, its single-entity export/import door and its chrome home; every declared`DoorSpec` must resolve to a real tRPC proc (`t.router({…})`properties only — a nested`z.object`would be a phantom cite) or a real route-path literal under`entry/http/`, so a rename REDS the table instead of leaving it lying. A door may instead be a cited `{ ruled }`cell. DECLARED LIMITS: ownership INHERITED through an FK chain (D23 —`gallery\_items\` via its asset) is invisible to arm A by design (its portability is its parent's); arm B proves a door EXISTS, not that the UI reaches it (chrome is CT/side-eye territory) | |
+ | `gate-modernization` | the META-gate — the gate corpus IS the enforcement layer, and nothing else enforced ITS shape. Three mechanical axes over `tooling/src/verify/gates/**`, mechanizing `tooling/src/verify/gates/GATE-AUTHORING.md` (THE gate-authoring law; indexed from AGENTS.md §7). Arm A DESCRIPTOR: a top-level gate-dir module that registers under neither contract — no `gate` descriptor object and no canonical `defineGate` policy (the mixed loader records it as UNREGISTERED, never skips it) — or a legacy descriptor whose `mustFlag`/`mustPass` is empty, enforces nothing forever — RED; a canonical `defineGate` module is REGISTERED and its proof floor is `lib/policy-validation.ts`'s, not this arm's, and the shared proof surfaces under `gates/_proof/` are not corpus. Arm B EXEMPTIONS: a non-empty collection whose NAME carries exemption vocabulary (`ALLOW`/`WHITELIST`/`EXEMPT`/`SANCTION`/`WAIV`/`GRANDFATHER`/`DEFERRED`/`DEBT`/`BASELINE`/`TOLERAT`/`PERMITTED`) in a module with NO stale-arm diagnostic is a one-sided exemption — the rot class the owner named 2026-08-03. Vocabulary is deliberately NARROW (scan-scope constants like `SKIP_DIRS` are out — the name is the signal); an EMPTY table is not flagged (no row to rot, reds the moment one lands). The handoff ledger `gate-modernization.baseline.json` (owner-sanctioned, 13 gates / 16 tables at mint, two-sided + shrink-only) REACHED ITS TERMINAL STATE `{}` in Lane RETRO the same day and was deleted WITH its generator — every one of those tables now carries its own stale arm, so arm B runs unsuppressed and a NEW one-sided table is red on arrival with no ledger to add it to. Arm C CITATION: a `docRow` `§` anchor must be DEFINED in the `.md` it names (a heading, or a line-start label) — a prose REFERENCE does not count, which is what makes the UI-Gates §12.6 phantom red. `§` binds to the nearest preceding PATH token (md OR code) so `member-visibility.ts §3.6` stays out of scope; an unresolvable doc is `dangling-refs`' finding, not a second red here. Minted at 3 live catches (§12.6 · `UI-Lib-TanStack-Query.md §F-2` · `Core-0 §7.4`, all repointed in the landing commit). Arm E SYNTAX CLAIM (#1958, added to this row 2026-09-12 — the arm landed at `4f9726e78` and the roster never gained it): a FINAL policy declaring `analysis: "syntax"` whose MODULE calls one of thirteen compiler-reaching members (`getType`, `getContextualType`, `getSymbol`, the throwing twins, the aliased/export symbol hops, the type- and signature-level reads, `getTypeAtLocation`, `getTypeChecker`, and `ctx.checker()` itself). The runtime fences only `ctx.checker()`, and only if the branch executes; a ts-morph node reaches the compiler without the context, so the DECLARATION is what this arm reads. ONE finding per module on the `analysis` token — the repair is that one word. The subtree is the WHOLE MODULE, not the descriptor literal: a module-level helper was a free evasion. Blast radius zero at mint and at the widening; each member carries its own `mustFlag` row | | | | | |
+ | `conversion-refusal-liveness` | issue #2017, FINAL `defineGate` policy (HARD/error, `analysis: "syntax"`, `execution: "entire-population"`, population `tooling/src/verify/**`). **A #1584 conversion refusal must be DATA, and its blocker must still be true.** The guide's own ruling is that *a refusal is a SNAPSHOT, not a standing verdict, and nothing re-opens one when its blocker lands* (#2013) — `runner-config-path-liveness` refused citing a missing `authored-path` door, the door SHIPPED because that refusal specified it, and the module sat legacy and refusing afterwards because a header comment has no reader. FIVE ARMS: **A UNDECLARED** — a gate module whose HEADER SPAN opens a refusal (a comment-OPENER match, case-sensitive on `REFUSED`/`BLOCKED`) and which exports no `CONVERSION_REFUSAL`; **B CONSUMER-SET DRIFT**, two-sided — a `sole-consumer` blocker's census re-run over the declared scope, so a NEW consumer says guide §12.4's reopen bar (two or more independent consumers) may now be met and a vanished one says the refusal's own evidence is gone; **C ON A CONVERTED MODULE** — a declaration in a module that also calls `defineGate`, the #2013 failure inverted and the arm that makes a shrinking refusal population safe; **D WRONG SELF** — `gate` not equal to the module basename, the loader's own id law, which is how a copied refusal accuses the module it came from; **E UNREADABLE OR UNSCOPED** — a malformed declaration, or a blocker whose `under` admits nothing in the population, both of which census an empty set and read as a clean pass forever. THE CENSUS READS CODE POSITIONS ONLY (string and template-literal tokens through `lib/conversion-refusal.ts#stringPositionText`), never raw text: measured 2026-09-12 over 581 `tooling/src/verify/**.ts`, a raw-text census of `--cached` returns FOUR modules and the code-position census returns ONE — the other three are header prose, including both of this policy's own new modules. AND THE DECLARATION IS NOT EVIDENCE OF ITSELF: a blocker authors its spellings as string literals, so without the declaration-span exclusion every declaring module is automatically its own consumer and ARM B's evidence direction can never fire (caught by `mustFlag[2]` returning zero on the policy's first proof run). AUTHORITY IS HARD, deliberately: the two sanctioned answers to a live refusal are convert or delete, so a suppressible refusal-liveness check would be a third door. No allowlist, no baseline. POPULATION IS ONE MODULE TODAY — `no-blanket-suppression`, whose ARM C re-judges candidates from the git INDEX and whose blocker is that no shipped resource kind serves a staged blob; the second member, `tsconfig-entry-liveness`, is CONVERTING (#2021), which is the outcome the row wants. DECLARED LIMITS, each stated in the declaration's own `unheld` field rather than left to be discovered: the staged-blob read `git show \:<path>` has no distinctive string spelling and is not censused; the one-consumer claim OUTSIDE `tooling/src/verify/` is not held (two `tooling/` siblings spell `--cached` for inventories, and telling them apart needs a judgment, not a census); whether a capability is worth minting when a second consumer appears is §12.4's ruling, and this policy only reports that the condition for asking has changed | | | | | |
+-| `policy-soundness` | the §5b SOUNDNESS ENFORCER's error half (#1971; family `policy-soundness`, shared reader `lib/policy-descriptor-read.ts` — the first meta-policies that are themselves final `defineGate` policies; family record docs/reviews/gate-runtime/policy-soundness-family-1584.md). Over every FINAL module of the loader's corpus, identified by IMPORT ORIGIN through `lib/gate-contract-origin.ts` (a legacy descriptor and a local `defineGate` lookalike are out of scope — `gate-modernization` names the lookalike): E1 an inert `ext: ["ts","tsx"]` on a population (#1959 — the full loadable set is a no-op; `ext: ["tsx"]` is a live narrowing and stays legal; token `ext`); E2 final-contract residue — every `lib/gate-contract.ts` code on the module body (a direct ts-morph walk proven by receiver-type identity, a gate-owned Project, module-scope `let`/mutation, a baseline ledger, a legacy descriptor field, a descriptor spread or computed key), i.e. the FINAL-subset half of the manual `pnpm gate:contract` census put on the commit bar, re-anchored with `[code]` in the message; E3 a `node:fs` import (§12.3 bans every filesystem read in a gate module). All three were at ZERO at mint and are pinned there (error, hard). BLINDNESS: the module is inside its own population, so when it is delivered and does not read as final the run THROWS instead of reporting ✓ forever (pinned through `runPolicyPass`). Recorded NON-arms so nobody re-adds them: a declared-but-unread `facts:` entry (already refused, `lib/policy-pass.ts:703`) and `analysis:"syntax"` beside `getType` (`gate-modernization` ARM E, #1958) | | | | | |
++| `policy-soundness` | the §5b SOUNDNESS ENFORCER's error half (#1971; family `policy-soundness`, shared reader `lib/policy-descriptor-read.ts` — the first meta-policies that are themselves final `defineGate` policies; family record docs/reviews/gate-runtime/policy-soundness-family-1584.md). Over every FINAL module of the loader's corpus, identified by IMPORT ORIGIN through `lib/gate-contract-origin.ts` (a legacy descriptor and a local `defineGate` lookalike are out of scope — `gate-modernization` names the lookalike): E1 an inert `ext: ["ts","tsx"]` on a population (#1959 — the full loadable set is a no-op; `ext: ["tsx"]` is a live narrowing and stays legal; token `ext`); E2 final-contract residue — every `lib/gate-contract.ts` code on the module body (a direct ts-morph walk proven by receiver-type identity, a gate-owned Project, module-scope `let`/mutation, a baseline ledger, a legacy descriptor field, a descriptor spread or computed key), i.e. the FINAL-subset half of the manual `pnpm gate:contract` census put on the commit bar, re-anchored with `[code]` in the message; E3 a `node:fs` import (§12.3 bans every filesystem read in a gate module); E4 a resource-host read that is not the direct argument of `lib/resource-declaration.ts` `readyResourceValue` (#2019) — the throw-versus-return law, which lived in that helper's JSDoc and three module headers (`client-structure`, `server-layout`, `ui-exports-map-complete`) and was enforced by nothing. The ALIAS escape is the same arm: binding `ctx.resources` to a name. ONE HAND-OFF IS ADMITTED — the host passed whole as an ARGUMENT to an imported `tooling/src/verify/lib/` reader that narrows it itself (`lib/config-grant-rows.ts` `readTsconfigRoster`, consumed by both `tsconfig-entry-liveness` modules) — and that carve is a REPAIR, not a softening: the first cut of the arm accused both of those CORRECT modules, caught by the family's real-corpus arm rather than by any fixture, and the carve ships with a `mustFlag` row for the host handed to a LOCAL function so it cannot become a hole. Both the guard and the shared reader are resolved by IMPORT ORIGIN through the alias, never by callee spelling, because a name-only test would ACQUIT a local lookalike — the failure direction that matters, and its own `mustFlag` row. All four arms were at ZERO when each landed and are pinned there (error, hard). BLINDNESS: the module is inside its own population, so when it is delivered and does not read as final the run THROWS instead of reporting ✓ forever — carried since #1977 as this corpus's first `mustRefuse` PROOF ROW (the fixture is a non-final module at the policy's own path), which puts the refusal on the static `check:policy-conformance` bar instead of leaving it in a `--full`-only family test. Recorded NON-arms so nobody re-adds them: a declared-but-unread `facts:` entry (already refused, `lib/policy-pass.ts:703`) and `analysis:"syntax"` beside `getType` (`gate-modernization` ARM E, #1958) | | | | | |
+ | `policy-proof-expectations` | §4.1's expectation rules over every FINAL module's `mustFlag` rows — WARNING debt, `workItem` #1968 (family `policy-soundness`, hard). C a row with no `expect.count`: `expectationFailure` compares only `count` exactly and returns early on the first finding, so the row passes on the WRONG node and on N findings where one was meant (wave-1 D1: `server-layout` `mustFlag[0]` tolerating 8 under a one-finding `why`); anchored on the row. ONE DECLARED EXEMPTION (#2001, owner 2026-09-12): `expect: { countFrom: "<DRIVER>" }` names the module-level registry whose cardinality drives the count where a literal would make a legitimate registry addition a red proof — EXACT, so the named binding must resolve at module scope here (checked again at runtime by `verifyPolicyProofs`) and the row must still carry `token`/`line`/`messageIncludes`; both halves are their own finding, anchored on `countFrom`. M a `messageIncludes` that discriminates nothing — its substring sits inside the static text of the module's ONLY message source (a tautology; `count` carries the row) or of TWO OR MORE sources (wave-1 D3: `ui-exports-map-complete`'s `"not"` in both the wrong-target and the dead-target message); anchored on `messageIncludes`. U a row that is not a statically readable object literal (§12.1). The message census reads every `message:`/`unreadableMessage:` property (the two names the runtime and `lib/reviewed-grant-findings.ts:57` read), the descriptor `message` when a report site omits its override, and every string-typed argument of a call receiving the context (`lib/tenancy-scope.ts:97`), as CONTIGUOUS STATIC SEGMENTS — const aliases, `+` concatenation and resolvable template spans joined, a dynamic span breaking the segment, and a conditional contributing TWO SOURCES, one per branch (#2055 — folding them into one union made a substring living in a single branch read as the module's only source, firing TAUTOLOGY on three fail-closed #2041 rows whose `messageIncludes` was their only discriminator; the split keeps D3's SHARED verdict reachable). DECLARED LIMIT: an unreadable source (a parameter, a call) leaves the module UNJUDGED on M — never a finding on a module the reader cannot see whole. 60 rows across 20 modules at mint | | | | | |
+ | `policy-waiver-identity` | §4.2's positive identity arm for every ORDINARY final policy — WARNING debt, `workItem` #1952 (family `policy-soundness`, hard; entire-population over the gate corpus PLUS `tests/tooling/verify/gates/**`, because the arm may live in another file). An arm is either the module's OWN `mustPass` carrying a MARKER-FORM line naming it — a line whose comment content BEGINS with `@orb-waive <id>(` (guide §7's honest census predicate); every string literal inside the row is read, so a helper-built fixture (`byte-check-cast`) counts — or a family test that IMPORTS the module (resolved specifier, never path text) and drives a marker-form fixture inside a `test(…)` whose body reads `waivedFindings`. NOT an arm: a marker inside a `mustFlag` row, a `fix` or header MENTION, a test that does not import the module, a marker naming another policy, and a NEGATIVE arm (asserting alarms, no `waivedFindings`) — the polarity trap that let `no-form-state-in-useeffect` read as covered. Receipts the recognised final count, so a corpus recognising none is withheld by the dispatcher's zero-count refusal; self-anchored like its siblings. Four ordinary policies had no arm at mint (`no-color-literals`, `no-off-token-radius-shadow`, `no-raw-container-widths`, `no-form-state-in-useeffect`) after #1952 had recorded 0 of 86 | | | | | |
+ | `policy-waiver-spelling` | §5b.3 for every ORDINARY final policy — WARNING debt, `workItem` #1978 (family `policy-soundness`, hard): the `fix` must name `@orb-waive <id>(` — a MENTION test over the fix's static text (const alias and `+` concatenation resolved), because the reported position is routinely not what a reader would call the offense (§3) and an author the policy fires on has nothing to type otherwise (wave-1 D7). Anchored on `fix`; a missing `fix` is anchored on `authority`; a spelling naming ANOTHER policy is a finding (the central engine binds it to nothing). Hard, reviewed-grant and legacy modules are out of scope. 51 of 88 at mint, `no-raw-spacing-in-features.ts:73-77` being the standard met | | | | | |
+diff --git a/tests/tooling/verify/gates/bus-fact-health.test.ts b/tests/tooling/verify/gates/bus-fact-health.test.ts
+index e10d2e7a8..423ce435b 100644
+--- a/tests/tooling/verify/gates/bus-fact-health.test.ts
++++ b/tests/tooling/verify/gates/bus-fact-health.test.ts
+@@ -26,7 +26,7 @@ const ROOT = "/bus-producers";
+ // it already walked a sibling family into a timeout that reads exactly like an assertion failure.
+ const CONFORMANCE_TIMEOUT_MS = scaledBudget(240_000);
+ const PER_ROW_TIMEOUT_MS = scaledBudget(60_000);
+-const FAMILY = [busFactHealth, busProducerCoverage];
++const FAMILY: readonly GatePolicy[] = [busFactHealth, busProducerCoverage];
+ 
+ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+   const project = new Project({ useInMemoryFileSystem: true });
+@@ -61,7 +61,7 @@ test(
+     const dangling: string[] = [];
+     let sequence = 0;
+     for (const policy of FAMILY) {
+-      for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
++      for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
+         sequence += 1;
+         const root = `${ROOT}-proof-${sequence}`;
+         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
+@@ -75,7 +75,7 @@ test(
+     expect(dangling).toEqual([]);
+     // AND THE SWEEP ACTUALLY RAN: emptying one project between rows buys speed at the cost of a silent
+     // failure mode a fresh-project loop did not have. The count is derived from the descriptors.
+-    const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
++    const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length + (policy.mustRefuse?.length ?? 0), 0);
+     expect(sequence).toBe(declared);
+     expect(sequence).toBeGreaterThan(0);
+   },
+diff --git a/tests/tooling/verify/gates/bus-pair.test.ts b/tests/tooling/verify/gates/bus-pair.test.ts
+index e617a8e3c..b57352dfe 100644
+--- a/tests/tooling/verify/gates/bus-pair.test.ts
++++ b/tests/tooling/verify/gates/bus-pair.test.ts
+@@ -29,7 +29,7 @@ const PER_ROW_TIMEOUT_MS = scaledBudget(60_000);
+ // The producer-coverage half of this family lives in `bus-fact-health.test.ts` (it is the producer
+ // family's conformance entry); `busProducerCoverage` is imported here only for the deferral pin below,
+ // which is a claim about the TWO policies together and belongs beside the deferral's own refusal pin.
+-const PAIR = [busBeltTotal, busConsumerBelt, busDefinitionBelts, userBusDeferredMember];
++const PAIR: readonly GatePolicy[] = [busBeltTotal, busConsumerBelt, busDefinitionBelts, userBusDeferredMember];
+ 
+ const USER_UNION_ONLY_DEFERRED =
+   'export type UserBusEvent = { type: "connectionsChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionsChanged: true } satisfies Record<UserBusEvent["type"], true>;\n';
+@@ -71,7 +71,7 @@ test(
+     const dangling: string[] = [];
+     let sequence = 0;
+     for (const policy of PAIR) {
+-      for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
++      for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
+         sequence += 1;
+         const root = `${ROOT}-proof-${sequence}`;
+         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
+@@ -87,7 +87,7 @@ test(
+     // failure mode a fresh-project loop did not have: if the rows stopped being visited, "zero dangling"
+     // would read exactly like "every specifier resolves". The count is derived from the descriptors, so it
+     // cannot rot into a hand-carried number either.
+-    const declared = PAIR.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
++    const declared = PAIR.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length + (policy.mustRefuse?.length ?? 0), 0);
+     expect(sequence).toBe(declared);
+     expect(sequence).toBeGreaterThan(0);
+   },
+diff --git a/tests/tooling/verify/gates/callback-provenance-family.test.ts b/tests/tooling/verify/gates/callback-provenance-family.test.ts
+index 6afc12ea2..d383e9840 100644
+--- a/tests/tooling/verify/gates/callback-provenance-family.test.ts
++++ b/tests/tooling/verify/gates/callback-provenance-family.test.ts
+@@ -80,7 +80,7 @@ test("every relative import in every proof of these five resolves inside the pro
+   const dangling: string[] = [];
+   let sequence = 0;
+   for (const policy of FAMILY) {
+-    for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
++    for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
+       sequence += 1;
+       const root = `${ROOT}-proof-${sequence}`;
+       const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
+@@ -93,7 +93,7 @@ test("every relative import in every proof of these five resolves inside the pro
+   expect(dangling).toEqual([]);
+   // AND THE SWEEP ACTUALLY RAN: "zero dangling" and "no row was visited" look identical, so the expected
+   // count is DERIVED from the descriptors rather than hand-carried.
+-  const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
++  const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length + (policy.mustRefuse?.length ?? 0), 0);
+   expect(sequence).toBe(declared);
+   expect(sequence).toBeGreaterThan(0);
+ });
+diff --git a/tests/tooling/verify/gates/client-query-pair-conversion.test.ts b/tests/tooling/verify/gates/client-query-pair-conversion.test.ts
+index fd074542e..54e670cae 100644
+--- a/tests/tooling/verify/gates/client-query-pair-conversion.test.ts
++++ b/tests/tooling/verify/gates/client-query-pair-conversion.test.ts
+@@ -93,7 +93,7 @@ test(
+     const dangling: string[] = [];
+     let sequence = 0;
+     for (const policy of WAVE) {
+-      for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
++      for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
+         sequence += 1;
+         const root = `${ROOT}-proof-${sequence}`;
+         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
+diff --git a/tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts b/tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts
+index 751d93a36..0a47b5b8a 100644
+--- a/tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts
++++ b/tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts
+@@ -99,7 +99,7 @@ test(
+     const dangling: string[] = [];
+     let sequence = 0;
+     for (const policy of WAVE) {
+-      for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
++      for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
+         sequence += 1;
+         const root = `${ROOT}-proof-${sequence}`;
+         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
+diff --git a/tests/tooling/verify/gates/ordinary-visitors-family.test.ts b/tests/tooling/verify/gates/ordinary-visitors-family.test.ts
+index 26a269f06..3d17e9b45 100644
+--- a/tests/tooling/verify/gates/ordinary-visitors-family.test.ts
++++ b/tests/tooling/verify/gates/ordinary-visitors-family.test.ts
+@@ -99,7 +99,7 @@ test(
+     const dangling: string[] = [];
+     let sequence = 0;
+     for (const policy of FAMILY) {
+-      for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
++      for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
+         sequence += 1;
+         const root = `${ROOT}-proof-${sequence}`;
+         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
+@@ -113,7 +113,7 @@ test(
+     // AND THE SWEEP ACTUALLY RAN: emptying one project between rows buys speed at the cost of a silent
+     // failure mode, because "zero dangling" and "no row was visited" look identical. The expected count is
+     // DERIVED from the descriptors, so it cannot rot into a hand-carried number either.
+-    const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
++    const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length + (policy.mustRefuse?.length ?? 0), 0);
+     expect(sequence).toBe(declared);
+     expect(sequence).toBeGreaterThan(0);
+   },
+diff --git a/tests/tooling/verify/gates/singleton-ordinary-policies.test.ts b/tests/tooling/verify/gates/singleton-ordinary-policies.test.ts
+index 9e623d397..18b37dc4c 100644
+--- a/tests/tooling/verify/gates/singleton-ordinary-policies.test.ts
++++ b/tests/tooling/verify/gates/singleton-ordinary-policies.test.ts
+@@ -98,7 +98,7 @@ test("every relative import in every proof of these seven resolves inside the pr
+   const dangling: string[] = [];
+   let sequence = 0;
+   for (const policy of FAMILY) {
+-    for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
++    for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
+       sequence += 1;
+       const root = `${ROOT}-proof-${sequence}`;
+       const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
+@@ -111,7 +111,7 @@ test("every relative import in every proof of these seven resolves inside the pr
+   expect(dangling).toEqual([]);
+   // AND THE SWEEP ACTUALLY RAN: "zero dangling" and "no row was visited" look identical, so the expected
+   // count is DERIVED from the descriptors rather than hand-carried.
+-  const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
++  const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length + (policy.mustRefuse?.length ?? 0), 0);
+   expect(sequence).toBe(declared);
+   expect(sequence).toBeGreaterThan(0);
+ });
+diff --git a/tests/tooling/verify/gates/unfenced-class-fragment-scanners.test.ts b/tests/tooling/verify/gates/unfenced-class-fragment-scanners.test.ts
+index 5fa5feeae..916cbbee5 100644
+--- a/tests/tooling/verify/gates/unfenced-class-fragment-scanners.test.ts
++++ b/tests/tooling/verify/gates/unfenced-class-fragment-scanners.test.ts
+@@ -88,7 +88,7 @@ test("every relative import in every proof of this family resolves inside the pr
+   const dangling: string[] = [];
+   let sequence = 0;
+   for (const policy of FAMILY) {
+-    for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
++    for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
+       sequence += 1;
+       const root = `${ROOT}-proof-${sequence}`;
+       const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
+@@ -101,7 +101,7 @@ test("every relative import in every proof of this family resolves inside the pr
+   expect(dangling).toEqual([]);
+   // AND THE SWEEP ACTUALLY RAN: "zero dangling" and "no row was visited" look identical, so the expected
+   // count is DERIVED from the descriptors rather than hand-carried.
+-  const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
++  const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length + (policy.mustRefuse?.length ?? 0), 0);
+   expect(sequence).toBe(declared);
+   expect(sequence).toBeGreaterThan(0);
+ });
+diff --git a/tests/tooling/verify/ops/conformance.int.test.ts b/tests/tooling/verify/ops/conformance.int.test.ts
+index 14fc706f4..561dcfba3 100644
+--- a/tests/tooling/verify/ops/conformance.int.test.ts
++++ b/tests/tooling/verify/ops/conformance.int.test.ts
+@@ -233,7 +233,7 @@ function sweep(
+  *  real temp tree with its own Project (`ops/policy-conformance.ts#runResourceExample`) and are the final
+  *  runtime's `fsBacked` — the same exclusion, for the same reason. */
+ function virtualProofsOf(policy: GatePolicy): readonly GatePolicyProof[] {
+-  return [...policy.mustFlag, ...policy.mustPass].filter((proof) => proof.mode !== "resource");
++  return [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])].filter((proof) => proof.mode !== "resource");
+ }
+ 
+ /** One FINAL policy example's full verdict, spelled out exactly like the legacy `verdictOf` so the two
+diff --git a/tooling/src/verify/gates/bus-producer-coverage.ts b/tooling/src/verify/gates/bus-producer-coverage.ts
+index edeeb720f..dc3640203 100644
+--- a/tooling/src/verify/gates/bus-producer-coverage.ts
++++ b/tooling/src/verify/gates/bus-producer-coverage.ts
+@@ -139,6 +139,32 @@ export const gate = defineGate({
+       }
+     },
+   }),
++  // THE RETIRED OWNER GATE'S TWO GUARANTEES, as declared rows (#1977/#2109). `bus-coverage-owner` existed
++  // because five per-union policies could not notice a belted bus nobody quantified over; this policy's
++  // denominator IS the belted roster, so the failure mode inverts and an unusable roster must REFUSE rather
++  // than render the rest of the corpus clean. `toolFailure` precedes the `mustFlag`/`mustPass` verdict, so
++  // neither older arm can hold either case — they lived only in a `--full`-only family test until the refusal
++  // arm landed, and now run on the static `check:policy-conformance` bar. The family test keeps the richer
++  // assertions beside these (owner status, empty findings, the phase); these carry the refusal TEXT, which is
++  // the half that discriminates a fired refusal from an unreachable branch.
++  mustRefuse: [
++    {
++      mode: "types",
++      files: { "packages/contracts/src/probe/index.ts": 'export type ProbeBusEvent = { type: "a" };\n' },
++      expect: { messageIncludes: "bus definition fact is incomplete" },
++      why: 'AN EMPTY BELTED ROSTER IS "I COULD NOT LOOK", never "every bus is covered": a bus union with no belt leaves the denominator empty, and reporting a clean tree over it is the exact blindness the retired owner gate existed to prevent',
++    },
++    {
++      mode: "types",
++      files: {
++        "packages/server/src/domain/x/bus.ts": 'export type XBusEvent = { type: "changed" };\n',
++        "packages/contracts/src/x/index.ts":
++          'import type { XBusEvent } from "../../../server/src/domain/x/bus.ts";\nexport const X_EVENT_TYPES = { changed: true } satisfies Record<XBusEvent["type"], true>;\n',
++      },
++      expect: { messageIncludes: "bus rosters disagree about belted unions" },
++      why: "THE TWO ROSTERS MUST AGREE: a union declared outside `packages/contracts/src/` whose belt lives inside it is belted for the producer fact and INVISIBLE to the definition fact — judged here, unratcheted there, which is a bus nobody quantifies over. The expectation is on the ROSTER message and not merely on a refusal, because this corpus also carries a definition-fact refusal behind it: a run that has lost the roster check still refuses, with the OTHER text, so the row discriminates rather than passing on any refusal",
++    },
++  ],
+   mustFlag: [
+     {
+       mode: "types",
+diff --git a/tooling/src/verify/gates/warning-code-coverage.ts b/tooling/src/verify/gates/warning-code-coverage.ts
+index cdd28ac23..df2496470 100644
+--- a/tooling/src/verify/gates/warning-code-coverage.ts
++++ b/tooling/src/verify/gates/warning-code-coverage.ts
+@@ -158,13 +158,15 @@ function isMapperReturn(statement: MorphNode): boolean {
+  *  that moved out of its home — is exactly the one `ctx.relativePath` refuses. It would have THROWN and
+  *  withheld the policy instead of reporting the move (guide §12.3).
+  *
+- *  NO CONFORMANCE ROW CAN HOLD THIS, and that is a property of the arm rather than a missing proof: a home
+- *  mismatch returns `unresolved`, `tupleVocabularyReceipt` scores that `members: 0, unresolved: 1`, and the
+- *  policy's own receipt then refuses — `toolFailure` fails BOTH arms on a non-success owner status
+- *  (`ops/policy-conformance.ts`), so the row can be neither `mustFlag` (no finding is reported) nor
+- *  `mustPass` (the owner did not succeed). Both sides were measured instead, on the same fixture (a
+- *  `WARNING_CODES` planted at `packages/client/src/state/provider-warnings.ts`, inside the shared tuple
+- *  index's population and outside this policy's), 2026-09-12:
++ *  THIS IS THE `mustRefuse` ROW BELOW, and it is the reason that arm exists (#1977). A home mismatch returns
++ *  `unresolved`, `tupleVocabularyReceipt` scores it `members: 0, unresolved: 1`, and the policy's own receipt
++ *  then refuses — `toolFailure` fails BOTH of the older arms on a non-success owner status
++ *  (`ops/policy-conformance.ts`), so the case could be neither `mustFlag` (no finding is reported) nor
++ *  `mustPass` (the owner did not succeed), and until the refusal arm landed it was HAND-MEASURED PROSE here.
++ *  It is now a declared row that the static `check:policy-conformance` bar runs on every `pnpm check`. The
++ *  fixture is the one measured below — a `WARNING_CODES` planted at
++ *  `packages/client/src/state/provider-warnings.ts`, inside the shared tuple index's population and outside
++ *  this policy's — and both sides were measured by hand first, 2026-09-12:
+  *    · before — `PASS TOOL ERROR [evaluate] source file is outside the effective population: …`
+  *    · after  — `PASS TOOL ERROR [receipt] policy receipt refused: population "WARNING_CODES" resolved zero members; population "WARNING_CODES" left 1 unresolved`
+  *  Same blast radius, but the second names the vocabulary and the reason — it is the designed blindness
+@@ -283,6 +285,24 @@ export const gate = defineGate({
+       },
+     };
+   },
++  // THE BLINDNESS TRIPWIRE, FIRED — the shared tuple index's population is WIDER than this policy's, so the
++  // vocabulary can move out of its home into a file this policy may not even name. The correct outcome is a
++  // REFUSAL naming the vocabulary, never a clean pass over an empty denominator (see the header's measured
++  // before/after pair). `toolFailure` precedes the other two arms' verdicts, which is why this is its own arm.
++  mustRefuse: [
++    {
++      mode: "types",
++      files: {
++        "packages/client/src/state/provider-warnings.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
++        "packages/server/src/infra/providers/resolve-chat.ts":
++          'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
++        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
++        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
++      },
++      expect: { messageIncludes: 'population "WARNING_CODES" resolved zero members' },
++      why: "THE VOCABULARY THAT MOVED OUT OF ITS HOME. `WARNING_CODES` is declared in `@client`, which the shared tuple index sees and this policy does not, so the home binding returns `unresolved`, the receipt scores zero members, and the run REFUSES. The chat channel beside it still resolves, which is what proves the refusal is the provider channel's own rather than a broken fixture",
++    },
++  ],
+   mustFlag: [
+     {
+       mode: "types",
