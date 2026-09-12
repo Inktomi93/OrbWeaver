@@ -189,27 +189,6 @@ const pathRewrites: ReadonlyArray<readonly [RegExp, string]> = [
 const NATIVE_JSON_FOLLOWUPS = [
   ["biome.json", "packages/client/src/forms/use-app-form.ts", "packages/client/src/forms/editor/use-app-form.ts"],
   ["biome.json", "packages/client/src/forms/create-autosave-entity-form.tsx", "packages/client/src/forms/editor/create-autosave-entity-form.tsx"],
-  [
-    "tooling/src/verify/gates/suppressions.baseline.json",
-    "packages/client/src/forms/bound-fields/select-field.tsx",
-    "packages/client/src/forms/editor/bound-fields/select-field.tsx",
-  ],
-  [
-    "tooling/src/verify/gates/suppressions.baseline.json",
-    "packages/client/src/forms/bound-fields/switch-field.tsx",
-    "packages/client/src/forms/editor/bound-fields/switch-field.tsx",
-  ],
-  [
-    "tooling/src/verify/gates/suppressions.baseline.json",
-    "packages/client/src/forms/create-saved-entity-form.ts",
-    "packages/client/src/forms/editor/create-saved-entity-form.ts",
-  ],
-  ["tooling/src/verify/gates/suppressions.baseline.json", "packages/client/src/forms/use-app-form.ts", "packages/client/src/forms/editor/use-app-form.ts"],
-  [
-    "tooling/src/verify/gates/suppressions.baseline.json",
-    "tests/client/forms/create-autosave-entity-form-model.test-d.ts",
-    "tests/client/forms/editor/autosave-contract.test-d.ts",
-  ],
 ] as const;
 
 function assertNoMovedDoorImports(ctx: CodemodContext): void {
@@ -225,7 +204,7 @@ function assertNoMovedDoorImports(ctx: CodemodContext): void {
 }
 
 function assertNativeJsonExcluded(ctx: CodemodContext): void {
-  for (const path of ["biome.json", "tooling/src/verify/gates/suppressions.baseline.json"] as const) {
+  for (const path of ["biome.json"] as const) {
     assert(
       ctx.project.getSourceFile(join(ctx.repoRoot, path)) === undefined,
       `${path} entered the TypeScript codemod project; keep its path-only follow-up native.`,

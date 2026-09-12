@@ -50,7 +50,6 @@ import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
-import { BASELINE_REL as SUPPRESSIONS_BASELINE_REL } from "../gates/suppressions.ts";
 import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";
 import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
 
@@ -80,12 +79,10 @@ export const LEDGERS: readonly Ledger[] = [
     unit: "door(s) on the plane",
     why: "one tRPC mutation reachable from N components inside ONE rail section (the §13 more-than-one-home IA class). Ends per pair when the section gets ONE component that owns the verb.",
   },
-  {
-    owner: "suppressions",
-    rel: SUPPRESSIONS_BASELINE_REL,
-    unit: "suppression marker(s)",
-    why: "committed lint/type suppressions per file, source AND tests (#962). Ends per file when the underlying diagnostic is fixed and the shrink is regenerated; a test row under a rule RATIFIED_TEST_RULES does not list is the burnable half.",
-  },
+  // `suppressions` HAD a row here and no longer has a ledger: its per-file count ratchet was deleted with
+  // the 2026-09-12 authority migration (#2063), which moved every ruled rule class to an exact reviewed
+  // grant in `lib/reviewed-grants.ts`. Suppression debt is no longer a BUDGET this walk can total — an
+  // un-granted rule class is a blocking finding with no door, so it shows up as a violation, never as debt.
   {
     owner: "orphan-export-ratchet (push tier)",
     rel: ORPHAN_BASELINE_REL,

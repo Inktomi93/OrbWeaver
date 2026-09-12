@@ -476,10 +476,16 @@ function writeFixtures(): void {
   // dangling-refs arm 1: a gates-dir stub whose `gate` object cites a ghost doc. NOT exported — the loader
   // skips it as un-ported (the __g_diaglegi precedent); the arm-1 scanner reads the local `gate` variable.
   fx("tooling/src/verify/gates/__g_dangl.ts", 'const gate = { docRow: "__g_ghost-nowhere.md" };\nexport const stub = gate;\n');
-  // suppressions: a marker in a file with NO baseline entry (budget 0) — the exceed arm fires.
+  // suppressions: INERT since 2026-09-12 (#2063). This planted the exceed arm of a per-file count ratchet
+  // that no longer exists — `suppressions` is now a FINAL reviewed-grant policy, partitioned out of the
+  // legacy anti-drift arm below, and `lint/suspicious/noExplicitAny` is a ruled class in `source` scope, so
+  // this marker is licensed rather than flagged. Left in place deliberately: deleting a `__g_` fixture is a
+  // coupled-site edit in a suite the converting lane could not run (it is not concurrency-safe with itself
+  // and belongs to the merge train), so it is reported as owed rather than removed blind.
   fx(`${D}/hub/__g_suppr.ts`, "// biome-ignore lint/suspicious/noExplicitAny: fixture probe\nexport const g = 1;\n");
   // no-blanket-suppression (#962): a top-of-file `-all` under tests/ — the founding shape, at the root the
-  // pre-#962 ratchet never governed. The `suppressions` gate fires on it too (tests are governed now).
+  // pre-#962 ratchet never governed. (`suppressions` used to fire on it too; it now reads the marker as a
+  // ruled `useNamingConvention` occurrence in `tests` scope and licenses it.)
   fx("tests/__g_blanket.test.ts", "// biome-ignore-all lint/style/useNamingConvention: fixture blanket\nexport const g = 1;\n");
   // monotonic-tests tooth 1: metadata claims "skipped" but an early return records a passed test.
   fx(
@@ -1133,8 +1139,13 @@ const SCANNED_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}scanned 
 const FINAL_POPULATION_RE = /^ {2}[✓✗⚠] (?<gate>[a-zA-Z0-9-]+).*? {2}· {2}final [a-z-]+\/[a-z]+ · population \d+ source · \d+ resource/gmu;
 const DENSITY_ADMITTED_RE = /^ {2}[✓✗!] density-tier.*admitted-by-ratchet: \d+/mu;
 // #569: the admitted number is SPLIT BY CLASS everywhere it prints — a ratified admission is permanent by a
-// recorded ruling and must not read as burnable backlog. `suppressions` is the ledger that carries both.
-const SUPPRESSIONS_SPLIT_RE = /^ {2}[✓✗!] suppressions.*admitted-by-ratchet: (?<total>\d+) \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
+// recorded ruling and must not read as burnable backlog. THE CARRIER MOVED 2026-09-12 (#2063): `suppressions`
+// used to be the ledger carrying both halves, and its per-file count ratchet was DELETED when the policy
+// converted to reviewed-grant authority, so it prints no `admitted-by-ratchet` line at all any more.
+// `density-tier` carries the split now — a live ratchet whose rows are ratified. Like every carrier in this
+// file, it is LEGACY BY REQUIREMENT: the split line is a legacy-runtime artifact and this whole suite retires
+// with the legacy roster at the atomic cutover rather than being re-pointed forever.
+const RATCHET_SPLIT_RE = /^ {2}[✓✗!] density-tier.*admitted-by-ratchet: (?<total>\d+) \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
 const SINGLE_PASS_SPLIT_RE = /^single-pass: (?<total>\d+) finding\(s\) admitted by ratchet baselines \((?<debt>\d+) debt · (?<ratified>\d+) ratified\)/mu;
 
 test("every LEGACY gate reports the SCAN DENOMINATOR behind its verdict (Codex GA-H-01)", () => {
@@ -1175,7 +1186,7 @@ test("the admitted number is split into DEBT and RATIFIED, and the split adds up
   // suppressions and 6 ruled door pairs read as "a glut of backlog". Both the per-gate line and the
   // single-pass footer carry the split, and the two halves must SUM to the total — an arithmetic that
   // silently drifts would be worse than no split at all.
-  const perGate = SUPPRESSIONS_SPLIT_RE.exec(cleanRun)?.groups;
+  const perGate = RATCHET_SPLIT_RE.exec(cleanRun)?.groups;
   expect(perGate).toBeDefined();
   expect(Number(perGate?.["debt"]) + Number(perGate?.["ratified"])).toBe(Number(perGate?.["total"]));
   expect(Number(perGate?.["ratified"])).toBeGreaterThan(0);

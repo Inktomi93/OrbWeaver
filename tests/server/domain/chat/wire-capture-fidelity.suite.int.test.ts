@@ -253,6 +253,19 @@ async function driveRow(opts: {
 // that lets the turn reach the capture then fail harmlessly (the caller catches; the assertion is on the
 // captured body, never a reply). captureWire fires BEFORE the external call on every backend (commit 20ac4154).
 
+/** `runChatTurn` is OPTIONAL on a backend, and a surface factory that cannot find one is a HARNESS defect
+ *  rather than a test outcome — so this THROWS by name instead of asserting away a null the type deliberately
+ *  admits. Replaces the three `noNonNullAssertion` suppressions whose stated reason ("the backend always
+ *  implements runChatTurn") was a claim about the runtime the type does not make; the narrowing is generic so
+ *  each call site keeps its own backend's exact signature. */
+function requireRunChatTurn<Backend extends { readonly runChatTurn?: unknown }>(backend: Backend, name: string): NonNullable<Backend["runChatTurn"]> {
+  const { runChatTurn } = backend;
+  if (runChatTurn === undefined) {
+    throw new Error(`${name}: this backend does not implement runChatTurn, so the wire-capture surface cannot be built`);
+  }
+  return runChatTurn as NonNullable<Backend["runChatTurn"]>;
+}
+
 /** A non-retryable reject — dodges the pre-commit retry backoff so the capture-then-fail turn is prompt. */
 const rejectNonRetryable = (): Promise<never> => Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: "harness: capture-only" }));
 
@@ -272,8 +285,7 @@ const openRouterSurface: SurfaceFactory = (sink) => {
       sink.body = entry.body;
     },
   });
-  // biome-ignore lint/style/noNonNullAssertion: the openrouter backend always implements runChatTurn.
-  return backend.runChatTurn!;
+  return requireRunChatTurn(backend, "openrouter");
 };
 
 /** custom-byo: captureWire fires after buildBody, before the global `fetch`. The stubbed `fetch` rejects with a
@@ -286,8 +298,7 @@ const customByoSurface: SurfaceFactory = (sink) => {
       sink.body = entry.body;
     },
   });
-  // biome-ignore lint/style/noNonNullAssertion: the custom-byo backend always implements runChatTurn.
-  return backend.runChatTurn!;
+  return requireRunChatTurn(backend, "custom-byo");
 };
 
 /** agent-sdk: `captureAgentSdkWire` fires before `deps.query`, recording the SDK QUERY INPUT (prompt +
@@ -310,8 +321,7 @@ const agentSdkSurface: SurfaceFactory = (sink) => {
       sink.body = entry.body;
     },
   });
-  // biome-ignore lint/style/noNonNullAssertion: the agent-sdk backend always implements runChatTurn.
-  return backend.runChatTurn!;
+  return requireRunChatTurn(backend, "agent-sdk");
 };
 
 /** A `custom_openai` {@link ResolvedCredential} double — only the fields the custom-byo runner reads. */

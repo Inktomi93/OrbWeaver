@@ -238,9 +238,11 @@ test("noticesIn lifts `[verify-notice]` lines and nothing else", () => {
 });
 
 /** Run `emit` with `process.stdout.write` captured, and return everything it wrote. ONE home (#1566):
- *  three tests had copy-pasted this block, which meant three copies of the same two ratified `any`
- *  suppressions in one file — the suppressions ratchet only ever shrinks, so a fourth copy is a gate
- *  failure and the fix is to stop making copies. */
+ *  three tests had copy-pasted this block, which meant three copies of the same two ruled `any`
+ *  suppressions in one file. (Until 2026-09-12 the enforcement was the per-file COUNT RATCHET, which only
+ *  ever shrank, so a fourth copy was a gate failure outright; #2063 replaced it with a per-rule-class
+ *  reviewed grant, which no longer counts occurrences — the reason to stop making copies is now the
+ *  duplication itself.) */
 function captureStdout(emit: () => void): string {
   const written: string[] = [];
   const original = process.stdout.write.bind(process.stdout);

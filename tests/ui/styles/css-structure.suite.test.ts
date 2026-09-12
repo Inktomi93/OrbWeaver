@@ -52,11 +52,10 @@ test("globals.css: the reduced-motion floor is unlayered (D43 §11.4e footgun #1
   expect(mediaIndex, "the reduced-motion @media block must exist").toBeGreaterThanOrEqual(0);
 
   // Every `@layer ... { ... }` block in the file — the reduced-motion block must fall OUTSIDE all of them.
-  // A fresh clone (not the shared top-level LAYER_RE) so the `g`-flag lastIndex never leaks across tests.
-  const layerRe = new RegExp(LAYER_RE);
-  let match: RegExpExecArray | null;
-  // biome-ignore lint/suspicious/noAssignInExpressions: standard regex-exec-loop idiom
-  while ((match = layerRe.exec(css)) !== null) {
+  // `matchAll` clones the regex internally, so the shared top-level `LAYER_RE`'s `g`-flag lastIndex cannot
+  // leak across tests and no hand-rolled clone is needed — which is also what retires the assign-in-condition
+  // exec loop this used to be (and the `noAssignInExpressions` suppression that came with it).
+  for (const match of css.matchAll(LAYER_RE)) {
     const openBrace = match.index + match[0].length - 1;
     const closeBrace = findBlockEnd(css, openBrace);
     expect(mediaIndex < match.index || mediaIndex > closeBrace, "the reduced-motion @media block must not be nested inside an @layer").toBe(true);
@@ -128,10 +127,8 @@ test("shell.css: tracked geometry properties (height/width/inset-block/--rail-w/
   const propAlt = TARGET_PROPS.map((p) => p.replace(/[[\]/{}()*+?.\\^$|]/gu, "\\$&")).join("|");
   const declRe = new RegExp(`^[ \\t]*(${propAlt}):\\s*([^;]+);`, "gmu");
 
-  let match: RegExpExecArray | null;
   let checked = 0;
-  // biome-ignore lint/suspicious/noAssignInExpressions: standard regex-exec-loop idiom
-  while ((match = declRe.exec(css)) !== null) {
+  for (const match of css.matchAll(declRe)) {
     const [, prop = "", rawValue = ""] = match;
     checked++;
     const withoutVars = rawValue.replace(/var\([^)]*\)/gu, "");
