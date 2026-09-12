@@ -1,4 +1,4 @@
-// The standing family floor for six ORDINARY policies that each declare a SINGLETON `family:` — their own
+// The standing family floor for seven ORDINARY policies that each declare a SINGLETON `family:` — their own
 // id — and which, before this file, had no family test anywhere in `tests/tooling/verify/gates/` (#1994,
 // re-derived 2026-09-12 by grepping each id across that directory with a `no-inline-types` positive
 // control). They are grouped here by that fact and nothing else; the header says so plainly rather than
@@ -11,6 +11,16 @@
 //   no-caller-user-id               — the `callerUserId` identifier anywhere but this gate tree.
 //   no-external-media-without-gate  — raw <img>/<video>/<audio>/<source> in a client feature.
 //   test-factory-contract           — the make*/seed* pure-vs-persisted split under tests/support/factories.
+//   no-array-literal-querykey       — an inline array-literal `queryKey:` property in @client.
+//
+// THE SEVENTH JOINED 2026-09-12 (lane p-parity-tier2bc), and it is #1994's last one. That row read "nine
+// modules have NO family test"; eight landed at `e64c274ef` and the row said to RE-DERIVE the remainder.
+// Re-derived by grepping each of the nine ids as a STRING across `tests/tooling/verify/` — the rule that a
+// family test often lives under the WAVE's name rather than the gate's — exactly one still had none:
+// `no-array-literal-querykey`. Its two hits were a suppression-grammar fixture in
+// `verify/lib/suppression-directive.test.ts` and this lane's own Tier-3 roster test, neither of which
+// drives the policy. It lands HERE rather than in a new file because it is the same fact that grouped the
+// other six: an ORDINARY policy with a singleton `family:` and nowhere for its §4.2 arm to live.
 //
 // WHAT THIS FILE CARRIES, AND WHY IT IS NOT A SECOND CONFORMANCE RUNNER: every one of these modules'
 // declared `mustFlag`/`mustPass` rows already executes on the static bar (`structure:policy-conformance`),
@@ -22,16 +32,21 @@
 // is the arm (gold standard: ordinary-visitors-family.test.ts:187-196, the POSITIVE arm only). §4.8's
 // fixture-specifier resolution control is the other standing piece of every family floor.
 //
-// §4.3 (reviewed grants) and §4.5 (refusal/receipt) do not apply to any of the six: all declare `facts: []`
+// §4.3 (reviewed grants) and §4.5 (refusal/receipt) do not apply to any of the seven: all declare `facts: []`
 // and `resources: []`, resolve no home and derive no population, so there is no receipt to forge and
-// nothing to refuse about. §4.6 (the conversion differential) is landing-commit evidence for the commit
-// that converted each module, not standing law, and each of those landed before this file.
+// nothing to refuse about. §4.6 (the conversion differential): its "landing-commit evidence, not standing
+// law" clause was RETIRED by #2000 deliverable 3 (`2084c403e`) — evidence may no longer vanish. Three of
+// the seven (`baseui-render-prop-composition`, `no-external-media-without-gate`,
+// `no-array-literal-querykey`) are on the Tier-3 CLOSE-BY-RULE roster, whose membership test, receipts and
+// stated limits live in `tier3-close-by-rule.test.ts`; the other four are not, and their differentials are
+// open #2000 work rather than something this file claims.
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as baseuiRenderPropComposition } from "../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
 import { gate as busOnDataNoStoreWrite } from "../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
 import { gate as membershipFanGuard } from "../../../../tooling/src/verify/gates/membership-fan-guard.ts";
+import { gate as noArrayLiteralQueryKey } from "../../../../tooling/src/verify/gates/no-array-literal-querykey.ts";
 import { gate as noCallerUserId } from "../../../../tooling/src/verify/gates/no-caller-user-id.ts";
 import { gate as noExternalMediaWithoutGate } from "../../../../tooling/src/verify/gates/no-external-media-without-gate.ts";
 import { gate as testFactoryContract } from "../../../../tooling/src/verify/gates/test-factory-contract.ts";
@@ -48,6 +63,7 @@ const FAMILY: readonly GatePolicy[] = [
   noCallerUserId,
   noExternalMediaWithoutGate,
   testFactoryContract,
+  noArrayLiteralQueryKey,
 ];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
@@ -62,7 +78,7 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
   return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project: projectOf(files), reviewedGrants: [], failOnWarnings: false });
 }
 
-test("the six singleton-family ordinary policies pass their production proof runtime", () => {
+test("the seven singleton-family ordinary policies pass their production proof runtime", () => {
   expect(verifyPolicyProofs(FAMILY)).toEqual([]);
 });
 
@@ -77,7 +93,7 @@ function danglingSpecifiers(files: readonly SourceFile[]): readonly string[] {
     .map((declaration) => `${declaration.getSourceFile().getFilePath()} -> ${declaration.getModuleSpecifierValue()}`);
 }
 
-test("every relative import in every proof of these six resolves inside the proof's own file map", () => {
+test("every relative import in every proof of these seven resolves inside the proof's own file map", () => {
   const shared = new Project({ useInMemoryFileSystem: true });
   const dangling: string[] = [];
   let sequence = 0;
@@ -116,6 +132,7 @@ test("every relative import in every proof of these six resolves inside the proo
 //   no-caller-user-id               each banned identifier OCCURRENCE
 //   no-external-media-without-gate  DERIVED (the report passes no token) -> the tag name `img`
 //   test-factory-contract           the FACTORY'S OWN NAME, not the `db` parameter the message names
+//   no-array-literal-querykey       the PROPERTY NAME `queryKey`, not the array literal or its first element
 // ---------------------------------------------------------------------------------------------------
 const REASON = "the proof's stand-in reason; ends when this fixture stops flagging.";
 
@@ -195,7 +212,7 @@ test("test-factory-contract: a waiver naming the FACTORY, not its db parameter, 
 // ---------------------------------------------------------------------------------------------------
 const DEAD = "names a position this carrier does not declare.";
 
-test("a waiver naming a DEAD position suppresses nothing and alarms, for every one of the six", () => {
+test("a waiver naming a DEAD position suppresses nothing and alarms, for every one of the seven", () => {
   const arms: readonly (readonly [GatePolicy, Readonly<Record<string, string>>])[] = [
     [
       baseuiRenderPropComposition,
@@ -229,6 +246,10 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for every o
       testFactoryContract,
       { "tests/support/factories/dead.ts": `// @orb-waive test-factory-contract(db): ${DEAD}\nexport function makeUser(db: unknown) {\n  return db;\n}\n` },
     ],
+    [
+      noArrayLiteralQueryKey,
+      { "packages/client/src/features/a/dead.ts": `// @orb-waive no-array-literal-querykey(users): ${DEAD}\nexport const q = { queryKey: ["users", 1] };\n` },
+    ],
   ];
 
   const unbound = arms
@@ -242,4 +263,15 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for every o
   expect(unbound).toEqual([]);
   // The sweep covers the WHOLE family, never a subset that silently shrank.
   expect(arms).toHaveLength(FAMILY.length);
+});
+
+test("no-array-literal-querykey: a waiver naming the PROPERTY NAME binds to its own finding", () => {
+  const waived = passOf(noArrayLiteralQueryKey, {
+    "packages/client/src/features/a/waived.ts": `// @orb-waive no-array-literal-querykey(queryKey): ${REASON}\nexport const q = { queryKey: ["users", 1] };\n`,
+  });
+
+  expect(waived.toolErrors).toEqual([]);
+  expect(waived.authority.effectiveFindings).toEqual([]);
+  expect(waived.authority.waivedFindings).toHaveLength(1);
+  expect(waived.authority.authorityAlarms).toEqual([]);
 });
