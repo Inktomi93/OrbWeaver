@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { getWorkspace, moduleScopeCallees, soleExportedFunction } from "../../../tooling/src/_shared/ts-workspace.ts";
-import { isGovernedArgvEntry } from "../../../tooling/src/verify/gates/tooling-argv-front-door.ts";
+import { REVIEWED_GRANTS } from "../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 
@@ -27,6 +27,11 @@ const OPS_DIR = join("tooling", "src", "verify", "ops");
 const RUNNER_HOME = join("tooling", "src", "_shared", "run-tool.ts");
 const TOOLING_SRC = join("tooling", "src");
 const EXIT_TOOL_ERROR = 2;
+/** The governed non-cli argv entries, derived from the central reviewed-grant table — the same rows the
+ *  `tooling-argv-front-door` policy's authority rests on, so the two halves of one law cannot drift. */
+const governedArgvEntries: ReadonlySet<string> = new Set(
+  REVIEWED_GRANTS.filter((grant) => grant.policyId === "tooling-argv-front-door").map((grant) => grant.subject),
+);
 
 /** REAL PROGRAMS are DERIVED, never listed. A module that enters through the one entry runner at module
  *  scope IS a process entry: running it does the work it exists for (booting the production server, the
@@ -147,7 +152,7 @@ test(
       return `${f}: ${run.status}`;
     });
 
-    expect(verdicts).toEqual(modules.map((f) => `${f}: ${isGovernedArgvEntry(join(OPS_DIR, f)) ? 3 : EXIT_TOOL_ERROR}`));
+    expect(verdicts).toEqual(modules.map((f) => `${f}: ${governedArgvEntries.has(join(OPS_DIR, f)) ? 3 : EXIT_TOOL_ERROR}`));
     // A zero from an empty directory would be a false clean (the walk-fence lesson): the census must have
     // read something. Twelve modules at the pin's minting; the floor only proves the scan happened.
     expect(modules.length).toBeGreaterThan(1);
