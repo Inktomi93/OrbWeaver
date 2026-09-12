@@ -166,5 +166,23 @@ export const gate = defineGate({
       },
       why: "POSITIONAL IDENTITY: the report anchors the CALLEE with `token: name, offset: callee.getText().lastIndexOf(name)`, so an author waives the query-core METHOD NAME (`setQueryData`) at its own occurrence — never the receiver binding, and each of the two methods keeps its own position. The fixture is mustFlag[0] (:80, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
     },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/some-feature/surfaces/some-surface.tsx":
+          'import { useQueryClient } from "@tanstack/react-query";\nexport function Surface(): void {\n  const queryClient = useQueryClient();\n  queryClient.invalidateQueries();\n}\n',
+      },
+      why: "#1999 — THE TWO-METHOD SET FENCE, PINNED: `OPTIMISTIC_METHODS` (:18) admits only `cancelQueries`/`setQueryData`; `invalidateQueries` is a real QueryClient member declared by the same package, outside that set, and must pass untouched. Cutting `!OPTIMISTIC_METHODS.has(name)` at :61 turns this red",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/some-feature/surfaces/some-surface.tsx":
+          'import { useQueryClient } from "@tanstack/react-query";\nconst setQueryData = "not-a-key";\nexport function Surface(): void {\n  const queryClient = useQueryClient();\n  queryClient[setQueryData](["key"], 1);\n}\n',
+      },
+      why: "#1999 — THE COMPUTED-KEY LITERAL FENCE, PINNED: `calledMemberName` (:28-37) reads a member name off an ElementAccess only when the key is a StringLiteral/NoSubstitutionTemplateLiteral; an IDENTIFIER key is not one, even when its own spelling happens to read `setQueryData` — that identifier names a runtime value, not the method. Cutting the literal-kind check and taking `argument.getText()` unconditionally would read this unrelated identifier's text as the member name and misreport it",
+    },
   ],
 });

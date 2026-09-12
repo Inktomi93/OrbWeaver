@@ -331,5 +331,24 @@ export const gate = defineGate({
       },
       why: "POSITIONAL IDENTITY: the report anchors on the CALL but its token is the callee's last member segment, so an author waives the STORE HOOK NAME `useUserStore` — never the selector parameter `s`, which is neither stable nor unique, and never the object literal the message is about. The fixture is mustFlag[0] (count 1) plus the marker line, so exactly ONE occurrence exists for the one marker to consume, and the arm ends if that row changes",
     },
+    {
+      mode: "types",
+      files: {
+        [STORE_HOOK_HOME]: "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\nexport declare const unused: number;\n",
+        "packages/client/src/components/elsewhere.ts":
+          "export type GatedStoreHook<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\ndeclare const useUserStore: GatedStoreHook<{ user: string }>;\nexport const A = (): unknown => useUserStore((s) => ({ a: s.user }));\n",
+      },
+      why: "#1999 — THE `GatedStoreHook` HOME HALF, PINNED: `isStoreHomeIdentity` (:85-89) requires the NAME `GatedStoreHook` AND `declaredByFile(…, home)`; a LOCAL type of the same name declared in a different file is a proven different declaration and must pass — the name alone is not the identity, only the two factories' canonical home is. Cutting `declaredByFile(identity.declarations, home)` (keeping the name check) turns this red",
+    },
+    {
+      mode: "types",
+      files: {
+        [STORE_HOOK_HOME]: "export type GatedStoreHook<T> = {\n  (): T;\n};\nexport declare const unused: number;\n",
+        "node_modules/zustand-lookalike/index.d.ts": "export type UseBoundStore<T> = {\n  (): T;\n  <U>(selector: (state: T) => U): U;\n};\n",
+        "packages/client/src/components/foo.tsx":
+          'import type { UseBoundStore } from "zustand-lookalike";\ndeclare const useUserStore: UseBoundStore<{ user: string }>;\nexport const A = (): unknown => useUserStore((s) => ({ a: s.user }));\n',
+      },
+      why: "#1999 — THE `UseBoundStore` PACKAGE HALF, PINNED: `isStoreHomeIdentity` (:85-89) requires the NAME `UseBoundStore` AND `declaredByPackage(…, ZUSTAND)`; a same-named type declared by an UNRELATED package is a proven different declaration and must pass — this is the sibling of the real-tree `persist`/`devtools` false positive (:45-49), one clause over. Cutting `declaredByPackage(identity.declarations, ZUSTAND)` (keeping the name check) turns this red",
+    },
   ],
 });

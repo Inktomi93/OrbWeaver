@@ -187,5 +187,23 @@ export const gate = defineGate({
       },
       why: "POSITIONAL IDENTITY: the report anchors on the PROPERTY ASSIGNMENT at offset 0, so the position is the KEY `staleTime` rather than the banned value — a marker naming `static` would be a dead position. The fixture is mustFlag[0] (:85) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
     },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/feature/query.ts":
+          'import { useQuery } from "@tanstack/react-query";\nexport const q = useQuery({ queryKey: ["key"], refetchInterval: "static" });\n',
+      },
+      why: "#1999 — THE KEY FENCE, PINNED: `node.getName() !== KEY` (:56) admits only the `staleTime` property; `refetchInterval` carries the same banned string but is a different key and must pass. Cutting the KEY check at :56 turns this red",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/feature/query.ts":
+          'import { useQuery } from "@tanstack/react-query";\nexport const q = useQuery({ queryKey: ["key"], staleTime: "dynamic" });\n',
+      },
+      why: "#1999 — THE BANNED-VALUE FENCE, PINNED: `value.value !== BANNED` (:64) admits only the literal string `static`; `staleTime: 'dynamic'` is a real query-options key with an unrelated value and must pass. Cutting the BANNED comparison at :64 turns this red",
+    },
   ],
 });

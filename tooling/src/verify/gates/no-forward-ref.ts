@@ -157,5 +157,18 @@ export const gate = defineGate({
       },
       why: "POSITIONAL IDENTITY: the report anchors on the reference with the token `forwardRef` — the EXPORT name, not the local spelling of its receiver — so `React.forwardRef` is waived as `forwardRef`. Built on the MEMBER arm mustFlag[2] (:62) because it is a ONE-finding fixture: the founding row also fires on the import door, and one marker suppresses one occurrence. The marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
     },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        "packages/client/src/feature/ui.tsx": "declare const opaque: any;\nexport const x = (): unknown => opaque.doIt();\n",
+      },
+      why: "#1999 — THE CANDIDATE-SPELLING PREFILTER, PINNED (shared reader, `lib/react-origin.ts`'s `couldNameReactExport`): a member callee whose leaf name is not `forwardRef` and whose receiver is not a react-bound spelling is not even a candidate, so it is never resolved at all. This row lives here rather than in `no-use-context` too because the fence is in the SHARED reader, not per-consumer; both policies share this one proof. Cutting the whole prefilter (`couldNameReactExport`, react-origin.ts) turns this red — the opaque `any` receiver then resolves to `unreadable` and gets reported, which is exactly the 439-false-finding cost the header describes if the prefilter is skipped instead of gated",
+    },
+    {
+      mode: "types",
+      files: { "packages/client/src/feature/ui.tsx": 'import { mystery } from "./nowhere.ts";\nexport const unused = 1;\n' },
+      why: "#1999 — THE IMPORT DOOR'S EXPORTED-NAME FENCE, PINNED (shared reader, `lib/react-origin.ts`'s `importDoor`): a specifier whose OWN name is not `forwardRef` is a proven different export and never a candidate, regardless of where it resolves — one shared proof for `no-forward-ref` and `no-use-context`, the fence's only two consumers. Cutting `specifier.getName() !== exportedName` turns this red: the specifier then resolves against `./nowhere.ts` (which does not exist) and reports unreadable",
+    },
   ],
 });

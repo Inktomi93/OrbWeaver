@@ -221,5 +221,23 @@ export const gate = defineGate({
       },
       why: 'POSITIONAL IDENTITY: the report anchors the whole BinaryExpression but overrides the token to `error` at `indexOf("error")`, i.e. the LEFT operand\'s member — deliberately, because a derived token would have taken the receiver name (`a`), which names no position. So an author waives `error`, never `a` and never the `??`. The fixture is mustFlag[0] (:126, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes',
     },
+    {
+      mode: "types",
+      files: {
+        [ENTITY_MUTATION_HOME]: "export interface EntityMutationResult {\n  readonly error: unknown;\n  readonly clearError: () => void;\n}\n",
+        "packages/client/src/features/x/x.tsx":
+          'import type { EntityMutationResult } from "../../data/create-entity-mutation.ts";\nexport const g = (a: EntityMutationResult, b: EntityMutationResult): unknown => a.error && b.error;\n',
+      },
+      why: "#1999 — THE OPERATOR-SET FENCE, PINNED: `MULTIPLEXING_OPERATORS` (:37) admits only `??`/`||`; a plain `&&` is not the sticky-multiplex shape and must pass untouched. Cutting the `MULTIPLEXING_OPERATORS.has(...)` check at :92 turns this red",
+    },
+    {
+      mode: "types",
+      files: {
+        [ENTITY_MUTATION_HOME]: "export interface EntityMutationResult {\n  readonly error: unknown;\n  readonly clearError: () => void;\n}\n",
+        "packages/client/src/features/x/x.tsx":
+          'import type { EntityMutationResult } from "../../data/create-entity-mutation.ts";\nexport const g = (a: EntityMutationResult, b: EntityMutationResult): unknown => a.clearError ?? b.clearError;\n',
+      },
+      why: "#1999 — THE MEMBER-NAME FENCE, PINNED: `operandVerdict` (:46-56) only judges an `error` member read; `clearError` is a real member of the SAME mutation-result home and must pass. Cutting `read.value.name !== ERROR_MEMBER` at :47 turns this red",
+    },
   ],
 });
