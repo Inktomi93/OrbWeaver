@@ -168,6 +168,21 @@ family.
      resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
      path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
 
+   **READING A SEALED-ORIGIN VERDICT HAS THREE SHAPES, AND ONLY ONE IS THE BUG (measured 2026-09-12, #2006).**
+   `readSealedOrigin` returns a VERDICT; `sealedOriginReports(verdict, anchor)` is the DECISION. But **polarity
+   decides which applies**, and a mechanical sweep for the wrong call will weaken a security gate:
+
+   1. **ACCUSING direction, verdict used directly — THE BUG.** `kind !== "foreign"` reports, so a purely local object
+      whose KEY is spelled like the sealed export is accused. Five modules. Fix: call `sealedOriginReports`.
+   2. **ACCUSING direction, decision called — correct.** `empty-state-has-action` already does this.
+   3. **ACQUITTING direction — correct, and `sealedOriginReports` is NOT applicable.** `untrusted-regex-safe-exec`
+      computes `safe = kind === "sealed"`: **only a PROVEN sealed origin acquits and everything else reports.**
+      Scoping the refusal there would WEAKEN a security-adjacent gate, and its own `mustFlag[1]` pins the
+      local-helper case as MUST-FLAG. **Do not "fix" shape 3.**
+
+   **So the tell is not the call — it is which side of the comparison reports.** Check polarity before routing any
+   module into this class.
+
    **§4.6'S FOUR CATEGORIES ARE INCOMPLETE — TWO MORE, AND THE FIRST IS THE COMMONEST DELTA IN THE CORPUS
    (measured 2026-09-12 across all seven conversion records).**
 
