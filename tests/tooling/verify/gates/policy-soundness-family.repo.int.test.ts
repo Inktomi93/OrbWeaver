@@ -172,9 +172,6 @@ test(
     const identity = result.policies.find(({ id }) => id === policyWaiverIdentity.id);
     expect(identity?.receipts).toEqual([{ kind: "population", source: "final policy modules", members: shapeCount, unresolved: 0 }]);
 
-    // The error policy pins its CLOSED classes; the tree is the proof they are closed.
-    expect(result.authority.effectiveFindings.filter(({ policyId }) => policyId === policySoundness.id)).toEqual([]);
-
     // `policy-legacy-imports` is the one error policy whose class is OPEN on the tree (#1922's migration set).
     // Its live findings are compared against a SECOND OPINION — the import-shape text test over the same corpus
     // — so the arm's real-tree bite is measured by something it did not compute, and a hardcoded count never
@@ -189,6 +186,10 @@ test(
       ...new Set(result.authority.effectiveFindings.filter(({ policyId }) => policyId === policyLegacyImports.id).map(({ file }) => file)),
     ].toSorted();
     expect(accused).toEqual(secondOpinion);
+
+    // The error policy pins its CLOSED classes; the tree is the proof they are closed. Asserted LAST so a red here
+    // (a foreign module landing an unwrapped read, as `97e68be91` did for E4) still lets every receipt above print.
+    expect(result.authority.effectiveFindings.filter(({ policyId }) => policyId === policySoundness.id)).toEqual([]);
   },
   REAL_CORPUS_TIMEOUT_MS,
 );

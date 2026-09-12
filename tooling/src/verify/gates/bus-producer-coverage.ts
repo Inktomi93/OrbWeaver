@@ -280,6 +280,27 @@ export const gate = defineGate({
       why: "THE CONSOLIDATION ITSELF: two belted unions in one corpus, one produced and one not. The single policy quantifies over the whole belted roster, so the uncovered bus is reported and the covered one is silent — the property five per-union modules could only have by all five existing",
     },
   ],
+  // THE REFUSAL ARM (§4.5b, #1977; migrated from `bus-fact-health.test.ts`'s `runPolicyPass` pins by #2109 item 2 /
+  // #2111 so the two roster guarantees run on the static bar). The family test keeps the `runPolicyPass` twins: they
+  // additionally assert the owner status, the empty finding set and the phase, which a row cannot express.
+  mustRefuse: [
+    {
+      mode: "types",
+      files: { "packages/contracts/src/probe/index.ts": 'export type ProbeBusEvent = { type: "a" };\n' },
+      expect: { messageIncludes: "bus definition fact is incomplete" },
+      why: "THE RETIRED OWNER GATE'S GUARANTEE, half one: a corpus with no BELTED bus is 'I could not look', and the policy REFUSES instead of reporting every bus covered — the message is the definition fact's own refusal text, forwarded by this consumer",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/bus.ts": 'export type XBusEvent = { type: "changed" };\n',
+        "packages/contracts/src/x/index.ts":
+          'import type { XBusEvent } from "../../../server/src/domain/x/bus.ts";\nexport const X_EVENT_TYPES = { changed: true } satisfies Record<XBusEvent["type"], true>;\n',
+      },
+      expect: { messageIncludes: "bus rosters disagree about belted unions" },
+      why: "THE RETIRED OWNER GATE'S GUARANTEE, half three: a union declared outside `packages/contracts/src/` whose belt lives inside it is belted for the producer fact and INVISIBLE to the definition fact — the run REFUSES with the roster-disagreement text rather than judging a bus nobody quantifies over. This corpus also carries a definition-fact refusal behind it, so the needle is the ROSTER text: neutering `assertRosterAgreement` reds this row instead of sliding to the other refusal",
+    },
+  ],
   mustPass: [
     {
       mode: "types",

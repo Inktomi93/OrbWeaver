@@ -394,6 +394,25 @@ export const gate = defineGate({
       why: 'THE PUSHED-RECORD `message` REQUIREMENT, pinned (§4.1). A `{ code }` with no `message` pushed onto the real `warnings` sink is not an EXECUTABLE warning record — nothing reaches a human — so it cannot discharge a code\'s emit obligation. Same reversed direction as the row above: deleting `object.getProperty("message") !== undefined` from `isPushedWarning` makes the bare record count as an emit and this row goes 1 → 0. Its twin is mustFlag[2], which holds the OTHER half of the same recogniser (the sink identity) with the message present',
     },
   ],
+  // THE REFUSAL ARM (§4.5b, #1977 worked case, migrated onto the bar by #2109 item 2 / #2111). Until now the two
+  // measured messages in the header above were the only record of this behaviour; a row cannot `mustFlag` it (no
+  // finding) or `mustPass` it (the owner does not succeed), so it lived nowhere `pnpm check` runs. The needle names
+  // the policy's OWN receipt source — the tuple's authored name — never the runner's wrapper (the loader refuses a
+  // needle inside the generic envelope, `lib/policy-refusal-envelope.ts`).
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/provider-warnings.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/server/src/infra/providers/resolve-chat.ts":
+          'declare const warnings: { code: string; message: string }[];\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { messageIncludes: 'population "WARNING_CODES" resolved zero members' },
+      why: "THE BLINDNESS TRIPWIRE FIRING: `WARNING_CODES` planted INSIDE the shared tuple index's population (`@client`) and OUTSIDE this policy's home — `channelVocabulary` answers `unresolved`, the tuple receipt scores `members: 0 / unresolved: 1`, and the policy's own receipt REFUSES rather than rendering a clean corpus. The needle is the receipt SOURCE (the tuple's authored name), which no other refusal emits",
+    },
+  ],
   mustPass: [
     {
       mode: "types",

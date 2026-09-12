@@ -2,11 +2,14 @@
 // the dispatcher compose their refusals from, and these pins hold that two-sided — every member is text a real
 // refusal carries (driven through `verifyPolicyProofs`), and the containment predicate refuses a generic needle
 // while admitting an authored one. The per-member VALIDATOR arm lives in `policy-loader.test.ts`.
+import { Project, SyntaxKind } from "ts-morph";
+import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import { GATE_AUTHORITY_ALARM_KINDS, GATE_AUTHORITY_TOOL_ERROR_KINDS } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POLICY_REFUSAL_PREFIXES } from "../../../../tooling/src/verify/contract/policy-conformance.ts";
 import { GATE_FACT_PHASES, POLICY_PASS_REFUSALS, POLICY_PHASES } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { genericRefusalTextContaining, refusalEnvelope } from "../../../../tooling/src/verify/lib/policy-refusal-envelope.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -109,4 +112,54 @@ test("every producible prefix is the text a REAL refusal starts with, driven thr
   }
   // And the authored slot is what survives containment: the receipt SOURCE names the policy's own text.
   expect(genericRefusalTextContaining('population "subjects" resolved zero members')).toBeUndefined();
+});
+
+test("the context-door sentences the envelope carries are the text the LIVE context emits (two-sided for the one emitter that spells them by literal)", () => {
+  // `lib/policy-pass-context.ts` is fenced to another lane (#2107/#2108), so its five refusal sentences are still
+  // spelled there by literal while the contract carries them as `POLICY_PASS_REFUSALS`. This pin holds the pair
+  // equal from the runtime side: each door is driven to its refusal and the produced text must CONTAIN the
+  // contract's sentence — a drift on either side reds here before the envelope could admit a stale needle.
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile("/repo/packages/client/src/a.ts", "export const a = 1;\n");
+  const fact = defineFact({
+    id: "envelope-fact",
+    population: "@client",
+    analysis: "syntax",
+    resources: [],
+    create: (ctx) => ({
+      finish: () => {
+        ctx.receipt({ kind: "population", source: "envelope-fact", members: 1 });
+        return 1;
+      },
+    }),
+  });
+  const doors: readonly { readonly key: keyof typeof POLICY_PASS_REFUSALS; readonly policy: GatePolicy }[] = [
+    {
+      key: "factNotFinished",
+      policy: sourcePolicy("door-fact-early", {
+        execution: "entire-population",
+        facts: [fact],
+        create: (ctx) => ({
+          visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: () => void ctx.fact(fact) }],
+          evaluate: () => ctx.receipt({ kind: "population", source: "door", members: 1 }),
+        }),
+      }),
+    },
+    { key: "factUndeclared", policy: sourcePolicy("door-fact-undeclared", { create: (ctx) => ({ evaluate: () => void ctx.fact(fact) }) }) },
+    {
+      key: "sourcePathOutsidePopulation",
+      policy: sourcePolicy("door-source-path", { create: (ctx) => ({ evaluate: () => void ctx.sourceFile("packages/client/src/none.ts") }) }),
+    },
+    {
+      key: "findingOutsidePopulation",
+      policy: sourcePolicy("door-finding", { create: (ctx) => ({ evaluate: () => ctx.report.file("packages/client/src/none.ts") }) }),
+    },
+    { key: "syntaxOwnerChecker", policy: sourcePolicy("door-checker", { create: (ctx) => ({ evaluate: () => void ctx.checker() }) }) },
+  ];
+  for (const { key, policy } of doors) {
+    const result = runPolicyPass({ knownPolicies: [policy], policies: [policy], root: "/repo", project, reviewedGrants: [], failOnWarnings: false });
+    const produced = result.toolErrors.map(({ message }) => message).join("; ");
+    expect(produced, key).toContain(POLICY_PASS_REFUSALS[key]);
+    expect(refusalEnvelope(), key).toContain(POLICY_PASS_REFUSALS[key]);
+  }
 });
