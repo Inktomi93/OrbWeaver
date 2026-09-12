@@ -11,6 +11,17 @@
 //
 // THIRD ANSWER, never silence: a `.Provider` tag whose member identity cannot be read at all is REPORTED as
 // unreadable (GATE-AUTHORING §5, #944) — the spelling alone is not the identity in either direction.
+//
+// FAMILY `react-origin` — the shared reader is `lib/react-origin.ts` (canonical React export identity).
+// This member takes its `REACT_TYPE_HOMES` door list rather than `reactExportVisitors`, because its subject
+// is a TYPE MEMBER (`.Provider` off a context's type) rather than a module export; the door list is the one
+// place the family says which `node_modules` homes declare React's public surface, so a future inline
+// `react/index.d.ts` moves for all five members at once.
+// POPULATION PORT: NOT byte-identical, and it moves in both directions. The legacy descriptor declared no
+// `scanRoot` at all (`7ed48eca8^`), so its population was the legacy harness fileset (`packages/*/src` plus
+// `tests/`); the final is `@authored` — a NARROWING by `packages/showcase-plugins/src` and a WIDENING by
+// `tooling/src` + `scripts/`, both measured empty of subjects. The derivation and its planted control have
+// ONE home, in the shared reader's own header, rather than three copies across this family.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

@@ -41,6 +41,23 @@
 // call is tainted, and a name whose initializer references a tainted name is tainted. What changed is HOW it
 // is computed — a policy owns no descendant traversal, so the identifiers, declarations and dep arrays all
 // arrive from the shared walk and are joined by SOURCE RANGE, per file, in one pass.
+//
+// FAMILY `react-origin` — the shared reader is `lib/react-origin.ts` (canonical React export identity),
+// consumed here as `createReactExportMatcher` for the EFFECT half of the vocabulary, so `useEffect` and its
+// two siblings are React's own exports rather than the second regex they were. The pointer half is a
+// different reader (`lib/project-home-origin.ts`) on purpose: the two axes ask different questions and
+// neither should be able to answer the other's.
+// POPULATION PORT: an INTENTIONAL WIDENING BY EXACTLY TWO THINGS, both of which the paragraphs above state
+// the reason for. The legacy `scanRoot: (p) => p.includes("packages/client/src/features/")` (`47fc0ae01^`)
+// becomes `{ in: ["@client"], under: ["packages/client/src/features/**",
+// "packages/client/src/state/index.ts"] }`. (1) `state/index.ts` joins the population as a RECEIPT carrier,
+// never a subject: the pointer vocabulary resolves against the state barrel, so a renamed pointer REFUSES
+// the run where the legacy regex silently stopped matching — which is how three dead names were found. (2)
+// The `SANCTIONED_HOMES` row for `features/app-shell/` is DELETED rather than translated: the shell is
+// scanned, produces zero findings, and its permission moved to reviewed-grant authority with no row today.
+// The `includes(` → `under:` change is an ANCHORING, not a set change: 1006 tracked paths contain
+// `packages/client/src/features/` and the same 1006 begin with it, so the two spellings select the same
+// files on this tree.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

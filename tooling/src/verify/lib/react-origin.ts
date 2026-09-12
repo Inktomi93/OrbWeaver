@@ -10,6 +10,26 @@
 //
 // The reader is a pure function over delivered nodes: it owns no walk, no Project, and no cache beyond the
 // invocation-local per-file alias index each matcher closes over.
+//
+// THE FAMILY'S SHARED POPULATION PORT IS DERIVED ONCE HERE (§5b.5), so the member headers cite one
+// measurement instead of copying it five times — the `DRIZZLE_SCHEMA_POPULATION` precedent. It covers the
+// three React-19 members whose legacy descriptors declared NO `scanRoot` at all — `no-forward-ref`,
+// `no-use-context`, `no-context-provider`, all converted at `7ed48eca8` — whose legacy population was
+// therefore the whole legacy harness fileset: `packages/*/src/**/*.{ts,tsx}` plus `tests/**/*.{ts,tsx}`
+// (`lib/harness.ts` at `7ed48eca8^`). The final population is `@authored`, which is NOT byte-identical and
+// moves in BOTH directions:
+//   - NARROWS by `packages/showcase-plugins/src`, an authored package deliberately outside `@authored`
+//     (#1980, `contract/population.ts`). Measured rather than assumed: the package holds ONE file and it
+//     carries zero React references.
+//   - WIDENS by `tooling/src` and `scripts/`. Measured with a planted control in the same invocation:
+//     `ast-grep --pattern 'import $$$A from "react"'` finds ZERO import declarations under `tooling/src`
+//     and `scripts` in BOTH the `ts` and `tsx` languages, against 845 matched lines in
+//     `packages/client/src`. Every `forwardRef` / `useContext` / `.Provider` occurrence in the widened arm
+//     is fixture TEXT inside this family's own proof modules and codemod templates — which is exactly what
+//     an ORIGIN-keyed reader does not mistake for the subject, and exactly what the legacy TEXT matchers
+//     this reader replaced would have red-flagged. The widening is safe BECAUSE of the conversion.
+// The other two members — `no-effect-on-shared-selection` and `registry-context-via-mint` — each had a real
+// legacy `scanRoot`, so each states its own port in its own header rather than sharing this one.
 import type { ImportSpecifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ReactExportFinding, ReactOriginVerdict } from "../contract/origin-verdict.ts";

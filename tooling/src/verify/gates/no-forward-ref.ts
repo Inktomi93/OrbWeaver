@@ -4,6 +4,16 @@
 // which meant an import alias (`forwardRef as fr`) and a namespace member (`import * as R; R.forwardRef(…)`)
 // were silent greens while a LOCAL helper named `forwardRef` was a false red. THIRD ANSWER, never silence:
 // a candidate whose origin the shared readers cannot resolve is REPORTED as unreadable (GATE-AUTHORING §5).
+//
+// FAMILY `react-origin` — the shared reader is `lib/react-origin.ts` (canonical React export identity),
+// consumed here through `reactExportVisitors(EXPORT, …)`, the identical entry `no-use-context` takes with a
+// different export name. Five members read it, so "is this REACT's X" cannot answer differently in five
+// policies.
+// POPULATION PORT: NOT byte-identical, and it moves in both directions. The legacy descriptor declared no
+// `scanRoot` at all (`7ed48eca8^`), so its population was the legacy harness fileset (`packages/*/src` plus
+// `tests/`); the final is `@authored` — a NARROWING by `packages/showcase-plugins/src` and a WIDENING by
+// `tooling/src` + `scripts/`, both measured empty of subjects. The derivation and its planted control have
+// ONE home, in the shared reader's own header, rather than three copies across this family.
 import type { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { reactExportVisitors } from "../lib/react-origin.ts";
