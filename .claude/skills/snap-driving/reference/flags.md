@@ -45,17 +45,17 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | Flag | What it does |
 | - | - |
 | `--as <value>` | one named fixture user |
-| `--checkpoint` | reset __orb evidence after readiness; scope console verdicts to actions |
+| `--checkpoint` | reset `__orb` evidence after readiness; scope console verdicts to actions |
 | `--click [@N] <value>` | real Playwright click (actionability-checked); flakes on virtualized list rows |
 | `--context-tab [@N] <value>` | switch the context panel's tab |
 | `--contexts <value>` | N isolated fixture users in separate contexts (one-direction comparison) |
 | `--dom-click [@N] <value>` | in-page el.click(), bypasses actionability — the click for virtualized/composite rows |
-| `--drop-files [@N] <value>` | selector=path[,path] — dispatch dragenter/dragover/drop with a real DataTransfer |
+| `--drop-files [@N] <value>` | `selector=path[,path]` — dispatch dragenter/dragover/drop with a real DataTransfer |
 | `--every <value>` | ms — the tick interval for --watch |
 | `--fill [@N] <value>` | selector=value — type into a field; the selector may be an engine form |
 | `--focus [@N] <value>` | the shell's zen/focus-mode toggle |
 | `--force-click [@N] <value>` | hover-then-forced pointer click for hover-revealed/overlaid controls |
-| `--goto [@N] <value>` | SPA navigation through __orb.nav — a section id, a dotted settings address group.sub.setting, or a modal slot |
+| `--goto [@N] <value>` | SPA navigation through `__orb.nav` — a section id, a dotted settings address group.sub.setting, or a modal slot |
 | `--hover [@N] <value>` | synthetic hover (loses :hover on any list re-render) |
 | `--idle` | bounded network-idle settle instead of the default fixed mount settle |
 | `--key [@N] <value>` | Key or selector=Key — the bare form walks focus without re-focusing; the selector form focuses then presses |
@@ -68,7 +68,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--scenario <value>` | sequential checkpoints in ONE browser lifetime (json file or a named preset) |
 | `--scenario-summary` | one CHECKPOINT name PASS/FAIL line per checkpoint (pair with --json) |
 | `--stream-settle <value>` | fixed post-drive settle for a streaming surface |
-| `--upload [@N] <value>` | selector=path[,path] — choose file(s) through an input or a trigger's filechooser |
+| `--upload [@N] <value>` | `selector=path[,path]` — choose file(s) through an input or a trigger's filechooser |
 | `--wait-for [@N] <value>` | selector or text=phrase — wait for a selector to become visible, or for rendered text |
 | `--watch <value>` | per-tick screenshot and re-run of every --eval over a total window (page 0 only) |
 | `--wheel [@N] <value>` | selector=dy — one ordered wheel input |
