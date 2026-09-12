@@ -251,6 +251,19 @@ export const gate = defineGate({
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
         "packages/client/src/data/query-error-state.tsx":
           "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
+        "packages/client/src/features/a/foreign-return.tsx":
+          'import { QueryBoundary } from "../../components/query-boundary.tsx";\nimport { QueryErrorState } from "../../data/query-error-state.tsx";\nexport function Sibling(): unknown {\n  return <QueryErrorState label="elsewhere" />;\n}\nexport const G = () => (\n  <QueryBoundary\n    renderError={() => {\n      return <span>failed</span>;\n    }}\n  />\n);\n',
+      },
+      expect: { count: 1, token: ATTRIBUTE },
+      why: "THE CONTAINMENT TEST, and it IS the conversion's correctness claim: the return INDEX holds every `ReturnStatement` in the file, because a policy may not walk descendants, so only `contains(range, candidate.range)` narrows it back to the arm's own block — the set the legacy `getDescendantsOfKind` produced from the arm itself. This file has two return sites with OPPOSITE verdicts: the arm's block returns a hand-rolled `<span>`, and a sibling function beside it returns the canonical battery. Cut the containment test and the sibling's return acquits the arm, taking this row to ZERO findings. DIRECTION: unlike every other fence here, removing this one makes the policy flag LESS — it widens the acquitting set — so the row that dies is a `mustFlag`, not a `mustPass`",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/components/query-boundary.tsx":
+          "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
+        "packages/client/src/data/query-error-state.tsx":
+          "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
         "packages/client/src/features/a/opaque.tsx": "declare const ns: any;\nexport const G = () => <ns.QueryBoundary renderError={() => null} />;\n",
       },
       expect: { count: 1, messageIncludes: "CANNOT be established" },

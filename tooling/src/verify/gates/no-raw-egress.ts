@@ -186,6 +186,14 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/server/src/domain/hub/verbs/template.ts": 'export const load = async (): Promise<unknown> => await globalThis[`fetch`]("https://x");\n',
+      },
+      expect: { count: 1 },
+      why: 'THE TEMPLATE-LITERAL HALF of the computed spelling, which the `"fetch"` row beside it cannot reach: `fetchCandidate` accepts a StringLiteral OR a NoSubstitutionTemplateLiteral argument, and only this fixture exercises the second disjunct. DIRECTION: dropping `Node.isNoSubstitutionTemplateLiteral(argument)` makes the policy flag LESS — a backtick respelling walks past a D61 egress ban — so the row that dies is a `mustFlag`',
+    },
+    {
+      mode: "types",
+      files: {
         "packages/server/src/domain/hub/verbs/alias.ts":
           'const call = globalThis.fetch;\nexport const load = async (): Promise<unknown> => await call("https://x");\n',
       },
@@ -258,6 +266,14 @@ export const gate = defineGate({
           "class Loader {\n  fetch(url: string): string {\n    return url;\n  }\n  run(): string {\n    return this.fetch('https://x');\n  }\n}\nexport const loader = new Loader();\n",
       },
       why: "SAME NAME, LOCAL METHOD: a project class with a `fetch` method is a proven different binding, and the legacy name check never saw it because the callee was not a bare identifier",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/load.ts": 'export const load = async (): Promise<unknown> => await globalThis.fetch("https://x");\n',
+        "packages/server/src/domain/hub/verbs/anchor.ts": "export const noop = (): void => undefined;\n",
+      },
+      why: 'THE POPULATION FENCE (`population: "@server"`), which nothing exercised: this law is about SERVER egress — the browser has no `safeFetch` and no SSRF surface to close — so the byte-identical ambient-root call that `mustFlag[2]` reports is NOT a finding in client source. Widen the root and this row flags. The clean server file is the ANCHOR the fence needs: a falsifier holding only the out-of-population file admits zero paths and comes back a `[population]` TOOL ERROR, which proves nothing',
     },
   ],
 });

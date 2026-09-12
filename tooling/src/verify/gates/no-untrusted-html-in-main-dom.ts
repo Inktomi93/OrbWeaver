@@ -95,6 +95,11 @@ export const gate = defineGate({
     },
     {
       mode: "source",
+      files: { "packages/client/src/components/attr.tsx": "export const A = () => <div className='x' />;\n" },
+      why: "THE ATTRIBUTE-NAME FENCE, and it is the WHOLE subject of a D44 SECURITY policy over 1685 files: an ordinary JSX attribute is visited (the visitor's kind set is every `JsxAttribute`) and is rejected ONLY by the name comparison. Cut `node.getNameNode().getText() !== ATTRIBUTE` and this row flags `className` — the two counterfactuals beside it carry no JSX attribute node at all and stay green through that cut, so neither one pins it",
+    },
+    {
+      mode: "source",
       files: {
         "packages/client/src/components/config.ts": "export const options = { dangerouslySetInnerHTML: false };\n",
       },

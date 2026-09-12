@@ -162,6 +162,17 @@ export const gate = defineGate({
       files: {
         "packages/client/src/lib/registry.ts":
           "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n",
+        "packages/client/src/main.tsx": 'import { createRegistry } from "./lib/registry.ts";\nexport const x = createRegistry("t", ["a"], { a: 1 });\n',
+        "packages/server/src/domain/x/assemble.ts":
+          'import { createRegistry } from "../../../../client/src/lib/registry.ts";\nexport const y = createRegistry("t", ["a"], { a: 1 });\n',
+      },
+      why: 'THE ROOT FENCE (`in: ["@client"]`), which nothing exercised: this law is about the CLIENT composition root — `packages/client/src/main.tsx` is the door it names — so the byte-identical private assembly in SERVER source is not its subject, and the server has its own composition law. The two `notUnder` doors subtract paths INSIDE `@client` and reach nothing here. Widen the root and this row flags. `main.tsx` is the in-population ANCHOR a root falsifier needs',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/lib/registry.ts":
+          "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n",
         "packages/client/src/features/x/lib/local.ts":
           'function createRegistry(name: string): string {\n  return name;\n}\nexport const x = createRegistry("t");\n',
       },

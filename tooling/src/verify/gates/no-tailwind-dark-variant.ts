@@ -10,6 +10,9 @@
 // static-class-provenance set is a decision that belongs to the lane that converts the rest of it, not a
 // string minted unilaterally here; this policy's own verdict (is any top-level `dark` variant present) shares
 // no computation with theirs beyond the walk.
+// POPULATION PORT: BYTE-IDENTICAL. The legacy descriptor at `d6f36904f` (the commit before the conversion at
+// `99b7429e2`) scanned `path.startsWith("packages/client/src/") || path.startsWith("packages/ui/src/")`,
+// which is exactly `["@client", "@ui"]`; nothing is added and nothing is subtracted.
 //
 // THE REPORTED POSITION is the EXACT CLASS CANDIDATE (`dark:bg-card`), supplied with its offset inside the
 // carrier literal; `fix` states the spelling. TWO POSITION SHAPES CANNOT BE WAIVED and the limit is declared
@@ -370,7 +373,12 @@ export const x = <div className={\`dark:\${tone}\`} />;
     {
       mode: "source",
       files: { "packages/ui/src/x.tsx": 'export const G = <div className="[&_.dark:x]:bg-card darkroom:bg-card bg-card text-foreground" />;\n' },
-      why: "nested selector text and non-exact dark prefixes are not top-level dark variants",
+      why: "nested selector text and non-exact dark prefixes are not top-level dark variants. NOTE what this row does NOT prove: `[&_.dark:x]` survives a `consumesBracket` cut too, because with brackets un-tracked the parts become `[&_.dark` and `x]` and neither is exactly `dark`. The row below is the one that proves the bracket tracking",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/x.tsx": 'export const G = <div className="[&_.x:dark:y]:bg-card" />;\n' },
+      why: "THE ARBITRARY-SELECTOR FENCE (`consumesBracket` in `topLevelParts`): a `dark` segment sitting BETWEEN two colons inside an arbitrary selector is CSS data, not a variant — the only top-level variant here is the whole `[&_.x:dark:y]` bracket. Stop tracking brackets and the split yields `[&_.x`, `dark`, `y]`, `bg-card`, whose slice(0,-1) contains an exact `dark`, and this row flags. It is the one fixture whose bracketed `dark` is delimited by colons on BOTH sides, which is what the cut needs",
     },
     {
       mode: "source",

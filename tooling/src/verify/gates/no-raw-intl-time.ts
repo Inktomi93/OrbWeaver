@@ -26,6 +26,17 @@
 // global is still the ECMAScript api — so the shared readers judge the UNCAST receiver as well
 // (`lib/project-home-origin.ts`). DECLARED LIMIT with its own row: a value that has no real type behind the
 // cast (`JSON.parse(s) as { toLocaleString(): string }`) carries no evidence and stays out of subject.
+//
+// THE GLOBAL-BRANCH VERDICT IS TWO FENCES, AND BOTH NOW HAVE A ROW. `intlVerdict`'s resolved arm reads
+// `globalName === INTL && memberPath.length === 1`, and on the shipped lib alone NEITHER half can be
+// falsified: `DateTimeFormat`/`RelativeTimeFormat` are declared nowhere outside `declare namespace Intl`, so
+// every resolvable formatter-named read satisfies both at once. Each half therefore takes a planted
+// counterexample from `_proof/intl.ts` — a different trusted global carrying a `DateTimeFormat` member for
+// the NAME half, and a one-level-deeper member under the real `Intl` for the DEPTH half — and the two cuts
+// are disjoint: dropping the name comparison reds only the lookalike row, dropping the depth test reds only
+// the nested one (measured 2026-09-12, control 0 failures both times). Wave 7's audit read the depth half as
+// unfalsifiable by analogy with `no-raw-matchmedia.ts:53-59`; the analogy does not hold, and the plant
+// header says why.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -34,6 +45,7 @@ import { classifyPackageMemberOrigin, readsAmbientGlobalPath } from "../lib/proj
 import { resolveGlobalMemberOrigin } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { intlLookalikeProof, intlNestedProof } from "./_proof/intl.ts";
 
 const INTL = "Intl";
 const FORMATTERS: ReadonlySet<string> = new Set(["DateTimeFormat", "RelativeTimeFormat"]);
@@ -280,6 +292,22 @@ export const gate = defineGate({
           "export function f(raw: string): string {\n  return (JSON.parse(raw) as { toLocaleString(): string }).toLocaleString();\n}\n",
       },
       why: "THE DECLARED LIMIT of the cast axis: a value with NO real type behind the cast (`JSON.parse` returns `any`) carries no evidence that the call is the ECMAScript formatter — the uncast receiver declares nothing, so the finding would be a guess",
+    },
+    {
+      mode: "types",
+      files: {
+        ...intlLookalikeProof(),
+        "packages/client/src/other-global.ts": "export const f = (): unknown => new Formats.DateTimeFormat('en-US');\n",
+      },
+      why: 'THE GLOBAL-IDENTITY FENCE (`globalName === INTL`): a DIFFERENT trusted ambient global carrying a member named `DateTimeFormat` resolves to `globalName: "Formats"` with a one-long member path, so only the global NAME comparison rejects it — the depth clause beside it passes. Cut the name comparison and this row flags. The plant is `_proof/intl.ts`, whose header records why no counterexample can come from the shipped lib and which acceptance branch it takes',
+    },
+    {
+      mode: "types",
+      files: {
+        ...intlNestedProof(),
+        "packages/client/src/intl-nested.ts": "export const f = (): unknown => new Intl.legacy.DateTimeFormat('en-US');\n",
+      },
+      why: 'THE MEMBER-DEPTH FENCE (`memberPath.length === 1`): a formatter NAME nested one level deeper under the real `Intl` global resolves to `globalName: "Intl"` with a TWO-long member path, so only the depth test rejects it — the global-identity clause beside it passes. Cut the depth test and this row flags. `no-raw-matchmedia.ts:53-59` records ITS `memberPath.length === 0` sibling as unfalsifiable, and that reasoning is sound THERE and does not carry here: matchmedia\'s only counterexample must be read off an ALREADY-FLAGGING node (`matchMedia` is the api name itself), so reviewed-grant dedupe collapses it and the count is one either way. `Intl` is a NAMESPACE, so the counterexample reads through `Intl.legacy`, which flags nothing — there is nothing to dedupe onto, and the row is real',
     },
     {
       mode: "types",

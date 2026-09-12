@@ -182,6 +182,16 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...ESTIMATOR_PROOF,
+        "packages/server/src/domain/x/verb.ts": "export const g = (text: string): number => text.length / 4;\n",
+        "packages/server/src/domain/x/verb.test.ts": "export const h = (text: string): number => text.length / 4;\n",
+      },
+      expect: { count: 1, token: "length" },
+      why: 'THE POPULATION FENCE (`notNamed: ["*.test.ts", "*.test.tsx"]`), which nothing exercised: the SAME banned ratio is written twice, once in a judged module and once in a `*.test.ts` beside it, and the count stays ONE. Cut the subtraction and it becomes two. The judged file is the ANCHOR the fence needs — a falsifier holding only the subtracted file admits zero paths and comes back a `[population]` TOOL ERROR rather than a finding, which would prove nothing about the fence',
+    },
+    {
+      mode: "types",
+      files: {
+        ...ESTIMATOR_PROOF,
         "packages/kit/src/foo/bar.ts": "const CHARS_PER_TOKEN = 4;\nexport const g = (text: string): number => text.length / CHARS_PER_TOKEN;\n",
       },
       expect: { count: 1 },

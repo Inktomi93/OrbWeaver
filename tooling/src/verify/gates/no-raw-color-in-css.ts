@@ -6,6 +6,17 @@
 // whose `family` is not its id — `css-literal-geometry` was declared here for the 14 LEGACY CSS gates that share the
 // authored-css reader, and the mixed door (#1584 §5) is the first loader to have run this module. Re-declare the
 // shared family in the same commit that converts the second member.
+// POPULATION PORT: an INTENTIONAL CORRECTION, from a filesystem WALK to a declared resource. The legacy
+// descriptor at `5c55b1d9c` (the commit before the conversion at `b32797507`) owned its own
+// `globSync("packages/{ui,client}/src/**/*.css")` under `scopeSafety: "whole-project"`, plus an `ALLOWLIST:
+// ExemptionTable` whose one row was the generated `theme.css` and whose stale arm needed a real-tree ANCHOR
+// to prove the run was whole. The final shape carries all three differently and deliberately: the walk
+// becomes `resources: [{ kind: "authored-css" }]` (a policy owns no filesystem read), `population: { of:
+// "none" }` records that CSS is a ResourceHost fact population rather than a compiler one, and the single
+// allowlist row becomes a NAME comparison against the generated file inside `evaluate` — one generated
+// artifact is not an exception table, and there is no stale arm to keep because the resource itself refuses
+// when the inventory cannot be built. The anchor guard is gone with the walk it guarded.
+//
 // WHERE A BROKEN RESOURCE REFUSES — not here (mirrors `server-layout.ts`'s header). A declared resource
 // that comes back missing/empty/unresolved/malformed makes `resolveResourceDeclarations`
 // (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, and the receipt phase withholds

@@ -378,8 +378,8 @@ export const gate = defineGate({
         "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string, initial: () => unknown): unknown;\n",
         "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
       },
-      expect: { messageIncludes: "classifies nothing" },
-      why: "THE STALE ARM, mode (B): the real-tree anchor is loaded and NO call site persists any registered name — a ruling that outlives its subject must RED rather than sit there looking authoritative",
+      expect: { count: 14, messageIncludes: "classifies nothing" },
+      why: "THE STALE ARM, mode (B): the real-tree anchor is loaded and NO call site persists any registered name — a ruling that outlives its subject must RED rather than sit there looking authoritative. The `count` is the RATCHET'S COMPLETENESS and is the whole point of naming it here (§4.1): the registry holds 14 registered names and this fixture persists none of them, so ALL FOURTEEN must red. Without the count the row passed on one stale row as readily as on fourteen — it would have stayed green while thirteen dead rulings sat in the registry looking authoritative, which is precisely the failure this arm exists to catch. Re-derive the number when the registry's membership changes; a red here is the registry moving, not a defect",
     },
     {
       mode: "types",
