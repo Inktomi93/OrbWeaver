@@ -221,3 +221,47 @@ test("IDEMPOTENCE: a second pass over formatted bytes changes nothing", ({ scrat
   expect(second.bytes).toBe(first.bytes);
   expect(second.outcome.dirty).toStrictEqual([]);
 });
+
+test("ESCAPE DELTA: a code span split by bare pipes in a cell is REFUSED, not cemented as literal backticks", ({ scratch }) => {
+  // THE #2235 DEFECT, reduced. An author writes a code span inside a table cell and the span contains a
+  // bare `|`. The pipe is a CELL BOUNDARY before it is content, so the parse never forms the span: the
+  // backticks land in `text` nodes as literal characters, split across three cells. The serializer then
+  // escapes them, and the author's code span is written back as literal escaped backticks — the exact
+  // byte shape #2145 was filed to repair on `side-eye.md:170`.
+  //
+  // BOTH EXISTING GUARDS ARE BLIND BY CONSTRUCTION, which is why this arm exists:
+  //   · the overflow census fires only when a body row out-widths its HEADER, and here the header is
+  //     declared 5 wide and the split row is 5 wide, so there is nothing to count;
+  //   · `fidelityKey` compares PARSE TREES, and the escape is render-identical — the loss already
+  //     happened at parse time, so comparing the render to itself can never see it.
+  // The signal exists only BETWEEN the source and the output: a backtick bare in the source and escaped
+  // in the output is a code span the parse did not form.
+  const body = `${FRONTMATTER}| # | Flag | Alt | Alt2 | Why |\n| - | - | - | - | - |\n| 1 | the flag \`--theme <name | id | none>\` splits | probe |\n`;
+
+  const { bytes, outcome } = format(scratch, "escape-delta.md", body);
+
+  expect(outcome.dirty).toStrictEqual([]);
+  expect(bytes).toBe(body); // NOT written — the whole point is that the loss is not cemented
+  expect(outcome.refused.map((r) => r.file)).toStrictEqual([join(scratch, "escape-delta.md")]);
+  const reason = outcome.refused[0]?.reason ?? "";
+  expect(reason).toContain("2 backtick(s)");
+  expect(reason).toContain("line 8"); // 4 frontmatter lines + blank + header + delimiter row + the row
+  expect(reason).toContain("\\|");
+});
+
+test("ESCAPE DELTA: an ALREADY-escaped literal backtick is stable and still formats", ({ scratch }) => {
+  // THE PLANTED CONTROL IN THE OTHER DIRECTION, and the arm that keeps the refusal from being a blanket:
+  // a guard that only ever refuses is as useless as one that only ever says "fine". A literal backtick
+  // the author ALREADY escaped is a deliberate spelling, not a lost span — source and output carry the
+  // same escape, the delta is zero, and the file must still format. The planted `\~250` makes the write
+  // real, so this cannot pass by the formatter merely proposing nothing.
+  const body = `${FRONTMATTER}A literal \\\` in prose, a real \`code span\`, and a \\~250 escape to repair.\n`;
+
+  const { bytes, outcome } = format(scratch, "escaped-ok.md", body);
+
+  expect(outcome.refused).toStrictEqual([]);
+  expect(outcome.dirty).toStrictEqual([join(scratch, "escaped-ok.md")]); // it really did write
+  expect(bytes).toContain("~250"); // the planted defect really was repaired
+  expect(bytes).toContain("\\`"); // …and the deliberate escape survived
+  expect(bytes).toContain("`code span`");
+});

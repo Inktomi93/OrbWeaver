@@ -4812,6 +4812,87 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/css-family-audit-2026-09-12.md",
+      "assignedSha256": "8150fddb0ccb27ff5bf33227f1810103a61c6909829348bf8835fcbbab7f6f51",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "8150fddb0ccb27ff5bf33227f1810103a61c6909829348bf8835fcbbab7f6f51",
+      "verifiedCommit": "cf7e46d1200242aa56312a77ef4a985ebcd5698a",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/css-family-audit-2026-09-12.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full by this lane before attestation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#2181"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read current review; lane p-doc-catalog-truth attestation. The §5b audit of the eight legacy CSS gates (#2181/#2182/#2183): per-module contract/message/fix/family/header/proofs/forbidden-machinery verdicts, the 31-cut matrix with four positive controls, the 203-declaration derivation, the statement-at-rule shared-reader gap that blocks playwright-css-topology, and 18 ledger rows."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-5-2026-09-12.md",
+      "assignedSha256": "efabc037e9a6745f82653ef4235e93fd34febe5514b160b8ec69304a8873d85d",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "efabc037e9a6745f82653ef4235e93fd34febe5514b160b8ec69304a8873d85d",
+      "verifiedCommit": "cf7e46d1200242aa56312a77ef4a985ebcd5698a",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/v-wave-5-2026-09-12.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full by this lane before attestation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read current review; lane p-doc-catalog-truth attestation. Fresh-context verification of reconcile chunk C, the ENOBUFS/budget pair, the acquittal and cleanup arms, the CSS train and the §5b.5 header waves: eight CONFIRMED, #2212's completion control REFUTED as a self-comparison, and four ledger rows including the #2229 parse-error find."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-fix-wave-4-2026-09-12.md",
+      "assignedSha256": "b9a4eaff25f08791ac4e692cb218950a8a206a5cb5d7795ffc1b50c0e046c6bc",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "b9a4eaff25f08791ac4e692cb218950a8a206a5cb5d7795ffc1b50c0e046c6bc",
+      "verifiedCommit": "cf7e46d1200242aa56312a77ef4a985ebcd5698a",
+      "verifiedAt": "2026-09-12",
+      "evidence": [
+        "docs/reviews/gate-runtime/v-fix-wave-4-2026-09-12.md:1",
+        "git log --oneline -5 -- docs/reviews/gate-runtime",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+      ],
+      "claims": [
+        {
+          "claim": "Documents #1584 gate-runtime migration evidence; read in full by this lane before attestation.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read current review; lane p-doc-catalog-truth attestation. Nine Verify rows re-verified with fresh eyes (#1331, #1335, #1949, #1996, #2086, #2152, #2145, #2161, #2164), all CONFIRMED, plus eleven ledger rows — L9 is the format --write escape-delta loss this lane fixed. The report is deliberately left UNFORMATTED."
     }
   ]
 }

@@ -40,7 +40,7 @@
 // The corpus is TRACKED files, the same source of truth the catalog uses (`ops/tree.ts#trackedDocs`) — an
 // untracked draft is not a document, and a glob would sweep one in.
 //
-// TWO FIDELITY LAWS, BOTH ENFORCED IN THIS FILE (#2067, #2068). A formatter that is merely
+// THREE FIDELITY LAWS, ALL ENFORCED IN THIS FILE (#2067, #2068, #2235). A formatter that is merely
 // render-preserving is not enough for THIS corpus: the docs are law, agents enforce law by GREPPING it,
 // and `pnpm format:docs` runs over the whole living tree unattended.
 //   1. SEARCH FIDELITY (#2068) — a format must not change which literals the corpus contains. Measured
@@ -54,6 +54,11 @@
 //      table GAINS columns. So every write is verified by re-parsing: a file whose tree moves is NOT
 //      written and is REPORTED (`refused`), because silently rewriting what a law doc renders as is the
 //      worst thing this tool could do. Fixing such a file is an authoring fix, never a formatter fix.
+//   3. SOURCE FIDELITY (#2235) — the two laws above BOTH judge the render, and a loss that happened at
+//      PARSE time is invisible to them by construction: they compare the damage to itself. The measured
+//      instance is a code span split by a bare `|` inside a table cell, which comes back as literal
+//      escaped backticks at exit 0 with no refusal at all. `escapeDeltaRefusal` below is the third
+//      comparison, and the only one whose right-hand side is the SOURCE BYTES.
 import { readFileSync, writeFileSync } from "node:fs";
 import { remark } from "remark";
 import remarkFrontmatter from "remark-frontmatter";
@@ -273,11 +278,16 @@ const processor = remark()
 
 /** The structural slice of an mdast node this comparison reads. `mdast`'s own types are a TRANSITIVE
  *  dependency of `remark`, not one `tooling/` declares, so the bare `mdast` specifier does not resolve. */
+interface MarkdownPoint {
+  readonly line?: number | undefined;
+  readonly offset?: number | undefined;
+}
+
 interface MarkdownNode {
   readonly type: string;
   readonly value?: unknown;
   readonly children?: readonly MarkdownNode[];
-  readonly position?: { readonly start?: { readonly line?: number | undefined } | undefined } | undefined;
+  readonly position?: { readonly start?: MarkdownPoint | undefined; readonly end?: MarkdownPoint | undefined } | undefined;
 }
 
 /**
@@ -390,6 +400,118 @@ function overflowRefusal(tree: MarkdownNode): string | null {
   return notes.length > 0 ? notes.join("\n") : null;
 }
 
+/** Backticks in `text` that no backslash escapes — the spelling an author uses to OPEN a code span. */
+function bareBacktickCount(text: string): number {
+  let count = 0;
+  let index = 0;
+  while (index < text.length) {
+    if (text[index] === "\\") {
+      index += 2; // a backslash consumes the next character, whatever it is
+      continue;
+    }
+    if (text[index] === "`") {
+      count += 1;
+    }
+    index += 1;
+  }
+  return count;
+}
+
+/** Backticks the serializer wrote backslash-escaped — its spelling for a backtick that is LITERAL CONTENT. */
+function escapedBacktickCount(text: string): number {
+  let count = 0;
+  let index = 0;
+  while (index < text.length) {
+    if (text[index] !== "\\") {
+      index += 1;
+      continue;
+    }
+    if (text[index + 1] === "`") {
+      count += 1;
+    }
+    index += 2;
+  }
+  return count;
+}
+
+/**
+ * Source lines whose `text` nodes carry a BARE backtick — the sites of the loss, read off the SOURCE.
+ *
+ * A backtick that reached a `text` node is a backtick CommonMark did not read as a delimiter: the span
+ * the author wrote never formed. Reading it from the source slice rather than from the node VALUE is the
+ * half that matters — a backtick the author already escaped also lands in a text node (with the escape
+ * stripped from the value), and that one is a deliberate literal, not a lost span.
+ */
+function orphanBacktickLines(tree: MarkdownNode, source: string): readonly number[] {
+  const lines = new Set<number>();
+  const walk = (node: MarkdownNode): void => {
+    if (node.type === "text" && typeof node.value === "string" && node.value.includes("`")) {
+      const start = node.position?.start;
+      const end = node.position?.end;
+      const slice = start?.offset === undefined || end?.offset === undefined ? node.value : source.slice(start.offset, end.offset);
+      if (bareBacktickCount(slice) > 0) {
+        lines.add(start?.line ?? 0);
+      }
+    }
+    for (const child of node.children ?? []) {
+      walk(child);
+    }
+  };
+  walk(tree);
+  return [...lines].sort((a, b) => a - b);
+}
+
+/**
+ * THE ESCAPE-DELTA REFUSAL (#2235). The formatter's worst failure mode is not a refusal it gets wrong —
+ * it is a WRITE that looks like a cosmetic pass and is a silent content loss, because every later run
+ * then launders the loss into "stable".
+ *
+ * THE SHAPE, measured: an author writes a code span inside a GFM table cell and the span contains a bare
+ * `|`. The pipe is a CELL BOUNDARY before it is content, so the parse never forms the span — the
+ * backticks land in `text` nodes as literal characters, split across the cells the pipe created. The
+ * serializer, correctly for a literal backtick, escapes them: a cell reading (backtick) --theme (angle)
+ * name | id | none (angle) (backtick) is written back with every one of those four characters
+ * backslash-escaped. That is the exact byte shape #2145 was filed to repair on side-eye.md:170, and
+ * `format --write` produced it at exit 0 with no refusal at all.
+ *
+ * WHY THE TWO STANDING GUARDS CANNOT SEE IT, and why the check could not be bolted onto either:
+ *   · the overflow census (above) fires only when a body row out-widths its HEADER. In the measured
+ *     instance the header was 5 wide and the split row was 5 wide, so there was nothing to count;
+ *   · `fidelityKey` compares PARSE TREES, and the escape is render-identical. The loss had ALREADY
+ *     happened at parse time, so a check against the render is a check against the damage — it can only
+ *     ever agree with itself. THIS check therefore compares the output to the SOURCE BYTES, which is the
+ *     one place the signal survives.
+ *
+ * THE PREDICATE, and it is a statable authoring contract rather than a heuristic: a backtick that was
+ * BARE in the source and ESCAPED in the output is a code span the parse did not form. A backtick the
+ * author genuinely means as literal content is written backslash-escaped in the SOURCE, whereupon the delta is zero
+ * and the file formats normally — that is the second arm of the family test, and it is what stops this
+ * being a blanket refusal.
+ *
+ * SCOPED TO BACKTICKS DELIBERATELY. The same run also escapes angle brackets, and folding those in was
+ * REFUSED: an escape there has a real CommonMark justification (it can open an autolink or raw HTML), so
+ * a delta there is not by itself evidence of a lost construct. A backtick has exactly one job.
+ *
+ * ITS CORPUS RECEIPT IS TWO, MEASURED, NOT ZERO (2026-09-12, over the 328-file living corpus at
+ * `cf7e46d12`): 163 files would be rewritten by a `--write`, and exactly two of them would gain backtick
+ * escapes — `docs/reviews/gate-runtime/v-fix-wave-4-2026-09-12.md` (+12) and
+ * `refutation-ledger-2026-09-12.md` (+3). Both are the evidence documents carrying this defect, and both
+ * were being silently cemented. So this arm has a real-tree positive AND the planted control beside it.
+ */
+function escapeDeltaRefusal(input: string, output: string, parsed: MarkdownNode): string | null {
+  const delta = escapedBacktickCount(output) - escapedBacktickCount(input);
+  if (delta <= 0) {
+    return null;
+  }
+  const lines = orphanBacktickLines(parsed, input);
+  return [
+    `formatting it would escape ${String(delta)} backtick(s) that are BARE in the source — each one is a code span CommonMark did not form, and writing it back as a literal \\\` cements the loss (#2235)`,
+    ...lines.map((line) => `    line ${String(line)}: a backtick reaching TEXT, not a code-span delimiter`),
+    "    usual cause: a bare `|` inside a code span inside a table cell — the pipe ends the cell first, so the span never opens. Escape it as \\| inside the span.",
+    "    if the backtick really is literal content, escape it in the SOURCE (\\`) and this stops firing.",
+  ].join("\n");
+}
+
 /** A file the formatter declined to write, and the reason a reader can act on. */
 export interface FormatRefusal {
   readonly file: string;
@@ -431,6 +553,14 @@ export function formatMarkdown(input: string): { readonly output: string; readon
     return { output: input, refusal: overflow };
   }
   const output = String(processor.processSync(input));
+  // Before the generic re-parse guard, for the same reason the overflow census runs before it: the
+  // escape delta is a SPECIFIC diagnosis with a named site and a named repair. It is also the only one
+  // of the three that compares against the SOURCE — the re-parse guard structurally cannot see a loss
+  // that happened at parse time, so it would report this file as clean, not as "the tree moved".
+  const escapes = escapeDeltaRefusal(input, output, parsed);
+  if (escapes !== null) {
+    return { output: input, refusal: escapes };
+  }
   if (fidelityKey(processor.parse(output)) !== fidelityKey(parsed)) {
     return { output: input, refusal: "formatting it would re-parse to a DIFFERENT tree — repair the markdown, not the formatter" };
   }
