@@ -43,6 +43,14 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   BETWEEN that declaration and its JSDoc, silently re-parenting the doc block — invisible to biome, tsc,
   the gates and the suites. Anchor insertions on the opening `/**`, and read `git show --stat` (it also
   catches an unstaged deliverable, and a `Bin` byte-count on a `.ts`/`.tsx` = a NUL in a template literal).
+- **`pnpm format:docs` on a multi-lane file converts untouched CONTEXT into owned DIFF, and a later 3-way
+  rebase reasserts your stale copy of a sibling's row as a pure content replacement that never conflicts**
+  (paid 2026-09-12, the refutation ledger, four rebases). Never format a shared file after adding your rows;
+  if a format is owed, run it BEFORE your edit or leave it to the barrier.
+- **Guard a shared-file edit per LINE by row id, never by count** — "my N minus-lines equal my N rows" passes
+  by coincidence at the right N.
+- **Classify diff ownership only when `main` is your PARENT**: `git rev-list --left-right --count main...HEAD`
+  first; with anything on the left, `git diff main HEAD` reports the sibling's landed work as your deletions.
 - **Probes:** `cp f f.bak; …; mv f.bak f` or `git show HEAD:<path>` — never `git stash`/`checkout`/
   `restore` (the rule's one home is constitution §4). Red-first receipts run new pins against the
   UNMODIFIED source before any fix. If the probe edits a REAL file on a SHARED tree, SendMessage the
