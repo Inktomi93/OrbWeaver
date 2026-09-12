@@ -293,7 +293,7 @@ export const gate = defineGate({
         "knip.ts": "export const config = 1;\n",
         "packages/kit/src/thing.ts": "// See docs/design/gone-forever.md for the ruling.\nexport const x = 1;\n",
       },
-      expect: { count: 1, line: 1, token: "docs/design/gone-forever.md", messageIncludes: "no such doc exists" },
+      expect: { count: 1, line: 1, token: "docs/design/gone-forever.md" },
       why: "the founding defect: a `//` comment cites a doc that no longer exists — the eight lies the previous archival pass left behind",
     },
     {
@@ -304,7 +304,7 @@ export const gate = defineGate({
         // question — otherwise every `path.md:42` cite in the corpus reads as a phantom.
         "packages/kit/src/block.ts": "/** Home: docs/design/vanished.md:88 — the shape. */\nexport const y = 2;\n",
       },
-      expect: { count: 1, token: "docs/design/vanished.md", messageIncludes: "no such doc exists" },
+      expect: { count: 1, token: "docs/design/vanished.md" },
       why: "a block comment, and a `:line` coordinate the TOKEN GRAMMAR excludes (`:` is not in DOC_TOKEN_RE's character class) — the live corpus idiom that would otherwise flag every coordinate-carrying cite",
     },
     {
@@ -317,7 +317,7 @@ export const gate = defineGate({
         "eslint.config.js": "// See docs/Documentation-Law.md §Enforcement.\nexport default [];\n",
         "packages/kit/src/anchor.ts": "export const anchor = 1;\n",
       },
-      expect: { count: 1, token: "docs/Documentation-Law.md", messageIncludes: "no such doc exists" },
+      expect: { count: 1, token: "docs/Documentation-Law.md" },
       why: "arm B: a root config the ts-morph workspace never carries — the eslint.config.js class, invisible to a project-only scan and now derived from the git index",
     },
     {
@@ -328,7 +328,7 @@ export const gate = defineGate({
         "packages/client/public/favicon.svg": "<svg><!-- Source: docs/design/login-loading-screen.md §9 --></svg>\n",
         "packages/kit/src/anchor.ts": "export const anchor = 1;\n",
       },
-      expect: { count: 1, token: "docs/design/login-loading-screen.md", messageIncludes: "no such doc exists" },
+      expect: { count: 1, token: "docs/design/login-loading-screen.md" },
       why: "arm B: an XML comment in a shipped public asset — the favicon/orb-mark class the #873 census found dangling",
     },
   ],

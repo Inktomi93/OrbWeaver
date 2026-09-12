@@ -186,7 +186,7 @@ export const gate = defineGate({
         "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
         "packages/contracts/src/x.ts": "// per D999 — a dangling citation, no anchor, above the ceiling.\nexport const x = 1;\n",
       },
-      expect: { count: 1, line: 1, token: "D999", messageIncludes: "cites a D-ledger entry with no anchor" },
+      expect: { count: 1, line: 1, token: "D999", messageIncludes: "outside the reserved range D79–D105" },
       why: "the founding F2 defect: a bare D999 with no registry anchor and above the reserved range, reported at the exact authored citation",
     },
     {
@@ -196,7 +196,7 @@ export const gate = defineGate({
         "docs/architecture/core/Some-Law.md": "---\nkind: law\n---\n\nThe ruling is D777, which nothing minted.\n",
         "packages/contracts/src/ok.ts": "// per D1 — anchored.\nexport const x = 1;\n",
       },
-      expect: { count: 1, line: 5, token: "D777", messageIncludes: "cites a D-ledger entry with no anchor" },
+      expect: { count: 1, line: 5, token: "D777", messageIncludes: "outside the reserved range D79–D105" },
       why: "THE RESTORED ARM: a dangling citation in a CORE DOC. The legacy descriptor claimed this scope and could never reach it — Markdown is not in the ts-morph project — so this row is the successor proof for the half that never ran",
     },
     {
@@ -214,7 +214,7 @@ export const gate = defineGate({
         "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
         "packages/contracts/src/x.ts": "// D106 is one past the reserved ceiling and has no anchor.\nexport const x = 1;\n",
       },
-      expect: { count: 1, token: "D106", messageIncludes: "cites a D-ledger entry with no anchor" },
+      expect: { count: 1, token: "D106", messageIncludes: "outside the reserved range D79–D105" },
       why: "the reserved range is INCLUSIVE and bounded — the first number past its ceiling is dangling, which is the boundary a `>= lo` test alone would get wrong",
     },
     {
@@ -224,7 +224,7 @@ export const gate = defineGate({
           "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings, e.g. main's **D777 = a rolled-back ruling**.\n",
         "packages/contracts/src/x.ts": "// per D777 — the number is named in the registry's PROSE, never minted as an entry.\nexport const x = 1;\n",
       },
-      expect: { count: 2, token: "D777", messageIncludes: "cites a D-ledger entry with no anchor" },
+      expect: { count: 2, token: "D777", messageIncludes: "outside the reserved range D79–D105" },
       why: "TWO findings on purpose — the registry is itself a core doc, so its own prose mention is a citation too, and a `count: 1` here would be a row that had not read its own corpus. THE ROW THE `^- ` ANCHOR PIN TURNS GREEN WHEN CUT (§4.1's wrong-direction class — opening a fence makes this policy flag FEWER): the reserved note's own prose names D-numbers in bold, and without the list-item pin each one registers as a minted ENTRY and silently resolves every citation of it",
     },
   ],

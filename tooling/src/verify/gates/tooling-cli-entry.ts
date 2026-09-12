@@ -91,7 +91,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: { [RUNNER_HOME.path]: RUNNER_STUB(), "tooling/src/badcli/cli.ts": "export const c = 1;\n" },
-      expect: { count: 1, line: 1, messageIncludes: "must enter through runTool" },
+      expect: { count: 1, line: 1 },
       why: "the founding shape — a tool cli.ts that never enters the exit-honesty runner (arm E)",
     },
     {

@@ -225,7 +225,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/ring.ts":
           "export const ring: number[] = [];\nexport function record(n: number): void {\n  ring.push(n);\n  if (ring.length > 100) {\n    ring.shift();\n  }\n}\n",
       },
-      expect: { count: 1, token: "ring", messageIncludes: "push/shift/splice/unshift" },
+      expect: { count: 1, token: "ring", messageIncludes: "a module-scope array accumulator mutated" },
       why: "a module-scope array accumulator (ring) mutated via push/shift elsewhere in the module, no ASSUMES(single-replica) — the domain/rpg/trace.ts shape, this time module-scope",
     },
     {
@@ -234,7 +234,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/recorder.ts":
           "class Recorder {\n  private count = 0;\n  bump(): void {\n    this.count += 1;\n  }\n}\nexport const recorder = new Recorder();\n",
       },
-      expect: { count: 1, token: "recorder", messageIncludes: "locally-declared" },
+      expect: { count: 1, token: "recorder", messageIncludes: "locally-declared class (`Recorder`) with a non-readonly field" },
       why: "a module-scope instance of a class DECLARED IN THIS FILE with a non-readonly field — the TraceRing shape, no ASSUMES(single-replica)",
     },
   ],

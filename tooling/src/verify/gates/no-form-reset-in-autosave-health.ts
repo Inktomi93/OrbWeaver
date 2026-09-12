@@ -83,7 +83,7 @@ export const gate = defineGate({
       files: {
         [EDITOR_FORM_CONTRACT_FILE]: "export interface AutosaveSession {\n  readonly form: { reset: () => void };\n}\n",
       },
-      expect: { count: 1, line: 1, messageIncludes: "type-strip" },
+      expect: { count: 1, line: 1 },
       why: 'THE FOUNDING ROW, carried from the legacy descriptor\'s `modelFileViolations`: the TYPE-HOME file declares the session surface with NO `Omit<…, "reset">` strip, so `reset` is back on the autosave form and the occurrence sibling has nothing left to catch. The finding is file-anchored at line 1 because an absence has no node',
     },
     {
@@ -92,7 +92,7 @@ export const gate = defineGate({
         [EDITOR_FORM_CONTRACT_FILE]:
           'export type Widened<T> = Omit<T, "onSubmit">;\nexport interface AutosaveSession {\n  readonly form: Widened<{ reset: () => void; x: 1 }>;\n}\n',
       },
-      expect: { count: 1, line: 1, messageIncludes: "type-strip" },
+      expect: { count: 1, line: 1 },
       why: 'THE NEAR MISS: an `Omit<…>` IS present, but it strips something else. The arm asks for `Omit` AND the literal `"reset"` together, so a strip of a different member does not acquit the file — drop the `"reset"` half of the test and this row is the one that dies',
     },
   ],

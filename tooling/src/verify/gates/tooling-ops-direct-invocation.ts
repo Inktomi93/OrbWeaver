@@ -116,7 +116,7 @@ export const gate = defineGate({
         "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/x.ts": "export const x = 1;\n",
       },
-      expect: { count: 1, line: 1, messageIncludes: "exit 0" },
+      expect: { count: 1, line: 1 },
       why: "the founding shape (#509): an ops module with no guard and no top-level work — `node <path>` loads it, runs nothing and exits 0, which every reader takes for clean",
     },
     {

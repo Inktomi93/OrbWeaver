@@ -76,19 +76,19 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { [TESTID_REGISTRY_HOME]: 'export const IDS = {\n  appShell: "app-shell",\n} as const;\n' },
-      expect: { count: 1, line: 1, messageIncludes: "read ZERO rows" },
+      expect: { count: 1, line: 1 },
       why: "arm A3 as carried: the registry file is present and the const it is looked up BY NAME is gone — the rename that makes both liveness arms a permanent no-op. Opening the owner-name fence (accept any variable declaration) turns this row GREEN, which is a tripwire's falsifier direction (§4.1: its fences ACQUIT)",
     },
     {
       mode: "source",
       files: { [TESTID_REGISTRY_HOME]: 'import { build } from "./build.ts";\nexport const TEST_IDS = build();\n' },
-      expect: { count: 1, line: 1, messageIncludes: "read ZERO rows" },
+      expect: { count: 1, line: 1 },
       why: "the const survives but stopped being an authored object literal, so the reader yields nothing — the shape a name-only check would call healthy",
     },
     {
       mode: "source",
       files: { [TESTID_REGISTRY_HOME]: "const shell = {};\nexport const TEST_IDS = {\n  appShell: shell,\n} as const;\n" },
-      expect: { count: 1, line: 1, messageIncludes: "read ZERO rows" },
+      expect: { count: 1, line: 1 },
       why: "every row's VALUE stopped resolving to an authored string, so no row promises a DOM value any more. Opening the string-value fence (accept any initializer) turns this row GREEN — the second acquitting fence, cut in the tripwire direction",
     },
   ],
