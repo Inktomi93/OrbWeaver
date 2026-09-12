@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 595,
+    "sites": 596,
     "reported": 23,
     "byVerdict": {
-      "deliberate-absorb": 572,
+      "deliberate-absorb": 573,
       "unproven": 23
     },
     "byGrammar": {
       "default": 161,
-      "empty": 291,
+      "empty": 292,
       "promise": 143
     }
   },
@@ -4629,6 +4629,19 @@
       "verdict": "deliberate-absorb",
       "reason": "a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than \"no real path\".",
       "markerLine": 14
+    },
+    {
+      "siteId": "tooling/src/_shared/load-budget.ts::catch::1",
+      "path": "tooling/src/_shared/load-budget.ts",
+      "line": 228,
+      "column": 5,
+      "grammar": "empty",
+      "position": "catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly \"no ceiling is declared here\", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell \"unbounded\" from \"could not ask\"; the absence then becomes a value and this catch becomes a branch.",
+      "markerLine": 225
     },
     {
       "siteId": "tooling/src/_shared/nav.ts::page.evaluate::1",

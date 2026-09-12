@@ -16,7 +16,7 @@ updated: 2026-08-24
 > honestly:** every load-bearing receipt in §1 is now covered by the completed A-round's
 > independent re-derivation (marked A2 where it upgraded an earlier A†/O recovery mark); the two
 > claims the round could not verify are marked UNVERIFIED inline. The stale-claim lens (bridge
-> 012) ran over this doc's own claims: 12 comment/doc-sourced claims re-derived → 7 confirmed,
+> 012\) ran over this doc's own claims: 12 comment/doc-sourced claims re-derived → 7 confirmed,
 > **3 STALE (found in our own work, fixed below)**, 2 unverifiable.
 
 ## §1 SURVIVORS — final ranking (fun-per-effort, adjudicated through both rounds)
@@ -27,8 +27,9 @@ updated: 2026-08-24
 > All preset ideas below say **preset-only**, meaning MARGINAL cost once A3 lands.
 
 ### 1. Welcome-back recap — as an INVITATION CARD (re-specced twice by adjudication)
+
 - **Felt experience:** you open a room untouched for nine days. One quiet host-side card: "Recap
-  where we left off? **[Do it]**". Click, and the narrator's next turn is *"Previously — the
+  where we left off? **\[Do it]**". Click, and the narrator's next turn is *"Previously — the
   vault door, half-open…"* plus ways back in. Zero spend, zero canon noise, until you ask.
 - **Machinery (final form):** rule 1 on `messageCommitted` → `set_variable`
   `vars.lastBeatMs = {{expr::now.epochMs}}` (render path proven live, A2) **with an explicit high
@@ -53,6 +54,7 @@ updated: 2026-08-24
   in prose.
 
 ### 2. Async table nudge — re-specced onto `messageCommitted` (A2-F1)
+
 - **Felt experience:** play-by-post, three humans, three time zones. It's been your move for six
   hours; your phone shows "The Vault of Ash — it's your move." The row that decides whether a
   second session happens.
@@ -76,6 +78,7 @@ updated: 2026-08-24
   play-by-post is where multi-human rooms live.
 
 ### 3. The needle (model-scored tension meter) + backdrop — CARRIES AN OWNER FORK
+
 - **Felt experience:** a thin meter beside the thread climbs as the scene sharpens; past the
   line, the backdrop darkens. The model's private judgment becomes physical.
 - **Machinery:** `run_analysis` (C1) scoring tension 0–10 → chat variables; the B9 thread-flank
@@ -98,6 +101,7 @@ updated: 2026-08-24
   stated.
 
 ### 4. Opener chips (the staple deck) — COMPOSE-mode (re-specced, A1-F1)
+
 - **Felt experience:** every blank-composer stall, three quiet doors: *Continue · Time skip · New
   scene*. Click one and the composer holds a seed you own and send.
 - **Machinery:** `chatOpened`/`turnCompleted` + light predicates → `surface_quick_reply` in
@@ -117,11 +121,13 @@ updated: 2026-08-24
   empty-send-generates shape) is recorded as the better future form.
 
 ### 5. Scene veil rule
+
 - (As adjudicated previously; predicate `event.message.content.contains("((veil))")` re-derived
   live by the A-round.) One preset row; Rules picker; the safety word mechanically works.
 - **Cost class:** preset-only.
 
 ### 6. Call a vote
+
 - (As before: R7 host invocation → chips; picks are DIEGETIC member sends — the one chip class
   where member attribution is CORRECT.) **Re-priced (A1-F1):** vote chips need **send** mode
   reliably regardless of the room's cyoa knob — the same per-choice mode field #4 prices; without
@@ -129,11 +135,13 @@ updated: 2026-08-24
 - **Cost class:** preset + (shares) the mode field. **Lives:** unchanged.
 
 ### 7. Rumor mill
+
 - (Unchanged: a C1 `upsertLoreEntry` preset — consequences-and-hearsay from the settled span;
   confirm-first; `neutralizeMacros` per C2.) **Cost class:** preset-only (post-C1/C2). A-round
   verified its refusal-distinctness: no per-event model spend, no assembly duplication.
 
 ### 8. The callback rule (promises the story keeps)
+
 - (Unchanged in shape: content-match counter + beat-distance threshold → guided callback turn.)
   **Re-specced detail (A1-F4):** the counter rule carries the explicit high `maxFiresPerHour`
   (the 30/hr default freeze — the same law as #1; ALSO applies to the committed clock preset,
@@ -141,15 +149,18 @@ updated: 2026-08-24
 - **Cost class:** preset-only.
 
 ### 9. Cutaways
+
 - (Unchanged: `int(chat.messageCount) % N == 0` — the coercion now landed in the committed spec
   at f9e325ef6, verified — → guided cutaway turn.) **Cost class:** preset-only.
 
 ### 10. Spotlight balance
+
 - (Unchanged: C1 steer preset; narrator-not-players. The D93-validation provenance is
   legacy-branch-sourced — marked UNVERIFIED-legacy by the A-round, semantics unchanged.)
 - **Cost class:** preset-only (post-C1).
 
 ### 11. Research familiar (plugin)
+
 - (Shape unchanged: `events.on(messageCommitted)` + `net.fetch` allowlist + `worldInfo.
   upsertEntry`; zero model spend.) **A-round upgrades:** the "delivery filtered to
   installer-participant chats" claim is now CODE-VERIFIED and STRICTER than claimed (membership
@@ -172,6 +183,7 @@ updated: 2026-08-24
   plainly).
 
 ### 12. `run_tool` arm (the platform row)
+
 - (Unchanged; the axes doc §3 is the design; A-round verified every cited receipt incl. the
   nullable `ToolExecutionContext`.) **One posture added (A1-low):** an unknown tool name at FIRE
   time is `arm_error`, which counts toward the 20-consecutive-errors auto-disable — so
@@ -180,6 +192,7 @@ updated: 2026-08-24
   tools.
 
 ### 13. Living library (owner-global rules) — REPRICED (A1-F2/F3 + A2-F3)
+
 - **Felt experience:** unchanged — imported characters get portraits; rules that belong to YOU.
 - **The honest price (replacing "cross-system widening, no schema"):** the axes §1 design
   (admission + the owner-budget MERGE-WINDOW table + the arm scope Record) PLUS the engine seam
@@ -197,6 +210,7 @@ updated: 2026-08-24
   CURRENT home post-retraction, A2-verified).
 
 ### 14. `llm.quiet` for plugins (#24-gated)
+
 - (Shape unchanged; affinity-tracker framing per B2-F10.) **Priced additions (A2-F4):** beyond
   the tsc-forced completeness pins, TWO vitest EXACT pins invisible to `pnpm check` — the
   13-member ordered `toEqual` on `PLUGIN_CAPABILITIES` (order IS the confirm-dialog display
@@ -204,6 +218,7 @@ updated: 2026-08-24
   `HOST_FUNCTION_CAPABILITY` — the behavioral suites are owed with the member.
 
 ### 15. Oracle deck (plugin tools mid-turn, #24-gated)
+
 - (Shape unchanged.) **Felt-experience honesty (A2-F5):** a plugin CANNOT register a client
   `ToolRenderer` — the registry is first-party, door-assembled, and an unknown tool renders the
   generic `ToolCallBlock` fallback (`contribution-contracts.ts:94-103`). So v1's chip shows the
@@ -212,6 +227,7 @@ updated: 2026-08-24
   membrane — does not exist, and is NOT #24's subject), stated so nobody prices it as free.
 
 ## §2 Graveyard — unchanged from the previous revision (all kills re-held through the A-round; the
+
 reaction-steering conditional-kill, the keyword clock, the auto-fire recap, tags-queue, mask
 notice, quest-log-keyword, campaign archive, time-of-day, swipe audit, universe sync, translator,
 drop-a-link, dice-outcome clocks re-record, and the standing walls).
@@ -233,7 +249,7 @@ stand. Row 23's honesty note is superseded by the header: the A-round has now ge
 | 28 | 1 | #3's F6-survival is an unruled owner fork minted by this doc | FOLDED — #3 re-classed NEEDS-OWNER with stated default |
 | 29 | 1 | `chatOpened` is per-attach + viewer-blind; chips fan room-wide → reconnect spam | FOLDED — #1's invitation re-spec (host-tier, replace-per-rule) |
 | 30 | 1 | #11 is genuinely NOT the refused retrieval class (no model spend, no assembly duplication) — but plugin event delivery has NO rate belt | FOLDED — verdict kept; the no-ceiling fact stated + #24 egress-floor item |
-| 31 | 1 | run_tool: deactivated plugin tools rot rules into auto-disable | FOLDED — pause-not-rot posture on #12 |
+| 31 | 1 | run\_tool: deactivated plugin tools rot rules into auto-disable | FOLDED — pause-not-rot posture on #12 |
 | 32 | 2 | #2's actor exclusion inexpressible on `turnCompleted` (fact carries no user identity) | FOLDED — re-specced onto `messageCommitted` |
 | 33 | 2 | #2's member touches 2 tsc-invisible literal sites incl. the plugin membrane's silent downgrade + guest-visible vocabulary | FOLDED — priced in the row |
 | 34 | 2 | #13's showcase arm (`generate_image`) is itself chat-required as built | FOLDED — into #13's price + the axes §1.2 list correction |

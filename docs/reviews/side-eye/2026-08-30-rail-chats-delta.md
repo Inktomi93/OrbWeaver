@@ -44,7 +44,7 @@ the deliverable.
 ## Per-area verdicts
 
 | Area | Verdict |
-|---|---|
+| - | - |
 | Chats landing (list pane + empty CONTENT) | **PASS** — census honest under filter, search-empty state exemplary, "Skip to chats" now exists. Top-heavy chrome is a standing taste call. |
 | Non-game room — transcript reading surface | **PASS, strongest area** — opaque plate, 62ch across every arm/pane-state, contrast 11–16:1 |
 | Non-game room — composer + message actions | **PASS** — semantic groups, named controls, 48×48 coarse targets, full keyboard path |
@@ -60,7 +60,7 @@ the deliverable.
 ## Design-health score (Nielsen, 0–4)
 
 | # | Heuristic | Score | Key issue |
-|---|---|---|---|
+| - | - | - | - |
 | 1 | Visibility of system status | 3 | census is honest under filter now (`0 of 6`); RPG tab selection is carried by accent fill alone, not `aria-selected` |
 | 2 | Match system ↔ real world | 2 | "Add cast…" opens a dialog titled "Saved casts"; `›` means "generate a variant"; "RUN Roll d20" is doubled verb |
 | 3 | User control & freedom | 3 | search + month both clear now; Esc closes dialogs; no regressions found |
@@ -68,7 +68,7 @@ the deliverable.
 | 5 | Error prevention | 3 | save gated on a name; nothing destructive reachable un-confirmed. Not stress-tested — read-only discipline, no sends |
 | 6 | Recognition over recall | 2 | the single-variant `›` chevron carries no visible label at all; `Map 🔒` still unexplained; `Talks 50` still unitless to a sighted user while the accname says "talks at level 50 of 100" |
 | 7 | Flexibility & efficiency | 4 | ⌘K, month anchor, character chips, roving transcript, per-row Tab cluster, "Skip to chats" — genuinely strong |
-| 8 | Aesthetic & minimalist | 3 | ~240px of list-pane chrome above the first of 6 rows; the RPG context panel stacks a stat header + 5 dials + a 6-item strip + host console + stat editor + a nav strip |
+| 8 | Aesthetic & minimalist | 3 | \~240px of list-pane chrome above the first of 6 rows; the RPG context panel stacks a stat header + 5 dials + a 6-item strip + host console + stat editor + a nav strip |
 | 9 | Error recovery | 4 | search-empty quotes the query verbatim and offers a working reset |
 | 10 | Help & documentation | 2 | the This-chat tab's per-section glosses are excellent and route the user onward ("Presets → Prompt / Macros"); the room itself still explains nothing |
 
@@ -76,13 +76,13 @@ the deliverable.
 
 ## Findings
 
-### [P1] The context-panel tab strip loses tablist semantics AND relocates in an RPG room
+### \[P1] The context-panel tab strip loses tablist semantics AND relocates in an RPG room
 
 **What.** The same five controls, the same `aside[aria-label="Chats details"]`, two rooms, measured
 back to back at 1280×800:
 
 | | Example — Midnight Run (non-game) | Example — The Ashen Spire (RPG) |
-|---|---|---|
+| - | - | - |
 | container | `role=tablist` · `aria-label="Detail"` | `role=toolbar` · `aria-label="Chat"` |
 | y | **56** (panel head) | **754** (panel foot) |
 | control role | `tab` | none — plain `<button>` |
@@ -109,12 +109,12 @@ y=56, chain `tablist[Detail]>DIV>DIV`) · `reports/snaps/cbrc-ctx-members.png` �
 
 ---
 
-### [P2] The room header title truncates to 58% at 1280 with both panes docked
+### \[P2] The room header title truncates to 58% at 1280 with both panes docked
 
 **What.** Measured on `p[data-slot=text].text-title` carrying the room name:
 
 | viewport | panes | rendered width | natural width | shown |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | 1280×800 | list docked + context docked | **116px** | 201px | **"Example — …"** |
 | 1280×800 | list collapsed + context docked | 201px | 201px | full |
 | 1280×800 | list docked + context collapsed | 201px | 201px | full |
@@ -130,7 +130,7 @@ CONTENT header is the only place the room is named. It fails exactly when the us
 detail panel — i.e. when they are configuring the room they can no longer identify.
 
 **Fix.** `layout`: the title is being squeezed because the topbar's global trailing cluster (⌘K jump,
-notifications, focus mode, panel toggle — ~200px) shares the CONTENT header's row. Let the title take
+notifications, focus mode, panel toggle — \~200px) shares the CONTENT header's row. Let the title take
 the slack, or move the global chrome into the shell topbar's own trailing region so it does not
 compete with the artifact's name. Receipt: `titleW == scrollW` at 1280 in all four pane states.
 
@@ -140,7 +140,7 @@ non-truncating pane states) · crop `reports/snaps/cbrc-header-trunc-crop.png`.
 
 ---
 
-### [P2] The injection preview's line-clamp is inert — the second line is guillotined mid-glyph
+### \[P2] The injection preview's line-clamp is inert — the second line is guillotined mid-glyph
 
 **What.** `[role=tabpanel] "This chat" → INJECTIONS → Injection 2` preview paragraph, computed:
 
@@ -179,12 +179,12 @@ they use `truncate`/`display:block`, not a clamp (`cbrc-15.log`).
 
 ---
 
-### [P2] The CAST header offers two confusable add-doors, 4px apart, one of them unlabelled
+### \[P2] The CAST header offers two confusable add-doors, 4px apart, one of them unlabelled
 
 **What.** In `group "Cast"`, measured at 1280 and at 430 coarse:
 
 | control | desktop box | mobile box | accessible name | what it does |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | "Add cast…" | 108×32 @ x=1126 | 108×44 @ x=262 | `Add cast…` | opens a dialog titled **"Saved casts"** |
 | person-plus glyph | 34×34 @ x=1238 | 48×48 @ x=374 | `Add a character` | adds one character |
 
@@ -207,7 +207,7 @@ first option. Receipt: a cold-read screenshot where the two doors are distinguis
 
 ---
 
-### [P2] The variant control degrades to a bare unlabelled chevron in a single-variant room
+### \[P2] The variant control degrades to a bare unlabelled chevron in a single-variant room
 
 **What.** In every room whose last assistant message has ONE variant — which is every fresh room —
 the variant strip renders as a single `button "Generate a variant"`: **34×34, transparent
@@ -235,7 +235,7 @@ bg:"rgba(0,0,0,0)", parentText:""}`) · `reports/snaps/cbrc-room-midnight.png` �
 
 ---
 
-### [P2] RPG stat-profile and trackers rows are 18–22px interactive targets
+### \[P2] RPG stat-profile and trackers rows are 18–22px interactive targets
 
 **What.** `design-audit / --goto chats --open-chat "Example — The Ashen Spire" --context-tab Game`
 returns **28 × P1 `tap-target`** at `pointer=fine` across `[data-slot=rpg-stat-profile]`,
@@ -261,7 +261,7 @@ hit-test) · `reports/snaps/cbrc-rpg-gametab.png`.
 
 ---
 
-### [P3] The new-chat picker's primary button has a doubled accessible name
+### \[P3] The new-chat picker's primary button has a doubled accessible name
 
 **What.** `--map '[role=dialog]'` on the New chat dialog returns
 `button "Pick a characterPick a character to start"` — an sr-only "Pick a character" concatenated
@@ -279,7 +279,7 @@ the map exists to surface.
 
 ---
 
-### [P3] The `reading` appearance preset ships justified body text with no hyphenation
+### \[P3] The `reading` appearance preset ships justified body text with no hyphenation
 
 **What.** `design-audit --appearance-preset reading` on the room returns **44 × P3 `justified-text`**
 ("justified text without hyphenation creates rivers of white") on `message-bubble`,
@@ -293,11 +293,12 @@ surface's word spacing, at 21.6px type where the rivers are widest.
 Receipt: `design-audit --appearance-preset reading` clean of `justified-text`.
 
 **Receipt.** `scratchpad/cbrc-da-reading.log` (`findings=45 p3=45`, rule census: 44 `justified-text`
-+ 1 `flat-type-hierarchy`).
+
+- 1 `flat-type-hierarchy`).
 
 ---
 
-### [P3] `+8 More` face-filter button's accessible name omits its visible count
+### \[P3] `+8 More` face-filter button's accessible name omits its visible count
 
 **What.** Lighthouse `label-content-name-mismatch` (the ONE failing audit, desktop and mobile):
 visible label `+8\n\nMore`, accessible name `More — Filter by another character`. The other 9 nodes
@@ -311,7 +312,7 @@ title, subtitle/meta ride `aria-describedby`) and are **not re-filed**.
 
 ---
 
-### [P3] One 151ms long task remains on the cold room open (#489 residue)
+### \[P3] One 151ms long task remains on the cold room open (#489 residue)
 
 **What.** `perf-meter --cycles 3`: cycle 1 = 267ms of long tasks, worst **151ms**, click duration
 32ms, input delay 2ms, worst rAF gap 133ms. Cycles 2–3 = **zero** long tasks, 33ms rAF gap.
@@ -332,15 +333,14 @@ blocking ≤50ms at 4× on a cold open.
 
 ---
 
-### [P3] Dead vendor class `.base-ui-disable-scrollbar`
+### \[P3] Dead vendor class `.base-ui-disable-scrollbar`
 
-`[css] dead class — no rule defines it, so the style never applied · .base-ui-disable-scrollbar on
-[data-slot=scroll-area-viewport] · route /`. Vendor-emitted; harmless but it is noise in every room
+`[css] dead class — no rule defines it, so the style never applied · .base-ui-disable-scrollbar on [data-slot=scroll-area-viewport] · route /`. Vendor-emitted; harmless but it is noise in every room
 console. Receipt: `reports/snaps/cbrc-console.json`.
 
 ---
 
-### [INSTRUMENT] design-audit `duplicate-action-door` false-positives on repeated list-row actions at coarse pointer
+### \[INSTRUMENT] design-audit `duplicate-action-door` false-positives on repeated list-row actions at coarse pointer
 
 **What.** `design-audit --mobile` on the room reports P3 `duplicate-action-door` —
 *"the same action is offered from 2 structurally distinct places on one plane (2x button 'more
@@ -391,7 +391,7 @@ distinct `message-name-row` hosts at y=-929 / -884 / 93).
 **Concrete fixes owed:**
 
 | Element | Problem | Exact fix |
-|---|---|---|
+| - | - | - |
 | RPG context tab strip (`toolbar[aria-label="Chat"]`) | five plain `<button>`s, no `role=tab`, no `aria-selected`; current view signalled by accent fill only | render the same `role=tablist`/`role=tab`/`aria-selected` markup the non-RPG room uses |
 | `button "Pick a characterPick a character to start"` (new-chat dialog) | doubled accname from an sr-only span; only `[dom]`-fallback control in the dialog | drop the sr-only duplicate |
 | `button "More — Filter by another character"` | visible `+8 More`, accname omits `8` | `aria-label="8 more — filter by another character"` |
@@ -461,13 +461,13 @@ gutter and reads deliberately; the 7px composer offset does not.
    `snap --contrast --contrast-pixel`: body **15.90:1**, dialogue **11.04:1**.
 2. **The reading measure and overflow hold across every arm.** 62ch at owner default / maximal /
    diagnostics / reading (at 21.6px) · 63ch compact · 62ch at 768 · 62ch in all three pane states ·
-   `--expect-no-overflow` PASS (all four sides judged, 0 escapes) on every one of ~14 runs, at 430,
+   `--expect-no-overflow` PASS (all four sides judged, 0 escapes) on every one of \~14 runs, at 430,
    768, 1280 and 1920, in dark and Light, and under reduced motion.
 3. **The cold-open fix (#489) is real.** Click duration 248ms → **32ms**, input delay **2ms**, long
    tasks 596ms → 267ms, worst blocking 579ms → **143ms** at 4× CPU, and cycles 2–3 have **zero** long
    tasks. CLS 0 across raw, virtualized and non-virtualized.
 4. **Mobile is a different product than the last sweep described.** Cast bar 3 rows/115px → **1 row /
-   40px**; transcript ~110px → **436px of a 740px viewport (59%)**; composer icon row on one line;
+   40px**; transcript \~110px → **436px of a 740px viewport (59%)**; composer icon row on one line;
    message actions 48×48; `design-audit --mobile` returns **zero** tap-target findings on the
    non-game room.
 5. **The search-empty state.** `CHATS 0 of 6` · icon · "No matches" · `No chat matches "zzzqqqxx".` ·
@@ -528,7 +528,7 @@ it happens: every new context tab (Rules, Plugin panels, Game) currently pays th
 ## Prior-sweep items re-checked (2026-08-22 → today)
 
 | 2026-08-22 finding | Status today | Receipt |
-|---|---|---|
+| - | - | - |
 | P1 dialogue over art with a defeatable scrim | **DESIGNED OUT of the default** — plate now opaque, `backdrop-filter: none` | flat-backdrop decode + `--contrast-pixel` 15.90/11.04 |
 | P1 tool-call disclosure keyboard-unreachable (`tabindex="-1"`) | **FIXED** | every `[data-slot=collapsible-trigger]` has `tabindex="0"` (`cbrc-26.log`) |
 | P1 first chat open blocks 579ms | **FIXED** (#489) — 143ms at 4×, 32ms click, cycles 2–3 clean | `cbrc-perf.log`, `cbrc-motion.log` |
@@ -536,7 +536,7 @@ it happens: every new context tab (Rules, Plugin panels, Game) currently pays th
 | P2 variant strip reads as pagination | **FIXED for multi-variant** (#490-2); **NOT covered for single-variant** → new P2 above | `cbrc-03.log` |
 | P2 list count lies under filtering | **FIXED** (#490-3) — `0 of 6` | `cbrc-empty.log` |
 | P2 "Jump to month" re-roots | **RENAMED** to "Show chats from" (#490-4); re-root behaviour not re-tested (6-row corpus can't reproduce it) | `cbrc-01.log` map |
-| P2 mobile transcript ~35% of screen | **FIXED** — 59%, cast bar 1 row | `cbrc-07.log`, `cbrc-room-mobile.png` |
+| P2 mobile transcript \~35% of screen | **FIXED** — 59%, cast bar 1 row | `cbrc-07.log`, `cbrc-room-mobile.png` |
 | P2 ArrowRight from in-row action drops focus to `<body>` | **not re-tested** — Tab path verified clean at 15 stops; arrow-key arm not driven this run | — |
 | P2 inline `<code>` renders 3 dead Tailwind classes | **FIXED** — `deadcss=0` on every room run | RESULT lines |
 | P2 "add a character" has two doors | **FIXED** as filed (cast-bar twin gone); **B10 introduced a new confusable pair** → new P2 | `cbrc-09.log` |
@@ -559,11 +559,11 @@ today's `2026-08-30-this-chat-cls-verify.md` owns that verdict; I did not re-mea
 ## Instrument coverage
 
 | # | Instrument | Status |
-|---|---|---|
+| - | - | - |
 | 1 | `snap --map` | **RAN** — chats landing `aside` (18), message list (4), details panel (21), New-chat dialog (16), Saved-casts dialog (4), `header` (2). `map-dom-fallbacks=0` except the New-chat dialog (1) and the RPG Cast group (1) |
 | 1 | `snap --contrast` (+ `--contrast-pixel`) | **RAN** — prose 15.90:1 · dialogue 11.04:1 (default), 13.50/11.83 (reading), 15.93/10.95 (maximal), 15.90/11.04 (Light) · cast bar 16.50:1 · composer 8.53:1 · chat header 8.34:1 · Light landing: title 14.82:1, subtitle 7.01:1, search 4.99:1. **All PASS**, `contrast-fails=0` on every run |
 | 1 | `snap --aria` | **RAN** — transcript (59 lines), details panel non-RPG (29 lines), details panel RPG (41 lines), Saved-casts dialog |
-| 1 | `snap --expect-*` | **RAN** — `--expect-no-overflow` PASS (4 sides, 0 escapes) on ~14 runs across 430/768/1280/1920, 5 appearance arms, Light, reduced-motion, 3 pane states, 2 dialogs |
+| 1 | `snap --expect-*` | **RAN** — `--expect-no-overflow` PASS (4 sides, 0 escapes) on \~14 runs across 430/768/1280/1920, 5 appearance arms, Light, reduced-motion, 3 pane states, 2 dialogs |
 | 1 | `snap --matrix` | **SKIPPED** — superseded by explicit arms (4 viewports × 5 appearance presets × 2 themes × 3 pane states × reduced-motion), each with its own receipt |
 | 1 | `snap --json` | **RAN** — `reports/snaps/cbrc-console.json` for the lossless console census |
 | 1 | `snap --checkpoint` | **RAN** — boot window split out (6 boot warnings excluded from the interaction verdict) |
@@ -594,7 +594,7 @@ today's `2026-08-30-this-chat-cls-verify.md` owns that verdict; I did not re-mea
 ### Console triage (post-checkpoint interaction window: 17 warnings, 6 boot warnings, 0 errors, 0 page errors)
 
 | Message | × | Disposition |
-|---|---|---|
+| - | - | - |
 | `[perf] slow commit region:content Nms (update)` | 7 | **INVESTIGATE** — folded into the #489-residue P3; `__orb.renders()` gives the mechanism (21 content updates) |
 | `[perf] slow commit region:content/list/context (mount, nested-update)` | 3 | same finding |
 | `[frame] long frame … @ main.tsx` | 1 | **known-ruled** — the boot eval |
@@ -663,10 +663,10 @@ dead class on every room console.
 Down from 596ms/579ms; cycles 2–3 are clean. Receipts: `scratchpad/cbrc-perf.log`, `cbrc-motion.log`.
 
 **ALREADY FILED — observed, not re-filed:** #830 (This-chat tab height — measured 3,949px today),
-#824 (Collapsible height animation), #818 (plugin per-anchor CTA), #522 (native month control stays).
+\#824 (Collapsible height animation), #818 (plugin per-anchor CTA), #522 (native month control stays).
 **Unchanged from 2026-08-22 and not re-filed as new:** flat type hierarchy (P3 on every arm), the
 GAME STATE strip's missing selected state and unexplained `Map 🔒`, the redundant boot
-`chat.listChats {limit:1}`, and the ~240px of list-pane chrome above the first row.
+`chat.listChats {limit:1}`, and the \~240px of list-pane chrome above the first row.
 
 ---
 

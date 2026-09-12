@@ -77,7 +77,7 @@ updated: 2026-08-23
      turn-hold anti-pattern (D59's "strictly post-turn async" hedge existed because the shape
      tends toward holding turns), and each suggestion is a per-event summarize-role spend for
      output nobody asked for at that moment.
-  The refinery keeps its own workshop UX; this program does not touch it.
+     The refinery keeps its own workshop UX; this program does not touch it.
 - **What IS true (recorded for Q2c):** refinery already carries the purged crew card-evolution
   capability — propose-don't-dispose card improvement with a pre-apply snapshot, human-initiated,
   owner-scoped (service.ts header: "the pre-apply snapshot and the apply write are all CHARACTER
@@ -95,7 +95,7 @@ content. Nothing to wire, nothing left on the table.
 
 - **USED-WELL:** the plan's "auto-add lore entries" preset maps 1:1 onto the existing
   `insert_world_info_entry` arm (contracts/automation/index.ts:206-213) — no new arm needed.
-- **UNDERUSED:** `worldInfoActivated` is a LIVE trigger (CHAT_TRIGGER_TYPES:29) whose fact carries
+- **UNDERUSED:** `worldInfoActivated` is a LIVE trigger (CHAT\_TRIGGER\_TYPES:29) whose fact carries
   the activated `entryIds` (:293-294), and no preset in the plan's list fires on it. Two options,
   both zero-machinery (existing trigger × existing arms): **"illustrate on lore reveal"**
   (worldInfoActivated → `generate_image`) and **"react to lore activation"** (worldInfoActivated →
@@ -162,11 +162,11 @@ build or a named owner option beside it, and whichever lands, both paths teach f
 slot (the non-game sibling of `rpg.reminder.cyoaTeach`) — one voice, knob-standing vs
 wand-momentary.
 
-### 11. Preset prose slots / TEMPLATE_DEFS — USED-WELL
+### 11. Preset prose slots / TEMPLATE\_DEFS — USED-WELL
 
 The plan's delta 2 already pins teach text to `PROSE_SLOTS` (preset-editable, baseline-pinned,
 Templates-tab-surfaced — commit 4a5bb8e86). Nothing further; the enforcer (slot-reachability
-through TEMPLATE_DEFS, `contracts/preset/prose.ts`) comes free with the slot.
+through TEMPLATE\_DEFS, `contracts/preset/prose.ts`) comes free with the slot.
 
 ### 12. The bus taxonomies (chat · domain · feature · automation) — USED-WELL, cost counted honestly
 
@@ -280,7 +280,7 @@ provider-tier work outside this program.
 ## Bottom line
 
 The plan uses the tree's leverage well where it matters most (macro-rendered arm templates, the
-guided channel, PROSE_SLOTS, the one tool registry, the tiered automation bus) and correctly
+guided channel, PROSE\_SLOTS, the one tool registry, the tiered automation bus) and correctly
 REFUSES the two tempting couplings (refinery-in-room: a room event must not mutate cross-room
 library identity, and the workshop's depth is its point; retrieval-fed chips: a spend engine for
 what assembly covers). It leaves four concrete options on the table, all zero- or near-zero
@@ -289,5 +289,5 @@ clock-state for G8 — plus ONE structural gap it must absorb before MR5: the pe
 seam for plain chats (the S2 `toolNames` axis option), and one honestly-counted cost: S4's
 suggestion event is a NEW automation-bus member with its belt/coverage/transport-filter coupled
 sites. Q2's split holds compile-enforced (the closed roster union), the authority table has no
-empty cells after the round-1 corrections (trigger_turn's triggeredBy = the author-as-funder),
+empty cells after the round-1 corrections (trigger\_turn's triggeredBy = the author-as-funder),
 and the cell-keying problem touches exactly one row and demands nothing.

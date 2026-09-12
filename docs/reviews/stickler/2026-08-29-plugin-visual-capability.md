@@ -53,7 +53,7 @@ art-forward without moving any security wall the vocabulary holds.
 | Axis | Reachable slice | Receipt |
 | - | - | - |
 | layout gaps | 5 tokens (`tight/field/row/block/section`) | `packages/contracts/src/plugin/ui.ts:64` |
-| text voices | 3 (`body/gloss/label`) of the house's ~12; headings only via `section` kicker + the detail stage's focal title | `ui.ts:70` · `plugin-browse-nodes.tsx:119,129` |
+| text voices | 3 (`body/gloss/label`) of the house's \~12; headings only via `section` kicker + the detail stage's focal title | `ui.ts:70` · `plugin-browse-nodes.tsx:119,129` |
 | badge intents | 5, `primary` excluded (S1 law) | `ui.ts:75` |
 | button weights | 2 (`neutral/outline`), both render non-primary | `ui.ts:80` · `plugin-leaf-nodes.tsx:310` |
 | icons | NONE — no icon node exists | `PLUGIN_NODE_KINDS`, `ui.ts:101-122` |
@@ -81,6 +81,7 @@ art-forward without moving any security wall the vocabulary holds.
 ## §2 Findings (defects confirmed this session, ranked)
 
 ### F1 — P2 · The flagship is art-free END TO END, and its own docs claim otherwise
+
 - `packages/server/src/entry/boot/seed-assets/plugins/card-atlas/main.js:34-36` and its
   `README.md:72-74` state: *"the art arrives the moment you summon the card... into the room, where
   the character's own avatar pipeline owns it."* **Refuted on the tree.** Card Atlas ingests card
@@ -96,6 +97,7 @@ art-forward without moving any security wall the vocabulary holds.
   (the real fix).
 
 ### F2 — P3 · The detail stage's promised "reading-width column" does not exist — the decision surface renders as a full-width text sheet
+
 - The contract promises it (`packages/contracts/src/plugin/ui.ts:90-93`: *"a hero slot above a
   READING-WIDTH prose column"*) and the renderer's comment claims the mechanism (*"the house `prose`
   measure on the text primitives themselves"*, `plugin-browse-nodes.tsx:90-93`) — but `prose` on
@@ -103,14 +105,15 @@ art-forward without moving any security wall the vocabulary holds.
   (`packages/ui/src/primitives/text/variants.ts:158-160`), the `markdown` node renders with no
   measure wrap at all (`plugin-leaf-nodes.tsx:216-220`), and the detail arm is a bare `Stack`
   (`plugin-browse-nodes.tsx:124-132`). Pixel receipt: `atlas-detail-populated.png` — the blurb runs
-  ~150 chars/line edge-to-edge, and the keyValue rows put label and value at opposite ends of an
-  ~890px scan gap.
+  \~150 chars/line edge-to-edge, and the keyValue rows put label and value at opposite ends of an
+  \~890px scan gap.
 - Consequence: the exact §4.5b failure 2 the vocabulary was minted to close ("the decision surface
   got the least design") is only half-closed; at wide viewports the preview reads worse than the
   browse grid. Fix is renderer-side only (wrap the detail stage body in the house measure), zero
   vocabulary change.
 
 ### F3 — P3 · The decision surface's one primary action has no visual hierarchy
+
 - "Summon to your library" renders `intent="secondary"` (the vocabulary clamps `button` to
   neutral/outline, `ui.ts:78-81`; the leaf maps neutral→secondary, `plugin-leaf-nodes.tsx:310`).
   Pixel receipt: `atlas-detail-populated.png` — Summon and "Back to results" carry near-equal visual
@@ -120,15 +123,17 @@ art-forward without moving any security wall the vocabulary holds.
   a recorded-law input change, not a bug).
 
 ### F4 — P3 · A grid's empty state is a bare one-line gloss, not the house EmptyState
+
 - `SurfaceGrid` renders `empty` as a single `Text voice="gloss"` line
   (`plugin-browse-nodes.tsx:50-56`), while the section's own empty states use the house
   `EmptyState` (icon + measure + action) one file over
   (`surfaces/extensions-page-surface.tsx:54-66`). Pixel receipt: `atlas-page.png` — the pre-search
-  page is a form + one grey sentence above ~500px of void. The three-states law calls empty states
+  page is a form + one grey sentence above \~500px of void. The three-states law calls empty states
   load-bearing; the vocabulary's most browse-shaped node has the least designed one. Renderer-side
   fix, no vocabulary change.
 
 ### F5 — P4 · Doc-truth: the two comment lines claiming the unbuilt measure (part of F2)
+
 - `ui.ts:92-93` and `plugin-browse-nodes.tsx:92-93` assert a mechanism the shelf does not have;
   whichever way F2 resolves, the prose and the pixels must agree.
 
@@ -141,6 +146,7 @@ doubled title and the zero-pages double empty state
 ## §3 Is the card-atlas hub using the visual vocabulary? Is the vocabulary rich enough?
 
 ### What card-atlas uses (it is a faithful, near-maximal consumer of what exists)
+
 `masterDetail` (browse+detail, `main.js:372-444`) · `searchBar` with the hub picker in its collapsed
 `filters` (`main.js:384-401`) · a BOUND grid (`tilesFrom` + `tileAction` + `aspect:"portrait"` + a
 teaching `empty`, `main.js:404-409`) · status line as bound gloss text · `keyValue` provenance rows ·
@@ -151,8 +157,9 @@ expressible things it skips are minor: paging ("an `actionId` away", its own REA
 nodes on the detail stage, `section` grouping.
 
 ### So the thinness is structural, and the verdict on "does it fuck" is NO — yet
+
 `atlas-grid-populated.png`: clean typography, correct 4-column container-query grid, reserved
-portrait boxes, "24 from Character Tavern for \"elf knight\"." — and **every single tile is the same
+portrait boxes, "24 from Character Tavern for "elf knight"." — and **every single tile is the same
 empty dark box with a small icon**, because no tile can carry a cover
 (`MediaTileGrid`'s no-cover placeholder, `packages/ui/src/primitives/media-tile-grid/media-tile-grid.tsx:41-44`).
 An art-medium browse surface with 0% art. The grid composite itself is good (hover scale
@@ -254,15 +261,18 @@ model (new spellings of already-safe house primitives, or renderer-side fidelity
 ## §5 Rendering the hub POPULATED — the recipe (proven this session)
 
 ### (a) LIVE, today, zero code — this now works
+
 ```
 node tooling/src/snap/cli.ts --goto extensions --click 'text=Card Atlas' \
   --wait-for input --fill 'input=<query>' --key 'input=Enter' \
   --wait-for 'text=Character Tavern for'
 # detail stage: append  --click '[data-slot="media-tile"]' --wait-for 'text=Back to results'
 ```
+
 Proven: steps-failed=0, `plugin.invokeUiAction` 577ms, 24 tiles rendered
 (`atlas-grid-populated.png`, `atlas-detail-populated.png`; run logs in the session scratchpad).
 **The three driver traps that made every earlier attempt fail:**
+
 1. `text=Search` resolves to the LABEL "Search the community hubs" first (document order) — the
    click lands on inert text. Submit with **Enter on the input** instead; the searchBar submits on
    Enter by design (`plugin-browse-nodes.tsx:169-176`).
@@ -271,11 +281,12 @@ Proven: steps-failed=0, `plugin.invokeUiAction` 577ms, 24 tiles rendered
 3. The resident's published state SURVIVES across browser contexts (by design), so a later visit may
    open on the DETAIL stage with no search input on screen — `--click 'text=Back to results'` first,
    or expect it. (This is also a live confirmation of the §4.5b "browse context persists" claim.)
-The network premise: Character Tavern answered `200` in `0.229s` from this box
-(`curl …/api/search/cards?q=elf`, this session). The 08-29 side-eye timeout was transient or
-trap-induced; re-drive before assuming the hub is down.
+   The network premise: Character Tavern answered `200` in `0.229s` from this box
+   (`curl …/api/search/cards?q=elf`, this session). The 08-29 side-eye timeout was transient or
+   trap-induced; re-drive before assuming the hub is down.
 
 ### (b) DETERMINISTIC offline fixture — for a repeatable side-eye when the hubs actually are down
+
 Pack a scratch `card-atlas-fixture` bundle: copy the plugin dir, replace `SOURCES` with canned
 `search`/`detail`/`fetchCard` returning fixture rows, have activation publish a POPULATED browse
 stage (so the grid is full ON OPEN, zero interaction), and drop `netHosts`/`net.fetch` from the
@@ -286,11 +297,12 @@ the egress guard refuses private/loopback targets by design
 (`infra/network/egress.ts:14-34`).
 
 ### (c) ART-FORWARD pixels before §4 item 1 lands — CT screenshot story
+
 The CT machinery already stubs the whole chain: `routeTrpc` fakes `assets.resolveBlobRefs`
 (`tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx:88-136`) and the
 MediaTileGrid CT ships data-URL cover fixtures
 (`tests/ui/primitives/media-tile-grid/media-tile-grid.fixtures.tsx:13`). Mount
-`PluginSurfaceRenderer` with the atlas's own spec + a state of ~24 bound tiles, stub the blob refs
+`PluginSurfaceRenderer` with the atlas's own spec + a state of \~24 bound tiles, stub the blob refs
 (and `page.route` the `/api/blob/*` urls to fixture PNGs), screenshot at desktop + narrow container.
 That renders the INTENDED look — covers, badges, hover — and is the cheapest way to judge the target
 aesthetic before the capability exists.

@@ -1,9 +1,20 @@
 // THE MIXED-CORPUS PROOF (docs/design/gate-runtime-standardization.md §5 item 4; the twelve assertions) at the
-// production door: `cli.ts structure` spawned over planted roots whose gates dir holds RE-EXPORT SHIMS of REAL
-// modules — one legacy descriptor (`assumes-single-replica`) and real final policies (`baseui-render-prop-composition`
-// ordinary, `no-raw-matchmedia` reviewed-grant, `verify-registry-parity` hard/resource). A shim imports the real
-// module by absolute file URL, so the object the door runs IS the production descriptor (the loader's identity law
-// refuses a copy, proven in lib/loader.test.ts) and the shim's basename is the id (the filename law).
+// production door: `cli.ts structure` spawned over planted roots whose gates dir holds real final policies as
+// RE-EXPORT SHIMS (`baseui-render-prop-composition` ordinary, `no-raw-matchmedia` reviewed-grant,
+// `verify-registry-parity` hard/resource) beside ONE AUTHORED LEGACY DESCRIPTOR. A shim imports the real module by
+// absolute file URL, so the object the door runs IS the production descriptor (the loader's identity law refuses a
+// copy, proven in lib/loader.test.ts) and the shim's basename is the id (the filename law).
+//
+// THE LEGACY SIDE CARRIES ITS OWN FIXTURE, AND THAT IS THE #2052 REPAIR — the third instance of the #1983
+// legacy-roster-shrink class. It used to shim the live `assumes-single-replica`, its ONLY legacy member, and
+// `04e455f4d` converted that gate: the shim then loaded a `defineGate` policy, `legacy:` became `final:`, and the
+// whole suite went RED. A proof whose PREMISE is "some live gate is still legacy" cannot survive a program whose
+// entire purpose is that none of them are, so the premise is now MATERIALIZED rather than borrowed —
+// `LEGACY_DESCRIPTOR_SOURCE` below is a self-contained descriptor planted into the fixture tree, importing nothing
+// from the corpus and therefore unretirable by any conversion. What the arms assert about it is unchanged: the
+// legacy DISPATCHER's finding shape, its file-scan denominator, its GATE_PHASES timing and its own marker door.
+// At the atomic cutover, when the production legacy roster is empty, this suite still has a legacy side to prove
+// the mixed door with — which is exactly what "mixed runtime" must keep meaning until the door itself retires.
 //
 // Every arm reads the ONE artifact (`reports/check-structure.json`) and the exit code the reader meets, never an
 // in-process shortcut. The routing arms plant a marker on the WRONG side and assert the reconciliation finding —
@@ -21,7 +32,9 @@ const GATES = "tooling/src/verify/gates";
 /** A spawned mixed run over a planted root loads the harness Project and both dispatchers: ~3-6 s quiet. */
 const RUN_TIMEOUT_MS = scaledBudget(120_000);
 
-const LEGACY = "assumes-single-replica";
+/** The AUTHORED legacy carrier. Its name is its basename by the loader's filename law, and `probe-` marks it
+ *  as this suite's own fixture rather than a corpus member anyone could mistake for a real gate. */
+const LEGACY = "probe-legacy-module-state";
 const ORDINARY = "baseui-render-prop-composition";
 const REVIEWED = "no-raw-matchmedia";
 const HARD_RESOURCE = "verify-registry-parity";
@@ -30,9 +43,47 @@ function shim(repoRoot: string, id: string): string {
   return `export { gate } from ${JSON.stringify(pathToFileURL(join(repoRoot, GATES, `${id}.ts`)).href)};\n`;
 }
 
-/** The legacy subject: a module-scope `new Map()` under packages/server/src with no ASSUMES annotation. */
+/** The legacy subject: a module-scope `new Map()` under packages/server/src. */
 const SERVER_CACHE = "packages/server/src/domain/probe/cache.ts";
 const MAP_LINE = "export const cache = new Map<string, number>();\n";
+const LEGACY_MESSAGE = "module-scope mutable per-process state";
+
+/** A COMPLETE legacy `GateDescriptor`, authored as source and planted into the fixture tree's gates dir.
+ *
+ *  It imports NOTHING — not the contract types (a planted root resolves no workspace package), not ts-morph
+ *  (hence `visitFile` + a text scan rather than `kinds`/`visit`, which would need a `SyntaxKind` value). That
+ *  is the whole point: a fixture with no corpus edge cannot be retired by a conversion, which is what
+ *  happened to the live gate this replaces. The file-level `Finding` overload of `ctx.report` is the legacy
+ *  sink every arm here reads, and reporting AT the matched line is what makes the `@orb-gate-ignore` door on
+ *  the line above bind. */
+const LEGACY_DESCRIPTOR_SOURCE = `const MESSAGE = ${JSON.stringify(`${LEGACY_MESSAGE} — a module-scope mutable Map survives every request on this process`)};
+/** Line-anchored on purpose: a \`new Map()\` built INSIDE a function is per-call, not module-scope state, and
+ *  the mustPass row below is exactly that discrimination. */
+const MODULE_SCOPE_MAP = /^export const \\w+ = new Map[<(]/u;
+
+export const gate = {
+  name: ${JSON.stringify(LEGACY)},
+  docRow: "tests/tooling/verify/ops/structure-mixed.suite.int.test.ts — the mixed door's authored legacy carrier (#2052)",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: MESSAGE,
+  scanRoot: (path) => path.startsWith("packages/server/src/"),
+  visitFile: (sourceFile, ctx) => {
+    const lines = sourceFile.getFullText().split("\\n");
+    const index = lines.findIndex((line) => MODULE_SCOPE_MAP.test(line));
+    if (index === -1) {
+      return;
+    }
+    ctx.report({
+      file: sourceFile.getFilePath().slice(ctx.root.length + 1),
+      line: index + 1,
+      message: MESSAGE,
+    });
+  },
+  mustFlag: [{ files: { "packages/server/src/x.ts": ${JSON.stringify(MAP_LINE)} }, why: "a module-scope Map in the scan root" }],
+  mustPass: [{ files: { "packages/server/src/x.ts": "export const make = () => new Map();\\n" }, why: "a Map built per call is not module-scope state" }],
+};
+`;
 // The ordinary subject: the Radix spelling on a Base UI part, under the @ui population root.
 const UI_MENU = "packages/ui/src/primitives/probe/menu.tsx";
 const AS_CHILD_LINE = "export const G = <Menu.Trigger asChild />;\n";
@@ -80,7 +131,7 @@ function legacyRow(report: StructureReport, name: string): LegacyGateRow {
 }
 
 const mixedTree = (repoRoot: string, files: Readonly<Record<string, string>>): Readonly<Record<string, string>> => ({
-  [`${GATES}/${LEGACY}.ts`]: shim(repoRoot, LEGACY),
+  [`${GATES}/${LEGACY}.ts`]: LEGACY_DESCRIPTOR_SOURCE,
   [`${GATES}/${ORDINARY}.ts`]: shim(repoRoot, ORDINARY),
   [`${GATES}/${REVIEWED}.ts`]: shim(repoRoot, REVIEWED),
   ...files,

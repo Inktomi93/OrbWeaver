@@ -548,7 +548,7 @@ Both observability holes are closed, and the third finding did not survive conta
 gained `captureTurnFault`, called first thing in `executeTurn`'s post-start catch. A `finally` was rejected:
 the resolve arm and the fault arm can honestly report DIFFERENT field sets (a faulted turn produced no
 `final` chunk, so its generation numbers are ABSENT, never zeroed), and one merged site would have had to
-fabricate or branch anyway. `WireOutcome` grew `disposition` (`completed`\|`error`\|`user`\|`stale` —
+fabricate or branch anyway. `WireOutcome` grew `disposition` (`completed`|`error`|`user`|`stale` —
 mirroring `TurnAbortReason`, enforced by assignability since foundation cannot import the domain union) and
 `terminalReason`, threaded from `ProviderError.terminalReason` (falling back to `.kind`) via a `.cause`-chain
 walk, never re-derived.

@@ -39,6 +39,7 @@ portability bundle, never as a standalone door.
 The audit's finding holds exactly on today's tree: capability exists at the bundle tier, no tag-only door.
 
 **Options.**
+
 1. **SKIP (status quo).** The whole-profile bundle already carries `tags.json` on every full export; the
    disaster-recovery case is covered wholesale. A tag-only button is a convenience ST needed because it has
    NO bundle mechanism — we do.
@@ -84,6 +85,7 @@ So the model is: everything (card-embedded AND LLM-distilled) sits in the queue,
 Accept/Reject. ST's model is: decide once at import time with a remembered Ask/All/Existing/None policy.
 
 **Options.**
+
 1. **KEEP ours (always-queue).** Strictly more capable than ST's ask-once modal — a durable queue with
    provenance (`source` × `status`) survives past the import moment; ST's decision is lost once the modal
    closes.
@@ -130,12 +132,13 @@ the code header records an explicit ruling that must be surfaced, not silently r
 - The roster already SAYS this out loud (side-eye P1/P2 fixes, header `tag-collection-rows.tsx:27-33`): the
   `tagOrderHint` explains that above the cap manual is inert, and the Select shares its line with the hint.
 
-**The RETIRE question (separate from the drag-cap the owner already ruled):** at ~400 tags manual is
+**The RETIRE question (separate from the drag-cap the owner already ruled):** at \~400 tags manual is
 near-unreachable as a *drag* affordance (capped ≤30), and above the cap its OUTPUT is pixel-identical to A–Z
 (every `sortOrder` is null → the comparator tiebreaks on name, `tag-sort.ts:39`). So does `sortOrder`/manual
 earn its keep, or is it dead weight?
 
 **Options.**
+
 1. **KEEP manual (status quo, owner-ruled).** It's a real affordance for a SMALL library (≤30 tags: full
    drag-reorder), and `sortOrder` has five live server readers plus a place in the backup file. Retiring it
    is a schema+wire+backup-format change, not a UI tweak.
@@ -196,6 +199,7 @@ So today `folderType` is a stored-but-inert label. ST's version is a full naviga
 drilldown + breadcrumb via `isBogusFolder`/`chooseBogusFolder`).
 
 **Options.**
+
 1. **Build OPEN as a real behavior.** A tag-group section in the categorized list can collapse/expand.
    Additive to the existing `groupByTag` categorized model — the section header gains a disclosure control,
    the members hide/show. `folderType`'s OPEN value starts meaning something (expanded by default);
@@ -266,6 +270,7 @@ the model's system prompt with no ceiling. This is a real inconsistency, not a p
 text field in this contract has a deliberate cap, and this one is the lone gap.
 
 **Options.**
+
 1. **Cap at `MAX_FORMAT_STRING_LENGTH` (10000), guided's functional sibling.** Guided prompts and format
    strings are the SAME class — macro-carrying injection templates (`{{input}}`, `{{macros}}`) spliced into
    a turn. `formatStrings` (`continueNudge`, `impersonateNudge`, `responseNudge`, `wiFormat`) is exactly
@@ -314,7 +319,7 @@ enumerated above — the guided prompt is the one the brief named and the one th
 ## Summary table
 
 | # | Item | Current state (receipt) | Recommendation |
-|---|---|---|---|
+| - | - | - | - |
 | 1a | Tag-only backup button | bundle-only; no tag router procedure (`tag.ts:11-102`) | **SKIP** — bundle already covers it; per-entity doors erode one-mechanism portability |
 | 1b | Import Ask/All/Existing/None | always-queue + provenance (`attach-card-tag-by-name.ts:16`); no setting | **KEEP ours** — strictly more capable; auto-accept fast-path only if triage fatigue is real |
 | 1c | Retire manual/`sortOrder` | LIVE, owner-ruled keep (`tag-sort.ts:9-10`); 5 server readers | **KEEP** (owner-ruled fork stated); reversible middle = drop the mode, keep the column |

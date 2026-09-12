@@ -47,7 +47,7 @@ tool call before I found it.
 | Library list pane | **Much improved.** Chrome trimmed, filters collapsed, skip link real, focus ring solid, census single-homed. Two live defects: a dead 28-facet tag vocabulary, and a 40px import button on coarse pointer. |
 | Character content / editor | **Well crafted, mis-labelled.** Prose surface clean and readable; the `Own look` chip, the spoiler toggle and the 10.5px pill labels each mis-describe themselves. |
 | Context pane | **Content is right, containers are wrong.** #513's Origin/Links/Options/Activity landed, but it lives under a tab called "Field", and "Options" is a 2253px junk drawer. |
-| Snapshot / history UX | **Built and buried.** Reachable only at the bottom of the Options tab after ~1560px of theme editor + Trust prose. Empty state itself is fine. |
+| Snapshot / history UX | **Built and buried.** Reachable only at the bottom of the Options tab after \~1560px of theme editor + Trust prose. Empty state itself is fine. |
 | Import door | **Functional, exit-less.** Clear copy (said three times), no visible Close/Cancel. |
 | Export door | **Exists, single-homed in the wrong home.** Row `⋯` only; invisible from the open character and absent from bulk. |
 | Card-atlas / hub-ingest delta | **NOT REACHED.** Every character on this db reports `Source: Made here`; no hub-ingested character exists and importing one would mutate. Explicitly uncovered — see the coverage table. |
@@ -92,7 +92,7 @@ pane states.
 
 ## Findings
 
-### [P1] One character, three disjoint action menus — and Export is unreachable from the open character
+### \[P1] One character, three disjoint action menus — and Export is unreachable from the open character
 
 Measured, same character (`Sabine Veyra`), same session:
 
@@ -125,7 +125,7 @@ panel"]' --click '[aria-label="Character actions"]' --aria '[role=menu]'` (5 ite
 
 ---
 
-### [P2] The tag filter offers 28 facets, every one of which matches nothing
+### \[P2] The tag filter offers 28 facets, every one of which matches nothing
 
 `Group by tag` on the unfiltered library returns exactly one bucket: **`UNCATEGORIZED 10`** — all ten
 characters carry zero applied tags. Yet the FILTERS block offers 28 tag chips
@@ -162,7 +162,7 @@ empty (the collapsed default already makes this cheap).
 
 ---
 
-### [P2] The spoiler toggle inverts its own state announcement
+### \[P2] The spoiler toggle inverts its own state announcement
 
 The eye button beside `1 chat` flips **both** its accessible name and `aria-pressed`:
 
@@ -190,7 +190,7 @@ with the name unchanged, 20 checkboxes minted.
 
 ---
 
-### [P2] The character theme editor prints raw `oklch(...)` strings as its user-facing values
+### \[P2] The character theme editor prints raw `oklch(...)` strings as its user-facing values
 
 The CONTEXT → **Options** tab's theme editor labels each colour field with its literal CSS value:
 
@@ -221,7 +221,7 @@ beside the swatch, or a hex, or the source theme's field name. `Inherit` stays a
 
 ---
 
-### [P2] The Import dialog has no visible way out
+### \[P2] The Import dialog has no visible way out
 
 `dialog "Import a character card"` contains, in full: a heading, two paragraphs, a `Choose File`
 control, and two more paragraphs. **Zero buttons** besides the file input — no `✕`, no `Cancel`,
@@ -241,13 +241,12 @@ Nielsen #3/#4.
 **Fix — `clarify`:** give it the same `Cancel` the create dialog has (or a header `✕`), matching the
 house dialog recipe.
 
-**Receipt:** `snap --goto characters --mobile --click '[aria-label="Import a character card"]' --eval
-<button census>` → `{"open":true,"closeBtns":[]}` → `--key Escape` → `{"open":false}`;
+**Receipt:** `snap --goto characters --mobile --click '[aria-label="Import a character card"]' --eval <button census>` → `{"open":true,"closeBtns":[]}` → `--key Escape` → `{"open":false}`;
 `reports/snaps/cbrx-import.png`; create-dialog contrast arm → `"… Cancel\nCreate"`.
 
 ---
 
-### [P2] The `Own look` chip: `role="img"`, a sentence for a name, and a gloss only a mouse can reach
+### \[P2] The `Own look` chip: `role="img"`, a sentence for a name, and a gloss only a mouse can reach
 
 ```html
 <... role="img" aria-label="This card carries its own look — edit it in the Options tab." tabindex="-1">
@@ -276,7 +275,7 @@ trigger — so keyboard and touch reach it too.
 
 ---
 
-### [P2] Version history is buried at the bottom of a junk-drawer tab
+### \[P2] Version history is buried at the bottom of a junk-drawer tab
 
 The snapshot log (`character_snapshots`, D28) is real and its empty state is good —
 `History / Snapshot now / "No snapshots yet. Take one to capture this character's current state."` It
@@ -285,7 +284,7 @@ per-character theme editor (12 colour fields + font + radius + preview), the Bac
 three-paragraph Trust essay.
 
 Measured tabpanel geometry: **`clientHeight 693` · `scrollHeight 2253` · 31% visible.** Reaching
-History costs ~1560px of scrolling past three unrelated concerns, inside a 384px pane.
+History costs \~1560px of scrolling past three unrelated concerns, inside a 384px pane.
 
 **Why it hurts a user:** "can I undo what I just did to this character" is a high-stress question, and
 there is no affordance a user would guess. The tab is also four concerns wide (look · background ·
@@ -301,7 +300,7 @@ already has room — it holds four tabs and a `…` in 384px.
 
 ---
 
-### [P2] `Import a character card` is a 40px target on coarse pointer
+### \[P2] `Import a character card` is a 40px target on coarse pointer
 
 `design-audit --goto characters --mobile` (pointer=coarse, census 335) reports one tap-target finding:
 `40×44px`, short side 40, below the 44px floor. **Corroborated by four-cardinal `elementFromPoint` as
@@ -322,7 +321,7 @@ the glyph button to 44px on coarse.
 
 ---
 
-### [P3] The tag-suggestion pill labels are 10.5px interactive text
+### \[P3] The tag-suggestion pill labels are 10.5px interactive text
 
 `design-audit` fires `undersized-ui-text` six times on the character editor, desktop **and** coarse
 arms alike. **Located precisely** (the raw count is not forwarded): the offending nodes are the label
@@ -346,7 +345,7 @@ four cardinal points owned.
 
 ---
 
-### [P3] Seeded characters report provenance that cannot be true
+### \[P3] Seeded characters report provenance that cannot be true
 
 Four characters checked (`Charlotte`, `JFC`, `Kohaku`, `Niko`), context Field tab, identical:
 
@@ -368,7 +367,7 @@ either stamp seeded `createdAt` to the authored date or suppress `Last chat` whe
 
 ---
 
-### [P3] The Characters list pane drops a frame on every section entry
+### \[P3] The Characters list pane drops a frame on every section entry
 
 Console, reproduced on **every** run of this pass across arms:
 
@@ -382,14 +381,14 @@ This is distinct from the boot-splash `weave-veil` drops (known-ruled, #433 fami
 the Characters list aside, and it fires at list mount, i.e. the `data-list-flip=in` entrance.
 
 **Receipt:** console of `cbrx-chars-desk.log`, `cbrx-chars-mobile.log`, `cbrx-arch.log` and others
-(consistent across ~8 runs). Supporting: `__orb.motion()` after a full drive →
+(consistent across \~8 runs). Supporting: `__orb.motion()` after a full drive →
 `{cls: 0.0227, virtualizedCls: 0, nonVirtualizedCls: 0.0227, worstBlocking: 93}` — the 93ms LoAF is at
 `startTime 1303` from `main.tsx` (boot), and **`nonVirtualizedCls 0.0227` is comfortably inside the 0.1
 budget**, so this is a single-frame entrance cost, not layout instability.
 
 ---
 
-### [P3] Section entry still breaches the long-task budget — and it is not the data
+### \[P3] Section entry still breaches the long-task budget — and it is not the data
 
 `perf-meter / --goto characters --click '[aria-label="Sabine Veyra"]'`:
 
@@ -408,7 +407,7 @@ The primary action remains excellent: 40ms duration, 4ms input delay, zero long 
 
 ---
 
-### [P3] Reading measure sits one character over the band, at every desktop width
+### \[P3] Reading measure sits one character over the band, at every desktop width
 
 The opening-greeting paragraph measures **76ch** (696px at 16px/24px Geist) — the ratified band is
 65–75ch. The cap is real and holds: identical 696px at 1280px, 1920px and list-collapsed; it drops to
@@ -422,7 +421,7 @@ The opening-greeting paragraph measures **76ch** (696px at 16px/24px Geist) — 
 
 ---
 
-### [P3] Smaller things, each receipted
+### \[P3] Smaller things, each receipted
 
 - **`1 selected` wraps to two lines** in the bulk bar — the count label breaks between "1" and
   "selected" in the 290px pane. `reports/snaps/cbrx-selected.png`.
@@ -502,7 +501,8 @@ Options tab is not intuitive at all: a person opening it to change a colour is m
 `oklch(0.85 0.1 62)` and has no idea whether that is a value they can edit, a diagnostic, or an error.
 
 **More than one home for a concept?** Yes, three times:
-- **actions** — three menus, three vocabularies, one overlap (`Delete`) [P1 above];
+
+- **actions** — three menus, three vocabularies, one overlap (`Delete`) \[P1 above];
 - **Links** and **Options** each render as a section *inside* the Field tab **and** as their own tab,
   simultaneously visible in the same 384px pane;
 - **"empty"** is now consistently spelled `Empty` (an improvement on the old `No tags` / `None` /
@@ -516,7 +516,7 @@ Options tab is not intuitive at all: a person opening it to change a colour is m
    inside the virtualised scroller. Two keystrokes; the prior pass measured 18 (collapsed) and 563
    (tags expanded). The whole pane is 48 tabbable elements collapsed / 59 expanded, with 8 / 19 stops
    before the first row.
-2. **The filter block is no longer density-immune.** Chrome above the list: 180px (compact) / ~190px
+2. **The filter block is no longer density-immune.** Chrome above the list: 180px (compact) / \~190px
    (comfortable) / 240px (reading), against the old flat 272px→260px. The nested tag scroller is gone —
    exactly one scroller in the pane at every state I drove (`virtual-list-scroll`).
 3. **The library stays docked on selection** and the selected row is unmistakable. `#501` / `#255`
@@ -535,7 +535,7 @@ Options tab is not intuitive at all: a person opening it to change a colour is m
    SR-only mirror — not a visible second census. `#518` verified.
 8. **The create door.** `New character` states its requirement before you type (`A name and a
    description are both required.`) and ends in `Cancel | Create`. Prevention over recovery, done right.
-9. **Zero console errors and zero page errors across ~25 driven runs**, every arm.
+9. **Zero console errors and zero page errors across \~25 driven runs**, every arm.
 
 ---
 
@@ -597,8 +597,8 @@ and I do not cite it as a clean bill.
 | 1 | `snap --aria` | **RAN** — `main` (74 lines), context pane (33 + 70 lines), both action menus, the import dialog, the panel header |
 | 1 | `snap --contrast` | **RAN** — 9 measurements × 3 arms (owner / `--theme Light` / `maximal`), `contrast-fails=0` in every run |
 | 1 | `snap --expect-text` | **RAN** — `main h2=Sabine Veyra`, `assertion-fails=0` |
-| 1 | `snap --matrix` | **SKIPPED** — its 8 variants are covered by hand arms taken here (desktop / mobile / 768 / 1920 / Light / none / maximal / compact / reading); a 9th concurrent browser risks the ~6/origin SSE budget |
-| 1 | `snap --json` manifests | **SKIPPED** — the terminal console never capped (max ~19 messages in any run), so the lossless log added nothing |
+| 1 | `snap --matrix` | **SKIPPED** — its 8 variants are covered by hand arms taken here (desktop / mobile / 768 / 1920 / Light / none / maximal / compact / reading); a 9th concurrent browser risks the \~6/origin SSE budget |
+| 1 | `snap --json` manifests | **SKIPPED** — the terminal console never capped (max \~19 messages in any run), so the lossless log added nothing |
 | 1 | `snap --watch` | **SKIPPED** — no streaming or transient surface on this section |
 | 2 | `design-audit / --goto characters` | **RAN** — 1 finding (P3 `flat-type-hierarchy`, page-wide), census 311, `pointer=fine` |
 | 2 | `design-audit … --mobile` | **RAN** — 2 findings (P2 tap-target 40×44 → filed; P3 flat-type), census 335, `pointer=coarse`, 4 obscured candidates correctly WITHHELD |
@@ -642,7 +642,7 @@ and I do not cite it as a clean bill.
 | `[perf] slow commit region:content 17–20ms (mount)` | **section mount** — under the 50ms bar, not filed |
 | `[perf] slow commit region:list 18–31ms (nested-update)` | **INVESTIGATE → filed** as the section-entry long-task P3; note the prior pass's "551-row vocabulary" attribution is refuted (28 rows today, cost unchanged) |
 | `[cls] shift 0.0221–0.0293 · CLS … (virtualized 0.0000)` | **within budget** (0.1) — boot settle |
-| console errors / page errors | **0 across every run, every arm** (~25 runs) |
+| console errors / page errors | **0 across every run, every arm** (\~25 runs) |
 
 ---
 
@@ -695,11 +695,11 @@ two lines in the bulk bar; the context `Field` tab contains no fields and duplic
 `Options` tabs; the import dialog states one fact three times; multi-select uses round toggles.
 
 **ALREADY FILED / VERIFIED FIXED (no new row needed).** #501/#255 (library stays docked on selection),
-#518 (census single-homed — the second line is a 1×1 `role=status` mirror), #513 (context pane carries
+\#518 (census single-homed — the second line is a 1×1 `role=status` mirror), #513 (context pane carries
 distinct Origin/Links/Options/Activity), #502 (token gloss: `title` + `aria-label` both present), the
 filter-block proportion and nested-scroller P1s (chrome 272→180–192px, exactly one scroller, density
 now moves it), and the 563-keyboard-stop P1 (skip link: Tab → Enter → first row inside the scroller).
-#512 stays accepted — both Lighthouse arms still fail `label-content-name-mismatch` at `weight: 0`, as
+\#512 stays accepted — both Lighthouse arms still fail `label-content-name-mismatch` at `weight: 0`, as
 the ruling anticipated.
 
 **COVERAGE GAP for the board.** The card-atlas hub-ingest delta this pass was briefed to cover was not

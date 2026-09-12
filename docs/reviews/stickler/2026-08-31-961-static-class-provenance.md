@@ -141,7 +141,7 @@ dynamicOverwrite.opaque = []
 dynamicOverwrite.unresolved = []
 ```
 
-#961 requires object/spread resolution with overwrite order and explicit opaque/unresolved accounting. The
+\#961 requires object/spread resolution with overwrite order and explicit opaque/unresolved accounting. The
 separate `evaluateStaticObjectProperties` overwrite test is real, but it exercises `findObjectProperties`,
 not the `evalObjectMember` path used by ordinary `props.className`, so it cannot catch this defect.
 
@@ -241,10 +241,11 @@ max RSS=2,744,368 KB
 exit=0
 ```
 
-  This confirms bounded completion and closely reproduces the receipt's 39.77s / 2,756,864 KB ceiling.
-  The receipt's `3223 declared / 2390 exact-runtime / 833 opaque` are consumer-policy counters rather than
-  the substrate's root/candidate counters; the dirty-root structure output reproduced those consumer counts
-  but is not exact-SHA integration evidence.
+This confirms bounded completion and closely reproduces the receipt's 39.77s / 2,756,864 KB ceiling.
+The receipt's `3223 declared / 2390 exact-runtime / 833 opaque` are consumer-policy counters rather than
+the substrate's root/candidate counters; the dirty-root structure output reproduced those consumer counts
+but is not exact-SHA integration evidence.
+
 - An exploratory 6,295-project-file walk plus real probes also completed (2,556 roots, 2,541 candidates,
   48 prefixes, 853 opaque, zero unresolved) in 4:42.17 at 6,519,552 KB RSS. It was broader than the required
   client/UI census and ran under host contention, so its timing is recorded but not used as the bounded

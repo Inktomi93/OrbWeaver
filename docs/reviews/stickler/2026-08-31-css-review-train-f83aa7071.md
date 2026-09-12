@@ -15,7 +15,7 @@ The Tailwind Variants return-contract repair in `f83aa7071` is behaviorally corr
 but #949 still owns dead exported API surface and therefore is not statically complete.
 
 | Issue | Verdict | Board action now | Exact remaining work |
-| --- | --- | --- | --- |
+| - | - | - | - |
 | #935 | **REFUTED** | Remain Review | Make the descriptor's planted controls fire under the real conformance runner; generate and execute the declared two-arm behavior at every carrier rather than only compare the two manifest literals; repair its ESLint, structure, fixture-import, type-home, knip, caught-failure marker, CT-reporter, and catalog-receipt failures. |
 | #949 | **REFUTED** (behavior and `f83aa7071` return repair **confirmed**) | Remain Review | Remove or deliberately consume the unused exported `OrbCssHandle` and `CssClassOccurrence` API surface, then rerun knip/static. The previously reported `css-merge-parity.int.test.ts` possibly-undefined error did **not** reproduce at this SHA. |
 | #951 | **REFUTED** | Remain Review | Repair the shared #961/#965 producer graph so the three live shell class writers are recovered; do not move/delete their CSS and do not refresh the four downstream census counts. Home/derive `ProductStylesheet` and `SelectorCombinator`, and remove the unused `readDirectThemeDeclarations` export. |
@@ -185,13 +185,13 @@ cohesive helpers or perform the separately authorized ratchet workflow; do not s
 - Focused #935 Playwright CT: two raw tests passed. The command still exited nonzero because the unfed-read
   reporter refused the message-row file's missing `routeTrpc` marker, so this is not represented as a full
   CT verdict.
-- #957 literal sweep: no live TS/TSX/CSS `ctx-tab-strip` spelling remains. Ast-grep scanned 4,970 TS and
+- \#957 literal sweep: no live TS/TSX/CSS `ctx-tab-strip` spelling remains. Ast-grep scanned 4,970 TS and
   1,323 TSX files with zero string-literal hits; `rg` found only amended/historical docs, comments, and a
   negative CT count assertion.
-- #949 return contract: empty ordinary → `""`, empty slot → `""`, extension metadata/composition, one
+- \#949 return contract: empty ordinary → `""`, empty slot → `""`, extension metadata/composition, one
   final Orb merge, cold/warm graph equality, 14 governed families, and two-direction parity controls all
   passed.
-- #950, #883, and #969 were excluded from judgment as instructed.
+- \#950, #883, and #969 were excluded from judgment as instructed.
 
 ## Authority and coverage log
 

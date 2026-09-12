@@ -61,7 +61,6 @@ fine / 64×44 coarse class) so the budgets are honest; (f) a chat-tier row the c
 previous host's, #1739) is drawn marked `previous host` with no switch and a menu that says so; (g) kebabs carry
 the script's name in their accessible name; (h) vocabulary per §4 v2.
 
-
 | Slot | What it is | Semantics |
 | - | - | - |
 | Kicker `REGEX · 6` + chevron | `HeadingWithCount`; N = scripts in force **after dedup** (a chip that counts pre-dedup lies on the panel's face) | closed by default |
@@ -113,7 +112,7 @@ parameter on it. Members see `ONLY HERE` read-only (controls omitted, the Lorebo
 | display leg | `HostDisplayScriptsControl` + `useDisplayScripts` | move the control into the section | S |
 
 First commit = the read + the master/tier blob + the section mounting the built picker and order editor;
-#1733 lands with it or before it.
+\#1733 lands with it or before it.
 
 ## 7. Build obligations minted by the reviews (beyond §3)
 

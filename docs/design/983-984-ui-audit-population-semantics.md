@@ -663,7 +663,7 @@ noTypeSize)` · `withheld(glyphAdvanceUnmeasured, chAdvanceUnmeasured)`.
 
 Two members are new and both are #1183. The first is a UNIT correction, not an accounting one: the rule
 compared a 65-75 **law-character** band against a CSS `ch` count. CSS `ch` is the `0` advance (0.6625em in
-Geist) while a character of running prose averages 0.42-0.46em, so one `ch` is ~1.5 law-characters (owner
+Geist) while a character of running prose averages 0.42-0.46em, so one `ch` is \~1.5 law-characters (owner
 ruling 2026-09-02, #1145) and a 75ch paragraph passed a "75" ceiling at 117 real characters. The rule now
 judges by the AVERAGE GLYPH ADVANCE of the element's own text, canvas-measured in its own font, and prints
 BOTH numbers in every finding — the two units are the defect, so a row naming one of them cannot be checked
@@ -671,7 +671,7 @@ against the token it cites. The two reading measures are two ARMS: the chat tran
 (`[data-slot="message-bubble"]`) keeps `--reading-measure` (75ch) and is judged in `ch` against its own
 token, so #464's ruling — an instrument may not indict the ratified measure — survives verbatim in the arm
 where 75ch is still ratified; everything else takes `--reading-measure-prose` and is judged against 80
-law-characters, ~10% above the token's 67-73. Each arm withholds under its OWN denominator's name, because
+law-characters, \~10% above the token's 67-73. Each arm withholds under its OWN denominator's name, because
 "the `0` advance was unreadable" and "the prose advance was unreadable" are different blindnesses.
 
 The second is a POPULATION correction. `notProseTag` was one label over two different facts and covered 55

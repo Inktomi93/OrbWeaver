@@ -14,7 +14,7 @@ and it **changes the recommendation both of them landed on**.
 ## 0. The verdict in five lines
 
 1. `structure:full` reproduces at **300.8s** on today's tree (236 gates, 6,294 files) — up from the
-   ~257s median those studies measured, because the corpus and gate count grew.
+   \~257s median those studies measured, because the corpus and gate count grew.
 2. **Item B′ confirms and is under-priced**: the `(compilerNode, kind)` memo takes the pass to
    **137.1s**, findings and scan records byte-identical across all 236 gates, proven with a
    two-direction planted control. That is **−164s**, not the **−110s** #888 states.
@@ -88,8 +88,8 @@ Every hot ts-morph call attributed to the gate that made it, on the memoized pas
 | `forEachDescendant` | 30,041 | 11,084 | 0.37 |
 | `getSymbol` | 124,057 | 7,844 | 0.06 |
 | `getType` | 55,920 | 6,385 | 0.11 |
-| `getText` | 3,013,396 | 1,161 | ~0 |
-| `getFullText` | 17,072,962 | 516 | ~0 |
+| `getText` | 3,013,396 | 1,161 | \~0 |
+| `getFullText` | 17,072,962 | 516 | \~0 |
 
 `getDescendants()` costs as much as `getDescendantsOfKind` from **33× fewer calls** — 32× more per
 call, because kind-less traversal takes ts-morph's token-materializing path
@@ -158,7 +158,7 @@ RUNPASS 274258ms  gates=266  toolErrors=0     (baseline same rig: 277649ms, gate
 ```
 
 **15.8 million additional dispatches did not make the pass slower.** The cost is bounded by run-to-run
-variance, so under ~0.3µs per dispatch. The shared walk already pays the traversal and the kind lookup
+variance, so under \~0.3µs per dispatch. The shared walk already pays the traversal and the kind lookup
 for every node; another subscriber only extends an inner loop.
 
 ### 5.2 Therefore the unified model, which is already the law
@@ -211,7 +211,7 @@ the corpus it is measuring):
   and regex gates run ON the text, which no text cache can touch. First attempt returned
   `hits=0 misses=0` because `SourceFile.prototype` shadows `Node.prototype.getFullText`; that zero was
   an instrument failure, not a result, and is recorded here so nobody re-derives it as one.
-- **#889 (stage overlap) was measured and is worth ~43s, not ~100s** — see §7. Not pursued further by
+- **#889 (stage overlap) was measured and is worth \~43s, not \~100s** — see §7. Not pursued further by
   owner ruling.
 - **I did not run `pnpm check` or `pnpm test`.** The correctness evidence is the 236-gate
   findings-and-scan fingerprint diff with its control matrix, not a suite run.
@@ -227,7 +227,7 @@ Two shapes, both on warm caches:
   (−43.2s)**, the small stages hiding entirely behind the pole, which paid only **+11.4s (+4%)**. Load
   settled at 4.78.
 
-Real but worth ~43s on the 6 stages measured (of ~16), and worth less once the pole shortens.
+Real but worth \~43s on the 6 stages measured (of \~16), and worth less once the pole shortens.
 **Owner ruled 2026-08-31 not to pursue stage overlap.** Recorded here so the measurement is not redone.
 
 ## 8. Incidental findings

@@ -10,7 +10,7 @@ updated: 2026-08-24
 > `docs/design/interaction-direction-spec.md`: every user-facing surface gets a SECTION · REGION
 > (LIST|CONTENT|CONTEXT) · ANCHOR/REGISTRY home · MOBILE posture · the physics rules it obeys,
 > each with a law receipt (`UI-Architecture-and-Layout.md` = "UI §", `client-architecture-lockdown.md`
-> = "LD §", SET-SEAMS, D66/D62/D121). One adversarial stickler round run to convergence. Spec
+> \= "LD §", SET-SEAMS, D66/D62/D121). One adversarial stickler round run to convergence. Spec
 > deltas this pass forces are FLAGGED in §4 — the committed spec is not edited.
 >
 > **The one as-built correction everything below keys on:** UI §4.2's per-section grid lists the
@@ -108,7 +108,7 @@ transcript violates the reading surface's quiet (rule 9) and the thread's virtua
 
 ### 2.4 Reaction pills under the #220 band budget
 
-#220's lesson, located precisely (stickler-corrected): the inverted band was the NAME band —
+\#220's lesson, located precisely (stickler-corrected): the inverted band was the NAME band —
 the bubble HEADER (speaker 16% wrapped ×3, action cluster 73%; fixed identity-first, actions
 collapsed to a 48px inline+menu, credit `HIDE_AT_COARSE`). The pills' placed home is a
 DIFFERENT band: `message-footer` is its own stack BELOW the bubble, rendered after
@@ -182,8 +182,8 @@ inside one room hides the library (rule 10's one-home would break the day two ro
 3. **Δ3 (B9):** "render home named at build" is now NAMED: a `thread-flank` chat-surface
    contribution rendering `SegmentedClock`.
 4. **Δ4 (B5):** two small costs the spec's B5 cell didn't name: a `SlashCommandContribution` row
-   + an `imageEdit` `ModalDefinition` (both door-registry members; `modal-registry-completeness`
-   + the trigger-placement vocabulary are their enforcers).
+   - an `imageEdit` `ModalDefinition` (both door-registry members; `modal-registry-completeness`
+   - the trigger-placement vocabulary are their enforcers).
 5. **Δ5 (B10):** one cost the spec's B10 cell didn't name: the Configuration
    `CollectionContribution` (the library-management home) — LIST group + CONTENT editor ride the
    section's existing machinery.

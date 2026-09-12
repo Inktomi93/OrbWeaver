@@ -7,13 +7,30 @@
 // The re-export shim imports the REAL module by absolute file URL, so the descriptor the stage runs is the
 // production-branded object (the loader's identity law refuses a copy) and the shim's basename is the policy id
 // (the filename law).
+//
+// EVERY PROOF-ROW COUNT HERE IS DERIVED, NEVER A LITERAL (#1969, refuted-and-repaired 2026-09-12). The first
+// repair of this row replaced a hard-coded corpus denominator with ANOTHER hard-coded number and then bumped
+// it 8→9 and 10→11 when a shimmed policy grew a row — which is the exact rot #1969 exists to forbid ("THE
+// FLOOR IS A PROPERTY, NOT A NUMBER", `conformance.int.test.ts`). A count that must be edited when somebody
+// else's correct work lands is the defect whatever its value, so the real policies' rows are read off the
+// policies themselves and the planted policy's rows are authored ONCE, as data, and interpolated into its
+// source. Arm 2's grant counts were already derived this way and are the shape the rest now follows.
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
+import { gate as baseuiRenderProp } from "../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
+import { gate as routeImportsNoFeature } from "../../../../tooling/src/verify/gates/route-imports-no-feature.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const GATES = "tooling/src/verify/gates";
 const CLI_TIMEOUT_MS = scaledBudget(120_000);
+
+/** What the stage COUNTS for one policy: both proof arms. Read off the policy so a lane adding a row to a
+ *  shimmed gate never has to find this file. */
+function proofRows(...policies: readonly GatePolicy[]): number {
+  return policies.reduce((total, policy) => total + policy.mustFlag.length + policy.mustPass.length, 0);
+}
 
 /** A minimal VALID legacy descriptor — the stage's non-subject. */
 const LEGACY_GATE =
@@ -22,6 +39,15 @@ const LEGACY_GATE =
 function realPolicyShim(repoRoot: string, id: string): string {
   return `export { gate } from ${JSON.stringify(pathToFileURL(join(repoRoot, GATES, `${id}.ts`)).href)};\n`;
 }
+
+/** The planted policy's proof rows, authored ONCE as data and interpolated into its source below — so the
+ *  count the stage prints and the count this file asserts cannot drift apart. */
+const BROKEN_WHY = "the founding defect that this policy can no longer see";
+const BROKEN_MUST_FLAG: readonly GatePolicyProof[] = [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, why: BROKEN_WHY }];
+const BROKEN_MUST_PASS: readonly GatePolicyProof[] = [
+  { mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" },
+];
+const BROKEN_PROOF_ROWS = BROKEN_MUST_FLAG.length + BROKEN_MUST_PASS.length;
 
 /** A final policy whose founding mustFlag row CANNOT bite: the visitor reports nothing, so `mustFlag[0]` is a lie. */
 function brokenPolicy(repoRoot: string): string {
@@ -39,8 +65,8 @@ export const gate = defineGate({
   resources: [],
   message: "planted broken policy",
   create: () => ({ evaluate: () => undefined }),
-  mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\\n" }, why: "the founding defect that this policy can no longer see" }],
-  mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\\n" }, why: "nearest legal shape" }],
+  mustFlag: ${JSON.stringify(BROKEN_MUST_FLAG)},
+  mustPass: ${JSON.stringify(BROKEN_MUST_PASS)},
 } as never);
 `;
 }
@@ -56,9 +82,11 @@ test("a corpus whose final policies all prove is CLEAN, and the summary names th
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(0);
-  // The real policy carries 4 mustFlag + 4 mustPass rows; the legacy module is counted, never proven here. The
+  // The real policy's OWN row count is the denominator; the legacy module is counted, never proven here. The
   // grant table is NOT part of this planted world, so only rows naming loaded policies are judged — none here.
-  expect(res.stdout).toContain("policy-conformance: 1 final policies · 9 proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid");
+  expect(res.stdout).toContain(
+    `policy-conformance: 1 final policies · ${String(proofRows(baseuiRenderProp))} proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
+  );
   expect(res.stdout).toContain("(corpus: 2 module(s), 1 legacy proven by gate-conformance)");
 });
 
@@ -71,7 +99,8 @@ test("a planted root that carries a REVIEWED-GRANT target judges that policy's r
   });
   const judged = await runCli("verify", ["policy-conformance"], { cwd: partial, timeoutMs: CLI_TIMEOUT_MS });
   await expect(judged).toExitWith(0);
-  expect(judged.stdout).toMatch(/1 final policies · 5 proof rows · 0 failure\(s\) · [1-9]\d* grant rows \(rows naming loaded policies\) · 0 invalid/u);
+  expect(judged.stdout).toContain(`1 final policies · ${String(proofRows(routeImportsNoFeature))} proof rows · 0 failure(s) · `);
+  expect(judged.stdout).toMatch(/· [1-9]\d* grant rows \(rows naming loaded policies\) · 0 invalid/u);
 
   // Arm 2 — THE WHOLE-TABLE CONTROL: the same one-policy corpus, but the table's own module is planted under the
   // root (a re-export of the real table), so the table is a member of the corpus being judged and is judged WHOLE.
@@ -106,8 +135,8 @@ test("a policy whose own proof fails is a TOOL ERROR naming policy, arm, row ind
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
-  expect(res.stdout).toContain("2 final policies · 11 proof rows · 1 failure(s)");
-  expect(res.stdout).toContain("✗ planted-broken · mustFlag[0] · the founding defect that this policy can no longer see");
+  expect(res.stdout).toContain(`2 final policies · ${String(proofRows(baseuiRenderProp) + BROKEN_PROOF_ROWS)} proof rows · 1 failure(s)`);
+  expect(res.stdout).toContain(`✗ planted-broken · mustFlag[0] · ${BROKEN_WHY}`);
   expect(res.stdout).toContain("expected at least one effective finding but got 0");
   expect(res.stdout).toContain("the checker is broken, not the tree (exit 2)");
 });

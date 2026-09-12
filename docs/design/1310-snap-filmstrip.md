@@ -28,12 +28,12 @@ This is smaller and more truthful than a third lifecycle union or a capture.ts f
 
 Every capture host must invoke the same lifecycle:
 
-| Host                                      | Integration                                                                                                                                                                                     |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ordinary one-shot / named session / pages | Existing `beginRunArms` → `capturePages`; gains total `afterSettle`                                                                                                                             |
-| contexts                                  | Begin enabled run arms on the existing session, prepare once, pass them into each exact context capture, then measure/report/facts once                                                         |
-| scenario checkpoint                       | Begin run arms from that checkpoint's inherited args, prepare before its capture, measure/report/facts after it; one fact batch per checkpoint                                                  |
-| matrix                                    | Ordinary cells already use `runOnSession`; scenario cells inherit the checkpoint host. Each disposable environment context captures its own exact page; matrix contexts never become identities |
+| Host | Integration |
+| - | - |
+| ordinary one-shot / named session / pages | Existing `beginRunArms` → `capturePages`; gains total `afterSettle` |
+| contexts | Begin enabled run arms on the existing session, prepare once, pass them into each exact context capture, then measure/report/facts once |
+| scenario checkpoint | Begin run arms from that checkpoint's inherited args, prepare before its capture, measure/report/facts after it; one fact batch per checkpoint |
+| matrix | Ordinary cells already use `runOnSession`; scenario cells inherit the checkpoint host. Each disposable environment context captures its own exact page; matrix contexts never become identities |
 
 The architectural fork is whether contexts/scenarios host run arms generically or filmstrip grows private hooks. Recommendation: generic hosting. A private filmstrip door would be the second lifecycle implementation this program explicitly forbids.
 
@@ -53,12 +53,12 @@ No WebM is retained. Playwright video requires context creation and caused Recor
 
 Filmstrip owns a pixel buffer, not a diagnostic ring. It may reuse #1308's monotonic-cursor and measured-limit vocabulary, but not its record capacities.
 
-| Limit               | Initial policy                                     | Receipt                                         |
-| ------------------- | -------------------------------------------------- | ----------------------------------------------- |
-| frames              | 48 retained frames                                 | observed / retained / omitted                   |
-| encoded frame bytes | 32 MiB aggregate                                   | observed bytes / retained bytes / omitted bytes |
-| capture duration    | 15 seconds                                         | elapsed / cap / frames omitted after cap        |
-| source dimensions   | CDP max width 640, max height 480, JPEG quality 70 | declared in artifact completeness detail        |
+| Limit | Initial policy | Receipt |
+| - | - | - |
+| frames | 48 retained frames | observed / retained / omitted |
+| encoded frame bytes | 32 MiB aggregate | observed bytes / retained bytes / omitted bytes |
+| capture duration | 15 seconds | elapsed / cap / frames omitted after cap |
+| source dimensions | CDP max width 640, max height 480, JPEG quality 70 | declared in artifact completeness detail |
 
 The duration timer stops the CDP screencast; later action markers remain recorded as outside the capture window. Count/byte caps keep acknowledging but omit payloads. Ordering is arrival sequence; relative timestamps use monotonic elapsed time from start. Every frame is labelled with the latest preceding argv action marker or `before actions`.
 

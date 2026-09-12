@@ -58,7 +58,7 @@ piece landing alone, owner-testable, byte-identical when off.
     Every message/variant carries author identity (`messages.authorUserId`/`characterId`; the
     D137 cast producer resolves every referenced identity through ONE kind-discriminated home).
     Any future in-room agent is class-2-sequential = a seat + attribution = **exactly parked
-    #13, nothing less** — this spec builds none of it and depends on none of it.
+    \#13, nothing less** — this spec builds none of it and depends on none of it.
   - **CONCURRENT** — contributes alongside a turn WITHOUT a slot. The pattern exemplar is the
     D109 state round (a post-commit model call keyed to the committed variant — never a message);
     reactions are the human-and-character concurrent form (canon junction rows attributed to a
@@ -106,6 +106,7 @@ dig are marked **LEGACY-INFORMED**.)
 ONE registry + behavior contract for TRANSIENT interactive controls near the transcript/composer.
 Generalizes the click/consume contract `choice-send-provider.tsx` already spells (own
 `useSendMessage`, busy from shared turn phase, compose default in non-game chats — file header).
+
 - HOME: control-kind union + descriptors at the chat feature's composition tier
   (`packages/client/src/features/chat/`, the D70 registry tier); wire payloads in
   `@orb/contracts/automation`. ENFORCER: compile (`CONTROL_KINDS` + exhaustive
@@ -134,6 +135,7 @@ Generalizes the click/consume contract `choice-send-provider.tsx` already spells
 
 ONE per-chat assembly of "what this chat's model is told it can do," collected from registered
 contributions, delivered on the existing injections merge. rpg is contributor #0, byte-unchanged.
+
 - WIRING — **the final contract, stated ONCE (frozen at A1; R2 is part of it, not a later
   re-type):** the collection call sits in chat's `buildTurnContext` AFTER
   `ctx.rpg.gatherTurnContext(...)` (`turn.ts:561-577`); a `TeachingContribution` is
@@ -183,6 +185,7 @@ through the EXISTING `createRule` validation (never bypassed; `verbs/create-rule
 as knobs — the admin-console failure smaller). Pure turn-cadence presets need NO counter at all:
 `chat.messageCount` is already an env binding (`contracts/automation/index.ts:315`), so "every N
 beats" is the single predicate `chat.messageCount % N == 0`.
+
 - The preset table (v1 committed + owner-OPTIONAL rows marked ⭘; every row maps to EXISTING arms —
   receipts `contracts/automation/index.ts:160-247`):
 
@@ -217,6 +220,7 @@ budgets table is "the per-chat FIRE-RATE ceiling", `db/schema/automation.ts:127`
 `contract/ops.ts:73-75,95-97`) ⇒ a SUGGESTION the HOST confirms; structured-output-only ⇒ no
 tools (D109-4). The fourth-posture redline: direct execution without standing authority never
 exists.
+
 - Storage: in-RAM pending map keyed `(chatId, ruleId)`, replace-per-kind, TTL. **LEGACY-INFORMED —
   this is now a proven precedent, not a lean:** buddy's propose/confirm gate was EXACTLY this shape
   (`legacy-main:packages/server/src/domain/buddy/agency/proposals.ts` — module-scope map, 5-min
@@ -314,6 +318,7 @@ a guided-template nudge" claim is hereby retracted as an overclaim):
    (`chat.messageCount` is an env binding, `contracts/automation/index.ts:315` — no counter
    variable, no second rule) plus `event.turn.automationDepth == 0` guards — the legacy
    turn-counter's semantics without a scheduler and without state.
+
 - **Costs, priced:** contracts — 1 new `AUTOMATION_ACTION_TYPES` member + schema arm (+ its
   arm-cap interplay: none; ordinary member) + the output-op union; engine — the executor + dry-run
   preview arm (`substrate/dry-run.ts` renders arm previews — the new arm needs its preview) +
@@ -414,7 +419,7 @@ shipped (the graft rule, `lite-plus-guided-substrate-spec.md` §0.5).
 **§7.4 Acceptance matrix:** the systems-audit authority table (Q2b) is carried as this path's
 per-action acceptance floor — every landed step's tests must witness its row (Principal /
 triggeredBy-runAs / gate / capability axis) — with THREE corrections baked in over the superseded
-text: trigger_turn's triggeredBy = the rule AUTHOR as funder (`turn.ts:2496-2498`); per-mode S1
+text: trigger\_turn's triggeredBy = the rule AUTHOR as funder (`turn.ts:2496-2498`); per-mode S1
 busy semantics (§3-S1); and the Q2b "budgets (cooldown / per-hour / spend $)" cell is STALE — the
 $/day spend ceiling was stripped from automation (`contract/ops.ts:73-75,95-97`); the live gate
 set is rate caps + depth + D17 consent.
@@ -451,7 +456,7 @@ set is rate caps + depth + D17 consent.
    stores a segment index.
 3. `AUTHORS_NOTE_DEFAULT_DEPTH` has no retro constant (legacy import; zero grep hits in
    `packages/contracts/src`) — the S2 guidance contribution needs its depth argued at build (a
-   domain constant, PD-63-compliant single placement); probe: read the current in_chat depth
+   domain constant, PD-63-compliant single placement); probe: read the current in\_chat depth
    conventions in `assembly/context.ts` candidate builders before picking.
 4. The `run_analysis` window read — "recent selected-lineage window" needs the exact read
    substrate (the memory transcript substrate vs a direct message read); probe: `pnpm ast refs`

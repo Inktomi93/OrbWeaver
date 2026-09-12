@@ -50,7 +50,7 @@ Downstream report, issue, fix, and commit links require the tool input itself to
 ## Corpus and pairing controls
 
 | Account | Files | Bytes | Lines | Top-level tool uses | Bash uses | Top-level results | Paired results | Parse errors |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| - | -: | -: | -: | -: | -: | -: | -: | -: |
 | Claude | 855 | 1,690,301,741 | 398,314 | 123,407 | 69,820 | 123,402 | 121,673 | 0 |
 | Claude-b | 697 | 1,603,885,494 | 343,958 | 100,160 | 61,573 | 100,159 | 100,125 | 14 |
 | **Total** | **1,552** | **3,294,187,235** | **742,272** | **223,567** | **131,393** | **223,561** | **221,798** | **14** |
@@ -83,7 +83,7 @@ The broader Record family also includes three direct `tooling/src/screen-record/
 ## Invocation census
 
 | Family | Calls | Success | Misuse | Tool error | Violation | First use | Last use | Package alias | Direct entry point |
-|---|---:|---:|---:|---:|---:|---|---|---:|---:|
+| - | -: | -: | -: | -: | -: | - | - | -: | -: |
 | Snap | 4,623 | 4,199 | 96 | 328 | 0 | 2026-07-27T01:10:33Z | 2026-09-03T13:42:11Z | 4,212 | 411 |
 | design/ui-audit | 381 | 289 | 39 | 53 | 0 | 2026-07-27T03:08:10Z | 2026-09-03T13:41:45Z | 352 | 29 |
 | motion-audit | 87 | 49 | 13 | 25 | 0 | 2026-08-09T07:06:18Z | 2026-09-03T13:28:49Z | 79 | 8 |
@@ -95,7 +95,7 @@ Direct Snap execution separates into 271 historical `scripts/probes/snap.ts` cal
 ### By account
 
 | Account/family | Calls | Success | Misuse | Tool error | First | Last | Retries | Corrected retries |
-|---|---:|---:|---:|---:|---|---|---:|---:|
+| - | -: | -: | -: | -: | - | - | -: | -: |
 | Claude / Snap | 2,415 | 2,196 | 48 | 171 | 2026-07-27 | 2026-09-03 | 181 | 83 |
 | Claude-b / Snap | 2,208 | 2,003 | 48 | 157 | 2026-08-08 | 2026-09-03 | 178 | 84 |
 | Claude / design-audit | 137 | 104 | 14 | 19 | 2026-07-27 | 2026-09-02 | 23 | 11 |
@@ -112,7 +112,7 @@ Subagents drove almost all rendered tools: 4,319/4,623 Snap calls, 373/381 desig
 ### ISO-week windows, both accounts combined
 
 | Week | Family | Calls | Success | Misuse | Tool error |
-|---|---|---:|---:|---:|---:|
+| - | - | -: | -: | -: | -: |
 | 2026-W31 | Snap | 466 | 414 | 16 | 36 |
 | 2026-W31 | design-audit | 5 | 5 | 0 | 0 |
 | 2026-W32 | Snap | 880 | 807 | 15 | 58 |
@@ -144,7 +144,7 @@ The W36 failure increase coincides with the unified-instrument migration and its
 Top actual flag spellings:
 
 | Family | Most-used flags |
-|---|---|
+| - | - |
 | Snap | `--eval` 4,366; `--click` 2,801; `--goto` 2,237; `--out` 2,202; `--no-shot` 1,668; `--wait-for` 1,283; `--open-chat` 1,242; `--idle` 1,027; `--key` 904; `--contrast` 862; `--isolated` 516; `--jsclick` 510; `--map` 500; `--context-tab` 495; `--aria` 377 |
 | design-audit | `--goto` 178; `--click` 103; `--out` 82; `--mobile` 79; `--open-chat` 63; `--fail-on` 56; `--isolated` 53; `--ref` 43; `--help` 37; `--context-tab` 33 |
 | motion-audit | `--goto` 44; `--selector` 20; `--help` 14; `--full-motion` 13; `--window` 9; `--open-chat` 5; `--os-reduced-motion` 4 |
@@ -160,7 +160,7 @@ The strongest recipe signal is the disparity between raw action use and reusable
 Only clusters established by result text are listed.
 
 | Family | Failed/misused | Classified clusters | Retry attempts | Corrected retries |
-|---|---:|---|---:|---:|
+| - | -: | - | -: | -: |
 | Snap | 424 | selector 60; argv 50; timeout 32; navigation 26; instrumentation 9; environment 1 | 359 | 167 |
 | design-audit | 92 | argv 32; selector 31; navigation 6; instrumentation 2; environment 1 | 55 | 22 |
 | motion-audit | 38 | argv 13; instrumentation 10; selector 6; timeout 2 | 14 | 7 |
@@ -181,7 +181,7 @@ No paired rendered-tool result established a hook/policy violation.
 “Result-listed success” below means a successful invocation's paired result named at least one artifact of that extension. It is not a filesystem inventory. Consumption counts are later exact path/stem references and can exceed invocation counts when multiple artifacts were read.
 
 | Family | Result-listed success artifacts | Opened | Parsed | Listed | Cited | Consumption by extension |
-|---|---|---:|---:|---:|---:|---|
+| - | - | -: | -: | -: | -: | - |
 | Snap | PNG 1,056; MD 451; JSON 293; ZIP 175; HAR 172; HTML 32; TXT 12 | 457 | 282 | 9 | 118 | PNG 709; JSON 44; HTML 24; MD 16; TXT 13; directory 60; **HAR 0; ZIP 0** |
 | design-audit | JSON 175; PNG 3; HTML 3 | 2 | 71 | 1 | 23 | JSON 82; HTML 4; PNG 4; directory 7 |
 | motion-audit | JSON 2 | 0 | 1 | 0 | 0 | directory 1 |
@@ -198,7 +198,7 @@ The hard conclusions:
 ### Explicit downstream evidence links
 
 | Producer | Report | Fix | Issue | Commit |
-|---|---:|---:|---:|---:|
+| - | -: | -: | -: | -: |
 | Snap | 23 | 17 | 1 | 0 |
 | design-audit | 6 | 2 | 0 | 0 |
 | perf-meter | 3 | 0 | 0 | 0 |

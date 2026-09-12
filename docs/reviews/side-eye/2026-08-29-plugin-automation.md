@@ -31,10 +31,12 @@ polish-tier (tap targets, one mobile collision, empty-state and a11y-name nits).
 ## Findings (ranked)
 
 ### P2 — Mobile plugin-row header collides: toggle overlaps the status badge + Update button
-`Settings → Plugins → Installed`, ~390px. On the Draft Polish row the long status badge
+
+`Settings → Plugins → Installed`, \~390px. On the Draft Polish row the long status badge
 "Off — asked for more than you allowed" collides with the toggle switch (white knob painted OVER
-"…more th[an]…") and the "Update" button box overlaps the badge. The Affinity Tracker row above (short
+"…more th\[an]…") and the "Update" button box overlaps the badge. The Affinity Tracker row above (short
 "Off" badge) fits fine — so the row header does not reflow when the badge string is long.
+
 - Why it hurts: on a phone, the status of a security-consent row is occluded/garbled — exactly the
   place a user needs to read "asked for more than you allowed" clearly. Riley (long-string) breaks it.
 - Fix: at narrow container widths wrap the header (name → badge on its own line, controls below) or
@@ -42,22 +44,25 @@ polish-tier (tap targets, one mobile collision, empty-state and a11y-name nits).
 - Receipt: `reports/snaps/plug-mobile.png`.
 
 ### P2 — Consent-grant checkboxes are an 18×18px hit area (32×32 on mobile); the label isn't clickable
+
 `Settings → Plugins`, the per-capability grant checkboxes. The clickable target is the
 `SPAN.checkbox` itself: 18×18px desktop (`cursor:pointer`, `elementFromPoint` = the span), 32×32px
 under coarse pointer — under the 44px recommendation, and the descriptive label text to its left is a
 separate, non-clickable element.
+
 - Why it hurts: these checkboxes GRANT CAPABILITIES (net access, model spend, message rewrite). A
   cramped, box-only target on a security decision invites mis-taps, and there's a lot of empty row to
   the left that does nothing.
 - Fix: make the whole capability row the toggle target (wrap label+box in the control), and/or grow
   the box to a 44px hit area. `adapt`.
-- Receipt: `snap --eval` hit-test (clickable = 18×18 SPAN.checkbox, cursor pointer); `design-audit
-  --goto settings:plugins --mobile` → 23×P2 tap-target `32×32px`.
+- Receipt: `snap --eval` hit-test (clickable = 18×18 SPAN.checkbox, cursor pointer); `design-audit --goto settings:plugins --mobile` → 23×P2 tap-target `32×32px`.
 
 ### P2 — Disclosure buttons ("What it's allowed to do" / "Recent activity") are 16px tall
-`Settings → Plugins`, the two collapsible triggers on every installed-plugin row. Full width (~746px)
+
+`Settings → Plugins`, the two collapsible triggers on every installed-plugin row. Full width (\~746px)
 but only 16px tall — below the 24px fine-pointer floor AND still 16px (below the 32px hard floor)
 under coarse pointer, i.e. they do NOT get an expanded touch hit area on mobile.
+
 - Why it hurts: a 16px-tall strip is a vertical mis-tap risk on touch, on the surface where users
   inspect what a plugin can do / what it's done.
 - Fix: give the collapsible triggers a ≥32px (ideally 44px) vertical hit area (padding/min-height).
@@ -67,9 +72,11 @@ under coarse pointer, i.e. they do NOT get an expanded touch hit area on mobile.
   "below the 32px hard floor".
 
 ### P3 — WCAG 2.5.3 Label-in-Name: disclosure trigger visible text ≠ accessible name
+
 The "What it's allowed to do" buttons carry `aria-label="What <Plugin> is allowed to do"` (e.g.
 "What Affinity Tracker is allowed to do"), which does NOT contain the visible words "What it's allowed
 to do".
+
 - Why it hurts: a voice-control user saying "click what it's allowed to do" can't match the control
   (Sam). The per-plugin disambiguation is good for screen readers but should still contain the visible
   label.
@@ -79,10 +86,12 @@ to do".
   `label-content-name-mismatch`, 3 nodes; `reports/lighthouse-plugins/report.json`.
 
 ### P3 — Grant-checkbox accessible names are run-on and redundant
+
 The consent checkboxes are `aria-labelledby` a single element whose textContent is
 `"Rewrite your outgoing messages (new in this update)NewReaches further"` — the badge pills ("New",
 "Reaches further") are inside the label with no separator, and "(new in this update)" is repeated by
 the adjacent "New" badge.
+
 - Why it hurts: a screen-reader user hears the redundancy + run-on on every capability row (matches
   the `ListRow.markers` run-on-spoken-text lesson).
 - Fix: drop the "New" badge from the accessible name (decorative), or separate the badge text; remove
@@ -90,10 +99,12 @@ the adjacent "New" badge.
 - Receipt: `snap --eval` on the checkbox `aria-labelledby` composed text.
 
 ### P3 — Extensions section: contradictory double empty-state when there are zero pages
+
 `Extensions` rail section with no page-surface plugins granted. The LIST pane says "No extension pages
 yet / Install a plugin with page surfaces…" while the CONTENT pane simultaneously says "Pick an
 extension page / Choose a page on the left to open it here / Browse extension pages" — but there is
 nothing on the left to choose and nothing to browse.
+
 - Why it hurts: the two panes give contradictory guidance; a first-timer is told to pick from an empty
   list. (Once a page exists, the CONTENT placeholder is correct — this is only the zero-pages case.)
 - Fix: when the page list is empty, the CONTENT should mirror the LIST's "install a plugin" guidance,
@@ -101,9 +112,11 @@ nothing on the left to choose and nothing to browse.
 - Receipt: `reports/snaps/ext-section.png`.
 
 ### P3 — Redundant "Card Atlas · Card Atlas" title on the extension page
+
 The Card Atlas page shows the plugin name twice — header reads "Card Atlas · Card Atlas" and the list
 row shows "Card Atlas" title over a "Card Atlas" subtitle — because the page title equals the plugin
 name.
+
 - Why it hurts: reads as a placeholder/bug; wastes the title line.
 - Fix: when page title == plugin name, show it once (or show the page's own name distinct from the
   plugin). `polish`.
@@ -148,7 +161,7 @@ user toward the grant step. Receipt: `reports/snaps/oracle-perms.png`.
   to be open.", the safety-limit copy, the empty-state with a concrete example, the two-step rule
   template popover, the created rule row ("Hasn't run yet", Test, off-by-default). No IA duplication
   spotted. Reflows well on mobile.
-- **Shell IA:** the `extensions` rail section is the 10th (sanctioned #679 plugin plane, SECTION_IDS
+- **Shell IA:** the `extensions` rail section is the 10th (sanctioned #679 plugin plane, SECTION\_IDS
   carries it) — NOT a rail-overflow finding; the shell anatomy is respected (finding in LIST, page in
   CONTENT, settings in the modal).
 
@@ -189,10 +202,10 @@ and it's the single class of defect that repeats across the Plugins pane.
 
 | Instrument | Status |
 | - | - |
-| `snap --map` (plugins/extensions/automation/rule editor) | RAN — reports/snaps/*, logs in scratch |
+| `snap --map` (plugins/extensions/automation/rule editor) | RAN — reports/snaps/\*, logs in scratch |
 | `snap --contrast` (badges, body, muted) | RAN — all PASS; "Costs money" off-screen NO-VERDICT |
 | `snap --eval` (tap hit-tests, aria names, query cache, switch states) | RAN |
-| `snap` screenshots (desktop + mobile) | RAN — plug-pane, oracle-perms, oracle-granted, add-plugin, ext-*, atlas-page/search, autom-*, rule-*, plug-mobile, autom-mobile |
+| `snap` screenshots (desktop + mobile) | RAN — plug-pane, oracle-perms, oracle-granted, add-plugin, ext-*, atlas-page/search, autom-*, rule-\*, plug-mobile, autom-mobile |
 | Keyboard walk (`--key Tab` + focus eval) | RAN — focus-visible true at every stop |
 | `design-audit --goto settings:plugins` (desktop + `--mobile`) | RAN — reports/design-audit/ |
 | `design-audit --goto settings:automation` | RAN — 3×P3 only |

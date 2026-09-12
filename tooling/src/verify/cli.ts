@@ -102,7 +102,8 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "config-snapshot": CONFIG_SNAPSHOT_HELP,
   "typecheck-plan": TYPECHECK_PLAN_HELP,
   typecheck: TYPECHECK_HELP,
-  eslint: "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes.",
+  eslint:
+    "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes. It takes NO paths: a SCOPED run is `pnpm exec eslint <files>`, which carries the same workspace heap floor.",
 };
 
 function isVerb(candidate: string): candidate is VerifyVerb {

@@ -25,8 +25,9 @@ gate merge.
 ## Scores
 
 ### design-audit (deterministic scanner)
+
 | Arm | P0 | P1 (raw) | P1 (ground-truth) | P2 | P3 |
-| --- | -- | --- | --- | --- | --- |
+| - | - | - | - | - | - |
 | Desktop (`pointer=fine`, 1280×800) | 0 | 2 | **0** | 2 | 55 |
 | Desktop tall (1280×2200, discriminator) | 0 | 41 | **0** | 2 | 55 |
 | Mobile (`pointer=coarse`, 430×932) | 0 | 7 | **0** | 2 | 11 |
@@ -39,7 +40,7 @@ gate merge.
   re-run yielding p1=41 (not the p1=0 the brief predicted) is because MORE checkboxes scroll into view,
   not because the finding is real — each checkbox is flagged once visible. **Reported clean on the
   ground-truth basis.**
-- **P2 ×2 `caveat-outweighed`** (real, minor): a caveat sentence renders ~1.23× smaller than the claim
+- **P2 ×2 `caveat-outweighed`** (real, minor): a caveat sentence renders \~1.23× smaller than the claim
   it qualifies (`card-root` #4's alert). Typographic polish; `prose` on the caveat closes it.
 - **P3 histogram (pane):** `nested-card` ×9 (the reconsent callout border inside the card border —
   box-in-box, see UGLY §), `line-length` ×45 (reading text at 90–93ch, see P3-A). `all-caps-body` ×1
@@ -47,8 +48,9 @@ gate merge.
   excluded.**
 
 ### Lighthouse (pane, snapshot mode — the modal is client state, so navigation mode is void)
+
 | Arm | Accessibility | Best-practices | SEO | Agentic |
-| --- | --- | --- | --- | --- |
+| - | - | - | - | - |
 | Desktop | **100** | **100** | **100** | 100 |
 | Mobile | **100** | **100** | **100** | 100 |
 
@@ -59,8 +61,9 @@ LoAF (145ms / 95ms blocking) and dropped frames belong to the Home shell's Orbwe
 animation, not the pane.
 
 ### Nielsen + aesthetic (pane, 0–40) — **35/40 (good/excellent)**
+
 | # | Heuristic | Score | Note |
-| - | --- | --- | --- |
+| - | - | - | - |
 | 1 | System status | 4 | Per-plugin status badge (On/Off/On-nothing-granted/reconsent/errored), skeleton loads, reconsent says *why* it's off, update verdicts. |
 | 2 | Match real world | 4 | Plain-English capability copy + consequences; no wire jargon. |
 | 3 | Control & freedom | 3.5 | Esc closes; reconsent = allow/remove + granular subset; Remove behind confirm. |
@@ -72,7 +75,8 @@ animation, not the pane.
 | 9 | Error recovery | 3.5 | `lastError` shown, update failures toast, reconsent explains + recovers. |
 | 10 | Help/docs | 3.5 | Consequence lines are self-teaching contextual help. |
 
-### Hierarchy / order (the owner's exact complaint) — **8/10, up from ~3/10 old (Δ +5)**
+### Hierarchy / order (the owner's exact complaint) — **8/10, up from \~3/10 old (Δ +5)**
+
 Justification below.
 
 ---
@@ -80,14 +84,16 @@ Justification below.
 ## Hierarchy / order judgment vs the old layout (`reports/snaps/plug-pane.png`)
 
 The old layout earned the "fugly, no hierarchy or order" call:
+
 - **No plugin boundary** — content bled onto the pane behind one faint hairline; stacked plugins would
   read as a continuous wall.
 - **The reconsent headline floated in bare prose** with no set-apart container.
-- **The capability checkbox was stranded ~400px to the far right** of its own label (the P2-2 "18px
+- **The capability checkbox was stranded \~400px to the far right** of its own label (the P2-2 "18px
   aim" defect), disconnected from the words it grants.
 - **"(new in this update)" was baked into the visible label** AND repeated by the "New" badge 8px away.
 
 The rework fixes all four:
+
 - **Bordered Card per plugin** = a real edge saying where one plugin's consent story ends.
 - **Header block** (identity left, controls right) closed by a **hairline** = the acts read as chrome
   OF the plugin.
@@ -98,6 +104,7 @@ The rework fixes all four:
 - Visible label de-duped (the "New" badge alone carries "new").
 
 This is genuinely designed now, not a wall. The −2 on the 10-scale:
+
 1. the callout is a **bordered box inside a bordered card** (box-in-box), and
 2. when many reconsent cards stack, the **verbatim-repeated bold headline** re-creates a wall of its
    own (amplified to the extreme by this 9/9-reconsent fixture).
@@ -107,9 +114,9 @@ This is genuinely designed now, not a wall. The −2 on the 10-scale:
 ## Per-finding verification (7 prior + the inert hint)
 
 | # | Prior finding | Status | Receipt |
-| - | --- | --- | --- |
+| - | - | - | - |
 | P2-1 | Mobile header collision (long badge) | **FIXED** | Mobile 430px screenshot: name on its own line, "Off — asked for more than you allowed" wraps to its own line, controls drop below — no overlap. CT `plugins-settings-surface.ct.tsx:690` asserts badge box disjoint from switch AND Update AND inside the 390px pane. |
-| P2-2 | Consent-checkbox hit area (~400px far-right gap, 18px aim) | **FIXED** | Checkbox now LEADS; `<label htmlFor>` → hidden `input[type=checkbox]`, label measured **668×54px** = the row toggles. Old far-right column gone (old vs new screenshots). |
+| P2-2 | Consent-checkbox hit area (\~400px far-right gap, 18px aim) | **FIXED** | Checkbox now LEADS; `<label htmlFor>` → hidden `input[type=checkbox]`, label measured **668×54px** = the row toggles. Old far-right column gone (old vs new screenshots). |
 | P2-3 | Disclosure button height (was 746×16, sub-24px) | **FIXED** | Live: `size="control"` disclosure = **32px** (desktop/fine) / **44px** (mobile/coarse). CT pins ≥44 on coarse. |
 | P3-4 | WCAG label-in-name (disclosure) | **FIXED** | aria-label `"What it's allowed to do — Affinity Tracker"` contains the visible "What it's allowed to do" as a prefix; plugin name after the em-dash disambiguates. Confirmed in `--map` + keyboard walk. |
 | P3-5 | Run-on SR names | **FIXED** | Keyboard walk read `checkbox "Read this room's messages (new in this update)"` — badge pills excluded from the accessible name (aria-label wins), visible label stays a prefix. |
@@ -121,25 +128,25 @@ This is genuinely designed now, not a wall. The −2 on the 10-scale:
 
 ## Residual issues (confirmed only, ranked)
 
-- **[P2] Reading text exceeds the 65–75ch measure (line-length ×45, 90–93ch).** The reconsent callout
-  explanation and capability consequence lines run to ~93ch in the wide content column — beyond the
+- **\[P2] Reading text exceeds the 65–75ch measure (line-length ×45, 90–93ch).** The reconsent callout
+  explanation and capability consequence lines run to \~93ch in the wide content column — beyond the
   reading measure (skill §2). **Fix (`layout`/`typeset`):** cap the callout body + consequence text with
   the measure token (`max-w-prose`). Receipt: design-audit `line-length` 45→0.
-- **[P3 · UGLY] Box-in-box: bordered callout inside bordered card (nested-card ×9).** Because the amber
+- **\[P3 · UGLY] Box-in-box: bordered callout inside bordered card (nested-card ×9).** Because the amber
   fill was correctly removed to protect badge AA, the callout is set apart by a hairline border ONLY —
   a border-in-border that reads as mild nesting, most visible on mobile where the two borders sit tight.
   Defensible (the callout is a distinct `role="alert"` affordance), but it's the one thing keeping the
   pane from feeling fully resolved. **Consider (`quieter`):** drop the callout's own border and set it
   apart with a leading accent rule + the bold headline + spacing, or a warning tint low enough to keep
   badges ≥4.5:1. Receipt: before/after shots + `--contrast` on the badges still PASS.
-- **[P3] Repeated verbatim bold headline stacks into a wall.** All 9 fixture cards show the identical
+- **\[P3] Repeated verbatim bold headline stacks into a wall.** All 9 fixture cards show the identical
   "This update asks for N permissions you hadn't allowed, so it stayed off. Check what it wants below."
   A realistic pane (1–2 reconsent) reads fine, but the design should not let a run of reconsent cards
   re-create the wall the rework removed. Low priority; watch it.
-- **[P3] Clickable grant-row label shows `cursor: default`, not `pointer`.** No mouse affordance that
+- **\[P3] Clickable grant-row label shows `cursor: default`, not `pointer`.** No mouse affordance that
   the whole row toggles. Standard for checkbox labels, but a `cursor-pointer` on the interactive label
   would advertise the large target the rework built.
-- **[P2, minor/typographic] `caveat-outweighed` ×2** — a caveat renders 1.23× smaller than its claim;
+- **\[P2, minor/typographic] `caveat-outweighed` ×2** — a caveat renders 1.23× smaller than its claim;
   `prose` on the caveat closes it.
 
 **Retraction / correction:** the brief's hazard note said the compositor probe would show the checkbox
@@ -150,23 +157,26 @@ non-blocking — but the reason is the **`htmlFor` label equivalent target (668�
 the box. Corrected here so a future pass doesn't chase a ring that isn't there.
 
 ## What's genuinely working (don't touch)
+
 - **The whole consent information architecture.** Plain-English capability copy with consequence lines,
   spend/risk badges as second signals (never color alone), the reconsent callout that says *why* a
   plugin is off and offers a granular allow/remove — this is a genuinely excellent security surface.
 - **Accessibility.** Lighthouse a11y 100 both arms, every control keyboard-reachable with `:focus-visible`
   true at every stop, clean de-run-on'd accessible names, label-in-name satisfied.
-- **The checkbox-leading grant rows.** The single best fix — the ~400px far-right gap is gone and the
+- **The checkbox-leading grant rows.** The single best fix — the \~400px far-right gap is gone and the
   whole row is the target.
 
 ## The single biggest opportunity
+
 Cap the reading measure (P2 line-length) and quiet the callout's own border (P3 box-in-box) together —
 that's the last step from "clearly better" to "fully designed," and both are one-token changes.
 
 ---
 
 ## Instrument coverage table
+
 | Instrument | Status |
-| --- | --- |
+| - | - |
 | `snap --map` (pane structure) | RAN — `reports/snaps/plugins-rework-desktop.png` (map=146) |
 | `snap` screenshots (desktop / tall / mobile / disclosure-open) | RAN — `plugins-rework-desktop`, `-tall`, `-vtall`, `-mobile`, `plugins-disclosure-open` |
 | `snap --contrast` (badges + callout + body + name) | RAN — warning 6.86:1, info 5.45:1, destructive 5.07:1, callout title 15.73:1, callout body 7.75:1 — all PASS |

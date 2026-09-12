@@ -24,8 +24,17 @@
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { VerifyVerb } from "../contract/verbs.ts";
 
-/** `none` — the verb takes NO tail at all; `own` — the verb's own parse module refuses what it doesn't know. */
-type TailGrammar = "none" | "own";
+/** `own` — the verb's own parse module refuses what it doesn't know; the object form — the verb takes NO
+ *  tail at all, and `scopedDoor` names the SCOPED sibling the operator was reaching for when they typed one.
+ *
+ *  A no-tail refusal that only says "no arguments" leaves the operator with nowhere to go, and for `eslint`
+ *  it is a dead end that has cost lane time: the whole-repo verb genuinely takes no paths, and the scoped
+ *  answer lives in a DIFFERENT tool (`pnpm exec eslint <files>`, which carries the workspace heap floor).
+ *  So the door rides on the same mapped record the grammar does — one home, and a new `VerifyVerb` still
+ *  fails tsc until its tail is ruled on. */
+type TailGrammar = "own" | { readonly tail: "none"; readonly scopedDoor?: string };
+
+const NO_TAIL = { tail: "none" } as const;
 
 const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   run: "own",
@@ -34,29 +43,32 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   scoped: "own",
   "scoped-test": "own",
   "new-gate": "own",
-  "gate-contract": "none",
-  "policy-conformance": "none",
+  "gate-contract": NO_TAIL,
+  "policy-conformance": NO_TAIL,
   baseline: "own",
   "tests-membership": "own",
-  "tests-execution-membership": "none",
-  "db-baseline": "none",
-  "asset-refs": "none",
+  "tests-execution-membership": NO_TAIL,
+  "db-baseline": NO_TAIL,
+  "asset-refs": NO_TAIL,
   "orphan-ratchet": "own",
-  "boot-chunk": "none",
-  "ledgers-fresh": "none",
+  "boot-chunk": NO_TAIL,
+  "ledgers-fresh": NO_TAIL,
   debt: "own",
-  "ratchet-gate": "none",
+  "ratchet-gate": NO_TAIL,
   "config-snapshot": "own",
   "typecheck-plan": "own",
   typecheck: "own",
-  eslint: "none",
+  eslint: { tail: "none", scopedDoor: "pnpm exec eslint <files>" },
 };
 
 /** Refuse a tail on a verb that takes none — called by the front door AFTER the `--help` answer (a help
  *  request is not a tail) and BEFORE dispatch, so nothing has been built when the refusal prints. */
 export function refuseVerbTail(verb: VerifyVerb, rest: readonly string[]): void {
-  if (VERB_TAIL[verb] !== "none" || rest.length === 0) {
+  const grammar = VERB_TAIL[verb];
+  if (grammar === "own" || rest.length === 0) {
     return;
   }
-  throw new UsageError(`${verb} takes no arguments — got ${rest.map((token) => JSON.stringify(token)).join(" ")}`);
+  const got = rest.map((token) => JSON.stringify(token)).join(" ");
+  const door = grammar.scopedDoor === undefined ? "" : ` — for a SCOPED run use \`${grammar.scopedDoor}\``;
+  throw new UsageError(`${verb} takes no arguments — got ${got}${door}`);
 }

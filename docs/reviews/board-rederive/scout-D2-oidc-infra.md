@@ -6,7 +6,7 @@ updated: 2026-08-29
 
 # Board re-derivation: D2 OIDC/infra rows (main @ e4d017fd8)
 
-## #141 OIDC logout id_token_hint + post_logout_redirect_uri
+## #141 OIDC logout id\_token\_hint + post\_logout\_redirect\_uri
 
 VERDICT: ⚠️ STALE-PREMISE (partial, and the title's stated goal is currently REJECTED by design, not landed)
 
@@ -14,23 +14,23 @@ VERDICT: ⚠️ STALE-PREMISE (partial, and the title's stated goal is currently
   the end-session URL is sent **BARE**, deliberately WITHOUT `id_token_hint` or `post_logout_redirect_uri`.
 - Commit `8446a55ce` originally added `post_logout_redirect_uri` (#141 first attempt); commit
   `d8b902fff` **reverted it** in the same PR era: "send the OIDC end-session URL BARE —
-  post_logout_redirect_uri without id_token_hint 400s". The JSDoc documents measuring this against a
+  post\_logout\_redirect\_uri without id\_token\_hint 400s". The JSDoc documents measuring this against a
   real authentik 2026.5.5 deployment: `post_logout_redirect_uri` alone raises
   `invalid_request`/`id_token_hint_missing` → 400, which is worse than sending nothing (SSO session
   survives AND user hits an error page).
 - Restoring `post_logout_redirect_uri` requires an `id_token_hint`, which requires **persisting the
-  OIDC id_token** — the `sessions` table currently stores only a token hash by design. That is called
+  OIDC id\_token** — the `sessions` table currently stores only a token hash by design. That is called
   out in the same comment as an owner-gated secret-at-rest decision, still open, tracked on #141.
 - Rung: exported function, called from the logout route (`registerAuthRoutes` line 561), tested
   (`tests/server/entry/http/auth-routes.test.ts` exists per earlier grep). Behavior is real and
-  intentional, but it is the OPPOSITE of "returns to Orbweaver login via post_logout_redirect_uri" —
+  intentional, but it is the OPPOSITE of "returns to Orbweaver login via post\_logout\_redirect\_uri" —
   it currently sends the IdP's own bare end-session URL, so users land on the IdP's logged-out page,
   not `/login`.
 
-RECOMMENDATION: keep open, but re-word/re-scope the row — the "wire id_token_hint +
-post_logout_redirect_uri" work is NOT review-ready, it's blocked on an owner-gated id_token
+RECOMMENDATION: keep open, but re-word/re-scope the row — the "wire id\_token\_hint +
+post\_logout\_redirect\_uri" work is NOT review-ready, it's blocked on an owner-gated id\_token
 persistence decision. Current code is a deliberate, documented interim state (bare URL), not a bug.
-Consider re-titling to track the id_token-persistence decision directly rather than leaving it read as
+Consider re-titling to track the id\_token-persistence decision directly rather than leaving it read as
 "in review" for the original scope.
 
 ## #762 OIDC discovery caching — single-flight vs settled-result-only
@@ -146,8 +146,8 @@ is describing a real, currently-unfixable browser-platform gap rather than stale
 ## Summary table
 
 | Row | Verdict | Recommendation |
-|---|---|---|
-| #141 | ⚠️ STALE-PREMISE | keep open, re-scope to id_token-persistence decision |
+| - | - | - |
+| #141 | ⚠️ STALE-PREMISE | keep open, re-scope to id\_token-persistence decision |
 | #762 | 🕓 OWNER-GATED | current behavior = settled-result-only w/ cold-start double-fetch race, not true single-flight |
 | #803 | 🕓 OWNER-GATED | premise confirmed, no code change needed |
 | #316 | 🕓 OWNER-GATED/PARKED | premise confirmed (LAUNCHED=false) |

@@ -21,6 +21,7 @@ updated: 2026-08-24
 ## §1 AXIS 1 — SCOPE (chat-scoped ∧ owner-global, born whole)
 
 **What the tree has today (receipts):**
+
 - `automation_rules.chat_id` is **born nullable with the global meaning already documented**:
   "NULL = owner-global (BORN nullable, NOT wired v1 — v1 verbs refuse NULL; see header)"
   (`db/schema/automation.ts:73-76`; the file header at :6 names the owner-global reading).
@@ -48,6 +49,7 @@ updated: 2026-08-24
   optional, every preset predicate needs `has(chat)` guards and the cel-goldens vector changes.
 
 **Born-complete, concretely:**
+
 1. **The scope axis is data, not a fork:** a rule is `chatId: ChatId | null`; NULL = owner-global.
    Admission: `createRule` accepts NULL under a `can(principal, …, global)`-class owner check (the
    D17 axes — no new gate kind); the enabled index gains an owner-keyed branch beside the two that

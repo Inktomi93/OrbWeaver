@@ -67,7 +67,7 @@ accept `--ref <sha>` (orchestrator correction: `tooling/src/snap/ops/stage.ts`, 
 ## 2. Per-target verdicts (FOCUSED review, brief's order)
 
 | # | Target | Verdict |
-|---|---|---|
+| - | - | - |
 | 1 | Rules surface — enable 2 presets, one non-default knob | **PASS.** Reached at "This chat" → Host controls → Rules. Minted + enabled cleanly. One stumbled-on B2 defect (P3-5). |
 | 2 | Save include-line | **PASS on copy, FIX on states.** Wording is exactly right; the zero and loading arms are missing (P2-3), and it is the smallest text in the dialog (P3-2). |
 | 3 | The "N rules" badge (N vs 0) | **FIX.** Copy/pluralisation correct, contrast passes both themes; but no accessible name (P2-1) and it is the direct cause of the mobile collapse (P1-1). |
@@ -83,7 +83,7 @@ accept `--ref <sha>` (orchestrator correction: `tooling/src/snap/ops/stage.ts`, 
 row 316px — `reports/tool-guard/cbse-mm.log`, `reports/snaps/cbse-mobile.png`):
 
 | row | badges | name rendered width | name natural (`scrollWidth`) | last-badge.right | Start.left | overlap | `elementFromPoint(badge centre)` |
-|---|---|---|---|---|---|---|---|
+| - | - | - | - | - | - | - | - |
 | Night Runners | 1 | **11px** | 88px | 112 | 118 | −6 (clear) | the badge |
 | **Spire Trio** | **2** (has rules) | **0px** | 57px | 166 | 118 | **+48px** | **the Start button's `<svg>`** |
 
@@ -126,8 +126,7 @@ consent gate refuses in a room without the book and lands in `rulesSkipped` *wit
 the reason and the count are both discarded, so the host's new room silently differs from the cast they
 picked. The spec line "skipped rules are REPORTED" is satisfied on one of three doors.
 
-**Fix.** `clarify: the three apply doors in `features/roster-preset` — receipt: all three call
-`applySentence(result)`, and `applySentence` renders each `rulesSkipped` entry's REASON, not a bare
+**Fix.** `clarify: the three apply doors in `features/roster-preset`— receipt: all three call`applySentence(result)`, and `applySentence`renders each`rulesSkipped` entry's REASON, not a bare
 count.` Consider naming the cast in the sentence.
 
 **Not driven:** the lore-refusal arm itself. The stage and dev dbs hold **zero** lorebooks
@@ -262,11 +261,11 @@ learns what a cast is.
 ## 4. ARIA-navigability recommendations
 
 | Element | Problem | Exact fix |
-|---|---|---|
+| - | - | - |
 | `CastRow` member badge (`<Badge>` with `{cast.memberCount}`) | renders as a bare digit with no accessible name; SR reads "3" | `aria-label={`${cast.memberCount} members`}` — or fold the counts into the row buttons' names |
 | `CastRow` rules badge (`{n} rule(s)`) | visual-only; never announced at any tab stop | append to each row button's `aria-label`: `Start a chat with ${cast.name} — ${cast.memberCount} members, ${cast.rules.length} rules` |
 | Editor "MEMBERS" / "RULES" (`<Text as="span" voice="kicker">`) | no heading semantics; the editor has one heading total | `<Heading level={3}>` (or `Section kicker`, which renders one) so heading navigation works |
-| Editor talkativeness `0.5` (`SPAN`, no label) | unlabelled numeric datum | `aria-label={`${member.name} talks at level ${Math.round(t*100)} of 100`}` — matching the room's own wording |
+| Editor talkativeness `0.5` (`SPAN`, no label) | unlabelled numeric datum | `aria-label={`${member.name} talks at level ${Math.round(t\*100)} of 100`}` — matching the room's own wording |
 | `SaveCurrentCast` disabled button | disabled with no announced reason while `capturedRules === null` | render a live reason (`aria-describedby` on the button) instead of a silent `disabled` |
 | The include-line | not associated with the control it describes | `aria-describedby` from the Save button to `[data-slot=cast-rules-include]` |
 
@@ -352,7 +351,7 @@ That one change also retires P2-2 outright and softens P2-1 and P1-2.
 ## 9. Instrument coverage
 
 | # | Instrument | Status |
-|---|---|---|
+| - | - | - |
 | 1 | `pnpm snap` — `--map` | **RAN** — `reports/tool-guard/cbse-mem2.log` (95 elements, 1 DOM fallback) |
 | 1 | `pnpm snap` — `--aria` | **RAN** — dialog, details pane, editor, config landing (`cbse-pe/-tc/-ed/-cfg.log`) |
 | 1 | `pnpm snap` — `--contrast` | **RAN** — dark + Light arms, 6 measurements, 0 fails (`cbse-meas/-light.log`) |
@@ -375,7 +374,7 @@ That one change also retires P2-2 outright and softens P2-1 and P1-2.
 **Console triage (the picker flow, `reports/tool-guard/cbse-dev2.log` — the full fixture build):**
 
 | Channel | Count | Disposition |
-|---|---|---|
+| - | - | - |
 | `[trpc]` | 112 | dev instrumentation — request/response log, expected |
 | `[perf]` slow commit | 18 | boot + pane mounts; none attributable to the picker (opening it is `blocking 0`) |
 | `[drop]` frame | 9 | boot logo animation + toast entry; `__orb.animations()` reports zero compositor-dirty |
@@ -444,5 +443,5 @@ Close is last in the picker's tab order though visually first; a room started fr
 **Cluster E — stumbled-on, not B10 (P3-5, P3-6, and the CLS note).** The B2 rule-preset picker popover
 reopens on step 2 (the previously configured preset's knob form) instead of the catalogue — measured
 twice, and it caused an accidental duplicate mint when a host tried to add a *different* rule. Separately,
-the "This chat" pane accumulates a non-virtualized CLS of ~0.302 across a rules-editing session (the
+the "This chat" pane accumulates a non-virtualized CLS of \~0.302 across a rules-editing session (the
 picker itself measures 0). Both belong to whoever owns B2's surface.

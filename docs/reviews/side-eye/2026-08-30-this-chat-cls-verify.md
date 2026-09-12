@@ -213,7 +213,7 @@ wall-clock latency of the second wave differs (275ms vs 219ms). This is not a si
 | **The late third wave** (`§Documents … >0h0` + `§Lorebooks … >0h0` at +795ms, 0.30837) | present, fully paid | **absent** | eliminated |
 
 The mechanism the original review named is the mechanism that got fixed: with rows collapsed by default,
-Injections no longer resolves ~830px of expanded editor forms into an 89px reserve two waves late, so
+Injections no longer resolves \~830px of expanded editor forms into an 89px reserve two waves late, so
 there is no second-wave avalanche to shove the already-settled sections out of the viewport.
 
 ---
@@ -261,7 +261,7 @@ itself priced as acceptable. **Verdict called PASS on that basis.**
   with a one-line content preview, i.e. the Field-overrides summary-row idiom the original P2 asked for.
 - **The count Badge kicker shift (#829) — PRESENT, and free.** It appears as
   `§Injections 2 h3[heading] 379h14>387h14` (mobile) / `319h14>327h14` (desktop): an **8px** heading
-  displacement when the count chip lands, riding inside the same free entry. The brief anticipated ~17px;
+  displacement when the count chip lands, riding inside the same free entry. The brief anticipated \~17px;
   measured here it is 8px on both viewports. **Known separate row, NOT a #821 failure** — logged, not
   filed. It is the sole remaining contributor of the `§Injections` term in the post-fix ledgers.
 - **Still below the fold:** `Lorebooks 2` settles at top 929 on a 932px mobile viewport and at top 865 on

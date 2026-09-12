@@ -20,7 +20,7 @@ surfaces.
 
 **The switches split three ways and only two are cheap.** The per-row switch is free today (the library
 `enabled` column through `regex.updateScript` / `regex.bulkSetEnabled`, both `busDriven`); a per-TIER allow is a
-well-trodden ~9-file chat-metadata knob with no migration (the `setHostDisplayScripts` path verbatim); a
+well-trodden \~9-file chat-metadata knob with no migration (the `setHostDisplayScripts` path verbatim); a
 per-CHAT mute of an inherited script is a new table, a new resolver stage, a sweep classification and a
 vocabulary collision — do not assume it.
 
@@ -104,8 +104,7 @@ display-leg render path and the host toggle, 10 files).
   NOT re-implement the union — the honest shape is to extend `resolveHostTierRegexScripts` to optionally
   return provenance, or to add a sibling pure function in the same substrate file so the run order can never
   drift from the turn's.
-- **The one persistence-shaped change: un-flatten the character slice.** Per-character sections ("Comes with
-  <character>") need to know which seat contributed which row, and `ResolvedRegexSources.character` is a flat
+- **The one persistence-shaped change: un-flatten the character slice.** Per-character sections ("Comes with <character>") need to know which seat contributed which row, and `ResolvedRegexSources.character` is a flat
   concatenation (`contract/resolve.ts:39`). `resolve-sources.ts:31` **already computes the per-character
   grouping** and then `flatMap`s it away, so the change is "stop flattening": `character: readonly { characterId,
   scripts }[]`, flattened at the resolver instead. Coupled sites, all tsc-forced: `domain/regex/contract/resolve.ts`,
@@ -342,9 +341,9 @@ move-between-tiers.
 ## What I would NOT build
 
 - **A per-chat mute table in the first commit.** It doubles the "off" vocabulary on one row, needs a new table
-  + sweep rows + a resolver stage, and collides with a word already spent on characters. The row switch plus a
-  tier allow covers the owner's stated debugging loop; revisit only if real use shows "off everywhere" is too
-  blunt.
+  - sweep rows + a resolver stage, and collides with a word already spent on characters. The row switch plus a
+    tier allow covers the owner's stated debugging loop; revisit only if real use shows "off everywhere" is too
+    blunt.
 - **Generalising the display-broadcast gate to the prompt leg.** It reads the host's whole owned library, not
   the room's attachments (`list-room-display-scripts.ts:28-29`); reusing it as an allow would change what the
   existing toggle means and put un-attached scripts on the prompt leg.
@@ -369,7 +368,7 @@ lanes must be told before they draw anything: the effective panel is **host-only
 the host's `runAsUserId`; a member gets the chat tier only, read-only, in the Lorebooks shape), and
 `STUDY.md` §5's plan to reuse the display-scripts opt-in as a per-tier prompt-leg allow is **refuted by the
 code** — that verb broadcasts the host's whole enabled DISPLAY library and ignores the junctions, so the tier
-allow has to be a new chat-metadata blob (no migration, the `setHostDisplayScripts` path verbatim, ~9 files).
+allow has to be a new chat-metadata blob (no migration, the `setHostDisplayScripts` path verbatim, \~9 files).
 Two findings are file-worthy independent of this feature: **(1)** a host attaching or detaching a room regex
 script never reaches other members — `regexChanged` is a per-user channel and `attach-to-chat.ts:26` emits only
 on it, so at `staleTime: Infinity` a member's `listForChat` is stale forever; **(2)** the `membership-fan-guard`

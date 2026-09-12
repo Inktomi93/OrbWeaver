@@ -24,8 +24,8 @@ a column names its `path:line`. Where a column's value is *computed* at hop 4 (`
 
 ## 0. THE HEADLINE — the distribution check
 
-The owner's acceptance criterion: the corpus is ~3 years of chats, so the imported distribution must span
-~3 years and must **not** cluster at import time.
+The owner's acceptance criterion: the corpus is \~3 years of chats, so the imported distribution must span
+\~3 years and must **not** cluster at import time.
 
 **It does not cluster.** Message timestamps are the ST `send_date`, not the import clock
 (`chat-input.ts:112` — `m.sendDate ?? created`), and the corpus-wide histograms agree:
@@ -67,7 +67,7 @@ and **513 header `create_date`** values.
 
 ## 1. DEFECT A — ST's zone-less dates were read as UTC; they are a LOCAL wall clock
 
-**Severity: the owner-reported one. 49.6 % of all imported messages + ~100 % of chats.**
+**Severity: the owner-reported one. 49.6 % of all imported messages + \~100 % of chats.**
 
 ### The evidence
 
@@ -257,7 +257,7 @@ not about what the value means.
 | `swipes[]` / `swipe_id` | `variants[]` / `activeVariantIdx` | full pool | one `message_variants` row each | ✓ — **all** swipes retained, not first-only; empty slots dropped and the active index remapped |
 | `swipe_info[i].extra.*` | `variants[i].model/provider/tokens/reasoning` + `metadata` | same | same | ✓ |
 | `swipe_info[i].send_date` (78,407) | inside `variants[i].metadata` | same | `message_variants.metadata` | ✓ lossless, but not promoted to a column — see 5.4 |
-| `extra.media` / `files` / `image` / `file` (167 rows) | keeps the row alive (`carriesMedia`) | — | — | **DROP@2 (the bytes)** — see 5.3 |
+| `extra.media` / `files` / `image` / `file` (167 rows) | keeps the row alive (`carriesMedia`) | — | — | **DROP\@2 (the bytes)** — see 5.3 |
 | `agent_author` | `agentAuthor` | — | — | **DELIB** — `serde/chat` header, PD-17: a foreign install has no matching agent principal |
 
 ### 4.2 Solo chat — chat-level fields
@@ -275,11 +275,11 @@ not about what the value means.
 | `chat_metadata.main_chat` (216) | `parentRef` | `parentRef` | `chats.parent_chat_id` + `forked_at` | ✓ resolved character-wide |
 | `chat_metadata.note_prompt` (key on 1,070; **non-empty on 0** — see 5.5) | `notePrompt` | `injections[0].content` | a `chat_injections` row | ✓ |
 | `chat_metadata.note_depth/position/role` (1,070) | `notePlacement` | `injections[0].depth/position/role` | same | **FIXED (§5.5)** — converted onto orb's injection axis; house register is the fallback |
-| `chat_metadata.note_interval` (1,070) | `notePlacement.interval` | — | — | **DROP@3, DELIB** — orb has no periodic-injection concept; see 5.5 |
+| `chat_metadata.note_interval` (1,070) | `notePlacement.interval` | — | — | **DROP\@3, DELIB** — orb has no periodic-injection concept; see 5.5 |
 | `chat_metadata.variables` (494) | `variables` | `variableValues` | `chats.variable_values` | **FIXED (§5.6)** |
 | `chat_metadata.pinnedPersona` (71) | `pinnedPersonaName` | → `anchorPersonaId` by NAME, ahead of `user_name` | `chats.anchor_persona_id` | **FIXED (§5.7)** — those 71 chats carry `user_name: "unused"`, so this was their ONLY persona signal; unresolvable ⇒ omitted + reported |
-| `chat_metadata.persona` (4) | — | — | — | **DROP@2, DELIB** — ST's own key, an AVATAR FILENAME (a different vocabulary from `pinnedPersona`); see 5.7 |
-| `scenario`/`mes_example`/`system_prompt` (5) · `timedWorldInfo` · `chat_id_hash` · `lastInContextMessageId` · `script_injects` (581) · `tainted` · `integrity` | `sourceMetadata` | — | — | **DROP@3** — see 5.7 |
+| `chat_metadata.persona` (4) | — | — | — | **DROP\@2, DELIB** — ST's own key, an AVATAR FILENAME (a different vocabulary from `pinnedPersona`); see 5.7 |
+| `scenario`/`mes_example`/`system_prompt` (5) · `timedWorldInfo` · `chat_id_hash` · `lastInContextMessageId` · `script_injects` (581) · `tainted` · `integrity` | `sourceMetadata` | — | — | **DROP\@3** — see 5.7 |
 | (classifier) | `bucket` | `isRealConversation` | — | ✓ gates the PD-78 backfill |
 
 ### 4.3 Character card
@@ -347,7 +347,7 @@ almost everywhere. Measured across the same corpus:
 | `swipe_info[i].extra.reasoning_duration` | **3,121** | 69,992 | 929 | 74,042 |
 | message-level `extra.reasoning_duration` | 768 | 11,178 | 12,131 | 24,077 |
 
-So the corpus payoff is ~3.1k variants, not ~75k. The DEFECT and the fix are unchanged — the reader could
+So the corpus payoff is \~3.1k variants, not \~75k. The DEFECT and the fix are unchanged — the reader could
 resolve *nothing* on a swiped row and now resolves *everything ST recorded* — but the headline "12,718 rows
 of lost reasoning time" overstates the recoverable data, and anyone sizing this work off that number should
 use the table above.
@@ -479,7 +479,7 @@ available signal and the collector does not read it.
 
 | # | Defect | Files |
 | - | - | - |
-| A | ST wall-clock dates read as UTC → 6–7 h shift on 49.6 % of messages + ~all chats | `packages/kit/src/time/index.ts` · `packages/server/src/kit/serde/chat/index.ts` · `domain/import/{contract/service,loader/collect,verbs/import-chat-file}.ts` · `entry/import/run-profile-dir-import.ts` · `entry/compose/portability.ts` · `domain/export/verbs/export-chat.ts` |
+| A | ST wall-clock dates read as UTC → 6–7 h shift on 49.6 % of messages + \~all chats | `packages/kit/src/time/index.ts` · `packages/server/src/kit/serde/chat/index.ts` · `domain/import/{contract/service,loader/collect,verbs/import-chat-file}.ts` · `entry/import/run-profile-dir-import.ts` · `entry/compose/portability.ts` · `domain/export/verbs/export-chat.ts` |
 | B | 76 filenames' date rejected → 3 chats stamped at the import clock, in the future | `packages/server/src/kit/serde/chat/index.ts` |
 | C | user/system `token_count` booked as `tokens_out` (1,267,076 tokens) | `packages/server/src/kit/serde/chat/index.ts` · `domain/import/substrate/chat-input.ts` · `packages/contracts/src/chat/bulk-import.ts` (doc) · `domain/export/verbs/export-chat.ts` |
 

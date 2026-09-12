@@ -237,7 +237,10 @@ export interface RpgToolCallDisclosure {
  *  which is what the host reads; every other viewer reads the summary BARE, because the tail is a provider
  *  diagnostic (endpoints, model ids, whatever the backend chose to put in an error body) and this read is
  *  MEMBER-gated. Composed at `entry/compose/rpg.ts` and projected in `domain/rpg/substrate/tool-call-visibility.ts`.
- *  PROSE-OK: the per-turn disclosure's reason line, never a model prompt */
+ *  NOT A MARKER (#2064): this is the per-turn disclosure's reason line, never a model prompt — and it sits in
+ *  a file `no-hardcoded-model-prose` judges under neither arm (not a seam, not a catalog), so the retired
+ *  private `PROSE-OK:` opener it used to wear addressed nothing. Kept as the prose it always was; a `@orb-waive`
+ *  here would be a waiver for a finding that does not exist, which the central engine ALARMS on. */
 export const RPG_STATE_ROUND_FAILED_SUMMARY = "the model call that records game state failed, so this turn changed nothing";
 
 export interface RpgTurnToolCallsView {

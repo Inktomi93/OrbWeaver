@@ -6,7 +6,7 @@ updated: 2026-08-29
 
 # Re-audit: #711 recon-remediation backlog + #765 marker debt — against main `035c3ecae`
 
-Charge: settle every row of the #711 body (51 bullets across batches A–D; the title's "~30" undercounts
+Charge: settle every row of the #711 body (51 bullets across batches A–D; the title's "\~30" undercounts
 and the "E: …" in the title has no matching section in the body) against current main, and rule on
 whether the #751 caught-failure-ownership landing resolves #765. READ-ONLY; no source touched. Every
 verdict below was re-derived from the tree THIS session (file read + mechanism check), with the fixing
@@ -43,7 +43,7 @@ by this audit: PASS, exit 0, 16/16 static stages green (full tail read).**
 
 | Row | Verdict | Receipt |
 | - | - | - |
-| C1 workloads starvation (QUEUE_HEAD_WINDOW=10) | **FIXED-ON-MAIN** | `ec1e3b30f` — `workloads/persistence/queries.ts:398-432`: fixed window gone; `scanRunnablePage` cursor-pages the lane's COMPLETE due queue past waiting/poison heads |
+| C1 workloads starvation (QUEUE\_HEAD\_WINDOW=10) | **FIXED-ON-MAIN** | `ec1e3b30f` — `workloads/persistence/queries.ts:398-432`: fixed window gone; `scanRunnablePage` cursor-pages the lane's COMPLETE due queue past waiting/poison heads |
 | C2 shutdown no-join | **FIXED-ON-MAIN** | `ec1e3b30f` — `entry/lifecycle.ts:105-108,629,645`: `drainWorkloadsWorker` (abort + `await worker.settled`) runs before `preCloseHousekeeping(db)` |
 | C3 terminal events not emitted | **FIXED-ON-MAIN** | `ec1e3b30f` — queued-poison and dep-failed route `onFailure` → `emitWorkloadEvent({type:"failed"})` (`engine/next-runnable.ts:19-27`); queued-cancel emits `cancelled` (`verbs/cancel.ts:23`) |
 | C4 null-owner uniqueness | **FIXED-ON-MAIN** | `3eec8ed59` — `db/schema/workloads.ts`: THREE disjoint partial unique indexes partitioned by mode + immutable `admission_system` arm (NULL-distinctness solved by the owner-free system key; FK SET NULL cannot migrate a row between partitions). Baseline hygiene clean: single `0000_baseline.sql`, carries `workloads_mode_active_singular_system`, journal has one entry |
@@ -65,27 +65,27 @@ by this audit: PASS, exit 0, 16/16 static stages green (full tail read).**
 
 ## Verdict table — Batch D (client robustness)
 
-| Row | Verdict | Receipt |
-| - | - | - |
-| D1 optimistic-restore clobber | **FIXED-ON-MAIN** | `a781a77cc` — `create-entity-mutation.ts:124-150,173-201`: per-query mutation TOKEN ownership (claim/owns/release); an older failure's rollback that no longer owns the key is a no-op; cold-cache rollback removes the phantom entry |
-| D2 agent-seed partial (dev-only) | **FIXED-ON-MAIN** | `2d16ef60c` + `29422a765` — `agent-seed/index.ts:345-433`: `GameSeedFlights.run` single-flights concurrent first-time calls (the #752 double-mint), `PendingGameSeed` resumes a partial attempt from its failed step with match-assertion |
-| D3 card-frame unbounded cache | **STILL-OPEN** | `data/use-card-frame.ts:34`: the `minted` Map (keyed on the full serialized mint body — html+css+themeTokens) has NO eviction, cap, or LRU; it grows monotonically per distinct body for the tab's lifetime. Only the RESOLVED-handle staleness was fixed (`resolved.body === body` gate — a handle never outlives its bytes). Comment-1's "card-frame epoch … fixed" describes the epoch half only. Severity: P3/P4 per-tab memory growth in long sessions with many cards/theme flips |
-| D4 endpoint redaction | **FIXED-ON-MAIN** | #718 (`c0f9b2edf` collision-safe redaction) — enforcement landed at the PRODUCER chokepoint, not the zod schema (a schema cannot know which values are secret): `custom-byo/inspect.ts:103` `redactHeaders(headers, secrets)`; `openai-compat/body.ts:159-203` masks by header-name signal, scrubs known secret LITERALS from response bodies + `Bearer …`/`sk-…` shapes, collision-driven over-redaction preferred; `error-classify.ts:187-207` scrubs error surfaces |
-| D5 model-catalog empty-on-loading | **STILL-OPEN (residual)** | Custom arm IS fixed: `model-picker.tsx:138-145` renders `CommandLoading` skeletons while `customModelsPending`. But the CATALOG arm (openrouter/max-pro-sub) is not: `role-slot-row.tsx:290,326` threads `isLoading` into the picker, and the picker declares it (`:55`) but NEVER CONSUMES it — exactly 1 reference in the file (the declaration). While `useRoleSourceModels` is loading, `result` is undefined → pool `[]` → the list renders `CommandEmpty` "No models match." with no loading indication. The dead prop is the smoking gun of a half-landed fix |
-| D6 credential-health retry lost | **FIXED-ON-MAIN** | `credential-key-row.tsx:41,64-65,96,166`: failure → `{kind:"error"}` → alert-toned "Test failed — try again" + button label flips to "Retry" |
-| D7 notification dup-submit | **FIXED-ON-MAIN** | `e510bb098`/`fbbf542a6` — `notification-bell.tsx:190,198-211,264`: synchronous `actionOwned` ref admission + `disabled={isPending}` on the action buttons |
-| D8 databank toggle conflict | **FIXED-ON-MAIN** | `databank-context-body.tsx:168,182`: `disabled={attach.isPending || detach.isPending}` on the Everywhere switch + live status copy |
-| D9 pasted-doc unhandled rejection | **FIXED-ON-MAIN** | `add-document-body.tsx:215-233`: `.mutate` with `onSuccess` (never an un-awaited `mutateAsync`); `canCreate` gates empty + pending; factory `errorToast` owns the failure |
-| D10 admin owner-policy + per-target locks | **FIXED-ON-MAIN** | `2f52f24a2` — `admin-users-section.tsx:59-92`: per-target `Set<UserId>` pending admission (role + enabled independently); `admin-user-row.tsx:54-71`: role select owner-only (`viewerIsOwner`), owner row uncontrollable, self-disable blocked, disable confirm-gated |
-| D11 character bulk clear-before-success | **FIXED-ON-MAIN** | `4846e4575` — `character-bulk-bar.tsx:39-51,58-74`: selection clears via `.then(() => onRemoveSubmitted(...))` AFTER success only; failure keeps the selection; all three actions `disabled={isPending}` |
-| D12 portrait preview advance | **FIXED-ON-MAIN** | `avatar-upload-field.tsx:45-73`: `uploadEpoch` ref guards EVERY state advance (preview/success/error/loading) — only the latest upload's outcome lands; failure surfaces inline |
-| D13 leaderboard error masked | **STILL-OPEN (residual)** | The fix landed (`QueryErrorState` + retry, `analytics-list-surface.tsx:135-137`) but the branch ORDER shadows it: `:132` returns the skeleton on `isPending \|\| page === undefined`, and on a FIRST-LOAD error (react-query: status "error", `isPending` false, data undefined — no previous page for `keepPreviousData` to keep) `page === undefined` wins → PERMANENT SKELETON; the error arm is reachable only for a refetch-error-after-success. The original defect (error masked) survives in the first-load case, now as an infinite skeleton. No CT pins the error arm (`analytics-list-surface.ct.tsx`: zero error/retry assertions). Fix is a one-line branch reorder + a CT |
-| D14 tag drag partial order | **FIXED-ON-MAIN** | Server half (C6) rejects any non-complete-permutation submit, so a filtered-subset drag can no longer corrupt the order; the client failure is LOUD (`errorToast: "Couldn't reorder the tags."`, `use-tag-settings-mutations.ts:48`). Minor UX residual noted below (drag not disabled while a filter is active — it can only fail) |
-| D15 duration rollover | **STILL-OPEN** | `analytics-view-model.ts:72-87` still rounds the remainder independently of the floor: REPRODUCED this session against the exact current source — `formatDurationMs(119700)` → **"1m 60s"**, `formatDurationMs(7170000)` → **"1h 60m"**, and the seconds arm has the same class: `formatDurationMs(59999)` → **"60.0s"**. The unit tests (`analytics-view-model.test.ts:35-54`) avoid every boundary value. Comment-1's "duration rollover … fixed" is REFUTED. Severity: P3 cosmetic-wrong figures on the analytics surface |
-| D16 workload progress stale | **FIXED-ON-MAIN** | `workload-row.tsx:142-159`: live tail wins while connected; with no subscription the DURABLE `progress` column carries the position; neither → indeterminate. Row-local buffer, per-row subscription, state-change invalidation (`use-workload-stream.ts` header contract) |
-| D17 bundle-import overwrite | **FIXED-ON-MAIN** | `944d1d10d` — `use-library-import.ts`: full `requestEpoch` discipline — every finish/fail/progress/state advance is epoch-guarded; `reset` bumps the epoch so no late completion can overwrite a newer run |
-| D18 world-info N+1 picker | **FIXED-ON-MAIN** | `attachment-rows.tsx` header + body: the book-centric read is ONE `listAttachmentsForBook(bookId)` reverse index owned by the parent; rows are pure prop consumers (zero per-row queries in the file) |
-| D19 attach-controls actionable-on-error | **FIXED-ON-MAIN** | `fbbf542a6` — `attachment-rows.tsx:45,53,99,106`: `attachmentKnown = !(queryPending || queryError)` — controls render null while the attachment state is unknown/errored; disabled while a mutation is pending |
+| Row | Verdict | Receipt | | |
+| - | - | - | - | - |
+| D1 optimistic-restore clobber | **FIXED-ON-MAIN** | `a781a77cc` — `create-entity-mutation.ts:124-150,173-201`: per-query mutation TOKEN ownership (claim/owns/release); an older failure's rollback that no longer owns the key is a no-op; cold-cache rollback removes the phantom entry | | |
+| D2 agent-seed partial (dev-only) | **FIXED-ON-MAIN** | `2d16ef60c` + `29422a765` — `agent-seed/index.ts:345-433`: `GameSeedFlights.run` single-flights concurrent first-time calls (the #752 double-mint), `PendingGameSeed` resumes a partial attempt from its failed step with match-assertion | | |
+| D3 card-frame unbounded cache | **STILL-OPEN** | `data/use-card-frame.ts:34`: the `minted` Map (keyed on the full serialized mint body — html+css+themeTokens) has NO eviction, cap, or LRU; it grows monotonically per distinct body for the tab's lifetime. Only the RESOLVED-handle staleness was fixed (`resolved.body === body` gate — a handle never outlives its bytes). Comment-1's "card-frame epoch … fixed" describes the epoch half only. Severity: P3/P4 per-tab memory growth in long sessions with many cards/theme flips | | |
+| D4 endpoint redaction | **FIXED-ON-MAIN** | #718 (`c0f9b2edf` collision-safe redaction) — enforcement landed at the PRODUCER chokepoint, not the zod schema (a schema cannot know which values are secret): `custom-byo/inspect.ts:103` `redactHeaders(headers, secrets)`; `openai-compat/body.ts:159-203` masks by header-name signal, scrubs known secret LITERALS from response bodies + `Bearer …`/`sk-…` shapes, collision-driven over-redaction preferred; `error-classify.ts:187-207` scrubs error surfaces | | |
+| D5 model-catalog empty-on-loading | **STILL-OPEN (residual)** | Custom arm IS fixed: `model-picker.tsx:138-145` renders `CommandLoading` skeletons while `customModelsPending`. But the CATALOG arm (openrouter/max-pro-sub) is not: `role-slot-row.tsx:290,326` threads `isLoading` into the picker, and the picker declares it (`:55`) but NEVER CONSUMES it — exactly 1 reference in the file (the declaration). While `useRoleSourceModels` is loading, `result` is undefined → pool `[]` → the list renders `CommandEmpty` "No models match." with no loading indication. The dead prop is the smoking gun of a half-landed fix | | |
+| D6 credential-health retry lost | **FIXED-ON-MAIN** | `credential-key-row.tsx:41,64-65,96,166`: failure → `{kind:"error"}` → alert-toned "Test failed — try again" + button label flips to "Retry" | | |
+| D7 notification dup-submit | **FIXED-ON-MAIN** | `e510bb098`/`fbbf542a6` — `notification-bell.tsx:190,198-211,264`: synchronous `actionOwned` ref admission + `disabled={isPending}` on the action buttons | | |
+| D8 databank toggle conflict | **FIXED-ON-MAIN** | `databank-context-body.tsx:168,182`: `disabled={attach.isPending \|\| detach.isPending}` on the Everywhere switch + live status copy | | |
+| D9 pasted-doc unhandled rejection | **FIXED-ON-MAIN** | `add-document-body.tsx:215-233`: `.mutate` with `onSuccess` (never an un-awaited `mutateAsync`); `canCreate` gates empty + pending; factory `errorToast` owns the failure | | |
+| D10 admin owner-policy + per-target locks | **FIXED-ON-MAIN** | `2f52f24a2` — `admin-users-section.tsx:59-92`: per-target `Set<UserId>` pending admission (role + enabled independently); `admin-user-row.tsx:54-71`: role select owner-only (`viewerIsOwner`), owner row uncontrollable, self-disable blocked, disable confirm-gated | | |
+| D11 character bulk clear-before-success | **FIXED-ON-MAIN** | `4846e4575` — `character-bulk-bar.tsx:39-51,58-74`: selection clears via `.then(() => onRemoveSubmitted(...))` AFTER success only; failure keeps the selection; all three actions `disabled={isPending}` | | |
+| D12 portrait preview advance | **FIXED-ON-MAIN** | `avatar-upload-field.tsx:45-73`: `uploadEpoch` ref guards EVERY state advance (preview/success/error/loading) — only the latest upload's outcome lands; failure surfaces inline | | |
+| D13 leaderboard error masked | **STILL-OPEN (residual)** | The fix landed (`QueryErrorState` + retry, `analytics-list-surface.tsx:135-137`) but the branch ORDER shadows it: `:132` returns the skeleton on `isPending \|\| page === undefined`, and on a FIRST-LOAD error (react-query: status "error", `isPending` false, data undefined — no previous page for `keepPreviousData` to keep) `page === undefined` wins → PERMANENT SKELETON; the error arm is reachable only for a refetch-error-after-success. The original defect (error masked) survives in the first-load case, now as an infinite skeleton. No CT pins the error arm (`analytics-list-surface.ct.tsx`: zero error/retry assertions). Fix is a one-line branch reorder + a CT | | |
+| D14 tag drag partial order | **FIXED-ON-MAIN** | Server half (C6) rejects any non-complete-permutation submit, so a filtered-subset drag can no longer corrupt the order; the client failure is LOUD (`errorToast: "Couldn't reorder the tags."`, `use-tag-settings-mutations.ts:48`). Minor UX residual noted below (drag not disabled while a filter is active — it can only fail) | | |
+| D15 duration rollover | **STILL-OPEN** | `analytics-view-model.ts:72-87` still rounds the remainder independently of the floor: REPRODUCED this session against the exact current source — `formatDurationMs(119700)` → **"1m 60s"**, `formatDurationMs(7170000)` → **"1h 60m"**, and the seconds arm has the same class: `formatDurationMs(59999)` → **"60.0s"**. The unit tests (`analytics-view-model.test.ts:35-54`) avoid every boundary value. Comment-1's "duration rollover … fixed" is REFUTED. Severity: P3 cosmetic-wrong figures on the analytics surface | | |
+| D16 workload progress stale | **FIXED-ON-MAIN** | `workload-row.tsx:142-159`: live tail wins while connected; with no subscription the DURABLE `progress` column carries the position; neither → indeterminate. Row-local buffer, per-row subscription, state-change invalidation (`use-workload-stream.ts` header contract) | | |
+| D17 bundle-import overwrite | **FIXED-ON-MAIN** | `944d1d10d` — `use-library-import.ts`: full `requestEpoch` discipline — every finish/fail/progress/state advance is epoch-guarded; `reset` bumps the epoch so no late completion can overwrite a newer run | | |
+| D18 world-info N+1 picker | **FIXED-ON-MAIN** | `attachment-rows.tsx` header + body: the book-centric read is ONE `listAttachmentsForBook(bookId)` reverse index owned by the parent; rows are pure prop consumers (zero per-row queries in the file) | | |
+| D19 attach-controls actionable-on-error | **FIXED-ON-MAIN** | `fbbf542a6` — `attachment-rows.tsx:45,53,99,106`: `attachmentKnown = !(queryPending \|\| queryError)` — controls render null while the attachment state is unknown/errored; disabled while a mutation is pending | | |
 
 ## #765 verdict — RESOLVED by the #751 landing
 
@@ -117,7 +117,7 @@ happened, plus the scanRoot widening its body warned must not precede the landin
 
 **#765 can close.** Residue for the closer: #711 comment-6 noted #751's detector/marker WIP "141 sites
 remain unproven" banked at `2c3d460e8` — whether #751 itself is fully drained is #751's business, not
-#765's; the specific debt #765 tracked (markers naming an unregistered gate, hidden by scanRoot) is
+\#765's; the specific debt #765 tracked (markers naming an unregistered gate, hidden by scanRoot) is
 gone on both halves.
 
 ## What genuinely remains STILL-OPEN (for re-scope/dispatch)
@@ -140,7 +140,7 @@ gone on both halves.
 
 ## Refuted issue-thread claims (worth noting when closing)
 
-#711 comment-1 (2026-08-26 reconciliation) claimed three things this audit refutes on the tree:
+\#711 comment-1 (2026-08-26 reconciliation) claimed three things this audit refutes on the tree:
 "GIF/APNG source MIME … current-tree fixed" (C12 — variant path unfixed), "duration rollover …
 fixed" (D15 — reproduced), and "model-catalog state … fixed" (D5 — half-landed, dead prop). It also
 silently dropped C16 (neither closed nor boarded). Every other comment-1 claim I checked held.

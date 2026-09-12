@@ -100,8 +100,10 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   owns rule policy. A scoped floor names the files it passed to the native runner and treats an ignored or
   unowned input as no measurement, never as green coverage.
 - **The spellings: a named pnpm script when one exists, else `pnpm exec <tool> …` — never `npx`.** Scoped
-  biome is `pnpm exec biome check <paths> --diagnostic-level=error`; scoped CT is `pnpm test:ct <paths>`
-  (it carries BOTH the cache-clear and the nice). An OOM under THAT ceiling is a real finding to report,
+  biome is `pnpm exec biome check <paths> --diagnostic-level=error`; **scoped ESLint is
+  `pnpm exec eslint <files>`, NEVER `pnpm lint:eslint <paths>`** — `lint:eslint` is the WHOLE-REPO verb, it
+  takes no paths, and handing it any exits 3 (misuse, not a verdict; #2056 made the refusal name this door);
+  scoped CT is `pnpm test:ct <paths>` (it carries BOTH the cache-clear and the nice). An OOM under THAT ceiling is a real finding to report,
   never to rerun-until-green.
 - **A search, gate, or in-page sampler that reports nothing owes a PLANTED POSITIVE CONTROL in the same
   invocation** — a bare zero is "I couldn't measure", never "it isn't there".

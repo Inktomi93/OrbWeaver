@@ -49,7 +49,7 @@ piece landing alone, owner-testable, byte-identical when off.
   notifications, imagery, and the turn REQUEST (`domain/automation/contract/ops.ts:114-183`).
   **Second rider (panel P3):** `transform_draft` rewrites a MEMBER's outgoing draft pre-commit
   (target axis `PROMPT_TRANSFORM_POINTS`, first point `user_input` — "after the macro pass,
-  before USER_INPUT regex (the author-side transform order — D51)", `contracts/chat/bus.ts:
+  before USER\_INPUT regex (the author-side transform order — D51)", `contracts/chat/bus.ts:
   199-201`) — a host-authored template touching prose canon WITHOUT a turn request, attributed to
   the human whose draft it transformed. It bypasses the ops surface entirely (it registers into
   chat's D50 pipeline; the dispatch engine REFUSES it — `arm-executors.ts:302`). Both riders are
@@ -67,7 +67,7 @@ piece landing alone, owner-testable, byte-identical when off.
     Every message/variant carries author identity (`messages.authorUserId`/`characterId`; the
     D137 cast producer resolves every referenced identity through ONE kind-discriminated home).
     Any future in-room agent is class-2-sequential = a seat + attribution = **exactly parked
-    #13, nothing less** — this spec builds none of it and depends on none of it.
+    \#13, nothing less** — this spec builds none of it and depends on none of it.
   - **CONCURRENT** — contributes alongside a turn WITHOUT a slot. The pattern exemplar is the
     D109 state round (a post-commit model call keyed to the committed variant — never a message);
     reactions are the human-and-character concurrent form (canon junction rows attributed to a
@@ -115,6 +115,7 @@ dig are marked **LEGACY-INFORMED**.)
 ONE registry + behavior contract for TRANSIENT interactive controls near the transcript/composer.
 Generalizes the click/consume contract `choice-send-provider.tsx` already spells (own
 `useSendMessage`, busy from shared turn phase, compose default in non-game chats — file header).
+
 - HOME: control-kind union + descriptors at the chat feature's composition tier
   (`packages/client/src/features/chat/`, the D70 registry tier); wire payloads in
   `@orb/contracts/automation`. ENFORCER: compile (`CONTROL_KINDS` + exhaustive
@@ -143,6 +144,7 @@ Generalizes the click/consume contract `choice-send-provider.tsx` already spells
 
 ONE per-chat assembly of "what this chat's model is told it can do," collected from registered
 contributions, delivered on the existing injections merge. rpg is contributor #0, byte-unchanged.
+
 - WIRING — **the final contract, stated ONCE (frozen at A1; R2 is part of it, not a later
   re-type):** the collection call sits in chat's `buildTurnContext` AFTER
   `ctx.rpg.gatherTurnContext(...)` (`turn.ts:560-577`); a `TeachingContribution` is
@@ -204,6 +206,7 @@ through the EXISTING `createRule` validation (never bypassed; `verbs/create-rule
 as knobs — the admin-console failure smaller). Pure turn-cadence presets need NO counter at all:
 `chat.messageCount` is already an env binding (`contracts/automation/index.ts:317`), so "every N
 beats" is the single predicate `chat.messageCount % N == 0`.
+
 - The preset table (v1 committed + owner-OPTIONAL rows marked ⭘; every row maps to EXISTING arms —
   receipts `contracts/automation/index.ts:160-247`):
 
@@ -335,7 +338,7 @@ a guided-template nudge" claim is hereby retracted as an overclaim):
    hand-rolled resolve that force-stamps consent) is satisfied by reusing the ONE compose-wired
    author resolve. *(Rejected: a bare `runStructuredTurn` import into automation — a second
    quiet-LLM path beside the declared-generic op, the two-homes doubling; rejected: "rides the
-   turn like trigger_turn" — false, the consent walls live inside the turn pipeline the arm
+   turn like trigger\_turn" — false, the consent walls live inside the turn pipeline the arm
    never enters.)* SPEND-classed: member of the new `SPEND_ARM_TYPES` tuple, rides the fire-rate
    budgets + depth guard.
 2. **State home (panel-PIVOTED — three lenses independently refuted the draft's author-globals
@@ -410,6 +413,7 @@ a guided-template nudge" claim is hereby retracted as an overclaim):
    (`chat.messageCount` is an env binding, `contracts/automation/index.ts:317` — no counter
    variable, no second rule) plus `event.turn.automationDepth == 0` guards — the legacy
    turn-counter's semantics without a scheduler and without state.
+
 - **Costs, priced (panel-completed):** contracts — 1 new `AUTOMATION_ACTION_TYPES` member
   (+ the EXACT tuple pin `tests/contracts/automation/index.contract.test.ts:125-133` — a vitest
   `toEqual`, invisible to `pnpm check`, so the behavioral suite is owed) + schema arm + the
@@ -419,7 +423,7 @@ a guided-template nudge" claim is hereby retracted as an overclaim):
   preview arm (`substrate/dry-run.ts`) + a `substrate/validate.ts` admission row (the
   per-arm-rule slot: `post_notification` cooldown floor / `transform_draft` exclusivity live at
   :45,56-61 — the SPEND-classed analysis arm plausibly wants a cadence floor) + the widened
-  quiet op across its measured ~11-site footprint (op signature, executor call, two compose
+  quiet op across its measured \~11-site footprint (op signature, executor call, two compose
   wirings, six test doubles — P3's census) + a `SIDE_GEN_POSTURES` catalog member (the
   `no-hardcoded-side-gen-sampling` gate reds any literal sampling numbers — the autobg
   precedent `SIDE_GEN_POSTURES.autobg`); db — the `automation_rule_state` table (the
@@ -513,13 +517,13 @@ premise of an earlier one's correctness.
 **Phase C — COMMITTED analysis rows (RULED F7) + the remaining optional tail:** C1–C3 are
 committed path rows with the ruled apply postures (C1 pacing = direct steer; C2 distill-lore =
 confirm-first; C3 prose-audit = confirm-first); C4 stays owner-optional taste; C5 stays gated on
-#24. Stop-anywhere still holds: the path may stop after ANY of C1..C3 — each preset is a
+\#24. Stop-anywhere still holds: the path may stop after ANY of C1..C3 — each preset is a
 separately-landable rule-set + routes over the one C1 arm, and B1–B10 remain complete without any
 of them.
 
 | Step | Item | Class | Cost | Owner's test | Merge class | Fork |
 | - | - | - | - | - | - | - |
-| C1 | `run_analysis` arm (§4) + the pacing-analysis preset | 1 | the §4 priced list (arm member + tuple pin + output-op union + widened quiet op + executor + dry-run + validate row + SIDE_GEN_POSTURES member + S2 contribution + **the `automation_rule_state` table**) | enable the preset; after N beats verify the guidance line in the HOST's assembly Preview tab (Steering source — the existing host-only instrument, `assembly-preview-panel.tsx:1-18`), THEN judge the prose; the steer knob changes the direction. Game-chat interplay (panel P2): the analysis presets' mint REFUSES on an active-game chat v1 (typed refusal — the game owns its own steering per D109; the legacy no-double-director law re-derived, `legacy-main:.../crew/verbs/config.ts` `CREW_ACTIVE_GAME`), revisitable | **merge-window** (the state table — #533/#534, pin the backup) | committed (RULED F7; apply: direct steer) |
+| C1 | `run_analysis` arm (§4) + the pacing-analysis preset | 1 | the §4 priced list (arm member + tuple pin + output-op union + widened quiet op + executor + dry-run + validate row + SIDE\_GEN\_POSTURES member + S2 contribution + **the `automation_rule_state` table**) | enable the preset; after N beats verify the guidance line in the HOST's assembly Preview tab (Steering source — the existing host-only instrument, `assembly-preview-panel.tsx:1-18`), THEN judge the prose; the steer knob changes the direction. Game-chat interplay (panel P2): the analysis presets' mint REFUSES on an active-game chat v1 (typed refusal — the game owns its own steering per D109; the legacy no-double-director law re-derived, `legacy-main:.../crew/verbs/config.ts` `CREW_ACTIVE_GAME`), revisitable | **merge-window** (the state table — #533/#534, pin the backup) | committed (RULED F7; apply: direct steer) |
 | C2 | distill-lore preset (keeper analysis half) | 1 | a preset row + the `upsertLoreEntry` route (span-stamp discipline + the settled-span/high-water law, §4.5 — the mark lives in the rule-state row) + `neutralizeMacros` on the model→lore content (panel P5: world-info content IS a macro-EXECUTION plane at assembly — `assembly/context.ts:225` full `renderMacros`, op-log persisted `engine/engine.ts:249` — while message rows are not; the house untrusted-splice primitive, `kit/src/macro/content.ts:19`, one call) | play a settled span; a confirm card offers the entries; confirm lands them, idempotent on re-run | ordinary | committed (RULED F7; apply: confirm-first) |
 | C3 | prose-audit preset (rewrite suggestion card) | 1 | a preset row + the suggest route (variant-pinned + content-hashed card, §5's carried correctness heart) + the host edit-verb execution path + the revert obligation (mechanism at build) | a flawed reply draws a card; confirm applies the rewrite; a swipe between suggest and confirm refuses typed; clean replies draw nothing. On-demand = R7 `runRuleNow` (host-only v1), whose synchronous return carries the clean verdict (the legacy transient-clean lesson: a no-row clean outcome must be distinguishable from "never ran") | ordinary | committed (RULED F7; apply: confirm-first) |
 | C4 | the three zero-machinery presets (lore-reveal ×2, auto-background) | 1 | preset rows only | enable one; the arm fires on its trigger | ordinary | F5-adjacent taste |
@@ -535,7 +539,7 @@ shipped (the graft rule, `docs/design/lite-plus-guided-substrate-spec.md` §0 it
 **§7.4 Acceptance matrix:** the systems-audit authority table (Q2b) is carried as this path's
 per-action acceptance floor — every landed step's tests must witness its row (Principal /
 triggeredBy-runAs / gate / capability axis) — with THREE corrections baked in over the superseded
-text: trigger_turn's triggeredBy = the rule AUTHOR as funder (`turn.ts:2496-2498`); per-mode S1
+text: trigger\_turn's triggeredBy = the rule AUTHOR as funder (`turn.ts:2496-2498`); per-mode S1
 busy semantics (§3-S1); and the Q2b "budgets (cooldown / per-hour / spend $)" cell is STALE — the
 $/day spend ceiling was stripped from automation (`contract/ops.ts:73-75,95-97`); the live gate
 set is rate caps + depth + D17 consent.
@@ -576,7 +580,7 @@ make explicitly rather than inherit from a security default.
    stores a segment index.
 3. `AUTHORS_NOTE_DEFAULT_DEPTH` has no retro constant (legacy import; zero grep hits in
    `packages/contracts/src`) — the S2 guidance contribution needs its depth argued at build (a
-   domain constant, PD-63-compliant single placement); probe: read the current in_chat depth
+   domain constant, PD-63-compliant single placement); probe: read the current in\_chat depth
    conventions in `assembly/context.ts` candidate builders before picking.
 4. The `run_analysis` window READ SUBSTRATE (which module serves the selected-lineage text) —
    the per-route LAW is now fixed (§4.5: fresh tip for steer, settled span + high-water mark for
@@ -597,7 +601,7 @@ above now carries it (section named). REFOLDED-STRUCTURAL = the fold changed a d
 
 | # | Lens | Finding (compressed) | Disposition |
 | - | - | - | - |
-| 1 | P1 | `run_analysis` model lane vs D109-2; "like trigger_turn" false (consent walls live inside the turn pipeline) | REFOLDED-STRUCTURAL → §4.1: author-scoped resolve via the widened quiet op (the autobg precedent); the D109-2 tension argued and closed |
+| 1 | P1 | `run_analysis` model lane vs D109-2; "like trigger\_turn" false (consent walls live inside the turn pipeline) | REFOLDED-STRUCTURAL → §4.1: author-scoped resolve via the widened quiet op (the autobg precedent); the D109-2 tension argued and closed |
 | 2 | P1 | `summarizeQuiet` is the declared-generic quiet-LLM op; a second path = two-homes; §1's wall enumeration omitted it | REFOLDED-STRUCTURAL → §4.1 widens the op; §1 enumeration repaired |
 | 3 | P1 | `teaching-contribution.ts` reds the `feature-structure` gate (planted probe went RED) | FOLDED → §3-S2: A1 prices the D117-shape ratification (allowlist + cruiser + D-entry) |
 | 4 | P1 | author-globals state home: no FK, D24 soft-ref invisible to gates, no enforcer | REFOLDED-STRUCTURAL → §4.2: the `automation_rule_state` table (C1 → merge-window) |
@@ -620,7 +624,7 @@ above now carries it (section named). REFOLDED-STRUCTURAL = the fold changed a d
 | 21 | P3 | B6's `reactionsChanged` chat-bus member: 8 coupled sites unpriced incl. the `toHaveLength(29)` exact pin (vitest-tier) | FOLDED → B6 row carries the full list |
 | 22 | P3 | RULED F4 inexpressible: no machine-readable spend set; `budget_refused` fires pre-env/pre-predicate so no card can render | REFOLDED-STRUCTURAL → §3-S4 class 2 (refusal INVITATIONS, fresh run via R7) + the `SPEND_ARM_TYPES` tuple |
 | 23 | P3 | S4 bus price: phantom transport arm (default-deny needs no edit); missing client total map + `SERVER_INTERNAL_REACH` exemption-row deletion | FOLDED → §3-S4 corrected pricing (lands with the first client consumer, A2/B3) |
-| 24 | P3 | `run_analysis` model-call seam unpriced (~11-site quiet-op footprint; `summarizeQuiet` not reusable as-is) | FOLDED → §4.1 + cost list (the widened op) |
+| 24 | P3 | `run_analysis` model-call seam unpriced (\~11-site quiet-op footprint; `summarizeQuiet` not reusable as-is) | FOLDED → §4.1 + cost list (the widened op) |
 | 25 | P3 | `AUTOMATION_ACTION_TYPES` exact tuple pin + validate.ts admission row unpriced | FOLDED → §4 cost list |
 | 26 | P3 | buddy precedent covers mechanism not cardinality (one-slot-per-user vs per-(chat,rule)); TTL sweep not carried by citation | FOLDED → §3-S4 storage bullet |
 | 27 | P3 | receipt drift: :315→:317 (×2), :600→:599, :561→:560, autobg range, assemble.ts range, lite-plus-guided path + §0.5, `message-footer` had no receipt | FOLDED → cites corrected throughout; anchor receipt added at B6 |
@@ -641,7 +645,7 @@ REFUTED: none — every panel finding survived adjudication (the panel's own two
 candidates — the buddy signal-router feedback guard and the strong form of the macro-scan claim —
 were killed inside P2's process and never reached this table). P5's boundaries-verified-HELD list
 (member `{{getglobalvar}}` isolation, CEL `global` isolation, inert `{{setglobalvar}}` on chat
-turns, the structured-role firewall's metered-sub exclusion, trigger_turn's D17 walls, bus
+turns, the structured-role firewall's metered-sub exclusion, trigger\_turn's D17 walls, bus
 tiering, CSRF/frame-ancestors on the confirm mutation, macro env values emitted-not-reparsed,
 `holdsAuthority` + the DEF-11 re-entry gate) stands as the spec's security baseline.
 

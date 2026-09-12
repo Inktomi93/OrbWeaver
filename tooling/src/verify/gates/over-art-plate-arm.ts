@@ -123,7 +123,7 @@ function liveMessage(site: Site): string {
 }
 
 /** The unpaired remainder, each at its own selector subject. WARNING DEBT, not a ratchet: the four surfaces
- *  alive at mint report every run and #626 owns them. */
+ *  alive at mint report every run and #2024 owns them (#626 was CLOSED — `17a495fb8`). */
 function reportLive(ctx: GatePolicyContext, judged: Judgement): void {
   for (const [, site] of [...judged.live].sort(([a], [b]) => a.localeCompare(b))) {
     ctx.report.file(site.rel, { line: site.line, column: site.column, token: site.subject, message: liveMessage(site) });

@@ -115,7 +115,7 @@ executed Snap scripts rather than merely finding bridge names in source.
 
 ## Discovery after #1304
 
-#1304 was created at 2026-09-04T02:02:06Z. The corpus has no relevant invocation after that point.
+\#1304 was created at 2026-09-04T02:02:06Z. The corpus has no relevant invocation after that point.
 
 | discovery door | historical calls | post-#1304 calls |
 | - | -: | -: |
@@ -306,4 +306,3 @@ nearby `Write`, `SendMessage`, or work-item calls.
 - Current source establishes declared/discoverable surface. Absence from transcript use establishes only
   unobserved status.
 - The corpus was live and append-only; denominators are tied to the snapshot timestamp.
-

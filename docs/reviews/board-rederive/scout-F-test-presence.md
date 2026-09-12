@@ -11,6 +11,7 @@ Main at `e4d017fd8` (clean).
 ## Gate mechanics found
 
 `tooling/src/verify/gates/test-presence.ts`:
+
 - Domain arm is DEMAND-BY-DEFAULT (landed #767, commit `b52fd38d4`, merged `f54644386`): any file
   under `DOMAIN_DIR = "packages/server/src/domain/"` with runtime/callable logic is demanded a
   mirror test, exempt only by shape (`index.ts` barrels, zero-logic `service.ts`/`context.ts`
@@ -50,13 +51,13 @@ existing partition in the pinned comment (substrate first, highest yield).
   law vs. real logic in `entry/compose`, `entry/*`, `transport/*`) — that is design work, not a
   cheap gate-accounting pull, so I did not attempt to independently re-count file-by-file.
 - Sanity check: `packages/server/src/{entry,transport}` currently hold 188 tracked files total
-  (`git ls-files … | wc -l`), consistent with an ~88-callable subset (68+20) being plausible in
+  (`git ls-files … | wc -l`), consistent with an \~88-callable subset (68+20) being plausible in
   scope, though this doesn't confirm the exact split.
 - No commits since the #767 survey touch entry/transport test coverage in a way that would shrink
   this (no new `.test.ts`/`.int.test.ts` additions found under those trees post-survey via the
   git log of the era).
 
-**VERDICT: ⚠️ STALE-PREMISE-RISK (unconfirmed, likely still ~accurate)** — the *existence* of the
+**VERDICT: ⚠️ STALE-PREMISE-RISK (unconfirmed, likely still \~accurate)** — the *existence* of the
 gap (no gate arm at all) is solidly confirmed. The exact "25 untested / 18+7" headline number is
 inherited from the #767 lane's survey and was not independently re-run here; nothing on the tree
 since would have moved it, but it was never a gate-computed number to begin with (no arm exists to

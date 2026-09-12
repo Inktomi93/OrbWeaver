@@ -22,6 +22,7 @@ SHAPE (whether the rule carries a spend arm), not a per-rule stored flag. The co
 states directly: "the per-rule opt-out is recorded-unbuilt — `substrate/suggestions.ts::invitesOnRefusal`".
 
 Searched for any opt-out/knob field on the rule or preset contracts:
+
 - `packages/contracts/src/automation/index.ts` — grepped `confirmFirst|opt.*out|optOut|perRule`:
   only `confirmFirst` (a boolean SUGGESTIBLE-arm flag, `:445,470,501,504,512`, gated on ARM TYPE
   via `SuggestibleAction`/`SuggestibleArmType`, `:609-624`) exists. No opt-out field.

@@ -29,7 +29,7 @@ The existing CLI/artifact, MCP/recovery, and selector/choreography censuses were
 ## Candidate escape jobs
 
 | job (event-level) | candidates | current Snap coverage | disposition |
-|---|---:|---|---|
+| - | -: | - | - |
 | precise DOM / JavaScript evaluation | 1,326 | `--eval` | Document Snap-first; do not add evaluator aliases. |
 | mobile/device/load emulation | 389 | `--mobile`, `--viewport`, `--network`, `--cpu-throttle` | Keep current environment arm and reset/ownership receipts. |
 | multi-tab/page work | 322 | `--pages` with `@N` action targets | Document one multi-page recipe. |

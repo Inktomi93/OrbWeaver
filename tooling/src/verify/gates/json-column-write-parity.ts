@@ -110,6 +110,12 @@ const GUARD_EXEMPT: ExemptionTable = {
   },
 };
 
+/** Every standing exemption row across BOTH tables. The stale-sweep proof row's `expect.count` DERIVES from
+ *  this rather than naming a literal: that fixture claims none of the rows, so all of them red at once, and
+ *  a hardcoded number rots the instant a row is added or retired. It did — the row read 7 against 10 live
+ *  rows and the proof sat red unseen (`tests/tooling/**` is `--full`-only, #1842). */
+const EXEMPTION_ROW_COUNT = Object.keys(ALLOWLIST).length + Object.keys(GUARD_EXEMPT).length;
+
 const MESSAGE =
   "WHOLE-RECORD REPLACE of a JSON column that ANOTHER writer merges key-wise — the replace silently undoes " +
   "the merge on the next write. The founding defect: refinery_sessions.selection, where applyFields remapped " +
@@ -880,8 +886,8 @@ export const gate: GateDescriptor = {
         "packages/db/src/schema/index.ts": 'export * from "./notes.ts";\n',
         "packages/db/src/schema/notes.ts": 'export const notes = sqliteTable("notes", {\n  body: text("body", { mode: "json" }),\n});\n',
       },
-      expect: { count: 7, messageIncludes: "ALLOWLIST entry names" },
-      why: "BOTH STALE SWEEPS, two-sided (§4.4): the anchor is loaded and NOTHING on this tree claims any ALLOWLIST or GUARD_EXEMPT row, so all seven rows red as stale. It is also the mode-B proof — a row whose site left the project is examined, because the sweep is keyed on a `seen` set and never on the row's own file existing",
+      expect: { count: EXEMPTION_ROW_COUNT, messageIncludes: "ALLOWLIST entry names" },
+      why: "BOTH STALE SWEEPS, two-sided (§4.4): the anchor is loaded and NOTHING on this tree claims any ALLOWLIST or GUARD_EXEMPT row, so EVERY row of both tables reds as stale at once — the count is DERIVED from the two tables (`EXEMPTION_ROW_COUNT`), never a literal, because a literal rots the moment a row lands. It is also the mode-B proof — a row whose site left the project is examined, because the sweep is keyed on a `seen` set and never on the row's own file existing",
     },
   ],
   mustPass: [

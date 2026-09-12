@@ -523,7 +523,6 @@ Official-first, recent (2024–2026):
 - [Compose Tip #10 — init: true for PID 1](https://lours.me/posts/compose-tip-010-init-pid1/)
 - [BellSoft — Docker image security best practices: SBOM, non-root, provenance](https://bell-sw.com/blog/docker-image-security-best-practices-for-production/)
 - [OneUptime — Multi-stage Dockerfiles for monorepos (2026-01)](https://oneuptime.com/blog/post/2026-01-30-docker-multi-stage-monorepos/view)
-- [OneUptime — RUN --mount=type=secret for build-time secrets (2026-02)](https://oneuptime.com/blog/post/2026-02-08-how-to-use-run-mounttypesecret-for-build-time-secrets/view)
-  </content>
+- [OneUptime — RUN --mount=type=secret for build-time secrets (2026-02)](https://oneuptime.com/blog/post/2026-02-08-how-to-use-run-mounttypesecret-for-build-time-secrets/view) </content>
 
 </invoke>

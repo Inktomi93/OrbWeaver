@@ -207,7 +207,7 @@ already knows this; a naive post-flag sweep would not.
 Two related board entries, same subject:
 
 - Standing owner item #7 (`docs/history/retro-workboard-2026-08-08.md:1989-1996`): **agent-sdk first-class for rpg-lite.**
-  Plumbing is ~complete; four remaining arms in **ruled order 2→3→1→4** — (2) reasoning-visibility
+  Plumbing is \~complete; four remaining arms in **ruled order 2→3→1→4** — (2) reasoning-visibility
   parity, (3) usage/context accounting parity, (1) knob honesty, (4) the live rpg-lite loop scored
   on the SDK wire. Closes: *"Claude Max OAuth expired — the agent-sdk backend is dead until he
   re-auths."*

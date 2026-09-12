@@ -262,4 +262,3 @@ prompt.
   summary, visually inspecting an image block, or using a report from another session is not counted.
 - Finding-to-issue conversion is reported only where transcript/design evidence names the connection; no
   proximity-based conversion rate is fabricated.
-

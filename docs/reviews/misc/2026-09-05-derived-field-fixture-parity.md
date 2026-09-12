@@ -51,7 +51,7 @@ chunks (they key equality, nothing recomputes them against a card).
    `planLiteGameBirth` cannot mint (a d20 game is BORN with `RPG_RULESET_PROFILE.d20`). Both were missing
    `publicConfig.dateMode`; the second was also missing `publicConfig.ruleset`. **Neither lie changed a
    verdict** (the dice row keys on `ruleset`, the choice provider on `cyoaChoiceBehavior`) — which is the
-   #900 hazard exactly: the pin is green over a fiction and the next reader of those fields inherits it.
+   \#900 hazard exactly: the pin is green over a fiction and the next reader of those fields inherits it.
 2. **`tests/support/factories/character.ts`** defaulted `contentHash` to `hash_<id>` — see the census row.
 3. **The seed pack** hand-spelled the five blank non-`seeded` background fields beside each card and
    retyped each `<handle>-bg` slug. Both are now computed; the retype was the surface a future edit could
@@ -116,7 +116,7 @@ ASSERTION sites (`toStrictEqual` / `toHaveBeenCalledWith` — asserting a shape 
 
 **Verdict: do not ratchet.** The field NAME is not the enforcement key — `provenance` names three
 unrelated concepts in this repo, and ast-grep cannot see which type an object literal inhabits, so it
-cannot tell a fixture from an assertion or a card from a preset knob. A ratchet here would be ~97% noise
+cannot tell a fixture from an assertion or a card from a preset knob. A ratchet here would be \~97% noise
 and would train readers to allowlist.
 
 ### What to build instead (recommended, in priority order)

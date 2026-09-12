@@ -36,7 +36,7 @@ bindable detail hero (#798)").
 
 - `PLUGIN_ASSET_EGRESS_PER_HOUR = 1200` — new constant,
   `packages/server/src/domain/plugin/substrate/rate-floor.ts:52`.
-- `PLUGIN_EGRESS_PER_HOUR` raised 120→360 — same file, line ~39-45 (diff confirmed;
+- `PLUGIN_EGRESS_PER_HOUR` raised 120→360 — same file, line \~39-45 (diff confirmed;
   `git show 80908a0d8 -- .../rate-floor.ts`).
 - New byte cap `PLUGIN_ASSET_MAX_BYTES = 5_242_880` (5 MiB) —
   `packages/server/src/infra/plugin-host/budgets.ts` (added by same commit).
@@ -55,7 +55,7 @@ with test deltas in the same commit (`membrane.test.ts`, `escape.suite.test.ts`,
 
 **CLOSE RECOMMENDATION: close.**
 
-## #802 — plugin-fetched CAS assets are GC-bait (no ASSET_REFS coverage)
+## #802 — plugin-fetched CAS assets are GC-bait (no ASSET\_REFS coverage)
 
 **⛔ NOT-STARTED — the row's claim is CONFIRMED TRUE and unaddressed.**
 

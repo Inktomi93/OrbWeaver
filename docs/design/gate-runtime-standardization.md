@@ -556,8 +556,10 @@ family.
 
    - `ui-exports-map-complete` recorded its `entry.kind === "file"` index fence as unfalsifiable because it
      *"would matter only for a DIRECTORY named `index.ts`."* **A `mode: "resource"` fixture can create exactly
-     that** — `packages/ui/src/primitives/index.ts/x.ts` — and with the fence cut, that row and only that row
-     reds.
+     that** — a fixture file at `packages/ui/src/primitives/<a directory literally named index.ts>/x.ts` — and
+     with the fence cut, that row and only that row reds. (The angle brackets are deliberate: this path exists
+     only inside a proof fixture, and spelling it literally made `dangling-refs` report it as a phantom home.
+     A non-literal segment is the gate's own escape for prose that describes a shape rather than citing one.)
    - `runner-config-path-liveness` recorded its real-tree `anchorOk` cut as unfalsifiable. It cut clean only
      because **every existing row went through the module's own `configs()` helper**, which plants exact rows
      and therefore never reaches the zero-exact branch below the anchor. A fixture that stops using that

@@ -77,6 +77,10 @@ const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] =
   ["policy-conformance", ["--changed"], "takes no arguments"],
   ["db-baseline", ["extra"], "takes no arguments"],
   ["asset-refs", ["extra"], "takes no arguments"],
+  // #2056: a bare "takes no arguments" was a DEAD END here — `pnpm lint:eslint <paths>` is the spelling a
+  // lane reaches for, the whole-repo verb genuinely takes none, and the scoped answer is a different tool.
+  // The refusal must ROUTE, so the assertion is on the door rather than on the refusal's first clause.
+  ["eslint", ["packages/ui/src/lib/class-merge.ts"], "pnpm exec eslint <files>"],
   ["tests-membership", ["--scope", "tests"], "accepts only --json"],
   ["orphan-ratchet", ["--updat"], "does not recognize"],
   ["new-gate", ["a-gate", "b-gate"], "ONE gate per invocation"],

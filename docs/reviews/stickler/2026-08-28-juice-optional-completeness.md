@@ -75,7 +75,7 @@ and a create→fire int test through the real engine
 (`tests/server/domain/automation/verbs/create-rule-from-preset.int.test.ts`, 1314 lines — every §4
 row has a `describe` block by number; `livingLibrary` is covered in the C5 suites +
 `owner-rules-surface.ct.tsx`). The three owner-OPTIONAL rows (#17 `illustrateOnLoreReveal`,
-#18 `reactToLoreActivation`, #19 `autoSetSceneBackground` — "owner 2026-08-24 'everything optional
+\#18 `reactToLoreActivation`, #19 `autoSetSceneBackground` — "owner 2026-08-24 'everything optional
 gets included'") are all built and tested (cooldown/count-floor arms pinned).
 
 **Graveyard check: CLEAN.** None of the 13 graveyarded shapes (auto-fire recap, genre decks, keyword
@@ -91,7 +91,7 @@ defs — nobody re-minted a killed idea.
 | U2 (chat anchors + shell) | **BUILT** | `plugin-anchored-surfaces.tsx`, `plugin-surface-shell.tsx`; CT pin commit `dd526594f` ("byte-identical rooms, the labelled shell, the silence law") |
 | U3 (tool cards) | **BUILT** | `pluginToolRenderer` (`authed-app.tsx:235`), `plugin-tool-card.tsx`; commits `21ebaf174`/`03480da00` — closes juice A2-F5 |
 | U4 (Tier C client guest + CSP) | **BUILT** | `features/plugin/lib/ui-guest/` (worker + realm + host), `get-ui-bundle.ts`, `ui-host-call.ts` + `UI_PROXYABLE_HOST_FUNCTIONS` (9 members, re-gated — host-v1.ts:510ff), `'wasm-unsafe-eval'` (`security-headers.ts:93,114`); commits `29f54f7dc`/`200bd6a4d`/`ec23d2ba1`/`46552e88a`/`11817ead4`/`a68d95fe2` (the containment fixes); affinity-tracker ships a REAL 114-line `ui.js` |
-| U5 (commands/dialog/toast + ui.page/Extensions) | **BUILT** | `ui-outbox.ts` (the drain-on-round-trip channel), `ui.registerCommand`/`ui.toast`/`ui.openDialog` host fns, `extensions` as the SECTION_IDS member after `config` (`client/src/state/section-ids.ts:18`), `extensions-section.tsx` + both Extensions surfaces + `plugin-dialog-modal.tsx` + `plugin-slash-commands.ts` + `plugin-commands-chrome.tsx`; commits `89e541e87`/`668536e69`; oracle-deck exercises page + dialog + command + toast |
+| U5 (commands/dialog/toast + ui.page/Extensions) | **BUILT** | `ui-outbox.ts` (the drain-on-round-trip channel), `ui.registerCommand`/`ui.toast`/`ui.openDialog` host fns, `extensions` as the SECTION\_IDS member after `config` (`client/src/state/section-ids.ts:18`), `extensions-section.tsx` + both Extensions surfaces + `plugin-dialog-modal.tsx` + `plugin-slash-commands.ts` + `plugin-commands-chrome.tsx`; commits `89e541e87`/`668536e69`; oracle-deck exercises page + dialog + command + toast |
 | U6 (parity tail) | **BUILT** | commit `2c08ac420`: `plugin-message-footer-surfaces.tsx` (badges; `message-footer` in the 7-member anchor tuple `ui.ts:43`), the display-transform seam (`transforms.registerDisplay` + `transform-for-display.ts` + `list-display-transforms.ts` + client `use-plugin-display-text.ts`), typed transform-abort (`contracts/chat/bus.ts:229-232`), `macros.register` (`plugin-macros.ts` — the §7a no-args mechanization), `llm.quiet` schema + vision |
 | U7 (the `ui.frame` hatch) | **BUILT** | commit `9c3089789`: `ui.frame` capability + `ui.registerFrame` (the ONE fn claiming it, host-v1.ts:507), `get-frame-body.ts`, `contracts/plugin/frame.ts`, `plugin-frame.tsx`; the §7a `servesOwnPolicy` second-prefix repair + served-header pins landed with it |
 | U8 (ecosystem) | **BUILT** (one client half missing — finding R1) | U8.1 `f34486694` (`databank.ingest` + `character.ingest`), U8.2a `f1488db8c` (URL install/upgrade through the egress guard — `install-from-url.ts`/`preview-from-url.ts`/`upgrade-from-url.ts`), U8.3 `6b68239c0` (the §5a plugin-event plane: `plugin_events` + `pubsub.emit/on` + `plugin-event-bus.ts`), U8.4 `b435a687a` (D148), U8.5 `6e9510750` (`plugin-command-palette-source.ts` — first-class palette rows), **and mid-this-review `34fcf9184`/`6585aa80f`** (`character.card_state` — see R2) |
@@ -185,9 +185,9 @@ file changed under the census) built `character.card_state` end-to-end with memb
 tests. Verified post-merge. **No action.**
 
 **R3 — LOW (tracked) · The U5–U8 juice has no seeded exerciser for a third of its surface.**
-#774 (OPEN) is the recorded vehicle; §4c above enumerates exactly which host fns and anchors no
+\#774 (OPEN) is the recorded vehicle; §4c above enumerates exactly which host fns and anchors no
 bundle drives (message-footer badges, chat-settings-section, frame, pubsub, macros.register,
-registerDisplay, the ingest pair, card_state, the three spend fns). The U8 hub-browser showcase
+registerDisplay, the ingest pair, card\_state, the three spend fns). The U8 hub-browser showcase
 ("search → results grid → preview → import" via `ui.page` + `character.ingest` — the plan's own
 flourish, `plugin-ui-plane.md` §8-U8) is likewise unbuilt as a bundle; it is the natural #774
 centerpiece. **Not a new dispatch — fold the §4c census into #774's brief.**
@@ -247,7 +247,7 @@ optional.
   transform is *taught to authors* (host-v1.ts:284 implies it; I did not sweep all teaching prose).
 - Whether every U-phase CT floor named in the plan's seam list exists file-for-file (I verified the
   U2 pin commit and the contract pins; I did not enumerate all CTs).
-- #774's exact scope vs my §4c census (the issue body may already carry part of it).
+- \#774's exact scope vs my §4c census (the issue body may already carry part of it).
 
 ## §10 Proposed memory lesson (orchestrator owns the write)
 
@@ -265,4 +265,4 @@ optional.
 
 ## Issue summary (paste-ready)
 
-Juice/optional completeness audit (owner-commissioned, docs/reviews/stickler/2026-08-28-juice-optional-completeness.md): **the juice landed** — 15/15 juice-doc survivors BUILT (tested), 20/20 preset-catalogue rows built incl. all owner-optionals, zero graveyarded shapes re-minted, plugin-UI phases U0–U8 all on main incl. the purchased §5a plugin-event plane; the D148 card-state write closed mid-review (34fcf9184). Findings: 4 total, severity ceiling MEDIUM. Actionable: **R1 (medium)** — URL install/update-check has server verbs + procs but ZERO client consumers (install card is file-only; U8's own owner-test unpassable) → build the URL arm + "check for updates" on the existing consent/mutation plumbing; **R3 (low, tracked)** — fold the §4c un-exercised-surface census (message-footer, frame, pubsub, macros, registerDisplay, ingest pair, card_state, spend fns + the hub-browser showcase) into #774's brief; **R4 (trivial, optional)** — the doc-marked-optional `/vote` slash. B7 react-tool + B10 saved-casts are unbuilt but #599-program-scope, not plugin gaps. Doc refreshes owed: plugin-ui-plane §8 phase tenses (only U5 marked BUILT), spec §7-C7b branch-side note, §5.26/§5.27 rows.
+Juice/optional completeness audit (owner-commissioned, docs/reviews/stickler/2026-08-28-juice-optional-completeness.md): **the juice landed** — 15/15 juice-doc survivors BUILT (tested), 20/20 preset-catalogue rows built incl. all owner-optionals, zero graveyarded shapes re-minted, plugin-UI phases U0–U8 all on main incl. the purchased §5a plugin-event plane; the D148 card-state write closed mid-review (34fcf9184). Findings: 4 total, severity ceiling MEDIUM. Actionable: **R1 (medium)** — URL install/update-check has server verbs + procs but ZERO client consumers (install card is file-only; U8's own owner-test unpassable) → build the URL arm + "check for updates" on the existing consent/mutation plumbing; **R3 (low, tracked)** — fold the §4c un-exercised-surface census (message-footer, frame, pubsub, macros, registerDisplay, ingest pair, card\_state, spend fns + the hub-browser showcase) into #774's brief; **R4 (trivial, optional)** — the doc-marked-optional `/vote` slash. B7 react-tool + B10 saved-casts are unbuilt but #599-program-scope, not plugin gaps. Doc refreshes owed: plugin-ui-plane §8 phase tenses (only U5 marked BUILT), spec §7-C7b branch-side note, §5.26/§5.27 rows.

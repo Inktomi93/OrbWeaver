@@ -53,7 +53,7 @@ started writing prose to apologise for it. That is the structural theme of this 
 | Prior P1 | Verdict | Receipt |
 | - | - | - |
 | **Primary CTA rendered twice** | **EMPTY-STATE-ONLY — dead** | With the detail panel open at 327 chars: `invitationNodes: 0 · duplicateButtonLabels: [] · runPassButtons: 1 · jobsDoors: 1 · memoryButtons: 0`. The context panel's full `--map` is **12 elements with ZERO buttons** (tablist + 5 tabs + tabpanel + 1 combobox + 4 chart nodes). The Archetypes tab now draws 8 art clusters + 10 writing clusters, so it has content of its own and no longer borrows CONTENT's hero. `reports/snaps/pop-corpus-context.png` |
-| **Three totals for one library** | **CHANGED SHAPE — still stands, narrower** | The h1 now agrees with the rail (`"327 characters, 313 cards distilled."` ↔ `Distilled — genre, tone, pitch  313 of 327`). What survives: the rail's own first row reads **`Visual families  8 families · 242 characters`** — 85 characters in no family, never explained anywhere; the Visuals tab reads `Scored 242`; the Map reads `327 cards`; the list-pane header reads `313`. **Four denominators, and 242 is the one the surface never accounts for.** New at population: **"Never played" renders 8 rows over 204** (`unusedCharacters: 204`, `neverPlayedButtons.length: 8`) with no count and no "show all" — see [P1-3]. |
+| **Three totals for one library** | **CHANGED SHAPE — still stands, narrower** | The h1 now agrees with the rail (`"327 characters, 313 cards distilled."` ↔ `Distilled — genre, tone, pitch  313 of 327`). What survives: the rail's own first row reads **`Visual families  8 families · 242 characters`** — 85 characters in no family, never explained anywhere; the Visuals tab reads `Scored 242`; the Map reads `327 cards`; the list-pane header reads `313`. **Four denominators, and 242 is the one the surface never accounts for.** New at population: **"Never played" renders 8 rows over 204** (`unusedCharacters: 204`, `neverPlayedButtons.length: 8`) with no count and no "show all" — see \[P1-3]. |
 | **One job, three names, two homes** | **EMPTY-STATE-ONLY — largely dead** | One door (`Run the passes again`), one jobs link, both in READINESS. The dossier's `Go to Refinery` is gone; what remains there is `Card quality — Not scored yet — run the Refinery's library score sweep… / Open the Refinery →`, which is a **different job** (card scoring, a Refinery concern) correctly homed elsewhere. `reports/snaps/pop-corpus-dossier.png` |
 
 ### #536 — the P2 cluster
@@ -62,9 +62,9 @@ started writing prose to apologise for it. That is the structural theme of this 
 | - | - | - |
 | LIST says "no characters" while CONTENT lists 12 | **EMPTY-STATE-ONLY — dead** | `list "Distilled catalog"` with 313 rows (virtualized, 13 in DOM, `scrollHeight 3968`), header `CORPUS 313`. |
 | Gem shelf renders bars in scrambled order | **STANDS — worse** | 20 tiles in a 3-column grid. Row 2 reads left→right Bess 567,106 · Azarael 597,739 · Bengal 629,696 — **bars ascend while rank descends**. Visible without measurement in `reports/snaps/pop-corpus-light.png`. |
-| Similarity tab: a pair you can't act on, next to lists that disagree | **STANDS — much worse** | The *copy* was fixed ("Every pair above the threshold, ranked — not the near-duplicate pass's findings"). The *structure* was not: `pairRows: 1782 · clickablePairs: 0 · panelScrollH: 56177 · panelClientH: 1493`. See [P1-2]. |
-| Eight families labelled on four unrelated axes | **CHANGED SHAPE** | Now `Playful · Traditional · Warm · Melancholic · Cheerful · Close-up · Unanalysed portraits · Unclassified` — still mixed axes (mood / era / temperature / framing / a null state), but the CONTEXT tab names all eight consistently. The new defect is that CONTENT **renames one of them**; see [P2-1]. |
-| Every query returns "12 results" (= library size) | **EMPTY-STATE-ONLY — dead** | `dark sorceress` → `status: "20 results in Characters"` over 327. The prior reading was a 12-item artifact. **New in its place:** the 20 scores are non-monotonic (60, 52, **53**, 52, 49, **52**, 49, 44…) — see [P2-2]. |
+| Similarity tab: a pair you can't act on, next to lists that disagree | **STANDS — much worse** | The *copy* was fixed ("Every pair above the threshold, ranked — not the near-duplicate pass's findings"). The *structure* was not: `pairRows: 1782 · clickablePairs: 0 · panelScrollH: 56177 · panelClientH: 1493`. See \[P1-2]. |
+| Eight families labelled on four unrelated axes | **CHANGED SHAPE** | Now `Playful · Traditional · Warm · Melancholic · Cheerful · Close-up · Unanalysed portraits · Unclassified` — still mixed axes (mood / era / temperature / framing / a null state), but the CONTEXT tab names all eight consistently. The new defect is that CONTENT **renames one of them**; see \[P2-1]. |
+| Every query returns "12 results" (= library size) | **EMPTY-STATE-ONLY — dead** | `dark sorceress` → `status: "20 results in Characters"` over 327. The prior reading was a 12-item artifact. **New in its place:** the 20 scores are non-monotonic (60, 52, **53**, 52, 49, **52**, 49, 44…) — see \[P2-2]. |
 | Map tab is a one-colour scatter with "Other 12" | **EMPTY-STATE-ONLY — dead** | `"327 cards, projected by semantic similarity, colored by genre. Click a card to open its dossier."` Legend `Fantasy 100 · Romance 88 · Slice-of-life 82 · Drama 21 · Other 36` (= 327 ✓), 327-row accessible table. The copy also gained the click affordance the prior sweep asked for. |
 | "Portrait fit" — no scale, no target, no definition | **STANDS** | `Scored 242 · Mean fit 31% · Median fit 31%`, worst list 13%–19%. Still undefined. Half of it improved: "Worst-matched art" now lists a genuine tail of 12 rather than every character. **New:** the dossier calls the same metric `Card ↔ art match: 25%` — one metric, two names, two homes (§13). |
 | Mobile opens Corpus on the pane that says the library is empty | **EMPTY-STATE-ONLY — dead** | 430×932 still lands on LIST, but LIST is now 313 characters. `--map` mobile: search + 5 targets + 4 filters + catalog rows + `Show Corpus overview` / `Show details`. Landing on a browsable catalog is a defensible mobile default. |
@@ -76,8 +76,8 @@ started writing prose to apologise for it. That is the structural theme of this 
 | Invitation body runs 87 chars/line | **STANDS — worse: 145** | `design-audit / --goto corpus` → `P3 line-length … prose line measures 145 chars` on `[data-testid=corpus-home-surface] > … > p.font-sans[data-slot=text]`. |
 | Two identically-named rows, no qualifier | **STANDS — worse** | `--map` yields `Yuki >> nth=0/1`, `Your Shitty Life >> nth=0/1`; the family glosses carry `Freya · Freya`, `Emily · Emily`, `Assistant · Assistant`; the pair list renders `Freya ↔ Frida 81%` twice and `Freya ↔ Miyako 80%` twice. **The app already solves this for chats** — `Ayami — Aug 18, 2025 (3) ↔ Ayami — Aug 19, 2025 (4)` — and not for characters. |
 | `Sort` / `Min similarity` / `Max nodes` read "Default" | **STANDS — sharper** | On the same filter row: `Genre "All genres" · Tone "All tones" · Tag "All tags" · Sort "Default"`. Three siblings resolve their value, one doesn't. And the default is `recent` = `desc(characters.createdAt)` (`packages/server/src/domain/discovery/verbs/browse.ts:90`), which on a bulk alphabetical import renders Z→A — indistinguishable from "reverse alphabetical" to a reader with no label. |
-| Three stacked sections + ~1,300px dead right column | **CHANGED SHAPE — worse ratio** | Page is now 3,824px; READINESS occupies 581px of the right column and nothing follows. **~3,240px of dead right column.** |
-| 29 content renders / three over-budget commits | **STANDS — much worse** | `__orb.renders()` → `region:content 41 (40 updates, maxMs 35)`, `region:list 54`. `motion-audit` worst blocking **15ms → 287ms**. See [P1-4]. |
+| Three stacked sections + \~1,300px dead right column | **CHANGED SHAPE — worse ratio** | Page is now 3,824px; READINESS occupies 581px of the right column and nothing follows. **\~3,240px of dead right column.** |
+| 29 content renders / three over-budget commits | **STANDS — much worse** | `__orb.renders()` → `region:content 41 (40 updates, maxMs 35)`, `region:list 54`. `motion-audit` worst blocking **15ms → 287ms**. See \[P1-4]. |
 
 **ARIA recommendations 1–7 from the prior sweep: all seven STAND, none fixed.** Live receipts:
 `searchExpanded: "true"` on a pristine load · `liveRegions: ["status:\"App loaded.\"",
@@ -128,7 +128,7 @@ covered as its comment already promises.
 ## Deliverable 3 — #544b: the #538 walker delta on the populated surface
 
 **The #538 fix HOLDS, live-disproven the hard way.** `pnpm design-audit / --goto corpus` on 327
-characters with **32 `[data-slot=avatar-stack-item]` seats mounted across 8 family plates** (plus ~40
+characters with **32 `[data-slot=avatar-stack-item]` seats mounted across 8 family plates** (plus \~40
 more in the gem shelf and never-played lists):
 
 ```
@@ -144,7 +144,7 @@ far smaller avatar population. The exclusion is correct and it scales.
 | - | - | - | - |
 | 1 | `nested-card` | `[data-slot=autocomplete-input-group]` | **FALSE** — deliverable 2 above |
 | 2–9 | `nested-card` | `div.rounded-base[data-slot=card-root] > … > div.border-border[data-slot=card-root]:nth-of-type(1..8)` | **FALSE — a THIRD, whole-app FP class** (below) |
-| 10 | `line-length` | `[data-testid=corpus-home-surface] > … > p.font-sans[data-slot=text]` | **REAL** — 145 chars/line, filed [P3-1] |
+| 10 | `line-length` | `[data-testid=corpus-home-surface] > … > p.font-sans[data-slot=text]` | **REAL** — 145 chars/line, filed \[P3-1] |
 
 **Findings 2–9 are the `@orb/ui` `Card nested` arm, and the rule fires on a CLASS NAME against
 computed styles that prove the opposite.** The eight family plates measure:
@@ -184,7 +184,7 @@ floor** — same as the empty arm.
 
 ## Deliverable 4 — findings on the populated-only surfaces
 
-### [P1-1] "Model economics" spends 95px on a library with 11,321 generations and 8M tokens, because it charts the one field its data doesn't carry
+### \[P1-1] "Model economics" spends 95px on a library with 11,321 generations and 8M tokens, because it charts the one field its data doesn't carry
 
 **What.** The entire section, verbatim from the DOM:
 
@@ -219,7 +219,7 @@ one-bar chart.
 
 ---
 
-### [P1-2] The Similarity tab is 56,177px tall and buries its three real sections behind 1,782 un-clickable rows
+### \[P1-2] The Similarity tab is 56,177px tall and buries its three real sections behind 1,782 un-clickable rows
 
 **What.** Measured inside the 384px CONTEXT panel:
 
@@ -236,7 +236,7 @@ heading offsets from panel top:
 ```
 
 **Why it hurts a user.** The tab's three named jobs — find duplicate characters, duplicate art,
-duplicate chats — begin **52,151px down**. At ~600px per scroll flick that is ~87 flicks past a wall
+duplicate chats — begin **52,151px down**. At \~600px per scroll flick that is \~87 flicks past a wall
 of text you cannot click. And the data down there is good: `Ayami — Aug 18, 2025 (3) ↔ Ayami —
 Aug 19, 2025 (4) · forked · 100%` is exactly the disambiguated, actionable row the rest of this
 section needs. It is unreachable.
@@ -257,7 +257,7 @@ findings; the pair list is the raw material), and make the pair row a button.
 
 ---
 
-### [P1-3] The status rail announces a failure that a later successful run already fixed
+### \[P1-3] The status rail announces a failure that a later successful run already fixed
 
 **What.** READINESS renders, under the primary CTA:
 
@@ -302,7 +302,7 @@ story-themes row the same `everRan` input its four siblings have.
 
 ---
 
-### [P1-4] Section entry blocks the main thread for 287ms — 5.7× budget, 19× the empty arm
+### \[P1-4] Section entry blocks the main thread for 287ms — 5.7× budget, 19× the empty arm
 
 **What.** `pnpm motion-audit / --goto corpus`:
 
@@ -321,17 +321,17 @@ LoAF @4894ms  duration 342ms, blocking 287ms
 on every load.
 
 **Why it hurts a user.** 287ms is above the 200ms INP threshold — the section visibly stalls on entry,
-and the cause is the 869×1,616px keyword canvas in [P2-3], which is the least useful thing on the page.
+and the cause is the 869×1,616px keyword canvas in \[P2-3], which is the least useful thing on the page.
 
 **Fix.** `optimize: corpus section entry — receipt: worst blocking under 50ms on motion-audit at 327
-characters, region:content updates under ~15.` Cap the keyword chart's series (see [P2-3] — it should
+characters, region:content updates under ~15.` Cap the keyword chart's series (see \[P2-3] — it should
 not be 50 bars anyway) and defer both canvases below the fold.
 
 **Receipt.** `motion-audit` RESULT line (above) · `__orb.renders()` · `reports/snaps/root.json`.
 
 ---
 
-### [P2-1] The same visual family has two different names 30px apart
+### \[P2-1] The same visual family has two different names 30px apart
 
 **What.** In one frame (`reports/snaps/pop-corpus-context.png`), the seventh family row:
 
@@ -368,7 +368,7 @@ already live in the gloss slot on every other row and can live there here too.
 
 ---
 
-### [P2-2] Three lists on this section rank by one quantity and display another — and the app now writes prose to apologise for it
+### \[P2-2] Three lists on this section rank by one quantity and display another — and the app now writes prose to apologise for it
 
 **What.** Same defect, three independent surfaces:
 
@@ -395,7 +395,7 @@ dossier `--aria` (above).
 
 ---
 
-### [P2-3] The Keywords chart is 45% of the page and 30% of its own band in pure accent orange, for 50 near-identical bars
+### \[P2-3] The Keywords chart is 45% of the page and 30% of its own band in pure accent orange, for 50 near-identical bars
 
 **What.** Section geometry on the corpus landing (`surfaceScrollH 3824`):
 
@@ -421,9 +421,9 @@ the right end. And the 50 "top keywords" of a 896-chat library are `ward-stone, 
 hall, tired bell, star-metal, ledger, doomblade, ashen spire, ninth epoch, black glass stairs…` —
 n-grams from what reads as **one story**, presented with no caveat.
 
-**Why it hurts a user.** §14 physics 4 caps accent at ≤10% of viewport; this band is **~3×** that, and
+**Why it hurts a user.** §14 physics 4 caps accent at ≤10% of viewport; this band is **\~3×** that, and
 the accent is the "look here" ink being spent as a default fill for 51 bars. The chart is also the
-single largest thing on the page and the [P1-4] 287ms block. Meanwhile the section with 11,321
+single largest thing on the page and the \[P1-4] 287ms block. Meanwhile the section with 11,321
 generations behind it gets 95px. **The page's vertical budget is allocated almost exactly inversely to
 information value.**
 
@@ -437,7 +437,7 @@ accent for the CTA.
 
 ---
 
-### [P2-4] "Never played" shows 8 of 204 with no count, no rank and no way to see the rest
+### \[P2-4] "Never played" shows 8 of 204 with no count, no rank and no way to see the rest
 
 **What.** `discovery.unusedCharacters` returns **204 rows**; the section renders **8**
 (`neverPlayedButtons.length: 8` — Alarise, Amber, Anastasija, Anisa, Annah, Anya, Aria, Audrey — the
@@ -458,7 +458,7 @@ full list, plus a stated ordering.`
 
 ---
 
-### [P2-5] The Archetypes tab lists 18 clusters covering 569 memberships and not one of them is clickable
+### \[P2-5] The Archetypes tab lists 18 clusters covering 569 memberships and not one of them is clickable
 
 **What.** The tab renders 8 art clusters + 10 writing clusters (`dark fantasy 84`, `wholesome romance
 63`, `melancholic romance · tsundere 57`, `comedic slice-of-life 54`, …, summing to 327), each with a
@@ -479,17 +479,17 @@ a pre-built filter.
 
 ---
 
-### [P3-1] Prose measures 145 chars/line
+### \[P3-1] Prose measures 145 chars/line
 
 `design-audit` P3 on `[data-testid=corpus-home-surface] > … > p.font-sans[data-slot=text]`. §2 caps at
 65–75ch; the detector's ceiling is 80. Up from 87 in the empty arm because the family gloss now carries
 a longer member run. `typeset: the corpus home prose — receipt: computed measure ≤75ch at 1280 with the
 list pane docked and hidden.`
 
-### [P3-2] ~3,240px of dead right column
+### \[P3-2] \~3,240px of dead right column
 
-READINESS occupies y≈148–729 of a **3,824px** page; the right column is empty for the remaining ~3,240px
-while CONTENT stacks five sections at three different widths. The empty arm filed this at ~1,300px; the
+READINESS occupies y≈148–729 of a **3,824px** page; the right column is empty for the remaining \~3,240px
+while CONTENT stacks five sections at three different widths. The empty arm filed this at \~1,300px; the
 page tripled and the rail did not. `layout: the corpus home column model — receipt: one shared content
 measure across the five stacked sections at 1280/docked, 1280/hidden and 1600, plus a right column that
 either continues or dissolves.` The Map preview or the per-pass timestamps are the obvious tenants.
@@ -529,6 +529,7 @@ result scores higher than its second; why the app says a pass stopped when every
 why "Model economics" is eight cents.
 
 **More than one home for a concept** (§13), the populated list:
+
 - **one family, two names** — "Ayami · Bonnie · …" in CONTENT, "Unanalysed portraits" in CONTEXT (P2-1)
 - **one metric, two names** — "Portrait fit" on the Visuals tab, "Card ↔ art match" in the dossier
 - **one library, four denominators** — 327 (h1, Map) / 313 (h1, list header, rail) / 242 (families row,
@@ -563,7 +564,7 @@ why "Model economics" is eight cents.
 ## The single biggest opportunity
 
 **Re-budget the landing page against what the data actually says.** The instruments make the
-prescription unusually concrete: cut the keyword canvas from 1,616px to ~200px (P2-3), and spend the
+prescription unusually concrete: cut the keyword canvas from 1,616px to \~200px (P2-3), and spend the
 1,400px you recover on the three facts the surface currently hides — 204 unplayed characters (P2-4),
 52 models / 11,321 generations (P1-1), and the 85 characters in no visual family (the unexplained 242).
 That single re-allocation retires P1-1, P1-4 (the 287ms block is that canvas), P2-3 and P2-4, fixes the
@@ -626,7 +627,7 @@ that earns the section's own pitch.
 | 1 | `snap --matrix` | **SKIPPED** — covered by 6 explicit arms (defaults/maximal/compact/reading/Light/mobile) at lower SSE-budget risk |
 | 2 | `design-audit` desktop | **RAN** — `findings=10 p3=10 census=804 nav=OK`. 10/10 triaged FALSE except `line-length`; both FP mechanisms proven (deliverables 2+3) |
 | 2 | `design-audit --mobile` | **RAN** — `findings=1 pointer=coarse census=257`, one flat-type-hierarchy P3. **No tap-target findings** |
-| 3 | `motion-audit` | **RAN** — verdict FAIL, worst blocking **287ms**, 4 style/layout LoAFs, CLS non-virtualized 0.0004, 0 dropped, 0 dirty animations. Filed [P1-4] |
+| 3 | `motion-audit` | **RAN** — verdict FAIL, worst blocking **287ms**, 4 style/layout LoAFs, CLS non-virtualized 0.0004, 0 dropped, 0 dirty animations. Filed \[P1-4] |
 | 4 | `perf-meter --click <primary>` | **SKIPPED, stated** — the surface's one primary action is "Run the passes again", which enqueues a real 327-character distillation on the owner's restored library. Read-only discipline. Interaction cost receipted instead via `motion-audit` + `__orb.renders()` + the scoped console |
 | 5 | Lighthouse desktop + mobile | **SKIPPED, stated** — no finding here rests on an axe rule ours does not carry; contrast was measured directly on 4 elements across 2 themes, and the dev-server checker-overlay trap makes a Lighthouse a11y run net-negative on this route |
 | 6 | `__orb.renders()` | **RAN** — `region:content 41/1/40 totalMs 132 maxMs 35`; `region:list 54/1/53` |
@@ -648,8 +649,8 @@ that earns the section's own pitch.
 | `[drop] 54–103ms mid-animation · [data-slot=weave-veil] · svg[aria-label=Orbweaver]` | 3/run | **BOOT SPLASH** — briefed as known, global |
 | `[cls] shift 0.0281–0.0286 unexpected · [role=region] / [data-slot=separator]` | 1/run | **BOOT bucket** — the HOME landing settling before the corpus switch. 0.0286 ≪ 0.1; `motion-audit` reads non-virtualized CLS **0.0004** on a direct corpus load |
 | `[cls] 0.4522 / 0.0680 / 0.1090 input-adjacent (excluded from CLS)` | 3, panel/tab arms | **CORRECTLY EXCLUDED** — these are the detail-panel open and tab switches, i.e. user-initiated. Verdict CLS stays 0.0290/0.0000 |
-| `[perf] slow commit region:content 13/22/23/36/38ms · region:list 14ms · region:context 16/19/21/124ms` | 8–10/run | **INVESTIGATE → filed [P1-4].** Corpus's own. `region:context 124ms` lands on the similarity-graph render |
-| `[frame] long frame 127–184ms · blocking 41–93ms @ modern-Cyfp2l7S.js` + `[reflow] forced sync style/layout 14–18ms` | 2/run | **INVESTIGATE → filed [P1-4].** ECharts (`graphic-KEKgKdWt.js`) rendering the 1,616px keyword canvas |
+| `[perf] slow commit region:content 13/22/23/36/38ms · region:list 14ms · region:context 16/19/21/124ms` | 8–10/run | **INVESTIGATE → filed \[P1-4].** Corpus's own. `region:context 124ms` lands on the similarity-graph render |
+| `[frame] long frame 127–184ms · blocking 41–93ms @ modern-Cyfp2l7S.js` + `[reflow] forced sync style/layout 14–18ms` | 2/run | **INVESTIGATE → filed \[P1-4].** ECharts (`graphic-KEKgKdWt.js`) rendering the 1,616px keyword canvas |
 | errors / page errors / failed requests | **0 / 0 / 0** | — across all 19 runs |
 
 ---

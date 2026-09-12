@@ -59,7 +59,7 @@ and all four PNGs differ by md5, so the shim demonstrably bit.
 | 6 | Recognition over recall | **4/4** | An info door on every knob; the unset knob now renders a hollow ghost thumb AND announces `aria-valuetext="default (model decides)"`; the closed select states its value in full; the Prompt glyph column discriminates |
 | 7 | Flexibility & efficiency | 3/4 | ⌘K, roving radiogroup with wrap, a filter in Actions and a search in the list. No bulk ops |
 | 8 | Aesthetic & minimalist | 3/4 | Handsome and ordered. The CONTEXT readout still restates CONTENT row-for-row on Prompt and Transforms, and the Prompt rack's thirteen always-on accent switches carry no information at rest (T-2) |
-| 9 | Error recovery | **2/4** | Same as the prior pass: the failure band exists in code but I reached **zero** error states across ~25 runs and 0 errored queries. Scored conservatively rather than credited — this is an untested layer, not a proven one |
+| 9 | Error recovery | **2/4** | Same as the prior pass: the failure band exists in code but I reached **zero** error states across \~25 runs and 0 errored queries. Scored conservatively rather than credited — this is an untested layer, not a proven one |
 | 10 | Help & documentation | 4/4 | Every knob has an info door, every tab leads with a sentence, every empty state teaches and offers the next action. The zero-results state is now honest in all three panes |
 
 **31/40** (was 29/40).
@@ -68,7 +68,7 @@ and all four PNGs differ by md5, so the shim demonstrably bit.
 
 ## Findings
 
-### [P1-A] (NEW) The `Used by` panel says nothing uses the built-in `Default` and tells you to "activate it" — on the preset that IS active and that every chat generates with
+### \[P1-A] (NEW) The `Used by` panel says nothing uses the built-in `Default` and tells you to "activate it" — on the preset that IS active and that every chat generates with
 
 **What.** On the built-in `Default` — the only preset a fresh install has, and the artifact this section opens
 on — the CONTEXT panel's `Used by` block renders:
@@ -120,7 +120,7 @@ you host generates with it, unless a game points its GM voice somewhere else."*
 
 ---
 
-### [P2-A] (NEW) Editing the built-in silently mints a new preset, retargets the editor under you, and does not activate it — while the autosave chip reads "Saved"
+### \[P2-A] (NEW) Editing the built-in silently mints a new preset, retargets the editor under you, and does not activate it — while the autosave chip reads "Saved"
 
 **What.** The built-in is copy-on-write by design (documented at `preset-editor-surface.tsx:14-17`) and that
 design is right. The defect is that the **first** fork happens with no forewarning, no interruption, and no
@@ -165,7 +165,7 @@ copy-on-write before the first keystroke.
 
 ---
 
-### [P2-B] (NEW) A fork of the built-in inherits `kind: "system"`, so a user's own editable preset is labelled `system` in their library
+### \[P2-B] (NEW) A fork of the built-in inherits `kind: "system"`, so a user's own editable preset is labelled `system` in their library
 
 **Receipt.** Live list subtitles, same run (`cbrp-after-cow`):
 
@@ -194,7 +194,7 @@ Receipt: the subtitle census above with the fork reading `generation · forked f
 
 ---
 
-### [P2-C] (NEW) On mobile, every knob's value cell aligns to nothing, and each row costs 4× its desktop height
+### \[P2-C] (NEW) On mobile, every knob's value cell aligns to nothing, and each row costs 4× its desktop height
 
 **Receipt.** iPhone 14 Pro Max emulation (430px, `pointer: coarse`), run `cbrp-mobrow`:
 
@@ -208,7 +208,7 @@ The value cell is neither left-aligned with the label and track (x=12) nor right
 (right=418) — it floats 54px short of the right edge on a third axis. Identical on all ten knobs (`Top-P`
 label 12, track 12→418, cell 284→364; `Max output tokens` the same). Vertical cost: `Temperature` label at
 y=393, `Top-P` label at y=541 → **148px per row**, against 38px per row on desktop; `Max output tokens` lands
-at y=2031, so the Params tab is ~2,800px of scroll for one preset.
+at y=2031, so the Params tab is \~2,800px of scroll for one preset.
 
 **Why it hurts a user.** Casey reads eight consecutive rows whose three elements each start at a different x.
 The eye has no column to track down, so scanning "which knobs have I set?" — the single most common read on
@@ -217,12 +217,12 @@ exactly right (label · control · value in fixed columns); the mobile stack thr
 
 **Fix.** `layout` + `adapt`: put the value cell on the **label's** line (label left, value right, slider
 full-width beneath). That restores a right-hand value column, gives the cell an edge to align to, and saves
-~46px per row (~460px of scroll on Params alone).
+\~46px per row (\~460px of scroll on Params alone).
 Receipt: the same census with `valueCell.right === track.right` at 430px, and the per-row pitch measured.
 
 ---
 
-### [P2-D] (NEW) Opening a preset stalls the frame pipeline for 133ms behind a 194ms long task
+### \[P2-D] (NEW) Opening a preset stalls the frame pipeline for 133ms behind a 194ms long task
 
 **Receipt.** `pnpm perf-meter / --goto presets --click '[aria-label="Default"]'`
 (`reports/perf-meter/perf-meter.json`):
@@ -239,7 +239,7 @@ Corroborated by the app's own instrumentation (`[perf] slow commit region:conten
 maxMs 72`. Under 4× CPU throttle (`--cpu-throttle 4`) the react-dom commit blocks **183ms**.
 
 **Input delay is 7ms**, so INP is nowhere near its 200ms budget — this is a visible hitch, not an
-unresponsive control, which is why it is P2 and not P1. But a 133ms rAF gap is ~8 dropped frames on the
+unresponsive control, which is why it is P2 and not P1. But a 133ms rAF gap is \~8 dropped frames on the
 section's primary action, and the box this ships to is explicitly not a workstation.
 
 **Why it hurts a user.** Every entry into the surface's main artifact judders once. It reads as the app
@@ -252,7 +252,7 @@ Receipt: `perf-meter` on the same click with `rafGap < 50` and `worst-longtask <
 
 ---
 
-### [P3-A] (NEW) The presets LIST pane drops a frame on entry, against the app's own budget
+### \[P3-A] (NEW) The presets LIST pane drops a frame on entry, against the app's own budget
 
 **Receipt.** Present on clean runs (`cbrp-landing`, `cbrp-boot`):
 
@@ -270,7 +270,7 @@ Receipt: the same drive with no `[drop]` naming `aside[aria-label=Presets list]`
 
 ---
 
-### [P3-B] (NEW, with a caveat I am stating rather than hiding) `flat-type-hierarchy` fires page-wide on the editor
+### \[P3-B] (NEW, with a caveat I am stating rather than hiding) `flat-type-hierarchy` fires page-wide on the editor
 
 **Receipt.** `pnpm design-audit / --goto presets --click '[aria-label="Default"]'` — the **only** finding on
 the desktop arm, and it reproduces at the both-panes-hidden arm:
@@ -288,7 +288,7 @@ reads flat: it does not. Treat this as a question for the type-ramp owner rather
 
 ---
 
-### [T-1] (taste) The CONTEXT readout restates CONTENT row-for-row on two of five tabs
+### \[T-1] (taste) The CONTEXT readout restates CONTENT row-for-row on two of five tabs
 
 Not a new finding — the 2026-08-22 P2-7 covered it and the fix chosen was the `~—` token plus a gloss, which
 landed and works. But the doubling itself survives and the eye still trips on it. On **Prompt**, the rack
@@ -301,7 +301,7 @@ readout owns SETUP/POST budgeting, execution ORDER and the PIVOT; the rack owns 
 so this is a taste observation, not a re-file. It is worth knowing that the pattern reads as duplication
 even though it is not.
 
-### [T-2] (taste) Thirteen always-on accent switches carry no information at rest
+### \[T-2] (taste) Thirteen always-on accent switches carry no information at rest
 
 `cbrp-tab-Prompt.png`: every one of the thirteen rack rows ships its switch **on**, in full accent orange, in
 a single vertical column. At rest the column says nothing — it is thirteen identical bright marks. The rare
@@ -310,7 +310,7 @@ discipline everywhere else, where accent is rationed onto state. `quieter: the p
 receipt: the off state louder than the on state, or the on state demoted to a hairline, with design-audit
 still clean and the accent share re-measured.`
 
-### [T-3] (taste) The Data tab is mostly void
+### \[T-3] (taste) The Data tab is mostly void
 
 `cbrp-tab-Data.png` at 1280×800: CONTENT ends at y≈450 of an 800px pane; CONTEXT ends at y≈230. Two thirds of
 both panes are empty on a tab whose whole content is two empty states and a collapsed `Macro browser`. The
@@ -321,7 +321,7 @@ not look finished. Least urgent thing in this report; noted so it is on record.
 
 ## Observations / questions for the orchestrator
 
-**[O-1] An unattributed `Copy of Default` appeared mid-session.** By the time I ran the copy-on-write test the
+**\[O-1] An unattributed `Copy of Default` appeared mid-session.** By the time I ran the copy-on-write test the
 list already held `Copy of Default` (`generation · edited 2m`) which I did not knowingly create. The name is
 exactly what the kebab's **Duplicate** mints, and its subtitle reads `generation`, *not* `forked from
 Default` — so it is a Duplicate, not a fork (which is also why the fork-choice dialog correctly stayed shut).
@@ -330,7 +330,7 @@ a stable row count of 4, so it is not a spontaneous fork on idle. I cannot attri
 as a defect — recording it because "a preset appeared and nobody clicked Duplicate" is worth a second pair of
 eyes if it recurs.
 
-**[O-2] The chats↔presets binding claim, re-derived rather than remembered** (the brief asked). It holds:
+**\[O-2] The chats↔presets binding claim, re-derived rather than remembered** (the brief asked). It holds:
 `packages/db/src/schema/` has **no** `chats.preset_id` — the only preset FKs are `rpg_games.gmPresetId`
 (`rpg.ts:87`), `preset_regex_scripts` (`regex.ts:126`), `roster_preset_members` / `roster_preset_rules`
 (`roster-preset.ts:72,110`) and `preset_tags` (`tag.ts:221`). D58 states it directly: *"the GM voice is a
@@ -509,7 +509,7 @@ No warning was dispositioned "it's dev mode".
 | 11 | Pane-state arms | **RAN** — both open (default), list hidden + context hidden (`cbrp-geom`, `cbrp-both-hidden`, `cbrp-da-bothhidden`), and mobile where both panes are structurally absent |
 | — | Two prior findings NOT re-drivable | **BLOCKED, stated** — P2-2 (regex `off` vs attach switch) needs a preset that can hold regex scripts; the built-in structurally cannot, and I restored the corpus to 1 row. Verified **structurally** instead: the `Disabled in your library` badge exists at `regex-script-picker.tsx:285`. Same for the "deck"→Params leak, verified at `readout-parts.tsx:156`. Neither has a rendered receipt in this pass |
 
-**MCP budget: 4 calls used** (navigate, one bridge eval, two Lighthouse) of ~12.
+**MCP budget: 4 calls used** (navigate, one bridge eval, two Lighthouse) of \~12.
 
 ---
 
@@ -559,7 +559,7 @@ column, inverting the surface's own rationed-accent discipline (`quieter`); the 
 both panes empty. Receipt: same file, P3-A / P3-B / T-2 / T-3.
 
 **ALREADY FILED — verification only, no action.** #481 (keyboard activation + Activate's three homes),
-#482 (7 of 8 arms; item 1 owner-ruled dead), #483 (landing + readout meters), #484 (mobile `aria-current`),
-#486 (owner-ruled skip), #506 (Rename single-homing) all **re-verified fixed live** — details and receipts in
+\#482 (7 of 8 arms; item 1 owner-ruled dead), #483 (landing + readout meters), #484 (mobile `aria-current`),
+\#486 (owner-ruled skip), #506 (Rename single-homing) all **re-verified fixed live** — details and receipts in
 the "What is genuinely working" and Retractions sections. #485's ListRow `side-tab` /
 `border-accent-on-rounded` pair **no longer fires** on this surface at any arm.

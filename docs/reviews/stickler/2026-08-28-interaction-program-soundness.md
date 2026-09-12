@@ -43,7 +43,7 @@ string on main.
   commissioned to hunt. Everything else in this report is evidence the drift did NOT propagate: the
   branch is the sole carrier.
 - **Evidence:** `git log --all --grep 'parties'`; `git merge-base --is-ancestor 936501dfb main` (exit
-  1); grep sweeps above.
+  1\); grep sweeps above.
 
 ### D-2 · P3 — spec §7-C7a.1 vs the built `run_tool`: the design line "every builtin AND plugin tool" is refuted by a deliberate, receipted narrowing the spec never folded
 
@@ -91,6 +91,7 @@ string on main.
    ancestors of main (verified `git merge-base --is-ancestor` → exit 0 for both). The spec
    self-flags with "re-derive", so no builder is misled — but the doc's `updated: 2026-08-28` stamp
    implies these rows were re-derived and they were not.
+
 - **Fix shape:** two one-line tense edits at the next spec touch.
 
 ### D-5 · P5 (observation, not a defect) — §4 #6's plain name vs the built title
@@ -134,7 +135,7 @@ string on main.
 
 - **The rule-preset vocabulary ruling (#599, memory `rule-preset-vocabulary-split`) is honored and
   self-documenting:** `features/automation/lib/rule-copy.ts:8` — "VOCABULARY (owner ruling, #599):
-  bare 'preset' means a GENERATION preset in this app, so nothing here [uses it bare]". A regex sweep
+  bare 'preset' means a GENERATION preset in this app, so nothing here \[uses it bare]". A regex sweep
   of quoted strings across `features/automation/` for bare `preset` found only `RulePreset*`
   identifiers and comments.
 - **Zero cute-name residue in user-facing strings:** a sweep for `"…(Director|Keeper|Crew|Buddy|
@@ -237,7 +238,7 @@ Composition door read IN FULL (`compose/authed-app.tsx`, 343 lines):
 - **B4** — cards + invitations via `automationSuggestionSource`
   (`suggestion-card-mount.tsx`, read IN FULL): F1 in-RAM lifetime honored (state lives in the mount's
   own fiber; reconnect clears; client-side TTL timer mirrors the server sweep), confirm/dismiss with
-  NOT_FOUND-collapse retirement, C3's rewrite detail as a collapsed `@orb/ui/diff` word-diff.
+  NOT\_FOUND-collapse retirement, C3's rewrite detail as a collapsed `@orb/ui/diff` word-diff.
 - **B5** — `/imagine` slash (`imagerySlashCommands`), the three content-triggered modals
   (`imagineModal`/`imageDetailModal`/`imageEditModal`, `authed-app.tsx:277-282` citing §7 B5),
   lightbox provenance strip + Edit + "Set as background"
@@ -256,7 +257,7 @@ Composition door read IN FULL (`compose/authed-app.tsx`, 343 lines):
 - **B11** — `automationActivityTab` as a CONTEXT-strip sibling of Members/"This chat"/Preview
   (`authed-app.tsx:118-124`; strip verified at `features/chat/lib/chats-section.tsx:60-95`);
   ONE-HOME read honored — `verbs/list-chat-activity.ts:1-6` reads the SAME `automation_fires` store
-  as the per-rule log, host-gated with the leak-free NOT_FOUND collapse; cross-room stays the
+  as the per-rule log, host-gated with the leak-free NOT\_FOUND collapse; cross-room stays the
   existing inbox with the bell badge + the mobile You-tab badge tell
   (`features/notifications/lib/notifications-chrome.tsx:50-55` — the #227 reachability class).
 
@@ -319,7 +320,7 @@ Composition door read IN FULL (`compose/authed-app.tsx`, 343 lines):
 - **Read IN FULL:** the spec (643 lines); `presets.ts` (1361); `authed-app.tsx` (343);
   `chat-controls-band.tsx` (360); `chat-controls-contribution.tsx`; `suggestion-card-mount.tsx`
   (193); `rules-settings-section.tsx`; `cast.ts` header block; the relevant memory topic files.
-- **Read PARTIALLY (targeted regions + headers):** `arm-executors.ts` (1-100 + run_tool region),
+- **Read PARTIALLY (targeted regions + headers):** `arm-executors.ts` (1-100 + run\_tool region),
   `dispatch.ts` (195-260), `chats-section.tsx` (40-95), `roll-dice.ts` (1-30),
   `list-chat-activity.ts` (1-20), `rule-state.ts` (25-35), `bus-definition-belts.ts` (60-100),
   contracts excerpts. Regions NOT read: `analysis-arm.ts` internals (variant-pin/hash mechanics —

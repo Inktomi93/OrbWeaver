@@ -1,28 +1,48 @@
-// THE AUTHORING CONTROL for #1506 — the 22nd gate cannot ship the spelling hole.
+// THE AUTHORING CONTROL for #1506 — a gate cannot ship the spelling hole.
 //
 // A gate's own conformance rows prove it bites THE SHAPE ITS AUTHOR WROTE. Nothing proved it bites the
 // same semantics written another way, and 21 live gates were shown blind at once: `db["insert"]` walked
 // past a `PropertyAccessExpression`-keyed detector, `import * as events; events.subscribeAllChatEvents`
-// past an `ImportSpecifier`-keyed one. This suite RESPELLS every gate's own `mustFlag` fixture — focused
-// on the lines that gate actually reported (`lib/spelling-twins.ts` explains why the focus is the whole
-// design) — feeds it back through the SAME `verifyGateProofs` door, and compares the resulting blind set
-// against a committed ledger.
+// past an `ImportSpecifier`-keyed one. The derivation — respell each gate's own `mustFlag` fixture, feed it
+// back through that gate's OWN proof door, collect the arms it stops biting under — lives in
+// `tooling/src/verify/ops/spelling-twin-blindness.ts`; this file is its committed ledger and its controls.
+//
+// RE-EXPRESSED AGAINST THE MIXED CORPUS (#2031, 2026-09-12), and that is the whole repair. The derivation
+// used to sit here and key on `loadGates()` — the LEGACY remnant ALONE (`lib/loader.ts:190`) — so every
+// #1584 conversion shrank its subject silently. By the time it was read, **54 of the ledger's 79 names had
+// converted**, the two-sided `toEqual` below was RED, and because the file contains no membership-shaped
+// assertion anywhere, every membership-shaped census of "what breaks when a gate converts" missed it. It
+// was covering ZERO converted policies while reading authoritative — an instrument that had stopped
+// measuring and had not stopped speaking.
+//
+// WHY RE-EXPRESSED RATHER THAN RETIRED, since both were open. Retiring needs a NAMED SUCCESSOR and there is
+// none: the #1506 property — "does this detector see the other spelling" — is still live for a final
+// policy, which still authors its own node predicates even though its READERS are now shared. Re-pointing
+// at another legacy carrier is the treadmill (a carrier in a `loadGates()` suite is LEGACY BY REQUIREMENT
+// and perishes at the cutover); driving BOTH engines is not, because the final half is what survives it. At
+// the cutover the legacy loop simply finds an empty list and this control keeps its subject.
 //
 // THE LEDGER IS TWO-SIDED AND SHRINK-ONLY (GATE-AUTHORING.md §4.8). A gate that becomes blind is RED even
-// if it is new; a ledger row whose gate is no longer blind is RED ("delete the row"). The population at
-// mint is another lane's named burn-down (#1506 follow-up) — what this control buys today is that it
-// cannot GROW, which is exactly the "correct by construction" property the fix-all was asked for.
+// if it is new; a ledger row whose gate is no longer blind is RED ("delete the row"). The mint over the
+// mixed corpus measured **47 blind gates of 245 examined, 52 skipped** — 40 of the old 74 rows GONE and
+// every one of them EXAMINED rather than skipped (i.e. the conversions genuinely closed them), 13 final
+// policies newly visible, 3 with a narrowed arm set. Those 13 are this mint's own named burn-down, the same
+// posture #1506's mint took; what the control buys today is that the set cannot GROW.
 //
 // The remedy for a red is never a ledger row: it is `tooling/src/verify/lib/symbol-reference.ts`
-// (`readMemberAccess` / `moduleMemberReference` / `readStringConstant`), which resolves a reference
-// however it is spelled.
+// (`readMemberAccess` / `moduleMemberReference` / `readStringConstant`), which resolves a reference however
+// it is spelled.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateExample } from "../../tooling/src/verify/contract/gate.ts";
-import { loadGates, verifyGateProofs } from "../../tooling/src/verify/index.ts";
-import { runPass } from "../../tooling/src/verify/lib/pass.ts";
-import { spellingTwinsOf } from "../../tooling/src/verify/lib/spelling-twins.ts";
+import type { GateDescriptor } from "../../tooling/src/verify/contract/gate.ts";
+import type { GatePolicy } from "../../tooling/src/verify/contract/policy.ts";
+import { defineGate } from "../../tooling/src/verify/contract/policy.ts";
+import type { SpellingBlindSet } from "../../tooling/src/verify/contract/spelling-twin-blindness.ts";
+import { verifyGateProofs } from "../../tooling/src/verify/index.ts";
+import { loadMixedGateCorpus } from "../../tooling/src/verify/lib/loader.ts";
+import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
+import { spellingTwinCensus } from "../../tooling/src/verify/ops/spelling-twin-blindness.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -30,108 +50,51 @@ const ROOT = join(import.meta.dirname, "..", "..");
 const LEDGER_REL = "tests/tooling/gate-spelling-twins.baseline.json";
 const REGEN = `the ledger is hand-maintained: paste the JSON printed below into ${LEDGER_REL} and run pnpm exec biome format --write on it (biome collapses the short arrays; this test parses the file, so the format is free). Do that ONLY to record a SHRINK — a gate that became blind is a defect to fix in tooling/src/verify/lib/symbol-reference.ts, never a new row.`;
 
-/** LOAD-HONEST BUDGET, same reasoning as gate-conformance.int: this drives ~470 standalone gate passes
- *  in-process — pure CPU with no child process to hang a legible timeout on. */
-const TWIN_BUDGET = scaledBudget(120_000, 4);
+/** LOAD-HONEST BUDGET, same reasoning as gate-conformance.int: this drives the respelled proofs of BOTH
+ *  engines in-process — pure CPU with no child process to hang a legible timeout on. Measured 2026-09-12 on
+ *  the mixed corpus at ~100s wall (245 gates examined), so the base is ~2.5× the measurement rather than the
+ *  120s the legacy-only sweep needed. */
+const TWIN_BUDGET = scaledBudget(240_000, 4);
 
-type BlindSet = Record<string, readonly string[]>;
+/** The one anti-vacuum floor: a census over an empty corpus produces an empty blind set and would satisfy
+ *  the `toEqual` below trivially. Stated as an EXAMINED count, never as a named gate (perishable — that is
+ *  exactly what rotted) and never as a count ceiling (a countdown wearing a gate's clothes). */
+const MINIMUM_EXAMINED = 200;
 
-function filesOf(example: GateExample): Record<string, string> {
-  return typeof example.files === "string" ? { [example.at ?? "packages/ui/src/x/x.tsx"]: example.files } : { ...example.files };
+/** The census's scratch parser is the CALLER'S, and it is constructed here rather than in the op because
+ *  `tooling-project-home` makes one ts-morph loader the law under `tooling/src/**` — a second workspace walk
+ *  there would owe a reviewed grant for a Project a test can simply hand over. `tests/` is outside that
+ *  policy's population. One fresh parser per census so no arm inherits another's source files. */
+function scratchParser(): Project {
+  return new Project({ useInMemoryFileSystem: true });
 }
 
-/** One reused in-memory Project for the "what did this gate report" pre-pass — each example lands under
- *  its OWN virtual root, never a re-created path (GATE-AUTHORING.md §12). */
-const shared = new Project({ useInMemoryFileSystem: true });
-let exampleSeq = 0;
+test("no gate is blind to a respelling of its own mustFlag fixture beyond the committed, shrink-only ledger", { timeout: TWIN_BUDGET }, async () => {
+  const corpus = await loadMixedGateCorpus(ROOT);
+  const ledger = JSON.parse(readFileSync(join(ROOT, LEDGER_REL), "utf8")) as { readonly blind: SpellingBlindSet };
+  const census = spellingTwinCensus(corpus, scratchParser());
 
-/** `repo-relative file -> the lines this gate reported on`, from a real standalone pass over the fixture. */
-function reportedLines(gate: GateDescriptor, files: Readonly<Record<string, string>>): ReadonlyMap<string, ReadonlySet<number>> {
-  for (const previous of shared.getSourceFiles()) {
-    shared.removeSourceFile(previous);
-  }
-  exampleSeq += 1;
-  const root = `/repo-twin-${exampleSeq}`;
-  for (const [rel, text] of Object.entries(files)) {
-    shared.createSourceFile(`${root}/${rel}`, text);
-  }
-  const asActive: GateDescriptor = gate.status === "active" ? gate : { ...gate, status: "active" };
-  const result = runPass([asActive], {
-    root,
-    project: shared,
-    scope: { kind: "project" },
-    files: shared.getSourceFiles(),
-    checker: () => shared.getTypeChecker(),
-  });
-  const out = new Map<string, Set<number>>();
-  for (const finding of result.gates.find((g) => g.name === gate.name)?.findings ?? []) {
-    const rel = finding.file.replace(`${root}/`, "");
-    const lines = out.get(rel) ?? new Set<number>();
-    lines.add(finding.line);
-    out.set(rel, lines);
-  }
-  return out;
-}
+  // The bite-proof is vacuous over an empty corpus, so the subject is asserted before the verdict is read.
+  expect(census.examined, "the twin census examined almost nothing — the loader, not the tree, is the finding").toBeGreaterThan(MINIMUM_EXAMINED);
+  // …and a SKIP must never read as a shrink: every declared limit is named with its reason, so a row that
+  // vanished because its gate stopped being reachable is distinguishable from one that was fixed.
+  expect(census.skipped.filter(({ reason }) => reason.trim() === "")).toEqual([]);
 
-/** The arms this gate stops biting under, across all of its mustFlag fixtures. */
-function blindArmsOf(gate: GateDescriptor): readonly string[] {
-  const arms = new Set<string>();
-  for (const example of gate.mustFlag) {
-    const files = filesOf(example);
-    const twins = spellingTwinsOf(files, reportedLines(gate, files));
-    for (const [arm, twin] of [
-      ["bracket", twins.bracket],
-      ["namespace", twins.namespace],
-    ] as const) {
-      if (twin === undefined) {
-        continue;
-      }
-      const respelled: GateDescriptor = { ...gate, mustFlag: [{ files: twin, why: `${arm} twin of: ${example.why ?? "(no rationale given)"}` }], mustPass: [] };
-      if (verifyGateProofs([respelled]).length > 0) {
-        arms.add(arm);
-      }
-    }
-  }
-  return [...arms].sort();
-}
+  // A blind gate absent from the ledger = a NEW hole (fix it with lib/symbol-reference.ts, never a row).
+  // A ledger row whose gate is no longer blind = a stale promise (delete it). `toEqual` reds on both.
+  expect(census.blind, `${REGEN}\n${JSON.stringify({ blind: census.blind }, null, 2)}`).toEqual(ledger.blind);
+});
 
-function blindSetOf(gates: readonly GateDescriptor[]): BlindSet {
-  const out: BlindSet = {};
-  for (const gate of gates) {
-    // An fsBacked gate's fixtures are materialized on real disk by a different substrate; the pre-pass
-    // above is in-memory, so its reported lines would be a guess. DECLARED LIMIT, stated as a skip.
-    if (gate.fsBacked === true) {
-      continue;
-    }
-    const arms = blindArmsOf(gate);
-    if (arms.length > 0) {
-      Object.assign(out, { [gate.name]: arms });
-    }
-  }
-  return out;
-}
+const CONTROL_MUST_FLAG = "export const a = (db: Record<string, unknown>) => db.forbidden;\n";
+const CONTROL_MUST_PASS = "export const a = (db: Record<string, unknown>) => db.allowed;\n";
 
-test(
-  "no gate is blind to a respelling of its own mustFlag fixture beyond the committed, shrink-only ledger",
-  async () => {
-    const gates = await loadGates(ROOT);
-    const ledger = JSON.parse(readFileSync(join(ROOT, LEDGER_REL), "utf8")) as { readonly blind: BlindSet };
-    const actual = blindSetOf(gates);
-
-    // A blind gate absent from the ledger = a NEW hole (fix it with lib/symbol-reference.ts, never a row).
-    // A ledger row whose gate is no longer blind = a stale promise (delete it). `toEqual` reds on both.
-    expect(actual, `${REGEN}\n${JSON.stringify({ blind: actual }, null, 2)}`).toEqual(ledger.blind);
-  },
-  TWIN_BUDGET,
-);
-
-test("THE PLANTED CONTROL: an un-migrated gate is detected blind, and the migrated spelling is not", () => {
+test("THE PLANTED CONTROL, LEGACY side: an un-migrated descriptor is detected blind, and the migrated spelling is not", () => {
   const base = {
     docRow: "test fixture",
     status: "active",
     scopeSafety: "incremental-safe",
     message: "test fixture: a `.forbidden` member read",
-    mustFlag: [{ files: "export const a = (db: Record<string, unknown>) => db.forbidden;\n", why: "the dotted spelling" }],
+    mustFlag: [{ files: CONTROL_MUST_FLAG, why: "the dotted spelling" }],
     mustPass: [],
   } as const;
 
@@ -166,5 +129,58 @@ test("THE PLANTED CONTROL: an un-migrated gate is detected blind, and the migrat
   expect(verifyGateProofs([naive])).toEqual([]);
   expect(verifyGateProofs([migrated])).toEqual([]);
 
-  expect(blindSetOf([naive, migrated])).toEqual({ "twin-control-naive": ["bracket"] });
+  const census = spellingTwinCensus({ legacy: [naive, migrated], final: [] }, scratchParser());
+  expect(census.blind).toEqual({ "twin-control-naive": ["bracket"] });
+  expect({ examined: census.examined, skipped: census.skipped }).toEqual({ examined: 2, skipped: [] });
+});
+
+/** The minimum honest `defineGate` shape for a control: one visitor, one law, both proof arms. */
+function controlPolicy(id: string, kinds: readonly SyntaxKind[], detect: (text: string) => boolean): GatePolicy {
+  return defineGate({
+    id,
+    family: id,
+    authority: "ordinary",
+    severity: "error",
+    population: { in: ["@ui"] },
+    analysis: "syntax",
+    execution: "entire-population",
+    facts: [],
+    resources: [],
+    message: "test fixture: a `.forbidden` member read",
+    fix: "read the member through lib/symbol-reference.ts",
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds,
+          visit: (node) => {
+            if (detect(node.getText())) {
+              ctx.report.node(node, {});
+            }
+          },
+        },
+      ],
+    }),
+    mustFlag: [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "the dotted spelling" }],
+    mustPass: [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_PASS }, why: "a member this law does not name" }],
+  } as GatePolicy);
+}
+
+test("THE PLANTED CONTROL, FINAL side: the same blindness is detected on a defineGate policy, and the migrated spelling is not", () => {
+  // This is the arm #2031 ADDED, so it owes its own planted break rather than inheriting the legacy one:
+  // the final engine has a different dispatcher, a different proof runner and a `mustPass`-may-not-be-empty
+  // rule, any of which could make the census silently answer "nothing is blind" for all 237 policies.
+  const naive = controlPolicy("twin-control-final-naive", [SyntaxKind.PropertyAccessExpression], (text) => text.endsWith(".forbidden"));
+  const migrated = controlPolicy(
+    "twin-control-final-migrated",
+    [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+    (text) => text.endsWith(".forbidden") || text.endsWith('["forbidden"]'),
+  );
+
+  // Both policies prove themselves on the DOTTED fixture first — equal start, or the control proves nothing.
+  expect(verifyPolicyProofs([naive])).toEqual([]);
+  expect(verifyPolicyProofs([migrated])).toEqual([]);
+
+  const census = spellingTwinCensus({ legacy: [], final: [naive, migrated] }, scratchParser());
+  expect(census.blind).toEqual({ "twin-control-final-naive": ["bracket"] });
+  expect({ examined: census.examined, skipped: census.skipped }).toEqual({ examined: 2, skipped: [] });
 });

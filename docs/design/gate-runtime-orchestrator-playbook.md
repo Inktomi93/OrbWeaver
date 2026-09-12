@@ -62,7 +62,6 @@ order); §12 is what lanes read. This file is what YOU do, in order.
    earlier on the same command line. Exclude your own pid, or match the venv path
    (`.cache/vllm/venv/bin/vllm`) which cannot appear incidentally. Same family as the recorded `pkill -f` hazard.
 
-
 3. `git -C <main> status --short` empty, `git log --oneline -3`, `git worktree list` (every worktree is a lane; resume,
    never respawn — a killed lane's worktree keeps its uncommitted work). **For each worktree run
    `git -C <wt> rev-list --count main..HEAD` and `git -C <wt> status --short`. A dead lane showing 0 commits and a large
@@ -281,7 +280,7 @@ tree tells you the moment a fix breaks a row.
    now names a CONFIRMED exemplar, the resource plane included (`be4cdebcd`, verifier-checked, its one refuted
    cell fixed at `a4ed280d1`). From here an audit runs **per-dispatch, on the family being handed to a lane**,
    never as a corpus sweep — and the module count below is frozen history against a 167-module corpus that is now
-   179. Waves 1-10 audited 112 of that 167.
+   179\. Waves 1-10 audited 112 of that 167.
 
    **AUDIT STATE — 2026-09-12. Waves 1-10 complete, 112 of 167 modules audited** (wave 9 closed wave 8's open axes on the same 14 modules rather than adding new ones — hence +1, not +14) (wave 8's 25 = 24 fresh + 1 partial re-audit; `origin-server`'s §4.1 cuts and reachability probes are NOT covered and are wave 9's obvious start) (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
 
@@ -442,7 +441,7 @@ every number in this file rots.**
 
 `refutation-ledger-2026-09-12.md` last moved **2026-09-11**. Its rollup still reads 25 CLOSED / 15 OPEN / 3
 SUPERSEDED / 48 UNADJUDICATED, and it still calls #2006, #2009, the ten `home-client` third answers and five
-#1978 rows OPEN — **eight-plus closures it does not know about.** Its ranked top five is now: **1 and 2 CLOSED, 3
+\#1978 rows OPEN — **eight-plus closures it does not know about.** Its ranked top five is now: **1 and 2 CLOSED, 3
 in flight (#2016), 4 and 5 open** — and #1922 is **TEN** final modules carrying an `ExemptionTable`, not the nine
 it records (`runner-config-path-liveness` became the tenth at its own conversion).
 
@@ -800,7 +799,7 @@ concurrency-safe with themselves) · **`check-gates.repo.int.test.ts`** (same re
 concurrency-safe with itself; the `p-stale-refusals` lane edited its `UNFIXTURABLE_GATES` row at `8d8c06881` and
 declared the run OWED rather than skipping it silently, which is the honest form) · the `check:structure` AFTER
 census · the `ledgers:fresh` regen for two `caught-failure-ownership` rows · `gate-spelling-twins.int.test.ts`
-(54 of 79 ledger rows orphaned) · the `docs/reviews/gate-runtime/` doc-catalog pass (~10 wave docs un-attested;
+(54 of 79 ledger rows orphaned) · the `docs/reviews/gate-runtime/` doc-catalog pass (\~10 wave docs un-attested;
 `doc-catalog:sync` was deliberately reverted on 2026-09-12 — it would have attested documents nobody read).
 
 **Phase C — settle the capability set before spending it. Forge. A design pass, not an executor lane.**
@@ -1074,7 +1073,6 @@ its list without re-deriving would be this same failure one more time.
 measured 3 of 9 modules §5b.5-complete, by SHA SHAPE with a positive control, because a word-match grep lies on
 this field. Refuted back to Ready. A row at Verify that nothing re-checked is the same disease as a stale refusal
 (#2013) and a one-sided roster (#2008), which makes it three instances in one week.
-
 
 - **A GATE ROSTER IS NOT THE ENFORCEMENT SURFACE — absence from it is evidence of nothing** (owner
   correction, 2026-09-12, on my own filing). I read `Core-Enforcement-Deferred-Dropped.md`, found

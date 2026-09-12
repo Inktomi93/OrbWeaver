@@ -10,6 +10,7 @@ Scout pass against `main` (e4d017fd8-era tree), authority = `docs/design/interac
 Method: ast/rg + Read, full ladder per row. See per-row receipts below.
 
 ## B7 — reactions MR3-MR5 + first tool-attach — ✅ BUILT (full ladder)
+
 - Speaker-span anchor: `packages/kit/src/speaker-label/index.ts:64`.
 - Toggles wired end-to-end: schema `packages/contracts/src/chat/metadata.ts:292,300`, settings defaults
   `packages/contracts/src/settings/index.ts:697,704`, resolver `packages/server/src/domain/chat/verbs/reactions.ts:90-95`,
@@ -22,6 +23,7 @@ Method: ast/rg + Read, full ladder per row. See per-row receipts below.
   reachable (not independently re-run here — static verification only, no test execution performed).
 
 ## B8 — checks (dice) — ✅ BUILT
+
 - `rollDice` verb: `packages/server/src/domain/rpg/verbs/roll-dice.ts:33-46`, exported on
   `RpgService.rollDice` (`contract/service.ts:848`), wired at trpc `packages/server/src/transport/trpc/routers/rpg.ts:93`,
   and as an rpg tool (`domain/rpg/tools/index.ts:213-216`). Called-in-a-live-path rung reached (trpc router).
@@ -29,6 +31,7 @@ Method: ast/rg + Read, full ladder per row. See per-row receipts below.
   for the S1-mount/tool-renderer half specifically (server side is solid).
 
 ## B9 — clocks — ✅ BUILT (full ladder, client + server + wire)
+
 - Widget: `SegmentedClock` declared+exported `packages/ui/src/charts/meter/segmented-clock.tsx:55`,
   consumed at `packages/client/src/features/automation/components/clock-meter.tsx:72`.
 - Mount: thread-flank contribution `packages/client/src/features/automation/lib/clock-meter-surface.tsx:24`
@@ -39,6 +42,7 @@ Method: ast/rg + Read, full ladder per row. See per-row receipts below.
 - `clockFires` preset present (`domain/automation/contract/presets.ts:610`).
 
 ## B10 — saved casts (#26) — 🔧 PARTIAL, receipted
+
 - Cast domain (characters/anchor persona/group config) BUILT full ladder:
   `packages/db/src/schema/roster-preset.ts` (rosterPresets + rosterPresetMembers tables, no rule/knob
   columns anywhere in the file — read in full), `packages/server/src/domain/roster-preset/**`
@@ -60,17 +64,20 @@ Method: ast/rg + Read, full ladder per row. See per-row receipts below.
   `groupConfig` is re-parsed at apply today (`apply-to-chat.ts:38+`, same pattern, not yet extended).
 
 ## B11 — Activity tab + inbox doorway — ✅ BUILT (confirmed, matches board)
+
 - `listChatActivity`: declared `verbs/list-chat-activity.ts:14`, exported `service.ts:54` and
   `contract/service.ts:150`. Client consumer at `packages/client/src/compose/authed-app.tsx:119` per
   prior board receipt (re-confirmed server side here).
 
 ## Member-kind union (contracts/chat/roster.ts) — confirmed as documented
+
 `rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema])` — literally ONE arm
 (`packages/contracts/src/chat/roster.ts:99`). No observer/agent/other seat kind exists anywhere in the
 union; the purge is complete as of this tree. Any non-`character` seat kind is UNBUILT (no second arm
 to even declare).
 
 ## Preset catalogue — 22 specified, 22 built (exact match)
+
 Spec §4 enumerates 20 numbered rows; row 15 bundles 3 presets (storyPacing/distillLore/proseAudit) →
 22 conceptual presets total. `packages/server/src/domain/automation/contract/presets.ts` declares exactly
 22 `id:` entries (grep receipt, lines 343-1311), one-to-one matched by name to every spec row including
@@ -79,27 +86,32 @@ autoSetSceneBackground) and C5's livingLibrary (20). ENFORCER confirmed: `as con
 Record<RulePresetId, ErasedRulePresetDef>` at `presets.ts:1360` — exhaustive, tsc-forced.
 Verdict: ✅ BUILT, count exact, no gap.
 
-## C1 — run_analysis (S5 whole) — ✅ BUILT
+## C1 — run\_analysis (S5 whole) — ✅ BUILT
+
 Arm dispatch `engine/arm-executors.ts:553` (`case "run_analysis"`), dedicated executor
 `engine/analysis-arm.ts` (structured pass, retry, response-format), state table `automation_rule_state`
 schema `packages/db/src/schema/automation.ts:212-247` (guidance-length CHECK included), admission rows
 `substrate/validate.ts:130,259`. `storyPacing` preset present. Full ladder incl. schema+dispatch+preset.
 
 ## C2 — distill-lore preset — ✅ BUILT
+
 `distillLore` preset id at `presets.ts:823`; lore-write route shared with `insert_world_info_entry`
 executor (`engine/lore-write.ts:2`, extracted "at C1" per its own header, consumed by both routes).
 
 ## C3 — prose-audit preset — ✅ BUILT
+
 `proseAudit` preset id at `presets.ts:996`; confirm-suggestion path references `run_analysis`
 armType at `verbs/confirm-suggestion.ts:175` (rewrite-card hash-guard machinery referenced in spec is
 consumed by this same confirm path — not independently re-read line-by-line in this pass).
 
-## C4 — run_tool arm — ✅ BUILT
+## C4 — run\_tool arm — ✅ BUILT
+
 Executor `engine/arm-executors.ts:436` (`runRunTool`) dispatched at `:559-560` (`case "run_tool"`).
 Per §7-C7a's truth-repair, this admits ONLY plugin-sourced author-owned tools (not builtins) —
 confirmed as the documented narrowing, not re-verified against the executor body line-by-line here.
 
 ## C5 — owner-global lane + living-library — ✅ BUILT
+
 - `automation_owner_budgets` table: `packages/db/src/schema/automation.ts:152,161`.
 - Settings pane: `OwnerAutomationSurface` exported `features/automation/index.ts:24`, mounted at
   `features/automation/lib/automation-pane.tsx:9-15` with `OWNER_BUDGET_ANCHOR`/`OWNER_RULES_ANCHOR` —
@@ -108,6 +120,7 @@ confirmed as the documented narrowing, not re-verified against the executor body
 - `livingLibrary` preset at `presets.ts:1186`.
 
 ## Build-order recommendation for the one real gap in range (B10's "+rules" leg)
+
 1. Schema: add the rule-preset-linkage column/junction to `roster_presets` (merge-window, batch with any
    other pending db-drop to avoid a second dev-db reset) — a JSON array of `{presetId, knobs}` on
    `roster_presets` is the cheapest shape consistent with the existing `groupConfig` JSON-column precedent
@@ -121,8 +134,10 @@ confirmed as the documented narrowing, not re-verified against the executor body
    rule set at save time — not scoped/estimated here (out of this scout's depth; a UI lane's call).
 
 ## One-line verdict
+
 The "add rules/other things to a room" capability the owner remembers is **PARTIAL**: cast-of-characters
-+ persona + group-config reuse is fully built and wired end-to-end (B10's character half), but the
-rule-preset ("automation behaviors") leg of a saved cast — the actual "+rules" the owner is recalling —
-has ZERO code anywhere (no schema column, no verb wiring, no client picker); it needs a merge-window
-schema drop plus apply-time re-mint wiring before it exists at all.
+
+- persona + group-config reuse is fully built and wired end-to-end (B10's character half), but the
+  rule-preset ("automation behaviors") leg of a saved cast — the actual "+rules" the owner is recalling —
+  has ZERO code anywhere (no schema column, no verb wiring, no client picker); it needs a merge-window
+  schema drop plus apply-time re-mint wiring before it exists at all.

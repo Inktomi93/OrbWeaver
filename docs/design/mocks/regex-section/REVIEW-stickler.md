@@ -259,7 +259,7 @@ table). Against the tree:
 - **`ChatDetail`** gains the fields (`substrate/chat-detail.ts:74` and `contract/views.ts:199-204`, the
   `hostDisplayScripts` twin); the parse seam gains `.optional().catch(undefined)` rows
   (`domain/chat/contract/metadata.ts:42`); the verb rides `commitMetadataUpdate` (`verbs/roster.ts:139,355-369`;
-  #1450 CLOSED — ONE JSON path per write); the proc lands beside `setHostDisplayScripts`
+  \#1450 CLOSED — ONE JSON path per write); the proc lands beside `setHostDisplayScripts`
   (`transport/trpc/routers/chat.ts:585-587`); the client hook beside `useSetHostDisplayScripts`
   (`features/chat/hooks/use-context-panel-mutations.ts`).
 - **Bus** (#1733, OPEN, tree matches): `attach-to-chat.ts:26` / `detach-from-chat.ts:25` emit only

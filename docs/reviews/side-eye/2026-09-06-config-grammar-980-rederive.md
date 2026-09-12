@@ -33,7 +33,7 @@ every receipt below is comparable across the three shas. No SendMessage was sent
 
 **The load rule.** The brief permits rendered measurement only at a 1-minute load below 24. Load sat
 at 55–82 for the whole window. One bounded `until` wait was run (**301s**, 82.0 → 47.7, never reaching
-24) before proceeding under the brief's fallback clause. Load at each run is recorded in the table
+24\) before proceeding under the brief's fallback clause. Load at each run is recorded in the table
 below from snap's own `load=` axis. **This matters for exactly one arm and no other:** snap labelled
 `app-snapshot=load-suspect` on six of nine runs (boot-timing evidence, which this review does not use
 and does not quote). Every claim here is a computed style, a rendered geometry, a framebuffer contrast
@@ -50,8 +50,8 @@ one run that carried the whole deterministic scan happened to land **at load 22.
 | `main-1942558-2026-09-06T13-33-01-893Z` | true ink void (Range-measured) · Backup checkbox split · shot | ae53c7f2c | 28.8 |
 | `main-1952313-2026-09-06T13-34-20-275Z` | **`--design-audit`, desktop, driven to Backup** | ae53c7f2c | **22.7** |
 | `main-1969884-2026-09-06T13-35-55-511Z` | Chat behavior: switch geometry + framebuffer contrast | 301547c24 | 57.7 |
-| `main-1994369-2026-09-06T13-38-16-177Z` | coarse arm (`--mobile --viewport 430x860`): library geometry · bands | 301547c24 | ~44 |
-| `…T13-39` (run8b) | coarse `--design-audit` + corrected checkbox hit probe | 301547c24 | ~44 |
+| `main-1994369-2026-09-06T13-38-16-177Z` | coarse arm (`--mobile --viewport 430x860`): library geometry · bands | 301547c24 | \~44 |
+| `…T13-39` (run8b) | coarse `--design-audit` + corrected checkbox hit probe | 301547c24 | \~44 |
 
 Screenshots cited below live in each run's own slot under `snaps/`; the immutable receipt for every
 run is its `run.json` in the same slot.
@@ -60,17 +60,17 @@ run is its `run.json` in the same slot.
 
 **SHIP WITH FIXES — but #980 as written is no longer the right row.** Three of its six items are
 genuinely closed and should be struck; two are live and one of those got materially *worse* under
-#1725; one is unchanged since 2026-08-30. And the redesign introduced a new defect squarely inside
-#980's own remit — **the LIST no longer marks where you are** — which is now the most important thing
+\#1725; one is unchanged since 2026-08-30. And the redesign introduced a new defect squarely inside
+\#980's own remit — **the LIST no longer marks where you are** — which is now the most important thing
 on the row.
 
 ## The six items, re-derived
 
 | # | item | original receipt | TODAY's verdict | recommended next step |
 | - | - | - | - | - |
-| **F10 / E3** | OFF switch state subordinate | `2026-08-30-config-surface-live-drive.md:119-126` (OFF thumb 17.61:1 vs ON track 7.65:1, "2.3× louder off than on"); re-confirmed `2026-09-02-…-2.md:88` | **FIXED** — landing `5023241e2` (#1090, the ink) + `aad98e225` (#1109, the knob). Rendered today on Chat behavior: OFF thumb `oklab(0.74 … / 0.8)` = `muted-foreground/80` over a 12% track; ON thumb `oklch(0.19 0.03 50)` on `oklch(0.72 0.175 52)` measuring **FILL 7.06:1 PASS** (framebuffer, `--contrast-pixel`, 31,16,7 on 247,127,32). Track 48×32, thumb 18×18 = **56% of track height**, which is E3's own "~55% with visible travel" ask. `design-audit`'s `quiet-state` rule — which fired P2 in *every* arm on 2026-09-02 — now reports `judged=0 … excluded(noOwnFill=1)`, i.e. it no longer convicts. Receipt: `main-1969884-…` | **STRIKE from #980.** Both halves landed with CT framebuffer pins in all three seeds. |
+| **F10 / E3** | OFF switch state subordinate | `2026-08-30-config-surface-live-drive.md:119-126` (OFF thumb 17.61:1 vs ON track 7.65:1, "2.3× louder off than on"); re-confirmed `2026-09-02-…-2.md:88` | **FIXED** — landing `5023241e2` (#1090, the ink) + `aad98e225` (#1109, the knob). Rendered today on Chat behavior: OFF thumb `oklab(0.74 … / 0.8)` = `muted-foreground/80` over a 12% track; ON thumb `oklch(0.19 0.03 50)` on `oklch(0.72 0.175 52)` measuring **FILL 7.06:1 PASS** (framebuffer, `--contrast-pixel`, 31,16,7 on 247,127,32). Track 48×32, thumb 18×18 = **56% of track height**, which is E3's own "\~55% with visible travel" ask. `design-audit`'s `quiet-state` rule — which fired P2 in *every* arm on 2026-09-02 — now reports `judged=0 … excluded(noOwnFill=1)`, i.e. it no longer convicts. Receipt: `main-1969884-…` | **STRIKE from #980.** Both halves landed with CT framebuffer pins in all three seeds. |
 | **F12** | remove the banned Tags side-tab accent | `2026-08-30-…:133-138` (`[aria-label="Tags"]::after` = 3px × 253px accent bar on a `rounded-base` card); byte-identical at `2026-09-02-…-2.md:90` | **DEAD** — its carrier no longer exists. `config-welcome.tsx` (the landing card that wore it) was deleted at `6b00c37fd`; the Tags landing became the library at `37b8e2d52` (#1725). Proven, not assumed: a full-page `::after` sweep for any pseudo ≤6px wide, ≥40px tall with a painted background returns **`[]`** on the config landing AND in the Tags-library state (runs `main-1896562-…`, `main-1907549-…`), and `design-audit` reports `side-tab candidates=1 judged=1 affected=0` and `border-accent-on-rounded candidates=1 judged=1 affected=0` — full verdicts, not withheld. | **STRIKE from #980.** |
-| **F13** | Backup checkboxes attached to their labels, no ~1210px split | `2026-08-30-…:139-143`; re-measured at ~851px `2026-09-02-…-2.md:91` | **LIVE, and now machine-detected.** The orange-checkbox half IS fixed (`3b86ae427` / #1110): all eleven render `oklch(0.66 0.005 70)`, a neutral, not the ember. **The split is untouched and larger than the 09-02 reading:** checkbox left edge **x=1398**, label right edge **x=461–492** → **906–937px of bare gap**, checkbox on the RIGHT, 11 rows, 18×18 boxes, still no select-all/none. `design-audit` files it independently as **8 × `row-void` P2** at **71–76%** ("724px of 990px (73%) between 'Characters' and its control"). Receipts: `main-1942558-…` (eval + `snaps/cbse980-backup.png`), `main-1952313-…` | **BUILD.** `ExportLibrarySection` puts `SettingCheckboxRow` inside a bare `w-full` `Fieldset`, so `Field orientation="horizontal"` docks each control in a 200px column at the pane's right edge with nothing capping the row. The fix already exists in the tree and is not being used here: `align="track"` (#932, `field/variants.ts` compound) or a measure cap on the fieldset. A bulk checkbox list should lead with its mark anyway. |
+| **F13** | Backup checkboxes attached to their labels, no \~1210px split | `2026-08-30-…:139-143`; re-measured at \~851px `2026-09-02-…-2.md:91` | **LIVE, and now machine-detected.** The orange-checkbox half IS fixed (`3b86ae427` / #1110): all eleven render `oklch(0.66 0.005 70)`, a neutral, not the ember. **The split is untouched and larger than the 09-02 reading:** checkbox left edge **x=1398**, label right edge **x=461–492** → **906–937px of bare gap**, checkbox on the RIGHT, 11 rows, 18×18 boxes, still no select-all/none. `design-audit` files it independently as **8 × `row-void` P2** at **71–76%** ("724px of 990px (73%) between 'Characters' and its control"). Receipts: `main-1942558-…` (eval + `snaps/cbse980-backup.png`), `main-1952313-…` | **BUILD.** `ExportLibrarySection` puts `SettingCheckboxRow` inside a bare `w-full` `Fieldset`, so `Field orientation="horizontal"` docks each control in a 200px column at the pane's right edge with nothing capping the row. The fix already exists in the tree and is not being used here: `align="track"` (#932, `field/variants.ts` compound) or a measure cap on the fieldset. A bulk checkbox list should lead with its mark anyway. |
 | **F22** | standardize switch label/control orientation | `2026-08-30-…:190-192` ("Appearance/Chat behavior: label left, switch far right. Tag member editor: switch left, label right"); **NOT re-measured** on 2026-09-02 | **LIVE — and #1725 promoted it into CONTENT.** `tag-member-surface.tsx:237` still renders `<Row align="center" gap="field"><Switch/><Text voice="gloss"/></Row>`: measured today at **switch x=561, label x=615 — control LEFT, label RIGHT**. It now sits in the CONTENT pane 40px under a `Field` row ("Folder type") whose label is ABOVE its control, in a pane where every other control is label-above. **Three control orientations in one 720px form.** The gloss is also not a `<label>`, so clicking the sentence does not toggle. Two more spellings of the same row exist: `regex-context-body.tsx:107` (label-left/switch-right by a hand-rolled `Row justify="between"`, no `Field`, no shared track) and `world-info/components/attachment-rows.tsx:64,107` (switch in `ListRow`'s `actions` slot). Receipts: `main-1931103-…` (eval + `snaps/cbse980-tag-member.png`) | **BUILD, narrowed.** One line: route the three hand-rolled rows through `SettingSwitchRow` (which is already `Field orientation="horizontal"`, label-left). The tag row is the only POLARITY inversion; the other two are mechanism drift, not visual drift. |
 | **F23 / F24 / E4** | restrained display/section/row hierarchy, no competing CAPS 2.5px apart | `2026-08-30-…:193-201`; identical string at `2026-09-02-…-2.md:96-97` | **LIVE for F23, CHANGED for F24.** F23 is byte-identical for the third pass running: LIST census today = shelf kicker **10.5px/600/CAPS ls=0.84px ×4** vs group band **13px/600/CAPS ls=1.04px ×13** — same weight, same case, **2.5px apart**, the only difference being tracking. F24 has *partly* moved: the collection library pane now opens with a real **20px/600** title ("Tags"), so a display step exists — but the settings panes did NOT get one. Appearance CONTENT still maxes at **16px/500** with steps 10.5 / 13 / 15 / 16 (**ratio 1.52:1**, the same number as 08-30). `voice="display"` and `voice="title"` are used **zero times** across `features/{config,settings,tag,regex,world-info,workloads}`. So the surface now has *two* hierarchies: collections get 20px, settings get 16px. Receipts: `main-1907549-…` (LIST ramp), `main-1896562-…` + `main-1922535-…` (CONTENT ramps) | **RE-FILE NARROWER, two rows.** (a) the shelf kicker and the band label are one voice pair and need one step of real separation — the cheapest honest fix is dropping the band label out of CAPS, since the shelf is the caps register. (b) give the settings pane the same 20px subject step the library pane just got; the inconsistency is now the defect, not the flatness. |
 | **E2** | collapse eight selection idioms to two | `2026-08-30-…:274-280` | **CHANGED — 8 → 5 rendered, target 2.** Census below. Two are the ruled pair and correct; three are not. Notably **idiom 2 ("expanded group = filled bar") is RETIRED**, but not the way #980 wanted: it was replaced with *nothing* (see the new finding). `design-audit`'s own `selection-idiom` rule reached **NO VERDICT** in both the desktop and coarse arms (`withheld(unmatchedSelected=1)` on a Backup checkbox), so the instrument does not adjudicate this — the hand census is the receipt. Receipts: `main-1896562-…`, `main-1922535-…`, `main-1952313-…` | **RE-FILE NARROWER.** Three targets, not eight: unify `media-grid`'s ring with `PickerCell`'s, drop the tabs' second (gradient `::after`) selection layer, and decide whether `bg-accent`-fill highlight is allowed to mean both "hovered candidate" and "selected". |
@@ -78,7 +78,7 @@ on the row.
 
 ## NEW — the defect #1725 introduced, inside #980's own remit
 
-**[P1] A collection library fills CONTENT and the LIST gives no sign of where you are.**
+**\[P1] A collection library fills CONTENT and the LIST gives no sign of where you are.**
 
 Every `[data-slot=config-band]` on the surface paints identically in every state. Measured across all
 four collection bands while Tags was the location (`main-1922535-…`), and across all thirteen bands
@@ -108,7 +108,7 @@ row idiom), not in `config-list-collection-group.tsx`.
 DESIGN.md §3.1 ratified `aria-current` for exactly this state and said "two band kinds do NOT exist".
 The ARIA landed; the paint did not. This is a **RENDERED-WRONG** row against the approved boards.
 
-**[P1] The library row's void got worse, not better, when the rows moved to CONTENT.**
+**\[P1] The library row's void got worse, not better, when the rows moved to CONTENT.**
 
 DESIGN.md §5 obligation 6 is explicit: *"Rows at pane width carry more air than at 307px — the width
 matrix … is owed before the row anatomy is called converged (side-eye P1-4)"*, and the mock review set
@@ -121,7 +121,7 @@ rpg-ready ink 30→98    "4 uses" ink 934→982   void 836px of 990  =  84%
 fantasy   ink 30→82    "3 uses" ink 934→982   void 852px of 990  =  86%
 ```
 
-Against 08-30's F19 (63–77% in the 307px LIST) that is **~10 points worse and ~200px larger in
+Against 08-30's F19 (63–77% in the 307px LIST) that is **\~10 points worse and \~200px larger in
 absolute terms.** The coarse arm is the control that proves it is a width property, not a bug:
 382px row → **48%**. A point measurement at one width would have missed this in either direction.
 
@@ -183,7 +183,7 @@ The three worst remaining things, in order:
    exists and is correct; three call sites simply do not use it.
 
 Honourable mention, not in the top three but worth a row: at 430px the **filter box on a 28-row library
-is the smallest control in its own control row** (~100px, placeholder clipped to "Filter tags..") while
+is the smallest control in its own control row** (\~100px, placeholder clipped to "Filter tags..") while
 `Most used ▾` takes 116px beside it — `snaps/cbse980-tags-coarse.png`.
 
 ## Taste verdict, per surface driven
@@ -192,7 +192,7 @@ is the smallest control in its own control row** (~100px, placeholder clipped to
   their job, the pickers look like one family for the first time. It is a little *characterless* — the
   largest text on a settings pane is 16px, so nothing tells your eye where the pane starts — but it is
   not ugly.
-- **Tags library (desktop)** — **looks unfinished.** A 990px pane holding rows whose ink occupies ~100px
+- **Tags library (desktop)** — **looks unfinished.** A 990px pane holding rows whose ink occupies \~100px
   of it, with a 850px hole down the middle of every row, reads as a table someone forgot to give
   columns. The insight chips ("LABELLING NOTHING 0 of 28 / IN USE 28") stack as two lonely lines above
   a 28-row list. The eye lands on the New tag button (correct) and then has nowhere to go.
@@ -205,7 +205,7 @@ is the smallest control in its own control row** (~100px, placeholder clipped to
   y≈465 of a 900px viewport. Nothing here is *wrong* exactly; it just does not look like anyone stood
   back from it.
 - **Backup & Restore** — **the worst-looking pane on the surface, and it is one defect eleven times.**
-  Eleven labels on the far left, eleven checkmarks on the far right, ~920px of black between. You
+  Eleven labels on the far left, eleven checkmarks on the far right, \~920px of black between. You
   cannot tell by eye whether "Themes" is checked. Everything else in the pane (the copy, the dropzone,
   the Import folder door) is fine.
 

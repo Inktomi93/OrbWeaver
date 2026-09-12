@@ -264,7 +264,7 @@ async function resolveOrCreatePromotionCard(
   if (free === null) {
     return {
       ok: false,
-      // PROSE-OK: a host-visible promotion refusal returned to the UI, never bytes sent to a model.
+      // @orb-waive no-hardcoded-model-prose(your): a host-visible promotion refusal returned to the UI, never bytes sent to a model.
       reason: `your character library already carries "${input.handle}" and every variant this promotion tried — rename the character first`,
     };
   }
@@ -302,7 +302,7 @@ function buildPromoteToCharacter(deps: RpgComposeDeps): RpgContext["promoteToCha
     if (sameNameCollision) {
       return {
         ok: false,
-        // PROSE-OK: a host-visible roster refusal returned to the UI, never bytes sent to a model.
+        // @orb-waive no-hardcoded-model-prose(is): a host-visible roster refusal returned to the UI, never bytes sent to a model.
         reason: `"${name}" is already on this chat's roster — rename this character first, or the story could only ever address one of them`,
       };
     }
@@ -1427,9 +1427,9 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
 // The three sentences a resync REFUSAL can carry (`ResyncResult.reason` → the host's toast). Written as host
 // prose, not log vocabulary: the person reading them clicked a button and is owed what to do next. Each pairs
 // with the `rpg.resync.*` warn the same branch already emitted — the log is for us, the reason is for them.
-// PROSE-OK: host toasts (`ResyncResult.reason` → the UI), never a model prompt — the §Scope test #prose-slot states
+// @orb-waive no-hardcoded-model-prose(this): host toasts (`ResyncResult.reason` → the UI), never a model prompt — the §Scope test #prose-slot states
 const RESYNC_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the rebuild never ran — check the chat's model/connection.";
-// PROSE-OK: same host-toast class as the row above — never a model prompt
+// @orb-waive no-hardcoded-model-prose(this): same host-toast class as the row above — never a model prompt
 const RESYNC_READONLY_REASON = "this room's model can't write game state, so there's nothing to rebuild with — switch to a connection that can.";
 const RESYNC_FAILED_REASON = "the model call failed, so nothing was rebuilt:";
 
@@ -1672,9 +1672,9 @@ function populateUserPrompt(corpus: RpgCardCorpus, targetRef: string, prose: Pro
 // `RESYNC_*_REASON` trio in the born-state vocabulary. Written as host prose, not log vocabulary: the person
 // reading them clicked a button and is owed what to do next. Each pairs with the `rpg.populate.*` warn the same
 // branch already emitted — the log is for us, the reason is for them.
-// PROSE-OK: host toasts (`PopulateResult.reason` → the UI), never a model prompt — the §Scope test #prose-slot states
+// @orb-waive no-hardcoded-model-prose(this): host toasts (`PopulateResult.reason` → the UI), never a model prompt — the §Scope test #prose-slot states
 const POPULATE_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the card was never read — check the chat's model/connection.";
-// PROSE-OK: same host-toast class as the row above — never a model prompt
+// @orb-waive no-hardcoded-model-prose(this): same host-toast class as the row above — never a model prompt
 const POPULATE_READONLY_REASON = "this room's model can't write structured state, so there's nothing to fill with — switch to a connection that can.";
 const POPULATE_FAILED_REASON = "the model call failed, so nothing was filled:";
 

@@ -35,7 +35,7 @@ regardless of the band.
 | 5 | Error prevention | 4/4 | Nothing destructive; temp-chat irreversibility explained before the action |
 | 6 | Recognition over recall | 4/4 | "Elsewhere in the house" is still the labelled legend for the icon rail; faces on the quick-picks; real last-message snippets |
 | 7 | Flexibility & efficiency | 3/4 | ⌘K, skip link, one-click resume. Still no per-section shortcut |
-| 8 | Aesthetic & minimalist | 3/4 | Six caps kickers + a seventh sentence-case disclosure in one viewport; ~430px of void under both columns at 1920; a whole region to say one thing |
+| 8 | Aesthetic & minimalist | 3/4 | Six caps kickers + a seventh sentence-case disclosure in one viewport; \~430px of void under both columns at 1920; a whole region to say one thing |
 | 9 | Error recovery | 2/4 | Unchanged coverage gap — no error path was inducible read-only; all 11 queries succeeded in every run |
 | 10 | Help & documentation | 3/4 | The temp-chat paragraph teaches genuinely well; no help affordance anywhere |
 
@@ -69,9 +69,8 @@ mints "the house **Extensions** rail SECTION … ONE rail item for the platform,
 `section-ids.ts:14-17` records the placement reasoning. But that is a **design** doc, and under
 docs-are-law a design doc does not amend core law by landing code.
 
-**Fix:** `document: UI-Architecture-and-Layout.md:190 — receipt: the count reads TEN, `extensions` is
-named in the enumeration with its §4.5b/U5 provenance, and the "truth" pointer moves from
-`shell-store.ts` to `state/section-ids.ts` (where the tuple actually lives, with `shell-store` noted as
+**Fix:** `document: UI-Architecture-and-Layout.md:190 — receipt: the count reads TEN, `extensions`is
+named in the enumeration with its §4.5b/U5 provenance, and the "truth" pointer moves from`shell-store.ts`to`state/section-ids.ts`(where the tuple actually lives, with`shell-store` noted as
 the re-export).` If the owner wants the ceiling itself re-ratified at ten, that is a ledger row, not a
 doc edit — state the fork.
 
@@ -123,7 +122,7 @@ drops below 141px.`
 
 ### \[P3] Home still re-settles on every load — and it survives a *seeded* boot-two, which the #453 refusal said it would not
 
-**Why it hurts a user:** small but real — at ~3.1s the "Other rooms" block lifts 24px and loses 67px of
+**Why it hurts a user:** small but real — at \~3.1s the "Other rooms" block lifts 24px and loses 67px of
 height while "Elsewhere in the house" lifts 90px and grows 27px → 92px, so the left column visibly
 re-flows under the eye just as it becomes readable.
 
@@ -163,7 +162,7 @@ Lighthouse mobile scores CLS **0.122 — over the 0.1 budget** (desktop 0.042, s
 instruments disagree: `snap / --mobile` reports `nonVirtualizedCls 0.0293`, and **under 4× CPU
 throttle it is 0.0295** — the throttle arm does not reproduce it. The untested discriminator is
 Lighthouse's mobile **network** throttling, and `pnpm snap --help` warns in its own text that the
-network arm is meaningless against this dev build (*"~250 unbundled ESM resources … throttle CPU alone
+network arm is meaningless against this dev build (*"\~250 unbundled ESM resources … throttle CPU alone
 here; the network arm is for a prod build"*).
 
 I am **not** dismissing this as "dev mode" — I am naming the one measurement that closes it:
@@ -217,8 +216,8 @@ none of the §6 slop tells.
 **Where the eye actually catches now:**
 
 - **It is top-heavy on a real monitor.** At 1920×1080 both columns are finished by y≈650 and the
-  bottom ~430px is empty; at 1280×1400 the left column ends at y=775, the right at y=845, leaving
-  ~555px of void. The page is designed for an 800px laptop and looks unfinished above that.
+  bottom \~430px is empty; at 1280×1400 the left column ends at y=775, the right at y=845, leaving
+  \~555px of void. The page is designed for an 800px laptop and looks unfinished above that.
 - **The columns still do not share the load.** Left ends 775, right 845 at the same width — the
   asymmetry the last pass named is unchanged, just smaller.
 - **Six caps kickers in one viewport** (`PICK UP WHERE YOU LEFT OFF` · `OTHER ROOMS` · `ELSEWHERE IN
@@ -226,7 +225,7 @@ none of the §6 slop tells.
   differently. Down from seven, still a drumbeat — the flattening between "your most important thing"
   and "a footnote about an unbuilt feature" persists.
 - **The reading arm leaves a gutter.** At `--appearance-preset reading` the quick-pick grid drops
-  3→2 columns cleanly but the cells stop at x≈1163 in a column that runs to ≈1240 — ~80–110px of dead
+  3→2 columns cleanly but the cells stop at x≈1163 in a column that runs to ≈1240 — \~80–110px of dead
   right gutter (`reports/snaps/cbrh-ap-reading.png`).
 - **Mobile is still arguably better than desktop.** 430×932 gives the resume card full width, a
   labelled bottom tab bar, and the fade cue reads immediately. The only wart: the cast credit line
@@ -245,7 +244,7 @@ and claims `rail.brand` rather than minting an extra slot.
 to press.
 
 **The one thing I would change:** give the right column's bottom third back. Between the one-item
-roadmap region, the unparented disclosure trigger and the 141px still under the fold, the same ~200
+roadmap region, the unparented disclosure trigger and the 141px still under the fold, the same \~200
 vertical pixels are carrying three separate findings — and above 800px tall, the whole page is floating
 in void.
 
@@ -303,17 +302,17 @@ is polish on a surface that is already good.
 | 8 | `design-audit / --mobile` (`pointer=coarse`) | **RAN** — census 322, reach 33/33, **1 P3**, zero tap-target findings |
 | 9 | `motion-audit /` | **RAN** — verdict FAIL: `cls-non-virtualized=0.0221`, `dropped-frames=0%`, `dirty-animations=0`, `worst-blocking=555ms` (boot, dev-inflated), 14 LoAFs style-in-frame |
 | 10 | `perf-meter --click` (Resume) | **RAN** — rAF gap 150ms, long tasks 521/162ms, click 32ms / delay 2ms |
-| 11 | `pnpm record --click` (transition eye) | **RAN** — `reports/recordings/cbrh-resume.{webm,gif}` + 6-tile strip: ~2 tiles (≈240ms) of skeleton before content, improved from ~3 |
+| 11 | `pnpm record --click` (transition eye) | **RAN** — `reports/recordings/cbrh-resume.{webm,gif}` + 6-tile strip: \~2 tiles (≈240ms) of skeleton before content, improved from \~3 |
 | 12 | Lighthouse desktop (MCP, sanctioned) | **RAN** — a11y 100 / BP 100 / agentic 100 / SEO 66 · `reports/lighthouse-cbrh-desktop/` |
 | 13 | Lighthouse mobile (MCP, sanctioned) | **RAN** — a11y 100 / BP 100 / agentic 95 / SEO 66; CLS 0.122 triaged above |
 | 14 | `__orb` suite (`shell`/`renders`/`animations`/`flags`/`queries`/`motion`) | **RAN** — panes both collapsed, 22 renders, 0 live animations, 4 boot drops, 11 queries all success |
-| 15 | Console triage | **RAN** — table below; **0 console errors, 0 page errors, 0 failed requests in all ~25 runs** |
+| 15 | Console triage | **RAN** — table below; **0 console errors, 0 page errors, 0 failed requests in all \~25 runs** |
 | 16 | PNGs actually read | **RAN** — 8 read visually + framebuffer pixel decode on 4 after R-1 |
 | 17 | Appearance arm `defaults` | **RAN** — `cbrh-ap-defaults.png` (404825 B, `data-elevation=flat`, `data-density=comfortable`) |
 | 18 | Appearance arm `maximal` | **RAN** — `cbrh-ap-maximal.png` (560799 B — +156 KB, the grain/elevation delta) |
 | 19 | Appearance arm `compact` | **RAN** — `cbrh-ap-compact.png` (408873 B) |
 | 20 | Appearance arm `reading` | **RAN** — `cbrh-ap-reading.png` (423673 B) → the right-gutter taste item |
-| 21 | Appearance arm `diagnostics` | **RAN** — `cbrh-ap-diagnostics.png` (404748 B); ~identical to defaults, as expected: home renders no per-message metadata chrome |
+| 21 | Appearance arm `diagnostics` | **RAN** — `cbrh-ap-diagnostics.png` (404748 B); \~identical to defaults, as expected: home renders no per-message metadata chrome |
 | 22 | Theme arm `--theme Light` | **RAN** — pixel-verified light (R-1) |
 | 23 | Theme arm `--theme none` | **RAN** — `cbrh-theme-none.png`, distinct hash from defaults |
 | 24 | Reduced-motion arm | **RAN** — `__orb.flags()` empty, `__orb.animations()` empty |
@@ -338,4 +337,4 @@ is polish on a surface that is already good.
 | vite dep-optimizer churn ×7 (isolated arm only) | **known-fine** — cold-stage re-bundle aborts, re-requested and served; snap labels it "NOT a failure" |
 
 **Errors: zero.** `console-errors=0 · page-errors=0 · failed-req=0` on every run in this pass.
-MCP budget: 3 calls used of ~12 (1 navigate + 2 Lighthouse) — everything else went through `snap`.
+MCP budget: 3 calls used of \~12 (1 navigate + 2 Lighthouse) — everything else went through `snap`.

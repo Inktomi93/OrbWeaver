@@ -6,9 +6,9 @@ updated: 2026-09-05
 
 # SillyTavern's Regex panel — a study, and what our one-place panel must be
 
-**Owner, 2026-09-05:** "think of all the places you have to go [to turn regex on or off when a chat is being
+**Owner, 2026-09-05:** "think of all the places you have to go \[to turn regex on or off when a chat is being
 weird]" · "sillytavern's is in one place" · (screenshot `Screenshot from 2026-09-05 12-03-33.png`) "go study the
-f*** out of that panel". Sources read: the screenshot (ST staging, three-scope panel), and ST's
+f\*\*\* out of that panel". Sources read: the screenshot (ST staging, three-scope panel), and ST's
 `public/scripts/extensions/regex/{dropdown.html,index.js,engine.js,editor.html}` at `staging`
 (fetched 2026-09-05; receipts are `file:line` into those copies under `scratchpad/st-regex/`).
 
