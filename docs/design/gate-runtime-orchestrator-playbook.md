@@ -26,22 +26,42 @@ order); §12 is what lanes read. This file is what YOU do, in order.
 1. Prove the guard is bound: run `git stash` (bare) and expect the hook to DENY it. If it passes, relaunch from `main`
    before touching anything (hooks bind at launch).
 
-2. Pre-flight, cheapest probe FIRST: `free -g` and `grep Shmem /proc/meminfo`. A sleeping vLLM fleet parks \~37 GiB as
-   `Shmem`; **under \~8 GiB means engines are already down** and you need no launcher call at all. Only if `Shmem` is high
-   **THE THRESHOLD IS A BINARY DETECTOR, NOT A MEMORY-PRESSURE GATE, AND IT WAS SET FAR TOO TIGHT (owner
-   correction, 2026-09-13: *“a 1 GB threshold is awfully precious on a 128 GB box”*).** It exists only to answer
-   *is the fleet resident* without invoking the launcher — which has no help guard and once REAPED THREE LIVE PIDS
-   for being run to look. Measured on this box with engines DOWN: **`Shmem` = 609 MiB**. The old \~1 GiB trip point
-   therefore sat at **59% of the idle floor**, leaving \~415 MiB of margin, while the signal it separates from is
-   **37 GiB — thirty-seven times the threshold**. Tmpfs growth or the co-hosted homelab containers drifting a few
-   hundred megabytes would have reported FLEET UP with nothing running. **8 GiB is \~13× the idle floor and \~4.6×
-   below a resident fleet**, so it is wrong in neither direction. The general rule: **a binary detector's threshold
-   belongs in the MIDDLE of its two measured states on a log scale, never a hair above the noise floor** — and if
-   you cannot state both measured states, you do not have a detector.
+2. **Pre-flight: DETECT THE PROCESS. Do not infer it from memory** (owner, 2026-09-13: *“we could also literally
+   just detect the vllm process?”* — yes, and the tool already records everything needed to do it exactly).
 
-   do you touch `pnpm engines status` / `pnpm stack status`, and then take prod down and stop engines from `main`'s
-   checkout. The launcher family has no help guard — a bare `node scripts/dev/engines.ts --help` once REAPED three live
-   pids — so never invoke it merely to look.
+   Earlier versions of this step read `Shmem` from `/proc/meminfo` and compared it to a threshold. **That was a
+   PROXY for a question the tree answers directly**, and it conflated two different things: `Shmem` genuinely
+   beats `ps` RSS for MEASURING a resident fleet's footprint (RSS undercounts shared memory), and it is the wrong
+   instrument for asking whether the fleet EXISTS. The threshold was also set at \~1 GiB against a measured idle
+   floor of **609 MiB** — 59% of the trip point — while a resident fleet is \~37 GiB, so it would have produced a
+   false FLEET-UP on ordinary tmpfs drift long before it ever produced a false down.
+
+   **The ordered detector, cheapest and most exact first — all three are read-only and none invokes the launcher:**
+
+   ```bash
+   cat .cache/stack/engines.pgid       # the tool's own JSON state record
+   ls  .cache/stack/engines.stopped    # the deliberate-stop marker
+   ss -ltnp | grep -E ':870[123]'      # are the ports actually listening
+   ```
+
+   `engines.pgid` is **not a pgid file** despite the name — it is a JSON record carrying, per engine, the `pid`,
+   `pgid`, `port`, `executable`, base64 `cmdline`, `cwd`, a `launchMarker`, and **`startTicks`**. That last field
+   is the anti-PID-REUSE check: a live pid matching the record is only the same process if its start time matches
+   too. **So the exact question “is MY fleet resident” is answerable from the record alone**, which is strictly
+   better than any process-name grep.
+
+   **A DEAD PIDFILE WITH NO `engines.stopped` MARKER IS A REAL STATE AND IT IS NOT THE SAME AS “STOPPED”.**
+   `engines-ctl.ts:218-226` writes the marker **only on a clean stop verdict** (`refused.size === 0`), because a
+   refusal means the fleet's state is uncertain and claiming *stopped on purpose* would assert evidence nobody
+   observed. So an absent marker beside dead pids means the fleet **died outside the tool's stop path**, and the
+   prod supervisor's takeover decision honors the marker, not the pids. Measured 2026-09-13: exactly this state
+   (three engines recorded, all pids dead, no marker), harmless only because no supervisor was running.
+
+   **If you do grep for the process, do not self-match.** `pgrep -f` matches the shell issuing it, and bracketing
+   the pattern (`[v]llm`) is NOT sufficient — it failed here because the literal string appeared in an `echo`
+   earlier on the same command line. Exclude your own pid, or match the venv path
+   (`.cache/vllm/venv/bin/vllm`) which cannot appear incidentally. Same family as the recorded `pkill -f` hazard.
+
 
 3. `git -C <main> status --short` empty, `git log --oneline -3`, `git worktree list` (every worktree is a lane; resume,
    never respawn — a killed lane's worktree keeps its uncommitted work). **For each worktree run
