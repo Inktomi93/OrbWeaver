@@ -1906,6 +1906,27 @@ and its independent regression proof; record the successor proof when retiring a
 world program:** the owner deferred live-tree gate-fixture redesign/retirement INTO this program, and the two legacy
 fixture writers still share paths, so this table does not claim they are isolated or safe to parallelize.
 
+**RE-READ 2026-09-12 by the orchestrator (the archived record in full + every module in the table above + the four
+converted liveness gates and `lib/config-grant-rows.ts`) on the owner's question "are we messing that up?": NO —
+and three COUPLED SITES the gate program owns, stated so nobody trips them.** (1) The gate program's one addition to
+the world program's reader was placed INSIDE it (`policy-program-membership.ts#readCompilerConfigEntries` +
+`compilerConfigRoster`, `97e68be91`): the raw `include`/`exclude` entries with positions, through TypeScript's own
+JSON parser, no second grammar — that is the shared-reader route §12.4 residual 2 named, and the liveness gates
+judge the QUESTION (an entry naming nothing) while the reader keeps owning the ANSWER (which files). (2) The
+`__g_` sentinel that Phase F retires with the legacy planting suites has FIVE coupled sites outside the gate corpus:
+`_shared/type-config-intent.ts` `TYPE_CONFIG_EXCLUDES` (every generated tsconfig's `exclude`),
+`ops/tests-type-membership.ts` `SENTINEL_RE`, `eslint.config.js`'s `**/__g_*` ignore with its
+`eslint-grant-liveness` RATIFIED row, `.dependency-cruiser.cjs`'s `(^|/)__g_` with its `depcruise-grant-liveness`
+RATIFIED row, and `tsconfig-entry-liveness`'s `fix` prose. Retire them TOGETHER: the two RATIFIED rows are two-sided
+and red the moment the config drops the pattern, and the intent change regenerates every config. (3) Both RATIFIED
+rows `cite` `tooling/src/verify/gates/GATE-AUTHORING.md` by PATH with a dead-cite arm, so #2126's rewrite keeps the
+filename or re-points both cites in the same commit. Two things the re-read confirms are NOT ours to touch: the
+routing-parity comparison (native TS7 `--showConfig` vs the shared parser) lives in `tests-type-membership` and
+`tsconfig-entry-liveness` is not its resurrection; and the native-config observations (Vitest's public
+`resolveConfig`, ESLint's `ConfigArray` counterfactual populations, dependency-cruiser's public extractor) are consumed
+by the gates exactly as shipped — a missing or unparseable config is a population-phase TOOL ERROR, never a silent
+pass, pinned in each gate's `.int.test.ts`.
+
 ### 12.8 Acceptance for the program (unchanged from the design)
 
 Every current policy has one live owner or explicit retirement; zero `scanRoot`, `scopeSafety`, `begin`, `finalize`,
