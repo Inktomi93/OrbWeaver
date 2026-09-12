@@ -336,11 +336,28 @@ family.
    These are `runPolicyPass` pins in the family test (`bus-pair.test.ts`, `bus-fact-health.test.ts`). A clean zero
    from a detector that might be blind is not evidence.
 
-6. **Conversion differential.** For a converted policy, load the legacy descriptor from the pre-conversion SHA, replay
-   every original example through the legacy dispatcher and the same bytes through the final policy, compare findings,
-   populations and tool errors, and CLASSIFY each intended difference (split, retired arm, marker vocabulary, stronger
-   reader). A retired or merged arm needs a successor proof (`simple-visitors-wave-2.test.ts`, `-wave-4.test.ts`).
-   This is conversion evidence for the landing commit, not standing law.
+6. **Conversion differential — AND ITS EVIDENCE MAY NO LONGER VANISH (#2000).** This section used to end
+   *“conversion evidence for the landing commit, not standing law”*, which permitted the differential to be run and
+   then retired. **Measured 2026-09-11: of 171 converted policies, \~18 carry a differential in a committed test and
+   19 of 95 conversion commits mention one — and there is no way to tell “ran it and retired it” from “never ran
+   it.”** A rule whose evidence is allowed to disappear and whose execution is unrecorded is indistinguishable from
+   a rule nobody follows. **So a conversion now does ONE of two things, and §8.8 names it in the floor:** land the
+   differential as a committed test, OR state in the commit message that it ran and **what it found** (identical, or
+   the classified differences). Silence is no longer compliance.
+
+   **Why this check is not redundant with the rest of §4.** Every other rule asks whether the new gate is internally
+   sound. The differential asks whether conversion **silently changed what the gate CATCHES**. A narrowed population,
+   a retired arm with no successor, or a stronger reader that no longer matches an old shape produces a module that
+   is sound by every other check and has quietly stopped catching something. **The conformance stage is structurally
+   blind to it** — a proof row rewritten after conversion only proves the new code agrees with itself. It has already
+   happened at the worst possible scale: `caught-failure-ownership`, the program's largest conversion at 336 files,
+   shipped with no differential (#1970).
+
+6b. **The original procedure.** For a converted policy, load the legacy descriptor from the pre-conversion SHA, replay
+every original example through the legacy dispatcher and the same bytes through the final policy, compare findings,
+populations and tool errors, and CLASSIFY each intended difference (split, retired arm, marker vocabulary, stronger
+reader). A retired or merged arm needs a successor proof (`simple-visitors-wave-2.test.ts`, `-wave-4.test.ts`).
+This is conversion evidence for the landing commit, not standing law.
 
 7. **Invented rows owe a planted-break receipt.** Only when a lane adds a NEW row for a NEW property (a per-file index,
    an absent-subject arm) must it break that property in a scratch copy, show the row went red, and restore. A header that says "this row proves X" for a row never shown to
@@ -683,7 +700,8 @@ dependencies that constrain ANY sequence, because they are law rather than sched
    total not rising); `pnpm exec biome check <files> --diagnostic-level=error`; `pnpm exec eslint <files>`;
    `pnpm typecheck --config tsconfig.json`; behavioral mirror suites for any product file whose comments you touched
    (comment-only edits still owe the compile); **the step-6 per-file marker count reconciliation, with every mismatch
-   classified — a lane that translated markers and cannot show this table has not finished.** After §5 lands: the mixed `check:structure` before/after on the real
+   classified — a lane that translated markers and cannot show this table has not finished.** **The §4.6 DIFFERENTIAL,
+   either as a committed test or as a commit-message statement of what it found (#2000) — silence is not compliance.** After §5 lands: the mixed `check:structure` before/after on the real
    tree with the finding delta explained.
 
    **THE ROSTER COUPLED SITE — a conversion breaks suites that are not its own (measured 2026-09-11).**
