@@ -179,6 +179,16 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "GRANT GRANULARITY: the import door plus two calls in one file are ONE `(subject, operation)` finding, because a reviewed grant that matched three findings would be OVER-BROAD and would license nothing",
     },
+    {
+      mode: "types",
+      files: {
+        ...HOME_PROOF,
+        "packages/client/src/forms/editor/bound-fields/opaque-field.tsx":
+          "declare function opaque(): any;\nexport const f = (): unknown => opaque().useFieldContext<string>();\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no row before #2014: a member read off an OPAQUE receiver gives the leaf no symbol at all, so `classifyOriginRefusal` answers case (b) — the spelling MIGHT be the toolkit's context hook and is REPORTED with the unreadable message rather than passed. The `messageIncludes` is the whole row: the arm produces the SAME count as the ordinary verdict and differs ONLY in message, so a bare `{ count: 1 }` would pass identically if the arm were made to fail OPEN. Proven disjoint — `CANNOT be established` appears in no other text this policy emits",
+    },
   ],
   mustPass: [
     {

@@ -176,6 +176,16 @@ export const gate = defineGate({
       expect: { count: 2 },
       why: "GRANT GRANULARITY: two DIFFERENT mints in one toolkit file are two `(subject, operation)` findings and therefore two rows — the licensed act is the mint, not the file",
     },
+    {
+      mode: "types",
+      files: {
+        ...tanstackReactFormProof(),
+        "packages/client/src/features/some-feature/surfaces/opaque.tsx":
+          "declare function opaque(): any;\nexport const Editor = (): unknown => opaque().useForm();\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no row before #2014: the callee's leaf name puts it in the candidate set, `readPackageExportOrigin` cannot place the binding off an OPAQUE receiver, and case (b) of the refusal classifier REPORTS it rather than passing the spelling. The grant operation then keys on the SPELLING (`exportedName ?? name`), which is what an unreadable candidate has instead of a canonical export. The `messageIncludes` is load-bearing: this arm's finding count is identical to the ordinary one, so a bare `{ count: 1 }` cannot tell a live arm from a dead one",
+    },
   ],
   mustPass: [
     {

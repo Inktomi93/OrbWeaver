@@ -183,6 +183,16 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "THE NAMESPACE RED: a member callee is not an Identifier, so the legacy check answered 'not my subject'",
     },
+    {
+      mode: "types",
+      files: {
+        ...DOOR_PROOF,
+        "packages/client/src/state/o-selection-store.ts":
+          'declare function opaque(): any;\nexport const useO = opaque().createGatedStore("o-selection", () => ({ id: null }));\n',
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no row before #2014: a `createGatedStore` callee read off an OPAQUE receiver binds no declaration, so `classifyOriginRefusal` answers case (b) and the mint is REPORTED rather than passed on the strength of its spelling. The `messageIncludes` is what holds the arm — it produces the same ONE finding the ordinary verdict does, so a `{ count: 1 }` row passes identically whether the branch fires or is unreachable",
+    },
   ],
   mustPass: [
     {

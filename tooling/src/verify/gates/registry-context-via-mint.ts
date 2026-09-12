@@ -203,6 +203,17 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "BOTH HALVES ALIASED: the constructor and the registry type are each imported under another name, and neither spelling survives — only the two resolved identities do",
     },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        ...REGISTRY_PROOF,
+        "packages/client/src/state/opaque-registry-context.ts":
+          'import type { Registry } from "../lib/registry.ts";\ndeclare function opaque(): any;\nexport const C = opaque().createContext<Registry<string, number> | null>(null);\n',
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no row before #2014, and it is the ONE arm of this policy that does not ask the type question at all: a callee spelled `createContext` off an OPAQUE receiver binds nothing, the React matcher answers case (b), and `evaluate` reports the type argument with the UNREADABLE message BEFORE `namesRegistry` runs. The `messageIncludes` is what distinguishes it — the report anchors on the same node and emits the same single finding as the ordinary verdict, so a bare `{ count: 1 }` cannot tell which branch ran",
+    },
   ],
   mustPass: [
     {
