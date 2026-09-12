@@ -442,14 +442,18 @@ function refusingPolicy(mustRefuse: unknown): unknown {
     create: () => ({ evaluate: () => undefined }),
     mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, expect: { count: 1 }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
-    mustRefuse,
+    ...(mustRefuse === undefined ? {} : { mustRefuse }),
   } as never);
 }
 const REFUSE_ROW = { mode: "source", files: { "tooling/src/proof.ts": "export const refuse = true;\n" }, why: "the designed refusal" } as const;
 
 test("the mustRefuse arm is optional, never empty, and every row carries messageIncludes and nothing else in expect (§4.5b)", () => {
-  // These rules shipped with #1977 and had no pin under tests/tooling until #2111 measured the gap.
+  // These rules shipped with #1977 and had no pin under tests/tooling until #2111 measured the gap. ABSENT is the
+  // optional shape; an explicit `mustRefuse: undefined` is an own property and is refused like an empty array.
   expect(() => assertGatePolicyDescriptor(refusingPolicy(undefined))).not.toThrow();
+  expect(() => assertGatePolicyDescriptor({ ...(refusingPolicy(undefined) as object), mustRefuse: undefined })).toThrow(
+    /mustRefuse must contain at least one/i,
+  );
   expect(() => assertGatePolicyDescriptor(refusingPolicy([]))).toThrow(/mustRefuse must contain at least one/i);
   expect(() => assertGatePolicyDescriptor(refusingPolicy([REFUSE_ROW]))).toThrow(/mustRefuse\[0\]\.expect\.messageIncludes is required/i);
   expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: " " } }]))).toThrow(

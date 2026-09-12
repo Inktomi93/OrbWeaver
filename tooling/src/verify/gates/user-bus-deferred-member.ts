@@ -104,6 +104,18 @@ export const gate = defineGate({
       why: "the deferred member gained its canonical injected producer — the deferral is stale and must be deleted, which is the only self-cleaning direction a proof row can express. The `messageIncludes` names WHICH member retired, which a bare count cannot: the report appends the member to a single policy-level message, so a reader that matched the wrong declared member — or dropped the `deferralsFor` union filter and retired a same-named member of another bus — would still produce exactly one finding here",
     },
   ],
+  // THE REFUSAL ARM (§4.5b, #1977; migrated from `bus-pair.test.ts`'s `runPolicyPass` pin by #2109 item 2 / #2111).
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/user-bus/index.ts":
+          'export type UserBusEvent = { type: "connectionChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionChanged: true } satisfies Record<UserBusEvent["type"], true>;\n',
+      },
+      expect: { messageIncludes: "deferred UserBusEvent member connectionsChanged is no longer declared" },
+      why: "A DEFERRAL THAT OUTLIVES ITS SUBJECT REFUSES instead of passing silently: the deferred member was renamed, every other identity still resolves, and a name-keyed exemption would sit here forever describing nothing — the policy's own throw text is the needle",
+    },
+  ],
   mustPass: [
     {
       mode: "types",

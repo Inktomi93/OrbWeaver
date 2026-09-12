@@ -337,3 +337,132 @@ Filled in as each instrument ran; every count is read off the actual run named b
 ## 9. LEDGER ROWS
 
 ## 10. WHAT I DID NOT COVER
+
+## STATE FOR RESUME (written 2026-09-12 before a context compaction; the checkpoint is `b230adc1d`, NOT a completion receipt)
+
+### 1. Overall update
+
+- **Matrix so far:** 116 rows written (A 44 · B 36 · C 10 · P 16 · R 10) + section D (4 rows: D1 I/O doors, D2 fixture paths,
+  D3 family-test substrate, D4 runner cleanup + scaffold) still to WRITE into §5 (measured). Verdicts so far: ENFORCED 96 (51
+  driven by this lane — every family row through `pnpm check:policy-conformance` whole (247 final · 2881 proof rows · 2 refusal
+  rows · 0 failures · exit 0 · 31.9 s) and the red-first/planted-control probe `scratchpad/cbfpa-redfirst-KEEP.log` (45
+  controls, 0 mismatches); 45 owed to the vitest suite runs below); NONE 20: judgment 11 (A6, A18, A27, B10, B14, B16-static,
+  P1, P5, P11, P13, P15/P16), AWAITING RULING 5 (A28 #2025, A6 #2096, B15 #2097, B29 #2107, P10 behind #2109 items 1–2),
+  expressible-not-built 3 (C10 `ops/**` import member, P7 grant-identity arm, D3 family-test-substrate arm); BUILT 6 (below).
+  The per-rule coupled-sites column and the §5U unification/layers table are NOT yet written — their data is built.
+- **BUILT (all in `b230adc1d`; floors partly run):**
+  - P9 the `mustRefuse` discriminator — `lib/policy-validation.ts#assertRefusalExpectation` refuses a needle inside the
+    refusal envelope; the envelope is DERIVED in new `lib/policy-refusal-envelope.ts` from
+    `contract/policy-conformance.ts#POLICY_REFUSAL_PREFIXES` (new) + `contract/policy-pass.ts#POLICY_PASS_REFUSALS` (new; the
+    five lib emitters compose from it, same bytes) + `contract/gate-authority.ts#GATE_AUTHORITY_ALARM_KINDS` (new) + the
+    phase/kind/status tuples. Red-first: HEAD loads `"ERROR"` / `"OWNER"` / `"[evaluate]"` / `"resolved zero members"`; NEW
+    refuses all 11 probed needles and admits 4 authored ones. Pins: `policy-loader.test.ts` (per envelope member) and new
+    `tests/tooling/verify/lib/policy-refusal-envelope.test.ts` (two-sided liveness through `verifyPolicyProofs`).
+  - A21 `entire-population` ⇒ `evaluate` — `lib/policy-pass.ts#createRuns` create-phase refusal; red-first HEAD success →
+    NEW `[create]` refusal; pin both directions in `policy-pass.test.ts`.
+  - A42/E7 `defineGate(<non-literal>)` — `lib/policy-descriptor-read.ts#finalRegistrationOf` (+ `FinalRegistration` in the
+    contract); `policy-soundness` E2 runs on every registration; red-first HEAD reader `undefined` / HEAD soundness 0.
+  - B9/B11/B12/B13/C2/C3/C8/C9 — NEW `tooling/src/verify/gates/policy-legacy-imports.ts` (hard/error, family
+    `policy-soundness`; 11 `mustFlag` incl. 9 per-member + fail-closed + two-declarations; 1 `mustRefuse` BLINDNESS; 5
+    `mustPass`). RED on the real tree by design on the nine `contract/gate.ts` importers; real-corpus second-opinion assertion
+    added to the family test; the `check:structure` leg is still owed.
+  - B8/E6 retired-grammar parsers (16 per-opener rows + `new RegExp` + membership; `RETIRED_MARKER_OPENERS` in
+    `contract/policy-descriptor-read.ts`) and D1/E3 widened to a closed I/O-door set (`fs`, `node:fs`, `fs/promises`,
+    `node:fs/promises`, `fs-extra`, `child_process`, `node:child_process`, `_shared/proc.ts` by ORIGIN + fail-closed,
+    value-position `import()`, `require()`, `process.binding()` on the global or the `node:process` import; 12 rows + 4
+    near-miss) — both in `policy-soundness`, hold-at-zero, green under the stage.
+  - Unification: `contract/policy.ts` carries ONE table per vocabulary (`POLICY_FIELDS`, `POLICY_OPTIONAL_FIELDS`,
+    `POLICY_PROOF_ARMS`, `POLICY_PROOF_KEYS`, `POLICY_EXPECTATION_KEYS`, `POLICY_EXPECTATION_IDENTITY_KEYS`,
+    `POLICY_HOOK_KEYS`), two-sided against the interfaces by `satisfies Record<keyof …, true>`; the validator's key sets, the
+    runner's arm loop (`lib/policy-proof-rows.ts`, new), the stage's counts, `gate-modernization`'s `EXAMPLE_FIELDS`,
+    `policy-proof-expectations`' identity fields and `PolicyProofArm` all DERIVE. Hand sites left (generator targets): the
+    guide §12.1 block, `ops/new-gate.ts` (#2126), the roster rows.
+  - Pins added for the previously UNPINNED `mustRefuse` validator rules (A39) and the `countFrom` runtime resolution (P2;
+    `policy-conformance.test.ts` mutates a COPY of `verify-registry-parity`), plus `finalRegistrationOf`.
+- **IN PROGRESS:** `tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` (FAMILY += `policy-legacy-imports`,
+  `policyProofRows`, `declaredUnreadable` = 2 excused fail-closed rows, real-corpus second opinion) is edited and typechecks
+  but has NOT run; if wrong it reds only itself.
+- **NOT STARTED, in order:** (1) run the suites — `pnpm test:scoped` over `policy-loader`, `policy-pass`,
+  `policy-descriptor-read`, `policy-refusal-envelope`, `ops/policy-conformance`, `gates/policy-soundness-family.repo.int`,
+  then `gate-authority`, `ordinary-waiver`, `resource-policy`, `resource-declaration`, `population-resolver`,
+  `ops/policy-conformance-stage.int`, `gates/enforcement-registry-parity.int`; (2) roster rows — rewrite `policy-soundness`
+  (E3 widened, E6, E7 as mechanisms; TWO WRITERS with #2109 item 1, union at merge), add `policy-legacy-imports`, bump
+  `(300 registered gates)` → 301; (3) `git add` the new spec, then
+  `pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest`; (4) write §5D, the coupled-sites column, §5U,
+  §7 receipts, §8 LAW DELTAS, §9 LEDGER ROWS (the nine, OPEN #1922), §10; doc-catalog `format --write` then `--check`; scoped
+  `pnpm check:docs`; (5) `pnpm gate:contract` before/after, scoped biome/eslint over every touched file,
+  `pnpm typecheck --config tsconfig.json`; (6) SendMessage "ready for structure leg", WAIT for "go", ONE `pnpm check:structure`
+  here, per-policy raw/waived/granted/effective before/after for `policy-soundness` and `policy-legacy-imports` plus
+  `N tool error(s)` / `N withheld` / `N alarm(s)`; (7) final commit STACKED on the checkpoint (never amend),
+  `git status --short` empty, `git show --stat`.
+
+### 2. Uncommitted work
+
+EMPTY after the checkpoint. The tree typechecks (`pnpm typecheck --config tsconfig.json --config tooling/tsconfig.json` →
+PASS ×2); every touched file is biome-formatted (scoped `--diagnostic-level=error --write`); eslint not yet run.
+
+### 3. Re-entry order after compaction
+
+(a) this section; (b) `gate-runtime-read-first.md` §0/§4 → `gate-runtime-standardization.md` §3, §4, §5b, §12 → the
+`contract/*.ts` headers — NOT `GATE-AUTHORING.md`, NOT `exemplars-2026-09-11.md`, NOT the audit waves; (c) the fences: rows
+this lane does not own are #2106/#2075 (`conversion-refusal-liveness`), #2107/#2108/#2109 items 1–2 (anchor/`fix`, roster
+row + refusal-pin migration), #2110 (structure delta); the three gate docs are report-text only (§8); #1957's
+`isWaivablePosition` fence stays UNARMED; resource kinds frozen at 18; #2096/#2097 AWAITING RULING (record, never build);
+never touch the nine legacy-import modules (ledger rows); (d) the owner's no-shortcuts rule (no weakening a row, no widening a
+trust rule, no new allowlist/grant/baseline/waiver, no UNFALSIFIABLE without a constructed row, no scoped-green-as-done) and
+the ruling that `policy-legacy-imports` is `hard`/`error`; (e) next three: run the suites → roster rows + manifest → finish
+the doc.
+
+### 3b. Scope change and reds found after the checkpoint (2026-09-12, later)
+
+- **#2109 items 1–2 are THIS lane's now** (primary's note 617): the `policy-soundness` roster row has ONE writer (done —
+  E1–E7 as mechanisms, E4 included, count 300 → 301, `policy-legacy-imports` row added); the refusal pins are MIGRATED
+  onto `mustRefuse` rows with authored needles: `warning-code-coverage` (the #1977 worked case, needle
+  `population "WARNING_CODES" resolved zero members`), `bus-producer-coverage` ×2 (`bus definition fact is incomplete`,
+  `bus rosters disagree about belted unions`), `user-bus-deferred-member` (`deferred UserBusEvent member
+  connectionsChanged is no longer declared`). The family-test `runPolicyPass` twins STAY (they assert owner status, the
+  empty finding set and the phase, which a row cannot express) — each module's row comment says so. #2107/#2108 remain
+  p-proof-soundness's; this lane is in none of `lib/ordinary-waiver.ts`, `lib/caught-failure.ts`,
+  `lib/policy-pass-context.ts`, the three CSS/Tailwind gates — `policy-pass-context.ts` was restored byte-for-byte to
+  `0c5bedfd7` after an earlier edit, and its five refusal sentences are held equal to the contract's constants by a
+  RUNTIME pin instead (`policy-refusal-envelope.test.ts`, the context-door test).
+- **REAL RED, foreign modules (LEDGER ROWS OPEN, owner #2021's lane):** the family's real-corpus arm found
+  `policy-soundness` E4 firing on `tsconfig-entry-liveness.ts` and `tsconfig-entry-liveness-health.ts` — both pass
+  `ctx.resources` as an ARGUMENT to the shared reader `readTsconfigRoster(ctx.resources, repoPaths)`, landed by
+  `97e68be91` after E4 (`f96f45fb4`); the family's zero-pin for `policy-soundness` is therefore RED on main today.
+  Not touched by this lane; the zero-pin is asserted LAST in the real-corpus test so every other receipt prints.
+- **Primary's question, answered:** the derived envelope preserves ALL THREE `mustRefuse` validation rules unchanged —
+  `expect.messageIncludes` REQUIRED, `count`/`line`/`token` FORBIDDEN, `mustRefuse: []` REFUSED at load — the envelope
+  containment is a FOURTH check appended after them; all three are pinned per case in `policy-loader.test.ts`.
+- **E7 and the loader:** the loader CANNOT refuse `defineGate(<non-literal>)` — it brands the OBJECT and an object
+  cannot reveal the syntax of its call site; no validator rule can express it. The source-reading tier is the honest
+  enforcer: E7 for a canonical callee with a non-literal argument; `gate-modernization` ARM A +
+  `enforcement-registry-parity`'s orphan arm for a wrapper callee (a lookalike registers nothing, loudly).
+- **Suites so far:** conformance stage whole exit 0; `policy-loader` / `policy-pass` / `policy-descriptor-read` /
+  `policy-refusal-envelope` / `ops/policy-conformance` / `gate-authority` / `ordinary-waiver` / `resource-policy` /
+  `resource-declaration` / `population-resolver` all green (129 + 24 tests); the family suite's real-corpus arm red
+  for the E4 reason above. `pnpm gate:contract`: 396 findings across 301 modules, none naming a touched final module.
+
+### 4. Rulings waited on / defaults fired
+
+RULED: E5 severity `hard`/`error`. DEFAULTS FIRED: this lane edits the `policy-soundness` roster row (two writers; union at
+merge); the read-first SIZE cell is left to the barrier (`ledgers:fresh` names it); the new doc lands in the lane's commit
+with its catalog receipt owed (the `c5a6733e4` shape); D3's arm is DEFERRED with its shape unless budget holds after the
+floors; C10 and P7 recorded expressible-not-built with defaults. AWAITING: #2025, #2096, #2097, #2107 — recorded, not built
+around.
+
+### 5. For the orchestrator
+
+- Real reds on foreign modules (LEDGER ROWS, OPEN #1922): `contract-derives-not-respells`, `depcruise-grant-liveness`,
+  `domain-freshness-plane`, `eslint-grant-liveness`, `injected-op-caller-param`, `lifecycle-portability`,
+  `no-raw-spacing-in-features`, `no-raw-typography-in-features`, `runner-config-path-liveness` — each imports
+  `contract/gate.ts`. Three name-vocabulary collections unadjudicated (`own-tables-only#FILE_ALLOWLIST`,
+  `verify-registry-parity#NON_STAGE_ALLOWLIST`, `vector-scope-derived#IMPORT_SANCTIONED`) → verifier judgment.
+- Instruments found lying: none. Found UNPINNED: the `mustRefuse` validator rules and the `countFrom` runtime check (pinned).
+- Coupled sites with no owner: the guide §12.1 block and `ops/new-gate.ts` restate `POLICY_FIELDS` by hand (generator
+  targets; #2126 for the scaffold); the read-first SIZE cell (barrier); the two-writer roster row.
+- Structure leg: NOT run; this lane still holds the request and will message "ready" after the suites and the doc.
+- Law deltas drafted (exact text lands in §8): §12.1 (block derived from `POLICY_FIELDS`; direct literal enforced by E7);
+  §4.5b (envelope rule at load, the envelope's home); §12.3 (forbidden-import list, `policy-legacy-imports`); §12.5
+  (`RETIRED_MARKER_OPENERS`, E6); §3 table (`entire-population` owes `evaluate`); §5 (arm loop derives from
+  `POLICY_PROOF_ARMS`).
