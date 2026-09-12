@@ -711,11 +711,20 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   resolved to `node_modules/.bin/bash`): a tier's own summary must name every stage whose exit class was 2 or whose
   `code` is null, and a barrier reads that list before the red count (#2225).
 - **ONLY THE LEDGER'S OWNER WRITES `flipped ledger rows:`; EVERY LANE WRITES `ledger rows OWED: <ids>`** (ruled 2026-09-12 on
-  #2195 after a verifier found EIGHTEEN rows reading OPEN for landed work — one commit claimed flips it never made, two said
+  \#2195 after a verifier found EIGHTEEN rows reading OPEN for landed work — one commit claimed flips it never made, two said
   "none" while closing seven): a lane fenced out of the ledger cannot flip a row, so `flipped` from a lane is a false claim
   by construction, and the phrase had carried no information all program. The orchestrator flips in its reconcile edit,
   each cell naming the sha and `(board #NNNN)`; the barrier check on #2195 asserts every cited id exists and every OWED id
   is later closed.
+- **A CONFLICT RESOLUTION IS AN UNREVIEWED HAND EDIT; A FLOOR THAT RAN BEFORE IT PROVES THE TREE IT REPLACED** (paid
+  2026-09-12, #2229, P1): merge `686853320` hand-resolved `eslint.int.test.ts` and dropped a `});`; the lane floor
+  (`typecheck --config tsconfig.json`, green) had run 70 seconds BEFORE the resolution existed, the commit message named no
+  floor at all, and the fold's own note recorded a symbol-collision read plus "7 tests after" counted from source text as
+  sufficient. The file stopped parsing, six tests collected zero times, and the shared compiler reader REFUSED
+  `tsconfig.json`, blinding every affected-mode floor (`verify --changed`, `types:native` scopedArgv, `ct view`, the lint
+  surface). Rule: any merge that resolves a conflict re-runs its floor AFTER the resolution on the MERGED tree — at minimum
+  a scoped run of every file the resolution touched, proving its tests COLLECT — and the commit message names THAT run. A
+  structural read of two hunks is not a floor; a test count read off source text is a rendering priced as the artifact.
 - **A cross-tool invariant needs a cross-tool pin in the PRODUCER's home** (#2175): a generator emitting bytes
   the formatter normalises away is a deadlock between two doors, and the pin that catches it lives in the
   generator's suite, run twice with the second byte-identical — otherwise the regression surfaces in a docs lane
