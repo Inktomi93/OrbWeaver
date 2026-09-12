@@ -464,7 +464,6 @@ The fix is not a manual refresh — it is **#2017's shape: make the claim DATA s
 | -: | - | - |
 | **#2008** | the DEFERRED roster half is one-sided — 5 rows silently stale. **Carries the full 28-row re-triage.** The "\~10 fired triggers" bucket is a READING task against the enforcement ladder, not a build queue — expected yield near zero | Ready |
 | **#2009** | `no-raw-id`'s private zod reader is blind to a one-hop re-export door; one `export { z } from "zod"` barrel turns the brand gate off, undeclared. Proven by differential against its own family sibling | Running (`p-rawid-door`) |
-| **#2010** | the roster publishes the RETIRED `@foreign-id-ok` grammar (3 dead vs 76 live). THIRD instance of rows whose CONTENT nothing holds | Ready — rides along |
 
 ### HOW BIG IS THE CORPUS, ACTUALLY — the arithmetic nobody had done (2026-09-12)
 
@@ -762,7 +761,7 @@ reads, with "I read 47 of 57, here are the 10 I did not" as the honest form.
 ### LOWER PRIORITY, RECORDED SO IT IS NOT RE-DISCOVERED
 
 **#1957** unwaivable finding classes · **#1970** the largest conversion shipped with no §4.6 differential ·
-**#1977** conformance has no “must refuse” arm · **#1981** a roster row declares an arm A4 that does not exist ·
+**#1977** conformance has no “must refuse” arm ·
 **#1965** deferred work anchored to doc coordinates, not `workItem`s · **#1922** sanctioned-home → grants (**its census
 base is 2026-09-05; every conversion since can have carried a table it never saw — re-derive, never work the 97/319**) ·
 **#1996** no doc-catalog re-attest helper, so every re-attest is hand-edited JSON across nine receipt files.
@@ -801,6 +800,18 @@ declared the run OWED rather than skipping it silently, which is the honest form
 census · the `ledgers:fresh` regen for two `caught-failure-ownership` rows · `gate-spelling-twins.int.test.ts`
 (54 of 79 ledger rows orphaned) · the `docs/reviews/gate-runtime/` doc-catalog pass (\~10 wave docs un-attested;
 `doc-catalog:sync` was deliberately reverted on 2026-09-12 — it would have attested documents nobody read).
+
+**AND A FIXTURE-PLANTING SUITE AND A `check:structure` ON `main` ARE MUTUALLY EXCLUSIVE, IN BOTH DIRECTIONS
+(#2069, paid 2026-09-12 by the orchestrator).** The fence above says those suites are not concurrency-safe
+**with themselves** — which stops two PLANTERS colliding and says nothing about a planter colliding with a
+**READER**. `check:structure` reads the working tree; those suites write into it. The orchestrator started the
+four-suite barrier while a structure run was in flight, having checked CPU load and not what the suites WRITE,
+and slot `main-2930600-2026-09-12T13-42-50-932Z` came back with raw counts inflated by live plants.
+
+**An overlapped structure run is a NON-VERDICT, the same class as a load-kill** — and worse than one, because
+a load-kill announces itself while an inflated count looks exactly like a real number. Whoever starts second
+waits. The durable half is the run marking itself NOT QUIET on planted paths (#2069); this rule covers the
+window until that lands.
 
 **Phase C — settle the capability set before spending it. Forge. A design pass, not an executor lane.**
 
