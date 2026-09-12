@@ -1196,7 +1196,7 @@ defineGate({
 One sanctioned `pnpm` command with tier plus file/folder/package/project/changed/whole scope; explicit `--check`,
 `--family`, strict-scope refusal, list/explain, JSON report, stable exit codes; requested and effective population
 manifests including deleted/renamed semantic paths; compiler-derived program membership and one lazy checker per
-workspace; error/warning severity with **opt-in warning promotion — BUILT, and pinned OFF at the one real-tree entrypoint** (`failOnWarnings` at `lib/gate-authority.ts:404`, hardcoded `false` at `ops/structure.ts:153`; see §12.5 and #2025); hard unsuppressible policy, exact ordinary occurrence
+workspace; error/warning severity with **opt-in warning promotion — BUILT END TO END, and pinned OFF at every shipped entrypoint** (`failOnWarnings`; §12.5 and #2025). **This list's ORIGINAL wording was substantially TRUE and `ad5d5fd14` replaced it with an inverted claim; the original is restored**; hard unsuppressible policy, exact ordinary occurrence
 waivers, exact reviewed subject/operation grants; missing/empty/unresolved population refusal and failed-owner
 reconciliation withholding; per-gate files/members/resources/timing receipts; one pass-local shared-fact registry (one
 collector over an exact population, read-only sibling consumers); one fixture runtime for `mustFlag`/`mustPass`.
@@ -1465,7 +1465,23 @@ over-broad and suppresses none. `error` blocks. **`warning` does NOT block on th
 
 **The old "severity is read in exactly four places corpus-wide" census was also FALSE** — those four (`render.ts:196`, `show-policy.ts:97`, `policy-plan.ts:42`, `structure-report.ts:74`) are the DISPLAY-ONLY readers, and naming only them erased the verdict-affecting/display-only distinction that decides the whole question. At minimum `gate-authority.ts:404`, `pass.ts:434`, `gate-authority.ts:75`, `show-policy.ts:20`, `render.ts:203` and `ops/gen/caught-failure-population.ts:108-110` are also readers. **A corrected full census is owed and is being derived; do not quote the four.**
 
-**STILL OPEN, and it is now a much narrower question than "build the promotion"** (#2025, returned to the owner after his 2026-09-13 ruling was found to rest on the false premise above): whether `ops/structure.ts:153` should keep pinning `failOnWarnings: false`; what the LEGACY side does, since `pass.ts:434` carries the same expression and **if the two sides disagree then one declared severity means different things before and after conversion**, which is a conversion-boundary defect rather than a policy question; and the census of which warning-severity policies are currently non-blocking, with how much enforcement went quiet as modules converted. `over-art-plate-arm`'s four findings — including measured contrast failures at 3.30:1 and 3.69:1 — are one entry (#2024). Unresolved
+**THERE IS NO LEGACY HALF — SEVERITY DOES NOT EXIST ON THE LEGACY SIDE AT ALL** (driven 2026-09-13). `lib/pass.ts:434` looks like a second switch and is not: it sits inside `stripProbePolicyFindings` (`:419-437`), a FINAL-side recompute after probe findings are dropped so `policyPassExitCode` keeps one spelling of the exit rule, and it inherits `failOnWarnings` off `result.authority.verdict`. The real legacy `runPass` returns a `PassResult` (`contract/pass.ts:117-122`) with **no `authority` and no `verdict`**; per-gate `ok` is `findings.length === 0` (`lib/pass.ts:404`) and `legacyTotal` sums `violations.length` (`ops/structure.ts:198`). Measured off `loadMixedGateCorpus`: **0 of 85 legacy descriptors carry a `severity` key.** A legacy gate cannot declare `warning`, so there is nothing to partition and no before/after disagreement at the conversion boundary.
+
+**SO THE REMAINING WORK IS A DOOR, NOT A BUILD.** The partition is typed end to end (`contract/policy-pass.ts:90`, `contract/gate-authority.ts:137,146`, `contract/policy-plan.ts:30,75`), honored at its one computation site plus the recompute twin, and even carries an argv grammar — `--fail-on-warnings` at `lib/policy-command.ts:23,226` → `lib/policy-plan.ts:369,531`. What is missing is anything that sets it TRUE: **all three shipped entrypoints hardcode `false`** (`ops/structure.ts:153`, `ops/scoped.ts:274`, `ops/policy-conformance.ts:58`), and `planPolicyArgv` is exported from `index.ts:132` but reached by no `cli.ts` verb, so the flag is unreachable from any shipped command.
+
+**WHAT IS CURRENTLY NON-BLOCKING, from the loader (positive control: 188 error + 5 warning = 193).** Five policies declare `warning`, and **THREE of them are `authority: "hard"`** — an unsuppressible policy whose findings block nothing, which is a sharper contradiction than the ordinary case:
+
+| policy | authority | `workItem` |
+| - | - | -: |
+| `over-art-plate-arm` | ordinary | 2024 |
+| `policy-proof-expectations` | **hard** | 1968 |
+| `policy-waiver-identity` | **hard** | 1952 |
+| `policy-waiver-spelling` | **hard** | 1978 |
+| `user-bus-deferred-member` | **hard** | 1822 |
+
+**And the production artifact says it plainly** (`reports/check-structure.json` → `runs/structure/main-152313-2026-09-12T02-44-32-393Z/`): `verdict: { errors: 66, warnings: 12, blocking: 66, failOnWarnings: false }` — **12 warning findings, `blocking` equals errors alone.** Per-policy, every row `ok: true`: `policy-proof-expectations` **11 violations**, `policy-waiver-identity` 1. Adding `over-art-plate-arm`'s 4 (driven directly: `findings=4 alarms=0 BLOCKING=0 exit=0`) gives **16 warning findings, none blocking**. Note what that means for this program's own claims: **the §5b soundness enforcer (#1971) "reports its own worklist on the commit bar" and its 11 findings stop nothing.**
+
+**STILL OPEN (#2025):** whether the three entrypoints keep pinning `false`, whether `--fail-on-warnings` gains a reachable verb, and what to do about `hard` + `warning`, which asserts both unsuppressible and non-blocking. Unresolved
 debt is a warning tied to a positive `workItem`. Reconciliation runs only after every selected owner completed its
 population; a thrown, incomplete, empty or unresolved owner withholds liveness rather than falsely staling grants. Gate
 modules receive neither grant tables nor marker parsers. Current-population declaration counts, every-file manifests and
