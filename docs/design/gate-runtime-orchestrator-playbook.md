@@ -57,6 +57,19 @@ order); §12 is what lanes read. This file is what YOU do, in order.
    prod supervisor's takeover decision honors the marker, not the pids. Measured 2026-09-13: exactly this state
    (three engines recorded, all pids dead, no marker), harmless only because no supervisor was running.
 
+   **BRINGING THE DEV STACK UP CAN SPAWN THE FLEET EVEN WHEN YOU TOLD IT NOT TO (paid 2026-09-12, twice in one
+   hour, against an owner order to keep engines down).** `ENGINES_POSTURE=off pnpm stack up` binds the HOST
+   supervisor only: the server re-reads `.env` with `override:true`, `.env` pins `adopt-or-start`, and the SERVER
+   spawned the embedding engine, then a reranker after the first was killed. `pnpm stack down` reaps ONE pgid, and
+   a server reparented to `systemd --user` escapes it and keeps spawning; `pnpm engines stop` cannot see engines the
+   SERVER started (different ownership, different pidfile). Holding the fleet down for a run means `VLLM_DISABLED=true`
+   reaching the SERVER's env, or the owner changing the `.env` pin — never a silent `.env` edit. **And the browser
+   tiers do not need a pre-started stack at all:** `playwright.config.ts` boots its OWN isolated stack per mode
+   (`reuseExistingServer: false` except single-user dev mode, which attaches to a stack the harness does not own —
+   the documented hazard). Run the verify tiers with the stack DOWN; a browser stage failing for want of a server is
+   a harness finding to report, not a reason to hand-start one. A bridge monitor also dies in a low-memory kill —
+   re-arm it after any watchdog event, not only after a compact.
+
    **If you do grep for the process, do not self-match.** `pgrep -f` matches the shell issuing it, and bracketing
    the pattern (`[v]llm`) is NOT sufficient — it failed here because the literal string appeared in an `echo`
    earlier on the same command line. Exclude your own pid, or match the venv path
