@@ -356,6 +356,11 @@ The table mirrors the mixed loader's discovered roster — every `status:"active
 canonical `defineGate` policy (278 registered gates); the discovered roster (`loadMixedGateCorpus`,
 `tooling/src/verify/lib/loader.ts`) is the runtime truth.
 
+**MERGE-BOMB HAZARD IN THIS TABLE: escape every `|` inside a cell as `\|`.** A bare `||` (a JS operator in a
+description) widens the table's column count, and `pnpm format:docs` then rewrites **every row** — a 280-line
+reflow that lands as a conflict against every sibling lane editing this file. The tell is a `format:docs` diff
+far larger than your edit. Measured 2026-09-12.
+
 A row's description is normally an INDEPENDENT summary. A row that instead COPIES its gate's runtime
 `message` is a coupled site — the copied string is the one a violating agent actually reads — and it
 must DECLARE itself by ending the description cell with `(@mirrors-message)`; `enforcement-registry-parity`

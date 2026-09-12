@@ -246,6 +246,22 @@ family.
    and changes only the MESSAGE, a bare `{ count: N }` row proves nothing** — the same shape as the fail-closed
    third-answer rule below.
 
+   **A BLINDNESS TRIPWIRE'S CUT DIRECTION IS THE REVERSE, AND A LANE APPLYING THE STANDARD RULE READS EVERY
+   ONE OF ITS FENCES AS UNENFORCED (measured 2026-09-12 on `windowed-infinite-query-health`).** §4.1's rule is
+   "cut so the policy flags MORE" — that is correct for an OCCURRENCE policy, whose narrowings make it flag less.
+   **A tripwire's fences ACQUIT**: the receiver test, the name test, the population and the anchor each decide
+   what counts as a LIVE SUBJECT, so opening one makes the tripwire flag FEWER, and its falsifier is a
+   **`mustFlag` going GREEN**, not a `mustPass` going red. Four fences on that module, all enforced, all proven
+   that way. Ask which direction the policy's verdict runs BEFORE choosing the cut; a tripwire whose cells all
+   read clean is the tell that the direction was wrong.
+
+   **AND A CLEAN CUT PLUS A JOINT CUT THAT TOOL-ERRORS MEANS THE CLAUSE IS UNREACHABLE, NOT UNENFORCED.**
+   `zustand-selector-derived`'s `useShallow` early return sat ahead of an inline-function guard that already
+   rejected every `useShallow(...)` call — a `CallExpression` never reaches it. Cut alone: clean. Cut jointly
+   with the guard (§4.1's MUTUALLY REDUNDANT procedure): a TOOL ERROR, never a finding. **When the joint cut
+   tool-errors rather than flagging, the surviving clause is a TYPE OBLIGATION and the dead one is DELETED, not
+   documented as a limit.**
+
    **A CLEAN CUT HAS THREE MEANINGS, AND ONLY ONE OF THEM IS "UNENFORCED" (measured 2026-09-12 across two fix
    lanes — the naive sweep OVER-REPORTS, so classify every clean cut before counting it):**
 
@@ -974,6 +990,13 @@ dependencies that constrain ANY sequence, because they are law rather than sched
    classified — a lane that translated markers and cannot show this table has not finished.** **The §4.6 DIFFERENTIAL,
    either as a committed test or as a commit-message statement of what it found (#2000) — silence is not compliance.** After §5 lands: the mixed `check:structure` before/after on the real
    tree with the finding delta explained.
+
+   **A SPLIT ALSO BREAKS A SUITE THE ID-GREP CANNOT FIND (measured 2026-09-12).** The roster carries a
+   literal "N registered gates" count line, and `tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts`
+   holds it two-sided against the live corpus. **A 1:1 conversion leaves that number alone; a SPLIT adds a module
+   and REDS it.** The grep rule below finds `gate-spelling-twins` and `check-gates` because those name gate ids
+   as string literals — **this suite names none, so no id-grep can reach it.** A lane whose conversion SPLITS
+   runs `enforcement-registry-parity` and bumps the count line; a lane that does not split, does not.
 
    **THE ROSTER COUPLED SITE — a conversion breaks suites that are not its own (measured 2026-09-11).**
    `loadGates()` (`tooling/src/verify/lib/loader.ts:190`) returns `corpus.legacy` ALONE — its own comment says
