@@ -58,7 +58,7 @@
 // Fixtures use the reserved `__g_` sentinel so every other tree consumer excludes them and a crashed run
 // leaves nothing that can red an independent pass (tooling/src/verify/lib/pass.ts PROBE_ARTIFACT_RE).
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
 import type { Finding, PassResult } from "../../tooling/src/verify/index.ts";
@@ -295,8 +295,26 @@ function fMessages(kase: keyof typeof TESTS_CASES): string {
 // whichever slot inherits the fixtures.
 test("cleanup is TOTAL — no planted fixture survives the pass, on the green path too", () => {
   expect(strayFixtures()).toEqual([]);
-  // The sweep's own reach is the claim underneath: every directory the plant writes into must be covered.
-  expect(CLEAN_ROOTS.toSorted()).toEqual([...new Set(PLANT_DIRS.map((dir) => dir.split("/")[0] as string))].toSorted());
+
+  // THE SWEEP'S REACH IS ASSERTED BEHAVIOURALLY, never against its own defining expression (#2215). The
+  // first version of this arm compared `CLEAN_ROOTS` to `PLANT_DIRS.map(first segment)` — which is the LINE
+  // THAT DEFINES `CLEAN_ROOTS`, so it could not fail for any edit to either side, and a hand-listed roots
+  // array restored tomorrow would satisfy it as happily as the derivation does (the #2041 shape: an
+  // assertion that is structurally unfalsifiable). What is actually claimed is that the sweep REACHES every
+  // directory the planter writes into, so that is what runs: plant one fixture per plant dir, sweep, and
+  // require every one of them to be gone. A plant root missing from the sweep leaves its file on disk and
+  // reds HERE — and `strayFixtures` alone could not catch that, because it searches the same roots the
+  // sweep does and is blind in exactly the same place.
+  const reach = PLANT_DIRS.map((dir) => join(ROOT, dir, "__g_reach.ts"));
+  for (const abs of reach) {
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, "export const reach = true;\n");
+  }
+  // The positive control: the plant has to LAND, or the sweep assertion below passes on files that were
+  // never written and proves nothing.
+  expect(reach.filter((abs) => existsSync(abs))).toEqual(reach);
+  clean();
+  expect(reach.filter((abs) => existsSync(abs))).toEqual([]);
   expect(CLEAN_ROOTS).toContain("tooling");
 });
 
