@@ -124,6 +124,12 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "A RE-EXPORT DOOR still delivers React's useContext; the authored specifier is a project module and only the canonical target proves the identity",
     },
+    {
+      mode: "types",
+      files: { "packages/client/src/feature/ui.tsx": 'import { useContext } from "./nowhere.ts";\nexport const unused = 1;\n' },
+      expect: { count: 1, token: "useContext", messageIncludes: "CANNOT be established" },
+      why: "#1990/D1 — THE UNREADABLE ARM, PROVEN: the import door names `useContext` but resolves to nothing (`./nowhere.ts` does not exist). The specifier is still a module-alias declaration, so `bindsProvenNonModuleDeclaration` (origin-verdict.ts) is false and the refusal fails closed. Reported rather than passed (#944)",
+    },
   ],
   mustPass: [
     {

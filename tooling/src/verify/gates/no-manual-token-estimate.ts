@@ -227,6 +227,15 @@ export const gate = defineGate({
       expect: { count: 2 },
       why: "THE SELF-EXEMPTION DOOR THIS ROW CLOSES (reviewed 2026-09-06): a feature file exporting its OWN function named `estimateTokens` silenced every division in it while the condition was 'exports something with that name'. The home is the CANONICAL symbol, so both divisions here are findings",
     },
+    {
+      mode: "types",
+      files: {
+        ...ESTIMATOR_PROOF,
+        "packages/server/src/domain/x/verb.ts": "declare function opaque(): any;\nexport const g = (): number => opaque().length / 4;\n",
+      },
+      expect: { count: 1, token: "length", messageIncludes: "CANNOT be established" },
+      why: "#1990/D1 — THE UNREADABLE ARM, PROVEN: `.length` is read off an opaque `any`-typed receiver, so whether it is the ambient string/array length CANNOT be established. `lengthVerdict` (:78-84) fail-closes through `classifyOriginRefusal`, and `isBannedRatio` (:109-115) still matches on the member NAME alone, so the division is reported rather than passed (#944)",
+    },
   ],
   mustPass: [
     {
@@ -286,6 +295,29 @@ export const gate = defineGate({
           "declare function ratio(): number;\nconst CHARS_PER_TOKEN = ratio();\nexport const g = (text: string): number => text.length / CHARS_PER_TOKEN;\n",
       },
       why: "A COMPUTED divisor is not a flat heuristic at all — the shared reader refuses to read it, and a value that changes at runtime is outside the ban this policy states",
+    },
+    {
+      mode: "types",
+      files: { ...ESTIMATOR_PROOF, "packages/server/src/domain/x/verb.ts": "export const g = (text: string): number => text.length / 5;\n" },
+      why: "#1990/D5 — THE EXACT-DIVISOR FENCE, PINNED: an unnamed divisor must be literally 4 (:96); `/ 5` is a different ratio and passes. Cutting `value.value === LITERAL_DIVISOR` at :96 turns this red",
+    },
+    {
+      mode: "types",
+      files: {
+        ...ESTIMATOR_PROOF,
+        "packages/kit/src/foo/bar.ts": "const CHARS_PER_TOKEN = 40;\nexport const g = (text: string): number => text.length / CHARS_PER_TOKEN;\n",
+      },
+      why: "#1990/D5 — THE CHARS-PER-TOKEN RANGE FENCE, PINNED: a char/token-named constant outside 3..5 (:35-36) is not the banned ratio, however it is spelled. Cutting the `>= CHARS_PER_TOKEN_MIN && <= CHARS_PER_TOKEN_MAX` bound at :99 turns this red",
+    },
+    {
+      mode: "types",
+      files: { ...ESTIMATOR_PROOF, "packages/server/src/domain/x/verb.ts": "export const g = (text: string): number => text.length * 4;\n" },
+      why: "#1990/D5 — THE OPERATOR FENCE, PINNED: multiplication is not the ban — only `/` is (:111). Cutting the `SlashToken` check at :111 turns this red",
+    },
+    {
+      mode: "types",
+      files: { ...ESTIMATOR_PROOF, "packages/server/src/domain/x/verb.ts": "export const g = (set: ReadonlySet<string>): number => set.size / 4;\n" },
+      why: "#1990/D5 — THE MEMBER-NAME FENCE, PINNED: the left operand's name must resolve to `length` (:114), not any ambient numeric field — a `Set`'s `.size` is not the ambient character/element count. Cutting `read.value.name === LENGTH` at :114 turns this red",
     },
     {
       mode: "types",

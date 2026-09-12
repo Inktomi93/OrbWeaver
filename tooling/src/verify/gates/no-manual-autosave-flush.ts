@@ -71,9 +71,13 @@ function formMember(call: MorphNode): FormMember | undefined {
 }
 
 /** The innermost enclosing function-like node — the body this call belongs to. A nested function opens a
- *  new body, and its calls are grouped under IT, which is the legacy walk's stop-at-nested rule inverted. */
-function enclosingBody(node: MorphNode): MorphNode | undefined {
-  return node.getFirstAncestor((ancestor) => FUNCTION_KIND_SET.has(ancestor.getKind()));
+ *  new body, and its calls are grouped under IT, which is the legacy walk's stop-at-nested rule inverted.
+ *  A call with NO enclosing function (module scope — a top-level statement, a class field initializer) has
+ *  no function ancestor to fall back to `undefined` on: that silently dropped the call entirely, so a
+ *  module-scope pair was never reported (#1989/D4). The source file is the body for that scope instead —
+ *  every module-scope call in one file groups together, exactly as two calls in one function body do. */
+function enclosingBody(node: MorphNode): MorphNode {
+  return node.getFirstAncestor((ancestor) => FUNCTION_KIND_SET.has(ancestor.getKind())) ?? node.getSourceFile();
 }
 
 interface BodyState {
@@ -102,11 +106,10 @@ export const gate = defineGate({
           kinds: [SyntaxKind.CallExpression],
           visit: (node): void => {
             const member = formMember(node);
-            const body = member === undefined ? undefined : enclosingBody(node);
-            if (member === undefined || body === undefined) {
+            if (member === undefined) {
               return;
             }
-            const key: object = body.compilerNode;
+            const key: object = enclosingBody(node).compilerNode;
             let state = bodies.get(key);
             if (state === undefined) {
               state = {};
@@ -180,6 +183,29 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "the COMPUTED-LITERAL spelling of BOTH calls — the legacy `getName()` collector was offered no PropertyAccess at all, so bracket syntax was a whole-body escape (#1506)",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackFormProof(),
+        "packages/client/src/features/x/lib/x.ts":
+          'import type { FormApi } from "@tanstack/form-core";\ndeclare const form: FormApi;\n' +
+          'form.pushFieldValue("items", 1);\nvoid form.handleSubmit();\nexport const done = 1;\n',
+      },
+      expect: { count: 1, token: "pushFieldValue" },
+      why: "#1989/D4 — A MODULE-SCOPE PAIR: both calls sit at the top level of the file, outside any function. `enclosingBody` used to return `undefined` there and the visitor dropped the call silently — a live escape, not a missing pin. It now falls back to the source file, so the two calls group into one body exactly as they would inside a function",
+    },
+    {
+      mode: "types",
+      files: {
+        ...tanstackFormProof(),
+        "packages/client/src/features/x/lib/x.ts":
+          'import type { FormApi } from "@tanstack/form-core";\n' +
+          "declare function opaque(): any;\n" +
+          'export function onAdd(form: FormApi): void {\n  form.pushFieldValue("items", 1);\n  void opaque().handleSubmit();\n}\n',
+      },
+      expect: { count: 1, token: "pushFieldValue", messageIncludes: "CANNOT be established" },
+      why: "#1990/D1 — THE UNREADABLE ARM, PROVEN: `handleSubmit` is called on an opaque `any`-typed receiver, so its origin cannot be resolved to the form api or ruled out. Reported rather than passed (#944) — `unreadable = !(arrayOp.proven && submit.proven)` at :133 fires because the submit half is unproven",
     },
   ],
   mustPass: [
