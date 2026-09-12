@@ -21,7 +21,19 @@ unambiguous key and every verdict below carries one. Read a bare date here as "t
 **Tree: `64dfbf349`** (`feat(verify): make warning promotion reachable`), 24 commits into
 `tooling/src/verify/gates/**` past this ledger's own baseline `831576613`.
 
-**APPENDED 2026-09-12 (cb-v-hooks-wave): +3 OPEN rows in a new section; the rollup below is STALE by exactly those three until the barrier re-derive.**
+**THE ROLLUP BELOW IS STALE BY EVERY `###` SECTION APPENDED SINCE THIS SWEEP AND BY EVERY ROW A FIX LANE HAS
+FLIPPED IN PLACE. Do not read its numbers — re-derive with the method under `## CLASS ROLLUP`.** The line that
+stood here read *"+3 OPEN rows in a new section; the rollup is STALE by exactly those three"*, which was true
+for about an hour and then silently was not: nine more verifier sections landed on top of it. **A hardcoded
+staleness delta is the same defect as a hardcoded count**, in the file that exists to stop it.
+
+**Dated receipt — re-derived 2026-09-12 at `5cc7bf434` by running the documented method (repaired; see
+`## CLASS ROLLUP`): the body holds 165 rows across 20 tables**, against the rollup's `100` across `eleven`.
+**The direction is the finding, and it is the opposite of decay.** The ORIGINAL eleven wave tables now read
+**8 OPEN**; this sweep recorded **48** — the fix lanes of 2026-09-11/12 closed them IN PLACE, each with a
+per-row receipt. And **36 of today's 44 OPEN rows sit in the nine verifier sections appended after this
+sweep**. So the audit backlog this file was built to track is nearly drained, and what is open now is newer
+work the verifier wave found. Both figures are receipts carrying a SHA; neither is the rollup.
 
 | | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJUDICATED | N/A |
 | - | -: | -: | -: | -: | -: | -: | -: |
@@ -68,6 +80,35 @@ pretending to be a queue.**
 
 The durable fix is not diligence — it is #2017's shape: make the claim DATA so something REDs when it rots.
 Until that lands, this paragraph is the whole mechanism.
+
+**RECONCILED 2026-09-12, because the sentence above is refuted by this file's own body — and the refutation is
+the better rule.** *"Not by a lane"* is false as written. Four Wave 5 rows read **CLOSED — lane
+`p-ledger-client-residue`, 2026-09-12 (same commit as this row)**; lane `p-instrument-repairs` appended rows in
+its own landing commit (`91d9a2ab7`, +24/−2 here); `p-mirror-index-convert` is closing three more the same way
+as this is written. **A lane updating the row its own commit closes is the STRONGEST form of the requirement,
+not a violation of it** — the row moves in the same commit as the fix rather than one merge later. The ruling
+survives; its INPUT changed.
+
+**What that sentence was actually protecting, stated so it is enforceable:**
+
+1. **NO ROW OUTLIVES ITS FIX.** Whoever performs the closing act writes the row in that same act — the lane in
+   its own commit, or the merging account in the merge. Never a later sweep, never "at the barrier".
+2. **ONE WRITER PER COMMIT, AND NEVER A REFORMAT.** This is a shared multi-lane file. `pnpm format:docs` over
+   it converts untouched CONTEXT into owned DIFF, and a later 3-way rebase then reasserts a stale copy of a
+   sibling's row as a pure content replacement that never conflicts — paid 2026-09-12 across four rebases, now
+   law in `.claude/rules/lane-standing-facts.md`. **#2059 widened that door to cover `docs/reviews/**`, so the
+   hazard is LIVE for this file**; `doc-catalog format --check <this file>` already reports it clean, so no
+   format is ever owed here. Edit per LINE by row id, never by count, and declare your hunk regions through
+   `main` before you start.
+3. **THE ROLLUP IS BARRIER-ONLY.** A rollup recomputed while lanes are appending is stale on arrival. Rows land
+   continuously; `## CLASS ROLLUP` is rebuilt once, on a quiet tree, by the account holding main's checkout.
+
+**WHO, under the role split in force (2026-09-12).** claude-b is the orchestrator: it owns Project 1, the
+verify lens and the rulings, and it never commits on main's checkout. The primary account owns dispatch and
+merges and is the only account that commits there, so it is this file's writer on `main` — it appends each
+verifier's `### <lane>` section before `## CLASS ROLLUP` and rebuilds the rollup at the barrier. **The owner's
+ruling above binds the orchestrator ROLE's accountability for staleness; it is not a claim about which account
+types.** Under the split both accounts answer for it.
 
 ## How to read a state
 
@@ -389,14 +430,29 @@ is `--full`-only (#1842) and nothing runs `--full` on a cadence.
 `91 rows · 33/7/3/48` and matched nothing — the body held 99.** The old total was wrong by 8 and its OPEN
 column by 5.
 
+**THE METHOD BELOW WAS WRONG IN THREE MEASURABLE WAYS BY 2026-09-12, AND IT IS THE FILE'S OWN DISEASE ONE
+LAYER UP: a re-derivation instruction that silently stopped covering the file.** It is repaired in place; the
+original is quoted inside each repair. (a) *"the eleven tables"* — there are **20**. (b) *"≥6 cells"* and
+*"cell 5"* — the `p-suite-honesty` section carries a **FIVE**-column schema, `subject` then `defect`, `class`,
+`state`, `receipt`, so the `≥6` filter DROPS all 12 of its rows outright and `cell 5` would bin its RECEIPT
+column.
+(c) the bin vocabulary omits **`FIXED`**, which is what 11 of those 12 rows say. Net effect: a reader following
+the old method exactly misses 12 rows and cannot tell that from a clean run. **Do not hardcode a column index
+in a file whose sections do not share a schema** — read each table's own header row and use its `state`
+column, which is what the repaired method does.
+
 **The counting method, so the next reader can re-run it rather than trust it.** Take every line between
-`## THE LEDGER` and this heading that starts with `| ` and splits into ≥6 `" | "`-separated cells; drop the
-two header lines of each of the eleven tables (`state` and the `-` separator). That is the row set. Bin cell 5
-by its FIRST bolded word (`CLOSED` / `OPEN` / `SUPERSEDED` / `DISSOLVED` / `UNADJUDICATED` / `N/A`) — a row
-reading `OPEN — 1 of 4 survives` is ONE open row, because the row is the unit of work, not the cell. Bin cell 4
+`## THE LEDGER` and this heading that starts with `| `, dropping each table's `-` separator line. **The first
+such line after a `### ` heading is that table's HEADER — read the column names off it and take the index of
+the `state` column; every following line is a data row of that table.** That is the row set. Bin the state cell
+by its FIRST bolded word (`CLOSED` / `OPEN` / `SUPERSEDED` / `DISSOLVED` / `UNADJUDICATED` / `N/A` / `FIXED`) —
+a row reading `OPEN — 1 of 4 survives` is ONE open row, because the row is the unit of work, not the cell; a
+row whose state bins to none of those (one exists, reading *"premise dead on today's tree"*) is reported as
+UNBINNED and never silently dropped. Bin the `class` cell
 by its FIRST named class, so a `§4.1 narrowing · §4.5 pin` row counts once under §4.1 (this is why §4.1 here is
-larger and §4.5 smaller than the first pass's split, which double-counted). The script is eleven lines of
-`awk`/python; re-derive it, do not copy these numbers forward.
+larger and §4.5 smaller than the first pass's split, which double-counted). The script is a few dozen lines of
+`awk`/python; **re-derive it, do not copy these numbers forward, and have it PRINT its per-table row counts and
+its unbinned count** — the three defects above were all invisible to a run that printed only the totals.
 
 | class | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJ. | N/A |
 | - | -: | -: | -: | -: | -: | -: | -: |
