@@ -36,17 +36,24 @@ findings were already CLOSED. Do not repeat that.
 
 | # | Read | Size | Stop rule |
 | -: | - | -: | - |
-| 1 | `gate-runtime-standardization.md` — the LAW | 139 KB | in full, always |
-| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | 78 KB | in full, always. §2b is where you decide what is next |
-| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | 25 KB | **in full — this is the work queue.** 91 defects, each with its state on today's tree |
-| 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | 155 KB | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the \~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
-| 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | 78 KB | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
+| 1 | `gate-runtime-standardization.md` — the LAW | **180 KB** | in full, always |
+| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **116 KB** | in full, always. §2b is where you decide what is next |
+| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **172 KB** | **in full — this is the work queue.** **142 defect rows** across 16 tables, each with its state on today's tree (re-derived 2026-09-12 by the ledger's OWN stated counting method, which it tells you to re-run rather than trust). It read `25 KB · 91 defects` until then — **a 7x understatement of the single largest thing this table prices** |
+| 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | **164 KB** | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the \~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
+| 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | **80 KB** | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
 | 5b | **`tooling/src/verify/contract/*.ts` HEADERS — the law you will otherwise rediscover** | **112 KB of comment** in 66 files | **READ THE HEADERS, not the types.** Ten run 20-32 lines before the first export. Start with `resource-declaration` · `resource-json` · `resource-mirror` · `resource-path` · `resource-document` · `resource-installed` · `run-manifest`, plus `lib/resource-declaration.ts`'s `readyResourceValue` header |
-| 6 | `Core-Enforcement-Active-Gates.md` | 281 KB | **ONCE per program, then by ROW.** 275 dense rows; after one pass read only the row you are about to break |
-| 7 | the 16 family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | \~300 KB | **read the ONE whose family you are dispatching.** `schema-fact-family-1584.md`'s "Explicit blockers" names five Phase-D modules' exact missing reader |
-| — | **`v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch`** | \~430 KB | **DO NOT READ. Send a lane.** Their conclusions are in the ledger (#3) and their METHOD is in guide §4.1 |
+| 6 | `Core-Enforcement-Active-Gates.md` | **356 KB** | **ONCE per program, then by ROW.** **297 dense rows** (its own declared registered-gate count line, 2026-09-12); after one pass read only the row you are about to break |
+| 7 | the 16 family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | **324 KB** | **read the ONE whose family you are dispatching.** `schema-fact-family-1584.md`'s "Explicit blockers" names five Phase-D modules' exact missing reader |
+| — | **`v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch`** | **536 KB** | **DO NOT READ. Send a lane.** Their conclusions are in the ledger (#3) and their METHOD is in guide §4.1 |
 
-**WHY 5b IS RANKED ABOVE THE 281 KB ROSTER, and it is the correction that cost the most this session.**
+**EVERY SIZE IN THIS TABLE WAS STALE ON 2026-09-12 AND ALL EIGHT ARE NOW MEASURED** (`du -k`, same day as
+the counts below). They had drifted low across the board — the LAW 139→180, the runbook 78→116, the roster
+281→356, the audit set 430→536 — and **the work queue by nearly 7x, 25 KB→172 KB.** That matters more here
+than anywhere else in the program: this is a BUDGET table, its whole purpose is telling a cold session what
+the reading costs before it commits, and a session budgeting 25 KB for the queue was reading 172. **Re-measure
+these rather than trusting them; the file that exists to prevent a context blowout understated its own set.**
+
+**WHY 5b IS RANKED ABOVE THE 356 KB ROSTER, and it is the correction that cost the most this session.**
 Constitution `AGENTS.md`: ***"Per-domain law is the CODE + its file headers — the per-domain docs were
 gutted (the code is the doc)."*** A session that plans its reading out of `docs/` is reading the wrong half
 of this repo. Measured 2026-09-12: **over HALF of `contract/`'s bytes are comment**, and three things this
