@@ -331,7 +331,7 @@ SECOND member (`tooling-process-exit-home`, group 4) has landed. Verified live: 
 exits 0 with 237 policies, so the family is legal on today's tree. Recording it because the group-1 commit
 message and the design record describe a state that no longer holds — re-derive before quoting either.
 
-## LEDGER ROWS
+## LEDGER ROWS (10 rows)
 
 | module | wave · path:line | defect | class | state | receipt |
 | - | - | - | - | - | - |

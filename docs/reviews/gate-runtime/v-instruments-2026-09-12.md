@@ -420,7 +420,7 @@ across `tests/tooling/verify/gates/` (80 files scanned; positive control `no-col
 own issue body routes it to #1993 alongside its two unenforced narrowings, so this is a scoping note rather
 than a silent miss — but #1994's "done when" is 8 of 9.
 
-## LEDGER ROWS
+## LEDGER ROWS (9 rows)
 
 For verbatim append under a `### cb-v-instruments` section of
 `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md`.

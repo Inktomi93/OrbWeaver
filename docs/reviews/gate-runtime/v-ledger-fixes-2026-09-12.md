@@ -298,7 +298,7 @@ twelve rows.
    `packages/ui/src/primitives/index.ts/x.ts`, added by docs commit `481b16d2f` — a doc that teaches a
    §4.1 method by naming a path that does not exist trips the repo's own phantom-path gate.
 
-## LEDGER ROWS
+## LEDGER ROWS (9 rows)
 
 Written in `refutation-ledger-2026-09-12.md`'s row format for verbatim append under a
 `### cb-v-ledger-fixes` section.
