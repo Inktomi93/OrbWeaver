@@ -255,6 +255,7 @@ here is not permission to dispatch it — check the Phase D gate below first.
 | #1952 identity arms (0 of 86) · #1953 · #1954 · #1955 · #1941 · #1946 · #1959 | see guide §2 |
 | Marker backlog — both central grammars measure ZERO live markers | guide §7 |
 | Wave-1 exemplar audit D1–D6, D10 · **D9 roster rows (all four)** | `be1202579`, `b157bb9be`, `1f83d676a`, `9017baf60` |
+| **§4.6's evidence may no longer vanish** — a conversion lands the differential as a committed test OR states in its message what it found; §8.8's floor names it | `2084c403e` (#2000) |
 
 ### THE THREE THAT GATE PHASE D
 
@@ -262,6 +263,49 @@ here is not permission to dispatch it — check the Phase D gate below first.
 2. **The audit reaches a bar the owner picks.** 62 of 167 audited across six waves. See the copy set below.
 3. **#1968 + #1966 + #1972 close.** #1966 and #1972 are DONE; **#1968 is the survivor** — and it is now
    MEASURED AND ENFORCED by `policy-proof-expectations`, which reports its own worklist.
+
+**— and #2000 does NOT gate Phase D, deliberately. Read why before deciding otherwise.** 74% of the corpus has no
+parity evidence, which sounds like a blocker and is not: **deliverable 3 landed, so Phase D's own 104 conversions
+cannot ADD to that backlog.** The 126 is closed, not growing. What #2000 DOES gate is narrower and sharper:
+**do not point a Phase D lane at a SPLIT family as an exemplar until Tier 1 is done.** A `-health` split is precisely
+the shape whose behaviour is reproduced by two policies together with nothing checking the union, and copying that
+shape 104 times before verifying one of them is the defect-multiplication this program exists to prevent.
+
+### #2000 — OLD-GATE vs NEW-GATE PARITY. P1, census DONE, and it is a different question from everything else here
+
+**Every other check asks whether a converted gate is internally SOUND. This asks whether conversion silently changed
+what it CATCHES** — a narrowed population, a retired arm with no successor, a stronger reader that no longer matches
+an old shape. Such a module passes every other check. **The conformance stage is structurally blind to it**, because
+a proof row rewritten after conversion only proves the new code agrees with itself. Already happened at the worst
+scale: `caught-failure-ownership`, 336 files, shipped with no differential (#1970).
+
+**CENSUS COMPLETE, all 171 final policies** (script `<scratchpad>/parity-census.sh`, lists in `parity-A/B/C.txt`):
+
+| bucket | count | |
+| - | -: | - |
+| **A** committed differential test | **15** | evidence |
+| **B** commit message claims one | **30** | an ASSERTION, not a receipt — names no result, nothing re-runs it |
+| **C** nothing | **126** | **74% of the corpus** |
+
+**DO NOT WORK 126. It is ranked, and the order is the whole point:**
+
+- **TIER 1 — eight split arms, ONE LANE, do this first:** `bus-fact-health` · `contract-derives-not-respells-health` ·
+  `ct-poll-schedule-and-paint-health` · `external-id-single-writer-health` · `injected-op-caller-param-health` ·
+  `serde-core-seal-health` · `spacing-tier-home-health` · `typography-tier-home-health`.
+  **A `-health` sibling exists BECAUSE one legacy module was split into two policies** with different authority or
+  execution, so the legacy gate's behaviour must now be reproduced by **two policies together and nothing checks the
+  union.** §4.6 requires a successor proof for a retired or merged arm; none of the eight has one.
+- **TIER 2 — 54** whose conversion commit says split/retire/merge/narrow: the whole `bus-*` family, the four
+  `owner-scoped-*`/`ownerid-registry` tenancy modules, both raw-CSS pairs, `serde-core-seal`,
+  `contract-banned-shapes`, `schema-banned-shapes`, and `caught-failure-ownership` itself.
+- **TIER 3 — \~64** one-to-one ports of pure-syntax visitors. Near-zero risk. **This tier may reasonably be closed BY
+  RULE rather than by work** — a recorded judgement that a one-to-one port of a pure-syntax visitor needs no replay.
+  That is defensible and nobody has written it down; writing it down is cheaper than 64 replays.
+
+**DELIVERABLE 3 IS LANDED (`2084c403e`).** §4.6 no longer permits the evidence to vanish: a conversion either lands
+the differential as a committed test **or** states in its commit message that it ran and WHAT IT FOUND, and §8.8's
+floor names it. **Silence is not compliance.** So the 126 is a closed backlog, not a growing one — Phase D's 104
+cannot add to it.
 
 ### DEFECT CLASSES THAT PROPAGATE — each looks green and is not; each multiplies by \~104
 
