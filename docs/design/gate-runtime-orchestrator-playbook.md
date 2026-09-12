@@ -216,10 +216,15 @@ tree tells you the moment a fix breaks a row.
    named a REFUTED module for **six of seven planes** — a Phase-D lane sent there picked a refuted shape and
    copied it. §3 is rewritten with a verdict column; the audit's copy set is now the table a lane reads.
 
-   **ONE PLANE HAS NO CONFIRMED EXEMPLAR: closed RESOURCE.** Both candidates are refuted (`server-layout`
-   SEVERE, `ui-exports-map-complete`), and its class defect #1979 — a silent not-ready return reading CLEAN
-   over a broken fact — has six sites open. **No resource-backed Phase-D family dispatches until one resource
-   module is confirmed.** That is the remaining audit work, and it is ONE family, not \~55 modules.
+   ~~**ONE PLANE HAS NO CONFIRMED EXEMPLAR: closed RESOURCE.**~~ **CLOSED 2026-09-12 at `be4cdebcd`
+   (`f-resource-exemplar`). The gate is LIFTED and every plane now has a confirmed exemplar** — verifier
+   pending on this one, so a lane copying it is told that. #1979 is CLOSED (`2bacd5ef9`, 10 of 10 resource
+   modules on `readyResourceValue`; the "six sites remain" row was stale). Both incumbents are confirmed to
+   the §5b bar, and the lane wrote the durable answer the plane was missing:
+   **[`resource-policy-contract.md`](resource-policy-contract.md)** — the seven things a resource policy owes,
+   with six rejected alternatives and their receipts. **Point a resource conversion at that file, not at a
+   module.** Kept struck rather than deleted because this row blocked Phase D for a day and the next reader
+   must see that it is gone, not wonder whether it was skipped.
 
    **And my justification for stopping was too strong — the verifier refuted it the same day.** I argued
    \#1971 "mechanized the cheap half". Measured: its arm M judges **27 of 252** `messageIncludes` rows (167
