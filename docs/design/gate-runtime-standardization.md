@@ -1210,8 +1210,12 @@ dependencies that constrain ANY sequence, because they are law rather than sched
 
 - Legacy retirement runs only when `gate:contract` shows zero legacy modules. The deletion list is
   `ordinary-waiver-source-migration.md` §"Atomic cutover checklist" (legacy parser/pass accounting, `markerImmune`, the
-  two retired auditors, `__g_` suites, baselines, census command), plus rewriting `GATE-AUTHORING.md`, `gate:new` and
-  `gate-modernization` against `defineGate`, an idle composed-pass remeasurement, and a catalog re-attest.
+  two retired auditors, `__g_` suites, baselines, census command), plus rewriting `gate-modernization` against
+  `defineGate`, an idle composed-pass remeasurement, and a catalog re-attest. **`GATE-AUTHORING.md` and `gate:new` are
+  PULLED FORWARD (owner, 2026-09-12: "start completely rewriting the legacy gates docs and fix the gate new command to
+  build in the new shape") — #2126, blocked only on the policing matrix #2111, which is their spec.** A gate born
+  from a scaffold that emits an `ExemptionTable` is born owing an authority migration (#2102), and a lane reading the
+  legacy guide as "the guide" copies a shape the enforcers red; neither waits for retirement.
 
 ## 8. Per-conversion procedure (the decision rule every lane follows)
 
