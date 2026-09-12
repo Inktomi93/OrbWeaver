@@ -76,7 +76,7 @@ test(
     const dangling: string[] = [];
     let sequence = 0;
     for (const policy of FAMILY) {
-      for (const proof of [...policy.mustFlag, ...policy.mustPass]) {
+      for (const proof of [...policy.mustFlag, ...policy.mustPass, ...(policy.mustRefuse ?? [])]) {
         sequence += 1;
         const root = `${ROOT}-proof-${sequence}`;
         const files = Object.entries(proof.files).map(([path, source]) => shared.createSourceFile(`${root}/${path}`, source));
@@ -87,7 +87,7 @@ test(
       }
     }
     expect(dangling).toEqual([]);
-    const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length, 0);
+    const declared = FAMILY.reduce((sum, policy) => sum + policy.mustFlag.length + policy.mustPass.length + (policy.mustRefuse?.length ?? 0), 0);
     expect(sequence).toBe(declared);
     expect(sequence).toBeGreaterThan(0);
   },

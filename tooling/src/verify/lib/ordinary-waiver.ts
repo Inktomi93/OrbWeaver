@@ -16,7 +16,24 @@ import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 
 const MARKER = "@orb-waive";
 const KEBAB = String.raw`[a-z][a-z0-9]*(?:-[a-z0-9]+)*`;
-const EXACT_MARKER_RE = new RegExp(String.raw`^${MARKER}\s+(${KEBAB})\(([^()\r\n]+)\):[\t ]*(\S[^\r\n]*)$`, "u");
+/** THE POSITION CHARACTER CLASS — the one home, because every other spelling of it is DERIVED from this
+ *  constant rather than retyped (#1957). The marker's position group is delimited by parentheses and lives on
+ *  one comment line, so a position containing `(`, `)`, CR or LF cannot be expressed at all: a marker naming
+ *  one parses as `malformed` and the finding it targets is UNWAIVABLE. That made the escape hatch a policy's
+ *  `fix` string promises unreachable for any finding whose reported token carries a paren, with nothing
+ *  saying so. The rule now binds at the REPORT door (`lib/policy-pass-context.ts`) through
+ *  {@link isWaivablePosition}, so an unwaivable position is a loud tool error at the moment it is minted
+ *  instead of a finding nobody can ever answer. */
+const POSITION = String.raw`[^()\r\n]+`;
+const POSITION_RE = new RegExp(String.raw`^${POSITION}$`, "u");
+const EXACT_MARKER_RE = new RegExp(String.raw`^${MARKER}\s+(${KEBAB})\((${POSITION})\):[\t ]*(\S[^\r\n]*)$`, "u");
+
+/** Can the marker grammar hold this position at all? The one door every minting site asks, so the answer
+ *  can never drift from {@link POSITION} above. A blank position is rejected for the same reason the parser
+ *  rejects it: `parseMarker` treats an empty capture as `malformed`. */
+export function isWaivablePosition(position: string): boolean {
+  return position.trim() !== "" && POSITION_RE.test(position);
+}
 const ATTEMPT_RE = new RegExp(String.raw`^${MARKER}(?:\s|$)`, "u");
 const PARTIAL_POLICY_RE = new RegExp(String.raw`^${MARKER}(?:\s+([^\s(:]+))?`, "u");
 const UNKNOWN_POLICY = "ordinary-waiver";

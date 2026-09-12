@@ -1,6 +1,6 @@
 // Stable failures emitted while proving final policy descriptors against their own examples.
 
-export type PolicyProofArm = "mustFlag" | "mustPass";
+export type PolicyProofArm = "mustFlag" | "mustPass" | "mustRefuse";
 
 export interface PolicyConformanceFailure {
   readonly policyId: string;

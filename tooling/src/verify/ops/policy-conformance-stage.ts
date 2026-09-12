@@ -40,7 +40,9 @@ const GRANT_TABLE_REL = "tooling/src/verify/lib/reviewed-grants.ts";
 export async function runPolicyConformance(root: string): Promise<number> {
   const corpus = await loadMixedGateCorpus(root);
   if (corpus.final.length === 0) {
-    process.stdout.write(`policy-conformance: 0 final policies · 0 proof rows (corpus: ${corpus.files.length} module(s), ${corpus.legacy.length} legacy)\n`);
+    process.stdout.write(
+      `policy-conformance: 0 final policies · 0 proof rows · 0 refusal rows (corpus: ${corpus.files.length} module(s), ${corpus.legacy.length} legacy)\n`,
+    );
     process.stderr.write(
       "policy-conformance: TOOL ERROR — the mixed loader resolved ZERO final policies, so this run proved nothing (a bare zero is not a conformance verdict)\n",
     );
@@ -55,10 +57,13 @@ export async function runPolicyConformance(root: string): Promise<number> {
   }
   const failures = verifyPolicyProofs(corpus.final);
   const elapsedMs = Math.round(performance.now() - started);
+  // Every arm the runner EXECUTES, counted separately: a summary that totals only two of three arms reports a
+  // stable row count while a third arm's rows run unmentioned, which is the reading that hid them (#1977).
   const proofs = corpus.final.reduce((n, policy) => n + policy.mustFlag.length + policy.mustPass.length, 0);
+  const refusals = corpus.final.reduce((n, policy) => n + (policy.mustRefuse?.length ?? 0), 0);
   const grantScope = tableInCorpus ? "whole table" : "rows naming loaded policies";
   process.stdout.write(
-    `policy-conformance: ${corpus.final.length} final policies · ${proofs} proof rows · ${failures.length} failure(s) · ${rows.length} grant rows (${grantScope}) · ${grants.errors.length} invalid · ${elapsedMs}ms (corpus: ${corpus.files.length} module(s), ${corpus.legacy.length} legacy proven by gate-conformance)\n`,
+    `policy-conformance: ${corpus.final.length} final policies · ${proofs} proof rows · ${refusals} refusal rows · ${failures.length} failure(s) · ${rows.length} grant rows (${grantScope}) · ${grants.errors.length} invalid · ${elapsedMs}ms (corpus: ${corpus.files.length} module(s), ${corpus.legacy.length} legacy proven by gate-conformance)\n`,
   );
   for (const failure of failures) {
     process.stdout.write(`  ✗ ${failure.policyId} · ${failure.arm}[${failure.exampleIndex}] · ${failure.why}\n      ${failure.detail}\n`);

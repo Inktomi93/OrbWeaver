@@ -14,7 +14,10 @@ import type { PolicySemanticReceipt } from "../contract/policy-pass.ts";
 import type { GatePolicyReceipt } from "../contract/policy-primitives.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
+import { declarationHome } from "./declaration-home.ts";
+import { isWaivablePosition } from "./ordinary-waiver.ts";
 import { assertRepoPathIdentity } from "./policy-validation.ts";
+import { populationIncludes } from "./population-resolver.ts";
 import { resourceRequestIdentity } from "./resource-declaration.ts";
 import { bindPolicyResources } from "./resource-policy.ts";
 
@@ -80,6 +83,28 @@ function assertOptionalText(value: unknown, label: string): void {
   }
 }
 
+/** THE UNWAIVABLE-POSITION CLASS (#1957), and why the fence that would close it is NOT armed here.
+ *
+ *  A finding's position token is the only handle an `@orb-waive` marker has on it, and the marker grammar's
+ *  position group cannot hold a paren, a CR or an LF ({@link isWaivablePosition}, the ONE home of that rule).
+ *  A finding minted with such a token is REAL and permanently UNANSWERABLE: every marker naming it parses
+ *  `malformed`, so the policy's own `fix` string — "write an adjacent `@orb-waive <id>(<position>)`" —
+ *  instructs the reader to do something the parser refuses.
+ *
+ *  The DERIVED path below already obeys the rule: `derivedNodePosition` skips any candidate carrying one. The
+ *  EXPLICIT `{ token, offset }` path and `report.file`'s `token` do not, and that asymmetry is the class.
+ *
+ *  THE FENCE WAS BUILT, ARMED ONCE AND DELIBERATELY NOT SHIPPED, because the run it produced is the finding:
+ *  `pnpm check:policy-conformance` at this lane's tip named FIVE live rows in THREE policies that mint
+ *  positions the grammar cannot hold — `no-raw-color-in-css` mustFlag[1] (`oklch(0.5 0.2 30)`, ORDINARY),
+ *  `no-tailwind-dark-variant` mustFlag[13]/[14] (`[&:where(.x:y)]:dark:bg-card` and
+ *  `supports-[selector(:has(*))]:dark:text-foreground`, ORDINARY) and `rest-transform-grid` mustFlag[4]/[6]
+ *  (`translateX(-0.5px)`, hard, so latent rather than live). Those anchors are deliberate and correct about
+ *  their SUBJECT — the defect is that the waiver grammar cannot express the subject — so the repair is a fork
+ *  between narrowing three foreign policies' anchors (losing report precision) and widening the marker
+ *  grammar to hold a quoted position. That decision is not this lane's, and arming a fence that reds two
+ *  correct policies is not a fixed tree. The predicate stays here as the one home; the arming waits on the
+ *  ruling. */
 function requiredText(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`${label} must be a nonempty string`);
@@ -116,7 +141,7 @@ function derivedNodePosition(node: Node): { readonly offset: number; readonly to
       kind === ts.SyntaxKind.PrivateIdentifier ||
       (kind >= ts.SyntaxKind.FirstLiteralToken && kind <= ts.SyntaxKind.LastLiteralToken) ||
       (kind >= ts.SyntaxKind.FirstKeyword && kind <= ts.SyntaxKind.LastKeyword);
-    if (identityKind && !/[()\r\n]/u.test(token)) {
+    if (identityKind && isWaivablePosition(token)) {
       return { offset: scanner.getTokenStart(), token };
     }
   }
@@ -260,6 +285,36 @@ export function makeFactContext(input: CapabilityContextInput): FactContextRunti
   return makeCapabilityContext(input);
 }
 
+/** WHY A REFUSED FILE IS REFUSED, when the answer is the policy's OWN declared provider (#1976).
+ *
+ *  A shared fact's population is the UNION of its consumers' by construction — `tuple-vocabulary-fact.ts`
+ *  declares `@client`+`@server`+`@contracts` and is read by four policies each strictly narrower — so the
+ *  value a policy receives routinely carries nodes from files the policy may not NAME. Ask `ctx.relativePath`
+ *  about one and the pass THROWS and withholds the whole policy: correct (a finding outside the population
+ *  would be unanchorable), fail-closed, and completely silent about the cause. Three independent workarounds
+ *  for it already exist on the tree — `chrome-registry-completeness.ts:87` and `warning-code-coverage.ts:176`
+ *  route through `lib/declaration-home.ts`, and `lib/role-vocabulary.ts` `vocabularyAtHome` hand-rolls an
+ *  absolute-path infix for the same reason — which is the evidence the class is real and was unnamed.
+ *
+ *  So the refusal now DIAGNOSES rather than merely refusing. The message KEEPS its measured prefix (the
+ *  before/after pair in `warning-code-coverage.ts:167-170` quotes it) and appends the fact that admits the
+ *  file plus the reader that answers it. A containment REQUIREMENT in the other direction was considered and
+ *  refused: `fact.population ⊆ policy.population` is false for all four live consumers and would make a
+ *  shared primitive index unshareable. */
+function factWideningDiagnosis(policy: GatePolicy): (repoRelativePath: string) => string {
+  const providers = policy.facts;
+  return (repoRelativePath) => {
+    if (providers.length === 0 || repoRelativePath.startsWith("/") || repoRelativePath.includes("\\")) {
+      return "";
+    }
+    const admitting = providers.filter((provider) => populationIncludes(provider.population, repoRelativePath)).map(({ id }) => id);
+    return admitting.length === 0
+      ? ""
+      : `; it IS inside the population of this policy's declared fact ${admitting.join(", ")}, which is wider than the policy's own. ` +
+          "A declaration reached through a shared provider is named with `declarationHome(ctx, file)` (lib/declaration-home.ts), never with ctx.relativePath.";
+  };
+}
+
 /** Construct one invocation-local policy context. No internal Project/root reference is exposed on it. */
 export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const capability = makeCapabilityContext({
@@ -272,13 +327,29 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     resourceRequests: input.resourceRequests,
     checker: input.checker,
   });
-  const effectivePaths = new Set([...capability.context.files.map(capability.context.relativePath), ...capability.context.resourcePaths]);
+  const deliveredPaths = new Set(capability.context.files.map(capability.context.relativePath));
+  const effectivePaths = new Set([...deliveredPaths, ...capability.context.resourcePaths]);
   const consumedFacts = new Set<GateFact>();
+  const factWidening = factWideningDiagnosis(input.policy);
+  const relativePath = (candidate: SourceFile): string => {
+    const home = declarationHome(capability.context, candidate);
+    if (!deliveredPaths.has(home)) {
+      throw new Error(`source file is outside the effective population: ${candidate.getFilePath()}${factWidening(home)}`);
+    }
+    return capability.context.relativePath(candidate);
+  };
+  const sourceFile = (path: string): SourceFile => {
+    assertRepoPathIdentity(path, "sourceFile path");
+    if (!deliveredPaths.has(path)) {
+      throw new Error(`sourceFile path is absent or outside the effective population: ${path}${factWidening(path)}`);
+    }
+    return capability.context.sourceFile(path);
+  };
   const reportNode = (node: Node, rawDetails?: GatePolicyNodeFindingDetails): void => {
     const details = rawDetails ?? {};
     exactKeys(details, NODE_DETAIL_KEYS, "node finding");
     const common = findingDetails(details);
-    const path = capability.context.relativePath(node.getSourceFile());
+    const path = relativePath(node.getSourceFile());
     let position = node.getStart();
     const runtime = details as GatePolicyFindingDetails & { readonly token?: unknown; readonly offset?: unknown };
     const token = runtime.token;
@@ -312,7 +383,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const reportFile = (path: string, rawDetails?: GatePolicyFileFindingDetails): void => {
     assertRepoPathIdentity(path, "finding file");
     if (!effectivePaths.has(path)) {
-      throw new Error(`finding file is outside the effective population: ${path}`);
+      throw new Error(`finding file is outside the effective population: ${path}${factWidening(path)}`);
     }
     const details = rawDetails ?? {};
     exactKeys(details, FILE_DETAIL_KEYS, "file finding");
@@ -341,6 +412,8 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   };
   const context: GatePolicyContext = Object.freeze({
     ...capability.context,
+    relativePath,
+    sourceFile,
     fact,
     report: Object.freeze({ node: reportNode, file: reportFile }),
   });

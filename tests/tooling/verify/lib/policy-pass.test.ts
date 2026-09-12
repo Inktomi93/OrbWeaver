@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GateFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
@@ -1412,4 +1413,73 @@ test("an ORDINARY owner still gets its carriers, and a refused carrier is a rece
   expect(result.authority.waivedFindings).toMatchObject([{ finding: { file: "note.md", token: "forbidden" } }]);
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(result.authority.authorityAlarms).toEqual([]);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// THE FACT-WIDENING DIAGNOSIS (#1976). A shared provider's population is the UNION of its consumers' by
+// construction, so a policy routinely receives nodes from files it may not NAME — and `ctx.relativePath`
+// refuses them. That refusal is correct and fail-closed; what it was not, until now, is SELF-EXPLAINING, and
+// three modules on the tree already hand-roll their own way around it. The pins are both directions of the
+// suffix, because a diagnosis that fires on every refusal explains nothing.
+// ---------------------------------------------------------------------------------------------------
+const WIDER_VOCABULARY: GateFact<SourceFile | undefined> = defineFact({
+  id: "wider-vocabulary",
+  population: ["@client", "@server"],
+  analysis: "syntax",
+  resources: [],
+  create: (ctx) => ({
+    finish: (): SourceFile | undefined => {
+      ctx.receipt({ kind: "population", source: "wider-vocabulary", members: ctx.files.length });
+      return ctx.files.find((file) => ctx.relativePath(file).startsWith("packages/server/"));
+    },
+  }),
+});
+
+function widenedConsumer(id: string, read: (ctx: GatePolicyContext, foreign: SourceFile | undefined) => void): GatePolicy {
+  return policy(id, {
+    population: "@client",
+    execution: "entire-population",
+    facts: [WIDER_VOCABULARY],
+    create: (ctx): GatePolicyHooks => ({
+      evaluate: () => {
+        const foreign = ctx.fact(WIDER_VOCABULARY);
+        ctx.receipt({ kind: "population", source: id, members: 1 });
+        read(ctx, foreign);
+      },
+    }),
+  });
+}
+
+const WIDENED_FILES = {
+  "packages/client/src/proof.ts": "export const clean = true;\n",
+  "packages/server/src/vocabulary.ts": "export const VOCAB = [] as const;\n",
+  "packages/ui/src/elsewhere.ts": "export const elsewhere = true;\n",
+};
+
+test("a file refused by ctx.relativePath NAMES the declared fact whose population admits it, and the reader that answers it", () => {
+  const gate = widenedConsumer("widened-relative-path", (ctx, foreign) => {
+    if (foreign !== undefined) {
+      ctx.relativePath(foreign);
+    }
+  });
+  const result = run([gate], projectOf(WIDENED_FILES));
+
+  const message = result.toolErrors[0]?.message ?? "";
+  expect(result.toolErrors).toMatchObject([{ policyId: "widened-relative-path", phase: "evaluate" }]);
+  expect(message).toContain("source file is outside the effective population");
+  expect(message).toContain("wider-vocabulary");
+  expect(message).toContain("declarationHome");
+  expect(result.authority.withheldPolicyIds).toEqual(["widened-relative-path"]);
+});
+
+test("a file outside EVERY declared fact's population is refused WITHOUT a fact diagnosis — the suffix discriminates", () => {
+  const gate = widenedConsumer("widened-elsewhere", (ctx) => {
+    ctx.sourceFile("packages/ui/src/elsewhere.ts");
+  });
+  const result = run([gate], projectOf(WIDENED_FILES));
+
+  const message = result.toolErrors[0]?.message ?? "";
+  expect(message).toContain("sourceFile path is absent or outside the effective population: packages/ui/src/elsewhere.ts");
+  expect(message).not.toContain("wider-vocabulary");
+  expect(message).not.toContain("declarationHome");
 });

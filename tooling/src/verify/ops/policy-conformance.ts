@@ -255,10 +255,35 @@ function expectationFailure(
   return null;
 }
 
+/** THE REFUSAL ARM'S VERDICT, which is the other two arms' INVERTED (#1977).
+ *
+ *  For `mustFlag`/`mustPass` a refusal is the failure. Here it is the requirement: the row holds when the
+ *  pass throws, or reports a tool error / authority alarm / non-success owner status — anything
+ *  {@link toolFailure} names — AND that text contains the row's declared `messageIncludes`.
+ *
+ *  The substring is load-REQUIRED (`lib/policy-validation.ts`) rather than optional here, because a row that
+ *  merely demands "something refused" passes on ANY refusal: a fixture that fails to parse, a population that
+ *  admits nothing, a resource door that was never wired. Those are the refusals a policy did not design, and
+ *  accepting them is how a green arm stops discriminating. */
+function refusalFailure(run: ExampleRun, policy: GatePolicy, proof: GatePolicyProof): string | null {
+  const refusal = run.thrown ?? (run.result === undefined ? null : toolFailure(run.result, policy, proofIdentities(proof)));
+  const expected = proof.expect?.messageIncludes;
+  if (refusal === null) {
+    const findings = run.result?.authority.effectiveFindings ?? [];
+    return `expected the pass to REFUSE but it completed with ${findings.length} effective finding(s)`;
+  }
+  if (expected === undefined) {
+    return "mustRefuse proof has no expect.messageIncludes";
+  }
+  return refusal.includes(expected) ? null : `expected the refusal to include ${JSON.stringify(expected)} but it was: ${refusal}`;
+}
+
 function proofFailure({ policy, arm, proof, exampleIndex, sequence, shared }: ProofRunInput): PolicyConformanceFailure | null {
   const run = runExample(policy, proof, shared, sequence);
   let detail: string | null;
-  if (run.thrown !== undefined) {
+  if (arm === "mustRefuse") {
+    detail = refusalFailure(run, policy, proof);
+  } else if (run.thrown !== undefined) {
     detail = `PASS THREW ${run.thrown}`;
   } else {
     const result = run.result as PolicyPassResult;
@@ -304,8 +329,10 @@ export function verifyPolicyProofs(policies: readonly GatePolicy[]): readonly Po
   const shared = new Project({ useInMemoryFileSystem: true });
   let sequence = 0;
   for (const policy of ordered) {
-    for (const arm of ["mustFlag", "mustPass"] as const) {
-      for (const [exampleIndex, proof] of policy[arm].entries()) {
+    // `mustRefuse` is OPTIONAL, so the arm list is derived per policy: a corpus in which no module declares
+    // one runs byte-identically to before the arm existed.
+    for (const arm of ["mustFlag", "mustPass", "mustRefuse"] as const) {
+      for (const [exampleIndex, proof] of (policy[arm] ?? []).entries()) {
         sequence += 1;
         const failure = proofFailure({ policy, arm, proof, exampleIndex, sequence, shared });
         if (failure !== null) {

@@ -110,6 +110,21 @@ interface GatePolicyBase {
   readonly create: (context: GatePolicyContext) => GatePolicyHooks;
   readonly mustFlag: readonly GatePolicyProof[];
   readonly mustPass: readonly GatePolicyProof[];
+  /** THE REFUSAL ARM (#1977). An input whose CORRECT outcome is neither a finding nor a clean pass, but the
+   *  pass REFUSING and withholding the owner — a blindness tripwire firing, a declared resource coming back
+   *  broken, a receipt that resolved zero members. `toolFailure` runs BEFORE the arm verdict in
+   *  `ops/policy-conformance.ts`, so such an input can be neither `mustFlag` (no finding is reported) nor
+   *  `mustPass` (the owner did not succeed): the behaviour was unprovable by construction and every pin for
+   *  it lived in a vitest family test, which `tests/tooling/**` being `--full`-only (#1842) keeps off the
+   *  static bar `mustFlag`/`mustPass` already run on.
+   *
+   *  OPTIONAL, because a refusal is not a property every policy HAS — unlike `facts`/`resources`, where `[]`
+   *  is a position every author must take. Absent is byte-identical to today.
+   *
+   *  Each row REQUIRES `expect.messageIncludes` and FORBIDS `count`/`line`/`token`: there are no findings to
+   *  count, and a refusal row that does not name the refusal TEXT passes whether the arm fired or is
+   *  unreachable — the dead-arm shape this arm exists to make impossible. */
+  readonly mustRefuse?: readonly GatePolicyProof[];
 }
 
 interface ErrorGatePolicy extends GatePolicyBase {

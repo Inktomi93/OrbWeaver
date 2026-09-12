@@ -6,6 +6,7 @@ import { isDefinedGateFact } from "../contract/fact.ts";
 import { GATE_AUTHORITIES, GATE_SEVERITIES } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyHooks, GatePolicyProof, GatePolicyProofMode } from "../contract/policy.ts";
 import { GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "../contract/policy.ts";
+import type { PolicyProofArm } from "../contract/policy-conformance.ts";
 import type { GatePolicyAnalysis } from "../contract/policy-primitives.ts";
 import { GATE_POLICY_ANALYSES } from "../contract/policy-primitives.ts";
 import type { PopulationExpr } from "../contract/population.ts";
@@ -37,6 +38,7 @@ const POLICY_KEYS = new Set([
   "create",
   "mustFlag",
   "mustPass",
+  "mustRefuse",
 ]);
 const REQUIRED_POLICY_KEYS = [
   "id",
@@ -173,6 +175,21 @@ function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: strin
   }
 }
 
+/** The `mustRefuse` expectation is the INVERSE of the other two arms': the pass produces no findings at all,
+ *  so `count`/`line`/`token` have nothing to describe, and `messageIncludes` is the only thing that can
+ *  discriminate a fired refusal from an unreachable branch. Requiring it here — at load, for every row — is
+ *  what stops the arm becoming the sanctioned home for a proof that passes either way (#1977). */
+function assertRefusalExpectation(value: unknown, label: string): void {
+  const expectation = record(value, label);
+  exactKeys(expectation, EXPECT_KEYS, label);
+  for (const key of ["count", "line", "token"] as const) {
+    if (expectation[key] !== undefined) {
+      invalid(`${label}.${key} is forbidden for a mustRefuse proof; a refusal reports no finding to describe`);
+    }
+  }
+  nonBlank(expectation["messageIncludes"], `${label}.messageIncludes`);
+}
+
 function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string, allowExpectation: boolean): asserts value is GatePolicyProof {
   const proof = record(value, label);
   exactKeys(proof, PROOF_KEYS, label);
@@ -198,6 +215,13 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
     invalid(`${label}.files may contain only .ts/.tsx source paths in ${String(proof["mode"])} mode`);
   }
   assertProofLinks(proof, label, files);
+  if (label.startsWith("mustRefuse")) {
+    if (proof["expect"] === undefined) {
+      invalid(`${label}.expect.messageIncludes is required for a mustRefuse proof`);
+    }
+    assertRefusalExpectation(proof["expect"], `${label}.expect`);
+    return;
+  }
   if (proof["expect"] !== undefined) {
     if (!allowExpectation) {
       invalid(`${label}.expect is valid only for mustFlag proofs`);
@@ -206,7 +230,7 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
   }
 }
 
-function assertProofArm(value: unknown, analysis: GatePolicyAnalysis, label: "mustFlag" | "mustPass"): void {
+function assertProofArm(value: unknown, analysis: GatePolicyAnalysis, label: PolicyProofArm): void {
   if (!Array.isArray(value) || value.length === 0) {
     invalid(`${label} must contain at least one explicit proof example`);
   }
@@ -443,6 +467,11 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
   }
   assertProofArm(policy["mustFlag"], policy["analysis"] as GatePolicyAnalysis, "mustFlag");
   assertProofArm(policy["mustPass"], policy["analysis"] as GatePolicyAnalysis, "mustPass");
+  // OPTIONAL, and an EMPTY array is refused rather than tolerated: `mustRefuse: []` reads as "this policy has
+  // a refusal arm" while proving nothing, which is the declared-limit-shaped lie the arm exists to replace.
+  if (Object.hasOwn(policy, "mustRefuse")) {
+    assertProofArm(policy["mustRefuse"], policy["analysis"] as GatePolicyAnalysis, "mustRefuse");
+  }
 }
 
 function assertVisitors(value: unknown): void {

@@ -13,6 +13,12 @@ export const TS_MORPH_TYPES_PATH = "tooling/src/verify/contract/ts-morph-stub.d.
 export const TS_MORPH_TYPES_STUB =
   'declare module "ts-morph" {\n  export interface Node {\n    getSourceFile(): SourceFile;\n  }\n  export class Project {\n    getSourceFiles(): SourceFile[];\n  }\n  export interface SourceFile extends Node {\n    forEachDescendant(visitor: (node: unknown) => void): void;\n    getDescendantsOfKind(kind: number): unknown[];\n  }\n}\n';
 
+/** The resource-guard home, planted so E4's origin test resolves a REAL import rather than a spelling. The
+ *  path is the live one because the arm checks the declaration's module by suffix; a guard declared anywhere
+ *  else must not acquit, which is what the local-lookalike row proves. */
+export const RESOURCE_DECLARATION_PATH = "tooling/src/verify/lib/resource-declaration.ts";
+export const RESOURCE_DECLARATION_STUB = "export function readyResourceValue<T>(fact: T): T {\n  return fact;\n}\n";
+
 export const PROBE_GATE_ID = "probe";
 export const PROBE_GATE_PATH = `tooling/src/verify/gates/${PROBE_GATE_ID}.ts`;
 /** The family test that a family-test identity arm lives in, relative to the same root. */
