@@ -3,11 +3,19 @@
 // {...props}, so a feature can forge an interactive element via `<Row role="button" tabIndex={0}
 // onClick=…>`, dodging the compose-only className/style ban. RED: a features/**.tsx JSX `role=` whose
 // value carries a banned WIDGET_ROLES literal (static or a conditional/template containing one) — never
-// a structural/live-region role. BURN_DOWN is a both-directions ratchet (persistence-boundary.ts pattern).
+// a structural/live-region role.
+//
+// NO EXEMPTION ARTIFACT (authority census C1, #1922; deleted 2026-09-12). This gate carried a `BURN_DOWN`
+// `ExemptionTable` of current offenders plus a `finalize` ratchet-down arm. The table has been EMPTY since
+// 2026-07-09 — the founding entry (`persona-panel-row.tsx`'s `Row role="button"`) was reworked to a
+// stretched-Button overlay by the Wave 1 list-row pass and burned down the same day — so the ratchet arm
+// was VACUOUS (it iterated nothing) and the `rel in BURN_DOWN` skip could never fire. Both are gone, and
+// with them the `begin`/`finalize` hooks, the module-level `passSeenBurnDown` accumulator, and the
+// real-tree anchor that existed only to keep the vacuous arm off conformance's synthetic projects. A
+// genuine future exemption is a central reviewed grant, never a resurrected gate-local table.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { GateDescriptor } from "../contract/gate.ts";
 import { readStringConstant } from "../lib/symbol-reference.ts";
 
 /** ARIA roles that mint an INTERACTIVE widget — a feature must reach for the matching `@orb/ui` primitive,
@@ -41,27 +49,11 @@ const WIDGET_ROLES: ReadonlySet<string> = new Set([
   "scrollbar",
 ]);
 
-/** Current offenders → their fix owner. An allowlisted file lands here IN THE SAME COMMIT it is
- *  discovered; it is removed the moment its hand-roll is reworked to a primitive (the ratchet-down arm
- *  makes a stale entry RED, so this list can never rot). CLEAN as of 2026-07-09: the founding entry
- *  (persona-panel-row.tsx's Row role=button) was reworked to a stretched-Button overlay by the Wave 1
- *  list-row content-model pass and burned down the same day. */
-const BURN_DOWN: ExemptionTable = {};
-
 const MESSAGE =
   "hand-rolled interactive ARIA role in a feature (UI-Gates-and-Lessons.md §8) — the @orb/ui layout kit " +
   'forwards DOM props, so `<Row role="button" …>` forges a widget that dodges the compose-only + ' +
   "raw-intrinsic belts. Interactivity comes from an @orb/ui primitive (Button, list-row, Card " +
   "`interactive`, menu), never a hand-rolled widget role on a div/layout component.";
-
-const STALE_ENTRY_MESSAGE_PREFIX =
-  "BURN_DOWN entry has NO hand-rolled interactive role any more — the offender was reworked to a " +
-  "primitive (ratchet down): delete the stale row in no-interactive-role-in-features.ts: ";
-
-function clientRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
-}
 
 /** Every string VALUE the attribute can carry — literal texts nested anywhere in it (covers `role="button"`,
  *  `role={"button"}`, and conditional/template expressions), PLUS an identifier standing for one.
@@ -87,9 +79,6 @@ function literalTextsIn(attr: Node): string[] {
   return texts;
 }
 
-const GATE_SELF = "tooling/src/verify/gates/no-interactive-role-in-features.ts";
-const passSeenBurnDown = new Set<string>();
-
 /** The banned widget-role literal a `role={…}` attribute carries, or undefined. */
 function bannedRoleOf(attr: Node): string | undefined {
   if (!attr.isKind(SyntaxKind.JsxAttribute) || attr.getNameNode().getText() !== "role") {
@@ -97,11 +86,6 @@ function bannedRoleOf(attr: Node): string | undefined {
   }
   return literalTextsIn(attr).find((t) => WIDGET_ROLES.has(t));
 }
-
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
- *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
- *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
-const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
 
 export const gate: GateDescriptor = {
   name: "no-interactive-role-in-features",
@@ -112,39 +96,15 @@ export const gate: GateDescriptor = {
   fix: "reach for the matching @orb/ui primitive (Button, list-row, Card `interactive`, menu) — never a hand-rolled widget role on a div/layout component.",
   scanRoot: (p) => p.includes("packages/client/src/features/") && p.endsWith(".tsx"),
   kinds: [SyntaxKind.JsxAttribute],
-  begin: () => {
-    passSeenBurnDown.clear();
-  },
-  visit: (node, sf, ctx) => {
+  // `_sf` is the descriptor's FIXED third-position arity (`visit(node, sf, ctx)`), not an incomplete
+  // refactor: the file path was read only to key the deleted BURN_DOWN table.
+  visit: (node, _sf, ctx) => {
     const role = bannedRoleOf(node);
     if (role === undefined) {
       return;
     }
-    const rel = clientRel(sf.getFilePath());
-    if (rel in BURN_DOWN) {
-      passSeenBurnDown.add(rel);
-      return;
-    }
     ctx.report(node, { token: `role="${role}"`, offset: 0 });
   },
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
-      return;
-    }
-    for (const rel of Object.keys(BURN_DOWN)) {
-      if (!passSeenBurnDown.has(rel)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${rel}" — tooling/src/verify/gates/no-interactive-role-in-features.ts`,
-        });
-      }
-    }
-  },
-  // NOTE: the BURN_DOWN ratchet/stale arms are guarded to the real full tree (a synthetic conformance
-  // project omits the real burn-down files) — their coverage moves to the live `pnpm check:structure`
-  // run. Only the pure FLAG/PASS branches port as examples below.
   mustFlag: [
     {
       files: 'export const G = <Row role="button" tabIndex={0} />;\n',

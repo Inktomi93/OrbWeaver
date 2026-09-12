@@ -401,7 +401,7 @@ function writeFixtures(): void {
   // in its own __g_ dir at the src root (the __g_motion/__g_defprops placement precedent).
   fx("packages/ui/src/__g_oversize/__g_oversize.ts", "// pad line\n".repeat(451));
   // no-interactive-role-in-features: a feature file forging an interactive widget via a layout-kit
-  // role= passthrough (NOT in BURN_DOWN → fires). `Row` is a local `declare` — the gate matches the JSX
+  // role= passthrough. `Row` is a local `declare` — the gate matches the JSX
   // `role="button"` attribute by AST, so the fixture parses standalone without importing @orb/ui.
   fx(
     "packages/client/src/features/__g_role/components/__g_role.tsx",

@@ -3,9 +3,19 @@
 // `useState(<live>)` draft compared against that SAME expression, where the guarded branch hands the draft
 // to a non-setter call. DECLARED LIMITS: comparisons outside an `if` (a `dirty` flag), non-client packages,
 // and a live value reached through a differently-spelled expression — each owes a mustPass row. Comment-SAFE.
+//
+// NO EXEMPTION ARTIFACT (authority census C1, #1922; deleted 2026-09-12). This gate carried an `ALLOWLIST`
+// `ExemptionTable` plus a ratchet-down arm inside `finalize`. It was born EMPTY and stayed empty — the
+// founding sites were fixed in `8e9158e14` and the mint census over 675 client `.tsx` files produced ZERO
+// live violations — so the ratchet loop iterated nothing and the `rel in ALLOWLIST` skip could never fire.
+// The table, its stale-entry message, the `seenAllowlisted` accumulator and the `begin` hook are gone.
+// **`finalize` SURVIVES, and deliberately:** it also carries the DECISION_HOME blindness tripwire, which is
+// a different arm over a different subject — a gate whose law has no home is a gate nobody can obey, and
+// deleting that with the allowlist would have blinded a live tripwire to buy a tidier diff. A genuine
+// future exemption is a central reviewed grant, never a resurrected gate-local table.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import type { GateDescriptor } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
@@ -22,10 +32,6 @@ const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
 
 const GATE_SELF = "tooling/src/verify/gates/stale-draft-commit.ts";
 
-// Sanctioned exceptions. Born EMPTY: the founding sites were fixed in 8e9158e14, and the corpus census at
-// mint (675 client .tsx files) produced ZERO live violations — so there is nothing to park (§4.7).
-const ALLOWLIST: ExemptionTable = {};
-
 const MESSAGE =
   "a once-seeded draft is being committed under `draft !== <the live value>`. That guard exists to suppress " +
   "a pointless write, but the live value MOVES: when a second writer lands one while the editor is open, the " +
@@ -38,15 +44,9 @@ const FIX =
   "(packages/client/src/lib/edit-session.ts) — it separates 'nothing typed', 'an ordinary commit', and 'two " +
   "writers, surfaced' instead of collapsing them into one comparison.";
 
-const STALE_ENTRY_PREFIX =
-  "ALLOWLIST row matching NO live violation any more (ratchet down) — the exemption is unused; delete the " +
-  "stale row in tooling/src/verify/gates/stale-draft-commit.ts: ";
-
 const HOME_GONE =
   `the decision home \`${DECISION_HOME}\` no longer resolves — this gate's message and fix both name it, and a ` +
   "rule whose one home moved is unobeyable. Re-point DECISION_HOME (GATE-AUTHORING.md §4.6).";
-
-const seenAllowlisted = new Set<string>();
 
 /** A `useState` seed that can go STALE: an identifier or property access (the live value), never a literal
  *  or an ALL_CAPS module constant (those cannot move underneath an open editor). */
@@ -151,22 +151,12 @@ export const gate: GateDescriptor = {
     if (seeds.size === 0) {
       return;
     }
-    const rel = ctx.root.length > 0 && sf.getFilePath().startsWith(ctx.root) ? sf.getFilePath().slice(ctx.root.length + 1) : sf.getFilePath();
     for (const comparison of sf.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
       const draft = staleCommitDraft(comparison, seeds);
-      if (draft === undefined) {
-        continue;
+      if (draft !== undefined) {
+        ctx.report(comparison, { token: draft, offset: Math.max(comparison.getText().indexOf(draft), 0) });
       }
-      if (rel in ALLOWLIST) {
-        seenAllowlisted.add(rel);
-        continue;
-      }
-      ctx.report(comparison, { token: draft, offset: Math.max(comparison.getText().indexOf(draft), 0) });
     }
-  },
-
-  begin: () => {
-    seenAllowlisted.clear();
   },
 
   finalize: (ctx) => {
@@ -175,11 +165,6 @@ export const gate: GateDescriptor = {
     }
     if (!fileLoaded(ctx, DECISION_HOME)) {
       ctx.report({ file: GATE_SELF, line: 1, column: 0, message: HOME_GONE });
-    }
-    for (const rel of Object.keys(ALLOWLIST)) {
-      if (!seenAllowlisted.has(rel)) {
-        ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_ENTRY_PREFIX + rel });
-      }
     }
   },
 

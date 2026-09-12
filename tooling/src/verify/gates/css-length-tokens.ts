@@ -1,6 +1,46 @@
 // Gate: css-length-tokens (#955) — raw shell lengths are illegal unless they are one of the structural
 // mechanics CSS itself must own. Static class discovery comes from #961's shared provenance walker; this
 // gate only judges the exact Tailwind candidates it returns and never maintains a second evaluator.
+//
+// CARDINALITY BELONGS TO THE SUBJECT, NEVER TO THE ROW (#2101, 2026-09-12; §12.5 bans a count ratchet and
+// a reviewed grant is strictly 1:1, so a row carrying its own `count` cannot become one). Twelve of this
+// gate's sixteen exemption rows carried an explicit `count` and the two shell.css tables are now keyed on
+// the OCCURRENCE instead: a declaration row names the SELECTOR that owns it, a query row names its exact
+// at-rule prelude, and each row's liveness arm asks "does this subject still occur", never "does it occur
+// exactly N times". This is STRICTLY STRONGER than the ratchet it replaces: `width: 100dvw` was one row
+// with `count: 3`, so moving one of the three sites to a fourth selector kept the count at 3 and stayed
+// green; the three selectors are now three rows and that move reds.
+//
+// THE RULE THAT DECIDED IT, stated once for the sibling count-ratchet modules (`css-family-ownership`,
+// `css-var-defined`, `duplicate-action-doors`): **a `count` is never the fix for an over-broad subject; it
+// is the TELL that the subject is wrong.** Where a row's subject is an occurrence, the count is ceremony
+// and deletes. Where a row needs its count to stay safe, the subject is a CONTAINER holding N occurrences
+// and the repair is to narrow the subject, never to keep the number.
+//
+// STRUCTURAL_CLASS_FILES IS THE UNCONVERTED HALF, and it is that second case: its key is a FILE and its
+// counts (3/2/1/9) are a per-file budget, so deleting them without narrowing the subject would let a tenth
+// raw length into `variants.ts` silently — trading real enforcement for form. Narrowing it to
+// `(file, candidate)` needs the REAL-TREE walk to enumerate the candidates, which a scoped lane cannot run:
+// measured 2026-09-12, a four-file `walkStaticClassExpressions` probe (with planted positive and negative
+// controls, both OK) returned `character-create-actions.tsx` 2, `markdown.tsx` 1, `variants.ts` 9 (7 unique
+// candidates, so two repeat) and **`pager-chrome.ts` ZERO against its row's 3** — its class strings are
+// exported constants resolved at their CONSUMERS, which that file set did not contain. An enumeration that
+// under-reports a row to zero cannot be the basis of the rows replacing it. The next lane runs the whole-tree
+// pass and converts these four with the rule above.
+//
+// MEASURED 2026-09-12, driving the SHELL arm through the legacy dispatcher against the REAL shell.css
+// (one scratch module per cut; every anchor asserted to occur exactly once, and the `@media` prelude cut
+// REFUSED at 2 occurrences until it was re-anchored on its row line):
+//   no cut                                          → 0 findings (all ten declaration rows and all three
+//                                                     query rows resolve against the live stylesheet)
+//   one `width: 100dvw` row re-keyed to a fourth
+//   selector — the analogue of moving one of the
+//   three sites, which `count: 3` could NOT see     → 2 (the occurrence is REPORTED and the row reads UNUSED)
+//   the sentinel row re-keyed to `.shell-grid`      → 2 (the SELECTOR half of the key is load-bearing)
+//   a query row's prelude changed by 1rem           → 2
+//   the liveness test INVERTED (drop the `!`)       → 10 (the arm is reached by every live row; it is not
+//                                                     vacuous, which is the failure mode a zero-occurrence
+//                                                     arm has when its key never matches anything)
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Scanner } from "@tailwindcss/oxide";
@@ -21,36 +61,38 @@ const RAW_NUMBER_RE = /^-?(?:\d*\.)?\d+$/u;
 const MESSAGE =
   "raw non-structural CSS length bypasses the DTCG/token-output contract; shell.css permits only its declared viewport, query, ratio, and measurement mechanics, and class carriers permit only declared structural grid/query values (client-architecture-lockdown.md §4, #955).";
 
+/** One allowlisted structural declaration, identified by the SELECTOR that owns it — which is what makes
+ *  the row an occurrence rather than a class of them, and therefore what removes the need for a `count`. */
 interface StructuralDeclaration {
+  readonly selector: string;
   readonly prop: string;
   readonly value: string;
-  readonly count: number;
   readonly why: string;
 }
 
 const STRUCTURAL_DECLARATIONS: readonly StructuralDeclaration[] = [
   {
+    selector: ".shell-grid",
     prop: "--list-track",
     value: "0px",
-    count: 1,
     why: "zero is the closed LIST-track measurement sentinel; it ends only if the track state mechanism changes",
   },
   {
+    selector: ".shell-grid",
     prop: "--context-track",
     value: "0px",
-    count: 1,
     why: "zero is the closed CONTEXT-track measurement sentinel; it ends only if the track state mechanism changes",
   },
   {
+    selector: ".shell-grid",
     prop: "height",
     value: "100vh",
-    count: 1,
     why: "the legacy viewport fallback is the first arm of the vh→dvh pair; it ends only when the fallback is deliberately dropped",
   },
   {
+    selector: ".shell-grid",
     prop: "height",
     value: "calc(100dvh - var(--orb-keyboard-inset, 0px))",
-    count: 1,
     why:
       "the dynamic viewport arm is the shell-height mechanism; it ends only if the shell stops owning the viewport. " +
       "It gained the keyboard subtrahend at #1869: `interactive-widget=resizes-content` is inert on WebKit (bug 259770) " +
@@ -61,45 +103,57 @@ const STRUCTURAL_DECLARATIONS: readonly StructuralDeclaration[] = [
       "byte-identical to the bare 100dvh this replaced.",
   },
   {
+    selector: ".shell-grid",
     prop: "--pane-deficit",
     value: "max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w)))",
-    count: 1,
     why: "zero clamps negative deficit and 100dvw is the live viewport operand CSS must resolve; it ends only if the both-docked squeeze algebra changes",
   },
   {
+    selector: ".shell-grid",
     prop: "--content-primacy-deficit",
     value: "max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%))",
-    count: 1,
     why: "zero is the no-deficit sentinel for the content-primacy measurement; it ends only if that CSS-resolved measurement mechanism changes",
   },
   {
+    selector: ".shell-content-primacy-sentinel",
     prop: "block-size",
     value: "1px",
-    count: 1,
     why: "the hidden CSS-resolved measurement sentinel must have a nonzero observable box; it ends if JS no longer reads the sentinel",
   },
   {
+    selector: '.shell-panel[data-panel-mode="docked"], .shell-panel[data-panel-mode="overlay"], .shell-panel[data-panel-mode="collapsed"]',
     prop: "width",
     value: "100dvw",
-    count: 3,
-    why: "mobile overlay/list sheets are the dynamic viewport width; these sites end only if the one-shell mobile geometry changes",
+    why: "mobile overlay/list sheets are the dynamic viewport width; this site ends only if the one-shell mobile geometry changes",
+  },
+  {
+    selector:
+      '.shell-panel[data-panel-side="list"][data-panel-mode="overlay"], .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"], .shell-panel[data-panel-side="context"][data-panel-mode="overlay"], .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"]',
+    prop: "width",
+    value: "100dvw",
+    why: "mobile overlay/list sheets are the dynamic viewport width; this site ends only if the one-shell mobile geometry changes",
+  },
+  {
+    selector: '.shell-panel[data-panel-side="list"][data-panel-mode="docked"]',
+    prop: "width",
+    value: "100dvw",
+    why: "mobile overlay/list sheets are the dynamic viewport width; this site ends only if the one-shell mobile geometry changes",
   },
 ] as const;
 
+/** One allowlisted at-rule prelude. The prelude text IS the occurrence identity. */
 interface StructuralQuery {
   readonly text: string;
-  readonly count: number;
   readonly why: string;
 }
 
 const STRUCTURAL_QUERIES: readonly StructuralQuery[] = [
-  { text: "@supports (backdrop-filter: blur(1px)) {", count: 1, why: "a supports probe needs a concrete test value and cannot consume a custom property" },
+  { text: "@supports (backdrop-filter: blur(1px)) {", why: "a supports probe needs a concrete test value and cannot consume a custom property" },
   {
     text: "@container shell-main (max-width: 30rem) {",
-    count: 1,
     why: "container-query conditions cannot consume custom properties; this is the topbar content budget",
   },
-  { text: "@media (max-width: 48rem) {", count: 1, why: "media-query conditions cannot consume custom properties; the breakpoint twin is sync-tested" },
+  { text: "@media (max-width: 48rem) {", why: "media-query conditions cannot consume custom properties; the breakpoint twin is sync-tested" },
 ] as const;
 
 const STRUCTURAL_CLASS_FILES: Readonly<Record<string, { readonly count: number; readonly why: string }>> = {
@@ -122,8 +176,8 @@ const STRUCTURAL_CLASS_FILES: Readonly<Record<string, { readonly count: number; 
   },
 };
 
-function declarationKey(prop: string, value: string): string {
-  return `${prop}\u0000${value}`;
+function declarationKey(selector: string, prop: string, value: string): string {
+  return `${selector}\u0000${prop}\u0000${value}`;
 }
 
 function sourceToken(
@@ -159,32 +213,43 @@ function reportStale(ctx: GateRunCtx, row: StaleCount): void {
   });
 }
 
-function verifyDeclarationRows(ctx: GateRunCtx, seen: ReadonlyMap<string, number>): void {
+/** A row whose subject no longer OCCURS is a permission nobody uses — the liveness arm that replaced the
+ *  count ratchet (#2101). It says nothing about how many times the subject occurs, only that it does. */
+function reportUnused(ctx: GateRunCtx, label: string, why: string): void {
+  ctx.report({
+    file: GATE_SELF,
+    line: 1,
+    column: 0,
+    token: label,
+    message: `structural length allowlist row is UNUSED: ${label} matches nothing in the sanctioned shell stylesheet any more — ${why} (delete the row; tooling/src/verify/gates/css-length-tokens.ts)`,
+  });
+}
+
+function verifyDeclarationRows(ctx: GateRunCtx, seen: ReadonlySet<string>): void {
   for (const row of STRUCTURAL_DECLARATIONS) {
-    const actual = seen.get(declarationKey(row.prop, row.value)) ?? 0;
-    if (actual !== row.count) {
-      reportStale(ctx, { label: `${row.prop}:${row.value}`, expected: row.count, actual, why: row.why });
+    if (!seen.has(declarationKey(row.selector, row.prop, row.value))) {
+      reportUnused(ctx, `${row.selector} { ${row.prop}: ${row.value} }`, row.why);
     }
   }
 }
 
 function recordDeclaration(
   ctx: GateRunCtx,
-  declaration: { readonly prop: string; readonly value: string; readonly line: number },
-  allowed: ReadonlyMap<string, unknown>,
-  seen: Map<string, number>,
+  declaration: { readonly selector: string; readonly prop: string; readonly value: string; readonly line: number },
+  allowed: ReadonlySet<string>,
+  seen: Set<string>,
 ): void {
-  const key = declarationKey(declaration.prop, declaration.value);
+  const key = declarationKey(declaration.selector, declaration.prop, declaration.value);
   if (allowed.has(key)) {
-    seen.set(key, (seen.get(key) ?? 0) + 1);
+    seen.add(key);
     return;
   }
   ctx.report({ file: SHELL, line: declaration.line, column: 0, token: `${declaration.prop}:${declaration.value}` });
 }
 
 function scanDeclarations(ctx: GateRunCtx, raw: string): { readonly declarations: number; readonly values: number } {
-  const allowed = new Map(STRUCTURAL_DECLARATIONS.map((row) => [declarationKey(row.prop, row.value), row]));
-  const seen = new Map<string, number>();
+  const allowed = new Set(STRUCTURAL_DECLARATIONS.map((row) => declarationKey(row.selector, row.prop, row.value)));
+  const seen = new Set<string>();
   let declarations = 0;
   let values = 0;
   for (const rule of parseCssRules(raw)) {
@@ -196,7 +261,7 @@ function scanDeclarations(ctx: GateRunCtx, raw: string): { readonly declarations
       if (hits.length === 0 && !rawLineHeight) {
         continue;
       }
-      recordDeclaration(ctx, declaration, allowed, seen);
+      recordDeclaration(ctx, { ...declaration, selector: rule.selectorList }, allowed, seen);
     }
   }
   verifyDeclarationRows(ctx, seen);
@@ -204,7 +269,7 @@ function scanDeclarations(ctx: GateRunCtx, raw: string): { readonly declarations
 }
 
 function scanQueries(ctx: GateRunCtx, raw: string): void {
-  const querySeen = new Map<string, number>();
+  const querySeen = new Set<string>();
   const blanked = blankCssComments(raw);
   for (const [index, line] of blanked.split("\n").entries()) {
     if (!(line.trimStart().startsWith("@") && LINE_LENGTH_RE.test(line))) {
@@ -217,13 +282,12 @@ function scanQueries(ctx: GateRunCtx, raw: string): void {
     if (row === undefined) {
       ctx.report({ file: SHELL, line: index + 1, column: 0, token: text });
     } else {
-      querySeen.set(text, (querySeen.get(text) ?? 0) + 1);
+      querySeen.add(text);
     }
   }
   for (const row of STRUCTURAL_QUERIES) {
-    const actual = querySeen.get(row.text) ?? 0;
-    if (actual !== row.count) {
-      reportStale(ctx, { label: row.text, expected: row.count, actual, why: row.why });
+    if (!querySeen.has(row.text)) {
+      reportUnused(ctx, row.text, row.why);
     }
   }
 }

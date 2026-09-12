@@ -2,12 +2,19 @@
 // importing LibrarySurfaceShell/LibraryListLayout/createCollectionSurface) whose `.map()` callback OR
 // renderItem/renderRow prop returns interactive JSX (onClick/role/href) must root that JSX in
 // ListRow/LibraryRow/an allowlisted composite (a virtualized list's renderItem/renderRow is the same row
-// render as a `.map()` — scanning only the literal `.map()` form misses it). Both-ways ratchet: ALLOWLIST
-// is checked live (a stale entry reds) — see the file-level comment below.
+// render as a `.map()` — scanning only the literal `.map()` form misses it).
+//
+// NO EXEMPTION ARTIFACT (authority census C1, #1922; deleted 2026-09-12). This gate carried an
+// `ExemptionTable<RootRow>` of per-file legal composite roots plus a `finalize` stale arm that red an
+// unused row. The table had been EMPTY since it landed — every current LIST-surface row already roots in
+// ListRow/LibraryRow — so the stale arm was VACUOUS (it iterated nothing) and the ALLOWLIST lookup in
+// `visitFile` could never match. Both are gone, and with them the `begin`/`finalize` hooks, the
+// module-level `seenAllowlistEntries` accumulator and the real-tree anchor that existed only to keep the
+// vacuous arm off conformance's synthetic projects. A genuine future exemption is a central reviewed
+// grant, never a resurrected gate-local table.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionRow, ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import type { GateDescriptor } from "../contract/gate.ts";
 
 const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
 
@@ -16,21 +23,6 @@ const ALLOWED_ROOTS: ReadonlySet<string> = new Set(["ListRow", "LibraryRow"]);
 
 /** JSX prop names a virtualized/collection list uses to render each row — the non-`.map()` row form. */
 const RENDER_PROP_NAMES: ReadonlySet<string> = new Set(["renderItem", "renderRow"]);
-
-/** An allowlisted edge: the JSX `root` name legalized IN THAT FILE (DATA — the legacy
- *  `Record<string, string>` spelling made the root name and the reason indistinguishable), plus the
- *  mandatory `why`. */
-type RootRow = ExemptionRow & { readonly root: string };
-
-/** Current allowlisted edges (cited reason required) → the JSX root name each legalizes IN THAT FILE.
- *  Empty: every current LIST-surface `.map()` row already roots in ListRow/LibraryRow (verified — M5
- *  baseline). A stale entry (the file no longer contains that root) REDs via `finalize`, so this can't rot. */
-const ALLOWLIST: ExemptionTable<RootRow> = {};
-
-function rel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
-}
 
 /** A file "is" a LIST-region surface when it imports one of the three list-surface primitives. */
 function isListSurfaceFile(sf: SourceFile): boolean {
@@ -142,14 +134,6 @@ function jsxElementName(node: Node): string {
   return "";
 }
 
-const seenAllowlistEntries = new Set<string>();
-const GATE_SELF = "tooling/src/verify/gates/list-row-adoption.ts";
-
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
- *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
- *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
-const STALE_ARM_ANCHOR = "packages/ui/src/primitives/list-row/index.ts";
-
 export const gate: GateDescriptor = {
   name: "list-row-adoption",
   docRow: "client-architecture-lockdown.md §14/§16 G6",
@@ -159,17 +143,12 @@ export const gate: GateDescriptor = {
     "a LIST-region surface file's `.map()` callback or renderItem/renderRow prop returns interactive JSX " +
     "(onClick/role/href) not rooted in ListRow/LibraryRow/an allowlisted composite " +
     "(client-architecture-lockdown.md §14 — the row primitive law).",
-  fix: "root the row in @orb/ui's ListRow or the tier-2 LibraryRow (RowActionsMenu composes the row's actions); allowlist a genuine other composite in list-row-adoption.ts WITH a cited reason.",
+  fix: "root the row in @orb/ui's ListRow or the tier-2 LibraryRow (RowActionsMenu composes the row's actions).",
   scanRoot: (p) => p.includes("packages/client/src/") && p.endsWith(".tsx"),
-  begin: () => {
-    seenAllowlistEntries.clear();
-  },
   visitFile: (sf, ctx) => {
     if (!isListSurfaceFile(sf)) {
       return;
     }
-    const path = rel(sf.getFilePath());
-    const allowedRoot = ALLOWLIST[path]?.root;
     const checkCallback = (callback: Node): void => {
       const jsxRoot = mapReturnRoot(callback);
       if (jsxRoot === undefined || !isInteractiveJsx(jsxRoot)) {
@@ -177,10 +156,6 @@ export const gate: GateDescriptor = {
       }
       const rootName = jsxElementName(jsxRoot);
       if (ALLOWED_ROOTS.has(rootName)) {
-        return;
-      }
-      if (allowedRoot !== undefined && allowedRoot === rootName) {
-        seenAllowlistEntries.add(path);
         return;
       }
       ctx.report(jsxRoot, { token: rootName, offset: 0 });
@@ -197,21 +172,6 @@ export const gate: GateDescriptor = {
     }
     for (const callback of renderPropCallbacks(sf)) {
       checkCallback(callback);
-    }
-  },
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
-      return;
-    }
-    for (const [path, row] of Object.entries(ALLOWLIST)) {
-      if (!seenAllowlistEntries.has(path)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `stale ALLOWLIST entry — "${path}" no longer has a \`.map()\` row rooted in "${row.root}": delete the row in tooling/src/verify/gates/list-row-adoption.ts`,
-        });
-      }
     }
   },
   mustFlag: [
