@@ -168,7 +168,7 @@ tree tells you the moment a fix breaks a row.
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
 
-   **AUDIT STATE — 2026-09-11 evening. Waves 1-7 complete, 76 of 167 modules audited** (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
+   **AUDIT STATE — 2026-09-11 evening. Waves 1-8 complete, 100 of 167 modules audited** (wave 8's 25 = 24 fresh + 1 partial re-audit; `origin-server`'s §4.1 cuts and reachability probes are NOT covered and are wave 9's obvious start) (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
 
 | wave | subjects | verdict | narrowings |
 | - | - | - | - |
@@ -178,7 +178,14 @@ tree tells you the moment a fix breaks a row.
 | 4 | raw-CSS / token ×9 | **all nine REFUTED** | 31 cuts → 19 enforced / **10 unenforced (32%)** / 2 unfalsifiable / **0 mutually redundant (MEASURED)** |
 | 5 | `ordinary-visitors` ×15 | **13 REFUTED / 2 confirmed** | 94 cuts → naive 56 clean → **33 UNENFORCED (35%)**; naive over-reports by 41% |
 | 6 | `origin-client` ×12 | **all 12 REFUTED** | 59 cuts → naive 29 clean → **25 UNENFORCED (42%)**; 1 mutually redundant, 3 unfalsifiable |
+| 8 | `home-server` 11 + `origin-server` 14 = **25** | **24 REFUTED / 1 partial re-audit** | 46 cuts → naive 19 clean (41%) → **11 UNENFORCED (24%)**, over-report 73%. **Best proof axes ever: 155 of 155 rows carry `count`, 14 of 14 identity arms discriminate, third answer REACHED in 7 of 8.** §5b.5 fails **25 of 25** (no FAMILY line, no POPULATION PORT, no legacy SHA) |
 | 7 | `home-client` ×14 | **13 REFUTED / 1 confirmed-with-repairs** | 85 cuts → naive 29 clean (34%) → **17 UNENFORCED (20%)**, 8 mutually redundant, 4 unfalsifiable. **Naive over-reports by 71%** — the widest gap, caused by declared PERF PREFILTERS that cut clean by design. **71 of 71 rows carry `count`; zero tautologies** |
+
+**AND A LATER WAVE SUPERSEDES AN EARLIER WAVE'S CUT TABLE.** Wave 1 recorded the tier-home-health population fence
+as UNENFORCED; wave 4 read the same fence and did not list it as a narrowing at all, because no discriminating
+fixture can EXIST (the keys are hardcoded under one package). A fix lane working the old cell would have invented a
+row that discriminates nothing. **Re-cut every cell before building against it; when two waves disagree, prefer the
+one whose reasoning names a mechanism.** Paid on #1993.
 
 **EVERY WAVE'S NAIVE UNENFORCED FIGURE IS AN UPPER BOUND, and waves 4–6 were never corrected for the prefilter
 shape wave 7 found.** Read 32% / 35% / 42% as naive; wave 7's own naive 34% classified down to 20%. Do not compare

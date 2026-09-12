@@ -168,6 +168,20 @@ family.
      resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
      path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
 
+   **A LATER WAVE'S VERDICT SUPERSEDES AN EARLIER WAVE'S CUT TABLE — check the most recent one before building a
+   row from an old cell (measured 2026-09-11; two audits of the same corpus disagreed and the LATER one was right).**
+   Wave 1 recorded the tier-home-health population fence as UNENFORCED, and the cut genuinely does come back clean.
+   Wave 4 read the same fence and did not list it as a narrowing at all, because `SANCTIONED_HOMES`' keys are
+   hardcoded under one package — **no fixture placed under an added population root can ever land on one, so no
+   discriminating fixture EXISTS.** That is a structural NON-narrowing, not a gap: §4.1's fourth outcome
+   (UNFALSIFIABLE, documented rather than faked), reached by a later reader with more context.
+
+   **A fix lane working from the older table would have invented a row that discriminates nothing** — which this
+   section already calls worse than recording the gap, because it converts an honest limit into a false pin. As the
+   method rules accumulate (cut direction, the prefilter shape, the reusable UNREADABLE falsifier), **an old cell can
+   dissolve rather than merely shrink.** Re-cut every cell yourself before building against it, and when two waves
+   disagree, read BOTH and prefer the one whose reasoning names a mechanism.
+
    **A DECLARED PERFORMANCE PREFILTER CUTS CLEAN BY DESIGN — counting it is counting HONESTY as a defect
    (measured 2026-09-11, and it is the single largest source of false UNENFORCED cells).** Where a candidate-name
    prefilter sits in FRONT of an identity reader, cutting the whole prefilter comes back CLEAN, because the identity
