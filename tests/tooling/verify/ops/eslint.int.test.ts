@@ -199,11 +199,14 @@ test("the discovery payload is MEASURED against the ceilings, and the number is 
 // routed as a correctness fix; every one was actually `Definition for rule … was not found` — an
 // unknown-rule REFERENCE inside a bundled `eslint-disable` comment that React ships in its own source.
 //
-// THE CAUSE IS ONE MISSING PREFIX. `eslint.config.js` ignores `".cache/**"` while its siblings in the same
-// array are `"**/node_modules/**"` and `"**/dist/**"`. Without the `**/` the pattern is anchored at the
-// config's directory, so it covers the ROOT cache and misses every nested one — and the row's own comment
-// states the intent it failed to implement: "Local tool caches are derived scratch artifacts, never
-// authored inputs."
+// THE CAUSE WAS ONE MISSING PREFIX. `eslint.config.js` ignored `".cache/**"` while its siblings in the same
+// array were `"**/node_modules/**"` and `"**/dist/**"`. Without the `**/` the pattern is anchored at the
+// config's directory, so it covered the ROOT cache and missed every nested one — and the row's own comment
+// stated the intent it failed to implement: "Local tool caches are derived scratch artifacts, never
+// authored inputs." The config carries `"**/.cache/**"` since `c57e3c9b9`; this paragraph is the incident,
+// not the tree, and the assertions below are what keep the tree that way. THE COUPLED SITE the same change
+// missed is `gates/eslint-grant-liveness.ts`, whose RATIFIED row matches that value BYTE-FOR-BYTE and sat
+// stale for a day (#2213, re-pointed 2026-09-12 with a `mustFlag` row carrying the old spelling forever).
 //
 // WHY THIS IS PINNED AGAINST THE REAL CONFIG rather than a synthetic one: the defect was IN the real
 // config's pattern, and a fixture would have reproduced whatever pattern the fixture author wrote. The

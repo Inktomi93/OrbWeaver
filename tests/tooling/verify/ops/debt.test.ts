@@ -4,10 +4,13 @@
 // printing a short listing that reads clean. Every arm here is a planted control for that promise:
 // an undeclared ledger on disk REDs, a declared row whose file is gone REDs, a non-repo root REDs, and
 // the REAL tree reconciles to zero (which is what keeps the table honest as new ratchets land).
+
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { discoverBaselineFiles } from "@orb/tooling/_shared/ratchet-rows";
 import type { Ledger } from "@orb/tooling/verify";
-import { LEDGERS, readLedgerRows, reconcileLedgers, runDebtWalk } from "@orb/tooling/verify";
+import { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } from "@orb/tooling/verify";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -121,5 +124,95 @@ describe("debt walk — the operator command", () => {
   test("a --gate filter that matches no ledger is MISUSE, not an empty listing", async ({ runCli }) => {
     const result = await runCli("verify", ["debt", "--gate", "zz-no-such-gate"]);
     expect(result.code).toBe(EXIT.misuse);
+  });
+});
+
+// ── #2222: THE LIVE HALF'S REFUSAL NAMES ITS OWN REASON ───────────────────────────────────────────────
+//
+// THE DEFECT. `liveAdmitted` was `… | null`, and FOUR distinct causes collapsed into one bare `null`: no
+// artifact, an unparseable artifact, a run that DIED (#410), and a run that finished but is a NON-VERDICT
+// (#2167). The printer rendered every one of them as the same generic disjunction — "missing, malformed, or
+// from a run that did not finish" — which did not even LIST the non-verdict case. An operator could not
+// tell "run `pnpm check:structure`" from "your last run was the gate self-test's own child, and its
+// admitted counts are about planted props". A refusal nobody can act on is the same disease as a zero
+// nobody can trust, which is the whole reason this walk refuses instead of printing zeros.
+//
+// The green arm is the negative control: a COMPLETE verdict is consumed and carries its run id, so a build
+// that refused everything would pass every red arm below and fail this one.
+
+/** One `reports/check-structure.json` at the published path, carrying exactly the manifest under test. */
+function plantStructureReport(root: string, run: Record<string, unknown> | undefined, gates: readonly Record<string, unknown>[] = []): void {
+  mkdirSync(join(root, "reports"), { recursive: true });
+  writeFileSync(join(root, "reports", "check-structure.json"), JSON.stringify(run === undefined ? { gates } : { run, gates }));
+}
+
+const COMPLETE_RUN = { runId: "planted-1", complete: true, verdict: "verdict", nonVerdictReason: null, incompleteReasons: [] };
+
+describe("#2222 — the live admission refuses with the reason, never a generic disjunction", () => {
+  test("GREEN — a COMPLETE verdict is consumed, and its per-gate admissions come back with the run id", async ({ plantedTree }) => {
+    const root = await plantedTree({});
+    plantStructureReport(root, COMPLETE_RUN, [{ name: "suppressions", scan: { admitted: 7 } }]);
+
+    const live = liveAdmitted(root);
+    expect(live.ok).toBe(true);
+    expect(live.ok && live.runId).toBe("planted-1");
+    expect(live.ok && live.byOwner.get("suppressions")).toBe(7);
+  });
+
+  test("NO ARTIFACT — the reason names the path and the command that makes one", async ({ plantedTree }) => {
+    const root = await plantedTree({});
+    const live = liveAdmitted(root);
+    expect(live.ok).toBe(false);
+    expect(live.ok ? "" : live.why).toContain("reports/check-structure.json");
+    expect(live.ok ? "" : live.why).toContain("pnpm check:structure");
+  });
+
+  test("UNPARSEABLE — the reason says so and carries the parser's own message", async ({ plantedTree }) => {
+    const root = await plantedTree({});
+    mkdirSync(join(root, "reports"), { recursive: true });
+    writeFileSync(join(root, "reports", "check-structure.json"), "{ not json");
+
+    const live = liveAdmitted(root);
+    expect(live.ok).toBe(false);
+    expect(live.ok ? "" : live.why).toContain("UNPARSEABLE");
+  });
+
+  test("THE RUN DIED — the reason is the #410 in-flight stub, naming the run", async ({ plantedTree }) => {
+    const root = await plantedTree({});
+    plantStructureReport(root, { ...COMPLETE_RUN, complete: false });
+
+    const live = liveAdmitted(root);
+    expect(live.ok).toBe(false);
+    expect(live.ok ? "" : live.why).toContain("NEVER FINISHED");
+    expect(live.ok ? "" : live.why).toContain("planted-1");
+  });
+
+  test("THE RUN DID NOT RECONCILE — the reason quotes the manifest's own incompleteReasons", async ({ plantedTree }) => {
+    const root = await plantedTree({});
+    plantStructureReport(root, { ...COMPLETE_RUN, incompleteReasons: ["ran 4/5 active gate(s)"] });
+
+    const live = liveAdmitted(root);
+    expect(live.ok).toBe(false);
+    expect(live.ok ? "" : live.why).toContain("did NOT RECONCILE");
+    expect(live.ok ? "" : live.why).toContain("ran 4/5 active gate(s)");
+  });
+
+  test("A NON-VERDICT — the case the old message did not even list — quotes the run's own words", async ({ plantedTree }) => {
+    const root = await plantedTree({});
+    plantStructureReport(root, { ...COMPLETE_RUN, verdict: "non-verdict", nonVerdictReason: "FIXTURE MODE (ORB_GATE_FIXTURES=1)" });
+
+    const live = liveAdmitted(root);
+    expect(live.ok).toBe(false);
+    expect(live.ok ? "" : live.why).toContain("NON-VERDICT");
+    expect(live.ok ? "" : live.why).toContain("FIXTURE MODE (ORB_GATE_FIXTURES=1)");
+  });
+
+  test("A PRE-#410 ARTIFACT carries no manifest at all — readable, just older, and it says which", async ({ plantedTree }) => {
+    const root = await plantedTree({});
+    plantStructureReport(root, undefined, [{ name: "suppressions", scan: { admitted: 3 } }]);
+
+    const live = liveAdmitted(root);
+    expect(live.ok).toBe(true);
+    expect(live.ok && live.runId).toBe("(pre-#410 artifact)");
   });
 });

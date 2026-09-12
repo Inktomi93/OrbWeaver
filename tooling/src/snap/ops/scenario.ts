@@ -1,8 +1,9 @@
 // --scenario: sequential checkpoints in ONE shared browser lifetime, each with its own evidence window.
 import type { Page } from "@playwright/test";
+import { artifactFilePath, artifactKey } from "../../_shared/artifact-naming.ts";
 import { artifactDir } from "../../_shared/artifact-out.ts";
 import { evidenceWindowId } from "../../_shared/artifact-scope.ts";
-import { artifactFilePath, artifactKey, print } from "../../_shared/artifacts.ts";
+import { print } from "../../_shared/artifacts.ts";
 import type { CapturedRequest } from "../../_shared/browser-capture.ts";
 import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";

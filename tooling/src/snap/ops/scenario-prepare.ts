@@ -5,7 +5,7 @@ import { basename, extname, isAbsolute, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
-import { routeSlug } from "../../_shared/artifacts.ts";
+import { routeSlug } from "../../_shared/artifact-naming.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { PreparedScenario, ScenarioCheckpoint, ScenarioPreparation, ScenarioSpec } from "../contract/scenario.ts";
 import { scenarioPresetFile } from "../contract/scenario-presets.ts";

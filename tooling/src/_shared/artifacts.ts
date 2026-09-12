@@ -7,7 +7,7 @@
 // mechanism. The `--out`-keyed FILING doors that ride on it live in ./artifact-out.ts (one layer up,
 // so this module never imports back down).
 import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { emitLine } from "./log.ts";
 import type { PrunedRun, RetentionCandidate } from "./run-retention.ts";
@@ -239,9 +239,24 @@ export interface RunAlias {
   readonly target: string;
 }
 
+/** FINISH a run that completed and deliberately published NOTHING (#2221). The in-flight marker means
+ *  "a process is writing here", never "this slot became `latest`" — but `publishRunSlot` was its only
+ *  unlinker, so every run that finishes WITHOUT publishing left one behind and `abandonedRuns` then reported
+ *  it as a run that DIED. Measured on main 2026-09-12: 17 of 32 structure slots carried a marker and 13 of
+ *  those were FINISHED fixture-mode runs, so `pnpm check:show` refused the real pointer with "that run never
+ *  finished" about a run that finished perfectly and only declined to speak for the real tree (#2167).
+ *
+ *  Two callers by design: a NON-VERDICT run and a GATE-SCOPED run. Both are complete; neither may become
+ *  `latest`. The empty `.published` manifest is the honest record — the retention reader asks "does any
+ *  pointer still resolve here?" and an empty list is the correct NO. */
+export function closeRunSlot(root: string, slot: RunSlot): void {
+  publishRunSlot(root, slot, []);
+}
+
 /** Finish the run: publish every `latest` alias atomically, drop the in-flight marker, and prune the ring.
  *  Called ONLY when the artifacts in the slot are complete — that is what makes the published path safe to
- *  read without knowing whose run wrote it. */
+ *  read without knowing whose run wrote it. A run that finishes and publishes NOTHING calls `closeRunSlot`
+ *  instead: dropping the marker is what says "no process is writing here", and it is not optional. */
 export function publishRunSlot(root: string, slot: RunSlot, aliases: readonly RunAlias[]): readonly string[] {
   // @orb-waive caught-failure-ownership(catch): the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition "this slot is no longer in flight" holds either way. Ends if publishing twice must become an error.
   try {
@@ -385,57 +400,8 @@ export function abandonedRuns(root: string, instrument: string): readonly Abando
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 }
 
-const LEADING_SLASH_RE = /^\//u;
-const NON_SLUG_RE = /[^a-zA-Z0-9_-]+/gu;
-
-/** Default artifact basename for a route: `/chats/abc?x=1` → `chats_abc_x_1`, `/` → `root`. */
-export function routeSlug(route: string): string {
-  return route.replace(LEADING_SLASH_RE, "").replace(NON_SLUG_RE, "_") || "root";
-}
-
-// The extensions a probe artifact BASE may already carry. `--out shot.png` names the same artifact as
-// `--out shot`, and its JSON manifest sibling is `shot.json`, never `shot.png.json`.
-const ARTIFACT_EXT_RE = /\.(?:png|json|zip|har|webm|cpuprofile)$/iu;
-// `./x` and `../x` are the shell's own spelling of "a path relative to where I am standing".
-const EXPLICIT_RELATIVE_RE = /^\.\.?\//u;
-
-/** Does this `--out` value name a filesystem PATH the caller chose, rather than an artifact BASE NAME to
- *  be filed under `reports/<kind>/`? Absolute and explicitly-relative (`./`, `../`) values are paths; a
- *  bare name — including one with inner directories (`chat/room`) — stays inside the artifact dir. */
-export function isOutPath(out: string): boolean {
-  return isAbsolute(out) || EXPLICIT_RELATIVE_RE.test(out);
-}
-
-/** The final file path for an `--out` value + the extension this artifact is written with. PURE (the
- *  caller supplies the already-created `reports/<kind>/` dir) so the whole naming contract is unit-testable.
- *
- *  THE DEFECT THIS EXISTS FOR (2026-08-17): every call site spelled `join(await artifactDir(k), name + ext)`
- *  by hand, so `--out /abs/shot.png` — a path a lane pasted from its own scratch dir — was JOINED UNDER the
- *  reports dir and re-suffixed: `reports/snaps/abs/shot.png.png`. The run still exited 0, so the caller
- *  believed the file it named existed. A refusal would have been honest; landing where NAMED is better. */
-export function artifactFilePath(baseDir: string, out: string, ext: string): string {
-  const target = isOutPath(out) ? resolve(process.cwd(), out) : (baseAnchoredOut(baseDir, out) ?? join(baseDir, out));
-  return `${target.replace(ARTIFACT_EXT_RE, "")}${ext}`;
-}
-
-/** A bare-relative `--out` ALREADY spelled from the repo root INTO this kind's dir (`reports/snaps/foo.png`)
- *  names the very file the prefixing would produce — so its `reports/<kind>/` prefix is STRIPPED instead of
- *  being prefixed AGAIN into `reports/snaps/reports/snaps/foo.png` (#209, 2026-08-18; a lane pasted back the
- *  path snap itself had just printed). The check is a prefix strip rather than a `resolve(baseDir, "..", "..")`
- *  because since #1164 `baseDir` may be a RUN SLOT (`reports/runs/snap/<runId>/snaps`), where two levels up is
- *  not the repo root and the old form silently stopped recognizing the very path snap prints. It stays PURE —
- *  no `process.cwd()`. A bare name that lands anywhere else (`home/tiles`, another kind's dir) is still an
- *  artifact BASE and keeps the prefix. */
-function baseAnchoredOut(baseDir: string, out: string): string | null {
-  const prefix = `reports/${basename(baseDir)}/`;
-  const spelled = out.replaceAll("\\", "/");
-  return spelled.startsWith(prefix) ? join(baseDir, spelled.slice(prefix.length)) : null;
-}
-
-/** The `reports/<kind>/` KEY for an `--out` value: identity for a bare name, and the sanitized basename
- *  for a path-shaped one. Kind-dir siblings (traces, HARs, baselines) are keyed BY NAME and stay in their
- *  own family — routing the shot to `/tmp/x.png` must not scatter a trace into `/tmp`, nor re-create the
- *  double-join inside `reports/traces/`. */
-export function artifactKey(out: string): string {
-  return routeSlug(basename(out).replace(ARTIFACT_EXT_RE, ""));
-}
+// THE `--out` NAMING CONTRACT MOVED OUT (#2242) to ./artifact-naming.ts when this module crossed the
+// 450-line cap — the same shape as the #1029 slot machinery's own split of retention into
+// ./run-retention.ts. It is NOT re-exported here: biome's `lint/performance/noBarrelFile` forbids a value
+// re-export, so the eleven callers import the new module directly and this file keeps exactly the
+// capability it is named for (`PrunedRun` below survives only because a TYPE-only re-export is allowed).

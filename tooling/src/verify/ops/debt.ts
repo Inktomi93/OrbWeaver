@@ -40,7 +40,7 @@
  *     A row whose first-appearance commit cannot be resolved prints `age n/a`, never a guess.
  */
 import { existsSync, readFileSync } from "node:fs";
-import { print, reportsPath } from "@orb/tooling/_shared/artifacts";
+import { print, reportsPath, reportsRelPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { warn } from "@orb/tooling/_shared/log";
@@ -110,6 +110,8 @@ interface StructureReportView {
     readonly incompleteReasons?: readonly string[];
     /** #2167 — absent in older artifacts, which predate the axis and are judged on `complete` alone. */
     readonly verdict?: "verdict" | "non-verdict";
+    /** The run's OWN words for why it is not a verdict — printed verbatim rather than paraphrased (#2222). */
+    readonly nonVerdictReason?: string | null;
   };
   readonly gates?: readonly { readonly name: string; readonly scan?: GateScanView }[];
 }
@@ -144,34 +146,66 @@ export function readLedgerRows(root: string, ledger: Ledger): readonly RatchetRo
   return [...readRatchetLedger(root, ledger.rel).rows].sort((a, b) => b.count - a.count || a.subject.localeCompare(b.subject));
 }
 
-/** The per-gate LIVE admission from the single-pass artifact, or null when there is no consumable one.
- *  Null is printed as "unavailable" WITH its reason — never as zeros. */
-function liveAdmitted(root: string): { readonly runId: string; readonly byOwner: ReadonlyMap<string, number> } | null {
-  const path = reportsPath(root, STRUCTURE_REPORT);
-  if (!existsSync(path)) {
-    return null;
+/** The live half: either the per-gate admissions, or the ONE SENTENCE saying why there are none (#2222).
+ *
+ *  It used to be `… | null`, and the four causes — no artifact, unparseable, the run DIED, the run is a
+ *  NON-VERDICT — collapsed into one bare `null` the printer rendered as a generic disjunction ("missing,
+ *  malformed, or from a run that did not finish") that did not even LIST the non-verdict case. A refusal
+ *  nobody can act on is the same disease as a zero nobody can trust: the operator could not tell "run
+ *  check:structure" from "your last run was the gate self-test's own child". Each arm now carries its own
+ *  reason, and the non-verdict arm quotes the run's own words verbatim. */
+export type LiveAdmission =
+  | { readonly ok: true; readonly runId: string; readonly byOwner: ReadonlyMap<string, number> }
+  | { readonly ok: false; readonly why: string };
+
+/** The manifest's own reasons this artifact cannot be read as a live reading, in the order a reader cares
+ *  about: DIED, did not reconcile, is not about the real tree. Null when the run may be consumed. Split out
+ *  of `liveAdmitted` because three refusals plus two I/O failures is one branch over the complexity cap —
+ *  and because these three are the manifest's question while the other two are the file's. */
+function manifestRefusal(run: NonNullable<StructureReportView["run"]>): string | null {
+  if (!run.complete) {
+    // #410: an unfinished run is not a verdict at any exit code.
+    return `run ${run.runId} NEVER FINISHED — this is the in-flight stub (#410); it was killed, OOM-aborted or timed out. Re-run \`pnpm check:structure\`.`;
   }
-  let report: StructureReportView;
-  // @orb-waive caught-failure-ownership(catch): returns null, which the doc comment above says is printed as "unavailable" WITH its reason — never as zeros. Ends if a caller starts treating null as zero admissions.
-  try {
-    report = JSON.parse(readFileSync(path, "utf8")) as StructureReportView;
-  } catch {
-    return null;
+  if ((run.incompleteReasons ?? []).length > 0) {
+    return `run ${run.runId} did NOT RECONCILE (#410) — ${(run.incompleteReasons ?? []).join("; ")}`;
   }
-  const run = report.run;
-  if (run !== undefined && (!run.complete || (run.incompleteReasons ?? []).length > 0)) {
-    return null; // #410: an unfinished run is not a verdict at any exit code
-  }
-  if (run?.verdict === "non-verdict") {
+  if (run.verdict === "non-verdict") {
     // #2167: a fixture-mode, contaminated or tombstoned run FINISHED — its admitted counts are real numbers
     // about a tree that is not this one. Read as live debt they would silently retarget a burn-down.
-    return null;
+    return `run ${run.runId} is a NON-VERDICT (#2167) — ${run.nonVerdictReason ?? "no reason recorded"}`;
+  }
+  return null;
+}
+
+export function liveAdmitted(root: string): LiveAdmission {
+  const path = reportsPath(root, STRUCTURE_REPORT);
+  if (!existsSync(path)) {
+    return {
+      ok: false,
+      why: `no ${reportsRelPath(STRUCTURE_REPORT)} — nothing has published a structure verdict in this checkout. Run \`pnpm check:structure\`.`,
+    };
+  }
+  let report: StructureReportView;
+  // @orb-waive caught-failure-ownership(catch): the parse failure IS the answer this reader returns — a `{ ok: false }` carrying the unreadable-artifact reason, printed verbatim beside every ledger. Ends if a caller starts treating an unparseable artifact as zero admissions.
+  try {
+    report = JSON.parse(readFileSync(path, "utf8")) as StructureReportView;
+  } catch (error) {
+    return {
+      ok: false,
+      why: `${reportsRelPath(STRUCTURE_REPORT)} is UNPARSEABLE — ${error instanceof Error ? error.message : String(error)}. Re-run \`pnpm check:structure\`.`,
+    };
+  }
+  const run = report.run;
+  const refusal = run === undefined ? null : manifestRefusal(run);
+  if (refusal !== null) {
+    return { ok: false, why: refusal };
   }
   const byOwner = new Map<string, number>();
   for (const gate of report.gates ?? []) {
     byOwner.set(gate.name, gate.scan?.admitted ?? 0);
   }
-  return { runId: run?.runId ?? "(pre-#410 artifact)", byOwner };
+  return { ok: true, runId: run?.runId ?? "(pre-#410 artifact)", byOwner };
 }
 
 /** The commit date a row's subject first appeared in its ledger (`git log -S`, oldest match), or null
@@ -245,9 +279,9 @@ function rowLine(root: string, ledger: Ledger, row: RatchetRow, argv: DebtArgv):
  * admitted by ratchet baselines" line counts only the ones that do. A `live: 0` beside a ledger that still
  * HAS rows is therefore AMBIGUOUS, and this says so with both readings instead of printing the reassuring one.
  */
-function liveLine(ledger: Ledger, rowCount: number, live: ReturnType<typeof liveAdmitted>): string {
-  if (live === null) {
-    return "unavailable — no consumable reports/check-structure.json (run `pnpm check:structure`)";
+function liveLine(ledger: Ledger, rowCount: number, live: LiveAdmission): string {
+  if (!live.ok) {
+    return `unavailable — ${live.why}`;
   }
   const admitted = live.byOwner.get(ledger.owner);
   if (admitted === undefined) {
@@ -270,7 +304,7 @@ interface LedgerTotals {
  *  board row can claim — and the RATIFIED rows are listed separately below it, under a header that says
  *  they are not backlog. A ratified row printed inside the burnable list is the exact misreading the
  *  classification exists to end ("a glut of backlog"), so the two lists never merge. */
-function printLedger(root: string, ledger: Ledger, argv: DebtArgv, live: ReturnType<typeof liveAdmitted>): LedgerTotals {
+function printLedger(root: string, ledger: Ledger, argv: DebtArgv, live: LiveAdmission): LedgerTotals {
   const rows = readLedgerRows(root, ledger);
   const debt = rows.reduce((n, r) => n + r.debt, 0);
   const ratified = rows.reduce((n, r) => n + r.ratified, 0);
@@ -327,9 +361,9 @@ export function runDebtWalk(root: string, argv: readonly string[]): number {
   const live = liveAdmitted(root);
   print("DEBT WALK — every committed ratchet baseline's ADMITTED rows, SPLIT into burnable DEBT and ruled-permanent RATIFIED (#569)");
   print(
-    live === null
-      ? "live admission: UNAVAILABLE — no consumable reports/check-structure.json (missing, malformed, or from a run that did not finish). Budgets below are the COMMITTED allowance; run `pnpm check:structure` for the live half."
-      : `live admission: reports/check-structure.json, run ${live.runId}`,
+    live.ok
+      ? `live admission: ${reportsRelPath(STRUCTURE_REPORT)}, run ${live.runId}`
+      : `live admission: UNAVAILABLE — ${live.why} Budgets below are the COMMITTED allowance, never a live reading.`,
   );
   let rows = 0;
   let debt = 0;
