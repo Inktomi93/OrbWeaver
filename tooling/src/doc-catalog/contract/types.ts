@@ -64,6 +64,37 @@ export interface State {
   readonly allowed?: DebtPaths;
 }
 
+/** Re-attestation's inputs (#1996) — every tree, git and clock fact as DATA, so the verb's refusals are
+ *  provable without a repository. `selection` is the caller's literal argv: the verb has no default and
+ *  no pattern expansion, because a receipt asserts a human read. */
+export interface AttestInput {
+  readonly config: LaneConfig;
+  readonly docs: readonly Doc[];
+  readonly receipts: readonly Receipt[];
+  readonly selection: readonly string[];
+  readonly headCommit: string | null;
+  /** YYYY-MM-DD, injected rather than read from a clock inside the plan. */
+  readonly today: string;
+  /** Selected documents whose worktree bytes are not in the Git index — a receipt written over one of
+   *  these would assert a pair that does not coexist. */
+  readonly unstagedDocuments: ReadonlySet<string>;
+}
+
+/** A named reason re-attestation did not happen. `misuse` = the SELECTION was not an explicit document
+ *  list (exit 3); `violation` = a named row cannot be re-attested (exit 1). Either way nothing is written. */
+export interface AttestRefusal {
+  readonly kind: "misuse" | "violation";
+  readonly message: string;
+}
+
+/** What re-attestation WOULD write, what it re-attested, and every refusal. `writes` is empty whenever
+ *  `refusals` is not — the write set is all-or-nothing. */
+export interface AttestPlan {
+  readonly writes: readonly { readonly path: string; readonly receipt: Receipt }[];
+  readonly attested: readonly string[];
+  readonly refusals: readonly AttestRefusal[];
+}
+
 /** One HAND-AUTHORED catalog artifact's bytes on disk beside its canonical (biome-formatted) form (#968).
  *  `current !== canonical` is exactly "the repo's own formatter would rewrite this file" — the signal
  *  `check:doc-catalog` used to lack, which is how a receipt could be attested in a shape `lint:biome`

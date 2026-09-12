@@ -92,6 +92,30 @@ test("one corpus, two contracts, one roster — and every view derives from it",
   await expect(loadPolicyCorpus(scratch)).rejects.toThrow(`gate module ${GATES}/alpha-legacy.ts must export exactly one \`gate\` created by defineGate`);
 });
 
+// #1983's structural half. The legacy views return a subject that SHRINKS with every #1584 conversion and
+// ends EMPTY at the cutover, and an assertion over an empty subject reads as a pass — the false clean this
+// loader would otherwise hand every `tests/tooling` census, on a tier (`--full`-only, #1842) nobody runs on
+// a cadence. Both directions are here: a corpus with a legacy module answers normally (the test above), and
+// a corpus WITHOUT one refuses by name instead of returning `[]`.
+test("the legacy views REFUSE an empty legacy roster rather than hand back a vacuous subject", async ({ repoRoot, scratch }) => {
+  writeModules(scratch, {
+    "only-final.ts": finalSource(repoRoot, "only-final"),
+    "nothing-here.ts": "export const helper = 1;\n",
+  });
+  const corpus = await loadMixedGateCorpus(scratch);
+  // The mixed view is the one that legitimately reports an empty legacy half — it says so in its shape.
+  expect(corpus.legacy).toEqual([]);
+  expect(corpus.final.map((g) => g.id)).toEqual(["only-final"]);
+
+  for (const [view, call] of [
+    ["loadGates", async (): Promise<unknown> => loadGates(scratch)],
+    ["loadGateCorpus", async (): Promise<unknown> => loadGateCorpus(scratch)],
+  ] as const) {
+    await expect(call(), view).rejects.toThrow(`${view}: the LEGACY roster is EMPTY (0 legacy · 1 final · 1 unregistered across 2 corpus modules)`);
+    await expect(call(), view).rejects.toThrow("would read as a pass");
+  }
+});
+
 test("an UNBRANDED lookalike — the final shape copied through a spread — refuses loudly with the path and the reason", async ({ repoRoot, scratch }) => {
   // The brand is a WeakSet membership on the object `defineGate` returned; `{ ...x }` is a new object. This is the
   // exact hole "classify by property name" would fall through: the object has `id`/`family`/`authority`/`create`.

@@ -41,6 +41,27 @@ function stubPnpm(bin: string): void {
     join(bin, "pnpm"),
     `#!/usr/bin/env bash
 printf '%s|%s\n' "$PWD" "$*" >> "$HOOK_TEST_LOG"
+# pnpm's own install/prepare reporting rides STDOUT, above the wrapped command's output. Captured
+# verbatim from this repo on 2026-09-12; see the "wrapper preamble" tests.
+wrapper_preamble() {
+  printf 'Scope: all 9 workspace projects\n'
+  printf 'Lockfile is up to date, resolution step is skipped\n'
+  printf '. prepare: lefthook install\n'
+  printf '. prepare: Done\n'
+  printf 'Done in 1.6s using pnpm v11.15.1\n'
+}
+if [[ "$*" == *"exec biome"* ]] && [ "\${HOOK_TEST_MODE:-}" = "biome-preamble-finding" ]; then
+  wrapper_preamble
+  printf 'Checked 1 file in 4ms. No fixes applied.\nFound 1 error.\n'
+  printf '%s:4:38 lint/suspicious/noDoubleEquals  FIXABLE  ━━━━━\n' "\${@: -1}" >&2
+  printf '  x Using == may be unsafe if you are relying on type coercion.\n' >&2
+  printf 'check ━━━━━\n\n  x Some errors were emitted while running checks.\n' >&2
+  exit 1
+fi
+if [[ "$*" == *"exec biome"* ]] && [ "\${HOOK_TEST_MODE:-}" = "biome-stdout-diagnostic" ]; then
+  printf '%s:4:38 lint/suspicious/noDoubleEquals  FIXABLE  ━━━━━\n' "\${@: -1}"
+  exit 1
+fi
 if [[ "$*" == *"exec biome"* ]] && [ "\${HOOK_TEST_MODE:-}" = "biome-tool-error" ]; then
   printf 'configuration file is malformed\n' >&2
   exit 1
@@ -53,12 +74,31 @@ if [[ "$*" == *"exec depcruise"* ]] && [ "\${HOOK_TEST_MODE:-}" = "dep-no-orphan
   printf '{"summary":{"violations":[{"from":"packages/client/src/source.ts","to":"","rule":{"name":"no-orphans","severity":"warn"}}],"ruleSetUsed":{"forbidden":[]}}}\n'
   exit 1
 fi
+if [[ "$*" == *"exec depcruise"* ]] && [ "\${HOOK_TEST_MODE:-}" = "dep-preamble-actionable" ]; then
+  wrapper_preamble
+  printf '{"summary":{"violations":[{"from":"packages/client/src/source.ts","to":"packages/server/src/index.ts","rule":{"name":"client-cake","severity":"error"}}],"ruleSetUsed":{"forbidden":[{"name":"client-cake","comment":"client cannot import server runtime"}]}}}\n'
+  exit 1
+fi
+if [[ "$*" == *"exec depcruise"* ]] && [ "\${HOOK_TEST_MODE:-}" = "dep-preamble-clean" ]; then
+  wrapper_preamble
+  printf '{"summary":{"violations":[],"ruleSetUsed":{"forbidden":[]}}}\n'
+  exit 0
+fi
 if [[ "$*" == *"exec depcruise"* ]] && [ "\${HOOK_TEST_MODE:-}" = "dep-actionable" ]; then
   printf '{"summary":{"violations":[{"from":"packages/client/src/source.ts","to":"packages/server/src/index.ts","rule":{"name":"client-cake","severity":"error"}}],"ruleSetUsed":{"forbidden":[{"name":"client-cake","comment":"client cannot import server runtime"}]}}}\n'
   exit 1
 fi
 if [[ "$*" == *"typecheck-plan"* ]]; then
   subject="\${@: -1}"
+  if [ "\${HOOK_TEST_MODE:-}" = "plan-preamble" ] || [ "\${HOOK_TEST_MODE:-}" = "plan-preamble-diagnostic" ]; then
+    wrapper_preamble
+    printf '{"mode":"primary","coverage":"advisory-primary-programs","programs":["tsconfig.tests-dom.json"],"subjects":[{"path":"%s","disposition":"selected","selectedPrograms":["tsconfig.tests-dom.json"]}]}\n' "$subject"
+    exit 0
+  fi
+  if [ "\${HOOK_TEST_MODE:-}" = "plan-preamble-only" ]; then
+    wrapper_preamble
+    exit 0
+  fi
   if [ "\${HOOK_TEST_MODE:-}" = "planner-failure" ]; then
     printf 'planner exploded\n' >&2
     exit 2
@@ -89,6 +129,10 @@ if [[ "$*" == *"typecheck-plan"* ]]; then
   fi
   printf '{"mode":"primary","coverage":"advisory-primary-programs","programs":["tsconfig.tests-dom.json"],"subjects":[{"path":"%s","disposition":"selected","selectedPrograms":["tsconfig.tests-dom.json"]}]}\n' "$subject"
   exit 0
+fi
+if [[ "$*" == *"scripts/ts7.cjs"* ]] && [ "\${HOOK_TEST_MODE:-}" = "plan-preamble-diagnostic" ]; then
+  printf 'tests/client/subject.dom.test.ts(3,9): error TS2322: Type string is not assignable to number.\n'
+  exit 1
 fi
 if [[ "$*" == *"scripts/ts7.cjs"* ]] && [ "\${HOOK_TEST_MODE:-}" = "consumer-diagnostic" ]; then
   printf 'tests/client/unchanged-consumer.ts(7,3): error TS2322: Type string is not assignable to number.\n'
@@ -453,6 +497,78 @@ test("planner failure and admission contention are visible non-verdicts", async 
       holder.kill("SIGTERM");
     }
   }
+});
+
+// The hook reads two MACHINE-READABLE streams — the typecheck planner's `--json` and dep-cruiser's
+// `--output-type json` — from children it launches through `pnpm exec`, and pnpm prints its OWN
+// install/prepare reporting on STDOUT above the wrapped command's output whenever it decides the store
+// needs verifying. Measured in this checkout on 2026-09-12: `Scope: all 9 workspace projects … .
+// prepare: lefthook install … Done in 1.6s using pnpm v11.15.1` landed above well-formed planner JSON,
+// `jq` refused the file, and the typecheck leg was SKIPPED behind a line that reads like noise. That is
+// a FAIL-OPEN in the one advisory every lane leans on, so each leg gets both directions here: the leg
+// must still FIRE under the preamble, and must still be SILENT under the preamble when the tree is
+// clean. The third arm is the refusal: a stream carrying preamble and NO payload must stay a loud
+// non-verdict, never a clean pass.
+test("a pnpm wrapper preamble above the JSON payload cannot skip the typecheck or dep-cruiser leg", ({ scratch, repoRoot }) => {
+  const checkout = plantCheckout(scratch);
+  const bin = join(scratch, "stub bin");
+  const runtime = join(scratch, "runtime");
+  stubPnpm(bin);
+  const hook = join(repoRoot, ".claude/hooks/biome-check.sh");
+  const file = join(checkout.worktree, "tests/client/subject.dom.test.ts");
+  const base = { hook, project: checkout.main, cwd: checkout.worktree, bin, runtime };
+
+  const cleanLog = join(scratch, "preamble-clean.log");
+  const clean = runHook({ ...base, file, log: cleanLog, mode: "plan-preamble" });
+  expect(clean.status).toBe(0);
+  expect(clean.stderr).toBe("");
+  expect(readFileSync(cleanLog, "utf8")).toContain("-p tsconfig.tests-dom.json");
+
+  const biteLog = join(scratch, "preamble-bite.log");
+  const bite = runHook({ ...base, file, log: biteLog, mode: "plan-preamble-diagnostic" });
+  expect(bite.status).toBe(2);
+  expect(bite.stderr).not.toContain("planner returned malformed output");
+  expect(bite.stderr).toContain("tests/client/subject.dom.test.ts(3,9): error TS2322");
+  expect(readFileSync(biteLog, "utf8")).toContain("-p tsconfig.tests-dom.json");
+
+  const noiseLog = join(scratch, "preamble-noise.log");
+  const noise = runHook({ ...base, file, log: noiseLog, mode: "plan-preamble-only" });
+  expect(noise.status).toBe(2);
+  expect(noise.stderr).toContain("checks without a verdict");
+  expect(noise.stderr).toContain("typecheck planner printed no JSON payload");
+  expect(noise.stderr).toContain("Done in 1.6s using pnpm v11.15.1");
+  expect(readFileSync(noiseLog, "utf8")).not.toContain("ts7.cjs");
+
+  const packageFile = join(checkout.worktree, "packages/client/src/source.ts");
+  mkdirSync(join(checkout.worktree, "packages/client/src"), { recursive: true });
+  writeFileSync(packageFile, "export {};\n");
+
+  const depBite = runHook({ ...base, file: packageFile, log: join(scratch, "preamble-dep-bite.log"), mode: "dep-preamble-actionable" });
+  expect(depBite.status).toBe(2);
+  expect(depBite.stderr).not.toContain("dep-cruiser returned malformed or empty JSON");
+  expect(depBite.stderr).toContain("dep-cruiser (imports)");
+  expect(depBite.stderr).toContain("client-cake");
+
+  const depClean = runHook({ ...base, file: packageFile, log: join(scratch, "preamble-dep-clean.log"), mode: "dep-preamble-clean" });
+  expect(depClean.status).toBe(0);
+  expect(depClean.stderr).toBe("");
+
+  // biome's concise reporter puts its DIAGNOSTICS on stderr and its counters on stdout, which is the
+  // stream pnpm's own reporting shares. The lint block therefore carries the diagnostic and none of the
+  // wrapper's chatter.
+  const lint = runHook({ ...base, file, log: join(scratch, "preamble-biome.log"), mode: "biome-preamble-finding" });
+  expect(lint.status).toBe(2);
+  expect(lint.stderr).toContain("biome (lint)");
+  expect(lint.stderr).toContain("lint/suspicious/noDoubleEquals");
+  expect(lint.stderr).not.toContain("Done in 1.6s using pnpm v11.15.1");
+  expect(lint.stderr).not.toContain("Scope: all 9 workspace projects");
+
+  // The other direction of the same assumption: a reporter that moves the diagnostics to stdout must be
+  // a NAMED non-verdict, never an empty lint block that reads like a clean file.
+  const moved = runHook({ ...base, file, log: join(scratch, "biome-stdout.log"), mode: "biome-stdout-diagnostic" });
+  expect(moved.status).toBe(2);
+  expect(moved.stderr).toContain("its reporter contract changed");
+  expect(moved.stderr).not.toContain("biome (lint)");
 });
 
 test("type diagnostics from unchanged consumers in the selected program are shown", ({ scratch, repoRoot }) => {

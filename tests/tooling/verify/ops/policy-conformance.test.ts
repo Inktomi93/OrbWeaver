@@ -1,12 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
+import process from "node:process";
 import { SyntaxKind } from "ts-morph";
 import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { POLICY_CONFORMANCE_TEMP_PREFIX, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SOURCE_FLAG: GatePolicyProof = {
@@ -268,7 +269,7 @@ test("tool failures, authority failures, bad receipts, and population mismatch f
 });
 
 test("resource proofs materialize exact content and clean temp roots after success and throw", () => {
-  const before = new Set(readdirSync(tmpdir()).filter((name) => name.startsWith("orb-policy-conformance-")));
+  const before = new Set(readdirSync(tmpdir()).filter((name) => name.startsWith(POLICY_CONFORMANCE_TEMP_PREFIX)));
   const roots: string[] = [];
   const observed: unknown[] = [];
   const resource = defineGate({
@@ -401,8 +402,89 @@ test("resource proofs materialize exact content and clean temp roots after succe
   });
   expect(verifyPolicyProofs([throwingResource])).toHaveLength(2);
   expect(roots.every((root) => !existsSync(root))).toBe(true);
-  const after = readdirSync(tmpdir()).filter((name) => name.startsWith("orb-policy-conformance-") && !before.has(name));
+  const after = readdirSync(tmpdir()).filter((name) => name.startsWith(POLICY_CONFORMANCE_TEMP_PREFIX) && !before.has(name));
   expect(after).toEqual([]);
+});
+
+// `tmpdir()` is a BOX-WIDE namespace: every checkout mkdtemps into it, so a census over
+// `orb-policy-conformance-*` answers a question about the box and not about this run. The leak assertion
+// above went red on 2026-09-12 against a SIBLING worktree's concurrent conformance, with a temp root that
+// was gone seconds later — an instrument reporting a defect from LOAD, which is the same lie as a false
+// clean with the sign flipped. The fix is that the root names its owning process; this pin holds BOTH
+// directions of that, and its first arm is the red-first proof (the old name carried no pid).
+test("the resource temp-root census is scoped to this process: a sibling's root cannot red it, a leak of our own still does", () => {
+  const ownPid = String(process.pid);
+  expect(POLICY_CONFORMANCE_TEMP_PREFIX).toContain(ownPid);
+
+  const observed: string[] = [];
+  const probe = defineGate({
+    id: "temp-root-identity",
+    family: "temp-root-identity",
+    authority: "hard",
+    severity: "error",
+    population: "@client",
+    analysis: "resource",
+    execution: "selected-files",
+    facts: [],
+    resources: [{ kind: "package-metadata", id: "root" }],
+    message: "resource content is planted",
+    create: (ctx) => ({
+      evaluate: () => {
+        const source = ctx.sourceFile("packages/client/src/provider.ts");
+        const root = source.getFilePath().slice(0, -"/packages/client/src/provider.ts".length);
+        observed.push(basename(root));
+        const fact = ctx.resources.packageMetadata("root");
+        if (fact.status !== "ready") {
+          throw new Error(fact.reason);
+        }
+        if (fact.value.name === "bite" && ctx.resourcePaths.length === 1) {
+          ctx.report.file(ctx.resourcePaths[0] as string);
+        }
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "resource",
+        files: {
+          "packages/client/src/provider.ts": "export const provider = true;\n",
+          "package.json": '{ "name": "bite", "private": true }\n',
+        },
+        why: "resource identity and content",
+      },
+    ],
+    mustPass: [
+      {
+        mode: "resource",
+        files: {
+          "packages/client/src/provider.ts": "export const provider = false;\n",
+          "package.json": '{ "name": "clean", "private": true }\n',
+        },
+        why: "the clean resource",
+      },
+    ],
+  });
+
+  // RED-FIRST: against the pre-fix source every root was `orb-policy-conformance-<random>`, so this fails
+  // on the name alone — no concurrency needed to reproduce the class.
+  expect(verifyPolicyProofs([probe])).toEqual([]);
+  expect(observed).toHaveLength(2);
+  expect(observed.every((name) => name.startsWith(`orb-policy-conformance-${ownPid}-`))).toBe(true);
+
+  // SILENT DIRECTION: a root that belongs to another process — exactly what a sibling worktree's
+  // concurrent `check:policy-conformance` leaves in `tmpdir()` while this suite runs — is invisible here.
+  const sibling = join(tmpdir(), `orb-policy-conformance-${String(process.pid + 1)}-sibling-run`);
+  // FIRING DIRECTION: a root of OUR OWN that never got cleaned must still be named by the same census.
+  const leaked = join(tmpdir(), `${POLICY_CONFORMANCE_TEMP_PREFIX}leaked-by-us`);
+  mkdirSync(sibling, { recursive: true });
+  mkdirSync(leaked, { recursive: true });
+  try {
+    const census = readdirSync(tmpdir()).filter((name) => name.startsWith(POLICY_CONFORMANCE_TEMP_PREFIX));
+    expect(census).toContain(basename(leaked));
+    expect(census).not.toContain(basename(sibling));
+  } finally {
+    rmSync(sibling, { recursive: true, force: true });
+    rmSync(leaked, { recursive: true, force: true });
+  }
 });
 
 function nativeResourcePolicy(): GatePolicy {

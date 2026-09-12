@@ -180,13 +180,35 @@ export async function loadMixedGateCorpus(root: string): Promise<MixedGateCorpus
   return { files, legacy, final, families: policyFamilyNames(final), unregistered, roster };
 }
 
+/** The legacy views hand back a SHRINKING subject: every #1584 conversion moves one module from `legacy` to
+ *  `final`, so a caller that derives an expected value from this list silently measures less each day and,
+ *  at the cutover, measures NOTHING — and an assertion over an empty subject reads as a PASS. That is the
+ *  #1983 class, four instances in one five-day window, unobservable because `tests/tooling/**` is
+ *  `--full`-only (#1842). So the vacuum is a REFUSAL here, at the one home, rather than a guard each caller
+ *  remembers to write (`gate-conformance.repo.int.test.ts:49` wrote one; `gate-ignore-grammar.repo.int.test.ts`
+ *  did not). A caller that genuinely tolerates an empty legacy half reads `loadMixedGateCorpus` and says so. */
+function assertLegacyRosterIsMeasurable(corpus: MixedGateCorpus, view: string): void {
+  if (corpus.legacy.length > 0) {
+    return;
+  }
+  throw new Error(
+    `${view}: the LEGACY roster is EMPTY (0 legacy · ${String(corpus.final.length)} final · ${String(corpus.unregistered.length)} unregistered across ${String(corpus.files.length)} corpus modules). ` +
+      "A census over it is not a measurement — every expectation derived from this list is vacuous and would read as a pass. " +
+      "Either the #1584 atomic cutover landed, in which case this caller has no subject left and retires with it, or the loader is broken. " +
+      "Use loadMixedGateCorpus when an empty legacy half is a legitimate answer.",
+  );
+}
+
 /** The LEGACY view: every caller that consumes descriptors keeps this shape and no longer throws on a final module. */
 export async function loadGateCorpus(root: string): Promise<GateCorpus> {
   const corpus = await loadMixedGateCorpus(root);
+  assertLegacyRosterIsMeasurable(corpus, "loadGateCorpus");
   return { gates: corpus.legacy, files: corpus.files, unregistered: corpus.unregistered };
 }
 
 /** The legacy descriptor list alone — conformance, the scoped run, the suites. */
 export async function loadGates(root: string): Promise<readonly GateDescriptor[]> {
-  return (await loadMixedGateCorpus(root)).legacy;
+  const corpus = await loadMixedGateCorpus(root);
+  assertLegacyRosterIsMeasurable(corpus, "loadGates");
+  return corpus.legacy;
 }

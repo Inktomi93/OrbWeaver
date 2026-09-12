@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { SourceFile } from "ts-morph";
@@ -22,7 +23,14 @@ refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/o
 
 const countFromProject = new Project({ useInMemoryFileSystem: true });
 const VIRTUAL_ROOT = "/orb-policy-conformance";
-const TEMP_PREFIX = "orb-policy-conformance-";
+/** The resource-proof temp root names its OWNING PROCESS. `tmpdir()` is a SHARED namespace — every
+ *  checkout on the box mkdtemps into the same directory — so a census over `orb-policy-conformance-*`
+ *  answers a question about the BOX, not about this run. Measured 2026-09-12: the leak assertion in
+ *  `tests/tooling/verify/ops/policy-conformance.test.ts` went red against a sibling worktree's concurrent
+ *  conformance run, with a temp root that was gone seconds later, then passed alone and on re-run — an
+ *  instrument reporting a defect from LOAD. With the pid in the name the census is scoped to the process
+ *  that owns the roots, which is the only process whose cleanup it can speak for. */
+export const POLICY_CONFORMANCE_TEMP_PREFIX = `orb-policy-conformance-${String(process.pid)}-`;
 /** The reader's own non-authored vocabulary (`ops/resource-reader.ts`), in path-segment form. */
 const NON_AUTHORED_SEGMENT_RE = /(?:^|\/)(?:node_modules|\.git|dist|\.cache)(?:\/|$)/u;
 
@@ -113,7 +121,7 @@ function runVirtualExample(policy: GatePolicy, proof: GatePolicyProof, shared: P
 }
 
 function runResourceExample(policy: GatePolicy, proof: GatePolicyProof): ExampleRun {
-  const root = mkdtempSync(join(tmpdir(), TEMP_PREFIX));
+  const root = mkdtempSync(join(tmpdir(), POLICY_CONFORMANCE_TEMP_PREFIX));
   try {
     const project = new Project({ skipAddingFilesFromTsConfig: true });
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {

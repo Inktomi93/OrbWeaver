@@ -80,12 +80,30 @@ ts7_checkers=$(profile_num hookTs7Checkers) || notice_and_exit "concurrency prof
 
 tempdir=$(mktemp -d) || notice_and_exit "temporary workspace could not be created"
 bout="$tempdir/biome.out"
+berr="$tempdir/biome.err"
 dout="$tempdir/depcruise.out"
+derr="$tempdir/depcruise.err"
+djson="$tempdir/depcruise.payload.json"
 tout="$tempdir/typecheck.out"
 diag="$tempdir/non-verdict.out"
-plan_out="$tempdir/plan.json"
+plan_out="$tempdir/plan.out"
+plan_err="$tempdir/plan.err"
+plan_json="$tempdir/plan.payload.json"
 program_out="$tempdir/program.out"
-trap 'rm -f "$bout" "$dout" "$tout" "$diag" "$plan_out" "$program_out"; rmdir "$tempdir" 2>/dev/null || true' EXIT
+trap 'rm -f "$bout" "$berr" "$dout" "$derr" "$djson" "$tout" "$diag" "$plan_out" "$plan_err" "$plan_json" "$program_out"; rmdir "$tempdir" 2>/dev/null || true' EXIT
+
+# Every machine-readable leg below is launched through `pnpm exec`, and pnpm prints its OWN
+# install/prepare reporting on STDOUT above the wrapped command's output whenever it decides the store
+# needs verifying. Measured 2026-09-12 in a lane worktree: `Scope: all 9 workspace projects … .
+# prepare$ lefthook install … Done in 1.6s using pnpm v11.15.1` arrived above well-formed planner JSON,
+# `jq` refused the whole capture, and the typecheck leg was SKIPPED behind a line that reads like noise —
+# a FAIL-OPEN in the advisory every lane leans on. So the hook parses the PAYLOAD, never the stream: the
+# payload of a `--json` child begins at the first line that opens a JSON object, and an absent payload is
+# a loud non-verdict, never a pass. stderr is captured separately for the same reason — a stream that is
+# parsed must carry only what the parsed tool wrote.
+json_payload() {
+  sed -n '/^{/,$p' -- "$1"
+}
 
 # This UID-private pool is the hook's shared admission control across checkouts. The predictable old
 # `/tmp/orb-hook-pool` path was unsafe: another UID could precreate a slot symlink and `>` would truncate
@@ -136,7 +154,7 @@ take_pool_slot() {
   take_pool_slot biome || exit 0
   nice -n 10 pnpm exec biome check --config-path="$root/tooling/biome.edit.jsonc" --reporter=concise \
     --diagnostic-level=error --max-diagnostics=20 --no-errors-on-unmatched "$rel"
-) >"$bout" 2>&1 &
+) >"$bout" 2>"$berr" &
 bpid=$!
 
 dpid=""
@@ -144,15 +162,23 @@ if [[ "$rel" == packages/* && "$rel" =~ \.(ts|tsx|js|jsx|mts|cts)$ && -f "$root/
   (
     take_pool_slot depcruise || exit 0
     nice -n 10 pnpm exec depcruise "$rel" --config "$root/.dependency-cruiser.cjs" --output-type json
-  ) >"$dout" 2>&1 &
+  ) >"$dout" 2>"$derr" &
   dpid=$!
 fi
 
 (
   take_pool_slot typecheck || exit 0
-  if ! nice -n 10 pnpm exec node tooling/src/verify/cli.ts typecheck-plan --primary --file --json -- "$rel" >"$plan_out" 2>&1; then
+  if ! nice -n 10 pnpm exec node tooling/src/verify/cli.ts typecheck-plan --primary --file --json -- "$rel" >"$plan_out" 2>"$plan_err"; then
     printf 'typecheck planner failed for %s:\n' "$rel" >>"$diag"
     sed -n '1,80p' "$plan_out" >>"$diag"
+    sed -n '1,80p' "$plan_err" >>"$diag"
+    exit 0
+  fi
+  json_payload "$plan_out" >"$plan_json"
+  if [ ! -s "$plan_json" ]; then
+    printf 'typecheck planner printed no JSON payload on stdout for %s:\n' "$rel" >>"$diag"
+    sed -n '1,80p' "$plan_out" >>"$diag"
+    sed -n '1,80p' "$plan_err" >>"$diag"
     exit 0
   fi
   type_required=false
@@ -178,7 +204,7 @@ fi
         and (.subjects[0].selectedPrograms | length == 0)
       end
     )
-  ' "$plan_out" >/dev/null 2>&1; then
+  ' "$plan_json" >/dev/null 2>&1; then
     printf 'typecheck planner returned malformed output for %s\n' "$rel" >>"$diag"
     sed -n '1,80p' "$plan_out" >>"$diag"
     exit 0
@@ -222,7 +248,7 @@ fi
     fi
     rm -f "$program_out"
     exec {type_fd}>&-
-  done < <(jq -r '.programs[]' "$plan_out")
+  done < <(jq -r '.programs[]' "$plan_json")
 ) &
 tpid=$!
 
@@ -231,31 +257,41 @@ drc="not-run"
 if [ -n "$dpid" ]; then wait "$dpid"; drc=$?; fi
 wait "$tpid"; trc=$?
 
+# biome's concise reporter writes its DIAGNOSTICS on stderr and its counting summary on stdout (measured
+# 2026-09-12 against this checkout's pinned biome), and pnpm's wrapper reporting shares that stdout. So
+# the diagnostic block is built from stderr alone: a future reporter that moves the diagnostics to stdout
+# does not silently blank the block, it takes the named non-verdict arm below.
 biome_f=""
 if [ "$brc" -eq 1 ]; then
-  candidate=$(grep -vE '^(Checked |Found |check )|Some errors were emitted|^[[:space:]]*$' "$bout" || true)
-  if grep -Fq "$rel:" "$bout"; then
-    biome_f="$candidate"
+  if grep -Fq "$rel:" "$berr"; then
+    biome_f=$(grep -vE '^(Checked |Found |check )|Some errors were emitted|^[[:space:]]*$' "$berr" || true)
+  elif grep -Fq "$rel:" "$bout"; then
+    printf 'biome reported %s on stdout, not stderr; its reporter contract changed and the lint block was NOT built:\n' "$rel" >>"$diag"
+    sed -n '1,80p' "$bout" >>"$diag"
   else
     printf 'biome failed without a diagnostic for %s (exit 1):\n' "$rel" >>"$diag"
+    sed -n '1,80p' "$berr" >>"$diag"
     sed -n '1,80p' "$bout" >>"$diag"
   fi
 elif [ "$brc" -ne 0 ]; then
   printf 'biome failed as a tool (exit %s):\n' "$brc" >>"$diag"
+  sed -n '1,80p' "$berr" >>"$diag"
   sed -n '1,80p' "$bout" >>"$diag"
 fi
 
 dep_f=""
 if [ "$drc" = "0" ] || [ "$drc" = "1" ]; then
+  json_payload "$dout" >"$djson"
   if ! jq -e '
     (.summary | type == "object")
     and (.summary.violations | type == "array")
     and all(.summary.violations[]; (.rule | type == "object") and (.rule.name | type == "string" and length > 0) and (.rule.severity | type == "string"))
-  ' "$dout" >/dev/null 2>&1; then
+  ' "$djson" >/dev/null 2>&1; then
     printf 'dep-cruiser returned malformed or empty JSON (exit %s):\n' "$drc" >>"$diag"
     sed -n '1,80p' "$dout" >>"$diag"
+    sed -n '1,80p' "$derr" >>"$diag"
   else
-    actionable=$(jq '[.summary.violations[] | select(.rule.name != "no-orphans" and .rule.severity == "error")] | length' "$dout")
+    actionable=$(jq '[.summary.violations[] | select(.rule.name != "no-orphans" and .rule.severity == "error")] | length' "$djson")
     if [ "$actionable" -gt 0 ]; then
       dep_f=$(jq -r '
         .summary as $summary
@@ -264,8 +300,8 @@ if [ "$drc" = "0" ] || [ "$drc" = "1" ]; then
         | . as $violation
         | ([$summary.ruleSetUsed.forbidden[]? | select(.name == $violation.rule.name) | .comment][0] // "rule comment unavailable") as $comment
         | "\($violation.from // "<unknown>") → \($violation.to // "<unknown>") [\($violation.rule.name)]\n    \($comment)"
-      ' "$dout")
-    elif [ "$drc" = "1" ] && ! jq -e '.summary.violations | length > 0 and all(.[]; .rule.name == "no-orphans")' "$dout" >/dev/null 2>&1; then
+      ' "$djson")
+    elif [ "$drc" = "1" ] && ! jq -e '.summary.violations | length > 0 and all(.[]; .rule.name == "no-orphans")' "$djson" >/dev/null 2>&1; then
       printf 'dep-cruiser exited 1 without an actionable or explicitly excluded no-orphans violation:\n' >>"$diag"
       sed -n '1,80p' "$dout" >>"$diag"
     fi
