@@ -45,8 +45,8 @@ mid-run and act on them.
 ## Rules
 
 - **Spec in one shot:** goal, constraints, done-criteria, relevant paths, and the WHY — not just the what.
-- **RE-DERIVE EVERY ROW BEFORE DISPATCHING IT** (~60s: `git log --oneline -5 -- <the row's primary path>`
-  + Read the cited file:line + `git log --all --grep="<key noun>"`). A row claiming work is UNBUILT owes
+- **RE-DERIVE EVERY ROW BEFORE DISPATCHING IT** (~60s: `git log --oneline -5 -- <the row's primary path>` +
+  Read the cited file:line + `git log --all --grep="<key noun>"`). A row claiming work is UNBUILT owes
   the same tree receipt as one claiming it is done.
 - **Value-changing briefs name the behavioral suites that assert the changed literal.** Type coverage
   uses the unified native executor: scoped verification supplies every affected program as repeated
@@ -129,9 +129,7 @@ mid-run and act on them.
   (subagents return path/commit/test receipts). Decisions enter **Needs owner**. Re-derive before claiming.
 - **CLAIM FIRST, ALWAYS:** the issue exists and is claimed BEFORE the fixing work starts. An issue minted
   after its fixing commit is retrospective paperwork, not tracking.
-- **NEVER a lone board call, and never one call per row (#870).** `pnpm work:item file --title <t> --kind
-  <class> --priority P --area A --review R [--claim <lane>]` opens a row in ONE call; `land <issue…>
-  --evidence <sha> [--lane <x>]` closes N in one; every lifecycle verb and `show` take a LIST of ids. Fold
+- **NEVER a lone board call, and never one call per row (#870).** `pnpm work:item file --title <t> --kind <class> --priority P --area A --review R [--claim <lane>]` opens a row in ONE call; `land <issue…> --evidence <sha> [--lane <x>]` closes N in one; every lifecycle verb and `show` take a LIST of ids. Fold
   board writes into the merge chain and brief lanes with the issue TEXT rather than a `gh issue view`.
 - The `work:item` cookbook and the lifecycle-hygiene rules are in the runbook; `pnpm work:item --help`
   prints the complete command reference.

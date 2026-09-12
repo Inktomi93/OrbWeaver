@@ -100,7 +100,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   THE RUN IS NOT A VERDICT, and "probably contention" is a hypothesis you prove by a quiet re-run.
 - **The heap floor is WORKSPACE-WIDE but only through pnpm:** `pnpm-workspace.yaml`
   `nodeOptions: --max-old-space-size=16384` reaches every `pnpm run` / `pnpm exec` child (node's own
-  default self-cap is \~4GB even on the 128GB box); `ts7.cjs` carries the flag internally. **`npx` NEVER
+  default self-cap is ~4GB even on the 128GB box); `ts7.cjs` carries the flag internally. **`npx` NEVER
   carries it — that is the whole tool family, not a list of two** — and neither does a bare
   `node tooling/src/<tool>/cli.ts`.
 - **ESLint membership is native data, never a prose roster.** Admission plus the shared compiler-program
@@ -149,9 +149,9 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 ## Running a long command (every lane — this is not a suite-load rule)
 
 - **A finished subagent turn is NOT re-invoked by its own background jobs.** There is no notification
-  coming: when your turn ends, nothing you started in the background can wake you. A run under \~10 min is
+  coming: when your turn ends, nothing you started in the background can wake you. A run under ~10 min is
   redirected to a log (`> $LOG 2>&1; echo EXIT=$?`) and READ in a LATER CALL IN THE SAME TURN — never
-  backgrounded-and-waited-on. A run over \~10 min is REPORTED AND STOPPED (name the log/exit-file); the
+  backgrounded-and-waited-on. A run over ~10 min is REPORTED AND STOPPED (name the log/exit-file); the
   orchestrator resumes you by SendMessage.
 - **The failure shape, so you can catch yourself:** the sentence *"I'll wait for the notification"* (or
   "I'll pause tool calls until the background job completes") is the tell — a lane that has written it has
@@ -192,8 +192,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   `git show HEAD:<path> > <path>` chained with a later `cp`/`mv` restore trips the "too complex to verify" guard;
   the files sit reverted, nothing visibly fails, and it reads as "my edits never happened". **One command per call
   for probe-and-restore**, then verify with `git status` (two lanes, 2026-09-12).
-- **AN OPTIONAL-VALUE FLAG TURNS THE NEXT ARGUMENT INTO A DESTINATION.** `vitest list --filesOnly --json
-  <path>` OVERWRITES `<path>` — it replaced a TRACKED TEST FILE with a JSON array. Always `=`-join
+- **AN OPTIONAL-VALUE FLAG TURNS THE NEXT ARGUMENT INTO A DESTINATION.** `vitest list --filesOnly --json <path>` OVERWRITES `<path>` — it replaced a TRACKED TEST FILE with a JSON array. Always `=`-join
   (`--json=/tmp/.../out.json`). Same class as the `rg -r` hazard below.
 - **The sanctioned `__probe` path is INVISIBLE to biome.** `.gitignore` covers the constitution §4 scratch-probe idiom
   (`features/__probe/...`) and `biome.json` sets `vcs.useIgnoreFile: true`, so `biome check` on a probe reports
