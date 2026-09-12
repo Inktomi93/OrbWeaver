@@ -105,8 +105,8 @@ export function runFormat(mode: FormatMode, explicit: readonly string[]): ExitCo
     warn(
       `${mode === "--write" ? "format:docs" : "check:docs"} — ${outcome.refused.length} file(s) NOT FORMATTED: formatting them would change what they render (repair the markdown, not the formatter):`,
     );
-    for (const file of outcome.refused) {
-      warn(`  ${file}`);
+    for (const refusal of outcome.refused) {
+      warn(`  ${refusal.file}\n    ${refusal.reason.split("\n").join("\n    ")}`);
     }
   }
   if (mode === "--write") {

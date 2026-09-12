@@ -133,37 +133,130 @@ interface MarkdownNode {
   readonly type: string;
   readonly value?: unknown;
   readonly children?: readonly MarkdownNode[];
+  readonly position?: { readonly start?: { readonly line?: number | undefined } | undefined } | undefined;
 }
 
 /**
- * The comparison key for RENDER fidelity: the tree with source positions dropped, and with the ONE
- * difference that is a true rendering equivalence normalized away — a line ending inside a `text` or
- * `inlineCode` value. CommonMark renders a soft line break and a code-span line ending as a space, so a
- * re-wrap there changes bytes and nothing else. Every OTHER movement (a table gaining a cell, a code
- * span swallowing its neighbour's whitespace, an emphasis span changing extent) is a real render change.
+ * The comparison key for RENDER fidelity: the tree with source positions dropped, and with the TWO
+ * differences that are true rendering equivalences normalized away.
+ *
+ *   · A LINE ENDING inside a `text` or `inlineCode` value. CommonMark renders a soft line break and a
+ *     code-span line ending as a space, so a re-wrap there changes bytes and nothing else.
+ *   · A SHORT TABLE ROW. GFM pads a row that carries fewer cells than its header, so a 2-cell row under a
+ *     3-cell header already renders as three cells; the serializer writing the third one out changes
+ *     bytes and nothing else. Modelling that here is what keeps the NARROW direction from reading as a
+ *     render change — the direction rule in `overflowRefusal` and this padding are the same ruling seen
+ *     from the write side and the compare side. Padding only, never truncation: an overflow row is
+ *     refused before this runs, precisely because GFM DROPS that end instead of padding it.
+ *
+ * Every OTHER movement — a table gaining a cell, a code span swallowing its neighbour's whitespace, an
+ * emphasis span changing extent — is a real render change and must refuse.
  */
 function fidelityKey(tree: MarkdownNode): string {
   // JSON, not a delimiter-joined string: a separator character cheap enough to type is also a character
   // a doc can contain, and this comparison decides whether bytes get written.
   const parts: unknown[] = [];
-  const walk = (node: MarkdownNode): void => {
+  const walk = (node: MarkdownNode, padTo: number): void => {
     const value = typeof node.value === "string" ? node.value : "";
     const rendered = node.type === "text" || node.type === "inlineCode" ? value.replaceAll(/\r?\n/gu, " ") : value;
     parts.push([node.type, rendered]);
-    for (const child of node.children ?? []) {
-      walk(child);
+    const children = node.children ?? [];
+    const rowWidth = node.type === "table" ? (children[0]?.children ?? []).length : 0;
+    for (const child of children) {
+      walk(child, rowWidth);
+    }
+    for (let missing = children.length; missing < padTo; missing += 1) {
+      parts.push(["tableCell", ""], "/");
     }
     parts.push("/");
   };
-  walk(tree);
+  walk(tree, 0);
   return JSON.stringify(parts);
+}
+
+/** The flat text of a node, for the occupancy census (cells hold inline trees, not strings). */
+function flatten(node: MarkdownNode): string {
+  if (typeof node.value === "string") {
+    return node.value;
+  }
+  return (node.children ?? []).map(flatten).join("");
+}
+
+function tablesOf(tree: MarkdownNode): readonly MarkdownNode[] {
+  const found: MarkdownNode[] = [];
+  const walk = (node: MarkdownNode): void => {
+    if (node.type === "table") {
+      found.push(node);
+    }
+    for (const child of node.children ?? []) {
+      walk(child);
+    }
+  };
+  walk(tree);
+  return found;
+}
+
+/**
+ * THE OVERFLOW-ROW REFUSAL (#2104). A GFM body row with MORE cells than its header row does not render
+ * wide — the renderer DISCARDS the overflow, so that content is in the file, greppable, and invisible to
+ * every reader. It is invisible to a rendered diff too, which is how it survives review.
+ *
+ * The formatter's untouched instinct is the worst possible answer: it sizes the delimiter row to the
+ * WIDEST row, which widens the header, makes the dropped cells appear under a blank heading, and leaves
+ * the table internally CONSISTENT — so no consistency check can ever see it again. Three law docs shipped
+ * that way and one sat unread for months (#2067, repaired in #2104).
+ *
+ * DIRECTION IS THE WHOLE RULE, and only one direction is the defect. A row with FEWER cells than the
+ * header is PADDED by GFM and renders exactly as written — never a finding. A row with MORE is dropped
+ * content — always one.
+ *
+ * The message carries the per-column OCCUPANCY census, because the verdict alone is not actionable: a
+ * column occupied by one row out of three hundred is a stray unescaped `|` in that row, while a column
+ * occupied by several is genuinely dropped content that belongs somewhere. Those need opposite repairs.
+ *
+ * ITS CORPUS RECEIPT IS ZERO, DELIBERATELY. Measured 2026-09-12 over all 1106 tables in the living
+ * corpus: 0 overflowing rows, and 0 rows in the harmless narrow direction either. This is a FORWARD
+ * guard — the three live instances were repaired in #2104, and every older one was already NORMALIZED by
+ * a past format run that widened its header, which is why a width check cannot see them (the roster
+ * `Core-Enforcement-Active-Gates.md:74` is uniformly 7 wide, header and all 300 rows). The detector for
+ * that residue is a TRAILING UNNAMED HEADER COLUMN, a separate arm with a 19-table blast radius that is
+ * not this policy's to ship. So this arm's proof is a PLANTED control in its family test, never a corpus
+ * count — a zero here means "nothing has gone wrong yet", never "I could not measure".
+ */
+function overflowRefusal(tree: MarkdownNode): string | null {
+  const notes: string[] = [];
+  for (const table of tablesOf(tree)) {
+    const rows = table.children ?? [];
+    const width = (rows[0]?.children ?? []).length;
+    const overflowing = rows.slice(1).filter((row) => (row.children ?? []).length > width);
+    if (overflowing.length === 0) {
+      continue;
+    }
+    const widest = Math.max(...rows.map((row) => (row.children ?? []).length));
+    const occupancy = Array.from(
+      { length: widest },
+      (_unused, column) => rows.slice(1).filter((row) => flatten((row.children ?? [])[column] ?? { type: "empty" }).trim() !== "").length,
+    );
+    notes.push(
+      `table at line ${table.position?.start?.line ?? 0}: header declares ${width} column(s); ${overflowing.length} row(s) carry more, whose extra cells GFM DROPS (they render as nothing)`,
+      ...overflowing.map((row) => `    line ${row.position?.start?.line ?? 0}: ${(row.children ?? []).length} cells vs header ${width}`),
+      `    occupancy over ${rows.length - 1} body rows, by column: ${occupancy.join(" · ")} (a column occupied by ONE row is a stray unescaped \`|\` in that row; by several, it is content with no column)`,
+    );
+  }
+  return notes.length > 0 ? notes.join("\n") : null;
+}
+
+/** A file the formatter declined to write, and the reason a reader can act on. */
+export interface FormatRefusal {
+  readonly file: string;
+  readonly reason: string;
 }
 
 export interface FormatOutcome {
   readonly scanned: number;
   readonly dirty: readonly string[];
-  /** Files whose formatted bytes re-parse to a DIFFERENT tree — never written, always reported. */
-  readonly refused: readonly string[];
+  /** Files the formatter declined to write — never written, always reported. */
+  readonly refused: readonly FormatRefusal[];
 }
 
 /** Resolve the file set: explicit args win; otherwise every TRACKED `.md` in a living tree minus the
@@ -178,11 +271,21 @@ export function formatTargets(explicit: readonly string[]): readonly string[] {
     .sort();
 }
 
-/** The formatted bytes for one document, plus whether they render as the input does. EXPORTED so a test
- *  can hold the two fidelity laws without going through the filesystem. */
-export function formatMarkdown(input: string): { readonly output: string; readonly faithful: boolean } {
+/** The formatted bytes for one document, plus the reason it must not be written (null = write it).
+ *  EXPORTED so a test can hold the fidelity laws without going through the filesystem. */
+export function formatMarkdown(input: string): { readonly output: string; readonly refusal: string | null } {
+  const parsed = processor.parse(input);
+  // Order matters: the overflow census is a SPECIFIC diagnosis of a defect the generic re-parse guard
+  // would also catch, but would report only as "the tree moved". Name the cause when we know it.
+  const overflow = overflowRefusal(parsed);
+  if (overflow !== null) {
+    return { output: input, refusal: overflow };
+  }
   const output = String(processor.processSync(input));
-  return { output, faithful: fidelityKey(processor.parse(output)) === fidelityKey(processor.parse(input)) };
+  if (fidelityKey(processor.parse(output)) !== fidelityKey(parsed)) {
+    return { output: input, refusal: "formatting it would re-parse to a DIFFERENT tree — repair the markdown, not the formatter" };
+  }
+  return { output, refusal: null };
 }
 
 /** Format the targets; `write` lands the formatted bytes, otherwise nothing is touched and the dirty
@@ -190,15 +293,15 @@ export function formatMarkdown(input: string): { readonly output: string; readon
  *  written, in both modes — see the two fidelity laws in the header. */
 export function formatDocs(files: readonly string[], write: boolean): FormatOutcome {
   const dirty: string[] = [];
-  const refused: string[] = [];
+  const refused: FormatRefusal[] = [];
   for (const file of files) {
     const input = readFileSync(file, "utf8");
-    const { output, faithful } = formatMarkdown(input);
-    if (output === input) {
+    const { output, refusal } = formatMarkdown(input);
+    if (refusal !== null) {
+      refused.push({ file, reason: refusal });
       continue;
     }
-    if (!faithful) {
-      refused.push(file);
+    if (output === input) {
       continue;
     }
     dirty.push(file);

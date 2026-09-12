@@ -34,7 +34,7 @@ export {
   offCanonicalPaths,
   unformattedArtifacts,
 } from "./ops/catalog.ts";
-export type { FormatOutcome } from "./ops/format.ts";
+export type { FormatOutcome, FormatRefusal } from "./ops/format.ts";
 export { formatDocs, formatMarkdown, formatTargets } from "./ops/format.ts";
 export { runCatalog, runFormat } from "./ops/run.ts";
 export { __receiptFactsForTest, documents, laneAssignments, loadReceipts } from "./ops/tree.ts";
