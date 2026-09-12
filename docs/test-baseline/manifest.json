@@ -2305,6 +2305,7 @@
     "tests/tooling/verify/gates/caught-failure-ownership.repo.int.test.ts",
     "tests/tooling/verify/gates/chat-viewer-plane-canon-reads.test.ts",
     "tests/tooling/verify/gates/class-string-literal-wave.test.ts",
+    "tests/tooling/verify/gates/client-query-pair-conversion.test.ts",
     "tests/tooling/verify/gates/contract-and-serde-seal-split.test.ts",
     "tests/tooling/verify/gates/contract-shape-wave-1.test.ts",
     "tests/tooling/verify/gates/contract-verb-presence.test.ts",
