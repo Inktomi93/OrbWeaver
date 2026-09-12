@@ -30,20 +30,9 @@
 // the shared `lib/sanctioned-home.ts` reader.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable } from "../contract/gate.ts";
 import { defineGate } from "../contract/policy.ts";
+import { SANCTIONED_HOMES } from "../lib/raw-spacing-tier.ts";
 import { sanctionedHome } from "../lib/sanctioned-home.ts";
-
-/** The tier-permission homes — the primitives that IMPLEMENT the intent tokens. Shared verbatim with the
- *  `spacing-tier-home-health` sibling policy so both judge the exact same rows. */
-export const SANCTIONED_HOMES: ExemptionTable = {
-  "packages/ui/src/layout/": {
-    why: "the layout primitives (<Stack>/<Row>/<Section>/<Toolbar>) ARE the implementation of the intent tokens — they must spell the raw utility once so no feature ever does. Ends when the primitives move: the rename tripwire reds the row at its dead path",
-  },
-  "packages/ui/src/markdown/": {
-    why: "the markdown renderer maps prose elements onto the same spacing scale by hand — a token-only rewrite is the end condition, and the rename tripwire reds the row the day the renderer moves",
-  },
-};
 
 const MESSAGE =
   "raw spacing utility in a class string (a `className` attribute or a `cn`/`clsx`/`cva`/`tv` call) — use a layout primitive (<Stack>, <Row>, <Section>, <Toolbar>) or an intent token (gap-section, p-row, py-block, gap-gutter). See docs/architecture/core/UI-Architecture-and-Layout.md.";

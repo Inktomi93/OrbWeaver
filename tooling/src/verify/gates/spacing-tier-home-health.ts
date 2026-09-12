@@ -5,11 +5,17 @@
 // ENTIRE population (never a narrowed subset), because "does this row resolve to a file" is a whole-tree
 // question the occurrence policy's per-file dispatch cannot answer.
 //
-// FAMILY `raw-spacing-tier` — a two-member SPLIT family, and the shared reader is `lib/sanctioned-home.ts`
-// (`unresolvedSanctionedHomeKeys` here, `sanctionedHome` in the occurrence twin) over the ONE
-// `SANCTIONED_HOMES` table, which is imported from the sibling rather than re-spelled. The split is forced
-// by `execution`: the occurrence check is per-file and incremental-safe, this verdict needs the entire
-// declared population, and one descriptor carries one `execution` value.
+// FAMILY `raw-spacing-tier` — a two-member SPLIT family with TWO shared `lib/` modules, and they are
+// different kinds of thing: the shared READER is `lib/sanctioned-home.ts` (`unresolvedSanctionedHomeKeys`
+// here, `sanctionedHome` in the occurrence twin), and the shared TABLE is
+// `lib/raw-spacing-tier.ts#SANCTIONED_HOMES`. The split is forced by `execution`: the occurrence check is
+// per-file and incremental-safe, this verdict needs the entire declared population, and one descriptor
+// carries one `execution` value.
+// Until 2026-09-12 this sentence read "imported from the sibling rather than re-spelled", describing a
+// GATE-TO-GATE import as though it were the sanctioned arrangement — the shape the owner banned that day
+// (#2096 / §12.3: a gate module never imports another gate module; a shared predicate moves to
+// `lib/<family>.ts`). The table moved to `lib/` and this sentence moved with it; a header that legitimises
+// a banned shape is read as precedent by the next lane, which is why it is corrected here and not later.
 // POPULATION PORT: byte-identical. The legacy descriptor (d6f36904f, the parent of 99b7429e2 — its
 // `no-raw-spacing-in-features.ts` carried BOTH arms in one `GateDescriptor`) scoped with
 // `scanRoot: (p) => /\/packages\/(?:client|ui)\/src\//u.test(`/${p}`)`; `["@client", "@ui"]` is the same set.
@@ -23,8 +29,8 @@
 // DEFERRAL pin with its whole-project control (ec336d41c), and the split-arm differential replaying every
 // legacy example through the frozen d6f36904f descriptor and the UNION of both final policies (6f815e95e).
 import { defineGate } from "../contract/policy.ts";
+import { SANCTIONED_HOMES } from "../lib/raw-spacing-tier.ts";
 import { unresolvedSanctionedHomeKeys } from "../lib/sanctioned-home.ts";
-import { SANCTIONED_HOMES } from "./no-raw-spacing-in-features.ts";
 
 /** The real-tree anchor (GATE-AUTHORING.md §4.5): the generated token vocabulary the spacing gate's
  *  message points at — present on every real run, inside neither sanctioned home, needed by no example

@@ -30,7 +30,7 @@
 //     That HOME read must be TOTAL and is taken off the declaration's own path: `ctx.relativePath` throws
 //     for a file outside the effective population, and the canonical declaration of an unrelated import is
 //     routinely a node_modules `.d.ts` — which withheld this policy on every real-tree run until 2026-09-11
-//     (see `declaredAtSchemaHome` and its mustPass row).
+//     (see `lib/freeze-provenance.ts#guardedTableVerdict` and its mustPass row).
 //   · A CROSS-MODULE const spread is now READ instead of refused. The shared binding resolver follows the
 //     import, so the legacy "build them in the same module" limit is gone; the UNREADABLE-OBJECT arm keeps
 //     its fail-closed row against a payload that is genuinely unreadable (a runtime member read).
@@ -44,22 +44,7 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readAuthoredKeySet } from "../lib/authored-key-set.ts";
-import { readDrizzleWriteTable } from "../lib/drizzle-write-target.ts";
-import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
-
-/** The Drizzle declaration every guarded write goes through, and the two homes that prove a binding IS it. */
-export const GUARDED_TABLE = "messageVariants";
-const DB_DOOR = "@orb/db";
-const SCHEMA_HOME_PREFIX = "packages/db/src/schema/";
-const CONTENT = "content";
-const RAW = "rawContent";
-const FREEZES = "macroFreezes";
-/** The three columns that describe ONE body. Written together or not at all. The `-health` sibling proves
- *  they are still the live table's columns; keeping them here keeps this policy free of a fact it would
- *  otherwise declare and barely read. */
-export const TRIPLE: readonly string[] = [CONTENT, RAW, FREEZES];
-/** Shared with the `-health` sibling so both judge exactly the same writer set. */
-export const WRITE_POPULATION = "@packages" as const;
+import { CONTENT, FREEZES, guardedTableVerdict, RAW, WRITE_POPULATION, writeChainVerdict } from "../lib/freeze-provenance.ts";
 
 type WriteKind = "update" | "insert";
 
@@ -97,42 +82,6 @@ const UNREADABLE_TABLE =
   "a `message_variants` write builder in a file that imports this table names a table this gate cannot read " +
   "(a computed lookup, a namespace member). Silence here is exactly how an aliased or computed table walks " +
   "past a column invariant, so it is REFUSED: name the table INLINE at the builder.";
-
-/** A declaration's HOME is read off the declaration's OWN path — the house spelling for this question
- *  (`lib/id-brand.ts`, `lib/sealed-origin.ts`) and, here, the only TOTAL one. `ctx.relativePath` refuses any
- *  file outside the effective population (`lib/policy-pass-context.ts:214`), and a binding's canonical
- *  declaration is routinely outside it: on the real tree the first `import { useQuery } from
- *  "@tanstack/react-query"` in a `@packages` file resolves into a node_modules `.d.ts`, which threw and
- *  WITHHELD this policy for the whole run (2026-09-11). Its mustPass row plants a declaration outside the
- *  population. Membership in `ctx.files` is NOT the alternative — `policy-pass.ts:316` intersects that with
- *  a scoped run's requested paths, so it would read clean under every `--scope`. */
-function declaredAtSchemaHome(sourceFile: SourceFile): boolean {
-  return sourceFile.getFilePath().replaceAll("\\", "/").includes(`/${SCHEMA_HOME_PREFIX}`);
-}
-
-/** THE TABLE-IDENTITY QUESTION, answered by BINDING and by the DOOR rather than by spelling. `other` is a
- *  name that provably is not ours — including an identifier nothing binds, which is a plain name this
- *  policy has simply never met. `unreadable` is reserved for a table EXPRESSION that reduces to no name at
- *  all, which is ARM 5's subject. */
-export function guardedTableVerdict(tableNode: MorphNode): "ours" | "other" | "unreadable" {
-  const origin = resolveModuleMemberOrigin(tableNode);
-  if (origin.kind === "unresolved") {
-    return origin.reason === "missing" ? "other" : "unreadable";
-  }
-  const { memberPath, canonical } = origin.value;
-  const home = canonical.kind === "project" ? declaredAtSchemaHome(canonical.sourceFile) : canonical.moduleSpecifier === DB_DOOR;
-  return memberPath.length === 0 && canonical.exportedName === GUARDED_TABLE && home ? "ours" : "other";
-}
-
-/** The table a write chain under `callee` targets, or `null` when the chain has no Drizzle write verb in it
- *  at all (`map.set(…)`) — the boundary that stops ARM 5's fail-closed posture from redding every `.set()`. */
-export function writeChainVerdict(callee: MorphNode): "ours" | "other" | "unreadable" | "no-write-chain" {
-  const table = readDrizzleWriteTable(callee);
-  if (table.kind === "unresolved") {
-    return "unreadable";
-  }
-  return table.value === null ? "no-write-chain" : guardedTableVerdict(table.value);
-}
 
 /** ARM 1 — an UPDATE that replaces `content` without deciding the provenance pair: the row keeps a record
  *  describing bytes that are gone. A both-columns write with NO content is legal (see {@link violatesPair}). */

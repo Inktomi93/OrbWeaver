@@ -40,8 +40,8 @@
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import { GUARDED_TABLE, TRIPLE, WRITE_POPULATION, writeChainVerdict } from "../lib/freeze-provenance.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { GUARDED_TABLE, TRIPLE, WRITE_POPULATION, writeChainVerdict } from "./freeze-provenance-write-pairing.ts";
 
 /** Present on every real run, inside the policy's own population, needed by no example that is not
  *  deliberately arming these arms. */
