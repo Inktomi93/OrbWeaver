@@ -168,7 +168,7 @@ tree tells you the moment a fix breaks a row.
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
 
-   **AUDIT STATE — 2026-09-11 evening. Waves 1-8 complete, 100 of 167 modules audited** (wave 8's 25 = 24 fresh + 1 partial re-audit; `origin-server`'s §4.1 cuts and reachability probes are NOT covered and are wave 9's obvious start) (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
+   **AUDIT STATE — 2026-09-11 evening. Waves 1-9 complete, 101 of 167 modules audited** (wave 9 closed wave 8's open axes on the same 14 modules rather than adding new ones — hence +1, not +14) (wave 8's 25 = 24 fresh + 1 partial re-audit; `origin-server`'s §4.1 cuts and reachability probes are NOT covered and are wave 9's obvious start) (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
 
 | wave | subjects | verdict | narrowings |
 | - | - | - | - |
@@ -178,6 +178,7 @@ tree tells you the moment a fix breaks a row.
 | 4 | raw-CSS / token ×9 | **all nine REFUTED** | 31 cuts → 19 enforced / **10 unenforced (32%)** / 2 unfalsifiable / **0 mutually redundant (MEASURED)** |
 | 5 | `ordinary-visitors` ×15 | **13 REFUTED / 2 confirmed** | 94 cuts → naive 56 clean → **33 UNENFORCED (35%)**; naive over-reports by 41% |
 | 6 | `origin-client` ×12 | **all 12 REFUTED** | 59 cuts → naive 29 clean → **25 UNENFORCED (42%)**; 1 mutually redundant, 3 unfalsifiable |
+| 9 | `origin-server` ×14 (the axes wave 8 left open) | **14 REFUTED** | 107 cuts, each with its DIRECTION → naive 46% → **32% UNENFORCED**. **Third answer reached 11 of 14 — best in the program.** Headline is not a proof gap: **FIVE gates ACCUSE CORRECT CODE on unmodified source (#2006, P1)** |
 | 8 | `home-server` 11 + `origin-server` 14 = **25** | **24 REFUTED / 1 partial re-audit** | 46 cuts → naive 19 clean (41%) → **11 UNENFORCED (24%)**, over-report 73%. **Best proof axes ever: 155 of 155 rows carry `count`, 14 of 14 identity arms discriminate, third answer REACHED in 7 of 8.** §5b.5 fails **25 of 25** (no FAMILY line, no POPULATION PORT, no legacy SHA) |
 | 7 | `home-client` ×14 | **13 REFUTED / 1 confirmed-with-repairs** | 85 cuts → naive 29 clean (34%) → **17 UNENFORCED (20%)**, 8 mutually redundant, 4 unfalsifiable. **Naive over-reports by 71%** — the widest gap, caused by declared PERF PREFILTERS that cut clean by design. **71 of 71 rows carry `count`; zero tautologies** |
 
@@ -349,6 +350,7 @@ between the lanes — that is #1993, and it went unnoticed for a day.
 | **#1992** | `policy-soundness` is 57.7 s of `check:structure` — re-priced as a **#1964 dependency**, NOT a commit-bar regression (the conformance stage did not move: 12341ms → 12283ms) |
 | **#1985** | `grant-liveness-family.test.ts` runs within \~300 ms of its own 5000 ms timeout; fails on cache temperature |
 | **#1980** | `@authored` is a hand-typed literal with no liveness gate |
+| **#2005** | the §5b.5 header gap — **CENSUS CORRECTED by 171 full reads**: FAMILY \~61/171, POPULATION PORT **59/171**, **legacy SHA 9/171**. Waves 8 and 9 reported “fails 25 of 25” / “0 of 14” because they counted the PHRASE; most headers state the port in PROSE. **The legacy-SHA number is the load-bearing one and it survived all three methods** |
 | **#1988** | `no-inline-types` reds 19 sites, 18 of them the shared readers this program MANDATES — 15→18→19, unowned (**Needs owner**) |
 
 ### DECISIONS IN NEEDS OWNER — ask, never build around
