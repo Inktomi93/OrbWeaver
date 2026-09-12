@@ -1,432 +1,373 @@
-// Gate: no-inline-union-redecl (core/Spine-TypeScript-and-Patterns.md §7.5) — a string-union AXIS is
-// declared ONCE as an `as const` tuple and the union derived; never re-spelled. Two checks: (A) an
-// inline string-literal union TYPE ALIAS of ≥3 members. (B) any inline string-literal set whose members
-// EXACTLY EQUAL an existing canonical tuple — catches a union in a property position or a `z.enum([...])`
-// call that (A) misses. A genuine one-off enum with no canonical tuple (e.g. NODE_ENV) is not flagged.
+// Policy: no-inline-union-redecl (core/Spine-TypeScript-and-Patterns.md §7.5) — a string-union AXIS is
+// declared ONCE as an `as const` tuple and the union derived; never re-spelled. Two arms, one authority:
+// (A) an inline string-literal union TYPE ALIAS of ≥3 members. (B) any inline string-literal SET — a union
+// in a property/return/argument position, or a `z.enum([...])` array — whose members EXACTLY equal a
+// canonical tuple homed somewhere the re-speller can import from. A genuine one-off enum with no canonical
+// tuple (NODE_ENV) is not flagged, which is why arm B is an exact-set match and not a heuristic.
 //
-// Two blind spots repaired (audit 2026-07-25 §F4/§G2):
-//  - `as const satisfies readonly X[]` tuples: the house-encouraged derive idiom parses as a
-//    SatisfiesExpression wrapping the AsExpression, so `unwrapAsConstTuple` now peels it. The satisfies clause
-//    IS the axis's co-declaration of record — if it binds to `Interface["prop"]`, that property's own
-//    inline literal union is the SOURCE the tuple derives from, not a re-spell; arm B exempts exactly
-//    that binding site (else the idiom flags itself).
-//  - the 2-member floor: a 2-member axis (ENTRY_POSITIONS, PROMPT_TRANSFORM_POINTS) never registered as
-//    canonical. Arm A keeps its ≥3 floor (a bare `"ok" | "error"` alias is not noise-worthy), but arm B's
-//    canonical-tuple REGISTRATION drops to ≥2 for tuples homed in `packages/contracts/` or `packages/kit/`
-//    ONLY — the home demonstrably exists there, so a 2-member exact-set match is a low false-positive class
-//    (a coincidental generic-pair match would need a homed contracts/kit tuple of the same two strings).
-import type { ArrayLiteralExpression, CallExpression, Expression, UnionTypeNode, VariableDeclaration } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+// ── FAMILY: singleton, under its own id, reading `lib/union-axis.ts` ────────────────────────────────────
+// The axis-identity layer (as-const unwrapping through `satisfies`, the `Interface["prop"]` co-declaration
+// resolution, the two member floors, the package-cake reach fence) is in that reader; this module owns the
+// INTENT — which arm reports, what it says, and where the waiver anchors. No sibling policy shares the
+// reader today, so the family is this policy's own id (§3: "a policy with no proven sibling is a singleton
+// family under its own id"); a second consumer of `union-axis.ts` renames the family, nothing else.
+//
+// ── THE RULED THREE-WAY ARITY WAS AMENDED TO ONE POLICY (#1584 §12.6, orchestrator ruling 2026-09-12) ───
+// §12.6 ruled this module into "ordinary union/respell policy, reviewed SDK-mirror grant policy, and hard
+// grant-health policy under one family". THE TREE REFUTES THE LAST TWO, and §12.6's own banner is the
+// authority for amending a ruled row that disagrees with the tree. Receipt, re-derived at 2030ab180 and at
+// HEAD (identical bytes): the legacy `FILE_CLASS_EXEMPT` table was `{}` — EMPTY — and the legacy header
+// recorded why, at :22-24: "2026-09-05 (#1692): the published SDK mirror moved to
+// packages/showcase-plugins/bundles/, outside the scanned corpus, so its row (and the proof that planted
+// it) went". So a reviewed-grant policy would license NOTHING, and any row invented to give it a subject
+// would go STALE on its first complete owner run (zero consumption is stale, §12.5); a grant-health policy
+// would be a tripwire over an empty table. Both are §4.1's MUTUALLY REDUNDANT bucket — two mechanisms
+// guarding a subject that does not exist — so the honest arity is ONE ordinary policy, and the SDK-mirror
+// grant is minted by whoever brings that corpus back into population, not pre-emptively here.
+//
+// ── AUTHORITY: ordinary, and the door was CHECKED rather than inherited (§3, the 9/9 rule) ─────────────
+// The legacy descriptor carried positions that were DISCRIMINATOR LABELS, legal under the legacy engine's
+// `marker.position === undefined || marker.position === token` test and invalid under this contract's
+// source-coordinate definition: arm A reported the synthetic token `union <Alias>` and arm B `re-spell
+// <Tuple>` / `z.enum re-spell <Tuple>`, none of which is authored text anywhere. Under `report.node` all
+// three THROW. Both arms are re-anchored on real source slices through the repo's one waiver-anchor
+// contract (`lib/caught-failure.ts#firstAnchor`, whose `ANCHORABLE_TOKEN_RE` refuses parens, newlines and
+// the solidus — exactly the shapes a marker cannot hold): arm A anchors on the ALIAS NAME, arm B on the
+// inline SET's own text. What the token lost — which tuple a re-spell matched, and which arm fired — moved
+// into the per-finding MESSAGE, where it is more useful than it was in a position nobody could type.
+//
+// ── POPULATION PORT: byte-identical, measured ──────────────────────────────────────────────────────────
+// Legacy scanned the harness corpus (`_shared/ts-workspace.ts#harnessGlobs`: `packages/*/src/**`,
+// `tests/**`, `tooling/src/**`, `scripts/**`) minus its own `scanRoot` subtraction of
+// `tooling/src/verify/gates/`. `@authored` + `@showcase` + `notUnder: ["tooling/src/verify/gates/**"]` is
+// that set: driven over the 7,475 tracked `.ts`/`.tsx` paths, legacy admits 7,165 and this population
+// admits the same 7,165, symmetric difference 0, with both directions controlled (293 gate-module paths
+// subtracted; `packages/showcase-plugins/src` admitted). `@showcase` is named EXPLICITLY because
+// `@authored` deliberately excludes it (contract/population.ts) while `packages/*/src/**` did not — the
+// only way the port stays lossless. The gate-directory subtraction is LOAD-BEARING, not cosmetic: proof
+// fixtures re-spell axes by design, and every module's `mustFlag` strings would otherwise be real subjects.
+//
+// ── §4.1 NARROWINGS: THIRTEEN, ALL CUT, ALL ENFORCED ───────────────────────────────────────────────────
+// Every fence was cut in the §4.1 direction (make the policy flag MORE) in a fresh process — one cut per
+// process, because a `?query` re-import returns the CACHED module — with the anchor asserted to occur
+// EXACTLY ONCE in the file, since this header and the `why` strings below quote several of them. Each cut
+// killed exactly the row its `why` names: the arm-A ≥3 floor, the default ≥3 registration floor, the
+// contracts/kit trusted-home list, the D54 `ui`/`contracts` clause, the whole cake-reach fence, arm B's
+// alias-parent skip, the `.enum` callee test, the union's string-member test, the tuple's string-element
+// test, the `satisfies` co-declaration exemption (which kills TWO rows), the gate-directory subtraction and
+// the `@showcase` root. The tuple's string-element test was the one CLEAN cut on the legacy row set, and
+// §4.1's rule was applied rather than filing it UNFALSIFIABLE: the discriminating fixture — a numeric
+// `[1, 2, 3] as const` beside the union `'1' | '2' | '3'` — was written, run, and reds under the cut.
+// The thirteenth is the derived-position fallback below, and it is a CATCH rather than a narrowing: cut it
+// back to an early return on an unanchorable set and the multi-line `mustFlag` row reports 0 findings.
+//
+// ── DECLARED LIMITS ────────────────────────────────────────────────────────────────────────────────────
+// · An UNRESOLVABLE `satisfies readonly X[]` clause loses its co-declaration exemption and the source union
+//   is then reported as a re-spell of its own tuple. It fails OPEN (a false positive with a working waiver
+//   door), not closed, and it is legacy behaviour preserved byte-for-byte rather than a conversion choice.
+//   There is no fail-closed "unreadable" arm anywhere in this policy, so no row owes a `messageIncludes`
+//   for one (#1990); the probe is unnecessary because the branch does not exist.
+// · Two re-spells of the SAME set inside ONE statement share a carrier AND a position token, so every
+//   marker against them is `over-broad` and suppresses neither. Legacy had the identical collision (both
+//   sites reported the token `re-spell <Tuple>`); the conversion neither introduces nor repairs it, and the
+//   repair if it ever bites is to home the axis, which is what the finding asks for.
+//
+// ── §4.6 DIFFERENTIAL: committed, `tests/tooling/verify/gates/union-axis-family.test.ts` ────────────────
+// Every legacy example replayed through the frozen legacy descriptor at 2030ab180 and through this policy,
+// over each example's OWN file map with this population applied. Legacy-side coverage: 5 of 10 examples
+// flag (both arms, all three sub-kinds) — nonzero, so the replay is evidence. One classified difference,
+// applied per finding rather than averaged: POSITION/TOKEN — arm A moves from the alias declaration's start
+// to its NAME, and arm B's z.enum sub-kind from the CALL to its ARRAY argument, with every token becoming
+// an authored slice. No marker re-binding is owed: the live `@orb-gate-ignore no-inline-union-redecl`
+// census is ZERO across packages/tests/tooling/scripts/docs (positive control: the opener itself is live
+// elsewhere), so this conversion translates no markers.
+//
+// AND THE SAME COMPARISON ON THE REAL TREE, because a conformance-green policy can still report NOTHING
+// there (#1972): both descriptors driven over ONE workspace Project (7,460 files; this policy's population
+// admits 7,167 of them, the 293 gate modules subtracted). LEGACY 12 findings, FINAL 12 findings, and the
+// SITE sets (`file:line`) are IDENTICAL in both directions — every token moved exactly as classified above
+// (`re-spell GATE_POLICY_ANALYSES` → `"syntax" | "types" | "resource"`, `union OrdinaryWaiverMarkerOutcome`
+// → `OrdinaryWaiverMarkerOutcome`). So the conversion is catch-NEUTRAL on the live tree: those 12 are
+// pre-existing debt the legacy gate already reported, neither introduced nor silently dropped here.
+import { Node } from "ts-morph";
+import type { GatePolicyContext } from "../contract/policy.ts";
+import { defineGate } from "../contract/policy.ts";
+import { firstAnchor } from "../lib/caught-failure.ts";
+import type { AxisRespellCandidate, CanonicalAxisTuple } from "../lib/union-axis.ts";
+import {
+  ALIAS_MIN_MEMBERS,
+  axisRespellCandidate,
+  canonicalAxisTuple,
+  canReachAxisHome,
+  inlineUnionAlias,
+  UNION_AXIS_VISITOR_KINDS,
+} from "../lib/union-axis.ts";
 
-/** FILE-CLASS exemptions (GATE-AUTHORING §3 "scan-and-allowlist beats scanRoot-exclusion"): whole files whose
- *  CONTRACT is to re-spell homed axes. Two-sided via the finalize mode-(B) stale arm (a key the walk never
- *  sees is RED), anchored on a real-tree file no example plants. */
-// 2026-09-05 (#1692): the published SDK mirror moved to packages/showcase-plugins/bundles/, outside the scanned
-// corpus, so its row (and the proof that planted it) went — the stale arm rules a never-scanned key RED.
-const FILE_CLASS_EXEMPT: ExemptionTable = {};
-/** Seen-set for the mode-(B) stale arm — populated only by a live scan hit on an exempted path. */
-const passExemptSeen = new Set<string>();
-const REAL_TREE_ANCHOR_UNION = "packages/db/src/schema/index.ts";
-const GATE_SELF_UNION = "tooling/src/verify/gates/no-inline-union-redecl.ts";
-const STALE_FILE_CLASS_UNION = (key: string): string =>
-  `FILE_CLASS_EXEMPT row \`${key}\` names a file this run never scanned — the mirror moved, was renamed, or ` +
-  "was retired. Delete the row (or re-key it): a path-keyed exemption that outlives its file is a silent " +
-  "grant to whatever lands at that path next. (GATE-AUTHORING.md §4.4a)";
+const MESSAGE =
+  "a string-union AXIS is declared ONCE as an `as const` tuple and the union derived — never re-spelled inline (Spine-TypeScript-and-Patterns.md §7.5).";
+const ALIAS_MESSAGE =
+  `an inline string-literal union TYPE ALIAS of ${String(ALIAS_MIN_MEMBERS)} or more members: declare the axis once as ` +
+  "`export const X = [...] as const` and derive `(typeof X)[number]` (Spine-TypeScript-and-Patterns.md §7.5).";
+const FIX =
+  "home the axis in one `as const` tuple and derive from it — `(typeof X)[number]` for a type, `z.enum(X)` for a schema. " +
+  "A deliberate occurrence waives with `@orb-waive no-inline-union-redecl(<position>): <reason + end condition>`, where " +
+  "<position> is the ALIAS NAME for an inline alias (`Mode`) and the inline SET's own source text for a re-spell " +
+  "(`'a' | 'b' | 'c'`, or `['a', 'b', 'c']` for a z.enum) — the exact slice the report anchors on. A set spanning a " +
+  "newline cannot be a marker position at all, so the runtime derives the set's first member literal instead.";
 
-const ALIAS_MIN_MEMBERS = 3; // arm A floor (an inline union type-alias)
-const TUPLE_MIN_MEMBERS = 3; // arm B default registration floor
-const TUPLE_MIN_MEMBERS_HOMED = 2; // arm B floor for a tuple homed in contracts/ or kit/
-const SEP = " ";
-
-/** Package homes where a 2-member canonical tuple is trusted enough to register for arm B. */
-function isTrustedHome(relFile: string): boolean {
-  return relFile.startsWith("packages/contracts/") || relFile.startsWith("packages/kit/");
+/** What a re-spell must be told: which homed tuple it duplicates, where that tuple lives, and how to
+ *  derive from it in the spelling the site actually uses. */
+function respellMessage(candidate: AxisRespellCandidate, home: CanonicalAxisTuple): string {
+  const derive = candidate.kind === "zenum" ? `z.enum(${home.name})` : `(typeof ${home.name})[number]`;
+  return (
+    `this inline ${candidate.kind === "zenum" ? "`z.enum([...])` array" : "string-literal union"} re-spells the canonical ` +
+    `tuple \`${home.name}\` homed at ${home.file} — derive \`${derive}\` instead (Spine-TypeScript-and-Patterns.md §7.5).`
+  );
 }
 
-// The package cake (kit ← contracts ← db ← server ← client; ui deps kit only) — a file can only DERIVE
-// from a tuple its package is allowed to import. A candidate can never re-spell a tuple homed UP the cake
-// (it physically can't import it — e.g. a kit fn returning "always"|"keyword" cannot reach a contracts
-// WORLD_INFO_SCOPES), so arm B must not flag it. Rank by import reach: a re-spell in package P against a
-// tuple homed in H is only a real re-spell when H is reachable from P (rank[H] ≤ rank[P]).
-const PACKAGE_IMPORT_RANK: Readonly<Record<string, number>> = { kit: 0, contracts: 1, ui: 1, db: 2, server: 3, client: 4 };
-const PACKAGE_RE = /^packages\/(?<pkg>[^/]+)\//u;
-const TESTS_RANK = 5; // tests import anything — never up-cake-blocked
-
-/** The import-reach rank of the package a repo-relative file lives in (tests reach everything). */
-function importRank(relFile: string): number {
-  if (relFile.startsWith("tests/")) {
-    return TESTS_RANK;
-  }
-  const pkg = PACKAGE_RE.exec(relFile)?.groups?.["pkg"];
-  return pkg !== undefined ? (PACKAGE_IMPORT_RANK[pkg] ?? TESTS_RANK) : TESTS_RANK;
+/** Report at an EXACT SOURCE SLICE inside the reported node — or, when the slice the marker grammar needs
+ *  (no paren, newline or solidus) does not exist, report with NO token so the RUNTIME derives one
+ *  (`policy-pass-context.ts:109`, the first authored identifier/literal/keyword in the node's own text).
+ *  Never `return` on a missing anchor: an underivable position is a waiver-ergonomics problem and dropping
+ *  the finding would turn it into a silent catch loss. This is `lib/caught-failure.ts`'s documented
+ *  fallback, applied by the same rule that owns the anchor. */
+function reportAnchored(
+  report: GatePolicyContext["report"]["node"],
+  options: { readonly reported: Node; readonly anchor: Node; readonly message: string },
+): void {
+  const anchor = firstAnchor(options.reported, [options.anchor]);
+  const position = anchor === undefined ? {} : { token: anchor.token, offset: anchor.offset };
+  report(options.reported, { ...position, message: options.message, fix: FIX });
 }
 
-/** Can a re-spell in `candidateFile` legally import a tuple homed in `homeFile` (same-or-down the cake)?
- *  `ui` (rank 1) may only reach `kit` (rank 0), not its rank-peer `contracts` — encode that one exception. */
-function canReachHome(candidateFile: string, homeFile: string): boolean {
-  const candPkg = PACKAGE_RE.exec(candidateFile)?.groups?.["pkg"];
-  const homePkg = PACKAGE_RE.exec(homeFile)?.groups?.["pkg"];
-  if (candPkg === "ui" && homePkg === "contracts") {
-    return false; // ui deps kit ONLY (D54) — a contracts tuple is unreachable from ui
-  }
-  return importRank(homeFile) <= importRank(candidateFile);
-}
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-/** Order-independent identity of a string-literal set. */
-function sig(members: readonly string[]): string {
-  return [...new Set(members)].sort().join(SEP);
-}
-
-/** The string members of an array literal, or undefined if any element isn't a string literal. */
-function stringArrayMembers(arr: ArrayLiteralExpression): string[] | undefined {
-  const els = arr.getElements();
-  const out: string[] = [];
-  for (const e of els) {
-    if (!Node.isStringLiteral(e)) {
-      return;
-    }
-    out.push(e.getLiteralText());
-  }
-  return out.length > 0 ? out : undefined;
-}
-
-/** The string members of an all-string-literal union, or undefined otherwise. */
-function unionStringMembers(node: UnionTypeNode): string[] | undefined {
-  const out: string[] = [];
-  for (const part of node.getTypeNodes()) {
-    if (!Node.isLiteralTypeNode(part)) {
-      return;
-    }
-    const lit = part.getLiteral();
-    if (!Node.isStringLiteral(lit)) {
-      return;
-    }
-    out.push(lit.getLiteralText());
-  }
-  return out.length > 0 ? out : undefined;
-}
-
-/** The `z.enum([...])` literal-array members of a call, or undefined if it isn't that shape. */
-function zEnumArrayMembers(call: CallExpression): string[] | undefined {
-  if (!call.getExpression().getText().endsWith(".enum")) {
-    return;
-  }
-  const [arg] = call.getArguments();
-  return arg !== undefined && Node.isArrayLiteralExpression(arg) ? stringArrayMembers(arg) : undefined;
-}
-
-/** A location key `file:line:col` for a node — used to exempt a satisfies-referenced co-declaration site. */
-type LocKey = string;
-function locKeyOf(node: Node, root: string): LocKey {
-  const sf = node.getSourceFile();
-  const { column } = sf.getLineAndColumnAtPos(node.getStart());
-  return `${relPath(root, sf.getFilePath())}:${node.getStartLineNumber()}:${column}`;
-}
-
-/** Unwrap a variable initializer to its `as const` array literal, tolerating a `satisfies` wrapper.
- *  Returns the array literal AND (when present) the `satisfies` element TYPE NODE — the co-declaration
- *  the tuple derives from. */
-function unwrapAsConstTuple(init: Expression): { readonly arr: ArrayLiteralExpression; readonly satisfiesElement: Node | undefined } | undefined {
-  let node: Expression = init;
-  let satisfiesElement: Node | undefined;
-  if (Node.isSatisfiesExpression(node)) {
-    satisfiesElement = satisfiesElementType(node.getTypeNode());
-    node = node.getExpression();
-  }
-  if (!Node.isAsExpression(node) || node.getTypeNode()?.getText() !== "const") {
-    return;
-  }
-  const expr = node.getExpression();
-  return Node.isArrayLiteralExpression(expr) ? { arr: expr, satisfiesElement } : undefined;
-}
-
-/** Peel `readonly X[]` → the element type node `X` (the axis's co-declaration reference). */
-function satisfiesElementType(typeNode: Node | undefined): Node | undefined {
-  let el = typeNode;
-  if (el !== undefined && Node.isTypeOperatorTypeNode(el)) {
-    el = el.getTypeNode();
-  }
-  if (el !== undefined && Node.isArrayTypeNode(el)) {
-    return el.getElementTypeNode();
-  }
-  return el;
-}
-
-/** The union declaration node an `Interface["prop"]` indexed-access refers to (its co-declaration site),
- *  or undefined if it doesn't resolve to a single interface-property literal union. */
-function coDeclarationUnionNode(elementType: Node): UnionTypeNode | undefined {
-  if (!Node.isIndexedAccessTypeNode(elementType)) {
-    return;
-  }
-  const indexLit = elementType.getIndexTypeNode();
-  if (!Node.isLiteralTypeNode(indexLit)) {
-    return;
-  }
-  const indexName = indexLit.getLiteral();
-  if (!Node.isStringLiteral(indexName)) {
-    return;
-  }
-  const prop = indexName.getLiteralText();
-  const sym = elementType.getObjectTypeNode().getType().getSymbol();
-  const propTypeNode = (sym?.getDeclarations() ?? [])
-    .filter((d) => Node.isInterfaceDeclaration(d))
-    .map((decl) => decl.getProperty(prop)?.getTypeNode())
-    .find((tn) => tn !== undefined && Node.isUnionTypeNode(tn));
-  return propTypeNode !== undefined && Node.isUnionTypeNode(propTypeNode) ? propTypeNode : undefined;
-}
-
-// Arm A (an inline string-union type-alias ≥3 members) is self-contained per alias → emitted at visit.
-// Arm B (an inline union / z.enum re-spelling a CANONICAL tuple) needs ALL tuples collected before it can
-// judge (a re-spell can reference a tuple declared later in the walk), so re-spell candidates are
-// accumulated in visit and reconciled against the collected tuples in `finalize`.
-interface RespellCandidate {
-  /** The offending NODE itself — carried (not a line/column snapshot) so arm B can report through the
-   *  NODE overload and `@orb-gate-ignore` works on it (GATE-AUTHORING §1; the Finding overload bypasses
-   *  `hasGateIgnore`). Nodes stay live for the whole pass: `visit` and `run` share one Project. */
-  readonly node: Node;
-  readonly file: string;
-  readonly loc: LocKey;
-  readonly sig: string;
-  /** Which arm-B sub-kind fired — it rides in the finding's TOKEN, which is the only precision a
-   *  token-emitting gate's self-proofs have now that the per-finding messages fold into `message`. */
-  readonly kind: "union" | "zenum";
-}
-interface TupleHome {
-  readonly name: string;
-  readonly file: string;
-}
-const passTuples = new Map<string, TupleHome>(); // sig → { tuple name, home file }
-// Locations of satisfies-referenced co-declaration union nodes (Interface["prop"]) — a registered tuple's
-// SOURCE of record, not a re-spell; arm B skips a candidate that IS one of these.
-const passCoDeclLocs = new Set<LocKey>();
-const passRespells: RespellCandidate[] = [];
-
-function pushRespell(node: Node, root: string, members: string[], kind: "union" | "zenum"): void {
-  passRespells.push({ node, file: relPath(root, node.getSourceFile().getFilePath()), loc: locKeyOf(node, root), sig: sig(members), kind });
-}
-
-/** Register a `const X = [...] as const [satisfies readonly Y[]]` string tuple as a canonical axis home
- *  (if it clears the per-home member floor) and record its satisfies co-declaration site for exemption. */
-function registerTuple(decl: VariableDeclaration, root: string): void {
-  const init = decl.getInitializer();
-  if (init === undefined) {
-    return;
-  }
-  const unwrapped = unwrapAsConstTuple(init);
-  if (unwrapped === undefined) {
-    return;
-  }
-  const members = stringArrayMembers(unwrapped.arr);
-  if (members === undefined) {
-    return;
-  }
-  const relFile = relPath(root, decl.getSourceFile().getFilePath());
-  const floor = isTrustedHome(relFile) ? TUPLE_MIN_MEMBERS_HOMED : TUPLE_MIN_MEMBERS;
-  if (members.length < floor) {
-    return;
-  }
-  passTuples.set(sig(members), { name: decl.getName(), file: relFile });
-  if (unwrapped.satisfiesElement !== undefined) {
-    const coDecl = coDeclarationUnionNode(unwrapped.satisfiesElement);
-    if (coDecl !== undefined) {
-      passCoDeclLocs.add(locKeyOf(coDecl, root));
-    }
-  }
-}
-
-/** Arm A — emit an inline string-union type alias (≥3 members) immediately; it is self-contained. */
-function visitAlias(node: Node, ctx: GateRunCtx): void {
-  if (!Node.isTypeAliasDeclaration(node)) {
-    return;
-  }
-  const typeNode = node.getTypeNode();
-  if (typeNode === undefined || !Node.isUnionTypeNode(typeNode)) {
-    return;
-  }
-  const members = unionStringMembers(typeNode);
-  if (members !== undefined && members.length >= ALIAS_MIN_MEMBERS) {
-    ctx.report(node, { token: `union ${node.getName()}`, offset: 0 });
-  }
-}
-
-/** Arm B candidates — accumulate a non-alias UnionType / a z.enum([...]) for finalize reconciliation. */
-function visitRespellCandidate(node: Node, root: string): void {
-  if (Node.isUnionTypeNode(node)) {
-    if (node.getParent().getKind() === SyntaxKind.TypeAliasDeclaration) {
-      return; // arm A owns aliases
-    }
-    const members = unionStringMembers(node);
-    if (members !== undefined) {
-      pushRespell(node, root, members, "union");
-    }
-    return;
-  }
-  if (Node.isCallExpression(node)) {
-    const members = zEnumArrayMembers(node);
-    if (members !== undefined) {
-      pushRespell(node, root, members, "zenum");
-    }
-  }
-}
-
-export const gate: GateDescriptor = {
-  name: "no-inline-union-redecl",
-  docRow: "core/Spine-TypeScript-and-Patterns.md §7.5",
-  status: "active",
-  scopeSafety: "whole-project", // arm B compares against tuples collected from the whole tree
-  // THE ONE REASON, carrying all three arm tokens (arm B's two per-finding messages folded in here when it
-  // stopped riding the Finding overload, which bypasses `hasGateIgnore` — GATE-AUTHORING §1).
-  message:
-    "an inline string-literal union re-spells (or should derive from) a canonical `as const` tuple — declare " +
-    "the axis ONCE as a tuple (export const X = [...] as const) and derive ((typeof X)[number] / z.enum(X)). " +
-    "A `union <Alias>` token is arm A: an inline string-union type alias of ≥3 members. A `re-spell <Tuple>` " +
-    "token is arm B: an inline union whose members EXACTLY equal that homed tuple — derive " +
-    "((typeof <Tuple>)[number]). A `z.enum re-spell <Tuple>` token is arm B's z.enum sub-kind — use " +
-    "z.enum(<Tuple>). Spine-TypeScript-and-Patterns.md §7.5",
-  fix: "derive the union from the homed tuple: `(typeof X)[number]` (or `z.enum(X)`) — never re-spell its members.",
-  // Pinned to packages+tests: the §2.2 fold-in globs tooling/src/verify/gates/** into the workspace; a gate
-  // file's inline-union EXAMPLE strings (mustFlag fixtures) are not real axis declarations, and the gate
-  // corpus never homes a canonical tuple — this pin keeps both arms' findings byte-identical to before.
-  scanRoot: (p) => !p.startsWith("tooling/src/verify/gates/"),
-  kinds: [SyntaxKind.VariableDeclaration, SyntaxKind.TypeAliasDeclaration, SyntaxKind.UnionType, SyntaxKind.CallExpression],
-  begin: () => {
-    passTuples.clear();
-    passCoDeclLocs.clear();
-    passRespells.length = 0;
-    passExemptSeen.clear();
-  },
-  visit: (node, _sf, ctx) => {
-    // The FILE-CLASS exemption (the published-mirror table): its unions are re-spells BY CONTRACT, judged by
-    // their own drift pin, so neither arm reads the file — and nothing in it registers as a tuple or a
-    // candidate. `seen` keeps the row two-sided (the finalize stale arm reds a key the walk never claims).
-    const rel = relPath(ctx.root, _sf.getFilePath());
-    if (FILE_CLASS_EXEMPT[rel] !== undefined) {
-      passExemptSeen.add(rel);
-      return;
-    }
-    // Collect canonical tuples (for arm B's finalize reconciliation).
-    if (Node.isVariableDeclaration(node)) {
-      registerTuple(node, ctx.root);
-      return;
-    }
-    visitAlias(node, ctx); // arm A (self-contained)
-    visitRespellCandidate(node, ctx.root); // arm B (accumulate)
-  },
-  finalize: (ctx) => {
-    // Mode-(B) staleness for the file-class table (GATE-AUTHORING §4.4a), anchored on a real-tree file no
-    // example plants. A Finding literal is correct here — a stale-arm, file-level verdict (§1's table).
-    if (!fileLoaded(ctx, REAL_TREE_ANCHOR_UNION)) {
-      return;
-    }
-    for (const key of Object.keys(FILE_CLASS_EXEMPT)) {
-      if (!passExemptSeen.has(key)) {
-        ctx.report({ file: GATE_SELF_UNION, line: 1, column: 0, message: STALE_FILE_CLASS_UNION(key) });
-      }
-    }
-  },
-  // Arm B reconciles in `run`, NOT `finalize`, and that is LOAD-BEARING: it reports node-anchored findings
-  // through the NODE overload, so a `@orb-gate-ignore` here is CONSUMED during the phase it is reported in.
-  // `gate-ignore-inventory`'s STALE sweep runs in `finalize`, and gates finalize in load (filename) order —
-  // `g…` before `n…` — so a suppression consumed in THIS gate's finalize would land after the sweep read the
-  // count and the author's correct marker would be reported stale (pass.ts's `gateIgnoreSuppressedInFinalize`
-  // tripwire exists for exactly that, and names `run` as the fix). Every gate's `run` precedes every
-  // `finalize`, and `run` is still after the whole walk — so all tuples are collected. See tooling/src/verify/lib/pass.ts.
-  run: (ctx: GateRunCtx) => {
-    for (const c of passRespells) {
-      const home = passTuples.get(c.sig);
-      if (home === undefined) {
-        continue;
-      }
-      // A satisfies-bound tuple's own `Interface["prop"]` co-declaration is the SOURCE it derives from,
-      // not a re-spell — skip it (else the derive idiom flags itself).
-      if (passCoDeclLocs.has(c.loc)) {
-        continue;
-      }
-      // A candidate that can't legally import the tuple's home (it sits UP the cake) is NOT a re-spell —
-      // it physically cannot derive from it (a kit fn returning "always"|"keyword" can't reach a contracts
-      // WORLD_INFO_SCOPES). Only flag when the home is reachable from the candidate's package.
-      if (!canReachHome(c.file, home.file)) {
-        continue;
-      }
-      ctx.report(c.node, { token: `${c.kind === "zenum" ? "z.enum re-spell" : "re-spell"} ${home.name}`, offset: 0 });
-    }
+export const gate = defineGate({
+  id: "no-inline-union-redecl",
+  family: "no-inline-union-redecl",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@authored", "@showcase"], notUnder: ["tooling/src/verify/gates/**"] },
+  // The `satisfies readonly Interface["prop"][]` co-declaration exemption resolves the indexed access
+  // through the compiler (`union-axis.ts#coDeclarationUnionNode`), so the evidence plane is types, not
+  // syntax — declared rather than smuggled behind a `lib/` hop.
+  analysis: "types",
+  // ARM B COMPARES AGAINST TUPLES COLLECTED FROM THE WHOLE TREE: a re-spell in `packages/server` matches a
+  // tuple homed in `packages/contracts`, and a narrowed request that admits only the re-speller would
+  // "prove" the axis has no home and report nothing. The verdict cannot compose over a subset, so a proper
+  // subset DEFERS the whole policy (pinned in the family test, §4.5).
+  execution: "entire-population",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const tuples = new Map<string, CanonicalAxisTuple>();
+    /** The compiler nodes of every registered tuple's own `satisfies` co-declaration union — the SOURCE a
+     *  tuple derives from, never a re-spell of it. Keyed on `compilerNode` identity rather than a
+     *  file:line:column string: the pass owns one Project, so identity is exact and cannot alias. */
+    const coDeclarations = new Set<object>();
+    const candidates: { readonly candidate: AxisRespellCandidate; readonly file: string }[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [...UNION_AXIS_VISITOR_KINDS],
+          visit: (node): void => {
+            const alias = inlineUnionAlias(node);
+            if (alias !== undefined) {
+              reportAnchored(ctx.report.node, { reported: alias.alias, anchor: alias.nameNode, message: ALIAS_MESSAGE });
+              return;
+            }
+            const file = ctx.relativePath(node.getSourceFile());
+            const tuple = Node.isVariableDeclaration(node) ? canonicalAxisTuple(node, file) : undefined;
+            if (tuple !== undefined) {
+              tuples.set(tuple.signature, tuple);
+              if (tuple.coDeclaration !== undefined) {
+                coDeclarations.add(tuple.coDeclaration.compilerNode);
+              }
+              return;
+            }
+            const candidate = axisRespellCandidate(node);
+            if (candidate !== undefined) {
+              candidates.push({ candidate, file });
+            }
+          },
+        },
+      ],
+      evaluate: (): void => {
+        for (const { candidate, file } of candidates) {
+          const home = tuples.get(candidate.signature);
+          if (home === undefined || coDeclarations.has(candidate.reported.compilerNode)) {
+            continue;
+          }
+          if (!canReachAxisHome(file, home.file)) {
+            continue;
+          }
+          reportAnchored(ctx.report.node, { reported: candidate.reported, anchor: candidate.reported, message: respellMessage(candidate, home) });
+        }
+      },
+    };
   },
   mustFlag: [
     {
-      files: "export type Mode = 'a' | 'b' | 'c';\n",
-      at: "packages/contracts/src/x.ts",
-      expect: { count: 1, token: "union Mode" },
-      why: "an inline string-union type alias of ≥3 members (arm A) — declare a tuple + derive (§7.5)",
+      mode: "types",
+      files: { "packages/contracts/src/x.ts": "export type Mode = 'a' | 'b' | 'c';\n" },
+      expect: { count: 1, token: "Mode", messageIncludes: "TYPE ALIAS" },
+      why: "ARM A, the founding row — an inline string-union type alias of ≥3 members. The position is the ALIAS NAME, an authored slice: the legacy synthetic token `union Mode` appears in no source file and would THROW under `report.node`",
     },
     {
+      mode: "types",
       files: {
         "packages/contracts/src/home.ts": "export const AXIS = ['a', 'b', 'c'] as const;\n",
         "packages/server/src/x.ts": "export interface T { mode: 'a' | 'b' | 'c' }\n",
       },
-      expect: { count: 1, token: "re-spell AXIS" },
-      why: "an inline union re-spelling a homed `as const` tuple (arm B, cross-file) — derive instead",
+      expect: { count: 1, token: "'a' | 'b' | 'c'", messageIncludes: "re-spells the canonical tuple `AXIS`" },
+      why: "ARM B, the founding CROSS-FILE row — a union in a property position whose members exactly equal a homed tuple. Both halves of the identity are pinned: the position is the inline SET itself, and the message names the tuple the author must derive from, which is the whole content of the verdict",
     },
     {
+      mode: "types",
       files: {
         "packages/contracts/src/mode-home.ts": "export const MODE = ['a', 'b', 'c'] as const;\n",
         "packages/server/src/z.ts": "export const schema = z.enum(['a', 'b', 'c']);\n",
       },
-      expect: { count: 1, token: "z.enum re-spell MODE" },
-      why: "a `z.enum([...])` respelling a homed `as const` tuple (arm B ZENUM sub-kind — the AUTH_MODE bug) — use z.enum(X). The TOKEN is what discriminates the sub-kind now that both messages fold into `message`",
+      expect: { count: 1, token: "['a', 'b', 'c']", messageIncludes: "z.enum(MODE)" },
+      why: "ARM B's ZENUM sub-kind (the AUTH_MODE bug) — a `z.enum([...])` re-spelling a homed tuple. The report anchors on the ARRAY argument, not the call: `z.enum(['a', 'b', 'c'])` contains parens, and the marker grammar's position group is `[^()\\r\\n]+`, so anchoring on the call would leave the finding UNWAIVABLE. The message discriminates the sub-kind by naming the `z.enum(X)` derivation rather than `(typeof X)[number]`",
     },
     {
+      mode: "types",
       files: {
         "packages/kit/src/pair-home.ts": "export const PAIR = ['x', 'y'] as const;\n",
         "packages/server/src/pair-respell.ts": "export interface P { side: 'x' | 'y' }\n",
       },
-      expect: { count: 1, token: "re-spell PAIR" },
-      why: "blind spot (b) repaired: a 2-member tuple homed in kit/ now registers, so a 2-member re-spell is caught (arm B at the ≥2 homed floor)",
+      expect: { count: 1, token: "'x' | 'y'", messageIncludes: "`PAIR`" },
+      why: "THE ≥2 HOMED REGISTRATION FLOOR: a 2-member tuple homed in `packages/kit/` registers as canonical, so a 2-member re-spell is caught. Paired with the `mustPass` row placing the identical 2-member tuple in `packages/server/` — that one is BELOW the floor and passes, which is the fence this row shares",
     },
     {
+      mode: "types",
       files: {
         "packages/contracts/src/sat-home.ts":
           "export interface Cfg { mode: 'a' | 'b' | 'c'; n: number }\nexport const MODES = ['a', 'b', 'c'] as const satisfies readonly Cfg['mode'][];\n",
         "packages/server/src/sat-respell.ts": "export interface Reuse { mode: 'a' | 'b' | 'c' }\n",
       },
-      expect: { count: 1, token: "re-spell MODES" },
-      why: "blind spot (a) repaired: an `as const satisfies readonly X[]` tuple now registers, so a FOREIGN re-spell is caught — while its OWN satisfies co-declaration (Cfg.mode) is exempt (the next mustPass proves the exemption)",
+      expect: { count: 1, token: "'a' | 'b' | 'c'", messageIncludes: "`MODES`" },
+      why: "THE `as const satisfies readonly X[]` REGISTRATION: the house derive idiom parses as a SatisfiesExpression wrapping the AsExpression, so a reader that does not peel it registers no tuple and the FOREIGN re-spell escapes. `count: 1` is load-bearing here — the home file's own `Cfg['mode']` co-declaration is inside the population and is exempt, so a broken exemption shows up as 2",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/wrapped-home.ts": "export const WRAPPED_AXIS = ['a', 'b', 'c'] as const;\n",
+        "packages/server/src/wrapped-respell.ts": "export interface M {\n  mode:\n    | 'a'\n    | 'b'\n    | 'c';\n}\n",
+      },
+      expect: { count: 1, token: "'a'" },
+      why: "THE UNDERIVABLE-ANCHOR FALLBACK, and it is a row about a CATCH rather than about ergonomics: a union written across lines has no source slice the marker grammar can hold (`[^()\\r\\n]+`), so `firstAnchor` refuses and the report passes NO token — the RUNTIME then derives the first authored literal, `'a'`. The finding must still fire. Returning early on a missing anchor instead (the shape this row was written against) drops it silently, which is a catch loss wearing a position problem's clothes",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/showcase-home.ts": "export const SHOWCASE_AXIS = ['a', 'b', 'c'] as const;\n",
+        "packages/showcase-plugins/src/plugin.ts": "export interface S { mode: 'a' | 'b' | 'c' }\n",
+      },
+      expect: { count: 1, token: "'a' | 'b' | 'c'" },
+      why: "THE `@showcase` ROOT, pinned: `@authored` deliberately EXCLUDES `packages/showcase-plugins/src` (contract/population.ts) while the legacy `packages/*/src/**` glob covered it, so naming `@showcase` is the only thing that keeps the port lossless. Drop it from `in` and this row is the one that dies — the contracts home stays admitted, so the fixture still admits paths and the failure is a missing FINDING rather than an empty-population tool error",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/alias-home.ts": "export const ALIAS_AXIS = ['a', 'b', 'c'] as const;\n",
+        "packages/server/src/alias-respell.ts": "export type Reuse = 'a' | 'b' | 'c';\n",
+      },
+      expect: { count: 1, token: "Reuse" },
+      why: "ONE SITE, ONE FINDING: an inline alias whose members ALSO match a homed tuple is arm A's subject and arm B must not claim it as well. `count: 1` with the ALIAS-NAME token is the discriminator — delete `axisRespellCandidate`'s type-alias-parent skip and this row reports 2 findings on one declaration, which (sharing a carrier and needing two different markers) is a site with no working waiver door",
     },
   ],
   mustPass: [
     {
-      files: "export type NodeEnv = 'development' | 'production';\n",
-      at: "packages/contracts/src/y.ts",
-      why: "a 2-member one-off union with no canonical tuple — arm A ≥3 floor + no home, passes",
+      mode: "types",
+      files: { "packages/contracts/src/y.ts": "export type NodeEnv = 'development' | 'production';\n" },
+      why: "THE ARM-A ≥3 FLOOR: a 2-member one-off alias with no canonical tuple anywhere. Drop the floor to 2 and this row is the one that dies",
     },
     {
-      files: "export const schema = z.enum(['development', 'production', 'test']);\n",
-      at: "packages/contracts/src/env.ts",
-      why: "a `z.enum([...])` one-off (NODE_ENV-class) with NO matching canonical tuple in the tree — arm B no-op, passes",
+      mode: "types",
+      files: { "packages/contracts/src/env.ts": "export const schema = z.enum(['development', 'production', 'test']);\n" },
+      why: "THE EXACT-SET PREDICATE, from arm B's other side: a `z.enum([...])` one-off (the NODE_ENV class) with NO matching canonical tuple in the tree is not a re-spell of anything. Arm B is a set-identity match, never a heuristic about literal arrays",
     },
     {
-      files: "export interface Cfg { mode: 'a' | 'b' | 'c'; n: number }\nexport const MODES = ['a', 'b', 'c'] as const satisfies readonly Cfg['mode'][];\n",
-      at: "packages/contracts/src/sat-selfsource.ts",
-      why: "the satisfies co-declaration EXEMPTION: `Cfg.mode` is the SOURCE the satisfies tuple derives from — the idiom must not flag itself (blind-spot-(a) care clause from §G2)",
+      mode: "types",
+      files: {
+        "packages/contracts/src/sat-selfsource.ts":
+          "export interface Cfg { mode: 'a' | 'b' | 'c'; n: number }\nexport const MODES = ['a', 'b', 'c'] as const satisfies readonly Cfg['mode'][];\n",
+      },
+      why: "THE CO-DECLARATION EXEMPTION: `Cfg['mode']` is the SOURCE the satisfies tuple derives from, not a re-spell of it — without the exemption the house-encouraged derive idiom flags ITSELF, and the fix the message asks for is the code already written. Delete the `coDeclarations` skip and this row reds",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/local-pair-home.ts": "export const LOCAL_PAIR = ['x', 'y'] as const;\n",
         "packages/server/src/local-pair-use.ts": "export interface Q { side: 'x' | 'y' }\n",
       },
-      why: "a 2-member tuple homed OUTSIDE contracts/kit stays below the arm-B registration floor (≥3), so a coincidental generic pair is NOT flagged — the false-positive control from §G2 fix (b)",
+      why: "THE DEFAULT ≥3 REGISTRATION FLOOR: the same 2-member tuple as `mustFlag[3]`, homed OUTSIDE contracts/kit, does NOT register — a coincidental generic pair is not an axis. Raise the trusted floor to 3 (or widen `TRUSTED_TUPLE_HOMES` to `packages/`) and this row is the one that dies",
     },
     {
+      mode: "types",
       files: {
         "packages/contracts/src/scope-home.ts": "export const SCOPES = ['always', 'keyword'] as const;\n",
         "packages/kit/src/engine.ts": "export function resolve(): 'always' | 'keyword' {\n  return 'always';\n}\n",
       },
-      why: "the up-cake reach guard: a kit fn returning a union whose sig matches a CONTRACTS-homed tuple can't import it (kit ← contracts is one-directional) — flagging it would demand an illegal import, so it passes (the live `resolveEntryScope` case)",
+      why: "THE CAKE REACH FENCE (the live `resolveEntryScope` case): a kit function returning a union matching a CONTRACTS-homed tuple cannot import it — `kit ← contracts` is one-directional — so flagging it would demand an illegal import. Fail `canReachAxisHome` open and this row reds",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/ui-axis-home.ts": "export const UI_AXIS = ['a', 'b', 'c'] as const;\n",
+        "packages/ui/src/widget.ts": "export interface W { mode: 'a' | 'b' | 'c' }\n",
+      },
+      why: "THE D54 RANK-PEER EXCEPTION inside that fence: `ui` and `contracts` share import rank 1, so a rank comparison ALONE would flag this — but the sealed `ui` package deps `kit` ONLY, so the contracts tuple is unreachable from it. Delete the explicit `ui`/`contracts` clause and this row is the only one that dies",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/fence-home.ts": "export const FENCE_AXIS = ['a', 'b', 'c'] as const;\n",
+        "tooling/src/verify/gates/example-policy.ts": "export interface F { mode: 'a' | 'b' | 'c' }\n",
+      },
+      why: "THE GATE-DIRECTORY SUBTRACTION, and it is load-bearing rather than cosmetic: every gate module's `mustFlag` fixtures re-spell axes BY DESIGN — this policy's own rows above are exactly that — so without `notUnder: ['tooling/src/verify/gates/**']` the corpus reports its own proof strings. The contracts home is the second admitted file the fence needs: delete the subtraction and this row reds with a finding rather than an empty-population tool error",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/call-home.ts": "export const CALL_AXIS = ['a', 'b', 'c'] as const;\n",
+        "packages/server/src/call-use.ts": "declare function pick(values: readonly string[]): void;\npick(['a', 'b', 'c']);\n",
+      },
+      why: "THE `.enum` CALLEE TEST: arm B's zenum sub-kind is about a SCHEMA vocabulary, not about array arguments. An ordinary call taking the same literal array is passing data, not re-declaring an axis, and there is nothing to derive. Accept any callee and this row reds",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/mixed.ts": "export const NUMBERS = [1, 2, 3] as const;\nexport type Mixed = 'a' | 'b' | 3;\n",
+      },
+      why: "STRING-ONLY, THE UNION SIDE: a union carrying a numeric member is not a string axis, so arm A's ≥3 count never reaches it and arm B never signs it. Accept a non-string union member and this row reds",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/number-home.ts": "export const CODES = [1, 2, 3] as const;\n",
+        "packages/server/src/number-respell.ts": "export interface N { code: '1' | '2' | '3' }\n",
+      },
+      why: "STRING-ONLY, THE TUPLE SIDE, and it is the row that makes that fence falsifiable at all: a numeric `as const` tuple registers NO axis, so the string union `'1' | '2' | '3'` — whose members stringify to the same three lexemes — matches nothing. Accept a non-string tuple element (the reader would then read `1` as the member `\"1\"`) and the two sets collide and this row reds. Written and run for exactly that reason: the fence cut clean against every other row, and the discriminating fixture is what separates UNENFORCED from enforced",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/waived-alias.ts":
+          "// @orb-waive no-inline-union-redecl(Mode): the proof's stand-in reason; ends when this fixture stops flagging.\nexport type Mode = 'a' | 'b' | 'c';\n",
+      },
+      why: "§4.2 POSITIONAL IDENTITY, ARM A: the twin of `mustFlag[0]` (count 1, so exactly one occurrence exists for the one marker to consume) plus the marker line. An author waives the ALIAS NAME — the exact slice `firstAnchor` anchors on — not the file and not the union text. The family test drives the same fixture through `runPolicyPass` for the two assertions a `mustPass` cannot make (`waivedFindings === 1`, `authorityAlarms === []`)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/waived-home.ts": "export const WAIVED_AXIS = ['a', 'b', 'c'] as const;\n",
+        "packages/server/src/waived-respell.ts":
+          "// @orb-waive no-inline-union-redecl('a' | 'b' | 'c'): the proof's stand-in reason; ends when this fixture stops flagging.\nexport interface T { mode: 'a' | 'b' | 'c' }\n",
+      },
+      why: "§4.2 POSITIONAL IDENTITY, ARM B: the twin of `mustFlag[1]`, and the arm whose position shape is unusual — the marker carries the SET's own source text, spacing included. The carrier is the interface STATEMENT (a node finding binds to leading trivia on the node or its ancestors up to the enclosing statement), which is why the marker sits above `export interface T` and not inside it",
     },
   ],
-};
+});

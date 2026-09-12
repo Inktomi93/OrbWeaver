@@ -169,8 +169,9 @@ function writeFixtures(): void {
   // fake name is kebab-case, not the `__g_` sentinel form. Every OTHER arm (malformed / stale /
   // over-exempting) is driven on the real tree by tests/tooling/gate-ignore-grammar.repo.int.test.ts.
   fx("packages/server/src/__g_ignoreinv.ts", "// @orb-gate-ignore g-no-such-gate: fixture — names a gate that does not exist\nexport const x = 1;\n");
-  // no-inline-union-redecl: an inline ≥3-member string-literal union alias.
-  fx("packages/server/src/__g_union.ts", 'export type U = "a" | "b" | "c";\n');
+  // no-inline-union-redecl: fixture RETIRED with its #1584 conversion — both arms now run on the static
+  // bar through `structure:policy-conformance`, and a fixture for a converted gate reports UNFIRED here
+  // forever because `loadGates` returns the legacy list alone.
   // commented-code: parked code in a // comment.
   fx("packages/server/src/__g_commented.ts", "// const dead = 1;\nexport const live = 1;\n");
   // schema-branding: a db text id column without .$type<XId>().
