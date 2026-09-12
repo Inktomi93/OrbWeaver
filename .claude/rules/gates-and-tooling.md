@@ -61,7 +61,10 @@ paths:
   - **The receipt is a committed family test** under `tests/tooling/verify/gates/` importing every converted
     module and asserting `verifyPolicyProofs([...])` equals `[]`, plus for each ORDINARY policy the positive
     identity arm (the correct marker at the reported position suppresses; shape
-    `ordinary-visitors-family.test.ts:187-205`) and a frozen-legacy differential for the conversion commit.
+    `ordinary-visitors-family.test.ts:187-196` — the POSITIVE arm ONLY. **`:198-205` beside it is a dead-position
+    NEGATIVE arm; §4.2 forbids copying a negative arm into a gate (under `knownPolicies: [policy]` it rides the
+    unknown-policy short-circuit and proves nothing), so a range ending at :205 tells you to copy the one shape the
+    same rule bans.**) and a frozen-legacy differential for the conversion commit.
     Retiring a private marker vocabulary for `@orb-waive` means COUNTING the live legacy markers (count /
     files / trailing-position) and recording the census in the header; translation of product files is a
     separate lane, never yours.

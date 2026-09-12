@@ -178,7 +178,9 @@ family.
 2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
    one POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position, yielding 0
    effective findings, 1 waived, 0 alarms. Two shapes are valid — a `mustPass` row in the module
-   (`schema-branding.ts:137`) or a `runPolicyPass` pin in a family test (`ordinary-visitors-family.test.ts:187-205`).
+   (`schema-branding.ts:137`) or a `runPolicyPass` pin in a family test (`ordinary-visitors-family.test.ts:187-196`
+   — the POSITIVE arm ONLY; `:198-205` beside it is a dead-position NEGATIVE arm and the next sentence forbids copying
+   it, so the range must stop at :196).
    The negatives are the CENTRAL engine's proof, run once
    (`tests/tooling/verify/lib/ordinary-waiver.test.ts`): wrong-policy, stale/dead position, malformed, missing reason,
    over-broad, duplicate consumption, unknown policy, hard/reviewed refusal, incomplete-owner withholding and
@@ -652,7 +654,9 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   Sonnet executor / mech-executor (owner test 2026-09-11: mechanical work and header honesty consistently good;
   self-checking of an INVENTED proof's discriminating power consistently absent, so §4.7 is briefed explicitly); every
   verifier → Opus, one per wave, read-only, probes announced by SendMessage and prefixed with the lane name.
-- Cap 3 concurrent lanes; the §5 runtime lane runs alone; whole-tree runs never alongside lanes; engines stopped and
+- Cap: **5 while this program is the work, 3 otherwise** (the base cap was restored to 3 at `faed86039` on
+  2026-09-11 09:19 and the owner raised it again later the same day, conditioned on this program — the later word wins;
+  `.claude/rules/orchestration.md` is the cap's one home). The §5 runtime lane runs alone; whole-tree runs never alongside lanes; engines stopped and
   prod down for the program's duration.
 - A brief carries: this document and the exemplars by path; the exact module list with legacy SHAs for
   the differential; the family hypothesis (a hypothesis until the lane names the reader); the fence (files it owns,

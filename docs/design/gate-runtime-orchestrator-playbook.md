@@ -54,7 +54,10 @@ order); §12 is what lanes read. This file is what YOU do, in order.
 
 ## 1. Standing rules for this program (owner, 2026-09-11)
 
-- Cap 3 concurrent lanes. (Phase A ran alone and is landed; no current work needs solo.)
+- **Cap 5 while this program is the work; 3 otherwise.** The base cap returned to 3 at `faed86039` (2026-09-11
+  09:19); the owner raised it again later the SAME day, conditioned on this program, and the later word wins. Reverts
+  to 3 when #1584 closes. `.claude/rules/orchestration.md` is the cap's one home — do not re-litigate it from the 09:19
+  line. Gate-heavy lanes stay ≤3 within that cap. (Phase A ran alone and is landed; no current work needs solo.)
 - Lanes run in isolated worktrees off `main` (`isolation: "worktree"`); you merge by fast-forward with the hook path
   nulled after the lane rebases; you run its named floor again on `main` after the merge.
 - Every commit and merge until the mixed `check:structure` is green on `main`: `git -c core.hooksPath=/dev/null …`,
