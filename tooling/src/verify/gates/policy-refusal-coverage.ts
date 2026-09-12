@@ -46,6 +46,17 @@
 // a refusal pin is CORRECT; `mustRefuse` rows are executed by the conformance stage and `runPolicyPass` pins by
 // their suite. It asks only whether one EXISTS, which is the question nothing asked before.
 //
+// FAMILY: `policy-soundness`, shared reader `lib/policy-descriptor-read.ts` (`finalDescriptorOf`,
+// `descriptorValue`, `descriptorProperty`, `policyIdOfPath`) — the same descriptor reader
+// `policy-waiver-identity` and `policy-waiver-spelling` resolve through. NOT a singleton and NOT a `-health`
+// split: it differs from its siblings in SUBJECT (the refusal proof rather than the waiver arm), not in
+// authority, so it is one more policy under the shared `family` string. Its severity DOES differ while the
+// burn-down drains, which the section above states as a dated, checkable event rather than a permanent shape.
+// POPULATION PORT: NO legacy population — this policy is BORN FINAL, added at `575e48d5a`
+// (`git show 575e48d5a^:tooling/src/verify/gates/policy-refusal-coverage.ts` → `exists on disk, but not in`).
+// Nothing was ported: no legacy descriptor ever asked who owed a refusal proof, which is the gap #2184 names
+// and why its paid defects are three separate lanes rediscovering it. There is no legacy SHA to record.
+//
 // BLINDNESS: this module reads final descriptors through the shared reader, so if that recognizer dies every
 // module reads "not final" and the corpus reports ✓ forever. It self-anchors on its OWN path and THROWS instead.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";

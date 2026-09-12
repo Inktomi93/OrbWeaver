@@ -61,6 +61,18 @@
 // receipt added here never ran, because the refusal had already fired. The family test pins that refusal by
 // phase, with a seeing arm beside it, rather than this module carrying a second mechanism that says less.
 //
+// FAMILY: `policy-soundness`, shared reader `lib/reference-fact.ts` (`resolveModuleMemberOrigin` for the fs
+// door's identity, `resolveStableExpression` for the path walk) plus `lib/symbol-reference.ts#readMemberAccess`
+// for the member spelling — the same readers its siblings resolve identity through. NOT a singleton: it is the
+// FIXTURE-SUBSTRATE arm of the family whose other members judge the corpus itself, and it differs from them in
+// POPULATION (the test tree) rather than in authority, which is why it is one more policy under the shared
+// `family` string rather than a `-health` split.
+// POPULATION PORT: NO legacy population — this policy is BORN FINAL, added at `575e48d5a`
+// (`git show 575e48d5a^:tooling/src/verify/gates/policy-fixture-substrate.ts` → `exists on disk, but not in`).
+// Nothing was ported and nothing was subtracted from a sibling to make room: `tests/tooling/verify/gates/**` was
+// scanned by NO gate before this one, which is the gap #2185 names. There is no legacy SHA to record and an
+// invented one would be worse than the absence.
+//
 // `hard`/`error`: this is the fence that keeps a gate's own test from blinding the gate. A module that could
 // waive out of it would re-open the door the 2026-08-24 incident closed.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
