@@ -339,6 +339,35 @@ scale: `caught-failure-ownership`, 336 files, shipped with no differential (#197
 | **B** commit message claims one | **30** | an ASSERTION, not a receipt — names no result, nothing re-runs it |
 | **C** nothing | **126** | **74% of the corpus** |
 
+**RE-SCOPED 2026-09-12 BY A FULL READ OF THE SEVEN RECORDS: \~13 modules genuinely need a built differential, not
+126 and not 46.** Method grading decided it — only 2 of 7 records used the fixture-level method that can reach catch
+parity; 57 of the 90 named policies had an informative comparison, 33 were vacuous.
+
+**RULED — 31 modules DOWNGRADE by one recorded ruling rather than 31 lanes:** *a conversion whose legacy side was
+zero because every live site sat inside a `scanRoot` SUBTRACTION has proven outcome parity and real-tree liveness,
+and cannot prove catch parity from the corpus.* Writing that down is cheaper than 31 replays, and it is the same
+argument already accepted for the one-to-one ports.
+
+**REMOVE entirely (26 + 2):** all 14 `mechanical-gates` and all 12 `origin-client` modules carry §4.6-compliant
+fixture-level evidence · `no-raw-zustand-persist` (bucket A via `simple-visitors-wave-4.test.ts`) ·
+`asset-refs-fk-coverage` (retired, and carries the best differential on the tree).
+
+**THE GENUINELY EMPTY, re-ranked — this is the work:**
+
+- **TIER 2a — 4 SPLIT ARMS, do first.** `no-rejected-cors-proxy` · `persisted-store-registry` ·
+  `no-mutating-register-api` · `no-inline-domain-interface`. Same shape as the eight `-health` siblings already
+  closed: split in two, corpus replay 0/0, **no per-example coverage statement anywhere on the tree** (verified, not
+  assumed). **`no-rejected-cors-proxy` is also #1987 — route them together.** Successor proofs must be CONSTRUCTED
+  from each arm's own triggers.
+- **TIER 2b — 2 schema-fact narrowings, the exact class §4.6 exists for.** `contract-banned-shapes` (a deliberate
+  **7,138 → 105** population narrowing receipted by an ast-grep uniqueness argument, NOT a finding replay) and
+  `nullable-column-inequality` (semantics deliberately strengthened, **live verdict changed**, no old/new numbers).
+- **TIER 2c — schema-fact's remaining 7.** One lane covers all of them: they share `drizzleSchemaFact` and four are
+  relational-integrity policies over a 30-file population, so the replays are cheap.
+- **TIER 3 — 17 one-to-one ports at 0/0, close BY RULE with the ports.** **Two exceptions that must NOT be closed:**
+  `turn-identity` (wave 9's copy candidate, *after* a repair) and `plugin-dump-guard` (#1986, two unpinned arms in a
+  HARD security-adjacent policy).
+
 **DO NOT WORK 126. It is ranked, and the order is the whole point:**
 
 - **TIER 1 — eight split arms, ONE LANE, do this first:** `bus-fact-health` · `contract-derives-not-respells-health` ·

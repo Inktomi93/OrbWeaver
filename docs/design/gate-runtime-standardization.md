@@ -168,6 +168,22 @@ family.
      resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
      path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
 
+   **DIFFERENTIAL VACUITY HAS TWO SHAPES, AND THE SECOND IS THE ONE THAT LOOKS LIKE EVIDENCE (measured
+   2026-09-12 across all seven conversion records).** **Read the LEGACY-SIDE number FIRST**; a zero there downgrades
+   the record to a population/outcome receipt no matter how much prose follows.
+
+   1. **Both sides zero.** The classic — the clean verdict is evidence of nothing. 22 modules across
+      `ordinary-visitors`, `origin-server` and `home-client`, plus Tier 1's `-health` arms.
+   2. **The legacy side is zero BECAUSE the legacy exemption mechanism was a `scanRoot` SUBTRACTION.** The exempt
+      sites never entered the legacy population at all, so the new policy's nonzero raw count proves **liveness and
+      outcome parity** and still says **nothing about whether it catches what legacy caught.** This is the whole
+      sanctioned-home family, and it reads like a rich receipt.
+
+   **Only a FIXTURE-LEVEL method reaches catch parity** — extract the pre-conversion descriptors, shim their
+   contract import, and replay through the legacy `runPass` **over each proof's own file map**
+   (`origin-client-family-1584.md:151`). **Two of the seven 2026-09-05/06 records used it**; the other five are
+   real-corpus-only. A real-corpus replay is informative only where a side is nonzero.
+
    **A POPULATION DIFFERENTIAL IS NOT A FINDING DIFFERENTIAL — it is ONE THIRD of what §4.6 asks, and records
    call both “the differential” (measured 2026-09-12).** §4.6 requires comparing **findings, populations AND tool
    errors**. A record headed *“Population equality, over one frozen 7,138-path candidate set”* proves only that the
