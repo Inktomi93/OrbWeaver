@@ -10,8 +10,16 @@
 // surfaces/*.tsx, so this policy also declares a narrow SOURCE population over exactly that shape and
 // reads it through `ctx.files` — the sanctioned dual role (design/gate-runtime-standardization.md
 // "Population vocabulary").
+// WHERE A BROKEN RESOURCE REFUSES — not here (mirrors `server-layout.ts`'s header). A declared resource
+// that comes back missing/empty/unresolved/malformed makes `resolveResourceDeclarations`
+// (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, and the receipt phase withholds
+// every consumer, both before `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready
+// branch: it reads both trees through `readyResourceValue`, whose throw is an assertion that the runtime's
+// own refusal already held — a silent `if (status !== "ready") return;` here would be unreachable code
+// reporting a clean pass on a run that could not perform its analysis at all.
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const FEATURES = "packages/client/src/features";
 const DOMAINS = "packages/server/src/domain";
@@ -234,13 +242,8 @@ export const gate = defineGate({
   fix: "add the index.ts front door, move loose modules into a bucket (surfaces/anchors/components/hooks/lib), rename to the served domain (or add to RESERVED), and name surfaces `-surface.tsx` / hooks `use-*` / anchors by container suffix — grouping a bucket into sub-dirs is legal, but the file contracts follow the file down and a group is never named after a bucket.",
   create: (ctx) => ({
     evaluate: () => {
-      const featureTree = ctx.resources.authoredTree("client-feature");
-      const domainTree = ctx.resources.authoredTree("server-domain");
-      if (featureTree.status !== "ready" || domainTree.status !== "ready") {
-        return;
-      }
-      const entries = featureTree.value;
-      const domains = domainNames(domainTree.value);
+      const entries = readyResourceValue(ctx.resources.authoredTree("client-feature"));
+      const domains = domainNames(readyResourceValue(ctx.resources.authoredTree("server-domain")));
       const surfaceText = new Map(ctx.files.map((file) => [ctx.relativePath(file), file.getFullText()]));
       const findings: Report[] = [];
       for (const name of featureDirs(entries)) {

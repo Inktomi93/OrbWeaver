@@ -6,7 +6,14 @@
 // whose `family` is not its id — `css-literal-geometry` was declared here for the 14 LEGACY CSS gates that share the
 // authored-css reader, and the mixed door (#1584 §5) is the first loader to have run this module. Re-declare the
 // shared family in the same commit that converts the second member.
+// WHERE A BROKEN RESOURCE REFUSES — not here (mirrors `server-layout.ts`'s header). A declared resource
+// that comes back missing/empty/unresolved/malformed makes `resolveResourceDeclarations`
+// (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, and the receipt phase withholds
+// every consumer, both before `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready
+// branch: it reads the CSS inventory through `readyResourceValue`, whose throw is an assertion that the
+// runtime's own refusal already held.
 import { defineGate } from "../contract/policy.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const GENERATED_THEME = "packages/ui/src/styles/theme.css";
 const MESSAGE =
@@ -63,13 +70,10 @@ export const gate = defineGate({
   fix: "use a var(--color-*) token or oklch(from var(--color-*) l c h / α)",
   create: (ctx) => ({
     evaluate: () => {
-      const inventory = ctx.resources.cssInventory("authored");
-      if (inventory.status !== "ready") {
-        return;
-      }
-      for (const declaration of inventory.value.declarations) {
+      const inventory = readyResourceValue(ctx.resources.cssInventory("authored"));
+      for (const declaration of inventory.declarations) {
         if (declaration.file !== GENERATED_THEME && rawColor(declaration.value)) {
-          const source = inventory.value.files.find(({ path }) => path === declaration.file);
+          const source = inventory.files.find(({ path }) => path === declaration.file);
           if (source === undefined) {
             throw new Error(`CSS declaration has no source resource: ${declaration.file}`);
           }

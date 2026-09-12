@@ -5,10 +5,17 @@
 // every registry stage's argv must name a script that exists in package.json. RESOURCE (GATE-AUTHORING
 // migration): the root `package.json` comes from the closed `package-metadata` ResourceHost fact;
 // `REGISTRY` is a plain in-memory module import, not a filesystem read.
+// WHERE A BROKEN RESOURCE REFUSES — not here (mirrors `server-layout.ts`'s header). A declared resource
+// that comes back missing/empty/unresolved/malformed makes `resolveResourceDeclarations`
+// (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, and the receipt phase withholds
+// every consumer, both before `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready
+// branch: it reads the package metadata through `readyResourceValue`, whose throw is an assertion that the
+// runtime's own refusal already held.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { PackageMetadata } from "../contract/resource-config.ts";
 import { REGISTRY } from "../lib/registry.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const PKG_REL = "package.json";
 // The verification-shaped script-name prefixes (§3.6). A script whose name matches must be in the registry.
@@ -80,11 +87,7 @@ export const gate = defineGate({
   fix: "place the script in a tier in tooling/src/verify/lib/registry.ts (even `manual` + a reason), or add it to the gate's NON_STAGE_ALLOWLIST if it is a writer/artifact-generator; for a dead row, remove it or restore the script.",
   create: (ctx) => ({
     evaluate: () => {
-      const metadata = ctx.resources.packageMetadata("root");
-      if (metadata.status !== "ready") {
-        return;
-      }
-      reconcile(ctx, metadata.value);
+      reconcile(ctx, readyResourceValue(ctx.resources.packageMetadata("root")));
     },
   }),
   mustFlag: [

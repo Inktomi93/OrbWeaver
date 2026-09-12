@@ -27,10 +27,12 @@ function attachSpotlight(root: HTMLElement | null): (() => void) | undefined {
     return;
   }
   // Fine-pointer only + honor reduced-motion, so a touch/reduced-motion user never installs the listener.
-  // `(pointer: fine)` is pointer-CAPABILITY detection, which the reduced-motion one-homes do not cover and
-  // for which no coarse-pointer home exists yet. `no-raw-matchmedia` is a reviewed-grant policy with no
-  // inline door, so that standing permission lives in `REVIEWED_GRANTS` as `no-raw-matchmedia:media-grid`
-  // (with the `endsWhen` naming the missing home) rather than in a marker here.
+  // `(pointer: fine)` is pointer-CAPABILITY detection, which the reduced-motion one-homes do not cover.
+  // `#1182` landed a coarse-pointer one-home (`coarsePointerNow()`), but that reader answers `(pointer:
+  // coarse)` — a DIFFERENT query, not this call's inverse (a `pointer: none` device matches neither), so
+  // it does not serve this read. `no-raw-matchmedia` is a reviewed-grant policy with no inline door, so
+  // that standing permission lives in `REVIEWED_GRANTS` as `no-raw-matchmedia:media-grid` (with the
+  // `endsWhen` naming the still-missing `(pointer: fine)` home) rather than in a marker here.
   if (!globalThis.matchMedia("(pointer: fine)").matches || prefersReducedMotionNow()) {
     return;
   }

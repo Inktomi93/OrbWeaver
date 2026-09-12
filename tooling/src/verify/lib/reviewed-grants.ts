@@ -412,8 +412,8 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     policyId: "no-raw-matchmedia",
     subject: "packages/ui/src/primitives/media-grid/media-grid.tsx",
     operation: "raw-match-media",
-    why: "a POINTER-CAPABILITY query (`(pointer: fine)`), which the reduced-motion one-homes do not cover and for which no coarse-pointer home exists on this tree. This is the permanent `@orb-gate-ignore` that used to sit at the call site, translated: a reviewed-grant policy has no inline door, and a standing permission belongs in the reviewed table rather than in a comment one author can write.",
-    endsWhen: "a pointer-capability one-home lands in `@orb/ui/src/lib/` (the fork recorded for #1182) and this call reads it instead.",
+    why: "a POINTER-CAPABILITY query (`(pointer: fine)`), which the reduced-motion one-homes do not cover. `#1182` landed a coarse-pointer imperative one-home (`coarsePointerNow()`), but that reader answers `(pointer: coarse)` — a DIFFERENT query, not this call's logical inverse (a `pointer: none` device matches neither), so it does not serve this read; the one-home's existence narrows the gap this row licenses, it does not close it. This was the permanent `@orb-gate-ignore` that used to sit at the call site, translated: a reviewed-grant policy has no inline door, and a standing permission belongs in the reviewed table rather than in a comment one author can write.",
+    endsWhen: "a `(pointer: fine)` one-home lands beside `coarsePointerNow()` in `@orb/ui/src/lib/` and this call reads it instead.",
   },
   {
     id: "no-raw-matchmedia:reduced-motion-now",

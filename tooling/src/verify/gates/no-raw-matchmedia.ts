@@ -4,12 +4,14 @@
 // forks its own `matchMedia` grows a second, unsynchronised source of the same fact.
 //
 // AUTHORITY IS reviewed-grant. Every exception this rule has ever had is a recurring repository PERMISSION
-// naming a specific file — the two reduced-motion homes and the shell viewport hook were `scanRoot`
-// exclusions, and the media-grid's pointer-capability read carried a permanent `@orb-gate-ignore` whose
-// stated reason ("no coarse-pointer home exists") is a standing state of the tree, not a per-occurrence
-// slip. All four are now exact `(subject, operation)` rows in `lib/reviewed-grants.ts` with `why` and
-// `endsWhen`; the marker is DELETED from `media-grid.tsx` in the same change, because a reviewed-grant policy
-// has no inline door and a marker that suppresses nothing is the shape the central table exists to replace.
+// naming a specific file — the two reduced-motion homes, the shell viewport hook and the imperative
+// coarse-pointer home (`coarsePointerNow()`, #1182) are each a standing one-home reader, and the media-grid's
+// pointer-capability read carried a permanent `@orb-gate-ignore` whose stated reason ("no coarse-pointer home
+// exists") is now FALSE — the home exists — but the read it guards is `(pointer: fine)`, a DIFFERENT query
+// the coarse-pointer home does not answer, so the grant survives with its `why` naming that mismatch instead.
+// All FIVE are exact `(subject, operation)` rows in `lib/reviewed-grants.ts` with `why` and `endsWhen`; the
+// marker was DELETED from `media-grid.tsx` when its row was minted, because a reviewed-grant policy has no
+// inline door and a marker that suppresses nothing is the shape the central table exists to replace.
 // A home that moves now reds at its row instead of carrying its exemption into the void.
 //
 // IDENTITY, NOT SPELLING. The legacy check was a PropertyAccess callee named `matchMedia`, so a bare

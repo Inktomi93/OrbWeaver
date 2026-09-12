@@ -5,13 +5,24 @@
 // `content: string`, and a module that NAMES the symbol outside that set is reaching for parts too early.
 //
 // IDENTITY, NOT SPELLING: the legacy check was an `ImportSpecifier` named `ChatContentPart` whose module
-// specifier matched `/^@orb\/contracts\/chat/`. That is two spellings at once — a namespace member
-// (`chat.ChatContentPart`), a computed-literal member, and a re-export through any other barrel all walked
-// past it, while a same-named type declared elsewhere would have red as the real one. The subject is now the
-// reference whose CANONICAL DECLARATION lives in the contracts chat home, resolved through the shared sealed
-// -origin reader, and the home's own existence is RECEIPTED: if the declaration moves out of
-// `packages/contracts/src/chat/`, the receipt goes to zero members and the run REFUSES rather than rendering
-// a clean pass over a rule that has quietly stopped having a subject.
+// specifier matched `/^@orb\/contracts\/chat/`. A regex-on-specifier check is blind to an ALIASED import
+// and to a re-export through any OTHER barrel, while a same-named type declared elsewhere would have red as
+// the real one. The subject is now the reference whose CANONICAL DECLARATION lives in the contracts chat
+// home, resolved through the shared sealed-origin reader, and the home's own existence is RECEIPTED: if the
+// declaration moves out of `packages/contracts/src/chat/`, the receipt goes to zero members and the run
+// REFUSES rather than rendering a clean pass over a rule that has quietly stopped having a subject.
+//
+// VISITOR SPACE MATCHES THE SUBJECT'S SPACE: `ChatContentPart` is `export type` — a TYPE-ONLY symbol that
+// can never appear at a value position, so a `PropertyAccessExpression`/`ElementAccessExpression` candidate
+// (the shape a VALUE-subject sibling gate like `no-direct-users-read`/`scrubber-home` visits) is not merely
+// unproven here, it is STRUCTURALLY UNREACHABLE — no member arm was ever fired by a `mustFlag` row, because
+// no real occurrence of it can exist. That member visitor is REMOVED rather than carried; a gate that visits
+// a node kind its own subject cannot occupy is a false claim of coverage, and the shared reader behind it
+// (`readMemberReference`) is a VALUE-space reader that could never have resolved a type declaration anyway.
+// The real gap left by removing it — a namespace-qualified TYPE reference (`chat.ChatContentPart`, a
+// `QualifiedName` in type position) — is the one this policy's own `mustPass` row records as a DECLARED
+// LIMIT: no shared reader in `lib/` normalizes a type-position `QualifiedName` today, so closing it needs
+// that reader built first, not a fixture pretending a type occupies a value node.
 //
 // AUTHORITY IS reviewed-grant. The seam members are not per-occurrence mistakes; each is a recurring
 // repository PERMISSION with its own reason, so each is one exact `(subject, operation)` row in the central
@@ -24,7 +35,6 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readMemberReference } from "../lib/reference-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
@@ -46,16 +56,10 @@ const FIX =
 /** THE CANDIDATE PREFILTER: an `ImportSpecifier`'s `getName()` is the ORIGINAL exported name even under an
  *  alias, and a namespace member is spelled with the exported name too, so gating on the sealed NAME loses
  *  only a re-export under a DIFFERENT name — a declared limit with its own row, and one the legacy reader
- *  carried as well. Every candidate still pays full origin resolution. */
+ *  carried as well. `ChatContentPart` is type-only, so the candidate space is ImportSpecifier alone; every
+ *  candidate still pays full origin resolution. */
 function candidate(node: MorphNode): MorphNode | undefined {
-  if (Node.isImportSpecifier(node)) {
-    return node.getName() === SYMBOL ? node : undefined;
-  }
-  if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
-    return;
-  }
-  const member = readMemberReference(node);
-  return member.kind === "resolved" && member.value.name === SYMBOL ? node : undefined;
+  return Node.isImportSpecifier(node) && node.getName() === SYMBOL ? node : undefined;
 }
 
 export const gate = defineGate({
@@ -75,14 +79,14 @@ export const gate = defineGate({
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          kinds: [SyntaxKind.ImportSpecifier],
           visit: (node, sourceFile: SourceFile) => {
             const anchor = candidate(node);
             if (anchor === undefined) {
               return;
             }
-            // FAIL-CLOSED at the DECLARED DOOR: an unreadable import door reports, a member read that
-            // provably binds something else is not a subject (lib/sealed-origin.ts::sealedOriginReports).
+            // FAIL-CLOSED at the DECLARED DOOR: an unreadable import door reports, an import that provably
+            // binds something else is not a subject (lib/sealed-origin.ts::sealedOriginReports).
             if (!sealedOriginReports(readSealedOrigin(anchor, CONTENT_PART_HOME), anchor)) {
               return;
             }

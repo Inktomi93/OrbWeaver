@@ -11,6 +11,7 @@ import type { ExemptionTable } from "../contract/gate.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { GrantExemption } from "../lib/grant-liveness.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const CONFIG_REL = "eslint.config.js";
 const GATE_FIXTURE_LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
@@ -101,14 +102,10 @@ export const gate = defineGate({
   fix: "delete or re-point the zero-member selector in eslint.config.js; ratify only a population absent by construction.",
   create: (ctx) => ({
     evaluate: () => {
-      const native = ctx.resources.nativeConfig("eslint");
-      const tracked = ctx.resources.trackedFiles();
-      if (native.status !== "ready" || tracked.status !== "ready") {
-        // Population resolution already refuses a non-ready declared resource before `create` ever runs.
-        return;
-      }
-      const trackedSet = new Set(tracked.value.repoPaths);
-      const selectors = native.value.selectors;
+      const native = readyResourceValue(ctx.resources.nativeConfig("eslint"));
+      const tracked = readyResourceValue(ctx.resources.trackedFiles());
+      const trackedSet = new Set(tracked.repoPaths);
+      const selectors = native.selectors;
       const byIdentity = new Map(selectors.map((row) => [identity(row), row]));
       reportDeadSelectors(ctx, selectors);
       reportRatifiedArms(ctx, byIdentity, trackedSet);
