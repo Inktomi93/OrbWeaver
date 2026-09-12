@@ -4,8 +4,20 @@
 // break-RED-restore ritual made permanent and always-run. A conformance failure means the CHECKER is
 // wrong, so `verifyGateProofs` returning any failure fails this test loudly.
 //
-// During the migration this covers only the ported gates (currently `no-off-token-radius-shadow`); each
-// future port adds its proofs to its descriptor and this net verifies them with no per-gate test file.
+// THE DIRECTION INVERTED, AND THE OLD HEADER HERE POINTED THE WRONG WAY (#1974, 2026-09-11). This file
+// used to say it "covers only the ported gates (currently `no-off-token-radius-shadow`)" — written when
+// `GateDescriptor` contract-form was the NEW thing gates were ported INTO and `loadGates` was the whole
+// world. Today `loadGates` returns the LEGACY remnant ALONE (`lib/loader.ts:190` — "the legacy descriptor
+// list alone"), 167 modules have converted OUT of it to `defineGate`, and the roster only SHRINKS. Whose
+// proofs run where: a FINAL policy's rows run on the static bar via `structure:policy-conformance`
+// (`ops/policy-conformance.ts`); this net is the legacy half and covers exactly what is left.
+//
+// SO NOTHING HERE MAY NAME A GATE: `no-off-token-radius-shadow` converted in `7993f264c` and the liveness
+// test below — which named it — had been RED since, unrun because `tests/tooling/**` is `--full`-only
+// (#1842). A carrier here is LEGACY BY REQUIREMENT and therefore perishable; the liveness floor is
+// re-expressed against the roster's own emptiness instead, which is the one property that does not rot.
+// At the #1584 atomic cutover the legacy roster empties, this file's subject ceases to exist, and the
+// suite RETIRES with `verifyGateProofs` rather than being re-pointed again.
 import { join } from "node:path";
 import { Project } from "ts-morph";
 import type { GateDescriptor, GateExample } from "../../tooling/src/verify/contract/gate.ts";
@@ -43,10 +55,19 @@ function passFor(gate: GateDescriptor, source: string): ReturnType<typeof runPas
 // reads like a real conformance red.
 const CONFORMANCE_BUDGET = scaledBudget(45_000, 4);
 
-test("the loader discovers at least the ported worked-example gate", async () => {
+// THE ANTI-VACUUM FLOOR for the bite-proof below, which asserts an EMPTY failure list and therefore passes
+// trivially over an empty corpus. It is deliberately expressed as "the legacy roster is not empty", never
+// as a named gate (perishable — that is what broke it) and never as a count floor (a countdown wearing a
+// gate's clothes — `compared > 1000` in ops/conformance.int.test.ts, #1969). Zero is the ONE terminal
+// value, and it must go RED: an empty legacy roster means the cutover landed and this whole file retires.
+test("the legacy loader discovers a non-empty descriptor corpus — the bite-proof is otherwise vacuous", async () => {
   const gates = await loadGates(ROOT);
-  const names = gates.map((g) => g.name);
-  expect(names).toContain("no-off-token-radius-shadow");
+  expect(
+    gates.length,
+    "`loadGates` returned NO legacy descriptors. Either the loader is broken, or the #1584 atomic cutover landed — in which case `verifyGateProofs` has no subject left and this whole suite retires with it (final policies' proofs run on the static bar via `structure:policy-conformance`).",
+  ).toBeGreaterThan(0);
+  // Each entry is a real descriptor carrying both proof arms — the bite-proof reads exactly these.
+  expect(gates.filter((g) => !(Array.isArray(g.mustFlag) && Array.isArray(g.mustPass))).map((g) => g.name)).toEqual([]);
 });
 
 test(
