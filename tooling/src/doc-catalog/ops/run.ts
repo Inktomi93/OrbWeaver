@@ -93,13 +93,28 @@ export function runCatalog(mode: CatalogMode): ExitCode {
 }
 
 /** `pnpm format:docs / check:docs`. Exit 1 = unformatted files under `--check` (a real violation the
- *  push gate reads); `--write` is always clean unless the formatter itself throws. */
+ *  push gate reads), or — in EITHER mode — a file the formatter refused because formatting it would
+ *  change what it renders (#2067). */
 export function runFormat(mode: FormatMode, explicit: readonly string[]): ExitCode {
   const files = formatTargets(explicit);
   const outcome = formatDocs(files, mode === "--write");
+  // #2067: a refusal means the formatted bytes would RENDER differently — the file was left alone on
+  // purpose and the fix is an authoring one (a table whose body rows out-width its header, an unbalanced
+  // backtick run). It reds BOTH doors: a silent skip under `--write` is how a lossy edit would hide.
+  if (outcome.refused.length > 0) {
+    warn(
+      `${mode === "--write" ? "format:docs" : "check:docs"} — ${outcome.refused.length} file(s) NOT FORMATTED: formatting them would change what they render (repair the markdown, not the formatter):`,
+    );
+    for (const file of outcome.refused) {
+      warn(`  ${file}`);
+    }
+  }
   if (mode === "--write") {
     print(`format:docs — formatted ${outcome.dirty.length}/${outcome.scanned} file(s)`);
-    return EXIT.clean;
+    return outcome.refused.length > 0 ? EXIT.violations : EXIT.clean;
+  }
+  if (outcome.refused.length > 0) {
+    return EXIT.violations;
   }
   if (outcome.dirty.length === 0) {
     print(`check:docs — ${outcome.scanned} file(s) formatted`);
