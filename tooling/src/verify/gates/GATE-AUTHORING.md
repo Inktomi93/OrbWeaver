@@ -304,7 +304,7 @@ An exemption is a promise. This is how the promise is written.
    matches a live violation MUST be RED ("stale entry — delete it"), never silence. One-sided exemptions rot
    into lies, and a stale marker is a LOADED GUN: the next violation written on that line inherits an
    exemption nobody granted it. In-tree gold standards: `own-tables-only.ts` (four stale arms),
-   `no-hover-display-swap.ts` (`STALE_ENTRY_MESSAGE_PREFIX`), `monotonic-tests.ts` tooth 3 (the two-sided
+   `no-hover-display-swap.ts` (`STALE_ENTRY_MESSAGE_PREFIX`), the retired `monotonic-tests` tooth 3 (the two-sided
    `allow-skip` marker), `bus-coverage.ts` (`STALE_MESSAGE`), `dialog-via-composite.ts`,
    `firehose-import-allowlist.ts`.
    4a. **TWO DISTINCT STALENESS MODES, ONE TEST.** (A) the row's file still exists but no longer violates
@@ -635,7 +635,6 @@ Every one of these has happened.
 | - | - |
 | `gates/own-tables-only.ts` | the maximal shape: a DERIVED ownership map (not hand-written), two arms of differing strictness, three exemption tables + four stale arms, a real-tree anchor guard, and mustPass rows that write down every declared limit |
 | `gates/no-hover-display-swap.ts` | a per-TOKEN literal scanner, the UNFENCED-carrier decision with its measurement, an empty-but-armed allowlist, and mustFlag rows covering every spelling of the banned shape |
-| `gates/monotonic-tests.ts` | the two-sided COMMENT marker: reason required, and a marker guarding no skip is itself a violation. One shared definition of "a skip" read by both teeth |
 | `gates/diagnostic-legibility.ts` | reading the gate corpus itself from the shared project via `scanRoot`, and resolving a value one level through a same-file const |
 | `gates/dangling-refs.ts` | `fsBacked`, the ordered string evaluator (`evalString`), and SELF-CONTAINED conformance examples (every doc a passing example cites is PLANTED in the same mini-project) |
 | `gates/density-tier.ts` | a baseline ratchet: per-file budget, excess-only reporting, generator as single writer, stale-row arm |

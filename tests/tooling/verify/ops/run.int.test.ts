@@ -403,7 +403,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     // #1941: every final defineGate policy's own proofs through the production dispatcher, on every check —
     // before it, 21 of 163 converted modules were imported by no committed test.
     "structure:policy-conformance",
-    // #817: the committed single-writer ledgers (the caught-failure census, the test-baseline manifest)
+    // #817: the committed single-writer ledgers (the caught-failure census and its siblings)
     // vs a fresh derivation. Their freshness checks were vitest suites, so `pnpm check` stayed green while
     // main sat red on the next whole node run.
     "ledgers:fresh",

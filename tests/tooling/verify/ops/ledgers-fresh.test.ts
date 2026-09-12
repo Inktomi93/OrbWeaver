@@ -14,32 +14,28 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { CaughtFailurePopulation, CaughtFailureRow, TestBaselineManifest } from "@orb/tooling/verify";
+import type { CaughtFailurePopulation, CaughtFailureRow } from "@orb/tooling/verify";
 import {
   censusDrift,
+  classRollupDrift,
   deferredRosterDrift,
   deriveReadFirstCosts,
   deriveSnapFlagsIndexMarkdown,
-  deriveTestBaselineManifest,
   LEDGER_CHECKS,
   ledgerReport,
   ledgerSectionDrift,
   ledgerSections,
-  manifestDrift,
   READ_FIRST_REL,
   REGISTRY,
   readFirstCostsDrift,
   SNAP_FLAGS_INDEX_REL,
   snapFlagsIndexDrift,
   strayLedgerSections,
-  TEST_BASELINE_REL,
   typeConfigsDrift,
 } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STAGE = "ledgers:fresh";
-/** A real tree carries thousands of tracked specs; a handful means the derivation stopped reading. */
-const MIN_TRACKED_SPECS = 1000;
 
 function row(overrides: Partial<CaughtFailureRow> = {}): CaughtFailureRow {
   return {
@@ -115,50 +111,19 @@ test("a hand-edited TOTAL reds even when every row agrees (the census is derived
   expect(censusDrift(handEdited, derived).drift.join("\n")).toContain("totals");
 });
 
-test("a manifest missing a tracked spec reds, naming the path", () => {
-  const committed: TestBaselineManifest = { testFiles: ["tests/a.test.ts"], deletions: {} };
-  const derived: TestBaselineManifest = { testFiles: ["tests/a.test.ts", "tests/b.test.ts"], deletions: {} };
-
-  const result = manifestDrift(committed, derived);
-  expect(result.drift.join("\n")).toContain("new    tests/b.test.ts");
-  expect(result.regen).toContain("baseline test-baseline-manifest");
-});
-
-test("a manifest listing a spec the tree no longer tracks reds as `gone`", () => {
-  const drift = manifestDrift({ testFiles: ["tests/a.test.ts", "tests/dead.test.ts"], deletions: {} }, { testFiles: ["tests/a.test.ts"], deletions: {} }).drift;
-
-  expect(drift.join("\n")).toContain("gone   tests/dead.test.ts");
-});
-
-test("a MISSING committed ledger is drift that names the derive command, never a silent pass", () => {
-  const result = manifestDrift(undefined, { testFiles: ["tests/a.test.ts"], deletions: {} });
-  expect(result.drift.join("\n")).toContain("does not exist");
-});
-
-// ── the real tree: the manifest half runs for real (git ls-files, milliseconds) ──
-
-test("the committed manifest matches a fresh derivation of THIS tree", ({ repoRoot }) => {
-  const derived = deriveTestBaselineManifest(repoRoot);
-  // The blindness control: a derivation that came back tiny is not a clean ledger, it is a broken read.
-  expect(derived.testFiles.length).toBeGreaterThan(MIN_TRACKED_SPECS);
-
-  const committed = JSON.parse(execFileSync("git", ["show", `HEAD:${TEST_BASELINE_REL}`], { cwd: repoRoot, encoding: "utf8" })) as TestBaselineManifest;
-  // Committed-at-HEAD vs derived-from-the-index: this file itself is new, so the honest assertion is that
-  // the ONLY drift is this lane's own additions — never a `gone` row, which would mean the ledger rotted.
-  const drift = manifestDrift(committed, derived).drift;
-  expect(drift.filter((line) => line.startsWith("gone"))).toEqual([]);
-});
-
 test("a derivation that comes back EMPTY is a TOOL ERROR (exit 2), never a fresh ledger", () => {
   // Two empty sides would "agree" forever. The tripwire is the blindness class the house calls a lying
   // instrument: a bare zero means "I could not measure", never "there is nothing there".
   const root = mkdtempSync(join(tmpdir(), "orb-ledgers-fresh-"));
   try {
-    mkdirSync(join(root, "docs", "test-baseline"), { recursive: true });
-    writeFileSync(join(root, "docs", "test-baseline", "manifest.json"), JSON.stringify({ testFiles: [], deletions: {} }));
+    mkdirSync(join(root, "docs", "reviews", "caught-failure-ownership"), { recursive: true });
+    writeFileSync(
+      join(root, "docs", "reviews", "caught-failure-ownership", "population.json"),
+      JSON.stringify({ gate: "x", generatedBy: "x", totals: {}, rows: [] }),
+    );
     execFileSync("git", ["init", "-q"], { cwd: root });
 
-    const check = LEDGER_CHECKS["test-baseline-manifest"];
+    const check = LEDGER_CHECKS["caught-failure-population"];
     expect(check).toBeDefined();
     expect(check?.(root)).toBe(2);
   } finally {
@@ -185,11 +150,11 @@ test("a stale ledger never suppresses its sibling's verdict from the same run", 
   // the first false, so the manifest's drift printed and the census was never reported at all — a run that
   // silently judged one of the two things it exists to judge.
   const lines = ledgerReport([
-    manifestDrift({ testFiles: [], deletions: {} }, { testFiles: ["tests/b.test.ts"], deletions: {} }),
+    { ledger: "docs/a-stale-ledger.json", regen: "regenerate it", derived: 1, drift: ["new    something"] },
     censusDrift(census([row()]), census([row()])),
   ]).join("\n");
 
-  expect(lines).toContain("STALE  docs/test-baseline/manifest.json");
+  expect(lines).toContain("STALE  docs/a-stale-ledger.json");
   expect(lines).toContain("fresh  docs/reviews/caught-failure-ownership/population.json");
 });
 
@@ -198,7 +163,6 @@ test("every generated ledger/config family carries a `baseline --check` arm", ()
     "caught-failure-population",
     "read-first-costs",
     "snap-flags-index",
-    "test-baseline-manifest",
     "type-configs",
   ]);
 });
@@ -681,4 +645,176 @@ test("the COMMITTED ledger has no stray section, and the green is a measurement"
   // A zero-denominator green would print the same empty list: measured 2026-09-12, all 25 in-fence sections
   // carry a ledger-shaped table across SIX different column schemas, and no out-of-fence table does.
   expect(ledgerSections(ledger).length).toBeGreaterThan(20);
+});
+
+// ─── #2207: the CLASS ROLLUP is a DERIVED table, and nothing re-derived it ───────────────────────────
+//
+// THE CONTROL IS TWO-DIRECTIONAL BECAUSE ONE-DIRECTIONAL IS HOW THE TABLE GOT HERE. A summary that only
+// ever agrees with itself drifts silently: this one did it twice, reading `91 rows` against a body of 99
+// and then `100 rows` against a body of 303. Both times a human caught it. So the added-row arm must RED
+// and name the cell, AND the matching pair must stay GREEN — an arm that reds on everything would have
+// "caught" both incidents while being useless, and an arm that greens on everything is the status quo.
+//
+// The fixtures are SYNTHETIC and tiny on purpose: the real ledger is 300+ rows and fenced to another
+// owner, and a pin that reads it would re-red on every legitimate append. The real file is exercised by
+// the stage itself — `pnpm check:ledgers-fresh` prints its per-table counts on every run.
+
+/** A minimal ledger: one in-fence section with `rows` data rows, then the rollup the fixture declares. */
+function ledgerFixture(input: { readonly rows: readonly (readonly [string, string])[]; readonly rollup: readonly string[] }): string {
+  const body = input.rows.map(([klass, state]) => `| mod | wave | defect | ${klass} | ${state} |`).join("\n");
+  return [
+    "## THE LEDGER",
+    "",
+    "### `p-probe` — a synthetic section",
+    "",
+    "| module | wave | defect | class | state |",
+    "| - | - | - | - | - |",
+    body,
+    "",
+    "## CLASS ROLLUP",
+    "",
+    "| class | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJUDICATED | N/A | FIXED |",
+    "| - | -: | -: | -: | -: | -: | -: | -: | -: |",
+    ...input.rollup,
+    "",
+  ].join("\n");
+}
+
+function rollupRoot(text: string): string {
+  const root = mkdtempSync(join(tmpdir(), "orb-class-rollup-"));
+  mkdirSync(join(root, "docs/reviews/gate-runtime"), { recursive: true });
+  writeFileSync(join(root, "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md"), text);
+  return root;
+}
+
+// The rollup a two-row body (one §4.1 CLOSED, one free-text OPEN) honestly summarises.
+const MATCHING_ROLLUP = [
+  "| **§4.1** | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§4.2** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§4.5** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§4.6** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.1** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.2** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.3** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.5** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.7** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§12.3** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **roster** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **other** | 1 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |",
+  "| **TOTAL** | **2** | **1** | **1** | **0** | **0** | **0** | **0** | **0** |",
+];
+const TWO_ROWS = [
+  ["§4.1", "**CLOSED** at `abc1234`"],
+  ["instrument", "OPEN — still live"],
+] as const;
+
+test("#2207 GREEN — a rollup that matches its body is fresh, and the label prints per-table counts", () => {
+  const root = rollupRoot(ledgerFixture({ rows: TWO_ROWS, rollup: MATCHING_ROLLUP }));
+  try {
+    const result = classRollupDrift(root);
+    expect(result.drift).toEqual([]);
+    expect(result.derived).toBe(2);
+    // The counting paragraph requires these PRINTED on every run: "the three defects above were all
+    // invisible to a run that printed only the totals".
+    expect(result.ledger).toContain("1 tables · 2 rows · unbinned 0 · per-table 2");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("#2207 RED — a body row added without a rollup update reds, naming the differing cells", () => {
+  // The exact incident: a section is appended, the summary is not rebuilt. One §4.1 CLOSED row arrives.
+  const root = rollupRoot(ledgerFixture({ rows: [...TWO_ROWS, ["§4.1", "**CLOSED** at `def5678`"]], rollup: MATCHING_ROLLUP }));
+  try {
+    const result = classRollupDrift(root);
+    expect(result.drift).toEqual(["cell §4.1.rows: 1 → 2", "cell §4.1.CLOSED: 1 → 2", "cell TOTAL.rows: 2 → 3", "cell TOTAL.CLOSED: 1 → 2"]);
+    expect(result.regen).toContain("rebuild the `## CLASS ROLLUP` table");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("#2207 — an UNBOLDED state cell bins by its first word, and a cell binning to nothing is reported", () => {
+  // Rule 3, both halves. 56 of the real file's 303 state cells carry no bold at all, and the literal
+  // "first bolded word" reading reported every one of them UNBINNED while running CLOSED short by 12.
+  const root = rollupRoot(
+    ledgerFixture({
+      rows: [
+        ["§4.1", "CLOSED at `abc1234`"],
+        ["instrument", "premise dead on today's tree"],
+      ],
+      rollup: MATCHING_ROLLUP,
+    }),
+  );
+  try {
+    const result = classRollupDrift(root);
+    // The unbolded CLOSED bins as CLOSED — it lands in the §4.1 row the fixture already declares…
+    expect(result.drift.filter((line) => line.startsWith("cell §4.1"))).toEqual([]);
+    // …and the cell that names no known state is REPORTED verbatim, never silently dropped.
+    expect(result.drift).toContain(
+      'unbinned  a state cell bins to none of CLOSED/OPEN/SUPERSEDED/DISSOLVED/UNADJUDICATED/N/A/FIXED: "premise dead on today\'s tree"',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("#2207 — an in-fence table with no `state` column is REPORTED, never silently skipped", () => {
+  // Rule 2's failure mode from the other side: the binner cannot read the table at all. A skip here is the
+  // blindness the arm exists for — the old method's `≥6 cells` filter dropped a whole 12-row section.
+  const text = [
+    "## THE LEDGER",
+    "",
+    "### `p-probe` — a section whose schema carries no state",
+    "",
+    "| module | defect |",
+    "| - | - |",
+    "| mod | a defect with nowhere to bin |",
+    "",
+    "## CLASS ROLLUP",
+    "",
+    "| class | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJUDICATED | N/A | FIXED |",
+    "| - | -: | -: | -: | -: | -: | -: | -: | -: |",
+    "| **TOTAL** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** |",
+    "",
+  ].join("\n");
+  const root = rollupRoot(text);
+  try {
+    expect(classRollupDrift(root).drift).toContain("unreadable  an in-fence table has no `state` column, so its rows bin nowhere: header `module | defect`");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("#2207 — a rollup MISSING a state COLUMN is a schema defect, not a cell mismatch", () => {
+  // THE HISTORICAL DEFECT, replayed as a fixture. The table that stood until 2026-09-12 carried six state
+  // columns and no `FIXED`, and 11 of one section's 12 rows said exactly FIXED — so they were invisible to
+  // the summary rather than miscounted in it. Reporting that as a cell mismatch would send the reader to
+  // fix numbers that are not wrong; the missing COLUMN is the defect. Found by replaying the real file at
+  // `06da8c80d` through this arm, which is also why the arm reports it at all.
+  const text = [
+    "## THE LEDGER",
+    "",
+    "### `p-probe` — a section whose only row is FIXED",
+    "",
+    "| module | wave | defect | class | state |",
+    "| - | - | - | - | - |",
+    "| mod | wave | defect | instrument | **FIXED** in this commit |",
+    "",
+    "## CLASS ROLLUP",
+    "",
+    "| class | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJUDICATED | N/A |",
+    "| - | -: | -: | -: | -: | -: | -: | -: |",
+    "| **other** | 1 | 0 | 0 | 0 | 0 | 0 | 0 |",
+    "",
+  ].join("\n");
+  const root = rollupRoot(text);
+  try {
+    const { drift } = classRollupDrift(root);
+    expect(drift).toContain("schema  the rollup has no `FIXED` column, so every FIXED row in the body is invisible to it rather than miscounted");
+    // And NO phantom cell line for a bin the table cannot hold.
+    expect(drift.filter((line) => line.includes(".FIXED:"))).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

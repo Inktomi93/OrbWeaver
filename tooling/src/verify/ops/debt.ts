@@ -29,7 +29,7 @@
  *
  * DECLARED LIMITS:
  *   • A ledger is a `*.baseline.json` under `tooling/src/`. The committed MANIFESTS are deliberately out
- *     of scope — `docs/test-baseline/manifest.json`, `baseui-surface.manifest.json` and
+ *     of scope — `baseui-surface.manifest.json` and
  *     `packages/contracts/src/prose/prose-baseline.json` record what EXISTS, not what is ADMITTED.
  *   • A row's BUDGET is the committed allowance, which is what a triage listing wants. It is an upper
  *     bound on what a given run admits (a gate admits `min(budget, live)`); the per-gate LIVE line beside

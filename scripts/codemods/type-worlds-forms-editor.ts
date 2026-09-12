@@ -341,10 +341,8 @@ await runCodemod(
 
     assertNoMovedDoorImports(ctx);
     ctx.log(`Source moves: ${SOURCE_MOVES.length}; test/story moves: ${TEST_MOVES.length}.`);
-    ctx.log(
-      "Post-apply barrier: hand-add each applicable tracked old test path to docs/test-baseline/manifest.json deletions with a relocation reason, then run the fixed #1885 single writer.",
-    );
-    ctx.log("Single writer: pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest");
+    // The test-baseline manifest and its `deletions` ledger were DELETED with `monotonic-tests` (#2217),
+    // so a relocated spec no longer records anything and no manifest writer runs after this codemod.
     ctx.log("Regenerate moved marker identities: pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population");
     ctx.log("Manual active-cite follow-up: Core-Enforcement-Active-Gates.md, autosave-form-doctrine.md, and the eslint.config.js bound-field comment.");
     for (const [file, from, to] of NATIVE_JSON_FOLLOWUPS) {
