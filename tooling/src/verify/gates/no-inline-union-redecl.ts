@@ -31,7 +31,7 @@
 // source-coordinate definition: arm A reported the synthetic token `union <Alias>` and arm B `re-spell
 // <Tuple>` / `z.enum re-spell <Tuple>`, none of which is authored text anywhere. Under `report.node` all
 // three THROW. Both arms are re-anchored on real source slices through the repo's one waiver-anchor
-// contract (`lib/caught-failure.ts#firstAnchor`, whose `ANCHORABLE_TOKEN_RE` refuses parens, newlines and
+// contract (`lib/caught-failure.ts#firstAnchor`, whose `isAnchorableToken` refuses parens, newlines and
 // the solidus — exactly the shapes a marker cannot hold): arm A anchors on the ALIAS NAME, arm B on the
 // inline SET's own text. What the token lost — which tuple a re-spell matched, and which arm fired — moved
 // into the per-finding MESSAGE, where it is more useful than it was in a position nobody could type.

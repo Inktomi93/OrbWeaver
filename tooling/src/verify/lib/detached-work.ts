@@ -20,7 +20,7 @@
 //
 // ANCHORS COME FROM `lib/caught-failure.ts`, NOT FROM A SECOND COPY. That module already owns the exact
 // contract a waiver position must satisfy — an exact slice of the reported node's own text at a byte
-// offset, rejecting any token carrying a paren, a newline or a solidus (`ANCHORABLE_TOKEN_RE`), because the
+// offset, rejecting any token carrying a paren, a newline or a solidus (`isAnchorableToken`), because the
 // marker grammar's position group is `[^()\r\n]+` and `locateFinding` re-reads the slice out of
 // COMMENT-BLANKED source. Its `calleeAnchorCandidates` / `firstAnchor` / `catchAnchor` (and the private
 // `anchorWithin` they share) were module-private until this family needed them; they are now exported,

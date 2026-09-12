@@ -19,6 +19,13 @@ export const TS_MORPH_TYPES_STUB =
 export const RESOURCE_DECLARATION_PATH = "tooling/src/verify/lib/resource-declaration.ts";
 export const RESOURCE_DECLARATION_STUB = "export function readyResourceValue<T>(fact: T): T {\n  return fact;\n}\n";
 
+/** A shared `lib/` reader that takes the closed host and narrows it ITSELF — the sanctioned shape E4 must
+ *  admit, and the one the live corpus uses (`lib/config-grant-rows.ts` `readTsconfigRoster`, consumed by both
+ *  `tsconfig-entry-liveness` modules). Its HOME is what admits it, so the fixture plants it under `lib/`. */
+export const LIB_READER_PATH = "tooling/src/verify/lib/probe-reader.ts";
+export const LIB_READER_STUB =
+  'import { readyResourceValue } from "./resource-declaration.ts";\nexport function readProbeRoster(resources: { trackedFiles: () => unknown }): unknown {\n  return readyResourceValue(resources.trackedFiles() as never);\n}\n';
+
 export const PROBE_GATE_ID = "probe";
 export const PROBE_GATE_PATH = `tooling/src/verify/gates/${PROBE_GATE_ID}.ts`;
 /** The family test that a family-test identity arm lives in, relative to the same root. */

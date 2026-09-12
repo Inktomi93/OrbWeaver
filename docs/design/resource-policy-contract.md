@@ -85,10 +85,13 @@ RED, and the one that is prose-only is called out as the gap.
    (`policy-pass.ts:736-743`). Consequence for a policy that reads a resource only for its PATH (an anchor):
    the read still happens, and the header says why (`server-layout`'s manifest).
 2. **Narrow through `readyResourceValue`, never a branch.** Enforcer: TYPE for the narrowing itself (`.value`
-   does not exist on the union) — but the CHOICE of throw-vs-return is PROSE today. No `policy-soundness`
-   meta-policy reads `ctx.resources`, and `gate:contract` is blind to it (measured 2026-09-12: zero mentions of
-   `ctx.resources` / `readyResourceValue` across the four `policy-soundness` modules). **That is the one
-   prose-only boundary in this contract; §5 alt C and §8 fork 1 price the fix.** The guard is unreachable
+   does not exist on the union) AND, since #2019, LINT — `policy-soundness` ARM E4 reds a
+   `ctx.resources.<door>(…)` result that is not the direct argument of `readyResourceValue`, plus the alias
+   escape (`ctx.resources` bound to a name), with the guard resolved by IMPORT ORIGIN so a local lookalike
+   cannot acquit. Handing the host WHOLE to an imported `lib/` reader that narrows it itself is admitted and
+   pinned — that is this contract's own `readTsconfigRoster` shape, and the arm's first cut accused it. **This clause is no longer prose-only**; the earlier text here ("no `policy-soundness`
+   meta-policy reads `ctx.resources`") described the tree before that arm landed. §5 alt C remains the
+   stronger ladder tier and remains a recorded fork. The guard is unreachable
    (fact 2 above), so `if (fact.status !== "ready") return;` is dead code that teaches a silent clean; `throw`
    re-spelled per module is one-home rot. **Every resource policy reads through the helper today, and NO
    resource policy carries an executable not-ready branch** — closed by `0fab76771` (four sites) and

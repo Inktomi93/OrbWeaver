@@ -48,6 +48,7 @@ import { defineGate } from "../contract/policy.ts";
 import type { CssDeclarationFact } from "../contract/resource-css.ts";
 import type { AuthoredCssFile } from "../contract/resource-tree.ts";
 import { atRulesContaining } from "../lib/css-rules.ts";
+import { waivableCoordinate } from "../lib/ordinary-waiver.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import type { StaticClassSegment } from "../lib/static-class-expression.ts";
 import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
@@ -295,7 +296,20 @@ function reportCssTransforms(ctx: GatePolicyContext, file: AuthoredCssFile, decl
       continue;
     }
     if (FRACTIONAL_PX_RE.test(declaration.value) || PERCENTAGE_RE.test(declaration.value)) {
-      ctx.report.file(declaration.file, { line: declaration.line, column: declaration.column, token: declaration.value });
+      // THE CARRIER / COORDINATE SPLIT (#2107 arm c, guide §3). `translateX(-0.5px)` carries parentheses the
+      // `@orb-waive` grammar cannot hold. This policy is `hard` so the trap is LATENT rather than live — a hard
+      // finding has no waiver door at all — but authority is a field an owner can flip, and a position minted
+      // under `hard` becomes silently unanswerable the day it does. The value is named in the message.
+      const coordinate = waivableCoordinate(declaration.value);
+      if (coordinate === undefined) {
+        throw new Error(`transform value has no anchorable coordinate: ${declaration.value}`);
+      }
+      ctx.report.file(declaration.file, {
+        line: declaration.line,
+        column: declaration.column,
+        token: coordinate,
+        ...(coordinate === declaration.value ? {} : { message: `${MESSAGE} Value: ${declaration.value}.` }),
+      });
     }
   }
 }
@@ -412,7 +426,7 @@ export const gate = defineGate({
         ...CORPUS,
         "packages/ui/src/styles/extra.css": ".x {\n  transform: translateX(-0.5px);\n}\n",
       },
-      expect: { count: 1, line: 2, token: "translateX(-0.5px)" },
+      expect: { count: 1, line: 2, token: "translateX", messageIncludes: "Value: translateX(-0.5px)." },
       why: "a fractional px rest translate in a stylesheet lands the box between device pixels — the exact arithmetic Law 1 closed one property over",
     },
     {
@@ -430,7 +444,7 @@ export const gate = defineGate({
         ...CORPUS,
         "packages/ui/src/styles/nested.css": "@media (min-width: 40rem) {\n  .x {\n    transform: translateX(-0.5px);\n  }\n}\n",
       },
-      expect: { count: 1, line: 3, token: "translateX(-0.5px)" },
+      expect: { count: 1, line: 3, token: "translateX", messageIncludes: "Value: translateX(-0.5px)." },
       why: "NARROWING ROW for the ancestry reader's DIRECTION: a non-animating at-rule must NOT exempt its children. A media query is a viewport fact — the same classification ARM S gives `md:` — so widening the ancestry test to 'any at-rule' turns this row green",
     },
     {
