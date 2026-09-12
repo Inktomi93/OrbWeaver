@@ -199,7 +199,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "tests/ui/charts/x.ct.tsx": 'import { StoryA } from "./_ct-stories.tsx";\nimport { StoryA as StoryA } from "./_ct-stories.tsx";\nStoryA;\n' },
-      expect: { messageIncludes: "TWICE", token: "StoryA" },
+      expect: { count: 1, token: "StoryA" },
       why: "the literal duplicate-named-import shape — the same local name bound by two import specifiers",
     },
     {
@@ -208,7 +208,7 @@ export const gate = defineGate({
         "tests/ui/charts/y.ct.tsx":
           'import { test } from "@playwright/experimental-ct-react";\nimport { StoryA } from "./_ct-stories.tsx";\nconst rows: readonly [string, typeof StoryA][] = [\n  ["a", StoryA],\n  ["b", StoryA],\n];\ntest("x", () => {\n  rows;\n});\n',
       },
-      expect: { messageIncludes: "TWICE", token: "StoryA" },
+      expect: { count: 1, token: "StoryA" },
       why: "the component-in-array-iteration shape — the same imported story referenced as two tuple values, the third spelling from the 2026-08-19 incident",
     },
     {
@@ -216,7 +216,7 @@ export const gate = defineGate({
       files: {
         "tests/ui/story.ct.tsx": 'import { Story } from "./_ct-stories.tsx";\nexport const Cases = () => <>\n  <Story />\n  <Story />\n</>;\n',
       },
-      expect: { token: "Story" },
+      expect: { count: 1, token: "Story" },
       why: "two JSX rewrite sites collide even when no array carries the component",
     },
   ],

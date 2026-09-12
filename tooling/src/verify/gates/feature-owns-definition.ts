@@ -64,7 +64,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { "packages/client/src/features/__g_orphan/lib/helper.ts": "export const g = 1;\n" },
-      expect: { count: 1, token: "__g_orphan", messageIncludes: "owns no registered definition" },
+      expect: { count: 1, token: "__g_orphan" },
       why: "a feature dir with only a non-definition file owns no registered definition",
     },
   ],

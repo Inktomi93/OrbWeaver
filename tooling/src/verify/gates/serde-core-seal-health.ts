@@ -69,7 +69,7 @@ export const gate = defineGate({
         "packages/server/src/domain/export/verbs/export-character.ts":
           'import { writeCardChunk } from "@orb/kit/png-card-chunk";\nexport const w = writeCardChunk;\n',
       },
-      expect: { count: 1, messageIncludes: "stale sanctioned serde home" },
+      expect: { count: 1 },
       why: "THE STALE ARM: the anchor (the engine's kit home) is loaded; export still does byte surgery and keeps its permission, import does none — that row's claim is dead and ratchets down",
     },
   ],

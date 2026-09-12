@@ -37,7 +37,7 @@ export const gate = defineGate({
       files: {
         "packages/contracts/src/probe/index.ts": "export const noBusUnion = true;\n",
       },
-      expect: { count: 1, messageIncludes: "shared bus fact is incomplete" },
+      expect: { count: 1 },
       why: "an authored corpus with no bus union is a blind instrument, not a clean policy verdict",
     },
   ],

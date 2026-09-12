@@ -221,13 +221,13 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/ui/src/x.tsx": 'export const G = <div className="dark:bg-card" />;\n' },
-      expect: { token: "dark:bg-card" },
+      expect: { count: 1, token: "dark:bg-card" },
       why: "direct JSX className remains the founding RED",
     },
     {
       mode: "source",
       files: { "packages/client/src/x.ts": 'import { clsx } from "clsx";\nexport const x = clsx?.(clsx("hover:dark:text-foreground"));\n' },
-      expect: { token: "hover:dark:text-foreground" },
+      expect: { count: 1, token: "hover:dark:text-foreground" },
       why: "nested and optional canonical composer calls are provenance roots",
     },
     {
@@ -236,7 +236,7 @@ export const gate = defineGate({
         "packages/ui/src/x.ts":
           'import { clsx as imported } from "clsx";\nconst local = imported;\nconst forward = (...args: Parameters<typeof local>) => local(...args) ?? "";\nexport const x = forward("dark:alias-wrapper");\n',
       },
-      expect: { token: "dark:alias-wrapper" },
+      expect: { count: 1, token: "dark:alias-wrapper" },
       why: "import alias, local alias, and simple forwarding wrapper preserve composer identity",
     },
     {
@@ -245,7 +245,7 @@ export const gate = defineGate({
         "packages/ui/src/composer.ts": 'export { clsx as join } from "clsx";\n',
         "packages/ui/src/x.ts": 'import { join as compose } from "./composer.ts";\nexport const x = compose("dark:reexported-composer");\n',
       },
-      expect: { token: "dark:reexported-composer" },
+      expect: { count: 1, token: "dark:reexported-composer" },
       why: "composer identity survives cross-file re-export and consumer aliases",
     },
     {
@@ -264,7 +264,7 @@ export const gate = defineGate({
         "packages/ui/src/barrel.ts": 'export { CARD as SURFACE } from "./producer.ts";\n',
         "packages/client/src/consumer.tsx": 'import { SURFACE } from "../../ui/src/barrel.ts";\nexport const x = <div className={SURFACE} />;\n',
       },
-      expect: { token: "dark:bg-card", line: 1 },
+      expect: { count: 1, token: "dark:bg-card", line: 1 },
       why: "cross-file constants and re-export aliases report at the producer literal",
     },
     {
@@ -313,25 +313,25 @@ export const x = <div className={[a, b]} />;
 export const x = <div className={\`dark:\${tone}\`} />;
 `,
       },
-      expect: { token: "dark:" },
+      expect: { count: 1, token: "dark:" },
       why: "runtime dark prefix is a separate AST proof because Oxide emits no complete candidate",
     },
     {
       mode: "source",
       files: { "packages/client/src/x.ts": 'export const props = { className: "dark:border-border" };\n' },
-      expect: { token: "dark:border-border" },
+      expect: { count: 1, token: "dark:border-border" },
       why: "object className is a real carrier root before JSX spread",
     },
     {
       mode: "source",
       files: { "packages/ui/src/x.tsx": "const A = B;\nconst B = A;\nexport const x = <div className={A} />;\n" },
-      expect: { messageIncludes: "unresolved" },
+      expect: { count: 1, messageIncludes: " unresolved:" },
       why: "a static cycle is counted and fails loud instead of producing a clean zero",
     },
     {
       mode: "source",
       files: { "packages/ui/src/x.tsx": 'export const A = <div className="[&:where(.x:y)]:dark:bg-card" />;\n' },
-      expect: { token: "[&:where(.x:y)]:dark:bg-card" },
+      expect: { count: 1, token: "[&:where(.x:y)]:dark:bg-card" },
       why: "a top-level dark segment stays exact across bracket/paren/colon nesting inside :where()",
     },
     {
@@ -339,7 +339,7 @@ export const x = <div className={\`dark:\${tone}\`} />;
       files: {
         "packages/ui/src/x.tsx": 'export const A = <div className="supports-[selector(:has(*))]:dark:text-foreground" />;\n',
       },
-      expect: { token: "supports-[selector(:has(*))]:dark:text-foreground" },
+      expect: { count: 1, token: "supports-[selector(:has(*))]:dark:text-foreground" },
       why: "a top-level dark segment stays exact across bracket/paren/colon nesting inside an @supports arbitrary selector",
     },
   ],

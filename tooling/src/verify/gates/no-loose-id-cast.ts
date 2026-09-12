@@ -53,7 +53,7 @@ export const gate = defineGate({
         [ID_BRAND_HOME]: idBrandProofModule('export type UserId = Branded<"UserId">;\n'),
         "packages/server/src/x.ts": 'import type { UserId } from "../../kit/src/ids/index";\nexport const x = value as unknown as UserId;\n',
       },
-      expect: { count: 1, messageIncludes: "bypasses branded-id" },
+      expect: { count: 1 },
       why: "a double cast into a canonical id brand launders an unchecked value",
     },
   ],

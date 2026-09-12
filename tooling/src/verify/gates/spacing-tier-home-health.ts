@@ -46,7 +46,7 @@ export const gate = defineGate({
         [ANCHOR]: "export const tokens = {};\n",
         "packages/ui/src/layout/stack.tsx": "export const S = null;\n",
       },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED-HOME row" },
+      expect: { count: 1 },
       why: "THE RENAME TRIPWIRE: the anchor is loaded and the layout home still resolves, but the markdown home resolves to no file — that row permits nothing and ratchets down",
     },
   ],

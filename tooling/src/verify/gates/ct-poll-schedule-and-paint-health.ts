@@ -126,7 +126,7 @@ export const gate = defineGate({
           `  await expect.poll(async () => (await read(page)).${[...MOTION_READS][0]}, POLL_OPTS).toBeGreaterThan(0);\n` +
           "});\n",
       },
-      expect: { messageIncludes: "no freshly-minted poll schedule" },
+      expect: { count: 1, messageIncludes: "no freshly-minted poll schedule" },
       why: "the founding file rotted to lose ARM A's legal shape entirely — no inline/factory schedule anywhere, only an imported/shared options identifier the occurrence reader cannot resolve",
     },
   ],

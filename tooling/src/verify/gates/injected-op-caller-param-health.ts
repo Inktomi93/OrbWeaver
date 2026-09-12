@@ -97,7 +97,7 @@ export const gate = defineGate({
         [IDS_MODULE]: "export type NotAnEntityId = string;\n",
         "packages/server/src/domain/character/contract/service.ts": "export type ReapAssetsOp = (assetIds: readonly string[]) => Promise<void>;\n",
       },
-      expect: { messageIncludes: "derived ZERO entity-id type names" },
+      expect: { count: 7, messageIncludes: "derived ZERO entity-id type names" },
       why: "THE BLIND ARM: the anchor is loaded but the ids module derives no TypeIdOf-shaped export at all — the vocabulary the gate scans for no longer exists",
     },
   ],

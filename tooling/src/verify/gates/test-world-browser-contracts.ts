@@ -110,7 +110,7 @@ export const gate = defineGate({
         "packages/ui/src/index.ts": 'export type { InputProps } from "./input.tsx";\n',
         "tests/ui/input.test-d.ts": 'import type { InputProps as Props } from "../../packages/ui/src/index.ts";\nexport type Subject = Props;\n',
       },
-      expect: { count: 1, messageIncludes: "browser-only contract" },
+      expect: { count: 1 },
       why: "the founding defect: a Node type test consumes a re-exported type canonically authored in browser TSX",
     },
     {

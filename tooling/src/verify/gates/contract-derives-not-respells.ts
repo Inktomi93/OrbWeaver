@@ -218,7 +218,7 @@ export const gate = defineGate({
         "packages/contracts/src/chat/roster.ts": "export interface RosterMemberSpec {\n  readonly kind: string;\n}\n",
         "packages/server/src/domain/chat/contract/params.ts": "export interface RosterMemberSpec {\n  readonly kind: string;\n}\n",
       },
-      expect: { messageIncludes: 'respells "RosterMemberSpec"' },
+      expect: { count: 1, messageIncludes: 'respells "RosterMemberSpec"' },
       why: "ARM A: the domain contract re-declares a name @orb/contracts/chat owns — the wire shape now has two homes and they drift apart silently",
     },
     {
@@ -228,7 +228,7 @@ export const gate = defineGate({
         "packages/server/src/domain/workloads/contract/probe-schedule.ts":
           "export interface WorkloadScheduleRow {\n  readonly id: string;\n  readonly enabled: boolean;\n}\n",
       },
-      expect: { messageIncludes: 'hand-row "WorkloadScheduleRow"' },
+      expect: { count: 1, messageIncludes: 'hand-row "WorkloadScheduleRow"' },
       why: "ARM B: the founding defect — a hand-written interface listing a real table's columns (fixed on the tree in this gate's landing commit)",
     },
     {
@@ -237,7 +237,7 @@ export const gate = defineGate({
         "packages/db/src/schema/workloads.ts": 'export const workloads = sqliteTable("workloads", {});\n',
         "packages/server/src/domain/workloads/contract/x.ts": "export type WorkloadInsert = {\n  readonly id: string;\n};\n",
       },
-      expect: { messageIncludes: 'hand-row "WorkloadInsert"' },
+      expect: { count: 1, messageIncludes: 'hand-row "WorkloadInsert"' },
       why: "ARM B, the INSERT half + the object-literal TYPE ALIAS spelling (not just `interface`) — the remedy names $inferInsert, not $inferSelect",
     },
   ],
