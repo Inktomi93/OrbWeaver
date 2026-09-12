@@ -1,17 +1,54 @@
 // Gate: integer-line-boxes (docs/design/integer-line-boxes.md) — every line box resolves to INTEGER px at
-// the 16px root; a fractional box walks baselines off the device-pixel grid under promoted layers. ARM T:
-// leading.* tokens are snapped integer rem dimensions · ARM P: every class-borne text step pairs an
-// in-vocabulary leading (Tailwind's unitless core leading scale is banned) · ARM C: stylesheet
-// line-heights resolve only through the leading vocabulary. Comment posture: ARM P is AST-side via the
-// static-class walker (comment-safe); ARM C routes stylesheet text through blankCssComments. DECLARED
-// LIMITS: generated theme.css is freshness-enforced by tests/ui/tokens, not re-read here; box = font-size
-// via leading-none is legal when the step is integer; the reading surface rides its typed exemption row.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+// the 16px root; a fractional box walks baselines off the device-pixel grid under promoted layers.
+// ARM T: leading.* tokens are snapped integer rem dimensions · ARM P: every class-borne text step pairs an
+// in-vocabulary leading (Tailwind's unitless core leading scale is banned) · ARM C: stylesheet line-heights
+// resolve only through the leading vocabulary · ARM B: the blindness floors. Comment posture: ARM P is
+// AST-side via the static-class walker (comment-safe); ARM C reads parsed CSS declarations, and the parser
+// blanks comment spans before parsing, so a commented-out rule is never judged.
+//
+// DECLARED LIMITS: the generated theme.css is the ONE emitter of the leading scale and is freshness-enforced
+// by tests/ui/tokens, so it is carved out of ARM C rather than re-judged here (the `no-raw-color-in-css`
+// precedent — an authoritative home is a population carve-out, never a waiver); box = font-size via
+// leading-none is legal when the step is integer; the chat reading surface rides a waiver, below.
+//
+// FAMILY: `static-class-expression`, after the shared reader
+// `lib/static-class-expression.ts#walkStaticClassExpressions`, with `rest-transform-grid` as the second
+// member. ARM P — the pairing law, and the arm that has to see a class string composed through a `tv()`
+// slot or a `cn()` call — could not be written without it.
+//
+// POPULATION PORT (legacy `a4206c511`), three halves:
+//   · the AST half was `scanRoot: (path) => path.startsWith("packages/ui/src/") || path.startsWith("packages/client/src/")`
+//     plus the same predicate re-applied to `ctx.files`; `{ in: ["@client", "@ui"] }` is exactly those two
+//     roots, so the double filter collapses into the declaration. BYTE-IDENTICAL.
+//   · the CSS half walked `packages/ui/src` + `packages/client/src` for `*.css` MINUS the generated
+//     theme.css; `authored-css` is exactly those two trees (`ops/resource-tree.ts:84-107`) and the theme
+//     carve-out is kept in the policy. BYTE-IDENTICAL.
+//   · the token vault was a private `existsSync` + `JSON.parse` of `packages/ui/src/tokens/tokens.json`;
+//     it is now the declared `json:tokens` resource, whose path is that exact file
+//     (`contract/resource-json.ts`). BYTE-IDENTICAL SUBJECT, different refusal — see below.
+//
+// EXEMPTION-MECHANISM MOVE (guide §4.6 category 5). The legacy `CSS_LINE_HEIGHT_EXEMPTIONS` table held ONE
+// row, `packages/client/src/styles/globals.css::var(--reading-line-height)`, plus a hand-rolled two-sided
+// STALE arm that reported at the gate's own source file. Both are retired: the site carries an
+// `@orb-waive integer-line-boxes(--reading-line-height)` marker, and the central engine's dead-position
+// alarm IS the stale arm — louder than the finding it replaces, and it can no longer report at a path
+// outside the policy's own population. Census: 1 legacy row → 1 marker → 1 live consumed waiver, verified
+// on the real tree (1 raw / 1 waived / 0 effective / 0 alarms).
+//
+// RETIRED BY THE RUNTIME, not dropped (guide §4.6): the legacy blindness reasons "tokens.json missing" and
+// "zero stylesheets read", and the `readTypeScale` branch that returned `undefined` and silenced the whole
+// gate on a mini-project. A missing, empty or unparseable declared resource now makes
+// `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, the
+// owner is withheld and the run reports a TOOL ERROR — "this run is not a verdict" — instead of a finding
+// or a silent clean. Those refusals are pinned in the family test through `runPolicyPass`, because guide
+// §4.5b says no proof row can express them. This module owns no not-ready branch: it reads both declared
+// resources through `readyResourceValue`, whose throw asserts the runtime's own refusal already held.
 import type { Node } from "ts-morph";
-import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { blankCssComments } from "../lib/comment-spans.ts";
-import { fileLoaded, repoRel } from "../lib/pass.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { CssDeclarationFact, CssFacts } from "../contract/resource-css.ts";
+import type { JsonValue } from "../contract/resource-json.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 import type { StaticClassSegment } from "../lib/static-class-expression.ts";
 import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
 
@@ -22,41 +59,46 @@ const MESSAGE =
 const FIX =
   "Pair every text-<step> with a leading-<step> from packages/ui/src/tokens/tokens.json (never Tailwind's " +
   "unitless core scale), author leading tokens as snapped integer-px rem dimensions, and let stylesheets " +
-  "set line-height only through var(--leading-*).";
-const GATE_SELF = "tooling/src/verify/gates/integer-line-boxes.ts";
-const REAL_TREE_ANCHOR = "packages/ui/src/lib/class-merge.ts";
+  "set line-height only through var(--leading-*). A deliberate stylesheet line-height is waived with " +
+  "`/* @orb-waive integer-line-boxes(<position>): <reason> */` on the line above, where <position> is the " +
+  "reported token: the custom-property NAME for a `var(--x)` value (`--reading-line-height`, never the " +
+  "`var(…)` call — a position containing a paren is unwaivable by the marker grammar) and the literal " +
+  "itself otherwise (`1.4`).";
+
 const TOKENS_JSON_REL = "packages/ui/src/tokens/tokens.json";
 const GENERATED_THEME_CSS = "packages/ui/src/styles/theme.css";
-const CSS_ROOTS = ["packages/ui/src", "packages/client/src"] as const;
+/** Real-tree anchor for ARM B: a whole-tree blindness claim is meaningless over a proof fixture, which
+ *  holds only the files its row materializes. A live `@ui` module inside this policy's own population, so
+ *  it is also a LEGAL finding anchor — the legacy descriptor reported ARM B at the gate's own source file,
+ *  which no final policy may do. */
+const REAL_TREE_ANCHOR = "packages/ui/src/lib/class-merge.ts";
 const ROOT_REM_PX = 16;
 const INTEGER_EPSILON = 1e-6;
 /** Real-tree floors for the blindness tripwire: below these the census is blind, not clean. */
 const MIN_TEXT_CANDIDATES = 40;
 const MIN_DISTINCT_PAIRINGS = 6;
 
-/** Sanctioned non-vocabulary line-height declarations, keyed `<repo-relative css path>::<value>`. */
-const CSS_LINE_HEIGHT_EXEMPTIONS: ExemptionTable = {
-  "packages/client/src/styles/globals.css::var(--reading-line-height)": {
-    why:
-      "the chat reading surface is the user-owned CONTINUOUS multiplier (appearance.readingLineHeight " +
-      "1.2-2.2) — the declared Law-4 residual of docs/design/integer-line-boxes.md §2; ends when the " +
-      "reading rule gains its own round() belt at the consuming declaration",
-  },
-};
-
 interface TypeScale {
   /** text step name → resolved px at the 16px root. */
   readonly textPx: ReadonlyMap<string, number>;
   /** leading name → box px at the 16px root; leading `none` maps to NaN (box = the paired font-size). */
   readonly leadingPx: ReadonlyMap<string, number>;
-  readonly problems: readonly string[];
+  readonly problems: readonly LeadingProblem[];
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+/** One ARM T defect, carrying the leading token NAME as well as its sentence. The name is the finding's
+ *  waiver POSITION: an ordinary finding must point at a nonempty token that slices the authored text at its
+ *  reported column, and a token vault's offending subject is the key, never the file. */
+interface LeadingProblem {
+  readonly name: string;
+  readonly message: string;
+}
+
+function isRecord(value: JsonValue | undefined): value is { readonly [key: string]: JsonValue } {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function dimensionPx(value: unknown): number | undefined {
+function dimensionPx(value: JsonValue | undefined): number | undefined {
   if (!isRecord(value) || typeof value["value"] !== "number") {
     return;
   }
@@ -66,61 +108,55 @@ function dimensionPx(value: unknown): number | undefined {
   return value["unit"] === "px" ? value["value"] : undefined;
 }
 
-function outputKind(node: Record<string, unknown>): string | undefined {
+function outputKind(node: { readonly [key: string]: JsonValue }): string | undefined {
   const extensions = node["$extensions"];
   const output = isRecord(extensions) ? extensions["orb.output"] : undefined;
   const kind = isRecord(output) ? output["kind"] : undefined;
   return typeof kind === "string" ? kind : undefined;
 }
 
-function readLeadingToken(name: string, node: Record<string, unknown>, out: { leading: Map<string, number>; problems: string[] }): void {
+function readLeadingToken(name: string, node: { readonly [key: string]: JsonValue }, out: { leading: Map<string, number>; problems: LeadingProblem[] }): void {
   if (name === "none") {
     if (node["$type"] !== "number" || node["$value"] !== 1) {
-      out.problems.push("leading.none must stay the number 1 (box = the paired font-size)");
+      out.problems.push({ name, message: "leading.none must stay the number 1 (box = the paired font-size)" });
       return;
     }
     out.leading.set(name, Number.NaN);
     return;
   }
   if (node["$type"] !== "dimension") {
-    out.problems.push(`leading.${name} is not a dimension — unitless leading ratios are banned (a ratio times a fractional voice size is a fractional box)`);
+    out.problems.push({
+      name,
+      message: `leading.${name} is not a dimension — unitless leading ratios are banned (a ratio times a fractional voice size is a fractional box)`,
+    });
     return;
   }
   if (outputKind(node) !== "snapped") {
-    out.problems.push(
-      `leading.${name} lacks $extensions orb.output kind "snapped" — without the round(<rem>, 1px) belt the continuous --font-scale slider un-grids the box`,
-    );
+    out.problems.push({
+      name,
+      message: `leading.${name} lacks $extensions orb.output kind "snapped" — without the round(<rem>, 1px) belt the continuous --font-scale slider un-grids the box`,
+    });
     return;
   }
   const px = dimensionPx(node["$value"]);
   if (px === undefined) {
-    out.problems.push(`leading.${name} has an unreadable dimension value`);
+    out.problems.push({ name, message: `leading.${name} has an unreadable dimension value` });
     return;
   }
   if (Math.abs(px - Math.round(px)) > INTEGER_EPSILON) {
-    out.problems.push(`leading.${name} resolves ${px}px at the 16px root — fractional line box; author an integer`);
+    out.problems.push({ name, message: `leading.${name} resolves ${String(px)}px at the 16px root — fractional line box; author an integer` });
     return;
   }
   out.leading.set(name, px);
 }
 
-/** Parse the text/leading groups of tokens.json; undefined when the file is absent (mini-projects). */
-function readTypeScale(root: string): TypeScale | undefined {
-  const path = join(root, TOKENS_JSON_REL);
-  if (!existsSync(path)) {
-    return;
-  }
-  const problems: string[] = [];
-  let raw: unknown;
-  // @orb-waive caught-failure-ownership(catch): an unparseable tokens.json becomes this gate's own RED finding ("tokens.json is unparseable") through the returned problems array — the loudest owner a structural gate has. Ends if the problems array stops being reported in `run`.
-  try {
-    raw = JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return { textPx: new Map(), leadingPx: new Map(), problems: ["tokens.json is unparseable — the type-scale arithmetic cannot be judged"] };
-  }
+/** Parse the text/leading groups of the declared token vault. TOTAL: an absent, empty or unparseable vault
+ *  never reaches here — that is the runtime's population-phase refusal, not this function's `undefined`. */
+function readTypeScale(tokenVault: JsonValue): TypeScale {
+  const problems: LeadingProblem[] = [];
   const textPx = new Map<string, number>();
   const leading = new Map<string, number>();
-  const source = isRecord(raw) ? raw : {};
+  const source = isRecord(tokenVault) ? tokenVault : {};
   const textGroup = isRecord(source["text"]) ? source["text"] : {};
   for (const [name, node] of Object.entries(textGroup)) {
     if (name.startsWith("$") || !isRecord(node)) {
@@ -235,76 +271,95 @@ function sourceToken(segments: readonly StaticClassSegment[], valueOffset: numbe
 
 const LEADING_UTILITY_PREFIX = "leading-";
 const TEXT_UTILITY_PREFIX = "text-";
-
-function lineOf(text: string, index: number): number {
-  return text.slice(0, index).split("\n").length;
-}
-
-function cssFiles(root: string): string[] {
-  const files: string[] = [];
-  for (const cssRoot of CSS_ROOTS) {
-    const dir = join(root, cssRoot);
-    if (!existsSync(dir)) {
-      continue;
-    }
-    for (const entry of readdirSync(dir, { recursive: true, encoding: "utf8" })) {
-      const rel = `${cssRoot}/${entry.replaceAll("\\", "/")}`;
-      if (rel.endsWith(".css") && rel !== GENERATED_THEME_CSS) {
-        files.push(rel);
-      }
-    }
-  }
-  return files.sort((a, b) => a.localeCompare(b));
-}
-
-const LINE_HEIGHT_DECL_RE = /line-height\s*:\s*([^;}]+)/gu;
 const LEADING_VAR_RE = /^var\(--leading-([a-z-]+)\)$/u;
 const TIER_LEADING_VAR_RE = /^var\(--orb-tier-[a-z-]+-leading\)$/u;
-const LEADING_DEF_RE = /--leading-[a-z-]+\s*:/gu;
-const TIER_LEADING_DEF_RE = /--orb-tier-[a-z-]+-leading\s*:\s*([^;}]+)/gu;
+const LEADING_DEF_RE = /^--leading-[a-z-]+$/u;
+const TIER_LEADING_DEF_RE = /^--orb-tier-[a-z-]+-leading$/u;
+/** A value that is exactly ONE `var(--name)` reference — its waiver POSITION is the NAME, never the call:
+ *  the marker grammar's position group is `[^()\r\n]+`, so a reported `var(--reading-line-height)` would be
+ *  a finding with no door at all. */
+const SINGLE_VAR_RE = /^var\(\s*(--[a-z0-9-]+)\s*\)$/u;
+
+/** 1-based line/column of an absolute offset in a stylesheet. */
+function positionOf(text: string, offset: number): { readonly line: number; readonly column: number } {
+  const before = text.slice(0, offset);
+  return { line: before.split("\n").length, column: offset - before.lastIndexOf("\n") };
+}
+
+/** WHERE a declaration's value finding anchors, and with WHAT token — the two are one decision, because an
+ *  ordinary finding's token must slice the source at its reported column. A `var(--x)` value anchors on the
+ *  NAME inside the call; anything else anchors on the first character of the value. */
+function valueFinding(text: string, declaration: CssDeclarationFact): { readonly line: number; readonly column: number; readonly token: string } {
+  const name = SINGLE_VAR_RE.exec(declaration.value)?.[1];
+  const token = name ?? declaration.value;
+  const colon = text.indexOf(":", declaration.offset);
+  const at = text.indexOf(token, colon === -1 ? declaration.offset : colon);
+  if (at === -1) {
+    throw new Error(`CSS declaration value has no exact authored position: ${declaration.value}`);
+  }
+  return { ...positionOf(text, at), token };
+}
+
+/** WHERE an ARM T finding anchors: on the offending leading token's KEY inside the vault's `leading` group.
+ *  The vault is read twice on purpose and both reads are declared — `json:tokens` for the parsed value the
+ *  arithmetic judges, and `authored-text` for the bytes a POSITION needs. An ordinary finding's token must
+ *  slice the authored text at its reported column, so a parsed value alone cannot produce a waivable
+ *  finding, and a finding pinned at line 1 column 1 with no token ALARMS
+ *  (`has no nonempty position token for waiver binding`) rather than reporting. */
+function leadingKeyPosition(text: string, name: string): { readonly line: number; readonly column: number; readonly token: string } {
+  const group = text.indexOf('"leading"');
+  const key = text.indexOf(`"${name}"`, group === -1 ? 0 : group);
+  if (key === -1) {
+    throw new Error(`token vault has no authored position for leading.${name}`);
+  }
+  return { ...positionOf(text, key + 1), token: name };
+}
 
 interface CssScan {
-  readonly ctx: GateRunCtx;
-  readonly rel: string;
+  readonly ctx: GatePolicyContext;
   readonly text: string;
   readonly scale: TypeScale;
 }
 
-function checkCssLineHeights(scan: CssScan, seenExemptions: Set<string>): void {
-  let decl = LINE_HEIGHT_DECL_RE.exec(scan.text);
-  while (decl !== null) {
-    const value = (decl[1] ?? "").trim();
-    const leadingName = LEADING_VAR_RE.exec(value)?.[1];
-    const inVocabulary = leadingName !== undefined && scan.scale.leadingPx.has(leadingName);
-    const exemptionKey = `${scan.rel}::${value}`;
-    if (!(inVocabulary || TIER_LEADING_VAR_RE.test(value))) {
-      if (exemptionKey in CSS_LINE_HEIGHT_EXEMPTIONS) {
-        seenExemptions.add(exemptionKey);
-      } else {
-        // @finding-overload-ok: a stylesheet line-scan verdict — CSS is outside the ts-morph project, so there is no node to anchor; suppression stays line-adjacent in the stylesheet (#828).
-        scan.ctx.report({ file: scan.rel, line: lineOf(scan.text, decl.index), column: 1, token: value });
-      }
+/** ARM C. One declaration of one authored stylesheet: a `line-height` must resolve through the leading
+ *  vocabulary (directly, or through the tiers.css alias indirection); a hand-authored `--leading-*`
+ *  definition shadows the generated scale and is never legal; a `--orb-tier-*-leading` alias must point at
+ *  an in-vocabulary leading. */
+function judgeCssDeclaration(scan: CssScan, declaration: CssDeclarationFact): void {
+  const report = (): void => scan.ctx.report.file(declaration.file, valueFinding(scan.text, declaration));
+  if (LEADING_DEF_RE.test(declaration.property)) {
+    scan.ctx.report.file(declaration.file, { ...positionOf(scan.text, declaration.offset), token: declaration.property });
+    return;
+  }
+  if (TIER_LEADING_DEF_RE.test(declaration.property)) {
+    const aliased = LEADING_VAR_RE.exec(declaration.value)?.[1];
+    if (aliased === undefined || !scan.scale.leadingPx.has(aliased)) {
+      report();
     }
-    decl = LINE_HEIGHT_DECL_RE.exec(scan.text);
+    return;
+  }
+  if (declaration.property !== "line-height") {
+    return;
+  }
+  const leadingName = LEADING_VAR_RE.exec(declaration.value)?.[1];
+  const inVocabulary = leadingName !== undefined && scan.scale.leadingPx.has(leadingName);
+  if (!(inVocabulary || TIER_LEADING_VAR_RE.test(declaration.value))) {
+    report();
   }
 }
 
-function checkCssDefinitions(scan: CssScan): void {
-  let def = LEADING_DEF_RE.exec(scan.text);
-  while (def !== null) {
-    // @finding-overload-ok: a stylesheet line-scan verdict — CSS is outside the ts-morph project, so there is no node to anchor; suppression stays line-adjacent in the stylesheet (#828).
-    scan.ctx.report({ file: scan.rel, line: lineOf(scan.text, def.index), column: 1, token: def[0].replace(/\s*:$/u, "") });
-    def = LEADING_DEF_RE.exec(scan.text);
-  }
-  let tierDef = TIER_LEADING_DEF_RE.exec(scan.text);
-  while (tierDef !== null) {
-    const value = (tierDef[1] ?? "").trim();
-    const leadingName = LEADING_VAR_RE.exec(value)?.[1];
-    if (leadingName === undefined || !scan.scale.leadingPx.has(leadingName)) {
-      // @finding-overload-ok: a stylesheet line-scan verdict — CSS is outside the ts-morph project, so there is no node to anchor; suppression stays line-adjacent in the stylesheet (#828).
-      scan.ctx.report({ file: scan.rel, line: lineOf(scan.text, tierDef.index), column: 1, token: value });
+/** ARM C over the whole authored corpus, MINUS the generated theme — the ONE emitter of the leading scale,
+ *  freshness-enforced by tests/ui/tokens, and an authoritative home is a population carve-out rather than a
+ *  waiver (the `no-raw-color-in-css` precedent). */
+function judgeStylesheets(ctx: GatePolicyContext, inventory: CssFacts, scale: TypeScale): void {
+  const declarationsByFile = Map.groupBy(inventory.declarations, (declaration) => declaration.file);
+  for (const file of inventory.files) {
+    if (file.path === GENERATED_THEME_CSS) {
+      continue;
     }
-    tierDef = TIER_LEADING_DEF_RE.exec(scan.text);
+    for (const declaration of declarationsByFile.get(file.path) ?? []) {
+      judgeCssDeclaration({ ctx, text: file.text, scale }, declaration);
+    }
   }
 }
 
@@ -314,16 +369,19 @@ interface PairingCensus {
 }
 
 interface CandidateScan {
-  readonly ctx: GateRunCtx;
+  readonly ctx: GatePolicyContext;
   readonly scale: TypeScale;
   readonly census: PairingCensus;
   readonly segments: readonly StaticClassSegment[];
 }
 
-function reportAnchored(scan: CandidateScan, offset: number, token: string): void {
-  const anchored = sourceToken(scan.segments, offset, token);
+function reportAnchored(scan: CandidateScan, token: ClassToken): void {
+  // Anchor on the BASE utility: a variant-prefixed `sm:leading-tight` has its base three characters in, and
+  // a finding whose token does not slice the source at its reported offset is an `[evaluate]` TOOL ERROR.
+  const baseAt = token.raw.indexOf(token.base);
+  const anchored = sourceToken(scan.segments, token.offset + Math.max(0, baseAt), token.base);
   if (anchored !== undefined) {
-    scan.ctx.report(anchored.node, { token: anchored.token, offset: anchored.offset });
+    scan.ctx.report.node(anchored.node, { token: anchored.token, offset: anchored.offset });
   }
 }
 
@@ -339,7 +397,7 @@ function judgePairs(scan: CandidateScan, textSteps: readonly ClassToken[], leadi
       const boxPx = Number.isNaN(declared) ? fontPx : declared;
       scan.census.distinctPairs.add(`${text.base}|${leading.base}`);
       if (Math.abs(boxPx - Math.round(boxPx)) > INTEGER_EPSILON || boxPx + INTEGER_EPSILON < fontPx) {
-        reportAnchored(scan, leading.offset, leading.base);
+        reportAnchored(scan, leading);
       }
     }
   }
@@ -351,7 +409,7 @@ function judgeCandidate(scan: CandidateScan, value: string): void {
   const leadings = tokens.filter((token) => token.base.startsWith(LEADING_UTILITY_PREFIX));
   for (const token of leadings) {
     if (!scan.scale.leadingPx.has(token.base.slice(LEADING_UTILITY_PREFIX.length))) {
-      reportAnchored(scan, token.offset, token.base);
+      reportAnchored(scan, token);
     }
   }
   const first = textSteps[0];
@@ -360,7 +418,7 @@ function judgeCandidate(scan: CandidateScan, value: string): void {
   }
   scan.census.textCandidates += 1;
   if (leadings.length === 0) {
-    reportAnchored(scan, first.offset, first.base);
+    reportAnchored(scan, first);
     return;
   }
   judgePairs(scan, textSteps, leadings);
@@ -368,251 +426,297 @@ function judgeCandidate(scan: CandidateScan, value: string): void {
 
 interface BlindnessInputs {
   readonly roots: number;
-  readonly scale: TypeScale | undefined;
   readonly census: PairingCensus;
-  readonly stylesheetCount: number;
 }
 
-function reportBlindness(ctx: GateRunCtx, inputs: BlindnessInputs): void {
+/** ARM B. Anchored on a file inside this policy's own population, and only when that file is actually
+ *  loaded. The legacy "tokens.json missing" and "zero stylesheets read" reasons are gone: both are now
+ *  population-phase REFUSALS of a declared resource, which outrank a finding. */
+function reportBlindness(ctx: GatePolicyContext, inputs: BlindnessInputs): void {
   const blind: string[] = [];
-  if (inputs.scale === undefined) {
-    blind.push(`tokens.json missing at ${TOKENS_JSON_REL}`);
-  }
   if (inputs.roots === 0) {
     blind.push("static class-expression derivation returned zero carrier roots");
   }
   if (inputs.census.textCandidates < MIN_TEXT_CANDIDATES || inputs.census.distinctPairs.size < MIN_DISTINCT_PAIRINGS) {
     blind.push(
-      `pairing census below the real-tree floor (${inputs.census.textCandidates} text candidates, ${inputs.census.distinctPairs.size} distinct pairings)`,
+      `pairing census below the real-tree floor (${String(inputs.census.textCandidates)} text candidates, ${String(inputs.census.distinctPairs.size)} distinct pairings)`,
     );
   }
-  if (inputs.stylesheetCount === 0) {
-    blind.push("zero stylesheets read");
-  }
   for (const reason of blind) {
-    ctx.report({
-      file: GATE_SELF,
+    ctx.report.file(REAL_TREE_ANCHOR, {
       line: 1,
-      column: 0,
+      column: 1,
       message: `${reason} — the integer-line-box census is blind, not clean (tooling/src/verify/gates/integer-line-boxes.ts)`,
     });
   }
 }
 
-export const gate: GateDescriptor = {
-  name: "integer-line-boxes",
-  docRow: "client-architecture-lockdown.md §4 (docs/design/integer-line-boxes.md)",
-  status: "active",
-  scopeSafety: "whole-project",
+/** Every proof row spreads this. `authored-css` is assembled from the `client-source` AND `ui-source` trees
+ *  (`ops/resource-tree.ts:84-107`), so a row leaving either tree empty comes back a `[population]` TOOL
+ *  ERROR rather than a finding and proves nothing about its arm; `json:tokens` refuses the same way when
+ *  the vault is absent. Neither member carries a text step, a leading or a line-height, so neither can mask
+ *  or manufacture a row's verdict. */
+const SNAPPED_SCALE = JSON.stringify({
+  text: { label: { $type: "dimension", $value: { value: 0.8125, unit: "rem" } } },
+  leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
+});
+const CORPUS = {
+  "packages/client/src/styles/keep.css": ".keep {\n  color: var(--color-foreground);\n}\n",
+  "packages/ui/src/keep.tsx": "export const Keep = () => null;\n",
+  [TOKENS_JSON_REL]: SNAPPED_SCALE,
+} as const;
+
+function vault(text: string): Readonly<Record<string, string>> {
+  return { ...CORPUS, [TOKENS_JSON_REL]: text };
+}
+
+export const gate = defineGate({
+  id: "integer-line-boxes",
+  family: "static-class-expression",
+  authority: "ordinary",
+  severity: "error",
+  population: { in: ["@client", "@ui"] },
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [{ kind: "authored-css" }, { kind: "json", id: "tokens" }, { kind: "authored-text" }],
   message: MESSAGE,
   fix: FIX,
-  fsBacked: true,
-  scanRoot: (path) => path.startsWith("packages/ui/src/") || path.startsWith("packages/client/src/"),
-  run: (ctx) => {
-    const scale = readTypeScale(ctx.root);
-    for (const problem of scale?.problems ?? []) {
-      ctx.report({ file: TOKENS_JSON_REL, line: 0, column: 0, message: `${problem} (docs/design/integer-line-boxes.md)` });
-    }
-    const files = ctx.files.filter((source) => {
-      const path = repoRel(ctx.root, source.getFilePath());
-      return path.startsWith("packages/ui/src/") || path.startsWith("packages/client/src/");
-    });
-    const walked = walkStaticClassExpressions(files);
-    const census: PairingCensus = { textCandidates: 0, distinctPairs: new Set() };
-    if (scale !== undefined) {
+  create: (ctx) => ({
+    evaluate: () => {
+      const scale = readTypeScale(readyResourceValue(ctx.resources.json("tokens")).value);
+      const inventory = readyResourceValue(ctx.resources.cssInventory("authored"));
+      const vaultText = readyResourceValue(ctx.resources.authoredText([TOKENS_JSON_REL])).files.find(({ path }) => path === TOKENS_JSON_REL);
+      if (vaultText === undefined) {
+        throw new Error(`token vault text was not served for ${TOKENS_JSON_REL}`);
+      }
+      for (const problem of scale.problems) {
+        ctx.report.file(TOKENS_JSON_REL, {
+          ...leadingKeyPosition(vaultText.text, problem.name),
+          message: `${problem.message} (docs/design/integer-line-boxes.md)`,
+        });
+      }
+      const walked = walkStaticClassExpressions(ctx.files);
+      const census: PairingCensus = { textCandidates: 0, distinctPairs: new Set() };
       for (const candidate of walked.candidates) {
         judgeCandidate({ ctx, scale, census, segments: candidate.segments }, candidate.value);
       }
       for (const unresolved of walked.unresolved) {
-        ctx.report(unresolved.node, { token: `unresolved:${unresolved.reason}`, offset: 0 });
+        ctx.report.node(unresolved.node, { message: `${MESSAGE} (class expression unresolved: ${unresolved.reason})` });
       }
-    }
-    const stylesheets = cssFiles(ctx.root);
-    const seenExemptions = new Set<string>();
-    if (scale !== undefined) {
-      for (const rel of stylesheets) {
-        const text = blankCssComments(readFileSync(join(ctx.root, rel), "utf8"));
-        const scan: CssScan = { ctx, rel, text, scale };
-        checkCssLineHeights(scan, seenExemptions);
-        checkCssDefinitions(scan);
+      judgeStylesheets(ctx, inventory, scale);
+      if (ctx.files.some((source) => ctx.relativePath(source) === REAL_TREE_ANCHOR)) {
+        reportBlindness(ctx, { roots: walked.roots, census });
       }
-    }
-    ctx.scan({
-      unit: "line-box carrier",
-      candidates: walked.candidates.length + walked.unresolved.length + walked.opaque.length + stylesheets.length,
-      scanned: walked.candidates.length + stylesheets.length,
-      skipped: { unresolved: walked.unresolved.length, "opaque-runtime": walked.opaque.length },
-    });
-    const realTree = ctx.scope.kind === "project" && fileLoaded(ctx, REAL_TREE_ANCHOR);
-    if (!realTree) {
-      return;
-    }
-    for (const key of Object.keys(CSS_LINE_HEIGHT_EXEMPTIONS)) {
-      if (!seenExemptions.has(key)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `CSS_LINE_HEIGHT_EXEMPTIONS row matching no live declaration — delete the stale row in tooling/src/verify/gates/integer-line-boxes.ts: ${key}`,
-        });
-      }
-    }
-    reportBlindness(ctx, { roots: walked.roots, scale, census, stylesheetCount: stylesheets.length });
-  },
+    },
+  }),
   mustFlag: [
     {
-      files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
+      mode: "resource",
+      files: vault(
+        JSON.stringify({
           text: { label: { $type: "dimension", $value: { value: 0.8125, unit: "rem" } } },
           leading: { label: { $type: "dimension", $value: { value: 1.015_625, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
         }),
-      },
-      expect: { messageIncludes: "fractional line box" },
-      why: "the founding defect: leading.label at 16.25px was the measured config-panel blur — a fractional authored box must be unshippable",
+      ),
+      expect: { count: 1, messageIncludes: "16.25px" },
+      why: "ARM T, the founding defect: leading.label at 16.25px was the measured config-panel blur — a fractional authored box must be unshippable, and the message names the resolved px so the author does not have to redo the arithmetic",
     },
     {
-      files: {
-        [TOKENS_JSON_REL]: JSON.stringify({ text: {}, leading: { label: { $type: "number", $value: 1.25 } } }),
-      },
-      expect: { messageIncludes: "unitless" },
-      why: "a unitless leading ratio times a fractional voice size is fractional by construction — the old scale's exact shape",
+      mode: "resource",
+      files: vault(JSON.stringify({ text: {}, leading: { label: { $type: "number", $value: 1.25 } } })),
+      expect: { count: 1, messageIncludes: "unitless" },
+      why: "ARM T: a unitless leading ratio times a fractional voice size is fractional by construction — the old scale's exact shape",
     },
     {
-      files: {
-        [TOKENS_JSON_REL]: JSON.stringify({ text: {}, leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" } } } }),
-      },
-      expect: { messageIncludes: "snapped" },
-      why: "an unsnapped dimension is integer only at quarter-scale roots — the belt is part of the contract, not an option",
+      mode: "resource",
+      files: vault(JSON.stringify({ text: {}, leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" } } } })),
+      expect: { count: 1, messageIncludes: "snapped" },
+      why: "ARM T: an unsnapped dimension is integer only at quarter-scale roots — the belt is part of the contract, not an option",
     },
     {
-      files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: { micro: { $type: "dimension", $value: { value: 0.656_25, unit: "rem" } } },
-          leading: { micro: { $type: "dimension", $value: { value: 0.8125, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
-        }),
-        "packages/ui/src/x.tsx": 'export const G = <div className="text-micro leading-tight" />;\n',
-      },
-      expect: { token: "leading-tight" },
-      why: "Tailwind's unitless core leading scale re-opens the fractional-box hole the token re-authoring closed",
+      mode: "resource",
+      files: vault(JSON.stringify({ text: {}, leading: { none: { $type: "number", $value: 1.25 } } })),
+      expect: { count: 1, messageIncludes: "leading.none must stay the number 1" },
+      why: "ARM T's `none` arm, which is a DIFFERENT rule from the unitless ban beside it: `none` is the one leading that is legally a number, and its only legal number is 1. The `messageIncludes` is what discriminates it — under a bare count it would pass identically against the unitless arm",
     },
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: { label: { $type: "dimension", $value: { value: 0.8125, unit: "rem" } } },
-          leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
-        }),
+        ...CORPUS,
+        "packages/ui/src/x.tsx": 'export const G = <div className="text-label leading-tight" />;\n',
+      },
+      expect: { count: 1, token: "leading-tight" },
+      why: "ARM P: Tailwind's unitless core leading scale re-opens the fractional-box hole the token re-authoring closed",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
+        "packages/ui/src/x.tsx": 'export const G = <div className="sm:leading-tight" />;\n',
+      },
+      expect: { count: 1, token: "leading-tight" },
+      why: "ARM P, the VARIANT-PREFIX anchoring row: the finding's token must slice the source at its reported column, so a prefixed token has to anchor on its BASE three characters in. Report the whole token's offset and this row becomes an `[evaluate]` tool error rather than a finding",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
         "packages/ui/src/x.tsx": 'export const G = <div className="p-4 text-label" />;\n',
       },
-      expect: { token: "text-label" },
-      why: "an unpaired text step inherits the ancestor RATIO (preflight 1.5), which re-computes fractional per font-size",
+      expect: { count: 1, token: "text-label" },
+      why: "ARM P: an unpaired text step inherits the ancestor RATIO (preflight 1.5), which re-computes fractional per font-size",
     },
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: { body: { $type: "dimension", $value: { value: 0.9375, unit: "rem" } } },
-          leading: { micro: { $type: "dimension", $value: { value: 0.8125, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
-        }),
+        ...vault(
+          JSON.stringify({
+            text: { body: { $type: "dimension", $value: { value: 0.9375, unit: "rem" } } },
+            leading: { micro: { $type: "dimension", $value: { value: 0.8125, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
+          }),
+        ),
         "packages/ui/src/x.tsx": 'export const G = <div className="text-body leading-micro" />;\n',
       },
-      expect: { token: "leading-micro" },
-      why: "a box below its font size clips glyphs — the mispairing guard fixed boxes make possible",
+      expect: { count: 1, token: "leading-micro" },
+      why: "ARM P: a box below its font size clips glyphs — the mispairing guard fixed boxes make possible",
     },
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: { micro: { $type: "dimension", $value: { value: 0.656_25, unit: "rem" } } },
-          leading: { none: { $type: "number", $value: 1 } },
-        }),
+        ...vault(
+          JSON.stringify({
+            text: { micro: { $type: "dimension", $value: { value: 0.656_25, unit: "rem" } } },
+            leading: { none: { $type: "number", $value: 1 } },
+          }),
+        ),
         "packages/ui/src/x.tsx": 'export const G = <div className="text-micro leading-none" />;\n',
       },
-      expect: { token: "leading-none" },
-      why: "leading-none makes the box the font-size — legal only when that size is integer, and 10.5px is not",
+      expect: { count: 1, token: "leading-none" },
+      why: "ARM P: leading-none makes the box the font-size — legal only when that size is integer, and 10.5px is not",
     },
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: { label: { $type: "dimension", $value: { value: 0.8125, unit: "rem" } } },
-          leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
-        }),
+        ...CORPUS,
         "packages/ui/src/tv.ts": 'import { tv } from "tailwind-variants";\nexport const x = tv({ slots: { root: "px-2 text-label" } });\n',
       },
-      expect: { token: "text-label" },
-      why: "tv slot strings are class carriers — the pairing law must reach composed variants, not only JSX",
+      expect: { count: 1, token: "text-label" },
+      why: "ARM P: tv slot strings are class carriers — the pairing law must reach composed variants, not only JSX. This is the row the FAMILY rests on: nothing but `walkStaticClassExpressions` sees a class string that never appears in a className attribute",
     },
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: {},
-          leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
-        }),
+        ...CORPUS,
         "packages/ui/src/styles/extra.css": ".x {\n  line-height: 1.4;\n}\n",
       },
-      expect: { token: "1.4" },
-      why: "a literal stylesheet line-height bypasses the vocabulary — the exact shape the six-CSS-homes law exists to fence",
+      expect: { count: 1, line: 2, token: "1.4" },
+      why: "ARM C: a literal stylesheet line-height bypasses the vocabulary — the exact shape the six-CSS-homes law exists to fence",
     },
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: {},
-          leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
-        }),
+        ...CORPUS,
         "packages/ui/src/styles/extra.css": ":root {\n  --leading-custom: 1.2;\n}\n",
       },
-      expect: { token: "--leading-custom" },
-      why: "a hand-defined --leading-* shadows the generated scale — theme.css is the one emitter",
+      expect: { count: 1, line: 2, token: "--leading-custom" },
+      why: "ARM C: a hand-defined --leading-* shadows the generated scale — theme.css is the one emitter",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
+        "packages/ui/src/styles/extra.css": "[data-surface-tier] .b {\n  --orb-tier-row-title-leading: var(--leading-nope);\n}\n",
+      },
+      expect: { count: 1, line: 2, token: "--leading-nope" },
+      why: "ARM C's ALIAS arm: the tiers.css indirection is only as good as what it points at, so an alias naming a leading outside the vocabulary is the same defect one hop out. The token is the NAME, not the `var(…)` call, because a position containing a paren has no waiver door",
     },
   ],
   mustPass: [
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: { label: { $type: "dimension", $value: { value: 0.8125, unit: "rem" } } },
-          leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
-        }),
+        ...CORPUS,
         "packages/ui/src/x.tsx": 'export const G = <div className="text-label leading-label" />;\n',
       },
       why: "the sanctioned pairing: a fractional voice size under an integer fixed box is exactly the design",
     },
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: { title: { $type: "dimension", $value: { value: 1, unit: "rem" } } },
-          leading: { none: { $type: "number", $value: 1 } },
-        }),
+        ...vault(
+          JSON.stringify({
+            text: { title: { $type: "dimension", $value: { value: 1, unit: "rem" } } },
+            leading: { none: { $type: "number", $value: 1 } },
+          }),
+        ),
         "packages/ui/src/x.tsx": 'export const G = <div className="text-title leading-none" />;\n',
       },
       why: "declared limit: box = font-size via leading-none is legal when the step is integer (16px)",
     },
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: { label: { $type: "dimension", $value: { value: 0.8125, unit: "rem" } } },
-          leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
-        }),
+        ...CORPUS,
         "packages/ui/src/x.ts": 'export const copy = "set text-label somewhere";\n',
       },
       why: "a plain string never consumed by a class carrier is prose, not a candidate — no false positive",
     },
     {
-      files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: {},
-          leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
+      mode: "resource",
+      files: vault(
+        JSON.stringify({
+          text: { $type: "dimension", $description: "the voice sizes", label: { $type: "dimension", $value: { value: 0.8125, unit: "rem" } } },
+          leading: {
+            $type: "dimension",
+            $description: "the fixed line boxes",
+            label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } },
+          },
         }),
+      ),
+      why: "NARROWING ROW for the two `$`-key skips, and the reason they are not decoration: DTCG groups carry their own `$type`/`$description` beside their members, so a scan that reads every key judges `$description` as a leading token and REDs the vault for having documentation. Cut either skip and this row goes red — measured with the `isRecord` sibling cut too, because two fences guarding one subject are individually uncuttable and have to be cut together before either can be called unenforced",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
         "packages/ui/src/styles/extra.css":
           ".a {\n  line-height: var(--leading-label);\n}\n[data-surface-tier] .b {\n  --orb-tier-row-title-leading: var(--leading-label);\n  line-height: var(--orb-tier-row-title-leading);\n}\n",
       },
       why: "the vocabulary forms: a direct leading var and the tiers.css alias indirection are the two sanctioned spellings",
     },
     {
+      mode: "resource",
       files: {
-        [TOKENS_JSON_REL]: JSON.stringify({
-          text: { label: { $type: "dimension", $value: { value: 0.8125, unit: "rem" } } },
-          leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
-        }),
+        ...CORPUS,
         "packages/ui/src/x.tsx": 'export const G = <div className="p-4 leading-label" />;\n',
       },
       why: "a leading-only string (a variant arm raising the box over a base slot) carries no text step and passes",
     },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
+        "packages/ui/src/styles/theme.css": ":root {\n  --leading-label: round(1rem, 1px);\n  line-height: 1.5;\n}\n",
+      },
+      why: "NARROWING ROW for the generated-theme carve-out, which is the ONE authoritative emitter of the leading scale: the same two declarations REDden twice in any other stylesheet (`mustFlag`'s literal and `--leading-*` rows are exactly them). Cut the carve-out and this row goes red — that is what makes the carve-out a measured fence rather than a courtesy",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
+        "packages/ui/src/styles/commented.css": "/* .old {\n  line-height: 1.4;\n} */\n.x {\n  line-height: var(--leading-label);\n}\n",
+      },
+      why: "COMMENT POSTURE (issue #117): a commented-out literal line-height is prose. The parser blanks comment spans before parsing, so the declaration never enters the inventory at all",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
+        "packages/client/src/styles/waived.css":
+          ".reading {\n  /* @orb-waive integer-line-boxes(--reading-line-height): the chat reading surface is the user-owned CONTINUOUS multiplier. */\n  line-height: var(--reading-line-height);\n}\n",
+      },
+      why: "§4.2 IDENTITY, on the exact site whose legacy CSS_LINE_HEIGHT_EXEMPTIONS row this marker replaced (`packages/client/src/styles/globals.css:712`): the correct ordinary waiver at the reported position suppresses the one finding its `mustFlag` twin produces. The position is the NAME because the value is a single `var(…)` call and a paren cannot appear in a marker position",
+    },
   ],
-};
+});

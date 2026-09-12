@@ -48,6 +48,12 @@ export interface CssAtRule {
   readonly prelude: string;
   readonly line: number;
   readonly offset: number;
+  /** Zero-based offset of the `}` that closes this at-rule's block. The parser already knows it, and
+   *  publishing it is what lets a consumer ask ANCESTRY — "is this declaration inside a `@keyframes` / a
+   *  `prefers-reduced-motion` floor" — without re-counting braces. A declaration's own `owner` cannot
+   *  answer that: `@media (…) { * { … } }` owns its declarations through the INNER style rule, so a
+   *  consumer reading `owner` alone sees `*` and never the prelude (`atRulesContaining` below). */
+  readonly end: number;
   /** Declarations authored directly in this block; nested rules/at-rules are separate parser facts. */
   readonly declarations: readonly CssDeclaration[];
 }
@@ -155,6 +161,7 @@ function closeFrame(scan: Scan, frame: Frame | undefined, closeAt: number, style
       prelude: collapse(frame.prelude),
       line: scan.lines[offset] ?? 1,
       offset,
+      end: closeAt,
       declarations: readDeclarations(scan, frame.braceStart + 1, closeAt),
     });
   }
@@ -201,6 +208,15 @@ export function parseCssStylesheet(rawText: string): ParsedCssStylesheet {
     rules: rules.toSorted((left, right) => left.braceStart - right.braceStart),
     atRules: atRules.toSorted((left, right) => left.offset - right.offset),
   };
+}
+
+/** The at-rule ANCESTORS of one offset, outermost first — the ancestry a declaration's own `owner` cannot
+ *  express. A declaration written `@media (…) { .a { … } }` is owned by `.a`, so a policy asking "is this
+ *  inside a `@keyframes`" or "is this under the reduced-motion floor" must walk containment instead, and
+ *  every such policy re-counting braces off the raw text is the private-walk shape the contract bans.
+ *  Containment is offset-based and therefore exact: the parser recorded both ends of every block. */
+export function atRulesContaining(atRules: readonly CssAtRule[], offset: number): readonly CssAtRule[] {
+  return atRules.filter((atRule) => atRule.offset <= offset && offset <= atRule.end);
 }
 
 /** Compatibility view for policy helpers that need only style rules. */

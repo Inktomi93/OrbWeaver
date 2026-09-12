@@ -11,7 +11,6 @@ import { generateBaseuiSurface } from "./gen/baseui-surface.ts";
 import { generateCaughtFailurePopulation } from "./gen/caught-failure-population.ts";
 import { generateDensityBaseline } from "./gen/density.ts";
 import { generateDuplicateActionDoorsBaseline } from "./gen/duplicate-action-doors.ts";
-import { generateOverArtPlateBaseline } from "./gen/over-art-plate-arm.ts";
 import { generateProseBaseline } from "./gen/prose.ts";
 import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
 import { generateSuppressionsBaseline } from "./gen/suppressions.ts";
@@ -32,7 +31,6 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   "caught-failure-population": generateCaughtFailurePopulation,
   density: generateDensityBaseline,
   "duplicate-action-doors": generateDuplicateActionDoorsBaseline,
-  "over-art-plate-arm": generateOverArtPlateBaseline,
   prose: generateProseBaseline,
   "snap-flags-index": generateSnapFlagsIndex,
   suppressions: generateSuppressionsBaseline,

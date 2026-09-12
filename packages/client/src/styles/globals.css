@@ -44,6 +44,7 @@ body {
   }
 }
 .orb-weave-shimmer {
+  /* @orb-waive motion-token-purity(ease-in-out): the WeaveGlyph hero shimmer: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-weave-shimmer var(--motion-breathe) ease-in-out infinite;
 }
 
@@ -134,6 +135,7 @@ body {
   vertical-align: text-bottom;
   border-inline-start: 2px solid var(--color-primary);
   opacity: 1;
+  /* @orb-waive motion-token-purity(ease-in-out): the streaming caret's blink: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-stream-caret var(--motion-shimmer) ease-in-out infinite;
 }
 
@@ -707,6 +709,7 @@ html[data-shadow] [data-slot="message-bubble"] {
 /* Reading typography — line-height/letter-spacing/paragraph-spacing/scale. Spacing/sizing only. */
 [data-slot="message-bubble"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
+  /* @orb-waive integer-line-boxes(--reading-line-height): the chat reading surface is the user-owned CONTINUOUS multiplier (appearance.readingLineHeight 1.2-2.2) — the declared Law-4 residual of docs/design/integer-line-boxes.md §2; ends when the reading rule gains its own round() belt at the consuming declaration. */
   line-height: var(--reading-line-height);
   letter-spacing: var(--reading-letter-spacing);
 }

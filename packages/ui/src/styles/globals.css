@@ -695,6 +695,7 @@
     pointer-events: none;
     border-radius: inherit;
     opacity: 0;
+    /* @orb-waive motion-token-purity(ease-out): the media-grid spotlight's opacity fade — an isolated hover effect on one element, with no coordinated partner. */
     transition: opacity var(--motion-fast) ease-out;
     background: radial-gradient(6rem 6rem at var(--x, 50%) var(--y, 50%), oklch(from var(--color-primary) l c h / 0.18), transparent 70%);
   }
@@ -818,6 +819,7 @@
 }
 .orb-typing-dot {
   opacity: 0.35;
+  /* @orb-waive motion-token-purity(ease-in-out): the typing indicator's dot: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-typing-dot var(--motion-breathe) ease-in-out infinite;
 }
 /* Stagger the three dots off one shared breathe period rather than minting duration values. */
@@ -1017,28 +1019,35 @@
 }
 /* …and the lateral sway snow/ash ride on an inner group, so fall × drift compose without a bespoke keyframe. */
 .orb-ws-driftx {
+  /* @orb-waive motion-token-purity(ease-in-out): the waystone's lateral precipitation drift: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-driftx calc(var(--motion-precip) * 3) ease-in-out infinite alternate;
 }
 
 /* Layer 4 — the cloud deck: same sway, three speeds by weather (clear wisp → storm scud). */
 .orb-ws-cloud-slow {
+  /* @orb-waive motion-token-purity(ease-in-out): the waystone's slow cloud deck: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-sway var(--motion-ambient) ease-in-out infinite alternate;
 }
 .orb-ws-cloud-mid {
+  /* @orb-waive motion-token-purity(ease-in-out): the waystone's mid cloud deck: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-sway calc(var(--motion-ambient) * 0.6) ease-in-out infinite alternate;
 }
 .orb-ws-cloud-fast {
+  /* @orb-waive motion-token-purity(ease-in-out): the waystone's fast cloud deck: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-sway calc(var(--motion-ambient) * 0.3) ease-in-out infinite alternate;
 }
 
 /* Layer 7b — the enveloping bands: fog drifts slowly and BREATHES its opacity; wind sweeps across and out. */
 .orb-ws-sway-slow {
+  /* @orb-waive motion-token-purity(ease-in-out): the waystone's enveloping fog band: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-sway calc(var(--motion-ambient) * 1.6) ease-in-out infinite alternate;
 }
 .orb-ws-breathe {
+  /* @orb-waive motion-token-purity(ease-in-out): the waystone fog's opacity breath: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-breathe calc(var(--motion-ambient) / 2) ease-in-out infinite alternate;
 }
 .orb-ws-gust {
+  /* @orb-waive motion-token-purity(ease-in-out): the waystone's wind gust: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-gust calc(var(--motion-precip) * 3) ease-in-out infinite;
 }
 /* The second gust runs half a cycle behind the first, so wind is never fully absent from a still frame. */
@@ -1049,6 +1058,7 @@
 /* Layer 3 — the stars twinkle INDEPENDENTLY. The bucket count must be COPRIME with the star count (10), or
  * the field pulses in synchronized pairs — 7 buckets over 10 stars gives every star its own phase. */
 .orb-ws-star {
+  /* @orb-waive motion-token-purity(ease-in-out): the waystone's star twinkle: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-twinkle var(--motion-breathe) ease-in-out infinite;
 }
 .orb-ws-star:nth-child(7n + 2) {
@@ -1078,6 +1088,7 @@
 
 /* Layer 2 / 6b / 8 — the sun's glow breath, the storm's strike, the hour marker's halo pulse. */
 .orb-ws-glow {
+  /* @orb-waive motion-token-purity(ease-in-out): the waystone sun's glow breath: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-glow var(--motion-breathe) ease-in-out infinite;
 }
 .orb-ws-strike {
@@ -1086,6 +1097,7 @@
 .orb-ws-marker {
   transform-box: view-box;
   transform-origin: 50% 6.25%;
+  /* @orb-waive motion-token-purity(ease-out): the waystone hour marker's halo pulse: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-ws-marker var(--motion-breathe) ease-out infinite;
 }
 
@@ -1111,6 +1123,7 @@
   transition: rotate var(--motion-transit) var(--ease-out-expo);
 }
 .orb-ws-enter {
+  /* @orb-waive motion-token-purity(ease-out): the waystone layer's one-shot entry — it runs once on arrival against nothing else, so a shared easing token would couple it to transitions it has no relationship with. */
   animation: orb-ws-enter var(--motion-transit) ease-out both;
 }
 
@@ -1224,9 +1237,11 @@
 [data-slot="web-spinner"][data-animate] .orb-web-pulse {
   stroke-dasharray: var(--orb-web-spiral-length, 84px);
   stroke-dashoffset: var(--orb-web-spiral-length, 84px);
+  /* @orb-waive motion-token-purity(cubic-bezier): the web spinner's weave stroke: a hand-tuned bezier shaped to the spiral's own geometry, not a member of the shared easing vocabulary, and the spinner is a self-contained loop. */
   animation: orb-web-weave var(--motion-shimmer) cubic-bezier(0.45, 0.05, 0.35, 0.95) infinite;
 }
 /* The spokes hold the frame and breathe under the weave (they are the web that is already there). */
 [data-slot="web-spinner"][data-animate] .orb-web-spokes {
+  /* @orb-waive motion-token-purity(ease-in-out): the web spinner's spoke breath under the weave: a continuous decorative loop — nothing coordinates with it, so there is no partner to drift out of sync with. */
   animation: orb-web-breathe var(--motion-shimmer) ease-in-out infinite;
 }

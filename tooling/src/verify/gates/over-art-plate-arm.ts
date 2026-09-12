@@ -2,44 +2,90 @@
 // A translucent surface that can composite over the WALLPAPER layer must mix its own tint over
 // `--color-reading-plate` on the LIGHT arm of a `light-dark()`, gated on `[data-has-bg-image]` — never over
 // `transparent` (D144(b): the plate's alpha is SOLVED against the worst legal art). The dark arm re-spells
-// the base verbatim (D144(d)). The reader is `lib/over-art-plate.ts`; this file is the descriptor + proofs.
+// the base verbatim (D144(d)). The reader is `lib/over-art-plate.ts`; this file is the policy + proofs.
 //
 // WHY A GATE: nine surfaces adopted the plate ONE AT A TIME and every adoption was found by a post-ship
 // pixel-sample on one surface (#204 #217 #241 #229 #221 #167 #237 #487 #623). The population is small and
 // enumerable — every rule under an `html[data-blur-*]` gate whose background is a translucent mix — so the
 // class is decidable statically and surface number ten does not have to be found by eye. ARMS: A the
 // unpaired PLATELESS base · B the DARK ARM MOVED · C an UNREADABLE translucent shape (never a clean zero) ·
-// D the §4.6 blindness tripwire · E/F the two-sided `@over-art-plate-ok` marker · G the ratchet shrink arm ·
-// H the unpaired NO-FILL carrier (#1171).
+// D the blindness tripwire · G the ratchet shrink arm · H the unpaired NO-FILL carrier (#1171).
 //
 // #1171 — "NO FILL" AND "AN ALPHA I CANNOT COMPUTE" ARE DIFFERENT CLAIMS. `background-color: transparent`
-// (and `background: none`, and `rgba(…,0)`) used to land in ARM C, where the marker cannot reach: the
-// finding's own fix text prescribed `@over-art-plate-ok` while `judgeMarkers` exempted only PLATELESS
-// sites, so a correctly-placed marker REDded a second time as STALE and there was no in-CSS way to be
-// green. Alpha 0 is now READ (ARM H): it owes a plate arm like any plateless base, the marker absolves
-// exactly the site it sits on, and a fill PROVED to have moved to the subject's own `::before`/`::after`
-// carrier (#1154's shell panes) leaves the population as a counted skip rather than as an exemption.
+// (and `background: none`, and `rgba(…,0)`) used to land in ARM C, where an exemption cannot reach. Alpha 0
+// is READ (ARM H): it owes a plate arm like any plateless base, a waiver absolves exactly the site it names,
+// and a fill PROVED to have moved to the subject's own `::before`/`::after` carrier (#1154's shell panes)
+// leaves the population as a measured skip rather than as an exemption.
 //
-// COMMENT POSTURE — BOTH, deliberately (GATE-AUTHORING.md §5): the VALUE scan is comment-BLIND and wired
-// through `blankCssComments` (inside `parseCssRules`), so a commented-out rule is never judged; the MARKER
-// reader is comments-INTENDED and reads the RAW bytes at the same offsets (blanking is length-preserving).
+// FAMILY: singleton under its own id. The shared reader is `lib/over-art-plate.ts#judgeStylesheets` and it
+// has exactly one policy consumer — the plate ALGEBRA is this gate's own, which is what §12.3 means by "a
+// unique policy algorithm may live in verify/lib". Its co-consumer of `lib/css-rules.ts` (`motion-token-
+// purity`, `rest-transform-grid`) rests on a different reader for its own subject, so neither is a proven
+// sibling, and the loader refuses a lone member whose `family` is not its id.
 //
-// RATCHET (§4.8): the five plateless surfaces alive at mint are budgeted in `over-art-plate-arm.baseline.json`
-// so the gate lands GREEN on a tree it did not break, while `pnpm debt` enumerates them and any shrink that
-// is not regenerated REDs. TWO of the five are MEASURED failures (composer 3.30:1, `.shell-main` 3.69:1);
-// the three message-bubble rows are STRUCTURAL findings PENDING measurement — the ledger says which is which.
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import type { RatchetRow } from "../../_shared/ratchet-rows.ts";
-import { admissionFor, classNote, readBudgetRows } from "../../_shared/ratchet-rows.ts";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+// POPULATION PORT (legacy `6977b977b`), byte-identical: the legacy `stylesheetsOf` globbed
+// `packages/client/src/**/*.css` + `packages/ui/src/**/*.css` and parsed each with `parseCssRules`;
+// `authored-css` is exactly every `.css` under those two trees (`ops/resource-tree.ts:84-107`) and its
+// `rules` come from the SAME `lib/css-rules.ts` parser. The ledger is the declared `ledger:ratchet-baselines`
+// resource, whose discovered member set is every `*.baseline.json` beside the gate corpus — which includes
+// this gate's own, and which is why the stale-row arm may anchor there.
+//
+// EXEMPTION-MECHANISM MOVE (guide §4.6 category 5): the private two-sided `@over-art-plate-ok` vocabulary is
+// RETIRED for `@orb-waive`. The central engine owns malformed / stale / dead-position / over-broad
+// reconciliation for every ordinary policy at once, so the legacy MALFORMED, OVER-EXEMPTING and STALE arms
+// (legacy `mustFlag` E/F and their two `mustPass` twins) are retired WITH A STRONGER SUCCESSOR rather than
+// dropped: a marker naming a subject that is no longer plateless now ALARMS as a dead position, and the
+// over-exempting case is structurally impossible because a rule's two subjects are two findings with two
+// distinct position tokens. MARKER CENSUS at conversion: **ZERO** live `@over-art-plate-ok` markers — the
+// grammar was empty, so nothing was translated and the whole vocabulary is deleted rather than migrated.
+// Re-derived on this tree rather than remembered: a literal sweep of `packages/` returns 0, and the three
+// residual matches repo-wide are this gate's own retired proof fixtures plus one string in the central
+// engine's foreign-marker list. That matches the two standing censuses, `exception-authority-census.md:73`
+// and `ordinary-waiver-source-migration.md:80`, both of which record the count as 0 and prescribe "delete
+// the empty grammar". The five surfaces those documents describe as "becoming warning debt" did NOT need
+// to: they were already carried by the ratchet, which this conversion preserves.
+//
+// ANCHOR MOVE (guide §4.6 category 6): a live finding used to report at the DECLARATION's line and carry no
+// token. It now reports at the SELECTOR SUBJECT that names it, because an ordinary finding's position token
+// must slice the authored text at its reported column — and that is also what makes the two subjects of one
+// rule separately waivable. Every translated marker's binding was verified on the real tree.
+//
+// THE RATCHET IS GONE, AND IT WAS NOT MY CALL — `severity: "warning"` + `workItem: 626` REPLACES IT. The
+// conversion was first built with the ledger preserved behind a declared `ledger:ratchet-baselines`
+// resource, and `pnpm gate:contract` REFUSED it at the `.baseline.json` literal:
+//   `[baseline-ledger] gate-owned baseline ledgers are forbidden; use exact grants or warning debt`
+//   (`lib/gate-contract.ts:294`, mechanical on any `*.baseline.json` string in a gate module).
+// Of the two sanctioned successors, WARNING DEBT is the honest one here. The four surfaces are not
+// permanent exemptions — one is a MEASURED contrast failure (`[data-slot="composer"]` 3.30:1) and three are
+// STRUCTURAL findings pending a framebuffer measurement (the per-role `[data-slot="message-bubble"]` rules
+// at `--blur-fill-dense`) — and guide §4.4 is explicit that "debt is never converted into a grant to make a
+// run clean". Both standing censuses reached the same answer independently:
+// `exception-authority-census.md:35,73` ("4 rows / 4 burnable findings … four current violations become
+// warning debt") and `ordinary-waiver-source-migration.md:80` ("the four live plate findings become
+// `workItem: 626` warning debt").
+//
+// THE COST IS REAL AND IS THE LANE'S ONE ESCALATION: this gate was `error` and is now `warning`, so a NEW
+// unpaired glass surface warns where it used to RED. That is a downgrade of an enforcement bar, not a
+// refactor. The alternative that keeps the error bar is `authority: "reviewed-grant"` with four rows in
+// `lib/reviewed-grants.ts` — outside this lane's fence, and it would have to launder measured debt as a
+// permanent licence. Deleted with the ledger: `over-art-plate-arm.baseline.json`, its single-writer
+// generator, its `ops/baseline.ts` verb, its `verify/index.ts` export and its `ops/debt.ts` row.
+//
+// WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
+// missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`)
+// THROW during the POPULATION phase, and the receipt phase withholds every consumer, both before
+// `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready branch: it reads both declared
+// resources through `readyResourceValue`, whose throw asserts the runtime's own refusal already held.
+import type { GatePolicyContext } from "../contract/policy.ts";
+import { defineGate } from "../contract/policy.ts";
 import type { Judgement, Site } from "../lib/over-art-plate.ts";
-import { GLASS_GATE, judgeStylesheets, stylesheetsOf, TRANSPARENT, WALLPAPER_GATE } from "../lib/over-art-plate.ts";
+import { GLASS_GATE, judgeStylesheets, TRANSPARENT, WALLPAPER_GATE } from "../lib/over-art-plate.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
-/** The ledger's ONE home — exported so `ops/debt.ts` enumerates these rows instead of re-spelling the path. */
-export const BASELINE_REL = "tooling/src/verify/gates/over-art-plate-arm.baseline.json";
-const GATE_SELF = "tooling/src/verify/gates/over-art-plate-arm.ts";
-/** Real-tree anchor (§4.5): present on every real run, and no conformance example creates it. */
+/** Real-tree anchor for the BLINDNESS arm, and its finding's own home: a conformance fixture holds only the
+ *  files its row materializes, so "zero recognised glass rules" is correct-by-construction there rather than
+ *  a rotted reader. This is a live stylesheet inside the declared CSS population, which is also what makes
+ *  it a LEGAL anchor — a resource finding must land inside the policy's own resource population. */
 const ANCHOR = "packages/client/src/styles/globals.css";
 
 const MESSAGE =
@@ -53,12 +99,11 @@ const FIX =
   "add a companion rule for the same subject gated on `[data-has-bg-image]`, whose background-color is " +
   "`light-dark(color-mix(in oklab, <the same tint> <the same %>, var(--color-reading-plate)), <the base rule " +
   "verbatim>)` — the light arm takes the plate, the dark arm is re-spelled byte-identical (D144(d): the " +
-  "sacred dark rooms do not move). #237 (.shell-panel) and #623 (the modal slots) are the worked precedents.";
-
-/** The committed ledger, read through the ONE row reader so each row's DEBT/RATIFIED class travels. */
-export function loadBaseline(root: string): ReadonlyMap<string, RatchetRow> {
-  return readBudgetRows(root, BASELINE_REL);
-}
+  "sacred dark rooms do not move). #237 (.shell-panel) and #623 (the modal slots) are the worked precedents. " +
+  "A surface that can never sit over the wallpaper is waived with " +
+  "`/* @orb-waive over-art-plate-arm(<position>): <reason> */` on the line above the rule, where <position> " +
+  "is the SELECTOR SUBJECT this finding reports — the last compound of the selector, verbatim " +
+  '(`[data-slot="composer"]`, `.shell-panel`), never the whole selector and never the declaration.';
 
 /** ONE live site's message. TWO SHAPES, NOT ONE (#1171): a PLATELESS base mixes a real tint over
  *  `transparent` and its repair is the `[data-has-bg-image]` companion; a NO-FILL carrier paints nothing at
@@ -71,226 +116,233 @@ function liveMessage(site: Site): string {
       `\`${site.subject}\` paints NO FILL under a \`${GLASS_GATE}…]\` gate and no \`${WALLPAPER_GATE}\` rule ` +
       "gives this subject a plate arm — nothing of its own sits between its ink and whatever photo the user " +
       "picked, and no `::before`/`::after` rule in this stylesheet carries the fill for it. Give the fill (and " +
-      "its plate arm) a home, or state why this surface can never sit over the wallpaper with " +
-      "`@over-art-plate-ok: <reason>` (UI-Theming-and-Content.md §12.1 / D144; the marker grammar is " +
-      "GATE-AUTHORING.md §4 rule 3)."
+      "its plate arm) a home, or state why this surface can never sit over the wallpaper (see the fix)."
     );
   }
   return `\`${site.subject}\` mixes \`var(${site.tint})\` over \`${TRANSPARENT}\` and no \`${WALLPAPER_GATE}\` rule gives that pair a \`light-dark()\` plate arm (UI-Theming-and-Content.md §12.1).`;
 }
 
-/** The BUDGETED arm: a live key a committed row absolves is DECLARED DEBT, counted through `ctx.scan` so a
- *  ✓ still prints the population it is carrying — never silence (GATE-AUTHORING.md §1, `gate-modernization`
- *  ARM D). Everything the ledger does not cover REDs at its own rule's line. */
-function reportRatchet(ctx: GateRunCtx, judged: Judgement, baseline: ReadonlyMap<string, RatchetRow>): void {
-  let admitted = 0;
-  let ratified = 0;
-  for (const [key, site] of [...judged.live].sort(([a], [b]) => a.localeCompare(b))) {
-    const admission = admissionFor(baseline.get(key), 1);
-    admitted += admission.admitted;
-    ratified += admission.ratified;
-    if (admission.admitted === 0) {
-      ctx.report({ file: site.rel, line: site.line, column: 0, message: liveMessage(site) });
-    }
+/** The unpaired remainder, each at its own selector subject. WARNING DEBT, not a ratchet: the four surfaces
+ *  alive at mint report every run and #626 owns them. */
+function reportLive(ctx: GatePolicyContext, judged: Judgement): void {
+  for (const [, site] of [...judged.live].sort(([a], [b]) => a.localeCompare(b))) {
+    ctx.report.file(site.rel, { line: site.line, column: site.column, token: site.subject, message: liveMessage(site) });
   }
-  ctx.scan({ admitted, admittedRatified: ratified });
 }
 
-/** The two WHOLE-TREE arms — meaningless off the real tree, so both are anchor-guarded (§4.5): a conformance
- *  mini-project holds only its example's files and no example creates the anchor or the ledger. */
-function reportWholeTree(ctx: GateRunCtx, judged: Judgement): void {
-  if (!existsSync(join(ctx.root, ANCHOR))) {
-    return;
-  }
+/** THE BLINDNESS ARM. Anchored on a real stylesheet inside the declared CSS population, and guarded on that
+ *  same stylesheet being present, because a fixture corpus is small by construction rather than blind. */
+function reportBlindness(ctx: GatePolicyContext, judged: Judgement): void {
   if (judged.glassRules === 0) {
-    ctx.report({
-      file: GATE_SELF,
+    ctx.report.file(ANCHOR, {
       line: 1,
-      column: 0,
-      message: `BLINDNESS TRIPWIRE — zero \`${GLASS_GATE}…]\` background rules were recognised on a real tree, so this gate's reader has rotted (a renamed attribute, a moved stylesheet, a new value spelling). Zero is "I could not measure", never "clean" (GATE-AUTHORING.md §4 rule 6).`,
+      column: 1,
+      token: ANCHOR,
+      message: `BLINDNESS TRIPWIRE — zero \`${GLASS_GATE}…]\` background rules were recognised on a real tree, so this gate's reader has rotted (a renamed attribute, a moved stylesheet, a new value spelling). Zero is "I could not measure", never "clean".`,
     });
   }
-  for (const [key, row] of loadBaseline(ctx.root)) {
-    if (!judged.live.has(key)) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `${BASELINE_REL} budgets "${key}" but it no longer violates (or its rule is gone) — the ratchet only goes down: regenerate it (\`node tooling/src/verify/cli.ts baseline over-art-plate-arm\`) and commit the shrink.${classNote(row)}`,
-      });
-    }
-  }
 }
 
-export const gate: GateDescriptor = {
-  name: "over-art-plate-arm",
-  docRow: "UI-Theming-and-Content.md §12.1 / D144",
-  status: "active",
-  scopeSafety: "whole-project", // the pairing is cross-RULE and the ratchet is a whole-tree count
-  fsBacked: true,
-  // Reads CSS off the filesystem — the ts-morph walk holds no stylesheets, so admitting a TS file here would
-  // report a denominator this gate never read (the blind-gate false-clean shape, §1 `ctx.scan`).
-  scanRoot: () => false,
+/** Every proof row spreads this: `authored-css` is assembled from the `client-source` AND `ui-source` trees,
+ *  so a row that leaves either empty comes back a `[population]` TOOL ERROR instead of a finding and proves
+ *  nothing about its arm. */
+const CORPUS = {
+  "packages/ui/src/styles/keep.css": ".keep {\n  color: var(--color-foreground);\n}\n",
+} as const;
+
+const COMPOSER_RULE = 'html[data-blur-composer] [data-slot="composer"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n';
+
+export const gate = defineGate({
+  id: "over-art-plate-arm",
+  family: "over-art-plate-arm",
+  authority: "ordinary",
+  severity: "warning",
+  workItem: 626,
+  population: { of: "none", why: "CSS is a ResourceHost fact population, never a compiler population" },
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [{ kind: "authored-css" }],
   message: MESSAGE,
   fix: FIX,
-  run: (ctx) => {
-    const judged = judgeStylesheets(ctx.root);
-    ctx.scan({ unit: "stylesheet", scanned: stylesheetsOf(ctx.root).length, skipped: judged.skipped });
-    for (const finding of judged.findings) {
-      ctx.report({ ...finding, column: 0 });
-    }
-    reportRatchet(ctx, judged, loadBaseline(ctx.root));
-    reportWholeTree(ctx, judged);
-  },
-
+  create: (ctx) => ({
+    evaluate: () => {
+      const files = readyResourceValue(ctx.resources.authoredCss());
+      const judged = judgeStylesheets(files);
+      for (const finding of judged.findings) {
+        ctx.report.file(finding.file, { line: finding.line, column: finding.column, token: finding.token, message: finding.message });
+      }
+      reportLive(ctx, judged);
+      if (files.some(({ path }) => path === ANCHOR)) {
+        reportBlindness(ctx, judged);
+      }
+    },
+  }),
   mustFlag: [
     {
-      files: {
-        "packages/client/src/styles/g.css":
-          'html[data-blur-composer] [data-slot="composer"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n',
-      },
-      expect: { messageIncludes: "gives that pair a `light-dark()` plate arm" },
-      why: 'THE FOUNDING SHAPE — a glass chrome surface mixed over `transparent` with no `[data-has-bg-image]` plate companion. This is `[data-slot="composer"]` verbatim, one of the five the gate found at mint',
+      mode: "resource",
+      files: { ...CORPUS, "packages/client/src/styles/g.css": COMPOSER_RULE },
+      expect: { count: 1, line: 1, token: '[data-slot="composer"]', messageIncludes: "gives that pair a `light-dark()` plate arm" },
+      why: 'THE FOUNDING SHAPE — a glass chrome surface mixed over `transparent` with no `[data-has-bg-image]` plate companion. This is `[data-slot="composer"]` verbatim, one of the surfaces the gate found at mint. The `line: 1` + `token` pin is the ANCHOR MOVE: the finding reports on the SELECTOR SUBJECT, not on the declaration a line below it',
     },
     {
+      mode: "resource",
       files: {
+        ...CORPUS,
         "packages/client/src/styles/g.css":
           'html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {\n  background-color: color-mix(in oklab, var(--color-card) 70%, transparent);\n}\n',
       },
-      expect: { messageIncludes: "gives that pair a `light-dark()` plate arm" },
+      expect: { count: 1, token: ".shell-main", messageIncludes: "gives that pair a `light-dark()` plate arm" },
       why: "`.shell-main` verbatim: the selector is ALREADY wallpaper-gated, which is not the same as carrying the plate — a `[data-has-bg-image]` gate on a transparent mix must not absolve itself",
     },
     {
+      mode: "resource",
       files: {
+        ...CORPUS,
         "packages/client/src/styles/g.css":
           "html[data-blur-panels] .shell-panel {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, var(--color-reading-plate));\n}\n",
       },
-      expect: { messageIncludes: "DARK ARM MOVED" },
+      expect: { count: 1, token: ".shell-panel", messageIncludes: "DARK ARM MOVED" },
       why: "ARM B (D144(d)): the plate taken OUTSIDE a `light-dark()` moves the dark arm too — the sacred dark rooms",
     },
     {
+      mode: "resource",
       files: {
+        ...CORPUS,
         "packages/client/src/styles/g.css":
           "html[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel {\n  background-color: light-dark(\n    color-mix(in oklab, var(--color-sidebar) 70%, var(--color-reading-plate)),\n    color-mix(in oklab, var(--color-sidebar) 90%, var(--color-background))\n  );\n}\n",
       },
-      expect: { messageIncludes: "DARK ARM MOVED" },
+      expect: { count: 1, token: ".shell-panel", messageIncludes: "DARK ARM MOVED" },
       why: "ARM B's OTHER half, and the subtle one: the LIGHT arm is correct but the DARK arm is not the plateless base re-spelled — the dark rooms moved anyway, which a light-arm-only check would have passed",
     },
     {
-      files: {
-        "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  background-color: oklch(0.2 0 0 / 0.7);\n}\n",
-      },
-      expect: { messageIncludes: "UNREADABLE translucent background" },
-      why: "ARM C: a translucent spelling this reader cannot classify REFUSES LOUDLY — a clean zero over an unrecognised shape is the lying-gate shape this repo keeps paying for",
+      mode: "resource",
+      files: { ...CORPUS, "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  background-color: oklch(0.2 0 0 / 0.7);\n}\n" },
+      expect: { count: 1, token: ".shell-panel", messageIncludes: "UNREADABLE translucent background" },
+      why: "ARM C: a translucent spelling this reader cannot classify REFUSES LOUDLY — a clean zero over an unrecognised shape is the lying-gate shape this repo keeps paying for. `messageIncludes` is what discriminates it: the fail-closed arm produces the same COUNT as ARM A and differs only in message",
     },
     {
-      files: {
-        "packages/client/src/styles/g.css":
-          '/* @over-art-plate-ok */\nhtml[data-blur-composer] [data-slot="composer"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n',
-      },
-      expect: { messageIncludes: "MALFORMED" },
-      why: "ARM E: a bare marker with no reason is RED as its OWN flavour — it must not sit there looking like protection (§4 rule 3)",
+      mode: "resource",
+      files: { ...CORPUS, "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  background-color: transparent;\n}\n" },
+      expect: { count: 1, token: ".shell-panel", messageIncludes: "paints NO FILL" },
+      why: "ARM H (#1171), the alpha-0 half: an unmarked, uncarried `transparent` under a glass gate owes a plate arm exactly as a plateless mix does — and it says so in a sentence naming NO tint, because there is none to mix",
     },
     {
-      files: {
-        "packages/client/src/styles/g.css":
-          "/* @over-art-plate-ok: nothing here is translucent */\nhtml[data-blur-panels] .shell-panel {\n  background-color: var(--color-sidebar);\n}\n",
-      },
-      expect: { messageIncludes: "STALE" },
-      why: "ARM F, two-sidedness: a well-formed marker guarding NOTHING is a loaded gun — the next violation written on that rule would inherit a permit nobody granted it",
-    },
-    {
-      files: {
-        "packages/client/src/styles/g.css":
-          '/* @over-art-plate-ok: both popups are fine, honest */\nhtml[data-blur-modals] [data-slot="dialog-popup"],\nhtml[data-blur-modals] [data-slot="alert-dialog-popup"] {\n  background-color: color-mix(in oklab, var(--color-popover) 70%, transparent);\n}\n',
-      },
-      expect: { messageIncludes: "OVER-EXEMPTING" },
-      why: "ARM E, §4 rule 3a: ONE rule guards TWO subjects (the real dialog/alert-dialog pair), so an unpositioned marker silently absolves both — it must name its position",
-    },
-    {
-      files: {
-        "packages/client/src/styles/g.css":
-          '/* @over-art-plate-ok([data-slot="no-such-thing"]): a position that is not here */\nhtml[data-blur-composer] [data-slot="composer"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n',
-      },
-      expect: { messageIncludes: "STALE" },
-      why: "ARM F: a marker naming a DEAD position is stale exactly as a dead row is — and the underlying violation still REDs",
-    },
-    {
-      files: {
-        "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  background-color: transparent;\n}\n",
-      },
-      expect: { messageIncludes: "paints NO FILL" },
-      why: "ARM H (#1171), the alpha-0 half: an unmarked, uncarried `transparent` under a glass gate owes a plate arm exactly as a plateless mix does — and it now says so in a sentence naming NO tint, because there is none to mix",
-    },
-    {
-      files: {
-        "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  background: none;\n}\n",
-      },
-      expect: { messageIncludes: "paints NO FILL" },
+      mode: "resource",
+      files: { ...CORPUS, "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  background: none;\n}\n" },
+      expect: { count: 1, token: ".shell-panel", messageIncludes: "paints NO FILL" },
       why: "ARM H is SPELLING-BLIND on purpose: `background: none` computes to the same `transparent` colour, and a gate an author dodges by changing the keyword is the blind-spot class this repo keeps paying for",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
+        "packages/client/src/styles/g.css":
+          'html[data-blur-modals] [data-slot="dialog-popup"],\nhtml[data-blur-modals] [data-slot="alert-dialog-popup"] {\n  background-color: color-mix(in oklab, var(--color-popover) 70%, transparent);\n}\n',
+      },
+      expect: { count: 2, token: '[data-slot="alert-dialog-popup"]' },
+      why: "the SUCCESSOR to the legacy OVER-EXEMPTING arm, and the reason that arm could be retired rather than ported: ONE rule styling TWO subjects is TWO findings with TWO distinct position tokens on TWO lines, so a marker naming one of them cannot silently absolve the other. The legacy grammar allowed an UNPOSITIONED marker and had to hand-roll a fourth arm to refuse it; `@orb-waive` has no unpositioned form",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
+        "packages/client/src/styles/g.css":
+          "html[data-blur-panels] .shell-panel {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\nhtml[data-blur-panels] .shell-panel {\n  background-color: light-dark(\n    color-mix(in oklab, var(--color-sidebar) 70%, var(--color-reading-plate)),\n    color-mix(in oklab, var(--color-sidebar) 70%, transparent)\n  );\n}\n",
+      },
+      expect: { count: 1, line: 1, token: ".shell-panel" },
+      why: "NARROWING ROW for the `wallpaperGated` fence on a PROVIDER: the companion rule here is byte-perfect — light arm takes the plate, dark arm re-spells the base — but it is NOT gated on `[data-has-bg-image]`, so it applies with or without art and CHANGES the un-wallpapered render, which D144 exists to keep byte-identical. Cut the fence and this row goes green on a companion that does not satisfy the law",
     },
   ],
   mustPass: [
     {
+      mode: "resource",
       files: {
+        ...CORPUS,
         "packages/client/src/styles/g.css":
           "html[data-blur-panels] .shell-panel {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\nhtml[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel {\n  background-color: light-dark(\n    color-mix(in oklab, var(--color-sidebar) 70%, var(--color-reading-plate)),\n    color-mix(in oklab, var(--color-sidebar) 70%, transparent)\n  );\n}\n",
       },
       why: "#237's ADOPTED shape verbatim — base + a `[data-has-bg-image]` companion whose LIGHT arm takes the plate and whose DARK arm is the base re-spelled: the whole point of the gate",
     },
     {
+      mode: "resource",
       files: {
+        ...CORPUS,
         "packages/client/src/styles/g.css":
           'html[data-blur-modals] [data-slot="dialog-popup"],\nhtml[data-blur-modals] [data-slot="alert-dialog-popup"] {\n  background-color: color-mix(in oklab, var(--color-popover) 70%, transparent);\n}\nhtml[data-blur-modals] .shell-grid[data-has-bg-image] ~ [data-slot="portal-root"] [data-slot="dialog-popup"],\nhtml[data-blur-modals] .shell-grid[data-has-bg-image] ~ [data-slot="portal-root"] [data-slot="alert-dialog-popup"] {\n  background-color: light-dark(\n    color-mix(in oklab, var(--color-popover) 70%, var(--color-reading-plate)),\n    color-mix(in oklab, var(--color-popover) 70%, transparent)\n  );\n}\n',
       },
       why: "#623's shape: the companion reaches the popup as a portal SIBLING, not a descendant — the pairing keys on the selector SUBJECT, so a different ancestry still pairs (getting this wrong would false-RED every portalled popup)",
     },
     {
-      files: {
-        "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  background-color: var(--color-sidebar);\n}\n",
-      },
+      mode: "resource",
+      files: { ...CORPUS, "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  background-color: var(--color-sidebar);\n}\n" },
       why: "DECLARED LIMIT: an OPAQUE fill under a glass gate is not in the population — nothing composites through it",
     },
     {
+      mode: "resource",
       files: {
+        ...CORPUS,
         "packages/client/src/styles/g.css":
           "html[data-blur-panels] .shell-panel {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, var(--color-background));\n}\n",
       },
-      why: "DECLARED LIMIT: a mix whose last partner is some OTHER token is a counted SKIP — a token's alpha is not statically knowable, and this gate is deliberately conservative because a false RED here blocks every lane's floor",
+      why: "DECLARED LIMIT: a mix whose last partner is some OTHER token is a SKIP — a token's alpha is not statically knowable, and this gate is deliberately conservative because a false RED here blocks every lane's floor",
     },
     {
-      files: {
-        "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  backdrop-filter: blur(8px);\n}\n",
-      },
+      mode: "resource",
+      files: { ...CORPUS, "packages/client/src/styles/g.css": "html[data-blur-panels] .shell-panel {\n  backdrop-filter: blur(8px);\n}\n" },
       why: "DECLARED LIMIT: a glass rule that sets no background is not a plate question at all",
     },
     {
+      mode: "resource",
       files: {
+        ...CORPUS,
+        "packages/client/src/styles/g.css": ".plain {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n",
+      },
+      why: "NARROWING ROW for the GLASS-GATE fence: the identical plateless mix the founding `mustFlag` row REDs, on a rule that is NOT under an `html[data-blur-*]` gate. Without the blur gate nothing composites through the surface, so there is no wallpaper behind its ink and no plate question — cut the fence and this row REDs on a surface the law does not reach. Measured together with the BACKGROUND_PROPS fence beside it, because two fences guarding one subject are individually uncuttable",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
+        "packages/client/src/styles/g.css":
+          "html[data-blur-panels] .shell-panel {\n  border-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n",
+      },
+      why: "NARROWING ROW for the BACKGROUND_PROPS fence: a translucent BORDER under a glass gate is the same VALUE shape the founding row REDs, on a property that paints no backdrop for anything's ink. The plate law is about what sits between ink and art; cut the property filter and every translucent border in the shell becomes a plate finding",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
         "packages/client/src/styles/g.css":
           "/* html[data-blur-panels] .shell-panel { background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent); } */\n.plain {\n  color: var(--color-foreground);\n}\n",
       },
-      why: "COMMENT POSTURE, the value half: a commented-out glass rule is trivia — `parseCssRules` blanks comment spans before parsing, so it is never judged",
+      why: "COMMENT POSTURE, the value half: a commented-out glass rule is trivia — the parser blanks comment spans before parsing, so it is never judged",
     },
     {
+      mode: "resource",
       files: {
-        "packages/client/src/styles/g.css":
-          '/* @over-art-plate-ok: a probe surface that can never sit over the wallpaper layer — delete this row when the probe goes. */\nhtml[data-blur-composer] [data-slot="composer"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n',
+        ...CORPUS,
+        "packages/client/src/styles/g.css": `/* @orb-waive over-art-plate-arm([data-slot="composer"]): a probe surface that can never sit over the wallpaper layer. */\n${COMPOSER_RULE}`,
       },
-      why: "the marker's HONOURED half (§5 case 2): a well-formed, reason-carrying marker on a real violation exempts it — this is the ONE sanctioned way to declare a surface outside the fence",
+      why: "§4.2 IDENTITY, on the founding `mustFlag` row's exact fixture: the correct ordinary waiver at the reported position — the SELECTOR SUBJECT — suppresses the one finding it produces. This is the successor to the legacy marker's HONOURED half, and the fixture produces exactly ONE finding so one marker consumes one occurrence",
     },
     {
+      mode: "resource",
       files: {
+        ...CORPUS,
         "packages/client/src/styles/g.css":
-          "/* @over-art-plate-ok: this pane's ink is plated by the surface behind it — it can never sit over the art. */\nhtml[data-blur-panels] .shell-panel {\n  background-color: transparent;\n}\n",
+          "/* @orb-waive over-art-plate-arm(.shell-panel): this pane's ink is plated by the surface behind it. */\nhtml[data-blur-panels] .shell-panel {\n  background-color: transparent;\n}\n",
       },
-      why: "#1171's WHOLE POINT: the marker the finding's own fix text prescribes must actually absolve a no-fill site. Before, `transparent` was bucketed UNREADABLE, `judgeMarkers` exempted only `plateless` sites, and this exact file REDded TWICE — the unreadable finding plus a STALE marker — with no legal way to be green",
+      why: "#1171's WHOLE POINT, carried through the conversion: the exemption the finding's own fix text prescribes must actually absolve a NO-FILL site. Before #1171 this exact file REDded TWICE — the unreadable finding plus a stale marker — with no legal way to be green",
     },
     {
+      mode: "resource",
       files: {
+        ...CORPUS,
         "packages/client/src/styles/g.css":
           'html[data-blur-panels] .shell-panel {\n  background: none;\n}\nhtml[data-blur-panels] .shell-panel::before {\n  content: "";\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\nhtml[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel::before {\n  background-color: light-dark(\n    color-mix(in oklab, var(--color-sidebar) 70%, var(--color-reading-plate)),\n    color-mix(in oklab, var(--color-sidebar) 70%, transparent)\n  );\n}\n',
       },
-      why: "#1154's SHIPPED SHAPE, proved rather than exempted: the pane hands its fill to a `::before` carrier (which this reader judges on its own row, plate arm and all), so the host's no-fill is a COUNTED SKIP — `fill-moved-to-pseudo-carrier`. A marker here would be an unchecked promise; the carrier is a fact in the same stylesheet",
+      why: "#1154's SHIPPED SHAPE, proved rather than exempted: the pane hands its fill to a `::before` carrier (which this reader judges on its own row, plate arm and all), so the host's no-fill is a measured SKIP. A marker here would be an unchecked promise; the carrier is a fact in the same stylesheet",
     },
   ],
-};
+});

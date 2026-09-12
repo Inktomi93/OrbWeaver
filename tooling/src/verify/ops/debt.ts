@@ -50,7 +50,6 @@ import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
-import { BASELINE_REL as PLATE_BASELINE_REL } from "../gates/over-art-plate-arm.ts";
 import { BASELINE_REL as SUPPRESSIONS_BASELINE_REL } from "../gates/suppressions.ts";
 import { BASELINE_REL as TEST_PRESENCE_BASELINE_REL } from "../gates/test-presence.ts";
 import { BASELINE_REL as VARIANT_AXES_BASELINE_REL } from "../gates/ui-variant-axes-stamped.ts";
@@ -82,12 +81,6 @@ export const LEDGERS: readonly Ledger[] = [
     rel: DOORS_BASELINE_REL,
     unit: "door(s) on the plane",
     why: "one tRPC mutation reachable from N components inside ONE rail section (the §13 more-than-one-home IA class). Ends per pair when the section gets ONE component that owns the verb.",
-  },
-  {
-    owner: "over-art-plate-arm",
-    rel: PLATE_BASELINE_REL,
-    unit: "unpaired over-art surface(s)",
-    why: "a translucent `html[data-blur-*]` surface mixed over `transparent` with no `light-dark()` reading-plate arm (D144(b)). Ends per surface when it takes the plate on the light arm (#237/#623 are the worked fixes) and the row is regenerated to a shrink. TWO of the five at mint are MEASURED failures; three are STRUCTURAL findings pending a framebuffer measurement — each row says which.",
   },
   {
     owner: "test-presence",
