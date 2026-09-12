@@ -65,11 +65,19 @@ with a defect **already closed on `main`** — wave 3's #1966 fail-open (closed 
 wave 2's D1 `ctx.relativePath` escape (closed by `lib/declaration-home.ts`, with each repaired module citing
 that audit in its own `mustPass` `why`). An audit wave is an UPPER BOUND with a timestamp.
 
-## 1b. THE TIERS ARE NOT CONDITIONAL, AND THE ONE THAT BIT IS 4 (measured 2026-09-12)
+## 1b. THE TWO PROGRAM DOCS IN FULL. THE REST IS ON DEMAND. (owner, 2026-09-12)
 
-A session read tiers 1, 2, 3 and 5b, skipped 4, 5, 6 and 7, and justified it with a STOP rule **this file
-does not contain** — *"nothing is being dispatched that needs them."* It then dispatched twice. Rows 4 and 5
-say "in full, ALWAYS"; row 7 says read the record for the family you dispatch. What that cost, in one hour:
+**"I literally just meant the two docs, not everything they connect to."** Tiers 1 and 2 are read WHOLE,
+every time, no skipping inside them. **Tiers 4-7 are looked up when you need them** — by section, for the
+question in front of you — and reading them front-to-back is the 1.3 MB mistake this file was written to
+stop. A session did it in both directions on the same day: skipped tier 4 entirely, was corrected, then
+read 450 KB of tiers 4-7 end-to-end and took the window to 70%.
+
+**So the working rule is: know WHAT each tier-4/5 doc owns, and open the one that owns your question.**
+The guide's own §"The review layer is not all one thing" table is that index — it names which document
+answers which question. Use it as a lookup, not a reading list.
+
+Below is what the lookup would have answered on 2026-09-12, kept because each one was a live error:
 
 - **`shared-semantic-readers.md:33`** — *"The legacy `ast-read.ts` and `symbol-reference.ts` APIs still have
   capped/undefined-returning readers … **They are not the new fact boundary.**"* A six-module conversion
@@ -83,10 +91,10 @@ say "in full, ALWAYS"; row 7 says read the record for the family you dispatch. W
   `ExemptionTable`. The conversion merged an hour earlier carried it into a FINAL module, making it the
   **tenth** such module, where the refutation ledger records nine.
 
-**The general shape:** tiers 1-3 tell you what the program IS; tier 4 tells you what each gate CARRIES. You
-cannot price or brief a conversion from the first three. **Read 4 and 5 before the first dispatch of a
-session, not before the first dispatch that "needs" them** — you cannot know which one that is until after
-you have read them.
+**The general shape:** tiers 1-3 tell you what the program IS; tier 4 tells you what each gate CARRIES.
+So before you BRIEF a conversion, open the tier-4 rows for the modules in that brief — the census row, the
+exemption census row, the family record if one names them. That is minutes, and it is where all three
+errors above were sitting. Reading those documents END TO END is not the same act and is not owed.
 
 ## 2. What NOT to re-derive, because it is already measured
 
