@@ -2334,6 +2334,7 @@
     "tests/tooling/verify/gates/knob-wire-coverage.test.ts",
     "tests/tooling/verify/gates/ledger-banned-shapes.test.ts",
     "tests/tooling/verify/gates/message-kind-policy-coverage.test.ts",
+    "tests/tooling/verify/gates/mirror-index-family.test.ts",
     "tests/tooling/verify/gates/mixed-hook-singletons-conversion.test.ts",
     "tests/tooling/verify/gates/mixed-hook-singletons.test.ts",
     "tests/tooling/verify/gates/motion-token-purity.test.ts",
@@ -2366,8 +2367,6 @@
     "tests/tooling/verify/gates/split-arm-parity.test.ts",
     "tests/tooling/verify/gates/tenancy-scope-family.test.ts",
     "tests/tooling/verify/gates/test-fixture-imports.repo.int.test.ts",
-    "tests/tooling/verify/gates/test-presence-client.int.test.ts",
-    "tests/tooling/verify/gates/test-presence.repo.int.test.ts",
     "tests/tooling/verify/gates/test-world-browser-contracts.repo.int.test.ts",
     "tests/tooling/verify/gates/testid-variant-split-family.test.ts",
     "tests/tooling/verify/gates/text-citation-family.test.ts",
@@ -3029,6 +3028,12 @@
     },
     "tests/tooling/verify/gates/tooling-front-door.int.test.ts": {
       "why": "RETIRED WITH THE LEGACY DESCRIPTOR IT DROVE (#1950 group 2, #1584): this suite called the legacy `tooling-front-door` GateDescriptor's `begin`/`visit`/`run` hooks directly to pin the ROOT_CONFIG_IMPORTS stale sweep in both directions and the 2026-08-30 scoped-run defect (a scoped `visit` never saw the row's consumer and called the live row stale). The module is now two final `defineGate` policies — `tooling-front-door` (ordinary) and `tooling-root-config-import` (reviewed-grant, `entire-population`) — and every pin has a named successor in `tests/tooling/verify/gates/tooling-front-door-family.test.ts`: the two-sided sweep is the §4.3 stale-grant pins (consumer stopped importing = mode A, subject gone = mode B, wrong operation), the scoped-run defect is the §4.5 deferral pin (a narrowed request DEFERS the policy by construction instead of adjudicating a row its scope cannot see), the conformance-mini-project guard is retired with the anchor it guarded, and the real-tree prodonly/knip fact is carried verbatim. Un-deletes only if a legacy `GateDescriptor` for this rule returns to the tree."
+    },
+    "tests/tooling/verify/gates/test-presence.repo.int.test.ts": {
+      "why": "RETIRED WITH THE LEGACY DESCRIPTOR IT DROVE (#2061/#2062). Every line of it built a `GateRunCtx` by hand and called `gate.run?.(ctx)`; `test-presence` is now a `defineGate` policy with no `run` hook, so the file could not compile, let alone assert. Nothing was dropped. Its planted controls — the untested substrate file, the SHAPE exemptions, the non-root `service.ts`, the pass-through / router-shell / declaration-file tier shapes, the one-expression body that DECIDES, and BOTH blindness tripwires — are `mustFlag`/`mustPass` rows on the policy itself and run on the static tier through `pnpm check:policy-conformance`, which is strictly MORE reachable than this `.repo.int` file was (it was `--full`-only). Its two ledger arms ('the committed ledger IS the live residual population' and the two staleness modes) retired with `test-presence.baseline.json` itself: the ledger's two rows turned out to be a DEMAND the policy should never have made (#2062) — both subjects are pure spread-forwarding DI bridges that `Spine-Testing.md` §3 makes untestable (a test on one either asserts a forwarder forwards or `vi.mock`s an internal module), and the #767 domain arm now carries the same PASS-THROUGH shape exemption the #773 tier arm always had. Un-deletes only if `test-presence` is ever returned to a legacy `GateDescriptor`."
+    },
+    "tests/tooling/verify/gates/test-presence-client.int.test.ts": {
+      "why": "RETIRED WITH THE LEGACY DESCRIPTOR IT DROVE (#2061/#2062), same shape as its `test-presence` sibling: it built a `GateRunCtx` and called `gate.run?.(ctx)`, and `test-presence-client` is now a `defineGate` policy with no `run` hook. Every clause-C control it held — the #619 founding silence on a `.test.ts`-mirrored store, the unreadable-corpus tripwire, the comment and string postures, the type-argument matcher, the bare-mention fence and the no-store case — is a `mustFlag`/`mustPass` row on the policy and runs on the static tier through `pnpm check:policy-conformance`. The ONE arm that did not depend on the gate's code, 'state store mirrors are NOT all .ct.tsx', was MOVED verbatim in intent to `tests/tooling/verify/gates/mirror-index-family.test.ts`, where it still reads the live tree and still reds a re-narrowing to one suffix. Un-deletes only if `test-presence-client` is ever returned to a legacy `GateDescriptor`."
     }
   }
 }

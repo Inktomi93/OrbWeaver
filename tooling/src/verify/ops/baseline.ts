@@ -15,7 +15,6 @@ import { generateProseBaseline } from "./gen/prose.ts";
 import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
 import { generateSuppressionsBaseline } from "./gen/suppressions.ts";
 import { generateTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
-import { generateTestPresenceBaseline } from "./gen/test-presence.ts";
 import { generateTypeConfigs } from "./gen/type-configs.ts";
 import { LEDGER_CHECKS } from "./ledgers-fresh.ts";
 
@@ -34,7 +33,6 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   "snap-flags-index": generateSnapFlagsIndex,
   suppressions: generateSuppressionsBaseline,
   "test-baseline-manifest": generateTestBaselineManifest,
-  "test-presence": generateTestPresenceBaseline,
   "type-configs": generateTypeConfigs,
 };
 

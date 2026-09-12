@@ -163,7 +163,6 @@ export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";
 export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
 export { deriveTestBaselineManifest, generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
-export { generateTestPresenceBaseline } from "./ops/gen/test-presence.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
 export {
   censusDrift,

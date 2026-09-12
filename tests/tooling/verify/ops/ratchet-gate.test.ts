@@ -15,7 +15,7 @@ test("isRatchetShaped: the tooling ratchet/presence/conformance self-tests match
   expect(isRatchetShaped("tests/tooling/verify/ops/boot-chunk-ratchet.test.ts")).toBe(true);
   expect(isRatchetShaped("tests/tooling/verify/ops/ct-unfed-ratchet.test.ts")).toBe(true);
   expect(isRatchetShaped("tests/tooling/gate-conformance.repo.int.test.ts")).toBe(true);
-  expect(isRatchetShaped("tests/tooling/verify/gates/test-presence-client.int.test.ts")).toBe(true);
+  expect(isRatchetShaped("tests/tooling/verify/gates/contract-verb-presence.test.ts")).toBe(true);
 });
 
 test("isRatchetShaped: Vitest DOM, suite, and type-only kinds remain eligible while Playwright kinds do not", () => {
