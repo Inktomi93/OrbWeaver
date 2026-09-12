@@ -21,6 +21,13 @@
 //
 // The legacy `serde-core-seal` descriptor (534c1327f682be2578e1dee7c7a2bfa488fb672a) carried BOTH the
 // occurrence check and the stale-sanction ratchet as one gate before this conversion split them.
+//
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot` was `/\/packages\/server\/src\//u` over `/${p}`,
+// which is exactly `@server`.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 1,493 admitted on both sides, symmetric difference ZERO in both directions.
+// SHA FORM NOTE: the legacy sha is the bare 40-char spelling in the paragraph above rather than the
+// `(<sha>^)` form; it names this conversion's parent directly, so both spellings resolve to one commit.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

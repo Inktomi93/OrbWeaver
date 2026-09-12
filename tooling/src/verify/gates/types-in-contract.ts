@@ -1,4 +1,13 @@
 // Gate: types-in-contract — each server domain contract/service.ts exports its typed service interface.
+//
+// FAMILY: a declared SINGLETON under its own id. No sibling policy reads a domain's `contract/service.ts`
+// export shape, and there is no shared `lib/` computation behind it.
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot` was the regex
+// `/\/packages\/server\/src\/domain\/[^/]+\/contract\/service\.ts$/u` over `/${p}`, which is exactly the
+// `@server` root plus the `under` + `named` fences above.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 29 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (b27a8950d^) — the conversion's parent.
 import { defineGate } from "../contract/policy.ts";
 
 const MESSAGE =

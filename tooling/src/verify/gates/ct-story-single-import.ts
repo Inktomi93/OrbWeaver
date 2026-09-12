@@ -37,6 +37,12 @@
 // accessor in `visitFile` (not a descendant walk); array-literal and JSX-element identity now come through
 // the shared kind-indexed `visitors`, with the "second-and-later occurrence" judgment deferred to
 // `evaluate` because it needs every occurrence in a scope collected before deciding which nodes to flag.
+//
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: (p) => /(\.ct\.tsx|_ct-stories\.tsx)$/u.test(p)` is
+// exactly `{ in: ["@tests"], named: ["*.ct.tsx", "*_ct-stories.tsx"] }`.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 528 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (47c35b61c^) — the conversion's parent.
 import type { ArrayLiteralExpression, ImportDeclaration, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

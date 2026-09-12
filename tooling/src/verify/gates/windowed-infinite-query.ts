@@ -65,6 +65,9 @@
 //     the cap is invisible in them.
 //   · ARM B pairs the cap with a lens by FILE, not by dataflow: a lens over an unrelated array in the same
 //     file counts. Acceptable — the cap is the thing to delete either way, and the corpus is zero.
+// SHA FORM NOTE: the `LEGACY SHA` above is the last commit that TOUCHED THE LEGACY DESCRIPTOR, not this
+// conversion's parent (`e81ca1979^`) — the other convention in this corpus. Both resolve to readable
+// legacy source; this one points at it in its final state, which is why it was kept.
 import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNode, ReturnStatement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

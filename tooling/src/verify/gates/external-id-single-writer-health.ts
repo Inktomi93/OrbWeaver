@@ -35,6 +35,7 @@
 // suppression vocabulary for a dead carve-out or a broken caller either (its `finalize` unconditionally
 // reported), so `hard` preserves rather than escalates the legacy behavior.
 // COMMENT POSTURE: comment-SAFE — pure node-kind subscription, no file text is matched.
+// LEGACY SHA: (35bf7d328^) — the parent of the commit that split this policy out.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import {

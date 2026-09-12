@@ -11,6 +11,15 @@
 // POPULATION: the declaration listed all nine named roots individually, which IS the `@authored`
 // composite set (contract/population.ts POPULATION_SETS). Spelled as the set here: same admitted paths by
 // definition, one fewer place for the next root to be forgotten.
+// POPULATION PORT (the LEGACY port — distinct from the `@authored` re-spelling noted above, which is a
+// later change): a CORRECTION. Legacy `scanRoot: () => true` admitted everything the legacy runner
+// loaded; `@authored` is the nine named roots. Re-derived 2026-09-12 over the same 7,537-path
+// compiler-source candidate set: 7,537 legacy vs 7,519 final, ZERO admitted only by the final and 18 only
+// by legacy — root-level tool/config sources (`knip.ts`, `packages/client/vite.config.ts`,
+// `packages/db/drizzle.config.ts`, `aggregator-assets.d.ts`) and `packages/showcase-plugins/**`. Those 18
+// are outside `@authored` by definition, so a decorator there is now unjudged; whether the legacy runner
+// ever fed them is a property of THAT runner's candidate set, which this measurement bounds, not settles.
+// LEGACY SHA: (45743d76d^) — the conversion's parent.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

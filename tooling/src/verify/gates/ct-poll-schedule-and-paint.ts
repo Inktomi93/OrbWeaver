@@ -27,6 +27,12 @@
 // The legacy module carried `begin`/`finalize` and a top-level mutable `anchorFacts` object — banned under
 // the final contract ("`create` runs once per invocation and closes over mutable state... module-global
 // accumulators... disappear"). The health counters now live in the sibling file's own `create` closure.
+//
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: (p) => p.startsWith("tests/")` is exactly
+// `{ in: ["@tests"] }`.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 2,928 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (47c35b61c^) — the conversion's parent.
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

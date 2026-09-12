@@ -15,6 +15,20 @@
 // finding it replaces: the run cannot even start, rather than reporting one gate-owned line. This policy's
 // mustFlag/mustPass rows therefore prove content-level rot (the file still exists but stops exercising one
 // of the four shapes), which is the part the population algebra cannot see for us.
+//
+// FAMILY: `ct-poll-schedule-and-paint`, shared with the occurrence sibling this was split out of. The
+// shared computation is `barrierNames` / `isFreshSchedule` / `isMotionPoll` / `isUntrustedTrigger` /
+// `pollOptionsArg`, and TODAY those are imported FROM THE SIBLING GATE MODULE — the exact shape the owner
+// banned on 2026-09-12 (#2091/#2096: a gate module never imports another gate module; a shared predicate
+// moves to `lib/<family>.ts`), and the shape `contract-derives-not-respells-health` was already repaired
+// for. Recorded as what it is rather than restated as a `lib/` reader it is not: the move is code work,
+// outside a header lane, and a FAMILY line naming a `lib/` module here would be a citation to nowhere.
+// POPULATION PORT: BYTE-IDENTICAL, inherited — no legacy descriptor of its own, so the port is the
+// parent's: legacy `scanRoot: (p) => p.startsWith("tests/")` is exactly `@tests`, which this policy then
+// narrows to the one founding file.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 2,928 (the parent's port) admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (47c35b61c^) — the parent of the commit that split this policy out.
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

@@ -16,6 +16,7 @@
 // `**/` matches ZERO segments, so `**/tests/**` already excludes the root `tests/` tree. Both dead rows
 // are gone and the admitted set was re-derived against the real tree before the change landed: 4,440 of
 // 7,394 candidates under the old spelling and under the new, with a zero-length diff in both directions.
+// LEGACY SHA: (45743d76d^) — the conversion's parent.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

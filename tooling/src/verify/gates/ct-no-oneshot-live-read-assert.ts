@@ -50,6 +50,12 @@
 // marker off the node it guards (`tests/e2e/support/README.md`). All 315 now sit on the line above
 // their `expect(...)`. Ends if a new site is authored with the legacy `ONESHOT-OK` spelling — the
 // central engine does not recognize it under any grammar, so it would suppress nothing silently.
+//
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: (p) => /\.ct\.tsx$/u.test(p)` is exactly
+// `{ in: ["@tests"], named: ["*.ct.tsx"] }`.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 491 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (47c35b61c^) — the conversion's parent.
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

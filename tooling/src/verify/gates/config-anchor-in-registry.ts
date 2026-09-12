@@ -21,6 +21,17 @@
 // zero times is STALE and a row matching more than one finding is OVER-BROAD and licenses nothing. Nothing
 // here subtracts a path from the population, and this policy holds no allowlist of its own — the legacy
 // regex that exempted `state/` and `features/config/` wholesale is deleted.
+//
+// FAMILY: a declared SINGLETON under its own id. It rides `lib/registry-fact.ts`,
+// `lib/registry-definition-field.ts`, `lib/reference-fact-call.ts` and `lib/origin-verdict.ts`, but every
+// one of those is a shared PRIMITIVE a dozen policies use; a shared primitive is not a family, and no
+// sibling asks whether an anchor stamp is registered.
+// POPULATION PORT: BYTE-IDENTICAL, inherited — this policy was SPLIT OUT of `config-group-completeness`
+// at conversion and has no legacy descriptor of its own, so the port is that parent's: legacy
+// `path.includes("/packages/client/src/")` is exactly `@client`.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 1,319 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (58370d705^) — the parent of the commit that split this policy out.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

@@ -40,6 +40,9 @@
 // FAMILY: `windowed-infinite-query`, shared with the occurrence policy; the shared computation is the
 // `infiniteQueryOptions` member-call subject, spelled identically in both modules.
 // LEGACY SHA: 67366da91 (the `finalize` hook of the single legacy `windowed-infinite-query` descriptor).
+// SHA FORM NOTE: the `LEGACY SHA` above is the last commit that TOUCHED THE LEGACY DESCRIPTOR, not this
+// conversion's parent (`e81ca1979^`) — the other convention in this corpus. Both resolve to readable
+// legacy source; this one points at it in its final state, which is why it was kept.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

@@ -8,6 +8,9 @@
 // "packages/client/srcXYZ/…"; the final `@client`/`@ui`/`@server` roots are slash-anchored
 // ("packages/client/src/"). No real path on the tree exercises that difference — an intentional
 // correction, not a behavior change.
+// FAMILY: a declared SINGLETON under its own id (the sentence above says so in prose; stated as a field
+// here so a §5b.5 census reads it). No other policy reads the `defaultProps` member vocabulary.
+// LEGACY SHA: (61aa46279^) — the conversion's parent.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

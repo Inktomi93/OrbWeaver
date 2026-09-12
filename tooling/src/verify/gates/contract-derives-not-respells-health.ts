@@ -14,6 +14,17 @@
 // (#2091/#2096): **a gate module NEVER imports another gate module; a shared predicate moves to
 // `lib/<family>.ts`.** Nothing about the computation changed — both policies read the identical rows, which
 // is the invariant this tripwire depends on.
+//
+// POPULATION PORT: a CORRECTION, inherited — this policy was SPLIT OUT at conversion and has no legacy
+// descriptor of its own, so the port is the parent `contract-derives-not-respells`' one. Legacy
+// `scanRoot` was `packages/server/src/domain/` OR `packages/contracts/src/` OR `packages/db/src/schema/`;
+// the declaration above is `["@server", "@db"]`. Re-derived 2026-09-12 over the same 7,537-path
+// compiler-source candidate set: 1,283 legacy vs 1,535 final — 105 admitted only by legacy (all
+// `packages/contracts/src/**`, which this predicate's shapes cannot match: a contracts file declares wire
+// shapes, not a domain contract beside a table) and 357 only by the final (the rest of `@server` and
+// `@db` beyond the two legacy subdirectories). The widening is what the `@db`/`@server` roots buy; the
+// narrowing drops a package no arm of this family reads.
+// LEGACY SHA: (bd56189ba^) — the parent of the commit that split this policy out.
 import { defineGate } from "../contract/policy.ts";
 import { ALLOWLIST, DOMAIN_CONTRACT_RE, handWrittenShapes, matchedTable, tableNames } from "../lib/contract-derives-not-respells.ts";
 

@@ -24,6 +24,14 @@
 // corroborates the 0. So this widening adds no real-tree finding today; it closes a reachable escape
 // rather than waiting for one to be written. The ARITY requirement is the opposite case and stays — see
 // `isInUseEffectDeps`, where it is a discriminator with its own pinning row, not a blind spot.
+//
+// FAMILY: a declared SINGLETON under its own id. `lib/symbol-reference.ts#readMemberAccess` is a shared
+// PRIMITIVE (the member-chain reader a dozen policies ride), not a family reader, and no sibling asks
+// whether a form read sits in a `useEffect` dep array.
+// POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: () => true` is exactly the declared `of: "all"`.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 7,537 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (61aa46279^) — the conversion's parent.
 import type { Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

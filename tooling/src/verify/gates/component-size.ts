@@ -1,6 +1,16 @@
 // Gate: component-size (Core-Laws-and-Precedents.md / UI-Architecture-and-Layout.md §2.1). Client
 // sources have a hard line cap. The verdict is per-file, so scoped runs remain complete and no
 // filesystem walk or ResourceHost tree is required.
+//
+// FAMILY: `component-size`, shared with `component-size-ui`. The shared reader is
+// `lib/source-line-count.ts#authoredLineCount` (module + function), so both halves count a file one way
+// and cannot drift apart; the two differ only in root and exclusion list.
+// POPULATION PORT: BYTE-IDENTICAL. The legacy gate was `fsBacked` and WALKED `packages/client/src`,
+// skipping the `node_modules`/`dist`/`__screenshots__` directories and `/\.(?:test|spec|gen)\.tsx?$/`
+// plus `.d.ts`; the declaration above is that walk expressed as population algebra.
+// Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
+// compiler-source candidate set: 1,318 admitted on both sides, symmetric difference ZERO in both directions.
+// LEGACY SHA: (70a944751^) — the conversion's parent.
 import { defineGate } from "../contract/policy.ts";
 import { authoredLineCount } from "../lib/source-line-count.ts";
 
