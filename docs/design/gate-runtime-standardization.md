@@ -1453,6 +1453,13 @@ modules receive neither grant tables nor marker parsers. Current-population decl
 
 ### 12.6 The 13 mixed-hook modules, ruled before conversion
 
+> **A RULED ARITY IS STILL A CLAIM ABOUT THE TREE (amended 2026-09-12, `tooling-argv-front-door`).** The
+> mappings below were ruled 2026-09-11 against that day's tree. The forge lane building them found one whose
+> ARMS are right and whose ARITY is unbuildable — two policies over ONE predicate double-report every site,
+> and the only separator is the grant table §12.5 forbids a module to read. **Where a ruled row disagrees with
+> the tree, the lane escalates with receipts and the ROW is amended; it does not implement a mapping that
+> cannot exist.** Check each row's predicate count against its module before building it.
+
 | Current module | Final mapping |
 | - | - |
 | `agent-bridge-lock` | visitors plus exact-file `visitFile`; all cross-file reconciliation in `evaluate`; one hard policy |
