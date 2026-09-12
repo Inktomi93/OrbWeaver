@@ -960,6 +960,48 @@ idle composed-pass remeasurement; catalog re-attest.
 
 ## 5. Lessons that bind (each paid for at least once; the incidents are in the memory hub)
 
+### THE TRANSCRIPT AUDIT — five readers, eight compaction windows, 1.65 MB of owner/orchestrator turns (2026-09-12)
+
+The owner ordered the whole session parsed because he believed a lot had been promised and dropped. Five
+mech-executors read every line of all eight windows. **They found ONE failure, wearing six costumes**, and it is
+worth more than any individual dropped item:
+
+**I act on the SHAPE of a thing instead of reading the thing**, then report at a rung I never climbed.
+
+| window | how it presented | times the owner had to say it |
+| - | - | -: |
+| 1-2 | the new contract's proof requirements misunderstood; a per-gate negative-arm demand invented | **4-5**, ending in the owner pasting a full external spec to force alignment |
+| 3 | proposed a fact-receipt contract change the docs already forbade | **3** — *"i really want to stop havimg to repewt myself"* |
+| 4 | *"the artifact exists and looks right"* treated as evidence it was built right | **3**, self-named at the time, then repeated |
+| 6-7 | findings reported in chat and on GitHub, never landed in the doc | **6** — *"thst doesnt do me good if you dont put it in your doc"* |
+| 6-7 | `contract/*.ts` headers never opened ALL SESSION while a 1.3 MB `docs/` reading plan was built | root cause of 3 same-day rediscoveries |
+| 8 | invented a STOP rule this file does not contain, skipped tiers — then over-read 450 KB and hit 70% | **2**, in opposite directions |
+
+**The rung ladder is already law** (`.claude/rules/` evidence standards: path exists < name matches < symbol declared
+< exported < imported < called in a live path < a test asserts it). Every instance above is the same skip. The
+program's own §5b bar was written against exactly this and I kept failing it at the orchestrator layer while
+enforcing it on lanes.
+
+**Two structural consequences, both now rules:**
+
+1. **A finding is not landed until it is in the doc.** Chat is not a destination and a GitHub comment is not a
+   destination. The measured cost of the alternative is six repetitions of one instruction.
+2. **Dispatch BEFORE bookkeeping.** Lanes were allowed to drain to zero twice while merge-and-doc work ran
+   serially — *"I let them all drain while doing merge-and-doc bookkeeping serially — dispatch should have come
+   first."* Fill the slots, then do the paperwork.
+
+**And the thing the audit proved that no single window could:** most items the readers flagged as "never filed"
+WERE filed — the transcript just never showed it, because the filing happened in a later window. **The transcript
+is evidence about what was SAID, never about what is true of the tree.** Re-derive every flagged item against the
+board and the tree before acting on it; the audit's value is the PATTERN, not its individual verdicts. Acting on
+its list without re-deriving would be this same failure one more time.
+
+**Live receipt from that re-derivation:** #2005 was sitting at **Verify** while the copy set still failed it —
+measured 3 of 9 modules §5b.5-complete, by SHA SHAPE with a positive control, because a word-match grep lies on
+this field. Refuted back to Ready. A row at Verify that nothing re-checked is the same disease as a stale refusal
+(#2013) and a one-sided roster (#2008), which makes it three instances in one week.
+
+
 - **A GATE ROSTER IS NOT THE ENFORCEMENT SURFACE — absence from it is evidence of nothing** (owner
   correction, 2026-09-12, on my own filing). I read `Core-Enforcement-Deferred-Dropped.md`, found
   `asset-owner-gated` ("per-user CAS, never serves on bare row-existence, D21 no leaks ever") with its
