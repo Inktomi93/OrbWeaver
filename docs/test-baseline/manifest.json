@@ -2379,6 +2379,7 @@
     "tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts",
     "tests/tooling/verify/gates/ui-token-surface-wave-1.test.ts",
     "tests/tooling/verify/gates/unfenced-class-fragment-scanners.test.ts",
+    "tests/tooling/verify/gates/union-axis-family.test.ts",
     "tests/tooling/verify/gates/verb-naming.test.ts",
     "tests/tooling/verify/lib/absent-subject-anchor.test.ts",
     "tests/tooling/verify/lib/ambient-determinism.test.ts",
