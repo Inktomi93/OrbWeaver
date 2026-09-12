@@ -35,6 +35,18 @@
 //   WIDENED ACCUSATION — a registry row whose `id` is not statically readable was a silent `continue` in
 //   the legacy reader, so it left the denominator without a word. It is now the fail-closed third answer
 //   (#944) with its own message and its own row (`mustFlag[9]`, pinned by `messageIncludes`).
+//
+// THE SHARED READER ONCE REFUSED THE REAL REGISTRY, AND THIS MODULE HAD NO ROW THAT COULD SEE IT (#1950
+// D2, refuted at `ac0085c91` by a real-tree run). `resolveAuthoredComposite` → `explicitCompositeRefusal`
+// → `invokedMemberThroughAliases` answered `dynamic` for `DESIGN_AUDIT_RULES` because the module declares
+// `DESIGN_AUDIT_RULE_IDS = DESIGN_AUDIT_RULES.map((rule) => rule.id)` three lines below the array. That is
+// a refusal about the binding's DOWNSTREAM USE, and a `.map()` cannot change what the literal IS — so
+// `registry.size` was 0 against a 62-row registry and the gate's single real-tree finding was its own
+// zero-population tripwire. The fix is in the shared reader, not here: the collector now names the
+// read-only `Array.prototype` members and fails closed on every other member
+// (`lib/reference-fact-writes.ts` READ_ONLY_MEMBERS, both directions pinned in
+// `tests/tooling/verify/lib/static-authored-value.test.ts`). Every fixture below resolved through the
+// refusal because none of them declared a consumer beside the array — which is why `mustPass[3]` now does.
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -536,6 +548,14 @@ export const gate = defineGate({
         [PROOF_FILE]: `${BOUND_HELPER_FIXTURE}const PROOFS = [{ rule: "side-tab", kind: "fires", reason: "fixture emits" }, { rule: "side-tab", kind: "silent", reason: "nearest sanctioned neighbour" }] as const;\n${HELPER}(PROOFS, "fixture", () => {});\n`,
       },
       why: "THE WIDENED ACQUITTAL, and the row that holds it: the legacy direct-literal reader called a const-bound proof array 'malformed' and then reported the rule unproven (3 findings). The shared authored-value reader follows the immutable binding, so a member behind a composition edge is still a member (#947). Reverting to a bare `unwrapExpression` on the argument REDS this row",
+    },
+    {
+      mode: "source",
+      files: {
+        [REGISTRY]: `${ONE_RULE}export const ${REGISTRY_CONST}_IDS: readonly string[] = ${REGISTRY_CONST}.map((rule) => rule.id);\n`,
+        [PROOF_FILE]: `${BOUND_HELPER_FIXTURE}${BOTH_PROOFS}`,
+      },
+      why: "THE REAL TREE'S OWN SHAPE, and the row this policy shipped BLIND without (#1950 D2): the registry declares a sibling `.map(...)` projection three lines below itself. `resolveAuthoredComposite` refused that with `dynamic` — a refusal about the BINDING'S DOWNSTREAM USE, which says nothing about the literal in place — so `registry.size` was 0 against a 62-row registry and the only finding on the real tree was this module's own zero-population tripwire, while every fixture here resolved because none declared a consumer. The reader now names the read-only `Array.prototype` members and fails closed on everything else (`lib/reference-fact-writes.ts` READ_ONLY_MEMBERS); restoring the blanket refusal REDS this row with `zero-population`",
     },
   ],
 });

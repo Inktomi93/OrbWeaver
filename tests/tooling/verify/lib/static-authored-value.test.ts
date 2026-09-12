@@ -4,7 +4,7 @@ import { Project, SyntaxKind } from "ts-morph";
 import type { ReferenceFact, ResolvedReferenceFact } from "../../../../tooling/src/verify/contract/reference-fact.ts";
 import type { StaticAuthoredValue } from "../../../../tooling/src/verify/contract/static-authored-value.ts";
 import { resolveStableExpression } from "../../../../tooling/src/verify/lib/reference-fact.ts";
-import { readStaticAuthoredScalar, readStaticAuthoredValue } from "../../../../tooling/src/verify/lib/static-authored-value.ts";
+import { readStaticAuthoredScalar, readStaticAuthoredValue, resolveAuthoredComposite } from "../../../../tooling/src/verify/lib/static-authored-value.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
@@ -205,5 +205,51 @@ test("dynamic, cycle, namespace, destructure, object-method, proto, hole, and am
     expect.objectContaining({ kind: "unresolved", reason: "unsupported" }),
     expect.objectContaining({ kind: "unresolved", reason: "unsupported" }),
     expect.objectContaining({ kind: "unresolved", reason: "ambiguous" }),
+  ]);
+});
+
+// The two directions of the read-only-member rule (#1950 D2). A registry declared beside its own
+// `REGISTRY.map(...)` projection is the shape the real tree has, and refusing it blinded
+// `design-audit-rule-proof` on a 62-row registry while every conformance row stayed green.
+test("a read-only member call beside the literal resolves, in both readers", () => {
+  const sf = sourceOf(`
+    const RULES = [{ id: "one" }, { id: "two" }] as const;
+    export const IDS = RULES.map((rule) => rule.id);
+    const SECTIONS = ["a", "b"] as const;
+    export const known = (value: string) => SECTIONS.includes(value as never);
+    export const values = [RULES, SECTIONS];
+  `);
+  const values = initializer(sf, "values").asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements();
+
+  expect(values.map((value) => resolveAuthoredComposite(value))).toEqual([
+    expect.objectContaining({ kind: "resolved" }),
+    expect.objectContaining({ kind: "resolved" }),
+  ]);
+  expect(values.map((value) => readStaticAuthoredValue(value))).toEqual([
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ kind: "tuple" }) }),
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ kind: "tuple" }) }),
+  ]);
+});
+
+// FAIL-CLOSED, the half that keeps the rule safe. `readThenMutate` is the reason the allowlist lives in
+// the COLLECTOR rather than at the refusal: the collector keeps at most one invoked member per binding,
+// so skipping the read-only `map` at the decision site would have hidden the later `push`.
+test("the read-only member list is closed: a mutator, an unnamed member, and a deeper chain all still refuse", () => {
+  const sf = sourceOf(`
+    const readThenMutate = [1];
+    void readThenMutate.map((value) => value);
+    readThenMutate.push(2);
+    const unnamedMember = [1];
+    void unnamedMember.toReversed();
+    const deeperChain = { nested: [1] };
+    void deeperChain.nested.join(",");
+    export const values = [readThenMutate, unnamedMember, deeperChain];
+  `);
+  const values = initializer(sf, "values").asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements();
+
+  expect(values.map((value) => resolveAuthoredComposite(value))).toEqual([
+    expect.objectContaining({ kind: "unresolved", reason: "dynamic" }),
+    expect.objectContaining({ kind: "unresolved", reason: "dynamic" }),
+    expect.objectContaining({ kind: "unresolved", reason: "dynamic" }),
   ]);
 });

@@ -485,6 +485,24 @@ export const t = sqliteTable("t", columns, () => extras);`,
   expect(fact.receipt).toMatchObject({ status: "ready", tables: 1, columns: 1, indexes: 1, members: 3 });
 });
 
+// The positive direction of the read-only-member rule at `guardCompositeBindings` — the SECOND consumer of
+// `invokedMemberThroughAliases` (#1950 D2). A schema population that projects itself (`extras.map(...)`)
+// cannot be changed by that projection, and this reader refused it as "an invoked member can change the
+// authored composite" until the collector learned the read-only names. Its mutating twin is pinned by
+// "invoked members through schema-population aliases refuse instead of shrinking" directly above.
+test("a schema population read through a read-only member stays ready", () => {
+  const { query } = queryOf({
+    "packages/db/src/schema/x.ts": `import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+const columns = { id: text("id") };
+const extras = [index("t_id_idx").on(columns.id)];
+export const named = extras.map((extra) => extra);
+export const t = sqliteTable("t", columns, () => extras);`,
+  });
+  const fact = query.schema();
+  expect(ready(fact).tables[0]).toMatchObject({ indexes: [{ kind: "index", name: { kind: "named", value: "t_id_idx" } }] });
+  expect(fact.receipt).toMatchObject({ status: "ready", tables: 1, columns: 1, indexes: 1 });
+});
+
 test("a written sqliteTable alias is an unresolved schema candidate, not an empty schema", () => {
   const { query } = queryOf({
     "packages/db/src/schema/x.ts":

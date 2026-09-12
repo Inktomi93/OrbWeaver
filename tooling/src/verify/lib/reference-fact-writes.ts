@@ -473,10 +473,10 @@ function expandMutated(mutated: Set<object>, edges: ReadonlyMap<object, Set<obje
   }
 }
 
-function invokedMemberRootedAt(reference: MorphNode): MorphNode | undefined {
+function invokedMemberRootedAt(reference: MorphNode): { readonly call: MorphNode; readonly members: readonly (string | undefined)[] } | undefined {
   let current = reference;
   let parent = current.getParent();
-  let crossedMember = false;
+  const members: (string | undefined)[] = [];
   while (parent !== undefined) {
     if (isTransparentWrapper(parent, current)) {
       current = parent;
@@ -484,26 +484,76 @@ function invokedMemberRootedAt(reference: MorphNode): MorphNode | undefined {
       continue;
     }
     if (isMemberReceiver(parent, current)) {
-      crossedMember = true;
+      members.push(staticMemberName(parent));
       current = parent;
       parent = current.getParent();
       continue;
     }
     break;
   }
-  return crossedMember && parent !== undefined && Node.isCallExpression(parent) && parent.getExpression() === current ? parent : undefined;
+  return members.length > 0 && parent !== undefined && Node.isCallExpression(parent) && parent.getExpression() === current
+    ? { call: parent, members }
+    : undefined;
 }
 
+/** Members whose invocation CANNOT change the receiver — the read-only half of `Array.prototype`, which is
+ *  also every member name a repo-local registry projects itself through. Invoking one is evidence about the
+ *  literal's USE, never about its contents, so it must not refuse the read (#1950 D2: one `.map()` three
+ *  lines below `DESIGN_AUDIT_RULES` blinded `design-audit-rule-proof` on a 62-row registry, and the same
+ *  refusal withheld `no-parallel-section-map` on `SECTION_IDS.includes(v)`).
+ *
+ *  CLOSED BY CONSTRUCTION, and that is the property that keeps it safe: a mutator (`push`, `splice`, `sort`,
+ *  …) is simply not on the list, and so is anything the list does not name — a computed member, a member of
+ *  a deeper chain, and any future prototype method all stay `dynamic`. Only INVOCABLE members belong here —
+ *  `length` is read-only but is not callable, so a row for it would be a line this list asserts and the
+ *  language cannot reach. It is a NAME test, so a hand-written
+ *  object literal declaring its own mutating `map` is out of scope here; such a member writes through the
+ *  binding and `collectWrites` refuses it as a write. */
+const READ_ONLY_MEMBERS: ReadonlySet<string> = new Set([
+  "at",
+  "concat",
+  "entries",
+  "every",
+  "filter",
+  "find",
+  "findIndex",
+  "flatMap",
+  "forEach",
+  "includes",
+  "indexOf",
+  "join",
+  "keys",
+  "map",
+  "reduce",
+  "slice",
+  "some",
+  "toSorted",
+  "values",
+]);
+
+/** A single named read-only member read straight off the binding. One hop only: `X.nested.join()` is not a
+ *  claim this list can make about `X`, so it keeps refusing. */
+function isReadOnlyInvocation(members: readonly (string | undefined)[]): boolean {
+  const [only] = members;
+  return members.length === 1 && only !== undefined && READ_ONLY_MEMBERS.has(only);
+}
+
+// The read-only filter lives HERE, in the collector, and not at the refusal site in
+// `static-authored-value.ts#explicitCompositeRefusal`. The map keeps at most ONE invoked member per symbol
+// (first in source order wins), and `writeKind` does not classify a method call as a write — so skipping a
+// read-only member at the decision site would clear the refusal for `A.map(…)` and then never see the
+// `A.push(x)` two lines below it. Skipping at COLLECTION keeps the mutator recorded and refusing.
 function collectInvokedMembers(sourceFile: SourceFile): Map<object, MorphNode> {
   const invoked = new Map<object, MorphNode>();
   for (const identifier of descendantsOfKind(sourceFile, SyntaxKind.Identifier)) {
     if (isDeclarationName(identifier)) {
       continue;
     }
-    const call = invokedMemberRootedAt(identifier);
-    if (call === undefined) {
+    const invocation = invokedMemberRootedAt(identifier);
+    if (invocation === undefined || isReadOnlyInvocation(invocation.members)) {
       continue;
     }
+    const call = invocation.call;
     const symbol = identifier.getSymbol();
     if (symbol !== undefined && !invoked.has(symbol.compilerSymbol)) {
       invoked.set(symbol.compilerSymbol, call);
