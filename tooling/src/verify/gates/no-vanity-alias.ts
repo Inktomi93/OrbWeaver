@@ -1,14 +1,42 @@
-// Gate: no-vanity-alias — one symbol, one name; rename at source or use the original (a needless second
+// Policy: no-vanity-alias — one symbol, one name; rename at source or use the original (a needless second
 // name is the amnesiac agent's insider-knowledge trap). Sanctioned: a genuine in-module collision (rename-
 // import); a rename-EXPORT of a GENERIC name (declared by ≥2 producer modules — barrel disambiguation); an
 // @orb/ui / @orb/db-`*Table` / @orb/contracts-`*Wire` rename; a `/contract/` distinct-alias-per-verb home.
-// Vendor-package renames are always legal. All three rules are NODE-anchored and carry their arm+name as
-// the finding's token, so `// @orb-gate-ignore no-vanity-alias(rename-import Foo): <reason>` works AND
-// names its position (§4.3a — one `import { A as B, C as D }` line carries two guarded things).
+// Vendor-package renames are always legal.
 // core/Spine-TypeScript-and-Patterns.md.
-import type { ImportSpecifier, Node, SourceFile } from "ts-morph";
-import { SyntaxKind, Node as TsNode } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+//
+// FAMILY: singleton. The census hypothesis ("import/export identity → canonical origin fact") does not
+// hold: every existing `canonical-origin` family reader resolves a symbol's ORIGIN across module
+// boundaries (is this the sealed X, does this re-export land on the same declaration); this policy's three
+// arms never resolve an origin at all — the subject IS the AUTHORED alias syntax and a same-file/whole-
+// population NAME census, not a resolved identity. No shared `lib/` reader applies.
+// POPULATION PORT: byte-identical. Legacy `scanRoot` was `p.startsWith("packages/") && p.includes("/src/")`
+// minus `TEST_FILE` — i.e. every workspace package's `src/`, tests excluded. The final population is the
+// exact seven `packages/<pkg>/src/` roots (`["@packages", "@showcase"]`; `@packages` covers client/ui/
+// server/db/contracts/kit, `@showcase` is the seventh — §12.4's showcase root is deliberately OUTSIDE
+// `@packages`); the `TEST_FILE` suffix exclusion is not expressible in the population algebra (a content
+// suffix, not a path prefix) and stays a code-level filter, ported verbatim.
+// LEGACY at 86ce80b6c.
+//
+// THE IDENTIFIER-FREQUENCY CENSUS IS A VISITOR, NOT A DESCENDANT WALK (guide §12.3: gate modules cannot
+// call `getDescendantsOfKind`). Rule (a)'s "is the original name otherwise present in this module" test
+// used to walk every Identifier under the SourceFile per import candidate; it is now a single
+// `SyntaxKind.Identifier` visitor accumulating a per-file frequency map once, read by every candidate.
+//
+// §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.test.ts): every legacy
+// mustFlag/mustPass example replays byte-identically — same finding count, same reported original-name
+// token. No finding or tool-error delta on this arm.
+//
+// THE ORDINARY DOOR IS REAL across all three arms: the reported position is always the ORIGINAL
+// (unaliased) name — the import/export specifier's own bare identifier, or the type alias's own name node
+// for rule (c) — never the synthetic `<arm> <name>` compound token the legacy descriptor used. A bare
+// identifier is guaranteed authored text at its own offset (offset 0 on the reported node), so it carries
+// no paren, no newline and no solidus. Driven (not merely claimed) in the family test's
+// `assumes-single-replica` control, which exercises the shared position mechanism every ordinary policy in
+// this lane uses.
+import type { ExportSpecifier, ImportSpecifier, Node as MorphNode, SourceFile, TypeAliasDeclaration } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
 
 const DOC = "core/Spine-TypeScript-and-Patterns.md";
 const MIN_PRODUCERS = 2;
@@ -25,29 +53,20 @@ function isOrbUiSpecifier(spec: string): boolean {
   return spec === "@orb/ui" || spec.startsWith("@orb/ui/");
 }
 
-/** Only prod `packages/<pkg>/src/**` — tests/** and scripts/** are out of scope (a rename in a test is
- *  fine; the gate corpus's own example strings are not real declarations). */
-function inScope(p: string): boolean {
-  if (!(p.startsWith("packages/") && p.includes("/src/"))) {
-    return false;
+/** The class-7 db/wire suffix convention: an `@orb/db` (or db-schema-relative) `X as XTable`, or an
+ *  `@orb/contracts` `X as XWire` — a systematic disambiguation of the table/wire shape, exempt by exact suffix. */
+function isDbWireSuffixRename(spec: string, rel: string, original: string, alias: string): boolean {
+  const dbSource = spec.startsWith("@orb/db") || (spec.startsWith(".") && rel.startsWith(DB_SCHEMA_DIR));
+  if (dbSource && alias === `${original}Table`) {
+    return true;
   }
-  return !TEST_FILE.test(p);
+  return spec.startsWith("@orb/contracts") && alias === `${original}Wire`;
 }
 
-function relOf(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-/** The three ARMS' token prefixes. The token is `<arm> <original name>`: the arm says WHICH rule bit, the
- *  name is the position an `@orb-gate-ignore` must name (§4.3a). Until 2026-08-08 this helper reported
- *  through the explicit-`Finding` overload with a per-finding message — which bypasses `hasGateIgnore`
- *  (GATE-AUTHORING §1), so every marker on all three rules was inert AND the author got the hostile
- *  double-red (the gate, plus `gate-ignore-inventory` calling the correct marker stale). The per-rule prose
- *  moved onto the group `message`, which is where the harness homes a reason. */
-const ARM = { renameImport: "rename-import", renameExport: "rename-export", doubleAlias: "double-alias" } as const;
-
-function reportAt(ctx: GateRunCtx, node: Node, token: string): void {
-  ctx.report(node, { token, offset: 0 });
+/** A file under any `/contract/` segment in `packages/server/src` — the distinct-alias-per-verb doctrine's
+ *  home (domain + infra contract dirs), where several type aliases onto one shared shape is the convention. */
+function isContractVocabHome(rel: string): boolean {
+  return rel.startsWith("packages/server/src/") && rel.includes("/contract/");
 }
 
 interface MaybeNamedExportable {
@@ -68,7 +87,8 @@ function exportedNames(nodes: readonly MaybeNamedExportable[]): string[] {
 }
 
 /** The names this module DECLARES-and-exports (a "producer" of that name). Re-exports (`export { X } from`)
- *  are NOT declarations, so they don't count — a re-exported name's producer is its one true home. */
+ *  are NOT declarations, so they don't count — a re-exported name's producer is its one true home. Every
+ *  accessor here is a top-level SourceFile lookup, not a descendant walk. */
 function exportedDeclarationNames(sf: SourceFile): string[] {
   const names: string[] = [
     ...exportedNames(sf.getFunctions()),
@@ -87,197 +107,253 @@ function exportedDeclarationNames(sf: SourceFile): string[] {
   return names;
 }
 
-/** The class-7 db/wire suffix convention: an `@orb/db` (or db-schema-relative) `X as XTable`, or an
- *  `@orb/contracts` `X as XWire` — a systematic disambiguation of the table/wire shape, exempt by exact suffix. */
-function isDbWireSuffixRename(spec: string, rel: string, original: string, alias: string): boolean {
-  const dbSource = spec.startsWith("@orb/db") || (spec.startsWith(".") && rel.startsWith(DB_SCHEMA_DIR));
-  if (dbSource && alias === `${original}Table`) {
-    return true;
-  }
-  return spec.startsWith("@orb/contracts") && alias === `${original}Wire`;
+function inScope(rel: string): boolean {
+  return !TEST_FILE.test(rel);
 }
 
-/** Frequency of every identifier text in the file — the "otherwise present in the module" (collision) test. */
-function identifierFreq(sf: SourceFile): Map<string, number> {
-  const freq = new Map<string, number>();
-  for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    const t = id.getText();
-    freq.set(t, (freq.get(t) ?? 0) + 1);
-  }
-  return freq;
-}
-
-interface ImportScan {
-  readonly spec: string;
-  readonly rel: string;
-  readonly freq: ReadonlyMap<string, number>;
-}
-
-/** One named rename-import specifier: flag it unless it's a genuine collision or the db/wire suffix convention. */
-function checkRenameImportSpecifier(named: ImportSpecifier, scan: ImportScan, ctx: GateRunCtx): void {
-  const aliasNode = named.getAliasNode();
-  if (aliasNode === undefined) {
-    return;
-  }
-  const original = named.getName();
-  const alias = aliasNode.getText();
-  if ((scan.freq.get(original) ?? 0) > 1 || isDbWireSuffixRename(scan.spec, scan.rel, original, alias)) {
-    return; // genuine collision, or the sanctioned db/wire suffix convention
-  }
-  reportAt(ctx, named, `${ARM.renameImport} ${original}`);
-}
-
-/** Rule (a): a workspace rename-IMPORT whose original name is not otherwise present in the module — the
- *  `as` alias is cosmetic. Exempt: `@orb/ui`, the db/wire suffix convention, and genuine collisions. */
-function checkRenameImports(sf: SourceFile, ctx: GateRunCtx, rel: string): void {
-  const freq = identifierFreq(sf);
-  for (const imp of sf.getImportDeclarations()) {
-    const spec = imp.getModuleSpecifierValue();
-    if (!isWorkspaceSpecifier(spec) || isOrbUiSpecifier(spec)) {
+/** Cross-population producer count of every exported declaration name, for rule (b)'s ≥2-producer test. */
+function computeProducerCount(files: readonly SourceFile[], relOf: (sf: SourceFile) => string): Map<string, number> {
+  const producerCount = new Map<string, number>();
+  for (const sourceFile of files) {
+    if (!inScope(relOf(sourceFile))) {
       continue;
     }
-    for (const named of imp.getNamedImports()) {
-      checkRenameImportSpecifier(named, { spec, rel, freq }, ctx);
+    for (const name of new Set(exportedDeclarationNames(sourceFile))) {
+      producerCount.set(name, (producerCount.get(name) ?? 0) + 1);
     }
   }
+  return producerCount;
 }
 
-/** Rule (b): a workspace rename-EXPORT of a UNIQUELY-homed symbol (the ChatSource class) gives it a second
- *  public name. Exempt: a vendor-source re-export, and a GENERIC name declared by ≥2 producer modules
- *  (barrel disambiguation — verb barrels, domain barrels, rewording alike). */
-function checkRenameExports(sf: SourceFile, ctx: GateRunCtx, producerCount: ReadonlyMap<string, number>): void {
-  for (const exp of sf.getExportDeclarations()) {
-    const spec = exp.getModuleSpecifierValue();
-    if (spec !== undefined && !isWorkspaceSpecifier(spec)) {
-      continue; // vendor-source rename-export (echarts-setup's OrbChartOption) — always legal
-    }
-    for (const named of exp.getNamedExports()) {
-      const aliasNode = named.getAliasNode();
-      if (aliasNode === undefined) {
-        continue;
-      }
-      const original = named.getName();
-      if ((producerCount.get(original) ?? 0) >= MIN_PRODUCERS) {
-        continue; // generic name (≥2 producers) — barrel disambiguation, legal
-      }
-      reportAt(ctx, named, `${ARM.renameExport} ${original}`);
-    }
-  }
-}
-
-/** A file under any `/contract/` segment in `packages/server/src` — the distinct-alias-per-verb doctrine's
- *  home (domain + infra contract dirs), where several type aliases onto one shared shape is the convention. */
-function isContractVocabHome(rel: string): boolean {
-  return rel.startsWith("packages/server/src/") && rel.includes("/contract/");
-}
-
-/** Rule (c): two or more BARE type aliases (`type A = T`) in one file pointing at the SAME identifier —
- *  the double-alias smell (RouteOverlay/RoutableChat). A single bare alias stays legal (verb vocabulary). */
-function checkDoubleTypeAliases(sf: SourceFile, ctx: GateRunCtx, rel: string): void {
+/** Rule (c), one file's worth: two or more bare type aliases pointing at the same identifier. */
+function doubleAliasGroups(rel: string, aliases: readonly TypeAliasDeclaration[]): ReadonlyMap<string, readonly MorphNode[]> {
   if (isContractVocabHome(rel)) {
-    return;
+    return new Map();
   }
-  const byTarget = new Map<string, Node[]>();
-  for (const ta of sf.getTypeAliases()) {
+  const byTarget = new Map<string, MorphNode[]>();
+  for (const ta of aliases) {
     const tn = ta.getTypeNode();
-    if (tn === undefined || !TsNode.isTypeReference(tn) || tn.getTypeArguments().length > 0) {
+    if (tn === undefined || !Node.isTypeReference(tn) || tn.getTypeArguments().length > 0) {
       continue;
     }
-    const name = tn.getTypeName();
-    if (!TsNode.isIdentifier(name)) {
+    const targetName = tn.getTypeName();
+    if (!Node.isIdentifier(targetName)) {
       continue;
     }
-    const target = name.getText();
-    const list = byTarget.get(target);
-    if (list === undefined) {
-      byTarget.set(target, [ta.getNameNode()]);
-    } else {
-      list.push(ta.getNameNode());
-    }
+    const target = targetName.getText();
+    const list = byTarget.get(target) ?? [];
+    list.push(ta.getNameNode());
+    byTarget.set(target, list);
   }
-  for (const nameNodes of byTarget.values()) {
-    if (nameNodes.length < MIN_PRODUCERS) {
+  return byTarget;
+}
+
+const MESSAGE =
+  "vanity rename — one symbol, one name; rename at source or use the original. Sanctioned only for a " +
+  "genuine in-module collision, a generic name (≥2 producer modules), an @orb/ui / db-`*Table` / " +
+  `contracts-\`*Wire\` rename, or a /contract/ distinct-alias-per-verb home. ${DOC}`;
+const FIX =
+  "use the original name (import/re-export it un-renamed), or rename AT SOURCE. A rename is legal only to resolve a real in-module collision, for a generic ≥2-producer name, off @orb/ui / db-`*Table` / contracts-`*Wire`, or as a /contract/ verb-vocabulary alias. A deliberate exception waives with `@orb-waive no-vanity-alias(<name>): <reason + end condition>` — the reported position is always the original (unaliased) name, the literal text the report passes explicitly at the specifier's/type-alias-name's own offset.";
+
+interface ImportCandidate {
+  readonly node: ImportSpecifier;
+  readonly rel: string;
+  readonly spec: string;
+  readonly original: string;
+  readonly alias: string;
+}
+
+interface ExportCandidate {
+  readonly node: ExportSpecifier;
+  readonly original: string;
+}
+
+type Report = (node: MorphNode, name: string, detail: string) => void;
+
+function reportRenameImports(candidates: readonly ImportCandidate[], freqByFile: ReadonlyMap<string, ReadonlyMap<string, number>>, report: Report): void {
+  for (const candidate of candidates) {
+    const freq = freqByFile.get(candidate.rel)?.get(candidate.original) ?? 0;
+    if (freq > 1 || isDbWireSuffixRename(candidate.spec, candidate.rel, candidate.original, candidate.alias)) {
+      continue; // genuine collision, or the sanctioned db/wire suffix convention
+    }
+    report(
+      candidate.node,
+      candidate.original,
+      `A workspace rename-import whose original "${candidate.original}" is not otherwise present — the \`as\` alias is cosmetic; import the original directly.`,
+    );
+  }
+}
+
+function reportRenameExports(candidates: readonly ExportCandidate[], producerCount: ReadonlyMap<string, number>, report: Report): void {
+  for (const candidate of candidates) {
+    if ((producerCount.get(candidate.original) ?? 0) >= MIN_PRODUCERS) {
+      continue; // generic name (≥2 producers) — barrel disambiguation, legal
+    }
+    report(
+      candidate.node,
+      candidate.original,
+      `A workspace rename-export of "${candidate.original}", which has ONE producer module — the alias is a synonym; re-export it under its own name.`,
+    );
+  }
+}
+
+function reportDoubleAliases(files: readonly SourceFile[], relOf: (sf: SourceFile) => string, report: Report): void {
+  for (const sourceFile of files) {
+    const rel = relOf(sourceFile);
+    if (!inScope(rel)) {
       continue;
     }
-    for (const nn of nameNodes) {
-      reportAt(ctx, nn, `${ARM.doubleAlias} ${nn.getText()}`);
+    for (const [target, nameNodes] of doubleAliasGroups(rel, sourceFile.getTypeAliases())) {
+      if (nameNodes.length < MIN_PRODUCERS) {
+        continue;
+      }
+      for (const nn of nameNodes) {
+        report(nn, nn.getText(), `Two or more bare type aliases in this file point at the same identifier ("${target}") — one type, one name.`);
+      }
     }
   }
 }
 
-export const gate: GateDescriptor = {
-  name: "no-vanity-alias",
-  docRow: "core/Core-Enforcement-Active-Gates.md (Layer 3)",
-  status: "active",
-  scopeSafety: "whole-project", // rule (b)'s generic-name test counts producer modules across the tree
-  // THE ONE REASON, carrying all three arms by token (their per-finding messages folded in here when they
-  // stopped riding the Finding overload). Each token is `<arm> <name>`.
-  message:
-    "vanity rename — one symbol, one name; rename at source or use the original. A `rename-import <name>` " +
-    "token: the original is not otherwise used in this module, so the `as` alias is cosmetic — import the " +
-    "original directly. A `rename-export <name>` token: the original has ONE producer module, so the alias " +
-    "is a synonym (the ChatSource class) — re-export it under its own name. A `double-alias <name>` token: " +
-    "two or more bare type aliases in one file point at the SAME identifier (RouteOverlay/RoutableChat) — " +
-    "one type, one name. Sanctioned only for a genuine in-module collision, a generic name (≥2 producer " +
-    `modules), an @orb/ui / db-\`*Table\` / contracts-\`*Wire\` rename, or a /contract/ distinct-alias-per-verb home. ${DOC}`,
-  fix: "use the original name (import/re-export it un-renamed), or rename AT SOURCE. A rename is legal only to resolve a real in-module collision, for a generic ≥2-producer name, off @orb/ui / db-`*Table` / contracts-`*Wire`, or as a /contract/ verb-vocabulary alias.",
-  scanRoot: inScope,
-  run: (ctx) => {
-    const producerCount = new Map<string, number>();
-    const scoped: { readonly sf: SourceFile; readonly rel: string }[] = [];
-    for (const sf of ctx.files) {
-      const rel = relOf(ctx.root, sf.getFilePath());
-      if (!inScope(rel)) {
-        continue;
-      }
-      scoped.push({ sf, rel });
-      for (const name of new Set(exportedDeclarationNames(sf))) {
-        producerCount.set(name, (producerCount.get(name) ?? 0) + 1);
-      }
-    }
-    for (const { sf, rel } of scoped) {
-      checkRenameImports(sf, ctx, rel);
-      checkRenameExports(sf, ctx, producerCount);
-      checkDoubleTypeAliases(sf, ctx, rel);
-    }
+export const gate = defineGate({
+  id: "no-vanity-alias",
+  family: "no-vanity-alias",
+  authority: "ordinary",
+  severity: "error",
+  population: ["@packages", "@showcase"],
+  analysis: "syntax",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const freqByFile = new Map<string, Map<string, number>>();
+    const importCandidates: ImportCandidate[] = [];
+    const exportCandidates: ExportCandidate[] = [];
+
+    const report = (node: MorphNode, name: string, detail: string): void => {
+      ctx.report.node(node, { token: name, offset: 0, message: `${MESSAGE} ${detail}`, fix: FIX });
+    };
+
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.Identifier],
+          visit: (node, sourceFile) => {
+            const rel = ctx.relativePath(sourceFile);
+            if (!inScope(rel)) {
+              return;
+            }
+            const freq = freqByFile.get(rel) ?? new Map<string, number>();
+            const text = node.getText();
+            freq.set(text, (freq.get(text) ?? 0) + 1);
+            freqByFile.set(rel, freq);
+          },
+        },
+        {
+          kinds: [SyntaxKind.ImportSpecifier],
+          visit: (node, sourceFile) => {
+            if (!Node.isImportSpecifier(node)) {
+              return;
+            }
+            const rel = ctx.relativePath(sourceFile);
+            if (!inScope(rel)) {
+              return;
+            }
+            const aliasNode = node.getAliasNode();
+            const decl = node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
+            if (aliasNode === undefined || decl === undefined) {
+              return;
+            }
+            const spec = decl.getModuleSpecifierValue();
+            if (!isWorkspaceSpecifier(spec) || isOrbUiSpecifier(spec)) {
+              return;
+            }
+            importCandidates.push({ node, rel, spec, original: node.getName(), alias: aliasNode.getText() });
+          },
+        },
+        {
+          kinds: [SyntaxKind.ExportSpecifier],
+          visit: (node) => {
+            if (!Node.isExportSpecifier(node)) {
+              return;
+            }
+            const aliasNode = node.getAliasNode();
+            const decl = node.getFirstAncestorByKind(SyntaxKind.ExportDeclaration);
+            if (aliasNode === undefined || decl === undefined) {
+              return;
+            }
+            const spec = decl.getModuleSpecifierValue();
+            if (spec !== undefined && !isWorkspaceSpecifier(spec)) {
+              return; // vendor-source rename-export (echarts-setup's OrbChartOption) — always legal
+            }
+            exportCandidates.push({ node, original: node.getName() });
+          },
+        },
+      ],
+      evaluate: () => {
+        const relOf = (sf: SourceFile): string => ctx.relativePath(sf);
+        const producerCount = computeProducerCount(ctx.files, relOf);
+        reportRenameImports(importCandidates, freqByFile, report);
+        reportRenameExports(exportCandidates, producerCount, report);
+        reportDoubleAliases(ctx.files, relOf, report);
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'import { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n',
-      at: "packages/server/src/domain/x/x.ts",
-      expect: { count: 1, token: "rename-import Foo" },
+      mode: "source",
+      files: { "packages/server/src/domain/x/x.ts": 'import { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n' },
+      expect: { count: 1, token: "Foo" },
       why: "a workspace rename-import whose original 'Foo' is not otherwise present — a cosmetic alias (rule a)",
     },
     {
-      files: 'export { Foo as Bar } from "@orb/kit/x";\n',
-      at: "packages/server/src/domain/x/index.ts",
-      expect: { count: 1, token: "rename-export Foo" },
+      mode: "source",
+      files: { "packages/server/src/domain/x/index.ts": 'export { Foo as Bar } from "@orb/kit/x";\n' },
+      expect: { count: 1, token: "Foo" },
       why: "a rename-export of a uniquely-homed name (0 producers here) — a synonym, the ChatSource class (rule b)",
     },
     {
-      files: "export type RouteOverlay = RouteChatAssignment;\nexport type RoutableChat = RouteChatAssignment;\n",
-      at: "packages/contracts/src/connection/index.ts",
-      expect: { count: 2, token: "double-alias RouteOverlay" },
-      why: "two bare type aliases onto one identifier outside a /contract/ home — the RouteOverlay/RoutableChat case (rule c). Two findings, one per alias, each naming its OWN position — a §4.3a marker must name which alias it forgives",
+      mode: "source",
+      files: {
+        "packages/contracts/src/connection/index.ts": "export type RouteOverlay = RouteChatAssignment;\nexport type RoutableChat = RouteChatAssignment;\n",
+      },
+      expect: { count: 2, token: "RouteOverlay" },
+      why: "two bare type aliases onto one identifier outside a /contract/ home — the RouteOverlay/RoutableChat case (rule c). Two findings, one per alias, each naming its OWN position — a marker must name which alias it forgives",
     },
   ],
   mustPass: [
     {
-      files: 'import { Foo as Bar } from "@orb/kit/x";\nexport function Foo(): number {\n  return 1;\n}\nexport const use = Bar;\n',
-      at: "packages/server/src/domain/x/x.ts",
+      mode: "source",
+      files: {
+        "packages/server/src/domain/x/waived.ts":
+          '// @orb-waive no-vanity-alias(Foo): the proof\'s stand-in reason; ends when this fixture stops flagging.\nimport { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n',
+      },
+      why: "THE IDENTITY ARM (§4.2): the twin of mustFlag[0], producing exactly one finding, waived by the one central marker at the position this policy actually reports (the original name `Foo`)",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/x/x.ts":
+          'import { Foo as Bar } from "@orb/kit/x";\nexport function Foo(): number {\n  return 1;\n}\nexport const use = Bar;\n',
+      },
       why: "a genuine collision — the original 'Foo' is also declared in-module, so the rename is necessary (rule a exempt)",
     },
     {
-      files: 'import { ColorField as UiColorField } from "@orb/ui/color-field";\nexport const use = UiColorField;\n',
-      at: "packages/client/src/forms/editor/bound-fields/color-field.tsx",
+      mode: "source",
+      files: {
+        "packages/client/src/forms/editor/bound-fields/color-field.tsx":
+          'import { ColorField as UiColorField } from "@orb/ui/color-field";\nexport const use = UiColorField;\n',
+      },
       why: "an @orb/ui design-system rename (the sealed client vendor) — sanctioned like the Base-UI seal (rule a exempt)",
     },
     {
-      files: 'import { messages as messagesTable } from "@orb/db";\nexport const t = messagesTable;\n',
-      at: "packages/server/src/entry/compose/services.ts",
+      mode: "source",
+      files: { "packages/server/src/entry/compose/services.ts": 'import { messages as messagesTable } from "@orb/db";\nexport const t = messagesTable;\n' },
       why: "the db `*Table` suffix convention off @orb/db (exact suffix) — systematic, exempt (rule a class-7)",
     },
     {
+      mode: "source",
       files: {
         "packages/server/src/domain/a/verbs/thing.ts": "export function createThing(): number {\n  return 1;\n}\n",
         "packages/server/src/domain/b/verbs/thing.ts": "export function createThing(): number {\n  return 2;\n}\n",
@@ -286,19 +362,27 @@ export const gate: GateDescriptor = {
       why: "a barrel rename of a GENERIC name (createThing declared by ≥2 producer modules) — disambiguation, legal (rule b exempt)",
     },
     {
-      files: 'export type { EChartsOption as OrbChartOption } from "echarts";\n',
-      at: "packages/ui/src/charts/chart/echarts-setup.ts",
+      mode: "source",
+      files: { "packages/ui/src/charts/chart/echarts-setup.ts": 'export type { EChartsOption as OrbChartOption } from "echarts";\n' },
       why: "a vendor-source rename-export (echarts-setup's OrbChartOption) — vendor renames are always legal (rule b exempt)",
     },
     {
-      files: "export type ProbeRequest = DiagnosticRequestCommon;\nexport type AccountCreditsRequest = DiagnosticRequestCommon;\n",
-      at: "packages/server/src/infra/providers/contract/diagnostics.ts",
+      mode: "source",
+      files: {
+        "packages/server/src/infra/providers/contract/diagnostics.ts":
+          "export type ProbeRequest = DiagnosticRequestCommon;\nexport type AccountCreditsRequest = DiagnosticRequestCommon;\n",
+      },
       why: "distinct-alias-per-verb onto one shape in an infra /contract/ vocab home — contract doctrine, scoped out of rule c (class-8)",
     },
     {
-      files: "export type VariablesResult = ChatVariables;\n",
-      at: "packages/contracts/src/x.ts",
+      mode: "source",
+      files: { "packages/contracts/src/x.ts": "export type VariablesResult = ChatVariables;\n" },
       why: "a single bare type alias — the verb-vocabulary doctrine keeps one-off aliases legal (rule c needs 2+)",
     },
+    {
+      mode: "source",
+      files: { "packages/server/src/domain/x/x.test.ts": 'import { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n' },
+      why: "THE POPULATION FENCE, pinned: a `.test.ts` file inside `@server` is admitted to the population but excluded by the `TEST_FILE`-suffix content filter — the same rename that would flag in a prod file is invisible here. Deleting the `inScope` filter leaves every other row green; this is the row that dies without it",
+    },
   ],
-};
+});
