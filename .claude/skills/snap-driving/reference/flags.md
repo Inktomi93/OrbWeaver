@@ -17,7 +17,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | Flag | What it does |
 | - | - |
 | `--design-audit` | the deterministic UI defect scan — the whole ui-audit rule engine over the settled surface |
-| `--fail-on <value>` | --design-audit exits 1 at this severity or worse (P0|P1|P2|P3, default P1) |
+| `--fail-on <value>` | --design-audit exits 1 at this severity or worse (P0\|P1\|P2\|P3, default P1) |
 
 ## Where
 

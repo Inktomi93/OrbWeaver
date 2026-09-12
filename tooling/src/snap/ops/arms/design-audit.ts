@@ -185,7 +185,7 @@ export const DESIGN_AUDIT_ARM = {
       kind: "required-value",
       pageTargetable: false,
       group: "Judge",
-      summary: "--design-audit exits 1 at this severity or worse (P0|P1|P2|P3, default P1)",
+      summary: "--design-audit exits 1 at this severity or worse (P0\\|P1\\|P2\\|P3, default P1)",
       handler: failOnHandler,
     },
   ],
