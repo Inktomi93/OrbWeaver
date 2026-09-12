@@ -33,8 +33,8 @@
 // a hand-written prefix test, which is the difference from this policy's `no-raw-random` sibling.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { AmbientSource } from "../contract/ambient-determinism.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { AmbientSource } from "../lib/ambient-determinism.ts";
 import { readAmbientInvocation } from "../lib/ambient-determinism.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";

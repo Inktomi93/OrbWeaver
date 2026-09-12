@@ -103,3 +103,13 @@ export interface PolicyPassResult {
 
 /** Runtime-only loaded fact token union derived from selected policy descriptors. */
 export type SelectedGateFact = GateFact;
+
+/** What the dispatcher has for one declared fact at a given moment (#1988). `lib/policy-pass-context.ts`
+ *  writes it and the pass reads it to withhold every dependent of a failed fact, so the registry crosses a
+ *  module boundary inside the runtime and `lib/` is not a type home. */
+export type PolicyFactValueEntry =
+  | { readonly status: "pending" }
+  | { readonly status: "ready"; readonly value: unknown }
+  | { readonly status: "failed"; readonly message: string };
+
+export type PolicyFactValueRegistry = Map<GateFact, PolicyFactValueEntry>;

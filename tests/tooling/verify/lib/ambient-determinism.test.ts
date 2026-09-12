@@ -4,7 +4,7 @@
 // resolve to a DIFFERENT binding and answer `other` (a text check reds the shadow); and a callee the checker
 // cannot bind at all answers `unreadable` rather than absence, which is what a fail-closed policy consumes.
 import { Project, SyntaxKind } from "ts-morph";
-import type { AmbientSource } from "../../../../tooling/src/verify/lib/ambient-determinism.ts";
+import type { AmbientSource } from "../../../../tooling/src/verify/contract/ambient-determinism.ts";
 import { invocationCallee, readAmbientInvocation } from "../../../../tooling/src/verify/lib/ambient-determinism.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 

@@ -10,7 +10,7 @@ import type {
   GatePolicyFindingDetails,
   GatePolicyNodeFindingDetails,
 } from "../contract/policy.ts";
-import type { PolicySemanticReceipt } from "../contract/policy-pass.ts";
+import type { PolicyFactValueRegistry, PolicySemanticReceipt } from "../contract/policy-pass.ts";
 import type { GatePolicyReceipt } from "../contract/policy-primitives.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
@@ -39,13 +39,6 @@ interface ContextInput {
   readonly findings: RawGateFinding[];
   readonly factValues: PolicyFactValueRegistry;
 }
-
-export type PolicyFactValueEntry =
-  | { readonly status: "pending" }
-  | { readonly status: "ready"; readonly value: unknown }
-  | { readonly status: "failed"; readonly message: string };
-
-export type PolicyFactValueRegistry = Map<GateFact, PolicyFactValueEntry>;
 
 export interface PolicyContextRuntime {
   readonly context: GatePolicyContext;

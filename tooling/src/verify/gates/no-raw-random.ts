@@ -32,8 +32,8 @@
 // halves differ only where the legacy complement admitted a path outside `packages/*/src` and `tooling/src`.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { AmbientSource } from "../contract/ambient-determinism.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { AmbientSource } from "../lib/ambient-determinism.ts";
 import { readAmbientInvocation } from "../lib/ambient-determinism.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
 

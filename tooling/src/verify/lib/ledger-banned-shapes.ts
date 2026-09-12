@@ -16,51 +16,7 @@
 // AUTHORITY IS HARD ON BOTH POLICIES, BY DESIGN: a ledger verdict's only escape is contesting the D-cite in
 // Core-Laws-and-Precedents.md, never a comment written at the reintroduction site by the same hand.
 
-/** A named column that must not exist on a named table. */
-export interface LedgerColumnBan {
-  readonly kind: "column";
-  readonly table: string;
-  readonly column: string;
-  readonly cite: string;
-}
-
-/** A FAMILY of column names on a named table (`chats.*presetId*`), with the label the finding prints. */
-export interface LedgerColumnPatternBan {
-  readonly kind: "column-pattern";
-  readonly table: string;
-  readonly pattern: RegExp;
-  readonly label: string;
-  readonly cite: string;
-}
-
-/** A whole table the ledger refused. */
-export interface LedgerTableBan {
-  readonly kind: "table";
-  readonly table: string;
-  readonly cite: string;
-}
-
-/** A member that must not appear on a named exported interface. `home` is the declaration's ONE home: a
- *  name-keyed ban whose subject stops resolving there is a silent no-op, so the policy REDs on it. */
-export interface LedgerInterfaceFieldBan {
-  readonly kind: "interface-field";
-  readonly typeName: string;
-  readonly field: string;
-  readonly home: string;
-  readonly cite: string;
-}
-
-/** A key that must not appear in a named exported Zod object schema's shape. */
-export interface LedgerSchemaFieldBan {
-  readonly kind: "schema-field";
-  readonly schemaVar: string;
-  readonly field: string;
-  readonly home: string;
-  readonly cite: string;
-}
-
-export type SchemaBannedShape = LedgerColumnBan | LedgerColumnPatternBan | LedgerTableBan;
-export type ContractBannedShape = LedgerInterfaceFieldBan | LedgerSchemaFieldBan;
+import type { ContractBannedShape, LedgerColumnBan, SchemaBannedShape } from "../contract/ledger-banned-shapes.ts";
 
 /** D26: `messages` is a pure SLOT — content and economics live only on `message_variants`. */
 const MESSAGE_ECONOMICS: readonly string[] = [

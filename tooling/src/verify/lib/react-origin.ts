@@ -12,6 +12,7 @@
 // invocation-local per-file alias index each matcher closes over.
 import type { ImportSpecifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { ReactExportFinding, ReactOriginVerdict } from "../contract/origin-verdict.ts";
 import type { GatePolicyVisitor } from "../contract/policy-primitives.ts";
 import type { ModuleMemberOrigin, ReferenceFact } from "../contract/reference-fact.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
@@ -25,10 +26,6 @@ export const REACT_MODULE = "react";
 /** The `node_modules` directories that declare React's public surface. React ships no types of its own
  *  today, but a future inline `react/index.d.ts` must not silently stop matching. */
 export const REACT_TYPE_HOMES: readonly string[] = ["@types/react", "react"];
-
-/** Three answers, never two: the subject IS React's export, is provably something else, or could not be
- *  read at all. The third is a policy finding, never a silent pass (GATE-AUTHORING §5, #944). */
-export type ReactOriginVerdict = "react" | "other" | "unreadable";
 
 /** The React export a resolved origin ultimately names. A NAMED or NAMESPACE door lands the export name
  *  directly; a DEFAULT door (`import React from "react"`) lands `default` plus a one-hop member path, and
@@ -141,10 +138,6 @@ export function createReactExportMatcher(exportedName: string): ReactExportMatch
     },
   };
 }
-
-/** The reportable verdicts. `other` is the only silent answer, and it is only reached by a PROVEN
- *  different identity. */
-export type ReactExportFinding = Exclude<ReactOriginVerdict, "other">;
 
 /** The TWO doors a deprecated React export enters a file through, as one visitor pair. Both `no-forward-ref`
  *  and `no-use-context` are exactly this shape and must stay arm-for-arm identical: they are the same law

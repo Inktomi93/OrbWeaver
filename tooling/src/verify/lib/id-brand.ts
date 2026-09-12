@@ -1,7 +1,7 @@
 // Canonical @orb/kit/ids phantom extraction shared by schema and source identity policies.
 import type { CallExpression, ImportDeclaration, Node as MorphNode, SourceFile, Type, TypeChecker } from "ts-morph";
 import { Node } from "ts-morph";
-import type { OriginVerdict } from "../contract/origin-verdict.ts";
+import type { KitIdCallVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { resolveCallableOrigin } from "./reference-fact-call.ts";
 
@@ -62,10 +62,6 @@ function couldNameExport(call: CallExpression, exportedName: string, names: Read
     argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) && argument.getLiteralText() === exportedName
   );
 }
-
-/** The three answers a candidate kit call can give. `other` is the only silence — a PROVEN different
- *  identity, which is what a local same-named function is. */
-export type KitIdCallVerdict = OriginVerdict<"kit">;
 
 /** Invocation-local exact kit-call matcher; each source's import aliases are indexed once.
  *

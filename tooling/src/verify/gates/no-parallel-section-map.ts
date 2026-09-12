@@ -72,9 +72,10 @@
 import type { ArrayLiteralExpression, Expression, Node as MorphNode, ObjectLiteralExpression, TypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import type { DefinitionSlot } from "../contract/registry-definition-home.ts";
+import { DEFINITION_SLOTS } from "../contract/registry-definition-home.ts";
 import { readStringValue } from "../lib/ast-read.ts";
-import type { DefinitionSlot } from "../lib/registry-definition-home.ts";
-import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
+import { isDefinitionHome } from "../lib/registry-definition-home.ts";
 import { readTupleDeclaration } from "../lib/tuple-read.ts";
 
 /** ≥ this many vocabulary keys in one literal = a re-declared parallel map, not an incidental pair. */

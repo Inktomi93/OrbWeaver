@@ -32,6 +32,7 @@ import type {
   ManifestPart,
   RenderSite,
   SurfaceManifest,
+  SurfaceManifestRead,
 } from "../contract/baseui.ts";
 import { DISPOSITIONS, EXPORT_KINDS } from "../contract/baseui.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
@@ -238,17 +239,6 @@ export function readManifest(root: string): SurfaceManifest | undefined {
   const read = surfaceManifestFrom(JSON.parse(readFileSync(path, "utf8")) as JsonValue);
   return read.ok ? read.manifest : undefined;
 }
-
-/** The committed ledger's SHAPE, narrowed from a strict-JSON resource fact — or the exact reason it is not
- *  a manifest. Both doors reach it (`readManifest` above for the generator, `ctx.resources.json(...)` for
- *  every converted policy), so the shape has ONE home and cannot drift between them.
- *
- *  WHY A REASON RATHER THAN `undefined`. A `json` resource that PARSED is `ready`; the runtime has already
- *  said "this file exists and is JSON". A committed artifact that is valid JSON and not a manifest is a
- *  PRODUCT defect, not a broken resource, so the honest outcome is a FINDING carrying what was wrong —
- *  which is why this returns the reason rather than collapsing to "absent" (`resource-policy-contract.md`
- *  §2, the READY-but-degenerate case). */
-export type SurfaceManifestRead = { readonly ok: true; readonly manifest: SurfaceManifest } | { readonly ok: false; readonly reason: string };
 
 function refuseManifest(reason: string): SurfaceManifestRead {
   return { ok: false, reason };

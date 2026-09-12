@@ -66,6 +66,7 @@
 // unwrapping ... are shared primitives"). No Project, no workspace cache, no filesystem, no marker parser.
 import type { BindingElement, Block, CallExpression, CatchClause, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { CaughtFailureArm } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { isWaivablePosition } from "./ordinary-waiver.ts";
 
@@ -1457,11 +1458,6 @@ function valueHasMeaningfulConsumer(node: Node): boolean {
     current = parent;
   }
 }
-
-/** The three detector arms. ONE tuple, so a fourth arm is a row here and `tsc` finds every reader
- *  (Spine-TypeScript-and-Patterns.md, string-union dispatch). */
-export const CAUGHT_FAILURE_ARMS = ["default", "empty", "promise"] as const;
-export type CaughtFailureArm = (typeof CAUGHT_FAILURE_ARMS)[number];
 
 export interface CaughtFailureSite {
   readonly arm: CaughtFailureArm;

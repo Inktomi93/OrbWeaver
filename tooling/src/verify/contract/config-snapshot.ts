@@ -77,3 +77,11 @@ export interface ConfigSnapshotTransaction {
   readonly paths: readonly string[];
   readonly cleanup: () => void;
 }
+
+/** The outcome of one native-config snapshot read (#1988). `lib/config-snapshot.ts` produces it and
+ *  `ops/resource-native-config.ts` narrows it into a resource receipt, so it crosses the lib↔ops boundary
+ *  and `lib/` is not a type home. `unreadable` carries the detail: a config the runner could not resolve is
+ *  a refusal with a reason, never an empty snapshot. */
+export type ConfigSnapshotRead<R extends ConfigSnapshotRunner> =
+  | { readonly kind: "ok"; readonly snapshot: ConfigSnapshotByRunner[R] }
+  | { readonly kind: "unreadable"; readonly detail: string };

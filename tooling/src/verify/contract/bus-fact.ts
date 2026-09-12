@@ -1,6 +1,7 @@
 // Invocation-local semantic identities returned by the shared bus fact reader.
 import type { Node } from "ts-morph";
 import type { GatePolicyContext } from "./policy.ts";
+import type { ReferenceUnresolvedReason } from "./reference-fact.ts";
 
 export const BUS_FACT_STATUSES = ["ready", "missing", "empty", "unresolved"] as const;
 export type BusFactStatus = (typeof BUS_FACT_STATUSES)[number];
@@ -109,3 +110,13 @@ export function describeBusFactFailure(fact: BusNonReadyFact): string {
   const details = fact.unresolved.map(({ stage, reason, detail }) => `${stage}/${reason}: ${detail}`).join("; ");
   return `bus fact ${fact.status}: ${details || "no readable bus identities"}`;
 }
+
+/** The discriminator set one emitter argument's FLOW type carries, or the refusal that read it (#1988).
+ *  Raised by `lib/bus-fact-read.ts` and consumed by the bus fact's callers, so it is a cross-boundary shape
+ *  and `lib/` is not a type home. */
+export type BusTypedDiscriminators =
+  | { readonly kind: "resolved"; readonly values: readonly string[] }
+  | { readonly kind: "refused"; readonly reason: ReferenceUnresolvedReason; readonly detail: string };
+
+/** Which proven sink an emitter call reaches: the one bus-channel publisher, or an injected callable. */
+export type EmitterSinkKind = "channel" | "injected";

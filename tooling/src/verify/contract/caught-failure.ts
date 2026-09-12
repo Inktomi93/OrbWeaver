@@ -16,13 +16,24 @@
 export const CAUGHT_FAILURE_VERDICTS = ["deliberate-absorb", "unproven"] as const;
 export type CaughtFailureVerdict = (typeof CAUGHT_FAILURE_VERDICTS)[number];
 
+/** The three detector arms. ONE tuple, so a fourth arm is a row here and `tsc` finds every reader
+ *  (Spine-TypeScript-and-Patterns.md, string-union dispatch). Homed beside the census verdicts rather than
+ *  in `lib/caught-failure.ts` (#1988): the arm crosses the lib↔policy boundary three ways — the detector
+ *  raises it, `gates/caught-failure-ownership.ts` keys its per-arm message map on it, and both the census
+ *  generator and its repo pin enumerate it. */
+export const CAUGHT_FAILURE_ARMS = ["default", "empty", "promise"] as const;
+export type CaughtFailureArm = (typeof CAUGHT_FAILURE_ARMS)[number];
+
 export interface CaughtFailureRow {
   /** Stable across line moves: path + reported position + the nth occurrence of that pair in the file. */
   readonly siteId: string;
   readonly path: string;
   readonly line: number;
   readonly column: number;
-  /** `promise` | `empty` | `default` — the detector arm (`CaughtFailureArm` in lib/caught-failure.ts). */
+  /** `promise` | `empty` | `default` — the detector arm (`CaughtFailureArm` above; it moved here from
+   *  lib/caught-failure.ts with #1988). Typed `string` on the committed row, not narrowed: the repo pin
+   *  (tests/tooling/verify/gates/caught-failure-ownership.repo.int.test.ts:71) is what asserts every row's
+   *  grammar is a live arm. */
   readonly grammar: string;
   /** The exact token the finding reports and a marker must name. */
   readonly position: string;

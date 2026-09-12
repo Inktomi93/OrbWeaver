@@ -21,10 +21,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe } from "vitest";
+import { CAUGHT_FAILURE_ARMS } from "../../../../tooling/src/verify/contract/caught-failure.ts";
 import { gate as caughtFailureOwnership } from "../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
 import type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureVerdict } from "../../../../tooling/src/verify/index.ts";
 import { CAUGHT_FAILURE_VERDICTS, deriveCaughtFailurePopulation, POPULATION_REL, projectCtx, runPolicyPass } from "../../../../tooling/src/verify/index.ts";
-import { CAUGHT_FAILURE_ARMS } from "../../../../tooling/src/verify/lib/caught-failure.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const GATE = "caught-failure-ownership";

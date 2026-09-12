@@ -92,9 +92,10 @@
 // the `@orb-gate-ignore` grammar named above and its own inline three-arm reader before this conversion
 // extracted `lib/caught-failure.ts`.
 import { SyntaxKind } from "ts-morph";
+import type { CaughtFailureArm } from "../contract/caught-failure.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { CaughtFailureArm, CaughtFailureSite } from "../lib/caught-failure.ts";
+import type { CaughtFailureSite } from "../lib/caught-failure.ts";
 import { catchClauseSite, promiseAbsorberSite } from "../lib/caught-failure.ts";
 
 const MESSAGE =
