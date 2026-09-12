@@ -19,6 +19,26 @@ import { assertPolicyScopeRequest } from "./policy-scope.ts";
 const FAIL_ON_WARNINGS_OPTION = "fail-on-warnings";
 export const FAIL_ON_WARNINGS_FLAG = `--${FAIL_ON_WARNINGS_OPTION}`;
 
+/** The two SELECTION spellings, exported for the same reason `FAIL_ON_WARNINGS_FLAG` is (#1964): the
+ *  GATE-SCOPED door on the mixed front door (`ops/structure.ts`) is a second REACH into this grammar, never
+ *  a second spelling. `--check` names modules by id, `--family` names a final policy family; when the atomic
+ *  cutover points `structure` at `planPolicyArgv`, the tokens an operator already types are the tokens the
+ *  planner already parses. */
+const CHECK_OPTION = "check";
+const FAMILY_OPTION = "family";
+export const CHECK_FLAG = `--${CHECK_OPTION}`;
+export const FAMILY_FLAG = `--${FAMILY_OPTION}`;
+
+/** A grammar refusal carrying only its message: the shape both doors turn into their OWN refusal (this
+ *  module's `exitCode: 3` result, `ops/structure.ts`'s `UsageError`) without either re-spelling the rule. */
+export interface SelectionRefusal {
+  readonly message: string;
+}
+
+export function isSelectionRefusal(value: readonly string[] | SelectionRefusal | PolicySelector): value is SelectionRefusal {
+  return !Array.isArray(value) && "message" in value;
+}
+
 const OPTIONS = {
   tier: { type: "string" },
   static: { type: "boolean" },
@@ -38,7 +58,7 @@ const OPTIONS = {
   list: { type: "boolean" },
   explain: { type: "boolean" },
 } as const;
-const REPEATABLE_OPTIONS = new Set(["file", "check", "family"]);
+const REPEATABLE_OPTIONS = new Set(["file", CHECK_OPTION, FAMILY_OPTION]);
 const POLICY_ID_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
 interface Values {
@@ -65,34 +85,36 @@ function refuse(message: string): PolicyCommandParseResult {
   return { ok: false, exitCode: 3, message };
 }
 
-function sortedNames(values: readonly string[] | undefined, label: string): readonly string[] | PolicyCommandParseResult {
+function sortedNames(values: readonly string[] | undefined, label: string): readonly string[] | SelectionRefusal {
   if (values === undefined) {
     return [];
   }
   if (values.some((value) => value.length === 0 || value.trim() !== value)) {
-    return refuse(`${label} needs a nonempty value`);
+    return { message: `${label} needs a nonempty value` };
   }
   const sorted = [...values].toSorted();
   const duplicate = sorted.find((value, index) => value === sorted[index - 1]);
-  return duplicate === undefined ? sorted : refuse(`duplicate ${label} selection ${JSON.stringify(duplicate)}`);
+  return duplicate === undefined ? sorted : { message: `duplicate ${label} selection ${JSON.stringify(duplicate)}` };
 }
 
-function isParseFailure(value: readonly string[] | PolicyCommandParseResult): value is PolicyCommandParseResult {
-  return !Array.isArray(value);
-}
-
-function selector(values: Values): PolicySelector | PolicyCommandParseResult {
-  if (values.check !== undefined && values.family !== undefined) {
-    return refuse("selection is ambiguous: choose --check or --family, not both");
+/** THE ONE selector grammar: ambiguity, nonempty/duplicate values, kebab-case, and the empty request that
+ *  means "all". Both doors call it — this module's full policy grammar and the mixed front door's own tail
+ *  (`ops/structure.ts`, #1964) — so `--check`/`--family` cannot drift into two meanings.
+ *
+ *  It resolves only the GRAMMAR. Whether the names it produces exist is a question about the corpus, and
+ *  its one home is `lib/policy-plan.ts`'s `refuseSelection`. */
+export function buildSelector(check: readonly string[] | undefined, family: readonly string[] | undefined): PolicySelector | SelectionRefusal {
+  if (check !== undefined && family !== undefined) {
+    return { message: `selection is ambiguous: choose ${CHECK_FLAG} or ${FAMILY_FLAG}, not both` };
   }
-  const kind = values.check === undefined ? "family" : "check";
-  const names = sortedNames(values[kind], `--${kind}`);
-  if (isParseFailure(names)) {
+  const kind = check === undefined ? FAMILY_OPTION : CHECK_OPTION;
+  const names = sortedNames(check ?? family, `--${kind}`);
+  if (isSelectionRefusal(names)) {
     return names;
   }
   const malformed = names.find((name) => !POLICY_ID_RE.test(name));
   if (malformed !== undefined) {
-    return refuse(`--${kind} selection must be kebab-case: ${JSON.stringify(malformed)}`);
+    return { message: `--${kind} selection must be kebab-case: ${JSON.stringify(malformed)}` };
   }
   return names.length === 0 ? { kind: "all" } : { kind, names };
 }
@@ -114,8 +136,8 @@ function scope(values: Values): PolicyScopeRequest | PolicyCommandParseResult {
     request = { kind: "changed" };
   } else if (values.file !== undefined) {
     const paths = sortedNames(values.file, "--file");
-    if (isParseFailure(paths)) {
-      return paths;
+    if (isSelectionRefusal(paths)) {
+      return refuse(paths.message);
     }
     if (paths.length === 0) {
       return refuse("--file needs at least one value");
@@ -193,17 +215,29 @@ function runTier(values: Values, scopeKind: PolicyScopeRequest["kind"]): PolicyR
   return [...tiers][0] ?? (scopeKind === "whole" ? "static" : "changed");
 }
 
-export function parsePolicyCommand(argv: readonly string[]): PolicyCommandParseResult {
+/** `parseArgs` accepts a repeated boolean silently (last wins), so the DUPLICATE sweep is ours — and it is
+ *  the same sweep on both doors (#1964): `structure --fail-on-warnings --fail-on-warnings` is misuse for the
+ *  same reason `verify run --static --static` is. `repeatable` names the options that legitimately appear
+ *  more than once, so a caller with a smaller grammar passes its own set rather than re-spelling the rule. */
+export function refuseDuplicateOptions(argv: readonly string[], repeatable: ReadonlySet<string>): string | null {
   const seen = new Set<string>();
   for (const token of argv) {
     if (!token.startsWith("--")) {
       continue;
     }
     const name = token.slice(2).split("=", 1)[0] ?? "";
-    if (!REPEATABLE_OPTIONS.has(name) && seen.has(name)) {
-      return refuse(`duplicate option --${name}`);
+    if (!repeatable.has(name) && seen.has(name)) {
+      return `duplicate option --${name}`;
     }
     seen.add(name);
+  }
+  return null;
+}
+
+export function parsePolicyCommand(argv: readonly string[]): PolicyCommandParseResult {
+  const duplicate = refuseDuplicateOptions(argv, REPEATABLE_OPTIONS);
+  if (duplicate !== null) {
+    return refuse(duplicate);
   }
   let values: Values;
   try {
@@ -212,10 +246,11 @@ export function parsePolicyCommand(argv: readonly string[]): PolicyCommandParseR
   } catch (error) {
     return refuse(error instanceof Error ? error.message : String(error));
   }
-  const selected = selector(values);
-  if (!("kind" in selected)) {
-    return selected;
+  const built = buildSelector(values.check, values.family);
+  if (isSelectionRefusal(built)) {
+    return refuse(built.message);
   }
+  const selected = built;
   const inspection = inspectionRequest(values, selected);
   if (inspection !== undefined) {
     return inspection;

@@ -20,6 +20,7 @@ import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { parsePolicyCommand } from "./policy-command.ts";
 import { runPolicyPass } from "./policy-pass.ts";
 import { resolvePolicyScope } from "./policy-scope.ts";
+import { refuseSelection } from "./policy-selection.ts";
 import { isPolicySourceCandidate, policySourceCandidates } from "./policy-source-candidate.ts";
 import { assertGatePolicyDescriptor, normalizePathSet } from "./policy-validation.ts";
 import { populationIncludes, resolvePopulation } from "./population-resolver.ts";
@@ -75,21 +76,16 @@ function validateCorpus(input: Pick<PolicyPlannerInput, "corpus">): readonly Gat
   return sorted;
 }
 
+/** The planner's view of the selection rule, which lives in `lib/policy-selection.ts` — one home, two doors:
+ *  a refusal surfaces here as a planning misuse and on the mixed front door as a thrown `UsageError`. */
 function selectedPolicies(policies: readonly GatePolicy[], selector: PolicySelector): readonly GatePolicy[] | PolicyPlanningResult {
   if (selector.kind === "all") {
     return policies;
   }
-  if (selector.names.length === 0) {
-    return misuse(`${selector.kind} selection must not be empty`);
-  }
-  const duplicate = selector.names.toSorted().find((name, index, names) => name === names[index - 1]);
-  if (duplicate !== undefined) {
-    return misuse(`duplicate ${selector.kind} selection ${JSON.stringify(duplicate)}`);
-  }
   const available = new Set(policies.map((policy) => (selector.kind === "check" ? policy.id : policy.family)));
-  const unknown = selector.names.filter((name) => !available.has(name)).toSorted();
-  if (unknown.length > 0) {
-    return misuse(`unknown ${selector.kind} selection(s): ${unknown.join(", ")}`);
+  const refusal = refuseSelection(selector, available);
+  if (refusal !== null) {
+    return misuse(refusal);
   }
   const requested = new Set(selector.names);
   return policies.filter((policy) => requested.has(selector.kind === "check" ? policy.id : policy.family));

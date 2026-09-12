@@ -11,26 +11,51 @@
 // moment the run starts, and the finished report at the end — and the counts are reconciled before any
 // clean/violations exit, on BOTH contracts. A killed run therefore leaves an artifact that SAYS it is not a
 // verdict instead of leaving the previous run's complete-looking file for the next reader to consume.
+//
+// THE GATE-SCOPED DOOR (#1964/#1973/#1992). `--check <id>` / `--family <name>` narrow WHICH gates run — and
+// NOTHING ELSE. The ts-morph Project, the fileset and every population stay the whole real tree, because the
+// question the per-conversion floor (§8.8) asks is "what does MY policy report on the REAL tree", and
+// narrowing the population answers a different question: it would change what the gate SEES and therefore can
+// change its verdict. So the door filters the SELECTED SET and leaves the corpus alone: a floor asking about
+// one gate runs that gate's dispatchers and nobody else's, which is also why #1992 is DISCHARGED here rather
+// than optimized — `policy-soundness` is simply not in a selection that did not name it.
+//
+// Two properties keep a partial run from ever being mistaken for the corpus verdict — they are the whole
+// difference between a useful door and a dangerous one, because a wrong answer with a real artifact behind it
+// is strictly worse than no answer: the manifest records the SELECTION, and a selected run does NOT publish
+// `reports/check-structure.json` (it prints its own slot), so no fixed-path reader can pick a one-gate report
+// up as the whole one.
+//
+// QUIET (#2069). A fixture-planting suite materializes `__g_` / `__dc_` files INSIDE the real package tree
+// (tests/tooling/check-gates.repo.int.test.ts), so a structure run overlapping one judges a tree that does not
+// exist and comes back with inflated raw counts that look exactly like a real number. This run therefore
+// OBSERVES those paths at both ends of its own walk and marks itself NOT QUIET when it sees any it did not
+// plant — a non-verdict that says so, instead of a number nobody can tell apart from a real one.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { parseArgs } from "node:util";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
 import { checkoutName, openRunSlot, publishRunSlot } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import type { MixedGateCorpus } from "../contract/gate-corpus.ts";
+import type { MixedGateCorpus, SelectedGateCorpus } from "../contract/gate-corpus.ts";
 import type { Violation } from "../contract/harness.ts";
 import type { PassResult } from "../contract/pass.ts";
+import type { GatePolicy } from "../contract/policy.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
+import type { PolicySelector } from "../contract/policy-plan.ts";
 import type { RunManifest } from "../contract/run-manifest.ts";
 import type { FinalPolicyRow, LegacyGateRow, StructurePolicyReport, StructureReport } from "../contract/structure-report.ts";
 import { loadMixedGateCorpus } from "../lib/loader.ts";
 import { projectCtx, runPass, stripProbeFindings, stripProbePolicyFindings, zeroScanGates } from "../lib/pass.ts";
-import { FAIL_ON_WARNINGS_FLAG } from "../lib/policy-command.ts";
+import { notQuietReasons, plantedPaths } from "../lib/planted-fixtures.ts";
+import { buildSelector, CHECK_FLAG, FAIL_ON_WARNINGS_FLAG, FAMILY_FLAG, isSelectionRefusal, refuseDuplicateOptions } from "../lib/policy-command.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyPassExitCode } from "../lib/policy-plan.ts";
+import { isSelectionFailure, resolveMixedSelection } from "../lib/policy-selection.ts";
 import { populationAlarms } from "../lib/population.ts";
 import { renderPass, renderPolicyPass } from "../lib/render.ts";
 import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
@@ -52,18 +77,20 @@ function toLegacyRows(pass: PassResult, gatesByName: ReadonlyMap<string, GateDes
 /** The reconciliation (#410) over BOTH contracts: every corpus file accounted for, every ACTIVE legacy descriptor
  *  actually run, every registered final policy actually reported. A mismatch means the report is SHORTER than the
  *  corpus — the exact shape a silently-skipped gate makes, and the one a verdict must never be read off. */
-function reconcile(corpus: MixedGateCorpus, pass: PassResult, finalRows: readonly FinalPolicyRow[]): readonly string[] {
+function reconcile(corpus: MixedGateCorpus, selected: SelectedGateCorpus, pass: PassResult, finalRows: readonly FinalPolicyRow[]): readonly string[] {
   const out: string[] = [];
   if (corpus.files.length === 0) {
     out.push("the gate corpus resolved ZERO modules — nothing was loaded, so this run is not a verdict");
   }
-  const active = corpus.legacy.filter((g) => g.status === "active").length;
+  // The denominator is the SELECTION, not the corpus (#1964): a gate-scoped run is short only when it failed
+  // to run something it WAS asked about. On the default whole-corpus run the two are the same set.
+  const active = selected.legacy.filter((g) => g.status === "active").length;
   if (pass.gates.length !== active) {
     out.push(`${pass.gates.length} legacy gate(s) produced a result but ${active} were ACTIVE — the legacy pass is short by ${active - pass.gates.length}`);
   }
-  if (finalRows.length !== corpus.final.length) {
+  if (finalRows.length !== selected.final.length) {
     out.push(
-      `${finalRows.length} final polic(ies) produced a result but ${corpus.final.length} were registered — the final pass is short by ${corpus.final.length - finalRows.length}`,
+      `${finalRows.length} final polic(ies) produced a result but ${selected.final.length} were registered — the final pass is short by ${selected.final.length - finalRows.length}`,
     );
   }
   if (corpus.unregistered.length > 0) {
@@ -100,8 +127,12 @@ function writeInFlight(slot: RunSlot, run: RunManifest): void {
   });
 }
 
-function startManifest(root: string, slot: RunSlot): RunManifest {
+function startManifest(root: string, slot: RunSlot, selection: PolicySelector): RunManifest {
   return {
+    selection,
+    // The stub's honest value: nothing has been OBSERVED yet, and `complete: false` is already what refuses
+    // this artifact as a verdict. The finished report carries the real answer.
+    quiet: true,
     runId: slot.runId,
     checkout: checkoutName(root),
     artifactDir: slot.relDir,
@@ -145,13 +176,21 @@ function keepProbeFindings(): boolean {
  *
  *  `failOnWarnings` arrives from the operator and DEFAULTS FALSE (see runStructure's tail): a final
  *  `severity: "warning"` finding is reported, counted in `verdict.warnings`, and blocks nothing. */
-function runFinalPass(corpus: MixedGateCorpus, ctx: Omit<GateRunCtx, "report" | "scan">, failOnWarnings: boolean): PolicyPassResult | null {
-  if (corpus.final.length === 0) {
+function runFinalPass(
+  corpus: MixedGateCorpus,
+  selectedFinal: readonly GatePolicy[],
+  ctx: Omit<GateRunCtx, "report" | "scan">,
+  failOnWarnings: boolean,
+): PolicyPassResult | null {
+  if (selectedFinal.length === 0) {
     return null;
   }
   const raw = runPolicyPass({
+    // `knownPolicies` stays the WHOLE loaded roster even under a selection (#1964): a narrower roster
+    // manufactures unknown-policy waiver alarms, and `assertSelectedPoliciesAreLoaded` already rules
+    // `policies ⊆ knownPolicies` as the supported scoped shape.
     knownPolicies: corpus.final,
-    policies: corpus.final,
+    policies: selectedFinal,
     root: ctx.root,
     project: ctx.project,
     reviewedGrants: reviewedGrantsFor(corpus.final),
@@ -166,11 +205,32 @@ interface FinalSide {
   readonly report: StructurePolicyReport | null;
 }
 
-function finalSide(corpus: MixedGateCorpus, result: PolicyPassResult | null): FinalSide {
+function finalSide(selectedFinal: readonly GatePolicy[], result: PolicyPassResult | null): FinalSide {
   if (result === null) {
     return { result, rows: [], report: null };
   }
-  return { result, rows: policyRows(result, corpus.final), report: policyReport(result) };
+  return { result, rows: policyRows(result, selectedFinal), report: policyReport(result) };
+}
+
+/** A SELECTED run resolves its names against the loader BEFORE the run slot opens (#1117): an id that matches
+ *  nothing is misuse and must leave no artifact at all, and a selection that matched nothing must never run as
+ *  a clean zero. The corpus it loaded is handed back so the run below loads it exactly ONCE.
+ *
+ *  `null` on the DEFAULT run — nothing moves, and the corpus still loads in its original position, which is
+ *  what keeps the whole-corpus artifact identical to the pre-#1964 one. */
+async function preflightSelection(
+  root: string,
+  selection: PolicySelector,
+): Promise<{ readonly corpus: MixedGateCorpus; readonly selected: SelectedGateCorpus } | null> {
+  if (selection.kind === "all") {
+    return null;
+  }
+  const corpus = await loadMixedGateCorpus(root);
+  const selected = resolveMixedSelection(corpus, selection);
+  if (isSelectionFailure(selected)) {
+    throw new UsageError(tailRefusal(selected.message));
+  }
+  return { corpus, selected };
 }
 
 /** The single invocation: load BOTH contracts, build ONE Project, run each dispatcher, render both, write the ONE
@@ -179,23 +239,30 @@ function finalSide(corpus: MixedGateCorpus, result: PolicyPassResult | null): Fi
  *  `runTool` sets `process.exitCode` from it — never `process.exit`, which drops the buffered stdout write below
  *  and truncates a large report mid-line (the fixture-run report the check-gates anti-drift test parses). */
 export async function runStructure(root: string, argv: readonly string[]): Promise<number> {
-  const failOnWarnings = parseWarningPromotion(argv);
+  const request = parseStructureTail(argv);
+  const preflight = await preflightSelection(root, request.selection);
   const slot = openRunSlot(root, "structure");
   announceRacing(slot);
-  const started = startManifest(root, slot);
+  const started = startManifest(root, slot, request.selection);
   writeInFlight(slot, started);
 
-  const corpus = await loadMixedGateCorpus(root);
+  const corpus = preflight?.corpus ?? (await loadMixedGateCorpus(root));
+  const selected = preflight?.selected ?? { legacy: corpus.legacy, final: corpus.final };
   const gatesByName = new Map(corpus.legacy.map((g) => [g.name, g]));
   const ctx = projectCtx(root);
-  const rawPass = runPass(corpus.legacy, ctx);
+  // #2069 sample ONE: the tree as it stood when this run took its fileset.
+  const plantedAtStart = plantedPaths(root);
+  const rawPass = runPass(selected.legacy, ctx);
   const pass = keepProbeFindings() ? rawPass : stripProbeFindings(rawPass);
-  const final = finalSide(corpus, runFinalPass(corpus, ctx, failOnWarnings));
+  const final = finalSide(selected.final, runFinalPass(corpus, selected.final, ctx, request.failOnWarnings));
+  // #2069 sample TWO: a plant that opened AFTER the project was built still poisons every fs-reading gate.
+  const observed = keepProbeFindings() ? [] : [...new Set([...plantedAtStart, ...plantedPaths(root)])].toSorted();
 
   // An UNTIMED gate (either contract) rides the same class as a SHORT run (lib/timing.ts): both leave a report
   // that looks complete while a fact the artifact promises is silently absent.
   const incompleteReasons = [
-    ...reconcile(corpus, pass, final.rows),
+    ...reconcile(corpus, selected, pass, final.rows),
+    ...notQuietReasons(observed),
     ...timingAlarms(pass),
     // A corpus with no final policy owes no final ledger; one WITH a final policy owes the whole one.
     ...(final.result === null ? [] : policyTimingAlarms(final.rows, final.result.timing)),
@@ -206,18 +273,21 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   const total = legacyTotal + finalBlocking;
   const scanAlarms = zeroScanGates(pass);
   const populations = populationAlarms(pass);
-  const legacyActive = corpus.legacy.filter((g) => g.status === "active").length;
+  // Every count below is a denominator over what this run was ASKED about. On the default run the selection
+  // IS the corpus, so the numbers are byte-identical to the pre-#1964 manifest.
+  const legacyActive = selected.legacy.filter((g) => g.status === "active").length;
   const run: RunManifest = {
     ...started,
+    quiet: observed.length === 0,
     finishedAt: new Date().toISOString(),
     complete: true,
     corpusFiles: corpus.files.length,
-    registered: corpus.legacy.length + corpus.final.length,
+    registered: selected.legacy.length + selected.final.length,
     unregistered: corpus.unregistered,
-    active: legacyActive + corpus.final.length,
+    active: legacyActive + selected.final.length,
     ran: pass.gates.length + final.rows.length,
-    legacy: { registered: corpus.legacy.length, active: legacyActive, ran: pass.gates.length },
-    final: { registered: corpus.final.length, ran: final.rows.length, withheld: final.result?.authority.withheldPolicyIds.length ?? 0 },
+    legacy: { registered: selected.legacy.length, active: legacyActive, ran: pass.gates.length },
+    final: { registered: selected.final.length, ran: final.rows.length, withheld: final.result?.authority.withheldPolicyIds.length ?? 0 },
     incompleteReasons,
   };
 
@@ -225,7 +295,7 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   // whole tree, so it is the only one where "this gate read nothing" means the checker is blind.
   process.stdout.write(renderPass(pass, gatesByName, { zeroScanAlarm: true }));
   if (final.report !== null) {
-    process.stdout.write(`\n${renderPolicyPass(final.rows, final.report, corpus.final)}`);
+    process.stdout.write(`\n${renderPolicyPass(final.rows, final.report, selected.final)}`);
   }
   process.stdout.write(`\n${completenessLine(run)}\n`);
   process.stdout.write(`${timingLine(pass.timing, pass.gates, `${slot.relDir}/${REPORT_NAME}`)}\n`);
@@ -248,7 +318,14 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   });
   // Published at the END and only here: a reader arriving at reports/check-structure.json therefore always
   // resolves to a run that FINISHED — its own or a sibling's — never to an in-flight or torn artifact.
-  publishRunSlot(root, slot, [{ alias: REPORT_NAME, target: REPORT_NAME }]);
+  //
+  // AND ONLY BY A WHOLE-CORPUS RUN (#1964). A gate-scoped run answers a NARROWER question, so republishing the
+  // pointer would hand every fixed-path reader a partial report that looks exactly like the corpus verdict —
+  // the same class of lie the in-flight stub exists to prevent. Its artifact stays reachable only through the
+  // slot the timing line prints.
+  if (request.selection.kind === "all") {
+    publishRunSlot(root, slot, [{ alias: REPORT_NAME, target: REPORT_NAME }]);
+  }
 
   // A short run, a blind gate, a refused POPULATION receipt, a thrown gate and a refused final owner ride the SAME
   // severity: in all of them the run is not a verdict. The final side's exit rule has ONE home
@@ -265,31 +342,79 @@ function legacyExit(broken: boolean, violations: number): number {
   return violations > 0 ? EXIT.violations : EXIT.clean;
 }
 
-/** THIS VERB'S WHOLE TAIL GRAMMAR (lib/verb-tail.ts rules it "own"): zero or one `--fail-on-warnings`.
+/** What the operator asked for. `selection.kind === "all"` is the shipped default and the ONLY shape that
+ *  publishes the pointer; `failOnWarnings` DEFAULTS FALSE (runFinalPass's header). */
+interface StructureRequest {
+  readonly failOnWarnings: boolean;
+  readonly selection: PolicySelector;
+}
+
+const TAIL_OPTIONS = {
+  "fail-on-warnings": { type: "boolean" },
+  check: { type: "string", multiple: true },
+  family: { type: "string", multiple: true },
+} as const;
+/** `--check`/`--family` are the repeatable pair; `--fail-on-warnings` twice stays misuse (the grammar is zero
+ *  or one), which is exactly `refuseDuplicateOptions`'s contract. */
+const REPEATABLE_TAIL_OPTIONS: ReadonlySet<string> = new Set(["check", "family"]);
+
+/** THIS VERB'S WHOLE TAIL GRAMMAR (lib/verb-tail.ts rules it "own"): zero or one `--fail-on-warnings`, plus a
+ *  repeatable `--check` OR `--family` selection.
  *
- *  The token is imported from `lib/policy-command.ts`, the final-policy grammar that already owns it — this
- *  door is a second REACH, never a second spelling. Anything else, or the flag twice, is misuse (exit 3) and
- *  is refused BEFORE the run slot opens, so a typo can never leave an in-flight artifact behind: the whole
- *  point of #1117 is that a verb which swallows an unread tail reports a verdict nobody asked for, and the
- *  two verdicts here are opposite (promoted warnings block; unpromoted ones do not). */
-function parseWarningPromotion(argv: readonly string[]): boolean {
-  const unknown = argv.find((token) => token !== FAIL_ON_WARNINGS_FLAG);
-  if (unknown !== undefined || argv.length > 1) {
-    throw new UsageError(`structure takes at most ${FAIL_ON_WARNINGS_FLAG} — got ${argv.map((token) => JSON.stringify(token)).join(" ")}\n${STRUCTURE_USAGE}`);
+ *  Every token is imported from `lib/policy-command.ts`, the final-policy grammar that already owns them —
+ *  this door is a second REACH, never a second spelling, and the selector rules (ambiguity, nonempty,
+ *  duplicate, kebab-case) come from that module's `buildSelector` rather than being re-decided here. Anything
+ *  else is misuse (exit 3) refused BEFORE the run slot opens, so a typo can never leave an in-flight artifact
+ *  behind: the whole point of #1117 is that a verb which swallows an unread tail reports a verdict nobody
+ *  asked for, and the verdicts here are opposite in two directions (promoted warnings block; a SELECTED run
+ *  is not the corpus verdict at all). */
+function parseStructureTail(argv: readonly string[]): StructureRequest {
+  const duplicate = refuseDuplicateOptions(argv, REPEATABLE_TAIL_OPTIONS);
+  if (duplicate !== null) {
+    throw new UsageError(tailRefusal(duplicate));
   }
-  return argv.length === 1;
+  let values: { readonly "fail-on-warnings"?: boolean; readonly check?: readonly string[]; readonly family?: readonly string[] };
+  try {
+    values = parseArgs({ args: [...argv], options: TAIL_OPTIONS, strict: true, allowPositionals: false }).values;
+  } catch (error) {
+    throw new UsageError(tailRefusal(error instanceof Error ? error.message : String(error)), { cause: error });
+  }
+  const selection = buildSelector(values.check, values.family);
+  if (isSelectionRefusal(selection)) {
+    throw new UsageError(tailRefusal(selection.message));
+  }
+  return { failOnWarnings: values["fail-on-warnings"] === true, selection };
+}
+
+/** ONE refusal shape for every way this tail can be wrong. It LEADS with the whole grammar rather than with
+ *  `parseArgs`'s bare "Unknown option", because an operator who typed the near-miss needs the legal set — and
+ *  because the sentence `structure takes at most --fail-on-warnings` is the literal the #1117 pins were
+ *  written against (tests/tooling/verify/cli.int.test.ts, ops/warning-promotion.suite.int.test.ts): it stays
+ *  true and stays a prefix as the grammar grows, so widening the tail never silently retires those pins. */
+function tailRefusal(reason: string): string {
+  return `structure takes at most ${FAIL_ON_WARNINGS_FLAG}, ${CHECK_FLAG} <id> or ${FAMILY_FLAG} <name> — ${reason}\n${STRUCTURE_USAGE}`;
 }
 
 /** This verb's usage line — ONE home, read by the tail refusal above and by the front door's pre-dispatch
  *  `--help` answer (cli.ts VERB_HELP, #809). */
 export const STRUCTURE_USAGE =
-  `usage: node tooling/src/verify/cli.ts structure [${FAIL_ON_WARNINGS_FLAG}]\n` +
+  `usage: node tooling/src/verify/cli.ts structure [${FAIL_ON_WARNINGS_FLAG}] [${CHECK_FLAG} <id>]... | [${FAMILY_FLAG} <name>]...\n` +
   "  Runs every structural gate in one ts-morph pass; writes reports/check-structure.json (read it with `show`).\n" +
-  `  ${FAIL_ON_WARNINGS_FLAG} promotes final \`severity: "warning"\` findings into the blocking count (exit 1). It is OFF by default: a warning is reported, counted, and blocks nothing.`;
+  `  ${FAIL_ON_WARNINGS_FLAG} promotes final \`severity: "warning"\` findings into the blocking count (exit 1). It is OFF by default: a warning is reported, counted, and blocks nothing.\n` +
+  `  ${CHECK_FLAG} <id> runs ONLY the named gate(s) — a legacy gate name or a final policy id — over the SAME whole real tree. ${FAMILY_FLAG} <name> does the same for a final policy family; the two are mutually exclusive.\n` +
+  "  A selected run is NOT the corpus verdict: it reports only what it was asked about and does NOT republish reports/check-structure.json, so read the slot path it prints.";
 
 /** The visible half of the #410 guarantee: the console says how many of the corpus actually ran, per contract. */
 function completenessLine(run: RunManifest): string {
   const split = `${run.legacy.ran}/${run.legacy.active} legacy · ${run.final.ran}/${run.final.registered} final`;
+  if (run.selection.kind !== "all") {
+    // A selected run's own line says what it is NOT, in the same place a reader looks for the verdict.
+    return [
+      `single-pass: SELECTED RUN (--${run.selection.kind} ${run.selection.names.join(`, --${run.selection.kind} `)}) — ran ${run.ran}/${run.active} selected gate(s) (${split}) of ${run.corpusFiles} corpus file(s)`,
+      `  this is NOT a whole-corpus verdict and reports/${REPORT_NAME} was NOT republished — read ${run.artifactDir}/${REPORT_NAME}`,
+      ...(run.incompleteReasons.length === 0 ? [] : ["  the SELECTED run is itself INCOMPLETE:", ...run.incompleteReasons.map((r) => `  ‼ ${r}`)]),
+    ].join("\n");
+  }
   if (run.incompleteReasons.length === 0) {
     return `single-pass: ran ${run.ran}/${run.active} active gate(s) (${split}) of ${run.corpusFiles} corpus file(s) — run COMPLETE (run ${run.runId} → ${run.artifactDir}/${REPORT_NAME})`;
   }
