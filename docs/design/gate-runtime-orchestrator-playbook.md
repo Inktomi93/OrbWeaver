@@ -131,7 +131,12 @@ order); §12 is what lanes read. This file is what YOU do, in order.
 (#1941), both contracts read by `enforcement-registry-parity`/`gate-modernization`, and the `schema-fact-health`
 retirement (#1948). What it gives you is guide §5; do not rebuild it.
 
-**Phase B — three slots, after A.**
+**Phase B — DONE. All three slots closed; kept struck so the next reader does not re-open them.**
+
+**Do not resume the worktrees named below — they are gone.** #1935 is **Done** and
+`.claude/worktrees/agent-a2dae218300f26638` no longer exists; `agent-a588b7202b748d71e` is contained on `main`.
+Verified 2026-09-12. The prose under items 1 and 2 is kept ONLY for the adjudication shapes it names, which recur
+in every marker and proof lane.
 
 1. ~~Marker backlog~~ **DONE — both vocabularies measure ZERO live markers (2026-09-11 evening), and worktree
    `agent-a588b7202b748d71e` is contained (`main..HEAD` = 0, clean), so its work is on `main`.** Verified by the
@@ -169,13 +174,13 @@ retirement (#1948). What it gives you is guide §5; do not rebuild it.
    cases transplant into the final report-sink tests, because `gate-ignore-inventory` and `finding-overload-provenance`
    are *"retired policy modules, not discarded proof populations."* A file/resource finding at line 0 or 1 is
    unsuppressible by construction (no preceding source line).
-2. Proof rework: resume `.claude/worktrees/agent-a2dae218300f26638`, **checkpointed at `20550dc83` (3 files); rebase
+2. ~~Proof rework~~ **DONE (#1935, Done; worktree gone).** Was: resume `.claude/worktrees/agent-a2dae218300f26638`, **checkpointed at `20550dc83` (3 files); rebase
    onto `main` first**. Item 1 was built under the SUPERSEDED scope (per-gate negative arms); correct it to guide
    §4.2 — positive same-position arm per tenancy policy, delete the vacuous negative arms — then item 2: the
    `test-no-stubs` cross-file fixture whose offsets must actually OVERLAP (the prior attempt's never did), plus its
    `@tests` header note. That fixture is an invented row for a new property, so it owes a planted break. This is
    \#1935's rework, already Running and claimed; `review` → `verify` → verifier → `done`.
-3. \#1946 guard residuals (Sonnet mech-executor; hook + its pin + `registry.test.ts`; both-direction pins; no-loosening
+3. ~~#1946 guard residuals~~ **DONE (playbook §2b DONE table).** Was: (Sonnet mech-executor; hook + its pin + `registry.test.ts`; both-direction pins; no-loosening
    A/B over the pin ROWS table).
 
 **Phase B2 — make the CONVERTED corpus sound before converting more (owner, 2026-09-11: "I'd rather get our new
@@ -240,6 +245,12 @@ tree tells you the moment a fix breaks a row.
    narrowing CUT) — judgment and mutation — so an audit lane is still the only way to get those, and that
    is exactly what a copy-target dispatch needs. **\~5 verifier lanes saved; the remaining spine is
    conversion.**
+
+   **AUDIT STATE — the sweep is CLOSED and the bar is met. Do not re-open it.** Every evidence plane in guide §3
+   now names a CONFIRMED exemplar, the resource plane included (`be4cdebcd`, verifier-checked, its one refuted
+   cell fixed at `a4ed280d1`). From here an audit runs **per-dispatch, on the family being handed to a lane**,
+   never as a corpus sweep — and the module count below is frozen history against a 167-module corpus that is now
+   179. Waves 1-10 audited 112 of that 167.
 
    **AUDIT STATE — 2026-09-12. Waves 1-10 complete, 112 of 167 modules audited** (wave 9 closed wave 8's open axes on the same 14 modules rather than adding new ones — hence +1, not +14) (wave 8's 25 = 24 fresh + 1 partial re-audit; `origin-server`'s §4.1 cuts and reachability probes are NOT covered and are wave 9's obvious start) (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
 
@@ -374,7 +385,45 @@ Three consequences, all of them shrinks:
 - **A row only earns its own lane when it is a CLASS** (a defect present in N modules through a shared
   reader) or when it BLOCKS a dispatch. #2009 earned one on the first test; #2010 did not and waits.
 
-### THE ROWS THIS SESSION FILED, and what each is waiting on
+### CURRENT STATE AND THE OPEN ROWS — re-derived 2026-09-12 evening, not remembered
+
+**`179 final / 98 legacy / 277 modules` · conformance `179 · 1,898 rows · 0 failures` · `gate:contract` 714 across
+277 · roster count line 277.** Nine conversions landed 2026-09-12 (`runner-config-path-liveness`, the five
+ordinary client/CT gates which became SEVEN policies via two authority splits). **Re-derive before dispatching;
+every number in this file rots.**
+
+| row | what | state |
+| -: | - | - |
+| **#2015** | shared origin readers normalize no `QualifiedName` type reference — #2009's defect in TYPE space | Ready. **Warm leg for #2009's lane, not a fresh spawn** |
+| **#2016** | `no-effect-on-shared-selection` fails OPEN on the accusing axis while its own effect axis fails closed | Running |
+| **#2017** | a conversion refusal is free-text prose, so nothing reds when its blocker ships. Make it DATA + a meta-policy; **population is exactly TWO modules** | Ready |
+| **#2018** | `reference-fact-module.ts` is 566 against `tooling-size`'s hard 450 — it was *exactly 450* on 2026-09-05. Same question as #1988, same directory | Ready, P3 |
+| **#2019** | no `policy-soundness` arm reads `ctx.resources` — the throw-vs-return law is prose-enforced inside the family that mechanizes such laws | Ready |
+| ~~#2009~~ ~~#2011~~ ~~#2013~~ ~~#2014~~ | | **DONE**, verifier CONFIRMED |
+| **#2008** · **#2010** | deferred-roster one-sidedness · roster publishes a RETIRED marker grammar | Ready, ride along |
+
+### THE REFUTATION LEDGER IS GOING STALE — and that is the disease it was built to cure
+
+`refutation-ledger-2026-09-12.md` last moved **2026-09-11**. Its rollup still reads 25 CLOSED / 15 OPEN / 3
+SUPERSEDED / 48 UNADJUDICATED, and it still calls #2006, #2009, the ten `home-client` third answers and five
+#1978 rows OPEN — **eight-plus closures it does not know about.** Its ranked top five is now: **1 and 2 CLOSED, 3
+in flight (#2016), 4 and 5 open** — and #1922 is **TEN** final modules carrying an `ExemptionTable`, not the nine
+it records (`runner-config-path-liveness` became the tenth at its own conversion).
+
+**Third instance this week of a list nobody re-derives** (#2008's deferred roster, #2013's stale refusal, this).
+The fix is not a manual refresh — it is **#2017's shape: make the claim DATA so something reds when it rots.**
+
+### PHASE D ORDERING — two traps that each produce a WRONG BRIEF, measured 2026-09-12
+
+- **`ast-read.ts` and `symbol-reference.ts` are NOT the new fact boundary** (`shared-semantic-readers.md:33`):
+  capped/undefined-returning legacy readers, 26 and 5 gate importers. A module sitting on one is **not**
+  "convertible today" — it owes a reader migration. A brief that calls them "readers that already exist" tells a
+  lane to preserve exactly what the program exists to delete.
+- **Grep the CENSUS ROW, not the module, for exemption tables.** `firehose-import-allowlist` carries three
+  **`ALLOWED`** regex zones needing reviewed-grant migration; a scan for `ALLOWLIST`/`EXEMPT` returns ZERO for it.
+  `exception-authority-census.md` already classified all 97 tables and 319 rows — read the row.
+
+### THE ROWS FILED EARLIER, and what each is waiting on
 
 | row | what | state |
 | -: | - | - |

@@ -50,13 +50,13 @@ for exactly once; nothing vanishes from the roster.
 
 | Fact | Value | Source |
 | - | - | - |
-| gate modules / final / legacy | **275 / 171 / 104** (2026-09-11 evening; was 271/166/105 — the +5 final are #1971's four meta-policies plus one conversion) | `pnpm check:policy-conformance` (the authoritative roster). **A bare `defineGate` grep OVERCOUNTS by 3** — `gate-modernization` and `enforcement-registry-parity` carry it inside proof-fixture STRINGS and `runner-config-path-liveness` inside its refusal comment. The honest shape test is `^export const gate = defineGate(` |
-| converted modules with NO committed test importing them | no longer the bar | `structure:policy-conformance` runs every final policy's declared rows on the static tier (§5). A module with no family test still lacks its §4.2/§4.3/§4.5/§4.6 pins. At least 12 are in that state, named across three lanes — `baseui-render-prop-composition`, `bus-on-data-no-store-write`, `membership-fan-guard`, `no-caller-user-id`, `no-external-media-without-gate`, `no-color-literals`, `test-factory-contract`, `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`, `no-decorators`, `no-array-literal-querykey`, `no-if-is-group` |
+| gate modules / final / legacy | **277 / 179 / 98** (2026-09-12 evening; was 275/171/104 that morning — nine conversions plus three authority SPLITS) | `pnpm check:policy-conformance` (the authoritative roster). **A bare `defineGate` grep OVERCOUNTS** — `gate-modernization` and `enforcement-registry-parity` carry it inside proof-fixture STRINGS. It used to overcount by THREE; `runner-config-path-liveness` was the third and it converted (#2013), which is the shape of every count in this file: **re-derive, never quote.** The honest shape test is `^export const gate = defineGate(` |
+| converted modules with NO committed test importing them | no longer the bar | `structure:policy-conformance` runs every final policy's declared rows on the static tier (§5). A module with no family test still lacks its §4.2/§4.3/§4.5/§4.6 pins. That list was measured 2026-09-11 and has NOT been re-derived since nine conversions landed — treat it as an upper bound and re-derive. As measured then, at least 12 were in that state — `baseui-render-prop-composition`, `bus-on-data-no-store-write`, `membership-fan-guard`, `no-caller-user-id`, `no-external-media-without-gate`, `no-color-literals`, `test-factory-contract`, `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`, `no-decorators`, `no-array-literal-querykey`, `no-if-is-group` |
 | ordinary policies with no positive `@orb-waive` identity arm | **0 of 86 — CLOSED** (#1952) | The last 22 landed 2026-09-11 across three lanes (`158c4993c`, `d660d6442`, `f52492f44`), every one an in-module `mustPass` so no lane touched a shared test file. A fresh-context verifier sampled seven across all three commits, flipped each marker to a dead token, and got the §4.2 `AUTHORITY ALARM … names a dead position` on all seven; each sampled fixture produces exactly one finding |
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
 | first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
-| whole-corpus conformance | **171 final policies · 1,733 rows · 0 failures, exit 0 · \~12.3 s** (2026-09-11 evening, measured on `main` after the #1971 merge). Rows rose from 1,567 on real reproduced-red-first proof, not on new policies alone. **The stage did NOT regress when the enforcer landed** — 12341ms before, 12283ms after, with four more policies | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
+| whole-corpus conformance | **179 final policies · 1,898 rows · 0 failures, exit 0 · \~19 s** (2026-09-12 evening; was 171 · 1,733 that morning) (2026-09-11 evening, measured on `main` after the #1971 merge). Rows rose from 1,567 on real reproduced-red-first proof, not on new policies alone. **The stage did NOT regress when the enforcer landed** — 12341ms before, 12283ms after, with four more policies | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
 | shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with **18 closed kinds, FROZEN 2026-09-11** (§12.4), `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
 | NOT shipped | `jsonc` — §11.4 named it required; it was never built and is now RULED OUT with its reason (§12.4). The Phase C capability fork is CLOSED: the vocabulary is frozen at 18 kinds and the condition that reopens it is in §12.4. Still open: the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930 (freeze landed), checkpoint "runtime follow-ups" |
@@ -174,6 +174,25 @@ INCLUDES its quotes. **Read the `report.node` call, never the message.** Unguess
 ordinary policy's `fix` owes the spelling — and why a token containing a paren makes the policy UNWAIVABLE, since the
 marker grammar's position group is `[^()\r\n]+` and every marker against it parses as malformed.
 
+**AND "ORDINARY" IS A CLAIM ABOUT THE DOOR, NOT A FIELD — CHECK IT AT EVERY CONVERSION (measured 2026-09-12, and it
+was FIVE OF FIVE modules in one lane).** A legacy policy can carry `authority: "ordinary"` while having **no working
+waiver door at all**, and nothing on the legacy runtime ever asked. Two classes, both silent:
+
+1. **A position containing a paren.** `form-factory-for-multizfield` reported `` `${name} (${count} fields)` ``
+   (`KnobField (4 fields)`) and `no-form-reset-in-autosave` reported `reset()`. Every marker against either parses
+   MALFORMED — and `report.node` would additionally have **THROWN**, because the token is not authored text at the
+   reported offset.
+2. **A file-level finding with a synthetic or absent token.** `locateFinding` (`lib/ordinary-waiver.ts:394`) requires
+   an ordinary finding's token to be authored text at its EXACT line/column, so a file-anchored arm raises a binding
+   failure and alarms on the author's first real waiver. Three `state-files` arms and EVERY `context-definition-shape`
+   arm shipped that way.
+
+**The asymmetry that let both survive: `report.node` VALIDATES its token against the node text and throws; `report.file`'s
+token is unvalidated at report time and fails later as an authority ALARM.** So converting a file-anchored ordinary arm
+has exactly two honest outcomes — **re-anchor it on authored text, or split it to `hard`** (an ABSENCE verdict about an
+exact file has no node, therefore no position, therefore no ordinary door by construction). Move any count or name the
+message needs INTO the message; the position stays the authored token.
+
 Family = a shared `lib/` computation or subject reader (module + function), named in the header. Siblings that are two
 spellings of one concept MERGE (the stronger identity reader wins; the retired arm gets a successor proof). A policy
 with no proven sibling is a singleton family under its own id. A theme, a filename prefix or a shared topic is not a
@@ -204,6 +223,28 @@ family.
    the narrowing in a `cp`-backed copy, run the module's rows, restore — and the fix is a `mustPass` row placing the
    same literal OUTSIDE the fence. This is the one place a conversion owes a planted break for a row it did not
    invent: §4.7 covers new properties, and this covers an old property nothing was ever shown to enforce.
+
+   **BEFORE YOU TRUST ANY CLEAN CUT, CHECK THE HARNESS — TWO FAILURE MODES PRODUCE A FALSE CLEAN AND BOTH WERE
+   MEASURED 2026-09-12.** A cut that did not reach the code proves nothing, and it is indistinguishable from an
+   unenforced fence:
+
+   - **A gate module's own HEADER QUOTES its fences, and its `why` strings quote them AGAIN after the code.** A cut
+     harness doing `String.replace(from, to)` patches the COMMENT, the module behaves identically, and the sweep
+     reports "0 rows died". Five consecutive cuts read clean for this reason in one lane and **four of the five were
+     fully enforced.** `lastIndexOf` is not the fix either — the `why` strings come last. **Assert the anchor occurs
+     EXACTLY ONCE in the file and refuse otherwise.**
+   - **Re-importing a rewritten module with a `?query` suffix returns the CACHED module**, so the run measures the
+     UNPATCHED policy while printing a population that still carries the fence you just deleted. Write the patched
+     source to a **sibling scratch module in the same directory** (so relative imports still resolve), import that,
+     `rmSync` it in a `finally`. Never mutate the real file.
+
+   **AND THE ARM OF A FALSIFIER ROW IS DECIDED BY THE FIXTURE'S VERDICT AT TIP, NEVER BY THE BRIEF.** A §4.1 row is
+   `mustPass` only when the fixture is SILENT at tip. `ui-exports-map-complete`'s directory-named-`index.ts` fixture
+   FLAGS at tip (one finding) and the cut merely changes WHICH message it carries — the count is 1 on both sides — so
+   it is a `mustFlag` whose discriminator is `messageIncludes`. A brief that says "land it as a `mustPass`" while
+   supplying an `expect` has already told you which arm it is. **Companion tell: when a cut preserves the finding COUNT
+   and changes only the MESSAGE, a bare `{ count: N }` row proves nothing** — the same shape as the fail-closed
+   third-answer rule below.
 
    **A CLEAN CUT HAS THREE MEANINGS, AND ONLY ONE OF THEM IS "UNENFORCED" (measured 2026-09-12 across two fix
    lanes — the naive sweep OVER-REPORTS, so classify every clean cut before counting it):**
@@ -732,7 +773,7 @@ harness (4 incl. `ct-poll-schedule-and-paint` split), `verify-registry-parity`, 
 `no-form-state-in-useeffect`, `persist-partialize-and-total-migrate` with its ARM A retired into
 `no-raw-zustand-persist`).
 
-**Remaining: 108 modules. THE PER-GATE BLOCKER IS NOT LISTED HERE — it is in
+**Remaining: 98 modules (2026-09-12; re-derive with `pnpm check:policy-conformance`, never quote this). THE PER-GATE BLOCKER IS NOT LISTED HERE — it is in
 [`uncovered-gate-conversion-census.md`](../reviews/gate-runtime/uncovered-gate-conversion-census.md), one row per gate,
 and that document is the Phase D ordering source.** The shape below is for dispatch planning only; no bucket count in
 it is current.
