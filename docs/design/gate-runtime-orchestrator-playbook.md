@@ -263,6 +263,10 @@ here is not permission to dispatch it — check the Phase D gate below first.
 | #1952 identity arms (0 of 86) · #1953 · #1954 · #1955 · #1941 · #1946 · #1959 | see guide §2 |
 | Marker backlog — both central grammars measure ZERO live markers | guide §7 |
 | Wave-1 exemplar audit D1–D6, D10 · **D9 roster rows (all four)** | `be1202579`, `b157bb9be`, `1f83d676a`, `9017baf60` |
+| #1968 expectation rows — **78 → 11**, the 11 a measured registry-cardinality exemption (#2001), NOT debt | `8aa9867c3` |
+| #1989 live escapes · #1990 dead third-answer arms (9 modules) | `a54394df6` — at **Verify** |
+| #1993 wave-1 residual · #1987 cors-proxy · the four worst ordinary-visitors modules | `eff4b5756`, `8ad418868` |
+| #1991 message split · #1994 eight family tests | `e64c274ef` |
 | **§4.6's evidence may no longer vanish** — a conversion lands the differential as a committed test OR states in its message what it found; §8.8's floor names it | `2084c403e` (#2000) |
 
 ### THE THREE THAT GATE PHASE D
@@ -278,6 +282,46 @@ cannot ADD to that backlog.** The 126 is closed, not growing. What #2000 DOES ga
 **do not point a Phase D lane at a SPLIT family as an exemplar until Tier 1 is done.** A `-health` split is precisely
 the shape whose behaviour is reproduced by two policies together with nothing checking the union, and copying that
 shape 104 times before verifying one of them is the defect-multiplication this program exists to prevent.
+
+### ⚠ #2006 — FIVE GATES ACCUSE CORRECT CODE. **P1, and it outranks everything below.**
+
+Five modules compare `readSealedOrigin(…).kind !== "foreign"` instead of calling `sealedOriginReports(verdict,
+anchor)`, which **skips `classifyOriginRefusal`**, so a purely local object whose KEY is spelled like the sealed
+export is REPORTED. On **unmodified source**, no cut applied:
+
+```ts
+const bag = { ownerStats: 1 };
+export const n = bag.ownerStats;   // accused
+```
+
+`discovery-no-stats-rollups` · `membership-enforcer` · `providers-runner-seal` · `turn-identity` · `vector-scope-derived`.
+
+**Why it outranks the backlog:** every other open row is a gate that FAILS TO CATCH, or a claim that is unproven.
+**This is a gate accusing valid code**, which is the failure that kills a gate fastest — the author waives it, and a
+waived gate is dead.
+
+**WHAT TO DO, in this order:**
+
+1. **Measure the real-tree instance count FIRST.** The audit floor proves nothing is withheld, **not** that the false
+   positive has live instances. That number decides urgent-vs-merely-wrong and nobody has it.
+2. **Check `untrusted-regex-safe-exec`** — wave 9 flagged the same shape and left it unmeasured. Its roster row
+   (`Core-Enforcement-Active-Gates.md:78`) is one of the two that STATE the correct semantics, so if it has the bug
+   its row is a documented false claim about a security-adjacent gate.
+3. **Check `empty-state-has-action`** (`:157`, same claim, not in wave 9's set) — either a sixth instance or a second
+   reference shape.
+4. **Fix is one line** and proven: `sealedOriginReports(…)` took `discovery` 1 failure → 0 **while its unreadable-door
+   `mustFlag[4]` still flags**. Each fixed module also gets the local-object `mustPass` row that currently reds.
+5. **Re-check each fixed module's ROSTER ROW** — they are false for any affected module.
+
+**THE CONTRACT WAS NEVER UNCLEAR, which is the lesson.** `lib/sealed-origin.ts:41-52` ships the decision function
+beside the verdict function *and documents the difference*; two roster rows state the intended semantics verbatim
+(*"a same-named local helper is not"*). **Nothing enforces calling the decision rather than the verdict**, and the
+wrong shape READS correct. Only a local-object counterfactual reveals it, and no module carried one until wave 9
+built it. The correct shape already existed in a sibling — `test-fixture-imports`, carrying the receipt *"89
+confident false positives, nearly all `RegExp.prototype.test`."*
+
+**Reference shapes to copy:** `test-fixture-imports` (proven), plus `turn-identity` once fixed — wave 9 names it the
+COPY candidate after this one-line repair.
 
 ### #2000 — OLD-GATE vs NEW-GATE PARITY. P1, census DONE, and it is a different question from everything else here
 
@@ -341,6 +385,19 @@ between the lanes — that is #1993, and it went unnoticed for a day.
 | **#1991** | `no-color-literals` one message for three disjoint patterns — **RULED arm A, split it** |
 | **#1994** | nine converted modules have NO family test, so §4.2/4.3/4.5/4.6 pins have nowhere to live |
 
+### THE REMAINING FIX BACKLOG — what is left, and what each one needs
+
+| row | what to do |
+| -: | - |
+| **#1979** | six silent not-ready returns remain. **Re-derive the lines first** — main moved a lot. Shared reader is `readyResourceValue`; `server-layout` is the worked example including the header paragraph explaining why it owns no not-ready branch |
+| **#1999** | origin-client's 25 narrowings. **Wave 6's figure PREDATES three of §4.1's four rules — re-classify before building; some cells will dissolve.** Start with the two shared `lib/react-origin.ts` fences (one cost a measured 439 false findings per policy and is pinned by nothing but a comment) |
+| **#2003** | `content-part-seam`'s member arm is STRUCTURALLY dead — it visits value-position nodes for an `export type`. Match the visitor kinds to the subject's space **or** remove the arm. **Do NOT fake a fixture that makes a type look like a value.** Its two siblings carry the identical tuple and theirs IS live |
+| **#1998** | `no-raw-matchmedia`'s header and roster row say "all four" grants; there are **five**, and the fifth refutes the header's stated reason. **Blocks the reviewed-grant copy candidate** |
+| **#1978** | 48 of 88 ordinary `fix` strings name no waiver spelling. **Fix by naming the actual id and position shape, never by loosening the predicate** — a literal `<id>` placeholder is correctly flagged |
+| **#1986** | `plugin-dump-guard`: two unpinned arms in a HARD, security-adjacent policy. Falsifiers already built |
+| **#2005** | the header gap. **Census corrected: the real target is the legacy SHA (9/171), not the whole header.** All nine carriers are registry/completeness modules — copy their shape |
+| **#1994** | nine modules had no family test; eight landed at `e64c274ef`. **Re-derive what remains** |
+
 ### INSTRUMENT AND OBSERVATION GAPS — why defects survive
 
 | row | what |
@@ -352,6 +409,33 @@ between the lanes — that is #1993, and it went unnoticed for a day.
 | **#1980** | `@authored` is a hand-typed literal with no liveness gate |
 | **#2005** | the §5b.5 header gap — **CENSUS CORRECTED by 171 full reads**: FAMILY \~61/171, POPULATION PORT **59/171**, **legacy SHA 9/171**. Waves 8 and 9 reported “fails 25 of 25” / “0 of 14” because they counted the PHRASE; most headers state the port in PROSE. **The legacy-SHA number is the load-bearing one and it survived all three methods** |
 | **#1988** | `no-inline-types` reds 19 sites, 18 of them the shared readers this program MANDATES — 15→18→19, unowned (**Needs owner**) |
+
+### THE METHOD CHANGED FOUR TIMES TODAY — an audit doc older than these rules is an UPPER BOUND, not a verdict
+
+Every rule below is in guide §4.1 and each was paid for by a wrong number. **Re-cut any cell before building a row
+from it.**
+
+| rule | what it invalidates |
+| - | - |
+| **Cut DIRECTION** | a cut must make the policy flag MORE; substituting a different wrong value is a different policy. Wave 5 made this error; a fix lane caught it |
+| **Declared PERF PREFILTER** | a candidate-name prefilter in front of an identity reader cuts clean BY DESIGN — cut the discriminating half. **71% of wave 7's over-report** |
+| **A LATER WAVE SUPERSEDES** an earlier cut table | two waves disagreed; the later was right because no discriminating fixture could EXIST. Paid on #1993 |
+| **Reusable UNREADABLE falsifier** | `declare function opaque(): any; opaque().<member>` drives every origin resolver into the fail-closed arm — stop reverse-engineering one per module. Exception: a TYPE-space symbol needs a VALUE-position reference |
+| **A split's differential owes a COVERAGE statement** | 4 of 8 split arms had ZERO legacy coverage, so replay proves nothing there. State it PER EXAMPLE, construct the successor proof from the arm's own triggers |
+
+**Consequence for the numbers:** waves 4–6 reported 32% / 35% / 42% NAIVE and were never corrected. Waves 7–9
+classified: 20% / 24% / 32%. **Never compare a naive figure to a classified one.**
+
+### AND THE MEASUREMENT LESSON, because it cost three wrong numbers in one day
+
+**A grep LOCATES a candidate; reading DECIDES it.** Measured on this corpus: a `fix`-spelling census by grep would
+call **45 of 48** non-compliant modules compliant; a §5b.5 census by grep undercounted POPULATION PORT by **269%**;
+and a hash grep overstates legacy-SHA carriers by **78%** (six distinct lookalikes: incident commits, ruling
+cross-cites, sweep commits, and the CONVERSION commit itself).
+
+**The tell:** in the same report, the one number narrowed BY HAND was exactly right and both derived by pattern were
+wrong. **Do not accept "grep-derived, spot-verified" as an answer** — divvy the files across lanes and require full
+reads, with "I read 47 of 57, here are the 10 I did not" as the honest form.
 
 ### DECISIONS IN NEEDS OWNER — ask, never build around
 
