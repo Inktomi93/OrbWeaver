@@ -34,6 +34,17 @@
 //   harness then asserts the LEGACY engine's verdict on the twin equals its verdict on the raw example
 //   (compared without line numbers, since a prepended declaration shifts every line below it). Without
 //   that control a "twin" is simply a different example and proves nothing about catch parity.
+//
+// · AN IN-MEMORY-ONLY LEGACY GATE, AND THE HARNESS NOW REFUSES ANYTHING ELSE (#2119). Both replays run
+//   over `useInMemoryFileSystem: true`, so a legacy gate that reads the REAL filesystem — `readFileSync`,
+//   `existsSync`, a `node:child_process` shell-out, `process.cwd()` — cannot be replayed faithfully: its
+//   fs arm answers about the running checkout rather than about the fixture, and §4.6's own guidance is
+//   that such a gate needs a real tmpdir. This was verified harmless for the eleven blobs this repo
+//   replays today (all pure in-memory AST readers), which is exactly why it had to become a REFUSAL
+//   rather than a note: a future caller freezing a filesystem-reading descriptor would otherwise get a
+//   confident, wrong differential. `frozenLegacyGate` scans the extracted source and throws, naming the
+//   reach it found. A caller whose legacy gate genuinely needs disk owes a real-tmpdir harness, not a
+//   relaxed scan here.
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -187,9 +198,41 @@ export function shimHeaderImports(source: string): string {
   return out;
 }
 
+/** Every spelling by which a legacy gate could reach the REAL filesystem or a subprocess. Deliberately a
+ *  literal-text scan over the frozen SOURCE: this runs before the module is imported, and a scan that
+ *  under-reports here is worse than one that over-reports — a false refusal costs a caller an explicit
+ *  real-tmpdir harness, a false clean costs it a confident wrong differential. */
+const FILESYSTEM_REACH: readonly string[] = [
+  "node:fs",
+  "node:child_process",
+  "readFileSync",
+  "writeFileSync",
+  "existsSync",
+  "readdirSync",
+  "statSync",
+  "realpathSync",
+  "process.cwd(",
+  "runNiced",
+];
+
+/** THE IN-MEMORY-ONLY OBLIGATION, ENFORCED (#2119). See the header: both replays run on a virtual project,
+ *  so a legacy gate that touches disk answers about the running checkout rather than about the fixture.
+ *  Exported so its own planted controls can drive it in both directions without importing a git blob. */
+export function filesystemReach(source: string): readonly string[] {
+  return FILESYSTEM_REACH.filter((spelling) => source.includes(spelling));
+}
+
 /** The pre-conversion descriptor, extracted at its frozen SHA and shimmed so it runs from `scratch`. */
 export async function frozenLegacyGate(scratch: string, base: string, legacyPath: string): Promise<GateDescriptor> {
   const source = execFileSync("git", ["show", `${base}:${legacyPath}`], { encoding: "utf8" });
+  const reach = filesystemReach(source);
+  if (reach.length > 0) {
+    throw new Error(
+      `${legacyPath} at ${base} reaches the real filesystem (${reach.join(", ")}) — this harness replays on ` +
+        "an in-memory project, so its fs arm would answer about the running checkout rather than the fixture. " +
+        "Replay it on a real tmpdir instead of relaxing this refusal (tests/support/legacy-differential.ts).",
+    );
+  }
   const name = `${base.slice(0, 8)}-${basename(legacyPath)}`;
   const target = join(scratch, name);
   writeFileSync(target, shimHeaderImports(source));

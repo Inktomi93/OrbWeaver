@@ -31,7 +31,7 @@
 import { gate as pluginDumpGuard } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { gate as turnIdentity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
 import type { Repair } from "../../../support/legacy-differential.ts";
-import { createDifferential, frozenLegacyGate, label } from "../../../support/legacy-differential.ts";
+import { createDifferential, filesystemReach, frozenLegacyGate, label } from "../../../support/legacy-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -278,3 +278,28 @@ test(
   },
   TIMEOUT_MS,
 );
+
+// ─── 3. THE SHARED HARNESS'S IN-MEMORY-ONLY REFUSAL (#2119) ──────────────────────────────────────────
+// `tests/support/legacy-differential.ts` replays BOTH engines over `useInMemoryFileSystem: true`, so a
+// legacy gate that reads the real filesystem answers about the running checkout rather than about the
+// fixture. That was verified harmless for the eleven blobs this repo replays — every one is a pure
+// in-memory AST reader — which is precisely why it is now a REFUSAL and not a note in a header: the next
+// caller to freeze a filesystem-reading descriptor would otherwise get a confident, wrong differential.
+//
+// THE CONTROL LIVES HERE, in the smaller of the harness's two callers, because the obligation belongs to
+// the harness rather than to either differential and `tests/support/**` has no test mirror of its own.
+test("the harness REFUSES a frozen legacy gate that reaches the real filesystem, and admits one that does not", async ({ scratch }) => {
+  // Both directions on the predicate, one planted spelling at a time — a refusal nobody has seen fire is
+  // a rubber stamp, and a scan nobody has seen stay silent is a rubber stamp in the other direction.
+  expect(filesystemReach('import { Node } from "ts-morph";\nexport const gate = { name: "probe" };\n')).toEqual([]);
+  for (const spelling of ["node:fs", "node:child_process", "readFileSync", "existsSync", "readdirSync", "process.cwd("]) {
+    expect(filesystemReach(`const x = ${spelling};`), `the scan names ${spelling}`).toContain(spelling);
+  }
+  // AND END TO END, over REAL repository bytes rather than a hand-made string: `baseui-surface-manifest`
+  // is a live gate whose header says it "reads node_modules and the manifest off real disk", and the
+  // refusal must fire before the module is ever shimmed or imported.
+  await expect(frozenLegacyGate(scratch, "HEAD", "tooling/src/verify/gates/baseui-surface-manifest.ts")).rejects.toThrow(/reaches the real filesystem/u);
+  // The green twin, same door, same call shape: a pure AST reader is admitted.
+  const admitted = await frozenLegacyGate(scratch, TURN_BASE, "tooling/src/verify/gates/turn-identity.ts");
+  expect(admitted.name).toBe("turn-identity");
+});

@@ -54,15 +54,26 @@ below are its comment anchors.
 5. **The final is still pure syntax.** `analysis: "syntax"`, `facts: []`, `resources: []`. A conversion
    that acquired a fact, a resource or type analysis changed what the policy can SEE, and that change is
    precisely a differential's subject.
-6. **THE LOAD-BEARING CLAUSE — the final CARRIES the legacy proof rows.** Every legacy example's `why`
-   survives verbatim in the final module. This is what makes the rule sound rather than merely cheap: if
-   the rows are the legacy rows, conformance runs the legacy corpus against the production dispatcher
-   every static pass. **A lane that REWROTE the rows destroyed that argument along with them**, and the
-   module owes a replay.
+6. **THE LOAD-BEARING CLAUSE — the final CARRIES the legacy proof rows, LABELS *AND* BYTES.** Every legacy
+   example's `why` survives verbatim in the final module, **and so does its `files`/`at` payload**. This is
+   what makes the rule sound rather than merely cheap: if the rows are the legacy rows, conformance runs
+   the legacy corpus against the production dispatcher every static pass. **A lane that REWROTE the rows
+   destroyed that argument along with them**, and the module owes a replay. `expect:` is deliberately NOT
+   compared — a conversion legitimately gains a `mode` and may split a message — and the sweep REFUSES a
+   module whose payload it cannot parse rather than passing it by measuring nothing.
 
-## The roster, derived 2026-09-12 over the whole final corpus
+   **The BYTES half was missing from the first version of this ruling and it was a live hole (#2118).**
+   Checking only `why` meant a conversion that kept every label while re-authoring every fixture still
+   qualified — and the "conformance already runs the legacy corpus" argument was then FALSE, because the
+   dispatcher was running re-authored fixtures. **`no-decorators` is that module**: all three of its `why`
+   strings survived its conversion verbatim while all three of its template-literal fixtures were
+   re-indented and re-homed into a `files` map. It sat on the roster from the first commit until the
+   clause grew its second half. **It is now REPLAY-OWED**, and it is the only module the strengthening
+   moved.
 
-**Receipt: 239 final modules scanned · 12 CLOSE-BY-RULE · 227 REPLAY-OWED.** Method: for each
+## The roster, re-derived over the whole final corpus at `0060ec324`
+
+**Receipt: 248 final modules scanned · 11 CLOSE-BY-RULE · 237 REPLAY-OWED.** Method: for each
 `tooling/src/verify/gates/*.ts` containing `defineGate({`, the conversion commit is the first commit the
 `defineGate` pickaxe reports for that path, the legacy blob is that commit's parent, and the clauses above
 are applied to the pair.
@@ -74,7 +85,6 @@ are applied to the pair.
 | `infra-auth-no-userid` | `45743d76d^` |
 | `member-card-clamped` | `7be684811^` |
 | `no-array-literal-querykey` | `45743d76d^` |
-| `no-decorators` | `45743d76d^` |
 | `no-default-props` | `61aa46279^` |
 | `no-external-media-without-gate` | `45743d76d^` |
 | `no-layout-context-props` | `45743d76d^` |
@@ -82,16 +92,23 @@ are applied to the pair.
 | `no-raw-container-widths` | `99b7429e2^` |
 | `ui-accname-survives-spread` | `45743d76d^` |
 
+**Two movements since the first landing, both recorded rather than silently absorbed.** The corpus grew
+239 → 248 final modules across 24 merges and **not one new module joined** — the roster held green through
+every one of them, which is the membership test doing its job. The only change is `no-decorators`, which
+clause 6's byte half moved OUT (see above). A roster that never moves under a strengthening would be the
+suspicious outcome; one that moves by exactly the module the strengthening was written for is the
+expected one.
+
 ### The count disagrees with the census, and the disagreement cannot be reconciled
 
-**12, not 17.** The census's 17 cannot be checked against this because its list was never committed, so
+**11, not 17.** The census's 17 cannot be checked against this because its list was never committed, so
 there is no way to tell whether the two sets overlap, whether the census counted modules this test refuses
-(clause 6 alone drops 14 modules that clauses 1-5 admit), or whether the corpus simply moved. **Report the
-12 as today's derived figure and the 17 as an uncheckable inherited one** — do not average them, and do
+(clause 6 alone drops 15 modules that clauses 1-5 admit), or whether the corpus simply moved. **Report the
+11 as today's derived figure and the 17 as an uncheckable inherited one** — do not average them, and do
 not let a future derivation landing near either number read as confirmation.
 
-The single largest source of the gap is measurable: relaxing ONLY clause 6 takes the roster from 12 to 26.
-That is the clause the soundness argument rests on, so the 12 is the honest number.
+The single largest source of the gap is measurable: relaxing ONLY clause 6 takes the roster from 11 to 26.
+That is the clause the soundness argument rests on, so the 11 is the honest number.
 
 ## LIMITS — stated, because a silent limit is how a rule becomes a rubber stamp
 
@@ -99,6 +116,9 @@ That is the clause the soundness argument rests on, so the 12 is the honest numb
   legacy gate's live findings were zero. The playbook's phrasing ("whose legacy side actually RAN and
   returned zero") is therefore NOT what this test checks; clause 6 replaces that evidence with a stronger
   and checkable one.
+- **Byte carriage is a SUBSTRING comparison** over the legacy `files`/`at` payload. It proves the fixture
+  text survived into the final module; it does not prove the row's `expect` still pins the same node —
+  that is conformance's job and it runs on the static bar every pass.
 - **Clause 4 reads the `scanRoot` for a NEGATION, which is not the same as proving the absence of a
   population subtraction.** A negation refuses the module (conservative), but a subtraction spelled
   without `!` passes. A module on this roster whose population later turns out to have been narrowed is a
