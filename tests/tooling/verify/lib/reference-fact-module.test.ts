@@ -102,6 +102,71 @@ test("a LOCAL export specifier over a same-file overload set resolves the same w
   expect(fact.value.canonical.declaration.getText()).toContain("return value");
 });
 
+// A barrel that re-exports an IMPORTED binding under its OWN name republishes the door; it does not rename
+// it. Both live shapes were refused as `unsupported` until the name-preserving arm landed: `@trpc/server`'s
+// `TRPCError` (the NAMED form, 7 server import specifiers) and zod 4.4.3 `index.d.cts:1,3`
+// (`import * as z from "./v4/classic/external.cjs"; export { z };` — the NAMESPACE form, which closed the
+// Zod door for `no-raw-id`). The guard itself is NOT removed: the renaming rows below are what it protects.
+test("a name-preserving barrel over an imported binding resolves to the leaf's own declaration", () => {
+  const fact = pickOrigin({
+    "/repo/leaf.ts": "export const pick = (): number => 1;\n",
+    "/repo/barrel.ts": 'import { pick } from "./leaf.ts";\nexport { pick };\n',
+    "/repo/use.ts": 'import { pick } from "./barrel.ts";\nexport const value = pick;\n',
+  });
+
+  expect(fact).toMatchObject({ kind: "resolved", value: { moduleSpecifier: "./barrel.ts", canonical: { kind: "project", exportedName: "pick" } } });
+  if (fact.kind === "unresolved") {
+    throw new Error(fact.detail);
+  }
+  const canonical = fact.value.canonical;
+  // The authored door stays `./barrel.ts` (re-export traversal never rewrites it); the CANONICAL home is the leaf.
+  expect(canonical.kind === "project" && canonical.sourceFile.getBaseName()).toBe("leaf.ts");
+});
+
+test("a name-preserving NAMESPACE re-export behind a package door resolves to the namespace's module", () => {
+  const fact = pickOrigin({
+    "/node_modules/vendor/package.json": VENDOR_PACKAGE,
+    "/node_modules/vendor/index.d.ts": 'import * as pick from "./external";\nexport { pick };\n',
+    "/node_modules/vendor/external.d.ts": "export declare function record(value: string): string;\n",
+    "/repo/use.ts": 'import { pick } from "vendor";\nexport const value = pick;\n',
+  });
+
+  expect(fact).toMatchObject({ kind: "resolved", value: { moduleSpecifier: "vendor", canonical: { kind: "project", exportedName: "pick" } } });
+  if (fact.kind === "unresolved") {
+    throw new Error(fact.detail);
+  }
+  const canonical = fact.value.canonical;
+  // A namespace object has no single leaf declaration: its home is the MODULE it names.
+  expect(canonical.kind === "project" && canonical.sourceFile.getFilePath()).toBe("/node_modules/vendor/external.d.ts");
+});
+
+test.each([
+  [
+    // THE NAME-PRESERVING ARM'S OWN COUNTERFACTUAL, import hop. The barrel publishes `pick`, but the LEAF
+    // calls it `record` — and the leaf also exports its own `pick`. Accepting this would let the leaf's
+    // same-named export validate a renaming re-export, which is the hazard the guard exists for.
+    "a barrel whose import hop renames the leaf's export",
+    {
+      "/repo/leaf.ts": "export const record = (): number => 1;\nexport const pick = (): string => 'other';\n",
+      "/repo/barrel.ts": 'import { record as pick } from "./leaf.ts";\nexport { pick };\n',
+      "/repo/use.ts": 'import { pick } from "./barrel.ts";\nexport const value = pick;\n',
+    },
+  ],
+  [
+    // The same hazard at the EXPORT hop, namespace form: the published name is not the binding's name, so
+    // nothing proves which module the consumer's `pick` names.
+    "a namespace re-export renamed at the export hop",
+    {
+      "/node_modules/vendor/package.json": VENDOR_PACKAGE,
+      "/node_modules/vendor/index.d.ts": 'import * as internal from "./external";\nexport { internal as pick };\n',
+      "/node_modules/vendor/external.d.ts": "export declare function record(value: string): string;\n",
+      "/repo/use.ts": 'import { pick } from "vendor";\nexport const value = pick;\n',
+    },
+  ],
+])("%s stays an explicit refusal — a renamed re-export proves no home", (_label, files) => {
+  expect(pickOrigin(files)).toMatchObject({ kind: "unresolved", reason: "unsupported" });
+});
+
 test.each([
   [
     "two files of one package fanned in by export *",
