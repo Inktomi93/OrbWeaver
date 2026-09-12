@@ -109,7 +109,7 @@ function assertWaivablePosition(token: string, label: string): string {
     throw new Error(
       `${label} ${JSON.stringify(token)} cannot be named by an @orb-waive marker: the position grammar admits no parenthesis, CR or LF, ` +
         "so the finding would be permanently unwaivable. Keep the value as the CARRIER and in the MESSAGE, and hand back its leading " +
-        "paren-free slice as the COORDINATE (lib/ordinary-waiver.ts waivableCoordinate; guide §3, #2107).",
+        "paren-free slice as the COORDINATE (lib/waivable-coordinate.ts waivableCoordinate; guide §3, #2107).",
     );
   }
   return token;

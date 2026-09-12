@@ -14,14 +14,17 @@
 // `99b7429e2`) scanned `path.startsWith("packages/client/src/") || path.startsWith("packages/ui/src/")`,
 // which is exactly `["@client", "@ui"]`; nothing is added and nothing is subtracted.
 //
-// THE REPORTED POSITION is the EXACT CLASS CANDIDATE (`dark:bg-card`), supplied with its offset inside the
-// carrier literal; `fix` states the spelling. TWO POSITION SHAPES CANNOT BE WAIVED and the limit is declared
-// rather than hidden: (a) a candidate whose text contains a paren — an arbitrary selector or `@supports` query
-// such as `supports-[selector(:has(*))]:dark:text-foreground` — because the central marker grammar's position
-// group is `[^()\r\n]+`, so every marker written against it parses as malformed; and (b) the `unresolved:*`
-// arm and the zero-carrier-root tripwire, which report a synthetic label, not authored text. (a) is reported
-// to #1584 rather than worked around: shortening the token to a paren-free slice would break the runtime's
-// exact-slice identity rule, which is what binds a marker to a finding at all.
+// THE REPORTED POSITION is the CLASS CANDIDATE (`dark:bg-card`), supplied with its offset inside the carrier
+// literal; `fix` states the spelling. A candidate whose text contains a paren — an arbitrary selector or
+// `@supports` query such as `supports-[selector(:has(*))]:dark:text-foreground` — is named by its LEADING
+// PAREN-FREE SLICE, because the central marker grammar's position group is `[^()\r\n]+` and a marker naming
+// the whole candidate parses as malformed. That slice is still an exact slice of the carrier AT THE SAME
+// OFFSET, so the runtime's identity rule holds; only its LENGTH changes, and the whole candidate moves into
+// the message (#2107 arm c, guide §3; `reportAnchored` below). **This paragraph previously said the shape had
+// "NO waiver spelling" and told the author to raise it on #1584 — refuted in code by the same commit that
+// wrote it, and corrected here with the `fix` string (refutation-ledger row 530, #2160).** ONE position shape
+// still cannot be waived and stays declared rather than hidden: the `unresolved:*` arm and the
+// zero-carrier-root tripwire report a synthetic label, not authored text.
 import { Scanner } from "@tailwindcss/oxide";
 import type { Node } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
@@ -37,8 +40,9 @@ const FIX =
   "with dark:. A deliberate dark: utility is waived with `// @orb-waive no-tailwind-dark-variant(<position>): " +
   "<reason>` on a line above the offending statement, where <position> is the EXACT CLASS CANDIDATE — the " +
   "whole variant chain, `hover:dark:text-foreground`, never the bare `dark:` and never the quoted literal. A " +
-  "candidate containing a paren (an arbitrary selector or @supports query) has NO waiver spelling: the marker " +
-  "grammar's position group forbids parens, so raise it on #1584 instead of writing a marker that cannot parse.";
+  "candidate containing a paren (an arbitrary selector or @supports query) is named by its LEADING PAREN-FREE " +
+  "SLICE instead — `[&:where` for `[&:where(.x:y)]:dark:bg-card` — because the marker grammar's position group " +
+  "admits no paren; the whole candidate is in the finding's message rather than its position.";
 /** The real-tree anchor for the zero-carrier-root self-guard: a file guaranteed present on a real run and
  *  inside the declared population, so a fixture-only invocation (which never loads it) stays silent. */
 const REAL_TREE_ANCHOR = "packages/ui/src/lib/class-merge.ts";
@@ -170,6 +174,16 @@ function reportAnchored(report: GatePolicyContext["report"], anchored: AnchoredT
     // A paren-free candidate is returned unchanged, so `dark:bg-card` and `hover:dark:text-foreground` are
     // untouched — the split can only ever collide two candidates that both contain a paren, i.e. two that were
     // already unwaivable.
+    // DECLARED LIMIT — this refusal has no `mustRefuse` row and cannot get one (#2160, ledger row 534). It
+    // fires only for a candidate whose FIRST character is `(`, `)`, CR or LF, and no such candidate reaches
+    // here: measured 2026-09-12 over `(--x):dark:bg-card`, `(dark:bg-card)`, `(:has(*)):dark:bg-card` and
+    // `)dark:bg-card`, Oxide's scanner returns ZERO candidates for every one, while the two paren-CARRYING
+    // shapes in the same probe (`[&:where(.x:y)]:dark:bg-card`, `supports-[selector(:has(*))]:dark:bg-card`)
+    // report normally at their leading slice — so the probe could see candidates and the zero is a real zero.
+    // The two sibling consumers of this reader DO carry the row (`no-raw-color-in-css`, `rest-transform-grid`),
+    // because a CSS declaration value can start with a paren where a Tailwind utility cannot. The throw stays
+    // rather than becoming a silent drop: it is the reader's contract, not this policy's local choice, and a
+    // future scanner that admits such a candidate must fail loudly instead of minting an unwaivable finding.
     const coordinate = waivableCoordinate(anchored.token);
     if (coordinate === undefined) {
       throw new Error(`dark-variant candidate has no anchorable coordinate: ${anchored.token}`);

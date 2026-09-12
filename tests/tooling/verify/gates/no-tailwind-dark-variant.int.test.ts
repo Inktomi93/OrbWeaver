@@ -8,6 +8,7 @@
 // the generic deferral mechanics are the planner's own contract, proven for every shape at
 // `tests/tooling/verify/lib/policy-plan.test.ts`; this pins it for this one real policy.
 import { ModuleKind, ModuleResolutionKind, Project, ScriptKind } from "ts-morph";
+import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -42,6 +43,31 @@ test("a multi-file real run with a runtime prefix and an unresolved static cycle
   expect(owner?.findings).toHaveLength(2);
   expect(owner?.findings.some((finding) => finding.token === "dark:")).toBe(true);
   expect(owner?.findings.some((finding) => (finding.message ?? "").includes("unresolved:"))).toBe(true);
+});
+
+// §4.2 ORDINARY MARKER IDENTITY AT THE PAREN-CARRYING COORDINATE (refutation-ledger row 532, #2158). The
+// module's own `mustPass` row waives `dark:bg-card` — the paren-FREE case, which the #2107 carrier/coordinate
+// split never touched. An arbitrary-variant candidate carries parens and was PERMANENTLY UNWAIVABLE before
+// that split, which is the whole reason the split happened; nothing asserted that it is waivable now. The
+// POSITIVE arm only: a negative arm under `knownPolicies: [gate]` rides the unknown-policy short-circuit.
+test("an arbitrary-variant candidate is waivable at its leading paren-free slice, the coordinate the policy reports", () => {
+  const carrier = (marker: string): string => `${marker}export const X = <div className="[&:where(.x:y)]:dark:bg-card" />;\n`;
+  const passOf = (marker: string): PolicyPassResult => {
+    const project = projectFor({ "packages/ui/src/arbitrary.tsx": carrier(marker) });
+    return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  };
+
+  // The CONTROL: unmarked, the fixture really carries the finding, and the reported position really is the
+  // leading slice rather than the whole candidate — which is what makes the marker below nameable at all.
+  const unmarked = passOf("");
+  expect(unmarked.toolErrors).toEqual([]);
+  expect(unmarked.authority.effectiveFindings.map(({ token }) => token)).toEqual(["[&:where"]);
+
+  const waived = passOf("// @orb-waive no-tailwind-dark-variant([&:where): the proof's stand-in reason and its end condition.\n");
+
+  expect(waived.authority.effectiveFindings).toEqual([]);
+  expect(waived.authority.waivedFindings).toHaveLength(1);
+  expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
 test("a narrowed request defers the entire-population policy instead of running it partially", () => {

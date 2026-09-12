@@ -525,4 +525,15 @@ export const gate = defineGate({
       why: "NARROWING ROW for the ARM B real-tree GUARD: the census here is 1 transform token, far below the floor of 8, and the walk found one root — so cutting the `REAL_TREE_ANCHOR` guard turns this silent row into a blindness finding on every fixture in the corpus. The guard is what stops a whole-tree claim being made over a file map that is small by construction",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "resource",
+      files: {
+        ...CORPUS,
+        "packages/ui/src/styles/unanchorable.css": ".x {\n  transform: (translateX(-0.5px));\n}\n",
+      },
+      expect: { messageIncludes: "transform value has no anchorable coordinate" },
+      why: "a value whose FIRST character is a paren has no leading paren-free slice, so no coordinate the marker grammar can hold exists at all. This policy is `hard` and a hard finding has no waiver door, so the refusal is LATENT protection for the day an owner flips authority — which is exactly why it needs a row rather than a comment (#2160, ledger row 534)",
+    },
+  ],
 });

@@ -78,3 +78,32 @@ test("a missing CLIENT source tree refuses at the population phase rather than r
 test("a missing UI source tree refuses the same way — neither half of the derivation is privileged", ({ scratch }) => {
   expect(refusalShape(cssPass(scratch, { ...CLIENT_TREE }))).toMatchObject(REFUSAL);
 });
+
+// ---------------------------------------------------------------------------------------------------
+// §4.2 ORDINARY MARKER IDENTITY AT THE PAREN-CARRYING COORDINATE (refutation-ledger row 532, #2158).
+//
+// The module's own `mustPass` row waives `#ff0000` — the paren-FREE case, which the #2107 carrier/coordinate
+// split never touched. So the ONE property that split exists to create, that a paren-carrying value is
+// waivable AT ALL, was pinned by no row in the module and no arm in this file: the `fix` string promises
+// `oklch` and nothing asserted that the engine binds a marker written that way. This is that arm. It is the
+// POSITIVE arm only — a negative arm under `knownPolicies: [gate]` rides the unknown-policy short-circuit and
+// proves nothing (§4.2).
+// ---------------------------------------------------------------------------------------------------
+const PAREN_CARRYING = "packages/client/src/features/x/paren.css";
+const PAREN_VALUE = ".brand {\n  color: oklch(0.5 0.2 30);\n}\n";
+
+test("a paren-carrying value is waivable at its leading function name, which is the coordinate the policy reports", ({ scratch }) => {
+  // The CONTROL first: unmarked, this fixture really does carry the finding, and the position the policy
+  // reports really is the function name rather than the whole value.
+  const unmarked = cssPass(scratch, { ...UI_TREE, [PAREN_CARRYING]: PAREN_VALUE });
+  expect(unmarked.authority.effectiveFindings.map(({ token }) => token)).toEqual(["oklch"]);
+
+  const waived = cssPass(scratch, {
+    ...UI_TREE,
+    [PAREN_CARRYING]: `.brand {\n  /* @orb-waive no-raw-color-in-css(oklch): the proof's stand-in reason and its end condition. */\n  color: oklch(0.5 0.2 30);\n}\n`,
+  });
+
+  expect(waived.authority.effectiveFindings).toEqual([]);
+  expect(waived.authority.waivedFindings).toHaveLength(1);
+  expect(waived.authority.authorityAlarms).toEqual([]);
+});
