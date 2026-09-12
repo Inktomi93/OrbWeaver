@@ -17,6 +17,7 @@ import { join } from "node:path";
 import type { CaughtFailurePopulation, CaughtFailureRow, TestBaselineManifest } from "@orb/tooling/verify";
 import {
   censusDrift,
+  classRollupDrift,
   deferredRosterDrift,
   deriveReadFirstCosts,
   deriveSnapFlagsIndexMarkdown,
@@ -681,4 +682,176 @@ test("the COMMITTED ledger has no stray section, and the green is a measurement"
   // A zero-denominator green would print the same empty list: measured 2026-09-12, all 25 in-fence sections
   // carry a ledger-shaped table across SIX different column schemas, and no out-of-fence table does.
   expect(ledgerSections(ledger).length).toBeGreaterThan(20);
+});
+
+// ─── #2207: the CLASS ROLLUP is a DERIVED table, and nothing re-derived it ───────────────────────────
+//
+// THE CONTROL IS TWO-DIRECTIONAL BECAUSE ONE-DIRECTIONAL IS HOW THE TABLE GOT HERE. A summary that only
+// ever agrees with itself drifts silently: this one did it twice, reading `91 rows` against a body of 99
+// and then `100 rows` against a body of 303. Both times a human caught it. So the added-row arm must RED
+// and name the cell, AND the matching pair must stay GREEN — an arm that reds on everything would have
+// "caught" both incidents while being useless, and an arm that greens on everything is the status quo.
+//
+// The fixtures are SYNTHETIC and tiny on purpose: the real ledger is 300+ rows and fenced to another
+// owner, and a pin that reads it would re-red on every legitimate append. The real file is exercised by
+// the stage itself — `pnpm check:ledgers-fresh` prints its per-table counts on every run.
+
+/** A minimal ledger: one in-fence section with `rows` data rows, then the rollup the fixture declares. */
+function ledgerFixture(input: { readonly rows: readonly (readonly [string, string])[]; readonly rollup: readonly string[] }): string {
+  const body = input.rows.map(([klass, state]) => `| mod | wave | defect | ${klass} | ${state} |`).join("\n");
+  return [
+    "## THE LEDGER",
+    "",
+    "### `p-probe` — a synthetic section",
+    "",
+    "| module | wave | defect | class | state |",
+    "| - | - | - | - | - |",
+    body,
+    "",
+    "## CLASS ROLLUP",
+    "",
+    "| class | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJUDICATED | N/A | FIXED |",
+    "| - | -: | -: | -: | -: | -: | -: | -: | -: |",
+    ...input.rollup,
+    "",
+  ].join("\n");
+}
+
+function rollupRoot(text: string): string {
+  const root = mkdtempSync(join(tmpdir(), "orb-class-rollup-"));
+  mkdirSync(join(root, "docs/reviews/gate-runtime"), { recursive: true });
+  writeFileSync(join(root, "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md"), text);
+  return root;
+}
+
+// The rollup a two-row body (one §4.1 CLOSED, one free-text OPEN) honestly summarises.
+const MATCHING_ROLLUP = [
+  "| **§4.1** | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§4.2** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§4.5** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§4.6** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.1** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.2** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.3** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.5** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§5b.7** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **§12.3** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **roster** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |",
+  "| **other** | 1 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |",
+  "| **TOTAL** | **2** | **1** | **1** | **0** | **0** | **0** | **0** | **0** |",
+];
+const TWO_ROWS = [
+  ["§4.1", "**CLOSED** at `abc1234`"],
+  ["instrument", "OPEN — still live"],
+] as const;
+
+test("#2207 GREEN — a rollup that matches its body is fresh, and the label prints per-table counts", () => {
+  const root = rollupRoot(ledgerFixture({ rows: TWO_ROWS, rollup: MATCHING_ROLLUP }));
+  try {
+    const result = classRollupDrift(root);
+    expect(result.drift).toEqual([]);
+    expect(result.derived).toBe(2);
+    // The counting paragraph requires these PRINTED on every run: "the three defects above were all
+    // invisible to a run that printed only the totals".
+    expect(result.ledger).toContain("1 tables · 2 rows · unbinned 0 · per-table 2");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("#2207 RED — a body row added without a rollup update reds, naming the differing cells", () => {
+  // The exact incident: a section is appended, the summary is not rebuilt. One §4.1 CLOSED row arrives.
+  const root = rollupRoot(ledgerFixture({ rows: [...TWO_ROWS, ["§4.1", "**CLOSED** at `def5678`"]], rollup: MATCHING_ROLLUP }));
+  try {
+    const result = classRollupDrift(root);
+    expect(result.drift).toEqual(["cell §4.1.rows: 1 → 2", "cell §4.1.CLOSED: 1 → 2", "cell TOTAL.rows: 2 → 3", "cell TOTAL.CLOSED: 1 → 2"]);
+    expect(result.regen).toContain("rebuild the `## CLASS ROLLUP` table");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("#2207 — an UNBOLDED state cell bins by its first word, and a cell binning to nothing is reported", () => {
+  // Rule 3, both halves. 56 of the real file's 303 state cells carry no bold at all, and the literal
+  // "first bolded word" reading reported every one of them UNBINNED while running CLOSED short by 12.
+  const root = rollupRoot(
+    ledgerFixture({
+      rows: [
+        ["§4.1", "CLOSED at `abc1234`"],
+        ["instrument", "premise dead on today's tree"],
+      ],
+      rollup: MATCHING_ROLLUP,
+    }),
+  );
+  try {
+    const result = classRollupDrift(root);
+    // The unbolded CLOSED bins as CLOSED — it lands in the §4.1 row the fixture already declares…
+    expect(result.drift.filter((line) => line.startsWith("cell §4.1"))).toEqual([]);
+    // …and the cell that names no known state is REPORTED verbatim, never silently dropped.
+    expect(result.drift).toContain(
+      'unbinned  a state cell bins to none of CLOSED/OPEN/SUPERSEDED/DISSOLVED/UNADJUDICATED/N/A/FIXED: "premise dead on today\'s tree"',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("#2207 — an in-fence table with no `state` column is REPORTED, never silently skipped", () => {
+  // Rule 2's failure mode from the other side: the binner cannot read the table at all. A skip here is the
+  // blindness the arm exists for — the old method's `≥6 cells` filter dropped a whole 12-row section.
+  const text = [
+    "## THE LEDGER",
+    "",
+    "### `p-probe` — a section whose schema carries no state",
+    "",
+    "| module | defect |",
+    "| - | - |",
+    "| mod | a defect with nowhere to bin |",
+    "",
+    "## CLASS ROLLUP",
+    "",
+    "| class | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJUDICATED | N/A | FIXED |",
+    "| - | -: | -: | -: | -: | -: | -: | -: | -: |",
+    "| **TOTAL** | **0** | **0** | **0** | **0** | **0** | **0** | **0** | **0** |",
+    "",
+  ].join("\n");
+  const root = rollupRoot(text);
+  try {
+    expect(classRollupDrift(root).drift).toContain("unreadable  an in-fence table has no `state` column, so its rows bin nowhere: header `module | defect`");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("#2207 — a rollup MISSING a state COLUMN is a schema defect, not a cell mismatch", () => {
+  // THE HISTORICAL DEFECT, replayed as a fixture. The table that stood until 2026-09-12 carried six state
+  // columns and no `FIXED`, and 11 of one section's 12 rows said exactly FIXED — so they were invisible to
+  // the summary rather than miscounted in it. Reporting that as a cell mismatch would send the reader to
+  // fix numbers that are not wrong; the missing COLUMN is the defect. Found by replaying the real file at
+  // `06da8c80d` through this arm, which is also why the arm reports it at all.
+  const text = [
+    "## THE LEDGER",
+    "",
+    "### `p-probe` — a section whose only row is FIXED",
+    "",
+    "| module | wave | defect | class | state |",
+    "| - | - | - | - | - |",
+    "| mod | wave | defect | instrument | **FIXED** in this commit |",
+    "",
+    "## CLASS ROLLUP",
+    "",
+    "| class | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJUDICATED | N/A |",
+    "| - | -: | -: | -: | -: | -: | -: | -: |",
+    "| **other** | 1 | 0 | 0 | 0 | 0 | 0 | 0 |",
+    "",
+  ].join("\n");
+  const root = rollupRoot(text);
+  try {
+    const { drift } = classRollupDrift(root);
+    expect(drift).toContain("schema  the rollup has no `FIXED` column, so every FIXED row in the body is invisible to it rather than miscounted");
+    // And NO phantom cell line for a bin the table cannot hold.
+    expect(drift.filter((line) => line.includes(".FIXED:"))).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
