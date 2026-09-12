@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 598,
+    "sites": 596,
     "reported": 23,
     "byVerdict": {
-      "deliberate-absorb": 575,
+      "deliberate-absorb": 573,
       "unproven": 23
     },
     "byGrammar": {
       "default": 162,
-      "empty": 293,
+      "empty": 291,
       "promise": 143
     }
   },
@@ -4633,7 +4633,7 @@
     {
       "siteId": "tooling/src/_shared/load-budget.ts::catch::1",
       "path": "tooling/src/_shared/load-budget.ts",
-      "line": 228,
+      "line": 239,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -4641,7 +4641,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly \"no ceiling is declared here\", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell \"unbounded\" from \"could not ask\"; the absence then becomes a value and this catch becomes a branch.",
-      "markerLine": 225
+      "markerLine": 236
     },
     {
       "siteId": "tooling/src/_shared/nav.ts::page.evaluate::1",
@@ -4685,7 +4685,7 @@
     {
       "siteId": "tooling/src/_shared/proc.ts::error::2",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 234,
+      "line": 251,
       "column": 16,
       "grammar": "empty",
       "position": "error",
@@ -4693,12 +4693,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.",
-      "markerLine": 231
+      "markerLine": 248
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::settle::1",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 382,
+      "line": 400,
       "column": 7,
       "grammar": "promise",
       "position": "settle",
@@ -4706,7 +4706,7 @@
       "snippet": "settle(code).catch((error: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error.",
-      "markerLine": 381
+      "markerLine": 399
     },
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::cleanupError::1",
@@ -7073,32 +7073,6 @@
       "verdict": "deliberate-absorb",
       "reason": "every validator failure is converted into this gate's asset-contract finding and zero-scan receipt. Ends if the catch stops reporting the failure detail.",
       "markerLine": 100
-    },
-    {
-      "siteId": "tooling/src/verify/gates/monotonic-tests.ts::catch::1",
-      "path": "tooling/src/verify/gates/monotonic-tests.ts",
-      "line": 112,
-      "column": 5,
-      "grammar": "empty",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "captured as kind \"missing\", a distinct ManifestResult arm the caller (scanDeletedTestFiles) reports as a violation, never a silent pass. Ends if that \"missing\" arm stops being read as a violation.",
-      "markerLine": 109
-    },
-    {
-      "siteId": "tooling/src/verify/gates/monotonic-tests.ts::catch::2",
-      "path": "tooling/src/verify/gates/monotonic-tests.ts",
-      "line": 126,
-      "column": 5,
-      "grammar": "empty",
-      "position": "catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "captured as kind \"malformed\", a distinct ManifestResult arm the caller reports as a violation, never a silent pass. Ends if that \"malformed\" arm stops being read as a violation.",
-      "markerLine": 115
     },
     {
       "siteId": "tooling/src/verify/gates/no-nul-bytes-in-source.ts::catch::1",

@@ -710,6 +710,12 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   counts reds** (#2220, `lint:hook-syntax` exit 2 on every `pnpm check` since it was added on 09-11 because `bash`
   resolved to `node_modules/.bin/bash`): a tier's own summary must name every stage whose exit class was 2 or whose
   `code` is null, and a barrier reads that list before the red count (#2225).
+- **ONLY THE LEDGER'S OWNER WRITES `flipped ledger rows:`; EVERY LANE WRITES `ledger rows OWED: <ids>`** (ruled 2026-09-12 on
+  #2195 after a verifier found EIGHTEEN rows reading OPEN for landed work — one commit claimed flips it never made, two said
+  "none" while closing seven): a lane fenced out of the ledger cannot flip a row, so `flipped` from a lane is a false claim
+  by construction, and the phrase had carried no information all program. The orchestrator flips in its reconcile edit,
+  each cell naming the sha and `(board #NNNN)`; the barrier check on #2195 asserts every cited id exists and every OWED id
+  is later closed.
 - **A cross-tool invariant needs a cross-tool pin in the PRODUCER's home** (#2175): a generator emitting bytes
   the formatter normalises away is a deadlock between two doors, and the pin that catches it lives in the
   generator's suite, run twice with the second byte-identical — otherwise the regression surfaces in a docs lane
