@@ -471,6 +471,15 @@ re-attest of every review doc a lane rewrote (a regeneration never attests a doc
    pending debt paths plus stale `verifiedSha256` on three documents last touched 2026-09-05/06), so judge the run by
    `git diff docs/catalog/` and NOT by its exit code: keep it only if the diff touches the rows for documents you
    actually read. Never let a regeneration attest a document you have not read. Commit the catalog alone.
+   **Two ledger rules paid for on 2026-09-12 evening:** (a) a verifier report's `## LEDGER ROWS` section is
+   appended INSIDE the ledger's fence — above `## CLASS ROLLUP`, never after it; a section below the fence is
+   invisible to the counter, the rollup and the `ledgers:fresh` reconciler while looking present to a grep
+   (`6c983149e`, six rows). (b) **Any commit that changes a PRICED document owes a SIZE regeneration immediately
+   after it** (`pnpm exec node tooling/src/verify/cli.ts baseline read-first-costs`, then `ledgers:fresh` real exit):
+   the read-first table prices the ledger it lives beside, a ledger append is the commonest edit in this program, and
+   one append reddened `ledgers:fresh` on the row that prices it; three cells were stale at the next regen, not the
+   two a row had named. And land the report the section cites in the SAME commit — a section citing a file that
+   exists only in a worktree sends every reader to nothing.
 5. Post the receipt on #1584 (`gh issue comment --body-file`); rows: `review` + `verify --evidence` (< ~700 chars).
 6. Dispatch one Opus verifier over the wave's merged commits (claims, exact fixtures to re-drive, census, the Sonnet
    assessment if a Sonnet lane is in the wave). On CONFIRMED: `done` with the identical evidence string. On REFUTED:
