@@ -168,7 +168,7 @@ tree tells you the moment a fix breaks a row.
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
 
-   **AUDIT STATE — 2026-09-11 evening. Waves 1-6 complete, 62 of 167 modules audited** (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
+   **AUDIT STATE — 2026-09-11 evening. Waves 1-7 complete, 76 of 167 modules audited** (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
 
 | wave | subjects | verdict | narrowings |
 | - | - | - | - |
@@ -177,7 +177,12 @@ tree tells you the moment a fix breaks a row.
 | 3 | drizzle-schema ×9 | all nine REFUTED | **best proof axes yet**: 1 of 53 rows count-less, 0 of 6 transplants tautologous |
 | 4 | raw-CSS / token ×9 | **all nine REFUTED** | 31 cuts → 19 enforced / **10 unenforced (32%)** / 2 unfalsifiable / **0 mutually redundant (MEASURED)** |
 | 5 | `ordinary-visitors` ×15 | **13 REFUTED / 2 confirmed** | 94 cuts → naive 56 clean → **33 UNENFORCED (35%)**; naive over-reports by 41% |
-| 6 | `origin-client` ×12 | **all 12 REFUTED** | 59 cuts → naive 29 clean → **25 UNENFORCED (42% upper bound, broader cut set)**; 1 mutually redundant, 3 unfalsifiable, 0 wrong-direction |
+| 6 | `origin-client` ×12 | **all 12 REFUTED** | 59 cuts → naive 29 clean → **25 UNENFORCED (42%)**; 1 mutually redundant, 3 unfalsifiable |
+| 7 | `home-client` ×14 | **13 REFUTED / 1 confirmed-with-repairs** | 85 cuts → naive 29 clean (34%) → **17 UNENFORCED (20%)**, 8 mutually redundant, 4 unfalsifiable. **Naive over-reports by 71%** — the widest gap, caused by declared PERF PREFILTERS that cut clean by design. **71 of 71 rows carry `count`; zero tautologies** |
+
+**EVERY WAVE'S NAIVE UNENFORCED FIGURE IS AN UPPER BOUND, and waves 4–6 were never corrected for the prefilter
+shape wave 7 found.** Read 32% / 35% / 42% as naive; wave 7's own naive 34% classified down to 20%. Do not compare
+a naive number against a classified one.
 
 **Wave 4's zero mutually-redundant is a measurement, not an absence of effort** — it ran both cluster cuts and they
 came back clean, which REFUTED redundancy and meant six separate `mustPass` rows were owed rather than a deletion.
@@ -318,10 +323,11 @@ base is 2026-09-05; every conversion since can have carried a table it never saw
 | `section-registry-completeness` | registry | 4/4 narrowings enforced |
 | **`no-mutating-register-api`** | **ORDINARY** | its `mustPass[3]` `why` says *“the only row that dies without it”* and the audit proved that sentence TRUE |
 | `no-raw-interactive-intrinsics` · `zustand-selector-stability` | reviewed-grant | fix `zustand`'s J4/J5 first |
+| **`no-raw-matchmedia`** | **reviewed-grant** | wave 1 refuted it SEVERE, it was repaired (`b157bb9be`), and wave 7 re-audited and **confirmed the repair HELD**. The only module in 26 audited (waves 6–7) whose #944 third answer is actually REACHED. **Fix #1998 first** — its header and roster row both say “all four” grants and there are five |
 | `spacing-tier-home-health` | HARD tripwire only | owes one §4.5 pin |
 
 **ANTI-PATTERNS — never point a lane at these:** `no-raw-spacing-in-features`'s HEADER · `no-manual-token-estimate` ·
-`no-inline-types` · `zod-modern-spellings` · `persistence-boundary` · `no-rejected-cors-proxy`.
+`no-inline-types` · `zod-modern-spellings` · `persistence-boundary` · `no-rejected-cors-proxy` (**these four were REPAIRED at `8ad418868` — re-derive before trusting this line**) · `no-effect-on-shared-selection` (it writes `=== "home"` against a THREE-answer reader, converting the third answer back into silence, unpinned in both directions).
 
 ### OWED TO THE ORCHESTRATOR AT A QUIET BARRIER — no lane may run these
 

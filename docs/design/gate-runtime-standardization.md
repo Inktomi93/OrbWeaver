@@ -168,6 +168,16 @@ family.
      resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
      path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
 
+   **A DECLARED PERFORMANCE PREFILTER CUTS CLEAN BY DESIGN — counting it is counting HONESTY as a defect
+   (measured 2026-09-11, and it is the single largest source of false UNENFORCED cells).** Where a candidate-name
+   prefilter sits in FRONT of an identity reader, cutting the whole prefilter comes back CLEAN, because the identity
+   fence behind it rejects everything the prefilter would have admitted. That is the prefilter working: it is a
+   speed optimisation, not a correctness fence, and the module usually says so in a comment. **Cut the
+   DISCRIMINATING HALF instead** — the alias arm of the identity check — and it REDs. Wave 7's naive sweep read 29
+   of 85 cuts clean and classified down to **17 (34% → 20%), an over-report of 71%**, almost entirely from this
+   shape. **So every wave's NAIVE number is an upper bound, and the earlier waves' figures (32%, 35%, 42%) were not
+   corrected for it.** When a clean cut sits in front of an identity check, say which half you cut.
+
    **CUT IN THE RIGHT DIRECTION, OR YOU MANUFACTURE A FALSE “UNENFORCED” — the auditor's own failure mode
    (measured 2026-09-11).** The cut must make the policy flag **MORE**. Replacing a predicate with a DIFFERENT wrong
    value is not that cut, and it can leave every row green for a reason unrelated to the fence. Worked case: a wave-5
