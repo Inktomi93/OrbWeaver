@@ -39,7 +39,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
-import { coveringSibling, exemptionCollections, gate, hasStaleArm } from "../../../../tooling/src/verify/gates/gate-modernization.ts";
+import { exemptionCollections, gate, hasStaleArm } from "../../../../tooling/src/verify/gates/gate-modernization.ts";
 import { verifyGateProofs } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -58,43 +58,28 @@ function corpusOf(modules: Readonly<Record<string, string>>): Map<string, Source
 /** Arm B's verdict for one module, composed from the gate's own exported predicates. */
 function accusedCollections(rel: string, corpus: ReadonlyMap<string, SourceFile>): readonly string[] {
   const sf = corpus.get(rel) as SourceFile;
-  return hasStaleArm(sf)
-    ? []
-    : exemptionCollections(sf)
-        .filter((collection) => coveringSibling(collection, rel, corpus) === undefined)
-        .map((collection) => collection.name);
+  return hasStaleArm(sf) ? [] : exemptionCollections(sf).map((collection) => collection.name);
 }
 
-test("a collection whose stale arm lives in an IMPORTING sibling is two-sided as a family, and every near-miss still reds", () => {
-  // RED-FIRST: pre-fix this returned ["ALLOWLIST"] — the ordinary half accused of the family's promise.
+test("arm B accuses a DECLARED one-sided collection, and a stale arm in the SAME module still acquits", () => {
+  // #2219 INVERTED the #2093 carve: the split-family arrangement below used to be EXCUSED here and is now
+  // a `mustFlag` row on the gate itself, because #2096 forbade it outright. So the sibling no longer
+  // changes the verdict — only the accused module's own stale arm does, which is the two-sided rule arm B
+  // has always had.
   const split = corpusOf({ [ORDINARY]: TABLE, [HEALTH]: `import { ALLOWLIST } from "./probe-ordinary.ts";\n${STALE_ARM}export const seen = ALLOWLIST;\n` });
-  expect(accusedCollections(ORDINARY, split)).toEqual([]);
+  expect(accusedCollections(ORDINARY, split), "the retired carve must not still be excusing").toEqual(["ALLOWLIST"]);
 
-  // A stale-armed sibling that imports something ELSE from the same module covers nothing.
-  const wrongSymbol = corpusOf({
-    [ORDINARY]: `${TABLE}export const OTHER = 1;\n`,
-    [HEALTH]: `import { OTHER } from "./probe-ordinary.ts";\n${STALE_ARM}export const seen = OTHER;\n`,
-  });
-  expect(accusedCollections(ORDINARY, wrongSymbol)).toEqual(["ALLOWLIST"]);
+  // The surviving two-sided door: the stale arm in the module's OWN text acquits its own table.
+  const twoSided = corpusOf({ [ORDINARY]: `${STALE_ARM}${TABLE}` });
+  expect(accusedCollections(ORDINARY, twoSided)).toEqual([]);
 
-  // A sibling that imports the collection but carries NO stale arm covers nothing — the import is the
-  // reach, the stale arm is the promise, and the door needs both.
-  const noArm = corpusOf({ [ORDINARY]: TABLE, [HEALTH]: 'import { ALLOWLIST } from "./probe-ordinary.ts";\nexport const seen = ALLOWLIST;\n' });
-  expect(accusedCollections(ORDINARY, noArm)).toEqual(["ALLOWLIST"]);
-
-  // An UNEXPORTED table can be reached by nobody, so no sibling can ever excuse it.
-  const unexported = corpusOf({
-    [ORDINARY]: 'const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const used = ALLOWLIST;\n',
-    [HEALTH]: `import { used } from "./probe-ordinary.ts";\n${STALE_ARM}export const seen = used;\n`,
-  });
+  // An UNEXPORTED table is still a table — reachability was the carve's concern, never the arm's.
+  const unexported = corpusOf({ [ORDINARY]: 'const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const used = ALLOWLIST;\n' });
   expect(accusedCollections(ORDINARY, unexported)).toEqual(["ALLOWLIST"]);
 
-  // Per COLLECTION, not per module: a covered table beside an uncovered one still reds for the uncovered.
-  const mixed = corpusOf({
-    [ORDINARY]: `${TABLE}export const WAIVED = { "packages/x/src/b.ts": "also sanctioned" };\n`,
-    [HEALTH]: `import { ALLOWLIST } from "./probe-ordinary.ts";\n${STALE_ARM}export const seen = ALLOWLIST;\n`,
-  });
-  expect(accusedCollections(ORDINARY, mixed)).toEqual(["WAIVED"]);
+  // Per COLLECTION, not per module: two declared tables are two findings.
+  const two = corpusOf({ [ORDINARY]: `${TABLE}export const WAIVED = { "packages/x/src/b.ts": "also sanctioned" };\n` });
+  expect(accusedCollections(ORDINARY, two)).toEqual(["ALLOWLIST", "WAIVED"]);
 });
 
 // A LOAD-HONEST BUDGET, and this suite earned the lesson TWICE on itself. BOTH tests below walk the whole
@@ -113,7 +98,36 @@ test("the gate's OWN proof rows hold, including the split-family pair", { timeou
   expect(verifyGateProofs([gate])).toEqual([]);
 });
 
-test("the split-family door is ENGAGED on the real corpus, not just on fixtures", { timeout: CORPUS_WALK_BUDGET }, ({ repoRoot }) => {
+/** Does a DIFFERENT gate module import `name` from `rel`? That pairing is the retired #2093 arrangement
+ *  and the shape #2096 forbids, so its absence from the corpus is what the real-corpus pin asserts. */
+function importedBySibling(rel: string, name: string, corpus: ReadonlyMap<string, SourceFile>): boolean {
+  const selfBase = rel.slice(`${GATES_REL}/`.length).replace(/\.ts$/u, "");
+  return [...corpus].some(
+    ([siblingRel, sibling]) =>
+      siblingRel !== rel &&
+      sibling
+        .getImportDeclarations()
+        .some(
+          (d) => d.getModuleSpecifierValue().replace(/^\.\//u, "").replace(/\.ts$/u, "") === selfBase && d.getNamedImports().some((n) => n.getName() === name),
+        ),
+  );
+}
+
+test("no accusation on the real corpus is of the RETIRED split-family shape (#2219)", { timeout: CORPUS_WALK_BUDGET }, ({ repoRoot }) => {
+  // THE LIVENESS THAT MATTERS ONCE THE EXCUSE IS GONE — and it is deliberately NOT "zero accusations".
+  //
+  // The ruling's parenthetical said the corpus would show zero, meaning every shared collection had moved
+  // to `lib/` under #2096. MEASURED, it shows TWO: `list-row-adoption`'s `ALLOWED_ROOTS` and
+  // `vector-scope-derived`'s `IMPORT_SANCTIONED`. Neither is caused by retiring the carve — both are
+  // module-local, UNEXPORTED, and have no importing sibling, so `coveringSibling` could never have reached
+  // them and arm B accused them before this change too (`vector-scope-derived` is named as exactly that
+  // standing finding in this file's own #2093 history). They are real one-sided tables and they are
+  // someone's row, not this test's business.
+  //
+  // So the assertion is the PROPERTY the inversion owns, not a census: the arrangement #2096 forbade and
+  // #2219 turned into a `mustFlag` must be ABSENT from the corpus — no accused collection may have a
+  // sibling gate importing it. A name list would be the perishable ledger this file's header warns about;
+  // `toEqual([])` on the raw accusations would be a false claim about today's tree.
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   const dir = join(repoRoot, GATES_REL);
   const corpus = new Map(
@@ -121,21 +135,13 @@ test("the split-family door is ENGAGED on the real corpus, not just on fixtures"
       .filter((name) => name.endsWith(".ts") && !name.endsWith(".d.ts"))
       .map((name) => [`${GATES_REL}/${name}`, project.addSourceFileAtPath(join(dir, name))] as const),
   );
-  // The anti-vacuum floor: a corpus that failed to load has zero collections, and every claim below would
-  // then be vacuously true. 300 modules on the measuring day; the floor sits far under it so a real
-  // conversion wave cannot trip it.
+  // The anti-vacuum floor: a corpus that failed to load has zero collections and would pass vacuously.
   expect(corpus.size, "the gate corpus did not load — the reader, not the tree, is the finding").toBeGreaterThan(200);
 
-  const covered = [...corpus].flatMap(([rel, sf]) =>
-    hasStaleArm(sf)
-      ? []
-      : exemptionCollections(sf)
-          .filter((c) => coveringSibling(c, rel, corpus) !== undefined)
-          .map((c) => `${rel}:${c.name}`),
+  const splitFamily = [...corpus.keys()].flatMap((rel) =>
+    accusedCollections(rel, corpus)
+      .filter((name) => importedBySibling(rel, name, corpus))
+      .map((name) => `${rel}:${name}`),
   );
-  // Pre-fix this was ZERO by construction — there was no door. A real family whose liveness arm sits in an
-  // importing `-health` sibling must exist here, or the door is dead code that a fixture keeps alive.
-  expect(covered.length, "no real split family exercises the door — it is fixture-only").toBeGreaterThan(0);
-  const accused = new Set([...corpus.keys()].flatMap((rel) => accusedCollections(rel, corpus).map((name) => `${rel}:${name}`)));
-  expect(covered.filter((entry) => accused.has(entry))).toEqual([]);
+  expect(splitFamily, "a gate imports an exemption collection from another gate — the shape #2096 forbids and #2219 accuses").toEqual([]);
 });

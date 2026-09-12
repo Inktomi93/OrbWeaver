@@ -31,7 +31,6 @@ const GATE_SELF = `${GATES_REL}gate-modernization.ts`;
 const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
 const TS_EXT_RE = /\.ts$/u;
 /** A sibling gate module imports its family-mate as `./<name>.ts` — both modules are top-level in `gates/`. */
-const RELATIVE_PREFIX_RE = /^\.\//u;
 
 // ── ARM B vocabulary ─────────────────────────────────────────────────────────────────────────────────
 // A const NAME carrying exemption vocabulary is a PROMISE: these rows are deliberate, permanent, and
@@ -306,34 +305,28 @@ export function exemptionCollections(sf: SourceFile): Collection[] {
   return out;
 }
 
-/** ARM B's SPLIT-FAMILY door (#2093). A family that SPLITS by authority (guide: an ordinary policy plus a
- *  hard `-health` sibling carrying the identical `family`) puts the exemption TABLE in the ordinary half
- *  and the liveness arm in the sibling — so a per-MODULE `hasStaleArm` accused three ordinary halves whose
- *  property was held one file over. Measured 2026-09-12 over all 300 corpus modules: arm B accused four,
- *  and `no-raw-spacing-in-features` · `no-raw-typography-in-features` · `serde-core-seal` were exactly this
- *  shape, each one's `-health` sibling importing the very symbol and carrying the stale arm.
+/** THE #2093 SPLIT-FAMILY EXCUSE IS RETIRED — AS AN ASSERTION, NEVER AN ABSENCE (#2219, owner ruling).
  *
- *  The door is the IMPORT, deliberately NOT the `family` string: a shared family name would excuse any
- *  table in the family, while an import of THIS collection by a module that carries a stale arm is
- *  evidence about THIS collection. It follows that an UNEXPORTED one-sided table can never be excused —
- *  nothing can reach it — which is why `vector-scope-derived`'s `IMPORT_SANCTIONED` stays red, and it was
- *  the one accusation of the four that this door deliberately leaves standing.
+ *  The carve acquitted a gate-local exemption collection when a SIBLING gate imported it and carried the
+ *  stale arm: a family that splits by authority kept the table in the ordinary half and the liveness arm in
+ *  the `-health` half, and accusing the ordinary half named three live modules whose property was held one
+ *  file over (`no-raw-spacing-in-features`, `no-raw-typography-in-features`, `serde-core-seal`).
  *
- *  The import is NECESSARY and not sufficient: #2168 adds that the sibling's stale arm must be about the
- *  same SUBJECT — see `staleArmIsAboutSubject`, which carries the measurement that refuted the row's
- *  prescribed identifier-only join. */
-export function coveringSibling(collection: Collection, selfRel: string, corpus: ReadonlyMap<string, SourceFile>): string | undefined {
-  const selfBase = selfRel.slice(GATES_REL.length).replace(TS_EXT_RE, "");
-  const importsCollection = (sibling: SourceFile): boolean =>
-    sibling
-      .getImportDeclarations()
-      .some(
-        (declaration) =>
-          declaration.getModuleSpecifierValue().replace(RELATIVE_PREFIX_RE, "").replace(TS_EXT_RE, "") === selfBase &&
-          declaration.getNamedImports().some((named) => named.getName() === collection.name),
-      );
-  return [...corpus].find(([rel, sibling]) => rel !== selfRel && staleArmIsAboutSubject(sibling, collection.name, selfBase) && importsCollection(sibling))?.[0];
-}
+ *  #2096 THEN FORBADE THE VERY ARRANGEMENT THE CARVE EXCUSED: a gate never imports a gate, and a shared
+ *  collection's ONE home is `lib/`. All three moved (`../lib/raw-spacing-tier.ts`,
+ *  `../lib/raw-typography-tier.ts`, `../lib/serde-core-seal.ts`), so the excuse covered ZERO pairs and its
+ *  own liveness arm said so. That is the arm WORKING — a closed class reaching zero — and it is why the
+ *  answer is not deletion: the population is empty BECAUSE the shape was eliminated, and the right response
+ *  to a successfully-eliminated shape is a tripwire that catches its return, not a removal that guarantees
+ *  silence if it returns. Deleting the door would have left the forbidden arrangement with nothing watching.
+ *
+ *  SO THE POLARITY IS INVERTED RATHER THAN THE CODE REMOVED, per §4.1 (when a repair retires an exception,
+ *  land it as an ASSERTION): the arrangement that used to be EXCUSED is now ACCUSED — it is a `mustFlag`
+ *  row — and the sanctioned arrangement (both siblings importing the collection from `lib/`) is a
+ *  `mustPass`. Arm B is otherwise untouched: a module with no stale arm is accused for every exemption
+ *  collection it DECLARES, which is exactly the one-sided-table class it has always judged. NEVER baseline
+ *  this: a zero-population door converted into a baseline is an honest dead-code signal turned into
+ *  permanent silence. */
 
 const STRING_KINDS = [
   SyntaxKind.StringLiteral,
@@ -361,37 +354,6 @@ function staleArmStrings(sf: SourceFile): readonly string[] {
     }
   }
   return out;
-}
-
-/** Is the sibling's stale arm ABOUT THE SUBJECT it excuses — the join #2168 adds.
- *
- *  The #2093 excuse was SUBJECT-AGNOSTIC: any stale-arm string anywhere in a module that imports the
- *  collection excused it, so a sibling whose stale arm concerned something else entirely silenced the
- *  accusation for this one. The import door already narrows to a NAMED import of THIS collection; what was
- *  missing is that the DIAGNOSTIC be about the same subject.
- *
- *  THE ROW PRESCRIBED A JOIN ON THE COLLECTION IDENTIFIER AND THE TREE REFUTES IT (measured 2026-09-12, all
- *  three real excusers). The row recorded the narrowing as "latent today — all three real excusers name
- *  their own collection". They do not. Every one of them names the collection in PROSE and never by
- *  identifier, so an `includes(collection.name)` join reports ZERO covered pairs and false-accuses all three:
- *
- *    no-raw-spacing-in-features::SANCTIONED_HOMES    ← spacing-tier-home-health    "stale SANCTIONED-HOME row"
- *    no-raw-typography-in-features::SANCTIONED_HOMES ← typography-tier-home-health "stale SANCTIONED-HOME row"
- *    serde-core-seal::SANCTIONED_DOMAINS             ← serde-core-seal-health      "stale sanctioned serde home"
- *
- *  What all three DO carry is the accused MODULE's name — `namesModule=true` for 3 of 3, because a
- *  stale-arm diagnostic tells its reader which row to delete and the row lives in that module
- *  ("delete the row in tooling/src/verify/gates/serde-core-seal.ts"). So the join is: the stale arm names
- *  the collection OR the module that declares it. Strictly narrower than "any stale arm anywhere", and
- *  measured not to false-accuse — which the prescribed join was not.
- *
- *  DECLARED LIMIT, and it is the residue the row was reaching for: a sibling whose stale arm names the
- *  accused MODULE but concerns a DIFFERENT collection inside that same module is still excused. Closing
- *  that needs the diagnostic to name its collection by identifier, which is an authoring convention this
- *  corpus does not have — three for three, the diagnostics are prose aimed at a human. Filing it as a
- *  convention is a separate decision; silently false-accusing three correct modules to reach it is not. */
-function staleArmIsAboutSubject(sf: SourceFile, collectionName: string, declaringModuleBase: string): boolean {
-  return staleArmStrings(sf).some((text) => text.includes(collectionName) || text.includes(declaringModuleBase));
 }
 
 // ── ARM C ────────────────────────────────────────────────────────────────────────────────────────────
@@ -588,16 +550,12 @@ function gateFiles(ctx: GateRunCtx): Map<string, SourceFile> {
 /** Arm B for one gate module: every one-sided exemption collection it carries. Unsuppressed by
  *  construction — the RETRO handoff baseline reached its terminal state `{}` (GATE-AUTHORING.md §4.8) and was
  *  deleted with its generator, so a NEW one-sided table is red on arrival with no ledger to add it to. */
-function armExemptions(sf: SourceFile, rel: string, corpus: ReadonlyMap<string, SourceFile>, ctx: GateRunCtx): void {
+function armExemptions(sf: SourceFile, ctx: GateRunCtx): void {
   if (hasStaleArm(sf)) {
     return;
   }
   for (const c of exemptionCollections(sf)) {
-    // A collection whose stale arm lives in an importing sibling is two-sided AS A FAMILY (#2093); the
-    // door is per-COLLECTION, so a second, uncovered table in the same module still reds.
-    if (coveringSibling(c, rel, corpus) === undefined) {
-      ctx.report(c.node, { token: c.name, offset: 0 });
-    }
+    ctx.report(c.node, { token: c.name, offset: 0 });
   }
 }
 
@@ -620,7 +578,7 @@ export const gate: GateDescriptor = {
     const corpus = gateFiles(ctx);
     for (const [rel, sf] of corpus) {
       const obj = armDescriptor(sf, rel, ctx);
-      armExemptions(sf, rel, corpus, ctx);
+      armExemptions(sf, ctx);
       ledgerReaders += armAdmitted(sf, ctx) ? 1 : 0;
       if (obj !== undefined) {
         armCitation(obj, ctx);
@@ -784,20 +742,10 @@ export const gate: GateDescriptor = {
         "tooling/src/verify/gates/__probe.ts":
           'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
         "tooling/src/verify/gates/__probe-health.ts":
-          'import { OTHER } from "./__probe.ts";\nconst MSG = "row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe-health", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], seen: OTHER };\n',
+          'import { ALLOWLIST } from "./__probe.ts";\nconst MSG = "ALLOWLIST row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe-health", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], seen: ALLOWLIST };\n',
       },
       expect: { token: "ALLOWLIST" },
-      why: "ARM B SPLIT-FAMILY, the NEGATIVE direction (#2093): a sibling that carries a stale arm but does NOT import THIS collection covers nothing. Without this row the split-family door would be a blanket excuse for any module with a stale-armed neighbour — which is the false-clean the door itself could have introduced",
-    },
-    {
-      files: {
-        "tooling/src/verify/gates/__probe.ts":
-          'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
-        "tooling/src/verify/gates/__probe-health.ts":
-          'import { ALLOWLIST } from "./__probe.ts";\nconst MSG = "OTHER_TABLE row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe-health", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], seen: ALLOWLIST };\n',
-      },
-      expect: { token: "ALLOWLIST" },
-      why: "ARM B SPLIT-FAMILY, the SUBJECT direction (#2168) — the falsifier the #2093 door shipped without: the sibling DOES import this collection, but its stale arm is about `OTHER_TABLE` and names neither this collection nor the module that declares it, so it is not a promise anyone can keep for `ALLOWLIST`. The import door alone excused it. No fixture on the tree distinguished the two predicates before this row, and the three real excusers cannot supply one — each names its subject in PROSE (`SANCTIONED-HOME row`), never by identifier, which is why the subject test accepts the declaring module's name as well as the collection's",
+      why: "ARM B, THE INVERTED #2093 CARVE (#2219): this EXACT arrangement — the table in the ordinary half, the stale arm in a `-health` sibling that IMPORTS it from the twin gate — used to be the excuse, and it is the arrangement #2096 now forbids outright (a gate never imports a gate; a shared collection's one home is `lib/`). It is therefore a FINDING, and this row is the tripwire that catches its return. The three modules the carve was built for all moved to `lib/` before it was retired, so retiring it accuses nobody on today's tree — which is exactly why the assertion has to exist instead",
     },
     {
       files: {
@@ -876,12 +824,13 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        "tooling/src/verify/lib/__probe-shared.ts": 'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\n',
         "tooling/src/verify/gates/__probe.ts":
-          'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
+          'import { ALLOWLIST } from "../lib/__probe-shared.ts";\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
         "tooling/src/verify/gates/__probe-health.ts":
-          'import { ALLOWLIST } from "./__probe.ts";\nconst MSG = "ALLOWLIST row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe-health", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], seen: ALLOWLIST };\n',
+          'import { ALLOWLIST } from "../lib/__probe-shared.ts";\nconst MSG = "ALLOWLIST row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe-health", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], seen: ALLOWLIST };\n',
       },
-      why: "ARM B SPLIT-FAMILY, the POSITIVE direction (#2093): the family split by AUTHORITY, so the table lives in the ordinary half and the liveness arm in the `-health` sibling that IMPORTS it. Two-sided as a family; accusing the ordinary half named three live modules (`no-raw-spacing-in-features`, `no-raw-typography-in-features`, `serde-core-seal`) whose property was held one file over",
+      why: "ARM B, THE SANCTIONED ARRANGEMENT (#2219): the collection's ONE home is `lib/` and BOTH siblings import it from there, so neither gate DECLARES an exemption collection and arm B has nothing to accuse. This is the shape #2096 moved the whole corpus to, and pairing it with the `mustFlag` above is what keeps the property provable in both directions once the excuse is gone — without it, 'no accusations' could mean the arm stopped looking",
     },
     {
       files: {
