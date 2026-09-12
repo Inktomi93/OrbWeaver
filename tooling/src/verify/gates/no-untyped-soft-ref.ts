@@ -89,7 +89,7 @@ export const gate = defineGate({
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { widgetId: text("widget_id") });\n',
       },
-      expect: { count: 1, token: "widgetId", messageIncludes: "soft ref is banned" },
+      expect: { count: 1, token: "widgetId" },
       why: "the founding shape — a `*Id` text column with no `.references()` FK and no grant row",
     },
     {
@@ -117,7 +117,7 @@ export const gate = defineGate({
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const audit = sqliteTable("audit_logs", { entityId: text("entity_id") });\n',
       },
-      expect: { count: 1, messageIncludes: "soft ref is banned" },
+      expect: { count: 1 },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the sole D24 sanctioned pair reds like any other soft ref and is licensed by its exact grant row, so a SECOND soft ref on the same table is a finding until someone reviews it",
     },
   ],

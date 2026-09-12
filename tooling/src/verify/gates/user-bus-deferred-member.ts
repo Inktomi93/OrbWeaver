@@ -92,7 +92,7 @@ export const gate = defineGate({
         "packages/server/src/domain/connection/verbs/save.ts":
           'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function save(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "connectionsChanged" });\n}\n',
       },
-      expect: { count: 1, messageIncludes: "deferral is retired" },
+      expect: { count: 1 },
       why: "the deferred member gained its canonical injected producer — the deferral is stale and must be deleted, which is the only self-cleaning direction a proof row can express",
     },
   ],

@@ -146,7 +146,7 @@ export const gate = defineGate({
       files: {
         [ANCHOR]: 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id") });\n',
       },
-      expect: { count: 1, messageIncludes: "no longer declares `messageVariants` anywhere" },
+      expect: { count: 1, messageIncludes: "anywhere, so the guarded columns cannot be derived" },
       why: "BLINDNESS by DERIVATION LOSS: the real-tree anchor is loaded and the schema tree still declares tables, but the guarded one is gone — the gate must announce it, never go silently green. (Legacy split this into a `chat.ts is gone/moved` row and a `not declared in chat.ts` row because it read one hand-named path; the shared fact owns the whole tree, so the two merge and a MOVE is correctly no longer an alarm.)",
     },
     {

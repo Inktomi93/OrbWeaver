@@ -40,7 +40,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/ui/src/x/x.ts": "// const dead = compute();\nexport const x = 1;\n" },
-      expect: { line: 1, token: "commented code" },
+      expect: { count: 1, line: 1, token: "commented code" },
       why: "a parked const statement is code retained as a comment",
     },
   ],

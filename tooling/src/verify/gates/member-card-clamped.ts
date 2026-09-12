@@ -108,19 +108,19 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/server/src/domain/character/x.ts": "export interface MemberCardView { name: string }\n" },
-      expect: { token: VIEW_TYPE },
+      expect: { count: 1, token: VIEW_TYPE },
       why: "a re-spelled MemberCardView outside contracts — exactly how the clamp levels diverged (PD-111)",
     },
     {
       mode: "source",
       files: { "packages/server/src/domain/character/y.ts": "export function clampMemberCard() {}\n" },
-      expect: { token: "clampMemberCard" },
+      expect: { count: 1, token: "clampMemberCard" },
       why: "a second clamp declaration outside the clamp home — re-spells the visibility lattice",
     },
     {
       mode: "source",
       files: { "packages/server/src/domain/character/z.ts": "export const use = getRosterCardView;\n" },
-      expect: { token: DELETED_VERB },
+      expect: { count: 1, token: DELETED_VERB },
       why: "the deleted duplicate verb resurrected in server src (D22)",
     },
   ],

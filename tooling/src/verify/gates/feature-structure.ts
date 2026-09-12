@@ -208,7 +208,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { "packages/server/src/domain/broken/index.ts": "export const x = 1;\n" },
-      expect: { messageIncludes: "missing template" },
+      expect: { count: 4, messageIncludes: "missing template" },
       why: "a domain feature with only index.ts — missing service.ts/context.ts/contract/verbs (§4)",
     },
     {
@@ -222,7 +222,7 @@ export const gate = defineGate({
         // all required slots present, but a non-template file sits at the feature root.
         "packages/server/src/domain/loose/helpers.ts": "export const h = 1;\n",
       },
-      expect: { messageIncludes: "loose file 'helpers.ts' not allowed" },
+      expect: { count: 1, messageIncludes: "loose file 'helpers.ts' not allowed" },
       why: "a feature with every required slot PLUS a loose non-template root file — the checkLooseFiles arm",
     },
     {
@@ -238,7 +238,7 @@ export const gate = defineGate({
         "packages/server/src/domain/chat/guard.ts": "export const g = 1;\n",
         "packages/server/src/domain/chat/bus.ts": "export const b = 1;\n",
       },
-      expect: { messageIncludes: "stale ALWAYS_ALLOWED_ROOT_FILES slot" },
+      expect: { count: 7, messageIncludes: "stale ALWAYS_ALLOWED_ROOT_FILES slot" },
       why: "THE STALE ARMS: with the anchor domain present, `guard.ts` and chat's `bus.ts` are occupied and stay — `workload-contributions.ts` (no domain has it), the missing per-domain rows, and chat's absent `active-turns.ts` each ratchet down as permissions on a name nothing occupies",
     },
   ],

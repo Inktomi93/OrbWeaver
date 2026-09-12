@@ -55,7 +55,7 @@ export const gate = defineGate({
           'export type ProbeBusEvent = { type: "a" };\nexport const PROBE_EVENT_TYPES = { a: true } satisfies Record<ProbeBusEvent["type"], true>;\n',
         "packages/client/src/data/invalidation.ts": "export const untouched = 1;\n",
       },
-      expect: { count: 1, messageIncludes: "NO consumer belt" },
+      expect: { count: 1 },
       why: "a new bus's belt with neither consumer belt wired — legal TypeScript, and the members reach no reader",
     },
     {

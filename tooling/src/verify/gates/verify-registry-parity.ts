@@ -93,7 +93,7 @@ export const gate = defineGate({
       files: {
         "package.json": '{ "name": "orbweaver", "scripts": { "test:visual-regression": "playwright test --grep @visual" } }\n',
       },
-      expect: { messageIncludes: "not a `pnpm verify` stage" },
+      expect: { count: 1, messageIncludes: "not a `pnpm verify` stage" },
       why: "a verification-shaped script (test:*) with no registry tier — the forgotten-script failure the gate exists to make impossible",
     },
     {
@@ -118,7 +118,7 @@ export const gate = defineGate({
           dependencies: { tsx: "^4.0.0" },
         }),
       },
-      expect: { messageIncludes: "PRIVATE monorepo root" },
+      expect: { count: 1, messageIncludes: "PRIVATE monorepo root" },
       why: "arm 3: a runtime dependency on the private, never-prod-installed monorepo root — a category error (script runners are devDependencies)",
     },
   ],

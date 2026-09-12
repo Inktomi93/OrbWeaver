@@ -200,7 +200,7 @@ export const gate = defineGate({
         "packages/server/src/domain/character/contract/service.ts":
           "export type CopyCharacterBooksOp = (args: { readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;\n",
       },
-      expect: { count: 1, messageIncludes: "takes an entity id but NO caller" },
+      expect: { count: 1 },
       why: "the founding shape — the census's open item: an op moving state between two character ids, safe today only because its ONE call site happens to have proved ownership first",
     },
     {

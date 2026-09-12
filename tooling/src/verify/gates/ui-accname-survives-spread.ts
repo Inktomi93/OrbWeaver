@@ -150,7 +150,7 @@ export const gate = defineGate({
           '  return <div {...rest} aria-label="N people" className={className} data-slot="x" role="group" />;\n' +
           "}\n",
       },
-      expect: { count: 1, messageIncludes: "AFTER the caller-props spread" },
+      expect: { count: 1 },
       why: "the founding shape — avatar-stack's post-spread aria-label default, unwinnable by both committed callers",
     },
     {

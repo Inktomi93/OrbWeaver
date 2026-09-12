@@ -263,7 +263,7 @@ export const gate = defineGate({
         "packages/client/src/features/user-admin/index.ts": "export const x = 1;\n",
         "packages/client/src/features/user-admin/surfaces/keep-surface.tsx": "export const K = () => null;\n",
       },
-      expect: { messageIncludes: "stray file" },
+      expect: { count: 3, messageIncludes: "stray file" },
       why: "a BUILT feature (has code) with a stray root file + no index.ts front door — feature-slice violations",
     },
     {
@@ -275,7 +275,7 @@ export const gate = defineGate({
         "packages/client/src/features/user-admin/index.ts": "export const x = 1;\n",
         "packages/client/src/features/user-admin/surfaces/keep-surface.tsx": "export const K = () => null;\n",
       },
-      expect: { messageIncludes: "neither a reserved UI-only slice" },
+      expect: { count: 1, messageIncludes: "neither a reserved UI-only slice" },
       why: "rule 2: a built feature name that is neither reserved nor a real server-domain mirror",
     },
     {
@@ -286,7 +286,7 @@ export const gate = defineGate({
         "packages/client/src/features/character/index.ts": "export const x = 1;\n",
         "packages/client/src/features/character/surfaces/card.tsx": "export const C = () => null;\n",
       },
-      expect: { messageIncludes: "end in -surface.tsx" },
+      expect: { count: 1, messageIncludes: "end in -surface.tsx" },
       why: "rule 5: a surface file not named -surface.tsx",
     },
     {
@@ -298,7 +298,7 @@ export const gate = defineGate({
         "packages/client/src/features/character/hooks/helpers.ts": "export const h = 1;\n",
         "packages/client/src/features/character/surfaces/card-surface.tsx": "export const C = () => null;\n",
       },
-      expect: { messageIncludes: "hooks/ files are use-*" },
+      expect: { count: 1, messageIncludes: "hooks/ files are use-*" },
       why: "rule 6: a hooks/ file not named use-* (nor -context/-provider)",
     },
     {
@@ -310,7 +310,7 @@ export const gate = defineGate({
         "packages/client/src/features/character/anchors/thing.tsx": "export const T = () => null;\n",
         "packages/client/src/features/character/surfaces/card-surface.tsx": "export const C = () => null;\n",
       },
-      expect: { messageIncludes: "container-type suffix" },
+      expect: { count: 1, messageIncludes: "container-type suffix" },
       why: "rule 6: an anchor filename without a known container-type suffix",
     },
     {
@@ -321,7 +321,7 @@ export const gate = defineGate({
         "packages/client/src/features/character/index.ts": "export const x = 1;\n",
         "packages/client/src/features/character/surfaces/edit-surface.tsx": "export const E = () => <Dialog>x</Dialog>;\n",
       },
-      expect: { messageIncludes: "must not render its own outer Dialog" },
+      expect: { count: 1, messageIncludes: "must not render its own outer Dialog" },
       why: "rule 7: a surface rendering its own outer Dialog root — the containment box is the anchor's job",
     },
     {
@@ -344,7 +344,7 @@ export const gate = defineGate({
         "packages/client/src/features/character/hooks/editor/helpers.ts": "export const h = 1;\n",
         "packages/client/src/features/character/surfaces/card-surface.tsx": "export const C = () => null;\n",
       },
-      expect: { messageIncludes: "hooks/ files are use-*" },
+      expect: { count: 1, messageIncludes: "hooks/ files are use-*" },
       why: "the F-4 recursion arm: a grouped hooks/ file keeps the use-* contract (the predicate reads the BASENAME, not the group-prefixed path)",
     },
     {
@@ -356,7 +356,7 @@ export const gate = defineGate({
         "packages/client/src/features/character/components/hooks/use-card.ts": "export const useCard = () => 1;\n",
         "packages/client/src/features/character/surfaces/card-surface.tsx": "export const C = () => null;\n",
       },
-      expect: { messageIncludes: "re-declares the bucket axis" },
+      expect: { count: 1, messageIncludes: "re-declares the bucket axis" },
       why: "rule 8: nesting is GROUPING — a group dir may not re-declare the bucket axis (components/hooks/ is a slice inside a slice)",
     },
   ],

@@ -38,13 +38,13 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "tooling/src/snap/ops/big.ts": "export const x = 1;\n".repeat(CAP_DEFAULT + 1) },
-      expect: { line: CAP_DEFAULT + 1, messageIncludes: "cap 450" },
+      expect: { count: 1, line: CAP_DEFAULT + 1, messageIncludes: "cap 450" },
       why: "one line over the default cap — the decomposition trigger",
     },
     {
       mode: "source",
       files: { "tooling/src/snap/cli.ts": "export const x = 1;\n".repeat(CAP_CLI + 1) },
-      expect: { line: CAP_CLI + 1, messageIncludes: "cap 200" },
+      expect: { count: 1, line: CAP_CLI + 1, messageIncludes: "cap 200" },
       why: "a cli.ts over its tighter cap — argv parse + dispatch only",
     },
   ],

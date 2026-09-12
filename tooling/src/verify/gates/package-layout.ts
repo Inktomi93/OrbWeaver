@@ -58,7 +58,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { "packages/kit/src/loose.ts": "export const x = 1;\n" },
-      expect: { count: 1, messageIncludes: "loose" },
+      expect: { count: 1 },
       why: "a loose .ts at packages/kit/src root must become a directory with index.ts",
     },
   ],

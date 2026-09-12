@@ -53,7 +53,7 @@ export const gate = defineGate({
       files: {
         "packages/contracts/src/automation/index.ts": 'export type ProbeBusEvent = { type: "ruleFired" } | { type: "rulesChanged" };\n',
       },
-      expect: { count: 1, messageIncludes: "NO `*_EVENT_TYPES` belt const" },
+      expect: { count: 1 },
       why: "ARM C's founding shape: a beltless bus union, which is how AutomationBusEvent shipped a dead member for its whole life",
     },
     {

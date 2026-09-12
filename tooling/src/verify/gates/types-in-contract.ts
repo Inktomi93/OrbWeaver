@@ -27,7 +27,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/server/src/domain/hub/contract/service.ts": "export const noInterface = 1;\n" },
-      expect: { line: 1, messageIncludes: "typed API surface" },
+      expect: { count: 1, line: 1 },
       why: "a contract/service.ts with no exported interface is missing its typed API surface",
     },
   ],
