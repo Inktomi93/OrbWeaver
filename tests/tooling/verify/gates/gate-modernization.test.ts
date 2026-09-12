@@ -1,3 +1,14 @@
+// `gate-modernization`'s FAMILY TEST — the mirror of `tooling/src/verify/gates/gate-modernization.ts`,
+// and the file any future arm's pins belong in.
+//
+// IT WAS NAMED `gate-modernization-arm-b.test.ts` AND THAT WAS A LIVE GATE VIOLATION (#2174). The
+// `test-layout` policy reds "mirror miss — no source for …/gate-modernization-arm-b.ts", because the
+// mirror rule is a MECHANICAL transformation from a source module to its tests and an arm is not a
+// module. It moved the whole-tree count 51 → 52, and it stayed invisible for a day because the standing
+// `check:structure` red hides a new one — it surfaced only from a per-policy diff between two named
+// slots. The name is now the module's, so there is no arm-named suite left to copy: a second arm's pins
+// go HERE rather than into a second file.
+//
 // ARM B of the META-gate accused the ORDINARY HALF OF A SPLIT FAMILY (#2093). When a family splits by
 // AUTHORITY — an ordinary policy plus a hard `-health` sibling carrying the identical `family` — the
 // exemption TABLE stays in the ordinary half and the LIVENESS arm moves to the sibling, which imports the
