@@ -1322,8 +1322,15 @@ dependencies that constrain ANY sequence, because they are law rather than sched
    checker, never a verdict), and the mixed `pnpm check:structure` before/after on the real tree in YOUR worktree
    with the PER-POLICY delta explained — the whole-tree verdict is red by construction, so the aggregate tail is
    not the receipt; the per-policy raw/waived/granted/effective and `N tool error(s)` / `N withheld` lines are.
-   Until #2110 lands the delta is read by hand from the two artifacts. A HARD gate sat red on `main` against its
-   one live subject for a day under the standing red because nobody read the per-policy line (#2106).
+   A HARD gate sat red on `main` against its one live subject for a day under the standing red because nobody read
+   the per-policy line (#2106). **#2110 LANDED (`e0dcf56d8`, 2026-09-12) — the delta is a door, not a hand read:**
+   after the merge train's `pnpm check:structure`, run `pnpm check:structure-delta` and read the per-policy diff.
+   `check:structure`'s exit code is red by construction while the loader is mixed, so it cannot show a NEW red on
+   one final policy; the delta exits 1 when a final policy's effective count rose or it went ok → red, and exits 2
+   rather than a serene zero when either slot is unreadable, died, is a non-verdict (#2167 — the three planter
+   fixture slots are stamped `verdict: non-verdict` on disk and a non-verdict never publishes `latest`), was
+   gate-scoped, or when there is no prior slot to compare against. It is registered as a `manual` stage, not a
+   `check` script, because it returns a VERDICT and `verify-registry-parity` would have redded the cheap door.
 
    **A SPLIT ALSO BREAKS A SUITE THE ID-GREP CANNOT FIND (measured 2026-09-12).** The roster carries a
    literal "N registered gates" count line, and `tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts`
