@@ -704,8 +704,12 @@ family sibling uses, blind to a one-hop re-export door (#2009).
 ### OWED TO THE ORCHESTRATOR AT A QUIET BARRIER — no lane may run these
 
 `gate-ignore-grammar.repo.int.test.ts` and `gate-conformance.repo.int.test.ts` (both plant `__g_` fixtures, not
-concurrency-safe with themselves) · the `check:structure` AFTER census · the `ledgers:fresh` regen for two
-`caught-failure-ownership` rows · `gate-spelling-twins.int.test.ts` (54 of 79 ledger rows orphaned).
+concurrency-safe with themselves) · **`check-gates.repo.int.test.ts`** (same reason — baseline-red and not
+concurrency-safe with itself; the `p-stale-refusals` lane edited its `UNFIXTURABLE_GATES` row at `8d8c06881` and
+declared the run OWED rather than skipping it silently, which is the honest form) · the `check:structure` AFTER
+census · the `ledgers:fresh` regen for two `caught-failure-ownership` rows · `gate-spelling-twins.int.test.ts`
+(54 of 79 ledger rows orphaned) · the `docs/reviews/gate-runtime/` doc-catalog pass (~10 wave docs un-attested;
+`doc-catalog:sync` was deliberately reverted on 2026-09-12 — it would have attested documents nobody read).
 
 **Phase C — settle the capability set before spending it. Forge. A design pass, not an executor lane.**
 
