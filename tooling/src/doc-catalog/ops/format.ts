@@ -54,6 +54,32 @@ const LIVING_TREES = ["docs/architecture/", "docs/design/", "docs/reviews/"] as 
  *  simply not being living trees, which is why they need no row here. */
 const EXCLUDED = /^docs\/architecture\/proposed\//u;
 
+/**
+ * CLASS 1 of the population widening (#2161; owner ruling on #2144, 2026-09-12: widen CHECK AND FORMAT
+ * to all tracked markdown, CLASS BY CLASS, each class its own reviewed diff so conventions are honoured
+ * rather than flattened). These are the instruction files every lane auto-loads and every dispatch
+ * reads, and they sat outside BOTH doors — neither checked nor formattable — while reading exactly like
+ * documents this tool owned. They are the highest-read-count markdown in the repo, so a lost character
+ * here degrades every future dispatch silently and nothing would notice.
+ *
+ * ONE DOOR, NOT TWO: this widens the FORMAT population only. The CATALOG population is a separate
+ * derivation (`ops/tree.ts#trackedDocs`, pathspec `docs`), so these files are admitted to formatting and
+ * remain OUTSIDE the catalog — which is the correct answer to their frontmatter, because an agent file
+ * carries the `agent-authoring` 17-field schema and the catalog would demand `kind`/`status`/`updated`
+ * of it. No exemption row is needed for that; the two doors simply do not share a population. Their YAML
+ * frontmatter passes through verbatim either way (`remarkFrontmatter`), so the schema is never rewritten.
+ *
+ * Matched at DEPTH ONE only: a nested directory under these roots is a different class, and this row is
+ * scoped to the two flat sets. Classes 2-4 (skills, `tooling/**`, the root constitution files) are
+ * separate rows by the same ruling.
+ */
+const INSTRUCTION_DIRS = [".claude/rules/", ".claude/agents/"] as const;
+
+/** True for a tracked path directly inside one of the class-1 directories (no nested files). */
+function isInstructionFile(path: string): boolean {
+  return INSTRUCTION_DIRS.some((dir) => path.startsWith(dir) && !path.slice(dir.length).includes("/"));
+}
+
 /** A character a CommonMark delimiter run may not treat as punctuation or whitespace. */
 const WORD = /[\p{L}\p{N}]/u;
 
@@ -265,9 +291,9 @@ export function formatTargets(explicit: readonly string[]): readonly string[] {
   if (explicit.length > 0) {
     return [...explicit];
   }
-  return execNicedSync("git", ["ls-files", "-z", "--", "docs"], { cwd: REPO_ROOT })
+  return execNicedSync("git", ["ls-files", "-z", "--", "docs", ...INSTRUCTION_DIRS], { cwd: REPO_ROOT })
     .split("\0")
-    .filter((path) => path.endsWith(".md") && LIVING_TREES.some((tree) => path.startsWith(tree)) && !EXCLUDED.test(path))
+    .filter((path) => path.endsWith(".md") && ((LIVING_TREES.some((tree) => path.startsWith(tree)) && !EXCLUDED.test(path)) || isInstructionFile(path)))
     .sort();
 }
 
