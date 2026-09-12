@@ -8,7 +8,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin } from "../lib/sealed-origin.ts";
+import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
 /** The four rollup tables declared in `packages/db/src/schema/stats.ts`. The home is the schema DIRECTORY
  *  rather than the one file so a schema split cannot silently retire the seal. */
@@ -66,9 +66,11 @@ export const gate = defineGate({
           if (hit === null) {
             return;
           }
-          // FAIL-CLOSED: a rollup NAME whose origin cannot be read is reported. A seam an unreadable
-          // barrel can walk through is not a seam.
-          if (readSealedOrigin(hit.anchor, STATS_ROLLUP_HOME).kind !== "foreign") {
+          // FAIL-CLOSED THROUGH THE SHARED DECISION: a rollup NAME whose IMPORT DOOR cannot be read is
+          // reported (a seam an unreadable barrel can walk through is not a seam), while a candidate that
+          // provably binds something else — a local object's key, a project interface's property — is not a
+          // subject at all. `readSealedOrigin` returns the VERDICT; `sealedOriginReports` is the decision.
+          if (sealedOriginReports(readSealedOrigin(hit.anchor, STATS_ROLLUP_HOME), hit.anchor)) {
             ctx.report.node(hit.anchor, { token: hit.name, offset: hit.anchor.getText().indexOf(hit.name) });
           }
         },
@@ -127,6 +129,13 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/discovery/lib/local-bag.ts": "const bag = { ownerStats: 1 };\nexport const n = bag.ownerStats;\n",
+      },
+      why: 'THE LOCAL-OBJECT COUNTERFACTUAL — a plain object whose KEY is spelled like the sealed export binds a property, not a module member, so it is NOT A SUBJECT. `readSealedOrigin` returns `unresolved` here and the shared decision function scopes that refusal (lib/sealed-origin.ts): reading the VERDICT as the DECISION (`kind !== "foreign"`) accuses this row on unmodified source (#2006)',
+    },
     {
       mode: "types",
       files: {
