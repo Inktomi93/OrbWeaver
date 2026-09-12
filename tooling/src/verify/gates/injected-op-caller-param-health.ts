@@ -17,9 +17,11 @@ const CONTRACT_RE = /^packages\/server\/src\/domain\/[^/]+\/contract\//u;
 const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
 
 const STALE = (op: string): string =>
-  `CALLER_FREE_OPS names "${op}" but no domain contract declares an op function type of that name — delete ` +
-  "the stale row in tooling/src/verify/gates/injected-op-caller-param.ts (two-direction ratchet; a stale " +
-  "exemption is inherited by the next op that takes the name).";
+  `CALLER_FREE_OPS names "${op}" but no domain contract declares an op function type of that name TAKING A ` +
+  "BRANDED ENTITY ID — either the op is gone, or it no longer reaches tenant data, and in both cases the " +
+  "exemption permits nothing the sibling detector would have flagged. Delete the stale row in " +
+  "tooling/src/verify/gates/injected-op-caller-param.ts (two-direction ratchet; a stale exemption is " +
+  "inherited by the next op that takes the name).";
 
 const BLIND =
   "injected-op-caller-param derived ZERO entity-id type names from packages/kit/src/ids/index.ts — the gate " +
@@ -51,15 +53,36 @@ export const gate = defineGate({
   message:
     "either the injected-op-caller-param entity-id derivation resolved zero types (blind), or a CALLER_FREE_OPS row names an op no domain contract declares any more (stale) — both ratchet down.",
   create: (ctx) => {
-    const seenOps = new Set<string>();
+    // THE CENSUS PREDICATE IS THE SIBLING'S TRIGGER, NOT "any op function type" (owner ruling, 2026-09-12,
+    // #2000): an op is only SEEN — and so only keeps its exemption alive — when its params mention a branded
+    // entity-id type, because that is the exact condition under which the ordinary sibling could have fired.
+    // An exemption for an op that no longer takes one suppresses nothing and is dead by construction. The
+    // legacy `finalize` this policy succeeded had that predicate (`seenOps.add` ran AFTER the entity-id
+    // trigger); the conversion widened it to every Promise-returning op, which left such a row standing and
+    // silent forever. Restored here, with the message corrected to describe what is actually flagged — the
+    // legacy text ("no domain contract declares an op function type of that name") was true of the widened
+    // predicate and false of this one, which is the half of the defect the ruling would otherwise carry
+    // forward. Measured pair, both directions: injected-op-caller-param-family.test.ts.
+    const candidateAliases = new Map<TypeAliasDeclaration, string>();
+    const paramNamesByAlias = new Map<TypeAliasDeclaration, string[]>();
     return {
       visitors: [
         {
           kinds: [SyntaxKind.TypeAliasDeclaration],
           visit: (node, sf) => {
             if (node.isKind(SyntaxKind.TypeAliasDeclaration) && CONTRACT_RE.test(ctx.relativePath(sf)) && isOpFunctionType(node)) {
-              seenOps.add(node.getName());
+              candidateAliases.set(node, node.getName());
+              paramNamesByAlias.set(node, []);
             }
+          },
+        },
+        {
+          kinds: [SyntaxKind.Identifier],
+          visit: (node) => {
+            const paramAncestor = node.getFirstAncestorByKind(SyntaxKind.Parameter);
+            const alias = paramAncestor?.getFirstAncestorByKind(SyntaxKind.TypeAliasDeclaration);
+            const bucket = alias === undefined ? undefined : paramNamesByAlias.get(alias);
+            bucket?.push(node.getText());
           },
         },
       ],
@@ -70,6 +93,12 @@ export const gate = defineGate({
         const entityIdTypes = deriveEntityIdTypes(ctx.files, ctx.relativePath);
         if (entityIdTypes.size === 0) {
           ctx.report.file(REAL_TREE_ANCHOR, { line: 1, message: BLIND });
+        }
+        const seenOps = new Set<string>();
+        for (const [alias, name] of candidateAliases) {
+          if ((paramNamesByAlias.get(alias) ?? []).some((paramName) => entityIdTypes.has(paramName))) {
+            seenOps.add(name);
+          }
         }
         for (const op of Object.keys(CALLER_FREE_OPS)) {
           if (!seenOps.has(op)) {
@@ -97,8 +126,8 @@ export const gate = defineGate({
         [IDS_MODULE]: "export type NotAnEntityId = string;\n",
         "packages/server/src/domain/character/contract/service.ts": "export type ReapAssetsOp = (assetIds: readonly string[]) => Promise<void>;\n",
       },
-      expect: { count: 7, messageIncludes: "derived ZERO entity-id type names" },
-      why: "THE BLIND ARM: the anchor is loaded but the ids module derives no TypeIdOf-shaped export at all — the vocabulary the gate scans for no longer exists",
+      expect: { count: Object.keys(CALLER_FREE_OPS).length + 1, messageIncludes: "derived ZERO entity-id type names" },
+      why: "THE BLIND ARM: the anchor is loaded but the ids module derives no TypeIdOf-shaped export at all — the vocabulary the gate scans for no longer exists. The count is one BLIND finding plus one STALE per row: with an empty vocabulary no op can take a branded entity id, so `ReapAssetsOp` (declared here over `readonly string[]`) is NOT seen either — the restored census predicate, and the reason this row's count is rows+1 rather than rows",
     },
   ],
   mustPass: [
