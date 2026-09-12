@@ -73,7 +73,14 @@ const FIX =
   "Add a `mustRefuse` row (§4.5b: never empty; each row's `expect` is `messageIncludes` ONLY) naming the refusal text this policy's failure " +
   "mode produces — a withheld fact, an unresolved resource, a population that admits zero paths. OR, where the refusal is something a row " +
   "cannot express (an owner STATUS, an empty finding set, the phase it refused in), drive the policy through `runPolicyPass` in a family " +
-  "test under `tests/tooling/verify/gates/` that IMPORTS this module, and assert those. One or the other, never neither.";
+  "test under `tests/tooling/verify/gates/` that IMPORTS this module, and assert those. One or the other, never neither. " +
+  // THE ESCAPE HATCH, SPELLED EXACTLY — and the POSITION is not a guess: it is the token this policy reports,
+  // which is the name of the `facts` or `resources` property that created the obligation (see `judgeCorpus`).
+  // A `fix` that promises a waiver without naming the position a marker must carry is a promise the operator
+  // cannot act on, and it is the shape `policy-waiver-spelling` reds (§5b.3).
+  "While the burn-down drains this policy is `ordinary`, so a deliberate deferral can be waived at the reported field: " +
+  "`// @orb-waive policy-refusal-coverage(resources): <reason and its end condition>` — or `(facts)` when the obligation came " +
+  "from the fact declaration. The position is ALWAYS the reported field name, never a path or a line number.";
 const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the descriptor reader ` +
   "(lib/policy-descriptor-read.ts finalDescriptorOf) is dead, so every module would read out of scope and this policy would report ✓ over " +
@@ -189,9 +196,14 @@ const DRIVEN = `  const refused = ${DISPATCHER}(probe, { "packages/client/src/a.
  *  and `[{…}]` to a human, which is the shape of every fixture that proves nothing. */
 const EMPTY_RESOURCES = "resources: [],";
 const DERIVED_RESOURCES = 'resources: [{ kind: "tracked", why: "the planted probe\'s derived population" }],';
-const DERIVING = (extra: string): string =>
+/** The SAME derived declaration with the escape hatch on the line above it — the §4.2 positive identity arm's
+ *  fixture. The position (`resources`) is the token `judgeCorpus` reports, so the marker names the coordinate
+ *  the finding actually carries rather than one an author guessed; a marker naming anything else is the
+ *  dead-position alarm the family test drives. */
+const WAIVED_RESOURCES = `// @orb-waive policy-refusal-coverage(resources): the planted probe defers its refusal pin; ends when the probe carries a mustRefuse row.\n  ${DERIVED_RESOURCES}`;
+const DERIVING = (extra: string, resources: string = DERIVED_RESOURCES): string =>
   finalProbeModule(
-    `${ORDINARY_TRUNK.replace(EMPTY_RESOURCES, DERIVED_RESOURCES)}\n  fix: "f",\n  mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],${extra}`,
+    `${ORDINARY_TRUNK.replace(EMPTY_RESOURCES, resources)}\n  fix: "f",\n  mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],${extra}`,
   );
 
 export const gate = defineGate({
@@ -266,6 +278,11 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN) }),
       why: "THE TEST HALF: a family test that IMPORTS this module and drives it through `runPolicyPass` inside a `test(…)`. This is the arm a row cannot express — an owner status, an empty finding set, a phase — and #1977 exists because it used to live in a header instead",
+    },
+    {
+      mode: "types",
+      files: familyFixture(DERIVING("", WAIVED_RESOURCES)),
+      why: "THE §4.2 POSITIVE IDENTITY ARM, in-module: the correct `@orb-waive policy-refusal-coverage(resources)` marker at the REPORTED position suppresses the finding. It is what makes the `ordinary` tier's escape hatch REAL rather than a promise in `fix` prose — the shape `policy-waiver-identity` requires of every ordinary policy and `policy-waiver-spelling` requires of every `fix`. Its discrimination control (a marker naming a DEAD position must ALARM) lives in the family test through `runPolicyPass`, because §4.2 forbids a negative arm here: under `knownPolicies: [policy]` it would ride the unknown-policy short-circuit and prove nothing",
     },
     {
       mode: "types",

@@ -9,7 +9,7 @@ import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { POLICY_CONTRACT_PATH, POLICY_CONTRACT_STUB } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
+import { finalProbeModule, ORDINARY_TRUNK, POLICY_CONTRACT_PATH, POLICY_CONTRACT_STUB } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
 import { gate as policyBindingResolution } from "../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
 import { gate as policyFixtureSubstrate } from "../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { gate as policyLegacyImports } from "../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
@@ -43,6 +43,11 @@ const FORBIDDEN_HOME_IMPORT_RE =
  *  the sibling REGISTERS is read off its text with the registration shapes below. */
 const SIBLING_IMPORT_RE = /^(?:import|export) (?:type )?\{[^}]*\} from "\.\/([^/"]+)\.ts";$/gmu;
 const REGISTERS_RE = /^export const gate(?::| =)/mu;
+/** `policy-refusal-coverage`'s second opinion (#2184): a descriptor whose `facts`/`resources` array is NOT the
+ *  empty literal DERIVES its population, and one carrying no `mustRefuse` key owes a pin. Text, not types —
+ *  deliberately, so the opinion is computed by something other than the arm it judges. */
+const DERIVES_POPULATION_RE = /^ {2}(?:facts|resources): \[[^\]]/mu;
+const MUST_REFUSE_RE = /^ {2}mustRefuse: \[/mu;
 /** `policy-binding-resolution`: the members whose NAME alone is unambiguous (every one is declared only on a
  *  ts-morph node or symbol), so a module CALLING one must be accused; `getDeclarations` is ambiguous by name
  *  (`VariableStatement#getDeclarations` is a syntax accessor) and joins only the SUPERSET side. The census is
@@ -202,6 +207,48 @@ test("policy-fixture-substrate REFUSES a population it read NOTHING from, and ru
   expect(seeing.authority.effectiveFindings).toEqual([]);
 });
 
+// The §4.2 DISCRIMINATION CONTROL for `policy-refusal-coverage` (#2184). The module carries the POSITIVE arm
+// in-module (a `mustPass` whose fixture holds the correct marker); the negative half CANNOT live there —
+// under `knownPolicies: [policy]` a marker naming an unknown position rides the unknown-policy short-circuit
+// and proves nothing, which is exactly the trap §4.2 names. So it runs HERE, against the WHOLE family as
+// `knownPolicies`, where a dead position is reconciled and alarms. Without this the positive arm passes on a
+// spelling that names nothing, and the escape hatch the `ordinary` tier promises is unreachable in practice.
+const REFUSAL_COVERAGE_PROBE = (marker: string): Readonly<Record<string, string>> => ({
+  [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
+  "tooling/src/verify/gates/probe.ts": finalProbeModule(
+    `${ORDINARY_TRUNK.replace(
+      "resources: [],",
+      `${marker}\n  resources: [{ kind: "tracked", why: "the planted probe's derived population" }],`,
+    )}\n  fix: "f",\n  mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],`,
+  ),
+});
+
+test("policy-refusal-coverage: the REPORTED position suppresses, a DEAD position ALARMS (§4.2 discrimination)", () => {
+  const drive = (marker: string): ReturnType<typeof runPolicyPass> =>
+    runPolicyPass({
+      // THE WHOLE FAMILY as knownPolicies — the one thing that makes the negative arm mean anything.
+      knownPolicies: FAMILY,
+      policies: [policyRefusalCoverage],
+      root: ROOT,
+      project: projectOf(REFUSAL_COVERAGE_PROBE(marker)),
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+
+  const correct = drive("// @orb-waive policy-refusal-coverage(resources): the planted probe defers its pin; ends when it carries a mustRefuse row.");
+  expect(correct.authority.effectiveFindings).toEqual([]);
+  expect(correct.authority.waivedFindings).toHaveLength(1);
+  expect(correct.authority.authorityAlarms).toEqual([]);
+
+  // A marker naming a position this policy never reports is a DEAD position: it suppresses nothing and it
+  // ALARMS. All three assertions, per §4.2 — a pin that checked only the finding count would pass an
+  // over-broad or duplicate marker, both of which alarm without moving that count.
+  const dead = drive("// @orb-waive policy-refusal-coverage(nosuchposition): names a position the policy never reports.");
+  expect(dead.authority.authorityAlarms).toHaveLength(1);
+  expect(dead.authority.waivedFindings).toEqual([]);
+  expect(dead.authority.effectiveFindings).toHaveLength(1);
+});
+
 test("policy-waiver-identity REFUSES a corpus in which it recognises no final module (the zero-count receipt)", () => {
   const legacyOnly = passOf(policyWaiverIdentity, {
     "tooling/src/verify/gates/legacy.ts": 'export const gate = { name: "legacy", docRow: "x", message: "m", mustFlag: [1], mustPass: [1] };\n',
@@ -277,6 +324,40 @@ test(
     // And the family's own modules are CLEAN under the resolution arm: the enforcer never reds its host (#2097 —
     // `policy-soundness`'s three former chains read through the shared readers now).
     expect(resolutionAccused.filter((path) => FAMILY.some((policy) => path === `${GATES_DIR}${policy.id}.ts`))).toEqual([]);
+
+    // ── EVERY MEMBER IS ACCOUNTED FOR (#2208's actual lesson) ──────────────────────────────────────────
+    //
+    // This arm passed 12/12 while TWO live defects sat in the family, because it asserted on four members and
+    // said nothing about the rest: an instrument that measures the thing you changed but not the surface you
+    // changed it on. The completeness check below is what stops that recurring — a member in NEITHER list
+    // fails here, so a new policy cannot join the family without someone deciding what its live tree says.
+    //
+    // OPEN = a class with live findings and a SECOND OPINION above (never a hardcoded count, #1969).
+    // CLOSED = the tree itself is the proof the class is at zero.
+    const openWithOpinion: ReadonlySet<string> = new Set([policyLegacyImports.id, policyBindingResolution.id, policyRefusalCoverage.id]);
+    const closedAtZero: ReadonlySet<string> = new Set([
+      policySoundness.id,
+      policyFixtureSubstrate.id,
+      policyProofExpectations.id,
+      policyWaiverIdentity.id,
+      policyWaiverSpelling.id,
+    ]);
+    expect(FAMILY.map(({ id }) => id).filter((id) => !(openWithOpinion.has(id) || closedAtZero.has(id)))).toEqual([]);
+    for (const id of closedAtZero) {
+      expect({ id, accused: accusedBy(id) }).toEqual({ id, accused: [] });
+    }
+
+    // `policy-refusal-coverage`'s SECOND OPINION, one-sided by containment (#2184): every final module whose
+    // text declares a NON-EMPTY `facts`/`resources` and carries no `mustRefuse` must be accused — the arm is
+    // not blind. The reverse containment is deliberately NOT asserted: the pin half lives in a family test's
+    // `runPolicyPass` call, which no text predicate over the gate corpus can see.
+    const refusalOpinion = finals
+      .filter((sourceFile) => DERIVES_POPULATION_RE.test(sourceFile.getFullText()) && !MUST_REFUSE_RE.test(sourceFile.getFullText()))
+      .map(relative)
+      .toSorted();
+    const refusalAccused = new Set(accusedBy(policyRefusalCoverage.id));
+    expect(refusalOpinion.filter((path) => !refusalAccused.has(path))).toEqual([]);
+    expect(refusalOpinion.length).toBeGreaterThan(0);
 
     // The error policy pins its CLOSED classes; the tree is the proof they are closed. Asserted LAST so a red here
     // (a foreign module landing an unwrapped read, as `97e68be91` did for E4) still lets every receipt above print.
