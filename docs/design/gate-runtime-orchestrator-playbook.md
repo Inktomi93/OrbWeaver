@@ -390,7 +390,9 @@ between the lanes — that is #1993, and it went unnoticed for a day.
 | row | what to do |
 | -: | - |
 | **#1979** | six silent not-ready returns remain. **Re-derive the lines first** — main moved a lot. Shared reader is `readyResourceValue`; `server-layout` is the worked example including the header paragraph explaining why it owns no not-ready branch |
-| **#1999** | origin-client's 25 narrowings. **Wave 6's figure PREDATES three of §4.1's four rules — re-classify before building; some cells will dissolve.** Start with the two shared `lib/react-origin.ts` fences (one cost a measured 439 false findings per policy and is pinned by nothing but a comment) |
+| ~~#1999~~ | **CLOSED** `153561cef` — 15 rows (not 25; see the decay rule). Two shared `lib/react-origin.ts` fences pinned ONCE with a header note that the proof covers `no-use-context` too. `no-context-returntype`'s two remaining cuts DOCUMENTED as mutually-redundant/unfalsifiable rather than faked |
+| ~~#1999-residual~~ | Two things the lane declined to invent, recorded rather than dropped: a third `no-multiplexed-mutation-error` narrowing, and a second independently-discriminating cut inside `fetch-fn-in-features`' `fetchCandidate`. **Both are “not worth faking” calls, not gaps** |
+| ~~#1999-old~~ | origin-client's 25 narrowings. **Wave 6's figure PREDATES three of §4.1's four rules — re-classify before building; some cells will dissolve.** Start with the two shared `lib/react-origin.ts` fences (one cost a measured 439 false findings per policy and is pinned by nothing but a comment) |
 | **#2003** | `content-part-seam`'s member arm is STRUCTURALLY dead — it visits value-position nodes for an `export type`. Match the visitor kinds to the subject's space **or** remove the arm. **Do NOT fake a fixture that makes a type look like a value.** Its two siblings carry the identical tuple and theirs IS live |
 | **#1998** | `no-raw-matchmedia`'s header and roster row say "all four" grants; there are **five**, and the fifth refutes the header's stated reason. **Blocks the reviewed-grant copy candidate** |
 | **#1978** | 48 of 88 ordinary `fix` strings name no waiver spelling. **Fix by naming the actual id and position shape, never by loosening the predicate** — a literal `<id>` placeholder is correctly flagged |
@@ -420,6 +422,7 @@ from it.**
 | **Cut DIRECTION** | a cut must make the policy flag MORE; substituting a different wrong value is a different policy. Wave 5 made this error; a fix lane caught it |
 | **Declared PERF PREFILTER** | a candidate-name prefilter in front of an identity reader cuts clean BY DESIGN — cut the discriminating half. **71% of wave 7's over-report** |
 | **A LATER WAVE SUPERSEDES** an earlier cut table | two waves disagreed; the later was right because no discriminating fixture could EXIST. Paid on #1993 |
+| **A REVIEW'S COUNT DECAYS when ANOTHER LANE LANDS** | wave 6 reported 25; a lane closing #1989/#1990 had already fixed D1 (9 modules), D2 and all of D5 — **15 were genuinely open**. The tree changed, not the classification. **Never dispatch with a review's row count as scope without calling it an upper bound.** Paid on #1999 |
 | **Reusable UNREADABLE falsifier** | `declare function opaque(): any; opaque().<member>` drives every origin resolver into the fail-closed arm — stop reverse-engineering one per module. Exception: a TYPE-space symbol needs a VALUE-position reference |
 | **A split's differential owes a COVERAGE statement** | 4 of 8 split arms had ZERO legacy coverage, so replay proves nothing there. State it PER EXAMPLE, construct the successor proof from the arm's own triggers |
 

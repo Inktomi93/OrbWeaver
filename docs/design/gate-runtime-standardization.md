@@ -168,6 +168,17 @@ family.
      resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
      path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
 
+   **AND A REVIEW'S CELL COUNT DECAYS THE MOMENT ANY OTHER LANE LANDS A FIX IN ITS SCOPE — a second,
+   independent staleness from the one below (paid 2026-09-11 on #1999).** Wave 6 reported 25 unenforced cells for
+   the origin-client family. By the time a fix lane started, a DIFFERENT lane closing #1989/#1990 had already landed
+   D1 (nine modules), D2 and all five of D5. **Fifteen were genuinely open, not 25.** The lane found this by reading
+   each module rather than trusting the doc, which predates those closures.
+
+   Distinguish the two: the rule below is that the CLASSIFICATION changed; this one is that the TREE changed. Either
+   alone makes a count stale, and they compound. **So re-derive a review's remaining-work count against the current
+   FILE, not only against the newer classification rules — and never dispatch a lane with a review's row count as its
+   scope without saying it is an upper bound.**
+
    **A LATER WAVE'S VERDICT SUPERSEDES AN EARLIER WAVE'S CUT TABLE — check the most recent one before building a
    row from an old cell (measured 2026-09-11; two audits of the same corpus disagreed and the LATER one was right).**
    Wave 1 recorded the tier-home-health population fence as UNENFORCED, and the cut genuinely does come back clean.
