@@ -12660,9 +12660,9 @@
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
       "lane": "design",
       "issue": 5,
-      "lines": 1237,
-      "bytes": 115517,
-      "sha256": "df043c2059f2af47d7c7ef83b9b84d059c221693c42ea09c63f4348efbab0b24",
+      "lines": 859,
+      "bytes": 83554,
+      "sha256": "0ef8a71a25519885fb1a032974c5bd6059c52ae3340483cb3d322e3045b68da9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12675,13 +12675,13 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-orchestrator-playbook.md",
-        "assignedSha256": "d7849114216e41ba09839109a7048ed3b3da5bf582cbcdeee017dda9b0427120",
+        "assignedSha256": "0ef8a71a25519885fb1a032974c5bd6059c52ae3340483cb3d322e3045b68da9",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "34b8cadb8cd4d9443de315a46ddf88d91c9a8f8c46f88fa9a24377c77d98b66c",
-        "verifiedCommit": "ae3904c01c5dab03154a6909946e8a16d91298b1",
-        "verifiedAt": "2026-09-11",
+        "verifiedSha256": "0ef8a71a25519885fb1a032974c5bd6059c52ae3340483cb3d322e3045b68da9",
+        "verifiedCommit": "d968fc3fb29076a0c736c47c4c7182b02cc9a6e2",
+        "verifiedAt": "2026-09-12",
         "evidence": ["authored by the orchestrator from this session's owner rulings and read in full at 418f94aa4"],
         "summary": "Step list for a fresh orchestrator session running #1584: start ritual, standing rules, phased work order at cap 3, brief skeleton, landing procedure, binding lessons.",
         "claims": [
@@ -12696,7 +12696,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/gate-runtime-read-first.md",
