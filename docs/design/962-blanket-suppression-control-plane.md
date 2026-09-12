@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-08
+updated: 2026-09-12
 ---
 
 # #962 — file-wide lint suppression made structurally unavailable
@@ -209,6 +209,11 @@ Gate: the module · `check-gates.int` `__g_` fixture · `Core-Enforcement-Active
 registered-gate count · GATE-AUTHORING §1 `markerImmune` occupants + `contract/gate.ts` comment ·
 `tests/tooling/verify/gates/<gate>.int.test.ts` (a new tracked spec → `docs/test-baseline/manifest.json`
 regenerated in this worktree) · `comment-spans.ts` (the CSS/JSON lexer) · `_shared/proc.ts` (`input`).
-Ledger: `suppressions.ts` · `ops/gen/suppressions.ts` · `suppressions.residual.test.ts` · the baseline ·
-the doc row · `debt.ts`'s `why` prose. Config: `biome.json` (four overrides) · `biome-grant-liveness.int`'s
+Ledger (REPLACED 2026-09-12 — the ratchet retired at `a33b2e339`, which converted `suppressions` to
+reviewed-grant authority and deleted its count ratchet; `ops/gen/suppressions.ts`,
+`suppressions.residual.test.ts`, `suppressions.baseline.json` and `lib/debt.ts` are all gone, so the
+four sites this line used to name no longer exist): `tooling/src/verify/gates/suppressions.ts` ·
+the `policyId: "suppressions"` rows in `tooling/src/verify/lib/reviewed-grants.ts` · the shared file
+door `tooling/src/verify/lib/reviewed-grant-findings.ts` · the doc row ·
+`tests/tooling/verify/gates/suppressions-family.test.ts`. Config: `biome.json` (four overrides) · `biome-grant-liveness.int`'s
 real-tree row count (grows, stays green). Migration: 70 files + 8 rename files + their suites.

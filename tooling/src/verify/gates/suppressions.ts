@@ -87,6 +87,13 @@
 // INDEX, and no frozen resource kind serves a staged blob), so the loader would refuse a family string with
 // one final member that is not its own id.
 //
+// LEGACY SHA: the conversion parent is `d23150315`; the frozen dispatcher the §4.6 differential
+// replayed against is `02382639e` (named as such in the conversion commit `a33b2e339`'s own message:
+// "legacy dispatcher (02382639e) and the final policy over the same bytes: 15 IDENTICAL, 1 classified").
+// Recorded here because §5b.5 asks the HEADER for it and a hand read over this whole span found no hex
+// at all — the shas lived only in the commit message and in `lib/reviewed-grants.ts`'s `why` strings,
+// neither of which a reader of this module sees.
+//
 // POPULATION PORT, and it is a WIDENING recorded rather than a silent one. Legacy admitted
 // `harnessGlobs ∩ scanRoot`: `packages/*/src/**`, `tooling/src/**`, `scripts/**`, `tests/**` in `.ts`/`.tsx`,
 // minus the captured SillyTavern runtime. `@authored` is the nine-root list MINUS `@showcase`, while
@@ -144,7 +151,7 @@ const MESSAGE =
   "names a lint/type rule this repository has not ruled on in this scope. A suppression is a decision about " +
   "the RULE, not about the line: either the rule is wrong about this class of code (a documented tool false " +
   "positive) or the code is deliberately this way and a stated invariant says so — and both of those are " +
-  "reviewed grants, one per rule per scope.";
+  "reviewed grants, one per rule per scope. See docs/design/962-blanket-suppression-control-plane.md.";
 
 const FIX =
   "delete the suppression by fixing the underlying diagnostic; or, if the rule is genuinely wrong about this " +

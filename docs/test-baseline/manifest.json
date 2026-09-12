@@ -2255,7 +2255,6 @@
     "tests/tooling/stack/ops/served-probe.int.test.ts",
     "tests/tooling/static-class-collection.int.test.ts",
     "tests/tooling/static-class-consumers.int.test.ts",
-    "tests/tooling/suppressions.residual.test.ts",
     "tests/tooling/testd-lane-program-coverage.int.test.ts",
     "tests/tooling/token-contract.test.ts",
     "tests/tooling/tool-guard.int.test.ts",
@@ -3054,6 +3053,9 @@
     },
     "tests/tooling/verify/gates/gate-modernization-arm-b.test.ts": {
       "why": "RENAMED to `tests/tooling/verify/gates/gate-modernization.test.ts`, not dropped: all three tests moved with the file and none was weakened. The old name was itself a live `test-layout` violation (#2174) — named after an ARM (`arm-b`) rather than after its source module, so the mirror rule's mechanical source-to-test transformation resolved to `tooling/src/verify/gates/gate-modernization-arm-b.ts`, which has never existed; `gate-modernization.ts` is the only `gate-modernization*` source on the tree. It moved the whole-tree `test-layout` count 51 to 52 and stayed invisible for a day because the standing #1584 `check:structure` red hides a new one — it surfaced only from a per-policy diff between two named structure slots (#2110's method, run by hand). Un-deletes only if a source module is ever added at the old mirror target, which would mean the arm had become its own gate."
+    },
+    "tests/tooling/suppressions.residual.test.ts": {
+      "why": "RETIRED WITH THE RATCHET IT GUARDED — `a33b2e339` converted `suppressions` to reviewed-grant authority and deleted its count ratchet, and this spec existed only to police that ratchet's residue: it asserted the `suppressions.baseline.json` row set stayed burnable-only, that `ops/gen/suppressions.ts` regenerated it deterministically, and that `lib/debt.ts`'s `why` prose stayed in sync with it. All three subjects were deleted in the same commit, so every arm here lost its subject rather than its coverage. The surviving law — one grant per `(rule, scope)`, consumed exactly once, going stale the day its last site disappears — is pinned by tests/tooling/verify/gates/suppressions-family.test.ts, and the grant rows themselves live in tooling/src/verify/lib/reviewed-grants.ts."
     }
   }
 }

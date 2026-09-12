@@ -34,7 +34,14 @@ The final law is unambiguous: one central ordinary marker, exact typed grants, w
   - `duplicate-action-doors`: 6 rows / 12 occurrences, all ratified.
   - `over-art-plate-arm`: 4 rows / 4 burnable findings.
   - `suppressions`: 274 file rows / 572 occurrences: 545 ratified, 27 burnable across 20 files.
+    **LANDED 2026-09-12 (`a33b2e339`)**: the baseline is DELETED. `suppressions` converted to reviewed-grant authority and its
+    count ratchet went with it; the census at landing was 597 occurrences across 283 files in 65
+    `(rule, scope)` classes, each licensed by exactly one row in `tooling/src/verify/lib/reviewed-grants.ts`
+    and consumed exactly once. A class goes stale the day its last site disappears, which is what the
+    burnable column used to track by hand.
   - `test-presence`: 2 debt rows.
+    **LANDED 2026-09-12 (`a33b2e339`)**: the baseline is DELETED — see the `test-presence.baseline.json` row below, which carries
+    the same disposition.
   - `ui-variant-axes-stamped`: 0 rows.
   - `ct-unfed-reads`: 1 ratified row.
   - `orphan-export-ratchet`: 0 entry rows.
@@ -133,10 +140,15 @@ These are actual unresolved findings, not permissions:
 - `open-json-column-key-parity.ts:66-77`: 1 row, `messageVariants.metadata`, tied to issue `#184`.
 - `over-art-plate-arm.baseline.json`: 4 rows, tied to `#626`.
 - `test-presence.baseline.json`: 2 rows, tied to board item `#772`.
+  **LANDED 2026-09-12 (`a33b2e339`)**: DELETED. The file no longer exists; `#772`'s two rows retired with it rather than moving to
+  a grant, because the debt they tracked was closed rather than licensed.
 - `contract-verb-presence.ts:32-38`: 2 W1i rows. They cite `test-support-dry-punchlist.md`, not a work item.
 - `knob-wire-coverage.ts:42-69`: 5 D107 remediation rows. They cite law/audit prose, not a work item.
 - `query-freshness-coverage.ts:197-202`: 1 `automation.listChatActivity` row. It cites B6 design work, not a work item.
 - `suppressions.baseline.json`: 27 burnable occurrences across 20 files. The rows do not carry work-item identities.
+  **LANDED 2026-09-12 (`a33b2e339`)**: DELETED. Every occurrence is now a reviewed grant keyed `(policyId, subject, operation)`, which
+  is an identity rather than a count — so the "no work-item identity" objection this row raised is answered
+  by the shape of the replacement, not by adding issue numbers to the old one.
 - `dialog-via-composite.ts:31-35`: `rename-chat-dialog` and `invite-dialog` are temporary “lane held” exceptions with no work-item identity.
 
 `no-floorless-control-in-wrap`’s two “deferred” rows are permanent, already-fixed geometry rulings and belong under reviewed grants.
@@ -154,7 +166,14 @@ These are not exception rows and must remain enforced as policy/resource facts:
 - `sanctioned-css-homes.ts:9` — closed six-home CSS registry.
 - `serde-core-seal.ts:21` — the hard import/export domain vocabulary.
 - `tooling-slot-template.ts:18,28` — 2 tool-slot classifications.
-- `suppressions.ts:46,201` — 46 source and 6 test rule classifications. These classify native suppression facts; they are not Orb waivers.
+- `suppressions.ts:46,201` — the two ratified-rule tables. These classified native suppression facts; they were
+  not Orb waivers.
+  **LANDED 2026-09-12 (`a33b2e339`)**: both tables DELETED. **The `6 test` figure was the one number in this row that did not survive
+  re-derivation:** measured at the conversion parent `d23150315`, `RATIFIED_RULES` held **45** source rows
+  and `RATIFIED_TEST_RULES` held **7** test rows, and all of both migrated. The live surface is **46**
+  `source`-scope and **19** `tests`-scope reviewed grants in `tooling/src/verify/lib/reviewed-grants.ts`
+  (counted there today). The `tests` scope grew because one legacy table row could cover a whole rule class
+  across every test file, whereas a grant names its subject exactly.
 - `tokens.json`, `0000_baseline.sql` parity, Base UI surface manifest (39 components, 292 parts), prose hash/version manifest (148 slots), devtools asset manifest, and generated flag/parity outputs remain authoritative resource data.
 - CSS `EXPECTED_DIRECT_THEME_DECLARATIONS` is generated-output parity; the five per-file declaration counts and aggregate total are current-population counts and retire.
 
