@@ -29,12 +29,25 @@
 // and the five `SANCTIONED_KEYS` of the role-policy exception. Each is one exact `(subject, operation)` row
 // in the central table, and the legacy per-key stale arm IS that table's liveness — a key role-policy stops
 // reading leaves its row consumed zero times, which is the central STALE alarm.
+//
+// THE AMBIENT DOOR IS PLANTED, NOT SPELLED (#2030, design §4.8b). The proof workspace loads TypeScript's own
+// lib files but has NO `@types/node`, so a bare `process` in a fixture binds nothing: the global reader takes
+// its fail-closed `unreadable` arm and this policy reports with the SAME count and the SAME message as the
+// precise ambient branch. Measured by planting a `throw` in each arm and running this module's own
+// rows: the fail-closed arm was reached by `mustFlag[0]`, `mustFlag[1]` and `mustPass[1]`, the `node:process`
+// module door by `mustFlag[2..7]`, and THE AMBIENT-GLOBAL ARM BY NOTHING AT ALL. The two bare rows keep their
+// fixtures and now claim fail-closure, which is what they prove; `_proof/node-types.ts` plants `@types/node`'s
+// real `declare module "node:process" { global { var process: NodeJS.Process } }` shape for the rows that
+// claim the ambient verdict, and its lookalike twin pins the `globalName` comparison. Planting is the fix:
+// widening `reference-fact-global.ts`'s trust rule to make a fixture resolve would weaken a real identity
+// fence for test convenience.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
+import { NODE_LOOKALIKE_HOME, NODE_TYPES_HOME, nodeLookalikeProof, nodeTypesProof } from "./_proof/node-types.ts";
 
 const PROCESS_GLOBAL = "process";
 const ENV_MEMBER = "env";
@@ -150,13 +163,13 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/server/src/domain/hub/x.ts": "export const x = process.env.SOME_VAR;\n" },
       expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
-      why: "the founding shape — a `process.env` read outside foundation/env, with the exact grant OPERATION (the key) in the message",
+      why: "THE FAIL-CLOSED ARM, in the spelling that reaches it: an UNDECLARED `process` (no import, no ambient declaration in the workspace) resolves through NEITHER door, so `classifyOriginRefusal` calls it unreadable and the read is reported rather than admitted. The key still comes off the syntax, so the grant OPERATION survives a receiver the reader cannot name",
     },
     {
       mode: "types",
       files: { "packages/server/src/domain/hub/y.ts": 'export const x = process["env"].SOME_VAR;\n' },
       expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
-      why: 'the bracket trick `process["env"]` the property-form biome rule can miss — this policy is the AST backstop and normalizes both spellings to one fact',
+      why: 'the same fail-closure through the bracket trick `process["env"]` the property-form biome rule can miss — an unreadable receiver is reported in BOTH spellings, and the AST backstop still normalizes them to one fact',
     },
     {
       mode: "types",
@@ -208,6 +221,24 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "the RENAMED destructure carries the property name on the binding element, not on the binding — the arm reads the property, so renaming the local is not an escape",
     },
+    {
+      mode: "types",
+      files: {
+        ...nodeTypesProof(),
+        "packages/server/src/domain/hub/ambient.ts": "export const x = process.env.SOME_VAR;\n",
+      },
+      expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
+      why: `THE AMBIENT GLOBAL, ACTUALLY RESOLVED: the same bare spelling as mustFlag[0] with node's real declaration planted at ${NODE_TYPES_HOME}, so the receiver binds to a TRUSTED \`declare var process\` inside a \`global\` augmentation and the read takes the PRECISE global arm instead of fail-closure. Without the plant this row is indistinguishable from the unreadable one — same count, same message (#2030)`,
+    },
+    {
+      mode: "types",
+      files: {
+        ...nodeTypesProof(),
+        "packages/server/src/domain/hub/ambient-bracket.ts": 'export const x = process["env"].SOME_VAR;\n',
+      },
+      expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
+      why: "the bracket spelling of the RESOLVED ambient global — the element-access respelling reaches the same member of the same declaration, which is the claim `mustFlag[1]` could not make while the receiver bound to nothing",
+    },
   ],
   mustPass: [
     {
@@ -234,6 +265,14 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/server/src/domain/hub/other-member.ts": 'import process from "node:process";\nexport const pid = process.pid;\n' },
       why: "a DIFFERENT member of the same `process` object passes — the invariant is about the environment bag, not about the process global",
+    },
+    {
+      mode: "types",
+      files: {
+        ...nodeLookalikeProof(),
+        "packages/server/src/domain/hub/lookalike.ts": "export const x = procezz.env.SOME_VAR;\n",
+      },
+      why: `THE NAME COMPARISON, PINNED: a SECOND trusted ambient global (${NODE_LOOKALIKE_HOME}) declaring the same \`env\` bag under a different name resolves to the PRECISE global arm and is still not a subject, because the arm compares the resolved \`globalName\` to \`process\`. Without this row the resolved branch would pass any ambient \`x.env.KEY\` the same way the legacy text comparison did`,
     },
   ],
 });
