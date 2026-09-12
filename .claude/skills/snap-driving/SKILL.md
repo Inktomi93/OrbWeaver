@@ -204,7 +204,7 @@ parameterized actions.
 
 ## §5 The evidence ladder: text first, assertions as receipts, pixels last
 
-- **`--text` / `--aria [selector]` first** — structure as text, \~5–8× cheaper than a PNG and
+- **`--text` / `--aria [selector]` first** — structure as text, ~5–8× cheaper than a PNG and
   greppable. Fall to pixels only when something looks off; `--shot-of <sel>` is the cheapest
   pixel path (one element, auto-cropped).
 - **Assert with `--expect-*` instead of hand-rolled evals**: `--expect-visible`, `--expect-text <sel=text>`, `--expect-count <sel=N>`, `--expect-url`, `--expect-no-overflow`, `--expect-focus`.
@@ -245,7 +245,7 @@ parameterized actions.
 - **`__orb.motion()` carries THREE CLS totals; the budget gates on the third.** `cls` (the CWV spec
   metric) · `virtualizedCls` (the share the instrument classified as virtual-row reconciliation) ·
   `nonVirtualizedCls` = the budgeted remainder. A long transcript's `cls` is dominated by the message
-  list settling on mount (\~0.26 measured), which no app fix can move — so cite all three and judge
+  list settling on mount (~0.26 measured), which no app fix can move — so cite all three and judge
   `nonVirtualizedCls`. `pnpm snap --motion` prints them labeled and fails only on the non-virtualized
   one (`cls-raw` / `cls-virtualized` / `cls-non-virtualized` on its RESULT line).
 - **Two scroll containers, two different lists** — `[data-slot=virtual-list-scroll]` is the SIDEBAR
@@ -394,7 +394,7 @@ theme-polarity coverage rode only on chat rooms whose card carries a theme.
   0.30837 in one entry. Note a synthetic `el.click()` is UNTRUSTED and never sets `hadRecentInput`;
   only `--click` (a real CDP input dispatch) reproduces the exclusion.
 - **MEASURED LIMIT — throttle CPU alone on the dev build.** 4× CPU **plus** a 3G/4G profile never
-  reaches `data-app-ready` within snap's readiness window on `:5173` (\~250 unbundled ESM resources).
+  reaches `data-app-ready` within snap's readiness window on `:5173` (~250 unbundled ESM resources).
   The network arm is for a production build or a `--file` fixture.
 - A bad rate or an unknown profile REFUSES at parse time (exit 3) — a silently-ignored throttle would
   turn every verdict in that run into a false rest-state receipt.

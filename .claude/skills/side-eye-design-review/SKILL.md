@@ -25,7 +25,7 @@ remembered here).
 - **Never distort an image.** `object-fit: cover` (crop), never `background-size: 100% <h>` or any
   fixed-both-dimensions sizing that stretches. A 2:3 portrait forced into a wide band is a squish. We
   own `sharp` — the right-shaped crop is a variant, not a CSS stretch. Rendered aspect must match the
-  source aspect (within \~3%).
+  source aspect (within ~3%).
 - **Tokens only.** No raw px/hex/arbitrary Tailwind values in features (biome hook enforces it);
   `@orb/ui` primitives + `<Stack>/<Row>/<Section>/<Container>`; no `className` on raw HTML in a
   feature. A raw value is a finding.
@@ -55,23 +55,23 @@ remembered here).
   Geist) while a character of running prose averages 0.42–0.46em, so one CSS `ch` is ≈1.5 of the
   characters this rule counts — measure by glyph advance, never by `ch`, and report both.
   · CHAT TRANSCRIPTS take `--reading-measure` (75ch): the message content column and the streaming
-    ghost row. Dialogue is short attributed lines, not continuous body copy, and the wider measure is
-    deliberate there — a transcript row over 75 law-characters is NOT a finding.
+  ghost row. Dialogue is short attributed lines, not continuous body copy, and the wider measure is
+  deliberate there — a transcript row over 75 law-characters is NOT a finding.
   · EVERYTHING ELSE YOU READ takes `--reading-measure-prose` (47ch = 67–73 law-characters): teaching
-    copy, glosses, settings-row descriptions, empty-state and welcome explanations, dossier pitches,
-    every non-transcript paragraph. A prose paragraph on the transcript measure IS a finding.
+  copy, glosses, settings-row descriptions, empty-state and welcome explanations, dossier pitches,
+  every non-transcript paragraph. A prose paragraph on the transcript measure IS a finding.
   · A cap on a BLOCK that also holds controls (a settings track grid, a plugin detail stage, a card of
-    steps) legitimately keeps the wide measure — the paragraph inside it carries its own prose cap.
-    Headings are not body copy and are out of the band. `max-w-prose` is Tailwind's own 65 `ch`
-    (≈98 law-characters), i.e. a third spelling that satisfies neither measure.
+  steps) legitimately keeps the wide measure — the paragraph inside it carries its own prose cap.
+  Headings are not body copy and are out of the band. `max-w-prose` is Tailwind's own 65 `ch`
+  (≈98 law-characters), i.e. a third spelling that satisfies neither measure.
   · The cap rides the PARAGRAPH, never the page: an unregistered custom property is a token stream, so
-    its `ch` resolves at the USING element and a cap inherited from a wrapper is computed at the
-    wrapper's type size. The derivation lives in `reading.measure-prose-ch`'s `$description` in
-    `packages/ui/src/tokens/tokens.json`; the pin is `#1145` in
-    `tests/client/features/home/surfaces/home-surface.ct.tsx`.
+  its `ch` resolves at the USING element and a cap inherited from a wrapper is computed at the
+  wrapper's type size. The derivation lives in `reading.measure-prose-ch`'s `$description` in
+  `packages/ui/src/tokens/tokens.json`; the pin is `#1145` in
+  `tests/client/features/home/surfaces/home-surface.ct.tsx`.
 - Pair fonts on a contrast axis (serif+sans, geometric+humanist) or one family in multiple weights;
   two similar sans is a tell.
-- Display heading ceiling ≤ \~6rem; letter-spacing floor ≥ −0.04em (tighter = letters touch).
+- Display heading ceiling ≤ ~6rem; letter-spacing floor ≥ −0.04em (tighter = letters touch).
 - `text-wrap: balance` on h1–h3; `pretty` on long prose. A flat type hierarchy is a slop tell.
 
 ## §3 Layout
@@ -434,7 +434,7 @@ attribute at its REAL host; then verify:
 
 - **`elevation: flat | ramp | glow`** (`.shell-grid[data-elevation]`) — `glow` = layered shadows + inner
   top-highlight on panels/cards. All three values must switch cleanly (no cascade residue when reverting).
-- **`surfaceTexture: none | grain`** (root `data-texture`, absent at `none`) — opt-in SVG-noise dusting (soft-light \~0.04)
+- **`surfaceTexture: none | grain`** (root `data-texture`, absent at `none`) — opt-in SVG-noise dusting (soft-light ~0.04)
   on chrome/cards ONLY, NEVER message prose (reading-surface rule); must `display:none` under
   `prefers-contrast: more`.
 - **`--shadow-glow`** — the rationed Ember accent glow on selected/active (media-grid `data-selected`,
@@ -465,7 +465,7 @@ attribute at its REAL host; then verify:
   ambient). No visible white line, no banding.
 - **Gradient border rings** — `[data-cta]::after` / `[data-selected]::after` / `[data-active]::after`,
   accent-tinted, radius-safe, must COMPOSE with the fill (not clobber `bg-primary`/`shadow-*`).
-- **Spotlight** — `media-grid-cell::before` radial that follows the pointer at LOW alpha (\~0.18, never a
+- **Spotlight** — `media-grid-cell::before` radial that follows the pointer at LOW alpha (~0.18, never a
   wash over the thumbnail); GUARDED `@media (pointer: fine)` + `prefers-reduced-motion: reduce → display:
   none`. Verify both guards (emulate coarse pointer + reduced-motion → gone).
 - **Ambient aura** — `empty-state-decoration::before` radial behind the hero glyph ONLY; must never lower
@@ -483,15 +483,14 @@ review sees no motion at all. When reviewing anything animated (entry/exit trans
 drawer/panel slides, scroll, immersive chat modes), read the numbers instead of guessing:
 
 > **CLS / motion receipts are taken WITHOUT `--probe`. Full stop.** `--probe` injects
-> `*{animation:none!important;transition:none!important}` from DOMContentLoaded (`snap.ts` PROBE\_CSS\_SCRIPT)
+> `*{animation:none!important;transition:none!important}` from DOMContentLoaded (`snap.ts` PROBE_CSS_SCRIPT)
 > — which kills the FLIP animations whose whole job is to make a track change CLS-free
 > (`shell.css @keyframes shell-list-push-in`, stamped by `use-list-track-flip.ts`). Under `--probe` the
 > harness MANUFACTURES layout-shift findings; a 0.2295 theme-scope shift was filed off exactly this on
 > 2026-08-16. snap now prints `PROBE-NEUTERED-MOTION` and stamps `motion-evidence=PROBE-NEUTERED-MOTION` on the
 > RESULT line for every `--probe` run — if you see it, the motion numbers in that run are void.
 
-- **Read `__orb.motion()` and `__orb.animations()`** (`pnpm snap <route> --eval '__orb.motion()'
-  --eval '__orb.animations()'` — one Bash call). Trigger the motion first (the interaction, or just load a route with entry
+- **Read `__orb.motion()` and `__orb.animations()`** (`pnpm snap <route> --eval '__orb.motion()' --eval '__orb.animations()'` — one Bash call). Trigger the motion first (the interaction, or just load a route with entry
   animation), then read. Flag, each a finding:
   - a LoAF with **`styleAndLayoutStart > 0`** in the window — style/layout ran *inside* the frame (a
     forced reflow / a non-compositor animation): the jank signature.
@@ -499,7 +498,7 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
   - **`nonVirtualizedCls > 0.1`** — layout shifting under the user (content jumping as it loads).
     **Read the NON-virtualized total, never the raw `cls`** (issue #109, 2026-08-16): the instrument
     classifies virtual-row reconciliation (`shifts[].virtualized`) and `cls` still includes it, so a long
-    thread scores \~0.26 of pure message-list settling that NO app fix can move. `virtualizedCls` is the
+    thread scores ~0.26 of pure message-list settling that NO app fix can move. `virtualizedCls` is the
     share being excluded and `cls` is still printed — cite all three, gate on the third.
   - any animation with **`compositorClean: false`** — it animates a non-`transform`/`opacity`/`filter`
     prop (width/height/top/margin/…), i.e. a per-frame layout pass. Cross-refs §4 ("don't animate
@@ -521,9 +520,9 @@ the same page's own buffered layout-shift buffer reports **0.0293** at 4× CPU a
 0.001. So a Lighthouse mobile CLS in the 0.1 band with our own arms clean is a **declared limit** — cite
 both numbers and do not file a fix row off the Lighthouse figure alone.
 
-The recipe, when a prod-build receipt is actually needed (\~25s build + a server boot):
+The recipe, when a prod-build receipt is actually needed (~25s build + a server boot):
 
-1. `pnpm --filter @orb/client build` in YOUR worktree (\~25s; writes `packages/client/dist`).
+1. `pnpm --filter @orb/client build` in YOUR worktree (~25s; writes `packages/client/dist`).
 2. Boot the REAL prod entry off-band — never `vite preview` (`vite.config.ts` has no `preview.proxy`, so
    the SPA would have no `/api` at all) and never on `:8788` (that is main's dev stack):
    `PORT=8790 BIND_HOST=127.0.0.1 NODE_ENV=production ORB_ENV_NO_FILE=1 OWNER_HANDLES=… CREDENTIALS_KEY=…
@@ -650,7 +649,7 @@ geography; a surface inventing its own geography is a finding, not a style choic
 [ RAIL | LIST | CONTENT | CONTEXT ]
 ```
 
-- **RAIL** (left, \~56px icon column) — WHICH facet. **TEN sections is the current sanctioned count**
+- **RAIL** (left, ~56px icon column) — WHICH facet. **TEN sections is the current sanctioned count**
   (a running tally, not a fixed ceiling — each addition carries its provenance) and ten is the live
   count — the rail is FULL, not under-filled. Law: `UI-Architecture-and-Layout.md:190` — *"TEN sections
   (D121 amended D62 P6's seven — Presets stays in the rail, Connections lives in Settings per D66;

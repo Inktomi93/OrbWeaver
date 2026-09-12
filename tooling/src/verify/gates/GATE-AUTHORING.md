@@ -127,7 +127,7 @@ each gate's line (`✓ own-tables-only · scanned 915/4796 files`), in `reports/
   mini-project both legitimately hand a gate zero in-scope files (§4.5 — `scope.kind` cannot tell them
   apart, so the entrypoint has to).
 - **`ctx.scan({ … })` is the opt-in half**, for the two things the harness structurally cannot see. It is a
-  context method, not a descriptor field, so all \~200 existing gates are untouched. Numerics accumulate.
+  context method, not a descriptor field, so all ~200 existing gates are untouched. Numerics accumulate.
   - `admitted` — findings a committed RATCHET BUDGET absolved this run, printed as
     `admitted-by-ratchet: N`. **Declared debt is not absence.** EVERY ledger-carrying gate owes this call,
     or its population is knowable only by running the generator — and worse, the single-pass's own
@@ -232,7 +232,7 @@ never catches this class.** Cross-check a sibling gate's path form, then prove t
 Defensive middle ground (used by `density-tier`, `no-hover-display-swap`): `(p) => p.includes("packages/client/src/")`
 makes no assumption about a leading slash at all.
 
-**A complex `scanRoot` predicate is a coverage decision, and it is unreviewable by inspection.** \~16 gates
+**A complex `scanRoot` predicate is a coverage decision, and it is unreviewable by inspection.** ~16 gates
 carry multi-clause predicates (unions of roots, negated segments, regex tests). Every clause is a claim that
 the excluded files cannot violate the rule. Before writing one, run the predicate over the real file list and
 READ what it drops. Two specific rules:
@@ -347,7 +347,7 @@ An exemption is a promise. This is how the promise is written.
    `no-floorless-control-in-wrap` and `tooling-front-door` — the last from a gate whose own line read
    `scanned 0/3 files` — and an issue was filed to DELETE all six live rows. Consequences for an author:
    `fileLoaded(ctx, ANCHOR)` alone is now correct for both hazards (conformance AND scoped); the
-   belt-and-braces `ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)` spelling \~38 gates carry is
+   belt-and-braces `ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)` spelling ~38 gates carry is
    still fine; and a bare `ctx.scope.kind === "project"` check alone is still WRONG (it is TRUE inside a
    conformance mini-project). Pinned by `tests/tooling/verify/ops/scoped.int.test.ts` §4.
 6. **A GATE KEYED ON AN EXACT NAME MUST DETECT ITS OWN BLINDNESS.** If the gate looks up a symbol/file/table
@@ -525,7 +525,7 @@ write which one in the gate header:
 - `codeIncludes(sf, needle)` — the presence-check door, already fenced.
 - `codeTextForScan(sf, couldMatch)` — the regex/line-scan door. **The CANDIDATE FENCE is a MEMORY decision,
   not a micro-optimisation:** blanking materialises every wrapped node for the file, and doing that for a
-  whole tier (\~1,900 test files) OOMs the run at a 4GB heap limit. It is SOUND because blanking only ever
+  whole tier (~1,900 test files) OOMs the run at a 4GB heap limit. It is SOUND because blanking only ever
   REMOVES matches, so a file whose RAW text cannot match cannot match blanked either.
 - `blankTsCommentsInText(text)` / `blankCssComments(text)` — for text read off the real filesystem (a CT
   mirror, a `surfaces/*.tsx`, a stylesheet). The TS one parses into a reused in-memory scratch project;
@@ -578,7 +578,7 @@ against the real tree before inheriting it, and expect "already migrated" claims
 - **Single-arm dispatch: `Record`, not `switch`.** A `switch` over a single-arm union trips biome
   `noUnnecessaryConditions` on the unreachable `default`, which forces a suppression, which overflows the
   suppressions baseline. Use a mapped-type `Record<Kind, Handler>` — one entry today, tsc requires the entry
-  for any future arm. (MULTI-arm snake\_case unions invert this: a Record object literal trips
+  for any future arm. (MULTI-arm snake_case unions invert this: a Record object literal trips
   `useNamingConvention`, so an annotated `switch` is correct there.)
 - **No `biome-ignore` unless it is a genuine false positive**, with a cited reason, IMMEDIATELY above the
   flagged line. Suppressions are ratcheted tree-wide.
@@ -659,7 +659,7 @@ const vocabulary = passVocabulary.size > 0 ? passVocabulary : derive(sf.getProje
 **Why it is a rule and not a preference.** A Project-keyed memo is correct only for as long as the
 CONFORMANCE SUBSTRATE happens to throw the key away between examples — i.e. its correctness depends on how
 often something unrelated to the gate is discarded. `ops/conformance.ts` now reuses ONE in-memory Project
-across every pure-AST example (\~105ms/example of lib.d.ts parsing, \~1500 examples, 27.6s → 7.9s on the
+across every pure-AST example (~105ms/example of lib.d.ts parsing, ~1500 examples, 27.6s → 7.9s on the
 bite-proof), so such a memo silently serves a PREVIOUS example's derivation. That is not a red conformance
 run — the gate keeps passing its own proofs while judging the wrong facts. `detached-work-traced` held
 exactly this memo and three of its own rows changed verdict (#751).

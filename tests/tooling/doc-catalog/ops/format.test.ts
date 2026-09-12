@@ -11,7 +11,7 @@
 // the write path, the refusal, and the `dirty` verdict are all properties of it, not of the processor.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { formatDocs } from "../../../../tooling/src/doc-catalog/index.ts";
+import { formatDocs, formatTargets } from "../../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Write `body` into the scratch dir and format it; returns the bytes on disk plus the outcome. */
@@ -115,6 +115,49 @@ test("RENDER FIDELITY: the well-formed corpus shapes are accepted, so the refusa
   expect(outcome.refused).toStrictEqual([]);
   expect(bytes).toContain("NOT_FOUND");
   expect(bytes).toContain("RULED-OUT \\| DERIVED"); // the pipe escape inside a table cell IS required
+});
+
+test("FROZEN ARCHAEOLOGY: a doc in EITHER history tree is never written and never judged", () => {
+  // TWO controls, one per tree, because the defect WAS that one tree was covered and its twin was not:
+  // `docs/history/**` fell outside the living trees by omission, while `docs/architecture/history/**`
+  // nested INSIDE `docs/architecture/` and was admitted for months under a header claiming otherwise.
+  // A single control reproduces exactly the blind spot that shipped.
+  //
+  // The bodies below would be BOTH dirty (a `\~` the formatter removes) AND refused (a row wider than
+  // its header) if they were judged — so a clean, empty outcome can only mean the fence held. And they
+  // are named at paths that do NOT EXIST: the fence short-circuits before the read, so an ENOENT here
+  // would be the failure. That is what makes "never judged" a stronger claim than "never written".
+  const frozen = ["docs/history/planted-control.md", "docs/architecture/history/planted-control.md"];
+
+  const outcome = formatDocs(frozen, true);
+
+  expect(outcome.dirty).toStrictEqual([]);
+  expect(outcome.refused).toStrictEqual([]);
+  expect(outcome.scanned).toBe(2);
+});
+
+test("FROZEN ARCHAEOLOGY: neither tree appears in the resolved corpus", () => {
+  // The population half of the same fence, against the REAL tree rather than a fixture — 628 tracked
+  // files across the two trees must all be absent, and `docs/architecture/` must still be present, or
+  // the exclusion would have been written as "drop the living tree" rather than "drop the frozen ones".
+  const targets = formatTargets([]);
+
+  expect(targets.filter((path) => path.startsWith("docs/history/"))).toStrictEqual([]);
+  expect(targets.filter((path) => path.startsWith("docs/architecture/history/"))).toStrictEqual([]);
+  expect(targets.some((path) => path.startsWith("docs/architecture/core/"))).toBe(true);
+});
+
+test("WIDENING: class 2 is admitted, and the bytes this repo does not author are not", () => {
+  // Class 2 (#2144) is the skills tree plus the `tooling/` guides the constitution cites as law. The two
+  // exclusions are the `docs/vendor/**` rule applied to a new tree, and each would fail differently:
+  // the DevTools closure is hash-validated (formatting it reds `devtools-frontend-assets`), and
+  // `flags.md` is DERIVED, so admitting it would deadlock `check:docs` against `check:ledgers-fresh`.
+  const targets = formatTargets([]);
+
+  expect(targets).toContain("tooling/src/verify/gates/GATE-AUTHORING.md");
+  expect(targets).toContain(".claude/skills/orchestrator-runbook/SKILL.md");
+  expect(targets.filter((path) => path.startsWith("tooling/src/snap/lib/devtools-frontend/"))).toStrictEqual([]);
+  expect(targets).not.toContain(".claude/skills/snap-driving/reference/flags.md");
 });
 
 test("IDEMPOTENCE: a second pass over formatted bytes changes nothing", ({ scratch }) => {

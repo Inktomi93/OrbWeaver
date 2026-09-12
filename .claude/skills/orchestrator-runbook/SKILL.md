@@ -45,12 +45,14 @@ named by its exact filename. Assume the index, never the body.
   operations, or documentation outcome; `bug` for a reproducible contract violation; `decision` for an
   owner fork; `program` for one committed future sprint; or `evidence` for a
   re-derived finding routed to one of those classes. Use `pnpm work:item create <class> --title <title> --body-file <file>`; the matching `.github/ISSUE_TEMPLATE/*.yml` is the canonical issue body.
+
 - **Project is the only mutable lifecycle home.** Never mirror Triage, Ready, Running, Blocked, Verify,
   or Done into docs. Decisions enter **Needs owner**. The lifecycle is `ready <issue…>` → `claim <issue…> --lane <lane>` → `review <issue…>` → `verify <issue…> --evidence <receipt>` → `done <issue…> --evidence <same-receipt>`; set Kind, Priority, Area, and Review before Ready. **Prefer the two COMPOSITE verbs (#870) — they are the same guarded verbs in one call:** `file --title <t> --kind <class> [--priority P] [--area A] [--review R] [--body-file f] [--ready] [--claim <lane>]` opens a row (create + metadata + ready + claim), and `land <issue…> --evidence <receipt> [--lane <lane>] [--comment-file f]` closes it (claim-if-needed → review → verify → done, resuming from wherever each row already is). Every lifecycle verb and `show` accept a LIST of ids. Use `needs-owner <issue>` for raw
   decision ingress, `block`/`unblock`, and `park --wake` for exceptions. `pnpm work:item --help` prints
   the complete cookbook. Lifecycle commands write Status last and accept an identical retry after an
   interrupted or uncertain GitHub response; rerun the operator command instead of repairing fields with
   raw `gh` calls.
+
 - **THE COMPLETE VERB SET — never run `--help` to rediscover this.**
 
   | verb | shape | note |
@@ -68,8 +70,7 @@ named by its exact filename. Assume the index, never the body.
 
 - **TRANSITIONS ARE GUARDED, and the guard that bites is `ready`.** Lifecycle is Triage → Ready → Running →
   Review → Verify → Done. **`ready` REFUSES a Running row** — its legal pre-states are Triage, Needs owner, Blocked,
-  Parked or Ready. So there is no backward step out of Running: to free a row whose lane died, use `park --wake
-  <condition>` (the honest one — it forces a wake), or `block --by`, or `needs-owner`, or carry it forward through
+  Parked or Ready. So there is no backward step out of Running: to free a row whose lane died, use `park --wake <condition>` (the honest one — it forces a wake), or `block --by`, or `needs-owner`, or carry it forward through
   `review`. Interrupted transitions are safe to rerun, including the composite verbs, which resume at the row's
   current status.
 
@@ -92,6 +93,7 @@ named by its exact filename. Assume the index, never the body.
   it. Record the transfer as an issue COMMENT, which is the durable owner-of-record, and treat the stale Lane string
   as cosmetic. Do not `park`/`ready`/re-`claim` a live row just to repaint the label: that trades a cosmetic lie for a
   lifecycle lie. Paid 2026-09-11 when Codex went hard down mid-program.
+
 - **Lifecycle hygiene (Codex control-plane review, 2026-08-16 — the four measured misses):**
   1. **Claim FIRST, always.** The issue exists and is claimed BEFORE the fixing work starts — an issue
      created seconds after its fixing commit is retrospective paperwork, not tracking (#75 was minted
@@ -105,6 +107,7 @@ named by its exact filename. Assume the index, never the body.
      parallel backlog the Project exists to kill (#74's doc sat active with §7 deferrals untracked).
   4. **Receipts name LIVE issues.** A catalog receipt's typed claim pointing at a CLOSED issue is
      semantically stale even when the hashes verify — re-receipt when the referenced issue closes.
+
 - **Only the orchestrator mutates Project.** Subagents return path/commit/test receipts; the
   orchestrator updates the linked issue. Issues point to durable repo evidence, and durable repo evidence
   never copies Project lifecycle fields.
@@ -149,8 +152,7 @@ preserved as the recorded condition rather than rewritten into a description of 
   (body states options + your DEFAULT and deadline; keep working unless truly `BLOCKED`), `ANSWER to
   NNN`, `ACK of NNN`. A QUESTION stays UNACKED until answered; an unanswered question means the
   default fired, and the report says so. REALTIME (primary side): keep a persistent
-  Monitor (`stdbuf -oL inotifywait -m -q -e close_write -e moved_to --format '%e %f'
-  ~/.claude/bridge/to-primary/ | stdbuf -oL grep --line-buffered -v done/` — the `stdbuf -oL` is
+  Monitor (`stdbuf -oL inotifywait -m -q -e close_write -e moved_to --format '%e %f' ~/.claude/bridge/to-primary/ | stdbuf -oL grep --line-buffered -v done/` — the `stdbuf -oL` is
   LOAD-BEARING: into a pipe inotifywait BLOCK-buffers, so the first note sat unseen until a second event
   flushed it, paid 2026-09-01; probe with a throwaway file after arming) so claude-b messages arrive as live
   events instead of polls.
@@ -214,7 +216,7 @@ mechanics are here.
   hand-run commands there hit the main checkout. Sweep: `git worktree list` → `git worktree remove --force`
   registered ones → `rm -rf` unregistered dirs → `git worktree prune` → `git branch -D wt/*` only after
   `git rev-list --left-right --count main...<branch>` shows 0 on the branch side.
-- **Killing a task mid-git leaves staged-no-MERGE\_HEAD debris** — `git reset --hard HEAD` (the branch holds
+- **Killing a task mid-git leaves staged-no-MERGE_HEAD debris** — `git reset --hard HEAD` (the branch holds
   everything) and redo, don't excavate.
 - **Warm leg to an ALREADY-MERGED isolated lane (2026-08-21)** — the mechanism the rules file points
   at: the lane proves containment (`git rev-list --left-right --count main...HEAD` → its side 0),
@@ -243,7 +245,7 @@ mechanics are here.
 3. **A merge under a running whole-tree check skews the check** — it reads the working tree (rule promoted to `orchestration.md` §Merge/load discipline; this is its procedure). Per train: kill the check, merge, `ledgers-fresh` (real exit), restart the check on the new tip. A check that finished on an older tip is not the tip's verdict.
 4. **Claim at dispatch.** A row set Ready but never `claim`ed fails at `review` later ("must be Running") — the lifecycle is `ready → claim → review → verify → done`, `block/unblock` need `--by <n>`, `ready` refuses a Blocked row. TRUTH-REPAIR 2026-09-01: #870's one-shot verbs LANDED (ac441d5e5) — `file` opens a row (create+metadata+ready+claim) and `land <issue…>` closes rows (claim-if-needed→review→verify→done, multi-id), so the old "chain the primitives in ONE Bash call" workaround is RETIRED; reach for `file`/`land` first, primitives only for the transitions the composites don't cover (the census that motivated this: board choreography = 7.3% of orchestrator context; 49% of board calls carried one invocation — and it was re-paid on 2026-09-01 by an orchestrator chaining primitives for 24 closes with the composite verbs already on the tree: re-read `--help` when a tool you drive daily is announced changed).
 5. **`gh issue comment --body "…`sha`…"` executes the backtick.** Always `--body-file`. (Rule promoted to `orchestration.md` §Rules.)
-6. **Mocks are Claude Design canvases** (`/design` → `seed-canvas.mjs` → Artifact, contract 0.1.31, caps self+downloads), never forge-drawn HTML lanes (owner: "just use the artifact creation skill"). Commit the canvas SOURCE under `docs/design/mocks/<name>/` (build.mjs + *.dc.html + canvas.json + true-size renders + DESIGN.md + README row); the README edit needs its OWN re-attest. Render each board's default state and LOOK before publishing (box-sizing, z-order, glyph rules were all caught only on the render).
+6. **Mocks are Claude Design canvases** (`/design` → `seed-canvas.mjs` → Artifact, contract 0.1.31, caps self+downloads), never forge-drawn HTML lanes (owner: "just use the artifact creation skill"). Commit the canvas SOURCE under `docs/design/mocks/<name>/` (build.mjs + \*.dc.html + canvas.json + true-size renders + DESIGN.md + README row); the README edit needs its OWN re-attest. Render each board's default state and LOOK before publishing (box-sizing, z-order, glyph rules were all caught only on the render).
 7. **Every lane that edits a law doc costs a catalog re-attest at merge** (verifiedCommit = the merge sha) — batch them per train; a report a lane leaves uncommitted needs a FULL READ before its born-reviewed receipt (state its location in the bridge if the window can't afford the read).
 8. **Sentinels are account-labeled since 2026-09-01** (`context-sentinel [primary]: …` / `[claude-b]`; usage cache per `<config-dir>/rate-limits.json`, stamped, refused when foreign — memory `sentinel-usage-cache-is-per-account.md`). A sentinel without a bracketed account is pre-fix residue. Before that date they could belong to the other account: a 96/97% weekly sentinel fired on claude-b's numbers while the owner said claude-b was nowhere near max — the two accounts' statuslines wrote ONE cache file, last writer wins.
 9. **Four gate-heavy lanes is over the cap in practice:** two lanes hit `ORB-LOAD-KILL` / exit-143 on `check:structure` while a fourth ran. (Cap promoted to `orchestration.md` §Merge/load discipline — MAX 3 concurrent lanes overall, gate-heavy ≤3 within it; this is the measurement behind it.)
@@ -256,7 +258,7 @@ mechanics are here.
 
 Every line here was paid for in ONE night. Run the pre-flight BEFORE the first whole-tree run or the first dispatch; each skipped line cost an hour or more.
 
-1. **Engines first.** `pnpm engines status`. A SLEEPING fleet has offloaded its weights from VRAM into host RAM (~37 GiB `Shmem` on this box); two whole-tree verifies were watchdog-killed for memory before anyone looked. If no live drive needs the fleet: `env -C <main> pnpm stack down prod` (owner-authorized for overnight; the prod supervisor otherwise takeover-respawns a stopped fleet — fixed at cdfe100d0 via the `engines.stopped` marker, but prod down is still the clean state), then `env -C <main> pnpm engines stop` FROM MAIN — the pidfile's launch identity is per-checkout and a worktree's stop refuses every engine as foreign. **DETECT THE PROCESS; do not infer it from memory** (owner, 2026-09-13). Read `.cache/stack/engines.pgid` — a JSON state record, not a pgid file, carrying per engine the `pid`, `port`, `cwd`, `launchMarker` and **`startTicks`** (the anti-PID-reuse check) — plus `.cache/stack/engines.stopped` and `ss -ltnp | grep ':870[123]'`. All read-only; none invokes the launcher. **A dead pidfile with NO stopped marker is its own state**: the marker is written only on a clean stop verdict (`engines-ctl.ts:218-226`), so its absence beside dead pids means the fleet died outside the stop path, and the supervisor's takeover honors the MARKER, not the pids. `Shmem` in `/proc/meminfo` still beats `ps` RSS for MEASURING a resident fleet's footprint, but it is a proxy for existence and an earlier \~1 GiB threshold sat at 59% of the measured 609 MiB idle floor.
+1. **Engines first.** `pnpm engines status`. A SLEEPING fleet has offloaded its weights from VRAM into host RAM (~37 GiB `Shmem` on this box); two whole-tree verifies were watchdog-killed for memory before anyone looked. If no live drive needs the fleet: `env -C <main> pnpm stack down prod` (owner-authorized for overnight; the prod supervisor otherwise takeover-respawns a stopped fleet — fixed at cdfe100d0 via the `engines.stopped` marker, but prod down is still the clean state), then `env -C <main> pnpm engines stop` FROM MAIN — the pidfile's launch identity is per-checkout and a worktree's stop refuses every engine as foreign. **DETECT THE PROCESS; do not infer it from memory** (owner, 2026-09-13). Read `.cache/stack/engines.pgid` — a JSON state record, not a pgid file, carrying per engine the `pid`, `port`, `cwd`, `launchMarker` and **`startTicks`** (the anti-PID-reuse check) — plus `.cache/stack/engines.stopped` and `ss -ltnp | grep ':870[123]'`. All read-only; none invokes the launcher. **A dead pidfile with NO stopped marker is its own state**: the marker is written only on a clean stop verdict (`engines-ctl.ts:218-226`), so its absence beside dead pids means the fleet died outside the stop path, and the supervisor's takeover honors the MARKER, not the pids. `Shmem` in `/proc/meminfo` still beats `ps` RSS for MEASURING a resident fleet's footprint, but it is a proxy for existence and an earlier ~1 GiB threshold sat at 59% of the measured 609 MiB idle floor.
 2. **A whole-tree check never runs alongside live lanes.** `orchestration.md` already says a merge voids a running check; the inverse also holds: three gate-heavy lanes plus a whole-tree verify under one 800% quota starved every lane for hours. Run the whole-tree check in the gap when lanes drain, alone.
 3. **After a watchdog kill, a `run_in_background` task's START time is unknown.** The harness deferred a third verify for 4h50m after its own two memory kills; the redirected log and the harness task file were both BORN at the moment it finally ran. Before reasoning about elapsed time, `stat --format=%w <log>`. Do not read a live five-minute-old log as a hung five-hour run and kill it (paid).
 4. **`EnterWorktree` does not reload the rules.** The `.claude/rules/*` and CLAUDE.md copies in context are the LAUNCH checkout's (main's). A branch that changed them — retired scripts, renamed commands, new test kinds — will be briefed wrong from the in-context copy. Re-read `lane-standing-facts.md` from the tree before writing any brief.

@@ -33,8 +33,7 @@ The lifecycle, as the code enforces it (`scripts/github/work-item.ts`):
   Parked).
 - **Verbs:** `ready` (requires Kind, Priority, Area, Review ALL set — code-enforced; the CLI
   help's shorter list omits Kind, the code does not) → `claim <issue> --lane <lane>` (assigns,
-  sets Running) → `review` → `verify <issue> --evidence <receipt>` → `done <issue> --evidence
-  <same-receipt>`. Plus `needs-owner`, `block`/`unblock --by`, `park --wake <condition>`,
+  sets Running) → `review` → `verify <issue> --evidence <receipt>` → `done <issue> --evidence <same-receipt>`. Plus `needs-owner`, `block`/`unblock --by`, `park --wake <condition>`,
   `set`, `show`, `list --status`.
 - **The evidence byte-match:** `done` refuses unless the issue's Evidence field equals
   `--evidence` exactly — carry ONE receipt string from verify to done, never re-word it. `done`

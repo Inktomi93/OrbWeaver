@@ -16,7 +16,7 @@ before trusting this on a much newer version, and check `marckrenn/claude-code-c
 An agent is a markdown file: YAML frontmatter, then the body, which **becomes the agent's system prompt**.
 
 | Scope | Location | Notes |
-|---|---|---|
+| - | - | - |
 | User | `~/.claude/agents/` | available in every project |
 | Project | `.claude/agents/` | checked in, team-shared; wins over a user agent of the same name |
 | Plugin | `<plugin>/agents/` | ignores `permissionMode`, `mcpServers`, and `hooks` |
@@ -29,7 +29,7 @@ don't watch at all.
 ## §2 The complete frontmatter field set (17 fields; only 2 required)
 
 | Field | Req | Type / values | Default |
-|---|---|---|---|
+| - | - | - | - |
 | `name` | **yes** | lowercase + hyphens. **No `:`** — reserved for plugin scoping; a file with one fails to load (silently, before v2.1.218). Filename need not match. Hooks receive it as `agent_type` | — |
 | `description` | **yes** | when Claude should delegate here. This is the routing signal — write it as trigger conditions, not a job title | — |
 | `tools` | no | comma-separated tool names. Omitted = **inherits every subagent-available tool** | inherit all |
@@ -84,7 +84,7 @@ lesson is still restated in the brief, or named by its exact topic filename so t
 ## §4 Limits and the env vars that move them
 
 | Limit | Default | Env var |
-|---|---|---|
+| - | - | - |
 | Nesting depth below main | **3** (was 1 in 2.1.217-218; 5 and uncappable in 2.1.172-216) | `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` |
 | Concurrent running subagents | **20** (ultracode sessions exempt) | `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` |
 | Total subagents per session | none since v2.1.224 | — |
