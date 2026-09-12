@@ -3,7 +3,8 @@
 // `lib/gate-contract-origin.ts`'s import-origin discipline for the identity). Two arms, one visitor:
 //
 //   A the legacy descriptor contract, the central authority machinery, or an ENTRYPOINT VERB under `ops/**`
-//     (#2186 — the one DIRECTORY-CLASS member, judged by prefix; §12.5: *"gate modules receive neither
+//     (#2186 — the one DIRECTORY-CLASS member, judged by prefix) — reached DIRECTLY or through a RE-EXPORT
+//     SHIM (#2201; §12.5: *"gate modules receive neither
 //     grant tables nor marker parsers"*; §3's non-negotiables: no gate-owned exemption table; §12.8: zero
 //     `ExemptionRow` tables, no private runtime). NOTHING held any of it for a final module until this policy:
 //     `gate-modernization` ARM B judges only whether an exemption table carries a STALE arm (the legacy law), and
@@ -34,9 +35,17 @@
 //   B a RELATIVE specifier (`./…`, `../…`) — a package door cannot name a gate module. The identity is the target's
 //     registration. An `export … from` re-export is an import in effect and is judged the same way; a type-only
 //     import is coupling all the same (a type has ONE home, `contract/` or `lib/`, never a sibling gate).
-//   A candidate of either arm that resolves to NOTHING is reported under the disjoint UNREADABLE text rather than
-//   acquitted on its spelling (#944 fail-closed). A specifier in neither set is never resolved at all, which is
-//   what keeps `react`, `ts-morph` and every `../lib/` reader out of the accusation.
+//   C a specifier carrying the `ops/` SEGMENT (#2186) — the directory-class member, judged by the resolved path's
+//     prefix rather than an exact suffix, and admitting a package-door spelling no basename test could see.
+//   The three sets OVERLAP by construction and are tested as a union: `../lib/pass.ts` is A and B at once, and
+//   `../ops/debt.ts` is B and C. A specifier in NONE of them is never resolved at all, which is what keeps
+//   `react` and `ts-morph` out of the accusation — but a `../lib/` reader IS a candidate (it is relative), IS
+//   resolved, and is acquitted by its TARGET: it names no forbidden home, sits under no forbidden prefix, and
+//   registers no gate. Acquittal by identity, never by never being looked at.
+//   Every candidate is resolved AGAIN one hop in (#2201): a shim's own `export … from` declarations are asked the
+//   same question, to fixpoint over a visited set, so a one-hop `lib/` re-export cannot launder a forbidden home
+//   past both arms. A candidate that resolves to NOTHING — at the door or anywhere in the chain — is reported
+//   under the disjoint UNREADABLE text rather than acquitted on its spelling (#944 fail-closed).
 //
 // WHAT THIS IS NOT. `../contract/policy.ts`, `../contract/fact.ts` and every other `contract/*` are the FINAL
 // contract and its type homes — imported by every policy. `lib/gate-contract.ts`, `lib/gate-contract-origin.ts`
@@ -85,6 +94,26 @@ const FORBIDDEN_IMPORT_HOMES = [
   "/tooling/src/verify/lib/policy-loader.ts",
 ] as const;
 const FORBIDDEN_BASENAMES: ReadonlySet<string> = new Set(FORBIDDEN_IMPORT_HOMES.map((home) => home.slice(home.lastIndexOf("/") + 1)));
+
+/** THE CANDIDACY TESTS — ONE HOME, because #2201 asks the SAME question at every hop of a re-export chain that
+ *  `judgeDoor` asks at the door. A second spelling of "is this worth resolving" is a second rule that can drift
+ *  from the one it mirrors, and the drift would be invisible: it would show up only as a shim nobody resolved. */
+function isHomeCandidate(specifier: string): boolean {
+  return FORBIDDEN_BASENAMES.has(basenameOf(specifier));
+}
+/** A package door cannot name a gate module, so only a relative specifier can be ARM B's subject. */
+function isSiblingCandidate(specifier: string): boolean {
+  return specifier.startsWith("./") || specifier.startsWith("../");
+}
+/** The prefix member's candidacy is the SEGMENT, not a basename: `ops/` names a directory, so any specifier that
+ *  traverses it is asked the question. A relative one is already a candidate through ARM B; this admits a
+ *  package-door spelling (`@orb/tooling/verify/ops/x`) as well, which no exact-home test could see. */
+function isPrefixCandidate(specifier: string): boolean {
+  return specifier.includes("ops/");
+}
+function isCandidateSpecifier(specifier: string): boolean {
+  return isHomeCandidate(specifier) || isSiblingCandidate(specifier) || isPrefixCandidate(specifier);
+}
 const TOOLING_SRC = "/tooling/src/";
 
 /** ARM A's DIRECTORY-CLASS member (#2186, matrix C10) — the one home judged by a PREFIX rather than an exact
@@ -114,6 +143,12 @@ const PREFIX_MESSAGE =
   "every SHARED reader lives in `lib/`, so no gate has a legitimate door here. A detector that reaches a verb implementation is running " +
   "the tool rather than describing a property of the tree, and it drags that verb's whole surface — a run slot, an artifact writer, an " +
   "exit contract — behind itself. The `from` token names the import; the message names the resolved target and the forbidden directory.";
+const LAUNDERED_MESSAGE =
+  "a FINAL policy module reaches the legacy contract or the central machinery THROUGH A RE-EXPORT SHIM (#2201; gate-runtime-standardization.md §12.5, §12.8). " +
+  "The door itself resolves to an innocent module, but that module re-exports a forbidden home, so this gate receives the forbidden surface one hop removed. " +
+  "#2096 took direct gate-to-gate imports to zero; a one-hop `lib/` shim is the path of least resistance that reopens it, and closing this is what makes #2096 " +
+  "stay closed. REPAIR EITHER END: if the import is legitimate the SHIM is the defect (a `lib/` reader re-exporting the legacy contract is two homes for one " +
+  "vocabulary); if the shim is legitimate this gate must stop reaching through it. The message names both ends of the chain.";
 const SIBLING_MESSAGE =
   "a FINAL policy module imports ANOTHER GATE MODULE (gate-runtime-standardization.md §12.3, owner ruling #2096): a gate module never imports a gate " +
   "module. A split family's shared predicate lives in `lib/<family>.ts` and BOTH siblings import it from there; a sibling reading its twin's " +
@@ -138,6 +173,11 @@ type ModuleDoor = ImportDeclaration | ExportDeclaration;
 
 type DoorVerdict =
   | { readonly kind: "forbidden-home"; readonly home: string }
+  /** LAUNDERED (#2201): the door itself resolves to an innocent module, but that module RE-EXPORTS a forbidden
+   *  home — so the gate receives the forbidden surface one hop removed. Named separately from `forbidden-home`
+   *  because the repair is different: the import may be legitimate and the SHIM is the defect, or the shim may
+   *  be legitimate and this gate must stop reaching through it. The message names both ends. */
+  | { readonly kind: "laundered"; readonly home: string; readonly shim: string }
   /** The DIRECTORY-CLASS member (#2186): the resolved path lies under a forbidden prefix. A third kind rather
    *  than a tenth `FORBIDDEN_IMPORT_HOMES` entry, because the test is different in kind — `endsWith` an exact
    *  path versus `includes` a directory — and collapsing them would make the home table mean two things. */
@@ -163,13 +203,9 @@ function judgeDoor(door: ModuleDoor): DoorVerdict | undefined {
   if (specifier === undefined) {
     return;
   }
-  const homeCandidate = FORBIDDEN_BASENAMES.has(basenameOf(specifier));
-  const siblingCandidate = specifier.startsWith("./") || specifier.startsWith("../");
-  // The prefix member's candidacy is the SEGMENT, not a basename: `ops/` names a directory, so any specifier
-  // that traverses it is asked the question. A relative one is already a candidate through ARM B; this admits
-  // a package-door spelling (`@orb/tooling/verify/ops/x`) as well, which no exact-home test could see.
-  const prefixCandidate = specifier.includes("ops/");
-  if (!(homeCandidate || siblingCandidate || prefixCandidate)) {
+  const homeCandidate = isHomeCandidate(specifier);
+  const siblingCandidate = isSiblingCandidate(specifier);
+  if (!isCandidateSpecifier(specifier)) {
     return;
   }
   const target = door.getModuleSpecifierSourceFile();
@@ -186,13 +222,72 @@ function judgeDoor(door: ModuleDoor): DoorVerdict | undefined {
     return { kind: "forbidden-prefix", prefix, target: displayPath(path) };
   }
   const contract = siblingCandidate ? gateRegistrationOf(target) : undefined;
-  return contract === undefined ? undefined : { kind: "sibling-gate", contract, target: displayPath(path) };
+  return contract === undefined ? launderedThrough(target, new Set()) : { kind: "sibling-gate", contract, target: displayPath(path) };
+}
+
+/** DOES THIS INNOCENT MODULE RE-EXPORT A FORBIDDEN HOME? (#2201 — the lazy-migration shape #2096 invites.)
+ *
+ *  #2096 took direct gate→gate imports to zero. The obvious next path of least resistance is a one-hop `lib/`
+ *  shim: `lib/whatever.ts` does `export { ExemptionTable } from "../contract/gate.ts"`, a gate imports the shim,
+ *  and BOTH arms acquit — the basename is not a forbidden home's, and the shim registers no gate. The gate has
+ *  the forbidden surface anyway. Closing this is what makes #2096 STAY closed.
+ *
+ *  THE CANDIDATE DISCIPLINE IS IDENTICAL AT EVERY HOP, deliberately: a re-export specifier is resolved only if
+ *  it is itself a candidate (forbidden basename · `ops/` segment · relative). `export … from "ts-morph"` is
+ *  never resolved, exactly as at the top-level door. That is what keeps fail-closed honest here — inside the
+ *  candidate set an unresolvable specifier is rare AND suspicious, which is the condition the doctrine attaches
+ *  to fail-closed; outside it, unreadability is ordinary and convicting on it would be a false-accusation engine
+ *  (the #2185 lesson, one module over).
+ *
+ *  Bounded by a VISITED SET rather than a depth cap: a two-hop shim is the same laundering with one more file,
+ *  and a cap would be a declared limit needing a justification the graph does not support. Measured before
+ *  landing: the whole of `verify/lib/` + `verify/contract/` holds TWO `export … from` declarations
+ *  (`config-static-read.ts:17`, `policy-conformance.ts:14`) and NEITHER targets a forbidden home — so this
+ *  fence lands at zero findings and zero false positives, and its cost is two resolutions. */
+function launderedThrough(shim: SourceFile, visited: Set<SourceFile>): DoorVerdict | undefined {
+  // ONE TAIL RETURN (`lib/pass.ts`'s accumulator idiom): `biome`'s `noUselessUndefined` deletes a trailing
+  // `return undefined;` and tsc's `noImplicitReturns` then reds the fall-through.
+  let found: DoorVerdict | undefined;
+  if (!visited.has(shim)) {
+    visited.add(shim);
+    const shimPath = displayPath(shim.getFilePath().replaceAll("\\", "/"));
+    for (const reExport of shim.getExportDeclarations()) {
+      found = launderedByReExport(reExport, shimPath, visited);
+      if (found !== undefined) {
+        break;
+      }
+    }
+  }
+  return found;
+}
+
+/** ONE re-export declaration of a shim: the forbidden home it reaches, the refusal when its specifier cannot be
+ *  resolved, or the deeper chain's verdict. A specifier that is not a CANDIDATE is never resolved at all. */
+function launderedByReExport(reExport: ExportDeclaration, shimPath: string, visited: Set<SourceFile>): DoorVerdict | undefined {
+  let found: DoorVerdict | undefined;
+  const specifier = reExport.getModuleSpecifierValue();
+  if (specifier !== undefined && isCandidateSpecifier(specifier)) {
+    const target = reExport.getModuleSpecifierSourceFile();
+    if (target === undefined) {
+      // FAIL-CLOSED inside the candidate set: the chain could end at a forbidden home and nothing can say it
+      // does not, so it is reported rather than acquitted on a spelling (#944).
+      found = { kind: "unreadable" };
+    } else {
+      const path = target.getFilePath().replaceAll("\\", "/");
+      const home =
+        FORBIDDEN_IMPORT_HOMES.find((candidate) => path.endsWith(candidate)) ?? FORBIDDEN_IMPORT_PREFIXES.find((candidate) => path.includes(candidate));
+      found = home === undefined ? launderedThrough(target, visited) : { kind: "laundered", home, shim: shimPath };
+    }
+  }
+  return found;
 }
 
 function messageOf(verdict: DoorVerdict): string {
   switch (verdict.kind) {
     case "forbidden-home":
       return `${MESSAGE} Resolved home: ${verdict.home.slice(1)}.`;
+    case "laundered":
+      return `${LAUNDERED_MESSAGE} Resolved chain: ${verdict.shim} re-exports ${verdict.home.slice(1)}.`;
     case "forbidden-prefix":
       return `${PREFIX_MESSAGE} Resolved target: ${verdict.target}, under ${verdict.prefix.slice(1)}.`;
     case "sibling-gate":
@@ -335,6 +430,21 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: familyFixture(IMPORTING("../lib/shim.ts", "ExemptionTable"), {
+        "tooling/src/verify/lib/shim.ts": 'export type { ExemptionTable } from "../contract/gate.ts";\n',
+        ...TARGET("tooling/src/verify/contract/gate.ts", "ExemptionTable"),
+      }),
+      expect: { count: 1, token: '"../lib/shim.ts"', messageIncludes: "re-exports tooling/src/verify/contract/gate.ts" },
+      why: "THE LAUNDERING SHAPE (#2201) and the reason #2096 needed this arm to stay closed: a one-hop `lib/` re-export defeats BOTH arms on its own — the basename is not a forbidden home's, and the shim registers no gate — while the importing module receives the legacy contract anyway. The message names the SHIM and the HOME because either end can be the repair",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING("../lib/shim.ts", "Thing"), { "tooling/src/verify/lib/shim.ts": 'export type { Thing } from "./never-built.ts";\n' }),
+      expect: { count: 1, token: '"../lib/shim.ts"', messageIncludes: "resolves to NOTHING" },
+      why: 'FAIL-CLOSED ONE HOP IN: a re-export whose own specifier is a CANDIDATE (relative) and resolves nowhere is reported, because the chain could end at a forbidden home and nothing can say it does not. The candidate discipline is identical at every hop, which is what keeps this from convicting `export … from "ts-morph"` — outside the candidate set unreadability is ordinary, and the #2185 lesson is that fail-closed there is a false-accusation engine',
+    },
+    {
+      mode: "types",
       files: familyFixture(IMPORTING("../ops/never-built.ts", "Thing")),
       expect: { count: 1, token: '"../ops/never-built.ts"', messageIncludes: "resolves to NOTHING" },
       why: "ARM A PREFIX FAIL-CLOSED: an `ops/` specifier that resolves nowhere is reported under the disjoint UNREADABLE text, not acquitted. Without this row the prefix candidacy could silently become fail-OPEN for exactly the spelling it was added to catch",
@@ -417,6 +527,19 @@ export const gate = defineGate({
         ),
       ),
       why: "a clean final module importing only the final contract — the ordinary shape of the converted corpus (the `../contract/policy.ts` door is a relative candidate of ARM B, resolves to the contract stub, and the stub registers nothing)",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING("../lib/reader.ts", "Read"), {
+        // A REAL shared reader's shape, measured: the whole of `verify/lib/` + `verify/contract/` holds exactly
+        // two `export … from` declarations at this arm's landing (`config-static-read.ts:17`,
+        // `policy-conformance.ts:14`), and both re-export a CONTRACT TYPE HOME that is not forbidden. This row is
+        // that shape. Without it the chain walk would be an arm that only accuses — and three rows tonight proved
+        // an arm that only accuses is worse than the blindness it replaced.
+        "tooling/src/verify/lib/reader.ts": 'export type { Read } from "../contract/config-read.ts";\n',
+        ...TARGET("tooling/src/verify/contract/config-read.ts", "Read"),
+      }),
+      why: "THE ACQUITTING HALF OF #2201: a legitimate `lib/` reader that DOES re-export — from a contract type home that is not forbidden — and the gate that imports it passes. The walk convicts on WHERE THE CHAIN LANDS, never on the existence of a re-export",
     },
     {
       mode: "types",
