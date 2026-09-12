@@ -642,6 +642,26 @@ family.
    reader judges it *provably non-ambient* and passes silently. The trigger that works is referencing the type-only
    symbol in **value position**, which yields `getSymbol() === undefined` outright.
 
+   **AND THE IDIOM REACHES MEMBER-ORIGIN READERS ONLY (measured 2026-09-12, `persist-partialize-and-total-migrate`):**
+   against a package-export CALLEE check, `declare const persist` produces **0 findings**, because an ambient binding
+   is a *proven* non-module binding and `classifyOriginRefusal`'s case (a) PASSES it. The fixture that reaches a
+   callee check's fail-closed arm is an **unresolvable IMPORT**. A row built on the opaque idiom against a callee
+   check is green for the wrong reason.
+
+   **A DECLARED LIMIT OWES A RUN ROW, the sibling of "UNFALSIFIABLE owes a constructed fixture" (measured twice
+   2026-09-12).** Write the row that states the limit, RUN it, read the verdict, then write the prose. A lane
+   drafted "spreads are invisible, accepted limit" as a `mustPass`, ran it, and `{ ...base }` with all three keys
+   present reported all three MISSING — not a limit, the policy accusing correct code. The repair unions each
+   resolvable spread and fails closed on the unresolvable half as a `mustFlag`, or `{ ...buildOptions() }` retires
+   the policy in one line. **And when a repair RETIRES an exception, land it as an ASSERTION, not an absence:** the
+   `mustPass` that admitted the exception becomes a `mustFlag` on the SAME fixture shape (#2148's lane, E4's
+   hand-off carve), so the removal is proven rather than merely gone.
+
+   **A §4.1 CUT HARNESS HAS A SECOND CACHE TRAP, the `?query` twin (measured 2026-09-12):** `import()` caches by
+   URL, so a harness that writes every cut to ONE scratch filename per module silently re-measures the FIRST cut —
+   four different cuts returned byte-identical failure lists before the lane noticed. One scratch module PER CUT,
+   with a serial in the name. Tell: several cuts of one module reporting identical rows.
+
    Confirm the row DISCRIMINATES rather than passing by luck: `messageIncludes` must match text the UNREADABLE branch
    alone emits — check by literal comparison that no ordinary `MESSAGE` string contains the fragment. If `UNREADABLE`
    is built as `` `${MESSAGE} …` ``, no fragment can do this and the two messages must be made disjoint first. And when `UNREADABLE` is built as `` `${MESSAGE} …` `` the base text is a SUBSTRING of both,
@@ -1541,7 +1561,12 @@ being built by the policing-matrix lane, #2111):**
 
 - **A gate module never imports another gate module** (#2096). A split family's shared predicate lives in
   `lib/<family>.ts` and BOTH siblings import it from there; a `-health` sibling reading its twin's export was two homes
-  for one reader wearing a family's clothes, and 14 families did it. Migration by module, lane `p-family-readers`.
+  for one reader wearing a family's clothes, and 14 families did it (13 after `d9d1e3524` moved
+  `contract-derives-not-respells`'s). Migration by module, lane `p-family-readers`. **The predicate is "the imported
+  module REGISTERS a gate" (the loader's registration test on the target), never "the path is under `gates/`":
+  `gates/_proof/**` holds shared proof surfaces and planted package doors (§4.8b) that gate modules legitimately
+  import, and a bare `defineGate` token grep over it overcounts by one — the stub-string overcount this guide already
+  records for the two meta-gates.**
 - **No gate-local binding or origin resolution** (#2097). `getDefinitionNodes()` and hand-rolled
   `getSymbol().getDeclarations()` chains inside a gate module are the private-reader shape one member at a time; the
   sanctioned route is the shared readers (`resolveStableExpression`, `lib/reference-fact*`, `lib/origin-verdict.ts`).

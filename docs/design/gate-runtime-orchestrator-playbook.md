@@ -438,7 +438,11 @@ re-attest of every review doc a lane rewrote (a regeneration never attests a doc
    refuse it at landing and send the lane back to the files it skipped.
 4. The exact module list with the pre-conversion SHA; the family hypothesis (a hypothesis until the lane names the
    reader); **the escalation model below — ASK vs REFUSE, and it is not one rule**; markers translated in-commit with the
-   census recorded.
+   census recorded. **And every board row in the chunk as its TEXT, pasted from `pnpm -s work:item show <ids…>` (one
+   call, a list) — lanes hold no `gh` and no `work:item`, so a bare row number is an instruction to go looking, and
+   four lanes on 2026-09-12 spent real time proving a negative about a brief (row bodies are not in the ledger or the
+   repo; they are on the board, which only the orchestrators can open). The number stays beside the text as the join to
+   the ledger row and the receipt.**
 5. The fence: files it owns; sibling lanes' files it must not touch; `packages/**`/`tests/**` only for comment lines.
 6. Floors, exactly as the guide §8.8; never whole-tree; runs over ten minutes report and stop.
    6b. Fixtures: a proof row's `files` map is VIRTUAL (in-memory for source/types, an auto-cleaned tmpdir for resource) and
