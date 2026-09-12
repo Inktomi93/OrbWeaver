@@ -150,3 +150,56 @@ describe("a rule verdict this arm cannot trust is a REFUSAL, never a DEAD grant"
     expect(judgeReport(grants, stdout).dead).toEqual([]);
   });
 });
+
+// ─── #2171 / #2172: the two zeros this arm must never confuse ───────────────────────────────────────
+//
+// Both live on the FAILURE path of one module, so they are pinned together and each row states which of
+// the two zeros it is about. Neither needs a biome spawn: a vanished subject set is decided by `existsSync`
+// before biome is ever invoked, and a malformed config is decided by the parse.
+
+test("EVERY granted subject vanished reads DEAD, never `live` over 0 probed files (#2171)", ({ repoRoot }) => {
+  // A judgeable row (exact include, no glob) whose file is NOT on the tree. `grant.files` is
+  // `exactIncludes(...).filter(existsSync)`, so this is the empty-subject case.
+  const configText = JSON.stringify({ overrides: [ruleOffOverride(["packages/kit/src/__absent-subject__.ts"])] });
+  const outcome = judgeRuleLiveness({ root: repoRoot, configText, isExactPath: () => true });
+
+  // THE DEFECT: this returned `live: 1, dead: []` — a LIVE count for a grant nothing measured, printed by
+  // the operator line as `1 live · 0 dead … over 0 probed file(s)`.
+  expect(outcome.live).toBe(0);
+  expect(outcome.dead).toHaveLength(1);
+  expect(outcome.dead[0]?.rule).toBe(DEAD_RULE);
+  expect(outcome.filesProbed).toBe(0);
+  // The (file × rule) denominator and its dead subset agree: nothing survived, so nothing is unaccounted.
+  expect(outcome.deadFilePairs).toBe(outcome.filePairs);
+});
+
+test("NO grants at all stays honest — nothing dead, nothing live, and no refusal (#2171 boundary)", ({ repoRoot }) => {
+  // The adjacent zero, and the reason the fix is not "empty ⇒ dead" unconditionally: a config with no
+  // rule-off grants has nothing to judge, and reporting a phantom dead grant would be the mirror defect.
+  const outcome = judgeRuleLiveness({ root: repoRoot, configText: JSON.stringify({ overrides: [] }), isExactPath: () => true });
+  expect(outcome).toMatchObject({ dead: [], live: 0, filesProbed: 0, filePairs: 0, deadFilePairs: 0 });
+});
+
+test("a malformed biome.json refuses in the module's own words, naming file, arm and non-verdict (#2172)", ({ repoRoot }) => {
+  // The exit CLASS was already right (a throw reaches run-tool as exit 2); the MESSAGE was V8's
+  // `Expected property name or '}' in JSON at position 2`, which names none of the three.
+  expect(() => judgeRuleLiveness({ root: repoRoot, configText: '{"overrides": [,]}', isExactPath: () => true })).toThrow(
+    /biome-grant-liveness rule arm: biome\.json did not parse as JSON.*NOT a verdict/su,
+  );
+});
+
+test("the two failure paths do not interact: a malformed config refuses BEFORE the empty-subject arm (#2171 + #2172)", ({ repoRoot }) => {
+  // Both rows touch the same function. A malformed config would also produce zero grants, so if the parse
+  // refusal were ordered after the empty-subject branch the #2172 message would be unreachable and this
+  // suite would still be green on every other row.
+  let caught: unknown;
+  try {
+    judgeRuleLiveness({ root: repoRoot, configText: "{ not json", isExactPath: () => true });
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toBeInstanceOf(Error);
+  expect((caught as Error).message).toContain("biome.json did not parse as JSON");
+  // V8's position detail is preserved rather than swallowed.
+  expect((caught as Error).cause).toBeInstanceOf(SyntaxError);
+});

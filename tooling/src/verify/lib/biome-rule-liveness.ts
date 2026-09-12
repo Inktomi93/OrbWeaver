@@ -290,18 +290,58 @@ export function judgeReport(grants: readonly RuleGrant[], stdout: string): { rea
   return { dead, deadFilePairs };
 }
 
+/** biome.json's own text, or this module's refusal shape (#2172).
+ *
+ *  The exit CLASS was already right — a thrown `SyntaxError` reaches `run-tool.ts` as exit 2 — but the
+ *  MESSAGE was V8's: `Expected property name or '}' in JSON at position 2`, naming neither `biome.json`,
+ *  nor the arm, nor "NOT a verdict", while every other refusal in this module states all three. An operator
+ *  reading a bare parse error has to guess which of the run's several JSON reads produced it; the probe
+ *  config this arm writes is itself JSON, so the guess is not obvious.
+ *
+ *  The original error rides `cause`, so the position information is not lost — only unhandled. */
+function parseConfigOrRefuse(configText: string): unknown {
+  // @orb-waive caught-failure-ownership(error): the parse failure is RE-THROWN as this module's refusal
+  // shape, never absorbed; `cause` carries V8's position. Ends if the refusal stops naming the arm.
+  try {
+    return JSON.parse(configText);
+  } catch (error) {
+    throw new Error("biome-grant-liveness rule arm: biome.json did not parse as JSON, so no grant could be read — the run is NOT a verdict.", { cause: error });
+  }
+}
+
 /** Run the whole arm. THROWS (⇒ exit 2) on every shape it cannot trust; never returns a clean zero. */
 export function judgeRuleLiveness(input: {
   readonly root: string;
   readonly configText: string;
   readonly isExactPath: (include: string) => boolean;
 }): RuleLivenessOutcome {
-  const config: unknown = JSON.parse(input.configText);
+  const config: unknown = parseConfigOrRefuse(input.configText);
   const { grants, skippedMixed } = stripRuleOffGrants(config, input.root, input.isExactPath);
   const files = [...new Set(grants.flatMap((grant) => grant.files))].sort();
   const filePairs = grants.reduce((total, grant) => total + grant.files.length, 0);
   if (files.length === 0) {
-    return { dead: [], live: grants.length, filesProbed: 0, filePairs, deadFilePairs: 0, skippedMixed };
+    // EVERY GRANTED SUBJECT HAS VANISHED — and that is a VERDICT, not a refusal (#2171).
+    //
+    // This arm used to return `live: grants.length` here, so the operator line read
+    // `N live · 0 dead … over 0 probed file(s)`: a LIVE count for grants nothing had measured, which is the
+    // false-clean shape this module's own doctrine names everywhere else.
+    //
+    // WHY DEAD RATHER THAN A REFUSAL, since the row offered both and they are not equivalent. The
+    // measurement ALREADY HAPPENED: `grant.files` is `exactIncludes(...).filter(existsSync)`, so an empty
+    // set is `existsSync` answering NO for every exact include on a judgeable row — evidence of absence,
+    // not absence of evidence. A grant whose files are all gone has nothing left to suppress, which is
+    // precisely what `dead` means in every other branch of this arm, and the remedy is the same one a dead
+    // grant always gets: delete the row.
+    //
+    // AND THE MODULE ALREADY SEPARATES THE TWO ZEROS — collapsing them would destroy that.
+    // `refuseEmptyMeasurement` refuses when biome processed 0 of N **expected** files, because a config
+    // biome cannot parse reads EXACTLY like a clean sweep and the arm genuinely cannot tell. Here N is 0
+    // because nothing was expected. Refusing would be exit-2 (a TOOL ERROR that blocks `pnpm check`) over a
+    // condition with a determinate answer and an author-side fix, which is the opposite error from the one
+    // the row reports.
+    //
+    // `grants.length === 0` stays honest on its own: no grants, nothing dead, nothing live.
+    return { dead: [...grants], live: 0, filesProbed: 0, filePairs, deadFilePairs: filePairs, skippedMixed };
   }
   sweepStaleProbes(input.root);
   const probeRel = `${PROBE_PREFIX}${String(process.pid)}${PROBE_SUFFIX}`;

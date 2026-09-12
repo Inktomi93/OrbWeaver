@@ -316,7 +316,11 @@ export function exemptionCollections(sf: SourceFile): Collection[] {
  *  table in the family, while an import of THIS collection by a module that carries a stale arm is
  *  evidence about THIS collection. It follows that an UNEXPORTED one-sided table can never be excused —
  *  nothing can reach it — which is why `vector-scope-derived`'s `IMPORT_SANCTIONED` stays red, and it was
- *  the one accusation of the four that this door deliberately leaves standing. */
+ *  the one accusation of the four that this door deliberately leaves standing.
+ *
+ *  The import is NECESSARY and not sufficient: #2168 adds that the sibling's stale arm must be about the
+ *  same SUBJECT — see `staleArmIsAboutSubject`, which carries the measurement that refuted the row's
+ *  prescribed identifier-only join. */
 export function coveringSibling(collection: Collection, selfRel: string, corpus: ReadonlyMap<string, SourceFile>): string | undefined {
   const selfBase = selfRel.slice(GATES_REL.length).replace(TS_EXT_RE, "");
   const importsCollection = (sibling: SourceFile): boolean =>
@@ -327,7 +331,7 @@ export function coveringSibling(collection: Collection, selfRel: string, corpus:
           declaration.getModuleSpecifierValue().replace(RELATIVE_PREFIX_RE, "").replace(TS_EXT_RE, "") === selfBase &&
           declaration.getNamedImports().some((named) => named.getName() === collection.name),
       );
-  return [...corpus].find(([rel, sibling]) => rel !== selfRel && hasStaleArm(sibling) && importsCollection(sibling))?.[0];
+  return [...corpus].find(([rel, sibling]) => rel !== selfRel && staleArmIsAboutSubject(sibling, collection.name, selfBase) && importsCollection(sibling))?.[0];
 }
 
 const STRING_KINDS = [
@@ -341,14 +345,52 @@ const STRING_KINDS = [
 /** Does this gate module carry a stale-arm DIAGNOSTIC (a string a reader would be shown when a row stops
  *  matching)? Necessary condition, not sufficient — see the DECLARED LIMIT mustPass row. */
 export function hasStaleArm(sf: SourceFile): boolean {
+  return staleArmStrings(sf).length > 0;
+}
+
+/** Every stale-arm diagnostic string in the module, as authored text. */
+function staleArmStrings(sf: SourceFile): readonly string[] {
+  const out: string[] = [];
   for (const kind of STRING_KINDS) {
     for (const n of sf.getDescendantsOfKind(kind)) {
-      if (STALE_VOCAB_RE.test(n.getText())) {
-        return true;
+      const text = n.getText();
+      if (STALE_VOCAB_RE.test(text)) {
+        out.push(text);
       }
     }
   }
-  return false;
+  return out;
+}
+
+/** Is the sibling's stale arm ABOUT THE SUBJECT it excuses — the join #2168 adds.
+ *
+ *  The #2093 excuse was SUBJECT-AGNOSTIC: any stale-arm string anywhere in a module that imports the
+ *  collection excused it, so a sibling whose stale arm concerned something else entirely silenced the
+ *  accusation for this one. The import door already narrows to a NAMED import of THIS collection; what was
+ *  missing is that the DIAGNOSTIC be about the same subject.
+ *
+ *  THE ROW PRESCRIBED A JOIN ON THE COLLECTION IDENTIFIER AND THE TREE REFUTES IT (measured 2026-09-12, all
+ *  three real excusers). The row recorded the narrowing as "latent today — all three real excusers name
+ *  their own collection". They do not. Every one of them names the collection in PROSE and never by
+ *  identifier, so an `includes(collection.name)` join reports ZERO covered pairs and false-accuses all three:
+ *
+ *    no-raw-spacing-in-features::SANCTIONED_HOMES    ← spacing-tier-home-health    "stale SANCTIONED-HOME row"
+ *    no-raw-typography-in-features::SANCTIONED_HOMES ← typography-tier-home-health "stale SANCTIONED-HOME row"
+ *    serde-core-seal::SANCTIONED_DOMAINS             ← serde-core-seal-health      "stale sanctioned serde home"
+ *
+ *  What all three DO carry is the accused MODULE's name — `namesModule=true` for 3 of 3, because a
+ *  stale-arm diagnostic tells its reader which row to delete and the row lives in that module
+ *  ("delete the row in tooling/src/verify/gates/serde-core-seal.ts"). So the join is: the stale arm names
+ *  the collection OR the module that declares it. Strictly narrower than "any stale arm anywhere", and
+ *  measured not to false-accuse — which the prescribed join was not.
+ *
+ *  DECLARED LIMIT, and it is the residue the row was reaching for: a sibling whose stale arm names the
+ *  accused MODULE but concerns a DIFFERENT collection inside that same module is still excused. Closing
+ *  that needs the diagnostic to name its collection by identifier, which is an authoring convention this
+ *  corpus does not have — three for three, the diagnostics are prose aimed at a human. Filing it as a
+ *  convention is a separate decision; silently false-accusing three correct modules to reach it is not. */
+function staleArmIsAboutSubject(sf: SourceFile, collectionName: string, declaringModuleBase: string): boolean {
+  return staleArmStrings(sf).some((text) => text.includes(collectionName) || text.includes(declaringModuleBase));
 }
 
 // ── ARM C ────────────────────────────────────────────────────────────────────────────────────────────
@@ -745,6 +787,16 @@ export const gate: GateDescriptor = {
       },
       expect: { token: "ALLOWLIST" },
       why: "ARM B SPLIT-FAMILY, the NEGATIVE direction (#2093): a sibling that carries a stale arm but does NOT import THIS collection covers nothing. Without this row the split-family door would be a blanket excuse for any module with a stale-armed neighbour — which is the false-clean the door itself could have introduced",
+    },
+    {
+      files: {
+        "tooling/src/verify/gates/__probe.ts":
+          'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
+        "tooling/src/verify/gates/__probe-health.ts":
+          'import { ALLOWLIST } from "./__probe.ts";\nconst MSG = "OTHER_TABLE row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe-health", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], seen: ALLOWLIST };\n',
+      },
+      expect: { token: "ALLOWLIST" },
+      why: "ARM B SPLIT-FAMILY, the SUBJECT direction (#2168) — the falsifier the #2093 door shipped without: the sibling DOES import this collection, but its stale arm is about `OTHER_TABLE` and names neither this collection nor the module that declares it, so it is not a promise anyone can keep for `ALLOWLIST`. The import door alone excused it. No fixture on the tree distinguished the two predicates before this row, and the three real excusers cannot supply one — each names its subject in PROSE (`SANCTIONED-HOME row`), never by identifier, which is why the subject test accepts the declaring module's name as well as the collection's",
     },
     {
       files: {
