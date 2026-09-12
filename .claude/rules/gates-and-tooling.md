@@ -40,7 +40,10 @@ paths:
     `loadGates()` (`lib/loader.ts:190`) returns `corpus.legacy` ALONE, so **every conversion SHRINKS the legacy
     roster** and reds any suite asserting the converted gate's membership. Your floor names your OWN family test and
     structurally cannot see this. **So grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL and run
-    every suite that names it.** These suites sit in the seam the bullet above does not cover — not red-by-construction,
+    every suite that names it — INCLUDING ids inside committed ledger JSON.** The predicate is *any assertion whose
+    expected value derives from the legacy roster*, not just membership: `gate-spelling-twins.int.test.ts` compares a
+    two-sided SHRINK-ONLY ledger with `toEqual` and **54 of its 79 gate names have already converted**, so it is red
+    with no membership assertion in the file. A grep filtered on membership-shaped matchers misses that shape. These suites sit in the seam the bullet above does not cover — not red-by-construction,
     not in any scoped floor — and `tests/tooling/**` is `--full`-only (#1842), so the break is unobservable. **Three
     instances in one five-day window:** `registry-family.test.ts` (#1953), `gate-ignore-grammar.repo.int.test.ts` (red
     from 2026-09-06, broken by a #1584 conversion), `gate-conformance.repo.int.test.ts:49` (found by this rule at zero

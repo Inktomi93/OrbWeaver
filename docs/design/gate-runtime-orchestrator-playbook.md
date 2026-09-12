@@ -168,7 +168,7 @@ tree tells you the moment a fix breaks a row.
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
 
-   **AUDIT STATE — 2026-09-11 evening. Waves 1-4 complete, 36 of 167 modules audited; waves 5-6 running.**
+   **AUDIT STATE — 2026-09-11 evening. Waves 1-6 complete, 62 of 167 modules audited** (wave 5's 15 include ONE re-audit of `no-inline-types`, already covered by wave 1 — cross-check every wave's subjects against the prior audit docs before counting them fresh).
 
 | wave | subjects | verdict | narrowings |
 | - | - | - | - |
@@ -176,8 +176,8 @@ tree tells you the moment a fix breaks a row.
 | 2 | registry/completeness ×8 | **7 REFUTED**; the 8th was LEGACY, not a subject | naive 12/30 → **classified 5 genuinely unenforced (17%)** |
 | 3 | drizzle-schema ×9 | all nine REFUTED | **best proof axes yet**: 1 of 53 rows count-less, 0 of 6 transplants tautologous |
 | 4 | raw-CSS / token ×9 | **all nine REFUTED** | 31 cuts → 19 enforced / **10 unenforced (32%)** / 2 unfalsifiable / **0 mutually redundant (MEASURED)** |
-| 5 | `ordinary-visitors` ×15 | running | — |
-| 6 | `origin-client` ×12 | running | — |
+| 5 | `ordinary-visitors` ×15 | **13 REFUTED / 2 confirmed** | 94 cuts → naive 56 clean → **33 UNENFORCED (35%)**; naive over-reports by 41% |
+| 6 | `origin-client` ×12 | **all 12 REFUTED** | 59 cuts → naive 29 clean → **25 UNENFORCED (42% upper bound, broader cut set)**; 1 mutually redundant, 3 unfalsifiable, 0 wrong-direction |
 
 **Wave 4's zero mutually-redundant is a measurement, not an absence of effort** — it ran both cluster cuts and they
 came back clean, which REFUTED redundancy and meant six separate `mustPass` rows were owed rather than a deletion.
@@ -191,7 +191,13 @@ its receipt. The rule that catches it is now guide §8 + the path-scoped rule (`
 sibling-arm transplants FAILED)**, 7/7 identity arms alarm on a dead position, no loader-property limit anywhere.
 So the corpus is NOT uniformly bad; the exemplar set was the bad part, which is the worst possible place for it.
 
-**Still only TWO fully copyable modules in 36 audited** (wave 4 named `spacing-tier-home-health` as a third candidate for a HARD tripwire only, and only after it lands one §4.5 pin; it also named an ANTI-pattern — never point a lane at `no-raw-spacing-in-features`'s header): `user-bus-deferred-member` (wave 1) and `section-registry-completeness` (wave 2 —
+**FOUR copyable modules now, and waves 5-6 found the first ORDINARY and reviewed-grant ones** — which matters more
+than the count, because most of the remaining 104 are ordinary: **`no-mutating-register-api`** (ordinary; its
+`mustPass[3]` `why` says *“this is the only row that dies without it”* and the audit cut the population and proved that
+sentence TRUE; `fix` names the waiver spelling AND the position rule) and **`no-raw-interactive-intrinsics`** /
+**`zustand-selector-stability`** (reviewed-grant; zero unenforced narrowings, 6/6 exact `count`+`token`). **ANTI-patterns,
+never point a lane at these:** `no-raw-spacing-in-features`'s header, `no-manual-token-estimate`, `no-inline-types`,
+`zod-modern-spellings`, `persistence-boundary`, `no-rejected-cors-proxy`. Prior two, still valid: (wave 4 named `spacing-tier-home-health` as a third candidate for a HARD tripwire only, and only after it lands one §4.5 pin; it also named an ANTI-pattern — never point a lane at `no-raw-spacing-in-features`'s header): `user-bus-deferred-member` (wave 1) and `section-registry-completeness` (wave 2 —
 4/4 narrowings enforced, both fence rows state their own cut result and both are TRUE, header and roster row
 accurate). **Naming the module a lane should COPY is the most actionable thing an audit produces — require it.**
 

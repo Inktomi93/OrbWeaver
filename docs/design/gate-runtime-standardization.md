@@ -175,6 +175,17 @@ family.
    contract) and the header says plainly that no fixture enforces it. **Inventing a row that does not discriminate is
    worse than recording the gap**, because it converts an honest limit into a false pin.
 
+   **A FAIL-CLOSED “THIRD ANSWER” OWES A `messageIncludes` ROW, OR IT IS DEAD CODE WITH A CONFIDENT PARAGRAPH
+   (#1990, measured 2026-09-12).** A policy's `unreadable` verdict — the #944 third answer, and the arm that is the
+   conversion's whole value over the legacy gate — produces the SAME finding count as the ordinary verdict and
+   differs only in `message`. So a row carrying `{ count: N }` and no `messageIncludes` passes identically whether
+   the arm fires or is unreachable. **9 of 12 modules in one family advertised the arm in their header and no
+   declared row reached it**; the three that proved theirs are exactly the three that wrote `messageIncludes`. This
+   is not a narrowing, so §4.1 does not catch it — a lane can satisfy §4.1 in full and still ship the arm dead. The
+   probe is one command: replace the branch's report call with `throw` and run the module's own rows; **0 failures
+   means unreached.** And when `UNREADABLE` is built as `` `${MESSAGE} …` `` the base text is a SUBSTRING of both,
+   so it can never discriminate in either direction — **keep the two messages disjoint or neither arm is pinnable.**
+
 2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
    one POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position, yielding 0
    effective findings, 1 waived, 0 alarms. Two shapes are valid — a `mustPass` row in the module
@@ -626,8 +637,14 @@ dependencies that constrain ANY sequence, because they are law rather than sched
 
    **THE ROSTER COUPLED SITE — a conversion breaks suites that are not its own (measured 2026-09-11).**
    `loadGates()` (`tooling/src/verify/lib/loader.ts:190`) returns `corpus.legacy` ALONE — its own comment says
-   *the legacy descriptor list alone* — so **every conversion SHRINKS that roster**, and any suite asserting the
-   converted gate's membership goes red. A lane's floor names its OWN family test and therefore never sees this.
+   *the legacy descriptor list alone* — so **every conversion SHRINKS that roster**. The predicate is NOT merely
+   “asserts membership”; it is **any assertion whose expected value is DERIVED from the legacy roster**. Membership
+   (`toContain`) is one shape; a two-sided SHRINK-ONLY ledger compared with `toEqual` is another and is worse —
+   `gate-spelling-twins.int.test.ts:117` holds 79 gate names of which **54 have converted**, so every conversion
+   orphans a row and reds the suite with no membership assertion anywhere in the file. Worse than red: its #1506
+   spelling control now covers **only legacy gates, no converted policy at all** — uninformative while looking
+   authoritative. A grep filtered on membership-shaped matchers MISSES it (paid 2026-09-11, by the orchestrator's
+   own census, which reported a population of 2 and was wrong). A lane's floor names its OWN family test and therefore never sees this.
    So: **grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL, and run every suite that names
    it.** Cheap, mechanical, complete.
 
