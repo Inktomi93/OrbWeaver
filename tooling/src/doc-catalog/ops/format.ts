@@ -5,6 +5,12 @@
 // `| - |` delimiter rows, no pipe alignment), passes YAML frontmatter through verbatim, and preserves
 // existing prose line breaks (no reflow — see the law doc).
 //
+// WIDENING STATUS (#2144, owner ruling — widen CHECK AND FORMAT to all tracked markdown, CLASS BY CLASS,
+// each class its own reviewed diff so conventions are honoured rather than flattened): class 1 =
+// `.claude/rules` + `.claude/agents` (#2161, landed); class 2 = `.claude/skills/**` + `tooling/**`
+// (below); class 3 = the root `CLAUDE.md`/`AGENTS.md`, deliberately still outside — they are the two
+// highest-blast-radius files in the repo and get their own reviewed diff.
+//
 // THE DEFAULT SCOPE IS THE LIVING DOC CORPUS, AND IT IS ONE POPULATION SERVING BOTH DOORS (#2059).
 // `--check` (`pnpm check:docs`) and `--write` (`pnpm format:docs`) both resolve through `formatTargets`, so
 // a tree missing here is missing from BOTH: it is neither checked nor formattable, and `pnpm format:docs`
@@ -17,9 +23,14 @@
 //   · `docs/design/**` and `docs/reviews/**` — LIVING law and live review output, written by lanes daily;
 //   · NOT `docs/vendor/**` — vendored UPSTREAM bytes. Reformatting them would silently fork a copy we
 //     re-sync, and the diff would be ours, not theirs;
-//   · NOT `docs/history/**` — FROZEN archaeology (Documentation-Law §"Relocation & retirement"). A frozen
-//     doc is a record of what was written then; reformatting it edits history to no reader's benefit.
-// Measured 2026-09-12: those two exclusions are 211 of the 349 unformatted files outside the old scope.
+//   · NOT the FROZEN archaeology trees — and there are TWO, which is the correction (owner ruling via
+//     claude-b, 2026-09-12). `docs/history/**` (558) is excluded by omission, but
+//     `docs/architecture/history/**` (70) nests INSIDE a living tree, so prefix-matching had admitted it
+//     while this header claimed otherwise. Both now live in ONE named list, `FROZEN_TREES`, enforced at
+//     BOTH doors. Documentation-Law §"Relocation & retirement": a frozen doc is a record of what was
+//     written then, and reformatting it edits history to no reader's benefit.
+// Measured 2026-09-12: those exclusions are 211 of the 349 unformatted files outside the old scope, and
+// the archaeology correction takes the barrier's pending reformat from 215 files to ~145.
 //
 // The corpus is TRACKED files, the same source of truth the catalog uses (`ops/tree.ts#trackedDocs`) — an
 // untracked draft is not a document, and a glob would sweep one in.
@@ -50,9 +61,36 @@ refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-c
 
 /** The LIVING trees this formatter owns. Prefix-matched against repo-relative tracked paths. */
 const LIVING_TREES = ["docs/architecture/", "docs/design/", "docs/reviews/"] as const;
-/** In-flight drafts inside a living tree — never auto-touched. `vendor/` and `history/` are excluded by
- *  simply not being living trees, which is why they need no row here. */
+/** In-flight drafts inside a living tree — never auto-touched. `docs/vendor/**` is excluded by simply
+ *  not being a living tree; the FROZEN trees need their own list, below, because one of them nests
+ *  INSIDE a living tree and so cannot be excluded by omission. */
 const EXCLUDED = /^docs\/architecture\/proposed\//u;
+
+/**
+ * THE FROZEN ARCHAEOLOGY TREES — ONE named list, because there are TWO of them and the second hides
+ * (owner ruling via claude-b, 2026-09-12; found by this lane while measuring the barrier's blast radius).
+ *
+ * `docs/history/**` (558 files) is excluded by omission — it is not a living tree. But
+ * `docs/architecture/history/**` (70 files) sits INSIDE `docs/architecture/`, so prefix-matching admitted
+ * it, and the header claimed frozen archaeology was excluded while 70 frozen files were in the
+ * population. That is the shape the list exists to prevent: the next tree someone freezes has one
+ * obvious home and cannot be added to one door while being forgotten in the other.
+ *
+ * BOTH DOORS, and this is the half that is easy to get wrong: a frozen file is excluded from being
+ * REWRITTEN and from being JUDGED. The width and fidelity guards do not run on it either — a check that
+ * reds forever on a file nobody may edit is not a check, it is a permanent false alarm. So the fence
+ * lives in `formatDocs` as well as in the population, which is what makes it hold for a file named
+ * EXPLICITLY on the command line rather than resolved from the default set.
+ *
+ * The #2144 widening covers LIVING trees only. A frozen doc is a record of what was written then;
+ * reformatting it edits history to no reader's benefit (Documentation-Law §"Relocation & retirement").
+ */
+const FROZEN_TREES = ["docs/history/", "docs/architecture/history/"] as const;
+
+/** True for a tracked path inside a frozen archaeology tree: never formatted, never judged. */
+function isFrozenDoc(path: string): boolean {
+  return FROZEN_TREES.some((tree) => path.startsWith(tree));
+}
 
 /**
  * CLASS 1 of the population widening (#2161; owner ruling on #2144, 2026-09-12: widen CHECK AND FORMAT
@@ -78,6 +116,39 @@ const INSTRUCTION_DIRS = [".claude/rules/", ".claude/agents/"] as const;
 /** True for a tracked path directly inside one of the class-1 directories (no nested files). */
 function isInstructionFile(path: string): boolean {
   return INSTRUCTION_DIRS.some((dir) => path.startsWith(dir) && !path.slice(dir.length).includes("/"));
+}
+
+/**
+ * CLASS 2 of the widening (#2144): the SKILLS a role loads on demand, and the `tooling/` guides the
+ * constitution cites as law (`GATE-AUTHORING.md`, `RULE-AUTHORING.md`, `TS-MORPH-CAPABILITIES.md`).
+ * Recursive, unlike class 1 — both trees nest `reference/` material that is read exactly like its parent.
+ *
+ * TWO EXCLUSIONS, AND NEITHER IS LAZINESS — both are the `docs/vendor/**` rule applied to a new tree:
+ * bytes this repo does not AUTHOR are not this formatter's to restyle.
+ */
+const CLASS_2_TREES = [".claude/skills/", "tooling/"] as const;
+
+/**
+ * VENDORED: the pinned DevTools frontend closure. Its bytes are upstream AND hash-validated — the
+ * `devtools-frontend-assets` gate reds with "hash/size mismatch" the moment a manifest member's bytes
+ * change, so formatting a markdown file in there would break a gate rather than tidy a doc. Measured
+ * 2026-09-12: exactly one `.md` under it (`…/panels/whats_new/resources/WNDT.md`), currently canonical
+ * by luck, which is precisely why the fence is a PATH rule and not a "it's clean today" observation.
+ */
+const VENDORED = /^tooling\/src\/snap\/lib\/devtools-frontend\//u;
+
+/**
+ * GENERATED: `flags.md` is DERIVED (`verify/ops/gen/snap-flags-index.ts`, 123 rows) and ratcheted by
+ * `ledgers:fresh`, which reds when the committed copy differs from a fresh derivation. Admitting it
+ * would deadlock the two doors against each other — the formatter would want bytes the generator does
+ * not emit, so `check:docs` and `check:ledgers-fresh` could never both be green. The generator, not
+ * this formatter, owns that file's form; teaching it to emit canonical markdown is its own row.
+ */
+const GENERATED = /^\.claude\/skills\/snap-driving\/reference\/flags\.md$/u;
+
+/** True for a tracked path this formatter owns under class 2. */
+function isClass2File(path: string): boolean {
+  return CLASS_2_TREES.some((tree) => path.startsWith(tree)) && !VENDORED.test(path) && !GENERATED.test(path);
 }
 
 /** A character a CommonMark delimiter run may not treat as punctuation or whitespace. */
@@ -291,9 +362,14 @@ export function formatTargets(explicit: readonly string[]): readonly string[] {
   if (explicit.length > 0) {
     return [...explicit];
   }
-  return execNicedSync("git", ["ls-files", "-z", "--", "docs", ...INSTRUCTION_DIRS], { cwd: REPO_ROOT })
+  return execNicedSync("git", ["ls-files", "-z", "--", "docs", ...INSTRUCTION_DIRS, ...CLASS_2_TREES], { cwd: REPO_ROOT })
     .split("\0")
-    .filter((path) => path.endsWith(".md") && ((LIVING_TREES.some((tree) => path.startsWith(tree)) && !EXCLUDED.test(path)) || isInstructionFile(path)))
+    .filter(
+      (path) =>
+        path.endsWith(".md") &&
+        !isFrozenDoc(path) &&
+        ((LIVING_TREES.some((tree) => path.startsWith(tree)) && !EXCLUDED.test(path)) || isInstructionFile(path) || isClass2File(path)),
+    )
     .sort();
 }
 
@@ -321,6 +397,12 @@ export function formatDocs(files: readonly string[], write: boolean): FormatOutc
   const dirty: string[] = [];
   const refused: FormatRefusal[] = [];
   for (const file of files) {
+    // THE SECOND DOOR for the frozen fence. `formatTargets` already keeps archaeology out of the DEFAULT
+    // population, but an explicit argument bypasses that resolution entirely, so the fence is repeated
+    // here — before the read, which is what makes "never judged" true and not merely "never written".
+    if (isFrozenDoc(file)) {
+      continue;
+    }
     const input = readFileSync(file, "utf8");
     const { output, refusal } = formatMarkdown(input);
     if (refusal !== null) {
