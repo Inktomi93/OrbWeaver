@@ -8,8 +8,13 @@
 // WIDENING STATUS (#2144, owner ruling — widen CHECK AND FORMAT to all tracked markdown, CLASS BY CLASS,
 // each class its own reviewed diff so conventions are honoured rather than flattened): class 1 =
 // `.claude/rules` + `.claude/agents` (#2161, landed); class 2 = `.claude/skills/**` + `tooling/**`
-// (below); class 3 = the root `CLAUDE.md`/`AGENTS.md`, deliberately still outside — they are the two
-// highest-blast-radius files in the repo and get their own reviewed diff.
+// (below); class 3 = the tracked markdown at the REPO ROOT (#2173, below) — the entry points every
+// session loads, admitted by PATH so a third root file could not be missed by an enumeration.
+// Every class is partitioned by AUTHORSHIP first, and the partition has FOUR questions, not three:
+// hand-authored · vendored · generated · and IS THIS FILE A SOURCE FOR A GENERATOR. The fourth was paid
+// for: `.claude/agents/*.md` is hand-authored AND the input `agents:sync` derives `.codex/agents/*.toml`
+// from, so class 1's reformat left those mirrors stale and the REGISTERED `check:agents` stage red until
+// it was repaired. Formatting a file something else DERIVES FROM is a coupled-site change.
 //
 // THE DEFAULT SCOPE IS THE LIVING DOC CORPUS, AND IT IS ONE POPULATION SERVING BOTH DOORS (#2059).
 // `--check` (`pnpm check:docs`) and `--write` (`pnpm format:docs`) both resolve through `formatTargets`, so
@@ -149,6 +154,50 @@ const GENERATED = /^\.claude\/skills\/snap-driving\/reference\/flags\.md$/u;
 /** True for a tracked path this formatter owns under class 2. */
 function isClass2File(path: string): boolean {
   return CLASS_2_TREES.some((tree) => path.startsWith(tree)) && !VENDORED.test(path) && !GENERATED.test(path);
+}
+
+/**
+ * CLASS 3 (#2173): the tracked markdown at the REPO ROOT — the entry points every session loads. A PATH
+ * rule, not an enumeration: the row named `CLAUDE.md` and `AGENTS.md`, but `README.md` is a third root
+ * file matching the row's own description ("the last tracked hand-authored markdown outside `docs/`"),
+ * and enumerating would have missed it exactly the way omission missed the second archaeology tree.
+ *
+ * `CLAUDE.md` opens with `@docs/architecture/core/AGENTS.md` — a harness DIRECTIVE the loader resolves,
+ * not prose. It survives a format byte-for-byte (it is an ordinary paragraph to CommonMark, and nothing
+ * in the serializer escapes a leading `@`), and the family test proves that against a file made dirty
+ * ELSEWHERE rather than against today's happens-to-be-clean bytes.
+ */
+const CLASS_3_ROOT = /^[^/]+\.md$/u;
+
+/**
+ * GENERATED BLOCK — the harder sibling of `GENERATED` above, and the reason root `AGENTS.md` is fenced.
+ * Its lines 1-37 are written by `pnpm agents:sync` (`tooling/src/agent-sync/ops/sync.ts:39-73`), whose
+ * array emits `RULE_GUIDANCE_BEGIN, "## Codex reading map", …, RULE_GUIDANCE_END` with NO blank line at
+ * either seam — and those two blank lines are precisely what this formatter wants to insert. Freshness
+ * is enforced: `sync.ts:106` raises "AGENTS.md Claude rule guidance is stale", exposed as `check:agents`
+ * and REGISTERED as a verify stage (`verify/lib/registry.ts:170`). So admitting the file would make
+ * `check:docs` and `check:agents` unable to be green at the same time.
+ *
+ * Unlike `flags.md`, the generated part is a BLOCK inside a hand-authored file, so this fence also stops
+ * checking the file's ~33 hand-authored lines — a real cost, recorded rather than hidden.
+ *
+ * NOT the `FROZEN_TREES` treatment, deliberately: this fence lives in the POPULATION only, so
+ * `pnpm check:docs` is green while `format --check AGENTS.md` still reports. A frozen doc is unjudgeable
+ * because nobody may ever edit it; this one is judgeable on request because it WILL be fixed and the
+ * report is the reminder. Same fence, different half, for a different reason.
+ *
+ * THIS ROW IS TEMPORARY AND ITS SUCCESSOR IS KNOWN: two blank lines in the GENERATOR's array
+ * (`agent-sync/ops/sync.ts`) make the emitted block canonical, after which this fence is DELETED and the
+ * whole file is admitted with no exclusion. That edit belongs to `agent-sync` and is a separate row,
+ * deliberately not folded in here — `agents:sync` also `unlinkSync`s `.codex/agents/*.toml` mirrors whose
+ * Claude source is gone (`sync.ts:135-137`), so it is not an inert verb and does not ride along in a
+ * docs-widening commit. Its floor is both stages green TOGETHER plus a zero-deletion check after the sync.
+ */
+const GENERATED_BLOCK = /^AGENTS\.md$/u;
+
+/** True for the root entry-point markdown this formatter owns. */
+function isClass3File(path: string): boolean {
+  return CLASS_3_ROOT.test(path) && !GENERATED_BLOCK.test(path);
 }
 
 /** A character a CommonMark delimiter run may not treat as punctuation or whitespace. */
@@ -362,13 +411,13 @@ export function formatTargets(explicit: readonly string[]): readonly string[] {
   if (explicit.length > 0) {
     return [...explicit];
   }
-  return execNicedSync("git", ["ls-files", "-z", "--", "docs", ...INSTRUCTION_DIRS, ...CLASS_2_TREES], { cwd: REPO_ROOT })
+  return execNicedSync("git", ["ls-files", "-z", "--", "docs", ...INSTRUCTION_DIRS, ...CLASS_2_TREES, "*.md"], { cwd: REPO_ROOT })
     .split("\0")
     .filter(
       (path) =>
         path.endsWith(".md") &&
         !isFrozenDoc(path) &&
-        ((LIVING_TREES.some((tree) => path.startsWith(tree)) && !EXCLUDED.test(path)) || isInstructionFile(path) || isClass2File(path)),
+        ((LIVING_TREES.some((tree) => path.startsWith(tree)) && !EXCLUDED.test(path)) || isInstructionFile(path) || isClass2File(path) || isClass3File(path)),
     )
     .sort();
 }
