@@ -41,29 +41,19 @@
 // policy id under the same family (spacing-tier-home-health's precedent: "one execution value cannot serve
 // both" applies here to AUTHORITY, not execution — both arms already need the whole population to derive
 // the contracts/db cross-file maps).
-import type { Node, SourceFile } from "ts-morph";
-import { Node as N, SyntaxKind } from "ts-morph";
-import type { ExemptionTable } from "../contract/gate.ts";
+//
+// THE SHARED READER IS `lib/contract-derives-not-respells.ts` (#2091, owner decision #2096, 2026-09-12).
+// The ALLOWLIST, the table vocabulary, the hand-written-shape reader and the `*Row` → table match used to
+// live HERE, and the `-health` sibling reached them by importing this GATE MODULE. A gate module never
+// imports another gate module: a policy is a verdict, not a library, and a second policy importing it takes
+// a dependency on somebody else's enforcement surface, so a change made for one arm silently re-aims the
+// other. Both halves now read the `lib/` module — which is also what §5b.4 means by a family.
+import type { SourceFile } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import type { ContractShape } from "../lib/contract-derives-not-respells.ts";
+import { ALLOWLIST, DOMAIN_CONTRACT_RE, handWrittenShapes, matchedTable, tableNames } from "../lib/contract-derives-not-respells.ts";
 
-export const DOMAIN_CONTRACT_RE = /^packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
 const CONTRACTS_DIR_RE = /^packages\/contracts\/src\/(?<domain>[^/]+)\//u;
-export const DB_SCHEMA_DIR = "packages/db/src/schema/";
-const ROW_SUFFIX_RE = /(?<suffix>Row|Insert)$/u;
-const SQLITE_TABLE = "sqliteTable";
-
-/** ARM B survivors: a `*Row` whose prefix collides with a table NAME but which is not that table's row. Each
- *  row states WHY (a homonym or an aggregate), and the ratchet works both ways — a row whose file no longer
- *  carries the shape is RED, so a cleaned-up exemption cannot linger. Shared verbatim with the
- *  `contract-derives-not-respells-health` sibling policy so both judge the exact same rows. */
-export const ALLOWLIST: ExemptionTable = {
-  "packages/server/src/domain/discovery/contract/results.ts::ThemeRow": {
-    why: "HOMONYM: discovery's `ThemeRow` is an emergent THEME CLUSTER (k-means over digest embeddings — id/level/clusterIdx/size/model), while the `themes` table is the UI palette/token-override row (owner-scoped `override` blob). Same word, unrelated concepts; the cluster's own table is `themeClusters`.",
-  },
-  "packages/server/src/domain/stats/contract/views.ts::ModelStatRow": {
-    why: "AGGREGATE: a read-time GROUP BY projection over `model_stats` carrying computed fields that are never columns (`charactersUsedWith` — model_stats is character-less, plus the p50/p90 percentiles the file header says are computed on read, invariant #6). Deriving it from `$inferSelect` would be a lie about what the read returns.",
-  },
-};
 
 const MESSAGE =
   "a domain `contract/` re-spells a shape a lower package already owns. AGENTS §0.2: a shape has exactly ONE " +
@@ -77,7 +67,7 @@ const FIX =
   "@orb/contracts export) or `export type XRow = typeof <table>.$inferSelect` / `$inferInsert` (importing the " +
   "table from @orb/db). If the shape genuinely is NOT the owner's shape (a homonym, or a read-time aggregate " +
   "with computed fields), rename it so the collision stops lying — or take an ALLOWLIST row WITH that reason in " +
-  "tooling/src/verify/gates/contract-derives-not-respells.ts. A deliberate site is waived with `@orb-waive " +
+  "tooling/src/verify/lib/contract-derives-not-respells.ts. A deliberate site is waived with `@orb-waive " +
   "contract-derives-not-respells(<position>): <reason>` on the line above, where <position> is the respelled " +
   "shape's own declared name (the type/interface/const identifier itself).";
 
@@ -106,64 +96,10 @@ function contractsExportsByDomain(files: readonly SourceFile[], relativePath: (s
   return byDomain;
 }
 
-/** Every drizzle table's EXPORT name (`export const workloadSchedules = sqliteTable(…)`). Exported for the
- *  health sibling, which re-derives the same table vocabulary to judge ALLOWLIST staleness. */
-export function tableNames(files: readonly SourceFile[], relativePath: (sourceFile: SourceFile) => string): Set<string> {
-  const names = new Set<string>();
-  for (const sf of files) {
-    if (!relativePath(sf).startsWith(DB_SCHEMA_DIR)) {
-      continue;
-    }
-    for (const v of sf.getVariableDeclarations()) {
-      const init = v.getInitializer();
-      if (init !== undefined && N.isCallExpression(init) && init.getExpression().getText() === SQLITE_TABLE) {
-        names.add(v.getName());
-      }
-    }
-  }
-  return names;
-}
-
-interface Shape {
-  readonly name: string;
-  readonly node: Node;
-}
-
-/** The HAND-WRITTEN exported shapes of one file: every exported interface, and every exported type alias whose
- *  right-hand side is an object literal type. A type alias that REFERENCES another type (the derive) is
- *  deliberately absent — that is the shape this gate wants. Exported for the health sibling. */
-export function handWrittenShapes(sf: SourceFile): Shape[] {
-  const out: Shape[] = [];
-  for (const i of sf.getInterfaces()) {
-    if (i.isExported()) {
-      out.push({ name: i.getName(), node: i });
-    }
-  }
-  for (const t of sf.getTypeAliases()) {
-    if (t.isExported() && t.getTypeNode()?.getKind() === SyntaxKind.TypeLiteral) {
-      out.push({ name: t.getName(), node: t });
-    }
-  }
-  return out;
-}
-
-/** The table this `*Row`/`*Insert` name claims, if any: `WorkloadScheduleRow` → `workloadSchedules`. Exported
- *  for the health sibling. */
-export function matchedTable(name: string, tables: ReadonlySet<string>): { table: string; suffix: string } | undefined {
-  const suffix = ROW_SUFFIX_RE.exec(name)?.groups?.["suffix"];
-  if (suffix === undefined) {
-    return;
-  }
-  const bare = name.slice(0, -suffix.length);
-  const camel = bare.charAt(0).toLowerCase() + bare.slice(1);
-  const table = [camel, `${camel}s`, `${camel}es`].find((candidate) => tables.has(candidate));
-  return table === undefined ? undefined : { table, suffix };
-}
-
 /** One shape's verdict: the report message to append, or undefined when it is clean/allowlisted. The
  *  report NODE-anchor requires the token to be an exact slice of the node's own text, so the ARM
  *  distinction (respells / hand-row) rides the message instead of the token — the shape NAME is the token. */
-function shapeFinding(shape: Shape, rel: string, siblings: ReadonlySet<string>, tables: ReadonlySet<string>): string | undefined {
+function shapeFinding(shape: ContractShape, rel: string, siblings: ReadonlySet<string>, tables: ReadonlySet<string>): string | undefined {
   if (siblings.has(shape.name)) {
     return `${MESSAGE} (${respellToken(shape.name)})`;
   }

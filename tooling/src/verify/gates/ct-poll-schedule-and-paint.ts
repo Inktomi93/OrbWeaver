@@ -11,10 +11,13 @@
 // family, `ct-poll-schedule-and-paint`. Both consume the EXACT SAME computation — `barrierNames`,
 // `isFreshSchedule`/`isMotionPoll`/`isUntrustedTrigger`, and the founding-file counters below — so they are
 // a real shared-reader family, not a filename-prefix coincidence:
-//   - `ct-poll-schedule-and-paint` (this file): the ORDINARY per-occurrence policy (ARM A + ARM B). Neither
+//   - `ct-poll-schedule-and-paint` (this file): the PER-OCCURRENCE policy (ARM A + ARM B). Neither
 //     arm ever carried an escape door in the legacy descriptor (a shared schedule or an unbarriered trigger
 //     is always a real defect), so authority stays `hard` — no suppression door existed before and none is
-//     introduced now.
+//     introduced now. (The word `ordinary` stood in that first sentence as ENGLISH until #2092. In this
+//     corpus `ordinary` and `hard` are CONTRACT VALUES — `ordinary` names a waiver door — and this is a file
+//     lanes are pointed at to copy, so the sentence read as a policy declaring an authority two lines before
+//     declaring the opposite one.)
 //   - `ct-poll-schedule-and-paint-health` (sibling file): the FORMER "ARM C" whole-corpus blindness
 //     tripwire — the founding CT file (tests/client/lib/motion-stats.ct.tsx) rotting against the matchers
 //     here. It is a whole-population self-health question the per-file occurrence policy's dispatch cannot
@@ -421,6 +424,14 @@ export const gate = defineGate({
           'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  const lines: string[] = [];\n  await page.getByRole("button").evaluate((el) => (el as HTMLButtonElement).click());\n  await expect.poll(() => lines.length, { intervals: [50] }).toBeGreaterThan(0);\n});\n',
       },
       why: "an untrusted trigger whose evidence is a CONSOLE line, not a layout shift — nothing about it needs a painted previous position, so ARM B deliberately stays out of it",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/client/features/motion/components/focus-trigger.ct.tsx":
+          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  await page.getByRole("button").evaluate((el) => (el as HTMLButtonElement).focus());\n  await expect.poll(async () => (await read(page)).observedCls, { intervals: [50] }).toBeGreaterThan(0);\n});\n',
+      },
+      why: "THE TRIGGER VOCABULARY, pinned (#2092): `UNTRUSTED_TRIGGERS` is a CLOSED set — `click` and `dispatchEvent`, the two inner calls whose real-locator twins carry an actionability wait this in-page `evaluate` skips. An in-evaluate `el.focus()` is not one of them: it dispatches no pointer event, so there is no skipped stable-frame wait to replace and demanding a barrier would be noise. Until this row existed the set was unenforced — cutting `UNTRUSTED_TRIGGERS.has(target.getName())` open (every inner member call is an untrusted trigger) came back CLEAN, because no row put a non-listed inner call in front of a motion poll. It reds now, measured 2026-09-12",
     },
   ],
 });

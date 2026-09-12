@@ -169,6 +169,14 @@ export const gate = defineGate({
   mustPass: [
     {
       mode: "source",
+      files: {
+        "src/some-component.tsx":
+          "// @orb-waive no-form-state-in-useeffect(form.state.values): the proof stand-in reason; ends when this fixture stops flagging.\nuseEffect(() => {}, [form.state.values]);\n",
+      },
+      why: "THE §4.2 POSITIVE IDENTITY ARM (#2088), and until it landed this ORDINARY policy had none — so nothing proved the id and position a waiver binds to, and every `@orb-waive no-form-state-in-useeffect(...)` in the tree could have been a silent no-op. The census that proved the gap is the §4.2 overcount the guide names: the ONLY marker naming this policy anywhere on the tree was `simple-visitors-wave-4.test.ts:94`, inside `no-default-props`'s FOREIGN-ID negative arm, which is not this policy's arm. The position is the member-access text the report anchors on (`token: node.getText()`), which is `form.state.values` — and the fixture produces exactly ONE finding, so the one marker consumes the one occurrence. Self-checking: a wrong position, a foreign id or an over-broad match each raise an authority alarm that fails this row (measured both directions — flipping the position to `form.state.value` reds it with `names a dead position`)",
+    },
+    {
+      mode: "source",
       files: { "src/some-component.tsx": 'useEffect(() => {}, [lookup["values"]]);\n' },
       why: "#1506's NEGATIVE control: a `.values` read that is NOT under `.state` is somebody else's object",
     },
