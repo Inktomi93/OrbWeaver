@@ -30,7 +30,7 @@
 # class is unmakeable. The logic-heavy verbs (status/sleep/wake/reconcile) live in
 # tooling/src/stack/ops/engines-ctl.ts (importing the server module, so the wake-budget math
 # is ONE-homed); this shim owns the pgid/pidfile choreography (bash's wheelhouse)
-# + the first-run venv bootstrap (must precede tsx, which runs on the repo node).
+# + the first-run venv bootstrap (must precede the ctl calls, which run on the repo node).
 #
 # Output contract (probe convention): the LAST line is `RESULT engines …`.
 
@@ -45,11 +45,14 @@ PIDFILE="$RUN_DIR/engines.pgid"
 # earlier stop, exactly like `engines wake` clears the hold marker before re-running its own gate.
 STOPPED_MARKER="$RUN_DIR/engines.stopped"
 LOG_DIR="$RUN_DIR"
-TSX="$REPO/node_modules/.bin/tsx"
-# tsx is a ROOT devDependency — absent from a prod-pruned install (the container image, which carries the
-# `pnpm deploy --prod` node_modules). node 26 runs .ts source directly (the same mechanism as the server),
-# so fall back to plain node there; dev boxes keep the tsx binary and are byte-identical.
-[ -x "$TSX" ] || TSX="node"
+# node 26 runs .ts source DIRECTLY — the same mechanism the server uses — so there is no transpiler shim
+# here and no branch to pick one. This used to prefer the `tsx` binary and fall back to node only on a
+# prod-pruned install, with the fallback documented as "byte-identical"; the two paths having been
+# byte-identical is exactly why the preferred one was pure inheritance from before the tsx shed, and a
+# dev box and the container image now run the SAME interpreter instead of differing by what happens to be
+# installed. Keeping the branch also kept the variable lying: it was still called TSX while half the
+# invocations were node.
+RUNNER="node"
 CTL_TS="$REPO/tooling/src/stack/ops/engines-ctl.ts"
 # Model/venv stores are SHARED across git worktrees (git-common-dir parent); an explicit override wins.
 STORE_ROOT="${VLLM_STORE_ROOT:-$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO/.git")")}"
@@ -259,12 +262,12 @@ do_start() {
     bootstrap_venv
     # Reconcile (orphan-family sweep) before the boot — the VRAM pre-check inside engines.ts then names a REAL
     # foreign tenant, never our own corpse.
-    "$TSX" "$CTL_TS" reconcile >/dev/null 2>&1 || true
+    "$RUNNER" "$CTL_TS" reconcile >/dev/null 2>&1 || true
     # The detached boot: setsid so the LAUNCHER is its own session; engines.ts --detach boots each engine as
     # its own setsid group, writes the pidfile, and EXITS. The engines survive this shell's death (the
     # bit-us-twice fix). Run it backgrounded + wait (bounded) for the fleet to come healthy.
     echo "engines: spawning the fleet (detached) — logs in $LOG_DIR/vllm-*.log"
-    setsid "$TSX" "$REPO/tooling/src/stack/ops/engines.ts" --detach >>"$LOG_DIR/engines-start.log" 2>&1 &
+    setsid "$RUNNER" "$REPO/tooling/src/stack/ops/engines.ts" --detach >>"$LOG_DIR/engines-start.log" 2>&1 &
     launcher=$!
   fi
 
@@ -296,7 +299,7 @@ do_start() {
 
 # ── stop: shared durable-identity verifier (TERM → wait → KILL) ──────────────
 do_stop() {
-  exec "$TSX" "$CTL_TS" stop
+  exec "$RUNNER" "$CTL_TS" stop
 }
 
 # ── ensure (default `pnpm engines`): adopt-or-start + log follow ──────────────
@@ -321,11 +324,11 @@ case "${1:-ensure}" in
   stop) do_stop ;;
   status)
     skip_if_disabled status
-    exec "$TSX" "$CTL_TS" status
+    exec "$RUNNER" "$CTL_TS" status
     ;;
-  sleep) exec "$TSX" "$CTL_TS" sleep ;;
-  wake) exec "$TSX" "$CTL_TS" wake ;;
-  reconcile) exec "$TSX" "$CTL_TS" reconcile ;;
+  sleep) exec "$RUNNER" "$CTL_TS" sleep ;;
+  wake) exec "$RUNNER" "$CTL_TS" wake ;;
+  reconcile) exec "$RUNNER" "$CTL_TS" reconcile ;;
   *)
     echo "usage: engines.sh {ensure|start|stop|status|sleep|wake|reconcile}"
     exit 2
