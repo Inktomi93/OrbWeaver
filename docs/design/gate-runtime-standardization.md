@@ -765,29 +765,42 @@ against the real program.** Two rules follow:
 - **Before crediting a door-identity claim, measure it once against the real tree**, the way §8.8's
   `check:structure` line exists for the withheld-policy class. The same blindness, one layer over.
 
-**AND THE AMBIENT-GLOBAL SIBLING, WHICH IS THE SAME BLINDNESS AGAIN AND IS LIVE IN THE CORPUS (measured
-2026-09-13 by `f-mixed-hooks`, #2030).** `lib/reference-fact-global.ts:63-69` trusts a global declaration
-ONLY when it lives under `node_modules/typescript/lib/lib.*` or `node_modules/@types/`. **The proof
-workspace has no `@types/node`**, so in a fixture a bare `process` binds nothing, the resolver takes its
-FAIL-CLOSED `unreadable` arm, and the policy reports — the same outcome and the same finding COUNT as the
-precise ambient branch the row was written to exercise. **So every AMBIENT-spelling proof row in the corpus
-can pass without ever reaching the branch its `why` claims.** Probes, all three returning `unreadable`:
-`process.argv` bare, `process.env.argv`, `const process = console`.
+**AND THE AMBIENT-GLOBAL SIBLING — SAME BLINDNESS, AND THE CLASS IS TWO ROWS, NOT THE CORPUS (#2030, CLOSED at
+`e0b83327c`).** `lib/reference-fact-global.ts:63-69` trusts a global declaration ONLY when it lives under
+`node_modules/typescript/lib/lib.*` or `node_modules/@types/`. The proof workspace has no `@types/node`, so a bare
+`process` in a fixture binds nothing, the resolver takes its FAIL-CLOSED `unreadable` arm, and the policy reports — the
+same outcome and the same finding COUNT as the precise ambient branch the row was written to exercise.
 
-Note the shape: this is NOT §4.1 (nothing is over-narrow) and NOT the #1990 dead arm (the arm is not
-unreached by every row — it is reached by the WRONG rows, the ones claiming the precise branch). It is a row
-that names one branch and exercises another, and it is invisible to `check:policy-conformance` by
-construction because both branches report.
+**THE FIRST VERSION OF THIS PARAGRAPH SAID “every AMBIENT-spelling proof row in the corpus” AND THAT WAS FALSE.**
+Measured off the LOADED corpus by two independent methods with planted controls: **2 defect rows, both in
+`sole-env-reader`, out of 2,185.** The reason the blast radius is small is the sharp part — **the proof workspace's
+in-memory project DOES load `lib.dom`/`lib.es`, and TypeScript's own lib files ARE one of the two trusted homes**, so
+`window`, `localStorage`, `Math`, `Intl` and `matchMedia` rows reach the precise branch for real. **Only NODE globals
+fail, because `@types/node` is the one missing declaration.** The class is `@types/node`-shaped, never ambient-shaped.
 
-**The fix is to plant the declaration, never to widen the trust rule.** `gates/_proof/node-types.ts` carrying
-`@types/node`'s `declare var process` as a trusted declaration is the proven shape (same pattern as
-`_proof/react.ts` / `zustand.ts`); keep the UNDECLARED spelling as its own separate row proving fail-closure,
-and pin the name comparison with a planted lookalike global. **A single row that passes under both branches
-proves neither.** Widening `reference-fact-global.ts`'s trust rule to make fixtures resolve would weaken a
-real identity fence for test convenience and is forbidden. Known live instance outside the finding lane's
-fence: `sole-env-reader`'s `mustFlag[0]`/`mustFlag[1]` ambient rows — their `why` claims the precise branch
-and the fixture reaches only the unreadable one. **The corpus census is owed (#2030) and is derived from the
-loaded corpus, never from a grep over fixture text.**
+Note the shape: this is NOT §4.1 (nothing is over-narrow) and NOT the #1990 dead arm in its usual form. It is a row that
+names one branch and exercises another, invisible to `check:policy-conformance` by construction because **both branches
+report**. In `sole-env-reader` a three-way throw probe showed the precise ambient arm reached by **ZERO** rows.
+
+**SIZE A CLASS LIKE THIS BY INSTRUMENTATION, NEVER BY GREPPING FIXTURES — the two methods disagreed by 6.5×.** A
+SPELLING sweep over fixture text found **13** candidates; instrumenting `resolveGlobalMemberOriginWith` and running the
+FULL conformance pass — **293 resolver calls attributed across 202 rows, 0 unattributed** — found **2**. Spelling
+LOCATES; the resolver DECIDES. Attribute calls to rows through the per-row virtual root
+(`/orb-policy-conformance-<N>`).
+
+**The fix is to plant the declaration, never to widen the trust rule.** Widening
+`reference-fact-global.ts`'s trust rule so fixtures resolve would weaken a real identity fence for test convenience and
+is forbidden. Keep the UNDECLARED spelling as its own row proving fail-closure, and pin the name comparison with a
+planted lookalike global. **A single row that passes under both branches proves neither.**
+
+**AND THE PLANT MUST MATCH THE PACKAGE'S REAL SHAPE — THIS RULE WAS BROKEN INSIDE ITS OWN FIX (#2037).** The first
+`gates/_proof/node-types.ts` declared a script-global `declare var process` and its header asserted that matched what
+`@types/node` ships. It does not: `@types/node@26.1.1`'s `process.d.ts` declares it as a **global augmentation inside
+`declare module`** (`:1`, `:139-140`, `:2212`, `:2214`). `isAmbientGlobalDeclaration` has TWO acceptance branches, so
+the simpler stub resolved cleanly through the branch the live tree never uses — again invisible to conformance, because
+both branches resolve. **The tell: a stub that is easier to write than the real declaration is usually taking a
+different branch.** The landed plant carries the augmentation form for the SUBJECT and leaves the lookalikes
+script-global on purpose, so the corpus now exercises both branches.
 
 9. **One family test may cover several siblings**; a file per gate is unnecessary. **A conversion no longer owes a
    family test for its DECLARED rows** — the conformance stage (§5) runs every final policy's `mustFlag`/`mustPass` on

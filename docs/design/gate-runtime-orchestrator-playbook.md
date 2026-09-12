@@ -950,7 +950,25 @@ idle composed-pass remeasurement; catalog re-attest.
    later repo-root `grep -r`/`find` returns one extra hit per worktree with a real-looking `path:line`. Eight live at
    once inflated a marker census 8x.
    Gate it on CONTAINMENT, measured, not remembered: `git rev-list --count main..wt/agent-<id>` = 0 AND
-   `git -C <wt> status --short` empty means teardown loses zero bytes.
+   `git -C <wt> status --short` empty means teardown loses zero bytes **OF COMMITTED WORK**.
+
+   **CONTAINMENT IS NECESSARY AND NOT SUFFICIENT — A LIVE LANE BETWEEN COMMITS PASSES IT (measured 2026-09-13, and
+   it nearly took out a working lane).** A census of 48 worktrees returned **28 as contained-and-clean, one of which
+   was `f-mixed-hooks` actively building group 4**. It read contained only because the orchestrator had just
+   fast-forwarded `main` to its tip, leaving it momentarily zero-ahead with a clean tree. The prose warning below
+   (*never tear down a lane you might resume*) was already here, and it lost to the test — because the test computes
+   a verdict and the prose does not. **So the gate is FOUR conditions, not one:**
+
+   ```
+   CONTAINED                      0 ahead, clean
+   AND NOT LIVE                   no running agent owns it — check the harness task list, NEVER the tree
+   AND NOT AWAITING A VERIFIER    keep contained-but-unverified until its verifier CONFIRMS
+   AND NOT WANTED FOR A WARM LEG  an open row targets a module this lane owns
+   ```
+
+   The fourth is not merely tidiness: a warm leg to an already-merged lane costs ONE SendMessage, while a fresh lane
+   re-pays the entire cold read of the area, which is the expensive part of a lane. Before sweeping, list the open
+   rows against each candidate's modules and hold the ones that have any.
    **Then tear down through the SANCTIONED hook, never raw git:**
    `echo '{"worktree_path":"<abs worktree>","cwd":"<main checkout>"}' | .claude/hooks/worktree-remove.sh`.
    It refuses any path outside `.claude/worktrees/`, removes and prunes, and deletes only a `wt/`-prefixed branch.
