@@ -22,6 +22,31 @@
 // through `ctx.files` and receipted: if either door moves or stops exporting its factory, the receipt
 // REFUSES the run rather than reporting a silent zero.
 //
+// THE DOOR READING IS FAIL-CLOSED, AND THAT IS A THIRD ARM RATHER THAN AN ATTRIBUTION (#2022).
+// `classifyProjectHomeOrigin` answers three ways and the door read is the ACCUSING direction — a `home`
+// verdict is what makes a call a tracked persist mint — so the original `=== "home"` on both doors dropped an
+// UNREADABLE callee out of the policy entirely and the store it persists was never judged against
+// DEVICE_LOCAL_REGISTRY. That is the fail-open shape the three-answer classifier exists to prevent
+// (`lib/origin-verdict.ts`, GATE-AUTHORING §5, #944), and it is the opposite of the ACQUITTING readers §4.6
+// warns not to "fix": here only a PROVEN verdict accuses. It is NOT collapsed into either known door, because
+// the door decides WHICH ARGUMENT holds the store name (bare arg 0 vs the draft factory's options bag), so an
+// attribution-by-rule would read the wrong argument and emit the store-NAME refusal — an accusation about a
+// name when the unknown is the DECLARATION, and a hard policy's message is a fix instruction. An unresolved
+// fact stays its own arm rather than being folded into a resolved one, and it carries DISJOINT TEXT so a proof
+// row can discriminate it by `messageIncludes` (§4.1).
+//   PROVEN FIRST, unreadable only as a fallback: an absent home file makes EVERY callee `unreadable` for that
+//   door, so checking the unreadable fallback before the sibling door's `home` would swallow a proven draft
+//   mint whenever the persist home is out of the fileset.
+//   FAIL-CLOSURE IS SAFE ONLY BEHIND THE NAME PREFILTER, and `FACTORY_NAMES`/`referenceNamesExport` still runs
+//   BEFORE the first identity read in `factoryDoor` — keep it there. Applied to every CallExpression in the
+//   client tree instead, fail-closure converts each unreadable callee into an accusation; that is measured, not
+//   hypothetical (`lib/origin-verdict.ts` records `new TRPCError` accused of being node's `EventEmitter`).
+//   Widening the candidate set without widening the prefilter turns this policy into an accusation machine.
+//   `seen` is deliberately NOT harvested from an unreadable door: guessing the argument shape to salvage a name
+//   would let a wrong guess ADD a name that suppresses a genuine STALE row — a fail-open on the other side of
+//   this same module. An unreadable door leaves the stale arm at its safe over-reporting default; the run is
+//   already red at the door, and the fix is to give the call a readable origin.
+//
 // §4.6 SPLIT DIFFERENTIAL (#2000, committed at `tests/tooling/verify/gates/split-arm-parity.test.ts`).
 // LEGACY-SIDE COVERAGE, read first: the unregistered-name arm 2 of the parent's 5 examples; the STALE arm
 // ZERO, because the legacy `finalize` self-guarded on `create-persisted-store.ts` being loaded and NO
@@ -171,6 +196,15 @@ const MESSAGE =
 const FIX = "register the store name with a §12.1 rationale, or move the preference into the synced user_settings blob.";
 const UNREADABLE_NAME =
   "a persist-factory call whose store NAME cannot be read statically — the registry ratchet cannot judge a name the workspace cannot resolve, so the call is reported rather than silently admitted.";
+/** The FAIL-CLOSED DOOR arm's own text. Deliberately shares no sentence with `MESSAGE` or `UNREADABLE_NAME`:
+ *  an unreadable message built from another one is a substring of both and neither arm is then pinnable by
+ *  `messageIncludes` (§4.1). "FACTORY DECLARATION this run cannot read" appears here and nowhere else. */
+const UNREADABLE_DOOR =
+  "a call that SPELLS a persist-store factory but whose FACTORY DECLARATION this run cannot read — nothing " +
+  "reachable declares it, so the call MIGHT enter createPersistedStore or createEntityDraftStore under a store " +
+  "name no §12.1 ruling covers, and it is reported rather than admitted as an unjudged device-local persist " +
+  "(GATE-AUTHORING §5, #944). Give the call a readable origin — import the factory from its home in " +
+  "packages/client/src/state/ — and re-run; a same-named function that provably declares something else stays silent.";
 const staleMessage = (name: string): string =>
   `DEVICE_LOCAL_REGISTRY names "${name}" but no createPersistedStore/createEntityDraftStore call site persists it — the ruling now classifies nothing, and a classification that outlives its subject is exactly the two-sided rot the ratchet exists to catch. Delete the stale row in tooling/src/verify/gates/persisted-store-registry.ts.`;
 
@@ -184,6 +218,9 @@ function draftStoreNameArgument(argument: MorphNode): MorphNode | undefined {
 }
 
 type FactoryDoor = "persisted" | "draft";
+/** THREE answers, never two (`lib/origin-verdict.ts`, GATE-AUTHORING §5, #944): the callee enters a KNOWN
+ *  door, or its declaration cannot be read at all. `undefined` stays reserved for "provably not this call". */
+type DoorReading = FactoryDoor | "unreadable";
 
 /** Every name a factory call could be SPELLED with — the prefilter that keeps the origin read off every
  *  call expression in the client tree. It follows import aliases and immutable const hops, so an aliased
@@ -191,15 +228,23 @@ type FactoryDoor = "persisted" | "draft";
  *  1,313 files, the same per-file prefilter lesson the composed baseline records. */
 const FACTORY_NAMES: readonly string[] = [...PERSISTED_STORE_HOME.names, ...ENTITY_DRAFT_HOME.names];
 
-/** Which persist door does this callee ENTER — by declaration, never by the name it is spelled with? */
-function factoryDoor(callee: MorphNode, persisted: LocatedProjectHome, draft: LocatedProjectHome): FactoryDoor | undefined {
+/** Which persist door does this callee ENTER — by declaration, never by the name it is spelled with? The NAME
+ *  PREFILTER runs FIRST and must stay first: fail-closure below is only safe inside a candidate set that
+ *  already spells a factory (header). Proven doors are answered before the unreadable fallback, so an absent
+ *  home file cannot swallow the sibling door's proven mint. */
+function factoryDoor(callee: MorphNode, persisted: LocatedProjectHome, draft: LocatedProjectHome): DoorReading | undefined {
   if (!FACTORY_NAMES.some((name) => referenceNamesExport(callee, name))) {
     return;
   }
-  if (classifyProjectHomeOrigin(callee, persisted) === "home") {
+  const persistedVerdict = classifyProjectHomeOrigin(callee, persisted);
+  if (persistedVerdict === "home") {
     return "persisted";
   }
-  return classifyProjectHomeOrigin(callee, draft) === "home" ? "draft" : undefined;
+  const draftVerdict = classifyProjectHomeOrigin(callee, draft);
+  if (draftVerdict === "home") {
+    return "draft";
+  }
+  return persistedVerdict === "unreadable" || draftVerdict === "unreadable" ? "unreadable" : undefined;
 }
 
 /** The static store NAME a factory call persists under, or undefined when it cannot be read. */
@@ -243,6 +288,10 @@ export const gate = defineGate({
             const callee = Node.isCallExpression(node) ? node.getExpression() : undefined;
             const door = callee === undefined ? undefined : factoryDoor(callee, persistedHome, draftHome);
             if (callee === undefined || door === undefined) {
+              return;
+            }
+            if (door === "unreadable") {
+              ctx.report.node(callee, { message: UNREADABLE_DOOR, fix: FIX });
               return;
             }
             const name = persistedStoreName(node, door);
@@ -332,6 +381,23 @@ export const gate = defineGate({
       expect: { messageIncludes: "classifies nothing" },
       why: "THE STALE ARM, mode (B): the real-tree anchor is loaded and NO call site persists any registered name — a ruling that outlives its subject must RED rather than sit there looking authoritative",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string, initial: () => unknown): unknown;\n",
+        "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
+        "packages/client/src/state/x.ts": 'declare function opaque(): any;\nexport const s = opaque().createPersistedStore("shell", () => ({}));\n',
+      },
+      expect: { count: 1, messageIncludes: "FACTORY DECLARATION this run cannot read" },
+      why:
+        "THE FAIL-CLOSED DOOR ARM (§4.1's reusable falsifier). An opaque `any` receiver gives the callee no symbol and no " +
+        'declaration, so BOTH homes answer `unreadable` and the old `=== "home"` attribution dropped the call out of the ' +
+        "policy entirely — a persist-factory call the registry ratchet never judged, passing SILENTLY. The store name is the " +
+        "REGISTERED `shell` on purpose, so the row cannot pass on the unregistered-name arm: attributing this call to the " +
+        "persist door reads `shell`, finds it registered and reports NOTHING, and attributing it to the draft door finds no " +
+        "options bag and reports the store-NAME message instead — each mis-attribution kills the row, which is what makes it a " +
+        "proof of the third arm rather than of any finding at all",
+    },
   ],
   mustPass: [
     {
@@ -353,6 +419,24 @@ export const gate = defineGate({
           'function createPersistedStore(name: string): string {\n  return name;\n}\nexport const s = createPersistedStore("unregistered-name");\n',
       },
       why: "THE COUNTERFACTUAL: a LOCAL function with the factory's name persists nothing, so its caller is not a mint. The legacy text compare accused it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string, initial: () => unknown): unknown;\n",
+        "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
+        "packages/client/src/features/x/lib/store-factory.ts":
+          "export function createPersistedStore(name: string, initial: () => unknown): unknown {\n  return { name, initial };\n}\n",
+        "packages/client/src/features/x/lib/consumer.ts":
+          'import { createPersistedStore } from "./store-factory.ts";\nexport const s = createPersistedStore("unregistered-name", () => ({}));\n',
+      },
+      why:
+        "THE OTHER POLARITY, pinned so fail-closure cannot become accuse-everything: a factory-named function IMPORTED from a " +
+        "feature module resolves to a canonical declaration outside both homes and is PROVEN other, so it stays silent even " +
+        "though it spells the factory and persists an unregistered name. It is the MODULE-ALIAS path, the one the local-function " +
+        "counterfactual above cannot reach — `bindsProvenNonModuleDeclaration` answers FALSE on an import specifier, so this " +
+        "verdict rests entirely on the origin resolver. If that resolver ever stopped reading the shape the verdict would be " +
+        "`unreadable` and this row would RED, which is exactly the over-report a fail-closed door risks",
     },
   ],
 });
