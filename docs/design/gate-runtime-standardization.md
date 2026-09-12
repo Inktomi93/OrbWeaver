@@ -317,6 +317,7 @@ family.
      reports "0 rows died". Five consecutive cuts read clean for this reason in one lane and **four of the five were
      fully enforced.** `lastIndexOf` is not the fix either — the `why` strings come last. **Assert the anchor occurs
      EXACTLY ONCE in the file and refuse otherwise.**
+
    - **IN A SPLIT FAMILY, THE CUT MUST NAME THE POLICY IT WAS DRIVEN AGAINST — a patched `lib/` reader with the
      WRONG SIBLING imported reads exactly like an unenforced fence (measured 2026-09-12).** A cut that patches a
      shared reader has to re-import the GATE as well, and a split family has TWO. A lane drove the ORDINARY sibling
@@ -393,6 +394,24 @@ family.
 
    **So the tell is not the call — it is which side of the comparison reports.** Check polarity before routing any
    module into this class.
+
+   **AND A FOURTH POLARITY EXISTS, WHICH READS AS NONE OF THE THREE: an ACCUSING arm whose predicate is an identity
+   ACQUITTAL** — `table = kind === "sealed" ? name : null`, then report if non-null. It fails OPEN on `unreadable`
+   while a sibling arm in the same module fails closed, and the module header claimed both were "read the same way".
+   Worked case `vector-scope-derived` (#2057, `b36f782a8`). **#2006 was right to leave it**, because the
+   `!== "foreign"` comparison a mechanical sweep looks for is simply absent — which is why the per-ARM question above
+   is the only thing that finds this shape.
+
+   **EVERY fail-open → fail-closed REPAIR OWES A NAME PREFILTER, or it converts every unreadable node in the
+   population into an accusation.** `lib/origin-verdict.ts`'s header is the rule and carries its own measurement:
+   *prefilter on the name, resolve the identity, and fail closed only inside the candidate set.* An ACQUITTING branch
+   has no prefilter because it never needed one, so the requirement is invisible until the branch is flipped. **Two
+   lanes converged on that header independently on 2026-09-12**, neither knowing the other's work: one took
+   `tooling-instrument-proof` from **654 unsuppressible findings to 0** where the ruled global-first fix had reached
+   57 — all of them the same defect — and the other repaired `vector-scope-derived` (`b36f782a8`). **Keep the
+   builtin/foreign row as the prefilter's §4.1 pin, never as a dead global-first branch:** under a name prefilter a
+   builtin never reaches the origin reader, so that branch is unreachable and its `mustPass` would be green for the
+   wrong reason (§4.5b's dead-arm class).
 
    **§4.6'S FOUR CATEGORIES ARE INCOMPLETE — TWO MORE, AND THE FIRST IS THE COMMONEST DELTA IN THE CORPUS
    (measured 2026-09-12 across all seven conversion records).**
@@ -556,6 +575,16 @@ family.
    is the worked case, measured identical with and without the clause. The clause stays (it is the shared reader's
    contract) and the header says plainly that no fixture enforces it. **Inventing a row that does not discriminate is
    worse than recording the gap**, because it converts an honest limit into a false pin.
+
+   **A DECLARED LIMIT ON AN IDENTITY BRANCH OWES ONE QUESTION, ANSWERED BY RUNNING IT: would this branch REPORT on an
+   UNREADABLE input, or PASS?** A limit that answers *pass* is a **fail-open wearing a limit's clothes**, and it is the
+   form that survives review — a declared limit is a sanctioned outcome, so a well-argued one reads as diligence.
+   Measured 2026-09-12 (`vector-scope-derived`'s write arm, `b36f782a8`): a `mustPass` whose `why` called the
+   acquittal a DECLARED LIMIT, and argued at length why the obvious repair would be wrong, was replaced by a
+   `mustFlag` on a **byte-identical fixture** — by the same lane, three hours later, once a fresh-context verifier
+   asked the question. **The tell is two arms of ONE policy answering the same unreadable input differently: ask per
+   ARM, never per module.** The fourth outcome guards against a lane that could not think of a fixture; this guards
+   against one that reasoned its way into the wrong outcome.
 
    **A FAIL-CLOSED “THIRD ANSWER” OWES A `messageIncludes` ROW, OR IT IS DEAD CODE WITH A CONFIDENT PARAGRAPH
    (#1990, measured 2026-09-12).** A policy's `unreadable` verdict — the #944 third answer, and the arm that is the
