@@ -4,6 +4,9 @@ import { existsSync, realpathSync, statSync } from "node:fs";
 import { dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import { ts } from "ts-morph";
 import type {
+  CompilerConfigEntries,
+  CompilerConfigEntry,
+  CompilerConfigField,
   CompilerProgram,
   CompilerSourceOverlay,
   PolicyPathOwnership,
@@ -11,6 +14,7 @@ import type {
   PolicyRepositoryInventory,
   PolicySemanticPath,
 } from "../contract/policy-scope.ts";
+import { COMPILER_CONFIG_FIELDS } from "../contract/policy-scope.ts";
 import { createCompilerSourceFilenameReader } from "./compiler-source-filename-overlay.ts";
 import { assertPolicyRepoPath, readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
 
@@ -296,6 +300,56 @@ export function readCompilerProgramsFromInventory(inventory: PolicyRepositoryInv
 
 export function readCompilerPrograms(root: string, overlay?: CompilerSourceOverlay): readonly CompilerProgram[] {
   return readCompilerProgramsFromInventory(readPolicyRepositoryInventory(root), overlay);
+}
+
+/** The config ROSTER as declared data, derived from an already-acquired path inventory rather than from a
+ *  directory walk: a reader that enumerates configs by `readdirSync` is blind to every config outside the
+ *  three directories it happens to look in, and cannot run at all where there is no disk to walk. */
+export function compilerConfigRoster(paths: readonly string[]): readonly string[] {
+  return paths.filter((path) => TSCONFIG_RE.test(path)).toSorted(compare);
+}
+
+/** The RAW `include`/`exclude` entries of ONE config, with line identity, from its TEXT alone.
+ *
+ *  PURE — no filesystem, no `extends` folding, no glob expansion. This is the half `parseConfig` above
+ *  consumes and destroys: `parseJsonConfigFileContent` answers *which files*, and an entry that expands to
+ *  nothing leaves no trace in that answer, so a liveness reader has to judge the QUESTION instead. It stays
+ *  in this module because the config grammar has ONE home (#1351) — a second JSONC parse anywhere else is a
+ *  private reader wearing a contract's clothes (`docs/design/gate-runtime-standardization.md` §12.4). */
+export function readCompilerConfigEntries(config: string, text: string): CompilerConfigEntries {
+  // The VERDICT comes from the same public reader `parseConfig` uses, so "this config is readable" has one
+  // answer; `parseJsonText` is asked only for the positions that reader discards.
+  const json = ts.parseConfigFileTextToJson(config, text);
+  if (json.error !== undefined) {
+    return { status: "unparseable", config, reason: diagnosticText(json.error) };
+  }
+  const source = ts.parseJsonText(config, text);
+  const root = source.statements[0]?.expression;
+  if (root === undefined || !ts.isObjectLiteralExpression(root)) {
+    return { status: "unparseable", config, reason: "config root is not a JSON object" };
+  }
+  return { status: "read", config, entries: root.properties.flatMap((property) => configEntryValues(source, property)) };
+}
+
+/** The entries of ONE top-level property, or none when it is not an authored `include`/`exclude` array. */
+function configEntryValues(source: ts.JsonSourceFile, property: ts.ObjectLiteralElementLike): readonly CompilerConfigEntry[] {
+  if (!ts.isPropertyAssignment(property)) {
+    return [];
+  }
+  if (!ts.isStringLiteral(property.name)) {
+    return [];
+  }
+  if (!ts.isArrayLiteralExpression(property.initializer)) {
+    return [];
+  }
+  const name = property.name.text;
+  const field: CompilerConfigField | undefined = COMPILER_CONFIG_FIELDS.find((candidate) => candidate === name);
+  if (field === undefined) {
+    return [];
+  }
+  return property.initializer.elements
+    .filter((element): element is ts.StringLiteral => ts.isStringLiteral(element))
+    .map((element) => ({ field, value: element.text, line: source.getLineAndCharacterOfPosition(element.getStart(source)).line + 1 }));
 }
 
 export function mergePolicyPrograms(

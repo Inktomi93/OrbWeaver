@@ -4,7 +4,12 @@ import { dirname, join, relative } from "node:path";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
 import { readCompilerPrograms } from "@orb/tooling/verify";
 import type { PolicyProgramMembership } from "../../../../tooling/src/verify/contract/policy-scope.ts";
-import { readAvailablePolicyPrograms, readPolicyProgramGraph } from "../../../../tooling/src/verify/lib/policy-program-membership.ts";
+import {
+  compilerConfigRoster,
+  readAvailablePolicyPrograms,
+  readCompilerConfigEntries,
+  readPolicyProgramGraph,
+} from "../../../../tooling/src/verify/lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -191,6 +196,42 @@ test("a virtual addition cannot claim a real node_modules path as authored sourc
   expect(() => readCompilerPrograms(scratch, { addedPaths: ["node_modules/vendor/new.ts"], deletedPaths: [] })).toThrow(
     "virtual compiler source is not authored repository source: node_modules/vendor/new.ts",
   );
+});
+
+// ── the RAW half (#2021): what `ParsedCommandLine` consumes and destroys ───────────────────────────────
+// `readCompilerConfigEntries` publishes the authored QUESTION (`include`/`exclude` as spelled, with line
+// identity) beside the folded ANSWER the rest of this module derives. Its consumer is the `grant-liveness`
+// family's entry-liveness pair, which judges entries that expand to NOTHING — precisely the rows that leave
+// no trace in `fileNames`.
+
+test("raw entries are unfolded, unexpanded, and carry their own line", () => {
+  const text = `{\n  "extends": "./base.json",\n  "include": ["src", "../reset.d.ts"],\n  "compilerOptions": { "strict": true },\n  "exclude": [\n    "**/node_modules"\n  ]\n}\n`;
+  const read = readCompilerConfigEntries("packages/ui/tsconfig.json", text);
+  expect(read.status).toBe("read");
+  expect(read.status === "read" ? read.entries : []).toEqual([
+    { field: "include", value: "src", line: 3 },
+    { field: "include", value: "../reset.d.ts", line: 3 },
+    { field: "exclude", value: "**/node_modules", line: 6 },
+  ]);
+});
+
+test("a comment and a trailing comma are JSONC, not a parse failure — but a malformed config IS one", () => {
+  const jsonc = readCompilerConfigEntries("tsconfig.json", `{\n  // the world root\n  "include": ["a.ts",],\n}\n`);
+  expect(jsonc.status === "read" ? jsonc.entries.map(({ value }) => value) : []).toEqual(["a.ts"]);
+  const broken = readCompilerConfigEntries("tsconfig.json", '{\n  "include": [ \n}\n');
+  expect(broken.status).toBe("unparseable");
+  // The distinction is the whole point: "no entries" and "I could not read" must never be the same answer,
+  // because a silently-defaulted type config checks a program nobody declared.
+  expect(broken.status === "unparseable" ? broken.reason : "").toContain("expected");
+});
+
+test("the roster is derived from a path inventory, never from a directory walk", ({ repoRoot }) => {
+  const roster = compilerConfigRoster(readPolicyRepositoryInventory(repoRoot).paths);
+  expect(roster).toEqual(expect.arrayContaining(["tsconfig.json", "tsconfig.base.json", "packages/ui/tsconfig.json", "tooling/tsconfig.json"]));
+  // Strictly broader than the three directories the retired `readdirSync` roster looked in, and it includes
+  // the TEMPLATE configs program discovery excludes — an entry in a template is authored authority too.
+  expect(roster.some((config) => config.endsWith("tsconfig.world-node.json"))).toBe(true);
+  expect(roster.every((config) => /(?:^|\/)tsconfig[^/]*\.json$/u.test(config))).toBe(true);
 });
 
 test("the real programs are shared across policy scope and membership checking", ({ repoRoot }) => {
