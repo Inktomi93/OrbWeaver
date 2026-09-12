@@ -9,7 +9,7 @@ updated: 2026-09-12
 **You are a cold or compacted session picking up the gate-runtime program. Read this file, then read the
 list below IN ORDER, and STOP where it says stop.** This file exists because a session was told to read
 "the two program docs and every doc they mention, in full", did exactly that, and spent **60% of its context
-window on \~1.3 MB** — most of it on evidence whose conclusions were already distilled and whose headline
+window on ~1.3 MB** — most of it on evidence whose conclusions were already distilled and whose headline
 findings were already CLOSED. Do not repeat that.
 
 ## 0. The rulings that override anything you read below
@@ -46,13 +46,13 @@ findings were already CLOSED. Do not repeat that.
 
 | # | Read | Size | Stop rule |
 | -: | - | -: | - |
-| 1 | `gate-runtime-standardization.md` — the LAW | **184 KB** | in full, always |
-| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **66 KB** | in full, always. §2b is where you decide what is next |
-| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **205 KB** · 166 defect rows | **the WORK QUEUE — read its OPEN rows only, never front-to-back.** Re-run its counting method first (per-table print, `UNBINNED` reported), then read the rows whose state cell is `OPEN`/`PARTIAL`/`UNADJUDICATED`; a `CLOSED` row is a receipt, not reading. It is appended to by every verifier report (`## LEDGER ROWS (N rows)`) and by every fix lane's commit, so its size and counts on any given day are measured, never quoted (2026-09-12 evening: 165 rows / 20 tables / 44 open, of which 36 were that day's verifier finds and the original audit backlog was down to 8) |
-| 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | **153 KB** · 4 files | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the \~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
+| 1 | `gate-runtime-standardization.md` — the LAW | **197 KB** | in full, always |
+| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **67 KB** | in full, always. §2b is where you decide what is next |
+| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **227 KB** · 166 defect rows | **the WORK QUEUE — read its OPEN rows only, never front-to-back.** Re-run its counting method first (per-table print, `UNBINNED` reported), then read the rows whose state cell is `OPEN`/`PARTIAL`/`UNADJUDICATED`; a `CLOSED` row is a receipt, not reading. It is appended to by every verifier report (`## LEDGER ROWS (N rows)`) and by every fix lane's commit, so its size and counts on any given day are measured, never quoted (2026-09-12 evening: 165 rows / 20 tables / 44 open, of which 36 were that day's verifier finds and the original audit backlog was down to 8) |
+| 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | **153 KB** · 4 files | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the ~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
 | 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | **76 KB** · 2 files | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
-| 5b | **`tooling/src/verify/contract/*.ts` HEADERS — the law you will otherwise rediscover** | **221 KB** · 69 files | **READ THE HEADERS, not the types.** Ten run 20-32 lines before the first export. Start with `resource-declaration` · `resource-json` · `resource-mirror` · `resource-path` · `resource-document` · `resource-installed` · `run-manifest`, plus `lib/resource-declaration.ts`'s `readyResourceValue` header |
-| 6 | `Core-Enforcement-Active-Gates.md` | **359 KB** · 298 rows | **ONCE per program, then by ROW.** The row count is in the SIZE cell and is DERIVED from the roster's own table; `enforcement-registry-parity` separately holds the doc's declared registered-gate line against the discovered corpus. After one pass read only the row you are about to break |
+| 5b | **`tooling/src/verify/contract/*.ts` HEADERS — the law you will otherwise rediscover** | **242 KB** · 78 files | **READ THE HEADERS, not the types.** Ten run 20-32 lines before the first export. Start with `resource-declaration` · `resource-json` · `resource-mirror` · `resource-path` · `resource-document` · `resource-installed` · `run-manifest`, plus `lib/resource-declaration.ts`'s `readyResourceValue` header |
+| 6 | `Core-Enforcement-Active-Gates.md` | **363 KB** · 300 rows | **ONCE per program, then by ROW.** The row count is in the SIZE cell and is DERIVED from the roster's own table; `enforcement-registry-parity` separately holds the doc's declared registered-gate line against the discovered corpus. After one pass read only the row you are about to break |
 | 7 | the family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | **315 KB** · 15 files | **read the ONE whose family you are dispatching.** `schema-fact-family-1584.md`'s "Explicit blockers" names five Phase-D modules' exact missing reader |
 | — | **`v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch`** | **510 KB** · 11 files | **DO NOT READ. Send a lane.** Their conclusions are in the ledger (#3) and their METHOD is in guide §4.1 |
 
@@ -142,7 +142,7 @@ errors above were sitting. Reading those documents END TO END is not the same ac
   is the reason every count here now carries its date and its command.
 - **The remaining legacy count understates its work.** A conversion can SPLIT — one authority, one severity,
   one execution per policy. **§12.6's 13 mixed-hook modules are now CONVERTED**, so the largest known
-  multiplier is already spent and the old "\~123 policies from 104 modules" pricing no longer applies.
+  multiplier is already spent and the old "~123 policies from 104 modules" pricing no longer applies.
   Re-derive the multiplier for what is left rather than quoting one. **The "2 `O` / 58 `X`" split this bullet
   carried was a RESIDUAL, not a measurement** (`cb-v-authority-census`, 2026-09-12 evening): the 2026-09-05 census
   lettered only 27 of the 60, and the other 33 were `X` by default. Measured per row on the tree: **3 `O` · 8 `H`

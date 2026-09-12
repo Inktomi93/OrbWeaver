@@ -32,8 +32,8 @@ order); §12 is what lanes read. This file is what YOU do, in order.
    Earlier versions of this step read `Shmem` from `/proc/meminfo` and compared it to a threshold. **That was a
    PROXY for a question the tree answers directly**, and it conflated two different things: `Shmem` genuinely
    beats `ps` RSS for MEASURING a resident fleet's footprint (RSS undercounts shared memory), and it is the wrong
-   instrument for asking whether the fleet EXISTS. The threshold was also set at \~1 GiB against a measured idle
-   floor of **609 MiB** — 59% of the trip point — while a resident fleet is \~37 GiB, so it would have produced a
+   instrument for asking whether the fleet EXISTS. The threshold was also set at ~1 GiB against a measured idle
+   floor of **609 MiB** — 59% of the trip point — while a resident fleet is ~37 GiB, so it would have produced a
    false FLEET-UP on ordinary tmpfs drift long before it ever produced a false down.
 
    **The ordered detector, cheapest and most exact first — all three are read-only and none invokes the launcher:**
@@ -85,7 +85,7 @@ order); §12 is what lanes read. This file is what YOU do, in order.
 
 7. **THE DOC LAYER IS A BUDGET, NOT A READING LIST — read the tier, not the directory (measured 2026-09-12, by
    reading the whole thing and paying for it).** The owner asked for "the two docs and every doc they mention, in
-   full." That set is **\~1.3 MB** and it consumed 60% of an orchestrator's context window. It is the right
+   full." That set is **~1.3 MB** and it consumed 60% of an orchestrator's context window. It is the right
    instruction for the LAW tiers and the wrong one for the EVIDENCE tiers, and nobody had measured which was which.
    Here is the split, with what each tier actually bought:
 
@@ -95,8 +95,8 @@ order); §12 is what lanes read. This file is what YOU do, in order.
    | **LAW — you** | `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | 155 KB | **ALWAYS.** These are the four the guide delegates to, and re-deriving one cost a full session on 2026-09-11, four separate times. **Skip `ordinary-waiver-source-migration`'s 1,600-line `path:line` appendix** — its own banner says every count in it is to re-derive, never to quote. |
    | **LAW — you** | `shared-semantic-readers` (M/O/G/V are COMPUTATION GROUPS — a lane must prove shared consumption before naming a `family`) · `checkpoint-2026-09-05` §"Resume order" + its per-wave lessons | 78 KB | **ALWAYS.** Mechanism law that reads like a receipt. |
    | **COUPLED SITE — you, once** | `Core-Enforcement-Active-Gates.md` | **281 KB** | **Once per program, then by ROW.** It is a coupled site you maintain and 270 dense rows; after one full pass, read only the row you are about to break. |
-   | **EVIDENCE — you, selectively** | the 16 family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | \~300 KB | **Read the ONE whose family you are dispatching.** These carry §4.6 differentials, per-module blockers and declared limits that exist nowhere else — `schema-fact-family-1584.md`'s "Explicit blockers" section alone names five Phase-D modules' exact missing reader. |
-   | **EVIDENCE — a LANE, not you** | `v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch` | \~430 KB | **DO NOT READ THESE WHOLE.** Their conclusions are already distilled into §2b, and §4.1's decay rule forbids building from their cells without re-cutting. When you need one, dispatch it. |
+   | **EVIDENCE — you, selectively** | the 16 family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | ~300 KB | **Read the ONE whose family you are dispatching.** These carry §4.6 differentials, per-module blockers and declared limits that exist nowhere else — `schema-fact-family-1584.md`'s "Explicit blockers" section alone names five Phase-D modules' exact missing reader. |
+   | **EVIDENCE — a LANE, not you** | `v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch` | ~430 KB | **DO NOT READ THESE WHOLE.** Their conclusions are already distilled into §2b, and §4.1's decay rule forbids building from their cells without re-cutting. When you need one, dispatch it. |
 
    **The receipt that the audit tier decays, and it is TWO FOR TWO, not a guess.** Both audit waves read in full on
    2026-09-12 led with a defect that is **already closed on `main`**:
@@ -145,7 +145,7 @@ order); §12 is what lanes read. This file is what YOU do, in order.
   SendMessage and prefixed with its lane name. Never pass `model` on a named role. (The 13 mixed-hook splits that
   were forge work are all converted, 2026-09-12.)
 - Conversions are program work: landing comments on #1584, no row per gate or batch. Only defects, prerequisites and
-  decisions get rows. `done` only after the verifier CONFIRMED; `--evidence` under \~700 characters; `refute` returns a
+  decisions get rows. `done` only after the verifier CONFIRMED; `--evidence` under ~700 characters; `refute` returns a
   Verify row to Ready with the fix spec as its evidence.
 - Conversion lanes translate their own legacy markers in the same commit (comment-only edits under `packages/**` and
   `tests/**` are inside that lane's fence). **The pre-existing backlog that was 315 `ONESHOT-OK` in CT files plus 55
@@ -188,7 +188,7 @@ in every marker and proof lane.
    Original brief, kept for the adjudication shapes it names, which recur in every marker lane:
    resume `.claude/worktrees/agent-a588b7202b748d71e`, **checkpointed at `8f1b31897` (121 files) — the
    lane does NOT redo it, it rebases onto `main` first**. Both vocabularies are substantially translated: the
-   `@owner-scope*` markers under `packages/server` AND \~110 CT files of `ONESHOT-OK`. mech-executor. The checkpoint
+   `@owner-scope*` markers under `packages/server` AND ~110 CT files of `ONESHOT-OK`. mech-executor. The checkpoint
    contains **26 non-comment diff lines that must each be adjudicated** before merge, in two shapes: a trailing marker
    relocated across a ternary operand (`: db` split over a comment line — restructure so the marker sits above the
    whole statement, since formatting will move it), and trailing `ONESHOT-OK` markers DELETED with no `@orb-waive`
@@ -227,7 +227,7 @@ in every marker and proof lane.
 gates in a pristine place before converting old ones"). Precedes C and D.**
 
 **DONE 2026-09-11:** the conformance bar itself. `pnpm check:policy-conformance` is **0 failures, exit 0** at
-`097958302` (162 policies · 1,471 rows · \~10.7 s), down from 95 failures that morning. Both remaining failures were
+`097958302` (162 policies · 1,471 rows · ~10.7 s), down from 95 failures that morning. Both remaining failures were
 one class, closed by #1953 (`registry-fact`, per subject) and #1955 (`bus-fact` + `bus-definition-fact`, per
 provider): a provider receipting what it FOUND rather than what it MEASURED, which preempts its own `-health`
 accuser. The rule is guide §12.3. Also done: the `mustFlag`/`expect` half (39 rows, `cf38cd6df`), #1954 in full
@@ -277,13 +277,13 @@ tree tells you the moment a fix breaks a row.
    POSITIVE — a report sink passed as a function PARAMETER is invisible to its census, so an honest row reads
    as a tautology (live shape in `no-tailwind-dark-variant.ts:158`, `member-card-clamped.ts:46`). The enforcer
    is real and its four counts reproduce, but it does not replace a reading lane. Waves 1-10 audited
-   **112 of 167**; the remaining \~55 are not swept for their own sake. The reason is #1971:
+   **112 of 167**; the remaining ~55 are not swept for their own sake. The reason is #1971:
    the §5b soundness enforcer landed and MECHANIZED the four defect classes a script can catch (wave 1's
    D1, D3, D7, D10), and it reports its own worklist on the commit bar. Spending Opus verifier lanes on
    what a gate now catches every commit is paying twice. What the enforcer still cannot see is §5b.2 (is
    the `message` TRUE of what the code flags), §5b.5 (does the header record the decisions) and §4.1 (the
    narrowing CUT) — judgment and mutation — so an audit lane is still the only way to get those, and that
-   is exactly what a copy-target dispatch needs. **\~5 verifier lanes saved; the remaining spine is
+   is exactly what a copy-target dispatch needs. **~5 verifier lanes saved; the remaining spine is
    conversion.**
 
    **AUDIT STATE — the sweep is CLOSED and the bar is met. Do not re-open it.** Every evidence plane in guide §3
@@ -302,7 +302,7 @@ tree tells you the moment a fix breaks a row.
 | 4 | raw-CSS / token ×9 | **all nine REFUTED** | 31 cuts → 19 enforced / **10 unenforced (32%)** / 2 unfalsifiable / **0 mutually redundant (MEASURED)** |
 | 5 | `ordinary-visitors` ×15 | **13 REFUTED / 2 confirmed** | 94 cuts → naive 56 clean → **33 UNENFORCED (35%)**; naive over-reports by 41% |
 | 6 | `origin-client` ×12 | **all 12 REFUTED** | 59 cuts → naive 29 clean → **25 UNENFORCED (42%)**; 1 mutually redundant, 3 unfalsifiable |
-| 10 | the BUS plane ×6 + `id-brand-flow` ×5 + 1 re-audit = **12** | **8 REFUTED / 3 CONFIRMED / 1 re-audit CONFIRMED** | 47 cuts → naive 51% → **30% open**, \~71% over-report. **34 of 34 rows carry `count` — a program first.** Third answer reached **0 of 12**. Two HIGH: `no-raw-id`'s private zod reader is blind to a one-hop re-export door (**#2009**), and the roster publishes the RETIRED `@foreign-id-ok` grammar, 3 dead vs 76 live (**#2010**) |
+| 10 | the BUS plane ×6 + `id-brand-flow` ×5 + 1 re-audit = **12** | **8 REFUTED / 3 CONFIRMED / 1 re-audit CONFIRMED** | 47 cuts → naive 51% → **30% open**, ~71% over-report. **34 of 34 rows carry `count` — a program first.** Third answer reached **0 of 12**. Two HIGH: `no-raw-id`'s private zod reader is blind to a one-hop re-export door (**#2009**), and the roster publishes the RETIRED `@foreign-id-ok` grammar, 3 dead vs 76 live (**#2010**) |
 | 9 | `origin-server` ×14 (the axes wave 8 left open) | **14 REFUTED** | 107 cuts, each with its DIRECTION → naive 46% → **32% UNENFORCED**. **Third answer reached 11 of 14 — best in the program.** Headline is not a proof gap: **FIVE gates ACCUSE CORRECT CODE on unmodified source (#2006, P1)** |
 | 8 | `home-server` 11 + `origin-server` 14 = **25** | **24 REFUTED / 1 partial re-audit** | 46 cuts → naive 19 clean (41%) → **11 UNENFORCED (24%)**, over-report 73%. **Best proof axes ever: 155 of 155 rows carry `count`, 14 of 14 identity arms discriminate, third answer REACHED in 7 of 8.** §5b.5 fails **25 of 25** (no FAMILY line, no POPULATION PORT, no legacy SHA) |
 | 7 | `home-client` ×14 | **13 REFUTED / 1 confirmed-with-repairs** | 85 cuts → naive 29 clean (34%) → **17 UNENFORCED (20%)**, 8 mutually redundant, 4 unfalsifiable. **Naive over-reports by 71%** — the widest gap, caused by declared PERF PREFILTERS that cut clean by design. **71 of 71 rows carry `count`; zero tautologies** |
@@ -339,15 +339,15 @@ never point a lane at these:** `no-raw-spacing-in-features`'s header, `no-manual
 4/4 narrowings enforced, both fence rows state their own cut result and both are TRUE, header and roster row
 accurate). **Naming the module a lane should COPY is the most actionable thing an audit produces — require it.**
 
-**\~131 modules remain (\~104 once waves 5-6 land), \~13-16 verifier lanes at 8-15 per lane.** Run by FAMILY so one cold read covers the batch.
+**~131 modules remain (~104 once waves 5-6 land), ~13-16 verifier lanes at 8-15 per lane.** Run by FAMILY so one cold read covers the batch.
 
 **MEASURED SCOPE (wave 1, 2026-09-12) — this is a 167-module sweep, not an item, and the rate is the reason it
 precedes D.** Wave 1 audited the ten modules `exemplars-2026-09-11.md` cites as "copy these shapes" and **REFUTED
 NINE**; only `user-bus-deferred-member` survives as copyable. Two of the three the doc marked **"Wart: none found"**
-were refuted SEVERE. **12 of 30 narrowings came back UNENFORCED — 40%, double the corpus's prior \~1-in-5 rate.**
+were refuted SEVERE. **12 of 30 narrowings came back UNENFORCED — 40%, double the corpus's prior ~1-in-5 rate.**
 Receipts per module: [`v-exemplar-audit-2026-09-12.md`](../reviews/gate-runtime/v-exemplar-audit-2026-09-12.md).
 
-**131 modules remain unaudited (36 of 167 done; waves 5-6 will take it to 63).** At \~8-10 modules per verifier lane that is \~16-18 lanes, and it is the honest
+**131 modules remain unaudited (36 of 167 done; waves 5-6 will take it to 63).** At ~8-10 modules per verifier lane that is ~16-18 lanes, and it is the honest
 number to plan against rather than rediscover. Run them by FAMILY so one cold read covers the batch, and fold both
 mandatory sweeps into each lane rather than as separate passes: the §4.1 narrowing cut test, and #1968's
 expectation-row check.
@@ -362,7 +362,7 @@ defect in a module. Wave 1's nine refutations split cleanly into two fix lanes o
 2\. ~~**#1952 — identity arms**~~ **CLOSED 2026-09-11: 0 of 86 outstanding.** The last 22 landed across three lanes,
 every arm an in-module `mustPass` so no lane touched a shared test file; a fresh-context verifier flipped seven to
 dead positions and got the §4.2 alarm on all seven. Kept here only so the next reader does not re-open it. Was:
-batches of \~8 by family, self-checking
+batches of ~8 by family, self-checking
 (guide §4.2), so cheap and parallelisable. Folds into the audit lanes rather than running as its own wave.
 3\. **The narrowing sweep** (guide §4.1, found by #1954): deleting `inClassCarrier` from `no-raw-spacing-in-features`
 and `no-raw-typography-in-features` left every pre-existing proof row GREEN. Two commands per module — delete the
@@ -455,15 +455,19 @@ re-attest of every review doc a lane rewrote (a regeneration never attests a doc
 
 1. Read the report; verify `git -C <wt> show --stat <sha>` and `git status --short` empty yourself.
 2. `git -C <wt> rebase main` (repeat if `main` moved), then from `main`: `git -c core.hooksPath=/dev/null merge --ff-only <branch>`.
-3. Run the lane's named floor on `main`; `pnpm gate:contract` for the delta; regenerate `docs/test-baseline/manifest.json`
-   on quiet `main` if a spec was added (`pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest`,
-   commit it alone).
+3. Run the lane's named floor on `main`; `pnpm gate:contract` for the delta; **`pnpm check:policy-conformance` whole
+   after EVERY merge that touches a gate module** (it is the bar the bypassed hooks would have run: three arms plus
+   the grant table, exit 2 = broken checker); regenerate `docs/test-baseline/manifest.json` on quiet `main` if a spec
+   was added (`pnpm exec node tooling/src/verify/cli.ts baseline test-baseline-manifest`, commit it alone). The
+   whole-tree `check:structure` stays a BARRIER run (serialized, never beside a planter), and its receipt is the
+   PER-POLICY delta against the previous main slot, never the aggregate exit — #2106 sat red under the baseline red
+   for a day; #2110 builds the delta tool.
 4. Docs the lane added or rewrote: `pnpm format:docs` then `pnpm check:docs` (both exit 0), then `pnpm doc-catalog:write`
    for a rewritten doc or `pnpm doc-catalog:sync` to adopt a NEW one. Both exit 1 on the inherited ratchet rows (31
    pending debt paths plus stale `verifiedSha256` on three documents last touched 2026-09-05/06), so judge the run by
    `git diff docs/catalog/` and NOT by its exit code: keep it only if the diff touches the rows for documents you
    actually read. Never let a regeneration attest a document you have not read. Commit the catalog alone.
-5. Post the receipt on #1584 (`gh issue comment --body-file`); rows: `review` + `verify --evidence` (< \~700 chars).
+5. Post the receipt on #1584 (`gh issue comment --body-file`); rows: `review` + `verify --evidence` (< ~700 chars).
 6. Dispatch one Opus verifier over the wave's merged commits (claims, exact fixtures to re-drive, census, the Sonnet
    assessment if a Sonnet lane is in the wave). On CONFIRMED: `done` with the identical evidence string. On REFUTED:
    `refute` with the spec; the fix goes back to a lane.
@@ -497,7 +501,7 @@ re-attest of every review doc a lane rewrote (a regeneration never attests a doc
    `echo '{"worktree_path":"<abs worktree>","cwd":"<main checkout>"}' | .claude/hooks/worktree-remove.sh`.
    It refuses any path outside `.claude/worktrees/`, removes and prunes, and deletes only a `wt/`-prefixed branch.
    Critically it does one thing raw git cannot: if the worktree owns a live `snap --isolated` stage
-   (`<main>/.cache/snap-stage/bands.json` records the owning checkout) it stops that \~7-process stack through snap's
+   (`<main>/.cache/snap-stage/bands.json` records the owning checkout) it stops that ~7-process stack through snap's
    own door first. Remove the directory without that and the stage keeps running with a DELETED cwd, holding a band,
    a port pair and real CPU until the 60-minute idle keeper reaps it (#1848, two orphans observed 2026-09-06). If you
    ever do sweep by hand, check `bands.json` for rows whose `checkout` no longer exists and clear each with
@@ -600,7 +604,7 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   a keyword returns what you already thought to ask for. Paid 2026-09-11: a grep for `exemplar` + open-ish words
   missed four unfiled promises that a straight read of the same extract surfaced immediately (#1993–#1996). The
   extractor is `.type == "assistant"` → `.message.content[] | select(.type=="text")`, which drops tool calls and
-  results and reduces a 34 MB session to \~1 MB. **Then READ it.**
+  results and reduces a 34 MB session to ~1 MB. **Then READ it.**
 - **A FIX PASS SPLIT BY DEFECT LEAVES MODULES BETWEEN THE LANES.** Wave 1's follow-up ran three lanes by defect (the
   resource pair, matchmedia, the `ext` sweep). Four modules whose only findings were §4.1 narrowings belonged to none
   of them and sat untouched for a day (#1993). The rule *fix lanes split by MODULE* is already in §2 — **apply it to
