@@ -1,229 +1,87 @@
-// The PERMANENT PIN for the `tsconfig-entry-liveness` gate (tooling/src/verify/gates/tsconfig-entry-liveness.ts):
-// a file-exact `include`/`exclude` entry in a `tsconfig*.json` whose path is GONE must be RED. It used to be
-// invisible — no gate read the type configs, so a deleted or moved entry left its exclude as dead weight or
-// silently dropped the coverage an include carried (and, for tsconfig.tests-dom.json, stopped libbing a
-// DOM-coupled escapee). Conformance proves the matcher against synthetic mini-projects; THIS proves the
-// promise against the REAL tsconfig set and against planted controls in BOTH directions, so the lie cannot
-// be reintroduced. Every arm here is a planted control: a dead row REDs, a live row is silent, a
-// zero-row/unparseable/absent config REFUSES LOUDLY rather than printing a clean zero, and the real tree
-// derives a substantial exact-entry count with NO unexempted dead entry.
+// The PERMANENT PIN for the `tsconfig-entry-liveness` PAIR, migrated to the final `defineGate` contract
+// (#2021). Every arm the policies can express — a dead file-exact entry, a dead glob entry, the
+// `${configDir}` irreducible entry, the config-directory resolution, the directory oracle, the
+// one-finding-per-grant-identity rule, and the `-health` sibling's unparseable and classifier-rot arms — is
+// proven by the policies' own `mustFlag`/`mustPass` rows, which
+// `tests/tooling/verify/gates/grant-liveness-family.test.ts` runs through `verifyPolicyProofs`.
+//
+// What THIS file keeps is what a resource fixture structurally cannot show:
+//   1. an EMPTY ROSTER — no `tsconfig*.json` tracked anywhere — refuses the whole run as a TOOL ERROR.
+//      This is the successor to the legacy MISSING-CONFIG arm, and it is deliberately NOT a finding: with
+//      no config on the tree there is no subject to anchor one on, and a liveness verdict over an empty
+//      roster is vacuous rather than clean. The harness has no "expect a tool error" arm (guide §4.5b).
+//   2. an EMPTY TRACKED CORPUS refuses the same way, one layer earlier — a non-ready `tracked-files`
+//      resource, which `resolveResourceDeclarations` throws on before `create` runs. That is the successor
+//      to the legacy CORPUS-BLIND finding.
+//   3. the pair RESOLVES AND RUNS at repository scope over the whole-inventory `tracked-files` population,
+//      and its verdict lands through the central grant table with zero alarms (#1947).
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { Node } from "ts-morph";
 import { Project } from "ts-morph";
-import { describe } from "vitest";
-import type { Finding, GateRunCtx, GateScanDeclaration } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness.ts";
+import { gate as health } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const CONFIG_REL = "tsconfig.json";
-/** Mirrors the gate's own anchor (`REAL_CONFIG_MIN_CANDIDATES`) — the size at which its exemption + blindness
- *  arms come alive. Restated rather than exported: the test is the SECOND opinion, not a re-import of it. */
-const ANCHOR = 30;
-const ST_GOLDENS_RUNTIME = "scripts/probes/st-goldens/sillytavern-runtime";
-const ST_GOLDENS_README = "scripts/probes/st-goldens/README.md";
+const POLICIES = [gate, health] as const;
 
-interface Run {
-  readonly findings: readonly Finding[];
-  readonly declarations: readonly GateScanDeclaration[];
-}
-
-/** Drive the gate's own `run` over a root. It reads only `ctx.root`, `ctx.scan` and `ctx.report`, so the
- *  context is minimal on purpose — this exercises the REAL descriptor, never a re-implementation. */
-function runGate(root: string): Run {
+function drive(root: string): ReturnType<typeof runPolicyPass> {
   const project = new Project({ useInMemoryFileSystem: true });
-  const findings: Finding[] = [];
-  const declarations: GateScanDeclaration[] = [];
-  const ctx: GateRunCtx = {
+  return runPolicyPass({
+    knownPolicies: [...POLICIES],
+    policies: [...POLICIES],
     root,
     project,
-    scope: { kind: "project" },
-    files: [],
-    checker: () => project.getTypeChecker(),
-    report: (arg: Node | Finding): void => {
-      if ("file" in arg) {
-        findings.push(arg);
-      }
-    },
-    scan: (counts) => {
-      declarations.push(counts);
-    },
-  };
-  gate.run?.(ctx);
-  return { findings, declarations };
+    reviewedGrants: reviewedGrantsFor([...POLICIES]),
+    failOnWarnings: false,
+  });
 }
 
-function plant(root: string, rel: string, content: string): void {
-  const abs = join(root, rel);
-  mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, content);
-}
-
-/** `count` glob entries — filler that clears the gate's anchor without deriving a single exact row. */
-function globFiller(count: number): readonly string[] {
-  return Array.from({ length: count }, (_, i) => `"packages/p${i}/**"`);
-}
-
-function includeConfig(entries: readonly string[]): string {
-  return `{\n  "include": [${entries.join(", ")}]\n}\n`;
-}
-
-const tokens = (run: Run): readonly (string | undefined)[] => run.findings.map((f) => f.token);
-const messages = (run: Run): string => run.findings.map((f) => f.message ?? "").join("\n");
-
-describe("tsconfig-entry-liveness — the DEAD-ENTRY control, both directions", () => {
-  test("a file-exact EXCLUDE whose file is GONE is RED, and names the dead path", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, '{\n  "exclude": ["packages/client/src/gone.ts"]\n}\n');
-    const run = runGate(scratch);
-    expect(tokens(run)).toEqual(["packages/client/src/gone.ts"]);
-    expect(run.findings[0]?.line).toBe(2);
-  });
-
-  test("the SAME config with the file present is silent — the control's other direction", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, '{\n  "exclude": ["packages/client/src/gone.ts"]\n}\n');
-    plant(scratch, "packages/client/src/gone.ts", "export const x = 1;\n");
-    expect(runGate(scratch).findings).toEqual([]);
-  });
-
-  test("glob + template rows are declared skips, never resolved as paths", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, includeConfig([`"packages/*/src"`, `"tests/**/*.tsx"`, `"packages/p/**"`]));
-    const run = runGate(scratch);
-    expect(run.findings).toEqual([]);
-    expect(run.declarations[0]?.skipped?.["glob"]).toBe(3);
-    expect(run.declarations[0]?.scanned).toBe(0);
-  });
-});
-
-describe("tsconfig-entry-liveness — a bare zero must be 'I could not measure', never 'clean'", () => {
-  test("an ABSENT tsconfig.json REFUSES LOUDLY (the §4.6 blindness tripwire)", ({ scratch }) => {
-    const run = runGate(scratch);
-    expect(messages(run)).toContain("not at the repo root");
-    expect(run.declarations[0]?.scanned).toBe(0);
-  });
-
-  test("an UNPARSEABLE tsconfig FAILS LOUD — no silent default-fallback", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, '{\n  "include": [ \n}\n');
-    const run = runGate(scratch);
-    expect(messages(run)).toContain("did not parse as JSONC");
-  });
-
-  test("an anchor-sized set deriving ZERO exact entries REDs — the classifier-rot tripwire", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, includeConfig(globFiller(ANCHOR)));
-    const run = runGate(scratch);
-    expect(messages(run)).toContain("ZERO file-exact");
-  });
-});
-
-describe("tsconfig-entry-liveness — the exemption table is two-sided (§4.4)", () => {
-  const filler = globFiller(ANCHOR - 1);
-
-  test("an EXEMPT row no scanned tsconfig carries is a loaded gun — RED", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, includeConfig([...filler, `"packages/client/src/live.ts"`]));
-    plant(scratch, "packages/client/src/live.ts", "export const x = 1;\n");
-    const run = runGate(scratch);
-    expect(tokens(run)).toEqual([ST_GOLDENS_RUNTIME]);
-    expect(messages(run)).toContain("no scanned tsconfig carries");
-  });
-
-  test("an EXEMPT row whose cited doc MOVED — RED (the promise outlived its evidence)", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, includeConfig([...filler, `"${ST_GOLDENS_RUNTIME}"`]));
-    const run = runGate(scratch);
-    expect(tokens(run)).toEqual([ST_GOLDENS_README]);
-    expect(messages(run)).toContain("`cite` no longer resolves");
-  });
-
-  test("the exemption HONOURED: an absent-by-design entry with a resolving cite is silent", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, includeConfig([...filler, `"${ST_GOLDENS_RUNTIME}"`]));
-    plant(scratch, ST_GOLDENS_README, "# st goldens\n");
-    expect(runGate(scratch).findings).toEqual([]);
-  });
-});
-
-describe("tsconfig-entry-liveness — the REAL tree", () => {
-  test("the real tsconfig set parses, derives a substantial exact count, and carries NO unexempted dead entry", ({ repoRoot }) => {
-    const run = runGate(repoRoot);
-    const declared = run.declarations[0];
-    expect(declared?.unit).toBe("tsconfig entry");
-    expect(declared?.scanned ?? 0).toBeGreaterThan(0);
-    expect(run.findings).toEqual([]);
-  });
-
-  test("the exemption's cited doc is still on the tree (the §3 path-constant tripwire, live)", ({ repoRoot }) => {
-    expect(existsSync(join(repoRoot, ST_GOLDENS_README))).toBe(true);
-  });
-});
-
-// ── #973: the PATTERN half. A pattern grant is LIVE only while some TRACKED file is still inside it, so
-// these arms need a real git work tree (the corpus is `git ls-files`, deliberately not an FS walk) — which
-// is also why conformance cannot drive them: its mini-projects are under the real-config anchor and have
-// no work tree at all.
-
-/** A throwaway git repo at `root` with `files` committed — the corpus these arms judge against. */
-/** The gate's own module — its §4.5 real-tree anchor for the pattern half. */
-const GATE_SELF_REL = "tooling/src/verify/gates/tsconfig-entry-liveness.ts";
-
+/** A throwaway git repository — the tracked corpus this family's verdict is taken against. */
 function plantRepo(root: string, files: Readonly<Record<string, string>>): void {
-  // Plant the gate's OWN module: the pattern half is scoped to a root that carries it (the §4.5 real-tree
-  // anchor shape), so a fixture opts IN by planting the anchor and the file-exact fixtures stay untouched.
-  plant(root, GATE_SELF_REL, "export const gate = 1;\n");
-
   for (const [rel, content] of Object.entries(files)) {
-    plant(root, rel, content);
+    const absolute = join(root, rel);
+    mkdirSync(dirname(absolute), { recursive: true });
+    writeFileSync(absolute, content);
   }
-  execFileSync("git", ["init", "-q"], { cwd: root });
-  execFileSync("git", ["add", "-A"], { cwd: root });
+  execFileSync("git", ["-c", "core.hooksPath=/dev/null", "init", "-q"], { cwd: root });
+  execFileSync("git", ["-c", "core.hooksPath=/dev/null", "add", "-A"], { cwd: root });
 }
 
-const TS_LIVE_SRC = "packages/ui/src/live.ts";
-const TS_LIVE_SOURCE = "export const live = 1;\n";
-/** The gate's RATIFIED keys + cite, restated — a planted config must carry them or the two-sided STALE arm
- *  correctly reds every fixture. */
-const TS_RATIFIED_KEYS = [
-  "**/node_modules",
-  "**/__g_*",
-  "**/__g_*/**",
-  "scripts/**/*.cts",
-  "scripts/**/*.mts",
-  "scripts/**/*.tsx",
-  "tests/**/*.cts",
-  "tests/support/iso/**/*",
-];
-const TS_RATIFIED_CITES = [".gitignore", "docs/architecture/core/Core-Tooling-Law.md", "tooling/src/verify/gates/GATE-AUTHORING.md"];
+test("an EMPTY ROSTER refuses the whole run — the successor to the legacy MISSING-CONFIG arm", ({ scratch }) => {
+  plantRepo(scratch, { "not-tsconfig.json": "{}\n" });
+  const result = drive(scratch);
+  expect(result.toolErrors.length).toBeGreaterThan(0);
+  expect(result.toolErrors.map(({ message }) => message).join("\n")).toContain("tsconfig roster is EMPTY");
+});
 
-/** An anchor-sized root tsconfig: `globs` under test, the ratified excludes a real config carries, LIVE
- *  glob filler, and ONE live file-exact entry. */
-function globEntryConfig(globs: readonly string[]): string {
-  const filler = Array.from({ length: ANCHOR }, (_, i) => `packages/ui/src/**/{live,f${String(i)}}.ts`);
-  // The file-exact EXEMPT row must be CARRIED too — its stale arm is two-sided and would otherwise red
-  // every fixture that clears the anchor.
-  const include = [...globs, ...filler, TS_LIVE_SRC, ST_GOLDENS_RUNTIME];
-  return `${JSON.stringify({ include, exclude: TS_RATIFIED_KEYS }, null, 2)}\n`;
-}
+test("an EMPTY TRACKED CORPUS refuses one layer earlier, at the population phase", ({ scratch }) => {
+  // No `git init` at all: the tracked-files fact cannot resolve, so no policy here ever runs.
+  writeFileSync(join(scratch, "tsconfig.json"), '{\n  "include": ["src"]\n}\n');
+  const result = drive(scratch);
+  expect(result.toolErrors.length).toBeGreaterThan(0);
+  expect(result.toolErrors[0]).toMatchObject({ phase: "population" });
+});
 
-function plantTsconfigRepo(root: string, globs: readonly string[]): void {
-  const cites = Object.fromEntries([...TS_RATIFIED_CITES, ST_GOLDENS_README].map((cite) => [cite, "cite\n"]));
-  plantRepo(root, { [CONFIG_REL]: globEntryConfig(globs), [TS_LIVE_SRC]: TS_LIVE_SOURCE, ...cites });
-}
+// The real inventory read plus fourteen config parses measures well under a second, but the arm carries an
+// explicit load-scaled budget rather than sitting one contention spike away from vitest's 5s default.
+test("the REAL repository root: both policies resolve, run, and land their verdict through the grant table", { timeout: scaledBudget(60_000) }, ({
+  repoRoot,
+}) => {
+  const result = drive(repoRoot);
 
-describe("tsconfig-entry-liveness — PATTERN liveness (#973)", () => {
-  test("a GLOB entry matching no tracked file is RED, and names the entry as authored", ({ scratch }) => {
-    plantTsconfigRepo(scratch, ["packages/nonexistent/**/*.ts"]);
-    const run = runGate(scratch);
-    expect(tokens(run)).toContain("packages/nonexistent/**/*.ts");
-    expect(messages(run)).toContain("matches NO tracked file");
-  });
-
-  test("a LIVE multi-member glob entry is accepted — the control's other direction", ({ scratch }) => {
-    plantTsconfigRepo(scratch, ["packages/ui/src/**/*.ts"]);
-    expect(runGate(scratch).findings).toEqual([]);
-  });
-
-  test("an EMPTY corpus refuses loudly rather than calling every glob entry dead", ({ scratch }) => {
-    plant(scratch, CONFIG_REL, globEntryConfig(["packages/ui/src/**/*.ts"]));
-    plant(scratch, TS_LIVE_SRC, TS_LIVE_SOURCE);
-    plant(scratch, ST_GOLDENS_README, "cite\n");
-    plant(scratch, GATE_SELF_REL, "export const gate = 1;\n");
-    expect(messages(runGate(scratch))).toContain("came back EMPTY");
-  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies.map(({ owner }) => owner.status)).toEqual(["success", "success"]);
+  expect(result.policies[0]?.population.effectiveResourcePaths.length).toBeGreaterThan(1000);
+  // A reviewed-grant policy demands no ordinary-waiver text carrier, which is what keeps the whole-inventory
+  // `tracked-files` population from throwing on a tracked symlink (#1947).
+  expect(result.waiverCarrierRefusals).toEqual([]);
+  // The two-sided half the retired EXEMPT/RATIFIED tables owned by hand is now central: a grant consumed
+  // zero times is STALE and alarms. Zero alarms here IS that arm passing on the real tree, across all nine
+  // ported rows.
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
 });

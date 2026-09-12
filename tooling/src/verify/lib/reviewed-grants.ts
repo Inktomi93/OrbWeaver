@@ -8,6 +8,15 @@ import type { ReviewedGateGrant, SelectedGatePolicy } from "../contract/gate-aut
 /** Sorted by `policyId`, then `id`; `id` is `<policyId>:<short-kebab-subject>` so a row is greppable by its policy. */
 export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
   {
+    id: "biome-grant-liveness:catalog-tmp",
+    policyId: "biome-grant-liveness",
+    subject: "docs/catalog/catalog.tmp.*.json",
+    operation: "biome-glob-grant",
+    why: "absent at rest BY DESIGN and never tracked: the doc-catalog's biome round-trip writes docs/catalog/catalog.tmp.<runId>.json, formats it through the binary, and rm's it in a `finally` — the run identity in the name is what stops two concurrent catalog runs from formatting each other's file (#1029), and the files.maxSize grant must PRE-EXIST the write. Producer: tooling/src/doc-catalog/ops/tree.ts. This ONE row replaces the pair the retired tables carried, whose own comment asked to 'collapse the pair the day one table can express both' (#2021).",
+    endsWhen:
+      "the catalog serializer stops formatting through a temp file — the glob then matches nothing anybody wrote, the finding disappears and this row is consumed zero times.",
+  },
+  {
     id: "bound-field-via-hook:use-bound-field",
     policyId: "bound-field-via-hook",
     subject: "packages/client/src/forms/editor/bound-fields/use-bound-field.ts",
@@ -1005,6 +1014,79 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     why: "ast/ops/prodonly derives its entry closure from the ONE knip workspace-entry config — re-spelling the globs is the one-home violation the front-door law exists to kill (P4 of #393, Core-Tooling-Law §4.2).",
     endsWhen:
       "prodonly stops deriving its closure from knip.ts, or knip's entry config moves — the row is then consumed zero times and reds at its dead subject, which is the two-sided stale sweep the legacy ROOT_CONFIG_IMPORTS table carried by hand.",
+  },
+  {
+    id: "tsconfig-entry-liveness:g-fixture-file",
+    policyId: "tsconfig-entry-liveness",
+    subject: "**/__g_*",
+    operation: "tsconfig-glob-entry",
+    why: "the reserved throwaway-fixture sentinel: check-gates.int materialises `__g_*` files at real-tree paths for milliseconds and reaps them, so the subject is ABSENT from every tracked source BY CONSTRUCTION — an exclude that must PRE-EXIST the fixture it excludes. Law: tooling/src/verify/gates/GATE-AUTHORING.md.",
+    endsWhen: "the `__g_` fixture sentinel is retired with the legacy gate runtime — the entry then leaves every tsconfig and this row is consumed zero times.",
+  },
+  {
+    id: "tsconfig-entry-liveness:g-fixture-tree",
+    policyId: "tsconfig-entry-liveness",
+    subject: "**/__g_*/**",
+    operation: "tsconfig-glob-entry",
+    why: "the DIRECTORY half of the `__g_` sentinel exclude — same construction as its sibling row, same law (tooling/src/verify/gates/GATE-AUTHORING.md): the tree exists for milliseconds mid-run and is tracked never.",
+    endsWhen: "the `__g_` fixture sentinel is retired — it dies with its file-half sibling, never alone.",
+  },
+  {
+    id: "tsconfig-entry-liveness:node-modules",
+    policyId: "tsconfig-entry-liveness",
+    subject: "**/node_modules",
+    operation: "tsconfig-glob-entry",
+    why: "INSTALLED DEPENDENCIES: node_modules is gitignored (.gitignore), so it is absent from the tracked corpus by design and present only after an install — judging it either way would make the verdict depend on machine state, which is the whole reason this family reads `git ls-files` rather than the filesystem.",
+    endsWhen: "the type programs stop needing to exclude installed packages.",
+  },
+  {
+    id: "tsconfig-entry-liveness:scripts-cts",
+    policyId: "tsconfig-entry-liveness",
+    subject: "scripts/**/*.cts",
+    operation: "tsconfig-glob-entry",
+    why: "the Node world root declares EVERY authored TypeScript dialect before its first `scripts` .cts file, so a future authored file cannot be silently unowned by any program (docs/architecture/core/Core-Tooling-Law.md).",
+    endsWhen: "the first scripts/**/*.cts source lands — the glob acquires a member, the finding disappears and this row is consumed zero times.",
+  },
+  {
+    id: "tsconfig-entry-liveness:scripts-mts",
+    policyId: "tsconfig-entry-liveness",
+    subject: "scripts/**/*.mts",
+    operation: "tsconfig-glob-entry",
+    why: "the same pre-declaration, for the `.mts` dialect: the Node world root owns every authored dialect under scripts/ before the first file of that dialect exists (docs/architecture/core/Core-Tooling-Law.md).",
+    endsWhen: "the first scripts/**/*.mts source lands.",
+  },
+  {
+    id: "tsconfig-entry-liveness:scripts-tsx",
+    policyId: "tsconfig-entry-liveness",
+    subject: "scripts/**/*.tsx",
+    operation: "tsconfig-glob-entry",
+    why: "the BROWSER world root declares TSX scripts before its first member so a future authored file cannot be silently unowned — the DOM half of the same pre-declaration (docs/architecture/core/Core-Tooling-Law.md).",
+    endsWhen: "the first scripts/**/*.tsx source lands.",
+  },
+  {
+    id: "tsconfig-entry-liveness:st-goldens-runtime",
+    policyId: "tsconfig-entry-liveness",
+    subject: "scripts/probes/st-goldens/sillytavern-runtime",
+    operation: "tsconfig-exact-entry",
+    why: "not a dead entry — a GITIGNORED captured SillyTavern install, absent on a clean checkout by design. The root aggregator EXCLUDES it so its four root .d.ts files, which declare ST's browser globals into our global scope, never join the program. Evidence: scripts/probes/st-goldens/README.md.",
+    endsWhen:
+      "scripts/probes/st-goldens stops shipping a gitignored runtime subtree — the exclude then names nothing anybody would create and leaves the config.",
+  },
+  {
+    id: "tsconfig-entry-liveness:tests-cts",
+    policyId: "tsconfig-entry-liveness",
+    subject: "tests/**/*.cts",
+    operation: "tsconfig-glob-entry",
+    why: "the Node world root's dialect pre-declaration for the test tree, identical in kind to its scripts siblings (docs/architecture/core/Core-Tooling-Law.md).",
+    endsWhen: "the first tests/**/*.cts source lands.",
+  },
+  {
+    id: "tsconfig-entry-liveness:tests-iso-helpers",
+    policyId: "tsconfig-entry-liveness",
+    subject: "tests/support/iso/**/*",
+    operation: "tsconfig-glob-entry",
+    why: "the explicit ISO-helper root exists before its first helper BY DESIGN; reset.d.ts + platform.d.ts keep the compiler leaf measurable meanwhile (docs/architecture/core/Core-Tooling-Law.md). The entry is authored in three configs — one include and two excludes — and is one permission, which is why the grant subject is the entry rather than a per-config coordinate.",
+    endsWhen: "the first tests/support/iso source lands.",
   },
   {
     id: "two-class-role-authority:admin-guard-can-seam",

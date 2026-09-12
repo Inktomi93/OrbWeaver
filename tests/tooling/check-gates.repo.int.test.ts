@@ -1048,17 +1048,13 @@ function writeFixtures(): void {
 // synthetic installed package + manifest into a real temp dir (a new part, a new prop, an `unresolved`
 // disposition, a reason-less `sealed-away`, the package missing entirely, and the reader's own
 // learned-nothing tripwire), plus its live run on the real tree at the founding 1.7.0 surface.
-// biome-grant-liveness: its unit is a row inside the REPO-ROOT `biome.json`, so the only way to drive it is
-// to mutate the real lint config — which no `__g_` path can express, and which would perturb every
-// concurrent biome consumer for the fixture's lifetime. Its bite is proven instead by eight conformance
-// mustFlag/mustPass rows (dead row, classifier, absent config, unparseable config, zero-rows, both exemption
-// arms) and by its own permanent pin, tests/tooling/verify/gates/biome-grant-liveness.int.test.ts, which
-// runs the REAL descriptor against planted temp roots in both directions AND against the real biome.json.
-// tsconfig-entry-liveness: same posture as biome-grant-liveness — its unit is a file-exact entry inside the
-// REPO-ROOT tsconfig set (tsconfig.json + tsconfig.tests-dom.json + per-package configs), unreachable by any
-// `__g_` path (its discovery matches `tsconfig*.json`, not `__g_*`) and un-plantable without perturbing the
-// real type program. Its bite is proven by conformance (dead row, classifier, absent/unparseable config,
-// zero-rows, both exemption arms) and by its own permanent pin, tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts.
+// biome-grant-liveness and tsconfig-entry-liveness CONVERTED 2026-09-12 (#2021) and their names are GONE
+// from the set below, for the same reason runner-config-path-liveness's is: a final policy is partitioned
+// out by the mixed roster, so a row naming one fails the two-sided arm. Each became a PAIR (the policy plus
+// a `hard` `-health` sibling), and each pair's bite is `structure:policy-conformance` running its own rows
+// plus tests/tooling/verify/gates/{grant-liveness-family.test.ts,<id>.int.test.ts}. Their unfixturability
+// was never about the `__g_` sentinel anyway — a final policy's resource proofs materialise their own temp
+// repository, which is exactly the substrate the legacy harness could not give them.
 // runner-config-path-liveness CONVERTED 2026-09-12 (#1584) and its row is GONE from the table below: a final
 // policy is partitioned out by the mixed roster, and leaving its name here would fail the two-sided arm that
 // refuses a row naming a converted policy. Its bite is `structure:policy-conformance` running its own rows,
@@ -1076,8 +1072,6 @@ function writeFixtures(): void {
 // A __g file cannot perturb that manifest/pin/license/resource tuple without mutating the live vendored root;
 // its dedicated fs-backed conformance pin drives the same validator through exact red and green temp roots.
 const UNFIXTURABLE_GATES = new Set([
-  "biome-grant-liveness",
-  "tsconfig-entry-liveness",
   "baseui-surface-manifest",
   "enforcement-registry-parity",
   "bus-payload-allowlist",
