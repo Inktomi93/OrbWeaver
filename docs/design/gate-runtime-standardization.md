@@ -174,9 +174,14 @@ INCLUDES its quotes. **Read the `report.node` call, never the message.** Unguess
 ordinary policy's `fix` owes the spelling — and why a token containing a paren makes the policy UNWAIVABLE, since the
 marker grammar's position group is `[^()\r\n]+` and every marker against it parses as malformed.
 
-**AND "ORDINARY" IS A CLAIM ABOUT THE DOOR, NOT A FIELD — CHECK IT AT EVERY CONVERSION (measured 2026-09-12, and it
-was FIVE OF FIVE modules in one lane).** A legacy policy can carry `authority: "ordinary"` while having **no working
-waiver door at all**, and nothing on the legacy runtime ever asked. THREE classes, all silent:
+**AND "ORDINARY" IS A CLAIM ABOUT THE DOOR, NOT A FIELD — CHECK IT AT EVERY CONVERSION. MEASURED **NINE OF NINE**
+ACROSS TWO INDEPENDENT LANES WITH DISJOINT SUBJECTS (five of five 2026-09-12; four of four 2026-09-13).** A legacy
+policy can carry `authority: "ordinary"` while having **no working waiver door at all**, and nothing on the legacy
+runtime ever asked. **At a 9/9 base rate this is not a hazard to check for — it is the DEFAULT EXPECTATION, and a
+conversion that reports an ordinary door working is the claim that owes evidence.** The second lane's four were: three
+reporting SYNTHETIC LABELS at `offset: 0` (`no-assertion`, `async-no-await`, `bare-expect`, and `cancel_2`/`detached`,
+strings appearing nowhere in any source so `locateFinding` could never bind them), one reporting an authored token at
+the wrong offset, and one file finding with a synthetic `column: 0`. THREE classes, all silent:
 
 1. **A position containing a paren.** `form-factory-for-multizfield` reported `` `${name} (${count} fields)` ``
    (`KnobField (4 fields)`) and `no-form-reset-in-autosave` reported `reset()`. Every marker against either parses
@@ -200,6 +205,13 @@ waiver door at all**, and nothing on the legacy runtime ever asked. THREE classe
    `hard` presented as though it were always the natural authority. The discriminator is where `report.node` POINTS,
    not what the gate is about: a string literal is authored code and survives blanking, so a prose-in-a-string arm
    keeps its ordinary door while a prose-in-a-comment arm has none.
+
+**AND THE FIX IS ALREADY BUILT — `lib/caught-failure.ts` OWNS THIS REPO'S ONE WAIVER-ANCHOR CONTRACT.**
+`anchorWithin` / `calleeAnchorCandidates` / `firstAnchor` / `catchAnchor`, with `ANCHORABLE_TOKEN_RE` rejecting
+parens, newlines and solidus — i.e. it refuses exactly the shapes that make classes 1 and 3 unwaivable. **A
+converting policy that needs an exact-slice position CONSUMES it rather than re-deriving one**, and the payoff is
+larger than convenience: when two policies govern the same site, sharing the anchor makes them report ONE position,
+so one marker can waive both instead of each needing its own and neither binding.
 
 **The asymmetry that let classes 1 and 2 survive: `report.node` VALIDATES its token against the node text and throws; `report.file`'s
 token is unvalidated at report time and fails later as an authority ALARM.** So converting a file-anchored ordinary arm
