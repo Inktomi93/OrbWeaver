@@ -2356,6 +2356,7 @@
     "tests/tooling/verify/gates/schema-fact-wave-1.test.ts",
     "tests/tooling/verify/gates/session-channel-family.test.ts",
     "tests/tooling/verify/gates/simple-file-hooks.test.ts",
+    "tests/tooling/verify/gates/simple-visitors-1584.test.ts",
     "tests/tooling/verify/gates/simple-visitors-wave-2.test.ts",
     "tests/tooling/verify/gates/simple-visitors-wave-4.test.ts",
     "tests/tooling/verify/gates/singleton-ordinary-policies.test.ts",
