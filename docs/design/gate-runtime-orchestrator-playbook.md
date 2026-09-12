@@ -716,6 +716,13 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   by construction, and the phrase had carried no information all program. The orchestrator flips in its reconcile edit,
   each cell naming the sha and `(board #NNNN)`; the barrier check on #2195 asserts every cited id exists and every OWED id
   is later closed.
+- **A TEST THAT GOES RED UNDER YOUR FIX IS EVIDENCE ABOUT THE TEST UNTIL YOU HAVE READ ITS METHOD** (ruled 2026-09-12,
+  the `p-verify-seam-fixes` fold for #2223): `gate-scope.suite`'s "a RISE is exit 1" arm had built its rise by passing
+  `--before <newer> --after <older>` — it proved rise-detection by running time BACKWARDS, which is exactly the
+  transposed pair #2223 now refuses. The lane did not weaken the refusal to keep the test green; it re-derived the rise
+  FORWARD (delete the subject → run → restore → run → diff) and kept the backwards pair as an explicit exit-2 arm. A pin
+  that depended on the bug is a pin to rewrite, never a reason to carve the fix; and a lane that reports "my fix reds an
+  existing test" owes the test's METHOD in the same sentence, so the orchestrator can rule test-vs-fix on a read.
 - **A CONFLICT RESOLUTION IS AN UNREVIEWED HAND EDIT; A FLOOR THAT RAN BEFORE IT PROVES THE TREE IT REPLACED** (paid
   2026-09-12, #2229, P1): merge `686853320` hand-resolved `eslint.int.test.ts` and dropped a `});`; the lane floor
   (`typecheck --config tsconfig.json`, green) had run 70 seconds BEFORE the resolution existed, the commit message named no
