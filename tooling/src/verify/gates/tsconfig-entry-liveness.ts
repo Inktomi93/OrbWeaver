@@ -38,7 +38,9 @@
 // subject is the table's OWN key, so the per-config narrowing the legacy table lacked is not silently
 // introduced here either.
 //
-// POPULATION PORT. The legacy `scanRoot` was `() => false` (no TypeScript source at all) and the SUBJECT
+// POPULATION PORT, with the LEGACY SHA that makes it checkable (#2123): the legacy descriptor is
+// `git show c97de9d2f:tooling/src/verify/gates/tsconfig-entry-liveness.ts`, the parent of the conversion
+// commit `97e68be91`. The legacy `scanRoot` was `() => false` (no TypeScript source at all) and the SUBJECT
 // set was a `readdirSync` of the repo root plus `packages/*/tsconfig.json` plus `tooling/tsconfig.json` —
 // 14 configs on 2026-09-12. The port is `{ of: "none" }` plus the tracked-corpus roster, which derives the
 // SAME 14 today and is strictly broader by construction: a config authored anywhere else is now judged
@@ -156,7 +158,11 @@ export const gate = defineGate({
   create: (ctx) => ({
     evaluate: () => {
       const repoPaths = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
-      const rows = tsconfigGrantRows(readTsconfigRoster(ctx.resources, repoPaths));
+      // `.configs` ONLY, and the omission is deliberate rather than a drop (#2120): a roster member the
+      // text door REFUSED is a condition about this policy's own subject set that it cannot measure, and
+      // "I could not read my subject" must not be licensable by the grant door these findings carry. The
+      // `-health` sibling reports it, unsuppressibly, off the same total partition.
+      const rows = tsconfigGrantRows(readTsconfigRoster(ctx.resources, repoPaths).configs);
       const exists = trackedPathOracle(repoPaths);
       reportCandidates(ctx, groupGrantRows(rows.exact.filter((row) => !exists(row.rooted))), EXACT_OPERATION, MESSAGE);
       reportCandidates(ctx, groupGrantRows(deadGlobs(rows.globs, repoPaths)), GLOB_OPERATION, GLOB_MESSAGE);

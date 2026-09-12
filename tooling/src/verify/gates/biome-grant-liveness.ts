@@ -25,9 +25,15 @@
 // longer carries was RED (a standing allowance for a gone row is a loaded gun), and a row whose `cite`
 // stopped resolving was RED. The first half is now the central engine's — a grant consumed zero times after
 // a complete owner run is STALE and reds there, which is strictly stronger because it cannot be forgotten.
-// The second half has NO successor inside this policy: a grant carries `why`/`endsWhen` prose rather than a
-// `cite` path, so a justification that moves is caught only where `dangling-refs` judges the path cited in
-// the grant's own `why`. That is a real delta and it is stated rather than absorbed.
+// The second half has NO successor AT ALL, and the first version of this sentence was WRONG about where it
+// went (#2124). It claimed `dangling-refs` still catches a moved justification through the path cited in a
+// grant's `why`. It does not, and the claim was checkable: `dangling-refs` arm 1 `readdirSync`s
+// `tooling/src/verify/gates` alone and reads only the gate object's `docRow`/`message`/`fix`, resolving
+// `*.md` refs; arms 2-5 are markdown corpora. `lib/reviewed-grants.ts` is in NO arm's population, so a
+// grant whose cited decision moved or was deleted is caught by nothing. That is a retired property with no
+// successor — the same disposition arm six got, and it is owed the same thing: a row, and a citation check
+// over the grant table's own `why`/`endsWhen` prose. Stated here rather than absorbed, because a header
+// naming a gate that does not look is worse than a header naming nothing.
 //
 // WHAT MOVED TO THE RUNTIME. MISSING-CONFIG and UNPARSEABLE-CONFIG are no longer reportable arms: a
 // `json` resource that cannot resolve makes population resolution itself throw
@@ -48,11 +54,31 @@
 // and its successor belongs in a verify OP (`ops/config-snapshot.ts` already spawns a child for exactly
 // this class), not in a policy. Until that op exists, a dead rule-off grant is unpoliced.
 //
+// POPULATION PORT, and the LEGACY SHA that makes it checkable (#2123; the legacy descriptor is
+// `git show c97de9d2f:tooling/src/verify/gates/biome-grant-liveness.ts`, the parent of the conversion
+// commit `97e68be91`). The legacy `scanRoot` was `() => false` — it admitted no TypeScript source at all —
+// and its SUBJECT was the single repo-root `biome.json`, read with `existsSync` + `readFileSync` and
+// judged against `existsSync` + `git ls-files`. The port is `{ of: "none" }` for the TS dispatch plus three
+// declarations that carry exactly those three reads: `json:biome` (the parse, with missing and unparseable
+// as distinct non-ready facts rather than one `catch`), `tracked-files` (the existence oracle and the glob
+// member corpus), and `authored-text` (the config's own bytes, for line identity). The admitted SUBJECT set
+// is therefore byte-identical — one config, the same one — and the only intentional correction is the
+// existence oracle moving from the filesystem to the TRACKED corpus, which is the same decision the glob
+// half already made and which makes the verdict independent of whether a build or install has run.
+//
+// THE UNIT IS AN OVERRIDE ROW, NEVER THE TOP-LEVEL `files.includes` (#2122, and the legacy header declared
+// this fence while the first converted header dropped it). `files.includes` is biome's own IGNORE/selection
+// list: a preemptive entry for a generated or transient path — `playwright/.cache`, a build output — is
+// legitimately allowed to name nothing, so judging it would red a correct config. An override row is the
+// opposite: it GRANTS a rule posture to what it names, so naming nothing is an over-grant. The fence is a
+// real narrowing and it carries its own `mustPass` row; before that row existed, widening the read killed
+// ZERO proof rows, which is the §4.1 definition of unenforced.
+//
 // COMMENT POSTURE: n/a — the scanned unit is STRICT JSON, which has no comment syntax.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ConfigGrantCandidate, ConfigGrantRow } from "../lib/config-grant-rows.ts";
-import { biomeGrantRows, groupGrantRows, trackedPathOracle } from "../lib/config-grant-rows.ts";
+import { biomeGrantRows, groupGrantRows, readAcquiredConfigText, trackedPathOracle } from "../lib/config-grant-rows.ts";
 import { globMatcher, lineFinder, patternLivenessFindings } from "../lib/grant-liveness.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
@@ -136,9 +162,9 @@ export const gate = defineGate({
     evaluate: () => {
       const config = readyResourceValue(ctx.resources.json("biome"));
       const repoPaths = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
-      const corpus = readyResourceValue(ctx.resources.authoredText([CONFIG_REL]));
-      const text = corpus.files.find((file) => file.path === CONFIG_REL)?.text ?? "";
-      const rows = biomeGrantRows(config.value, lineFinder(text), CONFIG_REL);
+      // REFUSES rather than substituting empty text (#2121): a `?? ""` fallback here silently anchored
+      // every finding at line 1 with nothing saying the position had been lost.
+      const rows = biomeGrantRows(config.value, lineFinder(readAcquiredConfigText(ctx.resources, CONFIG_REL)), CONFIG_REL);
       const exists = trackedPathOracle(repoPaths);
       reportCandidates(ctx, groupGrantRows(rows.exact.filter((row) => !exists(row.rooted))), EXACT_OPERATION, MESSAGE);
       reportCandidates(ctx, groupGrantRows(deadGlobs(rows.globs, repoPaths)), GLOB_OPERATION, GLOB_MESSAGE);
@@ -185,6 +211,15 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "resource",
+      files: {
+        "biome.json":
+          '{\n  "files": { "includes": ["**", "!packages/client/src/gone.ts", "reports/generated.json"] },\n  "overrides": [\n    {\n      "includes": ["packages/client/src/live.ts"],\n      "linter": { "rules": {} }\n    }\n  ]\n}\n',
+        "packages/client/src/live.ts": "export const live = 1;\n",
+      },
+      why: "§4.1 NARROWING (#2122) — the UNIT fence. `reports/generated.json` is a dead path in the TOP-LEVEL `files.includes`, which is biome's selection/ignore list rather than a grant: a preemptive entry for a generated path is legitimately allowed to name nothing. Beside it a LIVE override grant keeps the row from passing by emptiness. Widen `overrideIncludes` to read `files.includes` and this row reds; before it existed that same widening killed ZERO rows, which is the §4.1 definition of unenforced.",
+    },
     {
       mode: "resource",
       files: {

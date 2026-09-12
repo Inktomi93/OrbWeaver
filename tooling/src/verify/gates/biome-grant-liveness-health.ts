@@ -19,6 +19,13 @@
 // each used to be. Pinned in `tests/tooling/verify/gates/biome-grant-liveness.int.test.ts`, because §4.5b's
 // proof runtime has no "expect a tool error" arm.
 //
+// POPULATION PORT + LEGACY SHA (#2123). This module is NOT a port of its own descriptor — it has none. It
+// is an ARM carved out of `biome-grant-liveness`'s legacy descriptor at
+// `git show c97de9d2f:tooling/src/verify/gates/biome-grant-liveness.ts` (the parent of the conversion
+// commit `97e68be91`), where the same condition was that descriptor's `MSG_NO_ROWS` arm. Its population is
+// the sibling's minus the two declarations this arm does not read: `{ of: "none" }` plus `json:biome`, and
+// nothing else, because counting rows needs neither the tracked corpus nor the config's line positions.
+//
 // FAMILY: `grant-liveness`. Reader: `lib/config-grant-rows.ts` `biomeGrantRows` — the SAME classifier its
 // sibling reports through, which is the whole point: a tripwire that re-implemented the classifier would be
 // measuring its own copy rather than the one that produced the ✓.

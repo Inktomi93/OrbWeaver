@@ -14,6 +14,7 @@ import { posix } from "node:path";
 import type { CompilerConfigEntries } from "../contract/policy-scope.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
+import type { AuthoredTextRefusal } from "../contract/resource-text.ts";
 import { isFileExact } from "./grant-liveness.ts";
 import { compilerConfigRoster, readCompilerConfigEntries } from "./policy-program-membership.ts";
 import { readyResourceValue } from "./resource-declaration.ts";
@@ -71,12 +72,33 @@ function classify(rows: readonly ConfigGrantRow[]): Omit<ConfigGrantRows, "candi
   };
 }
 
+/** The roster read, as a TOTAL partition over its members: every config that was READ, plus every one the
+ *  demand door REFUSED.
+ *
+ *  BOTH HALVES ARE RETURNED BECAUSE A DROPPED REFUSAL IS A FALSE CLEAN (#2120, L1). `AuthoredTextCorpus`
+ *  is itself total — `files` PLUS `refusals` — and a reader that mapped only `files` silently shrank the
+ *  subject set of both entry-liveness siblings: a tracked config that is empty, unresolved, malformed, or
+ *  refused as the #1947 symlink class simply vanished from the roster, and the tripwire whose declared job
+ *  is *"a tsconfig in the roster did not parse — fail LOUD"* reported nothing. Worse at the limit: if EVERY
+ *  member refuses, `roster.length !== 0` so the empty-roster throw below stays quiet and `candidates === 0`
+ *  so the NO-ROWS anchor stays quiet, and both policies print a clean ✓ over a roster nothing read.
+ *  Git membership and text readability are DIFFERENT PREDICATES; this type is what stops a consumer
+ *  assuming otherwise. */
+export interface TsconfigRoster {
+  /** One entry read per config the door served — `read` or `unparseable`, the reader's own two answers. */
+  readonly configs: readonly CompilerConfigEntries[];
+  /** Roster members the door could not serve at all. A consumer MUST account for these; the `-health`
+   *  sibling reports them, because "I could not read my own subject" is a refusal and a refusal must not
+   *  be suppressible by the grant door its ordinary sibling's findings carry. */
+  readonly unreadable: readonly AuthoredTextRefusal[];
+}
+
 /** Every discovered config's RAW entries, read through the shared compiler reader over the demand text
  *  door. The ROSTER is derived from the tracked inventory rather than walked, so a config authored anywhere
  *  is judged; a roster of ZERO is not a clean tree, it is a policy whose whole subject set is gone, and it
  *  THROWS rather than returning an empty verdict — the same refusal `resolveResourceDeclarations` gives a
  *  non-ready resource, in the one place this family can still reach a blind state. */
-export function readTsconfigRoster(resources: Pick<ResourceHost, "authoredText">, repoPaths: readonly string[]): readonly CompilerConfigEntries[] {
+export function readTsconfigRoster(resources: Pick<ResourceHost, "authoredText">, repoPaths: readonly string[]): TsconfigRoster {
   const roster = compilerConfigRoster(repoPaths);
   if (roster.length === 0) {
     throw new Error(
@@ -84,7 +106,29 @@ export function readTsconfigRoster(resources: Pick<ResourceHost, "authoredText">
     );
   }
   const corpus = readyResourceValue(resources.authoredText(roster));
-  return corpus.files.map((file) => readCompilerConfigEntries(file.path, file.text));
+  return { configs: corpus.files.map((file) => readCompilerConfigEntries(file.path, file.text)), unreadable: corpus.refusals };
+}
+
+/** The TEXT of ONE config the policy has ALREADY acquired through another declared door, or a THROW.
+ *
+ *  THE THROW IS THE CONTRACT'S OWN ANSWER, not a strictness preference (#2121, L2). `authored-text` is
+ *  parasitic: it serves a path only because some other declaration admitted it, and `ResourceReader.read`
+ *  is the same reader behind both doors. So a refusal HERE, after the owning door resolved, is the two
+ *  doors disagreeing about one acquired path — a broken runtime guarantee, which §12.3 rules "a TOOL
+ *  ERROR, never a reportable finding and never a silent zero. So the branch THROWS; it does not `return`."
+ *  The shape this replaces was `corpus.files.find(…)?.text ?? ""`, which substituted empty text: every
+ *  finding silently lost its line identity and anchored at line 1, with nothing saying so. §4.5b has no
+ *  "must refuse" arm, so the pin is a `runPolicyPass` row in the owning policy's permanent-pin test. */
+export function readAcquiredConfigText(resources: Pick<ResourceHost, "authoredText">, path: string): string {
+  const corpus = readyResourceValue(resources.authoredText([path]));
+  const served = corpus.files.find((file) => file.path === path);
+  if (served !== undefined) {
+    return served.text;
+  }
+  const refusal = corpus.refusals.find((entry) => entry.path === path);
+  throw new Error(
+    `the authored-text door refused ${path} after its owning resource declaration resolved it (${refusal?.status ?? "absent from both halves"}: ${refusal?.reason ?? "no refusal was recorded"}) — two doors disagree about one acquired path, so this run is NOT a verdict`,
+  );
 }
 
 /** The tsconfig family's rows, over the RAW unfolded `include`/`exclude` entries of every discovered config.

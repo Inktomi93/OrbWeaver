@@ -12,6 +12,15 @@
 // `tracked-files`, whose fact paths are the whole repository inventory, so "it resolves and runs at
 // repository scope" is a real property with a real failure mode (#1947).
 //
+// ONE REFUSAL IS NOT PINNED HERE AND CANNOT BE, recorded rather than faked (#2121). The policy now THROWS
+// when `authoredText([biome.json])` refuses a config whose owning `json` declaration already resolved —
+// two doors disagreeing about one acquired path. There is no fixture: both doors sit on the SAME
+// `ResourceReader`, and `authored-text` serves a path exactly because another declaration admitted it, so
+// a proof or scratch tree cannot make them disagree. The verbatim refusal is
+// `the authored-text door refused <path> after its owning resource declaration resolved it (…) — two doors
+// disagree about one acquired path, so this run is NOT a verdict`. §4.5b: measure it by hand, record it,
+// and do not invent a row that does not discriminate.
+//
 // ARM SIX IS GONE, AND SO ARE ITS PINS. The #1158 RULE-liveness arm — strip the rule-off grants from a copy
 // of biome.json, run the real biome binary over the granted files, call a grant that suppresses zero
 // diagnostics dead — wrote a probe config into the repository ROOT and spawned a subprocess. §12.3 bans a
@@ -57,6 +66,20 @@ test("an UNPARSEABLE biome.json refuses the same way — never a silent default-
   const result = drive(scratch);
   expect(result.toolErrors.length).toBeGreaterThan(0);
   expect(result.toolErrors.map(({ message }) => message).join("\n")).toContain("did not parse as strict JSON");
+});
+
+test("an EMPTY TRACKED CORPUS refuses at the population phase — the CORPUS-BLIND successor (#2125)", ({ scratch }) => {
+  // A READABLE biome.json with no git work tree at all: the `json` resource resolves, so this is the
+  // tracked-files refusal specifically, not the missing-config one above. The legacy descriptor reported
+  // this as a finding (MSG_CORPUS_BLIND); the conversion moved it to a non-ready resource, which is louder
+  // and unprovable by a proof row (§4.5b) — so it is asserted HERE or by nothing, which is what it was.
+  writeConfig(scratch, '{\n  "overrides": [{ "includes": ["packages/client/src/live.ts"], "linter": { "rules": {} } }]\n}\n');
+  const result = drive(scratch);
+  expect(result.toolErrors.length).toBeGreaterThan(0);
+  expect(result.toolErrors[0]).toMatchObject({ phase: "population" });
+  const message = result.toolErrors.map(({ message: text }) => text).join("\n");
+  expect(message).not.toContain("is missing");
+  expect(message.toLowerCase()).toContain("git");
 });
 
 // The real inventory read plus the config parse measures well under a second, but the arm carries an
