@@ -2355,6 +2355,7 @@
     "tests/tooling/verify/gates/singleton-ordinary-policies.test.ts",
     "tests/tooling/verify/gates/split-arm-parity.test.ts",
     "tests/tooling/verify/gates/tenancy-scope-family.test.ts",
+    "tests/tooling/verify/gates/test-fixture-imports.repo.int.test.ts",
     "tests/tooling/verify/gates/test-presence-client.int.test.ts",
     "tests/tooling/verify/gates/test-presence.repo.int.test.ts",
     "tests/tooling/verify/gates/test-world-browser-contracts.repo.int.test.ts",

@@ -5,6 +5,18 @@
 // AUTHORED door (which canonical origin deliberately preserves — both composed doors re-export the same
 // vitest declaration, so origin cannot tell them apart) and the door's own serializer registration, so a
 // rename of either door is free. Exempt by population: e2e, the doors themselves, and `.test-d.ts`.
+//
+// DIFFERENTIAL, MEASURED RATHER THAN CLAIMED. The legacy descriptor (`519242add`) reported SIX findings on
+// the pre-conversion tree and the conversion's final pass reported ZERO — the only legacy-non-zero →
+// final-zero row in its family, and the literal shape of a lost catch, made likelier by the fact that the
+// same commit REPAIRED the member arm below (89 false positives). Replaying `519242add` establishes what
+// the six were: THREE specs × the TWO named specifiers each (the legacy detector keys on `ImportSpecifier`,
+// not on the import declaration) — `tests/tooling/verify/gates/{id-brand-flow,ledger-banned-shapes,
+// schema-fact-wave-1}.test.ts`, each `import { expect, test } from "vitest"`, all three re-doored to
+// `support/tool-fixtures.ts` by `e3c80bbbc` itself. They were FIXED, not waived, and no catch was lost.
+// The claim no longer rests on that prose: `tests/tooling/verify/gates/test-fixture-imports.repo.int.test.ts`
+// replays the frozen descriptor beside this policy over the SAME real workspace on every run and asserts
+// SET EQUALITY of the reported sites, armed in both directions (§4.6).
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
