@@ -104,7 +104,13 @@ interface GateScanView {
   readonly admitted?: number;
 }
 interface StructureReportView {
-  readonly run?: { readonly runId: string; readonly complete: boolean; readonly incompleteReasons?: readonly string[] };
+  readonly run?: {
+    readonly runId: string;
+    readonly complete: boolean;
+    readonly incompleteReasons?: readonly string[];
+    /** #2167 — absent in older artifacts, which predate the axis and are judged on `complete` alone. */
+    readonly verdict?: "verdict" | "non-verdict";
+  };
   readonly gates?: readonly { readonly name: string; readonly scan?: GateScanView }[];
 }
 
@@ -155,6 +161,11 @@ function liveAdmitted(root: string): { readonly runId: string; readonly byOwner:
   const run = report.run;
   if (run !== undefined && (!run.complete || (run.incompleteReasons ?? []).length > 0)) {
     return null; // #410: an unfinished run is not a verdict at any exit code
+  }
+  if (run?.verdict === "non-verdict") {
+    // #2167: a fixture-mode, contaminated or tombstoned run FINISHED — its admitted counts are real numbers
+    // about a tree that is not this one. Read as live debt they would silently retarget a burn-down.
+    return null;
   }
   const byOwner = new Map<string, number>();
   for (const gate of report.gates ?? []) {

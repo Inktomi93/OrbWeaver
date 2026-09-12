@@ -8,6 +8,7 @@
 export const VERIFY_VERBS = [
   "run",
   "structure",
+  "structure-delta",
   "show",
   "scoped",
   "scoped-test",

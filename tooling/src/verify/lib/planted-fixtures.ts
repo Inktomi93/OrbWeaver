@@ -48,6 +48,30 @@ export function plantedPaths(root: string): readonly string[] {
     .toSorted();
 }
 
+/** WHY this run cannot speak for the real tree, or null when it can (#2167). Two conditions, and the FIRST
+ *  one is the defect a fresh-context verifier actually fell into:
+ *
+ *  1. FIXTURE MODE. `ORB_GATE_FIXTURES=1` is the gate self-test's opt-out from probe stripping — its child
+ *     runs MUST see the `__g_` files it planted (contract/run-manifest.ts, ops/scoped.ts:260). Those runs are
+ *     perfectly legitimate and perfectly complete, and their artifact is the SELF-TEST'S OWN OUTPUT: on
+ *     2026-09-12 three of twelve published slots were that shape, indistinguishable from a real-tree verdict,
+ *     and a verifier built a whole REAL-TREE LIVENESS section on one of them. The content was never corrupt —
+ *     the LABEL was missing.
+ *  2. CONTAMINATION. Planted paths observed by a run that did NOT plant them (#2069): the tree these counts
+ *     describe stopped existing mid-walk.
+ *
+ *  The two are mutually exclusive by construction — `observed` is only ever populated outside fixture mode —
+ *  so the order below is presentational, not a precedence rule. */
+export function nonVerdictReason(fixtureMode: boolean, observed: readonly string[]): string | null {
+  if (fixtureMode) {
+    return (
+      "FIXTURE MODE (ORB_GATE_FIXTURES=1): this artifact is the gate self-test's own output — it deliberately " +
+      "reports on planted `__g_`/`__dc_` fixtures and is NOT a statement about the real tree"
+    );
+  }
+  return notQuietReasons(observed)[0] ?? null;
+}
+
 /** The reason a not-quiet run carries into `incompleteReasons` — empty when the run was quiet, which is the
  *  honest zero and the only thing that lets the QUIET arm be asserted separately from the loud one. */
 export function notQuietReasons(observed: readonly string[]): readonly string[] {

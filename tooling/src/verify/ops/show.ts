@@ -87,6 +87,10 @@ interface RunManifestView {
   readonly ran: number;
   readonly active: number;
   readonly incompleteReasons?: readonly string[];
+  /** Absent in pre-#2167 artifacts, which is why the refusal below treats `undefined` as consumable: an older
+   *  artifact predates the axis and cannot be judged on it. A `"non-verdict"` is refused with its reason. */
+  readonly verdict?: "verdict" | "non-verdict";
+  readonly nonVerdictReason?: string | null;
   /** Absent in pre-#1029 artifacts: the run's own slot and when it started. */
   readonly startedAt?: string;
   readonly artifactDir?: string;
@@ -297,6 +301,16 @@ function refuseIncomplete(report: StructureReport): string | null {
   const run = report.run;
   if (run === undefined) {
     return null; // a pre-#410 artifact carries no manifest — readable, just older
+  }
+  // #2167: a run can FINISH and still not be a statement about the real tree — a fixture-mode run, a run that
+  // observed a planter's paths, or a slot an operator tombstoned. That axis is `verdict`, not `complete`; the
+  // two are orthogonal and this is the only reader that must not collapse them.
+  if (run.verdict === "non-verdict") {
+    return ANSI.red(
+      `✗ reports/${REPORT_NAME} is NOT a verdict about the real tree (run ${run.runId})\n` +
+        `      ‼ ${run.nonVerdictReason ?? "this run was marked a non-verdict and recorded no reason — treat it as unusable"}\n` +
+        "      Do not derive real-tree facts from it. Re-run `pnpm check:structure`. See tooling/src/verify/contract/run-manifest.ts (#2167).",
+    );
   }
   if (run.complete && (run.incompleteReasons ?? []).length === 0) {
     return null;

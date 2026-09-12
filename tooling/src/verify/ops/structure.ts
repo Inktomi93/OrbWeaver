@@ -31,7 +31,17 @@
 // exist and comes back with inflated raw counts that look exactly like a real number. This run therefore
 // OBSERVES those paths at both ends of its own walk and marks itself NOT QUIET when it sees any it did not
 // plant — a non-verdict that says so, instead of a number nobody can tell apart from a real one.
-import { writeFileSync } from "node:fs";
+//
+// IS THIS ARTIFACT ABOUT THE REAL TREE? (#2167 — `run.verdict`, contract/run-manifest.ts). The bigger half of
+// that story is not contamination at all: a FIXTURE-MODE run (`ORB_GATE_FIXTURES=1`) is complete, correct, and
+// reporting on the gate self-test's OWN planted props, and until now its artifact was byte-indistinguishable
+// from a real-tree verdict. Derived 2026-09-12 over all twelve published slots with the predicate "any
+// `__g_`/`__dc_` path in a slot's violations" — a real-tree run STRIPS those, so a slot that CONTAINS them
+// opted out — THREE were that shape, and a fresh-context verifier built a whole REAL-TREE LIVENESS section on
+// one of them. It acted correctly on every rule it had; the lie was the missing LABEL, not the content. So a
+// non-verdict run says so on its own artifact, prints it above the roster, and NEVER publishes the pointer —
+// and `structure --void <slot> --reason` writes the same judgement into a slot after the fact.
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
@@ -51,7 +61,7 @@ import type { RunManifest } from "../contract/run-manifest.ts";
 import type { FinalPolicyRow, LegacyGateRow, StructurePolicyReport, StructureReport } from "../contract/structure-report.ts";
 import { loadMixedGateCorpus } from "../lib/loader.ts";
 import { projectCtx, runPass, stripProbeFindings, stripProbePolicyFindings, zeroScanGates } from "../lib/pass.ts";
-import { notQuietReasons, plantedPaths } from "../lib/planted-fixtures.ts";
+import { nonVerdictReason, notQuietReasons, plantedPaths } from "../lib/planted-fixtures.ts";
 import { buildSelector, CHECK_FLAG, FAIL_ON_WARNINGS_FLAG, FAMILY_FLAG, isSelectionRefusal, refuseDuplicateOptions } from "../lib/policy-command.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyPassExitCode } from "../lib/policy-plan.ts";
@@ -133,6 +143,10 @@ function startManifest(root: string, slot: RunSlot, selection: PolicySelector): 
     // The stub's honest value: nothing has been OBSERVED yet, and `complete: false` is already what refuses
     // this artifact as a verdict. The finished report carries the real answer.
     quiet: true,
+    // IN FLIGHT IS A NON-VERDICT, stated on the axis readers now key off rather than inferred from
+    // `complete: false` — a stub that says only "unfinished" left a reader to decide what that meant.
+    verdict: "non-verdict",
+    nonVerdictReason: "this run is IN FLIGHT — the finished report has not replaced this stub",
     runId: slot.runId,
     checkout: checkoutName(root),
     artifactDir: slot.relDir,
@@ -212,6 +226,34 @@ function finalSide(selectedFinal: readonly GatePolicy[], result: PolicyPassResul
   return { result, rows: policyRows(result, selectedFinal), report: policyReport(result) };
 }
 
+/** THE EXPLICIT VOID (#2167 clause 2). The operator knows a published slot is not evidence — it overlapped a
+ *  planter, it was taken under a load kill, its premise died — and no re-derivation from the artifact alone
+ *  can say so. This writes that judgement INTO the slot, which is the only place a future reader will look.
+ *
+ *  It mutates the artifact rather than dropping a sibling file: every reader already opens
+ *  `check-structure.json`, and a tombstone that needs a second path is a tombstone half the readers miss.
+ *  `complete` is untouched — the run did finish, and that field's meaning (#410: finished vs DIED) is load-
+ *  bearing for `abandonedRuns`. A slot that does not exist is MISUSE (exit 3): the operator named the wrong
+ *  run, and silently succeeding would leave them believing a void happened. */
+function tombstoneSlot(root: string, request: { readonly slot: string; readonly reason: string }): number {
+  const file = join(root, "reports", "runs", "structure", request.slot, REPORT_NAME);
+  let report: StructureReport;
+  try {
+    report = JSON.parse(readFileSync(file, "utf8")) as StructureReport;
+  } catch (error) {
+    throw new UsageError(
+      `structure ${VOID_FLAG}: no readable artifact at ${file}\n  Name a slot directory under reports/runs/structure/ (the id the run printed).`,
+      { cause: error },
+    );
+  }
+  const voided: StructureReport = { ...report, run: { ...report.run, verdict: "non-verdict", nonVerdictReason: request.reason } };
+  writeFileSync(file, `${JSON.stringify(voided, null, 2)}\n`);
+  process.stdout.write(
+    `structure: TOMBSTONED ${request.slot}\n  reason: ${request.reason}\n  every reader of this slot now refuses it and prints that reason.\n`,
+  );
+  return EXIT.clean;
+}
+
 /** A SELECTED run resolves its names against the loader BEFORE the run slot opens (#1117): an id that matches
  *  nothing is misuse and must leave no artifact at all, and a selection that matched nothing must never run as
  *  a clean zero. The corpus it loaded is handed back so the run below loads it exactly ONCE.
@@ -240,6 +282,9 @@ async function preflightSelection(
  *  and truncates a large report mid-line (the fixture-run report the check-gates anti-drift test parses). */
 export async function runStructure(root: string, argv: readonly string[]): Promise<number> {
   const request = parseStructureTail(argv);
+  if (request.tombstone !== null) {
+    return tombstoneSlot(root, request.tombstone);
+  }
   const preflight = await preflightSelection(root, request.selection);
   const slot = openRunSlot(root, "structure");
   announceRacing(slot);
@@ -276,9 +321,12 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   // Every count below is a denominator over what this run was ASKED about. On the default run the selection
   // IS the corpus, so the numbers are byte-identical to the pre-#1964 manifest.
   const legacyActive = selected.legacy.filter((g) => g.status === "active").length;
+  const nonVerdict = nonVerdictReason(keepProbeFindings(), observed);
   const run: RunManifest = {
     ...started,
     quiet: observed.length === 0,
+    verdict: nonVerdict === null ? "verdict" : "non-verdict",
+    nonVerdictReason: nonVerdict,
     finishedAt: new Date().toISOString(),
     complete: true,
     corpusFiles: corpus.files.length,
@@ -291,17 +339,7 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
     incompleteReasons,
   };
 
-  // zeroScanAlarm is set HERE and nowhere else: this is the only entrypoint whose fileset is the real
-  // whole tree, so it is the only one where "this gate read nothing" means the checker is blind.
-  process.stdout.write(renderPass(pass, gatesByName, { zeroScanAlarm: true }));
-  if (final.report !== null) {
-    process.stdout.write(`\n${renderPolicyPass(final.rows, final.report, selected.final)}`);
-  }
-  process.stdout.write(`\n${completenessLine(run)}\n`);
-  process.stdout.write(`${timingLine(pass.timing, pass.gates, `${slot.relDir}/${REPORT_NAME}`)}\n`);
-  if (final.result !== null) {
-    process.stdout.write(`${policyTimingLine(final.result.timing, final.rows)}\n`);
-  }
+  renderConsole({ pass, gatesByName, selected, final, run, slotRelDir: slot.relDir });
 
   const legacyBroken = pass.toolErrors.length > 0 || scanAlarms.length > 0 || populations.length > 0 || incompleteReasons.length > 0;
   const finalBroken = final.result !== null && finalToolErrorCount(final.result) > 0;
@@ -323,7 +361,12 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
   // pointer would hand every fixed-path reader a partial report that looks exactly like the corpus verdict —
   // the same class of lie the in-flight stub exists to prevent. Its artifact stays reachable only through the
   // slot the timing line prints.
-  if (request.selection.kind === "all") {
+  //
+  // AND ONLY BY A RUN THAT MEANS IT (#2167). A FIXTURE-MODE run is complete, correct and about planted props;
+  // a CONTAMINATED run read a tree that stopped existing. Both used to publish, and the pointer is what every
+  // casual reader follows — that is precisely how slot `main-2930600`'s fixture findings reached a verifier as
+  // real-tree liveness. A non-verdict keeps its slot and never becomes `latest`.
+  if (request.selection.kind === "all" && run.verdict === "verdict") {
     publishRunSlot(root, slot, [{ alias: REPORT_NAME, target: REPORT_NAME }]);
   }
 
@@ -347,12 +390,16 @@ function legacyExit(broken: boolean, violations: number): number {
 interface StructureRequest {
   readonly failOnWarnings: boolean;
   readonly selection: PolicySelector;
+  /** Present when the operator asked to TOMBSTONE an existing slot instead of running anything (#2167). */
+  readonly tombstone: { readonly slot: string; readonly reason: string } | null;
 }
 
 const TAIL_OPTIONS = {
   "fail-on-warnings": { type: "boolean" },
   check: { type: "string", multiple: true },
   family: { type: "string", multiple: true },
+  void: { type: "string" },
+  reason: { type: "string" },
 } as const;
 /** `--check`/`--family` are the repeatable pair; `--fail-on-warnings` twice stays misuse (the grammar is zero
  *  or one), which is exactly `refuseDuplicateOptions`'s contract. */
@@ -373,7 +420,13 @@ function parseStructureTail(argv: readonly string[]): StructureRequest {
   if (duplicate !== null) {
     throw new UsageError(tailRefusal(duplicate));
   }
-  let values: { readonly "fail-on-warnings"?: boolean; readonly check?: readonly string[]; readonly family?: readonly string[] };
+  let values: {
+    readonly "fail-on-warnings"?: boolean;
+    readonly check?: readonly string[];
+    readonly family?: readonly string[];
+    readonly void?: string;
+    readonly reason?: string;
+  };
   try {
     values = parseArgs({ args: [...argv], options: TAIL_OPTIONS, strict: true, allowPositionals: false }).values;
   } catch (error) {
@@ -383,7 +436,28 @@ function parseStructureTail(argv: readonly string[]): StructureRequest {
   if (isSelectionRefusal(selection)) {
     throw new UsageError(tailRefusal(selection.message));
   }
-  return { failOnWarnings: values["fail-on-warnings"] === true, selection };
+  const tombstone = voidRequest(values);
+  if (tombstone !== null && (values["fail-on-warnings"] === true || selection.kind !== "all")) {
+    throw new UsageError(tailRefusal(`${VOID_FLAG} tombstones an EXISTING slot and runs nothing — it cannot carry a run's flags`));
+  }
+  return { failOnWarnings: values["fail-on-warnings"] === true, selection, tombstone };
+}
+
+const VOID_FLAG = "--void";
+const REASON_FLAG = "--reason";
+
+/** `--void <slot> --reason <why>` — BOTH or NEITHER. A tombstone without a reason is a refusal nobody can
+ *  act on, and `--reason` alone is an operator who thinks they voided something and did not. */
+function voidRequest(values: { readonly void?: string; readonly reason?: string }): { readonly slot: string; readonly reason: string } | null {
+  const slot = values.void?.trim() ?? "";
+  const reason = values.reason?.trim() ?? "";
+  if (slot.length === 0 && reason.length === 0) {
+    return null;
+  }
+  if (slot.length === 0 || reason.length === 0) {
+    throw new UsageError(tailRefusal(`${VOID_FLAG} and ${REASON_FLAG} are used together — a tombstone without a stated reason is a refusal nobody can act on`));
+  }
+  return { slot, reason };
 }
 
 /** ONE refusal shape for every way this tail can be wrong. It LEADS with the whole grammar rather than with
@@ -399,10 +473,42 @@ function tailRefusal(reason: string): string {
  *  `--help` answer (cli.ts VERB_HELP, #809). */
 export const STRUCTURE_USAGE =
   `usage: node tooling/src/verify/cli.ts structure [${FAIL_ON_WARNINGS_FLAG}] [${CHECK_FLAG} <id>]... | [${FAMILY_FLAG} <name>]...\n` +
+  `       node tooling/src/verify/cli.ts structure ${VOID_FLAG} <slot> ${REASON_FLAG} "<why>"   (tombstone an existing slot; runs nothing)\n` +
   "  Runs every structural gate in one ts-morph pass; writes reports/check-structure.json (read it with `show`).\n" +
   `  ${FAIL_ON_WARNINGS_FLAG} promotes final \`severity: "warning"\` findings into the blocking count (exit 1). It is OFF by default: a warning is reported, counted, and blocks nothing.\n` +
   `  ${CHECK_FLAG} <id> runs ONLY the named gate(s) — a legacy gate name or a final policy id — over the SAME whole real tree. ${FAMILY_FLAG} <name> does the same for a final policy family; the two are mutually exclusive.\n` +
-  "  A selected run is NOT the corpus verdict: it reports only what it was asked about and does NOT republish reports/check-structure.json, so read the slot path it prints.";
+  "  A selected run is NOT the corpus verdict: it reports only what it was asked about and does NOT republish reports/check-structure.json, so read the slot path it prints.\n" +
+  `  ${VOID_FLAG} <slot> ${REASON_FLAG} "<why>" TOMBSTONES a published slot — every reader then refuses it and prints the reason. It runs no gates and carries no run flags.`;
+
+interface ConsoleInput {
+  readonly pass: PassResult;
+  readonly gatesByName: ReadonlyMap<string, GateDescriptor>;
+  readonly selected: SelectedGateCorpus;
+  readonly final: FinalSide;
+  readonly run: RunManifest;
+  readonly slotRelDir: string;
+}
+
+/** The ONE console write, in the order a reader scans: the two rosters, then what the run WAS, then cost.
+ *
+ *  `zeroScanAlarm` is set HERE and nowhere else — this is the only entrypoint whose fileset is the real whole
+ *  tree, so it is the only one where "this gate read nothing" means the checker is blind. */
+function renderConsole({ pass, gatesByName, selected, final, run, slotRelDir }: ConsoleInput): void {
+  process.stdout.write(renderPass(pass, gatesByName, { zeroScanAlarm: true }));
+  if (final.report !== null) {
+    process.stdout.write(`\n${renderPolicyPass(final.rows, final.report, selected.final)}`);
+  }
+  if (run.nonVerdictReason !== null) {
+    // BEFORE the counts, not after: the numbers below are real but they are not about the real tree, and a
+    // reader who scrolls to the tail first must not meet the roster before the disclaimer.
+    process.stdout.write(`\n‼ THIS RUN IS NOT A VERDICT — ${run.nonVerdictReason}\n`);
+  }
+  process.stdout.write(`\n${completenessLine(run)}\n`);
+  process.stdout.write(`${timingLine(pass.timing, pass.gates, `${slotRelDir}/${REPORT_NAME}`)}\n`);
+  if (final.result !== null) {
+    process.stdout.write(`${policyTimingLine(final.result.timing, final.rows)}\n`);
+  }
+}
 
 /** The visible half of the #410 guarantee: the console says how many of the corpus actually ran, per contract. */
 function completenessLine(run: RunManifest): string {
