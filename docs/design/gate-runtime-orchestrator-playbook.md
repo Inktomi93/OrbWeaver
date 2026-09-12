@@ -232,6 +232,103 @@ fence in a `cp`-backed copy, run its rows, restore — so it goes inside the aud
 4\. **Converted modules with no family test.** Their declared rows run via the conformance stage, but their §4.2/§4.5
 pins have no home. Re-derive the list before dispatching; guide §2's row names the last measured set.
 
+## 2b. THE OPEN WORK — every row, measured 2026-09-11 evening, not remembered
+
+**This section exists so a cold reader never has to reconstruct state from a transcript again.** Re-derive with
+`pnpm work:item overview` before acting; the STATUSES rot, the GROUPING and the reasoning do not. A row's presence
+here is not permission to dispatch it — check the Phase D gate below first.
+
+### DONE — do not re-open, do not re-derive
+
+| what | receipt |
+| - | - |
+| Phase A mixed runtime | `d21ece8d8` |
+| The capability FREEZE — 18 kinds, per-member provenance (#1930) | `02382639e`, guide §12.4 |
+| **#1971 the §5b soundness enforcer** — four final meta-policies over the gate corpus | `e4250ae50` |
+| #1966 fail-open receipt arm — **verifier CONFIRMED** | `178ee3a4c` |
+| #1972 `ctx.relativePath` shared reader | `d1c87fb56` |
+| #1952 identity arms (0 of 86) · #1953 · #1954 · #1955 · #1941 · #1946 · #1959 | see guide §2 |
+| Marker backlog — both central grammars measure ZERO live markers | guide §7 |
+| Wave-1 exemplar audit D1–D6, D10 · **D9 roster rows (all four)** | `be1202579`, `b157bb9be`, `1f83d676a`, `9017baf60` |
+
+### THE THREE THAT GATE PHASE D
+
+1. **#1971 — LANDED**, at Verify pending its wave verifier.
+2. **The audit reaches a bar the owner picks.** 62 of 167 audited across six waves. See the copy set below.
+3. **#1968 + #1966 + #1972 close.** #1966 and #1972 are DONE; **#1968 is the survivor** — and it is now
+   MEASURED AND ENFORCED by `policy-proof-expectations`, which reports its own worklist.
+
+### DEFECT CLASSES THAT PROPAGATE — each looks green and is not; each multiplies by \~104
+
+| row | class |
+| -: | - |
+| **#1968** | 64 of 825 expectation rows carry no `count`; tautological `messageIncludes`. **The enforcer now lists them.** |
+| **#1990** | a fail-closed `unreadable` arm with no `messageIncludes` is invisible to count-only rows — **9 of 12 modules shipped it dead** |
+| **#1979** | silent not-ready resource return — 6 sites remain; a broken resource reads as a clean green |
+| **#1978** | 51 of 88 ordinary policies' `fix` names no waiver spelling, so the author it fires on cannot waive it |
+| **#1976** | nothing checks a provider's population is a SUBSET of its consumers' |
+| **#1982** | nothing distinguishes an honest constant receipt `members` from a lazy one (**Needs owner**) |
+| **#1984** | a finding inside a multi-line template literal is UNWAIVABLE by any line-adjacent grammar (**Needs owner**) |
+
+### AUDIT FIX BACKLOG — by wave, with the falsifiers already built
+
+**Split fix lanes by MODULE, never by defect.** Wave 1's own follow-up was split by DEFECT and four modules fell
+between the lanes — that is #1993, and it went unnoticed for a day.
+
+| row | what |
+| -: | - |
+| **#1993** | wave 1's unfinished fix pass: `schema-branding`, both tier-health twins, `no-array-literal-querykey` |
+| **#1989** | wave 6's three LIVE escapes — subjects UNREACHED, not merely unproven |
+| **#1987** | `no-rejected-cors-proxy`: 0 of 2 narrowings enforced |
+| **#1986** | `plugin-dump-guard`: two unpinned arms in a HARD, security-adjacent policy |
+| **#1991** | `no-color-literals` one message for three disjoint patterns — **RULED arm A, split it** |
+| **#1994** | nine converted modules have NO family test, so §4.2/4.3/4.5/4.6 pins have nowhere to live |
+
+### INSTRUMENT AND OBSERVATION GAPS — why defects survive
+
+| row | what |
+| -: | - |
+| **#1983** | a `tests/tooling` suite can sit red for days unseen. **FOUR instances in one five-day window.** The predicate is *any assertion whose expected value derives from the legacy roster* — not just membership |
+| **#1967 / #1973 / #1964** | `tests/tooling` is `--full`-only and nothing runs `--full` on a cadence; the §8.8 real-tree floor costs 4 min / 6.5 GB so no lane runs it. **These are the ROOT CAUSE of #1983, not peers of it** |
+| **#1992** | `policy-soundness` is 57.7 s of `check:structure` — re-priced as a **#1964 dependency**, NOT a commit-bar regression (the conformance stage did not move: 12341ms → 12283ms) |
+| **#1985** | `grant-liveness-family.test.ts` runs within \~300 ms of its own 5000 ms timeout; fails on cache temperature |
+| **#1980** | `@authored` is a hand-typed literal with no liveness gate |
+| **#1988** | `no-inline-types` reds 19 sites, 18 of them the shared readers this program MANDATES — 15→18→19, unowned (**Needs owner**) |
+
+### DECISIONS IN NEEDS OWNER — ask, never build around
+
+**#1982** receipt contract · **#1984** template-literal unwaivability · **#1988** the `no-inline-types` ratchet ·
+**#1995** `contract-verb-presence`'s fork, whose stated default held BY SILENCE while the gate sits on the Phase D list.
+
+### LOWER PRIORITY, RECORDED SO IT IS NOT RE-DISCOVERED
+
+**#1957** unwaivable finding classes · **#1970** the largest conversion shipped with no §4.6 differential ·
+**#1977** conformance has no “must refuse” arm · **#1981** a roster row declares an arm A4 that does not exist ·
+**#1965** deferred work anchored to doc coordinates, not `workItem`s · **#1922** sanctioned-home → grants (**its census
+base is 2026-09-05; every conversion since can have carried a table it never saw — re-derive, never work the 97/319**) ·
+**#1996** no doc-catalog re-attest helper, so every re-attest is hand-edited JSON across nine receipt files.
+
+### THE COPY SET — the most actionable output the audit produces
+
+**Point a Phase D lane at these and at nothing else:**
+
+| module | plane | caveat |
+| - | - | - |
+| `user-bus-deferred-member` | warning debt | wave 1's sole survivor |
+| `section-registry-completeness` | registry | 4/4 narrowings enforced |
+| **`no-mutating-register-api`** | **ORDINARY** | its `mustPass[3]` `why` says *“the only row that dies without it”* and the audit proved that sentence TRUE |
+| `no-raw-interactive-intrinsics` · `zustand-selector-stability` | reviewed-grant | fix `zustand`'s J4/J5 first |
+| `spacing-tier-home-health` | HARD tripwire only | owes one §4.5 pin |
+
+**ANTI-PATTERNS — never point a lane at these:** `no-raw-spacing-in-features`'s HEADER · `no-manual-token-estimate` ·
+`no-inline-types` · `zod-modern-spellings` · `persistence-boundary` · `no-rejected-cors-proxy`.
+
+### OWED TO THE ORCHESTRATOR AT A QUIET BARRIER — no lane may run these
+
+`gate-ignore-grammar.repo.int.test.ts` and `gate-conformance.repo.int.test.ts` (both plant `__g_` fixtures, not
+concurrency-safe with themselves) · the `check:structure` AFTER census · the `ledgers:fresh` regen for two
+`caught-failure-ownership` rows · `gate-spelling-twins.int.test.ts` (54 of 79 ledger rows orphaned).
+
 **Phase C — settle the capability set before spending it. Forge. A design pass, not an executor lane.**
 
 **MEASURED 2026-09-11, and it shrinks this phase a lot: C gates only the RESOURCE-BACKED families, not the corpus.**
@@ -428,6 +525,35 @@ idle composed-pass remeasurement; catalog re-attest.
 ## 5. Lessons that bind (each paid for at least once; the incidents are in the memory hub)
 
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
+- **CLAIM AT DISPATCH. It bit TWICE on 2026-09-11 and the second time was after I had already named it.** A row
+  dispatched without `claim` sits at **Ready with no Lane while an agent builds it** — invisible in-flight work, and
+  `review` then refuses with *“must be Running”* when the lane lands. #1971 (a **P1**) sat that way while forge built
+  it; #1974/#1975/#1969 repeated it an hour later. The composite `file --claim <lane>` exists precisely so this is one
+  call. **Check the Lane field after every dispatch**, not when a transition fails.
+- **NEVER WRAP A RUN IN YOUR OWN `timeout`.** A killed run is exit-124, which is the **exit-2 class — not a verdict**,
+  and reading one as data is how a false green ships. Paid 2026-09-11: a `timeout 400` was wrapped around a
+  `check:policy-conformance` that takes longer as the corpus grows. The harness backgrounds a long command and hands
+  you an output file; read the file. Same rule as the pipe: `$?` after a pipe is the LAST stage's exit.
+- **READ YOUR OWN TURNS, NOT A KEYWORD GREP OF THEM.** Reconstructing what is unfinished by grepping a transcript for
+  a keyword returns what you already thought to ask for. Paid 2026-09-11: a grep for `exemplar` + open-ish words
+  missed four unfiled promises that a straight read of the same extract surfaced immediately (#1993–#1996). The
+  extractor is `.type == "assistant"` → `.message.content[] | select(.type=="text")`, which drops tool calls and
+  results and reduces a 34 MB session to \~1 MB. **Then READ it.**
+- **A FIX PASS SPLIT BY DEFECT LEAVES MODULES BETWEEN THE LANES.** Wave 1's follow-up ran three lanes by defect (the
+  resource pair, matchmedia, the `ext` sweep). Four modules whose only findings were §4.1 narrowings belonged to none
+  of them and sat untouched for a day (#1993). The rule *fix lanes split by MODULE* is already in §2 — **apply it to
+  the audit's OWN follow-up, which is the place it was forgotten.**
+- **BRIEFS RESTATE DELTAS ONLY, AND THIS ONE REGRESSED WITHIN THE HOUR.** Measured 2026-09-11: 590 KB of Agent briefs
+  across 79 dispatches, 7.5 KB average, the second-largest context category — and most of it (the stash ban, `git -C`,
+  rg hazards, pnpm-not-npx, floor spellings) is already in `.claude/rules/lane-standing-facts.md`, which **every lane
+  auto-loads**. That file says so itself: *“lanes: these bind you, briefs restate only DELTAS.”* Three lean briefs were
+  written, then the habit came straight back. **A brief carries the WHY, the fences, the module list, and the hazards
+  specific to THIS work — nothing the rule file already delivers.**
+- **A VERIFIER IS NOT OPTIONAL AND `land` SKIPS IT.** The composite `land` runs claim→review→verify→done in one call,
+  which is correct for a defect row and WRONG for program work: §4.6 and runbook §8.7 both say program work stops at
+  **Verify** until a fresh-context verifier CONFIRMS. Paid on #1966 — closed straight to Done, verified afterwards,
+  and the verifier then found two surfaces the lane had never measured (the fixture populations, and scoped runs).
+  The verdict was CONFIRMED; the ORDER was wrong.
 - **Read the document that owns the question before ruling on it.** Every correction of 2026-09-11 — the Phase C
   capability set, biome's loader, `jsonc`'s consumer, a `JUDGMENT_DEFERRED` table's disposition — was already answered
   in the review layer, and each was caught by a lane or the owner instead of by me. Quoting §12.5 correctly is not a

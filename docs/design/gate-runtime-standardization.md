@@ -48,13 +48,13 @@ for exactly once; nothing vanishes from the roster.
 
 | Fact | Value | Source |
 | - | - | - |
-| gate modules / final / legacy | 271 / 166 / 105 | `pnpm check:policy-conformance` (the authoritative roster). **A bare `defineGate` grep OVERCOUNTS by 3** — `gate-modernization` and `enforcement-registry-parity` carry it inside proof-fixture STRINGS and `runner-config-path-liveness` inside its refusal comment. The honest shape test is `^export const gate = defineGate(` |
+| gate modules / final / legacy | **275 / 171 / 104** (2026-09-11 evening; was 271/166/105 — the +5 final are #1971's four meta-policies plus one conversion) | `pnpm check:policy-conformance` (the authoritative roster). **A bare `defineGate` grep OVERCOUNTS by 3** — `gate-modernization` and `enforcement-registry-parity` carry it inside proof-fixture STRINGS and `runner-config-path-liveness` inside its refusal comment. The honest shape test is `^export const gate = defineGate(` |
 | converted modules with NO committed test importing them | no longer the bar | `structure:policy-conformance` runs every final policy's declared rows on the static tier (§5). A module with no family test still lacks its §4.2/§4.3/§4.5/§4.6 pins. At least 12 are in that state, named across three lanes — `baseui-render-prop-composition`, `bus-on-data-no-store-write`, `membership-fan-guard`, `no-caller-user-id`, `no-external-media-without-gate`, `no-color-literals`, `test-factory-contract`, `no-raw-container-widths`, `no-raw-typography-in-features`, `no-raw-spacing-in-features`, `no-decorators`, `no-array-literal-querykey`, `no-if-is-group` |
 | ordinary policies with no positive `@orb-waive` identity arm | **0 of 86 — CLOSED** (#1952) | The last 22 landed 2026-09-11 across three lanes (`158c4993c`, `d660d6442`, `f52492f44`), every one an in-module `mustPass` so no lane touched a shared test file. A fresh-context verifier sampled seven across all three commits, flipped each marker to a dead token, and got the §4.2 `AUTHORITY ALARM … names a dead position` on all seven; each sampled fixture produces exactly one finding |
 | `mustFlag` rows carrying no `expect` | 0 — closed at `cf38cd6df` | all 39 pinned across 14 modules, with planted count/token/line breaks proving each dimension bites |
 | working-tree fixture planting under `tests/tooling/verify/gates/**` | 4 files, all covering LEGACY modules | `tsconfig-entry-liveness`, `no-blanket-suppression`, `biome-grant-liveness`, `runner-config-path-liveness` — the last `__g_`/`__dc_` planters in the gates tree; legitimate until those four convert, and the reason `check-gates.repo.int.test.ts` stays orchestrator-only during a train. Zero final policies plant, by construction (§4.8) |
 | first MIXED baseline (both contracts, one door, real tree) | 270 modules · 635 findings = 200 legacy + 435 final; 4:01.81 wall / 6.57 GB peak RSS; parity 26 s | phase A lane §11.9, `d21ece8d8`. Supersedes the 119-policy wave-5 figure |
-| whole-corpus conformance | 166 final policies · 1,567 rows · **0 failures**, exit 0 · \~11 s | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
+| whole-corpus conformance | **171 final policies · 1,733 rows · 0 failures, exit 0 · \~12.3 s** (2026-09-11 evening, measured on `main` after the #1971 merge). Rows rose from 1,567 on real reproduced-red-first proof, not on new policies alone. **The stage did NOT regress when the enforcer landed** — 12341ms before, 12283ms after, with four more policies | `pnpm check:policy-conformance` at `f5cfd6370`. Independently re-derived from the loaded policies (`source 403 + types 1049 + resource 58` = `mustFlag 732 + mustPass 778`), not read off stdout. It was 95 failures at the start of 2026-09-11; both remaining failures were one class — a fact provider whose receipt counted what it FOUND instead of what it MEASURED, fixed per subject in `registry-fact.ts` (#1953) and per provider in `bus-fact.ts` + `bus-definition-fact.ts` (#1955) |
 | central reviewed-grant table | 105 rows at wave 5 (+1 coarse-pointer row after the main merge) | `lib/reviewed-grants.ts` |
 | shipped runtime | `defineGate` contract + validator, policy loader, `runPolicyPass`, six-kind scope resolver, planner/executor (`planPolicyArgv`/`executePolicyPlan`), ResourceHost with **18 closed kinds, FROZEN 2026-09-11** (§12.4), `defineFact` providers (bus-producers, bus-definitions, drizzle-schema, registry-definitions, tuple-vocabularies), central ordinary-waiver engine, central reviewed-grant reconciler, hermetic conformance runner (`verifyPolicyProofs`) | checkpoint + planner-cli-integration.md + resource-host-foundation.md |
 | NOT shipped | `jsonc` — §11.4 named it required; it was never built and is now RULED OUT with its reason (§12.4). The Phase C capability fork is CLOSED: the vocabulary is frozen at 18 kinds and the condition that reopens it is in §12.4. Still open: the overload-aware barrel-re-export fix; `QualifiedName` normalization | #1930 (freeze landed), checkpoint "runtime follow-ups" |
@@ -168,6 +168,18 @@ family.
      resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
      path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
 
+   **CUT IN THE RIGHT DIRECTION, OR YOU MANUFACTURE A FALSE “UNENFORCED” — the auditor's own failure mode
+   (measured 2026-09-11).** The cut must make the policy flag **MORE**. Replacing a predicate with a DIFFERENT wrong
+   value is not that cut, and it can leave every row green for a reason unrelated to the fence. Worked case: a wave-5
+   audit reported that not one of `persistence-boundary`'s six narrowings was individually enforced. A fix lane
+   re-cut `classifyOriginRefusal` in the §4.1 direction — fail it OPEN (`return "unreadable"` unconditionally) — and
+   **`mustPass[2]` and `[3]` both went red on the pre-existing row set**. The clause was enforced all along; the
+   audit had most likely cut it to `"other"`, a different wrong answer rather than an open one.
+   **So a clean cut owes its DIRECTION in the receipt**, not just its result: say what you replaced the predicate
+   WITH. And where a fence has several clauses, report the matrix — the same module's three-clause sweep showed one
+   clause singly enforced, one enforced only when the classifier is also open, and one reddening only in the triple.
+   A single-clause sweep over an interacting fence set is not a measurement.
+
    **And a fourth outcome is legitimate: UNFALSIFIABLE, documented rather than faked.** For a reviewed-grant policy,
    `reportReviewedGrantCandidates` dedupes by `(subject, operation)`, so any narrowing whose only counterexample sits
    ABOVE an already-flagging node cannot change the finding count — `no-raw-matchmedia`'s `memberPath.length === 0`
@@ -183,7 +195,11 @@ family.
    declared row reached it**; the three that proved theirs are exactly the three that wrote `messageIncludes`. This
    is not a narrowing, so §4.1 does not catch it — a lane can satisfy §4.1 in full and still ship the arm dead. The
    probe is one command: replace the branch's report call with `throw` and run the module's own rows; **0 failures
-   means unreached.** And when `UNREADABLE` is built as `` `${MESSAGE} …` `` the base text is a SUBSTRING of both,
+   means unreached. RUN THE PROBE INSTEAD OF READING THE HEADER** — a module's DECLARED LIMIT paragraph is exactly
+   the thing that is wrong here. Measured 2026-09-11: `persistence-boundary`'s limit claimed a bare `localStorage`
+   “lands on the fail-closed unreadable finding”; it resolves as the ambient global with an empty member path and
+   takes the PRECISE message, so the arm the paragraph advertised was reached by no row at all. A confident header
+   is not evidence about which fixture hits which branch. And when `UNREADABLE` is built as `` `${MESSAGE} …` `` the base text is a SUBSTRING of both,
    so it can never discriminate in either direction — **keep the two messages disjoint or neither arm is pinnable.**
 
 2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
@@ -265,9 +281,15 @@ family.
         measured one fact*), never the census — otherwise `receiptFailures`' `count === 0` predicate turns its own
         finding into a tool error and it never reaches its report. That is §12.3's provider-side inversion
         relocated one layer out, to the consumer. Two such sites exist and BOTH literals are correct.
-     3. **Per-declared-fact accounting is NOT buildable, at load time or run time.** A receipt is a runtime call and
-        its `source` is FREE TEXT with zero fact-id correspondence, so the arm can only demand ≥ 1 receipt. Closing
-        that correspondence is a receipt-CONTRACT change, and nothing today distinguishes an honest constant
+     3. **Per-declared-fact CORRESPONDENCE is not buildable, at load time or run time** — and read that word
+        precisely. A receipt is a runtime call and its `source` is FREE TEXT with zero fact-id validation
+        (`policy-pass-context.ts:150,165`); measured 2026-09-11, **17 of the 35 fact-declaring policies already use a
+        source that is not their fact id**, so divergence is the NORM, not an edge (`bus-belt-total` declares
+        `bus-definitions` and receipts `bus-definition-fact`). Tying a receipt to a fact is therefore impossible
+        without a contract change. **What IS buildable and is deliberately not built: a weaker CARDINALITY rule**
+        (`receipts.length >= facts.length`), which reds 0 of 35 today — it would not tie a receipt to a fact, so it is
+        not the shape this section names. Do not read this row as *no stronger predicate exists at all*; read it as
+        *no predicate that establishes correspondence exists*. Nothing today distinguishes an honest constant
         `members` from a lazy one (#1982).
    - **Nothing checks that a provider's population is a SUBSET of its consumers'.** `tupleVocabularyFact`
      (`@client`+`@server`+`@contracts`) is a strict superset of `warning-code-coverage`'s, so the provider hands the
