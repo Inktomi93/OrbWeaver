@@ -40,6 +40,7 @@ import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { definitionField } from "../lib/registry-definition-field.ts";
 import { readJsxTagFact, registryDefinitionFacts } from "../lib/registry-fact.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 const ANCHOR_FN = "configAnchorId";
 const OPERATION = "config-anchor-stamp";
@@ -119,15 +120,17 @@ export const gate = defineGate({
     const callCandidates: Located[] = [];
     const tags: Located[] = [];
 
+    /** The name a call invokes, in EVERY member spelling (#2199). The member half reads through
+     *  `lib/symbol-reference.ts` rather than `PropertyAccessExpression.getName()`, because
+     *  `opaque()["configAnchorId"](…)` is the same stamp as `opaque().configAnchorId(…)` — and it is the
+     *  UNREADABLE-stamp row, the one arm whose whole purpose is to fail CLOSED, that the property-keyed read
+     *  silently dropped out of the candidate set before `anchorCallReports` ever got to judge it. */
     const calleeName = (call: MorphNode): string | undefined => {
       if (!Node.isCallExpression(call)) {
         return;
       }
       const expression = call.getExpression();
-      if (Node.isIdentifier(expression)) {
-        return expression.getText();
-      }
-      return Node.isPropertyAccessExpression(expression) ? expression.getName() : undefined;
+      return Node.isIdentifier(expression) ? expression.getText() : readMemberAccess(expression)?.name;
     };
 
     return {
@@ -237,6 +240,21 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "features/b/components/opaque-section.tsx" },
       why: "THE UNREADABLE STAMP, and the row that dies if `anchorCallReports` stops failing CLOSED. The guide's reusable falsifier (an opaque `any` receiver) drives every origin reader into refusal, so the identity of this stamp CANNOT be established. Before 2026-09-12 that acquitted it: `isAnchorCall` reported only on a RESOLVED canonical export, which is an ACCUSING arm whose predicate is an identity ACQUITTAL — the fourth polarity, fail-OPEN, in a module whose `renderedModules` arm fails CLOSED on the very same question (cb-v-unaudited-finals L3). A stamper the reader cannot read is exactly the section the list, the spy and the search cannot derive a row for, so silence was the wrong answer",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/config-section-registry.ts":
+          "export interface ConfigSectionContribution { readonly id: string }\nexport function configAnchorId(group: string, sub: string): string {\n  return `${group}-${sub}`;\n}\n",
+        "packages/client/src/features/a/lib/a-section.tsx":
+          'import type { ConfigSectionContribution } from "../../../state/config-section-registry.ts";\nimport { ASection } from "../components/a-section.tsx";\nexport const aSection: ConfigSectionContribution = { id: "a", body: () => <ASection /> };\n',
+        "packages/client/src/features/a/components/a-section.tsx":
+          'import { configAnchorId } from "../../../state/config-section-registry.ts";\nexport const ASection = (): unknown => configAnchorId("a", "one");\n',
+        "packages/client/src/features/b/components/opaque-section.tsx":
+          'declare function opaque(): any;\nexport const OpaqueSection = (): unknown => opaque()["configAnchorId"]("b", "one");\n',
+      },
+      expect: { count: 1, messageIncludes: "features/b/components/opaque-section.tsx" },
+      why: 'THE BRACKET SPELLING of the unreadable stamp (#2199) — the same call, written `opaque()["configAnchorId"](…)`. It is a row rather than a note because the candidate PREFILTER, not the identity reader, is what dropped it: `calleeName` read `PropertyAccessExpression.getName()`, so an element-access callee produced no candidate at all and `anchorCallReports` — the fail-CLOSED arm — was never asked. Measured on the unmodified module: 0 findings, a silent clean on the exact stamp the gate exists to name',
     },
   ],
   mustPass: [

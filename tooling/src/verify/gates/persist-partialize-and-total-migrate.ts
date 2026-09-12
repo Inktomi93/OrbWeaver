@@ -98,6 +98,7 @@ import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
 import { resolveStableExpression } from "../lib/reference-fact.ts";
+import { readMemberAccess } from "../lib/symbol-reference.ts";
 import { storeLookalikeProof, zustandProof } from "./_proof/zustand.ts";
 
 const FACTORY_PERSISTED_STORE = "packages/client/src/state/create-persisted-store.ts";
@@ -146,7 +147,13 @@ function isPersistCall(node: Node, aliases: ReadonlySet<string>): node is CallEx
     return false;
   }
   const callee = node.getExpression();
-  if (!(TsNode.isIdentifier(callee) && aliases.has(callee.getText()))) {
+  // THE PREFILTER SPANS BOTH REFERENCE SPELLINGS (#2199). A named import binds a LOCAL NAME (matched against
+  // the alias set); `import * as zustand from "zustand"; zustand.persist(…)` binds no local name at all and
+  // produces NO ImportSpecifier for `persistAliasesOf` to see, so an identifier-only prefilter dropped the
+  // whole namespace class before the origin check — the gate went quiet on the middleware it exists to judge.
+  // The identity question is unchanged: `readPackageExportOrigin` still has to place the callee in zustand.
+  const name = TsNode.isIdentifier(callee) ? callee.getText() : readMemberAccess(callee)?.name;
+  if (name === undefined || !(aliases.has(name) || PERSIST_NAMES.has(name))) {
     return false;
   }
   return readPackageExportOrigin(callee, [ZUSTAND], PERSIST_NAMES).verdict !== "other";
@@ -242,6 +249,15 @@ export const gate = defineGate({
       files: { ...zustandProof(), [FACTORY_ENTITY_DRAFT_STORE]: 'import { persist } from "zustand/middleware";\nexport const s = persist(() => ({}), {});\n' },
       expect: { count: 1, token: PERSIST, messageIncludes: "missing version, partialize, migrate" },
       why: "the OTHER factory, all three required keys absent — still ONE finding, so a single waiver can address it",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        [FACTORY_PERSISTED_STORE]: 'import * as middleware from "zustand/middleware";\nexport const s = middleware.persist(() => ({}), { version: 1 });\n',
+      },
+      expect: { count: 1, token: "middleware.persist", messageIncludes: "missing partialize, migrate" },
+      why: "THE NAMESPACE RED (#2199), the alias row's twin one spelling over. A namespace import binds NO local name and produces NO ImportSpecifier, so `persistAliasesOf` saw nothing and the identifier-keyed prefilter dropped the call before the origin reader was asked: 0 findings on the unmodified module — the gate silently stopped judging the mint's options inside the one file where the mint is sanctioned. The token is the WHOLE callee text, because that is the authored slice at the reported position and therefore the position an author waives",
     },
     {
       mode: "types",

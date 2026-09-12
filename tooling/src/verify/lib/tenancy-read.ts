@@ -12,11 +12,15 @@ import type { CallExpression, Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { TableTarget } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { namespaceImportSpecifier, readMemberAccess } from "./symbol-reference.ts";
 
 const OWNER_COL = "ownerId";
 const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
 
 const MAX_ALIAS_DEPTH = 8;
+/** Every node kind a member read can wear — the `lib/symbol-reference.ts` family, spelled here as a local
+ *  tuple because these readers collect DESCENDANTS by kind rather than subscribing a policy visitor. */
+const MEMBER_KINDS = [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression] as const;
 /** The chained calls only a drizzle statement can carry. The DISCRIMINATOR for the unresolvable arm: an
  *  identifier the resolver cannot trace is a finding only when the statement is provably a drizzle write —
  *  `cache.delete(key)` / `hash.update(bytes)` are the SAME AST shape, and 72 of them live in
@@ -66,11 +70,30 @@ function tracedTable(identifier: Node, tableIdents: ReadonlySet<string>, seen: S
     .find((traced) => traced !== undefined);
 }
 
+/** The EXPORTED TABLE NAME a namespace-spelled reference names — a member read off a binding introduced by
+ *  `import * as schema`, whatever the module. A namespace import produces NO ImportSpecifier and its member
+ *  read is not an Identifier, so the identifier-keyed trace below never saw one: a namespaced table
+ *  classified as "not a table argument at all" and the write walked past the tenancy check entirely (#2199 —
+ *  the `owner-scoped-writes` / `owner-scoped-upserts` namespace arms in the spelling-twins ledger). The member NAME
+ *  is the declared export, which is the same string the schema-derived ident sets carry, so no alias trace is
+ *  owed here — a namespace member cannot be re-bound the way a local const can. */
+function namespacedTableName(node: Node): string | undefined {
+  const read = readMemberAccess(node);
+  return read !== undefined && namespaceImportSpecifier(read.receiver) !== undefined ? read.name : undefined;
+}
+
 /** Classify a drizzle table argument: trace it ONCE against the FULL schema table set, then read its class
  *  off the (a)-class set. The full set is the denominator that separates "reads fine, simply not (a)-class"
  *  from "I could not read this at all" — without it every non-(a) write would look identical to a bypass. */
 export function tableTargetOf(node: Node | undefined, ownerTableIdents: ReadonlySet<string>, schemaTableIdents: ReadonlySet<string>): TableTarget | undefined {
-  if (node?.isKind(SyntaxKind.Identifier) !== true) {
+  if (node === undefined) {
+    return;
+  }
+  const namespaced = namespacedTableName(node);
+  if (namespaced !== undefined) {
+    return ownerTableIdents.has(namespaced) ? { kind: "owner-scoped", ident: node.getText() } : { kind: "other-table" };
+  }
+  if (!node.isKind(SyntaxKind.Identifier)) {
     return;
   }
   const traced = tracedTable(node, schemaTableIdents, new Set(), 0);
@@ -95,12 +118,17 @@ export function isDrizzleWriteStatement(anchor: Node): boolean {
 /** Does this predicate name the exact local table binding's column? Text elsewhere in the expression is not
  *  evidence: only a property access rooted at the write target can scope that target. */
 export function predicatesTableColumn(predicate: Node, tableIdent: string, column: string): boolean {
-  const properties = predicate.isKind(SyntaxKind.PropertyAccessExpression)
-    ? [predicate, ...predicate.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)]
-    : predicate.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression);
-  return properties.some(
-    (property) => property.getName() === column && property.getExpression().isKind(SyntaxKind.Identifier) && property.getExpression().getText() === tableIdent,
-  );
+  const descendants = MEMBER_KINDS.flatMap((kind) => predicate.getDescendantsOfKind(kind));
+  const candidates = MEMBER_KINDS.some((kind) => predicate.isKind(kind)) ? [predicate, ...descendants] : descendants;
+  return candidates.some((candidate) => {
+    const read = readMemberAccess(candidate);
+    // The RECEIVER is compared by TEXT rather than required to be an Identifier (#2199): the write target is
+    // whatever `tableTargetOf` named it, which for a namespace-spelled table is `schema.characters`. Requiring
+    // an identifier receiver here would have ACQUITTED nothing and ACCUSED everything on the namespace side —
+    // the owner predicate that is plainly there (`eq(schema.characters.ownerId, callerId)`) would read as
+    // absent, turning a spelling into a false finding on code that is correctly scoped.
+    return read !== undefined && read.name === column && read.receiver.getText() === tableIdent;
+  });
 }
 
 /** Walk a drizzle method chain UP from its table anchor (`.from(T)` for a read, `db.update(T)`/`db.delete(T)`
@@ -149,7 +177,9 @@ export function upsertConfigOf(anchor: Node): Node | undefined {
  *  whose answer is "whatever id the caller supplies, whoever owns it"; a predicate on any other column is a
  *  different (unenforced-here) question. */
 export function predicatesOwnId(whereText: string, tableIdent: string): boolean {
-  return new RegExp(String.raw`\b${tableIdent}\.id\b`, "u").test(whereText);
+  // The ident is ESCAPED because it is no longer always a bare word: a namespace-spelled target is
+  // `schema.characters`, whose `.` would otherwise match any character (#2199).
+  return new RegExp(String.raw`\b${tableIdent.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)}\.id\b`, "u").test(whereText);
 }
 
 function isFnish(n: Node): boolean {

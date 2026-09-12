@@ -190,6 +190,17 @@ export const gate = defineGate({
         "packages/db/src/schema/character.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/character/persistence/card.ts":
+          'import * as schema from "@orb/db";\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(schema.characters).set({ name }).where(eq(schema.characters.id, id));\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "cross-tenant WRITE hole" },
+      why: 'THE NAMESPACE SPELLING of the founding shape (#2199). `import * as schema from "@orb/db"` binds no table identifier and produces no ImportSpecifier, so the shared `tableTargetOf` — which required an Identifier node — classified `schema.characters` as NOT A TABLE ARGUMENT and the write was never judged: 0 findings on the unmodified module, on the widest cross-tenant hole this gate owns. The acquitting side moved with it (`predicatesTableColumn` now compares the receiver by text), or a correctly scoped namespace-spelled write would have been falsely accused instead',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
           'import { characters } from "@orb/db";\nexport async function dropCard(db: Db, id: string) {\n  return db.delete(characters).where(eq(characters.id, id));\n}\n',
       },
       expect: { count: 1 },
