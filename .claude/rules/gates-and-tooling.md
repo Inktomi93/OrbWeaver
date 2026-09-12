@@ -135,7 +135,9 @@ paths:
   two exit-134 OOMs on a bare structure run).
 - **A committed SINGLE-WRITER ledger's freshness belongs on the static bar, not in a vitest suite** (#817).
   `ledgers:fresh` (`pnpm check:ledgers-fresh`, `tooling/src/verify/ops/ledgers-fresh.ts`) re-derives the
-  caught-failure census and the test-baseline manifest on every `pnpm check` and names the drifting rows —
+  caught-failure census, the snap-flags index, the generated type configs, the read-first SIZE column, the
+  refutation ledger's sections and CLASS ROLLUP, and the deferred-gate roster on every `pnpm check` and
+  names the drifting rows — (the test-baseline manifest row was DELETED with `monotonic-tests`, #2217) —
   the barrier regen is now the FIX for a red, not a scheduled guess. Its per-ledger door is
   `cli.ts baseline <kind> --check` (derives and diffs, writes nothing).
 - **A FAMILY TEST OFTEN LIVES UNDER THE WAVE'S NAME, NOT THE GATE'S — so grepping for the gate's FILENAME returns a

@@ -487,7 +487,9 @@ function writeFixtures(): void {
   // pre-#962 ratchet never governed. (`suppressions` used to fire on it too; it now reads the marker as a
   // ruled `useNamingConvention` occurrence in `tests` scope and licenses it.)
   fx("tests/__g_blanket.test.ts", "// biome-ignore-all lint/style/useNamingConvention: fixture blanket\nexport const g = 1;\n");
-  // monotonic-tests tooth 1: metadata claims "skipped" but an early return records a passed test.
+  // A pseudo-skip fixture: metadata claims "skipped" but an early return records a passed test. Its
+  // original consumer (`monotonic-tests` tooth 1) was retired with the gate (#2217); the fixture stays
+  // because the planted-corpus shape is shared, and a fixture no live gate reads is inert, not wrong.
   fx(
     "tests/tooling/__g_pseudoskip.test.ts",
     'import { test } from "support/test";\ntest("g", () => {\n  test.info().annotations.push({ type: "skipped" });\n  return;\n});\n',
@@ -1213,7 +1215,7 @@ test("every UNFIXTURABLE row names a LEGACY module on the mixed roster — a row
 // Gates DELIBERATELY held DORMANT (`status:"dormant"` descriptors) — built + self-tested but not run by
 // the live pass (runPass filters to status:"active"), so report.ts never prints them and they're absent
 // from `registry`. Each has its own header explaining why + a residual self-test proving it still fires
-// (tests/tooling/{monotonic-tests}.residual.test.ts drives the monotonic gate directly). This is the ONE
+// (the worked example was `monotonic-tests`' residual suite, retired with that gate in #2217). This is the ONE
 // sanctioned exemption from the file-vs-registry anti-drift check below.
 const DORMANT_GATES = new Set<string>([]);
 
