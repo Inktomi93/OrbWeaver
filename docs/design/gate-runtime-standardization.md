@@ -234,10 +234,24 @@ family.
      population returns `unresolved`, the receipt scores `members: 0 / unresolved: 1`, and the policy's own receipt
      refuses — the designed blindness tripwire firing correctly, unprovable by construction. **Measure both sides by
      hand, record the two verbatim messages in the module header, and say plainly that no row can carry it** (#1977).
-   - **A policy that files NO semantic receipt is FAIL-OPEN.** `factReceiptFailures` has a "provider produced no
-     receipt" arm; `policyReceiptFailures` has no equivalent, so a consumer declaring a fact and forgetting
-     `ctx.receipt` passes silently on an empty census. The guarantee holds only by per-family CONVENTION. Pinned as
-     "THE FAIL-OPEN SHAPE" in `tests/tooling/verify/lib/schema-fact.test.ts` (#1966).
+   - **CLOSED 2026-09-11 (#1966, `178ee3a4c`) — a policy that files NO semantic receipt now REFUSES.**
+     `policyReceiptFailures` (`lib/policy-pass.ts:701-732`) reds on `facts.length > 0 && receipts.length === 0`,
+     so the guarantee is enforced rather than held by per-family convention. The pin in
+     `tests/tooling/verify/lib/schema-fact.test.ts` is inverted to assert the refusal and keeps the old fail-open
+     shape quoted verbatim. **Blast radius was measured ZERO by RUNNING the dispatcher over all 167 final policies**
+     (35 declare facts; all 35 filed ≥ 1 receipt), which is also how the registry fact count was corrected from 7 to
+     **8** — `chrome-registry-completeness` declares both `registry-definitions-chrome` and `tuple-vocabularies`.
+     Three corollaries, each of which cost time:
+     1. **The arm keys off DECLARATION, not consumption** — strictly broader, free, and it does not need the failure
+        function to know whether a fact was actually consumed.
+     2. **A `-health` policy whose job is reporting an empty census must receipt a CONSTANT** (`members: 1` = *I
+        measured one fact*), never the census — otherwise `receiptFailures`' `count === 0` predicate turns its own
+        finding into a tool error and it never reaches its report. That is §12.3's provider-side inversion
+        relocated one layer out, to the consumer. Two such sites exist and BOTH literals are correct.
+     3. **Per-declared-fact accounting is NOT buildable, at load time or run time.** A receipt is a runtime call and
+        its `source` is FREE TEXT with zero fact-id correspondence, so the arm can only demand ≥ 1 receipt. Closing
+        that correspondence is a receipt-CONTRACT change, and nothing today distinguishes an honest constant
+        `members` from a lazy one (#1982).
    - **Nothing checks that a provider's population is a SUBSET of its consumers'.** `tupleVocabularyFact`
      (`@client`+`@server`+`@contracts`) is a strict superset of `warning-code-coverage`'s, so the provider hands the
      policy nodes the policy may not NAME — the structural form of the `ctx.relativePath` throw, needing no unusual

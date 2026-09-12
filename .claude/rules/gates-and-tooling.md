@@ -77,7 +77,9 @@ paths:
     row went red, restore. A header that claims a row proves something it was never shown to catch is a
     defect.
   - **Contract facts that bit:** `report.node` token is an exact slice of the node text; population
-    `under: ["x/"]` matches nothing (use `"x/**"`); state in `create`; `ctx.fact()` only in
+    `under: ["x/"]` matches nothing (use `"x/**"`); **a population `notUnder` cannot be falsified by a single-file
+    fixture INSIDE the subtraction — the run comes back a `[population]` TOOL ERROR, not a finding, so that row needs a
+    SECOND admitted file** (paid by the wave-4 audit, 2026-09-11); state in `create`; `ctx.fact()` only in
     evaluate/visitFile/visitors; every anchor inside the policy's own population; `facts: []` explicit;
     direct walks are banned regardless of receiver.
   - **Conversions are program work:** no board row per gate or batch; the orchestrator posts your receipt on

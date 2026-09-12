@@ -165,22 +165,34 @@ tree tells you the moment a fix breaks a row.
    no `fix` (`no-decorators`, `no-if-is-group`) and 4 have no header (those two plus `no-media-queries-in-features`,
    `testid-typed-only`).
 
-   **AUDIT STATE — 2026-09-12, waves 1 and 2 complete. 18 of 167 modules audited.**
+   **AUDIT STATE — 2026-09-11 evening. Waves 1-4 complete, 36 of 167 modules audited; waves 5-6 running.**
 
 | wave | subjects | verdict | narrowings |
 | - | - | - | - |
-| 1 | the ten cited exemplars | **9 REFUTED**; only `user-bus-deferred-member` copyable | 12/30 by the NAIVE sweep (unsplit, likely overstates) |
+| 1 | the ten cited exemplars | **9 REFUTED**; only `user-bus-deferred-member` copyable | 12/30 by the NAIVE sweep (unsplit, overstates) |
 | 2 | registry/completeness ×8 | **7 REFUTED**; the 8th was LEGACY, not a subject | naive 12/30 → **classified 5 genuinely unenforced (17%)** |
+| 3 | drizzle-schema ×9 | all nine REFUTED | **best proof axes yet**: 1 of 53 rows count-less, 0 of 6 transplants tautologous |
+| 4 | raw-CSS / token ×9 | **all nine REFUTED** | 31 cuts → 19 enforced / **10 unenforced (32%)** / 2 unfalsifiable / **0 mutually redundant (MEASURED)** |
+| 5 | `ordinary-visitors` ×15 | running | — |
+| 6 | `origin-client` ×12 | running | — |
+
+**Wave 4's zero mutually-redundant is a measurement, not an absence of effort** — it ran both cluster cuts and they
+came back clean, which REFUTED redundancy and meant six separate `mustPass` rows were owed rather than a deletion.
+Do not treat the cluster cut as a formality that always collapses.
+
+**Wave 4 also found a defect no axis was looking for:** converting a gate left `gate-conformance.repo.int.test.ts:49`
+RED and disconnected `gate-ignore-grammar.repo.int.test.ts` entirely, and a gate HEADER still cited that dead pin as
+its receipt. The rule that catches it is now guide §8 + the path-scoped rule (`047dc1570`).
 
 **Wave 2 beat wave 1 on every proof axis** — 0 of 45 rows missing `count` (wave 1: 2 of 33), **0 tautologies (all six
 sibling-arm transplants FAILED)**, 7/7 identity arms alarm on a dead position, no loader-property limit anywhere.
 So the corpus is NOT uniformly bad; the exemplar set was the bad part, which is the worst possible place for it.
 
-**TWO copyable modules exist:** `user-bus-deferred-member` (wave 1) and `section-registry-completeness` (wave 2 —
+**Still only TWO fully copyable modules in 36 audited** (wave 4 named `spacing-tier-home-health` as a third candidate for a HARD tripwire only, and only after it lands one §4.5 pin; it also named an ANTI-pattern — never point a lane at `no-raw-spacing-in-features`'s header): `user-bus-deferred-member` (wave 1) and `section-registry-completeness` (wave 2 —
 4/4 narrowings enforced, both fence rows state their own cut result and both are TRUE, header and roster row
 accurate). **Naming the module a lane should COPY is the most actionable thing an audit produces — require it.**
 
-**\~149 modules remain, \~16-18 verifier lanes at 8-10 per lane.** Run by FAMILY so one cold read covers the batch.
+**\~131 modules remain (\~104 once waves 5-6 land), \~13-16 verifier lanes at 8-15 per lane.** Run by FAMILY so one cold read covers the batch.
 
 **MEASURED SCOPE (wave 1, 2026-09-12) — this is a 167-module sweep, not an item, and the rate is the reason it
 precedes D.** Wave 1 audited the ten modules `exemplars-2026-09-11.md` cites as "copy these shapes" and **REFUTED
@@ -188,7 +200,7 @@ NINE**; only `user-bus-deferred-member` survives as copyable. Two of the three t
 were refuted SEVERE. **12 of 30 narrowings came back UNENFORCED — 40%, double the corpus's prior \~1-in-5 rate.**
 Receipts per module: [`v-exemplar-audit-2026-09-12.md`](../reviews/gate-runtime/v-exemplar-audit-2026-09-12.md).
 
-**157 modules remain unaudited.** At \~8-10 modules per verifier lane that is \~16-18 lanes, and it is the honest
+**131 modules remain unaudited (36 of 167 done; waves 5-6 will take it to 63).** At \~8-10 modules per verifier lane that is \~16-18 lanes, and it is the honest
 number to plan against rather than rediscover. Run them by FAMILY so one cold read covers the batch, and fold both
 mandatory sweeps into each lane rather than as separate passes: the §4.1 narrowing cut test, and #1968's
 expectation-row check.
