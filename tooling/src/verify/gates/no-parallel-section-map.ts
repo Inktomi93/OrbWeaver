@@ -1,220 +1,241 @@
-// Gate: no-parallel-section-map (client-architecture-lockdown.md §5 rule 4 / §16 G2) — the composition
-// bug was a section (or modal) smeared across parallel static maps no gate forced to agree. Four shapes
-// are RED outside the sanctioned homes: (1) a VALUE object literal hardcoding ≥2 vocabulary keys (the
-// `SECTION_PANEL_DEFAULTS`/`YOU_MODAL_ROWS` shape); (2) an array literal of `{ id: <VocabId>, … }` elements
-// covering ≥2 ids (the deleted `RAIL_SECTIONS`/`RAIL_ACTIONS` shape); (3) a `Record<VocabId, …>` type
-// annotation on a value declaration (catches a hardcoded map whose value literal the object-literal arm
-// can't see, e.g. built by a function call); (4) a bare array literal of ≥2 distinct vocab-id STRING
-// LITERALS (the deleted `YOU_MODAL_IDS` shape — same drift, spelled as ids not `{id:…}` objects, which arm
-// (2) can't see since it has zero object elements). Derive from the registry, never re-declare — a DERIVED
-// map (`registry.list().filter…`) has no literal keys/type, so it passes (the load-bearing false-positive
-// check). The vocabulary TUPLES themselves (`SECTION_IDS` in section-ids.ts, `MODAL_SLOT_IDS` in modal-slot-ids.ts) are bare
-// all-ids string arrays too — they're the sanctioned ONE home, allowlisted like every other arm.
+// Policy: no-parallel-section-map (client-architecture-lockdown.md §5 rule 4 / §16 G2) — the composition
+// bug was a section (or modal, config group, chrome widget) smeared across parallel static maps no gate
+// forced to agree. Five shapes are RED outside the sanctioned homes:
 //
-// (5) the CHROME arm (shell-chrome-unification.md §D/§E-7): chrome has NO id vocabulary — it's a
-// contributor-style OPEN set over the CLOSED `CHROME_ZONES` axis (zones are architecture, entries are
-// growth), so the id-keyed arms above can't see it. A hand-maintained chrome list = an array literal of ≥2
-// object literals EACH carrying a `zone:` that is a CHROME_ZONES member, outside the door. Homes: the door
-// (main.tsx), the pure assembler (state/assemble-chrome.ts), and the co-located widget defs
-// (features/*/lib/*-chrome.tsx). Everywhere else re-declares a parallel chrome registry — RED.
+// (1) a VALUE object literal whose NAMED keys are ALL vocabulary ids, ≥2 of them (the deleted
+//     `SECTION_PANEL_DEFAULTS`/`YOU_MODAL_ROWS` shape);
+// (2) an array literal of `{ id: <VocabId>, … }` elements covering ≥2 ids (the deleted
+//     `RAIL_SECTIONS`/`RAIL_ACTIONS` shape);
+// (3) a `Record<VocabId, …>` / `Partial<Record<VocabId, …>>` annotation on a VALUE declaration — the
+//     hardcoded map whose value literal arm (1) cannot see because a call built it;
+// (4) a bare array literal of ≥2 distinct vocab-id STRING literals (the deleted `YOU_MODAL_IDS` shape —
+//     same drift spelled as ids rather than `{id:…}` objects, which arm (2) has zero object elements to see);
+// (5) the CHROME arm (shell-chrome-unification.md §D/§E-7) — chrome has NO id vocabulary, it is a
+//     contributor-style OPEN set over the CLOSED `CHROME_ZONES` axis, so the id-keyed arms cannot see it. A
+//     hand-maintained chrome list is an array of ≥2 object literals EACH carrying a `zone:` that is a
+//     CHROME_ZONES member, outside the door / the pure assembler / a co-located `*-chrome` def.
 //
-// EVERY VOCABULARY IS RESOLVED, NOT READ FLAT (#942): the tuples are read through `lib/tuple-read.ts`, which
-// follows a sanctioned spread of a local/imported sibling tuple and REFUSES loudly on any other composition
-// shape. `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]` is four zones; the old direct-element reader saw
-// ONE and every `rail.*`-zoned parallel map escaped while the file scan stayed healthy. The gate's scan line
-// prints each tuple's source declarations and member COUNT, so a shrunken denominator cannot look clean.
+// Derive from the registry, never re-declare: a DERIVED map (`registry.list().filter…`) has no literal
+// keys and no `Record<…>` annotation, so it passes — the load-bearing false-positive check. Every arm also
+// requires the literal to be PURE vocabulary space (one foreign key, one foreign `id`, one foreign string,
+// one non-chrome `zone` and it is not a parallel map), so an incidental collision is not an accusation.
 //
-// SCOPE: the SectionId, ModalSlotId, AND ConfigGroupId vocabularies (all LIVE — the ConfigGroupId arm is
-// M6.1's SettingsCategoryId arm re-keyed by the config revamp, #866 S1; its allowlist mirrors the modal
-// arm: the TUPLE HOMES (`TUPLE_HOME_SUFFIXES` below — section-ids.ts/shell-store.ts/config-group-ids.ts/
-// modal-slot-ids.ts), the door, and its own co-located *-group.tsx defs) PLUS the zone-keyed chrome-entry
-// array (arm 5, its own allowlist).
-import type { Expression, ObjectLiteralExpression, Project, SourceFile, Node as TsMorphNode, TypeNode } from "ts-morph";
+// EVERY VOCABULARY IS RESOLVED, NOT READ FLAT (#942). The four tuples are read through the shared
+// `lib/tuple-read.ts` (`readTupleDeclaration`), which follows a sanctioned spread of a local or imported
+// sibling tuple and REFUSES loudly — a thrown ToolError, exit 2 — on every other composition shape, on an
+// unresolvable binding, on a cycle, and on a spread resolving to nothing. The live
+// `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]` is FOUR zones; the old direct-element reader saw ONE and
+// every `rail.*`-zoned parallel map escaped while the file scan stayed healthy.
+//
+// WHY THIS READER AND NOT `tupleVocabularyFact`, measured 2026-09-12 and the reason to leave this
+// paragraph alone: the shared FACT cannot serve two of these four vocabularies on the REAL tree. Its
+// authored-value reader refuses a composite whose binding has ANY invoked member
+// (`lib/static-authored-value.ts` `explicitCompositeRefusal` → `invokedMemberThroughAliases`, reason
+// `dynamic`), and `section-ids.ts:33` / `config-group-ids.ts:41` both call `.includes(v)` inside their own
+// `isSectionId`/`isConfigGroupId` guard. Driven against the real client tree the fact answered SECTION_IDS
+// 0 members / CONFIG_GROUP_IDS 0 members (MODAL_SLOT_IDS 11 and CHROME_ZONES 4 resolved), which WITHHELD
+// this whole policy on every real run while all 21 conformance rows stayed green — the
+// `freeze-provenance-write-pairing` class, invisible to a virtual proof corpus. `readTupleDeclaration`
+// takes a DECLARATION rather than a Project, so §3's traversal ban is not engaged (only
+// `readTupleVocabulary(project, …)` is unusable behind `defineGate`), and it returns the legacy numbers:
+// SECTION_IDS 10, MODAL_SLOT_IDS 11, CONFIG_GROUP_IDS 13, CHROME_ZONES 4 through the spread. The widening
+// that would let the fact serve these — an `as const` assertion PROVES immutability, so an invoked member
+// on it is not evidence of dynamism — is corpus-wide build work and has its own row, not a line here.
+//
+// AND A VOCABULARY THAT STOPS RESOLVING NOW WITHHOLDS THE VERDICT INSTEAD OF RETIRING ITS ARM. Legacy
+// skipped a vocabulary whose tuple read empty (`if (vocab.ids.size === 0) continue`), so a renamed or moved
+// `CONFIG_GROUP_IDS` silently retired that arm while the other four stayed green — exactly the half-migration
+// the §4.6 blindness rule bans. THE FOUR POPULATION RECEIPTS ARE LOAD-BEARING, one per vocabulary: absent
+// (no exported declaration claims the name), AMBIGUOUS (two do — never a silently merged vocabulary) and
+// EMPTY each file `unresolved: 1` or `members: 0`, and a policy receipt that resolved zero members refuses
+// the run and withholds this policy. A silent blind spot became a loud one, which is the whole point.
+//
+// FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` plus
+// `lib/registry-definition-{anchor,field,home}.ts`; this member reads the family's `lib/registry-definition-
+// home.ts` for the four co-located definition-home slots (`-section`, `-modal`, `-group`, `-chrome`), which is
+// why its sanctioned homes and the completeness policies' co-location law cannot drift apart. Its vocabulary
+// axis rides `lib/tuple-read.ts`, a shared PRIMITIVE, NOT a second family.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
+// (8d93d820f); the final population is `@client`. The per-vocabulary sanctioned HOMES stay INSIDE the arms
+// rather than in the population, because each vocabulary allows a different set and a file that is a home
+// for one vocabulary is an ordinary accused file for the other three.
+import type { ArrayLiteralExpression, Expression, Node as MorphNode, ObjectLiteralExpression, TypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
+import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
-import { readTupleVocabulary } from "../lib/tuple-read.ts";
+import type { DefinitionSlot } from "../lib/registry-definition-home.ts";
+import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
+import { readTupleDeclaration } from "../lib/tuple-read.ts";
 
-/** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
- *  node carries its own position, and `token` folds the dynamic vocab/shape detail the gate's static
- *  `message` can't. */
-interface NodeHit {
-  readonly node: TsMorphNode;
-  readonly token: string;
-}
-
-const CLIENT_SRC = "/packages/client/src/";
-/** ≥ this many vocab keys in one object literal = a re-declared parallel map (not an incidental pair). */
+/** ≥ this many vocabulary keys in one literal = a re-declared parallel map, not an incidental pair. */
 const MIN_KEYS = 2;
-/** A co-located section definition file: `features/<owner>/lib/<id>-section.{ts,tsx}`. */
-const SECTION_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-section\.tsx?$/;
-/** A co-located modal definition file: `features/<owner>/lib/<id>-modal.{ts,tsx}`. */
-const MODAL_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-modal\.tsx?$/;
-/** THE DOOR IS TWO MODULES, not one file: `main.tsx` boots and `compose/*` composes (the #43 boot
- *  code-split put every registry assembly behind the `/` route's lazy boundary, so an unauthenticated
- *  client never parses the feature graph). Same allowance `registry-assembly-at-door-only` (G8) already
- *  makes, and the same one the home-tile/collection completeness gates already spell — a door-keyed
- *  allowlist that names only main.tsx would red the assemblies it is supposed to sanction. */
-function isDoorFile(repoRelPath: string): boolean {
-  return repoRelPath.endsWith("/client/src/main.tsx") || repoRelPath.includes("/client/src/compose/");
-}
+const CHROME_TUPLE = "CHROME_ZONES";
+const CHROME_ASSEMBLER = "/state/assemble-chrome.ts";
 
-/** A vocabulary the parallel-map ban covers: its ids, its `Record<Name>` type regexes, its sanctioned
- *  homes, and the registry name for the fix message. */
-interface Vocab {
+/** The TUPLE HOMES — the state modules that legitimately hold a bare all-ids string array, because there
+ *  the array IS the vocabulary rather than a map over it. A vocabulary's tuple gets its own module once it
+ *  has two readers (`settings-categories.ts` split out of `shell-store.ts` on 2026-08-24 and became
+ *  `config-group-ids.ts` when the config revamp unified the vocabulary, #866 S1). The tuples are read BY
+ *  SYMBOL, so a tuple that moves stays VISIBLE and only this list has to learn its new home. */
+const TUPLE_HOME_SUFFIXES = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/config-group-ids.ts", "/state/modal-slot-ids.ts"] as const;
+
+/** One vocabulary the parallel-map ban covers: its tuple, its `Record<Name>` annotation shapes, and the
+ *  co-located definition slot whose files are its own sanctioned home. */
+interface VocabSpec {
   readonly name: string;
   readonly tupleConst: string;
-  readonly ids: ReadonlySet<string>;
-  /** `<file>#<CONST>` per declaration that contributed members — the semantic SOURCE manifest. */
-  readonly sources: readonly string[];
   readonly recordRe: RegExp;
   readonly partialRecordRe: RegExp;
-  readonly isDefFile: (repoRelPath: string) => boolean;
-  readonly registry: string;
+  readonly slot: DefinitionSlot;
 }
 
-const SECTION_RECORD_RE = /\bRecord<\s*SectionId\b/;
-const SECTION_PARTIAL_RE = /\bPartial<\s*Record<\s*SectionId\b/;
-const MODAL_RECORD_RE = /\bRecord<\s*ModalSlotId\b/;
-const MODAL_PARTIAL_RE = /\bPartial<\s*Record<\s*ModalSlotId\b/;
-const CONFIG_RECORD_RE = /\bRecord<\s*ConfigGroupId\b/;
-const CONFIG_PARTIAL_RE = /\bPartial<\s*Record<\s*ConfigGroupId\b/;
-/** A co-located config-group definition file: `features/<owner>/lib/<id>-group.{ts,tsx}`. */
-const GROUP_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-group\.tsx?$/;
-/** A co-located chrome-widget definition file: `features/<owner>/lib/<id>-chrome.{ts,tsx}`. */
-const CHROME_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-chrome\.tsx?$/;
+const VOCAB_SPECS: readonly VocabSpec[] = [
+  {
+    name: "SectionId",
+    tupleConst: "SECTION_IDS",
+    recordRe: /\bRecord<\s*SectionId\b/,
+    partialRecordRe: /\bPartial<\s*Record<\s*SectionId\b/,
+    slot: DEFINITION_SLOTS.section,
+  },
+  {
+    name: "ModalSlotId",
+    tupleConst: "MODAL_SLOT_IDS",
+    recordRe: /\bRecord<\s*ModalSlotId\b/,
+    partialRecordRe: /\bPartial<\s*Record<\s*ModalSlotId\b/,
+    slot: DEFINITION_SLOTS.modal,
+  },
+  {
+    name: "ConfigGroupId",
+    tupleConst: "CONFIG_GROUP_IDS",
+    recordRe: /\bRecord<\s*ConfigGroupId\b/,
+    partialRecordRe: /\bPartial<\s*Record<\s*ConfigGroupId\b/,
+    slot: DEFINITION_SLOTS.group,
+  },
+];
 
-function rel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
+const MESSAGE =
+  "a hardcoded map (object literal / `{ id }` array / bare id array / `Record<…>` annotation) covering ≥2 " +
+  "SectionIds, ModalSlotIds or ConfigGroupIds, or an array of ≥2 CHROME_ZONES-zoned chrome entries, is a " +
+  "parallel section/modal/config-group/chrome map — the composition-drift bug. Derive from the registry, " +
+  "never re-declare. Homes: the vocabulary tuple, the main.tsx/compose door, the *-section/*-modal/*-group/" +
+  "*-chrome definition files (client-architecture-lockdown.md §5 rule 4 / §16 G2).";
+const FIX =
+  'delete the map and read the registry (registry.get(id) / registry.list()), or move it into the vocabulary\'s own sanctioned home. For a deliberate exception, write an adjacent `@orb-waive no-parallel-section-map(<position>): <why + end condition>` — the position is the DISCRIMINATING MEMBER this policy reports, which is the first vocabulary key of an object map (`chats`), the first covered `id`/zone string literal WITH its quotes (`"chats"`, `"rail.nav"`) for an array, and the DECLARED NAME for a `Record<…>`-annotated declaration.';
+
+/** THE DOOR IS TWO MODULES, not one file: `main.tsx` boots and `compose/*` composes (the #43 boot
+ *  code-split put every registry assembly behind the `/` route's lazy boundary, so an unauthenticated
+ *  client never parses the feature graph). The same allowance `registry-assembly-at-door-only` (G8) makes;
+ *  a door-keyed home naming only main.tsx would red the assemblies it exists to sanction. */
+function isDoorFile(repoRelativePath: string): boolean {
+  return repoRelativePath.endsWith("/client/src/main.tsx") || repoRelativePath.includes("/client/src/compose/");
 }
 
-/** One vocabulary's scan line: the tuple, the declarations that composed it, and the member COUNT — so a
- *  denominator that shrank behind a composition edge is visible on the gate's own row (#942). */
-function vocabLine(tupleConst: string, sources: readonly string[], members: number): string {
-  return `${tupleConst}=${members} from ${sources.length === 0 ? "<none>" : sources.join("+")}`;
+/** The sanctioned homes for a vocabulary-keyed map: a tuple home, the door, or the vocabulary's own
+ *  co-located definition files (the same slot law the completeness policies judge co-location by). */
+function isVocabHome(repoRelativePath: string, vocab: VocabSpec): boolean {
+  return TUPLE_HOME_SUFFIXES.some((home) => repoRelativePath.endsWith(home)) || isDoorFile(repoRelativePath) || isDefinitionHome(repoRelativePath, vocab.slot);
 }
 
-/** The three shell vocabularies the gate covers (all LIVE). */
-function readVocabs(project: Project): readonly Vocab[] {
-  const sections = readTupleVocabulary(project, "SECTION_IDS");
-  const modals = readTupleVocabulary(project, "MODAL_SLOT_IDS");
-  const groups = readTupleVocabulary(project, "CONFIG_GROUP_IDS");
-  return [
-    {
-      name: "SectionId",
-      tupleConst: "SECTION_IDS",
-      ids: sections.members,
-      sources: sections.sources,
-      recordRe: SECTION_RECORD_RE,
-      partialRecordRe: SECTION_PARTIAL_RE,
-      // Section homes: the vocabulary tuple, the door assembly, the co-located section definition files.
-      isDefFile: (p) => SECTION_FILE_RE.test(p),
-      registry: "section",
-    },
-    {
-      name: "ModalSlotId",
-      tupleConst: "MODAL_SLOT_IDS",
-      ids: modals.members,
-      sources: modals.sources,
-      recordRe: MODAL_RECORD_RE,
-      partialRecordRe: MODAL_PARTIAL_RE,
-      // Modal homes: the vocabulary tuple, the door assembly, the co-located *-modal definition files.
-      isDefFile: (p) => MODAL_FILE_RE.test(p),
-      registry: "modal",
-    },
-    {
-      name: "ConfigGroupId",
-      tupleConst: "CONFIG_GROUP_IDS",
-      ids: groups.members,
-      sources: groups.sources,
-      recordRe: CONFIG_RECORD_RE,
-      partialRecordRe: CONFIG_PARTIAL_RE,
-      // Config-group homes: the vocabulary tuple, the door assembly, the co-located *-group definition files.
-      isDefFile: (p) => GROUP_FILE_RE.test(p),
-      registry: "config-group",
-    },
-  ];
+/** The sanctioned homes for a hand-assembled chrome list: the door, the pure assembler, and the co-located
+ *  `*-chrome` widget definitions. */
+function isChromeHome(repoRelativePath: string): boolean {
+  return isDoorFile(repoRelativePath) || repoRelativePath.endsWith(CHROME_ASSEMBLER) || isDefinitionHome(repoRelativePath, DEFINITION_SLOTS.chrome);
 }
 
-/** The TUPLE HOMES — the state modules that legitimately hold a bare all-ids string array, because the
- *  array IS the vocabulary rather than a map over it. A vocab's tuple gets its own module once it has two
- *  readers; `settings-categories.ts` was split out of `shell-store.ts` on 2026-08-24 for exactly that
- *  reason (and became `config-group-ids.ts` when the config revamp unified the vocabulary, #866 S1). Note the
- *  gate reads the tuples BY SYMBOL — `readTuple`, the path-keyed-gates-die-on-rename discipline — so a tuple
- *  that moves stays VISIBLE; only this allowlist has to learn its new home. */
-const TUPLE_HOME_SUFFIXES: readonly string[] = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/config-group-ids.ts", "/state/modal-slot-ids.ts"];
-
-/** The sanctioned homes for a vocab-keyed map: a vocabulary TUPLE HOME + the door (main.tsx, shared by
- *  every vocab) and the vocab's own co-located definition files. */
-function isAllowlisted(repoRelPath: string, vocab: Vocab): boolean {
-  return TUPLE_HOME_SUFFIXES.some((home) => repoRelPath.endsWith(home)) || isDoorFile(repoRelPath) || vocab.isDefFile(repoRelPath);
+/** A finding's anchor: the DISCRIMINATING MEMBER — the key, id or zone that makes this literal a parallel
+ *  map — expressed as the token/offset pair the waiver position is derived from. Anchoring on the member
+ *  rather than on the literal keeps two findings in one statement separately waivable (guide §4.2) and
+ *  makes the reported position the thing a reader would point at. */
+function anchorOn(node: MorphNode, member: MorphNode): { readonly token: string; readonly offset: number } {
+  return { token: member.getText(), offset: member.getStart() - node.getStart() };
 }
 
-/** A parallel vocab map = an object literal whose NAMED keys are ALL vocab ids, ≥2 of them. Requiring
- *  every named key to be a vocab id excludes an incidental collision (a TagUsage map that happens to carry
- *  `characters`/`chats` alongside `worldBooks`/`personas`). */
-function isPureVocabMap(obj: ObjectLiteralExpression, ids: ReadonlySet<string>): boolean {
+/** The first NAMED key that is a vocabulary id, when EVERY named key is one and there are ≥2 — requiring
+ *  every key excludes an incidental collision (a TagUsage map carrying `characters`/`chats` alongside
+ *  `worldBooks`/`personas`). Spreads, methods and computed keys are not hardcoded per-id entries. */
+function pureVocabMapKey(object: ObjectLiteralExpression, ids: ReadonlySet<string>): MorphNode | undefined {
+  let first: MorphNode | undefined;
   let hits = 0;
-  for (const prop of obj.getProperties()) {
-    if (!(Node.isPropertyAssignment(prop) || Node.isShorthandPropertyAssignment(prop))) {
-      continue; // spreads / methods / computed keys — not a hardcoded per-id entry
+  for (const property of object.getProperties()) {
+    if (!(Node.isPropertyAssignment(property) || Node.isShorthandPropertyAssignment(property))) {
+      continue;
     }
-    if (ids.has(prop.getName())) {
-      hits += 1;
-    } else {
-      return false; // a foreign named key ⇒ this is not a vocab-space map
+    if (!ids.has(property.getName())) {
+      return;
     }
+    hits += 1;
+    first ??= property.getNameNode();
   }
-  return hits >= MIN_KEYS;
+  return hits >= MIN_KEYS ? first : undefined;
 }
 
-/** The string value of an element's `id:` property, or undefined. Shorthand (`{ id }`) never carries a
- *  literal, so it can't match — only `id: "x"`. */
-function elementId(el: ObjectLiteralExpression): string | undefined {
-  const prop = el.getProperty("id");
-  if (prop === undefined || !Node.isPropertyAssignment(prop)) {
+/** The string value of an element's named property, with the literal node that carries it. Shorthand
+ *  (`{ id }`) never carries a literal, so it cannot match — only `id: "x"`. */
+function elementField(element: ObjectLiteralExpression, name: string): { readonly value: string; readonly node: Expression } | undefined {
+  const property = element.getProperty(name);
+  if (property === undefined || !Node.isPropertyAssignment(property)) {
     return;
   }
-  const init = prop.getInitializer();
-  return init === undefined ? undefined : readStringValue(init);
-}
-
-/** An array literal whose elements are object literals each carrying an `id:` that is a vocab id, ≥2
- *  distinct covered (the deleted `RAIL_SECTIONS`/`RAIL_ACTIONS` shape). A non-vocab element (a foreign id,
- *  or no `id`) makes the array NOT pure vocab-space, same false-positive guard as the object-literal arm. */
-function isVocabArray(arr: readonly ObjectLiteralExpression[], ids: ReadonlySet<string>): boolean {
-  const covered = new Set<string>();
-  for (const el of arr) {
-    const id = elementId(el);
-    if (id === undefined || !ids.has(id)) {
-      return false;
-    }
-    covered.add(id);
+  const initializer = property.getInitializer();
+  if (initializer === undefined) {
+    return;
   }
-  return covered.size >= MIN_KEYS;
+  const value = readStringValue(initializer);
+  return value === undefined ? undefined : { value, node: initializer };
 }
 
-/** A bare array literal whose elements are ALL string literals, ≥2 of them DISTINCT vocab ids (the
- *  deleted `YOU_MODAL_IDS` shape — a hand list of ids with no `{id:…}` wrapper, invisible to the
- *  object-element array arm). A foreign string in the mix makes it not pure vocab-space, same
- *  false-positive guard as the other arms. */
-function isVocabStringArray(elements: readonly Expression[], ids: ReadonlySet<string>): boolean {
+/** An array of object literals each carrying an `id:` that is a vocabulary id, ≥2 DISTINCT covered (the
+ *  deleted `RAIL_SECTIONS`/`RAIL_ACTIONS` shape). A foreign element makes the array not vocabulary-space. */
+function vocabArrayAnchor(elements: readonly ObjectLiteralExpression[], ids: ReadonlySet<string>): MorphNode | undefined {
   const covered = new Set<string>();
-  for (const el of elements) {
-    const text = readStringValue(el);
+  let first: MorphNode | undefined;
+  for (const element of elements) {
+    const id = elementField(element, "id");
+    if (id === undefined || !ids.has(id.value)) {
+      return;
+    }
+    covered.add(id.value);
+    first ??= id.node;
+  }
+  return covered.size >= MIN_KEYS ? first : undefined;
+}
+
+/** A bare array whose elements are ALL string literals, ≥2 of them DISTINCT vocabulary ids (the deleted
+ *  `YOU_MODAL_IDS` shape — a hand list with no `{id:…}` wrapper, invisible to the object-element arm). */
+function vocabStringArrayAnchor(elements: readonly Expression[], ids: ReadonlySet<string>): MorphNode | undefined {
+  const covered = new Set<string>();
+  let first: MorphNode | undefined;
+  for (const element of elements) {
+    const text = readStringValue(element);
     if (text === undefined || !ids.has(text)) {
-      return false;
+      return;
     }
     covered.add(text);
+    first ??= element;
   }
-  return covered.size >= MIN_KEYS;
+  return covered.size >= MIN_KEYS ? first : undefined;
 }
 
-/** A `Record<VocabId, …>` (or `Partial<Record<VocabId, …>>`) type reference on a value declaration —
- *  catches a hardcoded map whose value the object-literal arm can't see (built by a function call, not a
- *  literal). A bare TYPE ALIAS is not a value and can't hold data, so only VARIABLE declarations checked. */
-function isVocabRecordType(typeNode: TypeNode | undefined, vocab: Vocab): boolean {
+/** An array of ≥2 object literals EACH carrying a CHROME_ZONES `zone:` — a hand chrome list. A non-chrome
+ *  `zone` (the preset assembly's `"setup"`/`"post"`) makes the array not chrome-space. */
+function chromeArrayAnchor(elements: readonly ObjectLiteralExpression[], zones: ReadonlySet<string>): MorphNode | undefined {
+  let first: MorphNode | undefined;
+  let count = 0;
+  for (const element of elements) {
+    const zone = elementField(element, "zone");
+    if (zone === undefined || !zones.has(zone.value)) {
+      return;
+    }
+    count += 1;
+    first ??= zone.node;
+  }
+  return count >= MIN_KEYS ? first : undefined;
+}
+
+/** A `Record<VocabId, …>` or `Partial<Record<VocabId, …>>` annotation on a VALUE declaration — the
+ *  hardcoded map whose value a call built, so no literal exists for the object-literal arm to see. A bare
+ *  TYPE ALIAS is not a value and cannot hold data, so only variable declarations are asked. */
+function isVocabRecordType(typeNode: TypeNode | undefined, vocab: VocabSpec): boolean {
   if (typeNode === undefined || !Node.isTypeReference(typeNode)) {
     return false;
   }
@@ -222,300 +243,448 @@ function isVocabRecordType(typeNode: TypeNode | undefined, vocab: Vocab): boolea
   return vocab.recordRe.test(text) || vocab.partialRecordRe.test(text);
 }
 
-/** The two array shapes: a `{ id: … }[]` list (arm 2) or a bare id-string `[]` (arm 4) — mutually
- *  exclusive by construction (an all-object array has zero string elements and vice versa). */
-function scanArrayForVocab(sf: SourceFile, vocab: Vocab, out: NodeHit[]): void {
-  for (const arr of sf.getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)) {
-    const rawElements = arr.getElements();
-    const objectElements = rawElements.filter(Node.isObjectLiteralExpression);
-    if (objectElements.length === rawElements.length && objectElements.length > 0) {
-      if (isVocabArray(objectElements, vocab.ids)) {
-        out.push({ node: arr, token: `${vocab.name}-object-array` });
-      }
+/** The two array shapes are mutually exclusive by construction: an all-object array has zero string
+ *  elements and vice versa. */
+function objectElementsOf(array: ArrayLiteralExpression): readonly ObjectLiteralExpression[] | undefined {
+  const elements = array.getElements();
+  const objects = elements.filter(Node.isObjectLiteralExpression);
+  return objects.length === elements.length && objects.length > 0 ? objects : undefined;
+}
+
+/** The literals one invocation collected, held in `create` state and judged once per vocabulary. */
+interface Candidates {
+  readonly objects: ObjectLiteralExpression[];
+  readonly arrays: ArrayLiteralExpression[];
+  readonly declarations: VariableDeclaration[];
+}
+
+/** The two capabilities every arm needs from the policy context, and nothing else. */
+interface Judge {
+  readonly pathOf: (node: MorphNode) => string;
+  readonly report: (node: MorphNode, member: MorphNode, detail: string) => void;
+}
+
+function collectCandidate(node: MorphNode, into: Candidates): void {
+  if (Node.isObjectLiteralExpression(node)) {
+    into.objects.push(node);
+  } else if (Node.isArrayLiteralExpression(node)) {
+    into.arrays.push(node);
+  } else if (Node.isVariableDeclaration(node)) {
+    into.declarations.push(node);
+  }
+}
+
+/** Arm (1) — a per-id object literal outside the vocabulary's homes. */
+function judgeObjectMaps(candidates: Candidates, vocab: VocabSpec, ids: ReadonlySet<string>, judge: Judge): void {
+  for (const object of candidates.objects) {
+    const key = isVocabHome(judge.pathOf(object), vocab) ? undefined : pureVocabMapKey(object, ids);
+    if (key !== undefined) {
+      judge.report(object, key, `A per-id object literal re-declares ≥${MIN_KEYS} ${vocab.name}s outside the sanctioned homes.`);
+    }
+  }
+}
+
+/** Arms (2) and (4) — the `{ id: … }` array and the bare id-string array, mutually exclusive by shape. */
+function judgeVocabArrays(candidates: Candidates, vocab: VocabSpec, ids: ReadonlySet<string>, judge: Judge): void {
+  for (const array of candidates.arrays) {
+    if (isVocabHome(judge.pathOf(array), vocab)) {
       continue;
     }
-    if (isVocabStringArray(rawElements, vocab.ids)) {
-      out.push({ node: arr, token: `${vocab.name}-string-array` });
+    const objectElements = objectElementsOf(array);
+    const anchor = objectElements === undefined ? vocabStringArrayAnchor(array.getElements(), ids) : vocabArrayAnchor(objectElements, ids);
+    if (anchor !== undefined) {
+      const shape = objectElements === undefined ? "A bare array of id strings" : "An array of `{ id: … }` elements";
+      judge.report(array, anchor, `${shape} covers ≥${MIN_KEYS} ${vocab.name}s outside the sanctioned homes.`);
     }
   }
 }
 
-function scanFileForVocab(sf: SourceFile, vocab: Vocab, out: NodeHit[]): void {
-  const path = sf.getFilePath();
-  if (!path.includes(CLIENT_SRC) || isAllowlisted(rel(path), vocab)) {
-    return;
-  }
-  for (const obj of sf.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression)) {
-    if (isPureVocabMap(obj, vocab.ids)) {
-      out.push({ node: obj, token: `${vocab.name}-object-map` });
-    }
-  }
-  scanArrayForVocab(sf, vocab, out);
-  for (const decl of sf.getVariableDeclarations()) {
-    if (isVocabRecordType(decl.getTypeNode(), vocab)) {
-      out.push({ node: decl, token: `${vocab.name}-record-type` });
-    }
-  }
+/** A MODULE-LEVEL declaration: its statement's parent is the source file itself.
+ *
+ *  THE RECORD-TYPE ARM'S SCOPE FENCE, and it is load-bearing rather than incidental. The legacy gate read
+ *  `sourceFile.getVariableDeclarations()`, which returns TOP-LEVEL declarations only; the visitor this
+ *  conversion runs on delivers every `VariableDeclaration` in the tree, function-scoped ones included.
+ *  Measured 2026-09-12 over the real client corpus, that widening produced exactly one new finding and it
+ *  was a FALSE POSITIVE: the render-time accumulator at `app-shell.tsx:178`, a function-scoped
+ *  `Partial\<Record\<SectionId, ReactNode\>\>` binding filled by a loop over `registry.list()` — the
+ *  DERIVED map this law exists to ask for. A
+ *  function-scoped accumulator is a render-time derivation; a parallel map is a DECLARED module-level
+ *  table that outlives every call. So the arm keeps the legacy scope, stated as a fence instead of
+ *  inherited from a reader's default. The object-literal and array arms are deep in both runtimes
+ *  (legacy reached them through `getDescendantsOfKind`) and are unchanged. */
+function isModuleLevel(declaration: VariableDeclaration): boolean {
+  const statement = declaration.getVariableStatement();
+  return statement !== undefined && Node.isSourceFile(statement.getParent());
 }
 
-/** The sanctioned homes for a hand-assembled chrome list: the door (main.tsx), the pure assembler, and the
- *  co-located widget def files matched by CHROME_FILE_RE. */
-function isChromeAllowlisted(repoRelPath: string): boolean {
-  return isDoorFile(repoRelPath) || repoRelPath.endsWith("/state/assemble-chrome.ts") || CHROME_FILE_RE.test(repoRelPath);
-}
-
-/** An object literal's `zone:` value when it is a CHROME_ZONES member, else undefined (a non-chrome `zone`
- *  like the preset assembly's `"setup"`/`"post"` returns undefined — that array isn't chrome-space). */
-function elementZone(el: ObjectLiteralExpression, zones: ReadonlySet<string>): string | undefined {
-  const prop = el.getProperty("zone");
-  if (prop === undefined || !Node.isPropertyAssignment(prop)) {
-    return;
-  }
-  const init = prop.getInitializer();
-  const text = init === undefined ? undefined : readStringValue(init);
-  return text !== undefined && zones.has(text) ? text : undefined;
-}
-
-/** An array literal of ≥2 object literals EACH carrying a CHROME_ZONES `zone:` — a hand chrome list. A
- *  foreign element (no chrome `zone`) makes the array not pure chrome-space, the same false-positive guard
- *  the vocab arms use. */
-function isChromeArray(arr: readonly ObjectLiteralExpression[], zones: ReadonlySet<string>): boolean {
-  let count = 0;
-  for (const el of arr) {
-    if (elementZone(el, zones) === undefined) {
-      return false;
-    }
-    count += 1;
-  }
-  return count >= MIN_KEYS;
-}
-
-/** Arm 5 — a zone-keyed chrome-entry array re-formed outside the door. Chrome has no id tuple, so this
- *  keys on the CHROME_ZONES value axis instead. */
-function scanFileForChromeArray(sf: SourceFile, zones: ReadonlySet<string>, out: NodeHit[]): void {
-  const path = sf.getFilePath();
-  if (!path.includes(CLIENT_SRC) || isChromeAllowlisted(rel(path))) {
-    return;
-  }
-  for (const arr of sf.getDescendantsOfKind(SyntaxKind.ArrayLiteralExpression)) {
-    const rawElements = arr.getElements();
-    const objectElements = rawElements.filter(Node.isObjectLiteralExpression);
-    if (objectElements.length !== rawElements.length || objectElements.length === 0) {
+/** Arm (3) — the `Record<VocabId, …>` annotation whose value no literal carries. */
+function judgeRecordTypes(candidates: Candidates, vocab: VocabSpec, judge: Judge): void {
+  for (const declaration of candidates.declarations) {
+    if (!isModuleLevel(declaration)) {
       continue;
     }
-    if (isChromeArray(objectElements, zones)) {
-      out.push({ node: arr, token: "chrome-array" });
+    if (!isVocabHome(judge.pathOf(declaration), vocab) && isVocabRecordType(declaration.getTypeNode(), vocab)) {
+      judge.report(declaration, declaration.getNameNode(), `A \`Record<${vocab.name}, …>\` annotation declares a per-id map outside the sanctioned homes.`);
     }
   }
 }
 
-export const gate: GateDescriptor = {
-  name: "no-parallel-section-map",
-  docRow: "client-architecture-lockdown.md §5 rule 4 / §16 G2",
-  status: "active",
-  scopeSafety: "whole-project",
-  message:
-    "a hardcoded map (object literal / `{ id }` array / `Record<…>` type) covering ≥2 SectionIds/ModalSlotIds/ConfigGroupIds, or an array of ≥2 CHROME_ZONES-zoned chrome entries, is a parallel section/modal/chrome map (the composition-drift bug) — derive from the registry, never re-declare. Homes: the vocab tuple, the main.tsx door, the *-section/*-modal/*-group/*-chrome files.",
-  fix: "delete the map and read the registry (registry.get(id)/list()); if it is tracked scaffolding, home it in an allowlisted file with its FLAG marker.",
-  run: (ctx) => {
-    const out: NodeHit[] = [];
-    const vocabs = readVocabs(ctx.project);
-    for (const vocab of vocabs) {
-      if (vocab.ids.size === 0) {
-        continue;
-      }
-      for (const sf of ctx.project.getSourceFiles()) {
-        scanFileForVocab(sf, vocab, out);
-      }
+/** Arm (5) — the zone-keyed chrome list, on its OWN homes: chrome has no id tuple to key on. */
+function judgeChromeArrays(candidates: Candidates, zones: ReadonlySet<string>, judge: Judge): void {
+  for (const array of candidates.arrays) {
+    if (isChromeHome(judge.pathOf(array))) {
+      continue;
     }
-    const chrome = readTupleVocabulary(ctx.project, "CHROME_ZONES");
-    if (chrome.members.size > 0) {
-      for (const sf of ctx.project.getSourceFiles()) {
-        scanFileForChromeArray(sf, chrome.members, out);
-      }
+    const objectElements = objectElementsOf(array);
+    const anchor = objectElements === undefined ? undefined : chromeArrayAnchor(objectElements, zones);
+    if (anchor !== undefined) {
+      judge.report(array, anchor, `A hand-maintained chrome list re-declares ≥${MIN_KEYS} ${CHROME_TUPLE}-zoned entries outside the door.`);
     }
-    const declarations = [...vocabs.map((v) => v.sources), chrome.sources];
-    const lines = [...vocabs.map((v) => vocabLine(v.tupleConst, v.sources, v.ids.size)), vocabLine("CHROME_ZONES", chrome.sources, chrome.members.size)];
-    const sourceCount = declarations.reduce((n, list) => n + list.length, 0);
-    ctx.scan({ unit: `vocabulary source [${lines.join(" · ")}]`, candidates: sourceCount, scanned: sourceCount });
-    for (const hit of out) {
-      ctx.report(hit.node, { token: hit.token, offset: 0 });
+  }
+}
+
+/** The EXPORTED tuple declarations this invocation was delivered, by declared name. Built in `create`
+ *  state from visited nodes, never from a project walk: a tuple is read BY SYMBOL (the
+ *  path-keyed-gates-die-on-rename discipline), so a tuple that moves stays visible. */
+function exportedTupleIndex(candidates: Candidates): ReadonlyMap<string, readonly VariableDeclaration[]> {
+  const index = new Map<string, VariableDeclaration[]>();
+  for (const declaration of candidates.declarations) {
+    if (declaration.getVariableStatement()?.isExported() !== true) {
+      continue;
     }
+    const name = declaration.getName();
+    index.set(name, [...(index.get(name) ?? []), declaration]);
+  }
+  return index;
+}
+
+/** One vocabulary's members, or undefined when the name is claimed by no exported declaration or by TWO.
+ *  Both are blindness, never a narrowed vocabulary: the caller's receipt refuses and the pass withholds. */
+function readVocabularyMembers(index: ReadonlyMap<string, readonly VariableDeclaration[]>, tupleConst: string): ReadonlySet<string> | undefined {
+  const declarations = index.get(tupleConst) ?? [];
+  const declaration = declarations.length === 1 ? declarations[0] : undefined;
+  return declaration === undefined ? undefined : readTupleDeclaration(declaration).members;
+}
+
+const VOCAB_FIXTURES = {
+  "packages/client/src/state/section-ids.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+  "packages/client/src/state/modal-slot-ids.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+  "packages/client/src/state/config-group-ids.ts": 'export const CONFIG_GROUP_IDS = ["personas", "appearance", "tags"] as const;\n',
+  "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
+  "packages/client/src/state/chrome-registry.ts":
+    'import { RAIL_ZONES } from "./section-registry.ts";\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+} as const;
+
+export const gate = defineGate({
+  id: "no-parallel-section-map",
+  family: "registry-definitions",
+  authority: "ordinary",
+  severity: "error",
+  population: "@client",
+  analysis: "types",
+  execution: "entire-population",
+  facts: [],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const candidates: Candidates = { objects: [], arrays: [], declarations: [] };
+    const judge: Judge = {
+      pathOf: (node) => ctx.relativePath(node.getSourceFile()),
+      report: (node, member, detail) => ctx.report.node(node, { ...anchorOn(node, member), message: `${MESSAGE} ${detail}`, fix: FIX }),
+    };
+
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ObjectLiteralExpression, SyntaxKind.ArrayLiteralExpression, SyntaxKind.VariableDeclaration],
+          visit: (node): void => collectCandidate(node, candidates),
+        },
+      ],
+      evaluate: () => {
+        const index = exportedTupleIndex(candidates);
+        const read = (tupleConst: string): ReadonlySet<string> | undefined => {
+          const members = readVocabularyMembers(index, tupleConst);
+          ctx.receipt({ kind: "population", source: tupleConst, members: members?.size ?? 0, unresolved: members === undefined ? 1 : 0 });
+          return members;
+        };
+        const vocabularies = VOCAB_SPECS.map((vocab) => ({ vocab, ids: read(vocab.tupleConst) }));
+        const zones = read(CHROME_TUPLE);
+        // A vocabulary that did not resolve has already refused through its own receipt, which withholds
+        // this whole policy. Judging the ones that DID resolve would render a partial verdict that reads
+        // exactly like a clean one — the blindness legacy shipped as `if (vocab.ids.size === 0) continue`.
+        if (zones === undefined || zones.size === 0 || vocabularies.some(({ ids }) => ids === undefined || ids.size === 0)) {
+          return;
+        }
+        for (const { vocab, ids } of vocabularies) {
+          if (ids !== undefined) {
+            judgeObjectMaps(candidates, vocab, ids, judge);
+            judgeVocabArrays(candidates, vocab, ids, judge);
+            judgeRecordTypes(candidates, vocab, judge);
+          }
+        }
+        judgeChromeArrays(candidates, zones, judge);
+      },
+    };
   },
   mustFlag: [
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/panel-defaults.ts": "export const M = {\n  chats: { list: 1 },\n  characters: { list: 2 },\n};\n",
       },
-      expect: { token: "SectionId-object-map" },
-      why: "a re-declared per-section map (≥2 SectionId keys) outside the sanctioned homes — the target bug",
+      expect: { count: 1, token: "chats", messageIncludes: "per-id object literal re-declares" },
+      why: "THE TARGET BUG: a re-declared per-section map (≥2 SectionId keys) outside the sanctioned homes — the deleted SECTION_PANEL_DEFAULTS shape",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/rail-sections.ts":
           'export const RAIL_SECTIONS = [\n  { id: "chats", label: "Chats" },\n  { id: "characters", label: "Characters" },\n];\n',
       },
-      expect: { token: "SectionId-object-array" },
-      why: "an array of `{ id: … }` elements covering ≥2 SectionIds — the deleted RAIL_SECTIONS shape",
+      expect: { count: 1, token: '"chats"', messageIncludes: "`{ id: … }` elements" },
+      why: "an array of `{ id: … }` elements covering ≥2 SectionIds — the deleted RAIL_SECTIONS shape. The reported position is the covered id WITH its quotes, which is why `fix` spells it",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/labels.ts":
-          'import type { SectionId } from "../../../state/shell-store";\n' +
+          'import type { SectionId } from "../../../state/section-ids.ts";\n' +
           "declare function build(): Record<SectionId, string>;\n" +
           "export const LABELS: Record<SectionId, string> = build();\n",
       },
-      expect: { token: "SectionId-record-type" },
-      why: "a `Record<SectionId, …>`-typed value built by a function call — no literal the object-literal arm can see",
+      expect: { count: 1, token: "LABELS", messageIncludes: "`Record<SectionId, …>` annotation" },
+      why: "a `Record<SectionId, …>`-typed value built by a function call — there is no literal for the object-literal arm to see, and the position is the declared name",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        ...VOCAB_FIXTURES,
+        "packages/client/src/features/x/lib/partial-labels.ts":
+          'import type { ModalSlotId } from "../../../state/modal-slot-ids.ts";\n' +
+          "declare function build(): Partial<Record<ModalSlotId, string>>;\n" +
+          "export const LABELS: Partial<Record<ModalSlotId, string>> = build();\n",
+      },
+      expect: { count: 1, token: "LABELS", messageIncludes: "`Record<ModalSlotId, …>` annotation" },
+      why: "THE PARTIAL ARM, which legacy advertised in a second regex per vocabulary and proved with no row: `Partial<Record<ModalSlotId, …>>` is the same hardcoded per-id map with optional entries, and a policy carrying an unproven arm cannot tell an unreachable one from a live one",
+    },
+    {
+      mode: "types",
+      files: {
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/you-rows.ts": "export const ROWS = {\n  theme: { label: 1 },\n  settings: { label: 2 },\n};\n",
       },
-      expect: { token: "ModalSlotId-object-map" },
+      expect: { count: 1, token: "theme", messageIncludes: "ModalSlotIds" },
       why: "a re-declared per-modal map (≥2 ModalSlotId keys) — the deleted YOU_MODAL_ROWS shape",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/rail-actions.ts":
           'export const RAIL_ACTIONS = [\n  { id: "theme", label: "Theme" },\n  { id: "settings", label: "Settings" },\n];\n',
       },
-      expect: { token: "ModalSlotId-object-array" },
+      expect: { count: 1, token: '"theme"', messageIncludes: "ModalSlotIds" },
       why: "an array of `{ id: … }` elements covering ≥2 ModalSlotIds — the deleted RAIL_ACTIONS shape",
     },
     {
-      files: {
-        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
-        "packages/client/src/features/x/lib/you-modal-ids.ts": 'export const YOU_MODAL_IDS = ["account", "settings", "theme"];\n',
-      },
-      expect: { token: "ModalSlotId-string-array" },
-      why: "a bare string array of ≥2 ModalSlotIds outside an allowlisted home — the deleted YOU_MODAL_IDS shape (the G2 gap a fresh verifier found: a bare id array has zero object elements, invisible to the `{id:…}` array arm)",
+      mode: "types",
+      files: { ...VOCAB_FIXTURES, "packages/client/src/features/x/lib/you-modal-ids.ts": 'export const YOU_MODAL_IDS = ["account", "settings", "theme"];\n' },
+      expect: { count: 1, token: '"account"', messageIncludes: "bare array of id strings" },
+      why: "a bare string array of ≥2 ModalSlotIds outside an allowlisted home — the deleted YOU_MODAL_IDS shape (the G2 gap a fresh verifier found: a bare id array has zero object elements and is invisible to the `{id:…}` array arm)",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/you-modal-ids.ts": 'export const YOU_MODAL_IDS = ["account" as const, "settings" as const];\n',
       },
-      expect: { token: "ModalSlotId-string-array" },
-      why: "the same bare-id array with each element written `x as const` (AsExpression) — the wrapped-literal shape the plain StringLiteral element reader silently PASSED before hardening",
+      expect: { count: 1, token: '"account" as const', messageIncludes: "bare array of id strings" },
+      why: "the same bare-id array with each element written `x as const` (an AsExpression) — the wrapped-literal shape a plain StringLiteral element reader silently PASSED before hardening. The position is the whole element, because that is the node the accusation reads",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const CONFIG_GROUP_IDS = ["personas", "appearance", "tags"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/config-labels.ts": "export const LABELS = {\n  personas: { label: 1 },\n  appearance: { label: 2 },\n};\n",
       },
-      expect: { token: "ConfigGroupId-object-map" },
-      why: "a re-declared per-group map (≥2 ConfigGroupId keys) outside the sanctioned homes — the M6.1 arm, re-keyed by the config revamp",
+      expect: { count: 1, token: "personas", messageIncludes: "ConfigGroupIds" },
+      why: "a re-declared per-group map (≥2 ConfigGroupId keys) outside the sanctioned homes — the M6.1 arm, re-keyed by the config revamp (#866 S1)",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/chrome-registry.ts": 'export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/hand-list.ts":
           'export const HAND = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
       },
-      expect: { token: "chrome-array" },
-      why: "a hand array of ≥2 CHROME_ZONES-zoned chrome entries outside the door and not a *-chrome file — the chrome arm (5)",
+      expect: { count: 1, token: '"rail.end"', messageIncludes: "hand-maintained chrome list" },
+      why: "a hand array of ≥2 CHROME_ZONES-zoned chrome entries outside the door and not a `*-chrome` file — the chrome arm (5)",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
-        "packages/client/src/state/chrome-registry.ts":
-          'import { RAIL_ZONES } from "./section-registry.ts";\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/hand-rail.ts": 'export const HAND = [\n  { id: "a", zone: "rail.nav" },\n  { id: "b", zone: "rail.brand" },\n];\n',
       },
-      expect: { token: "chrome-array" },
-      why: 'THE #942 SPLIT: the live `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]` shape, with a parallel hand list over the two zones that reach the gate ONLY through the imported spread — the direct-element reader saw 1 of 4 zones and this map escaped',
+      expect: { count: 1, token: '"rail.nav"', messageIncludes: "hand-maintained chrome list" },
+      why: 'THE #942 SPLIT: the live `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]` shape, with a parallel hand list over two zones that reach the vocabulary ONLY through the imported spread. A direct-element reader saw 1 of 4 zones and this map escaped; this row dies the moment the tuple stops being RESOLVED',
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/derived.ts":
           "declare const registry: { list: () => { id: string; mobilePrimary: boolean }[] };\n" +
           "export const MOBILE_PRIMARY_SECTIONS = registry.list().filter((d) => d.mobilePrimary);\n",
       },
-      why: "a DERIVED map (no literal SectionId keys) — the mandated false-positive check, must pass",
+      why: "THE MANDATED FALSE-POSITIVE CHECK: a DERIVED map has no literal keys and no `Record<…>` annotation, so deriving from the registry — the thing the law asks for — must pass",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        ...VOCAB_FIXTURES,
+        "packages/client/src/features/x/lib/consumer.ts":
+          'import type { SectionId } from "../../../state/section-ids.ts";\nexport declare const render: (labels: Record<SectionId, string>) => void;\n',
+      },
+      why: "THE TYPE-REFERENCE FENCE, and the row that dies without it: a declaration whose annotation MENTIONS `Record<SectionId, …>` inside a function type CONSUMES a per-id map, it does not hold one. The arm asks whether the declaration's own type node IS the Record reference, so cutting `Node.isTypeReference` down to a bare `getText()` match on any type node accuses this consumer and REDS this row",
+    },
+    {
+      mode: "types",
+      files: {
+        ...VOCAB_FIXTURES,
+        "packages/client/src/features/app-shell/surfaces/app-shell.tsx":
+          'import type { SectionId } from "../../../state/section-ids.ts";\n' +
+          "declare const registry: { list: () => { id: SectionId; content: () => unknown }[] };\n" +
+          "export function AppShell(): unknown {\n" +
+          "  const contentBySection: Partial<Record<SectionId, unknown>> = {};\n" +
+          "  for (const def of registry.list()) {\n" +
+          "    contentBySection[def.id] = def.content();\n" +
+          "  }\n" +
+          "  return contentBySection;\n" +
+          "}\n",
+      },
+      why: "THE MODULE-LEVEL FENCE, taken from the REAL TREE and the row that dies without it: this is `app-shell.tsx:178`'s live shape, a function-scoped `Partial<Record<SectionId, …>>` accumulator filled by a loop over `registry.list()` — the DERIVED map the law asks for. The §4.6 differential measured it as the ONE new finding the visitor-fed conversion would have produced over the legacy top-level reader, and it was a false positive; deleting `isModuleLevel` reds this row and re-creates it",
+    },
+    {
+      mode: "types",
+      files: {
+        ...VOCAB_FIXTURES,
+        "packages/client/src/features/x/lib/tag-usage.ts": "export const USAGE = {\n  chats: 1,\n  characters: 2,\n  worldBooks: 3,\n};\n",
+      },
+      why: "THE OBJECT-MAP FALSE-POSITIVE GUARD, and the row that dies without it: a map carrying TWO SectionId-looking keys alongside a foreign one is an incidental collision (the live TagUsage shape), not vocabulary space. Deleting the `return` on a foreign named key in `pureVocabMapKey` flags this map and REDS this row — nothing else in the set visits that clause, because every other fixture is either pure vocabulary space or has no vocabulary key at all",
+    },
+    {
+      mode: "types",
+      files: {
+        ...VOCAB_FIXTURES,
+        "packages/client/src/features/x/lib/one-key.ts":
+          'export const ONE = { chats: 1 };\nexport const ONE_LIST = [{ id: "chats" }];\nexport const ONE_ID = ["account"];\nexport const EMPTY = [];\n',
+      },
+      why: "THE ≥2 THRESHOLD, pinned on all three id arms at once: ONE vocabulary key, ONE `{id:…}` element and ONE bare id string are an ordinary reference to a section or a modal, not a re-declared map over the vocabulary. Lowering `MIN_KEYS` to 1 reds this row three times, and without it the `≥2` in the message is a claim no row visits. `EMPTY` is the CONSTRUCTED FIXTURE for `objectElementsOf`'s `objects.length > 0` clause (§4.1, measured 2026-09-12): an empty array literal is the only shape that clause routes differently, and it passes identically with the clause, without it, and with it cut alongside `MIN_KEYS = 1` — both arms behind it require ≥2 members, so the clause is MUTUALLY REDUNDANT with the threshold rather than unenforced. It is kept because it states which arm owns an empty array",
+    },
+    {
+      mode: "types",
+      files: {
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/mixed-array.ts":
           "declare const registry: { list: () => { id: string }[] };\n" +
           'export const NOT_A_SECTION_MAP = [{ id: "chats" }, { other: "value" }];\n' +
           "export const DERIVED = registry.list();\n",
       },
-      why: "an array with a non-`id` element isn't pure section-space (the array false-positive guard), passes",
+      why: "THE FOUNDING GUARD ROW, carried: an array with a non-`id` element is not pure section-space. It is NOT the row that dies when the guard is cut — measured 2026-09-12, cutting `vocabArrayAnchor`'s foreign-element refusal leaves it green, because only ONE covered id survives and the ≥2 threshold refuses anyway. The row below is the discriminating one",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts":
-          'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n' +
-          'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+        ...VOCAB_FIXTURES,
+        "packages/client/src/features/x/lib/mixed-pair.ts": 'export const NOT_A_SECTION_MAP = [{ id: "chats" }, { id: "characters" }, { other: "value" }];\n',
       },
-      why: "the SECTION_IDS/MODAL_SLOT_IDS vocab tuples ARE bare all-ids string arrays, but shell-store.ts is the sanctioned one home — allowlisted, must pass",
+      why: "THE ARRAY GUARD'S DISCRIMINATING ROW (§4.1, measured 2026-09-12): TWO covered SectionIds beside one foreign element. Only here does `vocabArrayAnchor`'s foreign-element refusal decide the verdict alone — cut it to a `continue` and the two ids clear the threshold and this row REDS, while the founding row above stays green for the unrelated reason that it never had two",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
-        "packages/client/src/features/x/lib/foreign-strings.ts": 'export const NOT_A_MODAL_LIST = ["theme", "someOtherFeature"];\n',
+        ...VOCAB_FIXTURES,
+        "packages/client/src/features/x/lib/mixed-strings.ts": 'export const NOT_A_MODAL_LIST = ["theme", "settings", "someOtherFeature"];\n',
       },
-      why: "a foreign string in the mix isn't pure vocab-space (the string-array false-positive guard), passes",
+      why: "THE STRING-ARRAY GUARD'S DISCRIMINATING ROW (§4.1, measured 2026-09-12), for the same reason: two covered ModalSlotIds beside one foreign string. Cutting `vocabStringArrayAnchor`'s refusal REDS this row; the two-element legacy row below cannot, because one covered id never reaches the threshold",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/shell-store.ts": 'export const CONFIG_GROUP_IDS = ["personas", "appearance", "tags"] as const;\n',
-        "packages/client/src/features/x/lib/appearance-group.tsx": "export const M = { personas: 1, appearance: 2 };\n",
+        ...VOCAB_FIXTURES,
+        "packages/client/src/features/x/lib/mixed-zones.ts":
+          'export const MIXED = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n  { id: "c", zone: "setup" },\n];\n',
       },
-      why: "a ConfigGroupId-keyed object literal inside a co-located *-group.tsx def file — allowlisted, must pass",
+      why: "THE CHROME GUARD'S DISCRIMINATING ROW (§4.1, measured 2026-09-12): two CHROME_ZONES-zoned entries beside one preset-zoned element. A list that mixes zones from two axes is not a chrome registry, and this is the only row where `chromeArrayAnchor`'s foreign-zone refusal is the deciding clause — the all-foreign `preset-zones` row below survives the cut on the ≥2 threshold",
     },
     {
-      files: {
-        "packages/client/src/state/config-group-ids.ts": 'export const CONFIG_GROUP_IDS = ["personas", "appearance", "tags"] as const;\n',
-      },
-      why: "the CONFIG_GROUP_IDS tuple in its OWN state module (split out of shell-store.ts 2026-08-24, re-keyed 2026-08-30) — a TUPLE HOME, allowlisted, must pass. The tuple is read BY SYMBOL, so moving it never blinds the gate; this row pins that the new home is sanctioned rather than merely unseen.",
+      mode: "types",
+      files: { ...VOCAB_FIXTURES },
+      why: "THE TUPLE HOMES: `section-ids.ts`/`modal-slot-ids.ts`/`config-group-ids.ts` ARE bare all-ids string arrays and `chrome-registry.ts` composes one, but each is the sanctioned ONE home for its vocabulary — allowlisted, must pass. Deleting `TUPLE_HOME_SUFFIXES` reds this row on the three id tuples",
     },
     {
+      mode: "types",
+      files: { ...VOCAB_FIXTURES, "packages/client/src/features/x/lib/foreign-strings.ts": 'export const NOT_A_MODAL_LIST = ["theme", "someOtherFeature"];\n' },
+      why: "a foreign string in the mix is not pure vocabulary space — the string-array false-positive guard. Cutting the foreign-element refusal in `vocabStringArrayAnchor` reds this row",
+    },
+    {
+      mode: "types",
+      files: { ...VOCAB_FIXTURES, "packages/client/src/features/x/lib/appearance-group.tsx": "export const M = { personas: 1, appearance: 2 };\n" },
+      why: "a ConfigGroupId-keyed object literal inside a co-located `*-group.tsx` definition file — the vocabulary's own home, judged by the family's shared `isDefinitionHome` reader rather than by a private regex. Cutting the `isDefinitionHome` clause reds this row",
+    },
+    {
+      mode: "types",
       files: {
-        "packages/client/src/state/chrome-registry.ts": 'export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;\n',
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/x-chrome.tsx": 'export const XS = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
       },
-      why: "a chrome-entry array inside a co-located *-chrome.tsx def file — allowlisted, must pass",
+      why: "a chrome-entry array inside a co-located `*-chrome.tsx` definition file — allowlisted, must pass",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/chrome-registry.ts": 'export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;\n',
+        ...VOCAB_FIXTURES,
+        "packages/client/src/state/assemble-chrome.ts": 'export const XS = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
+      },
+      why: "THE PURE ASSEMBLER, pinned: `state/assemble-chrome.ts` is a chrome home and is NOT a home for the three id vocabularies, which is why the sanctioned homes stay per-arm instead of being lifted into the population. Deleting the assembler clause reds this row",
+    },
+    {
+      mode: "types",
+      files: {
+        ...VOCAB_FIXTURES,
         "packages/client/src/features/x/lib/preset-zones.ts": 'export const PZ = [\n  { id: "a", zone: "setup" },\n  { id: "b", zone: "post" },\n];\n',
       },
-      why: "an array whose `zone`s are NOT CHROME_ZONES members (the preset assembly's setup/post) isn't chrome-space — the chrome false-positive guard, passes",
+      why: "an array whose `zone`s are NOT CHROME_ZONES members (the preset assembly's setup/post) is not chrome-space — the chrome false-positive guard. It is ALSO the row that proves resolving the spread widens the denominator without widening the accusation: all four zones are live here",
     },
     {
-      files: {
-        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
-        "packages/client/src/compose/authed-app.tsx": "export const sections = { chats: 1, characters: 2 };\n",
-      },
-      why: "the door's OTHER half — a `compose/` module carries the real section assembly since the #43 code-split (G8 already names compose/ a door home), must pass",
+      mode: "types",
+      files: { ...VOCAB_FIXTURES, "packages/client/src/compose/authed-app.tsx": "export const sections = { chats: 1, characters: 2 };\n" },
+      why: "the door's OTHER half — a `compose/` module carries the real section assembly since the #43 code-split (G8 already names compose/ a door home), must pass. Cutting the `compose/` clause out of `isDoorFile` reds this row",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/chrome-registry.ts": 'export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;\n',
-        "packages/client/src/compose/authed-app.tsx": 'export const widgets = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
+        ...VOCAB_FIXTURES,
+        "packages/client/src/main.tsx": 'export const widgets = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
       },
-      why: "the door's chrome WIDGET list, in the compose/ half — the chrome arm's door allowance must follow the assembly, passes",
+      why: "the door's chrome WIDGET list at the composition root — the chrome arm's door allowance follows the assembly. Cutting the `main.tsx` clause out of `isDoorFile` reds this row",
     },
     {
+      mode: "types",
       files: {
-        "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
-        "packages/client/src/state/chrome-registry.ts":
-          'import { RAIL_ZONES } from "./section-registry.ts";\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
-        "packages/client/src/features/x/lib/preset-zones.ts": 'export const PZ = [\n  { id: "a", zone: "setup" },\n  { id: "b", zone: "post" },\n];\n',
+        ...VOCAB_FIXTURES,
+        "packages/client/src/features/x/lib/you-modal-ids.ts":
+          '// @orb-waive no-parallel-section-map("account"): pinned identity arm; ends when this list derives from the modal registry.\n' +
+          'export const YOU_MODAL_IDS = ["account", "settings", "theme"];\n',
       },
-      why: "the SPLIT vocabulary's false-positive half: with all four zones resolved, an array whose zones are NOT chrome zones still passes — resolving the spread widens the denominator without widening the accusation",
+      why: 'THE IDENTITY ARM (§4.2): the twin of the bare-id-array mustFlag row, which produces EXACTLY ONE finding, waived by the one central marker at the position this policy actually reports — the first covered id INCLUDING ITS QUOTES (`"account"`), never the declaration name a reader would reach for',
     },
   ],
-};
+});

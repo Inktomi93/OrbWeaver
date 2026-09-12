@@ -13,6 +13,7 @@ export const DEFINITION_SLOTS = {
   section: "-section",
   modal: "-modal",
   chrome: "-chrome",
+  tile: "-tile",
   group: "-group",
   collection: "-collection",
 } as const;
