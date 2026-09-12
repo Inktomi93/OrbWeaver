@@ -72,8 +72,19 @@ export const gate = defineGate({
         "packages/server/src/domain/export/verbs/export-character.ts":
           'import { writeCardChunk } from "@orb/kit/png-card-chunk";\nexport const w = writeCardChunk;\n',
       },
-      expect: { count: 1 },
-      why: "THE STALE ARM: the anchor (the engine's kit home) is loaded; export still does byte surgery and keeps its permission, import does none — that row's claim is dead and ratchets down",
+      expect: { count: 1, messageIncludes: '"import"' },
+      why: "THE STALE ARM: the anchor (the engine's kit home) is loaded; export still does byte surgery and keeps its permission, import does none — that row's claim is dead and ratchets down. `messageIncludes` pins WHICH sanctioned domain is accused, and it is load-bearing rather than decoration: both arms of this policy anchor on the same `ANCHOR:1` and differ ONLY in the quoted domain, so a bare `{ count: 1 }` passed identically when the message was patched to name the OPPOSITE domain (measured 2026-09-12, cb-v-unaudited-finals L5). The two messages are disjoint on the quoted string, which is what makes this assertion discriminate",
+    },
+    {
+      mode: "source",
+      files: {
+        [ANCHOR]: "export const kit = {};\n",
+        "packages/server/src/domain/export/verbs/export-character.ts":
+          'import { writeCardChunk } from "@orb/kit/png-card-chunk";\nexport const w = writeCardChunk;\n',
+        "packages/server/src/domain/import/substrate/card.ts": 'import { characters } from "@orb/db";\nexport const c = characters;\n',
+      },
+      expect: { count: 1, messageIncludes: '"import"' },
+      why: 'THE BYTE-SURGERY IDENTITY FENCE: the import home is alive and importing — just not the engine. A sanctioned home keeps its permission for doing BYTE SURGERY, not for existing, so an unrelated import must not re-earn the row. Opening `pngChunkImport(node) !== ""` to `true` makes any ImportSpecifier in a sanctioned home count, this row drops to 0 findings and reds. Without it no row had a sanctioned domain importing something unrelated, which is the whole premise of "the claim behind its permission is dead" (cb-v-unaudited-finals L6)',
     },
   ],
   mustPass: [

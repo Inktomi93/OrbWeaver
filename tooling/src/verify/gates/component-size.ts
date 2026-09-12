@@ -7,6 +7,9 @@ import { authoredLineCount } from "../lib/source-line-count.ts";
 const ROUTES_PREFIX = "packages/client/src/routes/";
 const CAP_DEFAULT = 450;
 const CAP_ROUTE = 500;
+/** Comfortably past BOTH caps, so a `notNamed` fixture's excluded siblings are silent only because they are
+ *  outside the subject — never because they happened to fit under one of the two caps. */
+const OVER_CAP_LINES = CAP_ROUTE + CAP_ROUTE;
 const MESSAGE =
   "a client source file exceeds the hard line cap (default 450, routes 500) — split it into sub-files or extract pure logic; a god-component is a UI-Architecture-and-Layout.md §2.1 smell.";
 
@@ -43,6 +46,12 @@ export const gate = defineGate({
       expect: { count: 1, line: CAP_DEFAULT + 1, messageIncludes: "cap 450" },
       why: "a client file one line over the default cap",
     },
+    {
+      mode: "source",
+      files: { [`${ROUTES_PREFIX}big.tsx`]: "export const x = 1;\n".repeat(CAP_ROUTE + 1) },
+      expect: { count: 1, line: CAP_ROUTE + 1, messageIncludes: "cap 500" },
+      why: "THE ROUTE CAP, in the flagging direction: a route file one line over 500. `line` and `messageIncludes` both name the ROUTE cap, so lowering `CAP_ROUTE` reds this row and raising it reds the mustPass twin below — the branch is pinned from both sides. Until 2026-09-12 no row placed a file under `packages/client/src/routes/` at all, so `CAP_ROUTE = 500 → 450` AND `→ 1` were both CLEAN and the 500-line cap this message advertises was enforced by nothing (cb-v-unaudited-finals L7)",
+    },
   ],
   mustPass: [
     {
@@ -54,6 +63,22 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/client/src/boundary/boundary.tsx": "export const x = 1;\n".repeat(CAP_DEFAULT) },
       why: "a client file exactly at the cap passes",
+    },
+    {
+      mode: "source",
+      files: { [`${ROUTES_PREFIX}over-default.tsx`]: "export const x = 1;\n".repeat(CAP_DEFAULT + 1) },
+      why: "THE ROUTE CAP, in the silent direction. The size is deliberately keyed to `CAP_DEFAULT + 1`, NOT to `CAP_ROUTE`: a fixture sized from the constant under test moves WITH the cut and can never discriminate (measured here — a `repeat(CAP_ROUTE)` draft survived `CAP_ROUTE → 450` because the fixture shrank to 450 too). This file is one line over the DEFAULT cap and silent only because the route branch handed it the higher one, so any `CAP_ROUTE` below 451 reds it",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/x/in-scope.tsx": "export const x = 1;\n",
+        "packages/client/src/x/x.test.tsx": "export const x = 1;\n".repeat(OVER_CAP_LINES),
+        "packages/client/src/x/x.spec.ts": "export const x = 1;\n".repeat(OVER_CAP_LINES),
+        "packages/client/src/x/x.gen.ts": "export const x = 1;\n".repeat(OVER_CAP_LINES),
+        "packages/client/src/x/x.d.ts": "export const x = 1;\n".repeat(OVER_CAP_LINES),
+      },
+      why: "THE SUBJECT FENCE: test, spec, generated and ambient declaration files are outside the subject regardless of size, and the in-scope sibling is the population ANCHOR that keeps the fixture from admitting nothing. Replacing `notNamed` with a name that matches none of them reds this row with four findings. The family sibling `component-size-ui` has pinned the identical list since its conversion; this half — on the LARGER population — did not, which is one family running two standards (cb-v-unaudited-finals L8)",
     },
   ],
 });

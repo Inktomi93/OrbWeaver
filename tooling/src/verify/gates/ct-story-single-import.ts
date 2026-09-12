@@ -12,6 +12,11 @@
 //      DIRECT array element at 2+ positions in one function/module scope — both give playwright-ct
 //      multiple rewrite sites for one story binding. Separate test callbacks and separate mount trees are
 //      separate generated scopes and may reuse the same story.
+//      EVERY SPELLING OF A REFERENCE COUNTS, and the tree climb is what makes that true: self-closing
+//      (`<Story />`), PAIRED (`<Story>…</Story>`, whose identifier is a child of `JsxOpeningElement`) and
+//      attribute-embedded (`<Wrap slot={<Story />}>`) are one defect with three syntaxes. See
+//      `JSX_TREE_KINDS` for why the climb is over the JSX node FAMILY; until 2026-09-12 it listed three
+//      element kinds and this `hard` gate returned 0 findings on both paired shapes.
 //
 // Pure AST — comment-SAFE (subscribes to import specifiers + array-literal elements, reads no file text).
 // Population is CT-scoped: `.ct.tsx` files and `_ct-stories.tsx` story modules (both are eval'd by the same
@@ -102,16 +107,38 @@ function rewriteScope(node: TsNode, sf: SourceFile): TsNode {
   );
 }
 
+/** The JSX node FAMILY, not the three element kinds a reader first thinks of. A tag identifier reaches its
+ *  enclosing tree only through the rungs that actually sit between them, and a hand-listed subset of them is
+ *  a FALSE CLEAN on a `hard` gate: a PAIRED tag's identifier is a child of `JsxOpeningElement`, and an
+ *  attribute-embedded element reaches its tree through `JsxExpression` → `JsxAttribute` → `JsxAttributes` →
+ *  `JsxOpeningElement`. Omitting any rung breaks the climb at that ancestor and makes the tag its own unique
+ *  scope, so two references can never group and the gate reports nothing (measured 2026-09-12,
+ *  cb-v-unaudited-finals L1; `mustFlag[3]`/`[4]`/`[5]` are the three spellings that returned 0).
+ *
+ *  The four remaining JSX kinds are deliberately ABSENT rather than listed for symmetry: `JsxClosingElement`,
+ *  `JsxOpeningFragment` and `JsxClosingFragment` hold no occurrence node this policy ever collects (the JSX
+ *  visitor subscribes to opening and self-closing elements only), and a `JsxSpreadAttribute` reaches its
+ *  element through an `ObjectLiteralExpression`, which stops the climb one rung earlier whatever is listed
+ *  here. A rung no fixture can reach is dead code, not coverage. */
+const JSX_TREE_KINDS: ReadonlySet<SyntaxKind> = new Set<SyntaxKind>([
+  SyntaxKind.JsxElement,
+  SyntaxKind.JsxFragment,
+  SyntaxKind.JsxSelfClosingElement,
+  SyntaxKind.JsxOpeningElement,
+  SyntaxKind.JsxAttributes,
+  SyntaxKind.JsxAttribute,
+  SyntaxKind.JsxExpression,
+]);
+
 /** The outer JSX tree containing a tag. Separate `mount(<Story />)` calls are separate rewrites and may
  *  reuse the import; two references inside ONE tree ask the transform for the binding twice. */
 function jsxTreeRoot(node: TsNode): TsNode {
   let root = node;
   for (const ancestor of node.getAncestors()) {
-    if (Node.isJsxElement(ancestor) || Node.isJsxFragment(ancestor) || Node.isJsxSelfClosingElement(ancestor)) {
-      root = ancestor;
-      continue;
+    if (!JSX_TREE_KINDS.has(ancestor.getKind())) {
+      break;
     }
-    break;
+    root = ancestor;
   }
   return root;
 }
@@ -219,6 +246,32 @@ export const gate = defineGate({
       expect: { count: 1, token: "Story" },
       why: "two JSX rewrite sites collide even when no array carries the component",
     },
+    {
+      mode: "source",
+      files: {
+        "tests/ui/paired.ct.tsx":
+          'import { Story } from "./_ct-stories.tsx";\nexport const Cases = () => <>\n  <Story>one</Story>\n  <Story>two</Story>\n</>;\n',
+      },
+      expect: { count: 1, token: "Story" },
+      why: "THE PAIRED SPELLING, and the row that reds without the opening-element rung of `JSX_TREE_KINDS`: a paired tag's identifier sits under a `JsxOpeningElement`, so a climb listing only element/fragment kinds breaks at the FIRST ancestor and makes every paired reference its own scope — two of them can then never group. The eval-time SyntaxError does not care which spelling was used (measured 2026-09-12, cb-v-unaudited-finals L1: this exact fixture returned 0 findings on a `hard` gate)",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/ui/mixed.ct.tsx": 'import { Story } from "./_ct-stories.tsx";\nexport const Cases = () => <>\n  <Story>one</Story>\n  <Story />\n</>;\n',
+      },
+      expect: { count: 1, token: "Story" },
+      why: "one paired and one self-closing reference in ONE tree are still two rewrite sites for one binding — the mixed spelling, which the pre-fix climb also missed because only the self-closing half reached the fragment",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/ui/attribute.ct.tsx":
+          'import { Story } from "./_ct-stories.tsx";\nconst Wrap = (props: { readonly slot: unknown; readonly children?: unknown }): unknown => props;\nexport const Cases = () => <Wrap slot={<Story />}>\n  <Story />\n</Wrap>;\n',
+      },
+      expect: { count: 1, token: "Story" },
+      why: "the ATTRIBUTE spelling: a reference nested in a JSX attribute expression is in the SAME tree as its sibling child, so it is the same generated scope. It reaches the enclosing `JsxElement` only through the attribute rungs (`JsxExpression` → `JsxAttribute` → `JsxAttributes` → `JsxOpeningElement`), which is why `JSX_TREE_KINDS` is the JSX node FAMILY and not the three element kinds a reader first thinks of",
+    },
   ],
   mustPass: [
     {
@@ -256,7 +309,23 @@ export const gate = defineGate({
         "tests/ui/charts/primitive.ct.tsx":
           'import { Button } from "@orb/ui/button";\nexport const Pair = () => <>\n  <Button>One</Button>\n  <Button>Two</Button>\n</>;\n',
       },
-      why: "ordinary UI primitives may repeat in one rendered tree; only imported CT story modules are rewritten as story bindings",
+      why: "THE SPECIFIER FENCE: ordinary UI primitives may repeat in one rendered tree; only imported CT story modules are rewritten as story bindings. Widening `STORY_MODULE_RE` to `true` reds this row with one finding, so the row dies WITHOUT the fence. Until 2026-09-12 it did not: the pair is PAIRED, and the pre-L1 `jsxTreeRoot` could not group two paired references at all, so this row passed for a reason that had nothing to do with the specifier (cb-v-unaudited-finals L2 — a false pin riding L1). The paired spelling is kept deliberately: it is the same fixture that was lying, and it now proves the fence for real",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/ui/charts/lowercase.ct.tsx":
+          'import { test } from "@playwright/experimental-ct-react";\nimport { storyRow } from "./_ct-stories.tsx";\nconst rows: readonly unknown[] = [storyRow, storyRow];\ntest("x", () => {\n  rows;\n});\n',
+      },
+      why: "THE COMPONENT-NAME FENCE: a lowercase export from a story module is DATA, not a component playwright-ct rewrites, so repeating it is not a collision. Widening `PASCAL_CASE` to `true` reds this row — the row dies without that fence",
+    },
+    {
+      mode: "source",
+      files: {
+        "tests/ui/charts/scopes.ct.tsx":
+          'import { test } from "@playwright/experimental-ct-react";\nimport { StoryA } from "./_ct-stories.tsx";\ntest("a", () => {\n  const rows = [StoryA];\n  return rows;\n});\ntest("b", () => {\n  const rows = [StoryA];\n  return rows;\n});\n',
+      },
+      why: "THE ARRAY REWRITE-SCOPE FENCE: one array reference per test callback is two SEPARATE generated scopes, exactly as `reuse.ct.tsx` pins for the JSX half. Replacing `rewriteScope`'s ancestor walk with the SourceFile reds this row — the row dies without that fence",
     },
     {
       mode: "source",
