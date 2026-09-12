@@ -2298,6 +2298,7 @@
     "tests/tooling/ui-audit/ops/walker/target-identity.test.ts",
     "tests/tooling/ui-gate-structural-regressions.int.test.ts",
     "tests/tooling/verify/cli.int.test.ts",
+    "tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts",
     "tests/tooling/verify/gates/biome-grant-liveness.int.test.ts",
     "tests/tooling/verify/gates/bus-fact-health.test.ts",
     "tests/tooling/verify/gates/bus-pair.test.ts",
