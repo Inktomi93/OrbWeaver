@@ -325,8 +325,17 @@ export default tseslint.config(
       "**/__g_*",
       // Mutation sandboxes contain rewritten source and generated runner setup, never authored inputs.
       ".stryker-tmp/**",
-      // Local tool caches are derived scratch artifacts, never authored inputs.
-      ".cache/**",
+      // Local tool caches are derived scratch artifacts, never authored inputs. THE `**/` PREFIX IS
+      // LOAD-BEARING and was missing until #2213: a flat-config `ignores` glob is anchored at the CONFIG
+      // DIRECTORY, so bare `.cache/**` covered the root cache and missed every NESTED one — while the
+      // identical-looking `.gitignore` row (`.cache/`) matches at ANY depth, because gitignore patterns and
+      // flat-config globs do not share anchoring rules. The two disagreed silently, and a pattern
+      // transliterated from one into the other is the shape to distrust. `playwright/.cache` (the
+      // Playwright CT build bundles) was therefore invisible to git and LINTED by eslint, supplying 106 of
+      // the 117 errors in this stage's first whole-repo verdict after #2211 restored its discovery.
+      // `.stryker-tmp/**` above carries the same missing prefix; it is root-only on today's tree, so it has
+      // no nested instance to control in either direction and is deliberately left alone.
+      "**/.cache/**",
       "**/*.gen.ts",
       "packages/ui/src/tokens/index.ts",
       "packages/ui/src/styles/theme.css",

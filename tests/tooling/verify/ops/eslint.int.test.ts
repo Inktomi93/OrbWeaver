@@ -61,3 +61,42 @@ test("partition uses one native compiler owner, keeps untyped residuals, and ref
   expect(() => partitionEslintFiles([], programs)).toThrow("empty population");
   expect(() => partitionEslintFiles(["root.ts", "root.ts"], programs)).toThrow("duplicate file identities");
 });
+
+// ─── #2213: a NESTED tool cache is a derived artifact too ────────────────────────────────────────────
+//
+// THE INCIDENT. `lint:eslint`'s first whole-repo verdict after #2211 fixed its ENOBUFS discovery came back
+// exit 1 with 117 errors — and 106 of them were in `playwright/.cache/assets/*.js`, the MINIFIED Playwright
+// component-test bundles. That directory is gitignored and carries zero tracked files, so those errors were
+// reported against source that does not exist in the repository. Five of them were read as
+// `react-hooks/rules-of-hooks` violations (a rule about call ORDER, i.e. real runtime misbehaviour) and
+// routed as a correctness fix; every one was actually `Definition for rule … was not found` — an
+// unknown-rule REFERENCE inside a bundled `eslint-disable` comment that React ships in its own source.
+//
+// THE CAUSE IS ONE MISSING PREFIX. `eslint.config.js` ignores `".cache/**"` while its siblings in the same
+// array are `"**/node_modules/**"` and `"**/dist/**"`. Without the `**/` the pattern is anchored at the
+// config's directory, so it covers the ROOT cache and misses every nested one — and the row's own comment
+// states the intent it failed to implement: "Local tool caches are derived scratch artifacts, never
+// authored inputs."
+//
+// WHY THIS IS PINNED AGAINST THE REAL CONFIG rather than a synthetic one: the defect was IN the real
+// config's pattern, and a fixture would have reproduced whatever pattern the fixture author wrote. The
+// negative controls are what stop this from passing vacuously — an over-broad ignore that swallowed the
+// authored trees would satisfy the subject assertion while blinding the whole stage, which is a far worse
+// failure than the one being fixed.
+test("a nested tool cache is IGNORED while authored sources stay linted (#2213)", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const ignored = async (rel: string): Promise<boolean> => eslint.isPathIgnored(join(repoRoot, rel));
+
+  // THE SUBJECT: the nested cache that supplied 106 of 117 errors, five of them read as hook-order bugs.
+  expect(await ignored("playwright/.cache/assets/index-C2Y8FrOW.js"), "playwright/.cache is a build cache, not authored input").toBe(true);
+  // The root cache — the pattern's literal reading, which already worked and must keep working.
+  expect(await ignored(".cache/anything.js")).toBe(true);
+  // A `**/`-prefixed sibling row, proving the prefix is the house spelling for depth-independence.
+  expect(await ignored("packages/ui/node_modules/x.js")).toBe(true);
+
+  // NEGATIVE CONTROLS — an ignore that reaches authored code would blind the stage far worse than the
+  // defect it fixes, and `isPathIgnored` returning `true` for everything would satisfy the arms above.
+  expect(await ignored("packages/client/src/main.tsx"), "authored client source must stay linted").toBe(false);
+  expect(await ignored("packages/ui/src/index.ts"), "authored ui source must stay linted").toBe(false);
+  expect(await ignored("tooling/src/verify/ops/eslint.ts"), "authored tooling source must stay linted").toBe(false);
+});
