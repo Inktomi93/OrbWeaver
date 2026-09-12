@@ -11,6 +11,10 @@
 // production schema to be honest (a partial fileset would call every unwalked row stale), so it is gated on
 // the schema BARREL being in the effective population — the §4.5 real-tree-anchor shape, which is NOT any
 // row's own path and therefore still sees a table that was deleted outright.
+//
+// The legacy `ownerid-registry` descriptor (66d28b1272c9dc255545a073276a3b159eddf85a) resolved schema
+// columns through its own inline reader before this conversion moved it onto the shared Drizzle schema
+// fact.
 
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaModel } from "../contract/schema-fact.ts";

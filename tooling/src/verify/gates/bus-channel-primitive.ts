@@ -19,6 +19,10 @@
 // A row consumed zero times is STALE — which is exactly the rename tripwire the legacy `SANCTIONED_HOMES`
 // table carried, now owned centrally: the day the mint moves, the row goes red at its dead subject. Nothing
 // here subtracts a path from the population and this policy holds no allowlist of its own.
+//
+// The legacy `bus-channel-primitive` descriptor (123b36f453318217b33a76d6e7ffb0ff15288f06) ran the
+// spelling-based `getExpression().getText() === "EventEmitter"` check and carried `SANCTIONED_HOMES`
+// before this conversion moved both onto the callable-origin reader and the central reviewed-grant table.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

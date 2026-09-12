@@ -10,6 +10,10 @@
 // belted by construction. The shared definition fact answers it, so the table is derived, not ported. Its
 // two-sidedness survives verbatim: the day one of those aliases stops being a subset it owes its own belt
 // and this policy says so, with no row to delete.
+//
+// The legacy `bus-definition-belts` descriptor (001949630e8ae87b44c758fd4ba5614c8e63c15a) carried
+// `BELT_EXEMPT`/`SERVER_INTERNAL_REACH`/the belt-const name search as its four arms before this
+// conversion split them into `bus-belt-total`/`bus-consumer-belt`/`bus-coverage-owner` alongside this file.
 import { defineGate } from "../contract/policy.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 

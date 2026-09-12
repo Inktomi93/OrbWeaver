@@ -11,6 +11,10 @@
 // gets no row at all — an unexercised permission is not representable as a grant (a row consumed zero times
 // is STALE), and the day it needs one it will red and be reviewed.
 //
+// The legacy `chat-stream-writes-in-bus-only` descriptor (6a79781359a51916bffaac9edbc42c883b8aee5a)
+// subtracted `data/bus/**`/`main.tsx` from the scanned population before this conversion moved that
+// exemption onto the reviewed-grant table.
+//
 // IDENTITY, NOT SPELLING. The legacy check was `moduleSpecifier === "#state"` plus a specifier named
 // `chatStream`, so the same handle reached through any other resolved specifier — the package-internal
 // alias, a relative path, a re-export barrel — was invisible, and a same-named export of another module

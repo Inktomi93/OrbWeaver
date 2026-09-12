@@ -25,6 +25,11 @@
 //
 // Identity — which call is a producer, which relay carries a member, which argument proves nothing — is the
 // shared `busProducerFact`'s question, not this policy's. It owns no name table, no path regex and no walk.
+//
+// The legacy `bus-coverage` descriptor (f287dc6dbb2dc4959a0bf4bd5698fea70fa03df8) checked ONLY
+// `ChatBusEvent`'s producer coverage by name before this conversion retired it plus five siblings
+// (`automation-bus-coverage`, `bus-coverage-owner`, `domain-events-coverage`, `rpg-bus-coverage`,
+// `user-bus-coverage`) into this one roster-quantified policy.
 import type { Node as MorphNode } from "ts-morph";
 import type { BusDeclarationIdentity, BusRecord } from "../contract/bus-fact.ts";
 import { recordReadyBusFact } from "../contract/bus-fact.ts";

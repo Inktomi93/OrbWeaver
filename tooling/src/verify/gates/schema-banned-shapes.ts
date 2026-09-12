@@ -4,6 +4,10 @@
 // same obligation as an inline property. The contract partition is `contract-banned-shapes`; the D12 import
 // ban is biome's native `noRestrictedImports`. Rows + the message: ../lib/ledger-banned-shapes.ts.
 // HARD by design: a ledger verdict's only escape is contesting the D-cite, never a site comment.
+//
+// The legacy `schema-banned-shapes` descriptor (0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef) checked both
+// this schema partition and the contract partition (now `contract-banned-shapes`) in one combined gate
+// with its own inline schema read before this split.
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumn, SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";

@@ -4,6 +4,10 @@
 // own policy id. Rows + the message: ../lib/ledger-banned-shapes.ts. HARD: contest the D-cite, never the site.
 // TWO-SIDED: an unreadable Zod initializer is REPORTED (never skipped), and a row whose named subject no
 // longer resolves in its declared home is REPORTED too — a name-keyed ban that stops matching is a no-op.
+//
+// The legacy `schema-banned-shapes` descriptor (0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef) checked both
+// the contract rows above and the schema rows below in one combined gate before this split by evidence
+// plane.
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

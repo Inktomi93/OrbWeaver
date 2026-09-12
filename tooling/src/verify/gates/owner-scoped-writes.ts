@@ -10,6 +10,10 @@
 // `isDrizzleWriteStatement` is the fence); and an `onConflictDoUpdate` upsert is out of scope HERE because
 // the sibling `owner-scoped-upserts` owns it (its collision is a UNIQUE-index question, not a WHERE
 // predicate — a third gate with its own waiver position).
+//
+// The legacy `owner-scoped-writes` descriptor (40223a0915eda72dd8ab35fbdeaf9e9892089717) carried the
+// `@owner-scope-ok` marker grammar and its own inline schema read before this conversion, and treated
+// `onConflictDoUpdate` as out of scope entirely.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

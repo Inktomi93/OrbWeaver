@@ -12,6 +12,9 @@
 // argument's DECLARED type says which union was exhausted. No name, no path, no table. The row's
 // two-sidedness survives: a bus with neither belt reports, whichever kind of consumer it was supposed to
 // have.
+//
+// The legacy `bus-definition-belts` descriptor (001949630e8ae87b44c758fd4ba5614c8e63c15a) carried the
+// `SERVER_INTERNAL_REACH` row and the consumer-belt check as two of its four arms before this split.
 import { defineGate } from "../contract/policy.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 

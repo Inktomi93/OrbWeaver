@@ -20,6 +20,10 @@
 //     vanished subject is how a standing exception becomes a loaded gun, so the run reports a tool error
 //     instead. A refusal cannot be expressed as a proof row, so it is pinned through `runPolicyPass` in
 //     `tests/tooling/verify/gates/bus-pair.test.ts`.
+//
+// The legacy `user-bus-coverage` descriptor (d9ac09d580d98188caae64ba04f24deee7402ef6) carried the
+// DEFERRED allowlist as a citation string parked inside its single gate before this split gave the
+// deferral its own descriptor.
 import type { BusDeclarationIdentity, BusMemberDeferral } from "../contract/bus-fact.ts";
 import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";

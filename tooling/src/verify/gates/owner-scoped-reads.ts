@@ -17,6 +17,9 @@
 // `@owner-scope-ok` text left on the tree is PROSE inside explanatory comments (it names the retired
 // spelling); no live marker carries it. Ends if a new site is authored with the legacy spelling — the
 // central engine does not recognize it under any grammar, so it would suppress nothing silently.
+//
+// The legacy `owner-scoped-reads` descriptor (40223a0915eda72dd8ab35fbdeaf9e9892089717) carried the
+// `@owner-scope-ok` marker grammar and its own inline schema read before this conversion.
 import type { Identifier, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

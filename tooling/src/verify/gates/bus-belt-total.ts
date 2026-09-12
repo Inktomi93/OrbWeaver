@@ -6,6 +6,9 @@
 //
 // Split from `bus-definition-belts` because the FIX differs (add the missing element vs. add a belt) even
 // though both are hard/error facts about the same subject; they share the family and its provider.
+//
+// The legacy `bus-definition-belts` descriptor (001949630e8ae87b44c758fd4ba5614c8e63c15a) checked the
+// tuple-belt totality as one of its four arms before this split gave it its own policy id.
 import { defineGate } from "../contract/policy.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 
