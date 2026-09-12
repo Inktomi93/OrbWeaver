@@ -392,6 +392,28 @@ family.
       outcome parity** and still says **nothing about whether it catches what legacy caught.** This is the whole
       sanctioned-home family, and it reads like a rich receipt.
 
+   **AND A THIRD FAILURE THAT IS WORSE THAN EITHER VACUITY SHAPE, BECAUSE IT FAKES A NONZERO SIDE (measured
+   2026-09-13 by `v-conversions-2026-09-13`, refuting a differential I had already published as a landing
+   receipt).** A differential harness that replays a policy **WITHOUT APPLYING THE POLICY'S OWN DECLARED
+   POPULATION** measures the policy's own PROOF FIXTURES. The worked case: `pd-citation-integrity`'s record
+   claimed **2 findings on both sides at columns 46 and 20**, read as the one piece of genuine catch-parity
+   evidence in its whole merge. Driven on the real workspace with a planted positive control, the true answer
+   is **0 on both sides**. Column 46 of `pd-citation-integrity.ts:152` is `PD-999` **inside the module's own
+   `mustFlag` fixture string**, and the module declares `notUnder: ["tooling/src/verify/gates/**"]` for exactly
+   that reason — with `:206` carrying the §4.1 narrowing row that proves the fence bites.
+
+   **So the module was right and the MEASUREMENT was wrong, and the module's own proof rows contradicted its own
+   differential with nobody noticing.** Three consequences worth carrying:
+
+   - **A differential is a claim about a POPULATION as much as about findings.** State which population each side
+     was driven over, and if the two sides differ, that is the finding.
+   - **A self-scanning gate is where this bites hardest** — a policy whose subject is the gate corpus keeps its
+     fixtures inside its own scan root by construction, so an unfenced replay is guaranteed to eat them. Check
+     the fence FIRST for anything reading `tooling/src/verify/**`, the docs corpus, or the ledgers.
+   - **A nonzero side is not self-validating.** The vacuity rules below teach you to distrust a ZERO; this teaches
+     you to distrust a SMALL NONZERO on a policy whose population excludes its own home. The tell is a count that
+     equals the number of fixture rows in the module.
+
    **Only a FIXTURE-LEVEL method reaches catch parity** — extract the pre-conversion descriptors, shim their
    contract import, and replay through the legacy `runPass` **over each proof's own file map**
    (`origin-client-family-1584.md:151`). **Two of the seven 2026-09-05/06 records used it**; the other five are
