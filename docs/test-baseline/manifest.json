@@ -2405,6 +2405,7 @@
     "tests/tooling/verify/lib/drizzle-write-target.test.ts",
     "tests/tooling/verify/lib/gate-authority.test.ts",
     "tests/tooling/verify/lib/gate-contract.test.ts",
+    "tests/tooling/verify/lib/gate-contract-origin.test.ts",
     "tests/tooling/verify/lib/gate-ignore.test.ts",
     "tests/tooling/verify/lib/history.int.test.ts",
     "tests/tooling/verify/lib/host-slots.test.ts",

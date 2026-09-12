@@ -29,11 +29,27 @@
 // policies newly visible, 3 with a narrowed arm set. Those 13 are this mint's own named burn-down, the same
 // posture #1506's mint took; what the control buys today is that the set cannot GROW.
 //
+// SHRINK RECEIPTS — each deleted arm NAMES THE READER CHANGE THAT CLOSED IT, so a later reader can tell a
+// closed blind spot from a dropped one (2026-09-12, #2199). A row removed with "no longer reproduces" is
+// indistinguishable from one somebody found inconvenient.
+//   • `owner-scoped-writes` ["bracket","namespace"] → ["bracket"] — the NAMESPACE arm closed because
+//     `lib/tenancy-read.ts#tableTargetOf` stopped requiring an Identifier node: a table named through
+//     `import * as schema from "@orb/db"` now resolves by its EXPORTED MEMBER NAME (`namespacedTableName`),
+//     and the acquitting half moved with it (`predicatesTableColumn` compares the receiver by TEXT, so a
+//     correctly scoped namespace-spelled write is not falsely accused). Pinned by that gate's own new
+//     namespace mustFlag row, not by this ledger.
+//   • `owner-scoped-upserts` ["bracket","namespace"] → ["bracket"] — the SAME reader change, inherited: the
+//     upsert half calls the same `tableTargetOf`. It was not a subject of the fix and is recorded here so the
+//     shrink is not read as an unexplained disappearance.
+// Both gates keep their BRACKET arm: the chain readers (`chainCalls`, `isDrizzleWriteStatement`) are still
+// property-access-keyed, which is committed, measured blindness rather than growth.
+//
 // The remedy for a red is never a ledger row: it is `tooling/src/verify/lib/symbol-reference.ts`
 // (`readMemberAccess` / `moduleMemberReference` / `readStringConstant`), which resolves a reference however
 // it is spelled.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../../tooling/src/verify/contract/gate.ts";
 import type { GatePolicy } from "../../tooling/src/verify/contract/policy.ts";
@@ -148,18 +164,35 @@ function controlPolicy(id: string, kinds: readonly SyntaxKind[], detect: (text: 
     resources: [],
     message: "test fixture: a `.forbidden` member read",
     fix: "read the member through lib/symbol-reference.ts",
-    create: (ctx) => ({
-      visitors: [
-        {
-          kinds,
-          visit: (node) => {
-            if (detect(node.getText())) {
-              ctx.report.node(node, {});
-            }
+    // THE CONTROL COLLECTS IN THE WALK AND REPORTS IN `evaluate`, and that shape is forced rather than
+    // decorative (#2199). `execution: "entire-population"` is a CLAIM that the verdict cannot compose over a
+    // subset, and #2111's A21 check refuses a policy making that claim with no post-walk hook at all — so
+    // this fixture, authored before A21 landed, stopped being a control and became a TOOL ERROR: both proof
+    // arms came back `PASS TOOL ERROR [create] … exposes no evaluate hook`, which the census then reported as
+    // "not blind" for the very policy planted to be blind. The fixture was stale; the validator is right, and
+    // is deliberately left alone. Reporting from `evaluate` is the arm that gives the control the hook the
+    // ruling asks for WITHOUT leaving a composition claim with nothing behind it — and it exercises the
+    // post-walk reporting path that most converted policies actually use.
+    create: (ctx) => {
+      const hits: Node[] = [];
+      return {
+        visitors: [
+          {
+            kinds,
+            visit: (node) => {
+              if (detect(node.getText())) {
+                hits.push(node);
+              }
+            },
           },
+        ],
+        evaluate: () => {
+          for (const node of hits) {
+            ctx.report.node(node, {});
+          }
         },
-      ],
-    }),
+      };
+    },
     mustFlag: [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "the dotted spelling" }],
     mustPass: [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_PASS }, why: "a member this law does not name" }],
   } as GatePolicy);

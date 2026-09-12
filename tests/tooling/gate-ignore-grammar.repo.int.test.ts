@@ -163,9 +163,27 @@ const TESTS_CASES: Readonly<Record<string, string>> = {
   findingMention: `// the grammar is \`// @orb-gate-ignore no-test-fabrication: <reason>\` — a quotation\nexport const f4 = ${FABRICATION};\n`,
 };
 
+/** THE CLEANUP ROOTS ARE DERIVED FROM THE PLANT DIRS, never hand-listed (#2200). They were
+ *  `["packages", "tests", "scripts"]` while `SCRIPTS_DIR` planted into **`tooling/`** — a root the list
+ *  never named, because the gate corpus used to live under `scripts/` and the rename never reached this
+ *  line. So every run, INCLUDING A GREEN ONE, left seven fixtures in `tooling/src/verify/gates/__g_gi/`,
+ *  and `.gitignore:109` (an any-depth `__g_` glob) made them invisible to `git status` and to every census that reads
+ *  `git ls-files` — they simply sat in the gate corpus for whoever ran next. Deriving the roots means a
+ *  fourth plant dir joins the sweep by construction instead of by somebody remembering. */
+const PLANT_DIRS = [DIR, SCRIPTS_DIR, TESTS_DIR] as const;
+const CLEAN_ROOTS = [...new Set(PLANT_DIRS.map((dir) => dir.split("/")[0] as string))];
+
+/** Fixture paths still on disk under the plant roots. The cleanup's own verdict, asked separately so a
+ *  leak is a LOUD assertion in this suite rather than a silent inheritance by the next run. */
+function strayFixtures(): readonly string[] {
+  return execFileSync("find", [...CLEAN_ROOTS, "-name", "__g_*", "-print"], { cwd: ROOT, encoding: "utf8" })
+    .split("\n")
+    .filter((line) => line !== "");
+}
+
 function clean(): void {
-  execFileSync("find", ["packages", "tests", "scripts", "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"], { cwd: ROOT });
-  execFileSync("find", ["packages", "tests", "scripts", "-type", "d", "-empty", "-delete"], { cwd: ROOT });
+  execFileSync("find", [...CLEAN_ROOTS, "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"], { cwd: ROOT });
+  execFileSync("find", [...CLEAN_ROOTS, "-type", "d", "-empty", "-delete"], { cwd: ROOT });
 }
 
 function plant(): void {
@@ -268,6 +286,20 @@ function fMessages(kase: keyof typeof TESTS_CASES): string {
 // CAUSE. At the atomic cutover the legacy roster empties entirely and there is no fourth re-point: this
 // suite RETIRES with the `@orb-gate-ignore` grammar it exists to test, its corpus transplanted into
 // `tests/tooling/verify/lib/ordinary-waiver.test.ts`.
+// THE CLEANUP IS ITSELF A CLAIM, so it is asserted rather than assumed (#2200). `beforeAll` has already
+// planted, passed and cleaned in its `finally` by the time any test body runs, so a fixture still on disk
+// here means the sweep does not cover where the plant writes. That was true of EVERY run — including the
+// green ones — for as long as `clean()` named `scripts/` instead of `tooling/`: 22/22 passed, seven files
+// stayed in the gate corpus, and `git status` showed nothing because the ignore rule hides them. This
+// assertion is the difference between the next regression failing HERE, loudly, and failing silently in
+// whichever slot inherits the fixtures.
+test("cleanup is TOTAL — no planted fixture survives the pass, on the green path too", () => {
+  expect(strayFixtures()).toEqual([]);
+  // The sweep's own reach is the claim underneath: every directory the plant writes into must be covered.
+  expect(CLEAN_ROOTS.toSorted()).toEqual([...new Set(PLANT_DIRS.map((dir) => dir.split("/")[0] as string))].toSorted());
+  expect(CLEAN_ROOTS).toContain("tooling");
+});
+
 test("the probe ran at all — every carrier gate is still LEGACY and the corpus loaded", () => {
   expect(pass.toolErrors).toEqual([]);
   const legacy = pass.gates.map((g) => g.name);

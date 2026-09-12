@@ -67,12 +67,13 @@
 // (`gate-modernization` names the lookalike). BLINDNESS: this module is inside its own population, so when
 // it is delivered and does not read as final the recognizer is dead and the run THROWS rather than reporting
 // ✓ over the corpus forever (pinned through `runPolicyPass` in the family test).
-import type { CallExpression, ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, PropertyAccessExpression, SourceFile } from "ts-morph";
+import type { CallExpression, ImportDeclaration, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { FinalRegistration } from "../contract/policy-descriptor-read.ts";
 import { RETIRED_MARKER_OPENERS } from "../contract/policy-descriptor-read.ts";
+import type { MemberRead } from "../contract/symbol-reference.ts";
 import { inspectGateContract } from "../lib/gate-contract.ts";
 import { bindsProvenNonModuleDeclaration } from "../lib/origin-verdict.ts";
 import {
@@ -87,6 +88,7 @@ import {
   staticText,
 } from "../lib/policy-descriptor-read.ts";
 import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { MEMBER_ACCESS_KINDS, readMemberAccess } from "../lib/symbol-reference.ts";
 import {
   familyFixture,
   finalProbeModule,
@@ -205,7 +207,10 @@ function isDynamicLoadingDoor(call: CallExpression): boolean {
   if (Node.isIdentifier(callee) && callee.getText() === REQUIRE) {
     return true;
   }
-  return Node.isPropertyAccessExpression(callee) && callee.getName() === BINDING && isNodeProcess(callee.getExpression());
+  // READ THROUGH THE SHARED RESOLVER, not `isPropertyAccessExpression` (#2199): `process["binding"](…)` is the
+  // same door one node kind over, and a property-keyed check reads it as ordinary code.
+  const read = readMemberAccess(callee);
+  return read !== undefined && read.name === BINDING && isNodeProcess(read.receiver);
 }
 
 /** E6: the retired opener a piece of parser text carries, or undefined. */
@@ -217,9 +222,10 @@ function retiredOpenerIn(text: string): string | undefined {
  *  string and the OPENER rides the argument (`text.includes("@orb-gate-ignore")`, `RE.test(line)` is judged at the
  *  regex literal instead). */
 function grammarCallArgumentText(call: CallExpression): string | undefined {
-  const callee = call.getExpression();
+  const read = readMemberAccess(call.getExpression());
   const argument = call.getArguments()[0];
-  if (!(Node.isPropertyAccessExpression(callee) && GRAMMAR_CALL_METHODS.has(callee.getName())) || argument === undefined) {
+  // `text["includes"]("@orb-gate-ignore")` parses the same grammar as `text.includes(…)` (#2199).
+  if (read === undefined || !GRAMMAR_CALL_METHODS.has(read.name) || argument === undefined) {
     return;
   }
   return staticSegments(argument).segments.join("");
@@ -238,12 +244,15 @@ function regExpConstructionText(construction: MorphNode): string | undefined {
  *  declared as a PARAMETER, which is what a policy `create` context and a fact context both are — and what a
  *  local data object carrying its own `resources` field is not (the live near-miss is
  *  `devtools-frontend-assets.ts:103`, `assets.manifest.resources`, whose receiver is not an identifier at
- *  all). Anything reached through a longer receiver chain is somebody's data, not the closed host. */
-function isContextResourceAccess(node: MorphNode): node is PropertyAccessExpression {
-  if (!Node.isPropertyAccessExpression(node) || node.getName() !== RESOURCE_HOST_MEMBER) {
-    return false;
-  }
-  return bindsParameter(node.getExpression());
+ *  all). Anything reached through a longer receiver chain is somebody's data, not the closed host.
+ *
+ *  SPELLING-INDEPENDENT SINCE #2199: the read is resolved through `lib/symbol-reference.ts`, so
+ *  `ctx["resources"]` is the same host read as `ctx.resources`. Keyed on `PropertyAccessExpression` alone,
+ *  this arm — the one that decides whether a policy touched the resource host WITHOUT its guard — answered a
+ *  silent no for the bracket spelling, which is a false clean on the accusing side. */
+function contextResourceAccess(node: MorphNode): MemberRead | undefined {
+  const read = readMemberAccess(node);
+  return read !== undefined && read.name === RESOURCE_HOST_MEMBER && bindsParameter(read.receiver) ? read : undefined;
 }
 
 /** Is this callee THE guard — `readyResourceValue` resolved by import origin to its home module? Through the
@@ -266,9 +275,13 @@ function isResourceGuard(callee: MorphNode): boolean {
  *  home module. Every other shape — a bare door call, a door call wrapped in something else, the host bound to
  *  a name, the host passed to ANY function, shared or local — answers true. There is no hand-off exception;
  *  the header records the one that existed and why it was removed. */
-function unguardedResourceRead(access: PropertyAccessExpression): boolean {
-  const door = access.getParent();
-  if (!Node.isPropertyAccessExpression(door) || door.getExpression() !== access) {
+function unguardedResourceRead(access: MemberRead): boolean {
+  const door = access.access.getParent();
+  const doorRead = door === undefined ? undefined : readMemberAccess(door);
+  // The DOOR is read through the same resolver as the host (#2199) — `ctx["resources"]["read"](…)` is one
+  // admitted shape's spelling, and a property-keyed chain walk would have called it unguarded on the pass
+  // side and invisible on the report side at once.
+  if (door === undefined || doorRead === undefined || doorRead.receiver !== access.access) {
     return true;
   }
   const call = door.getParent();
@@ -292,7 +305,7 @@ interface JudgedModule {
   readonly path: string;
   readonly registration: FinalRegistration;
   readonly ioDoors: readonly MorphNode[];
-  readonly resourceReads: readonly PropertyAccessExpression[];
+  readonly resourceReads: readonly MemberRead[];
   readonly grammarSites: readonly GrammarSite[];
 }
 
@@ -311,7 +324,7 @@ function judgeModule(ctx: GatePolicyContext, { sourceFile, path, registration, i
     ctx.report.node(door, { message: FS_MESSAGE });
   }
   for (const access of resourceReads) {
-    ctx.report.node(access.getNameNode(), { message: RESOURCE_MESSAGE });
+    ctx.report.node(access.nameNode, { message: RESOURCE_MESSAGE });
   }
   for (const site of grammarSites) {
     ctx.report.node(site.node, { message: `${GRAMMAR_MESSAGE} Opener: ${site.opener}.` });
@@ -333,7 +346,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const ioDoors = new Map<SourceFile, MorphNode[]>();
-    const resourceReads = new Map<SourceFile, PropertyAccessExpression[]>();
+    const resourceReads = new Map<SourceFile, MemberRead[]>();
     const grammarSites = new Map<SourceFile, GrammarSite[]>();
     const noteDoor = (sourceFile: SourceFile, node: MorphNode): void => {
       ioDoors.set(sourceFile, [...(ioDoors.get(sourceFile) ?? []), node]);
@@ -373,10 +386,13 @@ export const gate = defineGate({
           },
         },
         {
-          kinds: [SyntaxKind.PropertyAccessExpression],
+          // BOTH member kinds (#2199): `MEMBER_ACCESS_KINDS` is the whole family of member-read spellings, and
+          // subscribing to the property half alone is the #1506 hole this arm was shipping.
+          kinds: [...MEMBER_ACCESS_KINDS],
           visit: (node, sourceFile): void => {
-            if (isContextResourceAccess(node) && unguardedResourceRead(node)) {
-              resourceReads.set(sourceFile, [...(resourceReads.get(sourceFile) ?? []), node]);
+            const read = contextResourceAccess(node);
+            if (read !== undefined && unguardedResourceRead(read)) {
+              resourceReads.set(sourceFile, [...(resourceReads.get(sourceFile) ?? []), read]);
             }
           },
         },
@@ -499,6 +515,16 @@ export const gate = defineGate({
       ),
       expect: { count: 1, token: "import", messageIncludes: "opens an I/O" },
       why: "E3 the filesystem door: a `node:fs` import in a final module is a private resource reader wearing a contract's clothes (§12.4) — the import declaration is the anchor because deleting it is the repair",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        finalProbeModule(
+          `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ evaluate: () => { ctx["resources"]["trackedFiles"](); } }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }],`,
+        ),
+      ),
+      expect: { count: 1, token: '"resources"', messageIncludes: "without `readyResourceValue`" },
+      why: 'E4 THE BRACKET SPELLING (#2199) — `ctx["resources"]["trackedFiles"]()` is the same unguarded host read, and the arm was keyed on `PropertyAccessExpression` at BOTH ends (the host read and the walk subscription), so it produced no node to judge at all. Measured on the unmodified module: 0 findings. The token is the quoted key because that is the authored text at the reported position',
     },
     {
       mode: "types",

@@ -80,7 +80,19 @@ export function finalRegistrationOf(sourceFile: SourceFile): FinalRegistration |
     if (Node.isCallExpression(value)) {
       const callee = value.getExpression();
       const argument = value.getArguments()[0];
-      if (Node.isIdentifier(callee) && isCanonicalDefineGate(callee)) {
+      // IDENTITY, NOT NODE KIND (#2199) — and REGISTRATION is a different question from CONFORMANCE.
+      // `isCanonicalDefineGate` resolves a namespace member to the canonical export on its own, so the
+      // `isIdentifier` test only narrowed the SPELLING: a module registering through
+      // `import * as policy …; policy.defineGate({…})` read as NO REGISTRATION, and a module that registers
+      // nothing is judged by no arm of the `policy-soundness` family at all — a silent green, not a refusal.
+      //
+      // THE NAMESPACE SPELLING REMAINS FORBIDDEN, deliberately: `lib/gate-contract.ts#usesDefineGate` keeps its
+      // identifier-callee requirement and reports `descriptor-wrapper` for exactly this shape (pinned by
+      // "refuses namespace, computed, and dynamic defineGate call shapes", tests/tooling/verify/lib/gate-contract.test.ts).
+      // Widening THAT reader was this fix's first attempt and it deleted the ruling; widening THIS one is what
+      // makes the ruling enforceable, because a module the family never recognises is a module whose contract
+      // violation nobody reports. Recognise first, then judge.
+      if (isCanonicalDefineGate(callee)) {
         registration = { callee, argument, descriptor: argument !== undefined && Node.isObjectLiteralExpression(argument) ? argument : undefined };
       }
     }

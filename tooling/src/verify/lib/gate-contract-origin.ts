@@ -102,8 +102,22 @@ function declarationOwnerName(node: MorphNode): string | undefined {
   return owner !== undefined && (Node.isInterfaceDeclaration(owner) || Node.isClassDeclaration(owner)) ? owner.getName() : undefined;
 }
 
+/** The receiver types the member could be declared on. NON-NULLABLE AND PER-CONSTITUENT, and both halves are
+ *  load-bearing (#2202/#2199): `Type#getProperty` answers `undefined` for ANY union, and an OPTIONAL CHAIN
+ *  produces exactly that — `node.getSymbol()?.…` types its receiver `Symbol | undefined`. Combined with the
+ *  bracket spelling, whose nameNode is a STRING LITERAL carrying no symbol of its own, both doors closed at
+ *  once and `isTsMorphMember` answered false: `node.getSymbol()?.getDeclarations()` resolved (nameNode door),
+ *  `node["getDefinitionNodes"]()` resolved (type door, non-nullable receiver), and
+ *  `node.getSymbol()?.["getDeclarations"]()` — the SAME binding resolution one spelling over — did not. That
+ *  is a silent green on the accusing side for every policy asking this question, not only the one that
+ *  measured it. */
+function receiverConstituents(member: CallableMember): readonly import("ts-morph").Type[] {
+  const type = member.receiver.getType().getNonNullableType();
+  return type.isUnion() ? type.getUnionTypes() : [type];
+}
+
 function callableDeclarations(member: CallableMember): readonly MorphNode[] {
-  const memberSymbols = [member.nameNode.getSymbol(), member.receiver.getType().getProperty(member.name)].filter(
+  const memberSymbols = [member.nameNode.getSymbol(), ...receiverConstituents(member).map((type) => type.getProperty(member.name))].filter(
     (symbol): symbol is import("ts-morph").Symbol => symbol !== undefined,
   );
   const declarations = memberSymbols.flatMap((symbol) => symbol.getDeclarations());
