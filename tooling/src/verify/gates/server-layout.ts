@@ -1,16 +1,36 @@
 // Gate: server-layout (Core-0-Architecture-and-Structure.md §3). The server source root is the closed
 // six-tier architecture plus index.ts. This is a semantic vocabulary, not an exemption or count ratchet;
 // ResourceHost derives the live entries and package metadata anchors missing-tier findings.
+// The resource-policy contract this module is the worked example of — what a closed-ResourceHost policy
+// owes, and why it owns no not-ready branch — is docs/design/resource-policy-contract.md.
 // FAMILY: singleton. The rule is one package's root vocabulary read off one authored tree; the nearest
 // sibling (`ui-exports-map-complete`) judges a DIFFERENT package against its manifest exports, and the two
-// share the `readyResourceValue` declaration reader rather than a family identity reader.
+// share the `readyResourceValue` declaration reader (`lib/resource-declaration.ts`) rather than a family
+// identity reader.
+// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at 05e595f33 (the parent of d59803f7f). The legacy
+// descriptor `readdirSync`-listed `packages/server/src` at depth 1 and gated its MISSING-tier arm on a
+// real-tree anchor (`pnpm-workspace.yaml`), because a conformance fixture could not be told from a gutted
+// tree; it also reported that arm at the gate's OWN source file. The final walks `authored-tree:server`
+// and takes the depth-1 entries (`topEntry`). Three deltas, each deliberate: (1) the anchor guard is
+// RETIRED — a resource fixture supplies its whole tree, so "is this the real tree" is no longer a question;
+// an EMPTY tree is a population-phase refusal rather than a verdict, and ONE file is a tree that is missing
+// every tier (`mustFlag[2]`); (2) the missing-tier anchor moved from the gate's own file (outside any
+// resource population — the runtime refuses such an anchor) to the server manifest, which is declared for
+// exactly that purpose; (3) non-authored names at the root (`node_modules`, `dist`, `.git`, `.cache`) were
+// legacy-RED and are invisible to the authored reader (none is authored), and a symlink at the root, which
+// the legacy listing reported by name, now makes the tree `unresolved` — a refusal.
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that is missing/empty/unresolved/
-// malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`) THROW during the
+// malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`) THROW during the
 // POPULATION phase, and the receipt phase withholds every consumer, both before `create`/`evaluate` run
 // (guide §11 ruling 3). This module therefore owns no not-ready branch: it reads through
 // `readyResourceValue`, whose throw is an assertion that the runtime's own refusal held. An in-module
 // `if (fact.status !== "ready") return;` here would be unreachable code AND would teach the next resource
-// conversion that a silent return is the correct answer to a broken resource. It is not.
+// conversion that a silent return is the correct answer to a broken resource. It is not. Every reachable
+// refusal (tree missing, tree empty, manifest missing, manifest malformed) and the complete run's receipt
+// pair are pinned through `runPolicyPass` in resource-layout-wave-1.test.ts, because no proof row can
+// express a refusal (guide §4.5b).
+// DECLARED LIMITS: none beyond the vocabulary itself — `mustPass[0]` is the complete legal root, and every
+// arm is pinned by a row whose count the §4.1 cut moves.
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
@@ -63,7 +83,11 @@ export const gate = defineGate({
       const present = new Set(entries);
       for (const entry of entries) {
         if (!LEGAL_ENTRIES.has(entry)) {
-          ctx.report.file(`${SERVER_SOURCE}/${entry}`, { line: 1, column: 1, message: `illegal top-level entry ${JSON.stringify(entry)}.` });
+          ctx.report.file(`${SERVER_SOURCE}/${entry}`, {
+            line: 1,
+            column: 1,
+            message: `illegal top-level entry ${JSON.stringify(entry)} — the server root is exactly the six tiers plus index.ts (Core-0-Architecture-and-Structure.md §3).`,
+          });
         }
       }
       for (const entry of LEGAL_ENTRIES) {
@@ -71,7 +95,7 @@ export const gate = defineGate({
           ctx.report.file(SERVER_MANIFEST, {
             line: 1,
             column: 1,
-            message: `${JSON.stringify(entry)} is required by the closed server-root architecture but is missing.`,
+            message: `${JSON.stringify(entry)} is required by the closed server-root architecture but is missing (Core-0-Architecture-and-Structure.md §3).`,
           });
         }
       }
@@ -110,6 +134,20 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: '"kit" is required' },
       why: "a named tier missing from the live tree is a structural mismatch",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/package.json": '{"name":"@orb/server","private":true}',
+        "packages/server/src/index.ts": "export const x = 1;\n",
+      },
+      // The boundary between a REFUSAL and a VERDICT. An EMPTY server tree is a population-phase tool error
+      // (pinned in resource-layout-wave-1.test.ts); ONE file is a tree, and a tree missing every tier is six
+      // findings, one per tier, all anchored at the manifest. `count: 6` pins that the missing-tier loop
+      // counts every member of the closed vocabulary rather than stopping at the first. It shares
+      // `mustFlag[1]`'s arm and message shape — the count is what carries it.
+      expect: { count: 6, messageIncludes: "is required" },
+      why: "a server tree holding only index.ts is missing all six tiers — one finding per tier, never a collapsed one",
     },
   ],
   mustPass: [

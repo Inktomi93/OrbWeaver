@@ -1,17 +1,46 @@
 // Gate: ui-exports-map-complete (ui-package-design.md). The live @orb/ui module tree and package exports
 // must agree in both directions. ResourceHost supplies both sources; the policy derives modules from the
-// tree rather than maintaining a family list.
+// tree rather than maintaining a family list. The resource-policy contract this module is the worked
+// example of — what a closed-ResourceHost policy owes, and why it owns no not-ready branch — is
+// docs/design/resource-policy-contract.md.
 // FAMILY: singleton. The subject is one package's manifest-versus-tree agreement; no second policy reads
 // the `@orb/ui` exports map, and the shared reader this module does use is the declaration-consumption
-// reader `readyResourceValue`, not a family identity reader.
+// reader `readyResourceValue` (`lib/resource-declaration.ts`), not a family identity reader.
+// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at eb5fc2fab (the parent of 05e595f33). The legacy
+// descriptor `readdirSync`-walked `packages/ui/src` two levels deep and `existsSync`-checked each exports
+// target joined under `packages/ui`. The final declares `authored-tree:packages` plus
+// `package-metadata:ui` — `packages`, NOT `ui-source`, because the real manifest exports a file OUTSIDE
+// `src` (`"./token-contract": "./token-contract.ts"`) and the dead-target arm would false-RED it under the
+// narrower id; `packages` is the smallest CLOSED id that keeps A3 honest (the vocabulary is frozen, guide
+// §12.4). Four deltas, each deliberate: (1) the legacy A4 "reader learned nothing" arm is RETIRED and split
+// into its two halves — a manifest with NO `exports` key resolves to `{}` and is a VERDICT (one A1 per
+// derived module, `mustFlag[5]`); a missing/malformed manifest or a non-string-map `exports` block is a
+// population-phase REFUSAL, pinned through `runPolicyPass` in resource-layout-wave-1.test.ts; (2) the legacy
+// `existsSync(join(root, "packages/ui", target))` accepted any spelling that happened to resolve (`../kit/…`
+// escaped the package), while the final requires a package-relative `./` specifier (`mustFlag[4]`) — a
+// tightening; (3) non-authored directory names (`node_modules`, `dist`, `.git`, `.cache`) under `src` were
+// visible to the legacy walk and are invisible to the authored reader — none is a module; (4) a symlink
+// anywhere under `packages/` makes the tree `unresolved` (a refusal) where the legacy walk silently skipped
+// a symlinked directory and `existsSync` followed a symlinked target.
+// THE READY-EMPTY NORMALIZATION GENERALISES — a contract note, not this module's quirk: the package-metadata
+// provider's `stringMap(undefined)` returns `{}` for EVERY optional map key (`scripts`, `dependencies`,
+// `devDependencies`, `peerDependencies`, `optionalDependencies`, `exports`; `ops/resource-config.ts`), so
+// every `packageMetadata` consumer inherits "absent key reads as an authored empty map" and must pin what
+// its arm does with an empty map (`verify-registry-parity` reads `scripts` the same way). Only a key that
+// is PRESENT and not a string map refuses.
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that is missing/empty/unresolved/
-// malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`) THROW during the
+// malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`) THROW during the
 // POPULATION phase, and the receipt phase withholds every consumer, both before `create`/`evaluate` run
 // (guide §11 ruling 3). So this module owns no not-ready branch: reading through `readyResourceValue`
 // turns a broken resource into a loud tool error. An in-module `if (fact.status !== "ready") return;`
 // would be unreachable code that teaches the next resource conversion to answer a broken resource with a
 // silent return. Consequence for the roster: there is no reportable BLINDNESS arm here — an unreadable
 // exports block is a tool error, never a finding.
+// DECLARED LIMITS, each with the row that holds it: a leaf dir that is neither module nor family (`styles/`,
+// published by FILE) owns no entry (`mustPass[1]`); a module's own subdirectories are internals
+// (`mustPass[2]`); the absent-`exports`-key verdict cannot be told from an authored empty map — that is the
+// provider's normalization above, not this policy's (`mustFlag[5]`). UNFALSIFIABLE fences are named at
+// their function rather than pinned by a row that would not discriminate (guide §4.1's fourth outcome).
 
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -34,15 +63,25 @@ interface ModuleDir {
   readonly hasIndex: boolean;
 }
 
+/** The direct child DIRECTORIES of `parent`. Two fences survive, both measured by the §4.1 cut:
+ *  `kind === "directory"` is enforced at the FAMILY-CHILD position by `mustPass[1]` (a file inside a family
+ *  dir — `styles/globals.css` — must not become a "module" with no front door) and is UNFALSIFIABLE at the
+ *  depth-1 position (an unfenced depth-1 file has no children, so no fixture can make it flag — documented,
+ *  not faked); `!path.includes("/")` is enforced by seven rows. A former `path.length > 0` companion was
+ *  DELETED: an entry equal to `parent` itself fails the `startsWith(prefix)` test, so the remainder is never
+ *  empty, and cutting it killed no row — the tell for a fence that reads like a guarantee and enforces nothing. */
 function childDirectories(entries: readonly ResourceTreeEntry[], parent: string): readonly string[] {
   const prefix = `${parent}/`;
   return entries
     .filter((entry) => entry.kind === "directory" && entry.path.startsWith(prefix))
     .map((entry) => entry.path.slice(prefix.length))
-    .filter((path) => path.length > 0 && !path.includes("/"))
+    .filter((path) => !path.includes("/"))
     .toSorted();
 }
 
+/** Every directory the exports map is REQUIRED to name, derived from the tree's own two-level shape. The
+ *  `kind === "file"` filter on the index set is UNFALSIFIABLE by construction — it would matter only for a
+ *  DIRECTORY named `index.ts` — so no row claims to enforce it; it is type honesty, not a fence. */
 function modules(entries: readonly ResourceTreeEntry[]): readonly ModuleDir[] {
   const files = new Set(entries.filter((entry) => entry.kind === "file").map((entry) => entry.path));
   const out: ModuleDir[] = [];
@@ -75,26 +114,46 @@ function targetPath(target: string): string | undefined {
 function reportModuleProblems(ctx: GatePolicyContext, entries: readonly ResourceTreeEntry[], exports: PackageStringMap): void {
   for (const module of modules(entries)) {
     if (!module.hasIndex) {
-      ctx.report.file(module.directoryPath, { line: 1, column: 1, message: `${module.directoryPath} has no ${INDEX}; it has no exportable front door.` });
+      ctx.report.file(module.directoryPath, {
+        line: 1,
+        column: 1,
+        message: `${module.directoryPath} has no ${INDEX}; it has no exportable front door (core/ui-package-design.md).`,
+      });
       continue;
     }
     if (exports[module.key] !== module.target) {
       const spelled = exports[module.key];
       const detail = spelled === undefined ? "no entry at all" : `${JSON.stringify(spelled)}, not ${JSON.stringify(module.target)}`;
-      ctx.report.file(module.indexPath, { line: 1, column: 1, message: `${UI_MANIFEST} exports has ${detail} for ${JSON.stringify(module.key)}.` });
+      ctx.report.file(module.indexPath, {
+        line: 1,
+        column: 1,
+        message: `${UI_MANIFEST} exports has ${detail} for ${JSON.stringify(module.key)} (core/ui-package-design.md).`,
+      });
     }
   }
 }
 
+/** A3, two causes with two MESSAGES: a specifier that is not package-relative resolves to nothing this
+ *  package owns, and a package-relative target whose file is gone. One report call carried both until the
+ *  transplant test showed `mustFlag[3]`'s "does not exist" matched `mustFlag[4]` too — a shared message
+ *  cannot discriminate two causes, so the causes were split rather than the row weakened. */
 function reportDeadTargets(ctx: GatePolicyContext, entries: readonly ResourceTreeEntry[], exports: PackageStringMap): void {
   const paths = new Set(entries.map((entry) => entry.path));
   for (const [key, target] of Object.entries(exports)) {
     const path = targetPath(target);
-    if (path === undefined || !paths.has(path)) {
+    if (path === undefined) {
       ctx.report.file(UI_MANIFEST, {
         line: 1,
         column: 1,
-        message: `exports entry ${JSON.stringify(key)} points at ${JSON.stringify(target)}, which does not exist.`,
+        message: `exports entry ${JSON.stringify(key)} points at ${JSON.stringify(target)}, which is not a package-relative "./" specifier and resolves to nothing this package owns (core/ui-package-design.md).`,
+      });
+      continue;
+    }
+    if (!paths.has(path)) {
+      ctx.report.file(UI_MANIFEST, {
+        line: 1,
+        column: 1,
+        message: `exports entry ${JSON.stringify(key)} points at ${JSON.stringify(target)}, which does not exist (core/ui-package-design.md).`,
       });
     }
   }
@@ -177,10 +236,29 @@ export const gate = defineGate({
       },
       // The MINIMAL falsifier for the package-relative test in `targetPath`. This target's tail spells a
       // path that really exists, so dropping the `./` test resolves it to the live button module and the
-      // row goes green — which is how the fence earns its §4.1 cut. A target that merely fails to exist
-      // cannot prove it: both the fenced and the unfenced spelling report that one.
-      expect: { count: 1, messageIncludes: 'points at "~/src/primitives/button/index.ts"' },
+      // row goes green — which is how the fence earns its §4.1 cut (WRONG-DIRECTION class: the row the cut
+      // turns GREEN, not one asserting a bogus input is reported). A target that merely fails to exist
+      // cannot prove it: both the fenced and the unfenced spelling report that one. The discriminator is
+      // the cause's own message, so transplanting `mustFlag[3]`'s "does not exist" here REDS this row.
+      expect: { count: 1, messageIncludes: 'is not a package-relative "./" specifier' },
       why: "an export target that is not a package-relative ./ specifier resolves to nothing this package owns",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/package.json": '{"name":"@orb/ui","private":true}',
+        "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n",
+        "packages/ui/src/primitives/badge/index.ts": "export const Badge = 1;\n",
+      },
+      // The READY half of the retired legacy A4 "reader learned nothing" arm. A manifest with no `exports`
+      // key at all resolves to `{}` (`ops/resource-config.ts`, `stringMap(undefined)`), which is a VERDICT,
+      // not a refusal: every derived module is sealed out and the finding says so per module. The count is
+      // what carries this row — it shares `mustFlag[0]`'s arm and message, and differs in CAUSE (no map,
+      // rather than one missing entry) and in cardinality. The other half of A4 — a missing/malformed
+      // manifest or an `exports` block that is not a string map — is a population-phase REFUSAL, which no
+      // proof row can express; it is pinned through `runPolicyPass` in resource-layout-wave-1.test.ts.
+      expect: { count: 2, messageIncludes: "no entry at all" },
+      why: "a manifest with no exports key seals every module out — one A1 finding per derived module, never a silent zero",
     },
   ],
   mustPass: [
