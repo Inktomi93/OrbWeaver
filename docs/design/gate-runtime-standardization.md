@@ -108,12 +108,18 @@ lane sent here picked a refuted shape and copied it, which is the transmission f
 | - | - | - | - |
 | pure syntax / name-by-law | `no-mutating-register-api.ts` | CONFIRMED (wave 5-6): its `mustPass[3]` `why` says *"the only row that dies without it"* and the cut proved that sentence TRUE | ~~`no-array-literal-querykey`~~ REFUTED — `fix` names no waiver spelling, name fence unenforced |
 | entire-population tripwire | `spacing-tier-home-health.ts` — **HARD tripwire only, and only once it lands its one §4.5 pin** | REFUTED minor; the ANCHOR self-guard IS enforced | its occurrence sibling's HEADER |
-| **closed resource (ResourceHost)** | **NONE. There is no confirmed resource exemplar.** | Both candidates REFUTED: `server-layout` SEVERE (a not-ready guard that CANNOT EXECUTE, `mustFlag[0]` tolerating 8 findings under a one-finding `why`) and `ui-exports-map-complete` (a `messageIncludes` that discriminates nothing, a roster row declaring an arm A4 the module lacks) | ~~both~~. **The class defect is #1979 — a silent not-ready return reads CLEAN over a broken fact, six sites open.** A resource-backed Phase-D family MUST NOT dispatch until one resource module is confirmed |
+| **closed resource (ResourceHost)** | `server-layout.ts` · `ui-exports-map-complete.ts` — **REPAIRED, confirmation in flight** | Wave 1 refuted both SEVERELY; **both were REPAIRED at `0fab76771` (2026-09-11) and the #1979 class closed at `2bacd5ef9`** — the dead guard is gone, both read through `readyResourceValue`, the fake discriminator and the 8-findings-under-a-one-finding-`why` row are fixed, and **10 of 10 `analysis: "resource"` modules now use the shared reader**. `f-resource-exemplar` is closing the residue (a missing §4.5 pin, both §5b.5 headers, one transplant that fails because two rows share a report call, one dead fence, and the READY-degenerate `exports`-absent case) | do not copy the PRE-`0fab76771` shape from wave 1's receipts — **that audit is superseded** |
 | fact consumer (`defineFact`) | `db-enum-from-tuple.ts` | CONFIRMED (wave 3): *"the module to hand a conversion lane"* — 4 of 4 narrowings enforced, 10 exact counts, the strongest identity-counterfactual set in its family | ~~`schema-branding`~~ REFUTED minor — three arm narrowings unenforced |
 | reviewed-grant identity | `no-raw-matchmedia.ts` — **fix #1998 first** (header and roster row say "all four" grants; there are FIVE) | REFUTED SEVERE at wave 1, REPAIRED `b157bb9be`, **wave 7 re-audited and confirmed the repair HELD** — the only module in 26 whose #944 third answer is actually REACHED | — |
 | warning debt | `user-bus-deferred-member.ts` | **CONFIRMED TWICE** (wave 1's sole survivor; wave 10 re-audited it against all five new method rules and it survived). The densest honest header in the corpus | — |
 | split family | `bus-definition-belts.ts` | CONFIRMED (wave 10) — the bus headers are among the corpus's best | ~~`no-raw-spacing-in-features` + `-health`~~ REFUTED — both halves of the carrier-fence claim unenforced in both twins |
 | registry / completeness | `section-registry-completeness.ts` | CONFIRMED (wave 2): 4 of 4 narrowings enforced, both fence rows state their own cut result and both are TRUE, header AND roster row accurate | — |
+
+**CORRECTION, 2026-09-12: this table's resource cell was written from wave 1's verdicts WITHOUT re-deriving
+against the tree, twelve hours after the repair landed.** That is the error the refutation ledger exists to
+prevent — an audit verdict is a claim about the tree ON ITS DATE. **Before citing any audit cell in this
+table, check the module.** The ledger (`docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md`) carries
+each defect's state; where it says UNADJUDICATED, you re-derive.
 
 **The §5b.5 caveat that applies to the whole column:** several confirmed modules still carry an INCOMPLETE
 header (no FAMILY line, no POPULATION PORT, no legacy SHA — #2005). Where that is so, tell the lane to copy
@@ -1129,6 +1135,14 @@ ERROR, never a reportable finding and never a silent zero.** So the branch THROW
  *  ever runs — a non-ready fact here means the runtime's own guard broke, not a reportable finding. */
 readyResourceValue(fact) // lib/resource-declaration.ts — the module that owns the refusal law at :182
 ```
+
+**A RESOURCE POLICY CANNOT HAVE A `-health` SIBLING AT ALL, AND THE REASON IS THE PHASE ORDER** (measured
+2026-09-12 by the `f-resource-exemplar` design pass). `resolveRuns` WITHHOLDS any owner that declares a
+resource one phase before `create`, so **no policy can ever observe a broken resource** — the RUNTIME is the
+accuser, and its answer is a tool error (exit 2, "not a verdict"), not a finding. That is the exact opposite
+of a FACT, whose non-ready state IS delivered to its consumer, which is why `bus-fact-health` exists, is
+correct, and must not be "fixed" to throw. **Do not invent a `-health` sibling for a resource policy; there
+is no state for it to report.**
 
 **A `-health` POLICY IS THE DESIGNATED ACCUSER, SO THE PROTECTIONS THAT GUARD AN ORDINARY CONSUMER MUST NOT APPLY
 TO IT.** Every mechanism in this section — refuse, withhold, throw — exists to stop a policy reporting on evidence it
