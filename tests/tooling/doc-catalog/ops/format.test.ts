@@ -160,18 +160,21 @@ test("WIDENING: class 2 is admitted, and the bytes this repo does not author are
   expect(targets).not.toContain(".claude/skills/snap-driving/reference/flags.md");
 });
 
-test("CLASS 3: the root entry points are admitted, and the generated-block file is not", () => {
+test("CLASS 3: every root entry point is admitted — including the generated-block file", () => {
   // Widened by PATH, not by the pair the row enumerated: `README.md` is a third root file matching the
   // row's own description, and enumerating would have missed it the way omission missed the second
-  // archaeology tree. `AGENTS.md` is fenced because its lines 1-37 are written by `pnpm agents:sync`,
-  // whose array emits no blank line at either marker seam — the exact two blanks this formatter wants —
-  // and whose freshness is the REGISTERED `check:agents` stage. Admitting it makes two stages unable to
-  // be green at once. That fence is temporary; its successor is two blank lines in the generator.
+  // archaeology tree.
+  //
+  // `AGENTS.md` was briefly FENCED (#2173) because its lines 1-37 are written by `pnpm agents:sync`,
+  // whose array emitted no blank line at either marker seam — the exact two blanks this formatter
+  // inserts — while its freshness is the REGISTERED `check:agents` stage, so two enforced stages could
+  // not be green at once. #2175 fixed the GENERATOR rather than widening the exclusion. Asserting
+  // `AGENTS.md` is PRESENT is what stops the fence creeping back the next time the two disagree.
   const targets = formatTargets([]);
 
   expect(targets).toContain("CLAUDE.md");
   expect(targets).toContain("README.md");
-  expect(targets).not.toContain("AGENTS.md");
+  expect(targets).toContain("AGENTS.md");
 });
 
 test("CLASS 3: the `@` import directive survives a REAL write, not just an empty pass", ({ scratch }) => {

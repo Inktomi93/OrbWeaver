@@ -4,6 +4,7 @@
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { join, relative } from "node:path";
 import { codexAgentSyncProblems, parseClaudeAgent, ROLE_MODELS } from "../../../../tooling/src/agent-sync/index.ts";
+import { formatMarkdown } from "../../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..", "..");
@@ -99,4 +100,24 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   expect(claudeHookConfig).toContain("/.claude/hooks/session-onboard.sh");
   expect(claudeHookConfig).toContain("/.claude/hooks/worktree-setup.sh");
   expect(claudeHookConfig).toContain("/.claude/hooks/worktree-remove.sh");
+});
+
+test("the generated rule-guidance block is CANONICAL markdown, so both stages can be green at once", () => {
+  // A CROSS-TOOL invariant, and it needs a cross-tool pin: `AGENTS.md` is written by this generator AND
+  // owned by the docs formatter (class 3 of the #2144 widening). They enforce each other's opposite —
+  // `check:agents` requires the generator's exact bytes, `check:docs` requires canonical markdown — so if
+  // the emitted block is not already canonical, the two stages CANNOT both be green and the only escapes
+  // are fencing the file out of one door (which is what #2173 had to do, at the cost of leaving its
+  // hand-authored lines unchecked) or hand-editing generated output (which the next sync overwrites).
+  //
+  // #2175 removed the deadlock by making the GENERATOR emit the two blank lines at the marker seams. This
+  // asserts the property rather than the two lines: any future edit to `renderedRuleGuidance()` that
+  // emits non-canonical markdown fails HERE, at the generator, instead of surfacing as an unexplainable
+  // red in a docs lane that has never heard of `agents:sync`.
+  const projectInstructions = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
+  const { output, refusal } = formatMarkdown(projectInstructions);
+
+  expect(refusal).toBeNull();
+  expect(output).toBe(projectInstructions);
+  expect(codexAgentSyncProblems()).toEqual([]);
 });

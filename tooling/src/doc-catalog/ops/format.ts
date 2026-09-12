@@ -170,34 +170,23 @@ function isClass2File(path: string): boolean {
 const CLASS_3_ROOT = /^[^/]+\.md$/u;
 
 /**
- * GENERATED BLOCK — the harder sibling of `GENERATED` above, and the reason root `AGENTS.md` is fenced.
- * Its lines 1-37 are written by `pnpm agents:sync` (`tooling/src/agent-sync/ops/sync.ts:39-73`), whose
- * array emits `RULE_GUIDANCE_BEGIN, "## Codex reading map", …, RULE_GUIDANCE_END` with NO blank line at
- * either seam — and those two blank lines are precisely what this formatter wants to insert. Freshness
- * is enforced: `sync.ts:106` raises "AGENTS.md Claude rule guidance is stale", exposed as `check:agents`
- * and REGISTERED as a verify stage (`verify/lib/registry.ts:170`). So admitting the file would make
- * `check:docs` and `check:agents` unable to be green at the same time.
+ * ROOT `AGENTS.md` IS ADMITTED, and getting there is the point worth recording (#2173 follow-up).
  *
- * Unlike `flags.md`, the generated part is a BLOCK inside a hand-authored file, so this fence also stops
- * checking the file's ~33 hand-authored lines — a real cost, recorded rather than hidden.
+ * It was fenced out of this population because its lines 1-37 are a GENERATED BLOCK written by
+ * `pnpm agents:sync`, whose array emitted no blank line at either marker seam — precisely the two blanks
+ * this formatter inserts. Both sides are enforced stages (`check:docs` here; `check:agents` via
+ * `sync.ts` → `package.json` → `verify/lib/registry.ts`), so the two could not be green in one tree and
+ * the file's ~33 hand-authored lines went unchecked as the price.
  *
- * NOT the `FROZEN_TREES` treatment, deliberately: this fence lives in the POPULATION only, so
- * `pnpm check:docs` is green while `format --check AGENTS.md` still reports. A frozen doc is unjudgeable
- * because nobody may ever edit it; this one is judgeable on request because it WILL be fixed and the
- * report is the reminder. Same fence, different half, for a different reason.
- *
- * THIS ROW IS TEMPORARY AND ITS SUCCESSOR IS KNOWN: two blank lines in the GENERATOR's array
- * (`agent-sync/ops/sync.ts`) make the emitted block canonical, after which this fence is DELETED and the
- * whole file is admitted with no exclusion. That edit belongs to `agent-sync` and is a separate row,
- * deliberately not folded in here — `agents:sync` also `unlinkSync`s `.codex/agents/*.toml` mirrors whose
- * Claude source is gone (`sync.ts:135-137`), so it is not an inert verb and does not ride along in a
- * docs-widening commit. Its floor is both stages green TOGETHER plus a zero-deletion check after the sync.
+ * The fix was in the GENERATOR, not in a wider exclusion: `agent-sync/ops/sync.ts` now emits those two
+ * blanks, so its output IS canonical markdown and the exclusion is gone rather than permanent. The rule
+ * this leaves behind: when a formatter and a generator disagree about bytes, the generator is usually
+ * the one that should move — an exclusion buys silence and costs coverage forever.
  */
-const GENERATED_BLOCK = /^AGENTS\.md$/u;
 
 /** True for the root entry-point markdown this formatter owns. */
 function isClass3File(path: string): boolean {
-  return CLASS_3_ROOT.test(path) && !GENERATED_BLOCK.test(path);
+  return CLASS_3_ROOT.test(path);
 }
 
 /** A character a CommonMark delimiter run may not treat as punctuation or whitespace. */

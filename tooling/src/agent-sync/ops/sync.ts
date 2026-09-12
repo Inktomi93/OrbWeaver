@@ -38,6 +38,14 @@ function renderedRuleGuidance(): string {
   }
   return [
     RULE_GUIDANCE_BEGIN,
+    // The two blank lines at the SEAMS are load-bearing, not cosmetic (#2173). The block lands inside
+    // root `AGENTS.md`, which the docs formatter now owns (class 3 of the #2144 widening), and canonical
+    // markdown puts a blank line between an HTML comment and the heading that follows it, and before a
+    // closing comment that ends a list. Emitting them here is what lets `check:agents` and `check:docs`
+    // be green in the SAME tree: without them the formatter wanted bytes this generator would overwrite
+    // on the next sync, so `AGENTS.md` had to be fenced out of the format population entirely and its
+    // ~33 hand-authored lines went unchecked. Delete either blank and that deadlock returns.
+    "",
     "## Codex reading map",
     "",
     "Codex does not expand `@path` directives. Begin with the bounded task and the relevant source and tests; load shared policy when the work reaches the decision or action it governs:",
@@ -69,6 +77,7 @@ function renderedRuleGuidance(): string {
     "Canonical Claude-owned rule inventory (generated so a new rule cannot disappear from the Codex entry point):",
     "",
     ...rules,
+    "",
     RULE_GUIDANCE_END,
   ].join("\n");
 }
