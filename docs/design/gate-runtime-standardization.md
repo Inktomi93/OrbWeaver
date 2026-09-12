@@ -168,6 +168,30 @@ family.
      resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
      path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
 
+   **§4.6'S FOUR CATEGORIES ARE INCOMPLETE — TWO MORE, AND THE FIRST IS THE COMMONEST DELTA IN THE CORPUS
+   (measured 2026-09-12 across all seven conversion records).**
+
+   **5. EXEMPTION-MECHANISM MOVE.** A site the legacy `scanRoot` subtraction, path allowlist or inline marker HID is
+   now REPORTED and licensed by a reviewed grant — so the differential reads `legacy 0 → final N raw → 0 effective`.
+   This is the DOMINANT delta in three records (+30, +40, +47) and fits none of the four; every record explains it in
+   prose because there was no name for it. **Its falsifier is different from the other four:** the question is not
+   *"does it still catch"* but **"did every hidden site become exactly ONE live, consumed row"** — which is what the
+   grant-liveness pass answers, not a replay.
+
+   **6. ANCHOR MOVE — and it is NOT metadata.** A conversion that moves a finding's reported position (receiver-start
+   → the actual dot; line-1-col-1 → the real column) changes what a **positioned waiver BINDS TO**, so it can silently
+   orphan or re-bind a marker. `mechanical-gates-1584.md` classified two of these as *"intentional metadata deltas"*.
+   **They owe a receipt**, not a bucket: confirm each moved anchor's markers still bind.
+
+   **AND A CATCH-ALL CELL IS ONE QUESTION WEARING A TABLE'S CLOTHES.** A per-policy differential table ending in
+   `every other policy | 0 | 0 | 0` has not asked N questions; it has asked one. Where those are 1:1 ports whose
+   legacy side actually RAN, that is fine and closable by rule. **Where one of them is a SPLIT ARM, the cell is
+   Tier 1's `-health` vacuity hiding in a table** — `ordinary-visitors-family-1584.md` swept four split arms into one
+   such cell, and `origin-server-family-1584.md` swept ten modules into another.
+
+   **So a close-by-rule must name what it closes on:** *a 1:1 port whose legacy side was **EXECUTED** and returned
+   zero.* That is true of 18 modules and **false of everything in `schema-fact`**, whose legacy side was never run.
+
    **DIFFERENTIAL VACUITY HAS TWO SHAPES, AND THE SECOND IS THE ONE THAT LOOKS LIKE EVIDENCE (measured
    2026-09-12 across all seven conversion records).** **Read the LEGACY-SIDE number FIRST**; a zero there downgrades
    the record to a population/outcome receipt no matter how much prose follows.
