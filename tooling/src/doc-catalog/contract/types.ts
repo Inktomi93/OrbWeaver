@@ -78,6 +78,13 @@ export interface AttestInput {
   /** Selected documents whose worktree bytes are not in the Git index — a receipt written over one of
    *  these would assert a pair that does not coexist. */
   readonly unstagedDocuments: ReadonlySet<string>;
+  /** Per selected document, the GRAMMAR errors its row would carry once written (#1996) — resolved by the
+   *  driver through `receiptEvidenceErrors`, so the plan stays a pure function of its inputs. A re-attest
+   *  copies evidence through untouched, and the tree moves underneath it: a `code` citation whose file was
+   *  renamed, a `law §N` whose section was renumbered, a `provenance` commit rebased out of HEAD's ancestry
+   *  all pass silently into a receipt that reds at `check:doc-catalog` AFTER the write. Empty for a
+   *  document whose row is clean. */
+  readonly evidenceErrors: ReadonlyMap<string, readonly string[]>;
 }
 
 /** A named reason re-attestation did not happen. `misuse` = the SELECTION was not an explicit document

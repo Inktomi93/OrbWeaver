@@ -188,6 +188,17 @@ function isReceiptClaim(value: unknown): value is ReceiptClaim {
   );
 }
 
+/** THE GRAMMAR HALF of a reviewed row, on its own so a WRITER can judge it BEFORE it writes (#1996).
+ *  `validateReceiptEntry` below is the whole contract and is `check:doc-catalog`'s; this half is the part
+ *  that depends only on the TREE — the six evidence grammars (`code`/`test`/`gate` roots and resolution,
+ *  `law` as an unambiguous `path §N` under core, `ruling` as a non-reserved `D<n>`, `provenance` as an
+ *  ancestor commit) — so re-attestation can refuse a row whose cited evidence has moved instead of landing
+ *  a receipt that reds minutes later, in the stage the lane was trying to get through. The index-coexistence
+ *  arms are deliberately NOT here: they are claims about a write that has not happened yet. */
+export function receiptEvidenceErrors(entry: ReceiptEntry, facts: ReceiptFacts | undefined): readonly string[] {
+  return claimEvidenceErrors(entry, facts);
+}
+
 function claimEvidenceErrors(entry: ReceiptEntry, facts: ReceiptFacts | undefined): readonly string[] {
   if (isLifecycleReceipt(entry)) {
     return [];

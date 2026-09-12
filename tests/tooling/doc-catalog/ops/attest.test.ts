@@ -68,6 +68,7 @@ function input(overrides: Partial<AttestInput> = {}): AttestInput {
     headCommit: HEAD,
     today: TODAY,
     unstagedDocuments: new Set<string>(),
+    evidenceErrors: new Map<string, readonly string[]>(),
     ...overrides,
   };
 }
@@ -133,6 +134,41 @@ test("a row that would let an UNREAD document acquire a receipt is refused by na
   const headless = planAttestation(input({ headCommit: null }));
   expect(headless.writes).toEqual([]);
   expect(headless.refusals[0]?.message).toContain("HEAD does not resolve to a commit");
+});
+
+// THE GRAMMAR HALF (#1996). A re-attest copies the row's judgment fields through untouched — including
+// its EVIDENCE, which the tree can invalidate without touching the document: a renamed `code` file, a
+// renumbered `law §N`, a `provenance` commit rebased out of HEAD's ancestry. Before this arm the verb
+// wrote first and the lane discovered it at `check:doc-catalog`, in the stage it was trying to get
+// through. The grammars are not re-spelled here or in the op — `lib/receipt-rules.ts` owns them and the
+// driver hands their verdict in as data, so the plan stays pure.
+test("a row whose cited evidence no longer resolves is REFUSED before the write, naming the grammar", () => {
+  const broken = planAttestation(
+    input({ evidenceErrors: new Map([[REVIEWED, [`${REVIEWED}: code evidence target does not resolve: packages/moved/away.ts:3`]]]) }),
+  );
+  expect(broken.writes).toEqual([]);
+  expect(broken.attested).toEqual([]);
+  expect(broken.refusals.map(({ kind }) => kind)).toEqual(["violation"]);
+  expect(broken.refusals[0]?.message).toContain("would land a receipt that reds at check:doc-catalog");
+  expect(broken.refusals[0]?.message).toContain("code evidence target does not resolve: packages/moved/away.ts:3");
+
+  // The other direction, and the control that the arm is keyed on CONTENT rather than on the map being
+  // present at all: an empty error list for the same row writes exactly as before.
+  const clean = planAttestation(input({ evidenceErrors: new Map([[REVIEWED, []]]) }));
+  expect(clean.refusals).toEqual([]);
+  expect(clean.writes).toHaveLength(1);
+
+  // A broken row does not take an unrelated lane's row down with it by silence — it takes it down LOUDLY,
+  // because the write set is all-or-nothing and the refusal names which row failed.
+  const mixed = planAttestation(
+    input({
+      selection: [REVIEWED, SECOND],
+      docs: [doc(REVIEWED, NEW_HASH), doc(SECOND, NEW_HASH)],
+      evidenceErrors: new Map([[SECOND, [`${SECOND}: ruling evidence target is reserved: D88`]]]),
+    }),
+  );
+  expect(mixed.writes).toEqual([]);
+  expect(mixed.refusals.map(({ message }) => message.includes(SECOND))).toEqual([true]);
 });
 
 test("ONE refusal cancels EVERY write, so a mixed selection can never land a partial sweep", () => {

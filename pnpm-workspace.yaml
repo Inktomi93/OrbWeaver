@@ -308,6 +308,11 @@ catalog:
   eslint-plugin-better-tailwindcss: ^4.7.0
   # tsdoc/syntax — validates TSDoc comment syntax (the Documentation-Law doc-comment gate). No eslint peer dep.
   eslint-plugin-tsdoc: ^0.5.2
+  # jsx-a11y — EXACT, not a caret, and that is the point (#1331). eslint.config.js spreads its `strict`
+  # bundle, `lint:eslint` runs with `--max-warnings 0`, so any rule a 6.x MINOR adds to that bundle would
+  # land as a hard `pnpm check` gate with no config change and no review. The spread is sanctioned ONLY
+  # because this pin cannot move on its own; loosening it to `^` reopens the door the ack claims is shut.
+  eslint-plugin-jsx-a11y: 6.10.2
   # eslint-react's leak family: unremoved listeners/timers/observers/fetch inside components — nothing
   # else in the stack (biome, react-hooks, tsc) can see a subscription that outlives its component.
   eslint-plugin-react-web-api: ^5.18.1

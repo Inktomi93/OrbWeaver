@@ -37,6 +37,12 @@
 //      derived in an effect, effect chains, prop-change state adjustment, …). 6 of its 9 rules ON; the
 //      other 3 are deliberately OFF with a measured receipt — see the block for the triage.
 //
+//   9. eslint-plugin-jsx-a11y — the a11y constraints Biome does not natively cover (shipped source only).
+//      • The SECOND sanctioned bundle spread, on react-hooks' terms and no looser: `flatConfigs.strict`
+//        is an audited CORRECTNESS set from an EXACT-pinned catalog entry (`6.10.2`, not `^`), so the
+//        "a plugin upgrade can't silently add a gate" property above is held by the PIN rather than by
+//        enumeration. See the TRIPWIRE at the block itself for what the pin is load-bearing for.
+//
 // What we INTENTIONALLY DROP (Biome owns them, or ergonomic-only):
 //   • query/{infinite-query-property-order, mutation-property-order} — property ordering → Biome.
 //   • query/no-rest-destructuring — destructure style → ergonomic.
@@ -606,7 +612,24 @@ export default tseslint.config(
   {
     // jsx-a11y: enforcing accessibility constraints that Biome does not natively cover yet
     // (most notably `control-has-associated-label`). We use the strict config as a baseline.
-    // The AGENT-NAVIGABILITY.md document specifically calls this out as a hard gate for UI.
+    //
+    // NO DOC CARRIES THIS RULE, and the sentence that claimed one is gone (#1331). It cited a root-level
+    // agent-navigability doc added by `8e27d1563` and deleted two days later by `443d712c1` (2026-07-09);
+    // the pointer outlived it by two months and was the LAST reference to that filename in the repo,
+    // which is why the row's done-check bans the spelling outright — naming it again, even to explain it,
+    // re-creates the dangling reference. The provenance is the two SHAs. The live authority for "every
+    // interactive element carries an accessible name" is THIS block plus the `surface-a11y-focus` gate.
+    //
+    // TRIPWIRE — why the `...strict` spread below is allowed when the file's own rule is "every rule
+    // listed by name, never a `...recommended` bundle". Same terms react-hooks got, and no looser: this
+    // is an audited CORRECTNESS bundle (33 rules at 6.10.2; `recommended` carries 34 and `strict` adds no
+    // rule name it lacks — the two differ by severity and options), and the "a plugin upgrade can't
+    // silently add a gate" property is held by an EXACT catalog pin (`eslint-plugin-jsx-a11y: 6.10.2` in
+    // pnpm-workspace.yaml), not by enumeration. `lint:eslint` runs `--max-warnings 0`, so a rule a 6.x
+    // MINOR added to `strict` would land as a hard `pnpm check` gate with no config change and no review.
+    // THE PIN IS WHAT MAKES THE ACK HONEST: loosen it back to `^6.10.2` and this spread becomes the
+    // unguarded door again — enumerate the 33 rules by name instead if the pin ever has to float.
+    //
     // Scoped to SHIPPED_SRC so we don't force boilerplate aria-labels into isolated component tests.
     files: SHIPPED_SRC,
     plugins: {

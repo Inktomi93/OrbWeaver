@@ -20,8 +20,24 @@ import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import type { AttestInput, AttestPlan, AttestRefusal, Doc, Lane, LaneConfig, Receipt, ReceiptEntry } from "../contract/types.ts";
+import { receiptEvidenceErrors } from "../lib/receipt-rules.ts";
 import { LANES_PATH } from "../lib/vocab.ts";
-import { documents, headCommit, indexFileMatchesWorkingTree, json, loadReceipts, receiptPath, root, stableJson, today } from "./tree.ts";
+import {
+  documents,
+  headAncestors,
+  headCommit,
+  indexFileMatchesWorkingTree,
+  json,
+  loadReceipts,
+  localEvidenceLines,
+  receiptFacts,
+  receiptPath,
+  root,
+  stableJson,
+  stableLawSections,
+  stableRulingAnchors,
+  today,
+} from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc-catalog:attest <doc-path…>");
 
@@ -59,6 +75,18 @@ function selectionShapeRefusals(selection: readonly string[]): readonly AttestRe
     seen.add(argument);
   }
   return refusals;
+}
+
+/** The GRAMMAR refusal (#1996). A re-attest restates "the bytes I reviewed are the bytes on the tree now"
+ *  and copies every judgment field through — including the evidence, which the TREE can invalidate without
+ *  touching the document: a renamed `code` file, a renumbered `law §N`, a `provenance` commit rebased out
+ *  of HEAD's ancestry. Writing first and discovering that at `check:doc-catalog` puts the failure in the
+ *  stage the lane was trying to get through; judging first puts it in the operator's hands with the row
+ *  still intact. The grammars are not re-spelled here — `lib/receipt-rules.ts` owns them. */
+function evidenceRefusals(path: string, errors: readonly string[]): readonly AttestRefusal[] {
+  return errors.map((error) =>
+    violation(`${path}: the row's evidence no longer resolves, so re-attesting would land a receipt that reds at check:doc-catalog — ${error}`),
+  );
 }
 
 function rowRefusals(path: string, doc: Doc | undefined, entry: ReceiptEntry | undefined, unstagedDocuments: ReadonlySet<string>): readonly AttestRefusal[] {
@@ -100,7 +128,10 @@ export function planAttestation(input: AttestInput): AttestPlan {
   const rowsByPath = new Map(input.receipts.flatMap((receipt) => receipt.entries.map((entry) => [entry.path, entry] as const)));
   const attested: string[] = [];
   for (const path of new Set(input.selection)) {
-    const rejected = rowRefusals(path, docsByPath.get(path), rowsByPath.get(path), input.unstagedDocuments);
+    const rejected = [
+      ...rowRefusals(path, docsByPath.get(path), rowsByPath.get(path), input.unstagedDocuments),
+      ...evidenceRefusals(path, input.evidenceErrors.get(path) ?? []),
+    ];
     if (rejected.length > 0) {
       refusals.push(...rejected);
     } else {
@@ -133,6 +164,51 @@ function receiptPathOf(config: LaneConfig, laneId: string): string {
   return receiptPath(config.lanes.find((candidate) => candidate.id === laneId) as Lane);
 }
 
+/** The driver's ONE tree read for the grammar half: the evidence sources resolve once for the whole
+ *  selection, and each selected row is judged through `lib/receipt-rules.ts` — the same reader
+ *  `check:doc-catalog` uses, so a row this verb accepts is a row that stage accepts.
+ *
+ *  The candidate-index arms are handed their NEUTRAL values (`candidateTouchesPair: false`, an empty
+ *  changed-path set), which short-circuits the index-coexistence tail inside the local-evidence reader.
+ *  That is deliberate and is the whole boundary of this check: coexistence is a claim about a receipt that
+ *  has not been written yet, so judging it here would refuse every honest re-attest. What survives is
+ *  exactly the six grammars — shape, root, resolution, ambiguity, the reserved-ruling window, ancestry.
+ *
+ *  A LIFECYCLE row (archive / generated-artifact / superseded / vendor-snapshot, or generated / historical /
+ *  vendor authority) owes no typed claims AT ALL — `isLifecycleReceipt` exempts it in the reader — so this
+ *  check is silent on one by contract, not by omission. Worth knowing before probing: a first end-to-end
+ *  probe of this arm aimed at `docs/history/README.md`, whose row is `archive`, and read the correct write
+ *  as a missing refusal. */
+function resolveEvidenceErrors(selection: readonly string[], docs: readonly Doc[], receipts: readonly Receipt[]): ReadonlyMap<string, readonly string[]> {
+  const selected = new Set(selection);
+  const rows = receipts.flatMap((receipt) => receipt.entries.filter((entry) => selected.has(entry.path)));
+  if (rows.length === 0) {
+    return new Map();
+  }
+  const sources = {
+    localEvidence: localEvidenceLines(),
+    lawSections: stableLawSections(docs),
+    ancestors: headAncestors(),
+    rulingAnchors: stableRulingAnchors(),
+  };
+  const docsByPath = new Map(docs.map((doc) => [doc.path, doc] as const));
+  return new Map(
+    rows.flatMap((entry) => {
+      const doc = docsByPath.get(entry.path);
+      if (doc === undefined) {
+        return [];
+      }
+      const facts = receiptFacts(
+        entry,
+        doc,
+        { path: undefined, candidateTouchesPair: false, candidateChangedPaths: new Set<string>(), candidateEvidencePathsDifferFromIndex: new Set<string>() },
+        sources,
+      );
+      return [[entry.path, receiptEvidenceErrors(entry, facts)] as const];
+    }),
+  );
+}
+
 /** `pnpm doc-catalog:attest <doc-path…>`. Exit 3 = the selection is not an explicit document list;
  *  1 = a named row cannot be re-attested (and NOTHING was written); 0 = every named row re-attested. */
 export function runAttest(selection: readonly string[]): ExitCode {
@@ -141,7 +217,17 @@ export function runAttest(selection: readonly string[]): ExitCode {
   const commit = headCommit();
   const known = new Set(docs.map((doc) => doc.path));
   const unstagedDocuments = new Set(selection.filter((path) => known.has(path) && !indexFileMatchesWorkingTree(path)));
-  const plan = planAttestation({ config, docs, receipts: loadReceipts(config), selection, headCommit: commit, today: today(), unstagedDocuments });
+  const receipts = loadReceipts(config);
+  const plan = planAttestation({
+    config,
+    docs,
+    receipts,
+    selection,
+    headCommit: commit,
+    today: today(),
+    unstagedDocuments,
+    evidenceErrors: resolveEvidenceErrors(selection, docs, receipts),
+  });
   if (plan.refusals.length > 0) {
     warn(`doc-catalog:attest — NOTHING WRITTEN; ${plan.refusals.length} refusal(s):\n${plan.refusals.map(({ message }) => `  ${message}`).join("\n")}`);
     return plan.refusals.some(({ kind }) => kind === "misuse") ? EXIT.misuse : EXIT.violations;
