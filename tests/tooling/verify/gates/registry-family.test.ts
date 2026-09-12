@@ -3,10 +3,13 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { gate as chromeRegistryCompleteness } from "../../../../tooling/src/verify/gates/chrome-registry-completeness.ts";
 import { gate as configAnchorInRegistry } from "../../../../tooling/src/verify/gates/config-anchor-in-registry.ts";
 import { gate as configGroupCompleteness } from "../../../../tooling/src/verify/gates/config-group-completeness.ts";
+import { gate as homeTileRegistryCompleteness } from "../../../../tooling/src/verify/gates/home-tile-registry-completeness.ts";
 import { gate as messageKindPolicyCoverage } from "../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 import { gate as modalBodyNotPlaceholder } from "../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
 import { gate as modalRegistryCompleteness } from "../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
+import { gate as noParallelSectionMap } from "../../../../tooling/src/verify/gates/no-parallel-section-map.ts";
 import { gate as placeholderCopyRegistry } from "../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
+import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as routeImportsNoFeature } from "../../../../tooling/src/verify/gates/route-imports-no-feature.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { gate as sectionRegistryCompleteness } from "../../../../tooling/src/verify/gates/section-registry-completeness.ts";
@@ -23,9 +26,11 @@ test("registry definition policies keep their founding and nearest-legal fixture
       chromeRegistryCompleteness,
       configAnchorInRegistry,
       configGroupCompleteness,
+      homeTileRegistryCompleteness,
       messageKindPolicyCoverage,
       modalBodyNotPlaceholder,
       modalRegistryCompleteness,
+      noParallelSectionMap,
       placeholderCopyRegistry,
       routeImportsNoFeature,
       sectionFactoryContributionBundle,
@@ -169,6 +174,108 @@ test("one kind's blind provider withholds only ITS consumers — the other kinds
   ]);
   expect(result.authority.withheldPolicyIds).toEqual(["modal-registry-completeness"]);
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "section-registry-completeness", token: "xSection" }]);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// THE SUCCESSOR PROOF for `home-tile-registry-completeness`'s RETIRED anti-god-map arm (guide §8.3 MERGE).
+// The legacy gate flagged a `createContributorRegistry("home-tiles", …)` outside the door by CALLEE
+// SPELLING, justifying the overlap in its header as catching "the shape G8's file allowlist would miss".
+// That sentence described the LEGACY `registry-assembly-at-door-only` and became false at its conversion:
+// the door is now population algebra, the callee is judged by resolved origin, and the subject is every
+// registry mint. Retiring an arm owes a proof that its successor still bites the retired fixture — the
+// EXACT bytes and the EXACT path the retired `mustFlag` row used — plus the door control beside it,
+// because the successor's door is a DIRECTORY fence (`packages/client/src/**/compose/**`) and the retired
+// fixture's file merely BEGINS with "compose".
+// ---------------------------------------------------------------------------------------------------
+
+const REGISTRY_FACTORY_HOME =
+  "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n";
+const HOME_TILES_ASSEMBLY =
+  'import { createContributorRegistry } from "../../../lib/registry.ts";\nexport const tiles = createContributorRegistry("home-tiles", []);\n';
+
+test("the retired home-tile anti-god-map fixture is still red, under its successor", () => {
+  const stray = passOf(registryAssemblyAtDoorOnly, {
+    "packages/client/src/lib/registry.ts": REGISTRY_FACTORY_HOME,
+    "packages/client/src/features/home/lib/compose-tiles.ts": HOME_TILES_ASSEMBLY,
+  });
+
+  expect(stray.toolErrors).toEqual([]);
+  expect(stray.authority.withheldPolicyIds).toEqual([]);
+  expect(stray.authority.effectiveFindings).toMatchObject([{ policyId: "registry-assembly-at-door-only", token: "createContributorRegistry" }]);
+
+  // THE DOOR CONTROL, proving the red above is the SITE and not the shape: the same assembly at the
+  // composition root passes, which is the half of the retired arm that was an allowance rather than a ban.
+  const door = passOf(registryAssemblyAtDoorOnly, {
+    "packages/client/src/lib/registry.ts": REGISTRY_FACTORY_HOME,
+    "packages/client/src/main.tsx":
+      'import { createContributorRegistry } from "./lib/registry.ts";\nexport const tiles = createContributorRegistry("home-tiles", []);\n',
+  });
+
+  expect(door.toolErrors).toEqual([]);
+  expect(door.authority.effectiveFindings).toEqual([]);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// §4.5 for `no-parallel-section-map`'s FOUR denominators. Legacy skipped a vocabulary whose tuple read
+// empty (`if (vocab.ids.size === 0) continue`), so a renamed or moved tuple silently retired that arm
+// while the other four stayed green over the same tree — the half-migration §4.6 bans, and the shape a
+// proof row structurally cannot express (a withheld policy reports nothing, so no `mustFlag` sees it and
+// no `mustPass` distinguishes it from a clean run). These are INVENTED rows and carry their planted-break
+// receipt in the landing commit: the module's `tupleVocabularyReceipt` call was cut in a `cp`-backed copy
+// and the pin went red.
+// ---------------------------------------------------------------------------------------------------
+
+/** The four live vocabularies plus a parallel ConfigGroupId map — everything except the tuple under test. */
+const PARALLEL_MAP_PRELUDE = {
+  "packages/client/src/state/section-ids.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+  "packages/client/src/state/modal-slot-ids.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
+  "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
+  "packages/client/src/state/chrome-registry.ts":
+    'import { RAIL_ZONES } from "./section-registry.ts";\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+  "packages/client/src/features/x/lib/config-labels.ts": "export const LABELS = {\n  personas: { label: 1 },\n  appearance: { label: 2 },\n};\n",
+} as const;
+const CONFIG_GROUP_TUPLE = 'export const CONFIG_GROUP_IDS = ["personas", "appearance", "tags"] as const;\n';
+
+test.each([
+  ["renamed past its declared name", { "packages/client/src/state/config-group-ids.ts": 'export const GROUP_IDS = ["personas", "appearance"] as const;\n' }],
+  ["absent", { "packages/client/src/state/config-group-ids.ts": "export const OTHER = 1;\n" }],
+  ["empty", { "packages/client/src/state/config-group-ids.ts": "export const CONFIG_GROUP_IDS = [] as const;\n" }],
+] as const)("a %s config-group vocabulary withholds the parallel-map verdict instead of retiring its arm", (_label, tuple) => {
+  const result = passOf(noParallelSectionMap, { ...PARALLEL_MAP_PRELUDE, ...tuple });
+
+  // The tuple is read BY SYMBOL, so a rename is the same blindness as an absence and as an empty tuple:
+  // the denominator collapses, the ConfigGroupId arm can judge nothing, and the policy must not render a
+  // clean verdict over the other three while the parallel map below it goes unaccused.
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toMatchObject([{ policyId: "no-parallel-section-map", phase: "receipt", message: expect.stringContaining("CONFIG_GROUP_IDS") }]);
+  expect(result.authority.withheldPolicyIds).toEqual(["no-parallel-section-map"]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+});
+
+test("the same corpus with every vocabulary resolving accuses the parallel map — the control", () => {
+  const result = passOf(noParallelSectionMap, { ...PARALLEL_MAP_PRELUDE, "packages/client/src/state/config-group-ids.ts": CONFIG_GROUP_TUPLE });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "no-parallel-section-map", token: "personas" }]);
+});
+
+test("the CHROME_ZONES spread resolves to all four zones, so the rail arm is not judging one zone", () => {
+  // THE #942 PROPERTY, measured rather than asserted in prose: `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]`
+  // must deliver `rail.brand` — a zone that reaches the vocabulary ONLY through the imported spread — or a
+  // hand rail list over `rail.nav`/`rail.brand` escapes while every other row stays green.
+  const result = passOf(noParallelSectionMap, {
+    ...PARALLEL_MAP_PRELUDE,
+    "packages/client/src/state/config-group-ids.ts": CONFIG_GROUP_TUPLE,
+    "packages/client/src/features/x/lib/hand-rail.ts": 'export const HAND = [\n  { id: "a", zone: "rail.brand" },\n  { id: "b", zone: "rail.end" },\n];\n',
+  });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies[0]?.receipts).toContainEqual({ kind: "population", source: "CHROME_ZONES", members: 4, unresolved: 0 });
+  expect(result.authority.effectiveFindings).toMatchObject([
+    { policyId: "no-parallel-section-map", token: "personas" },
+    { policyId: "no-parallel-section-map", token: '"rail.brand"' },
+  ]);
 });
 
 const PROVIDER_HOME = "packages/server/src/infra/providers/contract/resolve.ts";
