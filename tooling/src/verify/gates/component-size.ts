@@ -50,7 +50,7 @@ export const gate = defineGate({
       mode: "source",
       files: { [`${ROUTES_PREFIX}big.tsx`]: "export const x = 1;\n".repeat(CAP_ROUTE + 1) },
       expect: { count: 1, line: CAP_ROUTE + 1, messageIncludes: "cap 500" },
-      why: "THE ROUTE CAP, in the flagging direction: a route file one line over 500. `line` and `messageIncludes` both name the ROUTE cap, so lowering `CAP_ROUTE` reds this row and raising it reds the mustPass twin below — the branch is pinned from both sides. Until 2026-09-12 no row placed a file under `packages/client/src/routes/` at all, so `CAP_ROUTE = 500 → 450` AND `→ 1` were both CLEAN and the 500-line cap this message advertises was enforced by nothing (cb-v-unaudited-finals L7)",
+      why: "THE ROUTE CAP, in the flagging direction: a route file one line over 500. `line` and `messageIncludes` both name the ROUTE cap LITERALLY, so this row dies on ANY change to `CAP_ROUTE` in EITHER direction — measured at 450 (the finding moves to `line 451` / `cap 450`) and at 900 (`line 901` / `cap 900`). The `mustPass` twin below carries the other half and dies on LOWERING ONLY: its 451-line fixture goes MORE silent as the cap rises, so the two rows TOGETHER pin the branch, not this one alone. Until 2026-09-12 no row placed a file under `packages/client/src/routes/` at all, so `CAP_ROUTE = 500 → 450` AND `→ 1` were both CLEAN and the 500-line cap this message advertises was enforced by nothing (cb-v-unaudited-finals L7)",
     },
   ],
   mustPass: [
