@@ -16,9 +16,10 @@
 //   ARM D on a REAL-TREE-ANCHORED corpus: a whole-tree claim guarded on the anchor stylesheet, so no
 //        conformance fixture reaches it and cutting it comes back clean for that reason alone.
 //   THE WARNING-DEBT SHAPE. `gate:contract` refuses a gate-owned `*.baseline.json` outright, so the four
-//        surfaces alive at mint are `severity: "warning"` + `workItem: 626` rather than a ratchet. That is a
-//        DOWNGRADE of an enforcement bar, so it is pinned rather than left to a reader's inference: the
-//        live findings must still be REPORTED (debt is never silence) and must carry the warning severity.
+//        surfaces alive at mint are `severity: "warning"` + a declared `workItem` owner rather than a
+//        ratchet. That is a DOWNGRADE of an enforcement bar, so it is pinned rather than left to a reader's
+//        inference: the live findings must still be REPORTED (debt is never silence) and must carry the
+//        warning severity. The OWNER'S NUMBER is deliberately NOT pinned — see that test's comment.
 //   §4.6 the CONVERSION DIFFERENTIAL, both sides nonzero: the legacy descriptor's live set over the REAL
 //        tree, replayed through the converted reader.
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -131,10 +132,21 @@ test("ARM D — a real-tree corpus with ZERO recognised glass rules is BLIND, no
 test("WARNING DEBT — the four mint surfaces are REPORTED every run at warning severity, never budgeted into silence", ({ scratch }) => {
   // The ratchet this replaces made them SILENT. `gate:contract` refuses a gate-owned `*.baseline.json`
   // ("use exact grants or warning debt"), and guide §4.4 refuses turning measured debt into a grant, so the
-  // honest successor reports them and #626 owns them. If a future lane restores silence, this reds.
+  // honest successor reports them and a live issue owns them. If a future lane restores silence, this reds.
+  //
+  // THE ISSUE NUMBER IS NOT THE PROPERTY, and pinning it as a literal is what rotted here (#2053):
+  // `17a495fb8` re-homed the debt from the CLOSED #626 to #2024 and never grepped this literal, so the
+  // assertion sat red for days (`tests/tooling/**` is `--full`-only, #1842).
+  //
+  // AND THE OWNER IS NOT THIS TEST'S TO PIN AT ALL — its enforcer is one rung HIGHER (constitution §2.2).
+  // `WarningGatePolicy` REQUIRES `workItem: number` while `ErrorGatePolicy` forbids it, so "a warning policy
+  // declares a debt owner" is a compile-time guarantee; re-asserting it here is not a weaker check, it is a
+  // check of the type system, and eslint says so (`no-unnecessary-condition` folds it away as a literal).
+  // What only a RUN can prove is the half below: the severity the finding is stamped with, and that the
+  // surface still REPORTS rather than going quiet.
   const result = pass(scratch, { ...KEEP, [ANCHOR]: COMPOSER_RULE });
 
-  expect({ severity: overArtPlateArm.severity, workItem: overArtPlateArm.workItem }).toEqual({ severity: "warning", workItem: 626 });
+  expect(overArtPlateArm.severity).toBe("warning");
   expect(result.authority.effectiveFindings.map(({ token, severity }) => [token, severity])).toEqual([['[data-slot="composer"]', "warning"]]);
 });
 

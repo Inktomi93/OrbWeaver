@@ -69,7 +69,7 @@ const PAUSED_ARM: ArmOutcome = { ok: false, kind: "paused" };
  *  the fire-and-forget bus handler instead of one rule's honest `action_error`. Costing one comparison to
  *  make an entire class of mistake un-crashable is the trade the house takes every time. */
 function chatRequiredRefusal(type: AutomationAction["type"]): ArmOutcome {
-  // PROSE-OK: a HOST-facing typed refusal read on the fire log, never bytes that reach a model — the prose catalogue is for strings a host may re-author into a PROMPT, and this one exists to repeat what the mint already said. Same for the three sibling refusals below.
+  // @orb-waive no-hardcoded-model-prose(the): a HOST-facing typed refusal read on the fire log, never bytes that reach a model — the prose catalogue is for strings a host may re-author into a PROMPT, and this one exists to repeat what the mint already said. Same for the three sibling refusals below.
   return armError(`the '${type}' action needs a chat and this rule is owner-global`);
 }
 
@@ -118,7 +118,7 @@ async function writeArmVariable(
     // other unrunnable arm gets rather than a silent no-op — a variable write that quietly did not happen is
     // the worst of the three possible answers, because the next arm's `inc` composes on top of it.
     if (chatId === null) {
-      // PROSE-OK: a host-facing typed refusal (see `chatRequiredRefusal`), never model-facing bytes.
+      // @orb-waive no-hardcoded-model-prose(the): a host-facing typed refusal (see `chatRequiredRefusal`), never model-facing bytes.
       return armError(`the '${scope}' variable plane needs a chat and this rule is owner-global`);
     }
     const ops: readonly VarOp[] = [{ op: "set", key, value }];
@@ -152,7 +152,7 @@ async function runIncDec(
   const value = resolveNumericValue(op, current, operandText);
   if (value === null) {
     // It names BOTH operands because either one can be the bad half.
-    // PROSE-OK: a host-facing typed refusal read on the fire log (see `chatRequiredRefusal`), never model-facing bytes.
+    // @orb-waive no-hardcoded-model-prose(needs): a host-facing typed refusal read on the fire log (see `chatRequiredRefusal`), never model-facing bytes.
     return armError(`'${op}' needs whole numbers: operand '${operandText}' on current value '${current}'`);
   }
   return await writeArmVariable(deps, frame, { scope, key, value });
@@ -164,7 +164,7 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
   if (op === "delete") {
     if (scope === "chat") {
       if (chatId === null) {
-        // PROSE-OK: a host-facing typed refusal (see `chatRequiredRefusal`), never model-facing bytes.
+        // @orb-waive no-hardcoded-model-prose(the): a host-facing typed refusal (see `chatRequiredRefusal`), never model-facing bytes.
         return armError(`the '${scope}' variable plane needs a chat and this rule is owner-global`);
       }
       await deps.ops.chat.applyVariableOps(chatId, [{ op: "delete", key }]);
@@ -526,7 +526,7 @@ function stashConfirmFirstArm(
   // exactly this reason, so reaching here means a stored rule got past that — refuse it typed rather than
   // stash a card that nothing could ever confirm and that the TTL would silently eat.
   if (chatId === null) {
-    // PROSE-OK: a host-facing typed refusal (see `chatRequiredRefusal`), never model-facing bytes.
+    // @orb-waive no-hardcoded-model-prose(cannot): a host-facing typed refusal (see `chatRequiredRefusal`), never model-facing bytes.
     return armError(`'${action.type}' cannot ask first on an owner-global rule — a confirm card is raised in a room, to its host`);
   }
   const id = deps.newSuggestionId();

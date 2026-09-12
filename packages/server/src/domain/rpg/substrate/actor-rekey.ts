@@ -70,11 +70,11 @@ export function rekeyActor(head: HandStateHead, from: RpgActorRef, to: RpgActorR
   const index = head.state.actorState.findIndex((a) => actorRefKey(a.actorRef) === fromKey);
   const existing = head.state.actorState[index];
   if (index === -1 || existing === undefined) {
-    // PROSE-OK: an errors-as-data refusal reason (`RekeyActorResult.reason`), read by the caller/host, never a model
+    // @orb-waive no-hardcoded-model-prose(no): an errors-as-data refusal reason (`RekeyActorResult.reason`), read by the caller/host, never a model
     return { ok: false, reason: `no actor "${fromKey}" in this game's state — nothing to re-key` };
   }
   if (head.state.actorState.some((a) => actorRefKey(a.actorRef) === toKey)) {
-    // PROSE-OK: same errors-as-data refusal class as the row above — never a model prompt
+    // @orb-waive no-hardcoded-model-prose(this): same errors-as-data refusal class as the row above — never a model prompt
     return { ok: false, reason: `this game already tracks "${toKey}" — re-keying onto it would merge two actors into one row` };
   }
   const moved = { ...emptyActorEntry(to), volatile: existing.volatile };

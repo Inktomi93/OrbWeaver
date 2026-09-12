@@ -12,12 +12,15 @@
 //       always labels;
 //   T16 a genuinely HUNG subject under the SAME forced load still dies at its scaled ceiling, with a
 //       message naming base×factor and the loadavg. The ceiling is not a way to hang.
+import { cpus } from "node:os";
 import {
   annotateRateLoad,
   BOX_LOAD_ENV,
   boxLoadKnobError,
   budget,
+  cgroupQuotaCores,
   computeLoadFactor,
+  effectiveCpuCount,
   hasMeasurement,
   isJudgeableMeasurement,
   isLoadKill,
@@ -260,4 +263,57 @@ test("T16 — a kill is told from an ordinary red, in BOTH node kill shapes", ()
   expect(isTimeoutKill({ signal: null })).toBe(false);
   expect(isTimeoutKill({ code: "ENOENT", signal: null })).toBe(false);
   expect(isLoadKill(new Error("expected [] to equal [ 'x' ]"))).toBe(false);
+});
+
+// ── #1985: the DENOMINATOR is the cores this process tree may USE, not the cores the box has ─────────
+//
+// THE DEFECT THIS PINS. `enforcement-registry-parity.int.test.ts` carries `scaledBudget(60_000)`, timed out
+// under concurrent lanes and passed under lighter load inside ONE session on ONE commit — and the scaling
+// had never engaged, because `readBoxLoad` divided a box-wide loadavg by `cpus().length` (24) while
+// `.claude/hooks/cpu-fence.sh` (#1835) had capped the whole session tree at CPUQuota 800% = EIGHT cores.
+// The factor could only move above per-core 1.0, i.e. loadavg 24 — a number the fence itself prevents. A
+// scaled budget that can never scale is the lying-instrument shape, not a too-small base.
+//
+// Both directions are planted, because a quota walk that always answered `undefined` would restore the bug
+// silently and one that always answered a number would shrink a dedicated box's budgets.
+test("#1985 — the cgroup quota walk takes the MINIMUM over the ancestry, and reads `max` as unbounded", () => {
+  const ancestry = (path: string): string => {
+    if (path === "/proc/self/cgroup") {
+      return "0::/user.slice/app.scope\n";
+    }
+    // The ANCESTOR is tighter than the leaf — the case a leaf-only read gets wrong.
+    return path === "/sys/fs/cgroup/user.slice/cpu.max" ? "200000 100000" : "800000 100000";
+  };
+  expect(cgroupQuotaCores(ancestry)).toBe(2);
+
+  // ORB_DEDICATED_BOX=1 sets no ceiling at all: every `cpu.max` reads `max`, and the walk must say so
+  // rather than inventing a cap — otherwise the solo box's budgets stop being byte-identical to their base.
+  expect(cgroupQuotaCores(() => "max 100000")).toBeUndefined();
+  // A v1-only / unreadable `/proc/self/cgroup` is unbounded too, never a crash and never a 0-core divisor.
+  expect(cgroupQuotaCores(() => undefined)).toBeUndefined();
+  expect(cgroupQuotaCores(() => "3:cpu:/user.slice\n")).toBeUndefined();
+});
+
+test("#1985 — effectiveCpuCount is bounded by the quota AND by the physical count, and never below 1", () => {
+  const physical = cpus().length;
+  const fenced = (path: string): string => (path === "/proc/self/cgroup" ? "0::/app.scope\n" : "800000 100000");
+  expect(effectiveCpuCount(fenced)).toBe(Math.min(physical, 8));
+  // A quota WIDER than the box is not a licence to inflate the denominator (which would shrink the factor).
+  const wide = (path: string): string => (path === "/proc/self/cgroup" ? "0::/app.scope\n" : "99000000 100000");
+  expect(effectiveCpuCount(wide)).toBe(physical);
+  // A sub-core quota still leaves a usable divisor — a 0 here would make computeLoadFactor return 1 forever.
+  const tiny = (path: string): string => (path === "/proc/self/cgroup" ? "0::/app.scope\n" : "10000 100000");
+  expect(effectiveCpuCount(tiny)).toBe(1);
+  // Unbounded ⇒ the physical count, so the pre-#1985 behaviour is exactly what an unfenced box still gets.
+  expect(effectiveCpuCount(() => "max 100000")).toBe(physical);
+});
+
+test("#1985 — under the live session fence a real multi-lane loadavg finally MOVES the budget", () => {
+  // The regression in one line: at loadavg 16 the old denominator (24 threads) returned factor 1 and a
+  // 60s budget stayed 60s; the fenced denominator (8 cores) returns 2 and the same base becomes 120s.
+  expect(computeLoadFactor(16, 24)).toBe(1);
+  expect(computeLoadFactor(16, 8)).toBe(2);
+  expect(budget(60_000, () => ({ loadavg1: 16, cpuCount: 8 }))).toBe(120_000);
+  // …and the quiet-box invariant is UNTOUCHED: below one load per available core, still byte-identical.
+  expect(budget(60_000, () => ({ loadavg1: 6.8, cpuCount: 8 }))).toBe(60_000);
 });

@@ -304,11 +304,11 @@ export const ringGaugeVariants = tv({
     // WCAG 1.4.11; they measured 1.89–2.65 before) and 5.9–9.3 dark against the same panel, every one of
     // them above the track.
     track: "text-border",
-    // @orb-gate-ignore integer-line-boxes: SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
+    // @orb-waive integer-line-boxes(text-label): SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
     valueText: "fill-foreground font-semibold text-label tabular-nums",
-    // @orb-gate-ignore integer-line-boxes: SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
+    // @orb-waive integer-line-boxes(text-micro): SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
     label: "text-micro text-muted-foreground uppercase tracking-micro",
-    // @orb-gate-ignore integer-line-boxes: SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
+    // @orb-waive integer-line-boxes(text-micro): SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
     readout: "text-micro text-muted-foreground tabular-nums",
   },
 });
