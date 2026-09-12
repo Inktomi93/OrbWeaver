@@ -213,7 +213,7 @@ Second commit, seven modules (six of the nine plus ONE out-of-fence line the own
 an expectation that cannot fail reads exactly like one that holds. In a `cp`-backed copy of all three
 modules each new discriminator was pointed at a WRONG value (`token: "notMatchMedia"`; the sibling
 sanctioned-home key `packages/ui/src/layout/`; `Member: settingsChanged`), and
-`pnpm check:policy-conformance` went **exit 2 with exactly the seven expected rows red** — six
+`pnpm check:policy-conformance` went **exit 2 with EIGHT rows red — and the distinction between eight and seven is the load-bearing part, not an arithmetic slip.** **SEVEN is the count of rows FIXED; EIGHT is the count the planted control REDS**, and the extra one is the interesting case: a single edit reddening a row it was not aimed at. An earlier version of this sentence said “exactly the seven expected rows” and then enumerated eight immediately after, which is how the inconsistency was caught (`v-wave-2026-09-13`, re-driven 2026-09-13 at `ff3eacb44`: 193 policies / 2125 rows / **8 failures**, exit 2, `no-raw-matchmedia` ×6 + `spacing-tier-home-health` ×1 + `user-bus-deferred-member` ×1). **A document stating a control’s expected red-count must say WHICH count it means**, because the two diverge exactly when an edit catches a neighbouring row — and that divergence is evidence the discriminator bites harder than claimed, never evidence of a miscount. The eight are — six
 `no-raw-matchmedia` rows (the five new ones plus `mustFlag[0]`, which the same edit caught),
 `spacing-tier-home-health.mustFlag[0]` and `user-bus-deferred-member.mustFlag[0]`. Restored with `mv`;
 `git status --short` showed only the intended edits. Before and after the real fix the run is identical:

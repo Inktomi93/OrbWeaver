@@ -718,6 +718,8 @@ call **45 of 48** non-compliant modules compliant; a §5b.5 census by grep under
 and a hash grep overstates legacy-SHA carriers by **78%** (six distinct lookalikes: incident commits, ruling
 cross-cites, sweep commits, and the CONVERSION commit itself).
 
+**AND THE MIRROR-IMAGE FAILURE — a naive SHA-SHAPE instrument UNDER-reports by eating the rev-spec (measured 2026-09-13).** A §5b.5 sweep flagged `section-registry-completeness` as carrying no legacy SHA. It carries one, spelled `(dd862e988^)` — and `dd862e988^` really is the legacy `GateDescriptor` holding the claimed predicate. The regex ate the caret. **So a legacy-SHA census owes BOTH halves stated: the shape is `[0-9a-f]{7,40}` optionally followed by `^`, `^N` or `~N`, and the result still owes a planted positive control.** Word-match OVER-reports this field by 78%; bare shape-match UNDER-reports it by dropping rev-specs. **Neither method is safe alone, which is exactly why this is the field the rule above says to narrow BY HAND** — and why the lane that hit it reported an instrument defect rather than filing a module defect that did not exist.
+
 **The tell:** in the same report, the one number narrowed BY HAND was exactly right and both derived by pattern were
 wrong. **Do not accept "grep-derived, spot-verified" as an answer** — divvy the files across lanes and require full
 reads, with "I read 47 of 57, here are the 10 I did not" as the honest form.
