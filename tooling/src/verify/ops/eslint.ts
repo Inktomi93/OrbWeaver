@@ -91,7 +91,7 @@ export function partitionEslintFiles(paths: readonly string[], programs: readonl
 const BYTES_PER_KIB = 1024;
 const KIB_PER_MIB = 1024;
 const DISCOVERY_BUFFER_MIB = 64;
-const DISCOVERY_MAX_BUFFER_BYTES = DISCOVERY_BUFFER_MIB * KIB_PER_MIB * BYTES_PER_KIB;
+export const DISCOVERY_MAX_BUFFER_BYTES = DISCOVERY_BUFFER_MIB * KIB_PER_MIB * BYTES_PER_KIB;
 
 /** THE DISCOVERY DOOR, and the ceiling is NAMED HERE rather than left to node (#2211/#2212). The child writes
  *  the WHOLE admitted filename population (~2300 paths for the root program alone) to stdout; node's ~1MiB

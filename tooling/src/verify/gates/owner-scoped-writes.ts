@@ -320,6 +320,16 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import * as schema from "@orb/db";\nexport async function renameOwned(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(schema.characters).set({ name }).where(and(eq(schema.characters.id, id), eq(schema.characters.ownerId, ownerId)));\n}\n',
+      },
+      why: "THE ACQUITTAL'S OWN ROW (#2214), and the DIRECTION is the point: this write is CORRECTLY SCOPED and namespace-spelled, so the gate must stay SILENT on it. `predicatesTableColumn` reads the owner predicate's receiver BY TEXT (`schema.characters`) rather than requiring an Identifier, and that half has no other proof: cut it and no mustFlag row moves, while this row reds — the namespace-spelled owner predicate reads as ABSENT and a properly-scoped write is accused of the cross-tenant hole. The accusing half of the same fix (the namespace mustFlag row above) can only ever make the gate louder; this is the row that stops it becoming loud about innocent code (§4.1: every narrowing owes a row that dies under its own cut)",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/db/src/schema/theme.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themeClusters = sqliteTable("theme_clusters", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/discovery/themes/generate.ts":

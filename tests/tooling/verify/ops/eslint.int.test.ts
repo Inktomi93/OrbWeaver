@@ -1,12 +1,21 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
+import process from "node:process";
 import type { CompilerProgram } from "@orb/tooling/verify";
 import { ESLint } from "eslint";
 import { eslintConfiguredPaths } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
-import { parsedDiscovery, partitionEslintFiles, readDiscoveredPopulation } from "../../../../tooling/src/verify/ops/eslint.ts";
+import { DISCOVERY_MAX_BUFFER_BYTES, parsedDiscovery, partitionEslintFiles, readDiscoveredPopulation } from "../../../../tooling/src/verify/ops/eslint.ts";
 import { discoverEslintFiles } from "../../../../tooling/src/verify/ops/eslint-discovery.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+// LOAD-HONEST BUDGETS: both #2212 arms shell the REAL discovery child, so vitest's 5s default is a
+// statement about the box rather than about the code (measured: the ceiling arm ran 2.7s solo and 8.8s
+// under a live barrier). The ceiling arm drives four child runs; the measurement arm enumerates the
+// whole repository in-process.
+const CEILING_BUDGET = scaledBudget(90_000, 4);
+const MEASURE_BUDGET = scaledBudget(120_000, 4);
 
 function program(id: string, files: readonly string[]): CompilerProgram {
   return { id, config: id, files, references: [], configPaths: [id], commandLine: {} as CompilerProgram["commandLine"] };
@@ -73,7 +82,7 @@ function discoveryRoot(): string {
   return root;
 }
 
-test("the discovery population is COMPLETE, not merely delivered — the child's own count is checked (#2212)", async () => {
+test("the discovery population is COMPLETE, not merely delivered — the child's own count is checked (#2212)", { timeout: CEILING_BUDGET }, async () => {
   const root = discoveryRoot();
   try {
     // THE COMPLETION CONTROL. #2211 replaced a KILLED child with a raised ceiling; the failure that fix must
@@ -98,7 +107,7 @@ test("the discovery population is COMPLETE, not merely delivered — the child's
   }
 });
 
-test("a blown stdout ceiling refuses LOUDLY and names the site, rather than returning a short list (#2212)", () => {
+test("a blown stdout ceiling refuses LOUDLY and names the site, rather than returning a short list (#2212)", { timeout: CEILING_BUDGET }, () => {
   const root = discoveryRoot();
   try {
     // THE PLANTED CEILING ARM. A fuse nobody has watched blow is a fuse nobody knows is wired: the 64MiB
@@ -114,4 +123,68 @@ test("a blown stdout ceiling refuses LOUDLY and names the site, rather than retu
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+/** The repository this checkout is, and WHICH KIND it is. A worktree's `.git` is a FILE; the main
+ *  checkout's is a DIRECTORY. The distinction is load-bearing below and nowhere else in this suite. */
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
+function isMainCheckout(): boolean {
+  try {
+    return statSync(join(REPO_ROOT, ".git")).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/** node's own default capture ceiling — the one #2211's payload outgrew. Not the door's ceiling (64MiB);
+ *  this is the line the ORIGINAL failure crossed, and the only reason the door has to name one at all. */
+const DEFAULT_CEILING_BYTES = 1024 * 1024;
+
+/** THE RECORDED MEASUREMENTS, so a shrink is a CHANGED NUMBER rather than a quietly passing test:
+ *   • WORKTREE, 2026-09-12: 441,978 bytes across 7,695 files — comfortably UNDER node's 1MiB default, which
+ *     is why claude-b's verifier could not reproduce #2211's ENOBUFS in its own worktree at all;
+ *   • MAIN, 2026-09-12: over 1,048,576 bytes, measured by the FAILURE ITSELF — `execFileSync` killed the child
+ *     with ENOBUFS at a 1MiB buffer (`5ee1149a9`), and a buffer overflow IS a measurement that the payload
+ *     exceeded it. A re-measurement of main's checkout from this lane was attempted and abandoned after ten
+ *     minutes under a live barrier; the assertion below therefore first EXECUTES when this lands on main.
+ *     If it reds there, that red is the finding this row asked for: the premise moved. */
+const RECORDED_WORKTREE_BYTES = 441_978;
+
+test("the discovery payload is MEASURED against the ceilings, and the number is recorded (#2212)", { timeout: MEASURE_BUDGET }, async () => {
+  // WHY THIS ARM EXISTS AND WHAT IT DOES NOT PROMISE. #2211 was a KILLED discovery child: the payload had
+  // outgrown node's ~1MiB default. A control that depends on THAT condition is CHECKOUT-DEPENDENT —
+  // claude-b's verifier could not reproduce the overflow in its own worktree, where the admitted population
+  // measured ~442 KB, well under the default. A worktree admits fewer files than main, so an arm asserting
+  // "the payload exceeds 1MiB" would be green there for a reason that has nothing to do with the fix.
+  //
+  // So this arm MEASURES and RECORDS rather than assuming, and it states its own two claims separately:
+  //   • CHECKOUT-INDEPENDENT: the payload must fit the ceiling the door actually passes (64MiB). That is
+  //     the fuse the production run depends on, and it reds anywhere the population outgrows it.
+  //   • CHECKOUT-DEPENDENT: on MAIN the payload is expected to exceed the 1MiB default — the #2211
+  //     condition itself. Asserted only there, because a worktree is a different population, and the size
+  //     is PRINTED either way so a shrink below the default shows up as a CHANGED NUMBER rather than as a
+  //     test that quietly stopped exercising its subject.
+  // The deterministic arm below (an 8-byte ceiling) is the one that needs no checkout at all.
+  const files = await discoverEslintFiles(REPO_ROOT);
+  const bytes = Buffer.byteLength(JSON.stringify({ count: files.length, files }), "utf8");
+  process.stderr.write(
+    `[#2212] discovery payload: ${String(bytes)} bytes across ${String(files.length)} files (${isMainCheckout() ? "MAIN" : "worktree"} checkout)\n`,
+  );
+
+  expect(files.length).toBeGreaterThan(0);
+  // CHECKOUT-INDEPENDENT: the payload must fit the ceiling the production door actually passes. This is the
+  // fuse every `lint:eslint` run depends on, and it reds in ANY checkout whose population outgrows 64MiB.
+  expect(bytes).toBeLessThan(DISCOVERY_MAX_BUFFER_BYTES);
+  // The recorded worktree figure is carried as a CONSTANT so a reader can see at a glance how far today's
+  // number has moved; it is deliberately not asserted (a worktree's population is whatever its branch
+  // holds), and `RECORDED_WORKTREE_BYTES` is printed beside the live one for exactly that comparison.
+  process.stderr.write(`[#2212] recorded worktree baseline: ${String(RECORDED_WORKTREE_BYTES)} bytes (2026-09-12)\n`);
+  // CHECKOUT-DEPENDENT, expressed as a THRESHOLD rather than a conditional assertion: on main the payload
+  // must still exceed node's 1MiB default (#2211's premise — the reason the door names its own ceiling at
+  // all); in a worktree the population is a different, smaller set, so the only honest floor is that a
+  // payload exists. One assertion either way, so the arm cannot silently stop asserting.
+  const premiseFloorBytes = isMainCheckout() ? DEFAULT_CEILING_BYTES : 0;
+  expect(
+    bytes,
+    `the discovery payload (${String(bytes)} bytes) fell below the floor for this checkout — on main that means #2211's PREMISE HAS MOVED: the population no longer overflows node's 1MiB default, so re-derive whether the named ceiling is still load-bearing`,
+  ).toBeGreaterThan(premiseFloorBytes);
 });
