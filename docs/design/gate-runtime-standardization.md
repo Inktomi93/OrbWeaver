@@ -660,6 +660,15 @@ family.
    callee check's fail-closed arm is an **unresolvable IMPORT**. A row built on the opaque idiom against a callee
    check is green for the wrong reason.
 
+   **TO ENUMERATE WHAT A GATE SEES, DRIVE THE GATE'S OWN WALK OVER THE REAL FILESET** (paid 2026-09-12, `e7e3f083b`,
+   #2181/#2101): a re-implementation of the walk over a convenient subset under-reports silently and in the
+   direction that looks like success — fewer findings. `css-length-tokens`' header had ruled its per-file budget
+   table un-narrowable because a four-file probe read `pager-chrome.ts` as ZERO against its row's 3; the probe had
+   re-implemented the walk, and the file's class strings resolve at their CONSUMERS, outside the subset. Driving the
+   module's own `walkStaticClassExpressions` over all 1,685 files reproduced every legacy count exactly, and the
+   ruling's mechanism (an under-reporting enumeration cannot found replacing rows) survived with its INPUT changed.
+   And an anchor row's `why` states a MECHANISM, never a cardinality only the planter can re-measure.
+
    **A DECLARED LIMIT OWES A RUN ROW, the sibling of "UNFALSIFIABLE owes a constructed fixture" (measured twice
    2026-09-12).** Write the row that states the limit, RUN it, read the verdict, then write the prose. A lane
    drafted "spreads are invisible, accepted limit" as a `mustPass`, ran it, and `{ ...base }` with all three keys
