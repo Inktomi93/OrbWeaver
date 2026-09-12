@@ -187,6 +187,7 @@ test("the discovery payload is MEASURED against the ceilings, and the number is 
     bytes,
     `the discovery payload (${String(bytes)} bytes) fell below the floor for this checkout — on main that means #2211's PREMISE HAS MOVED: the population no longer overflows node's 1MiB default, so re-derive whether the named ceiling is still load-bearing`,
   ).toBeGreaterThan(premiseFloorBytes);
+});
 
 // ─── #2213: a NESTED tool cache is a derived artifact too ────────────────────────────────────────────
 //
