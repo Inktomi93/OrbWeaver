@@ -694,6 +694,30 @@ against the real program.** Two rules follow:
 - **Before crediting a door-identity claim, measure it once against the real tree**, the way §8.8's
   `check:structure` line exists for the withheld-policy class. The same blindness, one layer over.
 
+**AND THE AMBIENT-GLOBAL SIBLING, WHICH IS THE SAME BLINDNESS AGAIN AND IS LIVE IN THE CORPUS (measured
+2026-09-13 by `f-mixed-hooks`, #2030).** `lib/reference-fact-global.ts:63-69` trusts a global declaration
+ONLY when it lives under `node_modules/typescript/lib/lib.*` or `node_modules/@types/`. **The proof
+workspace has no `@types/node`**, so in a fixture a bare `process` binds nothing, the resolver takes its
+FAIL-CLOSED `unreadable` arm, and the policy reports — the same outcome and the same finding COUNT as the
+precise ambient branch the row was written to exercise. **So every AMBIENT-spelling proof row in the corpus
+can pass without ever reaching the branch its `why` claims.** Probes, all three returning `unreadable`:
+`process.argv` bare, `process.env.argv`, `const process = console`.
+
+Note the shape: this is NOT §4.1 (nothing is over-narrow) and NOT the #1990 dead arm (the arm is not
+unreached by every row — it is reached by the WRONG rows, the ones claiming the precise branch). It is a row
+that names one branch and exercises another, and it is invisible to `check:policy-conformance` by
+construction because both branches report.
+
+**The fix is to plant the declaration, never to widen the trust rule.** `gates/_proof/node-types.ts` carrying
+`@types/node`'s `declare var process` as a trusted declaration is the proven shape (same pattern as
+`_proof/react.ts` / `zustand.ts`); keep the UNDECLARED spelling as its own separate row proving fail-closure,
+and pin the name comparison with a planted lookalike global. **A single row that passes under both branches
+proves neither.** Widening `reference-fact-global.ts`'s trust rule to make fixtures resolve would weaken a
+real identity fence for test convenience and is forbidden. Known live instance outside the finding lane's
+fence: `sole-env-reader`'s `mustFlag[0]`/`mustFlag[1]` ambient rows — their `why` claims the precise branch
+and the fixture reaches only the unreadable one. **The corpus census is owed (#2030) and is derived from the
+loaded corpus, never from a grep over fixture text.**
+
 9. **One family test may cover several siblings**; a file per gate is unnecessary. **A conversion no longer owes a
    family test for its DECLARED rows** — the conformance stage (§5) runs every final policy's `mustFlag`/`mustPass` on
    the static tier. A family test is owed only for what a row cannot express: the §4.2 identity arm through
