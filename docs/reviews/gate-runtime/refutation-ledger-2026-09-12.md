@@ -39,6 +39,21 @@ work the verifier wave found. Both figures are receipts carrying a SHA; neither 
 | - | -: | -: | -: | -: | -: | -: | -: |
 | **before this sweep** | 99 | 32 | 12 | 2 | 0 | 47 | 1 (+4 `PARTIAL`, +1 `LIKELY CLOSED`) |
 | **after** | 100 | 45 | 48 | 4 | 1 | **1** | 1 |
+| **BARRIER REBUILD 2026-09-12 (`7479c1a38`)** | **192** | **110** | **63** | 4 | 1 | 1 | 1 |
+
+**BARRIER REBUILD, 2026-09-12 at `7479c1a38`, by the method under `## CLASS ROLLUP` (repaired earlier today
+so it reads each table's own `state` column instead of a hardcoded index).** Re-derived, not remembered:
+**192 rows across 22 tables** — CLOSED 110 · OPEN 63 · FIXED 11 · SUPERSEDED 4 · UNADJUDICATED 1 ·
+DISSOLVED 1 · N/A 1 · **UNBINNED 1**, reported rather than dropped (`p-suite-honesty`'s `_load-budget`
+repair-1 row, whose state cell reads *"premise dead on today's tree"* and matches no word in the vocabulary).
+
+**`FIXED` and `UNBINNED` do not appear in the sweep's row above because its vocabulary did not have them** —
+`FIXED` arrived with the instrument-honesty sections, and the sweep's method silently dropped anything it
+could not bin. The two rows are therefore NOT column-comparable; read the rebuild's own line, not the delta.
+
+**The direction is still the finding:** of the 63 OPEN, the ORIGINAL eleven wave tables hold a small
+remainder — the rest arrived with the thirteen verifier sections appended since the sweep. The §5b audit
+backlog this file was built to track is largely drained; what is open is newer work the verifier wave found.
 
 **53 existing rows changed state, plus one new row.** The direction is the finding: **9 UNADJUDICATED rows
 went straight to CLOSED**, and in SIX of those the closing commit predates this ledger's own baseline
