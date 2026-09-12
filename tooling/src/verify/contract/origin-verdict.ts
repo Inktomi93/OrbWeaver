@@ -18,3 +18,9 @@ export type OriginRefusalVerdict = "other" | "unreadable";
 
 /** One identity reader's full verdict: its own HIT arm plus the shared refusal pair. */
 export type OriginVerdict<Hit extends string> = Hit | OriginRefusalVerdict;
+
+/** Does this `new` construct the browser's `BroadcastChannel` global? `lib/broadcast-channel-origin.ts`. */
+export type BroadcastChannelVerdict = OriginVerdict<"constructs">;
+
+/** Is this member read taken off the real node `process`? `lib/process-member-origin.ts`. */
+export type ProcessMemberVerdict = OriginVerdict<"reads">;

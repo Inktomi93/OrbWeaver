@@ -29,6 +29,11 @@ import { argvLookalikeProof, nodeTypesProof } from "./_proof/node-types.ts";
 const ANCHOR = "tooling/src/_shared/exit-contract.ts";
 const ARGV_MEMBER = "argv";
 
+// THE `mustFlag` ROWS CARRY NO `messageIncludes` AND MUST NOT (#1968, #2058). This module emits exactly
+// ONE message — the policy-level `MESSAGE` below, with no per-finding override — and that message BEGINS
+// with "blind gate", so a row asserting that fragment passes whatever the policy did. Five rows carried it
+// and the claim was empty in all five. `count` + `line` are the real assertions; the discriminating work
+// is done by each row's own FIXTURE, which its `why` names.
 const MESSAGE =
   "blind gate — no tool cli.ts was seen reading process.argv on a real-tree run, so the argv-reader matcher recognises nothing and every arm of tooling-argv-front-door is vacuously green. Re-derive the read shape in lib/process-member-origin.ts (docs/architecture/core/Core-Tooling-Law.md §4.9).";
 
@@ -75,7 +80,7 @@ export const gate = defineGate({
         "tooling/src/stack/ops/engines.ts": 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n',
         "tooling/src/stack/ops/prod-entry.ts": 'import process from "node:process";\nexport const p = process.argv.slice(2);\n',
       },
-      expect: { count: 1, line: 1, messageIncludes: "blind gate" },
+      expect: { count: 1, line: 1 },
       why: "the §4.6 blindness tripwire as carried — reviewed entries read argv but NO cli.ts does, which is what a matcher that stopped recognising the read looks like from the inside",
     },
     {
@@ -84,7 +89,7 @@ export const gate = defineGate({
         [ANCHOR]: "export const EXIT = { clean: 0 } as const;\n",
         "tooling/src/snap/cli.ts": 'const process = { argv: ["a"] };\nexport const a = process.argv.slice(2);\n',
       },
-      expect: { count: 1, line: 1, messageIncludes: "blind gate" },
+      expect: { count: 1, line: 1 },
       why: "THE IDENTITY HALF of the tripwire: a cli.ts reading `argv` off a LOCAL object named `process` is not a reader of the operator's argv, so it does not clear the tripwire. Replacing the identity verdict with a bare `reads` reds this row",
     },
     {
@@ -93,7 +98,7 @@ export const gate = defineGate({
         [ANCHOR]: "export const EXIT = { clean: 0 } as const;\n",
         "tooling/src/snap/ops/cli.ts": 'import process from "node:process";\nexport const a = process.argv.slice(2);\n',
       },
-      expect: { count: 1, line: 1, messageIncludes: "blind gate" },
+      expect: { count: 1, line: 1 },
       why: "THE CLI SHAPE IS FOUR SEGMENTS: a `cli.ts` nested under ops/ is an ordinary module, not a tool's front door, so its read clears nothing and the tripwire fires. Widening `isToolCli` to any file named cli.ts reds this row",
     },
     {
@@ -103,7 +108,7 @@ export const gate = defineGate({
         ...argvLookalikeProof(),
         "tooling/src/snap/cli.ts": "export const a = lookalike.argv;\n",
       },
-      expect: { count: 1, line: 1, messageIncludes: "blind gate" },
+      expect: { count: 1, line: 1 },
       why: "THE GLOBAL-BRANCH COMPARISON, pinned in the tripwire: a cli.ts reading the `argv` of a DIFFERENT trusted global (`lookalike.argv`) reads nothing of the operator's, so it does not clear the tripwire. Replacing the global-branch comparison with a bare `reads` reds this row",
     },
     {
@@ -112,7 +117,7 @@ export const gate = defineGate({
         [ANCHOR]: "export const EXIT = { clean: 0 } as const;\n",
         "tooling/src/snap/cli.ts": "export const a = process.argv.slice(2);\n",
       },
-      expect: { count: 1, line: 1, messageIncludes: "blind gate" },
+      expect: { count: 1, line: 1 },
       why: "THE UNDECLARED GLOBAL does not clear the tripwire: a cli.ts reading a bare `process.argv` in a project WITHOUT `@types/node` is UNREADABLE to the shared resolver, and an unprovable read counts for nothing — the tripwire fires. On the real tree the same read resolves through `@types/node` (mustPass[2])",
     },
   ],

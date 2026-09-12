@@ -27,7 +27,20 @@ function isModuleAliasDeclaration(declaration: MorphNode): boolean {
 }
 
 /** The leaf identifier whose symbol carries this reference's binding: a member read is bound by its NAME,
- *  a bare reference by itself. */
+ *  a bare reference by itself.
+ *
+ *  IT HANDLES THE DOTTED SPELLING ONLY, AND THAT ASYMMETRY IS A CALLER'S PROBLEM TO AVOID (#2058). An
+ *  `ElementAccessExpression` falls through to the `node` arm, `Node.isIdentifier` rejects it, and
+ *  `bindsProvenNonModuleDeclaration` answers FALSE for a receiver it never looked at — so a caller that
+ *  hands this a whole member read gets `unreadable` for `bag["key"]` and `other` for `bag.key`. It cost
+ *  `tooling-argv-front-door` two real-tree errors on JSON bags.
+ *
+ *  THE FIX IS AT THE CALLER, NOT HERE, and the direction is why: widening this function ACQUITS, and it
+ *  sits under every canonical-origin policy's fail-closed arm, so a blind widening silently narrows a
+ *  dozen catches at once (guide §4's sealed-origin polarity rule, one axis over). **A caller asking "is
+ *  this member read taken off X" passes the RECEIVER** — its own subject — the way
+ *  `lib/process-member-origin.ts:61` now does. Callers that already pass a `callee` or an
+ *  `expression()` are correct by construction. */
 function leafIdentifier(node: MorphNode): MorphNode {
   return Node.isPropertyAccessExpression(node) ? node.getNameNode() : node;
 }

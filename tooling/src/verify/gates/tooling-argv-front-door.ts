@@ -33,6 +33,14 @@
 // disjoint UNREADABLE text (mustFlag[3], #944). Both the dotted and the computed-literal `process["argv"]`
 // spelling are one read (mustFlag[1]).
 //
+// AND THE ELEMENT SPELLING WAS ONE READ IN THE ACCUSING DIRECTION ONLY (#2058, fixed 2026-09-12). The
+// reader classified its refusal on the member READ rather than on the RECEIVER, and
+// `classifyOriginRefusal`'s `leafIdentifier` only unwraps a PropertyAccess, so every `bag["argv"]` in the
+// corpus took the fail-closed arm: TWO real-tree errors on JSON bags — `snap/ops/run-report-index-assert.ts:97`
+// and `verify/lib/ct-runner-lock.ts:69` — in a reviewed-grant policy that has no ordinary door to waive
+// them with. `mustPass[4]` is the twin of `mustFlag[1]`: together they pin the discriminator as the
+// receiver's IDENTITY rather than the spelling, in both directions.
+//
 // THE REPORTED POSITION is the whole member read as written (`process.argv` / `process["argv"]`). The legacy
 // normalized the element form to `process.argv`, which is not an exact slice of that node and would throw
 // in the final sink. `entire-population` because grant liveness is only sound after a complete run; a
@@ -63,7 +71,7 @@ const OPERATION = "process-argv-read";
 const MESSAGE =
   "a second argv reader — the operator's argv enters a tooling program at ONE place (the tool's cli.ts, or a reviewed bash-fronted entry) and flows DOWN as a `readonly string[]` parameter. An ops/lib/contract module reading the GLOBAL argv makes its behaviour depend on how the process was started: it cannot be driven at its own seam, it silently re-admits flags the front door refused, and two callers of the same helper get different answers (docs/architecture/core/Core-Tooling-Law.md §2.5/§4.9).";
 const UNREADABLE =
-  "a member read spelled like process.argv whose receiver the shared readers cannot place, so whether it is the operator's argv CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "a member read spelled like process.argv whose receiver the shared readers cannot place, so whether it is the operator's argv CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the receiver a readable binding, or take argv as a parameter (docs/architecture/core/Core-Tooling-Law.md §2.5/§4.9).";
 const FIX =
   "take `argv: readonly string[]` as a parameter and let the cli.ts pass `process.argv.slice(2)` down — the strict grammar stays in the tool's own parse module. A bash-fronted node half that IS the program takes an exact reviewed grant `(file, process-argv-read)`.";
 
@@ -184,6 +192,14 @@ export const gate = defineGate({
           "export function pick(opts: { readonly argv: readonly string[] }): string | undefined {\n  return opts.argv[0];\n}\n",
       },
       why: "a `.argv` property read on something that is NOT `process` — the reader keys on the receiver's identity, so an options bag carrying argv is untouched",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/snap/ops/index-assert.ts":
+          'export function check(value: Record<string, unknown>, raw: unknown): boolean {\n  return Array.isArray(value["argv"]) && typeof (raw as Record<string, unknown>)["argv"] === "string";\n}\n',
+      },
+      why: 'ELEMENT ACCESS × NON-PROCESS RECEIVER (#2058), the twin of the row above and the shape that was reported TWICE on the real tree. `value["argv"]` and `(raw as Record<string, unknown>)["argv"]` are JSON bags, not the operator\'s argv, and neither can be: the receiver is a parameter. Both spellings are here because the second adds a cast the receiver must be unwrapped through. The mustFlag element-access row above proves the reader still CATCHES `process["argv"]`, so this row and that one together pin the discriminator as the RECEIVER rather than the spelling',
     },
     {
       mode: "types",
