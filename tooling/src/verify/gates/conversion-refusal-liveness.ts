@@ -20,15 +20,23 @@
 // its own `under`, and ARM E refuses a `under` the population does not admit — a census that silently
 // measured less than it claimed would be the same defect one layer down.
 //
-// POPULATION IS ONE MODULE TODAY, AND THAT IS THE ROW WORKING. Measured 2026-09-12 across all 297
-// `tooling/src/verify/gates/*.ts`: TWO modules carried a recorded refusal — `no-blanket-suppression` (arm C
-// reads the git INDEX; no shipped kind serves a staged blob) and `tsconfig-entry-liveness` (blocked on a
-// shared reader that does not publish raw `include`/`exclude`). The second is being CONVERTED by
-// `p-config-liveness-convert` (#2021) as this lands, so it stops being legacy and correctly carries no
-// declaration. A refusal population that shrinks because its member CONVERTED is the outcome the program
-// wants, not an erosion of the mechanism — and ARM C is precisely what would have caught the alternative,
-// a declaration outliving its module's conversion. Re-run the opener census after that merge rather than
-// assuming the number.
+// POPULATION IS EXACTLY ONE, RE-DERIVED 2026-09-12 AFTER THE SECOND MEMBER CONVERTED — and that is the row
+// working, not eroding. The census (the opener predicate, over all 300 `tooling/src/verify/gates/*.ts`)
+// returns `no-blanket-suppression` alone: arm C reads the git INDEX and no shipped kind serves a staged
+// blob. `tsconfig-entry-liveness` was the other member and has since CONVERTED (#2021), taking its refusal
+// opener with it — which is the outcome the program wants, and ARM C is precisely what would have caught
+// the alternative, a declaration outliving its module's conversion. The positive control still
+// discriminates: the LOOSER `^// CONVERSION` opener matches THREE modules and the verdict-word predicate
+// matches one, so the number is a measurement rather than a grep.
+//
+// WHAT A POPULATION OF ONE MEANS FOR THIS POLICY'S FUTURE, stated rather than left for a reader to guess.
+// It does NOT mean retire it: this policy's whole subject is a refusal that OUTLIVES its blocker, and the
+// population is one only because the other member converted — the exact transition it exists to make safe.
+// The honest end condition is the one the program already names: when `no-blanket-suppression` converts or
+// is deleted, the population goes to ZERO, and a zero population is a REFUSAL here (the `population`
+// receipt's `members: 0` turns the run into a policy refusal, never a clean pass), which is the loud signal
+// to delete this module rather than leave it reporting serenely on nothing. Until then it is armed over the
+// one declaration that exists and over every future one.
 //
 // FIVE ARMS, each a different way a refusal stops being true:
 //   A UNDECLARED — a module whose header OPENS a refusal and which exports no `CONVERSION_REFUSAL`. Prose
@@ -38,10 +46,18 @@
 //     consumer that no longer carries the read means the refusal's own evidence is gone.
 //   C ON A CONVERTED MODULE — a declaration in a module that also calls `defineGate`. The #2013 failure
 //     inverted: a refusal outliving the conversion it described.
-//   D WRONG SELF — `gate` not equal to the module basename (the loader's own id law), which is how a
-//     copy-pasted refusal accuses the module it was copied from.
-//   E UNREADABLE OR UNSCOPED — a malformed declaration, or a blocker whose `under` admits nothing in this
-//     policy's population. Both are the shape that reads as a clean pass while measuring nothing.
+//   D WRONG SELF — `gate` READ and not equal to the module basename (the loader's own id law), which is how
+//     a copy-pasted refusal accuses the module it was copied from. It FAILS OPEN on an unreadable `gate`
+//     (#2106): an accusation needs the field to have been read, not merely to differ from `undefined`.
+//   E UNREADABLE OR UNSCOPED — a MACHINE field the shared reader cannot read, or a blocker whose `under`
+//     admits nothing in this policy's population. Both are the shape that reads as a clean pass while
+//     measuring nothing, and E is the arm that keeps D's fail-open from becoming a silent skip: an
+//     unreadable declaration is reported exactly once, as a read failure rather than as an accusation.
+//
+// AND THE ARM QUESTION IS ASKED PER ARM, WHICH IS THE RULE THIS MODULE PAID FOR (#2106). For every branch:
+// would it REPORT or PASS on an input the reader could not read? An arm that ACCUSES must pass; an arm
+// whose whole claim is "I could not measure this" must report. Getting that backwards on a HARD policy is
+// worse than failing open, because the author's only remaining move is a waiver and a waived gate is dead.
 //
 // AUTHORITY IS `hard`, DELIBERATELY. The two sanctioned answers to a live refusal are convert it or delete
 // the gate (owner, 2026-09-12: *"legacy shit doesn't get to stay alive"*); a suppressible refusal-liveness
@@ -173,9 +189,16 @@ function reportModule(ctx: GatePolicyContext, module: ModuleFacts, state: Map<st
     });
     return;
   }
-  if (refusal.gate !== basename(module.path)) {
+  // ARM D FAILS OPEN ON UNREADABLE, and the guard is the whole of #2106. This arm ACCUSES — it says the
+  // author copied a refusal from another module — and an accusation needs the field to have been READ, not
+  // merely to differ from `undefined`. Without the `!== undefined` it fired on every declaration the reader
+  // could not parse, which on 2026-09-12 was the ONE live declaration, on a HARD policy whose only
+  // author-side move is a waiver. An unreadable `gate` is already reported by ARM E, exactly once, as what
+  // it is: "I could not read this", never "you wrote the wrong thing". Two arms, two claims, no double
+  // accusation. The ARM E row below is what keeps this fail-open from becoming a silent skip.
+  if (refusal.gate !== undefined && refusal.gate !== basename(module.path)) {
     ctx.report.node(refusal.anchor, {
-      message: `the refusal names gate ${JSON.stringify(refusal.gate ?? "(unreadable)")} and this module's id is ${JSON.stringify(basename(module.path))} — a refusal copied between modules accuses the one it came from.`,
+      message: `the refusal names gate ${JSON.stringify(refusal.gate)} and this module's id is ${JSON.stringify(basename(module.path))} — a refusal copied between modules accuses the one it came from.`,
     });
   }
   for (const reason of refusal.malformed) {
@@ -349,6 +372,19 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "admits NO file in this policy's population" },
       why: "ARM E — a blocker scoped outside the population would census an empty set and pass forever, which is the same clean-zero-is-not-a-measurement defect the rest of this policy is about",
     },
+    {
+      mode: "source",
+      files: {
+        "tooling/src/verify/gates/probe-anchor.ts": "export const anchor = 1;\n",
+        "tooling/src/verify/gates/probe-refuser.ts":
+          'export const CONVERSION_REFUSAL = {\n  gate: "probe" + "-refuser",\n  issue: "#1930",\n  rederived: "2026-09-12",\n  why: "no shipped kind serves the read",\n  blockers: [{ kind: "sole-consumer", why: "the read", under: "tooling/src/verify/", spellings: ["--probe-read"], consumers: ["tooling/src/verify/gates/probe-refuser.ts"] }],\n  unheld: [],\n};\nexport const descriptor = ["--probe-read"];\n',
+      },
+      // COUNT 1 IS THE ASSERTION, not the message. ARM D must stay SILENT here: before #2106 an unreadable
+      // `gate` read as `undefined !== "probe-refuser"` and this fixture produced TWO findings, the second
+      // of them accusing the author of copying a refusal they wrote themselves.
+      expect: { count: 1, messageIncludes: "`gate` is not a statically readable string" },
+      why: "ARM E, and the FAIL-OPEN boundary: a MACHINE field the reader cannot read is reported ONCE, as a read failure, and the accusing arm says nothing. This is also the discrimination the repair rests on — a concatenated MACHINE field still reports while a concatenated PROSE field does not (the last mustPass row)",
+    },
   ],
   mustPass: [
     {
@@ -378,6 +414,15 @@ export const gate = defineGate({
           "// Gate: probe-converted — the legacy header refused conversion on a capability that has since shipped.\n// CONVERSION, 2026-09-12 (#1584): what it retires.\nexport const descriptor = 1;\n",
       },
       why: "THE OPENER'S CASE FENCE: `// CONVERSION,` narrating a COMPLETED conversion, with `refused` only in lowercase prose, is not a refusal — this is `runner-config-path-liveness.ts:26`'s real shape, and it is why the two-module population is a measurement rather than a grep",
+    },
+    {
+      mode: "source",
+      files: {
+        "tooling/src/verify/gates/probe-anchor.ts": "export const anchor = 1;\n",
+        "tooling/src/verify/gates/probe-refuser.ts":
+          'export const CONVERSION_REFUSAL = {\n  gate: "probe-refuser",\n  issue: "#1930",\n  rederived: "2026-09-12",\n  why:\n    "a sentence past the line cap, so the house style splits it with a plus, " +\n    "which is also exactly what the biome formatter produces.",\n  blockers: [\n    {\n      kind: "sole-consumer",\n      why:\n        "the blocker prose is split the same way, " +\n        "and the census must not care.",\n      under: "tooling/src/verify/",\n      spellings: ["--probe-read"],\n      consumers: ["tooling/src/verify/gates/probe-refuser.ts"],\n    },\n  ],\n  unheld: ["the reader-design half is a ruling, not a census"],\n};\nexport const descriptor = ["--probe-read"];\n',
+      },
+      why: "THE #2106 REGRESSION PIN — the EXACT live shape. `why` is a CONCATENATED string at both the declaration and the blocker level, which is the house spelling for any sentence past the line cap and what the biome formatter emits. `readStaticAuthoredValue` is ATOMIC over an object literal, so before the repair this one prose field made the whole declaration unreadable and the policy reported TWO findings against correct code on a HARD gate, whose only author-side move would have been a waiver. Nothing here is machine-read; the prose presence is held by `satisfies ConversionRefusal` at compile time instead",
     },
   ],
 });

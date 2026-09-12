@@ -18,8 +18,7 @@
 // rides an existing spelling rather than inventing one.
 import type { Node, SourceFile } from "ts-morph";
 import { Node as TsNode } from "ts-morph";
-import type { StaticAuthoredValue } from "../contract/static-authored-value.ts";
-import { readStaticAuthoredValue } from "./static-authored-value.ts";
+import { readStaticAuthoredScalar, readStaticAuthoredValue, resolveAuthoredComposite } from "./static-authored-value.ts";
 
 /** A header line OPENING a recorded conversion refusal. `[\s\S]*` rather than `.*` is deliberate: the line
  *  is already split, so the class only has to span the rest of one line. */
@@ -57,57 +56,107 @@ export function refusalOpenerLine(sourceFile: SourceFile): number | undefined {
   return index === -1 ? undefined : index + 1;
 }
 
-function property(value: StaticAuthoredValue, key: string): StaticAuthoredValue | undefined {
-  return value.kind === "object" ? value.properties.find((entry) => entry.key === key)?.value : undefined;
+/** THE MACHINE HALF OF A DECLARATION IS READ FIELD BY FIELD, AND THE PROSE HALF IS NEVER READ AT ALL
+ *  (#2106). `readStaticAuthoredValue` is ATOMIC over an object literal: `readObject` returns the FIRST
+ *  unresolved property's refusal for the WHOLE object, and `readStaticString` refuses a `BinaryExpression`.
+ *  So one CONCATENATED prose string — the house spelling for any sentence past the line cap, and what
+ *  biome's own formatter produces — made the entire declaration unreadable, and the accusing arms then
+ *  fired on correct code. Two effective findings on `no-blanket-suppression.ts` at `0c5bedfd7`, on a HARD
+ *  policy, whose only author-side move would have been a waiver: a waived gate is a dead gate.
+ *
+ *  The shared reader's own header says this in advance, about the same class — a caller that needs the
+ *  literal's own identity must not inherit a FIELD-level refusal as a provenance refusal, and that exact
+ *  conflation "reported zero live definitions for four registry kinds while every path check stayed green"
+ *  (#1584 registry family). This reader made it again.
+ *
+ *  So the split is by WHO CONSUMES THE FIELD. `gate`/`issue`/`rederived` and a blocker's
+ *  `kind`/`under`/`spellings`/`consumers` are MACHINE fields: the policy dispatches on them, an unreadable
+ *  one means the census cannot run, and that must be reported rather than pass as a refusal that still
+ *  holds. `why` and `unheld` are PROSE: nothing machine-reads them, their presence is already held by
+ *  `satisfies ConversionRefusal` at COMPILE time (constitution §2.2 rung 2, a strictly better enforcer than
+ *  a gate), and a gate that re-read them could only ever add false accusations. The type holds the prose;
+ *  the policy holds the census. */
+const MACHINE_SCALARS = ["gate", "issue", "rederived"] as const;
+
+/** The initializer of one named property of an object literal, or `undefined`. A direct structural read of
+ *  the node's OWN properties — not a descendant walk, which the policy contract bans. */
+function propertyNode(object: Node, key: string): Node | undefined {
+  const assignment = TsNode.isObjectLiteralExpression(object)
+    ? object.getProperties().find((entry) => TsNode.isPropertyAssignment(entry) && entry.getName() === key)
+    : undefined;
+  return assignment !== undefined && TsNode.isPropertyAssignment(assignment) ? assignment.getInitializer() : undefined;
 }
 
-function scalarString(value: StaticAuthoredValue | undefined): string | undefined {
-  return value?.kind === "scalar" && typeof value.value === "string" ? value.value : undefined;
+/** One machine STRING field, through the shared scalar reader. `undefined` means "could not read", which
+ *  every caller must distinguish from "read as something else" — that conflation is the whole defect. */
+function machineString(object: Node, key: string): string | undefined {
+  const node = propertyNode(object, key);
+  const fact = node === undefined ? undefined : readStaticAuthoredScalar(node);
+  return fact !== undefined && fact.kind === "resolved" && typeof fact.value === "string" ? fact.value : undefined;
 }
 
-function stringTuple(value: StaticAuthoredValue | undefined): readonly string[] {
-  return value?.kind === "tuple" ? value.elements.map((element) => scalarString(element)).filter((entry) => entry !== undefined) : [];
+/** One machine STRING-TUPLE field, through the shared value reader. */
+function machineStringTuple(object: Node, key: string): readonly string[] {
+  const node = propertyNode(object, key);
+  if (node === undefined) {
+    return [];
+  }
+  const fact = readStaticAuthoredValue(node);
+  if (fact.kind !== "resolved" || fact.value.kind !== "tuple") {
+    return [];
+  }
+  return fact.value.elements
+    .map((element) => (element.kind === "scalar" && typeof element.value === "string" ? element.value : undefined))
+    .filter((entry) => entry !== undefined);
 }
 
-function readBlocker(value: StaticAuthoredValue): AuthoredBlocker {
+function readBlocker(element: Node): AuthoredBlocker {
   return {
-    kind: scalarString(property(value, "kind")),
-    under: scalarString(property(value, "under")),
-    spellings: stringTuple(property(value, "spellings")),
-    consumers: stringTuple(property(value, "consumers")),
-    node: value.node,
+    kind: machineString(element, "kind"),
+    under: machineString(element, "under"),
+    spellings: machineStringTuple(element, "spellings"),
+    consumers: machineStringTuple(element, "consumers"),
+    node: element,
   };
 }
 
 /** Read one `CONVERSION_REFUSAL` declaration. `initializer` is the variable declaration's own initializer;
- *  `anchor` is its name node. A reader REFUSAL (the shared reader could not resolve the expression) and a
- *  SHAPE miss are both reported as `malformed` rows rather than swallowed — a declaration nobody can read
- *  is exactly as unheld as no declaration at all, and must not read as a clean pass. */
+ *  `anchor` is its name node.
+ *
+ *  `resolveAuthoredComposite` answers only ROOT PROVENANCE — "which authored node is this value?" — which
+ *  is the strictly weaker question this reader actually needs, and refuses only when the composite's own
+ *  binding is mutated, cyclic or has an invoked member. Those ARE defects in a declaration and stay
+ *  `malformed`. A field-level refusal no longer reaches this level at all. */
 export function readAuthoredRefusal(anchor: Node, initializer: Node): AuthoredRefusal {
-  const fact = readStaticAuthoredValue(initializer);
-  if (fact.kind !== "resolved") {
-    return { anchor, gate: undefined, issue: undefined, rederived: undefined, blockers: [], malformed: [`${fact.reason}: ${fact.detail}`] };
+  const empty = { anchor, gate: undefined, issue: undefined, rederived: undefined, blockers: [] } as const;
+  const composite = resolveAuthoredComposite(initializer);
+  if (composite.kind !== "resolved") {
+    return { ...empty, malformed: [`the declaration's own binding is not a readable authored value (${composite.reason}: ${composite.detail})`] };
   }
-  const value = fact.value;
-  if (value.kind !== "object") {
-    return { anchor, gate: undefined, issue: undefined, rederived: undefined, blockers: [], malformed: [`the declaration is a ${value.kind}, not an object`] };
+  const object = composite.value;
+  if (!TsNode.isObjectLiteralExpression(object)) {
+    return { ...empty, malformed: [`the declaration is a ${object.getKindName()}, not an object literal`] };
   }
-  const blockersValue = property(value, "blockers");
-  const blockers = blockersValue?.kind === "tuple" ? blockersValue.elements.map(readBlocker) : [];
+  const blockersNode = propertyNode(object, "blockers");
+  const blockerElements = blockersNode !== undefined && TsNode.isArrayLiteralExpression(blockersNode) ? blockersNode.getElements() : [];
+  const blockers = blockerElements.filter((element) => TsNode.isObjectLiteralExpression(element)).map(readBlocker);
   const malformed = [
-    ...(scalarString(property(value, "gate")) === undefined ? ["`gate` is not an authored string"] : []),
-    ...(scalarString(property(value, "issue")) === undefined ? ["`issue` is not an authored string"] : []),
-    ...(scalarString(property(value, "rederived")) === undefined ? ["`rederived` is not an authored string"] : []),
-    ...(blockers.length === 0 ? ["`blockers` is empty or not an authored tuple — a refusal with no checkable blocker is prose"] : []),
-    ...blockers.filter((blocker) => blocker.kind === undefined).map(() => "a blocker has no authored `kind`"),
-    ...blockers.filter((blocker) => blocker.under === undefined).map(() => "a blocker has no authored `under` scope"),
-    ...blockers.filter((blocker) => blocker.spellings.length === 0).map(() => "a blocker declares no `spellings`, so its census can only ever be empty"),
+    ...MACHINE_SCALARS.filter((key) => machineString(object, key) === undefined).map(
+      (key) => `\`${key}\` is not a statically readable string (it is a machine field — the policy dispatches on it)`,
+    ),
+    ...(blockers.length === 0 ? ["`blockers` is empty or not an authored tuple of object literals — a refusal with no checkable blocker is prose"] : []),
+    ...(blockerElements.length !== blockers.length ? ["a `blockers` element is not an object literal, so its census cannot be read"] : []),
+    ...blockers.filter((blocker) => blocker.kind === undefined).map(() => "a blocker has no statically readable `kind`"),
+    ...blockers.filter((blocker) => blocker.under === undefined).map(() => "a blocker has no statically readable `under` scope"),
+    ...blockers
+      .filter((blocker) => blocker.spellings.length === 0)
+      .map(() => "a blocker declares no readable `spellings`, so its census can only ever be empty"),
   ];
   return {
     anchor,
-    gate: scalarString(property(value, "gate")),
-    issue: scalarString(property(value, "issue")),
-    rederived: scalarString(property(value, "rederived")),
+    gate: machineString(object, "gate"),
+    issue: machineString(object, "issue"),
+    rederived: machineString(object, "rederived"),
     blockers,
     malformed,
   };
