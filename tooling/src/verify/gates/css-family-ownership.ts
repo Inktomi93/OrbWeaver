@@ -2,16 +2,41 @@
 // The descriptor keeps permanent polar controls; policy, selector parsing, and declaration provenance
 // live in lib modules below the 450-line ceiling.
 //
-// COUPLED SITE — the five `censusControlFiles({...})` rows below are a HAND-SPELLED oracle for
-// `EXPECTED_DECLARATION_CENSUS` / `_TOTAL` / `_DIRECT_THEME_DECLARATIONS` in lib/css-family-census.ts.
-// They deliberately do NOT derive from the manifest (css-family-proof-fixtures.ts:17-18) so a manifest
-// bump cannot launder its own proof — which makes every manifest bump owe BOTH edits in one commit.
-// Four consecutive commits paid only the manifest half and left this arm red for five days (#1956):
-// 1416f2c98 (#1684, theme 306→304: direct 200→199, rules 106→105), d6870e275 (#1868, theme 304→312 and
-// shell 349→351), 03b8cb94f (#1869, shell 351→353), d72339a26 (#1869 #1870, ui globals 189→190). Each
-// delta is an INTENDED ownership change annotated at its own sheet in the manifest; the stylesheets
-// themselves never drifted from it. The clean control restates the manifest exactly; the four flag rows
-// are single-declaration perturbations OF that control, so they move with it.
+// THE COUPLED SITE IS GONE (#2181, 2026-09-12), and this paragraph is what it was. The five
+// `censusControlFiles({...})` rows were a HAND-SPELLED oracle for `EXPECTED_DECLARATION_CENSUS` /
+// `_TOTAL` / `_DIRECT_THEME_DECLARATIONS`, deliberately NOT derived from the manifest
+// (css-family-proof-fixtures.ts:17-18) so a manifest bump could not launder its own proof — which made
+// every manifest bump owe BOTH edits in one commit. Four consecutive commits paid only the manifest half
+// and left the arm red for five days (#1956): 1416f2c98 (#1684, theme 306→304: direct 200→199, rules
+// 106→105), d6870e275 (#1868, theme 304→312 and shell 349→351), 03b8cb94f (#1869, shell 351→353),
+// d72339a26 (#1869 #1870, ui globals 189→190). EVERY ONE OF THOSE WAS AN INTENDED OWNERSHIP CHANGE and
+// the stylesheets never drifted from the manifest — the ratchet's entire measured history is false
+// positives, which is the strongest argument for the disposition that retired it.
+//
+// WHAT REMAINS. `exception-authority-census.md:178` rules the five per-file counts and the aggregate
+// total to retire as current-population counts (§12.5 names that file as the dispositions home), so the
+// THREE rows that proved only those ratchets — the +1, the −1 and the move — are deleted with them. The
+// `census:theme-direct` row STAYS, because `EXPECTED_DIRECT_THEME_DECLARATIONS` stays (as generated-
+// output parity, pending a ruling on whether a hand-copied literal earns that name — the note lives in
+// lib/css-family-census.ts). The clean `mustPass` control STAYS and changes meaning honestly: it no
+// longer restates a manifest, it proves a full five-home fixture of legal declarations yields ZERO
+// findings.
+//
+// THE BLINDNESS ARMS ARE UNAFFECTED and were never part of the ratchet: `zero-declarations` and
+// `zero-theme-values` (css-family-policy.ts) read no constant, so this retirement costs nothing in
+// instrument health. The mint rationale the retired constants carried is MOVED, not deleted, to
+// `docs/design/951-css-family-semantic-provenance.md` §7.
+//
+// DRIVEN through the legacy dispatcher against the REAL tree after the retirement (a lib constant cannot
+// be cut from a scratch copy of this module, so the two lib arms were probed with `cp`/`mv` on the real
+// file, restored, and `git status` proven clean):
+//   no cut                                          → 0 findings (the retirement removed arms, not verdicts)
+//   `row.declarations === 0` INVERTED                → 5 (one per product stylesheet — the blindness arm is
+//                                                     REACHED for every home, which is the claim that made
+//                                                     retiring the ratchet cost nothing)
+//   EXPECTED_DIRECT_THEME_DECLARATIONS 203 → 204     → 1 (`census:theme-direct`, the surviving parity arm,
+//                                                     still bites — and this is exactly the shape whose
+//                                                     right to survive is escalated, not settled)
 
 import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 import type { GateDescriptor } from "../contract/gate.ts";
@@ -156,24 +181,9 @@ export const gate: GateDescriptor = {
       why: "an attribute value cannot counterfeit shell ancestry inside :where()",
     },
     {
-      files: censusControlFiles({ themeDirect: 203, themeRules: 109, ui: 191, tiers: 47, client: 127, shell: 353 }),
-      expect: { count: 2, token: "census:ui-globals" },
-      why: "adding one otherwise legal declaration makes both the UI-home and total ratchets stale",
-    },
-    {
-      files: censusControlFiles({ themeDirect: 203, themeRules: 109, ui: 190, tiers: 47, client: 127, shell: 352 }),
-      expect: { count: 2, token: "census:shell" },
-      why: "deleting one otherwise legal declaration makes both the shell-home and total ratchets stale",
-    },
-    {
-      files: censusControlFiles({ themeDirect: 203, themeRules: 109, ui: 189, tiers: 47, client: 128, shell: 353 }),
-      expect: { count: 2, token: "census:ui-globals" },
-      why: "moving one declaration preserves the total but makes both source and destination home ratchets stale",
-    },
-    {
       files: censusControlFiles({ themeDirect: 202, themeRules: 110, ui: 190, tiers: 47, client: 127, shell: 353 }),
       expect: { count: 1, token: "census:theme-direct" },
-      why: "moving one generated declaration out of direct @theme keeps every home total stable but trips the generated-output ratchet",
+      why: "moving one generated declaration out of direct @theme trips the generated-output parity arm — the one census constant the #2181 retirement kept",
     },
     {
       files: {
@@ -428,7 +438,7 @@ export const gate: GateDescriptor = {
     },
     {
       files: censusControlFiles({ themeDirect: 203, themeRules: 109, ui: 190, tiers: 47, client: 127, shell: 353 }),
-      why: "the exact declaration manifest as of #1869/#1870, including direct generated @theme declarations, is the clean control",
+      why: "a full five-home fixture of legal declarations yields zero findings. It restated the retired per-sheet manifest until #2181; only the generated @theme figure it spells is still asserted anywhere",
     },
     {
       files: { [UI_GLOBALS]: "/* @layer base { .fake { color: red; } } */\n:root { font-size: 100%; }\n" },
