@@ -443,7 +443,7 @@ counts), then the corpus `format:docs` LAST (frozen archaeology excluded — BOT
 `docs/architecture/history/**`, ruled 2026-09-12; the exclusion is a named list in the formatter, never an accident
 of which tree is nested where).
 
-**ONE HEAVY WHOLE-TREE CONSUMER ON THE BOX AT A TIME — the criterion is LOAD, never the run's KIND** (paid 2026-09-12 23:09Z: a released verifier structure leg at 156% CPU ran into a live single-worker `pnpm e2e` because the release note said "e2e is not a structure run"; tests 8–16 of 39 ran contaminated and owe solo re-runs before they count). Structure legs, the instrument battery, the planters and the browser suites serialize against EACH OTHER, not only within their own kind; the all-clear is the other account's note that ITS heavy consumer has exited, never an inference from a finished slot. **THE PLANTER STEP IS A QUIET-BOX STEP (ruled 2026-09-12, #2206).** `check-gates.repo.int` runs a whole-tree
+**THE WHOLE-TREE BAN IS ABOUT PUBLISHING, NOT ABOUT COST** (ruled 2026-09-12 by primary after a lane it briefed stopped on a contradiction: hazard 4 banned whole-tree runs while the deliverable demanded a `tooling-size` before/after, which structurally needs one because `projectCtx` → `getWorkspace({root})` loads the whole workspace even for a single policy). BANNED for a lane: a whole-tree run through the verify FRONT DOOR — `check:structure`, `pnpm verify`, `pnpm check`, any `.repo.int` planter — because it publishes a pointer and a concurrent one VOIDS the other's verdict; that is a coordination hazard. ALLOWED: a bounded, non-publishing single-policy `runPolicyPass` that writes nothing under `reports/` — expensive, but nobody can collide with it. Load is the separate axis, ruled next. **ONE HEAVY WHOLE-TREE CONSUMER ON THE BOX AT A TIME — the criterion is LOAD, never the run's KIND** (paid 2026-09-12 23:09Z: a released verifier structure leg at 156% CPU ran into a live single-worker `pnpm e2e` because the release note said "e2e is not a structure run"; tests 8–16 of 39 ran contaminated and owe solo re-runs before they count). Structure legs, the instrument battery, the planters and the browser suites serialize against EACH OTHER, not only within their own kind; the all-clear is the other account's note that ITS heavy consumer has exited, never an inference from a finished slot. **THE PLANTER STEP IS A QUIET-BOX STEP (ruled 2026-09-12, #2206).** `check-gates.repo.int` runs a whole-tree
 `check:structure` TWICE under `scaledBudget(300_000, 4)`; a solo pass costs ~257 s wall (17% headroom), the
 session's cgroup fences it to 8 cores (`cpu-fence.sh`, `CPUQuota=800%`), and the load scaling engages only above
 `loadavg == cores`, precisely missing the band where a pass slips past 300 s. So the step runs ONLY when no lane is
@@ -716,6 +716,11 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   by construction, and the phrase had carried no information all program. The orchestrator flips in its reconcile edit,
   each cell naming the sha and `(board #NNNN)`; the barrier check on #2195 asserts every cited id exists and every OWED id
   is later closed.
+- **A COUNT COMPUTED ABOUT AN INSTRUMENT IS NOT THAT INSTRUMENT'S VERDICT** (2026-09-12, `p-tooling-size-and-order`): the lane
+  could have measured its two size crossings with `wc -l` and noted that `authoredLineCount` IS `wc -l` for newline-terminated
+  files, and refused to make that the primary receipt — *"a re-derived instrument is exactly what this program does not
+  accept as a receipt"*. The real gate is the primary receipt; the sweep corroborates. Same sentence as the 9/9-by-grep and
+  the census-by-spelling failures above, paid again.
 - **A TEST THAT GOES RED UNDER YOUR FIX IS EVIDENCE ABOUT THE TEST UNTIL YOU HAVE READ ITS METHOD** (ruled 2026-09-12,
   the `p-verify-seam-fixes` fold for #2223): `gate-scope.suite`'s "a RISE is exit 1" arm had built its rise by passing
   `--before <newer> --after <older>` — it proved rise-detection by running time BACKWARDS, which is exactly the
