@@ -3,7 +3,7 @@
 // one argv parse and one exit-honesty runner for the harness that judges everything else.
 //
 //   check / verify           → cli.ts run [--static|--push|--full|--changed|--list|…]
-//   check:structure          → cli.ts structure
+//   check:structure          → cli.ts structure [--fail-on-warnings]  (warning promotion is OPT-IN, #2025)
 //   check:show               → cli.ts show [--errors-only|--gate|--file|--limit]
 //   (scoped, from selection) → cli.ts scoped (--scope|--package|--changed)
 //   test:scoped / test:ct  → cli.ts scoped-test <node|ct> [paths…] (the path preflight, #1192)
@@ -57,6 +57,7 @@ import {
   SCOPED_TEST_USAGE,
   SCOPED_USAGE,
   SHOW_HELP,
+  STRUCTURE_USAGE,
   TYPECHECK_HELP,
   TYPECHECK_PLAN_HELP,
   VERIFY_VERBS,
@@ -76,8 +77,7 @@ const USAGE = `usage: node tooling/src/verify/cli.ts <${VERIFY_VERBS.join("|")}>
  *  The two verbs that own richer text supply it themselves (`show`, `scoped`) — one home each. */
 const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   run: "usage: node tooling/src/verify/cli.ts run [--static|--push|--full|--changed] [--scope <glob>|--package <name>|--file <paths…>] [--tier <name>] [--strict-scope] [--list] [--json] [--verbose]",
-  structure:
-    "usage: node tooling/src/verify/cli.ts structure\n  Runs every structural gate in one ts-morph pass; writes reports/check-structure.json (read it with `show`).",
+  structure: STRUCTURE_USAGE,
   show: SHOW_HELP,
   scoped: SCOPED_USAGE,
   "scoped-test": SCOPED_TEST_USAGE,
@@ -124,7 +124,7 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runVerify(root, parsed);
     }
     case "structure":
-      return await runStructure(root);
+      return await runStructure(root, rest);
     case "show":
       return runShow(root, rest);
     case "scoped":

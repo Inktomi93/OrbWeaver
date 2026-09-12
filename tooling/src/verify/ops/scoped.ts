@@ -23,6 +23,7 @@ import type { GatePolicy } from "../contract/policy.ts";
 import type { ScopedPolicyResult, ScopedResult } from "../contract/scoped.ts";
 import { loadMixedGateCorpus } from "../lib/loader.ts";
 import { projectCtx, repoRel, runPass, stripProbeFindings, stripProbePolicyFindings } from "../lib/pass.ts";
+import { FAIL_ON_WARNINGS_FLAG } from "../lib/policy-command.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyPassExitCode } from "../lib/policy-plan.ts";
 import { renderPass, renderPolicyPass } from "../lib/render.ts";
@@ -116,16 +117,20 @@ interface Args {
   readonly package: string | undefined;
   readonly changed: boolean;
   readonly changedPaths: readonly string[];
+  /** The warning-promotion opt-in (`--fail-on-warnings`), DEFAULT FALSE — the token's one home is
+   *  lib/policy-command.ts, the final-policy grammar that already owns it. */
+  readonly failOnWarnings: boolean;
 }
 
 /** This verb's usage line — ONE home, read by the UsageError below and by the front door's pre-dispatch
  *  `--help` answer (cli.ts VERB_HELP, #809). */
-export const SCOPED_USAGE =
-  "usage: node tooling/src/verify/cli.ts scoped (--scope <folder-glob>[,<folder-glob>…] | --package <name> | --changed [<paths…>|git])\n  --scope takes one or more comma-separated repo-relative folder globs (union). An ASSERTED selector (--scope/--package) that resolves to 0 files exits 2; a derived --changed set may legitimately be empty.";
+export const SCOPED_USAGE = `usage: node tooling/src/verify/cli.ts scoped (--scope <folder-glob>[,<folder-glob>…] | --package <name> | --changed [<paths…>|git]) [${FAIL_ON_WARNINGS_FLAG}]
+  --scope takes one or more comma-separated repo-relative folder globs (union). An ASSERTED selector (--scope/--package) that resolves to 0 files exits 2; a derived --changed set may legitimately be empty.
+  ${FAIL_ON_WARNINGS_FLAG} promotes final \`severity: "warning"\` findings into the blocking count (exit 1). It is OFF by default: a warning is reported, counted, and blocks nothing.`;
 
 /** Reject a selector combination that isn't exactly one non-empty selector — the first failing rule's
  *  message, or undefined when the args are well-formed. */
-function validateSelectors(a: Args): string | undefined {
+function validateSelectors(a: Pick<Args, "scope" | "package" | "changed">): string | undefined {
   const selectors = [a.scope !== undefined, a.package !== undefined, a.changed].filter(Boolean).length;
   const rules: ReadonlyArray<readonly [boolean, string]> = [
     [selectors !== 1, "exactly one of --scope / --package / --changed is required"],
@@ -142,7 +147,7 @@ function parseArgs(argv: readonly string[]): Args | { readonly error: string } {
   const pkg = flagValue(argv, "--package");
   const changed = argv.includes("--changed");
   const changedPaths = changed ? positionalsAfterChanged(argv) : [];
-  const error = validateSelectors({ scope, scopeGlobs: [], package: pkg, changed, changedPaths });
+  const error = validateSelectors({ scope, package: pkg, changed });
   if (error !== undefined) {
     return { error };
   }
@@ -154,7 +159,7 @@ function parseArgs(argv: readonly string[]): Args | { readonly error: string } {
   if (unknown !== undefined) {
     return { error: `unrecognised argument ${JSON.stringify(unknown)}` };
   }
-  return { scope, scopeGlobs: split, package: pkg, changed, changedPaths };
+  return { scope, scopeGlobs: split, package: pkg, changed, changedPaths, failOnWarnings: argv.includes(FAIL_ON_WARNINGS_FLAG) };
 }
 
 /** The first token this grammar does not know. A valid SELECTOR is already established by the caller, so
@@ -171,6 +176,9 @@ function unknownToken(argv: readonly string[]): string | undefined {
     if (token === "--changed") {
       sawChanged = true;
       continue;
+    }
+    if (token === FAIL_ON_WARNINGS_FLAG) {
+      continue; // the warning-promotion opt-in; it carries no value and is legal beside any selector
     }
     if (token === "--scope" || token === "--package") {
       i += 1; // skip the selector's VALUE, whatever it is
@@ -255,11 +263,15 @@ export function runScopedPass(
 
 /** The FINAL half of a scoped run: every final policy through the production dispatcher over the SAME Project, the
  *  scoped fileset as `requestedPaths` and the FULL roster as `knownPolicies`. The dispatcher's own fence decides
- *  what runs — a `not-applicable` owner is the deferred list, never a policy this door filtered by hand. */
+ *  what runs — a `not-applicable` owner is the deferred list, never a policy this door filtered by hand.
+ *
+ *  `failOnWarnings` arrives from the operator's `--fail-on-warnings` and DEFAULTS FALSE: a final
+ *  `severity: "warning"` finding is reported, counted in `verdict.warnings`, and blocks nothing. */
 export function runScopedPolicyPass(
   policies: readonly GatePolicy[],
   base: Omit<GateRunCtx, "report" | "scan">,
   files: readonly SourceFile[],
+  failOnWarnings: boolean,
 ): ScopedPolicyResult {
   if (policies.length === 0) {
     return { pass: null, deferred: [] };
@@ -271,7 +283,7 @@ export function runScopedPolicyPass(
     project: base.project,
     requestedPaths: files.map((sf) => repoRel(base.root, sf.getFilePath())),
     reviewedGrants: reviewedGrantsFor(policies),
-    failOnWarnings: false,
+    failOnWarnings,
   });
   // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
   const pass = process.env["ORB_GATE_FIXTURES"] === "1" ? raw : stripProbePolicyFindings(raw);
@@ -325,7 +337,7 @@ export async function runScopedCli(root: string, argv: readonly string[]): Promi
   const corpus = await loadMixedGateCorpus(root);
   const gates = corpus.legacy;
   const { pass, deferred, files } = runScopedPass(gates, base, selection);
-  const final = runScopedPolicyPass(corpus.final, base, scopedFiles(base, selection.inScope));
+  const final = runScopedPolicyPass(corpus.final, base, scopedFiles(base, selection.inScope), parsed.failOnWarnings);
 
   process.stdout.write(`check:scope — ${selection.label} · ${files} file(s) in scope\n\n`);
   process.stdout.write(renderPass(pass, new Map(gates.map((g) => [g.name, g]))));

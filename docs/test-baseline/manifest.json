@@ -2475,6 +2475,7 @@
     "tests/tooling/verify/ops/tests-execution-membership.int.test.ts",
     "tests/tooling/verify/ops/tests-type-membership.test.ts",
     "tests/tooling/verify/ops/typecheck.int.test.ts",
+    "tests/tooling/verify/ops/warning-promotion.suite.int.test.ts",
     "tests/tooling/vite-async-hooks.test.ts",
     "tests/tooling/vite-fs-deny.test.ts",
     "tests/tooling/vitest-coverage-scope.test.ts",

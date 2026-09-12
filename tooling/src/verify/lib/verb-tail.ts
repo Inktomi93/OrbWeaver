@@ -9,6 +9,7 @@
 //
 // "own" is not a hole — it names the verb whose tail is parsed STRICTLY somewhere else, one home each:
 //   run          lib/run-argv.ts  (node:util parseArgs, strict:true)
+//   structure    ops/structure.ts (zero or one `--fail-on-warnings`, and nothing else)
 //   show         ops/show.ts      (its parse switch defaults to UsageError)
 //   debt         ops/debt.ts      (same shape)
 //   scoped       ops/scoped.ts    (selector validation + the unknown-token sweep)
@@ -28,7 +29,7 @@ type TailGrammar = "none" | "own";
 
 const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   run: "own",
-  structure: "none",
+  structure: "own",
   show: "own",
   scoped: "own",
   "scoped-test": "own",

@@ -185,7 +185,7 @@ export { auditedExit, auditLine, auditOf, noticesIn, runVerify } from "./ops/run
 export { runScopedCli, runScopedPass, SCOPED_USAGE } from "./ops/scoped.ts";
 export { runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
-export { runStructure } from "./ops/structure.ts";
+export { runStructure, STRUCTURE_USAGE } from "./ops/structure.ts";
 export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership, unclassifiedVitestProjects } from "./ops/tests-execution-membership.ts";
 export { classifyMembership, compareRoutingParity, findEscapees, findTripleSlashLibLeaks, runTestsTypeMembership } from "./ops/tests-type-membership.ts";
 export { classifyTypecheckChild, executeTypecheckPrograms, runTypecheck, TYPECHECK_HELP, typecheckCompilerArgv } from "./ops/typecheck.ts";

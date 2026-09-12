@@ -18,6 +18,7 @@ import type { RunSlot } from "@orb/tooling/_shared/artifacts";
 import { checkoutName, openRunSlot, publishRunSlot } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { MixedGateCorpus } from "../contract/gate-corpus.ts";
 import type { Violation } from "../contract/harness.ts";
@@ -27,6 +28,7 @@ import type { RunManifest } from "../contract/run-manifest.ts";
 import type { FinalPolicyRow, LegacyGateRow, StructurePolicyReport, StructureReport } from "../contract/structure-report.ts";
 import { loadMixedGateCorpus } from "../lib/loader.ts";
 import { projectCtx, runPass, stripProbeFindings, stripProbePolicyFindings, zeroScanGates } from "../lib/pass.ts";
+import { FAIL_ON_WARNINGS_FLAG } from "../lib/policy-command.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyPassExitCode } from "../lib/policy-plan.ts";
 import { populationAlarms } from "../lib/population.ts";
@@ -139,8 +141,11 @@ function keepProbeFindings(): boolean {
  *  door filters (`reviewedGrantsFor`) so a partial roster — every planted tree, every future scoped policy
  *  selection — is not buried under `invalid-grant` errors for rows naming policies it never loaded; the
  *  WHOLE table against the WHOLE roster is the conformance stage's job (ops/policy-conformance-stage.ts), where a
- *  row naming a legacy gate, a deleted policy or a non-reviewed-grant policy is a tool error on every check. */
-function runFinalPass(corpus: MixedGateCorpus, ctx: Omit<GateRunCtx, "report" | "scan">): PolicyPassResult | null {
+ *  row naming a legacy gate, a deleted policy or a non-reviewed-grant policy is a tool error on every check.
+ *
+ *  `failOnWarnings` arrives from the operator and DEFAULTS FALSE (see runStructure's tail): a final
+ *  `severity: "warning"` finding is reported, counted in `verdict.warnings`, and blocks nothing. */
+function runFinalPass(corpus: MixedGateCorpus, ctx: Omit<GateRunCtx, "report" | "scan">, failOnWarnings: boolean): PolicyPassResult | null {
   if (corpus.final.length === 0) {
     return null;
   }
@@ -150,7 +155,7 @@ function runFinalPass(corpus: MixedGateCorpus, ctx: Omit<GateRunCtx, "report" | 
     root: ctx.root,
     project: ctx.project,
     reviewedGrants: reviewedGrantsFor(corpus.final),
-    failOnWarnings: false,
+    failOnWarnings,
   });
   return keepProbeFindings() ? raw : stripProbePolicyFindings(raw);
 }
@@ -173,7 +178,8 @@ function finalSide(corpus: MixedGateCorpus, result: PolicyPassResult | null): Fi
  *  receipt, or the run did not reconcile; 1 on violations or a blocking final finding/alarm; 0 clean). The cli's
  *  `runTool` sets `process.exitCode` from it — never `process.exit`, which drops the buffered stdout write below
  *  and truncates a large report mid-line (the fixture-run report the check-gates anti-drift test parses). */
-export async function runStructure(root: string): Promise<number> {
+export async function runStructure(root: string, argv: readonly string[]): Promise<number> {
+  const failOnWarnings = parseWarningPromotion(argv);
   const slot = openRunSlot(root, "structure");
   announceRacing(slot);
   const started = startManifest(root, slot);
@@ -184,7 +190,7 @@ export async function runStructure(root: string): Promise<number> {
   const ctx = projectCtx(root);
   const rawPass = runPass(corpus.legacy, ctx);
   const pass = keepProbeFindings() ? rawPass : stripProbeFindings(rawPass);
-  const final = finalSide(corpus, runFinalPass(corpus, ctx));
+  const final = finalSide(corpus, runFinalPass(corpus, ctx, failOnWarnings));
 
   // An UNTIMED gate (either contract) rides the same class as a SHORT run (lib/timing.ts): both leave a report
   // that looks complete while a fact the artifact promises is silently absent.
@@ -258,6 +264,28 @@ function legacyExit(broken: boolean, violations: number): number {
   }
   return violations > 0 ? EXIT.violations : EXIT.clean;
 }
+
+/** THIS VERB'S WHOLE TAIL GRAMMAR (lib/verb-tail.ts rules it "own"): zero or one `--fail-on-warnings`.
+ *
+ *  The token is imported from `lib/policy-command.ts`, the final-policy grammar that already owns it — this
+ *  door is a second REACH, never a second spelling. Anything else, or the flag twice, is misuse (exit 3) and
+ *  is refused BEFORE the run slot opens, so a typo can never leave an in-flight artifact behind: the whole
+ *  point of #1117 is that a verb which swallows an unread tail reports a verdict nobody asked for, and the
+ *  two verdicts here are opposite (promoted warnings block; unpromoted ones do not). */
+function parseWarningPromotion(argv: readonly string[]): boolean {
+  const unknown = argv.find((token) => token !== FAIL_ON_WARNINGS_FLAG);
+  if (unknown !== undefined || argv.length > 1) {
+    throw new UsageError(`structure takes at most ${FAIL_ON_WARNINGS_FLAG} — got ${argv.map((token) => JSON.stringify(token)).join(" ")}\n${STRUCTURE_USAGE}`);
+  }
+  return argv.length === 1;
+}
+
+/** This verb's usage line — ONE home, read by the tail refusal above and by the front door's pre-dispatch
+ *  `--help` answer (cli.ts VERB_HELP, #809). */
+export const STRUCTURE_USAGE =
+  `usage: node tooling/src/verify/cli.ts structure [${FAIL_ON_WARNINGS_FLAG}]\n` +
+  "  Runs every structural gate in one ts-morph pass; writes reports/check-structure.json (read it with `show`).\n" +
+  `  ${FAIL_ON_WARNINGS_FLAG} promotes final \`severity: "warning"\` findings into the blocking count (exit 1). It is OFF by default: a warning is reported, counted, and blocks nothing.`;
 
 /** The visible half of the #410 guarantee: the console says how many of the corpus actually ran, per contract. */
 function completenessLine(run: RunManifest): string {
