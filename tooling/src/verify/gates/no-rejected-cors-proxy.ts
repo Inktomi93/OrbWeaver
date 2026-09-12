@@ -16,6 +16,15 @@
 // The host is banned in SERVER source because that is where egress happens; a `corsproxy.io` string in the
 // client is a different question this policy does not answer, and `mustPass[2]` is the row that dies if the
 // population is ever widened.
+//
+// §4.6 SPLIT DIFFERENTIAL (#2000, committed at `tests/tooling/verify/gates/split-arm-parity.test.ts`).
+// LEGACY-SIDE COVERAGE OF THIS ARM: 1 of the parent's 9 examples — `no-raw-egress` mustFlag[1], a
+// StringLiteral. The other four subscribed literal kinds had ZERO legacy coverage, so their rows are
+// CONSTRUCTED from `STRING_KINDS` rather than replayed. ONE finding difference, and it is deliberate:
+// legacy subscribed `CallExpression` for its fetch half and then ran a TEXT test over every non-fetch
+// call, so a call whose source text carried the host was reported TWICE — once on the call node, once on
+// the literal inside it. Dropping that subscription makes the site ONE finding. Populations are equal;
+// the only tool-error delta is the runtime refusing a fixture that admits zero `@server` paths.
 import type { Node as MorphNode } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

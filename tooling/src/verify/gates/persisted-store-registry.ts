@@ -21,6 +21,19 @@
 // same-named local function is not. The legacy check compared the callee's text. The home itself is bound
 // through `ctx.files` and receipted: if either door moves or stops exporting its factory, the receipt
 // REFUSES the run rather than reporting a silent zero.
+//
+// §4.6 SPLIT DIFFERENTIAL (#2000, committed at `tests/tooling/verify/gates/split-arm-parity.test.ts`).
+// LEGACY-SIDE COVERAGE, read first: the unregistered-name arm 2 of the parent's 5 examples; the STALE arm
+// ZERO, because the legacy `finalize` self-guarded on `create-persisted-store.ts` being loaded and NO
+// legacy example loads it. Its successor proof is therefore CONSTRUCTED, not replayed. Two classified
+// differences, both invisible to a replay and both measured:
+//   1. ANCHOR MOVE. Legacy gated staleness on the PERSIST DOOR; this policy gates on `main.tsx` (the
+//      mode-(B) note above). So a doors-only fileset fires all 14 rows in legacy and none here. With each
+//      engine's own anchor present the two verdicts are identical, including the one-name-persisted arm.
+//   2. IDENTITY, NOT TEXT. Replaying the legacy rows over a fileset WITHOUT the factory home makes this
+//      policy REFUSE (`persisted-store-registry/receipt`) where legacy reported — the designed answer, not
+//      a lost catch. With the door present the catch is byte-identical, the ALIAS spelling is a catch the
+//      conversion ADDED, and a same-named LOCAL function is a legacy false positive this policy drops.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

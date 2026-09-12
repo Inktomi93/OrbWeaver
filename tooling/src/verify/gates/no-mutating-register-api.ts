@@ -16,6 +16,14 @@
 // POPULATION PORT: `@client`, whole — deliberately WITHOUT the sibling's `main.tsx`/`compose/` subtraction,
 // which is the entire reason for the split above (mustFlag[3] is that site). The `@client` root is itself a
 // narrowing and is pinned by the `@server` mustPass row, which is the only row that dies without it.
+//
+// §4.6 SPLIT DIFFERENTIAL (#2000, committed at `tests/tooling/verify/gates/split-arm-parity.test.ts`).
+// LEGACY-SIDE COVERAGE: 1 of the parent's 4 examples — `registry-assembly-at-door-only` mustFlag[1], a
+// method in a feature file, which replays byte-identically. The site this policy EXISTS for — a `register`
+// declaration INSIDE `main.tsx` or a `compose/` module — had ZERO legacy coverage, so those rows are
+// CONSTRUCTED and measured against the frozen legacy descriptor, which judged them through its all-client
+// `scanRoot`. Narrow this population to the sibling's door-subtracting one and they are the rows that die
+// (measured 2026-09-12). Populations equal; no finding and no tool-error delta on this arm.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
