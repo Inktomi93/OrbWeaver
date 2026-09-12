@@ -209,7 +209,26 @@ family.
    the thing that is wrong here. Measured 2026-09-11: `persistence-boundary`'s limit claimed a bare `localStorage`
    “lands on the fail-closed unreadable finding”; it resolves as the ambient global with an empty member path and
    takes the PRECISE message, so the arm the paragraph advertised was reached by no row at all. A confident header
-   is not evidence about which fixture hits which branch. And when `UNREADABLE` is built as `` `${MESSAGE} …` `` the base text is a SUBSTRING of both,
+   is not evidence about which fixture hits which branch.
+
+   **THE REUSABLE FALSIFIER FOR AN UNREADABLE ARM — stop reverse-engineering one per module (measured
+   2026-09-11 across nine).** Where the branch sits behind an origin resolver (`resolveGlobalMemberOrigin`,
+   `resolveTypeMemberOrigin`, the `lib/react-origin.ts` readers), **an opaque `any`-typed receiver drives every one of
+   them into fail-closed territory**:
+
+   ```ts
+   declare function opaque(): any;
+   opaque().<member>   // no symbol, no declaration → the UNREADABLE arm
+   ```
+
+   **One documented exception, and it cost a probe cycle:** a module-level identifier bound purely in TYPE space (a
+   `ReturnType` alias). Forcing an unresolvable IMPORT there still binds a broken `ImportSpecifier` declaration, so the
+   reader judges it *provably non-ambient* and passes silently. The trigger that works is referencing the type-only
+   symbol in **value position**, which yields `getSymbol() === undefined` outright.
+
+   Confirm the row DISCRIMINATES rather than passing by luck: `messageIncludes` must match text the UNREADABLE branch
+   alone emits — check by literal comparison that no ordinary `MESSAGE` string contains the fragment. If `UNREADABLE`
+   is built as `` `${MESSAGE} …` ``, no fragment can do this and the two messages must be made disjoint first. And when `UNREADABLE` is built as `` `${MESSAGE} …` `` the base text is a SUBSTRING of both,
    so it can never discriminate in either direction — **keep the two messages disjoint or neither arm is pinnable.**
 
 2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
