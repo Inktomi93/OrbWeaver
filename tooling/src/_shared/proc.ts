@@ -60,16 +60,30 @@ export interface SpawnNicedResult {
  *  load) because a long-lived process spawns children across changing load. */
 const DEFAULT_TIMEOUT_BASE_MS = 120_000;
 
-export interface RunNicedSyncOptions {
+/** THE CAPTURE CEILING, stated ONCE for every capturing door in this module (#2211, #2212).
+ *
+ *  Raise node's ~1MiB capture ceiling. `spawnSync`/`execFileSync` do NOT truncate at the ceiling, they
+ *  TERMINATE the child (SIGTERM + ENOBUFS) — so a caller whose payload is genuinely large (ts7
+ *  `--listFilesOnly` over the whole graph is ~5,400 paths / ~0.5MB; ESLint discovery is the whole admitted
+ *  filename population) must raise it or its verdict silently becomes a KILL.
+ *
+ *  IT IS SHARED BECAUSE THE PROSE ALONE DID NOT TRAVEL. This warning lived on `runNicedSync` for months and
+ *  was correct the whole time, while `execNicedSync` three functions down took no `maxBuffer` at all; the
+ *  ESLint discovery door outgrew 1MiB behind that gap and the whole-repo lint tier became unobtainable
+ *  (#2211). A hazard documented per-door is a hazard the next door does not inherit — so the option and its
+ *  warning are one declaration that both doors take, and the executing half of the guarantee lives with the
+ *  caller whose payload is large (`ops/eslint.ts#readDiscoveredPopulation` refuses by name and is pinned by a
+ *  planted tiny-ceiling control). */
+export interface CaptureCeilingOption {
+  readonly maxBuffer?: number;
+}
+
+export interface RunNicedSyncOptions extends CaptureCeilingOption {
   readonly cwd?: string;
   readonly env?: NodeJS.ProcessEnv;
   /** "collect" (default) captures utf8 stdout/stderr; "inherit" streams to the operator's terminal
    *  (the stack-boot / rsync shape); "ignore" discards. */
   readonly stdio?: "collect" | "inherit" | "ignore";
-  /** Raise node's ~1MiB capture ceiling. spawnSync does NOT truncate at the ceiling, it TERMINATES the
-   *  child (SIGTERM + ENOBUFS) — so a caller whose payload is genuinely large (ts7 `--listFilesOnly` over
-   *  the whole graph is ~5,400 paths / ~0.5MB) must raise it or its verdict silently becomes a kill. */
-  readonly maxBuffer?: number;
   /** Wall-clock ceiling in ms; the child is killed past it (`status` comes back null). A caller whose
    *  child can hang — a planted mutant that turns a loop infinite is the standing case — MUST set this,
    *  or the run never returns a verdict at all. */
@@ -126,16 +140,14 @@ function withCapturedStderr(error: unknown): never {
 
 /** Sync exec under `nice -n 19` — THROWS on a non-zero status (execFileSync semantics), returns stdout.
  *  The git-helper shape: an unknown ref/failed command is an exception, not a verdict. */
-export function execNicedSync(cmd: string, args: readonly string[], opts: { readonly cwd?: string; readonly maxBuffer?: number } = {}): string {
+export function execNicedSync(cmd: string, args: readonly string[], opts: CaptureCeilingOption & { readonly cwd?: string } = {}): string {
   try {
     return execFileSync("nice", ["-n", "19", cmd, ...args], {
       encoding: "utf8",
       stdio: capturedStdio(),
       ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
-      // #2211: without this the child inherits node's ~1MiB ceiling, and execFileSync does NOT truncate at
-      // it — it KILLS the child with ENOBUFS, so a large payload turns a verdict into a tool error. Its
-      // sibling `runNicedSync` has carried this option (and the warning above it) all along; this door did
-      // not, and `runEslint`'s discovery step outgrew 1MiB unnoticed.
+      // #2211/#2212: the hazard is declared once on `CaptureCeilingOption` above — unset means node's ~1MiB,
+      // and `execFileSync` KILLS the child at that ceiling rather than truncating.
       ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
     });
   } catch (error) {
@@ -345,8 +357,9 @@ export interface TranscriptResult {
 }
 
 /** Long-running child under `nice -n 19` whose OUTPUT ORDER is load-bearing: stdout and stderr are captured
- *  INTERLEAVED in arrival order, with no maxBuffer ceiling (spawnSync's ~1MiB does not truncate — it KILLS
- *  the child). The caller names the ceiling; past it the child's whole GROUP dies and the transcript says
+ *  INTERLEAVED in arrival order, with no maxBuffer ceiling at all (`CaptureCeilingOption` above is the one
+ *  home for why that matters: the ceiling kills, it does not clip — so this door declines to have one). The
+ *  caller names the TIME ceiling instead; past it the child's whole GROUP dies and the transcript says
  *  so, so a hang becomes a reported tool error instead of an unbounded wait. The verify runner's stage door. */
 export function spawnNicedTranscript(cmd: string, args: readonly string[], opts: TranscriptOptions): Promise<TranscriptResult> {
   return new Promise<TranscriptResult>((resolvePromise) => {

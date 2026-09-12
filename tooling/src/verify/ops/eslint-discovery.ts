@@ -50,7 +50,21 @@ export async function discoverEslintFiles(root: string): Promise<readonly string
   return results.map(({ filePath }) => relative(root, filePath).split(sep).join("/")).toSorted();
 }
 
+/** THE CHILD STATES ITS OWN COUNT BESIDE THE LIST (#2212). A bare array cannot distinguish a COMPLETE
+ *  enumeration from a SHORT one: the failure #2211 fixed was a KILLED child (`ENOBUFS` — `execFileSync` does
+ *  not truncate, it terminates), and the failure that fix must not introduce is a silently truncated list.
+ *  The count is the producer's claim about how many files it enumerated; the consumer checks the delivered
+ *  list against it, so any path that loses rows in transit has to disagree with a number rather than simply
+ *  arrive shorter. "It did not throw" cannot tell a complete list from a clipped one, which is why the
+ *  ceiling alone was never the whole fix. */
+export interface EslintDiscoveryWire {
+  readonly count: number;
+  readonly files: readonly string[];
+}
+
 export async function runEslintDiscovery(root: string): Promise<number> {
-  process.stdout.write(`${JSON.stringify(await discoverEslintFiles(root))}\n`);
+  const files = await discoverEslintFiles(root);
+  const wire: EslintDiscoveryWire = { count: files.length, files };
+  process.stdout.write(`${JSON.stringify(wire)}\n`);
   return EXIT.clean;
 }
