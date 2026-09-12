@@ -145,9 +145,44 @@ const VENDORED = /^tooling\/src\/snap\/lib\/devtools-frontend\//u;
 /**
  * GENERATED: `flags.md` is DERIVED (`verify/ops/gen/snap-flags-index.ts`, 123 rows) and ratcheted by
  * `ledgers:fresh`, which reds when the committed copy differs from a fresh derivation. Admitting it
- * would deadlock the two doors against each other — the formatter would want bytes the generator does
- * not emit, so `check:docs` and `check:ledgers-fresh` could never both be green. The generator, not
- * this formatter, owns that file's form; teaching it to emit canonical markdown is its own row.
+ * would deadlock the two doors against each other — `check:docs` and `check:ledgers-fresh` could never
+ * both be green.
+ *
+ * AND UNLIKE root `AGENTS.md`, THIS ONE IS HONEST — measured 2026-09-12, not assumed. `AGENTS.md`'s
+ * deadlock was a TEMPLATE defect and two blank lines in its generator retired the fence (#2175). Here the
+ * template is already canonical: exactly FOUR of 123 rows differ, and the cause is the SUMMARY TEXT the
+ * registry supplies, not anything `gen/snap-flags-index.ts` controls —
+ *
+ *   `reset __orb evidence …`   becomes  `reset \_\_orb evidence …`
+ *   `selector=path[,path] — …` becomes  `selector=path\[,path] — …`
+ *
+ * (`--checkpoint`, `--goto`, `--upload`, `--drop-files`; the strings live in
+ * `tooling/src/snap/ops/flags-metadata.ts:48,63,64,67`).
+ *
+ * SO THE ONLY FIX AVAILABLE TO THE GENERATOR IS THE ONE WE MUST REFUSE. Emitting what the formatter wants
+ * bakes the #2068 search loss into a generated law file, measured: `__orb` 2 grep hits become 0, and
+ * `path[,path]` 2 become 0. `__orb` is the dev-bridge global the whole instrument fleet searches for —
+ * `git grep -l '__orb'` is 255 TRACKED files (docs 83 · tests 65 · tooling 55 · packages 33 · .claude 12 ·
+ * .codex 5 · scripts 1 · the depcruise config), and THIS document is the reference a lane reads to LEARN
+ * the flag vocabulary. Closing a deadlock by destroying that grep is the precise defect this formatter
+ * exists to prevent, so the file stays out rather than being admitted at that price.
+ *
+ * A formatter's canonical form and a document's SEARCHABILITY can conflict, and when the document is
+ * generated law the searchability wins. Escaping is render-identical and grep-fatal; that asymmetry is
+ * the whole point of #2068.
+ *
+ * THE SUCCESSOR IS KNOWN AND IT IS A REGISTRY EDIT: put those four tokens in CODE SPANS — backticks
+ * around `__orb` and around `selector=path[,path]`. Measured on the derived output — canonical with no formatter changes at
+ * all, no refusal, both literals keeping all their hits, row count unchanged at 123. It renders better
+ * too: they are code, not prose. That edit belongs to the snap registry, and its coupled site is
+ * `snap/contract/help.ts:54`, which carries the same prose as a separate literal for the help block.
+ *
+ * AND THE WRONG REMOVAL IS PINNED, because a reader's instinct on meeting an exclusion is to delete it.
+ * `tests/tooling/verify/ops/gen/snap-flags-index.test.ts` asserts the derived index still CONTAINS
+ * `__orb` and `path[,path]`, so retiring this fence the CHEAP way — teaching the generator to emit the
+ * escaped bytes — reds at the generator with the destroyed token named, instead of shipping a law file
+ * nobody can search. It is a pin against a FUTURE WRONG FIX rather than against a current defect: this
+ * comment says which removal is correct, and that test says which one is not.
  */
 const GENERATED = /^\.claude\/skills\/snap-driving\/reference\/flags\.md$/u;
 

@@ -2468,6 +2468,7 @@
     "tests/tooling/verify/ops/eslint.int.test.ts",
     "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
     "tests/tooling/verify/ops/gen/prose.test.ts",
+    "tests/tooling/verify/ops/gen/snap-flags-index.test.ts",
     "tests/tooling/verify/ops/gen/test-baseline-manifest.test.ts",
     "tests/tooling/verify/ops/gen/type-configs.test.ts",
     "tests/tooling/verify/ops/ledgers-fresh.test.ts",
