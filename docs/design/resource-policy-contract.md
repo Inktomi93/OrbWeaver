@@ -90,8 +90,18 @@ RED, and the one that is prose-only is called out as the gap.
    `ctx.resources` / `readyResourceValue` across the four `policy-soundness` modules). **That is the one
    prose-only boundary in this contract; §5 alt C and §8 fork 1 price the fix.** The guard is unreachable
    (fact 2 above), so `if (fact.status !== "ready") return;` is dead code that teaches a silent clean; `throw`
-   re-spelled per module is one-home rot. Ten of ten resource policies read through the helper today (16
-   sites), closed by `0fab76771` (four) and `2bacd5ef9` (five); `depcruise-grant-liveness` was already loud.
+   re-spelled per module is one-home rot. **Every resource policy reads through the helper today, and NO
+   resource policy carries an executable not-ready branch** — closed by `0fab76771` (four sites) and
+   `2bacd5ef9` (five); `depcruise-grant-liveness` was already loud.
+
+   **Re-derive that census, never quote it** — `ast-grep -p 'readyResourceValue($$$)'` for the sites, against
+   the `analysis: "resource"` module list, with a planted negative control (`readyResourceValueNOPE` → 0) so a
+   zero means *measured* rather than *could not search*. This sentence originally read *"ten of ten … 16
+   sites"* and was **stale on the day it was written**: `runner-config-path-liveness` converted five minutes
+   earlier in the same merge train and carries four more, making it 11 of 11 / 20. The number rots at every
+   merge; the derivation does not. **A census-shaped sentence in a doc lanes copy names its derivation, not
+   its result** — the direction of this claim only ever strengthens as the corpus converts, and quoting the
+   number is how a reader concludes the opposite.
 3. **Anchor inside your own resource population.** Enforcer: RUNTIME (`[evaluate]` tool error). This is why a
    missing-TIER finding reports at the server manifest (declared, read, inside the population) and not at the
    gate's own source file as the legacy descriptor did.

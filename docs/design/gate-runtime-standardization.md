@@ -108,7 +108,7 @@ lane sent here picked a refuted shape and copied it, which is the transmission f
 | - | - | - | - |
 | pure syntax / name-by-law | `no-mutating-register-api.ts` | CONFIRMED (wave 5-6): its `mustPass[3]` `why` says *"the only row that dies without it"* and the cut proved that sentence TRUE | ~~`no-array-literal-querykey`~~ REFUTED — `fix` names no waiver spelling, name fence unenforced |
 | entire-population tripwire | `spacing-tier-home-health.ts` — **HARD tripwire only, and only once it lands its one §4.5 pin** | REFUTED minor; the ANCHOR self-guard IS enforced | its occurrence sibling's HEADER |
-| **closed resource (ResourceHost)** | `server-layout.ts` · `ui-exports-map-complete.ts` — **CONFIRMED at `be4cdebcd`, verifier pending** | Wave 1 refuted both SEVERELY; repaired at `0fab76771`, the #1979 class closed at `2bacd5ef9` (10 of 10 `analysis: "resource"` modules on `readyResourceValue`), and **confirmed to the §5b bar at `be4cdebcd`**: every `count` exact under a planted `count: 99` (`got=1,1,6` and `got=1,1,1,1,1,2`), every discriminator transplant-tested, and **§4.5 pins per declared resource per reachable status** in `resource-layout-wave-1.test.ts` — `ui-exports-map-complete` had NONE and gained four. **The contract a lane copies is [`resource-policy-contract.md`](resource-policy-contract.md)**, not this cell | do not copy the PRE-`0fab76771` shape from wave 1's receipts — **that audit is superseded**. And do not invent a `-health` sibling: §12.3 states why one is structurally impossible |
+| **closed resource (ResourceHost)** | `server-layout.ts` · `ui-exports-map-complete.ts` — **verifier REFUTED one cell; copy the PROOF shape, not the `kind === "file"` header claim** | Wave 1 refuted both SEVERELY; repaired at `0fab76771`, the #1979 class closed at `2bacd5ef9` (10 of 10 `analysis: "resource"` modules on `readyResourceValue`), and **confirmed to the §5b bar at `be4cdebcd`**: every `count` exact under a planted `count: 99` (`got=1,1,6` and `got=1,1,1,1,1,2`), every discriminator transplant-tested, and **§4.5 pins per declared resource per reachable status** in `resource-layout-wave-1.test.ts` — `ui-exports-map-complete` had NONE and gained four. **The contract a lane copies is [`resource-policy-contract.md`](resource-policy-contract.md)**, not this cell | do not copy the PRE-`0fab76771` shape from wave 1's receipts — **that audit is superseded**. And do not invent a `-health` sibling: §12.3 states why one is structurally impossible |
 | fact consumer (`defineFact`) | `db-enum-from-tuple.ts` | CONFIRMED (wave 3): *"the module to hand a conversion lane"* — 4 of 4 narrowings enforced, 10 exact counts, the strongest identity-counterfactual set in its family | ~~`schema-branding`~~ REFUTED minor — three arm narrowings unenforced |
 | reviewed-grant identity | `no-raw-matchmedia.ts` — **fix #1998 first** (header and roster row say "all four" grants; there are FIVE) | REFUTED SEVERE at wave 1, REPAIRED `b157bb9be`, **wave 7 re-audited and confirmed the repair HELD** — the only module in 26 whose #944 third answer is actually REACHED | — |
 | warning debt | `user-bus-deferred-member.ts` | **CONFIRMED TWICE** (wave 1's sole survivor; wave 10 re-audited it against all five new method rules and it survived). The densest honest header in the corpus | — |
@@ -336,6 +336,28 @@ family.
    WITH. And where a fence has several clauses, report the matrix — the same module's three-clause sweep showed one
    clause singly enforced, one enforced only when the classifier is also open, and one reddening only in the triple.
    A single-clause sweep over an interacting fence set is not a measurement.
+
+   **"UNFALSIFIABLE" IS A CLAIM YOU OWE A CONSTRUCTED FIXTURE ATTEMPT, NOT AN ARGUMENT (measured 2026-09-12;
+   TWO of them fell in ONE wave, both to a fixture built in under five minutes, and both were in modules §3
+   names as exemplars).** The fourth outcome below is legitimate and it is also the most comfortable place to
+   file a cell you could not think about hard enough — so the bar is a ROW YOU WROTE AND RAN, never a
+   sentence explaining why none could exist.
+
+   - `ui-exports-map-complete` recorded its `entry.kind === "file"` index fence as unfalsifiable because it
+     *"would matter only for a DIRECTORY named `index.ts`."* **A `mode: "resource"` fixture can create exactly
+     that** — `packages/ui/src/primitives/index.ts/x.ts` — and with the fence cut, that row and only that row
+     reds.
+   - `runner-config-path-liveness` recorded its real-tree `anchorOk` cut as unfalsifiable. It cut clean only
+     because **every existing row went through the module's own `configs()` helper**, which plants exact rows
+     and therefore never reaches the zero-exact branch below the anchor. A fixture that stops using that
+     helper discriminates immediately.
+
+   **The tell is the same in both, and it is the thing to look for:** every existing row reached the fence
+   through ONE fixture helper that structurally avoided the branch, so the clean cut measured THE HELPER, not
+   the fence. **Before recording UNFALSIFIABLE, write the row that would discriminate and RUN it.** If it
+   passes today and reds under the cut, the classification is UNENFORCED and you have just written its fix.
+   Reserve the fourth outcome for a property whose counterexample is structurally unconstructible — a depth-1
+   file has no children, so no fixture can give it one — and say WHICH construction you attempted.
 
    **And a fourth outcome is legitimate: UNFALSIFIABLE, documented rather than faked.** For a reviewed-grant policy,
    `reportReviewedGrantCandidates` dedupes by `(subject, operation)`, so any narrowing whose only counterexample sits
