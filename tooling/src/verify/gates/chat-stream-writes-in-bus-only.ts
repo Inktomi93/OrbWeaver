@@ -162,6 +162,16 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "THE NAMESPACE RED: no import specifier of that name exists at all, so the legacy door check was offered nothing",
     },
+    {
+      mode: "types",
+      files: {
+        ...HOME_PROOF,
+        "packages/client/src/features/chat/components/opaque-turn.tsx":
+          "declare function opaque(): any;\nexport const push = (): void => opaque().chatStream.push();\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no row before #2014: a `chatStream` member read off an OPAQUE receiver binds no declaration, so `classifyOriginRefusal` answers case (b) — it MIGHT be the stream store's write handle and is REPORTED rather than silently passed. Only `messageIncludes` holds it: the unreadable arm emits the SAME finding count as the ordinary verdict, so a bare `{ count: 1 }` row survives the arm being failed OPEN. The fragment is disjoint from this policy's ordinary message",
+    },
   ],
   mustPass: [
     {

@@ -241,6 +241,14 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "the same dodge written inline, with no binding to follow — the chain reader strips the cast at every step",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/opaque-locale.ts": "declare function opaque(): any;\nexport function f(): string {\n  return opaque().toLocaleDateString();\n}\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944) on the tolocale arm, reached by no row before #2014: an OPAQUE receiver resolves no property symbol and declares nothing uncast either, so `classifyPackageMemberOrigin` refuses on both axes and case (b) REPORTS it. It is the exact complement of the `typeless-cast` mustPass row: a CAST is a proven different declaration and passes, NO type at all is no evidence and fails closed — and the pair only means something because this row pins the message the closed arm emits. The count alone cannot: the unreadable arm reports one finding, identically to the ordinary verdict",
+    },
   ],
   mustPass: [
     {

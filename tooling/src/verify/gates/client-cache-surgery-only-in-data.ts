@@ -165,6 +165,16 @@ export const gate = defineGate({
       expect: { count: 1, token: "setQueryData" },
       why: "THE CAST DODGE: a cast declares the method in its OWN type literal, so the property-symbol reader answered 'a proven different identity' and this passed while the uncast twin reported. The RECEIVER is still `useQueryClient()`, and the shared reader now asks it (`lib/project-home-origin.ts`)",
     },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/some-feature/surfaces/opaque.tsx":
+          "declare function opaque(): any;\nexport function Surface(): void {\n  opaque().invalidateQueries();\n}\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no row before #2014: an OPAQUE receiver resolves no property symbol and its UNCAST type declares nothing either, so both axes of `classifyPackageMemberOrigin` refuse and the call is REPORTED as unreadable. Contrast the `typeless-cast` limit the sibling `no-raw-intl-time` records: a CAST supplies a proven different declaration and passes, while NO type supplies no evidence and fails closed. The `messageIncludes` is the only thing separating this arm from the ordinary verdict, which produces an identical count",
+    },
   ],
   mustPass: [
     {

@@ -416,6 +416,16 @@ export const gate = defineGate({
       expect: { count: 1, token: GET_INITIAL_STATE },
       why: "THE CAST DODGE on ARM B: the cast declares both methods in its own type literal, so the property-symbol reader called it a different identity and the #837 persist-through reset PASSED while the uncast twin reported. The store behind the cast is still zustand's",
     },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/opaque-store.ts": "declare function opaque(): any;\nexport const useStore = opaque().persist(() => ({}));\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944) on ARM A, reached by no row before #2014: the callee's leaf name admits it to the candidate set, `readPackageExportOrigin` cannot place a binding off an OPAQUE receiver, and case (b) REPORTS the spelling rather than passing it. The `messageIncludes` is the whole pin — the unreadable arm reports ONE finding, the same as the ordinary verdict, so a bare `{ count: 1 }` row would pass unchanged if the arm were failed open or became unreachable",
+    },
   ],
   mustPass: [
     {

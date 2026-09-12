@@ -142,6 +142,15 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "THE CAST DODGE: the cast declares `invalidateQueries` in its own type literal, which the property-symbol reader read as a proven different identity — a one-line escape from the seam until the shared reader started asking the UNCAST receiver too",
     },
+    {
+      mode: "types",
+      files: {
+        ...tanstackQueryProof(),
+        "packages/client/src/features/a/opaque.ts": "declare function opaque(): any;\nexport function run(): void {\n  opaque().invalidateQueries();\n}\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no row before #2014: an OPAQUE receiver resolves no property symbol and its uncast type declares nothing, so both axes of `classifyPackageMemberOrigin` refuse and the seam escape is REPORTED rather than passed. Without the `messageIncludes` the row is worthless — the unreadable arm emits exactly one finding, the same as the ordinary verdict, so a `{ count: 1 }` row passes whether the arm fires or is unreachable",
+    },
   ],
   mustPass: [
     {

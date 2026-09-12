@@ -244,6 +244,18 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "THE COUNTERFACTUAL ON THE ARM: a LOCAL component with the battery's name satisfied the legacy tag-TEXT check exactly. Only the canonical declaration separates the real battery from a lookalike",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/components/query-boundary.tsx":
+          "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",
+        "packages/client/src/data/query-error-state.tsx":
+          "export declare function QueryErrorState(props: { label?: string; onRetry?: () => void }): unknown;\n",
+        "packages/client/src/features/a/opaque.tsx": "declare const ns: any;\nexport const G = () => <ns.QueryBoundary renderError={() => null} />;\n",
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944), reached by no row before #2014: a member TAG off an OPAQUE namespace gives its name node no symbol, so `classifyProjectHomeOrigin` answers case (b) and `judgeArm` returns the unreadable candidate WITHOUT asking whether the arm roots in the battery — an arm on a host that might be QueryBoundary is reported, never silently passed. The `messageIncludes` is the only discriminator: the arm anchors on the same `renderError` attribute and emits the same single finding as the ordinary verdict, so a bare `{ count: 1 }` would pass with the arm dead",
+    },
   ],
   mustPass: [
     {
