@@ -55,5 +55,23 @@ export const gate = defineGate({
       files: { "packages/ui/src/x/template.ts": "export const source = `\n// const rendered = true;\n`;\n" },
       why: "comment-looking text inside a template string is data, not parked code",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/x/anchor.ts": "export const anchor = 1;\n",
+        "tooling/src/verify/gates/x-example.ts": "// const dead = compute();\nexport const gateish = 1;\n",
+      },
+      why: "THE SELF-SCAN FENCE (`pd-citation-integrity`'s class). A gate module's own proof fixtures and its header's quoted shapes are parked code INSIDE this policy's scan root by construction — this policy's own `mustFlag[0]` string is one. Dropping `notUnder: [\"tooling/src/verify/gates/**\"]` reds this row, so nothing silently widens the corpus into reporting itself. The `packages/ui` sibling is the in-population ANCHOR: a fixture holding only the subtracted path admits nothing and comes back a `[population]` TOOL ERROR rather than a finding (cb-v-unaudited-finals L9)",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/x/prose.ts": "// if the value is missing we fall back to the seed\nexport const x = 1;\n" },
+      why: "THE TERMINATOR FENCE, and it is the fence that prevents a MASS false positive: prose routinely OPENS with a statement keyword (`if`, `return`, `type`, `for`). What separates a sentence from a statement is that a statement ENDS in `;`/`{`/`}`. Dropping `[;{}]` from the pattern reds this row",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/x/block.ts": "/* const dead = compute(); */\nexport const x = 1;\n" },
+      why: "THE COMMENT-KIND FENCE. Parked code in a BLOCK comment is out of subject — the policy is deliberately scoped to the `//` spelling, which is what its own message and `fix` name. The kind test and the `^//` regex anchor are MUTUALLY REDUNDANT here (each alone rejects this text), so §4.1's joint procedure applies: cutting the `SingleLineCommentTrivia` test AND widening the anchor to `/^\\/[/*]/` TOGETHER reds this row and only this row. Neither cut alone did, and neither did the joint one before this fixture existed — the clean cut was a missing FIXTURE, not a redundant pair (cb-v-unaudited-finals L10)",
+    },
   ],
 });

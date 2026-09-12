@@ -381,12 +381,16 @@ test("a zone vocabulary that stops resolving withholds the chrome verdict instea
 // the landing commit: the module's receipt call was cut in a `cp`-backed copy and the pin went RED.
 // ---------------------------------------------------------------------------------------------------
 
-function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+function passOf(
+  policy: GatePolicy,
+  files: Readonly<Record<string, string>>,
+  grants: Parameters<typeof runPolicyPass>[0]["reviewedGrants"] = [],
+): ReturnType<typeof runPolicyPass> {
   const project = new Project({ useInMemoryFileSystem: true });
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: grants, failOnWarnings: false });
 }
 
 /** The config types plus one registered group/collection pair — everything except the content HOST. */
@@ -461,4 +465,90 @@ test("a renamed SectionDefinition withholds the placeholder verdict instead of c
   expect(present.toolErrors).toEqual([]);
   expect(present.authority.withheldPolicyIds).toEqual([]);
   expect(present.authority.effectiveFindings).toMatchObject([{ policyId: "placeholder-copy-registry", token: "bSection" }]);
+});
+
+// ---------------------------------------------------------------------------------------------------
+// §4.3 GRANT IDENTITY for `config-anchor-in-registry` (cb-v-unaudited-finals L4). Its authority IS the
+// central reviewed-grant table and it carries TWO live rows — the config JUMP and the scroll SPY, both
+// readers of anchors rather than painters of one. Nothing proved those rows behave: `verifyPolicyProofs`
+// runs with `reviewedGrants: []`, so a module row structurally cannot key a grant at all, and the string
+// `config-anchor-stamp` occurred in exactly two files on the tree (the gate and the grant table) and in no
+// test. The four verdicts that make a row honest are pinned here, on the real policy.
+// ---------------------------------------------------------------------------------------------------
+const ANCHOR_REGISTRY_HOME = "packages/client/src/state/config-section-registry.ts";
+const ANCHOR_PRELUDE = {
+  [ANCHOR_REGISTRY_HOME]:
+    "export interface ConfigSectionContribution { readonly id: string }\nexport function configAnchorId(group: string, sub: string): string {\n  return `${group}-${sub}`;\n}\n",
+  "packages/client/src/features/a/lib/a-section.tsx":
+    'import type { ConfigSectionContribution } from "../../../state/config-section-registry.ts";\nimport { ASection } from "../components/a-section.tsx";\nexport const aSection: ConfigSectionContribution = { id: "a", body: () => <ASection /> };\n',
+  "packages/client/src/features/a/components/a-section.tsx":
+    'import { configAnchorId } from "../../../state/config-section-registry.ts";\nexport const ASection = (): unknown => configAnchorId("a", "one");\n',
+} as const;
+
+const ANCHOR_READER = "packages/client/src/features/config/lib/config-jump.ts";
+const ANCHOR_GRANT = {
+  id: "config-anchor-in-registry:proof",
+  policyId: "config-anchor-in-registry",
+  subject: ANCHOR_READER,
+  operation: "config-anchor-stamp",
+  why: "the proof's stand-in for the live config-jump row — a READER of anchors, which owns no config row",
+  endsWhen: "the pin stops re-deriving an anchor id",
+};
+/** Two anchor reads in ONE reader file: the live `config-jump.ts` has exactly this shape. */
+const TWO_READS =
+  'import { configAnchorId } from "../../../state/config-section-registry.ts";\nexport const jump = (g: string): unknown => [configAnchorId(g, "one"), configAnchorId(g, "two")];\n';
+
+test("the config-anchor grant licenses its exact subject/operation and is consumed EXACTLY ONCE, even with two anchor reads", () => {
+  const granted = passOf(configAnchorInRegistry, { ...ANCHOR_PRELUDE, [ANCHOR_READER]: TWO_READS }, [ANCHOR_GRANT]);
+
+  expect(granted.toolErrors).toEqual([]);
+  expect(granted.authority.effectiveFindings).toEqual([]);
+  expect(granted.authority.grantedFindings).toHaveLength(1);
+  // ONE consumption for two reads. The policy keeps the FIRST stamp per path, so a file is one licensed
+  // act however many times it re-derives an anchor — two consumptions under one row would be OVER-BROAD,
+  // and an over-broad row licenses NOTHING.
+  expect(granted.authority.reviewedGrantConsumption).toEqual([{ id: ANCHOR_GRANT.id, count: 1 }]);
+  expect(granted.authority.authorityAlarms).toEqual([]);
+});
+
+test("a config-anchor grant keyed on the WRONG operation licenses nothing", () => {
+  const mismatched = passOf(configAnchorInRegistry, { ...ANCHOR_PRELUDE, [ANCHOR_READER]: TWO_READS }, [{ ...ANCHOR_GRANT, operation: "config-anchor-read" }]);
+
+  expect(mismatched.authority.effectiveFindings).toHaveLength(1);
+  expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: ANCHOR_GRANT.id }]);
+});
+
+test("a config-anchor grant keyed on a subject that no longer stamps is STALE", () => {
+  // The reader was registered as a real contribution, so it paints a row instead of merely reading one and
+  // its permission is spent. That is exactly the rot the row's `endsWhen` promises to catch.
+  const stale = passOf(
+    configAnchorInRegistry,
+    {
+      ...ANCHOR_PRELUDE,
+      [ANCHOR_READER]:
+        'import type { ConfigSectionContribution } from "../../../state/config-section-registry.ts";\nimport { configAnchorId } from "../../../state/config-section-registry.ts";\nexport const jumpSection: ConfigSectionContribution = { id: "j", body: () => configAnchorId("j", "one") };\n',
+    },
+    [ANCHOR_GRANT],
+  );
+
+  expect(stale.authority.effectiveFindings).toEqual([]);
+  expect(stale.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: ANCHOR_GRANT.id }]);
+});
+
+test("the grant's operation is a CONSTANT, so an ALIASED mint in the granted subject consumes the same row", () => {
+  // `mustFlag[1]` proves the alias is the same stamp; this proves the LICENCE follows it. Keyed on the
+  // local spelling the row would miss, the finding would stand and the permission would alarm stale.
+  const aliased = passOf(
+    configAnchorInRegistry,
+    {
+      ...ANCHOR_PRELUDE,
+      [ANCHOR_READER]:
+        'import { configAnchorId as anchor } from "../../../state/config-section-registry.ts";\nexport const jump = (g: string): unknown => anchor(g, "one");\n',
+    },
+    [ANCHOR_GRANT],
+  );
+
+  expect(aliased.authority.effectiveFindings).toEqual([]);
+  expect(aliased.authority.reviewedGrantConsumption).toEqual([{ id: ANCHOR_GRANT.id, count: 1 }]);
+  expect(aliased.authority.authorityAlarms).toEqual([]);
 });

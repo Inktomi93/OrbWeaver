@@ -7,9 +7,12 @@
 // A file is REGISTERED when it declares a contribution itself (the anchor is passed into a body as a prop —
 // the persona this-chat shape) or when some contribution's `body` renders a component whose CANONICAL
 // declaration lives in it (the `components/x-section.tsx` ↔ `lib/x-section.tsx` pair every other section
-// uses). Both halves are resolved identities: the anchor call resolves to the canonical `configAnchorId`
-// export, and a rendered tag resolves to the module that declares the component — a same-named local
-// function in the stamping file proves nothing.
+// uses). Both halves judge a RESOLVED identity and both FAIL CLOSED on one they cannot read: the anchor
+// call must resolve to the canonical `configAnchorId` export or be unreadable (`anchorCallReports`), and a
+// rendered tag must resolve to the module that declares the component or it does not register that module
+// (`renderedModules`) — a same-named local function in the stamping file proves nothing either way. The
+// header said "both halves are resolved identities" for three days while `isAnchorCall` ACQUITTED on
+// unreadable; per-arm answers, not a per-module sentence (see `anchorCallReports`).
 //
 // AUTHORITY IS reviewed-grant, which is why this arm has its own policy id rather than riding
 // `config-group-completeness`. Its exceptions are not per-occurrence mistakes: the config feature's own JUMP
@@ -22,6 +25,7 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
 import { definitionField } from "../lib/registry-definition-field.ts";
 import { readJsxTagFact, registryDefinitionFacts } from "../lib/registry-fact.ts";
@@ -46,10 +50,28 @@ function contains(outer: MorphNode, inner: MorphNode): boolean {
   return outer.getSourceFile().compilerNode === inner.getSourceFile().compilerNode && outer.getStart() <= inner.getStart() && inner.getEnd() <= outer.getEnd();
 }
 
-/** Is this call the canonical anchor mint, proven through the shared callable-origin reader? */
-function isAnchorCall(node: MorphNode): boolean {
+/** Does this call stamp an anchor? FAIL-CLOSED, and the polarity is the whole point.
+ *
+ *  This is an ACCUSING arm, so the three outcomes are not symmetric. A call that PROVABLY binds something
+ *  else (the local `configAnchorId` decoy in `mustPass[2]`) is a different identity and is acquitted. A call
+ *  whose identity cannot be read at all is a stamp the config surfaces cannot derive a row for either, which
+ *  is the defect this policy exists to name — so it REPORTS. Until 2026-09-12 the predicate was
+ *  `origin.kind === "resolved" && …`, an identity ACQUITTAL sitting in the accusing position: unreadable
+ *  passed silently, while the sibling `renderedModules` arm treated an unresolved tag as NOT-registered and
+ *  accused. One module, one question, two answers (cb-v-unaudited-finals L3; the guide's FOURTH POLARITY,
+ *  which the mechanical `!== "foreign"` sweep cannot find because no such comparison is written).
+ *
+ *  Fail-closure is safe HERE and only here because the candidate set is already name-prefiltered
+ *  (`anchorNames.has(name)` in the CallExpression visitor — the canonical export plus its import aliases).
+ *  `lib/origin-verdict.ts` is the home of that requirement: prefilter on the name, resolve the identity, and
+ *  fail closed only inside the candidate set. Without the prefilter this would convert every unreadable call
+ *  in `@client` into an accusation. */
+function anchorCallReports(node: MorphNode): boolean {
   const origin = resolveCallableOrigin(node);
-  return origin.kind === "resolved" && origin.value.target.kind === "module" && origin.value.target.canonical.exportedName === ANCHOR_FN;
+  if (origin.kind === "resolved") {
+    return origin.value.target.kind === "module" && origin.value.target.canonical.exportedName === ANCHOR_FN;
+  }
+  return Node.isCallExpression(node) && classifyOriginRefusal(origin.reason, node.getExpression()) === "unreadable";
 }
 
 /** The modules a contribution's `body` renders a component from — its registered painting surfaces. */
@@ -129,7 +151,7 @@ export const gate = defineGate({
           renderedModules(definition, tags, registered);
         }
         const stamps = new Map<string, MorphNode>();
-        for (const candidate of callCandidates.filter(({ node }) => isAnchorCall(node))) {
+        for (const candidate of callCandidates.filter(({ node }) => anchorCallReports(node))) {
           if (!stamps.has(candidate.path)) {
             stamps.set(candidate.path, candidate.node);
           }
@@ -189,6 +211,21 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "features/b/components/impostor-section.tsx" },
       why: "THE COUNTERFACTUAL: this stamper declares a component with the SAME NAME as the one the registered contribution renders, and is still unregistered — a rendered tag is matched to the module that DECLARES the component, never to a name",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/config-section-registry.ts":
+          "export interface ConfigSectionContribution { readonly id: string }\nexport function configAnchorId(group: string, sub: string): string {\n  return `${group}-${sub}`;\n}\n",
+        "packages/client/src/features/a/lib/a-section.tsx":
+          'import type { ConfigSectionContribution } from "../../../state/config-section-registry.ts";\nimport { ASection } from "../components/a-section.tsx";\nexport const aSection: ConfigSectionContribution = { id: "a", body: () => <ASection /> };\n',
+        "packages/client/src/features/a/components/a-section.tsx":
+          'import { configAnchorId } from "../../../state/config-section-registry.ts";\nexport const ASection = (): unknown => configAnchorId("a", "one");\n',
+        "packages/client/src/features/b/components/opaque-section.tsx":
+          'declare function opaque(): any;\nexport const OpaqueSection = (): unknown => opaque().configAnchorId("b", "one");\n',
+      },
+      expect: { count: 1, messageIncludes: "features/b/components/opaque-section.tsx" },
+      why: "THE UNREADABLE STAMP, and the row that dies if `anchorCallReports` stops failing CLOSED. The guide's reusable falsifier (an opaque `any` receiver) drives every origin reader into refusal, so the identity of this stamp CANNOT be established. Before 2026-09-12 that acquitted it: `isAnchorCall` reported only on a RESOLVED canonical export, which is an ACCUSING arm whose predicate is an identity ACQUITTAL — the fourth polarity, fail-OPEN, in a module whose `renderedModules` arm fails CLOSED on the very same question (cb-v-unaudited-finals L3). A stamper the reader cannot read is exactly the section the list, the spy and the search cannot derive a row for, so silence was the wrong answer",
     },
   ],
   mustPass: [
