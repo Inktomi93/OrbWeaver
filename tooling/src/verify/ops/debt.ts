@@ -52,7 +52,6 @@ import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
 import { BASELINE_REL as SUPPRESSIONS_BASELINE_REL } from "../gates/suppressions.ts";
 import { BASELINE_REL as TEST_PRESENCE_BASELINE_REL } from "../gates/test-presence.ts";
-import { BASELINE_REL as VARIANT_AXES_BASELINE_REL } from "../gates/ui-variant-axes-stamped.ts";
 import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";
 import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
 
@@ -87,12 +86,6 @@ export const LEDGERS: readonly Ledger[] = [
     rel: TEST_PRESENCE_BASELINE_REL,
     unit: "untested domain-logic file",
     why: "a domain file with runtime logic (substrate/, a named subsystem, guard.ts, a contract/ file carrying real logic) that the #767 demand-by-default widening newly demands and the tree does not yet test. Burn-down is board row 772, one family at a time; ends per file when its mirror .test/.int.test lands and the shrink is regenerated.",
-  },
-  {
-    owner: "ui-variant-axes-stamped",
-    rel: VARIANT_AXES_BASELINE_REL,
-    unit: "unstamped @orb/ui recipe",
-    why: "a `tv()` recipe declaring a stamped axis (variant/size/intent/tone) whose element does not yet emit it, so the ui-audit walker cannot tell two of its authored arms apart (#1080 F8). Tranche 1 landed the seam + four pilots; the package-wide sweep is tranche 2. Ends per recipe when it routes through `variantProps`/`variantAttrs` and the shrink is regenerated.",
   },
   {
     owner: "suppressions",

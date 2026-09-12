@@ -615,9 +615,269 @@ honest declaration, and it names the reader rather than a topic.
 | `tests/tooling/gate-spelling-twins.baseline.json` | untouched — a legacy-roster ledger that retires at cutover (already red for 54 converted gates; its `tooling-shared-plumbing` row is one more) |
 | `docs/test-baseline/manifest.json` | regenerated (+1 spec) |
 
-## 5. Group 5 — `design-audit-rule-proof`, `testid-liveness`, `tooling-instrument-proof` — not yet designed
+## 5. Group 5 — `design-audit-rule-proof`, `testid-liveness`, `tooling-instrument-proof`
 
-## 6. Group 6 — `agent-bridge-lock`, `no-inline-union-redecl`, `ui-variant-axes-stamped` — not yet designed
+`testid-liveness` is designed and landed below by lane `p-hooks-split`; `design-audit-rule-proof` and
+`tooling-instrument-proof` belong to lane `p-hooks-single` and are not yet designed here.
+
+### 5.1 Premises re-derived on the tree (lane `p-hooks-split`, 2026-09-12)
+
+| Premise | Receipt |
+| - | - |
+| `testid-liveness` is byte-identical to its legacy SHA | `git log --oneline -3 -- tooling/src/verify/gates/testid-liveness.ts` → `9e2eca320` is the last touch |
+| Zero live `@orb-gate-ignore testid-liveness` and zero `@orb-waive testid-liveness` markers | `grep -rn` over `packages/ tests/ tooling/ scripts/ docs/` → exit 1, no lines; positive control `grep -c orb-gate-ignore tooling/src/verify/lib/gate-ignore.ts` = 4 |
+| The legacy gate is GREEN on the real tree | `runPass([testid-liveness], projectCtx(root))` → `scanned=6296 findings=0 toolErrors=0` — the scanned count is the positive control that the probe measured rather than failed |
+| The registry home is live | `packages/client/src/lib/test-ids.ts` declares `export const TEST_IDS = { … }` with string rows |
+| `tests/tooling/**` suites naming the id as a literal | `gate-spelling-twins.baseline.json:72` (the shrink-only legacy-roster ledger, already red for 54 converted gates — LEAVE, it retires at cutover) and `check-gates.repo.int.test.ts:829` (its `__g_` block, deleted with the conversion) |
+| Base counts | `gate:contract` 532 findings across 285 modules (12 of them this module); `check:policy-conformance` 214 policies · 2,342 rows · 0 failures; roster count line 285 |
+
+### 5.2 `testid-liveness` → `testid-liveness` (ordinary) + `testid-liveness-health` (hard)
+
+**Ruling (§12.6):** "ordinary dead-consumer/row policy plus hard registry-health policy". Implemented as
+ruled — the ARITY held. A1 (a dead consumer, in all three spellings) and A2 (a dead registry row) report at
+different subjects and never double-report a site, so they are one ordinary policy; A3 is the tripwire.
+
+**Family `testid-liveness`, shared reader `lib/testid-registry.ts`** (`testIdRegistryRow`,
+`TESTID_REGISTRY_HOME`, `TESTID_REGISTRY_CONST`, `TESTID_ATTR`, `TESTID_FN`) — the REGISTRY READ, which is
+what both policies share. **The producer-evidence rules and `SELECTOR_RE`/`KEY_SHAPE_RE` deliberately stay
+in the policy:** they have exactly one consumer, and a `lib/` module with one consumer is that policy's
+private reader wearing a contract's clothes (§11.5, one layer down). The sharper reason the registry read is
+the right family subject: the tripwire's claim is *"the read still yields rows"*, and it must be proving that
+about the SAME read the liveness arms use or it guards a different thing than it appears to.
+
+**`testid-liveness`** — ordinary/error/`entire-population`/`["@packages", "@showcase", "@tests"]`/`syntax`.
+Population port BYTE-IDENTICAL and the `@showcase` root is the whole point: the legacy `scanRoot`
+(`(p.includes("packages/") && p.includes("/src/")) || p.includes("tests/")`) admits
+`packages/showcase-plugins/src`, which `@packages` and `@authored` deliberately EXCLUDE, so a lane reaching
+for `@packages` alone narrows the policy silently. The equality is MEASURED in the family test rather than
+asserted in the header.
+
+**THE ORDINARY DOOR WORKS, AND THIS MODULE IS THE EXCEPTION TO THE 9/9 BASE RATE.** The legacy positions
+were `{ token: <the selected value>, offset: <indexOf inside the reported node> }` — free-form by intent, but
+incidentally AUTHORED CODE at their offset, so `locateFinding` would have bound them. The position
+nevertheless MOVED, deliberately: every finding is now anchored through `lib/caught-failure.ts`'s
+`firstAnchor`, so the position is the whole authored literal (`"draft-cast"`,
+`'[data-testid="ghost-row"]'`, `"ghostRow"`) or, for a dead row, the bare key (`ghostRow`). Two reasons: the
+selector spelling has no clean sub-literal position at all (two dead values in one selector string would
+share a carrier AND a token and be jointly unwaivable), and a shared anchor means two policies governing one
+site report ONE position, so one marker can waive both. The move is FREE because the marker census is
+0 = 0 = 0.
+
+**`testid-liveness-health`** — hard/error/`entire-population`, population EXACTLY the registry home
+(`{ in: ["@client"], under: ["packages/client/src/lib/test-ids.ts"] }`). One `PropertyAssignment` visitor
+counts rows through the family reader; zero rows is one finding at the home, line 1.
+
+**THE LEGACY REAL-TREE ANCHOR RETIRES, and that is the arm's mechanism, not a simplification.** The legacy A3
+opted into real runs by testing `fileLoaded(ctx, "packages/db/src/schema/index.ts")`. Under the final runtime
+an ABSENT home admits zero paths and the runtime REFUSES at the population phase — driven:
+`toolErrors=[{policyId:"testid-liveness-health",phase:"population",message:"Invalid population resolution:
+expression admitted zero paths from 1 candidate(s)"}]` — which is LOUDER than the legacy silent skip. Keeping
+the db anchor would have put a foreign file in the policy's population for no verdict, which is a population
+lie rather than a harmless extra. Same shape as `sub-floor-disclosure-health` (§3.2).
+
+**Marker reconciliation (§8.6):** 0 legacy = 0 waives = 0, per file and in total. Nothing to translate.
+
+### 5.3 Group 5 coupled sites (`testid-liveness` half)
+
+| Site | Action |
+| - | - |
+| `lib/testid-registry.ts` | NEW shared reader (the family) |
+| `gates/testid-liveness.ts` · `gates/testid-liveness-health.ts` | 1 rewritten, 1 new |
+| `tests/tooling/check-gates.repo.int.test.ts` | the `__g_testidlive` fixture block deleted |
+| `tests/tooling/verify/gates/testid-variant-split-family.test.ts` | NEW (shared with group 6): conformance ×4, §4.2 arms ×2 + the dead-position discrimination control, the measured population-port equality, §4.5 refusal/deferral pins, §4.6 differentials ×2 |
+| roster | 1 row rewritten, 1 added, count 285 → 287 (with group 6) |
+| `docs/test-baseline/manifest.json` | regenerated (+1 spec) |
+
+### 5.4 Group 5 measured (`testid-liveness` half, 2026-09-12, this worktree)
+
+§4.1 cut table. Cuts are applied to a SIBLING SCRATCH MODULE in the same directory with the anchor asserted
+to occur EXACTLY ONCE and `rmSync` in a `finally`; a `lib/` cut also copies the GATE with its import
+rewritten, because the module under test is the policy. **Direction is stated per row, and the tripwire's
+rows are cut in the INVERTED direction (its fences ACQUIT, so its falsifier is a `mustFlag` going GREEN).**
+
+| Policy | Narrowing | Replaced with | Rows that died | Bucket |
+| - | - | - | - | - |
+| `testid-liveness` | rule-3's `PACKAGE_SRC_RE` fence | dropped (admit key mentions from anywhere) | 1 (`mustFlag[2]`) | ENFORCED |
+| `testid-liveness` | rule 3 itself | the key-mention set dropped from the producer fold | 2 | ENFORCED |
+| `testid-liveness` | rule 2, template producers | `patternProducers` dropped from `isProduced` | 1 | ENFORCED |
+| `testid-liveness` | the A2 registry-row loop | never reports | 2 | ENFORCED |
+| `testid-liveness` | the `[data-testid=…]` selector reader | the match loop dropped | 1 | ENFORCED |
+| `testid-liveness` | the dynamic-consumer guard | a non-literal argument read as its own text | 1 | ENFORCED |
+| `testid-liveness-health` | the `TEST_IDS` owner-name fence | OPENED (any variable declaration owns rows) | 1 | ENFORCED |
+| `testid-liveness-health` | the string-VALUE fence | OPENED (any initializer is a row) | 1 | ENFORCED |
+| `testid-liveness-health` | the zero-rows verdict | never reports | 3 | the rule |
+
+**A FALSE CLEAN THE HARNESS PRODUCED AND THE FIX, worth carrying:** the first run of the two `-health` cuts
+came back `0 rows died`. The cuts are in `lib/`, and the harness rewrote the import of the GATE it was told
+to load — which was `testid-liveness.ts`, the ORDINARY sibling, whose rows barely exercise registry
+readability. **A `lib/` cut in a SPLIT family must name the sibling whose rows the fence serves**; re-run
+against `testid-liveness-health.ts` both cuts reddened immediately. Same class as §4.1's "a cut that did not
+reach the code proves nothing", one axis over: here the cut reached the code and the WRONG POLICY was driven.
+
+§4.6 differential is committed in `testid-variant-split-family.test.ts`: all 9 legacy examples replayed
+through the frozen legacy `runPass` (SHA `9e2eca320`) and through the UNION of the final pair. Differences
+CLASSIFIED: (1) ARM SPLIT + ANCHOR MOVE — the A3 tripwire is its own policy and the final contract forbids a
+zero coordinate, so `test-ids.ts:0:0` becomes `test-ids.ts:1:1`; (2) ANCHOR MOVE on the consumer arms,
+asserted by CONTAINMENT rather than an arithmetic column shift, because the shift is NOT uniform (one column
+for a `getByTestId("x")`, fourteen for a `[data-testid="x"]` selector) — the honest statement is *the final
+position is the start of the authored literal that CONTAINS the legacy position*, and that is what is pinned;
+(3) A2's position is UNCHANGED. Legacy-side coverage asserted: 3 consumer findings, 1 dead registry row,
+1 tripwire red — every split arm exercised. EMPTY ADMISSION: a legacy example that does not carry the
+registry home refuses the tripwire at the population phase, so the union is taken over the ordinary half
+alone there.
+
+**Real-corpus differential: BOTH SIDES ZERO** (`scanned=6296 findings=0` legacy; the final policies report
+nothing on the live tree). Recorded as vacuity shape 1 — informative only as a no-regression receipt, with
+the scanned count as the positive control. The EVIDENTIAL differential is the fixture-level replay above.
+
+## 6. Group 6 — `agent-bridge-lock`, `no-inline-union-redecl`, `ui-variant-axes-stamped`
+
+`ui-variant-axes-stamped` is designed and landed below by lane `p-hooks-split`; `agent-bridge-lock` belongs
+to lane `p-hooks-single` and `no-inline-union-redecl` is unassigned — neither is designed here.
+
+### 6.1 Premises re-derived on the tree (lane `p-hooks-split`, 2026-09-12)
+
+| Premise | Receipt |
+| - | - |
+| `ui-variant-axes-stamped` is byte-identical to its legacy SHA | the module's whole history is `da01f7eb9`, its only touch |
+| **THE BASELINE IS EMPTY — the ruled arity's warning-debt half has NO POPULATION** | `ui-variant-axes-stamped.baseline.json` is `{}`, three bytes. 11 rows at mint (`da01f7eb9`), ALL DRAINED at `fc5f99e4c` (#1097, tranche 2). `exception-authority-census.md:38` independently records "`ui-variant-axes-stamped`: 0 rows" and `:164` rules the empty ledger "can delete immediately at cutover" |
+| Zero live markers for the id | a literal sweep over `packages/ tests/ tooling/ scripts/ docs/` returns nothing; positive control `@orb-gate-ignore` in `lib/gate-ignore.ts` = 4 |
+| The legacy gate is GREEN on the real tree | `runPass([ui-variant-axes-stamped], projectCtx(root))` → `scanned=366 findings=0 toolErrors=0` |
+| The baseline has FIVE coupled sites, one of which breaks the build | the ledger JSON · `ops/gen/ui-variant-axes-stamped.ts` · `ops/baseline.ts:40` (the verb row + its import) · `verify/index.ts:168` (the export) · **`ops/debt.ts:55,92` — `debt.ts` imports `BASELINE_REL` FROM THE GATE MODULE**, so deleting the gate's export without touching `debt.ts` fails the whole tooling program to parse |
+| Base counts | as §5.1; 17 of the 532 `gate:contract` findings are this module |
+
+### 6.2 `ui-variant-axes-stamped` → `ui-variant-axes-stamped` (hard) + `ui-variant-axes-stamped-health` (hard)
+
+**Ruling (§12.6):** "hard recipe/duplicate/blindness policies plus work-item-linked warning debt; baseline
+deleted." **TWO of the ruled row's claims disagree with the tree and the row is amended (§12.6's own banner:
+a ruled arity is still a claim about the tree). Both were escalated with receipts and RATIFIED by the
+orchestrator before the modules landed.**
+
+**AMENDMENT 1 — there is NO warning debt to mint.** §12.5 retires `*.baseline.json` debt rather than
+converting it, and every row it held must become exactly one of fixed / an exact reviewed grant /
+`severity: "warning"` with a positive `workItem`. The ledger held ZERO rows on conversion day, so ZERO rows
+were carried in any of the three directions. A `warning` policy with a `workItem` and no population would be
+born stale — the shape §12.5 forbids from the other side. Both policies are `severity: "error"`.
+
+**THE PER-ROW ACCOUNTING TABLE**, which is the deliverable that proves nothing was dropped:
+
+| Baseline row (all 11, as minted at `da01f7eb9`) | Disposition |
+| - | - |
+| `packages/ui/src/charts/meter/variants.ts::segmentedClockVariants` | FIXED at `fc5f99e4c` (#1097) |
+| `packages/ui/src/content/theme-swatch/variants.ts::themeSwatchVariants` | FIXED at `fc5f99e4c` |
+| `packages/ui/src/layout/variants.ts::containerVariants` | FIXED at `fc5f99e4c` |
+| `packages/ui/src/primitives/avatar/variants.ts::avatarVariants` | FIXED at `fc5f99e4c` |
+| `packages/ui/src/primitives/collapsible/variants.ts::collapsibleVariants` | FIXED at `fc5f99e4c` |
+| `packages/ui/src/primitives/dialog/variants.ts::dialogVariants` | FIXED at `fc5f99e4c` |
+| `packages/ui/src/primitives/number-field/variants.ts::numberFieldVariants` | FIXED at `fc5f99e4c` |
+| `packages/ui/src/primitives/slider/variants.ts::sliderVariants` | FIXED at `fc5f99e4c` |
+| `packages/ui/src/primitives/status-chip/variants.ts::statusChipVariants` | FIXED at `fc5f99e4c` |
+| `packages/ui/src/primitives/switch/variants.ts::switchVariants` | FIXED at `fc5f99e4c` |
+| `packages/ui/src/primitives/text/variants.ts::textVariants` | FIXED at `fc5f99e4c` |
+| **rows live on conversion day** | **0 — ledger content `{}`, 3 bytes** |
+| **reviewed grants minted** | **0** |
+| **warning-debt rows minted** | **0** |
+| **silently dropped** | **0 — no row dropped, and no count ratchet survives (§12.5 forbids both)** |
+
+Arm A4 (the two-sided stale-row arm: a row whose recipe got stamped, or whose key names nothing) DIES with
+the ledger — with nothing to be stale about, a successor proof would discriminate nothing.
+
+**AMENDMENT 2 — the split is TWO policies, not three, with A3 (duplicate NAME) in the main hard policy.**
+A1, A2 and A3 differ on NO axis: same authority (`hard`), severity, `execution` (`entire-population`) and
+population (`@ui`). §3 says use the smallest complete contract, and this lane's own §3.3 ruling says *"a
+split is owed only where an axis differs"*. A5 DOES differ on population — its subject is exactly the axis
+home — so it is the `-health` sibling. **The structural clincher: A3 cannot live in `-health` at all.** A
+duplicate exported NAME is a cross-file verdict over the whole `@ui` corpus, and `-health`'s population is
+one file, so that arrangement is the one that cannot be built.
+
+**Family `ui-variant-axes-stamped`, shared reader `lib/variant-axis-stamp.ts`** — REWRITTEN to be NODE-LEVEL
+(`declaredAxes(declaration)`, `stampDoorRecipeName(call)`, `readStampedAxes(sf)`, `stampDoorPresent(sf)`,
+`recipeKey`). The legacy per-SourceFile entry points (`scanRecipes`, `stampedNames`, and `stampedNames`'
+`getDescendantsOfKind` walk) and `scanUiPackage` — which opened its OWN ts-morph workspace for the baseline
+generator — are DELETED; the policies subscribe `VariableDeclaration` and `CallExpression` through the
+shared kind-indexed walk, and the generator went with the ledger.
+
+**`ui-variant-axes-stamped`** — hard/error/`entire-population`/`@ui`/`syntax`. Population port
+byte-identical (`p.includes("packages/ui/src/")` → `@ui`). The duplicate-NAME map is built in VISITORS and
+judged in `evaluate`, never in `visitFile` — the legacy `visitFile` + `run` + `finalize` split is what made
+that a trap. Each of the three arms carries its own message DISCRIMINATOR (`A1 unstamped:`,
+`A2 unreadable:`, `A3 duplicate name:`), deliberately DISJOINT so a proof row can pin WHICH arm fired; the
+legacy passed no per-finding message and every arm produced the same count.
+
+**The A2 fail-closed arm is the #944 third answer and it is PROVEN REACHED, not asserted.** Its `mustFlag`
+row carries a `messageIncludes`, because the arm produces the same finding COUNT as A1 and differs only in
+message — a bare `{ count: 1 }` passes identically whether the arm fires or is unreachable. Probe per
+§4.5b: the branch's `report` call replaced with `throw` in a scratch copy — **1 row died**, so the arm is
+reached.
+
+**`ui-variant-axes-stamped-health`** — hard/error/`entire-population`, population EXACTLY the axis home
+(`{ in: ["@ui"], under: ["packages/ui/src/lib/variant-attrs.ts"] }`). TWO independent verdicts with
+separate messages: the `STAMPED_VARIANT_AXES` tuple must read, and the home must still declare
+`variantProps`. Both gone is TWO findings, never one and never silence. The legacy real-tree anchor
+(`packages/ui/src/lib/class-merge.ts`) RETIRES for the same reason as §5.2's — driven:
+`toolErrors=[{policyId:"ui-variant-axes-stamped-health",phase:"population", …"admitted zero paths from 1
+candidate(s)"}]`.
+
+**Marker reconciliation (§8.6):** 0 legacy = 0 waives = 0. And the family test PINS the hard refusal: a
+`@orb-waive ui-variant-axes-stamped(thingVariants)` marker produces
+`ordinary waiver … targets non-ordinary policy ui-variant-axes-stamped`, 1 effective finding, 0 waived — so
+a split that silently softened the authority would be caught.
+
+### 6.3 Group 6 coupled sites (`ui-variant-axes-stamped` half)
+
+| Site | Action |
+| - | - |
+| `lib/variant-axis-stamp.ts` | rewritten node-level; `scanRecipes`, `stampedNames`, `scanUiPackage`, `repoRel`, `AXIS_ANCHOR_REL` deleted |
+| `gates/ui-variant-axes-stamped.ts` · `gates/ui-variant-axes-stamped-health.ts` | 1 rewritten, 1 new |
+| `gates/ui-variant-axes-stamped.baseline.json` · `ops/gen/ui-variant-axes-stamped.ts` | DELETED |
+| `ops/baseline.ts` · `verify/index.ts` · `ops/debt.ts` | the verb row, the export and the debt-ledger row removed (the last also drops the `BASELINE_REL` import that would otherwise fail the program to parse) |
+| `tests/tooling/check-gates.repo.int.test.ts` | the `__g_variantaxes` fixture block deleted |
+| `tests/tooling/verify/gates/testid-variant-split-family.test.ts` | shared with group 5 |
+| roster | 1 row rewritten (the ratchet paragraph replaced by its terminal statement), 1 added |
+
+### 6.4 Group 6 measured (`ui-variant-axes-stamped` half, 2026-09-12, this worktree)
+
+| Policy | Narrowing | Replaced with | Rows that died | Bucket |
+| - | - | - | - | - |
+| `ui-variant-axes-stamped` | the A2 fail-closed branch | `throw` (the §4.5b reachability probe) | 1 | REACHED |
+| `ui-variant-axes-stamped` | the axis-home SELF-CREDIT fence | OPENED (credit stamp calls inside the axis home) | 1 (`mustFlag[3]`) | ENFORCED after the fixture was repaired |
+| `ui-variant-axes-stamped` | the stamped-axis INTERSECTION | OPENED (judge every declared variant) | 2 | ENFORCED |
+| `ui-variant-axes-stamped` | the A1 stamp check | nothing is ever credited | 3 | the rule |
+| `ui-variant-axes-stamped` | the A3 `sharing.length < 2` guard | OPENED (one recipe duplicates itself) | 4 | ENFORCED |
+| `ui-variant-axes-stamped` | the `tv` mint check | OPENED (any call initializer is a recipe) | 2 | ENFORCED |
+| `ui-variant-axes-stamped` | the `STAMP_DOORS` set | OPENED (any callee credits its first identifier argument) | 1 (`mustFlag[0]`) | ENFORCED after the fixture was repaired |
+| `ui-variant-axes-stamped` | the `variantAttrs` slot door | NARROWED to `variantProps` alone | 1 | ENFORCED |
+| `ui-variant-axes-stamped-health` | the `AXIS_TUPLE_NAME` fence | OPENED (any array const is the vocabulary) | 1 | ENFORCED |
+| `ui-variant-axes-stamped-health` | the `STAMP_DOOR` function fence | OPENED (any declaration is the door) | 2 | ENFORCED |
+| `ui-variant-axes-stamped-health` | the tuple-arm verdict | never reports | 3 | the rule |
+| `ui-variant-axes-stamped-health` | the door-arm verdict | never reports | 2 | the rule |
+
+**TWO CELLS READ CLEAN FIRST AND BOTH WERE UNENFORCED FIXTURES, NOT UNENFORCED FENCES — the §4.1 outcome
+that is worth the most.** The SELF-CREDIT fence cut clean because `mustFlag[3]`'s axis home only DECLARED
+`variantProps` and never CALLED it, so the fence was never reached; the fixture now calls
+`variantAttrs(thingVariants, …)` inside the home, and the cut reds. The `STAMP_DOORS` cut read clean because
+no fixture handed a recipe IDENTIFIER to a non-door call — `cn(thingVariants({ … }))` passes a CALL, so it
+can never credit whatever the door set is; `mustFlag[0]` now also carries `register(thingVariants)`, and the
+cut reds. **In both cases the honest classification was UNENFORCED with the fix being a row, exactly as §4.1
+prescribes — and in both cases the discriminating row was one line, which is why "UNFALSIFIABLE" owes a
+constructed attempt rather than an argument.**
+
+**Both `-health` siblings' fences are cut in the INVERTED direction** (§4.1: a tripwire's fences ACQUIT, so
+opening one makes it flag FEWER and its falsifier is a `mustFlag` going GREEN). A tripwire whose cells all
+read clean is the tell that the direction was wrong.
+
+§4.6 differential is committed in `testid-variant-split-family.test.ts`: all 8 legacy examples replayed
+through the frozen legacy `runPass` (SHA `da01f7eb9`, with the legacy `lib/variant-axis-stamp.ts` frozen
+BESIDE it because this conversion changed the shared reader) and through the UNION of the final pair.
+POSITION is byte-identical on every recipe arm (both sides anchor the declaration's own name node).
+Classified: A4 retired (no legacy example produces a stale-ratchet finding — asserted per example), and the
+A5 tripwire has **ZERO legacy coverage on BOTH sides**, asserted per example, because it is guarded on a
+real-tree anchor no legacy example loads. That is §4.6's "a split's differential is weakest exactly where it
+feels strongest": the successor proof is the health policy's own four CONSTRUCTED `mustFlag` rows, not a
+replay. Legacy-side recipe coverage: 4 findings (A1 ×1, A2 ×1, A3 ×2).
+
+**Real-corpus differential: BOTH SIDES ZERO** (`scanned=366 findings=0`), vacuity shape 1, recorded as a
+no-regression receipt only.
 
 ## 7. Forks escalated
 

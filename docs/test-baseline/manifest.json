@@ -2367,6 +2367,7 @@
     "tests/tooling/verify/gates/test-presence-client.int.test.ts",
     "tests/tooling/verify/gates/test-presence.repo.int.test.ts",
     "tests/tooling/verify/gates/test-world-browser-contracts.repo.int.test.ts",
+    "tests/tooling/verify/gates/testid-variant-split-family.test.ts",
     "tests/tooling/verify/gates/text-citation-family.test.ts",
     "tests/tooling/verify/gates/tier-home-health-family.int.test.ts",
     "tests/tooling/verify/gates/tooling-front-door-family.test.ts",
