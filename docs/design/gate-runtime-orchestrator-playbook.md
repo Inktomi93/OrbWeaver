@@ -366,14 +366,19 @@ base is 2026-09-05; every conversion since can have carried a table it never saw
 
 ### THE COPY SET — the most actionable output the audit produces
 
+**Point a Phase D lane at these and at nothing else — BUT read the §5b.5 column first (census 2026-09-11, #2005).**
+**Four of the six carry an INCOMPLETE header**, so a lane told to copy one copies a header that fails the bar. Where
+the column says NO, tell the lane to copy the module's PROOF shape and take its header from
+`section-registry-completeness`, which is complete.
+
 **Point a Phase D lane at these and at nothing else:**
 
 | module | plane | caveat |
 | - | - | - |
-| `user-bus-deferred-member` | warning debt | wave 1's sole survivor |
-| `section-registry-completeness` | registry | 4/4 narrowings enforced |
-| **`no-mutating-register-api`** | **ORDINARY** | its `mustPass[3]` `why` says *“the only row that dies without it”* and the audit proved that sentence TRUE |
-| `no-raw-interactive-intrinsics` · `zustand-selector-stability` | reviewed-grant | fix `zustand`'s J4/J5 first |
+| `user-bus-deferred-member` | warning debt | wave 1's sole survivor — **but §5b.5: FAILS ALL THREE** (no FAMILY line, no POPULATION PORT, no legacy SHA). The longest-standing copy candidate has the weakest header in the set |
+| `section-registry-completeness` | registry | 4/4 narrowings enforced · **§5b.5 COMPLETE — the header to copy** (FAMILY + byte-identical POPULATION PORT citing `dd862e988^` + legacy SHA) |
+| **`no-mutating-register-api`** | **ORDINARY** | its `mustPass[3]` `why` says *“the only row that dies without it”* and the audit proved that sentence TRUE · §5b.5: has a POPULATION PORT (intentional correction, stated), **no FAMILY line, no legacy SHA** |
+| `no-raw-interactive-intrinsics` · `zustand-selector-stability` | reviewed-grant | fix `zustand`'s J4/J5 first · §5b.5: `no-raw-interactive-intrinsics` **fails all three**; `zustand` has a real singleton rationale but **no POPULATION PORT and no legacy SHA** |
 | **`no-raw-matchmedia`** | **reviewed-grant** | wave 1 refuted it SEVERE, it was repaired (`b157bb9be`), and wave 7 re-audited and **confirmed the repair HELD**. The only module in 26 audited (waves 6–7) whose #944 third answer is actually REACHED. **Fix #1998 first** — its header and roster row both say “all four” grants and there are five |
 | `spacing-tier-home-health` | HARD tripwire only | owes one §4.5 pin |
 
