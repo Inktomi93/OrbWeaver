@@ -617,6 +617,24 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   instances in one day of building on a closed defect. **Before any audit cell reaches a brief or a doc,
   check the module.** The refutation ledger carries each defect's state; where it says UNADJUDICATED, that
   is an instruction.
+- **A SYMBOL MOVE INTO `lib/` OWES THREE READS, all paid 2026-09-12 evening (the #2096 family migrations):**
+  (1) **the gates/lib CONFIG ASYMMETRY** — `tooling/src/verify/gates/**` carries lint carve-outs `lib/**` does
+  not (`useNamingConvention` off, which is the whole reason the tenancy-registry fork existed; TSDoc, which broke
+  a moved JSDoc's code span), so before moving a symbol check what the DESTINATION enforces that the SOURCE did
+  not — a property of the biome/eslint overrides, not of the code; (2) **a move must END a duplicate, not create
+  one** — three provenance constants ended up declared in BOTH modules and tsc said nothing because both compile;
+  read the post-move diff for surviving `const`s; (3) **a header citing another module as PRECEDENT is a
+  dangling reference `dangling-refs` cannot see** — `serde-core-seal.ts:15` cited the spacing family's
+  gate-to-gate arrangement as its precedent and the commit that moved that arrangement into `lib/` reversed the
+  referent while correctly leaving the citing module fenced (#2177). Grep the gates tree for the moved symbol's
+  NAME in comments, not only in code. And a renamed TRACKED spec is a TWO-SITE edit in the test-baseline
+  manifest: `testFiles` is monotonic, so a rename with no `deletions[path].why` leaves a ghost that
+  `ledgers:fresh` reports FRESH over (#2174's lane). `git diff --stat` after `git add -A` measures you against
+  your own staging; the control is `git diff HEAD`.
+- **A cross-tool invariant needs a cross-tool pin in the PRODUCER's home** (#2175): a generator emitting bytes
+  the formatter normalises away is a deadlock between two doors, and the pin that catches it lives in the
+  generator's suite, run twice with the second byte-identical — otherwise the regression surfaces in a docs lane
+  that has never heard of the generator, which is how `check:agents` sat red after class 1.
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
 - **CLAIM AT DISPATCH. It bit TWICE on 2026-09-11 and the second time was after I had already named it.** A row
   dispatched without `claim` sits at **Ready with no Lane while an agent builds it** — invisible in-flight work, and
