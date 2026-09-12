@@ -615,7 +615,6 @@ honest declaration, and it names the reader rather than a topic.
 | `tests/tooling/gate-spelling-twins.baseline.json` | untouched — a legacy-roster ledger that retires at cutover (already red for 54 converted gates; its `tooling-shared-plumbing` row is one more) |
 | `docs/test-baseline/manifest.json` | regenerated (+1 spec) |
 
-## 5. Group 5 — `design-audit-rule-proof`, `testid-liveness`, `tooling-instrument-proof`
 ### 4.4 What was built (2026-09-12) — deviations from §4.2 recorded
 
 - **Ten policies as tabled**, with two id-level corrections to the table: the port policy's population is the
@@ -699,7 +698,7 @@ honest declaration, and it names the reader rather than a topic.
   `policy-conformance.ts` Projects are licensed by their grant. Restored; `git status` clean.
 - Floor and counts: in the completion commit's message.
 
-## 5. Group 5 — `design-audit-rule-proof`, `testid-liveness`, `tooling-instrument-proof` — not yet designed
+## 5. Group 5 — `design-audit-rule-proof`, `testid-liveness`, `tooling-instrument-proof`
 
 `testid-liveness` is designed and landed below by lane `p-hooks-split`; `design-audit-rule-proof` and
 `tooling-instrument-proof` belong to lane `p-hooks-single` and are not yet designed here.
