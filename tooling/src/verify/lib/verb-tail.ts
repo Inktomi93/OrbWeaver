@@ -9,7 +9,8 @@
 //
 // "own" is not a hole — it names the verb whose tail is parsed STRICTLY somewhere else, one home each:
 //   run          lib/run-argv.ts  (node:util parseArgs, strict:true)
-//   structure    ops/structure.ts (zero or one `--fail-on-warnings`, and nothing else)
+//   structure    ops/structure.ts (zero or one `--fail-on-warnings`, plus a repeatable `--check`/`--family`
+//                                  gate selection — every token reached from lib/policy-command.ts, #1964)
 //   show         ops/show.ts      (its parse switch defaults to UsageError)
 //   debt         ops/debt.ts      (same shape)
 //   scoped       ops/scoped.ts    (selector validation + the unknown-token sweep)

@@ -2460,6 +2460,7 @@
     "tests/tooling/verify/ops/db-baseline-parity.int.test.ts",
     "tests/tooling/verify/ops/debt.test.ts",
     "tests/tooling/verify/ops/eslint.int.test.ts",
+    "tests/tooling/verify/ops/gate-scope.suite.int.test.ts",
     "tests/tooling/verify/ops/gen/prose.test.ts",
     "tests/tooling/verify/ops/gen/test-baseline-manifest.test.ts",
     "tests/tooling/verify/ops/gen/type-configs.test.ts",

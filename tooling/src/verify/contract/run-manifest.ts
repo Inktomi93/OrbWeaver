@@ -30,7 +30,22 @@
 // is looking at the last run STARTED. The killed-run tell now reaches that reader through
 // `abandonedRuns()`: a slot whose in-flight marker outlived its pid. That is strictly finer than the old
 // signal, which could not distinguish "my run died" from "a sibling lane is mid-run".
+import type { PolicySelector } from "./policy-plan.ts";
+
 export interface RunManifest {
+  /** WHICH gates this run was asked about (#1964). `{kind:"all"}` is the whole corpus — the only shape that
+   *  publishes `reports/check-structure.json`. Anything else is a GATE-SCOPED run: every count below is a
+   *  denominator over the SELECTION, and the artifact is reachable only through its own slot, so a partial
+   *  run can never be picked up as the corpus verdict by a reader holding the fixed path. */
+  readonly selection: PolicySelector;
+  /** FALSE when this run OBSERVED PLANTED FIXTURE PATHS (`__g_` / `__dc_`) it did not plant (#2069). A
+   *  fixture-planting suite and a real-tree structure run are mutually exclusive in BOTH directions: the
+   *  planter's files are materialized inside the real package tree for the milliseconds-to-minutes of its own
+   *  child run, and an overlapping run reads a tree that does not exist — inflated raw counts that look
+   *  exactly like a real number (slot `main-2930600`, 2026-09-12). A not-quiet run records the paths it saw
+   *  in `incompleteReasons`, so its own artifact refuses to be read as a verdict. The check-gates suite's OWN
+   *  child runs are exempt by `ORB_GATE_FIXTURES=1` — they MUST see what they planted. */
+  readonly quiet: boolean;
   /** Identity of the run that produced this artifact: `<checkout>-<pid>-<timestamp>` (#1029). The checkout
    *  half is `main` for the primary checkout and the worktree directory name for a lane, so a run id names
    *  WHERE it ran as well as when — an artifact can never be misattributed across worktrees. */

@@ -50,3 +50,12 @@ export interface GateCorpus {
   readonly files: readonly string[];
   readonly unregistered: readonly string[];
 }
+
+/** The SELECTED view (#1964): the two contracts' slices of what ONE gate-scoped `check:structure` run was asked
+ *  about. It carries no `files`/`roster`/`unregistered` deliberately — those are facts about the CORPUS, which a
+ *  selection never narrows, so a reader holding this shape cannot mistake it for a corpus denominator. On the
+ *  default whole-corpus run it IS the corpus's `legacy`/`final`, which is what keeps that run unchanged. */
+export interface SelectedGateCorpus {
+  readonly legacy: readonly GateDescriptor[];
+  readonly final: readonly GatePolicy[];
+}
