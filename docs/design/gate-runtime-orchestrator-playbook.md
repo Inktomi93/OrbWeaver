@@ -387,8 +387,8 @@ Three consequences, all of them shrinks:
 
 ### CURRENT STATE AND THE OPEN ROWS — re-derived 2026-09-12 evening, not remembered
 
-**`179 final / 98 legacy / 277 modules` · conformance `179 · 1,898 rows · 0 failures` · `gate:contract` 714 across
-277 · roster count line 277.** Nine conversions landed 2026-09-12 (`runner-config-path-liveness`, the five
+**`186 final / 92 legacy / 278 modules` · conformance `186 · 2,021 rows · 0 failures` · `gate:contract` 691 across
+278 · roster count line 278.** Fifteen conversions landed 2026-09-12 (`runner-config-path-liveness`, the five
 ordinary client/CT gates which became SEVEN policies via two authority splits). **Re-derive before dispatching;
 every number in this file rots.**
 
@@ -399,7 +399,12 @@ every number in this file rots.**
 | **#2017** | a conversion refusal is free-text prose, so nothing reds when its blocker ships. Make it DATA + a meta-policy; **population is exactly TWO modules** | Ready |
 | **#2018** | `reference-fact-module.ts` is 566 against `tooling-size`'s hard 450 — it was *exactly 450* on 2026-09-05. Same question as #1988, same directory | Ready, P3 |
 | **#2019** | no `policy-soundness` arm reads `ctx.resources` — the throw-vs-return law is prose-enforced inside the family that mechanizes such laws | Ready |
-| ~~#2009~~ ~~#2011~~ ~~#2013~~ ~~#2014~~ | | **DONE**, verifier CONFIRMED |
+| ~~#2009~~ ~~#2011~~ ~~#2013~~ ~~#2014~~ ~~#2016~~ | | **DONE**, verifier CONFIRMED |
+| **#2005** | the §5b.5 header gap. **REFUTED back to Ready 2026-09-12 — it was sitting at Verify while the copy set still failed it.** Measured by SHA SHAPE with a positive control (a word-match grep LIES on this field): **3 of 9 copy targets complete**, and the three that pass are exactly the two planes worked that day | Running (`p-pristine-copyset`, all SEVEN §5b criteria) |
+| **#2020** | the bracket-aware Tailwind class-token reader is hand-rolled in FOUR gates — two-plus consumers, so §12.4 makes it BUILD work. Must not run concurrently with lanes owning those four | Ready, P3 |
+| **#2021** | `tsconfig-entry-liveness` needs a READER decision from **#1351**, not a capability — which is why every pass treating it as a #1930 row found nothing to build. `jsonc` is ruled out and does not reopen | Needs owner |
+| **#2022** | `persisted-store-registry` fails OPEN on an unreadable factory door — the #2016 class on the device-local belt. **Not a mechanical flip: two doors feed an ATTRIBUTION, not a boolean** | Running (`p-persisted-fail-open`) |
+| **#2023** | `chrome-registry-completeness` is one `.includes()` from withholding on every real run — and it is IN THE COPY SET, so the shape is armed in a teaching example. Fails LOUD (exit 2), which is why P2 not P1 | Ready, P2 |
 | **#2008** · **#2010** | deferred-roster one-sidedness · roster publishes a RETIRED marker grammar | Ready, ride along |
 
 ### THE REFUTATION LEDGER IS GOING STALE — and that is the disease it was built to cure
