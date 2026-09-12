@@ -1,5 +1,16 @@
 // Every child-side foreign-key column leads a real Drizzle B-tree index. The shared schema fact owns
 // canonical builder identity and imported/aliased column and extras resolution.
+//
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// Drizzle builder identity and the table/column model for every member. The member-kind resolution this
+// policy's DECLARED LIMIT rests on (imported/local object-literal bindings, object spreads, shorthand
+// members, static computed keys, and a loud refusal for every other member kind) is the fact's own
+// `lib/schema-fact-value.ts#objectEntries` — NOT the legacy `_shared/schema-read.ts`, which this module
+// does not import.
+// POPULATION PORT: an INTENTIONAL WIDENING BY EXACTLY ONE PATH, lossless. The legacy descriptor
+// (f2e1e2f3d41d02e1443072d009b19012b4762b44, the parent of the `fa5612835` conversion) scoped with
+// `scanRoot: isSchemaFile`; the final declares the PROVIDER'S OWN `DRIZZLE_SCHEMA_POPULATION`. The delta,
+// its one path and its positive control are recorded once at that constant in `lib/schema-fact.ts`.
 
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
@@ -145,6 +156,16 @@ export const gate = defineGate({
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const users = sqliteTable("users", { id: text("id").primaryKey() });\nexport const ownerStats = sqliteTable("owner_stats", { ownerId: text("owner_id").primaryKey().references(() => users.id, { onDelete: "restrict" }) });\n',
       },
       why: "an FK that is itself the primary key already has a unique B-tree",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/pin.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'export const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n' +
+          'export const pins = sqliteTable("pins", { id: text("id").primaryKey(), chatId: text("chat_id").unique().references(() => chats.id, { onDelete: "cascade" }) });\n',
+      },
+      why: "an inline `.unique()` FK already has a unique B-tree and leads no extras index — THE ROW THAT DIES WITHOUT `column.unique`. The two inline-builder acquittals are separate code paths: `column.unique`/`column.primaryKey` come off the builder chain, while `leading` is built only from the extras callback, so an inline `.unique()` never appears as an index term and this fixture is unreachable by the other two disjuncts (§4.1, wave 3 D3)",
     },
     {
       mode: "types",

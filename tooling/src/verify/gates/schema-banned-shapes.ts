@@ -5,7 +5,17 @@
 // ban is biome's native `noRestrictedImports`. Rows + the message: ../lib/ledger-banned-shapes.ts.
 // HARD by design: a ledger verdict's only escape is contesting the D-cite, never a site comment.
 //
-// The legacy `schema-banned-shapes` descriptor (0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef) checked both
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// Drizzle builder identity and the table/column model. `../lib/ledger-banned-shapes.ts` is the shared
+// VOCABULARY (the rows and their D-cite text), not the family key: it is consumed by two policies that
+// read DIFFERENT SUBJECTS, which is exactly why `contract-banned-shapes` is a singleton under its own id.
+// POPULATION PORT: byte-identical. The legacy descriptor declared `scopeSafety: "whole-project"` and
+// filtered in-run on `/\/packages\/db\/src\/schema\//`; the final declares the PROVIDER'S OWN
+// `DRIZZLE_SCHEMA_POPULATION`, whose admitted set is that same directory, barrel included. The family's
+// one-path delta against the other legacy spelling is recorded at that constant in `lib/schema-fact.ts`.
+//
+// The legacy `schema-banned-shapes` descriptor (0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef — the PARENT of
+// the `1bf7ff7d9` split commit, verified 2026-09-12 to hold a `GateDescriptor` at this path) checked both
 // this schema partition and the contract partition (now `contract-banned-shapes`) in one combined gate
 // with its own inline schema read before this split.
 import { defineGate } from "../contract/policy.ts";
@@ -167,6 +177,17 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "ownerId", messageIncludes: "D18" },
       why: "DIFFERENT DECLARATION NAME, SAME TABLE: the binding is `rooms` but the SQL table is `chats`, which is what D18 ruled on — renaming the JS const must not launder the ban",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'const OWNER = "ownerId";\n' +
+          'export const chats = sqliteTable("chats", { [OWNER]: text("owner_id") });\n',
+      },
+      expect: { count: 1, token: "OWNER", messageIncludes: "D18" },
+      why: 'THE NON-VERBATIM IDENTITY: a computed key bound to a module constant resolves to the property name `ownerId`, which the declaration text `[OWNER]: text("owner_id")` does not carry — so `indexOf` returns -1 and the fallback anchor is taken. THE ROW THAT DIES WITHOUT the `offset < 0` branch: with it neutered, `report.node` is handed a token that is not authored text at the reported offset and THROWS',
     },
   ],
   mustPass: [

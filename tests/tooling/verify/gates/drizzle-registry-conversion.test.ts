@@ -28,6 +28,15 @@ import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+/** #1985. Both replay arms shell out to `git show` per frozen module and then BUILD ts-morph projects for
+ *  every legacy example — measured at 5022.9 ms in one population phase alone, against vitest's bare
+ *  5000 ms default with no budget of any kind. A timeout is NOT a verdict (it is the exit-2 class), so an
+ *  unbudgeted arm here reports a tool failure as a policy regression on a merely warm box. This is the
+ *  house `scaledBudget`, which GROWS with measured contention; eleven specs in this directory already use
+ *  it. Its sibling `grant-liveness-family.test.ts` carries the same defect and is NOT fixed here. */
+const REPLAY_TIMEOUT_MS = scaledBudget(120_000);
 
 const ROOT = "/drizzle-registry-conversion";
 /** The commit immediately before the conversion — the last one where the gate carried the legacy shape. */
@@ -163,7 +172,7 @@ test("the converted registry policies pass their production proof runtime", () =
   expect(verifyPolicyProofs([lifecyclePortability, domainFreshnessPlane])).toEqual([]);
 });
 
-test("each final policy names the same subjects as its frozen legacy gate on every original example", async ({ scratch }) => {
+test("each final policy names the same subjects as its frozen legacy gate on every original example", { timeout: REPLAY_TIMEOUT_MS }, async ({ scratch }) => {
   for (const [path, policy, anchorPrefix] of [
     [LIFECYCLE_PATH, lifecyclePortability, "packages/db/src/schema/"],
     [FRESHNESS_PATH, domainFreshnessPlane, "packages/"],
@@ -201,7 +210,7 @@ test("each final policy names the same subjects as its frozen legacy gate on eve
   }
 });
 
-test("the final reader REFUSES the unresolvable table the legacy regex read anyway", async ({ scratch }) => {
+test("the final reader REFUSES the unresolvable table the legacy regex read anyway", { timeout: REPLAY_TIMEOUT_MS }, async ({ scratch }) => {
   const legacy = await frozenLegacyGate(LIFECYCLE_PATH, scratch);
   const founding = legacy.mustFlag.at(-1) as GateExample;
   const original = legacyFiles(founding);

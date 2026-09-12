@@ -1,5 +1,14 @@
 // Entity ids in the Drizzle schema carry the canonical @orb/kit/ids phantom, and FK children carry the
 // exact same brand as their parent column. The provider owns type/symbol identity; this policy owns intent.
+//
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// Drizzle builder identity, the table/column model and the `$type<XId>()` override this policy judges.
+// POPULATION PORT: an INTENTIONAL NARROWING OF THE WALKED SET over an IDENTICAL subject set. The legacy
+// descriptor (fa56128359a0a5e107d1dde042dfe5c95001ec2f, the parent of the `32b66931e` conversion) declared
+// `scopeSafety: "whole-project"` with NO `scanRoot` and filtered in-run on `path.includes(SCHEMA_DIR)`
+// (`/packages/db/src/schema/`), so it loaded the whole harness project to judge one directory. The final
+// declares the PROVIDER'S OWN `DRIZZLE_SCHEMA_POPULATION`, whose admitted set is that same directory —
+// recorded once at that constant in `lib/schema-fact.ts`, with its one-path delta and positive control.
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumn, SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
@@ -19,6 +28,15 @@ function primaryBrandProblem(table: SchemaTable, column: SchemaColumn): string |
     : null;
 }
 
+/** The BRAND-MISMATCH message. Both brands are `string` BY PARAMETER, which is what makes
+ *  `foreignKeyBrandProblem`'s `parentBrand === null` acquittal a COMPILE-TIME obligation rather than a
+ *  control-flow accident: deleting that clause makes this call a type error instead of silently shipping
+ *  the sentence "carries null" to an author (wave 3 D8). `mustPass[5]` holds the same fence at the
+ *  behavioural tier, so the narrowing is enforced on both rungs. */
+function brandMismatch(column: SchemaColumn, parent: SchemaColumn, brand: string, parentBrand: string): string {
+  return `${column.identity.table.declarationName}.${column.identity.propertyName} carries id brand ${brand}, but its parent ${parent.identity.table.declarationName}.${parent.identity.propertyName} carries ${parentBrand}.`;
+}
+
 function foreignKeyBrandProblem(column: SchemaColumn, columns: ReadonlyMap<string, SchemaColumn>): string | null {
   const parentIdentity = column.foreignKey?.parent;
   if (parentIdentity?.kind !== "population-column") {
@@ -35,7 +53,7 @@ function foreignKeyBrandProblem(column: SchemaColumn, columns: ReadonlyMap<strin
   }
   return brand === null
     ? `${column.identity.table.declarationName}.${column.identity.propertyName} references branded ${parent.identity.table.declarationName}.${parent.identity.propertyName} but carries no canonical id brand.`
-    : `${column.identity.table.declarationName}.${column.identity.propertyName} carries id brand ${brand}, but its parent ${parent.identity.table.declarationName}.${parent.identity.propertyName} carries ${parentBrand}.`;
+    : brandMismatch(column, parent, brand, parentBrand);
 }
 
 export const gate = defineGate({

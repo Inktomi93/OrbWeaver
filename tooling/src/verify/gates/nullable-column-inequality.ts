@@ -4,6 +4,16 @@
 // row-dropper with no typecheck and no test failure. Nullability comes from the shared Drizzle fact, and the
 // drizzle callee identity from the shared module-origin reader, so a local same-named `ne` is not SQL and an
 // aliased/namespaced import still is. DECLARED LIMITS live in the mustPass rows.
+//
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// the column model this policy's nullability verdict rests on; the drizzle callee identity comes from the
+// other shared reader, `lib/reference-fact.ts` (`resolveModuleMemberOrigin`). The POPULATION is this
+// policy's own rather than the provider's, because the SUBJECT is a query anywhere in the cake while the
+// FACT is the schema directory — the derivation and its measured delta are at
+// `NULLABLE_INEQUALITY_POPULATION` below.
+// The legacy `nullable-column-inequality` descriptor is 521780ac67160db90e8ff0a0bab4fad850443c6c, the
+// PARENT of this module's own conversion commit `66d28b127` (verified 2026-09-12 to hold a
+// `GateDescriptor` carrying the `scanRoot` quoted at that population constant).
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

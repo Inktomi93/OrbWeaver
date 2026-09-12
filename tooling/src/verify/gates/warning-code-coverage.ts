@@ -166,8 +166,7 @@ function isMapperReturn(statement: MorphNode): boolean {
  *  `WARNING_CODES` planted at `packages/client/src/state/provider-warnings.ts`, inside the shared tuple
  *  index's population and outside this policy's), 2026-09-12:
  *    · before — `PASS TOOL ERROR [evaluate] source file is outside the effective population: …`
- *    · after  — `PASS TOOL ERROR [receipt] policy receipt refused: population "WARNING_CODES" resolved zero
- *      members; population "WARNING_CODES" left 1 unresolved`
+ *    · after  — `PASS TOOL ERROR [receipt] policy receipt refused: population "WARNING_CODES" resolved zero members; population "WARNING_CODES" left 1 unresolved`
  *  Same blast radius, but the second names the vocabulary and the reason — it is the designed blindness
  *  tripwire firing, not the runtime breaking. */
 function channelVocabulary(context: GateFactContext, fact: TupleVocabularyFact, channel: Channel): TupleVocabularyFact {
@@ -370,6 +369,29 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
       why: "THE SCOPE FENCE, pinned: a textbook provider emit sitting in the CHAT domain is not a provider emit — the two channels own disjoint emit scopes, which is what `TWO INDEPENDENT DENOMINATORS` means operationally. Deleting `startsWith(channel.emitScope)` counts it and REDS this row",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/server/src/infra/providers/resolve-chat.ts":
+          'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "provider_ok" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
+      why: 'THE PER-CHANNEL CHAT-EMITTER ADMISSION, pinned (§4.1). `chat` is a per-channel field and the PROVIDER channel is `chat: false`, so a bus `emit({type:"warning"})` sited inside the provider emit scope is NOT a provider emit — the provider vocabulary reaches the bus only through the canonical `toChatWarning` mapper. THIS FENCE MAKES THE POLICY FLAG **MORE**, so its falsifier is a `mustFlag` the cut turns GREEN, not a `mustPass` it reds: delete `channel.chat &&` and the provider channel adopts the chat emitters, `provider_ok` reads as covered, and this row goes 1 → 0',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/infra/providers/contract/resolve.ts": 'export const WARNING_CODES = ["provider_ok"] as const;\n',
+        "packages/server/src/infra/providers/resolve-chat.ts": 'declare const warnings: { code: string }[];\nwarnings.push({ code: "provider_ok" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'declare function emit(event: unknown): void;\nemit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { count: 1, token: '"provider_ok"', messageIncludes: 'Member: "provider_ok"' },
+      why: 'THE PUSHED-RECORD `message` REQUIREMENT, pinned (§4.1). A `{ code }` with no `message` pushed onto the real `warnings` sink is not an EXECUTABLE warning record — nothing reaches a human — so it cannot discharge a code\'s emit obligation. Same reversed direction as the row above: deleting `object.getProperty("message") !== undefined` from `isPushedWarning` makes the bare record count as an emit and this row goes 1 → 0. Its twin is mustFlag[2], which holds the OTHER half of the same recogniser (the sink identity) with the message present',
     },
   ],
   mustPass: [
