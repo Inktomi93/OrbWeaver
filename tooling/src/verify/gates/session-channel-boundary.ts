@@ -42,7 +42,7 @@ const MESSAGE =
   "to `SessionMessage` and post it through `postSessionMessage`.";
 
 const UNREADABLE =
-  "this `new` is spelled like the BroadcastChannel global but the shared readers cannot place its binding, so whether it opens a second cross-tab channel CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this `new` is spelled like the BroadcastChannel global but the shared readers cannot place its binding, so whether it opens a second cross-tab channel CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the constructor a readable binding, or route through packages/client/src/lib/session-channel.ts.";
 
 const FIX =
   "Import postSessionMessage / onSessionMessage from #lib instead of constructing a channel. A deliberate " +

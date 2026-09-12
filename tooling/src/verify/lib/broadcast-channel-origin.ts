@@ -15,7 +15,7 @@
 // A pure reader over one delivered node: no walk, no Project, no filesystem, no cache.
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import type { OriginVerdict } from "../contract/origin-verdict.ts";
+import type { BroadcastChannelVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "./origin-verdict.ts";
 import { readsAmbientGlobalPath } from "./project-home-origin.ts";
 import { resolveGlobalMemberOrigin } from "./reference-fact.ts";
@@ -32,7 +32,8 @@ export const BROADCAST_CHANNEL = "BroadcastChannel";
  *  different object (an injected port, a namespace) and is `other`. */
 const GLOBAL_RECEIVERS: ReadonlySet<string> = new Set(["globalThis", "self", "window"]);
 
-export type BroadcastChannelVerdict = OriginVerdict<"constructs">;
+// The verdict TYPE is homed in `contract/origin-verdict.ts` (#2058): an exported type alias in `lib/` is a
+// `no-inline-types` finding, and this one had nothing lib-specific to say — it is `OriginVerdict<"constructs">`.
 
 /** Judge one `NewExpression`. Anything that is not a `new` whose callee names the global answers `other`. */
 export function classifyBroadcastChannelConstruction(node: MorphNode): BroadcastChannelVerdict {

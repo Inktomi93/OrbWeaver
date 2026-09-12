@@ -67,7 +67,7 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { readMemberReference, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 import { NODE_LOOKALIKE_HOME, NODE_TYPES_HOME, nodeLookalikeProof, nodeTypesProof } from "./_proof/node-types.ts";
 
@@ -84,7 +84,15 @@ const FIX = "import the frozen `env` from foundation/env and dot-access a typed 
 
 /** Is this `env` member read taken off the real `process` — the ambient global or the `node:process` default
  *  export? Fail-closed on an unreadable receiver (a written or cyclic binding still HOLDS the identity); a
- *  member of a provably different declaration is not a subject. */
+ *  member of a provably different declaration is not a subject.
+ *
+ *  THE REFUSAL IS CLASSIFIED ON THE RECEIVER (#2058). This is the private twin of
+ *  `lib/process-member-origin.ts#classifyProcessMemberRead` — the MERGE CANDIDATE that module's header
+ *  names — and it carried the identical defect: `classifyOriginRefusal`'s `leafIdentifier` only unwraps a
+ *  PropertyAccess, so handing it the whole member read made every `bag["env"]` fail closed to `unreadable`
+ *  and be REPORTED. In the argv twin that was two live errors on the real tree; here it is LATENT (no
+ *  `x["env"]` in `@server` today, measured), and fixing one copy while leaving its acknowledged twin broken
+ *  is the half-migration the constitution bans. `mustPass[1]` is the pin. */
 function readsProcessEnv(node: MorphNode): boolean {
   const global = resolveGlobalMemberOrigin(node);
   if (global.kind === "resolved") {
@@ -95,7 +103,9 @@ function readsProcessEnv(node: MorphNode): boolean {
     const path = module.value.memberPath;
     return PROCESS_DOORS.includes(originModuleSpecifier(module.value)) && path.length === 1 && path[0] === ENV_MEMBER;
   }
-  return classifyOriginRefusal(module.reason, node) === "unreadable";
+  const read = readMemberReference(node);
+  const receiver = read.kind === "resolved" ? referenceResolutionServices.unwrapExpression(read.value.receiver) : node;
+  return classifyOriginRefusal(module.reason, receiver) === "unreadable";
 }
 
 /** Is this identifier the NAME of a destructuring binding element whose property is `env` — the one spelling
@@ -273,6 +283,14 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/server/src/domain/hub/z.ts": "// process.env is only read in foundation/env (inv #1)\nexport const x = 1;\n" },
       why: "a process.env mention in a COMMENT — only real access nodes are read, which is the whole reason this AST backstop exists beside the lint rule",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/bag.ts":
+          'export function read(bag: Record<string, unknown>, raw: unknown): boolean {\n  return typeof bag["env"] === "string" && typeof (raw as Record<string, unknown>)["env"] === "string";\n}\n',
+      },
+      why: 'ELEMENT ACCESS × NON-PROCESS RECEIVER (#2058), the latent twin of the two live errors the argv policy carried: `bag["env"]` on a parameter is a JSON key, not the runtime environment, and the receiver proves it in either spelling. Restoring the member-read classification REDS this row',
     },
     {
       mode: "types",

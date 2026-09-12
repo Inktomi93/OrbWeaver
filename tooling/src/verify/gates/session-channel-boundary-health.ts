@@ -25,6 +25,11 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyBroadcastChannelConstruction, SESSION_CHANNEL_ANCHOR, SESSION_CHANNEL_HOME } from "../lib/broadcast-channel-origin.ts";
 
+// THE `mustFlag` ROWS CARRY NO `messageIncludes` AND MUST NOT (#1968, #2058). This module emits exactly
+// ONE message — the policy-level `MESSAGE` below, with no per-finding override — and that message contains
+// "is BLIND", so a row asserting that fragment passes whatever the policy did. Three rows carried it and
+// the claim was empty in all three. `count` + `line` are the real assertions; the discriminating work is
+// done by each row's own FIXTURE, which its `why` names.
 const MESSAGE =
   `session-channel-boundary is BLIND: its home "${SESSION_CHANNEL_HOME}" constructs no BroadcastChannel. Either the channel ` +
   "moved (re-point SESSION_CHANNEL_HOME in lib/broadcast-channel-origin.ts) or it was deleted (delete both session-channel " +
@@ -75,7 +80,7 @@ export const gate = defineGate({
         [SESSION_CHANNEL_ANCHOR]: "export const lib = {};\n",
         [SESSION_CHANNEL_HOME]: "export function postSessionMessage(): void {}\n",
       },
-      expect: { count: 1, line: 1, messageIncludes: "is BLIND" },
+      expect: { count: 1, line: 1 },
       why: "ARM B as carried: the home is loaded but no longer constructs a channel (its construction moved out), so the fence would be a permanent false green",
     },
     {
@@ -84,7 +89,7 @@ export const gate = defineGate({
         [SESSION_CHANNEL_ANCHOR]: "export const lib = {};\n",
         "packages/client/src/lib/other.ts": 'export const c = new BroadcastChannel("orb:session");\n',
       },
-      expect: { count: 1, line: 1, messageIncludes: "is BLIND" },
+      expect: { count: 1, line: 1 },
       why: "THE MOVED HOME: the anchor is loaded, the channel is constructed in ANOTHER file and the home path resolves to nothing — the rename the message names, reported at the anchor because the dead path cannot carry a finding",
     },
     {
@@ -93,7 +98,7 @@ export const gate = defineGate({
         [SESSION_CHANNEL_ANCHOR]: "export const lib = {};\n",
         [SESSION_CHANNEL_HOME]: "const BroadcastChannel = Map;\nexport const c = new BroadcastChannel<string, number>();\n",
       },
-      expect: { count: 1, line: 1, messageIncludes: "is BLIND" },
+      expect: { count: 1, line: 1 },
       why: "THE IDENTITY HALF of the tripwire: the home constructs a const NAMED BroadcastChannel that aliases ANOTHER global, which is not the channel — the shared reader resolves the alias to `Map`. Replacing the global-name comparison with a bare `constructs` reds this row",
     },
   ],

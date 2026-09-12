@@ -234,7 +234,25 @@ test("a read-only member call beside the literal resolves, in both readers", () 
 // FAIL-CLOSED, the half that keeps the rule safe. `readThenMutate` is the reason the allowlist lives in
 // the COLLECTOR rather than at the refusal: the collector keeps at most one invoked member per binding,
 // so skipping the read-only `map` at the decision site would have hidden the later `push`.
-test("the read-only member list is closed: a mutator, an unnamed member, and a deeper chain all still refuse", () => {
+//
+// `readOnlyFirstHop` is the ONE-HOP fence's own row, and it exists because the other three cannot reach
+// it — `cb-v-ledger-wave` refuted the `members.length === 1` clause as an UNENFORCED §4.1 narrowing and
+// was right. `isReadOnlyInvocation` tests `members[0]`, the FIRST member crossed from the binding, so
+// `deeperChain.nested.join(",")` offers it `"nested"`, which the allowlist rejects whether or not the
+// length clause exists: the clean cut measured the NAME test. Only a property whose name SHARES a
+// spelling with an array method puts an allowlisted name in position 0 with a longer chain behind it.
+//
+// Measured here, one cut per process, anchor asserted to occur exactly once, direction stated:
+//   · drop `members.length === 1` — fail the fence OPEN, the §4.1 direction for a REFUSING reader:
+//     CLEAN before this row existed, REDS this row now.
+//   · harness control, same anchor, drop `READ_ONLY_MEMBERS.has(only)` instead: 2 tests red, so the cut
+//     reaches the code and the clean result above was a real UNENFORCED verdict, not a patched comment.
+//
+// The verifier constructed `{ filter: { push: (v: number) => v } }` independently; this row takes its
+// NAME and keeps a real array with a real `Array.prototype.push`, because under the cut that is a TRUE
+// fail-open — the composite resolves while its nested array was actually mutated — where a hand-written
+// `push` property mutates nothing and only demonstrates the name collision.
+test("the read-only member list is closed: a mutator, an unnamed member, a deeper chain, and a name-sharing first hop all still refuse", () => {
   const sf = sourceOf(`
     const readThenMutate = [1];
     void readThenMutate.map((value) => value);
@@ -243,11 +261,14 @@ test("the read-only member list is closed: a mutator, an unnamed member, and a d
     void unnamedMember.toReversed();
     const deeperChain = { nested: [1] };
     void deeperChain.nested.join(",");
-    export const values = [readThenMutate, unnamedMember, deeperChain];
+    const readOnlyFirstHop = { filter: [1] };
+    readOnlyFirstHop.filter.push(2);
+    export const values = [readThenMutate, unnamedMember, deeperChain, readOnlyFirstHop];
   `);
   const values = initializer(sf, "values").asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements();
 
   expect(values.map((value) => resolveAuthoredComposite(value))).toEqual([
+    expect.objectContaining({ kind: "unresolved", reason: "dynamic" }),
     expect.objectContaining({ kind: "unresolved", reason: "dynamic" }),
     expect.objectContaining({ kind: "unresolved", reason: "dynamic" }),
     expect.objectContaining({ kind: "unresolved", reason: "dynamic" }),
