@@ -31,6 +31,7 @@ import {
   readFirstCostsDrift,
   SNAP_FLAGS_INDEX_REL,
   snapFlagsIndexDrift,
+  strayLedgerSections,
   TEST_BASELINE_REL,
   typeConfigsDrift,
 } from "@orb/tooling/verify";
@@ -393,7 +394,7 @@ test("a ledger section short of its report's own LEDGER ROWS table is named, wit
     // The rollup table AFTER `## THE LEDGER` must not be counted as a section's defect rows, and the audit
     // section must be reported as UNRECONCILABLE rather than silently passing: 2 of 3.
     expect(result.derived).toBe(2);
-    expect(result.ledger).toContain("2 of 3 reconcilable");
+    expect(result.ledger).toContain("2 of 3 IN-FENCE sections reconcilable");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -594,4 +595,90 @@ test("a separator-less block with UNESCAPED pipes also counts zero — the case 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ─── #2166: the fence REPORTS what it excludes ──────────────────────────────────────────────────────
+//
+// Six real defect rows were appended below `## CLASS ROLLUP` and every instrument that reads this file
+// while sitting inside it was correct-and-blind: the reconciler printed the SAME "11 of 24 reconcilable"
+// before and after the append. A fence that cannot say what it stopped short of is a false clean.
+//
+// The control is a TEMP ROOT, deliberately, and not a probe on the real ledger: that file is shared and
+// the orchestrator appends to it in the same window, which is the one hazard this lane is not allowed to
+// create. A committed fixture is also the stronger receipt — it reds forever, where a probe reds once.
+
+/** A ledger whose rows were appended BELOW `## CLASS ROLLUP` — the `6c983149e` shape exactly. */
+function strayLedgerRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), "orb-stray-section-"));
+  const dir = join(root, "docs/reviews/gate-runtime");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, "v-stray-2026-09-12.md"),
+    ["## LEDGER ROWS (2 rows)", "", "| module | defect |", "| - | - |", "| `a` | x |", "| `b` | y |", ""].join("\n"),
+  );
+  writeFileSync(
+    join(dir, "refutation-ledger-2026-09-12.md"),
+    [
+      "## THE LEDGER",
+      "",
+      "### in-fence (`v-stray-2026-09-12.md`)",
+      "",
+      "| module | defect | class | state | receipt |",
+      "| - | - | - | - | - |",
+      "| `a` | x | c | **OPEN** | r |",
+      "| `b` | y | c | **OPEN** | r |",
+      "",
+      "## CLASS ROLLUP",
+      "",
+      // The rollup's OWN table carries `state` but no `defect` — it must never be mistaken for a ledger row
+      // table, which is why the predicate keys on BOTH columns.
+      "| class | modules affected | state |",
+      "| - | - | - |",
+      "| §4.1 | 3 | open |",
+      "",
+      "### cb-v-fix-wave-1 (`v-stray-2026-09-12.md`)",
+      "",
+      "| module | defect | class | state | receipt |",
+      "| - | - | - | - | - |",
+      "| `c` | z | c | **OPEN** | r |",
+      "",
+    ].join("\n"),
+  );
+  return root;
+}
+
+test("a ledger-shaped section BELOW the rollup is a REFUSAL naming the heading and the fence (#2166)", () => {
+  const root = strayLedgerRoot();
+  try {
+    const result = ledgerSectionDrift(root);
+    const joined = result.drift.join("\n");
+    expect(joined).toContain("`### cb-v-fix-wave-1 (`v-stray-2026-09-12.md`)` carries 1 ledger row(s)");
+    expect(joined).toContain("sits under `## CLASS ROLLUP`");
+    expect(joined).toContain("OUTSIDE the `## THE LEDGER` fence");
+    // The in-fence section still reconciles, so the stray is an ADDITION to the verdict rather than a
+    // replacement of it — the old behaviour reported the in-fence count and nothing else.
+    expect(result.derived).toBe(1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the rollup's own tables are NOT ledger rows — `state` without `defect` is a different schema", () => {
+  const root = strayLedgerRoot();
+  try {
+    const ledger = readFileSync(join(root, "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md"), "utf8");
+    // Exactly one stray: the appended section. The `| class | modules affected | state |` rollup table sits
+    // outside the fence too and must not be counted, or the refusal would fire on every correct ledger.
+    expect(strayLedgerSections(ledger).map((stray) => stray.heading)).toEqual(["cb-v-fix-wave-1 (`v-stray-2026-09-12.md`)"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the COMMITTED ledger has no stray section, and the green is a measurement", ({ repoRoot }) => {
+  const ledger = readFileSync(join(repoRoot, "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md"), "utf8");
+  expect(strayLedgerSections(ledger)).toEqual([]);
+  // A zero-denominator green would print the same empty list: measured 2026-09-12, all 25 in-fence sections
+  // carry a ledger-shaped table across SIX different column schemas, and no out-of-fence table does.
+  expect(ledgerSections(ledger).length).toBeGreaterThan(20);
 });
