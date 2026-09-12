@@ -148,9 +148,19 @@ export async function insertParticipants(db: Db, rows: readonly ParticipantInser
  *  message to the new member. The claim UPDATE is the batch's first statement and is a WRITE, so the batch
  *  already holds SQLite's write lock by the time this subquery runs: no concurrent message can land between
  *  the head read and the seat insert. (Not a SELECT statement AHEAD of the writes -- `@orb/db/kit::batchMany`'s
- *  DEFERRED-snapshot rule bans that shape; this is a scalar subquery inside a write.) */
+ *  DEFERRED-snapshot rule bans that shape; this is a scalar subquery inside a write.)
+ *
+ *  THE OUTER REFERENCE IS QUALIFIED BY HAND, AND THAT IS THE WHOLE CORRELATION (#2244). Drizzle renders every
+ *  column inside an `INSERT … SELECT` projection WITHOUT its table qualifier, so passing `chatId` as a plain
+ *  column emitted `where "chat_id" = "chat_id"` — a tautology SQLite resolves entirely against the subquery's
+ *  own `messages` scope. The floor a first-join seat recorded was therefore the table-wide `max(messages.seq)`,
+ *  every OTHER room's canon head included: a `from-join` member seated in a quiet room read their whole
+ *  transcript back EMPTY (the e2e D16 symptom), and a single-chat fixture cannot tell the two answers apart.
+ *  Re-spelling the outer side as `<table>.<column>` survives that de-qualification; the INNER references stay
+ *  plain, because unqualified there they still resolve against this subquery's own FROM. */
 function canonHeadSeq(chatId: AnyColumn): SQL<number> {
-  return sql<number>`(select coalesce(max(${messages.seq}), 0) from ${messages} where ${messages.chatId} = ${chatId})`;
+  const outerChatId = sql`${chatId.table}.${sql.identifier(chatId.name)}`;
+  return sql<number>`(select coalesce(max(${messages.seq}), 0) from ${messages} where ${messages.chatId} = ${outerChatId})`;
 }
 
 /** Invite-only conditional seat statement. It runs immediately after the conditional invite UPDATE in one

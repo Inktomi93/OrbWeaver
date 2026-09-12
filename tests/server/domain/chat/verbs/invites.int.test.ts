@@ -20,7 +20,7 @@ import { createInvites } from "../../../../../packages/server/src/domain/chat/ve
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, noClaim, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: number;
@@ -295,6 +295,96 @@ describe("redeemInvite — THE participant-insert chokepoint", () => {
     const joiner = await seedUser(db, castId<Handle>("joiner"));
     const invites = createInvites(makeChatContext(db), makeDeps());
     await expect(invites.redeemInvite({ principal: principal(joiner), input: { token: "nope" } })).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+});
+
+// THE JOIN FLOOR IS THIS ROOM'S HEAD, NEVER THE TABLE'S (#2244). `joinSeq` is D16's history floor: every arm
+// below seats a joiner in a chat whose canon head is LOW while a NEIGHBOUR chat carries a HIGHER `messages.seq`,
+// which is the only shape that can tell a correlated `max(seq) WHERE chat_id = <this chat>` apart from a
+// table-wide `max(seq)`. A single-chat db cannot — the two answers coincide — which is exactly why the
+// chokepoint's own `freshDb()` arms above never saw it and the defect only surfaced on the e2e's shared,
+// many-chat database, as a `from-join` member whose whole room read back EMPTY. Three of the four arms were
+// RED before the fix (they stamped the neighbour's 9); the fourth says so on itself.
+describe("redeemInvite/acceptInvite — the join floor is THIS chat's canon head (#2244)", () => {
+  const targetHead = 2;
+  const neighbourHead = 9;
+
+  /** Seed the room the joiner is invited to (head {@link targetHead}) beside an unrelated, busier room
+   *  (head {@link neighbourHead}) owned by the same host. Returns the target chat id. */
+  async function seedTargetBesideBusierNeighbour(host: UserId): Promise<ChatId> {
+    const chatId = await seedChat(db, "target");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    for (let seq = 1; seq <= targetHead; seq += 1) {
+      await seedMessage(db, chatId, seq);
+    }
+    const neighbourId = await seedChat(db, "neighbour");
+    await seedParticipant(db, { chatId: neighbourId, key: "nh", userId: host, role: "host" });
+    for (let seq = 1; seq <= neighbourHead; seq += 1) {
+      await seedMessage(db, neighbourId, seq);
+    }
+    return chatId;
+  }
+
+  test("a token redeem stamps the TARGET chat's head, not the busiest chat's", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const chatId = await seedTargetBesideBusierNeighbour(host);
+    await seedInvite(chatId, "tok");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
+    expect(row?.joinSeq).toBe(targetHead);
+  });
+
+  test("an accept-by-id stamps the TARGET chat's head (the second door onto the same seat builder)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
+    const chatId = await seedTargetBesideBusierNeighbour(host);
+    const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await invites.acceptInvite({ principal: principal(target), inviteId });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, target));
+    expect(row?.joinSeq).toBe(targetHead);
+  });
+
+  // A FENCE, NOT A DEFECT PROOF — this arm was GREEN before the #2244 fix and stays green after it. The
+  // `ON CONFLICT … DO UPDATE` half is outside the `INSERT … SELECT` projection, so drizzle already rendered
+  // its correlation qualified (`"messages"."chat_id" = "chat_participants"."chat_id"`). It is pinned because
+  // both re-join doors share one builder with the broken arm, and nothing else held that half still.
+  test("a RE-JOIN re-stamps the target chat's head (the ON CONFLICT arm)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const back = await seedUser(db, castId<Handle>("back"));
+    const chatId = await seedTargetBesideBusierNeighbour(host);
+    await seedParticipant(db, { chatId, key: "b", userId: back, role: "member", joinSeq: 0, leftSeq: 1 });
+    await seedInvite(chatId, "tok");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await invites.redeemInvite({ principal: principal(back), input: { token: "tok" } });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, back));
+    expect(row?.leftSeq).toBeNull();
+    expect(row?.joinSeq).toBe(targetHead);
+  });
+
+  test("an EMPTY target room floors the joiner at 0 even while other rooms carry canon", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const chatId = await seedChat(db, "empty");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const neighbourId = await seedChat(db, "neighbour");
+    await seedParticipant(db, { chatId: neighbourId, key: "nh", userId: host, role: "host" });
+    await seedMessage(db, neighbourId, 1);
+    await seedInvite(chatId, "tok");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
+    expect(row?.joinSeq).toBe(0);
   });
 });
 
