@@ -1,5 +1,10 @@
 // Policy: tsconfig-entry-liveness-health — the §4.6 BLINDNESS TRIPWIRES for the tsconfig half of the
-// `grant-liveness` family. TWO arms, each a REFUSAL rather than a violation:
+// `grant-liveness` family. THREE arms, each a REFUSAL rather than a violation:
+//
+//   UNREADABLE — a `tsconfig*.json` the tracked corpus carries could not be READ at all: the
+//   `authored-text` door refused it (empty · unresolved · malformed · unacquired · the #1947 symlink
+//   class). Nothing was parsed and nothing can be, and the member is ABSENT from the roster unless this
+//   arm says so.
 //
 //   UNPARSEABLE — a `tsconfig*.json` in the roster did not parse. Fail LOUD, never fall back to a default:
 //   a silently-defaulted type config typechecks a program nobody declared, and every verdict downstream of
@@ -30,10 +35,29 @@
 // error" arm, so both refusals are pinned in
 // `tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts`.
 //
-// A ROSTER PATH THE TEXT DOOR REFUSES is deliberately not an arm: `authored-text` serves exactly the paths
-// some other declaration admitted, and this policy's roster is DERIVED from `tracked-files`' own path set,
-// so the two cannot disagree. There is no fixture that reaches such a branch, and §4.1's fourth outcome
-// says to record that rather than invent a row that discriminates nothing.
+// THE UNREADABLE ARM EXISTS BECAUSE THIS HEADER'S PREVIOUS CLAIM WAS FALSE, and the correction is worth
+// keeping (#2120, REFUTED by `v-config-liveness-2026-09-12.md` L1). It read: *"A ROSTER PATH THE TEXT DOOR
+// REFUSES is deliberately not an arm — `authored-text` serves exactly the paths some other declaration
+// admitted, and this policy's roster is DERIVED from `tracked-files`' own path set, so the two cannot
+// disagree. There is no fixture that reaches such a branch."* **GIT MEMBERSHIP AND TEXT READABILITY ARE
+// DIFFERENT PREDICATES.** A tracked but EMPTY config is `status: "empty"` at the reader, so it arrives in
+// `AuthoredTextCorpus.refusals`, and the shared reader discarded that half — the member vanished from the
+// roster and this tripwire printed a clean ✓ over it. The fixture took one line. §4.1's fourth outcome is
+// for a property whose counterexample is structurally unconstructible, and *"UNFALSIFIABLE is a claim you
+// owe a constructed fixture attempt, not an argument"* — writing the row is what settles it.
+//
+// POPULATION PORT + LEGACY SHA (#2123). This module is NOT a port of its own descriptor — it has none. It
+// is the ARMS carved out of `tsconfig-entry-liveness`'s legacy descriptor at
+// `git show c97de9d2f:tooling/src/verify/gates/tsconfig-entry-liveness.ts` (the parent of the conversion
+// commit `97e68be91`), where UNPARSEABLE and NO-ROWS were that descriptor's `MSG_UNPARSEABLE` and
+// `MSG_NO_ROWS` arms. Its population is IDENTICAL to its sibling's — `{ of: "none" }` plus `tracked-files`
+// and `authored-text` — because both halves must judge the SAME roster or the tripwire would be measuring
+// a different subject set than the ✓ it is guarding. The UNREADABLE arm has no legacy ancestor and is a
+// STRENGTHENING, measured rather than assumed: the legacy reader `readFileSync`'d each config and handed the
+// text to `ts.parseConfigFileTextToJson`, which returns `{ config: {}, error: undefined }` for an EMPTY or
+// whitespace-only file — so a tracked empty tsconfig was SILENTLY CLEAN under the descriptor, deriving zero
+// entries and reporting nothing. (A file that existed but could not be read did throw out of the pass.) The
+// converted reader distinguishes the case, and this arm is what carries the distinction to a reader.
 //
 // FAMILY: `grant-liveness`. Readers: `lib/config-grant-rows.ts` (`readTsconfigRoster`, `tsconfigGrantRows`)
 // and, through it, `lib/policy-program-membership.ts` — the SAME classifier its sibling reports through,
@@ -50,6 +74,15 @@ const PRIMARY_REL = "tsconfig.json";
  *  entries across 14 configs, a proof fixture plants a handful. Counted over ALL entries, never over the
  *  exact ones, so it can guard the very arm that judges the exact/glob classifier. */
 const REAL_CONFIG_MIN_CANDIDATES = 30;
+
+/** DISJOINT from `MSG_UNPARSEABLE` by construction, and it has to be: the two arms produce the same finding
+ *  COUNT and differ only in message, so a `messageIncludes` row is the only thing that can tell them apart
+ *  (the #1990 fail-closed-third-answer rule). Neither string is a substring of the other. */
+const MSG_UNREADABLE =
+  "a tsconfig*.json the tracked corpus carries could not be READ at all — the authored-text door refused " +
+  "it, so nothing was parsed and nothing can be. A refused member is silently ABSENT from the roster " +
+  "unless it is reported here, and a roster whose members all refuse is indistinguishable from a clean " +
+  "one (tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Restore the file, or untrack it.";
 
 const MSG_UNPARSEABLE =
   "a tsconfig*.json did not parse. Fail LOUD, never fall back to a default: a silently-defaulted type " +
@@ -89,7 +122,19 @@ export const gate = defineGate({
   create: (ctx) => ({
     evaluate: () => {
       const repoPaths = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
-      const configs = readTsconfigRoster(ctx.resources, repoPaths);
+      const { configs, unreadable } = readTsconfigRoster(ctx.resources, repoPaths);
+      // UNREADABLE FIRST, and it is a separate arm from UNPARSEABLE on purpose (#2120): the door could not
+      // serve the bytes at all, so nothing was parsed and nothing CAN be. Reporting it is what stops a
+      // refused member from shrinking the subject set in silence — at the limit every member refuses, the
+      // empty-roster throw never fires because the roster is non-empty, and both siblings print a clean ✓.
+      for (const refusal of unreadable) {
+        ctx.report.file(refusal.path, {
+          line: 1,
+          column: 1,
+          token: refusal.path,
+          message: `${MSG_UNREADABLE} (${refusal.status}: ${refusal.reason}) See tooling/src/verify/lib/config-grant-rows.ts.`,
+        });
+      }
       for (const config of configs) {
         if (config.status === "unparseable") {
           // The POINTER goes last: `diagnostic-legibility` reads the TAIL, and the parser's own reason is
@@ -120,6 +165,12 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
+      files: { "tsconfig.json": "", "packages/client/src/live.ts": "export const live = 1;\n" },
+      expect: { count: 1, token: "tsconfig.json", messageIncludes: "could not be READ" },
+      why: 'L1 (#2120) — a roster member the text door REFUSES. A tracked but EMPTY config is `status: "empty"`, so it arrives in `AuthoredTextCorpus.refusals` rather than in `files`, and the reader that discarded refusals dropped it from the subject set of BOTH siblings while this tripwire printed a clean ✓. RED-FIRST RECEIPT in the landing commit: against the discarding reader this row reported 0 findings.',
+    },
+    {
+      mode: "resource",
       files: { "tsconfig.json": includeJson(globFiller(REAL_CONFIG_MIN_CANDIDATES)) },
       expect: { count: 1, messageIncludes: "ZERO file-exact" },
       why: "zero derived rows on an anchor-sized candidate set is 'I could not measure', never 'clean' — the classifier-rot tripwire, carried from the legacy descriptor's fifth arm",
@@ -135,7 +186,20 @@ export const gate = defineGate({
       why: "INVENTED ROW (§4.7) — the unparseable arm judges the WHOLE ROSTER, not the root config. The legacy reader walked three fixed directories and would have reported this one too, but only because it happened to look in `packages/*`; the derived roster reaches any tracked config. Planted-break receipt in the landing commit: scoping the loop to the root config leaves this row silent.",
     },
   ],
+  // Every `mustPass` below is a NARROWING row: each one is silent at tip and reds under a stated cut.
+  // `mustPass[0]` is the other direction of L1 (#2120) and it is not decoration — a fail-open repaired
+  // without a name prefilter turns every member of the population into an accusation, and for THIS arm the
+  // population is every tracked tsconfig. The row is what stops the repair over-shooting.
   mustPass: [
+    {
+      mode: "resource",
+      files: {
+        "tsconfig.json": '{\n  "include": ["packages/client/src"]\n}\n',
+        "packages/client/tsconfig.json": '{\n  "include": ["src"]\n}\n',
+        "packages/client/src/live.ts": "export const live = 1;\n",
+      },
+      why: "L1's OTHER DIRECTION (#2120) — a genuinely clean roster, TWO readable members including a non-root one, is silent on the UNREADABLE arm. Without it the repair has no upper bound: reporting every roster member (or keying the arm on membership rather than on the door's own refusal list) passes every `mustFlag` above while accusing all fourteen real configs.",
+    },
     {
       mode: "resource",
       files: { "tsconfig.json": includeJson(globFiller(REAL_CONFIG_MIN_CANDIDATES - 1)) },
