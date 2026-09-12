@@ -298,10 +298,18 @@ export function judgeReport(grants: readonly RuleGrant[], stdout: string): { rea
  *  reading a bare parse error has to guess which of the run's several JSON reads produced it; the probe
  *  config this arm writes is itself JSON, so the guess is not obvious.
  *
- *  The original error rides `cause`, so the position information is not lost — only unhandled. */
+ *  The original error rides `cause`, so the position information is not lost — only unhandled.
+ *
+ *  NO `@orb-waive caught-failure-ownership` MARKER BELONGS HERE, and one was deleted from this spot
+ *  (#2196). `{ cause }` chaining IS ownership in the shared reader's vocabulary (lib/caught-failure.ts),
+ *  so this `catch` is not a caught-failure SITE at all: the derived census
+ *  (docs/reviews/caught-failure-ownership/population.json) holds exactly one row for this module, the
+ *  EPERM absorb in `isDeadProbe`, and never this one. The marker waived nothing. It still ALARMED —
+ *  `unbound-trivia`, because the engine found no finding inside the marker's carrier and then matched its
+ *  `error` position against that other site's finding elsewhere in the file. Relocating it (the obvious
+ *  repair) would have been worse than deleting it: the only occurrence it could reach already carries its
+ *  own waiver, so the pair would report `duplicate-target` instead. */
 function parseConfigOrRefuse(configText: string): unknown {
-  // @orb-waive caught-failure-ownership(error): the parse failure is RE-THROWN as this module's refusal
-  // shape, never absorbed; `cause` carries V8's position. Ends if the refusal stops naming the arm.
   try {
     return JSON.parse(configText);
   } catch (error) {
