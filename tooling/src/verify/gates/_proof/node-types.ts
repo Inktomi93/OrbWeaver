@@ -1,5 +1,6 @@
-// The ambient `process` declaration every process-reading policy resolves its global-branch identity against
-// (`tooling-argv-front-door`'s argv readers, `sole-env-reader`'s env readers).
+// The TRUSTED AMBIENT DECLARATIONS the server-plane policies resolve their global-branch identity against:
+// node's own `process` (`tooling-argv-front-door`'s argv readers, `sole-env-reader`'s env readers), plus the
+// different-name and different-ORIGIN-KIND lookalikes that pin each policy's global-branch comparison.
 //
 // WHY THIS FILE EXISTS (#2030, design §4.8b). `@types/node` is what declares `process` on the real tree; the
 // proof workspace has no node_modules, so without this plant a bare `process.argv` / `process.env` is an
@@ -29,6 +30,10 @@ export const NODE_TYPES_HOME = "node_modules/@types/node/index.d.ts";
  *  twin that pins a policy's `globalName` comparison on the env door. */
 export const NODE_LOOKALIKE_HOME = "node_modules/@types/node-lookalike/index.d.ts";
 export const ARGV_LOOKALIKE_HOME = "node_modules/@types/argv-lookalike/index.d.ts";
+/** A trusted ambient global named exactly like a MODULE export a policy seals — the twin that differs in the
+ *  resolved origin's KIND rather than in its name, so a policy whose arm keys on `target.kind === "module"`
+ *  has a fixture that actually reaches that comparison. */
+export const EMITTER_GLOBAL_HOME = "node_modules/@types/emitter-global-lookalike/index.d.ts";
 
 const PROCESS_SURFACE = [
   'declare module "node:process" {',
@@ -74,4 +79,14 @@ export function nodeLookalikeProof(): Readonly<Record<string, string>> {
  *  declares is refused as unreadable before the comparison, so `console.argv` cannot play this part). */
 export function argvLookalikeProof(): Readonly<Record<string, string>> {
   return { [ARGV_LOOKALIKE_HOME]: "declare var lookalike: { readonly argv: readonly string[] };\n" };
+}
+
+/** A trusted AMBIENT GLOBAL constructor spelled `EventEmitter`. Nothing but the resolved origin's KIND
+ *  separates it from `node:events`' module export: the candidate name prefilter admits it, the origin
+ *  resolves cleanly, and only a `target.kind === "module"` comparison rejects it. It is deliberately
+ *  script-global (the other acceptance branch of `isAmbientGlobalDeclaration`) and deliberately NOT node's
+ *  real shape — node ships `EventEmitter` as a module export and declares no such global, which is exactly
+ *  why it is filed here as a LOOKALIKE rather than as a subject plant. */
+export function emitterGlobalLookalikeProof(): Readonly<Record<string, string>> {
+  return { [EMITTER_GLOBAL_HOME]: "declare var EventEmitter: { new (): { on(): void } };\n" };
 }

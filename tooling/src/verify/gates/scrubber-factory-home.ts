@@ -13,6 +13,20 @@
 // TWO DISTINCT FAILURES, BOTH LOUD. The content directory holding no source at all takes the population
 // receipt to zero members and REFUSES the run (the directory moved). The directory existing while none of
 // its modules exports the factory is a FINDING (the export moved or was renamed). Neither can be silenced.
+//
+// FAMILY `scrubber-home` — the shared computation is the factory's declaration home
+// (`scrubber-home.ts`'s `SCRUBBER_SYMBOL` + `SCRUBBER_HOME.pathInfix`), re-stated here as `SCRUBBER_SYMBOL`
+// + `HOME_INFIX` because the two halves of one trust boundary must name the SAME directory or this
+// completeness arm stops covering the reference policy. The split is by AUTHORITY — reviewed-grant
+// permission there, hard completeness here — which the contract requires to be two policy ids under one
+// `family` string. This policy resolves no origin at all and consumes no shared reader; that is the
+// SPLIT'S point, not a thin contract.
+// POPULATION PORT: this policy has NO legacy population of its own — it did not exist at `9808b93c0^`
+// (`git show 9808b93c0^:tooling/src/verify/gates/scrubber-factory-home.ts` → `exists on disk, but not in`).
+// It is the DEFINITION half carved out of `scrubber-home`'s legacy `PACKAGES_SRC` scan at the conversion,
+// and `@kit` (`packages/kit/src/`) is the narrowest population that contains the declaration home the
+// carved-out arm judges. Nothing was subtracted from `scrubber-home`'s side to make room for it: the kit
+// directory stays in that policy's population too, where it is now SCANNED rather than excused.
 import type { SourceFile } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

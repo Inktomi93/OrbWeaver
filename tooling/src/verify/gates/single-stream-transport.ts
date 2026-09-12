@@ -21,6 +21,16 @@
 // six staged rows deleted during the S1–S5 fold cannot be "just added back", and a fold that ships without
 // deleting its row leaves that row consumed zero times, which is the central STALE alarm. That is the legacy
 // two-sided arm, owned centrally and no longer anchored on a hand-picked real-tree file.
+//
+// FAMILY: SINGLETON (`single-stream-transport`). It is the only policy whose subject is a MEMBER declared
+// by a third-party TYPE module: `lib/type-member-origin.ts#resolveTypeMemberOrigin` + `declaredByPackage`
+// is a corpus-wide primitive, and no sibling policy judges a builder chain's declaring package. The
+// `_proof/server-vendors.ts` plants it shares are a fixture home, not a family computation.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `ROUTERS_DIR.test('/' + p)` where
+// `ROUTERS_DIR = /\/packages\/server\/src\/transport\/trpc\/routers\//` (`9808b93c0^:39,88`); the final
+// population is `{ in: ["@server"], under: ["packages/server/src/transport/trpc/routers/**"] }`. The legacy
+// `SANCTIONED_HOMES` rows (the one-socket home and the permanent `chat.impersonateStream` exemption) were
+// scanned and excused, never subtracted, so the admitted set is the same on both sides.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

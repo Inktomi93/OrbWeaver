@@ -22,6 +22,20 @@
 // license nothing — the legacy call arm only bit there because it matched a NAME. What that row was really
 // protecting is the DEFINITION home's liveness, which is a completeness claim rather than a permission and
 // is therefore a hard sibling policy of its own: `scrubber-factory-home`, same family.
+//
+// FAMILY `scrubber-home` — the shared computation is this file's `SCRUBBER_SYMBOL` + `SCRUBBER_HOME`
+// declaration home, which `scrubber-factory-home` re-states as its own `HOME_INFIX` because the two halves
+// of one trust boundary must name the SAME directory or the completeness sibling stops covering the
+// reference policy. The split is by AUTHORITY (reviewed-grant permission vs hard completeness), which the
+// contract requires to be two policy ids under one `family` string. The sealed-origin reader underneath
+// (`lib/sealed-origin.ts`) is a corpus-wide primitive, not what makes these two a family.
+// POPULATION PORT: intentional correction, stated. The legacy descriptor filtered `PACKAGES_SRC.test('/' + p)`
+// where `PACKAGES_SRC = /\/packages\/[^/]+\/src\//` (`9808b93c0^:101`) — ANY workspace package's `src`. The
+// final population is `@packages`, the explicit SIX-root list, which does not admit
+// `packages/showcase-plugins/src/` (the `@showcase` root added 2026-09-11). One directory narrower, and it
+// is the standing `@packages`-vs-`@authored` boundary question (contract/population.ts, #1980), not a
+// decision taken here. The kit DEFINITION home stays IN the population on both sides — the legacy row that
+// excused it is deleted, and judging that directory is `scrubber-factory-home`'s whole job.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

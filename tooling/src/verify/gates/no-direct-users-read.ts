@@ -20,6 +20,15 @@
 // The db schema home is outside this policy's population, so its own liveness is that same alarm rather
 // than a receipt: if `users` moves out of the schema, every reference resolves foreign, every row goes
 // stale, and the run says so at each row instead of silently having nothing to judge.
+//
+// FAMILY: SINGLETON (`no-direct-users-read`). `lib/sealed-origin.ts#readSealedOrigin`/`sealedOriginReports`
+// and `lib/reference-fact.ts#readMemberReference` are corpus-wide primitives, not a family computation; the
+// identity root's home constant is this policy's alone and no sibling shares its subject.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `MSG_DIR.test(p)` where
+// `MSG_DIR = /packages\/server\/src\/domain\//` (`9808b93c0^:71`); the final population is
+// `{ in: ["@server"], under: ["packages/server/src/domain/**"] }`. The legacy `domain/sessions/` and
+// `domain/admin/` rows were scanned-and-excused SANCTIONED_HOMES entries, never a population subtraction, so
+// nothing moved between the two halves at the conversion.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

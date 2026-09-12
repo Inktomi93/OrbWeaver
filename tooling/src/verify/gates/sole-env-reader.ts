@@ -41,6 +41,28 @@
 // claim the ambient verdict, and its lookalike twin pins the `globalName` comparison. Planting is the fix:
 // widening `reference-fact-global.ts`'s trust rule to make a fixture resolve would weaken a real identity
 // fence for test convenience.
+//
+// DECLARED LIMIT — the AMBIENT branch's `memberPath.length === 1` half is UNFALSIFIABLE, and this states
+// the construction that was attempted rather than arguing that none exists. Falsifying it needs a read
+// whose resolved GLOBAL is named `process` (the `globalName` comparison beside it is pinned by
+// `mustPass[5]`'s `procezz` twin) reaching a declared member named `env` at a path LONGER than one. The
+// module-branch twin of exactly that cut IS falsifiable and is pinned by the `nested.ts` row below. The
+// ambient twin of that fixture — `process.env.env` with node's real declaration planted — was built and
+// run: it produces TWO findings on pristine source, because `ProcessEnv` declares only an index signature,
+// so the outer read binds no declaration, resolves through NEITHER door and takes the FAIL-CLOSED refusal
+// arm instead of ever reaching the ambient comparison. Constructing one that does reach it would mean
+// planting an `env` nested inside `NodeJS.Process`, a shape `@types/node` does not ship — the convenience
+// stub #2037 rules out. So the clause is defensive against a future `@types/node` shape rather than
+// against a constructible one, and it stays: deleting it would widen the ambient arm onto any nested `env`.
+//
+// FAMILY: SINGLETON (`sole-env-reader`). `lib/reference-fact.ts`'s global and module member-origin readers
+// are corpus-wide primitives shared by ~20 policies; this policy's own composition — the TWO candidate arms
+// (member read plus destructure site) and the per-KEY operation grain derived from the read's own shape —
+// has no sibling.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `p.includes("packages/server/src/")`
+// (`9808b93c0^:95`); the final population is `@server`, which is exactly `packages/server/src/`. Both legacy
+// tables (the `foundation/env/` SANCTIONED_HOMES row and the five `SANCTIONED_KEYS`) were scanned-and-excused
+// exceptions, never a population subtraction, so nothing moved between the halves at the conversion.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -239,6 +261,12 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
       why: "the bracket spelling of the RESOLVED ambient global — the element-access respelling reaches the same member of the same declaration, which is the claim `mustFlag[1]` could not make while the receiver bound to nothing",
     },
+    {
+      mode: "types",
+      files: { "packages/server/src/domain/hub/nested.ts": 'import process from "node:process";\nexport const x = process.env.env;\n' },
+      expect: { count: 1, messageIncludes: "process-env-read:env" },
+      why: "THE MEMBER-PATH FENCE ON THE MODULE BRANCH, and the only row that dies without it: a key that happens to be spelled `env` gives BOTH `process.env` and `process.env.env` a resolved member named `env` off the SAME `node:process` door, so the candidate prefilter admits both and only `path.length === 1` rejects the outer one. Dropping that half makes the outer read a SECOND finding under the bare operation (count 1 → 2) — the module's other rows all resolve a one-hop path and cannot discriminate it (wave-8 D2, `v-audit-wave8-2026-09-12.md:162`)",
+    },
   ],
   mustPass: [
     {
@@ -265,6 +293,14 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/server/src/domain/hub/other-member.ts": 'import process from "node:process";\nexport const pid = process.pid;\n' },
       why: "a DIFFERENT member of the same `process` object passes — the invariant is about the environment bag, not about the process global",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/cfg.ts": 'const cfg = { env: { SOME_VAR: "x" } };\nexport default cfg;\n',
+        "packages/server/src/domain/hub/cfg-read.ts": 'import cfg from "./cfg.ts";\nexport const x = cfg.env.SOME_VAR;\n',
+      },
+      why: 'THE DOOR COMPARISON, PINNED — the module-branch twin of the `procezz` lookalike above, and the only row that dies without `PROCESS_DOORS.includes(…)`. A PROJECT module\'s DEFAULT export carrying an `env` bag is the exact shape the resolved module branch judges (`import process from "node:process"` is a default import too), so it reaches the branch with a one-element `env` member path and is rejected ONLY by the specifier. Deleting that half turns this row red; before it, the sole clause of the identity reader any declared row enforced was the refusal classifier (wave-8 D2, `v-audit-wave8-2026-09-12.md:162`)',
     },
     {
       mode: "types",

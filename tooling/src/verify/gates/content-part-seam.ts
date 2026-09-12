@@ -32,6 +32,19 @@
 // `packages/contracts/src/chat/` row is DELETED rather than translated: the home DECLARES the symbol and
 // imports it from nobody, so that row licensed nothing at all and, as a grant, would be permanently STALE.
 // Its liveness is the home receipt above, which is strictly stronger.
+//
+// FAMILY: SINGLETON (`content-part-seam`). The sealed-origin reader it consumes
+// (`lib/sealed-origin.ts#readSealedOrigin`/`sealedOriginReports`) is a corpus-wide primitive shared across
+// four families, not this policy's family computation; its SUBJECT — the D51 seam symbol plus the
+// declaration-home RECEIPT that makes the rule's own liveness a tool error — has no sibling.
+// POPULATION PORT: intentional correction, stated. The legacy descriptor filtered `PROD_SRC.test('/' + p)`
+// where `PROD_SRC = /\/packages\/[^/]+\/src\//` (`9808b93c0^:72`) — ANY workspace package's `src`. The final
+// population is `@packages`, which is the explicit SIX-root list (client · ui · server · db · contracts ·
+// kit) and therefore does NOT admit `packages/showcase-plugins/src/`, added as the separate `@showcase` root
+// on 2026-09-11. That is one directory narrower than the legacy predicate and it is the standing
+// `@packages`-vs-`@authored` boundary question (contract/population.ts, #1980), not a decision taken here:
+// widening it is a behaviour change across every policy declaring `@packages` and is measured and ruled, not
+// done in passing.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

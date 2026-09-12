@@ -22,6 +22,17 @@
 // NOTHING. As a grant it would be STALE on its first complete run. The privilege seam is therefore
 // grant-free today; the day it does compare a global-role literal, that is one exact reviewed row rather
 // than a code change.
+//
+// FAMILY `role-vocabulary` — the shared reader is `lib/role-vocabulary.ts` (`readRoleComparison` finds the
+// comparison and its read, `readAxisVerdict` proves the axis by TYPE, `vocabularyAtHome`/`vocabularyMembers`
+// bind a tuple to its declaration home), fed by the shared `lib/tuple-vocabulary-fact.ts` provider and
+// consumed identically by this policy and `two-class-role-authority`. Only the VOCABULARY (`USER_ROLES` vs
+// `PARTICIPANT_ROLES`), the enforcement-position test and the lattice subset differ; the axis judgement does
+// not, which is what keeps the privilege lattice and the participant vocabulary from drifting apart.
+// POPULATION PORT: byte-identical. The legacy descriptor filtered `SERVER_SRC.test('/' + p)` where
+// `SERVER_SRC = /\/packages\/server\/src\//` (`9808b93c0^:46`); the final population is `@server`, which is
+// exactly `packages/server/src/`. The legacy `domain/admin/guard.ts` SANCTIONED_HOMES row was scanned and
+// excused, never subtracted — and it is DELETED rather than translated, for the reason stated above.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
