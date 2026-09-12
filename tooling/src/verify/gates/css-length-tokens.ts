@@ -17,16 +17,21 @@
 // and deletes. Where a row needs its count to stay safe, the subject is a CONTAINER holding N occurrences
 // and the repair is to narrow the subject, never to keep the number.
 //
-// STRUCTURAL_CLASS_FILES IS THE UNCONVERTED HALF, and it is that second case: its key is a FILE and its
-// counts (3/2/1/9) are a per-file budget, so deleting them without narrowing the subject would let a tenth
-// raw length into `variants.ts` silently — trading real enforcement for form. Narrowing it to
-// `(file, candidate)` needs the REAL-TREE walk to enumerate the candidates, which a scoped lane cannot run:
-// measured 2026-09-12, a four-file `walkStaticClassExpressions` probe (with planted positive and negative
-// controls, both OK) returned `character-create-actions.tsx` 2, `markdown.tsx` 1, `variants.ts` 9 (7 unique
-// candidates, so two repeat) and **`pager-chrome.ts` ZERO against its row's 3** — its class strings are
-// exported constants resolved at their CONSUMERS, which that file set did not contain. An enumeration that
-// under-reports a row to zero cannot be the basis of the rows replacing it. The next lane runs the whole-tree
-// pass and converts these four with the rule above.
+// STRUCTURAL_CLASS_FILES WAS THE UNCONVERTED HALF, AND IS NOW CONVERTED (#2181, 2026-09-12). It was the
+// second case above: its key was a FILE and its counts (3/2/1/9) were a per-file budget, so deleting them
+// without narrowing the subject would have let a tenth raw length into `variants.ts` silently. The four
+// rows are now THIRTEEN `(file, candidate)` rows and the count is gone as ceremony, not as enforcement.
+//
+// WHAT UNBLOCKED IT was the measurement this paragraph used to say a scoped lane could not take. The prior
+// four-file `walkStaticClassExpressions` probe read `pager-chrome.ts` as ZERO against its row’s 3 — its
+// class strings are exported constants resolved at their CONSUMERS, absent from that file set — and an
+// enumeration that under-reports a row to zero cannot be the basis of the rows replacing it. Re-measured
+// over the WHOLE `@client` + `@ui` tree (1,685 source files) by driving THIS MODULE’S OWN walk through the
+// legacy dispatcher rather than re-implementing it, with planted controls both ways: pager-chrome 3 ·
+// character-create-actions 2 · variants 9 · markdown 1 — every one of the four counts reproduced exactly,
+// and the enumerated candidates are the rows. The lesson is in the method: the previous probe failed
+// because it RE-IMPLEMENTED the walk over a subset, and the fix was to reuse the gate’s own walk over the
+// whole tree.
 //
 // MEASURED 2026-09-12, driving the SHELL arm through the legacy dispatcher against the REAL shell.css
 // (one scratch module per cut; every anchor asserted to occur exactly once, and the `@media` prelude cut
@@ -190,25 +195,107 @@ const STRUCTURAL_QUERIES: readonly StructuralQuery[] = [
   { text: "@media (max-width: 48rem) {", why: "media-query conditions cannot consume custom properties; the breakpoint twin is sync-tested" },
 ] as const;
 
-const STRUCTURAL_CLASS_FILES: Readonly<Record<string, { readonly count: number; readonly why: string }>> = {
-  "packages/client/src/features/chat/lib/pager-chrome.ts": {
-    count: 3,
-    why: "the two rem values are container-query conditions that cannot consume variables, and -1ch collapses a mono space by its font-relative advance; the row ends if the pager's measured stand-down mechanism changes",
+/** The structural class candidates, keyed on `(file, candidate)` — NOT on the file with a budget.
+ *
+ *  #2101 re-keyed the other twelve rows onto their occurrence and left this table as the unconverted half,
+ *  because its key was a FILE and its counts (3/2/1/9) were a per-file budget: deleting the numbers without
+ *  narrowing the subject would have let a tenth raw length into `variants.ts` silently. §12.5's rule is that
+ *  a `count` is the TELL that the subject is wrong, so the repair is the narrower subject, and the count
+ *  then deletes as ceremony rather than as enforcement.
+ *
+ *  WHY A SCOPED LANE COULD NOT DO THIS, and what changed. The header recorded a four-file probe that read
+ *  `pager-chrome.ts` as ZERO against its row's 3 — its class strings are exported constants resolved at
+ *  their CONSUMERS, which that file set did not contain, and an enumeration that under-reports a row to zero
+ *  cannot be the basis of the rows replacing it. Re-measured 2026-09-12 over the WHOLE `@client` + `@ui`
+ *  tree (1,685 source files) by driving THIS MODULE'S OWN walk through the legacy dispatcher — never a
+ *  re-implementation, which is what under-reported last time — with planted controls both ways (a row's file
+ *  enumerates non-zero; a file no row names never appears). Every one of the four counts reproduced exactly:
+ *  pager-chrome 3 · character-create-actions 2 · variants 9 · markdown 1.
+ *
+ *  A CANDIDATE MAY REPEAT, AND THAT IS THE DELIBERATE EDGE. `variants.ts` has 9 occurrences across 7 unique
+ *  candidates (two grid recipes appear twice). A `(file, candidate)` row therefore covers every occurrence of
+ *  that exact candidate in that file, which is the point: the reviewed thing is the RECIPE, and using a
+ *  reviewed recipe twice is not a new exemption. What the old budget bought — "a tenth raw length is caught" —
+ *  survives strictly, because a tenth length is a NEW candidate and no row names it; what it loses is only
+ *  the ability to distinguish two uses of an already-reviewed recipe from one, which was never the subject. */
+const STRUCTURAL_CLASS_CANDIDATES: readonly { readonly file: string; readonly candidate: string; readonly why: string }[] = [
+  // packages/client/src/features/chat/lib/pager-chrome.ts — the pager's measured stand-down mechanism.
+  {
+    file: "packages/client/src/features/chat/lib/pager-chrome.ts",
+    candidate: "@max-[12rem]/pager:sr-only",
+    why: "a container-query condition cannot consume a variable; this is the pager's narrowest stand-down step. Ends if the pager's measured stand-down mechanism changes",
   },
-  "packages/client/src/features/character/components/character-create-actions.tsx": {
-    count: 2,
-    why: "the two 19rem values are the complementary container-query conditions of the create button's display pair (`@max-[19rem]` / `@[19rem]`), and a container-query condition cannot consume a variable; the row ends if the pair's stand-down mechanism changes or the pane width becomes token-expressible",
+  {
+    file: "packages/client/src/features/chat/lib/pager-chrome.ts",
+    candidate: "@max-[13rem]/pager:gap-tight",
+    why: "the second container-query step of the same stand-down pair; a container-query condition cannot consume a variable. Ends with the mechanism above",
   },
-  "packages/ui/src/markdown/markdown.tsx": {
-    count: 1,
-    why: "60cqh is a container-query height budget, not a reusable component length; the row ends if Markdown stops using container-relative overflow",
+  {
+    file: "packages/client/src/features/chat/lib/pager-chrome.ts",
+    candidate: "@max-[13rem]/pager:[word-spacing:-1ch]",
+    why: "-1ch collapses a mono space by its own font-relative advance, which no token can express. Ends if the pager stops collapsing mono spacing",
   },
-  "packages/ui/src/layout/variants.ts": {
-    // 10 -> 9 (2026-09-04): the `cellFixed` track literal became `var(--orb-grid-cell-fixed)`, the density-selected token.
-    count: 9,
-    why: "the raw lengths are grid minmax/auto-fill track mechanics or a container-query condition; the row ends when those structural recipes disappear or become token-expressible",
+  // packages/client/src/features/character/components/character-create-actions.tsx — the display pair.
+  {
+    file: "packages/client/src/features/character/components/character-create-actions.tsx",
+    candidate: "@max-[19rem]:hidden",
+    why: "the narrow half of the create button's complementary display pair; a container-query condition cannot consume a variable. Ends if the pair's stand-down mechanism changes or the pane width becomes token-expressible",
   },
-};
+  {
+    file: "packages/client/src/features/character/components/character-create-actions.tsx",
+    candidate: "@[19rem]:hidden",
+    why: "the wide half of the same pair — the two are complementary and must stay in sync. Ends with its twin above",
+  },
+  // packages/ui/src/markdown/markdown.tsx
+  {
+    file: "packages/ui/src/markdown/markdown.tsx",
+    candidate: "max-h-[60cqh]",
+    why: "60cqh is a container-query height budget, not a reusable component length. Ends if Markdown stops using container-relative overflow",
+  },
+  // packages/ui/src/layout/variants.ts — grid track mechanics and container-query conditions.
+  {
+    file: "packages/ui/src/layout/variants.ts",
+    candidate: "@md:grid-cols-[repeat(auto-fill,8.5rem)]",
+    why: "an auto-fill track recipe: the 8.5rem is the track SIZE inside a grid function, which is structural mechanics rather than a reusable component length. Ends when the recipe disappears or becomes token-expressible",
+  },
+  {
+    file: "packages/ui/src/layout/variants.ts",
+    candidate: "@min-[100rem]:grid-cols-[1.5fr_1.05fr]",
+    why: "a container-query condition (100rem) selecting an fr-ratio track pair; neither half is token-expressible. Ends with the wide-viewport split",
+  },
+  {
+    file: "packages/ui/src/layout/variants.ts",
+    candidate: "@min-[100rem]:grid-cols-2",
+    why: "the same 100rem container-query condition selecting the two-column fallback; a container-query condition cannot consume a variable. Ends with the wide-viewport split",
+  },
+  {
+    file: "packages/ui/src/layout/variants.ts",
+    candidate: "grid-cols-[repeat(auto-fit,minmax(min(5rem,100%),1fr))]",
+    why: "an auto-fit minmax track recipe; the length is a track floor inside a grid function. Ends when the recipe disappears or becomes token-expressible",
+  },
+  {
+    file: "packages/ui/src/layout/variants.ts",
+    candidate: "grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))]",
+    why: "the same auto-fit recipe at the card track floor. Ends with its siblings",
+  },
+  {
+    file: "packages/ui/src/layout/variants.ts",
+    candidate: "grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]",
+    why: "the same auto-fit recipe at the wide-card track floor. Ends with its siblings",
+  },
+  {
+    file: "packages/ui/src/layout/variants.ts",
+    candidate: "grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
+    why: "the same auto-fit recipe at the widest track floor. Ends with its siblings",
+  },
+];
+
+/** The `(file, candidate)` pairs this table exempts, as a lookup key. */
+function classCandidateKey(file: string, candidate: string): string {
+  return `${file}\u0000${candidate}`;
+}
+
+const STRUCTURAL_CLASS_KEYS: ReadonlySet<string> = new Set(STRUCTURAL_CLASS_CANDIDATES.map(({ file, candidate }) => classCandidateKey(file, candidate)));
 
 function declarationKey(selector: string, prop: string, value: string): string {
   return `${selector}\u0000${prop}\u0000${value}`;
@@ -366,7 +453,7 @@ function scanCandidate(
   ctx: GateRunCtx,
   scanner: Scanner,
   candidate: ReturnType<typeof walkStaticClassExpressions>["candidates"][number],
-  allowedCounts: Map<string, number>,
+  seenCandidates: Set<string>,
 ): number {
   let scanned = 0;
   for (const result of scanner.getCandidatesWithPositions({ content: candidate.value, extension: "html" })) {
@@ -382,8 +469,9 @@ function scanCandidate(
       continue;
     }
     const rel = repoRel(ctx.root, anchored.node.getSourceFile().getFilePath());
-    if (rel in STRUCTURAL_CLASS_FILES) {
-      allowedCounts.set(rel, (allowedCounts.get(rel) ?? 0) + 1);
+    const key = classCandidateKey(rel, token);
+    if (STRUCTURAL_CLASS_KEYS.has(key)) {
+      seenCandidates.add(key);
     } else {
       ctx.report(anchored.node, { token: anchored.token, offset: anchored.offset });
     }
@@ -391,14 +479,18 @@ function scanCandidate(
   return scanned;
 }
 
-function verifyClassRows(ctx: GateRunCtx, allowedCounts: ReadonlyMap<string, number>): void {
+/** The ZERO-OCCURRENCE liveness arm, the same shape #2101 gave the other twelve rows: a row whose
+ *  `(file, candidate)` no longer occurs on the real tree is a permission nobody uses. It asks whether the
+ *  subject still OCCURS, never how many times — which is why it is guarded by `onRealTree` exactly as
+ *  `verifyClassRows` always was: only the real source tree can answer it, and unguarded it fires inside
+ *  every conformance fixture (#2198, which is how the last unguarded liveness arm shipped red). */
+function verifyClassRows(ctx: GateRunCtx, seenCandidates: ReadonlySet<string>): void {
   if (!onRealTree(ctx)) {
     return;
   }
-  for (const [rel, row] of Object.entries(STRUCTURAL_CLASS_FILES)) {
-    const actual = allowedCounts.get(rel) ?? 0;
-    if (actual !== row.count) {
-      reportStale(ctx, { label: rel, expected: row.count, actual, why: row.why });
+  for (const row of STRUCTURAL_CLASS_CANDIDATES) {
+    if (!seenCandidates.has(classCandidateKey(row.file, row.candidate))) {
+      reportStale(ctx, { label: `${row.file} :: ${row.candidate}`, expected: 1, actual: 0, why: row.why });
     }
   }
 }
@@ -410,15 +502,15 @@ function scanClasses(ctx: GateRunCtx): void {
   });
   const walked = walkStaticClassExpressions(files);
   const scanner = new Scanner({ sources: [] });
-  const allowedCounts = new Map<string, number>();
+  const seenCandidates = new Set<string>();
   let scanned = 0;
   for (const candidate of walked.candidates) {
-    scanned += scanCandidate(ctx, scanner, candidate, allowedCounts);
+    scanned += scanCandidate(ctx, scanner, candidate, seenCandidates);
   }
   for (const unresolved of walked.unresolved) {
     ctx.report(unresolved.node, { token: `unresolved:${unresolved.reason}`, offset: 0 });
   }
-  verifyClassRows(ctx, allowedCounts);
+  verifyClassRows(ctx, seenCandidates);
   ctx.scan({
     unit: "CSS declaration or static class value",
     candidates: walked.candidates.length + walked.runtimePrefixes.length + walked.unresolved.length + walked.opaque.length,
@@ -464,7 +556,7 @@ export const gate: GateDescriptor = {
           ".shell-grid { --list-track: 0px; --context-track: 0px; height: 100vh; height: calc(100dvh - var(--orb-keyboard-inset, 0px)); --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))); --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)); }\n@supports (backdrop-filter: blur(1px)) {\n}\n@container shell-main (max-width: 30rem) {\n}\n",
       },
       expect: { token: "@media (max-width: 48rem) {" },
-      why: "THE GUARDED LIVENESS ARMS' ONLY PROOF (#2198), and it is not optional: once both arms sit behind the real-tree anchor NOTHING else reaches them, and a guarded arm with no control is how an arm goes vacuous — the failure the header's last measured line (`the liveness test INVERTED -> 10`) exists to refuse. The token is the QUERY liveness arm's and only its: the declaration arm emits `<selector> { <prop>: <value> }` and the class arm emits file paths, so no other arm can produce it. MEASURED CARDINALITY, stated because this row does NOT isolate one finding: planting the anchor necessarily also switches on the sibling arms it guards, so this fixture yields NINE — this one, the three panel + one sentinel declaration rows no fixture can carry without production selectors, and the four `STRUCTURAL_CLASS_FILES` rows that need real client files. That is the guard working on all three arms at once. THE FALSIFIER IS THE ANCHOR: drop `REAL_TREE_ANCHOR` from this row's file map and the identical stylesheet yields ZERO (measured 2026-09-12), which is the guard itself cut in the direction that matters",
+      why: "THE GUARDED LIVENESS ARMS' ONLY PROOF (#2198), and it is not optional: once both arms sit behind the real-tree anchor NOTHING else reaches them, and a guarded arm with no control is how an arm goes vacuous — the failure the header's last measured line (`the liveness test INVERTED -> 10`) exists to refuse. The token is the QUERY liveness arm's and only its: the declaration arm emits `<selector> { <prop>: <value> }` and the class arm emits file paths, so no other arm can produce it. MEASURED CARDINALITY, stated because this row does NOT isolate one finding: planting the anchor necessarily also switches on the sibling arms it guards, so this fixture yields NINE — this one, the three panel + one sentinel declaration rows no fixture can carry without production selectors, and the STRUCTURAL_CLASS_CANDIDATES rows that need real client files. That is the guard working on all three arms at once. THE EXACT CARDINALITY MOVED WITH #2181 and is deliberately NOT restated as a number here: the four per-file rows became thirteen `(file, candidate)` rows, so the count this fixture yields changed, and a LEGACY gate’s proof rows are visible ONLY to the planter (`gate-conformance.repo.int`) — `check:policy-conformance` walks the FINAL roster and cannot see them. A number nobody in this lane can measure is the rotting-count shape, so the MECHANISM is stated and the planter owns the figure. THE FALSIFIER IS THE ANCHOR: drop `REAL_TREE_ANCHOR` from this row's file map and the identical stylesheet yields ZERO (measured 2026-09-12), which is the guard itself cut in the direction that matters",
     },
     {
       files: { [REAL_TREE_ANCHOR]: "export const x = 1;\n" },
