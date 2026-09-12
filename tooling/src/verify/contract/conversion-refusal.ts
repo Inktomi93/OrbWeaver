@@ -23,8 +23,16 @@
 // refusal is due a re-derivation; a recorded consumer that no longer carries the read means the refusal's
 // own evidence is gone. Neither direction is a silent pass.
 
-/** The frozen blocker vocabulary. One member today; a second is a ruling, exactly as §12.4's kinds are. */
-export const CONVERSION_REFUSAL_BLOCKER_KINDS = ["sole-consumer"] as const;
+/** The blocker vocabulary. A third member is a ruling, exactly as §12.4's resource kinds are.
+ *
+ *  TWO MEMBERS BECAUSE §12.4 HAS TWO CONJUNCTS AND THIS CONTRACT ONLY HELD ONE (#2116). `sole-consumer` is
+ *  the REOPEN BAR — "two or more independent consumers" — and it was the only checkable claim here, so the
+ *  property this file's own header OPENS with was neither held nor named as unheld: a refusal that cites a
+ *  MISSING CAPABILITY had nothing that could red when the capability shipped. That is #2013 verbatim —
+ *  `runner-config-path-liveness` refused citing a missing `authored-path` door, the door was SPECIFIED BY
+ *  that refusal and shipped, and the module sat legacy and refusing because nothing re-opens a refusal when
+ *  its blocker lands. `missing-kind` is that half. */
+export const CONVERSION_REFUSAL_BLOCKER_KINDS = ["sole-consumer", "missing-kind"] as const;
 export type ConversionRefusalBlockerKind = (typeof CONVERSION_REFUSAL_BLOCKER_KINDS)[number];
 
 /** §12.4's reopen bar as a checkable claim: within `under`, exactly the modules in `consumers` perform the
@@ -52,7 +60,26 @@ export interface SoleConsumerBlocker {
   readonly consumers: readonly string[];
 }
 
-export type ConversionRefusalBlocker = SoleConsumerBlocker;
+/** THE #2013 TRIPWIRE: the refusal cites a capability the frozen set does not have, and names it.
+ *
+ *  `wouldBeKind` is the `GateResourceRequest` kind this refusal would need. It must NOT be a member of the
+ *  frozen eighteen (`contract/resource-declaration.ts`) — the whole claim is that it does not exist — and
+ *  the day someone mints it, the refusal's stated reason is gone and the module is due a re-derivation
+ *  rather than another year of legacy. A refusal whose capability SHIPPED is the one failure this program
+ *  has now paid for twice, and it is the only one a name can catch.
+ *
+ *  The name is the refusal's OWN proposal, not a guess about a future author's spelling: §11.5 says a kind
+ *  serving one gate is that gate's private reader wearing a contract's clothes, so a refusal on this
+ *  ground has already decided what the kind would be called if it were ever minted. Declaring that name is
+ *  what makes the claim falsifiable. */
+export interface MissingKindBlocker {
+  readonly kind: "missing-kind";
+  readonly why: string;
+  /** A resource-kind name that is NOT in the frozen set today. */
+  readonly wouldBeKind: string;
+}
+
+export type ConversionRefusalBlocker = SoleConsumerBlocker | MissingKindBlocker;
 
 export interface ConversionRefusal {
   /** The module's own gate id, which the loader requires to equal its basename. Pinned here so a refusal

@@ -2313,6 +2313,7 @@
     "tests/tooling/verify/gates/contract-and-serde-seal-split.test.ts",
     "tests/tooling/verify/gates/contract-shape-wave-1.test.ts",
     "tests/tooling/verify/gates/contract-verb-presence.test.ts",
+    "tests/tooling/verify/gates/conversion-refusal-liveness.repo.int.test.ts",
     "tests/tooling/verify/gates/conversion-refusal-liveness.test.ts",
     "tests/tooling/verify/gates/css-selector-has-a-writer.int.test.ts",
     "tests/tooling/verify/gates/ct-no-oneshot-live-read-assert.test.ts",

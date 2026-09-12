@@ -28,7 +28,10 @@ const REFUSAL_OPENER = /^\/\/ CONVERSION\b[^\n]*\b(?:REFUSED|BLOCKED)\b/;
  *  REPORTABLE rather than unreadable — a reader that threw would turn an author's typo into a tool error. */
 export interface AuthoredBlocker {
   readonly kind: string | undefined;
+  /** `sole-consumer` only. Undefined on a `missing-kind` blocker, which owns no census scope. */
   readonly under: string | undefined;
+  /** `missing-kind` only: the resource-kind name the refusal claims does not exist today. */
+  readonly wouldBeKind: string | undefined;
   readonly spellings: readonly string[];
   readonly consumers: readonly string[];
   readonly node: Node;
@@ -114,6 +117,7 @@ function readBlocker(element: Node): AuthoredBlocker {
   return {
     kind: machineString(element, "kind"),
     under: machineString(element, "under"),
+    wouldBeKind: machineString(element, "wouldBeKind"),
     spellings: machineStringTuple(element, "spellings"),
     consumers: machineStringTuple(element, "consumers"),
     node: element,
@@ -147,10 +151,17 @@ export function readAuthoredRefusal(anchor: Node, initializer: Node): AuthoredRe
     ...(blockers.length === 0 ? ["`blockers` is empty or not an authored tuple of object literals — a refusal with no checkable blocker is prose"] : []),
     ...(blockerElements.length !== blockers.length ? ["a `blockers` element is not an object literal, so its census cannot be read"] : []),
     ...blockers.filter((blocker) => blocker.kind === undefined).map(() => "a blocker has no statically readable `kind`"),
-    ...blockers.filter((blocker) => blocker.under === undefined).map(() => "a blocker has no statically readable `under` scope"),
+    // PER KIND. A `missing-kind` blocker owns no census, so demanding `under`/`spellings` from it would be
+    // the mis-accusation shape #2106 was about, one field over.
     ...blockers
-      .filter((blocker) => blocker.spellings.length === 0)
-      .map(() => "a blocker declares no readable `spellings`, so its census can only ever be empty"),
+      .filter((blocker) => blocker.kind === "sole-consumer" && blocker.under === undefined)
+      .map(() => "a `sole-consumer` blocker has no statically readable `under` scope"),
+    ...blockers
+      .filter((blocker) => blocker.kind === "sole-consumer" && blocker.spellings.length === 0)
+      .map(() => "a `sole-consumer` blocker declares no readable `spellings`, so its census can only ever be empty"),
+    ...blockers
+      .filter((blocker) => blocker.kind === "missing-kind" && blocker.wouldBeKind === undefined)
+      .map(() => "a `missing-kind` blocker has no statically readable `wouldBeKind`, so nothing can notice the capability being minted"),
   ];
   return {
     anchor,

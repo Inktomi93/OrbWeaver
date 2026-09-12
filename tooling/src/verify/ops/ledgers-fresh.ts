@@ -43,7 +43,7 @@ import type { TestBaselineManifest } from "../contract/test-baseline.ts";
 import { TEST_BASELINE_REL } from "../contract/test-baseline.ts";
 import { ledgerSections, readDoc, reportLedgerRows } from "../lib/gate-program-docs.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
-import { deriveReadFirstCosts, READ_FIRST_REL } from "./gen/read-first-costs.ts";
+import { READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./gen/read-first-costs.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
 import { deriveTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
 import { deriveTypeConfigFiles } from "./gen/type-configs.ts";
@@ -186,10 +186,16 @@ export function typeConfigsDrift(root: string): LedgerFreshness {
  *  document, because the derivation rewrites cells in place and a partial compare would let a rewritten row
  *  drift back. #2017: all EIGHT sizes were stale at once and the work queue was understated by 7x. */
 export function readFirstCostsDrift(root: string): LedgerFreshness {
-  const derivedText = deriveReadFirstCosts(root);
-  const base = { ledger: `${READ_FIRST_REL} (SIZE column)`, regen: REGEN_READ_FIRST_COSTS, derived: 1 } as const;
-  const committedText = readDoc(root, READ_FIRST_REL);
-  return { ...base, drift: committedText === derivedText ? [] : ["the table's SIZE cells differ from a fresh measurement of the documents they price"] };
+  const rows = readFirstCostRowDrift(root);
+  return {
+    ledger: `${READ_FIRST_REL} (SIZE column)`,
+    regen: REGEN_READ_FIRST_COSTS,
+    derived: READ_FIRST_COST_ROW_IDS.length,
+    // ONE LINE PER MOVED ROW, with both cells (#2117). A bare "the SIZE cells differ" made a regeneration
+    // on a backed-up copy the only way to learn which of the nine had moved, while every sibling row in
+    // this stage names its drifting rows.
+    drift: rows.map((row) => `row ${row.id}: ${JSON.stringify(row.committed)} → ${JSON.stringify(row.derived)}`),
+  };
 }
 
 /** THE REFUTATION LEDGER'S APPENDED SECTIONS versus the verifier reports they came from (#2017).
