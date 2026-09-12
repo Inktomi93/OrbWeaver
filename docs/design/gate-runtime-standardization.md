@@ -176,8 +176,44 @@ marker grammar's position group is `[^()\r\n]+` and every marker against it pars
 
 **AND "ORDINARY" IS A CLAIM ABOUT THE DOOR, NOT A FIELD — CHECK IT AT EVERY CONVERSION. MEASURED **NINE OF NINE**
 ACROSS TWO INDEPENDENT LANES WITH DISJOINT SUBJECTS (five of five 2026-09-12; four of four 2026-09-13).** A legacy
-policy can carry `authority: "ordinary"` while having **no working waiver door at all**, and nothing on the legacy
-runtime ever asked. **At a 9/9 base rate this is not a hazard to check for — it is the DEFAULT EXPECTATION, and a
+policy can carry `authority: "ordinary"` while having **no working waiver door at all** under THIS contract.
+
+**AND THE REASON IS NOT THAT THE LEGACY GATES WERE BROKEN — read this before repeating the 9/9 number, because an
+earlier version of this paragraph implied it and that is FALSE (corrected 2026-09-13 on the owner's question).**
+The legacy engine asked a WEAKER question and got a correct answer. `lib/gate-ignore.ts:180` and `:196` are the
+whole mechanism:
+
+```ts
+marker.position === undefined || marker.position === token
+```
+
+Two consequences, and both make the legacy doors genuinely WORK:
+
+1. **The position was OPTIONAL.** A bare `// @orb-gate-ignore <gate>: <reason>` suppressed ANY finding from that
+   gate on that node or line.
+2. **When supplied it was PLAIN STRING EQUALITY against the finding's own reported token**, with nothing checking
+   that the token existed anywhere in the source. `gate-ignore.ts`'s own header says it: *“`token` is the finding's
+   own reported lexeme”.*
+
+**So a legacy position was a DISCRIMINATOR LABEL — a way to tell two arms of one gate apart — not a source
+coordinate.** `no-assertion`, `async-no-await`, `cancel_2`, `detached` were legal and functioning legacy positions.
+The corpus shape confirms it: `default:catch`, `empty:err`, `empty:error` are `<arm>:<token>` composites, and the
+finding's token was literally that whole composite string — a thing that by construction appears in no source file.
+
+**This contract redefines the position as a SOURCE COORDINATE.** `locateFinding` requires the token to be authored
+text at the finding's exact line and column, refusing first with *“does not point at its exact position token”* and
+then, after comment blanking, *“points into comment trivia rather than authored code”*. `report.node` additionally
+THROWS at report time rather than failing later.
+
+**So the honest statement of the 9/9 finding is: nine of nine ordinary modules carried positions that were valid
+under the old definition and are invalid under the new one.** That is a MIGRATION obligation the contract creates,
+not a latent defect it uncovered — and it is why the count is 9/9 rather than scattered: it is not a bug that
+happened to recur, it is a definition change applied to a corpus authored against the previous definition. Expect
+it on every ordinary conversion for that reason, and treat re-anchoring as ordinary conversion work rather than as
+a defect report against the legacy author.
+
+**The practical consequence is unchanged, which is why the checks below still bind:** under this contract those
+positions do not work, an author cannot waive with them, and `report.node` throws. Fix them. **At a 9/9 base rate this is not a hazard to check for — it is the DEFAULT EXPECTATION, and a
 conversion that reports an ordinary door working is the claim that owes evidence.** The second lane's four were: three
 reporting SYNTHETIC LABELS at `offset: 0` (`no-assertion`, `async-no-await`, `bare-expect`, and `cancel_2`/`detached`,
 strings appearing nowhere in any source so `locateFinding` could never bind them), one reporting an authored token at
