@@ -1,41 +1,122 @@
-// Gate: test-presence (core/Spine-Testing.md §5) — required tests on the surfaces where an untested change
-// silently breaks behavior. The DOMAIN arm is DEMAND-BY-DEFAULT (#767) and the entry/ + transport/ TIER arm
-// is the same shape (#773): a file with runtime logic owes a mirror test unless its SHAPE exempts it
-// (index/service/context/error-declaration/D58 stub in domain; a declaration file, a router shell with no
-// callable export, or a PASS-THROUGH wiring file in the tiers — `isPassThroughWiring`), so a slot the
+// Policy: test-presence (core/Spine-Testing.md §5) — required tests on the surfaces where an untested
+// change silently breaks behavior. The DOMAIN arm is DEMAND-BY-DEFAULT (#767) and the entry/ + transport/
+// TIER arm is the same shape (#773): a file with runtime logic owes a mirror test unless its SHAPE exempts
+// it (index/service/context/error-declaration/D58 stub in domain; a declaration file, a router shell with
+// no callable export, or a PASS-THROUGH wiring file in the tiers — `isPassThroughWiring`), so a slot the
 // template grows is demanded the day it appears. infra/ + foundation/ runtime logic and schema-bearing
 // contracts files are demanded as before. Tests live at tests/<pkg>/<rest>.
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import type { Expression, Project, SourceFile } from "ts-morph";
+//
+// FAMILY `mirror-index` — the SHARED SUBJECT READER is `ops/resource-mirror.ts` `loadMirrorIndex` via the
+// `mirrorIndex` host door. Siblings: `test-layout` (the test corpus' own homes) and `test-presence-client`
+// (the client/ui reach this policy lacks). `contract/resource-mirror.ts:3-8` names exactly this trio.
+//
+// THE BASELINE IS RETIRED, AND ITS TWO ROWS TURNED OUT TO BE A DEMAND THIS POLICY SHOULD NEVER HAVE MADE
+// (#2062). `test-presence.baseline.json` carried `domain/chat/substrate/{assembly-access,turn-access}.ts`,
+// citing board item #772 as their burn-down. #772 is CLOSED while both subjects were still live debt, and
+// guide §12.5 permits a retiring baseline exactly three dispositions: a fix, an exact grant, or warning debt
+// tied to a POSITIVE LIVE issue. A closed issue is none of them — and the warning arm is not expressible
+// here at all, because `severity` is per-POLICY: parking two rows as warning debt would take all seven arms
+// of this policy to a severity that contributes 0 to `blocking` at every shipped entrypoint.
+//
+// THE FIX WAS ATTEMPTED AS TESTS FIRST, AND THE TREE REFUSED IT — which is the finding. Both subjects are
+// pure spread-forwarding DI bridges (`export function W(...args: Parameters<typeof T>): ReturnType<typeof T>
+// { return T(...args); }`, 18 and 6 of them) that exist ONLY to mediate a dep-cruiser boundary
+// (`domain-no-cross-subsystem`). The only test expressible over such a file either asserts that a forwarder
+// forwards — the tautology `Spine-Testing.md` §5 bans — or `vi.mock`s the sibling subsystem, which §3 bans
+// outright: *"never mock an internal module … if a collaborator needs stubbing and isn't an injected port,
+// the test just surfaced a design smell."* A drafted pair of `vi.mock` seam tests produced 14
+// `test-mock-doctrine` findings and 2 `no-test-fabrication` findings on the real tree, measured, and was
+// deleted rather than waived.
+//
+// THIS IS A DELIBERATE WIDENING OF A LIVE GATE'S EXEMPTION, LANDED 2026-09-12 AND APPROVED BY THE
+// ORCHESTRATOR ON THE MEASUREMENT BELOW — read it as a widening, not as something that was always here.
+// What it closes is an ASYMMETRY rather than minting a new exemption: the #773 TIER arm has exempted exactly
+// this shape since it shipped — a file whose every exported callable is one delegating call over its own
+// parameters, because *"the behavior is the target's and is demanded THERE"* — and the #767 DOMAIN residual
+// arm never got it. Two changes: `isPlumbingAtom` now accepts a SPREAD of a plumbing atom (it did not, so
+// `T(...args)` — the most literal forwarder possible — was the one forwarder shape the tier arm ALSO failed
+// to recognise), and `pushDomainResidual` applies `isPassThroughWiring` like its tier sibling.
+//
+// BLAST RADIUS, AND THE METHOD THAT PRODUCED IT (2026-09-12). Both predicates were RE-IMPLEMENTED VERBATIM
+// in a throwaway probe over `packages/server/src/**` and run twice, WITH and WITHOUT each clause, diffing
+// the admitted sets: **the SPREAD clause changes exactly TWO files — `domain/chat/substrate/
+// {assembly-access,turn-access}.ts` — and ZERO in `entry/` or `transport/`; the DOMAIN pass-through clause
+// matches 11 files, of which 9 already carry mirror tests, so no finding disappears anywhere else.** The
+// exemption is BY SHAPE rather than a path allowlist, so there is no row to rot and a seam that grows a
+// guard, a second statement or a computed argument is demanded again the day it does — `mustFlag[16]` is
+// that row, and both clauses are §4.1-cut to `mustPass[15]`.
+//
+// The ledger, its `writeBaseline` single writer, the `baseline test-presence` verb and the `pnpm debt` row
+// are all deleted, and this policy now carries NO ratchet. The arm that policed the ledger — the
+// stale/shrink sweep reporting at the gate's own source file — retires WITH it rather than becoming a
+// `-health` sibling: it existed only to keep the ledger honest.
+//
+// POPULATION PORT — legacy at 90bbeb04f (the parent of this conversion), a `GateDescriptor` with
+// `scopeSafety: "whole-project"` and `fsBacked: true`. The legacy corpus was `project.getSourceFiles()`
+// routed by `sf.getFilePath().split("/packages/server/src/")` and `.split("/packages/contracts/src/")`,
+// i.e. the harness globs ∩ those two roots; the final expression is `population: ["@server", "@contracts"]`
+// (`POPULATION_ROOTS["@server"] = packages/server/src/`, `["@contracts"] = packages/contracts/src/`), the
+// same set by construction. The per-arm `index.ts` rule is UNCHANGED and stays in the routing rather than
+// in the population, because it is asymmetric: a SERVER `index.ts` is a pure re-export barrel and is
+// skipped, while a CONTRACTS `index.ts` is NOT a barrel (the domain's zod schemas co-locate there) and is
+// checked. The one filesystem read moves to a declared door:
+//   `existsSync(tests/<pkg>/<base><suffix>)`  →  `mirrorIndex("package-test").testFiles`
+// Deltas, each deliberate: (1) a mirror under a non-authored segment or behind a symlink is no longer read
+// as a mirror (the authored reader refuses both, where `existsSync` accepted them); (2) findings anchor at
+// `line: 1, column: 1` rather than the legacy synthetic `line: 0`; (3) THE TRIPWIRE ANCHOR MOVED — see
+// below. Nothing else: the seven arms, their order, their messages and every SHAPE exemption are unchanged.
+//
+// THE TRIPWIRE ANCHOR MOVE. Both blindness tripwires reported at this gate's OWN source file, which sits in
+// `tooling/` — outside this policy's population AND outside its resource population, so `ctx.report.file`
+// would THROW on it (guide §3's absent/foreign-subject class). They now anchor through
+// `lib/absent-subject-anchor.ts` `subjectAnchor` on the real-tree anchor they are already gated on, with
+// the diagnosis unchanged in the MESSAGE. §4.6 category 6 owes a marker receipt for an anchor move; the
+// live `@orb-gate-ignore test-presence` census is ZERO, measured with a planted positive control, so
+// nothing binds to the old position.
+//
+// THE REAL-TREE ANCHOR IS STILL REQUIRED AND IS NOW A MEMBERSHIP QUESTION. The tripwires ask "did the
+// corpus this derivation is keyed on disappear?", which is a real question on the live tree and a false
+// alarm on any small fixture. The legacy guard was `fileLoaded(ctx, "packages/db/src/schema/index.ts")`;
+// it is now `mirrorIndex.sourceFiles.has(...)` — the same file, asked of a declared resource instead of the
+// run's fileset. `mustFlag[15]` is the one row that reaches the tier tripwire, by planting the anchor.
+//
+// AUTHORITY `hard`. With the baseline gone the policy owns no exemption table, no marker grammar and no
+// private parser, and every finding is FILE-anchored with no position token, so under this contract no
+// ordinary door exists BY CONSTRUCTION. `hard` is the honest declaration.
+//
+// WHERE A BROKEN RESOURCE REFUSES — not here. A non-ready declared resource makes
+// `resolveResourceDeclarations` THROW at the POPULATION phase and the owner is withheld before `create`
+// runs (guide §11 ruling 3); this module owns no not-ready branch and reads through `readyResourceValue`,
+// whose throw asserts that refusal. That is also the capability this conversion BUYS: `existsSync` could
+// not tell "no mirror here" from "there is no tests/ tree", and the second read as full coverage. The
+// reachable refusals and the receipt are pinned through `runPolicyPass` in
+// `tests/tooling/verify/gates/mirror-index-family.test.ts` (guide §4.5b: no proof row can express one).
+//
+// DECLARED LIMITS, each naming the row that holds it: the zero-logic `service.ts` / `context.ts` feature
+// roots (`mustPass[4]`, `[5]`), the error-declaration-only `contract/` file (`mustPass[6]`), the D58 stub
+// runner (`mustPass[2]`), the tier pass-through / DI-bundle / router-shell / curried-factory / `.d.ts`
+// shapes (`mustPass[8]`-`[12]`), the comment-posture false positive (`mustPass[3]`), and the DOMAIN
+// pass-through seam (`mustPass[15]`, with `mustFlag[16]` holding its permissive edge).
+import type { Expression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import type { RatchetAdmission, RatchetRow } from "../../_shared/ratchet-rows.ts";
-import { classNote, readBudgetRows, writeBudgetLedger } from "../../_shared/ratchet-rows.ts";
 import type { TestFamily } from "../../_shared/test-kinds.ts";
 import { TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { MirrorIndex } from "../contract/resource-mirror.ts";
+import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
 import { codeTextForScan } from "../lib/comment-spans.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
-const DOMAIN_DIR = "/packages/server/src/domain/";
-/** The #773 arm's two tiers. Prefix-matched on the server-src-relative path (the `pushInfra` spelling). */
+const SERVER_SRC = "packages/server/src/";
+const CONTRACTS_SRC = "packages/contracts/src/";
+const DOMAIN_DIR = "domain/";
+/** The #773 arm's two tiers. Prefix-matched on the server-src-relative path. */
 const TIER_PREFIXES: readonly string[] = ["entry/", "transport/"];
 const DECLARATION_EXT = ".d.ts";
-const SERVER_SRC = "/packages/server/src/";
-const CONTRACTS_SRC = "/packages/contracts/src/";
 const EXT_RE = /\.tsx?$/u;
-const GATE_SELF = "tooling/src/verify/gates/test-presence.ts";
-/** The committed shrink-only ledger for the #767 widening's residual population — burn-down is board row 772.
- *  Every row is one UNTESTED domain-logic file the widening newly demands, class DEBT: work another lane is
- *  named for, never a permanent exemption (a permanent one is a SHAPE above, not a row here). */
-export const BASELINE_REL = "tooling/src/verify/gates/test-presence.baseline.json";
-/** GATE-AUTHORING.md §4.5 — a real-tree file present on every live run and planted by no example here. */
+/** A real-tree file present on every live run and planted by no example but the tripwire rows. */
 const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
-const STALE_BASELINE_PREFIX =
-  "stale test-presence baseline row — this file now carries its mirror test (or is gone / newly exempt), so the " +
-  "budget grants nothing while reading as live debt. Regenerate and commit the shrink " +
-  "(`node tooling/src/verify/cli.ts baseline test-presence`): ";
+
 const BLIND_DOMAIN =
   "BLINDNESS TRIPWIRE — the domain scan matched ZERO files with runtime logic. The demand derivation is keyed " +
   "on the `packages/server/src/domain/` path; if that tree moved, this gate reports ✓ over an unscanned corpus.";
@@ -58,28 +139,19 @@ const MSG = {
   tier: "entry/transport file with runtime logic has no test — a boot step, composition seam, HTTP registrar, job driver, bus or ladder primitive owes a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5). Exempt BY SHAPE: index.ts barrels, a .d.ts declaration file, a tRPC router shell (no callable export — its logic is the domain verb's), and a PASS-THROUGH wiring file whose every exported callable is one delegating call or one DI-bundle object literal over its own parameters.",
 } as const;
 
-/** The demand-by-default arms whose residual population rides the shrink-only DEBT baseline. A finding from
- *  any OTHER arm (verb/persistence/contract/runner/infra) is never budgetable — those surfaces were demanded
- *  before the ledger existed and have no residual to burn down. */
-const BUDGETED_MESSAGES: ReadonlySet<string> = new Set([MSG.domain, MSG.tier]);
 const BEHAVIOR_TEST_FAMILIES = ["unit", "integration"] as const satisfies readonly TestFamily[];
 const PERSISTENCE_TEST_FAMILIES = ["integration"] as const satisfies readonly TestFamily[];
 const SCHEMA_TEST_FAMILIES = ["contract"] as const satisfies readonly TestFamily[];
 
-function serverSrcRel(path: string): string | undefined {
-  const parts = path.split(SERVER_SRC);
-  return parts.length > 1 ? parts[1] : undefined;
+interface Finding {
+  readonly file: string;
+  readonly message: string;
 }
 
-function contractsSrcRel(path: string): string | undefined {
-  const parts = path.split(CONTRACTS_SRC);
-  return parts.length > 1 ? parts[1] : undefined;
-}
-
-function hasTest(root: string, pkg: string, rel: string, families: readonly TestFamily[]): boolean {
+function hasTest(tests: ReadonlySet<string>, pkg: string, rel: string, families: readonly TestFamily[]): boolean {
   const base = rel.replace(EXT_RE, "");
   return TEST_KIND_DEFINITIONS.some(
-    ({ family, mirror, suffix }) => mirror === "module" && families.includes(family) && existsSync(join(root, "tests", pkg, `${base}${suffix}`)),
+    ({ family, mirror, suffix }) => mirror === "module" && families.includes(family) && tests.has(`tests/${pkg}/${base}${suffix}`),
   );
 }
 
@@ -97,7 +169,7 @@ function hasSchema(sf: SourceFile): boolean {
 // green, but the real pass lands in a later wave) when its body only reports + returns the `DeferredResult`
 // and never touches its injected env. There is no behavior to regress, so it's exempt UNTIL filled in:
 // adding a real `ctx.env.*` call drops the exemption and the gate then demands a test. Detected on SOURCE
-// SHAPE, not a static list, so the 16 current stubs need no per-file allowlist and can't go stale.
+// SHAPE, not a static list, so the current stubs need no per-file allowlist and can't go stale.
 const DEFERRED_RESULT = "deferred: true";
 const ENV_CALL = "ctx.env";
 
@@ -112,8 +184,8 @@ function hasCallableExport(sf: SourceFile): boolean {
   return exportedCallables(sf).length > 0;
 }
 
-function missing(pkg: string, rel: string, message: string): Violation {
-  return { file: `packages/${pkg}/src/${rel}`, line: 0, message };
+function missing(pkg: string, rel: string, message: string): Finding {
+  return { file: `packages/${pkg}/src/${rel}`, message };
 }
 
 /** The slots that carry their OWN arm above (their message names the surface, and persistence/contract want a
@@ -135,7 +207,7 @@ function isFeatureRoot(rel: string): boolean {
   return rel.split("/").length === FEATURE_ROOT_SEGMENTS;
 }
 
-/** A `contract/` file that DECLARES ONLY ERROR CLASSES — the 23-file `errors.ts` family. `hasCallableExport`
+/** A `contract/` file that DECLARES ONLY ERROR CLASSES — the `errors.ts` family. `hasCallableExport`
  *  counts an exported class, so these read as runtime logic while a `.test.ts` on one could only assert that
  *  `new XNotFoundError(id) instanceof Error` — the tautology this doc bans. Detected on SHAPE (every exported
  *  callable is a class extending a `*Error`), never a path list, so a contract file that grows a real function
@@ -172,30 +244,30 @@ function isDomainShapeExempt(rel: string, sf: SourceFile): boolean {
   return rel.includes("/contract/") && (hasSchema(sf) || isErrorDeclarationOnly(sf));
 }
 
-function pushDomain(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
-  if (rel.includes("/verbs/") && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
+function pushDomain(tests: ReadonlySet<string>, rel: string, sf: SourceFile, out: Finding[]): void {
+  if (rel.includes("/verbs/") && !hasTest(tests, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.verb));
   }
-  if (rel.includes("/persistence/") && !hasTest(root, "server", rel, PERSISTENCE_TEST_FAMILIES)) {
+  if (rel.includes("/persistence/") && !hasTest(tests, "server", rel, PERSISTENCE_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.persistence));
   }
-  if (rel.includes("/contract/") && hasSchema(sf) && !hasTest(root, "server", rel, SCHEMA_TEST_FAMILIES)) {
+  if (rel.includes("/contract/") && hasSchema(sf) && !hasTest(tests, "server", rel, SCHEMA_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.contract));
   }
-  if (rel.includes("/workloads/runners/") && !isDeferredStubRunner(sf) && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
+  if (rel.includes("/workloads/runners/") && !isDeferredStubRunner(sf) && !hasTest(tests, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.runner));
   }
-  pushDomainResidual(root, rel, sf, out);
+  pushDomainResidual(tests, rel, sf, out);
 }
 
 /** THE #767 ARM. Everything the slot arms above do not already claim: substrate/, every named subsystem
  *  (engine/ assembly/ memory/ themes/ …), `guard.ts`, the sanctioned feature-root singletons, and a contract/
  *  file that carries real logic rather than schemas or error declarations. */
-function pushDomainResidual(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
-  if (SLOTTED_SEGMENTS.some((seg) => rel.includes(seg)) || isDomainShapeExempt(rel, sf)) {
+function pushDomainResidual(tests: ReadonlySet<string>, rel: string, sf: SourceFile, out: Finding[]): void {
+  if (SLOTTED_SEGMENTS.some((seg) => rel.includes(seg)) || isDomainShapeExempt(rel, sf) || isPassThroughWiring(sf)) {
     return;
   }
-  if (hasCallableExport(sf) && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
+  if (hasCallableExport(sf) && !hasTest(tests, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.domain));
   }
 }
@@ -227,6 +299,14 @@ function unwrapPlumbing(expr: Expression): Expression {
  *  literal whose every property is itself an atom or a wiring expression (the DI-bundle / context shape). */
 function isPlumbingAtom(expr: Expression): boolean {
   const node = unwrapPlumbing(expr);
+  // A SPREAD of an atom is the argument list moved WHOLE — `target(...args)`, the seam shape. It was the one
+  // gap in this predicate: a spread is not an Identifier, so `T(...args)` was not wiring and the most literal
+  // forwarder on the tree was DEMANDED while every named-argument forwarder beside it was exempt. Measured
+  // blast radius of this clause across `packages/server/src/**`: TWO files, both in the domain arm
+  // (`domain/chat/substrate/{assembly-access,turn-access}.ts`), ZERO in entry/ or transport/.
+  if (Node.isSpreadElement(node)) {
+    return isPlumbingAtom(node.getExpression());
+  }
   if (Node.isIdentifier(node)) {
     return true;
   }
@@ -332,296 +412,298 @@ function isPassThroughWiring(sf: SourceFile): boolean {
   });
 }
 
-function pushTiers(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
+function pushTiers(tests: ReadonlySet<string>, rel: string, sf: SourceFile, out: Finding[]): void {
   if (rel.endsWith(DECLARATION_EXT) || isPassThroughWiring(sf)) {
     return;
   }
-  if (hasCallableExport(sf) && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
+  if (hasCallableExport(sf) && !hasTest(tests, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.tier));
   }
 }
 
-function pushInfra(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
+function pushInfra(tests: ReadonlySet<string>, rel: string, sf: SourceFile, out: Finding[]): void {
   const inTier = rel.startsWith("infra/") || rel.startsWith("foundation/");
-  if (inTier && hasCallableExport(sf) && !hasTest(root, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
+  if (inTier && hasCallableExport(sf) && !hasTest(tests, "server", rel, BEHAVIOR_TEST_FAMILIES)) {
     out.push(missing("server", rel, MSG.infra));
   }
 }
 
-function pushContracts(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
-  if (hasSchema(sf) && !hasTest(root, "contracts", rel, SCHEMA_TEST_FAMILIES)) {
+function pushContracts(tests: ReadonlySet<string>, rel: string, sf: SourceFile, out: Finding[]): void {
+  if (hasSchema(sf) && !hasTest(tests, "contracts", rel, SCHEMA_TEST_FAMILIES)) {
     out.push(missing("contracts", rel, MSG.sharedContract));
   }
 }
 
-/** What one scan saw, so the blindness tripwire can tell "nothing violates" from "nothing was scanned". */
-interface PresenceScan {
-  readonly violations: readonly Violation[];
-  /** Domain files carrying runtime logic, exempt or not — the denominator of the demand-by-default arm. */
-  readonly domainLogicFiles: number;
-  /** The same denominator for the #773 entry/ + transport/ arm. */
-  readonly tierLogicFiles: number;
-}
-
-/** One scan's mutable state: where findings land and the two demand-by-default denominators. */
+/** One scan's mutable state: where findings land and the two demand-by-default denominators, which are what
+ *  let the tripwires tell "nothing violates" from "nothing was scanned". */
 interface ScanState {
-  readonly root: string;
-  readonly violations: Violation[];
+  readonly findings: Finding[];
   domainLogicFiles: number;
   tierLogicFiles: number;
 }
 
 /** Route ONE server source file to its arm, tallying that arm's runtime-logic denominator as it goes. */
-function pushServer(state: ScanState, rel: string, sf: SourceFile): void {
+function pushServer(state: ScanState, tests: ReadonlySet<string>, rel: string, sf: SourceFile): void {
   const logic = hasCallableExport(sf) ? 1 : 0;
-  if (sf.getFilePath().includes(DOMAIN_DIR)) {
+  if (rel.startsWith(DOMAIN_DIR)) {
     state.domainLogicFiles += logic;
-    pushDomain(state.root, rel, sf, state.violations);
+    pushDomain(tests, rel, sf, state.findings);
     return;
   }
   if (TIER_PREFIXES.some((prefix) => rel.startsWith(prefix))) {
     state.tierLogicFiles += logic;
-    pushTiers(state.root, rel, sf, state.violations);
+    pushTiers(tests, rel, sf, state.findings);
     return;
   }
-  pushInfra(state.root, rel, sf, state.violations);
+  pushInfra(tests, rel, sf, state.findings);
 }
 
-/** The fs+AST scan shared by the `run` descriptor, the ratchet's stale arm and the baseline generator: each
- *  server/contracts source file's presence-gated surface must have its mirror test (existsSync). */
-function scanTestPresence(root: string, project: Project): PresenceScan {
-  const state: ScanState = { root, violations: [], domainLogicFiles: 0, tierLogicFiles: 0 };
-  for (const sf of project.getSourceFiles()) {
-    const serverRel = serverSrcRel(sf.getFilePath());
-    // Server barrels (domain/infra `index.ts`) are pure re-exports — exempt. A contracts `index.ts` is
-    // NOT a barrel (the domain's schemas co-locate there), so it is checked below.
-    if (serverRel !== undefined) {
-      if (sf.getBaseName() !== "index.ts") {
-        pushServer(state, serverRel, sf);
-      }
-      continue;
-    }
-    // Contracts arm: a schema-bearing file is presence-gated whether or not it is named `index.ts` — the
-    // contracts convention co-locates the domain's zod schemas in `index.ts`, so a blanket barrel-skip
-    // silently exempted whole domains. A pure-type/re-export `index.ts` carries no schema → still exempt.
-    const contractsRel = contractsSrcRel(sf.getFilePath());
-    if (contractsRel !== undefined) {
-      pushContracts(root, contractsRel, sf, state.violations);
-    }
+/** Which demand derivation saw an EMPTY corpus, if either. Domain first: both tripwires are terminal, so a
+ *  tree missing both arms reports the domain one and the tier row never masks it. */
+function blindnessMessage(state: ScanState): string | undefined {
+  if (state.domainLogicFiles === 0) {
+    return BLIND_DOMAIN;
   }
-  return { violations: state.violations, domainLogicFiles: state.domainLogicFiles, tierLogicFiles: state.tierLogicFiles };
+  return state.tierLogicFiles === 0 ? BLIND_TIERS : undefined;
 }
 
-/** The residual arm's live census: subject (repo-relative file) → 1. The generator writes exactly this, and
- *  the stale arm judges the committed rows against it — ONE derivation, never two. */
-function residualCensus(violations: readonly Violation[]): Readonly<Record<string, number>> {
-  const counts: Record<string, number> = {};
-  for (const v of violations) {
-    if (BUDGETED_MESSAGES.has(v.message)) {
-      counts[v.file] = 1;
-    }
+/** The two §4.6 blindness tripwires, gated on the REAL-TREE ANCHOR: a conformance mini-project and a scoped
+ *  run both legitimately carry neither the domain corpus nor the tier corpus, and judging either there would
+ *  red the gate's own self-proof. The tripwire finding is ADDED to the arms' findings, never substituted for
+ *  them — the legacy `run` reported every violation BEFORE its `return`, and clearing them here would make a
+ *  blind derivation SUPPRESS the findings the sighted arms did produce. */
+function pushBlindness(state: ScanState, mirror: MirrorIndex, reportable: ReadonlySet<string>): void {
+  if (!mirror.sourceFiles.has(REAL_TREE_ANCHOR)) {
+    return;
   }
-  return counts;
-}
-
-/** THE SINGLE WRITER of `test-presence.baseline.json` (GATE-AUTHORING.md §4.8), driven by
- *  `cli.ts baseline test-presence`. Counts are re-derived from the tree; any classification rides through. */
-export function writeBaseline(project: Project, root: string): number {
-  return writeBudgetLedger(root, BASELINE_REL, residualCensus(scanTestPresence(root, project).violations), readBudgetRows(root, BASELINE_REL));
-}
-
-/** The ratchet's admission arm: a residual finding a committed row still covers is DECLARED DEBT (board row
- *  772's burn-down), not silence — it is reported as `admitted` on the gate's scan line and by `pnpm debt`. */
-function judgeAdmission(ctx: GateRunCtx, violations: readonly Violation[], baseline: ReadonlyMap<string, RatchetRow>): RatchetAdmission {
-  let admitted = 0;
-  let ratified = 0;
-  for (const v of violations) {
-    const row = BUDGETED_MESSAGES.has(v.message) ? baseline.get(v.file) : undefined;
-    if (row !== undefined && row.count > 0) {
-      admitted += 1;
-      ratified += row.ratified > 0 ? 1 : 0;
-      continue;
-    }
-    ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+  const blind = blindnessMessage(state);
+  if (blind === undefined) {
+    return;
   }
-  return { admitted, ratified };
+  // The legacy arm reported at this gate's own source file, which is outside every population it declares.
+  const anchor = subjectAnchor(reportable, [REAL_TREE_ANCHOR]);
+  state.findings.push({ file: anchor(REAL_TREE_ANCHOR), message: blind });
 }
 
-/** The shrink-only arm (§4.8) AND §4.4a's mode (B): a row whose file now carries its test, became exempt, or
- *  left the tree entirely is judged from the LIVE census, so a deleted file's row cannot rot unseen. */
-function judgeShrink(ctx: GateRunCtx, live: Readonly<Record<string, number>>, baseline: ReadonlyMap<string, RatchetRow>): void {
-  for (const [subject, row] of baseline) {
-    if (!(subject in live)) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message: `${STALE_BASELINE_PREFIX}${subject}${classNote(row)} — the ledger is tooling/src/verify/gates/test-presence.baseline.json`,
-      });
-    }
-  }
-}
-
-// test-presence reconciles server/contracts source (AST — schema/callable detection) against its
-// mirror tests (existsSync of tests/<mirror>).
-export const gate: GateDescriptor = {
-  name: "test-presence",
-  docRow: "core/Spine-Testing.md §5",
-  status: "active",
-  scopeSafety: "whole-project",
-  fsBacked: true,
+export const gate = defineGate({
+  id: "test-presence",
+  family: "mirror-index",
+  authority: "hard",
+  severity: "error",
+  population: ["@server", "@contracts"],
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [{ kind: "mirror-index", id: "package-test" }],
   message:
     "a presence-gated source file has no mirror test — a domain verb / persistence / contract-schema / other domain-runtime-logic / infra-runtime-logic file must carry its test at tests/<mirror> (core/Spine-Testing.md §5).",
   fix: "add the required test at the mirror path (tests/server/<rest> or tests/contracts/<rest>) — a .test/.int.test/.contract.test per the surface.",
-  run: (ctx) => {
-    const scan = scanTestPresence(ctx.root, ctx.project);
-    const baseline = readBudgetRows(ctx.root, BASELINE_REL);
-    const admission = judgeAdmission(ctx, scan.violations, baseline);
-    ctx.scan({ admitted: admission.admitted, admittedRatified: admission.ratified });
-    // Real-tree anchored (§4.5): a conformance mini-project and a scoped run both legitimately carry neither
-    // the domain corpus nor the ledger, and judging either there would red the gate's own self-proof.
-    if (!fileLoaded(ctx, REAL_TREE_ANCHOR)) {
-      return;
-    }
-    if (scan.domainLogicFiles === 0) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_DOMAIN });
-      return;
-    }
-    if (scan.tierLogicFiles === 0) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_TIERS });
-      return;
-    }
-    judgeShrink(ctx, residualCensus(scan.violations), baseline);
+  create: (ctx) => {
+    const state: ScanState = { findings: [], domainLogicFiles: 0, tierLogicFiles: 0 };
+    return {
+      evaluate: () => {
+        const mirror = readyResourceValue(ctx.resources.mirrorIndex("package-test"));
+        for (const sourceFile of ctx.files) {
+          const rel = ctx.relativePath(sourceFile);
+          // Server barrels (domain/infra `index.ts`) are pure re-exports — exempt. A contracts `index.ts` is
+          // NOT a barrel (the domain's schemas co-locate there), so it is checked below.
+          if (rel.startsWith(SERVER_SRC)) {
+            if (sourceFile.getBaseName() !== "index.ts") {
+              pushServer(state, mirror.testFiles, rel.slice(SERVER_SRC.length), sourceFile);
+            }
+            continue;
+          }
+          if (rel.startsWith(CONTRACTS_SRC)) {
+            pushContracts(mirror.testFiles, rel.slice(CONTRACTS_SRC.length), sourceFile, state.findings);
+          }
+        }
+        pushBlindness(state, mirror, new Set(ctx.resourcePaths));
+        for (const finding of state.findings) {
+          ctx.report.file(finding.file, { line: 1, column: 1, message: finding.message });
+        }
+      },
+    };
   },
   mustFlag: [
     {
+      mode: "resource",
       files: {
-        "packages/server/src/domain/chat/persistence/record.ts": "export const record = 1;\n",
+        "packages/server/src/domain/chat/persistence/record.ts": "export const record = () => 1;\n",
         "tests/server/domain/chat/persistence/record.dom.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "persistence file has no .int.test" },
+      expect: { count: 1, messageIncludes: "persistence file has no .int.test" },
       why: "a registered DOM unit mirror is still the wrong family for persistence, which requires integration coverage",
     },
     {
+      mode: "resource",
       files: {
         "packages/contracts/src/chat/schema.ts": "export const S = z.object({});\n",
         "tests/contracts/chat/schema.test-d.ts": "export {};\n",
       },
-      expect: { messageIncludes: "shared contract schema has no .contract.test" },
+      expect: { count: 1, messageIncludes: "shared contract schema has no .contract.test" },
       why: "a type-only mirror cannot substitute for runtime schema round-trip coverage",
     },
     {
+      mode: "resource",
       files: {
-        "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = 1;\n",
+        "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = () => 1;\n",
+        "tests/server/domain/chat/verbs/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "verb has no test" },
+      expect: { count: 1, messageIncludes: "verb has no test" },
       why: "a domain verb file with no mirror .test/.int.test — an untested behavioral surface (§5)",
     },
     {
+      mode: "resource",
       files: {
-        "packages/server/src/domain/chat/persistence/chat-store.ts": "export const createChatStore = 1;\n",
+        "packages/server/src/domain/chat/persistence/chat-store.ts": "export const createChatStore = () => 1;\n",
+        "tests/server/domain/chat/persistence/other.int.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "persistence file has no .int.test" },
+      expect: { count: 1, messageIncludes: "persistence file has no .int.test" },
       why: "a domain persistence file with no mirror .int.test — the persistence arm (distinct message)",
     },
     {
+      mode: "resource",
       files: {
-        "packages/server/src/domain/chat/contract/schema.ts": "export const S = z.object({});\n",
+        "packages/server/src/domain/chat/contract/schema.ts": "export const S = z.object({});\nexport const build = () => S;\n",
+        "tests/server/domain/chat/contract/other.contract.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "contract schema has no .contract.test" },
-      why: "a domain contract file WITH a zod schema and no mirror .contract.test — the contract arm",
+      expect: { count: 1, messageIncludes: "contract schema has no .contract.test" },
+      why: "a domain contract file WITH a zod schema and no mirror .contract.test — the contract arm. The schema exemption keeps the residual arm silent on the same file, which the count pins",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/infra/providers/backends/agent-sdk/env-firewall.ts": "export function firewall(): void {}\n",
+        "tests/server/infra/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "infra/foundation file with runtime logic has no test" },
+      expect: { count: 1, messageIncludes: "infra/foundation file with runtime logic has no test" },
       why: "an infra/ file with a callable export (runtime logic) and no mirror test — the infra arm (PD-blindspot)",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/workloads/runners/recall.ts": "export const run = (ctx: { env: { x: number } }) => ctx.env.x;\n",
+        "tests/server/domain/workloads/runners/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "workloads runner with real logic has no test" },
-      why: "a workloads runner that touches ctx.env (real logic, NOT a D58 stub) with no mirror test — the runner arm",
+      expect: { count: 1, messageIncludes: "workloads runner with real logic has no test" },
+      why: "a workloads runner that touches ctx.env (real logic, NOT a D58 stub) with no mirror test — the runner arm. `count: 1` also pins that `/workloads/runners/` is a SLOTTED segment, so the residual #767 arm stays silent on the same file rather than double-reporting it under the generic domain message",
     },
     {
+      mode: "resource",
       files: {
         "packages/contracts/src/chat/index.ts": "export const S = z.object({});\n",
+        "tests/contracts/chat/other.contract.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "shared contract schema has no .contract.test" },
-      why: "a shared @orb/contracts schema-bearing file (even index.ts) with no mirror .contract.test — the contracts arm",
+      expect: { count: 1, messageIncludes: "shared contract schema has no .contract.test" },
+      why: "a shared @orb/contracts schema-bearing file (even index.ts) with no mirror .contract.test — the contracts arm, and the row that dies if the server `index.ts` skip is widened to contracts",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/workloads/runners/regrown.ts":
           "// Not a D58 stub any more — it used to return { deferred: true } and now does the real pass.\nexport const run = (ctx: { env: { x: number } }) => ctx.env.x;\n",
+        "tests/server/domain/workloads/runners/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "workloads runner with real logic has no test" },
+      expect: { count: 1, messageIncludes: "workloads runner with real logic has no test" },
       why: "COMMENT POSTURE (issue #117/#132) in the PERMISSIVE direction — the dangerous one. A runner whose COMMENT quotes `deferred: true` reads as an exempt D58 stub to a file-text scan and silently drops its test requirement; the code says otherwise, so it must still RED",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((r) => r[0] ?? 0);\n",
+        "tests/server/domain/discovery/substrate/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "domain file with runtime logic has no test" },
+      expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
       why: "THE #767 SHAPE — `substrate/` is the second-largest slot in the domain tree and the old enumerated demand set never named it, so 54 pure, deterministic, most-testable files were invisible. Demand-by-default is what makes the next new slot demanded on the day it appears",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/rpg/guard.ts": "export function requireGameHost(): void {}\n",
+        "tests/server/domain/rpg/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "domain file with runtime logic has no test" },
-      why: "the ratified 9th slot: `guard.ts` is the `can()` authority seam — an I/O-touching gate primitive, the LAST file whose behavior should be unpinned, and it sat outside the demand set",
+      expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
+      why: "the ratified 9th slot: `guard.ts` is the `can()` authority seam — an I/O-touching gate primitive, the LAST file whose behavior should be unpinned, and it sat outside the demand set. THE FEATURE-ROOT NARROWING: `guard.ts` is a feature root that `WIRING_ROOT_FILES` does NOT name, so widening that set to every root reds this row",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/character/contract/handoff-copy.ts":
           "export function handoffProvenance(chatId: string): string {\n  return `handoff:` + chatId;\n}\n",
+        "tests/server/domain/character/contract/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "domain file with runtime logic has no test" },
+      expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
       why: "the `contract/`-without-schema hole (#767): `hasSchema` was never meant to exempt a contract file carrying REAL logic — this one derives the handoff copy's idempotency key, and the error-declaration exemption below does not cover it",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/entry/http/frame-handle-store.ts":
           "export function take(id: string, owner: string): string | undefined {\n  const hit = STORE.get(id);\n  if (hit === undefined || hit.owner !== owner) {\n    return undefined;\n  }\n  return hit.doc;\n}\n",
+        "tests/server/entry/http/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "entry/transport file with runtime logic has no test" },
+      expect: { count: 1, messageIncludes: "entry/transport file with runtime logic has no test" },
       why: "THE #773 SHAPE — an `entry/http/` unit that is NOT wiring: the opaque frame-handle store's owner check is a SECURITY primitive (a foreign owner must be indistinguishable from a miss) and it sat outside the demand set entirely, because the old arms only reached domain/ + infra/ + foundation/",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/transport/jobs/workload-schedule-scheduler.ts":
           "export function startWorkloadScheduleScheduler(deps: Deps): () => void {\n  const safeTick = (): void => {\n    tickWorkloadSchedules(deps).catch(() => undefined);\n  };\n  safeTick();\n  return deps.scheduleInterval(safeTick, deps.checkIntervalMs);\n}\n",
+        "tests/server/transport/jobs/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "entry/transport file with runtime logic has no test" },
+      expect: { count: 1, messageIncludes: "entry/transport file with runtime logic has no test" },
       why: "the transport half: a job DRIVER decides WHEN to fire and isolates a failing tick — real behavior, more than one statement, so the pass-through exemption does not reach it",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/entry/compose/gate.ts":
           "export const decide = (deps: Deps, req: Req): Verdict => (req.anonymous ? deps.publicBucket(req.ip) : deps.authedBucket(req.userId));\n",
+        "tests/server/entry/compose/other.test.ts": "export {};\n",
       },
-      expect: { messageIncludes: "entry/transport file with runtime logic has no test" },
+      expect: { count: 1, messageIncludes: "entry/transport file with runtime logic has no test" },
       why: "THE PERMISSIVE DIRECTION of the pass-through exemption — a ONE-EXPRESSION body that still DECIDES. It looks like the exempt delegating-call shape and is not one: a conditional is neither a plumbing atom nor a wiring call, so policy written as a ternary stays demanded",
     },
     {
+      mode: "resource",
       files: {
         "packages/db/src/schema/index.ts": "export const schema = 1;\n",
         "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((r) => r[0] ?? 0);\n",
         "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
       },
-      expect: { messageIncludes: "the entry/transport scan matched ZERO files" },
-      why: "THE #773 ARM'S BLINDNESS TRIPWIRE (§4.6): a project that loads the real-tree anchor and a domain logic file but NO entry/transport file at all. The tier demand is keyed on two path prefixes, so a rename or a tier move would otherwise turn the whole arm into a silent ✓ over an unscanned corpus — this is the one example that reaches the tripwire, since a real run never has zero",
+      expect: { count: 1, messageIncludes: "the entry/transport scan matched ZERO files" },
+      why: "THE #773 ARM'S BLINDNESS TRIPWIRE (§4.6): a corpus that carries the real-tree anchor and a tested domain logic file but NO entry/transport file at all. The tier demand is keyed on two path prefixes, so a rename or a tier move would otherwise turn the whole arm into a silent ✓ over an unscanned corpus — this is the one row that reaches the tripwire, since a real run never has zero. THE ANCHOR MOVE is pinned here too: the finding reports at the db schema anchor, inside the declared resource population, never at the gate's own source file",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+        "packages/server/src/entry/http/frame-handle-store.ts":
+          "export function take(id: string): string | undefined {\n  const hit = STORE.get(id);\n  if (hit === undefined) {\n    return undefined;\n  }\n  return hit.doc;\n}\n",
+        "tests/server/entry/http/frame-handle-store.test.ts": "export const t = 1;\n",
+      },
+      expect: { count: 1, messageIncludes: "the domain scan matched ZERO files" },
+      why: "THE #767 ARM'S OWN TRIPWIRE, which the legacy suite held only in a scratch-tree test and no proof row ever reached: the anchor plus a TESTED tier corpus and no domain file at all — the shape a domain-tree move produces. Both tripwires return early, so each needs its own row or one masks the other",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/chat/substrate/decides-access.ts":
+          "export function shapeVia(ctx: Ctx, speaker: Speaker): Shaped {\n  return speaker.narrator ? shapeAll(ctx) : shapeOne(ctx, speaker);\n}\n",
+        "tests/server/domain/chat/substrate/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
+      why: "THE PERMISSIVE EDGE of the DOMAIN pass-through exemption, the twin of `mustFlag[14]` one arm over: a `substrate/` seam whose one-expression body still DECIDES is not a forwarder — a conditional is neither a plumbing atom nor a wiring call — so it stays demanded. Without this row the exemption `mustPass[15]` relies on could widen into 'any substrate file with a short body' and no declared row would notice",
     },
   ],
   mustPass: [
     {
+      mode: "resource",
       files: {
-        "packages/server/src/domain/chat/verbs/preview.ts": "export const preview = 1;\n",
+        "packages/server/src/domain/chat/verbs/preview.ts": "export const preview = () => 1;\n",
         "tests/server/domain/chat/verbs/preview.dom.test.ts": "export {};\n",
-        "packages/server/src/domain/chat/persistence/record.ts": "export const record = 1;\n",
+        "packages/server/src/domain/chat/persistence/record.ts": "export const record = () => 1;\n",
         "tests/server/domain/chat/persistence/record.int.test.ts": "export {};\n",
         "packages/contracts/src/chat/schema.ts": "export const S = z.object({});\n",
         "tests/contracts/chat/schema.contract.test.ts": "export {};\n",
@@ -629,44 +711,56 @@ export const gate: GateDescriptor = {
       why: "registry-derived suffixes retain the distinct unit, integration and contract family obligations",
     },
     {
+      mode: "resource",
       files: {
-        "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = 1;\n",
+        "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = () => 1;\n",
         "tests/server/domain/chat/verbs/start-chat.test.ts": "export const t = 1;\n",
       },
       why: "the verb file has its mirror .test.ts — presence satisfied, passes",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/workloads/runners/stub.ts": "export const run = () => ({ deferred: true });\n",
+        "tests/server/domain/workloads/runners/other.test.ts": "export {};\n",
       },
-      why: "a D58 no-op stub runner (deferred: true, never touches ctx.env) — exempt until filled in, passes",
+      why: "DECLARED LIMIT — a D58 no-op stub runner (deferred: true, never touches ctx.env) is exempt until filled in. It is also a pass-through-shaped residual subject, which is why it is silent on BOTH arms",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/chat/contract/prose.ts":
           '// The wire shape for this lives in packages/contracts — z.object({ id }) is declared there, not here.\nexport const LABEL = "x";\n',
+        "tests/server/domain/chat/contract/other.test.ts": "export {};\n",
       },
       why: "COMMENT POSTURE (issue #117/#132), false-POSITIVE direction: a contract-dir file whose COMMENT spells `z.object(` declares no schema, so demanding a .contract.test.ts would demand a test with nothing to assert",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/tag/service.ts": "export function createTagService(ctx: { db: number }) {\n  return { db: ctx.db };\n}\n",
+        "tests/server/domain/tag/other.test.ts": "export {};\n",
       },
-      why: "DECLARED LIMIT of the #767 arm: a feature-root `service.ts` is the composition root the template gives ZERO logic (Core-0 §4) — it only assembles verb factories, each of which carries its own demanded test, so a test here would assert the wiring twice",
+      why: "DECLARED LIMIT of the #767 arm: a feature-root `service.ts` is the composition root the template gives ZERO logic (Core-0 §4) — it only assembles verb factories, each of which carries its own demanded test, so a test here would assert the wiring twice. THE `isFeatureRoot` NARROWING: nesting the same file one level deeper reds it",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/stats/context.ts": "export function createStatsContext(db: number, now: () => number) {\n  return { db, now };\n}\n",
+        "tests/server/domain/stats/other.test.ts": "export {};\n",
       },
       why: "DECLARED LIMIT: `context.ts` is the DI bundle Spine-Testing §5 names exempt by nature — its builder returns its own arguments, which is the tautology test the presence rule exists to avoid",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/tag/contract/errors.ts": "export class TagNotFoundError extends DomainNotFoundError {}\n",
+        "tests/server/domain/tag/other.test.ts": "export {};\n",
       },
-      why: "DECLARED LIMIT: a `contract/` file declaring only error CLASSES is a type surface with a runtime shadow — `hasCallableExport` counts the class, but the only assertion available is `instanceof`. A function or a non-error class in the same file drops the exemption (the mustFlag above)",
+      why: "DECLARED LIMIT: a `contract/` file declaring only error CLASSES is a type surface with a runtime shadow — `hasCallableExport` counts the class, but the only assertion available is `instanceof`. A function or a non-error class in the same file drops the exemption (mustFlag[11])",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((r) => r[0] ?? 0);\n",
         "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
@@ -674,40 +768,51 @@ export const gate: GateDescriptor = {
       why: "the other direction of the #767 arm: the same substrate file WITH its mirror test passes — 91 substrate files were already tested and merely undemanded, so the widening must not accuse them",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/entry/boot/seed-themes.ts":
           "export async function seedThemes(deps: SeedThemesDeps): Promise<void> {\n  await ensureSeedThemes(deps.db, deps.now);\n}\n",
+        "tests/server/entry/boot/other.test.ts": "export {};\n",
       },
       why: "DECLARED LIMIT of the #773 arm — THE PASS-THROUGH SHAPE: a boot step whose whole body forwards its own deps into ONE lower-tier call. The behavior is `ensureSeedThemes`'s and is demanded THERE (the domain arm); a test here could only assert that the forwarder forwards, which is the tautology this doc bans. It loses the exemption the day it grows a second statement",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/transport/trpc/context.ts":
           "export function createContext(parts: Parts): Context {\n  return { auth: parts.auth, services: parts.services, rateLimit: parts.rateLimit, clientIp: parts.clientIp };\n}\n",
+        "tests/server/transport/trpc/other.test.ts": "export {};\n",
       },
       why: 'DECLARED LIMIT — THE DI-BUNDLE SHAPE, the transport twin of the domain `context.ts` exemption, derived from the BODY rather than the basename: a packaging function that returns its own arguments (`core/Tier-4-Transport.md`: "Pure packaging: no db, no header parsing, no identity resolution")',
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/transport/trpc/routers/chat.ts":
           "export const chatRouter = router({\n  send: authedProcedure.input(sendSchema).mutation(({ ctx, input }) => ctx.services.chat.send(input)),\n});\n",
+        "tests/server/transport/trpc/routers/other.test.ts": "export {};\n",
       },
       why: "DECLARED LIMIT — THE ROUTER SHELL: `core/Tier-4-Transport.md` gives a router zero business logic (validate → call the verb → map the error), and it needs no predicate of its own because a `router({…})` call binds no callable export, so `hasCallableExport` already leaves it alone. The row exists so a future change to that helper cannot silently start demanding a test on all 24 shells",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/entry/compose/minter.ts":
           "export function minter<P extends string>(prefix: P): () => TypeIdOf<P> {\n  return (): TypeIdOf<P> => mintTypeId(prefix);\n}\n",
+        "tests/server/entry/compose/other.test.ts": "export {};\n",
       },
       why: "DECLARED LIMIT — the CURRIED pass-through: a factory whose returned closure is itself one delegating call. The shape reduces through the arrow, so `minter` is wiring and stays exempt while a factory that computed anything before returning would not",
     },
     {
+      mode: "resource",
       files: {
-        "packages/showcase-plugins/bundles/host-v1.d.ts": "export declare function hostV1(): void;\n",
+        "packages/server/src/entry/http/frame-types.d.ts": "export declare function hostV1(): void;\n",
+        "tests/server/entry/http/other.test.ts": "export {};\n",
       },
-      why: "DECLARED LIMIT — a `.d.ts` DECLARATION file: it emits nothing at runtime, so there is no behavior a mirror test could assert. `hasCallableExport` counts an `export declare function`, which is exactly how a shipped typings asset (the plugin host contract lives under `packages/showcase-plugins/bundles/`) would otherwise be accused",
+      why: "DECLARED LIMIT — a `.d.ts` DECLARATION file inside a demanded TIER: it emits nothing at runtime, so there is no behavior a mirror test could assert. `hasCallableExport` counts an `export declare function`, which is exactly how a typings asset would otherwise be accused. THE `DECLARATION_EXT` NARROWING: dropping the `.d.ts` test reds this row",
     },
     {
+      mode: "resource",
       files: {
         "packages/server/src/entry/http/frame-handle-store.ts":
           "export function take(id: string, owner: string): string | undefined {\n  const hit = STORE.get(id);\n  if (hit === undefined || hit.owner !== owner) {\n    return undefined;\n  }\n  return hit.doc;\n}\n",
@@ -715,5 +820,23 @@ export const gate: GateDescriptor = {
       },
       why: "the other direction of the #773 arm: the same entry file WITH its mirror test passes — 65 of the tier's 94 logic files were already tested and merely undemanded, so the widening must not accuse them",
     },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/chat/index.ts": 'export * from "./service.ts";\nexport const front = () => 1;\n',
+        "tests/server/domain/chat/other.test.ts": "export {};\n",
+      },
+      why: "DECLARED LIMIT — THE SERVER `index.ts` SKIP: a server barrel is a pure re-export and is not a behavioural surface. It is the asymmetric half of the rule `mustFlag[7]` holds from the other side, where a CONTRACTS `index.ts` IS checked because the domain's zod schemas co-locate there. Deleting the skip reds this row",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/chat/substrate/assembly-access.ts":
+          "export function shapeTurn(...args: Parameters<typeof shape>): ReturnType<typeof shape> {\n  return shape(...args);\n}\n" +
+          "export function fitHistory(...args: Parameters<typeof fitHistoryToWindow>): ReturnType<typeof fitHistoryToWindow> {\n  return fitHistoryToWindow(...args);\n}\n",
+        "tests/server/domain/chat/substrate/other.test.ts": "export {};\n",
+      },
+      why: "DECLARED LIMIT — THE DOMAIN PASS-THROUGH SEAM (#2062), the shape that put two files in the retired baseline. A `substrate/` DI bridge exists to mediate a dep-cruiser boundary: every export forwards its OWN argument list into one sibling-subsystem call, so the behaviour is the target's and is demanded THERE, exactly as the #773 tier arm has always reasoned. It is also the shape the house's own test law makes UNTESTABLE — a test here either asserts that a forwarder forwards (the §5 tautology) or `vi.mock`s an internal module (§3, banned, and `test-mock-doctrine` reds it). TWO cuts red this row: dropping `isPassThroughWiring` from `pushDomainResidual`, and dropping the SPREAD clause from `isPlumbingAtom`",
+    },
   ],
-};
+});

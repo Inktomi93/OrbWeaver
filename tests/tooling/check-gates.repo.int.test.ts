@@ -149,14 +149,28 @@ function writeFixtures(): void {
   fx(`${D}/__g_verb/verbs/thing.ts`, "export const wrong = 1;\n");
   // types-in-contract: contract/service.ts without the exported interface.
   fx(`${D}/__g_types/contract/service.ts`, "export const notAnInterface = 1;\n");
-  // test-presence: a verb with no mirror test.
+  // RETIRED SUBJECT (#2061/#2062): `test-presence` is a `defineGate` policy now, so `loadGates` no longer returns it and
+  // this fixture proves nothing here — its arms run on the static bar through `structure:policy-conformance`.
+  // The FILE is left planted rather than deleted because this suite is orchestrator-only and not
+  // concurrency-safe, so the lane could not run it to prove no OTHER gate reads the same path; deleting it is
+  // the orchestrator's, on the train that next runs this suite.
   fx(`${D}/__g_pres/verbs/act.ts`, "export function createAct(): number {\n  return 1;\n}\n");
-  // test-presence (contracts index.ts hole, fixed 2026-07-10): a contracts domain whose zod schemas
+  // RETIRED SUBJECT (#2061/#2062): `test-presence` is a `defineGate` policy now, so `loadGates` no longer returns it and
+  // this fixture proves nothing here — its arms run on the static bar through `structure:policy-conformance`.
+  // The FILE is left planted rather than deleted because this suite is orchestrator-only and not
+  // concurrency-safe, so the lane could not run it to prove no OTHER gate reads the same path; deleting it is
+  // the orchestrator's, on the train that next runs this suite.
+  // (contracts index.ts hole, fixed 2026-07-10): a contracts domain whose zod schemas
   // co-locate in index.ts (the convention — NOT a re-export barrel) with no .contract.test.ts mirror. The
   // OLD gate blanket-skipped every index.ts, silently exempting whole contract domains (imagery shipped
   // with zero tests). This fixture pins that a schema-bearing contracts index.ts is now presence-gated.
   fx("packages/contracts/src/__g_prescontract/index.ts", 'import { z } from "zod";\nexport const gSchema = z.object({ n: z.number() });\n');
-  // test-presence (workloads runners/ arm, added 2026-07-10): a runner with REAL logic (touches ctx.env,
+  // RETIRED SUBJECT (#2061/#2062): `test-presence` is a `defineGate` policy now, so `loadGates` no longer returns it and
+  // this fixture proves nothing here — its arms run on the static bar through `structure:policy-conformance`.
+  // The FILE is left planted rather than deleted because this suite is orchestrator-only and not
+  // concurrency-safe, so the lane could not run it to prove no OTHER gate reads the same path; deleting it is
+  // the orchestrator's, on the train that next runs this suite.
+  // (workloads runners/ arm, added 2026-07-10): a runner with REAL logic (touches ctx.env,
   // no `{ deferred: true }`) and no mirror test fires. A D58 no-op stub is shape-exempt; this fixture is the
   // non-stub case so a filled-in runner can never ship untested.
   fx(
@@ -217,7 +231,11 @@ function writeFixtures(): void {
   // can't cleanly trigger the doc-reconciliation arm (it would need a valid mustFlag/mustPass descriptor
   // whose name is absent from the real doc — a heavy live-doc edit), so this gate is exempted from the
   // anti-drift assertion below; its bite is proven by gate-conformance (its mustFlag).
-  // test-layout: a test with no source mirror.
+  // RETIRED SUBJECT (#2061/#2062): `test-layout` is a `defineGate` policy now, so `loadGates` no longer returns it and
+  // this fixture proves nothing here — its arms run on the static bar through `structure:policy-conformance`.
+  // The FILE is left planted rather than deleted because this suite is orchestrator-only and not
+  // concurrency-safe, so the lane could not run it to prove no OTHER gate reads the same path; deleting it is
+  // the orchestrator's, on the train that next runs this suite.
   fx("tests/server/__g_nomirror.test.ts", "export {};\n");
   // test-world-browser-contracts: a Node-intent type test consumes the real browser-authored InputProps
   // contract through its public primitive barrel. React's empty Node-world DOM declarations must not make
@@ -538,7 +556,11 @@ function writeFixtures(): void {
     "tooling/src/verify/gates/__g_findprov.ts",
     'export function gFindProv(node: N, ctx: C): void {\n  ctx.report({ file: rel, line: node.getStartLineNumber(), column: 7, message: "see tooling/src/verify/gates/GATE-AUTHORING.md" });\n}\n',
   );
-  // test-presence-client: a client data/ file with a callable export and no tests/client mirror.
+  // RETIRED SUBJECT (#2061/#2062): `test-presence-client` is a `defineGate` policy now, so `loadGates` no longer returns it and
+  // this fixture proves nothing here — its arms run on the static bar through `structure:policy-conformance`.
+  // The FILE is left planted rather than deleted because this suite is orchestrator-only and not
+  // concurrency-safe, so the lane could not run it to prove no OTHER gate reads the same path; deleting it is
+  // the orchestrator's, on the train that next runs this suite.
   fx("packages/client/src/data/__g_presclient.ts", "export function gPresClient(): number {\n  return 1;\n}\n");
   // surface-in-a-container: a surface with raw structural JSX, no Container, no anchors/ dir under
   // its (stray) feature — the anchor-provided exemption has nothing to exempt it with.

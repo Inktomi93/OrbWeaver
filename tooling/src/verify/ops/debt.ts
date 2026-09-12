@@ -51,7 +51,6 @@ import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
 import { BASELINE_REL as SUPPRESSIONS_BASELINE_REL } from "../gates/suppressions.ts";
-import { BASELINE_REL as TEST_PRESENCE_BASELINE_REL } from "../gates/test-presence.ts";
 import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";
 import { BASELINE_REL as ORPHAN_BASELINE_REL } from "./orphan-export-ratchet.ts";
 
@@ -80,12 +79,6 @@ export const LEDGERS: readonly Ledger[] = [
     rel: DOORS_BASELINE_REL,
     unit: "door(s) on the plane",
     why: "one tRPC mutation reachable from N components inside ONE rail section (the §13 more-than-one-home IA class). Ends per pair when the section gets ONE component that owns the verb.",
-  },
-  {
-    owner: "test-presence",
-    rel: TEST_PRESENCE_BASELINE_REL,
-    unit: "untested domain-logic file",
-    why: "a domain file with runtime logic (substrate/, a named subsystem, guard.ts, a contract/ file carrying real logic) that the #767 demand-by-default widening newly demands and the tree does not yet test. Burn-down is board row 772, one family at a time; ends per file when its mirror .test/.int.test lands and the shrink is regenerated.",
   },
   {
     owner: "suppressions",
