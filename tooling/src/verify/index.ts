@@ -159,7 +159,6 @@ export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
 export { deriveCaughtFailurePopulation, generateCaughtFailurePopulation, POPULATION_REL } from "./ops/gen/caught-failure-population.ts";
 export { generateDensityBaseline } from "./ops/gen/density.ts";
 export { generateDuplicateActionDoorsBaseline } from "./ops/gen/duplicate-action-doors.ts";
-export { generateOverArtPlateBaseline } from "./ops/gen/over-art-plate-arm.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";
 export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";

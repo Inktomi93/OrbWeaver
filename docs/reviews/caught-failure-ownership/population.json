@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 596,
+    "sites": 595,
     "reported": 23,
     "byVerdict": {
-      "deliberate-absorb": 573,
+      "deliberate-absorb": 572,
       "unproven": 23
     },
     "byGrammar": {
       "default": 161,
-      "empty": 292,
+      "empty": 291,
       "promise": 143
     }
   },
@@ -7049,19 +7049,6 @@
       "markerLine": 100
     },
     {
-      "siteId": "tooling/src/verify/gates/integer-line-boxes.ts::catch::1",
-      "path": "tooling/src/verify/gates/integer-line-boxes.ts",
-      "line": 118,
-      "column": 5,
-      "grammar": "empty",
-      "position": "catch",
-      "ordinal": 1,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "an unparseable tokens.json becomes this gate's own RED finding (\"tokens.json is unparseable\") through the returned problems array — the loudest owner a structural gate has. Ends if the problems array stops being reported in `run`.",
-      "markerLine": 115
-    },
-    {
       "siteId": "tooling/src/verify/gates/monotonic-tests.ts::catch::1",
       "path": "tooling/src/verify/gates/monotonic-tests.ts",
       "line": 112,
@@ -7493,7 +7480,7 @@
     {
       "siteId": "tooling/src/verify/ops/debt.ts::catch::1",
       "path": "tooling/src/verify/ops/debt.ts",
-      "line": 176,
+      "line": 169,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -7501,7 +7488,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "returns null, which the doc comment above says is printed as \"unavailable\" WITH its reason — never as zeros. Ends if a caller starts treating null as zero admissions.",
-      "markerLine": 173
+      "markerLine": 166
     },
     {
       "siteId": "tooling/src/verify/ops/orphan-export-ratchet.ts::err::1",

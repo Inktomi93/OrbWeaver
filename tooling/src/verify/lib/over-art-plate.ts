@@ -1,21 +1,22 @@
 // The READER behind the `over-art-plate-arm` gate (UI-Theming-and-Content.md §12.1 / D144) — split out of
 // the descriptor for the tooling 450-line cap. It classifies every `background(-color)` under an
-// `html[data-blur-*]` gate, pairs each PLATELESS base with the `[data-has-bg-image]` rule that gives its
-// (subject, tint) a `light-dark()` plate arm, and judges the two-sided `@over-art-plate-ok` marker. It is
-// deliberately CONSERVATIVE: what it cannot PROVE is in the population is a counted skip, never a finding.
-import { globSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+// `html[data-blur-*]` gate and pairs each PLATELESS base with the `[data-has-bg-image]` rule that gives its
+// (subject, tint) a `light-dark()` plate arm. It is deliberately CONSERVATIVE: what it cannot PROVE is in
+// the population is a skip, never a finding.
+//
+// IT OWNS NO FILESYSTEM AND NO MARKER GRAMMAR ANY MORE (#1584 conversion). The stylesheets arrive already
+// read and already parsed, as the `authored-css` resource the policy declares; and the two-sided
+// `@over-art-plate-ok` vocabulary it used to judge is retired for `@orb-waive`, whose central engine owns
+// malformed / stale / dead-position / over-broad reconciliation for every ordinary policy at once. What is
+// left here is the one thing that is genuinely this policy's own: the plate ALGEBRA.
+import type { AuthoredCssFile } from "../contract/resource-tree.ts";
 import type { CssRule } from "./css-rules.ts";
-import { callArguments, parseCssRules, selectorSubject } from "./css-rules.ts";
+import { callArguments, selectorSubject, splitSelectorListWithOffsets } from "./css-rules.ts";
 
 const PLATE_VAR = "var(--color-reading-plate)";
 export const WALLPAPER_GATE = "[data-has-bg-image]";
 export const GLASS_GATE = "[data-blur-";
 export const TRANSPARENT = "transparent";
-const MARKER = "@over-art-plate-ok";
-const MARKER_GRAMMAR = `${MARKER}(<selector subject>)?: <reason>`;
-/** `@over-art-plate-ok(<subject>)?: <reason>` — the position is optional, the reason never is (§4 rule 3). */
-const MARKER_RE = /@over-art-plate-ok(?<pos>\([^)]*\))?(?<colon>\s*:)?(?<reason>[^*\n]*)/gu;
 const TINT_RE = /var\(\s*(--color-[a-z0-9-]+)\s*\)/u;
 /** "this value is TRANSLUCENT-shaped" — the fence between an unreadable population member and an opaque
  *  value that was never the plate's business. `transparent` is NOT in it: an alpha of exactly zero is a
@@ -29,7 +30,6 @@ const ALPHA_SHAPE_RE = /color-mix\(|\/\s*[\d.]/u;
  *  that must keep failing loud. Bucketing the first as the second is what made a correctly-placed
  *  `@over-art-plate-ok` marker RED a second time as STALE, with no in-CSS way to be green. */
 const NO_FILL_RE = /^(?:transparent|none|(?:rgba?|hsla?|oklch|oklab|lab|lch|color)\([^)]*(?:,\s*0(?:\.0+)?|\/\s*0(?:\.0+)?%?)\s*\))$/u;
-const CSS_GLOBS = ["packages/client/src/**/*.css", "packages/ui/src/**/*.css"] as const;
 const BACKGROUND_PROPS: ReadonlySet<string> = new Set(["background", "background-color"]);
 
 /** ONE `background-color` under a glass gate, classified. NOT exported (the `no-inline-types` type-home
@@ -93,11 +93,36 @@ function readBackground(value: string): Reading {
  *  `live` map's value), never referenced by its own name outside this file. */
 export interface Site {
   readonly rel: string;
+  /** 1-based line of the SUBJECT inside the rule's selector list — not of the declaration. A final ordinary
+   *  policy's finding must point at a token that slices the authored text at its reported column, and the
+   *  only text that spells a subject is the selector that names it. */
   readonly line: number;
+  readonly column: number;
   readonly subject: string;
   readonly tint: string;
   readonly reading: Reading;
   readonly wallpaperGated: boolean;
+}
+
+/** 1-based line/column of an absolute offset. */
+function positionOf(text: string, offset: number): { readonly line: number; readonly column: number } {
+  const before = text.slice(0, offset);
+  return { line: before.split("\n").length, column: offset - before.lastIndexOf("\n") };
+}
+
+/** Where one selector's SUBJECT is spelled, in the raw stylesheet. The selector list's authored spans come
+ *  from the parser; the subject is the last compound of one of them, so it is found inside that span. */
+function subjectPosition(file: AuthoredCssFile, rule: CssRule, index: number, subject: string): { readonly line: number; readonly column: number } {
+  // `preludeStart` is the offset after the PREVIOUS block, so it includes this rule's leading trivia — and a
+  // waiver comment sitting there spells the very subject we are looking for. Searching the raw text from
+  // there lands the finding INSIDE the marker that was meant to suppress it, which the engine rejects as
+  // "points into comment trivia rather than authored code". Start at the end of the last comment instead.
+  const trivia = file.text.lastIndexOf("*/", rule.braceStart);
+  const selectorStart = Math.max(rule.preludeStart, trivia + "*/".length);
+  const parts = splitSelectorListWithOffsets(file.text.slice(selectorStart, rule.braceStart));
+  const from = selectorStart + (parts[index]?.offset ?? 0);
+  const at = file.text.indexOf(subject, from);
+  return positionOf(file.text, at === -1 ? from : at);
 }
 
 /** The ratchet subject and the pairing key: one FILE's one SUBJECT at one TINT. Line-independent, so a rule
@@ -108,7 +133,7 @@ function subjectKey(site: Site): string {
 
 /** Every glass `background(-color)` declaration of one rule — one Site per SELECTOR, because a two-selector
  *  rule styles two subjects and each owes its own plate arm. */
-function sitesOf(rel: string, rule: CssRule): Site[] {
+function sitesOf(file: AuthoredCssFile, rule: CssRule): Site[] {
   const out: Site[] = [];
   if (!rule.selectorList.includes(GLASS_GATE)) {
     return out;
@@ -116,41 +141,31 @@ function sitesOf(rel: string, rule: CssRule): Site[] {
   for (const decl of rule.declarations.filter((d) => BACKGROUND_PROPS.has(d.prop))) {
     const reading = readBackground(decl.value);
     const tint = reading.kind === "plateless" || reading.kind === "provider" ? reading.tint : "";
-    for (const selector of rule.selectors) {
-      out.push({ rel, line: decl.line, subject: selectorSubject(selector), tint, reading, wallpaperGated: selector.includes(WALLPAPER_GATE) });
+    for (const [index, selector] of rule.selectors.entries()) {
+      const subject = selectorSubject(selector);
+      out.push({
+        rel: file.path,
+        ...subjectPosition(file, rule, index, subject),
+        subject,
+        tint,
+        reading,
+        wallpaperGated: selector.includes(WALLPAPER_GATE),
+      });
     }
   }
   return out;
 }
 
-interface Marker {
-  readonly position: string | null;
-  readonly malformed: boolean;
-}
-
-/** The `@over-art-plate-ok` markers attached to one rule — read from the RAW bytes between the previous
- *  block and this rule's `{`, so they are BLOCK-SCOPED by construction (§4 rule 3b: a marker can never leak
- *  onto the next rule). Comments-INTENDED: the marker IS a comment, which is why this reads raw text while
- *  the value scan reads the blanked text at the same offsets. */
-function markersFor(rawText: string, rule: CssRule): readonly Marker[] {
-  const region = rawText.slice(rule.preludeStart, rule.braceStart);
-  const out: Marker[] = [];
-  MARKER_RE.lastIndex = 0;
-  for (const match of region.matchAll(MARKER_RE)) {
-    const groups = match.groups ?? {};
-    const pos = groups["pos"];
-    const position = pos === undefined ? null : pos.slice(1, -1).trim();
-    out.push({ position, malformed: groups["colon"] === undefined || (groups["reason"] ?? "").trim() === "" || position === "" });
-  }
-  return out;
-}
-
-/** A file-level finding — exactly the `Finding` fields a stylesheet can carry (no node, so column 0).
+/** A report-on-sight finding, positioned on the SELECTOR SUBJECT it accuses. The position is the waiver
+ *  POSITION too, which is why it is a subject and not a declaration: an ordinary finding's token must slice
+ *  the authored text at its reported column.
  *  @public knip type-face false positive — a structural field of the exported `Judgement` shape (its
  *  `findings` field), never referenced by its own name outside this file. */
 export interface CssFinding {
   readonly file: string;
   readonly line: number;
+  readonly column: number;
+  readonly token: string;
   readonly message: string;
 }
 
@@ -158,7 +173,6 @@ export interface CssFinding {
 export interface Judgement {
   readonly findings: CssFinding[];
   readonly live: Map<string, Site>;
-  readonly skipped: Record<string, number>;
   glassRules: number;
 }
 
@@ -169,49 +183,8 @@ export interface Judgement {
  *  measured fact rather than by a marker nobody re-checks. */
 const PSEUDO_CARRIERS = ["::before", "::after"] as const;
 
-/** The counted-skip label for a no-fill whose paint provably moved to its own pseudo carrier. */
-const CARRIED_SKIP = "fill-moved-to-pseudo-carrier";
-
-function countSkip(judged: Judgement, why: string): void {
-  judged.skipped[why] = (judged.skipped[why] ?? 0) + 1;
-}
-
 function carriedByPseudo(site: Site, filled: ReadonlySet<string>): boolean {
   return PSEUDO_CARRIERS.some((pseudo) => filled.has(`${site.rel}::${site.subject}${pseudo}`));
-}
-
-function markerProblem(marker: Marker, plateless: readonly Site[]): string | null {
-  if (marker.malformed) {
-    return `MALFORMED \`${MARKER}\` marker — the grammar is \`${MARKER_GRAMMAR}\` and the REASON is required (GATE-AUTHORING.md §4 rule 3). A marker that exempts nothing must not sit there looking like protection.`;
-  }
-  if (marker.position === null && plateless.length > 1) {
-    return `OVER-EXEMPTING \`${MARKER}\` marker — this rule styles ${plateless.length} subjects (${plateless.map((s) => s.subject).join(", ")}) and an unpositioned marker absolves all of them. Name the position: \`${MARKER_GRAMMAR}\` (GATE-AUTHORING.md §4 rule 3a).`;
-  }
-  if (!plateless.some((s) => marker.position === null || s.subject === marker.position)) {
-    const named = marker.position === null ? "" : ` (no subject \`${marker.position}\` here)`;
-    return `STALE \`${MARKER}\` marker — it exempts nothing on this rule${named}. A stale exemption is a loaded gun: the next violation written here inherits a permit nobody granted it. Delete it (GATE-AUTHORING.md §4 rule 4).`;
-  }
-  return null;
-}
-
-/** One rule's markers → the keys they exempt, plus the two-sided arms (malformed · over-exempting · stale). */
-function judgeMarkers(
-  out: CssFinding[],
-  scope: { readonly rel: string; readonly rule: CssRule; readonly rawText: string },
-  plateless: readonly Site[],
-): ReadonlySet<string> {
-  const exempted = new Set<string>();
-  for (const marker of markersFor(scope.rawText, scope.rule)) {
-    const problem = markerProblem(marker, plateless);
-    if (problem === null) {
-      for (const target of plateless.filter((s) => marker.position === null || s.subject === marker.position)) {
-        exempted.add(subjectKey(target));
-      }
-    } else {
-      out.push({ file: scope.rel, line: scope.rule.line, message: problem });
-    }
-  }
-  return exempted;
 }
 
 const DARK_ARM_MESSAGE =
@@ -223,9 +196,9 @@ const DARK_ARM_MESSAGE =
 const UNREADABLE_MESSAGE =
   `UNREADABLE translucent background under a \`${GLASS_GATE}…]\` gate — this reader cannot prove whether it ` +
   'composites over the wallpaper, and a shape it cannot classify is "I could not measure", never clean. ' +
-  `Spell it as the house recipe (see the fix). THE MARKER CANNOT ABSOLVE THIS (#1171): \`${MARKER}\` names a ` +
-  "site the reader HAS classified and declares it out of the population — it is not a way to silence a " +
-  "measurement that failed, and a missing measurement stays loud.";
+  "Spell it as the house recipe (see the fix). A WAIVER IS NOT THE ANSWER HERE (#1171): a marker declares a " +
+  "site the reader HAS classified to be out of the population — it is not a way to silence a measurement " +
+  "that failed, and a missing measurement stays loud.";
 
 /** The two readings that are a finding on sight — a mapped Record rather than a chain, so a new `Reading`
  *  arm that belongs here is a tsc error at this table instead of a silent fall-through to nothing. */
@@ -250,12 +223,11 @@ function classifyOne(judged: Judgement, site: Site, providers: Set<string>, pend
     return;
   }
   if (reading.kind === "skip") {
-    countSkip(judged, reading.why);
     return;
   }
   const message = REPORT_ON_SIGHT[reading.kind];
   if (message !== undefined) {
-    judged.findings.push({ file: site.rel, line: site.line, message });
+    judged.findings.push({ file: site.rel, line: site.line, column: site.column, token: site.subject, message });
   }
 }
 
@@ -266,62 +238,50 @@ function collect(judged: Judgement, sites: readonly Site[], providers: Set<strin
   }
 }
 
-/** Every stylesheet this reader reads — the gate's own `ctx.scan` denominator, never a workspace file count. */
-export function stylesheetsOf(root: string): readonly string[] {
-  return CSS_GLOBS.flatMap((glob) => globSync(glob, { cwd: root })).sort((a, b) => a.localeCompare(b));
-}
-
 /** The unpaired, unexempted, uncarried remainder of `pending` — the ratchet's live subjects. Split out of
  *  `judgeStylesheets` so each half stays inside the complexity bound the tooling lints hold. */
 function settlePending(
   judged: Judgement,
   pending: readonly Site[],
-  resolved: { readonly providers: ReadonlySet<string>; readonly exempted: ReadonlySet<string>; readonly filled: ReadonlySet<string> },
+  resolved: { readonly providers: ReadonlySet<string>; readonly filled: ReadonlySet<string> },
 ): void {
   for (const site of pending) {
     const key = subjectKey(site);
-    if (resolved.providers.has(key) || resolved.exempted.has(key)) {
+    if (resolved.providers.has(key)) {
       continue;
     }
     if (site.reading.kind === "no-fill" && carriedByPseudo(site, resolved.filled)) {
-      countSkip(judged, CARRIED_SKIP);
       continue;
     }
     judged.live.set(key, site);
   }
 }
 
-/** Scan every client/ui stylesheet and decide the whole population in one pass. */
-export function judgeStylesheets(root: string): Judgement {
-  const judged: Judgement = { findings: [], live: new Map(), skipped: {}, glassRules: 0 };
+/** Decide the whole authored-CSS population in one pass. The corpus arrives ALREADY READ AND PARSED — it is
+ *  the `authored-css` resource the consuming policy declares, which is how this reader stopped owning a
+ *  filesystem walk without losing a single stylesheet: `authored-css` is exactly every `.css` under
+ *  `packages/client/src` and `packages/ui/src` (`ops/resource-tree.ts:84-107`), byte-identical to the two
+ *  globs it replaced. */
+export function judgeStylesheets(files: readonly AuthoredCssFile[]): Judgement {
+  const judged: Judgement = { findings: [], live: new Map(), glassRules: 0 };
   const providers = new Set<string>();
   const pending: Site[] = [];
-  const exempted = new Set<string>();
   /** Every `<file>::<subject>` that declares a background under a glass gate — the denominator the
    *  pseudo-carrier proof reads: a no-fill pane whose `::before` is in here handed its fill over. */
   const filled = new Set<string>();
-  for (const rel of stylesheetsOf(root)) {
-    const rawText = readFileSync(join(root, rel), "utf8");
-    for (const rule of parseCssRules(rawText)) {
-      const sites = sitesOf(rel, rule);
+  for (const file of files) {
+    for (const rule of file.rules) {
+      const sites = sitesOf(file, rule);
       if (sites.length === 0) {
         continue;
       }
       judged.glassRules += 1;
-      // THE MARKER ABSOLVES EXACTLY WHAT THE READER CLASSIFIED AS OWING A PLATE (#1171) — the plateless
-      // mixes AND the no-fill carriers. Before, `no-fill` sites were bucketed unreadable, so a marker
-      // written on one exempted nothing and REDded a second time as STALE while the finding's own fix text
-      // prescribed it: there was no legal way to be green.
-      const exemptable = sites.filter((s) => s.reading.kind === "plateless" || s.reading.kind === "no-fill");
-      for (const key of judgeMarkers(judged.findings, { rel, rule, rawText }, exemptable)) {
-        exempted.add(key);
-      }
       for (const site of sites) {
         filled.add(`${site.rel}::${site.subject}`);
       }
       collect(judged, sites, providers, pending);
     }
   }
-  settlePending(judged, pending, { providers, exempted, filled });
+  settlePending(judged, pending, { providers, filled });
   return judged;
 }

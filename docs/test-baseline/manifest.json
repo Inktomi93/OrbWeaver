@@ -2331,6 +2331,7 @@
     "tests/tooling/verify/gates/knob-wire-coverage.test.ts",
     "tests/tooling/verify/gates/ledger-banned-shapes.test.ts",
     "tests/tooling/verify/gates/message-kind-policy-coverage.test.ts",
+    "tests/tooling/verify/gates/motion-token-purity.test.ts",
     "tests/tooling/verify/gates/no-blanket-suppression.repo.int.test.ts",
     "tests/tooling/verify/gates/no-raw-color-in-css.test.ts",
     "tests/tooling/verify/gates/no-tailwind-dark-variant.int.test.ts",
