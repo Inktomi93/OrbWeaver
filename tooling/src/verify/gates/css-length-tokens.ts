@@ -41,6 +41,40 @@
 //   the liveness test INVERTED (drop the `!`)       → 10 (the arm is reached by every live row; it is not
 //                                                     vacuous, which is the failure mode a zero-occurrence
 //                                                     arm has when its key never matches anything)
+//
+// BOTH LIVENESS ARMS ARE GUARDED BY THE REAL-TREE ANCHOR (#2198, 2026-09-12) — `onRealTree`, the same
+// predicate `verifyClassRows` has always used. #2101 replaced the count-drift ratchet with a liveness arm
+// and did not carry the guard across, and the two are not interchangeable on a synthetic root: the old
+// ratchet compared a COUNT and structurally could not fire inside a fixture, while the new arm asks
+// "does this row's subject still OCCUR" — a question only the real stylesheet can answer. Unguarded it
+// fired in every conformance fixture, and `mustPass` yielded 8 findings where it expects 0.
+//
+// THE RULE THIS MINTED, and it is the part worth carrying: **A LEGACY GATE'S PROOF ROWS ARE VISIBLE ONLY
+// TO THE PLANTER** (`gate-conformance.repo.int`). `pnpm check:policy-conformance` walks the FINAL roster
+// and cannot see a `GateDescriptor`'s rows at all — which is why #2101 measured green honestly, on every
+// instrument its author could run, and shipped this anyway. A legacy-side proof edit owes a planter run
+// before merge, and that run is the orchestrator's.
+//
+// THE FOUR PLACEHOLDER-SELECTOR RULES LEFT THE `mustPass` FIXTURE with that guard (#2198). They asserted
+// four SELECTORS were legal that the allowlist does not name (`.shell-probe`, `.a`, `.b`, `.c`), which was
+// true while only `prop:value` was keyed and became FALSE the moment #2101 made the selector half
+// load-bearing — the OCCURRENCE arm reported all four as unallowlisted raw lengths, which is that arm
+// working correctly. They are DELETED, never re-keyed onto the real selectors: re-keying would couple a
+// conformance fixture to production CSS, so a client lane editing `shell.css` would red a tooling suite
+// that sits in no client lane's floor. **Measured coverage delta of the deletion** (read with this
+// module's own `LENGTH_RE` over `parseCssRules`, not by eye): the declaration arm still exercises `0px`
+// x5, `100vh`, `100dvh` and `100dvw` — every viewport and zero form survives — and loses only a NONZERO
+// `px` declaration (`block-size: 1px`). No mechanism goes with it: `LENGTH_RE` has one branch for every
+// unit, so `0px` walks the identical path, and `1px` itself is still carried by the kept
+// `@supports (backdrop-filter: blur(1px))` prelude and by the class arm's `hover:w-[137px]` row. A
+// replacement `1px` line inside `.shell-grid` is NOT available as a remedy: its key would not be
+// allowlisted either, so it would report as an occurrence and red the very row it was meant to restore.
+//
+// DECLARED LIMIT, recorded so #2181 inherits it rather than rediscovering it: the `mustPass` fixture is
+// still coupled to production through the `.shell-grid` SELECTOR itself — rename that class and the six
+// declarations under it become unallowlisted occurrences and this row reds. That coupling is inherent to
+// any `mustPass` which writes into `shell.css` at all, it predates #2101, and it dissolves when #2181
+// converts these rows to reviewed grants with central liveness.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Scanner } from "@tailwindcss/oxide";
@@ -225,7 +259,20 @@ function reportUnused(ctx: GateRunCtx, label: string, why: string): void {
   });
 }
 
+/** Is this run standing on the REAL tree? The liveness arms below ask whether an allowlist row's subject
+ *  still OCCURS, which is a question only the real `shell.css` can answer — a synthetic conformance root
+ *  carries a stylesheet written to exercise the OCCURRENCE direction, not to reproduce all thirteen
+ *  subjects. `verifyClassRows` has always been guarded this way; #2101 re-keyed the two shell tables onto
+ *  the occurrence and replaced their count-drift arm with a liveness arm WITHOUT carrying the guard across
+ *  (#2198), so the new arm fired inside every fixture. The old ratchet structurally could not. */
+function onRealTree(ctx: GateRunCtx): boolean {
+  return existsSync(join(ctx.root, REAL_TREE_ANCHOR));
+}
+
 function verifyDeclarationRows(ctx: GateRunCtx, seen: ReadonlySet<string>): void {
+  if (!onRealTree(ctx)) {
+    return;
+  }
   for (const row of STRUCTURAL_DECLARATIONS) {
     if (!seen.has(declarationKey(row.selector, row.prop, row.value))) {
       reportUnused(ctx, `${row.selector} { ${row.prop}: ${row.value} }`, row.why);
@@ -285,6 +332,9 @@ function scanQueries(ctx: GateRunCtx, raw: string): void {
       querySeen.add(text);
     }
   }
+  if (!onRealTree(ctx)) {
+    return;
+  }
   for (const row of STRUCTURAL_QUERIES) {
     if (!querySeen.has(row.text)) {
       reportUnused(ctx, row.text, row.why);
@@ -342,7 +392,7 @@ function scanCandidate(
 }
 
 function verifyClassRows(ctx: GateRunCtx, allowedCounts: ReadonlyMap<string, number>): void {
-  if (!existsSync(join(ctx.root, REAL_TREE_ANCHOR))) {
+  if (!onRealTree(ctx)) {
     return;
   }
   for (const [rel, row] of Object.entries(STRUCTURAL_CLASS_FILES)) {
@@ -408,6 +458,15 @@ export const gate: GateDescriptor = {
       why: "a raw arbitrary length discovered through the shared #961 class provenance is RED",
     },
     {
+      files: {
+        [REAL_TREE_ANCHOR]: "export const x = 1;\n",
+        [SHELL]:
+          ".shell-grid { --list-track: 0px; --context-track: 0px; height: 100vh; height: calc(100dvh - var(--orb-keyboard-inset, 0px)); --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))); --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)); }\n@supports (backdrop-filter: blur(1px)) {\n}\n@container shell-main (max-width: 30rem) {\n}\n",
+      },
+      expect: { token: "@media (max-width: 48rem) {" },
+      why: "THE GUARDED LIVENESS ARMS' ONLY PROOF (#2198), and it is not optional: once both arms sit behind the real-tree anchor NOTHING else reaches them, and a guarded arm with no control is how an arm goes vacuous — the failure the header's last measured line (`the liveness test INVERTED -> 10`) exists to refuse. The token is the QUERY liveness arm's and only its: the declaration arm emits `<selector> { <prop>: <value> }` and the class arm emits file paths, so no other arm can produce it. MEASURED CARDINALITY, stated because this row does NOT isolate one finding: planting the anchor necessarily also switches on the sibling arms it guards, so this fixture yields NINE — this one, the three panel + one sentinel declaration rows no fixture can carry without production selectors, and the four `STRUCTURAL_CLASS_FILES` rows that need real client files. That is the guard working on all three arms at once. THE FALSIFIER IS THE ANCHOR: drop `REAL_TREE_ANCHOR` from this row's file map and the identical stylesheet yields ZERO (measured 2026-09-12), which is the guard itself cut in the direction that matters",
+    },
+    {
       files: { [REAL_TREE_ANCHOR]: "export const x = 1;\n" },
       expect: { token: "missing-shell" },
       why: "the real-tree anchor without the required sanctioned shell home fails loud",
@@ -417,9 +476,9 @@ export const gate: GateDescriptor = {
     {
       files: {
         [SHELL]:
-          ".shell-grid { --list-track: 0px; --context-track: 0px; height: 100vh; height: calc(100dvh - var(--orb-keyboard-inset, 0px)); --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))); --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)); }\n.shell-probe { block-size: 1px; }\n.a { width: 100dvw; }\n.b { width: 100dvw; }\n.c { width: 100dvw; }\n@supports (backdrop-filter: blur(1px)) {\n}\n@container shell-main (max-width: 30rem) {\n}\n@media (max-width: 48rem) {\n}\n",
+          ".shell-grid { --list-track: 0px; --context-track: 0px; height: 100vh; height: calc(100dvh - var(--orb-keyboard-inset, 0px)); --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))); --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)); }\n@supports (backdrop-filter: blur(1px)) {\n}\n@container shell-main (max-width: 30rem) {\n}\n@media (max-width: 48rem) {\n}\n",
       },
-      why: "the exact structural viewport, query, zero, and measurement literals remain legal",
+      why: "the exact structural viewport, query, zero, and measurement literals remain legal. THE FOUR PLACEHOLDER-SELECTOR RULES ARE GONE (#2198): `.shell-probe`/`.a`/`.b`/`.c` carried allowlisted prop/value pairs under selectors the allowlist does not name, which was legal while only `prop:value` was keyed and became FALSE when #2101 made the selector load-bearing — the occurrence arm reported all four as unallowlisted raw lengths. They are DELETED rather than re-keyed to the real selectors: re-keying would couple this conformance fixture to production CSS, so a client lane editing shell.css would red a tooling suite in no client lane's floor. What the row claims is carried by the `.shell-grid` block and the three at-rules",
     },
     {
       files: 'export const G = <div className="w-(--dimension-rail) gap-row" />;\n',
