@@ -45,6 +45,12 @@ settle it rather than guessing.
 `PASS (unnamed)` = the family IS a real shared `lib/` reader and the module consumes it, but the header does
 not NAME it, which is the half of C4 that §3 states as *"named in the header"*. Those cells close with C5.
 
+**THE TABLE ABOVE IS THE MEASUREMENT, NOT THE CURRENT STATE — every non-PASS cell was closed in the same
+lane** (`#2005`, second commit). What each cell WAS and what closed it is below; both UNCLEAR cells were
+ruled by the owner and re-scored PASS. The measurement is kept verbatim rather than overwritten because
+§5b's closing paragraph asks for a per-module verdict line so a miss surfaces as a missing row, and because
+a reader arriving from §3's caveat paragraph needs to see what "3 of 9" actually meant.
+
 ## THREE BRIEF PREMISES THAT DIED (re-derived, not remembered)
 
 1. **`no-raw-matchmedia` does NOT need #1998 fixed first — #1998 is CLOSED.** `2bacd5ef9` landed the
@@ -155,10 +161,18 @@ Both readings are defensible and the choice is not a lane's:
 - it is FALSE the moment a grant goes stale or is withheld — precisely the state in which an author reads
   the message inside a home and is told the read is outside one.
 
-**What would settle it:** a ruling on whether §5b.2's *"every context clause is a claim"* is a claim about
-RAW or EFFECTIVE findings for a reviewed-grant policy. Left UNCHANGED by this lane: the string is pinned
-verbatim by `mustFlag[5]`/`mustFlag[6]`'s `messageIncludes` and quoted in the roster row, so rewording it is a
-three-site edit on a wave-1-confirmed exemplar, not a copy-edit.
+**RESOLVED — owner ruling, 2026-09-11 (#2005): §5b.2 is a claim about the EFFECTIVE set, and the message
+stands.** A reviewed-grant policy's granted findings are suppressed before any human sees them, so
+*"outside the named media-query one-homes"* is true of every finding a reader ever gets. Rewording it to
+describe the raw scan would make the message narrate the policy's internals instead of its verdict, and
+would force that awkwardness onto every reviewed-grant policy in the corpus.
+
+**But the risk §5b.2 guards is real here and it is not in the message** — it is a copying lane reading
+"outside the one-homes" as SCOPE-EXCLUDED and writing a population subtraction. The home is SCANNED and
+licensed by an exact grant row (the 2026-08-22 scan-and-allowlist ruling), which is the opposite of
+exclusion; a subtracted home is invisible when it moves, a granted one reds at its row. That fact lived
+only in `mustFlag[1]`'s `why` and is now a header paragraph. Message, both `messageIncludes` pins and the
+roster row are UNTOUCHED. Cell re-scored **PASS**.
 
 ### C4 — the one UNCLEAR
 
@@ -167,17 +181,57 @@ with that sibling** — it is a pure-syntax name check importing nothing from `l
 shapes (a shared `lib/` reader, or a declared singleton with its reason) do not cover a SPLIT family, which
 §3's plane table separately sanctions as its own shape.
 
-It also collides with an OPEN ledger row: `refutation-ledger-2026-09-12.md:117` records that
-`registry-assembly-at-door-only.ts:26` still declares `FAMILY: SINGLETON under its own id` while two modules
-carry that family string. **That sibling is out of this lane's fence**, so the honest half of the fix — a
-FAMILY line in `no-mutating-register-api` stating the two-member split and why it shares no reader — lands
-here and the sibling's false SINGLETON claim stays OPEN.
+It also collided with an OPEN ledger row: `refutation-ledger-2026-09-12.md:117` records that
+`registry-assembly-at-door-only.ts:26` declared `FAMILY: SINGLETON under its own id` while two modules carry
+that family string.
+
+**RESOLVED — owner ruling, 2026-09-11 (#2005): a SPLIT family is a legitimate third shape, and the fence was
+widened by one line to close both halves.** §5b.4's two shapes do not cover a split; §3's plane table
+sanctions it, and what CREATES it is §12.1's one-authority-and-one-severity-per-policy rule meeting two
+different populations. Both modules now carry a FAMILY line saying two-member SPLIT, sharing no `lib/`
+reader deliberately (this arm resolves nothing; the sibling resolves a factory callee's identity), with the
+family STRING named as what keeps them visible as one law. **The `family:` value was correct on both modules
+and was not touched** — only the prose describing it was wrong. That closes `refutation-ledger:117`. Cell
+re-scored **PASS**.
+
+## WHAT LANDED, AND THE CONTROL THAT PROVES THE C6 FIXES BITE
+
+Second commit, seven modules (six of the nine plus ONE out-of-fence line the owner explicitly authorised —
+`registry-assembly-at-door-only`'s FAMILY sentence, see C4):
+
+- **C5, six modules** — FAMILY line naming the shared `lib/` reader (or the split, with its reason),
+  POPULATION PORT with the legacy predicate quoted and the delta classified, and the LEGACY SHA. Four SHAs
+  were newly derived; two were already present and were verified rather than re-minted.
+- **C6, three modules, seven proof rows** — `spacing-tier-home-health.mustFlag[0]` gains
+  `messageIncludes` naming the failing sanctioned-home KEY (there is no `token`: it is a `report.file`
+  finding); `user-bus-deferred-member.mustFlag[0]` gains `messageIncludes: "Member: connectionsChanged"`;
+  `no-raw-matchmedia.mustFlag[1..4]` and `[7]` gain `token: MATCH_MEDIA`, which every candidate already
+  supplies explicitly.
+- **C2/C4 header paragraphs** for the two ruled forks, above.
+
+**PLANTED POSITIVE CONTROL, both directions.** A bare green after adding an expectation proves nothing —
+an expectation that cannot fail reads exactly like one that holds. In a `cp`-backed copy of all three
+modules each new discriminator was pointed at a WRONG value (`token: "notMatchMedia"`; the sibling
+sanctioned-home key `packages/ui/src/layout/`; `Member: settingsChanged`), and
+`pnpm check:policy-conformance` went **exit 2 with exactly the seven expected rows red** — six
+`no-raw-matchmedia` rows (the five new ones plus `mustFlag[0]`, which the same edit caught),
+`spacing-tier-home-health.mustFlag[0]` and `user-bus-deferred-member.mustFlag[0]`. Restored with `mv`;
+`git status --short` showed only the intended edits. Before and after the real fix the run is identical:
+`186 final policies · 2021 proof rows · 0 failure(s) · 105 grant rows · 0 invalid`, exit 0.
+
+**The nine roster rows were read and need no edit** — measured, not assumed. `no-raw-matchmedia`'s row
+enumerates all five grants (#1998's roster half is closed too) and no row in
+`Core-Enforcement-Active-Gates.md` claims a singleton for either half of the `registry-assembly-at-door-only`
+family. Nothing in that file was touched, so no `|`-escaping or column-reflow hazard was taken on.
 
 ## WHAT A COPY LANE SHOULD BE TOLD TODAY
 
 - **Header shape: copy `section-registry-completeness` or `server-layout`.** Both carry all three §5b.5
   fields; `server-layout` additionally shows the INTENTIONAL-CORRECTION form with each delta numbered.
-- **Proof shape by plane: unchanged from §3**, with the caveat that `no-raw-matchmedia`'s bare-`count` rows
-  and the two tripwire rows are the shape NOT to copy (see C6).
+- **Proof shape by plane: unchanged from §3.** The bare-`count` rows that made three cells PARTIAL are
+  fixed, so the named exemplars are now safe to copy row-for-row.
+- **A FACT CONSUMER'S POPULATION IS NOT A FREE CHOICE** — it must EQUAL the provider's, because nothing
+  checks the subset relation (§4.5b) and a consumer narrower than its provider is handed nodes it may not
+  NAME. Three of the nine now say so in their header at the exact place a lane would "simplify" it.
 - **Tripwire cut direction is INVERTED** (guide §4.1) — `spacing-tier-home-health`'s fences ACQUIT, so its
-  falsifier is a `mustFlag` going GREEN.
+  falsifier is a `mustFlag` going GREEN. Its header now says this at the top.

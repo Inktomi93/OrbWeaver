@@ -5,6 +5,24 @@
 // authored array literal is the finding, a named reference passes, anything else is REPORTED unresolved.
 // HARD: zero live `@orb-gate-ignore db-enum-from-tuple` markers exist on the tree (rg, 2026-09-05, with a
 // positive control proving the search reached packages/db), so the row has no suppression door to preserve.
+//
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`, which owns
+// Drizzle builder identity and the table/column model) plus `lib/schema-fact-value.ts`
+// (`effectiveObjectProperty`, `unwrapSchemaExpression`, `SchemaRefusal`), consumed identically by all
+// fifteen members, so no member re-derives "which call is a column builder" from a name.
+// POPULATION PORT: byte-identical. The legacy descriptor (1bf7ff7d9, the parent of 521780ac6) scoped with
+// `scanRoot: (p) => /\/packages\/db\/src\/schema\//u.test(`/${p}`)`; the final declares
+// `DRIZZLE_SCHEMA_POPULATION` = `{ in: ["@db"], under: ["packages/db/src/schema/**"] }`, the same set. The
+// population is the PROVIDER's own (lib/schema-fact.ts:519-526) and is shared by reference rather than
+// re-spelled, which is the shape guide §4.5b's third structural gap asks for: nothing checks that a
+// provider's population is a subset of its consumers', so a consumer that narrows it is handed nodes it may
+// not NAME. Importing the constant makes the two impossible to drift apart.
+// WHAT THE CONVERSION CHANGED, and it is the module's whole value: the legacy check was SYNTACTIC — an
+// inline array literal flagged, a NAME passed. The final's third arm reports an unresolvable name (#944),
+// so a `const KINDS = build()` spelled exactly like a canonical tuple no longer buys silence. The
+// fail-closed arm is not a count away from the ordinary one, so every row reaching it pins
+// `messageIncludes: "CANNOT be established"` (guide §4.1's fail-closed third-answer rule); `MESSAGE` and
+// `UNREADABLE` are deliberately DISJOINT strings so that fragment can discriminate at all.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

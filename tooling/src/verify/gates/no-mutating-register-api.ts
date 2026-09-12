@@ -13,9 +13,20 @@
 // module's export. There is nothing to resolve — the finding is about a declaration this file authored, and
 // its shape (a method, a function declaration, or a const bound to a function/arrow) is authored syntax.
 //
+// FAMILY `registry-assembly-at-door-only` — a two-member SPLIT family, and it shares NO `lib/` reader with
+// its sibling, deliberately: this arm resolves nothing (the subject is the NAME by law, see above) while the
+// sibling resolves a factory callee's identity. §5b.4's two shapes (a shared `lib/` reader, or a declared
+// singleton with its reason) do not cover a split, which §3's plane table sanctions as its own shape; what
+// creates it is §12.1's one-authority-one-severity-per-policy rule meeting two different populations. The
+// family STRING is what keeps the two visible as one law, and it is correct on both modules.
 // POPULATION PORT: `@client`, whole — deliberately WITHOUT the sibling's `main.tsx`/`compose/` subtraction,
 // which is the entire reason for the split above (mustFlag[3] is that site). The `@client` root is itself a
 // narrowing and is pinned by the `@server` mustPass row, which is the only row that dies without it.
+// LEGACY at 5dd83aaa4 (the parent of 4885cde80): this module has no predecessor of its own — it was carved
+// out of `gates/registry-assembly-at-door-only.ts` at that SHA, whose `scanRoot` was
+// `(p) => p.startsWith("packages/client/src/")` with the door subtraction applied INSIDE the visitor
+// (`repoRelPath === DOOR_FILE || repoRelPath.includes("/compose/")`, :13). Moving that subtraction out of
+// the visitor and into the sibling's population is what made this arm expressible at all.
 //
 // §4.6 SPLIT DIFFERENTIAL (#2000, committed at `tests/tooling/verify/gates/split-arm-parity.test.ts`).
 // LEGACY-SIDE COVERAGE: 1 of the parent's 4 examples — `registry-assembly-at-door-only` mustFlag[1], a

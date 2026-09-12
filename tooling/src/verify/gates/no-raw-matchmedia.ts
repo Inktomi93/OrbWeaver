@@ -14,6 +14,16 @@
 // inline door and a marker that suppresses nothing is the shape the central table exists to replace.
 // A home that moves now reds at its row instead of carrying its exemption into the void.
 //
+// THE ONE-HOMES ARE SCANNED AND LICENSED, NEVER SCOPED OUT — read this before copying the message. The
+// `message` opens "a raw `matchMedia` read OUTSIDE the named media-query one-homes", and the policy REPORTS
+// INSIDE them: each home reds like any other file and a grant row consumes the finding before any human
+// sees it (`mustFlag[1]` is exactly that row). So the clause is true of the EFFECTIVE finding set — which
+// is the only set a reader ever gets — and false of the raw scan, and that is deliberate (owner ruling
+// 2026-09-11, #2005: a reviewed-grant policy's message states its VERDICT, not its internals). The risk
+// §5b.2 guards here is not the wording: it is a copying lane reading "outside the one-homes" as
+// SCOPE-EXCLUDED and writing a population subtraction. Do not. A subtracted home is invisible when it moves;
+// a granted home reds at its row. (The legacy descriptor DID subtract — see the population port below.)
+//
 // IDENTITY, NOT SPELLING. The legacy check was a PropertyAccess callee named `matchMedia`, so a bare
 // `matchMedia(q)`, a computed `globalThis["matchMedia"](q)` and a stored alias were all invisible, while a
 // same-named method on any project object red. The subject is the AMBIENT GLOBAL, resolved through
@@ -147,9 +157,12 @@ export const gate = defineGate({
   family: "no-raw-matchmedia",
   authority: "reviewed-grant",
   severity: "error",
-  // The legacy predicate admitted client and ui sources and subtracted the three home files; the homes are
-  // grants now, so nothing is subtracted. `entire-population` because grant liveness is a whole-population
-  // verdict.
+  // POPULATION PORT: an INTENTIONAL CORRECTION, legacy at 6a7978135 (the parent of 256682e4a). The legacy
+  // `scanRoot` was `p.includes("packages/client/src/") || p.includes("packages/ui/src/")` MINUS three home
+  // files returned false one at a time (`use-prefers-reduced-motion.ts`, `reduced-motion-now.ts`,
+  // `use-is-mobile-viewport.ts`). The final admits the same two packages and subtracts NOTHING — the homes
+  // are grant rows now, which is the whole point (see the header). `entire-population` because grant
+  // liveness is a whole-population verdict.
   population: ["@client", "@ui"],
   analysis: "types",
   execution: "entire-population",
@@ -201,7 +214,7 @@ export const gate = defineGate({
       files: {
         "packages/ui/src/lib/use-prefers-reduced-motion.ts": 'export const query = globalThis.matchMedia("(prefers-reduced-motion: reduce)");\n',
       },
-      expect: { count: 1 },
+      expect: { count: 1, token: MATCH_MEDIA },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the reduced-motion one-home reds like any other file and is licensed by an exact grant row, so a SECOND home is a finding until someone reviews it",
     },
     {
@@ -209,7 +222,7 @@ export const gate = defineGate({
       files: {
         "packages/client/src/features/x/x.tsx": 'export const G = (): unknown => globalThis["matchMedia"]("(pointer: fine)");\n',
       },
-      expect: { count: 1 },
+      expect: { count: 1, token: MATCH_MEDIA },
       why: "the COMPUTED-LITERAL member spelling of the same global (#1506) — invisible to the legacy PropertyAccess-only check",
     },
     {
@@ -217,7 +230,7 @@ export const gate = defineGate({
       files: {
         "packages/client/src/features/x/x.tsx": 'const probe = globalThis.matchMedia;\nexport const G = (): unknown => probe("(pointer: coarse)");\n',
       },
-      expect: { count: 1 },
+      expect: { count: 1, token: MATCH_MEDIA },
       why: "A STORED ALIAS of the global is the same fork one binding away; the DECLARATION is the read the policy sees, and the aliased call site collapses into the same `(subject, operation)` finding",
     },
     {
@@ -226,7 +239,7 @@ export const gate = defineGate({
         "packages/client/src/features/x/cast.ts":
           'const globals = globalThis as { matchMedia?: (query: string) => { matches: boolean } };\nexport const G = (): boolean => globals.matchMedia?.("(pointer: coarse)").matches === true;\n',
       },
-      expect: { count: 1 },
+      expect: { count: 1, token: MATCH_MEDIA },
       why: "THE CAST DODGE, measured on the real tree and closed here (shared with `no-raw-intl-time` through the same reader): a structural cast of `globalThis` gives the property symbol a declaration in the CAST'S OWN type literal, which the shared refusal classifier reads as a proven different identity — so judging the member alone PASSED this spelling, and any feature could have left the law that way. The RECEIVER's identity cannot be cast away, and that is what the verdict asks",
     },
     {
@@ -250,7 +263,7 @@ export const gate = defineGate({
       files: {
         "packages/ui/src/primitives/media-grid/media-grid.tsx": 'export const fine = (): boolean => globalThis.matchMedia("(pointer: fine)").matches;\n',
       },
-      expect: { count: 1 },
+      expect: { count: 1, token: MATCH_MEDIA },
       why: "THE TRANSLATED MARKER: the pointer-capability read carried a permanent `@orb-gate-ignore` because no coarse-pointer one-home exists. Under reviewed-grant authority there is no inline door, so the standing permission is an exact row with an `endsWhen` naming the missing home — and it reds here so the row is what licenses it",
     },
     {
