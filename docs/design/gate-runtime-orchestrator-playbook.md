@@ -430,6 +430,18 @@ counts), then the corpus `format:docs` LAST (frozen archaeology excluded — BOT
 `docs/architecture/history/**`, ruled 2026-09-12; the exclusion is a named list in the formatter, never an accident
 of which tree is nested where).
 
+**THE PLANTER STEP IS A QUIET-BOX STEP (ruled 2026-09-12, #2206).** `check-gates.repo.int` runs a whole-tree
+`check:structure` TWICE under `scaledBudget(300_000, 4)`; a solo pass costs ~257 s wall (17% headroom), the
+session's cgroup fences it to 8 cores (`cpu-fence.sh`, `CPUQuota=800%`), and the load scaling engages only above
+`loadavg == cores`, precisely missing the band where a pass slips past 300 s. So the step runs ONLY when no lane is
+doing heavy work — not "serialized against structure legs" but with the box genuinely idle — and its budget is NEVER
+widened (300 s is what surfaced the 257 s; a wider number hides the next regression) and its kill path is never
+carved (its self-identifying text is the only reason a load kill and a real child exit 2 could be told apart tonight).
+**And an in-place correction inside a LIVE-LAW review doc carries the form `**LANDED <date> (<sha>)**` beside the
+original sentence, never a deletion** (ratified 2026-09-12 from `p-unaudited-fix-b`'s chunk-B leg, which invented it
+because the brief falsely claimed the doc already had a correction idiom): the original stays as the dated claim,
+the annotation names what landed and where, and a later reader can tell a corrected claim from a rewritten one.
+
 **A row body's central claim carries the DATE and SHA it was measured at** (paid 2026-09-12: two of five rows in one
 leg described a tree the same lane had already changed — "there is no helper", "the rules half is not written" —
 neither wrong when filed, both costing a re-derivation). A lane reading a dated claim knows to re-derive before
@@ -631,6 +643,33 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   manifest: `testFiles` is monotonic, so a rename with no `deletions[path].why` leaves a ghost that
   `ledgers:fresh` reports FRESH over (#2174's lane). `git diff --stat` after `git add -A` measures you against
   your own staging; the control is `git diff HEAD`.
+- **A MERGE FENCE SAYS "NOTHING LANDS IN MAIN", NEVER "DO NOT MERGE / DO NOT REBASE"** (paid 2026-09-12, three
+  briefs in one round). What a barrier protects is MAIN's checkout; a lane moving its OWN branch inside its worktree
+  writes nothing into main and cannot change what the barrier reads. The literal wording forbade the one operation
+  the lane needed, and a lane that obeys it works a stale corpus rather than ask. **And a warm leg dispatched against
+  a measurement taken on main owes "ff to main's tip first" plus the tip's SHA:** a resumed lane's HEAD is wherever it
+  stopped — one was 20 commits behind and a gate it was told had gone blind (`policy-binding-resolution.ts`) did not
+  exist at its HEAD at all — so without the ff it measures a different corpus and calls it proven. **A tool error
+  that surfaces as "N skipped" is an instrument lying by omission:** `check-gates.repo.int`'s `beforeAll` threw
+  `child exit 2` with no reason because `execFileSync` without an explicit `stdio` sends the child's stderr to the
+  PARENT's stream (#2197); capture it and print it in the thrown text. **And read the function, not the call site,
+  before naming a cause** — the same night's "it must be a load kill" was retracted within the hour once
+  `_load-budget.ts`'s four outcomes were read: the load kill has its own marker text and this message was not it.
+  **A FINDING COUNT IS NOT A DIAGNOSIS** (paid twice the same night, both times attributing findings to the arm that
+  had just changed): classify EVERY finding individually before pricing an arm — drive the module's own proof
+  fixture through `runPass` over a synthetic root, the way the planter does, and read each finding's token and
+  line. #2198's "8 findings from the re-key" was 4 liveness rows + 4 occurrence findings from placeholder selectors,
+  and the arm ruled off the count alone would have closed half the row and called it done. **Its sibling: a DELTA
+  read from a diff hunk is not a delta — read it from the artifact the hunk edits.** A `+` block inserting a new
+  row and a `"namespace",],` line of shared context were read as "an existing row gained an arm"; the baseline JSON
+  at the parent already carried that arm, and the post-fix diff showed it being REMOVED (the sanctioned shrink),
+  which is only consistent with it having been there all along. Third instance in one night of a count or a delta
+  read off a diff becoming a claim.
+- **A TYPE FLOOR CLAIMS ONLY THE CONFIGS THAT CONTAIN YOUR FILE, and a config that ran and did not contain it reads
+  exactly like green coverage** (paid three times 2026-09-12 evening). `tsconfig.tests-iso.json` resolves to TWO root
+  files, so any `tests/tooling/**` PASS from it is vacuous; `tooling/tsconfig.json` (1175 roots) holds the verify
+  ENGINE but not its spec, `tsconfig.json` (2297 roots) holds the SPEC but not the engine — an engine-plus-spec change
+  owes BOTH programs. Before trusting a PASS, confirm the program's include list actually carries the file.
 - **A cross-tool invariant needs a cross-tool pin in the PRODUCER's home** (#2175): a generator emitting bytes
   the formatter normalises away is a deadlock between two doors, and the pin that catches it lives in the
   generator's suite, run twice with the second byte-identical — otherwise the regression surfaces in a docs lane

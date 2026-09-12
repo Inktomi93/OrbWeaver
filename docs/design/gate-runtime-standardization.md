@@ -86,7 +86,7 @@ Gates do NOT all need every capability. Use the smallest complete contract for t
 | `ctx.checker()` | type identity or compiler-resolved semantics (`analysis: "types"`) |
 | `workItem` | `severity: "warning"` only (positive issue number; forbidden on `error`) |
 | `fix` naming the waiver spelling | `authority: "ordinary"` — the author needs the exact `@orb-waive <id>(<position>)` to type, and a policy whose reported token is a whole member chain (`no-form-state-in-useeffect` reports `node.getText()`, so `form.state.values` and `form["state"]["values"]` are different positions) is unusable without it |
-| `execution: "entire-population"` | the verdict cannot compose over a subset (liveness, completeness, grants, tripwires) |
+| `execution: "entire-population"` | the verdict cannot compose over a subset (liveness, completeness, grants, tripwires) — **and it owes an `evaluate` hook**: a policy declaring `entire-population` whose `create` returns no `evaluate` is refused at `create` (`POLICY_PASS_REFUSALS.entireWithoutEvaluate`, #2111), because per-file visitors alone compose a per-file verdict, which the declaration promised not to |
 | `-health` sibling | an arm that differs in authority or severity from the rest of the module (identical `family`) |
 
 **SHAPE BY PLANE — and this table was POISONED until 2026-09-12, so read the verdict column.** The §5b audit
@@ -280,7 +280,19 @@ the whole value as the CARRIER, hands its leading identifier as the COORDINATE, 
 MESSAGE — ruled 2026-09-12 on #2107 (arm c), which is what makes those policies' `fix` strings true.** **A
 converting policy that needs an exact-slice position CONSUMES it rather than re-deriving one**, and the payoff is
 larger than convenience: when two policies govern the same site, sharing the anchor makes them report ONE position,
-so one marker can waive both instead of each needing its own and neither binding.
+so one marker can waive both instead of each needing its own and neither binding. **AND A POLICY THAT ANCHORS ON
+AN EXPRESSION THAT CAN BE PARENTHESIZED OWES THE UNWRAP** (measured 2026-09-12, #2197): `no-loose-id-cast` refused
+to mint a finding for `(async (a) => …) as never` because the operand's text STARTS with `(`, so `waivableCoordinate`
+has no paren-free leading slice and returns `undefined` — the refusal is correct (the helper's contract is the
+offset-0 leading slice, shared by four consumers, and is not the place to skip parens). The policy unwraps a
+`ParenthesizedExpression` operand to its inner expression and anchors there (head `async`), same violation, and pins
+it with a `mustFlag` whose operand is parenthesized (landed `fa8a6e15a`; the coordinate is the `async ` slice, counted
+as proof row 2943). **The declared limit, stated at the policy's helper:** the unwrap makes THIS class nameable, not
+every operand — an unwrapped expression whose own text still begins with `(` (a zero-arg arrow `() => x`, a
+parenthesized call receiver) has no leading slice either and still refuses, LOUDLY (`waivableCoordinate(raw) ?? raw`
+is the refusal path, never a fallback that hides one). A `waivableCoordinate` refusal on an expression-anchored policy
+is the tell that the unwrap is missing; a planted fixture for a DIFFERENT gate is how it surfaced (latent on the real
+tree), which is the planters doing their job.
 
 **The asymmetry that let classes 1 and 2 survive: `report.node` VALIDATES its token against the node text and throws; `report.file`'s
 token is unvalidated at report time and fails later as an authority ALARM.** So converting a file-anchored ordinary arm
@@ -748,7 +760,18 @@ family.
      `members: 0 / unresolved: 1`) still lives only as two hand-measured messages in its header, and the refusal pins in
      `bus-pair.test.ts` / `bus-fact-health.test.ts` are still `runPolicyPass` pins off the bar — migrate each onto a
      `mustRefuse` row (board #2109). A refusal a row CANNOT express (one needing `reviewedGrants` or a real grant table)
-     stays a family-test pin, and the header says which.
+     stays a family-test pin, and the header says which. **THE FOURTH `mustRefuse` RULE (#2109 item 3, #2111):** a row's
+     `messageIncludes` may not sit inside the runner's generic refusal ENVELOPE — `lib/policy-refusal-envelope.ts`,
+     DERIVED from `contract/policy-conformance.ts#POLICY_REFUSAL_PREFIXES`, `contract/policy-pass.ts#POLICY_PASS_REFUSALS`,
+     `contract/gate-authority.ts#GATE_AUTHORITY_ALARM_KINDS` and the phase/status tuples; the loader refuses such a row
+     (`"ERROR"`, `"OWNER"`, `"resolved zero members"` all refuse). Name the text the policy's OWN refusal emits — its
+     receipt source, its throw. The four rules are pinned per case in `tests/tooling/verify/lib/policy-loader.test.ts`.
+     **AND WHO OWES A REFUSAL PROOF (`policy-refusal-coverage`, #2184, at Verify):** a final policy that declares `facts`
+     or `resources` rests its verdict on a population it does not compute, so it owes one — a `mustRefuse` row, or a
+     family test under `tests/tooling/verify/gates/` that IMPORTS the module and drives it through `runPolicyPass`,
+     asserting what a row cannot express (an owner status, an empty finding set, the phase it refused in). One or the
+     other, never neither. A policy with `facts: []` and `resources: []` computes its population from the corpus and is
+     not asked.
    - **CLOSED 2026-09-11 (#1966, `178ee3a4c`) — a policy that files NO semantic receipt now REFUSES.**
      `policyReceiptFailures` (`lib/policy-pass.ts:701-732`) reds on `facts.length > 0 && receipts.length === 0`,
      so the guarantee is enforced rather than held by per-family convention. The pin in
@@ -988,7 +1011,9 @@ like a §4.1 narrowing.
    row separately asserts), §4.3 grant identity, the §4.5 refusal/receipt pins a `mustRefuse` row cannot carry (those
    that need a grant table), and the §4.6 differential. Several
    converted modules have no family test at all and therefore no home for those pins; that is the remaining debt, not
-   the declared rows.
+   the declared rows. **The proof arms are iterated through `lib/policy-proof-rows.ts#policyProofRows`** — the runner,
+   the stage and every family-test sweep; a hand-rolled `[...mustFlag, ...mustPass]` is a sweep that silently skips the
+   third arm (nine were widened 2026-09-12, #2111).
 
 ## 5. The runtime you have (Phase A landed 2026-09-11, `d21ece8d8`)
 
@@ -1081,6 +1106,15 @@ A converted module is pristine when all seven hold. The first six are the contra
 clean (playbook §5). Audit it with `verifier`-class lanes at family granularity, requiring a per-module verdict line so
 a miss surfaces as a missing row rather than hiding inside "none found". Gaps are defects and get rows; they are not
 conversion debt to be carried forward, because every one of them propagates.
+
+**THE SOUNDNESS FAMILY IS SIX FINAL MODULES (#2111, `a1c848001`; two more at Verify under #2184/#2185):**
+`policy-soundness` (E1–E7 — closed classes held at zero by the family's real-corpus pin; E5's import member is the one
+that lives in `policy-legacy-imports`, corrected by the fresh verifier against the audit's own §8 text),
+`policy-proof-expectations`, `policy-waiver-identity`, `policy-waiver-spelling` (all `hard`/`error` since #2025),
+`policy-legacy-imports` (the open IMPORT classes) and `policy-binding-resolution` (the open RESOLUTION class). **An open
+class lives in its own module so the closed-class pin stays honest**; each open module's live findings are compared
+against a second opinion the arm did not compute — and that second opinion is SYNTACTIC (a call in code position),
+never a regex over module text, which counts the arm's own fixture strings.
 
 ## 6. What is done and what remains
 
@@ -1540,6 +1574,15 @@ defineGate({
 });
 ```
 
+**THE FIELD VOCABULARY IS DATA (#2111, `a1c848001`):** `contract/policy.ts#POLICY_FIELDS` (from `POLICY_FIELD_TABLE`,
+two-sided against `GatePolicy` by `satisfies Record<keyof GatePolicy, true>`), `POLICY_OPTIONAL_FIELDS` (`workItem`,
+`fix`, `mustRefuse`), `POLICY_PROOF_ARMS`, `POLICY_PROOF_KEYS`, `POLICY_EXPECTATION_KEYS`, `POLICY_HOOK_KEYS`; the
+validator, the runner, the stage and the family tests derive from them, and THE BLOCK ABOVE is a hand restatement — a
+generator target, with `ops/new-gate.ts`'s template and the roster rows (#2126). "The export is a direct
+`defineGate({...})` object literal" is ENFORCED by `policy-soundness` E7 through
+`lib/policy-descriptor-read.ts#finalRegistrationOf`: the loader brands the object it receives and cannot see the call
+site, so a lookalike callee registers nothing and `gate-modernization` ARM A names it.
+
 - `population` replaces `scopeSafety` plus `scanRoot`. It is declared data resolved once into a manifest; file, folder,
   package, project, changed, whole, check and family selection all use the same manifest algebra.
 - `execution` states whether a verdict composes over an arbitrary selected subset or requires the gate's entire declared
@@ -1590,6 +1633,32 @@ being built by the policing-matrix lane, #2111):**
   sanctioned route is the shared readers (`resolveStableExpression`, `lib/reference-fact*`, `lib/origin-verdict.ts`).
   About 25 sites in 21 modules migrate by module, lane `p-binding-readers`. "Binding identity is a shared primitive" is
   now enforced, not prose.
+
+**ENFORCED (#2111, `a1c848001`):** `policy-legacy-imports` (hard/error) ARM A reports a FINAL module's import of
+`contract/gate.ts`, `lib/pass.ts`, `lib/gate-ignore.ts`, `lib/reviewed-grants.ts`, `lib/ordinary-waiver.ts`,
+`lib/gate-authority.ts`, `lib/policy-pass.ts`, `lib/loader.ts`, `lib/policy-loader.ts` — resolved by import origin
+(an alias path to the same module reds; a same-named module elsewhere does not), fail-closed on an unresolvable
+relative candidate; ARM B reports (#2096) any relative `import`/`export … from` whose target REGISTERS a gate under
+either contract (`lib/policy-descriptor-read.ts#gateRegistrationOf`) — `gates/_proof/**` surfaces and `lib/` readers
+pass by REGISTRATION, never by directory (a directory-keyed predicate accuses correct code; the planted cut proved it).
+`policy-binding-resolution` (hard/error) reports (#2097) a call to `getDefinitionNodes` · `getDefinitions` ·
+`findReferences` · `findReferencesAsNodes` · `getImplementations` on a ts-morph node, or `getDeclarations` ·
+`getValueDeclaration(OrThrow)` · `getAliasedSymbol(OrThrow)` on a ts-morph `Symbol` (owner identity —
+`VariableStatement#getDeclarations` is a syntax accessor and passes); `getSymbol()` alone is not a member. Both are
+RED on the tree by design (the migration rows) and are held two-sided against text second opinions in the family
+test. Two blind spots the fresh verifier found the same night, both open rows: a ONE-HOP `lib/` re-export shim
+defeats both arms (#2201 — `judgeDoor` resolves only the direct target), and the optional-chained ELEMENT-access
+spelling `getSymbol()?.["getDeclarations"]()` escapes the shared reader (#2202 — closed at `bea887b49`: `Type#getProperty`
+returns `undefined` for ANY union receiver and an optional chain mints one, so both doors of `isTsMorphMember` closed
+together and answered a confident silent `false`; latent for every policy asking it, now pinned in the reader).
+**RECOGNITION AND CONFORMANCE ARE TWO QUESTIONS, and narrowing the wrong one deletes a rule** (paid 2026-09-12,
+`bea887b49`, E7's namespace blindness): the obvious fix — widening `lib/gate-contract.ts#usesDefineGate` to accept a
+namespace-spelled `defineGate` call — would have deleted the recorded ruling that the namespace spelling is a
+`descriptor-wrapper` violation ON PURPOSE (`gate-contract.test.ts:113`). The lane widened REGISTRATION recognition
+(`finalRegistrationOf`) instead, so the module is recognised and the violation is REPORTED, where before it was judged
+by no arm at all. When a gate goes blind on a FORBIDDEN spelling, the fix is almost never "accept the spelling in the
+conformance reader"; it is "recognise the module so the violation gets reported" — the ruling survives, its input
+changed.
 
 **`ctx.relativePath` IS PARTIAL — IT THROWS, AND IT KILLED A CONVERTED EXEMPLAR FOR AN ENTIRE RUN** (measured
 2026-09-11). `lib/policy-pass-context.ts:211-217` raises `source file is outside the effective population: …` for any
@@ -1851,7 +1920,11 @@ recorded, not scheduled.
 
 **A REVIEWED GRANT IS STRICTLY ONE-TO-ONE (re-read 2026-09-12, `lib/gate-authority.ts#processReviewed` / `#reconcileAuthority`):** a grant whose identity matches exactly one candidate GRANTS it; a grant matching N > 1 candidates suppresses NOTHING — every candidate stays effective and the run alarms `over-broad-reviewed-grant`. So a class-level legacy exemption (an allowlist, a sanctioned-home list, a count ratchet) cannot be migrated as one grant row over N findings. The shape that works, #1939's precedent generalised: **the POLICY reports ONE aggregate finding per class** (one subject, one operation), so the grant is 1:1 by construction and the central `stale-reviewed-grant` alarm replaces the gate's own stale sweep. `exception-authority-census.md:177`'s older sentence ("suppresses every finding with that identity and merely increments a count") described a retired engine and is corrected there; #1922's plan is priced on this paragraph, never on that sentence.
 
-No gate-specific exemption grammar and no count ratchet. `hard` findings have no suppression door. `ordinary` findings
+No gate-specific exemption grammar and no count ratchet. **The retired grammars are DATA —
+`contract/policy-descriptor-read.ts#RETIRED_MARKER_OPENERS` (sixteen: `@orb-gate-ignore`, the twelve gate-owned openers,
+`FABRICATION-OK`, `ONESHOT-OK`, `PROSE-OK`); `policy-soundness` E6 reports a regex literal, a `new RegExp(<static>)` or
+a `.includes/.startsWith/.test/.exec/.indexOf` argument carrying one inside a final module; a mention in a `why`, a
+`message` or a `fix` is prose and passes (#2111).** `hard` findings have no suppression door. `ordinary` findings
 may consume the one central inline marker `// @orb-waive <policy-id>(<position>): <reason>` (also `/* … */` and
 `{/* … */}` carriers), bound to the exact policy and position with a mandatory reason; a node finding binds to leading
 trivia on the node or its ancestors up to the enclosing statement; a file/resource finding binds only to the line
@@ -1882,7 +1955,13 @@ over-broad and suppresses none. `error` blocks. **`warning` does NOT block on th
 
 **And the production artifact says it plainly** (`reports/check-structure.json` → `runs/structure/main-152313-2026-09-12T02-44-32-393Z/`): `verdict: { errors: 66, warnings: 12, blocking: 66, failOnWarnings: false }` — **12 warning findings, `blocking` equals errors alone.** Per-policy, every row `ok: true`: `policy-proof-expectations` **11 violations**, `policy-waiver-identity` 1. Adding `over-art-plate-arm`'s 4 (driven directly: `findings=4 alarms=0 BLOCKING=0 exit=0`) gives **16 warning findings, none blocking**. Note what that means for this program's own claims: **the §5b soundness enforcer (#1971) "reports its own worklist on the commit bar" and its 11 findings stop nothing.**
 
-**RULED 2026-09-12 (#2025, owner): `hard` + `warning` is a CONTRADICTION and the validator REFUSES it at load** — a policy that is unsuppressible and non-blocking at once means neither word. The three §5b soundness enforcers (`policy-proof-expectations`, `policy-waiver-identity`, `policy-waiver-spelling`) become `severity: "error"` and their findings BLOCK from the day the flip lands; the work they report is fixed or granted honestly, never downgraded back. `over-art-plate-arm` (ordinary + warning) keeps its warning with a LIVE `workItem` (#2070). The door's other two halves stand: entrypoint defaults `false`, reach through `--fail-on-warnings`. Built by the policing-matrix lane (#2111). Unresolved
+**RULED 2026-09-12 (#2025, owner): `hard` + `warning` is a CONTRADICTION and the validator REFUSES it at load** — a policy that is unsuppressible and non-blocking at once means neither word. The three §5b soundness enforcers (`policy-proof-expectations`, `policy-waiver-identity`, `policy-waiver-spelling`) become `severity: "error"` and their findings BLOCK from the day the flip lands; the work they report is fixed or granted honestly, never downgraded back. `over-art-plate-arm` (ordinary + warning) keeps its warning with a LIVE `workItem` (#2070). The door's other two halves stand: entrypoint defaults `false`, reach through `--fail-on-warnings`. **BUILT (#2111, `a1c848001`): `lib/policy-validation.ts` refuses the pair at load
+(*descriptor.severity "warning" contradicts authority "hard" (#2025) … use severity "error", or carry the debt under an
+authority whose findings a marker or grant can settle*). FOUR carriers flipped to `error`, not three: the census counted
+FINDINGS and `user-bus-deferred-member` had none — it was `hard` + `warning` with `workItem: 1822` and is `hard`/`error`
+now, its tracking item in prose. The transitional shape for a NEW enforcer that reds a large class on arrival is
+`ordinary` + `warning` + `workItem` over the WHOLE population (never narrowed per chunk), flipping to `hard`/`error` as
+a checkable header event in the commit that closes the last migration chunk (#2184's ruling).** Unresolved
 debt is a warning tied to a positive `workItem`. Reconciliation runs only after every selected owner completed its
 population; a thrown, incomplete, empty or unresolved owner withholds liveness rather than falsely staling grants. Gate
 modules receive neither grant tables nor marker parsers. Current-population declaration counts, every-file manifests and
