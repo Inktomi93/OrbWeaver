@@ -3,6 +3,10 @@
 // (`trpc.<router>.<proc>.queryKey()`/etc); an ad-hoc `queryKey: ["...", ...]` array silently diverges
 // from the key the reader/invalidator uses and the two never match again. Flags a `queryKey:` property
 // whose value is an inline array literal, scoped to packages/client/src/**. Does not flag an identifier/property-access value.
+// FAMILY: singleton — this policy owns its own local `queryKey`-name check; it shares no `lib/` reader
+// with any sibling gate. POPULATION PORT: `@client` only, byte-identical to the legacy scope
+// (packages/client/src/**) — a `queryKey:` literal anywhere else (server, contracts) is out of reach by
+// design, since the tRPC options proxy this gate protects is a client-only concept.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
@@ -23,7 +27,10 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: MESSAGE,
-  fix: "mint the key from the tRPC options proxy: trpc.<router>.<proc>.queryKey() / .queryFilter() / .pathFilter().",
+  fix:
+    "mint the key from the tRPC options proxy: trpc.<router>.<proc>.queryKey() / .queryFilter() / .pathFilter(). " +
+    "A deliberately hand-written key is waived with `// @orb-waive no-array-literal-querykey(queryKey): <reason>` " +
+    'on the line above — the position is always the literal property name `queryKey` (`token: "queryKey", offset: 0`).',
   create: (ctx) => ({
     visitors: [
       {
@@ -87,6 +94,19 @@ export const gate = defineGate({
           '// @orb-waive no-array-literal-querykey(queryKey): the proof\'s stand-in reason; ends when this fixture stops flagging.\nexport const q = { queryKey: ["users", 1] };\n',
       },
       why: 'POSITIONAL IDENTITY: the report anchors the PropertyAssignment with an explicit `token: "queryKey", offset: 0`, so an author waives the PROPERTY NAME — never the array literal or its first element. The fixture is mustFlag[0] (:43, count 1) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes',
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/features/a/other-name.ts": 'export const q = { otherKey: ["users", 1] };\n' },
+      why: 'THE NAME FENCE (§4.1): an inline array literal on a property that is NOT named `queryKey` must not flag — widening `node.getName() !== "queryKey"` to every PropertyAssignment reds this row',
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/a/anchor.ts": "export const anchor = true;\n",
+        "packages/server/src/features/a/data.ts": 'export const q = { queryKey: ["users", 1] };\n',
+      },
+      why: "THE POPULATION FENCE (§4.1): the exact mustFlag[0] shape, but outside `@client`, must not flag — an in-population anchor file keeps the fixture non-empty (a population falsifier holding only the out-of-population file tool-errors instead of passing); widening `population` to admit `@server` reds this row",
     },
   ],
 });
