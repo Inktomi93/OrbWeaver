@@ -17,7 +17,6 @@ import { generateSuppressionsBaseline } from "./gen/suppressions.ts";
 import { generateTestBaselineManifest } from "./gen/test-baseline-manifest.ts";
 import { generateTestPresenceBaseline } from "./gen/test-presence.ts";
 import { generateTypeConfigs } from "./gen/type-configs.ts";
-import { generateUiVariantAxesStampedBaseline } from "./gen/ui-variant-axes-stamped.ts";
 import { LEDGER_CHECKS } from "./ledgers-fresh.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.ts baseline <kind> [--check]");
@@ -37,7 +36,6 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   "test-baseline-manifest": generateTestBaselineManifest,
   "test-presence": generateTestPresenceBaseline,
   "type-configs": generateTypeConfigs,
-  "ui-variant-axes-stamped": generateUiVariantAxesStampedBaseline,
 };
 
 /** This verb's usage text — ONE home, read by the refusals here and by the front door's pre-dispatch

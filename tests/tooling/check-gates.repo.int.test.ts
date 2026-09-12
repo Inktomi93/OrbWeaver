@@ -751,13 +751,6 @@ function writeFixtures(): void {
   // this file — its stale-marker arm scans the shared project, tests/ included, so a literal marker here
   // would make this suite's own source a permanent violation (the __g_det / __g_fab self-reference dodge).
   fx("packages/ui/src/__g_legacyreact/__g_legacyreact.ts", 'import { cloneElement } from "react";\nexport const c = cloneElement;\n');
-  // ui-variant-axes-stamped: a `tv()` recipe declaring the `size` axis whose classes reach the DOM with no
-  // `variantProps`/`variantAttrs` door (#1080 F8). The axis VOCABULARY it is judged against is derived from
-  // the real packages/ui/src/lib/variant-attrs.ts, and this key is in no ratchet row, so its budget is zero.
-  fx(
-    "packages/ui/src/__g_variantaxes/variants.ts",
-    'import { tv } from "#lib";\nexport const gVariantAxesVariants = tv({ variants: { size: { sm: "h-control-sm", md: "h-control-md" } } });\n',
-  );
   // ── the baseui-* family (docs/history/design/baseui-crunch.md item 4) ─────────────────────────────────────
   // All five fixturable baseui gates read the COMMITTED surface manifest, which is present on the real
   // tree — so a `__g_` seal that imports @base-ui/react as a value is enough to drive each of them.
@@ -826,10 +819,6 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_qseals/hooks/__g_h.ts", 'import { useMutation } from "@tanstack/react-query";\nexport const m = useMutation;\n');
   // testid-typed-only: a freeform string data-testid (must come from the typed test-id home).
   fx("packages/client/src/features/__g_testid/components/__g_c.tsx", 'export const C = () => <div data-testid="freeform-string" />;\n');
-  // testid-liveness: a CT selecting a `data-testid` no producer anywhere on the tree mints (arm A1 — the
-  // draft-cast ghost shape). The value is deliberately unlike any live id so the fixture cannot be
-  // absolved by a real producer.
-  fx("tests/client/features/__g_testidlive.ct.tsx", 'export const t = () => page.getByTestId("__g-ghost-testid");\n');
   // dialog-via-composite: a features/** file importing the raw Dialog root from @orb/ui/dialog, not on the
   // allowlist — the FormDialog/ConfirmDialog composite door (derive-modernization-audit.md §W1 G24).
   fx(

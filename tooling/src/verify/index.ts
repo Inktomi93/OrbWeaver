@@ -165,7 +165,6 @@ export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
 export { deriveTestBaselineManifest, generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
 export { generateTestPresenceBaseline } from "./ops/gen/test-presence.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
-export { generateUiVariantAxesStampedBaseline } from "./ops/gen/ui-variant-axes-stamped.ts";
 export {
   censusDrift,
   LEDGER_CHECKS,
