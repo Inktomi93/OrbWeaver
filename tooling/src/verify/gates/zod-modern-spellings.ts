@@ -30,9 +30,18 @@
 // SUPPRESSION: the three arms report NODE-anchored on their own authored method token, so
 // `@orb-waive zod-modern-spellings(strict|union|enum): <reason>` names its position exactly. One line can
 // legitimately carry two arms — `z.object({k: z.union([z.literal("a"), z.literal("b")])}).strict()` is both
-// A and B — and the tokens keep them apart. That claim is no longer prose: the last three `mustPass` rows
+// A and B — and the tokens keep them apart. That claim is no longer prose: `mustPass[5]`, `[6]` and `[7]`
 // are one positive identity arm PER TOKEN, each the matching `mustFlag` fixture plus its marker, and each
-// goes red as `dead-position` the moment its arm stops anchoring on the authored method token.
+// goes red as `dead-position` the moment its arm stops anchoring on the authored method token. The same
+// three tokens are named in `FIX`, because §5b.3 makes the spelling an ordinary policy's obligation and a
+// header a person reading a finding never sees.
+//
+// EVERY NARROWING CARRIES A ROW THAT DIES WITHOUT IT (§4.1; each measured in both directions 2026-09-12):
+// the `zod` door → `mustPass[8]`, the `@packages` population → `[9]`, ARM A's zero-arity test → `[10]`,
+// ARM B's two-member minimum → `[11]`, ARM D's distinctness test → `[12]`, and `soleArrayArgument`'s
+// sole-argument test → `[13]`. The ONE residual clean cut is the `candidateCall` name prefilter, which is
+// MUTUALLY REDUNDANT with `isZodCall`'s own `terminal === method` test: the prefilter decides whether an
+// origin is worth resolving and never whether the call is a zod call, so cutting it alone changes nothing.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -60,7 +69,12 @@ const MESSAGE =
   "knob whose old vocabulary was a LOUD boot refusal. Every one is semantics-preserving.";
 const FIX =
   "respell it: `z.object({…}).strict()` → `z.strictObject({…})`; `z.union([z.literal(a), z.literal(b)])` → " +
-  "`z.literal([a, b])`; an env boolean → the pinned `envBool` codec in packages/server/src/foundation/env/index.ts.";
+  "`z.literal([a, b])`; an env boolean → the pinned `envBool` codec in packages/server/src/foundation/env/index.ts. " +
+  "A deliberate keep is waived with `// @orb-waive zod-modern-spellings(<position>): <reason>` on a line above " +
+  "the offending statement, where <position> is the AUTHORED METHOD NAME this arm reports and nothing else — " +
+  "`strict`, `union` or `enum`, bare and unquoted, never `z.union`, never `literal` (the union's members are " +
+  "not findings) and never the whole call. One line can carry two arms, and the two markers differ only in " +
+  "that token.";
 
 /** The member a candidate call names, with the node the finding anchors on — prefilter only. */
 interface CandidateCall {
@@ -316,6 +330,61 @@ export const gate = defineGate({
           'export const flag = z.enum(["true", "false"]);\n',
       },
       why: "ARM D's POSITION, the third of the three tokens the header names — an env boolean is the one arm with a standing reason to be waived at a boot-refusal site. The fixture is mustFlag[4] (:230) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/shapes.ts":
+          "export const union = (arms: readonly unknown[]): unknown => arms;\nexport const literal = (value: unknown): unknown => value;\n",
+        "packages/contracts/src/x.ts": 'import { literal, union } from "./shapes.ts";\nexport const s = union([literal("a"), literal("b")]);\n',
+      },
+      why: "THE DOOR TEST, which the header's whole identity claim rests on and which nothing used to exercise: a project module that exports `union` and `literal` produces a call the candidate prefilter accepts and the ORIGIN reader resolves — to `packages/contracts/src/shapes.ts`, not to the `zod` door. Cut `doors.has(ZOD_DOOR)` and this row reds. The existing counterfactual (`mustPass[4]`) uses a LOCAL object, which the origin reader refuses outright; this one RESOLVES and is still not zod, which is the harder half",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodObject {\n  strict(): ZodObject;\n}\nexport declare const z: {\n  object: (shape: unknown) => ZodObject;\n  union: (arms: readonly unknown[]) => unknown;\n  literal: (value: unknown) => unknown;\n  enum: (values: readonly string[], params?: unknown) => unknown;\n};\n",
+        "packages/contracts/src/anchor.ts": "export const anchor = 1;\n",
+        "tooling/src/snap/ops/x.ts": 'import { z } from "zod";\nexport const s = z.union([z.literal("a"), z.literal("b")]);\n',
+      },
+      why: "THE POPULATION FENCE: ARM B's founding shape, moved to `@tooling`, produces nothing. `packages/**` is the judged corpus exactly as legacy scanned it — dev tooling is KISS by doctrine. The `@packages` anchor is load-bearing: a fixture holding only the tooling file admits zero paths and the run comes back a `[population]` TOOL ERROR rather than a finding. Widen `population` to `@authored` and this is the row that dies",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodObject {\n  strict(): ZodObject;\n}\nexport declare const z: {\n  object: (shape: unknown) => ZodObject;\n  union: (arms: readonly unknown[]) => unknown;\n  literal: (value: unknown) => unknown;\n  enum: (values: readonly string[], params?: unknown) => unknown;\n};\n",
+        "packages/contracts/src/x.ts": 'import { z } from "zod";\nexport const s = z.object({}).strict("why");\n',
+      },
+      why: "ARM A's ARITY FENCE: `.strict()` is the zero-argument legacy-compat call `z.strictObject` replaces. A `.strict(<params>)` call is a different overload carrying an error message, and it has no argument-preserving respelling, so flagging it would demand a fix that does not exist. Cut `node.getArguments().length > 0` and this row reds",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodObject {\n  strict(): ZodObject;\n}\nexport declare const z: {\n  object: (shape: unknown) => ZodObject;\n  union: (arms: readonly unknown[]) => unknown;\n  literal: (value: unknown) => unknown;\n  enum: (values: readonly string[], params?: unknown) => unknown;\n};\n",
+        "packages/contracts/src/x.ts": 'import { z } from "zod";\nexport const s = z.union([z.literal("a")]);\n',
+      },
+      why: "ARM B's MINIMUM: a ONE-member union is not the shape F7 is about — the nested `invalid_union` issue the arm exists to remove needs at least two options to nest, and a single-member union is a modelling accident with no multi-value literal to become. Cut `members.length >= MIN_LITERAL_UNION_MEMBERS` and this row reds",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodObject {\n  strict(): ZodObject;\n}\nexport declare const z: {\n  object: (shape: unknown) => ZodObject;\n  union: (arms: readonly unknown[]) => unknown;\n  literal: (value: unknown) => unknown;\n  enum: (values: readonly string[], params?: unknown) => unknown;\n};\n",
+        "packages/server/src/foundation/env/x.ts": 'import { z } from "zod";\nexport const flag = z.enum(["true", "true"]);\n',
+      },
+      why: "ARM D's DISTINCTNESS TEST: two members, both boolean strings, but the SAME one twice. That is not a hand-rolled `stringbool` — it accepts one value — so `z.stringbool` is not its respelling. Cut `texts[0] !== texts[1]` and this row reds",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodObject {\n  strict(): ZodObject;\n}\nexport declare const z: {\n  object: (shape: unknown) => ZodObject;\n  union: (arms: readonly unknown[]) => unknown;\n  literal: (value: unknown) => unknown;\n  enum: (values: readonly string[], params?: unknown) => unknown;\n};\n",
+        "packages/server/src/foundation/env/x.ts": 'import { z } from "zod";\nexport const flag = z.enum(["true", "false"], { error: "not a boolean" });\n',
+      },
+      why: "THE SOLE-ARGUMENT FENCE in `soleArrayArgument`: ARM D's founding shape plus a params object. A `z.enum` carrying custom error params is not a drop-in for the pinned `envBool` codec — the params are exactly what F5 says are the point — so the arm requires the array to be the call's ONLY argument. Cut `args.length === 1` and this row reds. It is the one fence shared by all three arms, since every arm reads its members through this helper",
     },
   ],
 });
