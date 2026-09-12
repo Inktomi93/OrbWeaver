@@ -2319,7 +2319,6 @@
     "tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts",
     "tests/tooling/verify/gates/eslint-grant-liveness.int.test.ts",
     "tests/tooling/verify/gates/external-id-single-writer-family.test.ts",
-    "tests/tooling/verify/gates/form-factory-for-multifield.int.test.ts",
     "tests/tooling/verify/gates/freeze-provenance-conversion.test.ts",
     "tests/tooling/verify/gates/grant-liveness-family.test.ts",
     "tests/tooling/verify/gates/home-client-family.test.ts",
@@ -2334,6 +2333,7 @@
     "tests/tooling/verify/gates/no-raw-color-in-css.test.ts",
     "tests/tooling/verify/gates/no-tailwind-dark-variant.int.test.ts",
     "tests/tooling/verify/gates/open-json-column-key-parity.test.ts",
+    "tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts",
     "tests/tooling/verify/gates/ordinary-visitors-family.test.ts",
     "tests/tooling/verify/gates/origin-client-family.test.ts",
     "tests/tooling/verify/gates/origin-server-family.test.ts",
@@ -3006,6 +3006,9 @@
     },
     "tests/tooling/verify/gates/dangling-refs.int.test.ts": {
       "why": "Renamed to tests/tooling/verify/gates/dangling-refs.repo.int.test.ts for the registered repository-resource test kind (#1862); executable test bodies preserved. Restore if this successor is removed without equivalent coverage."
+    },
+    "tests/tooling/verify/gates/form-factory-for-multifield.int.test.ts": {
+      "why": "RE-POINTED, not dropped: this was the permanent #620 pin for `form-factory-for-multifield`, and it drove the LEGACY `gate.visitFile` through a hand-rolled `GateRunCtx`. That entry point ceased to exist when the module converted to `defineGate` (#1584) — a final policy has no `visitFile` the pin can call and no `scanRoot` it can assert — and the pin's token assertions (`\"Probe (3 fields)\"`) named a spelling the central `@orb-waive` grammar's position group `[^()\\r\\n]+` can never parse, so it was asserting the very defect the conversion fixed. Every one of its #620 cases — the 4-arm switch false positive, if/else, the ternary, `&&` guards, sibling conditionals, the fat arm, the mixed ternary, the nested render callback, the factory-import exemption — moved to `tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts` and now runs through the PRODUCTION dispatcher (`runPolicyPass`), which is strictly stronger: it also asserts the reported position is paren-free authored text. Un-deletes only if `form-factory-for-multifield` is ever returned to a legacy `GateDescriptor`."
     }
   }
 }
