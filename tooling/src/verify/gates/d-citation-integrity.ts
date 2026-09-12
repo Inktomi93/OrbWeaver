@@ -1,145 +1,290 @@
-// Gate: d-citation-integrity — the D-ledger (Core-Path-Registry.md) is the ONE home for standing rulings;
-// code + core docs cite one as a bare `D<n>`. Makes the registry↔citation link physics: every bare `D<n>`
-// in packages/** + docs/architecture/core/** must resolve against the LIVE registry — either it has an
-// entry anchor `- **D<n>** —`, or it falls inside the RESERVED RANGE (D79–D105, main-era rulings that
-// rolled back while the surviving code kept citing them). A citation above the live ceiling and outside any
-// anchor/reserved slot is DANGLING (RED). The D-sibling of pd-citation-integrity (same scan machinery,
-// keyed off the registry's own anchors — NEVER a hardcoded ceiling, which would be the
-// path-keyed-gates-die-on-rename failure in number form). Catches the F2 dangling-D class (the
-// contracts-layer audit's #1 gate rec): code citing D-numbers that resolve to nothing.
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import type { Project, SourceFile } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
+// Gate: d-citation-integrity — the D-ledger (`Core-Path-Registry.md`) is the ONE home for standing
+// rulings, and code plus the core doc set cite one as a bare `D<n>`. Makes the registry↔citation link
+// physics: every bare `D<n>` resolves against the LIVE registry — it has an entry anchor
+// `- **D<n>** —`, or it falls inside the RESERVED RANGE the registry's own note declares (main-era
+// rulings that rolled back while the surviving code kept citing them). A citation with neither is
+// DANGLING. Keyed off the registry's OWN anchors and its OWN note, never a hardcoded ceiling — that would
+// be the path-keyed-gates-die-on-rename failure in number form.
+//
+// FAMILY: `text-citation`, the shared reader `lib/text-cite-scan.ts#scanTextCitations`, with
+// `pd-citation-integrity` and `dangling-doc-cite`.
+//
+// POPULATION PORT (legacy SHA `50088b39b`, verified byte-identical to HEAD at conversion) — AND THE HALF
+// THAT NEVER RAN. The legacy `inScope` admitted `packages/**` `.ts`/`.tsx` OR `docs/architecture/core/**`
+// `.md`, and filtered `project.getSourceFiles()`. That project is `_shared/ts-workspace.ts#harnessGlobs`,
+// which globs `.ts`/`.tsx` ONLY, so **no Markdown file was ever a member and the entire core-doc arm was
+// dead code** — including the header claim that "the registry file itself IS scanned". The conversion
+// RESTORES it through the door the contract minted for exactly this
+// (`contract/resource-tree.ts`: the `docs` tree id exists "so those policies can ADMIT the paths whose
+// text they then demand through `authoredText`"). Measured before landing: the restored arm finds ONE
+// site over 36 core docs, and it is the registry's own `**Next free number is D161+.**` bookkeeping —
+// fenced as a RANGE ANNOUNCEMENT below, not allowlisted. Live violations after the fence: 0 over both
+// arms (3,387 package sources + 36 core docs; the same scan without the fence returns 1, which is the
+// positive control that the scanner can fail).
+// The TS half ports as `@packages` + `@showcase`: the legacy predicate was `rel.startsWith("packages/")`
+// and `harnessGlobs` globs `packages/*/src/**`, which includes the showcase package that `@packages`
+// deliberately does not.
+//
+// `D<n>+` IS A RANGE ANNOUNCEMENT, NOT A CITATION, and this is a subject rule rather than an exemption
+// table. The registry's own prose announces the next unminted id ("Next free number is D161+", "reserved
+// for a genuinely new ruling is D159+"): a trailing `+` means "this number and up", which is a statement
+// about numbers that do not exist yet — the exact opposite of a citation of a ruling that should. Without
+// the fence the registry dangles on its own bookkeeping the day a ruling is minted, forever. `mustPass[2]`
+// is the row that dies without it.
+//
+// AUTHORITY IS `hard`, AND THAT IS A MEASURED RUNTIME FACT RATHER THAN A PREFERENCE. A `D<n>` citation
+// lives in a COMMENT or in doc prose, and `lib/ordinary-waiver.ts#locateFinding` refuses an ordinary
+// finding whose token does not survive comment blanking — *"points into comment trivia rather than
+// authored code"* (measured 2026-09-12 on this family by running a comment-resident row under
+// `authority: "ordinary"`). The legacy runtime did bind a line-adjacent `@orb-gate-ignore` to a
+// comment-resident finding (`lib/pass.ts#findingSuppressedAt`); the final runtime structurally cannot.
+// The loss is empty in practice: ZERO `@orb-gate-ignore d-citation-integrity` markers exist on the tree
+// (measured repo-wide at the conversion commit), so the marker reconciliation closes at
+// 0 legacy = 0 waives = 0 dead. The three remedies the message names are all repairs, never exemptions.
+//
+// WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
+// missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`)
+// THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
+// `create`/`evaluate` run (guide §11 ruling 3, `docs/design/resource-policy-contract.md` §4). The registry
+// is a `ledger` and NOT a `documents` member because it is an IDENTITY: with it absent every judgment
+// here is INVERTED rather than merely uncertain, so it must refuse the whole run
+// (`contract/resource-document.ts`). The core-doc corpus is the other door on purpose — a corpus
+// tolerates a refused member. The refusal pins are in
+// `tests/tooling/verify/gates/text-citation-family.test.ts`.
+//
+// A CORE DOC ADMITTED BY THE TREE AND NOT SERVED BY THE TEXT DOOR IS A TOOL ERROR, NOT A SKIP. Dropping
+// it would be absence, and absence is exactly how a citation policy reports a clean corpus it never read.
+// The one exception is `empty`: a file with no text has no citation to judge, which is a verdict rather
+// than a hole (`mustPass[3]`). DECLARED LIMIT — no proof row can reach the THROW: `missing` cannot occur
+// for a path the tree just listed, and a symlinked member refuses `authored-tree:docs` one phase EARLIER,
+// at population resolution. The construction attempted was a `links` fixture pointing a core-doc member
+// outside the fixture root; its measured outcome is the population-phase refusal pinned in the family
+// test, which is why this is guide §4.1's fourth outcome rather than a missing row.
+import { defineGate } from "../contract/policy.ts";
+import type { MarkdownDocument } from "../contract/resource-document.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
+import { scanTextCitations } from "../lib/text-cite-scan.ts";
 
-// The LIVE registry. Shared as the ONE anchor of this gate — a registry move updates the constant here.
-const REGISTRY = "docs/architecture/core/Core-Path-Registry.md";
-// Registry entry anchor. Both forms in the file: `- **D66 — title.**` (em-dash INSIDE the bold) and
-// `- **D67** — …` — the `\b` after the digits matches both (`**` or a space follows). The `^- ` prefix pins
-// it to a list-item anchor, so a prose `D79` mention (e.g. the reserved-range note's own body) never
-// registers as an entry.
+const CORE_DOCS = "docs/architecture/core/";
+/** A registry ENTRY anchor. Both authored forms — `- **D66 — title.**` and `- **D67** — …` — end the
+ *  digits on a `\b`, and the `^- ` prefix pins it to a list item so the reserved note's own prose can
+ *  never register as an entry. */
 const ANCHOR_RE = /^- \*\*D(\d+)\b/gmu;
-// The reserved-range note is machine-anchored on this exact literal — `**RESERVED RANGE — D<lo>–D<hi>:**`
-// (an en-dash between the two numbers, matching the note's own text). Keying off THIS (not a hardcoded
-// 79..105 pair) means the range moves with the note. If the note text is ever rephrased, this gate goes RED
-// on every reserved citation loudly — the reserved range is load-bearing, so a silent drift is unacceptable.
+/** The reserved-range note, machine-anchored on its own authored literal rather than on a hardcoded
+ *  79..105 pair, so the range moves with the note. A rephrase reds every reserved citation LOUDLY, which
+ *  is the intended failure: the reserved range is load-bearing and a silent drift is not acceptable. */
 const RESERVED_RE = /\*\*RESERVED RANGE\s*[—-]\s*D(\d+)[–-]D(\d+)/u;
-// A bare `D<n>` citation. The non-`P`/non-word/non-hyphen left boundary is the audit's measured
-// false-positive control: it excludes `PD-<n>` (the sibling namespace pd-citation-integrity owns) and any
-// `<word>D<n>` substring, while still matching `D79`, `(D79`, ` D79`, `,D79`.
-const CITE_RE = /(?<![A-Za-z0-9-])D(\d+)\b/gu;
-// The gate corpus: shipped code + the CORE doc set. history/** is scoped OUT — archaeology legitimately
-// cites dead/renumbered ledger entries. The registry file itself IS scanned (its own cross-refs must
-// resolve), which is why ANCHOR_RE pins to the list-item form, not a bare `D79` in the reserved note.
-function inScope(rel: string): boolean {
-  if (rel.startsWith("packages/") && (rel.endsWith(".ts") || rel.endsWith(".tsx"))) {
-    return true;
-  }
-  return rel.startsWith("docs/architecture/core/") && rel.endsWith(".md");
+/** A bare `D<n>` citation. The non-`P`/non-word/non-hyphen left boundary is the measured false-positive
+ *  control: it excludes `PD-<n>` (the sibling namespace `pd-citation-integrity` owns) and any
+ *  `<word>D<n>` substring while still matching `D79`, `(D79`, ` D79`, `,D79`. The trailing `(?!\+)` is
+ *  the range-announcement fence (header). */
+const CITE_RE = /(?<![A-Za-z0-9-])(D\d+)\b(?!\+)/gu;
+
+const MESSAGE =
+  "a bare D<n> ledger citation resolves to nothing — it has no `- **D<n>** —` anchor in Core-Path-Registry.md and is not inside the reserved range. A dangling D-citation is drift a reader cannot distinguish from a real ruling. See Core-Path-Registry.md.";
+
+interface Registry {
+  readonly ids: ReadonlySet<string>;
+  readonly reserved: { readonly lo: number; readonly hi: number } | undefined;
 }
 
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
+interface Cite {
+  readonly path: string;
+  readonly token: string;
+  readonly line: number;
+  readonly column: number;
 }
 
-/** The live registry: the set of minted entry numbers + the reserved [lo, hi] range. */
-function readRegistry(root: string): { ids: Set<number>; reserved: { lo: number; hi: number } | null } {
-  const ids = new Set<number>();
-  let reserved: { lo: number; hi: number } | null = null;
-  const path = join(root, REGISTRY);
-  if (!existsSync(path)) {
-    return { ids, reserved };
-  }
-  const text = readFileSync(path, "utf8");
-  for (const m of text.matchAll(ANCHOR_RE)) {
-    const n = m[1];
-    if (n !== undefined) {
-      ids.add(Number(n));
+function readRegistry(documents: readonly MarkdownDocument[]): Registry {
+  const ids = new Set<string>();
+  let reserved: { readonly lo: number; readonly hi: number } | undefined;
+  for (const document of documents) {
+    for (const match of document.text.matchAll(ANCHOR_RE)) {
+      ids.add(`D${String(match[1])}`);
     }
-  }
-  const r = RESERVED_RE.exec(text);
-  if (r?.[1] !== undefined && r[2] !== undefined) {
-    reserved = { lo: Number(r[1]), hi: Number(r[2]) };
+    const note = RESERVED_RE.exec(document.text);
+    if (reserved === undefined && note?.[1] !== undefined && note[2] !== undefined) {
+      reserved = { lo: Number(note[1]), hi: Number(note[2]) };
+    }
   }
   return { ids, reserved };
 }
 
-function resolves(n: number, ids: Set<number>, reserved: { lo: number; hi: number } | null): boolean {
-  if (ids.has(n)) {
+function resolves(token: string, registry: Registry): boolean {
+  if (registry.ids.has(token)) {
     return true;
   }
-  return reserved !== null && n >= reserved.lo && n <= reserved.hi;
+  const number = Number(token.slice(1));
+  return registry.reserved !== undefined && number >= registry.reserved.lo && number <= registry.reserved.hi;
 }
 
-/** Dangling `D<n>` citations in one file (number has no registry anchor and is outside the reserved range). */
-function danglingCitesIn(sf: SourceFile, root: string, ids: Set<number>, reserved: { lo: number; hi: number } | null): Violation[] {
-  const out: Violation[] = [];
-  const text = sf.getFullText();
-  for (const m of text.matchAll(CITE_RE)) {
-    const raw = m[1];
-    if (raw === undefined) {
-      continue;
-    }
-    const n = Number(raw);
-    if (!resolves(n, ids, reserved)) {
-      // @finding-overload-ok: a TEXT-scan position — `m.index` is a regex match offset into the raw file text (a citation in a comment or a doc), NOT a node start, so there is nothing for hasGateIgnore to read a marker off. Ends if this scanner ever resolves its hits to real nodes
-      out.push({
-        file: relPath(root, sf.getFilePath()),
-        line: sf.getLineAndColumnAtPos(m.index).line,
-        message: `D${n} cites a D-ledger entry with no anchor and outside the reserved range (D79–D105) — mint the entry, fix the number, or drop the citation. See Core-Path-Registry.md.`,
-      });
-    }
-  }
-  return out;
+function reservedLabel(registry: Registry): string {
+  return registry.reserved === undefined
+    ? "no reserved range is declared in the registry's own note"
+    : `the reserved range D${String(registry.reserved.lo)}–D${String(registry.reserved.hi)}`;
 }
 
-/** Whole-tree reconciliation: the live registry (fs) vs every bare `D<n>` citation in the scoped corpus. */
-function reconcileDCitations(root: string, project: Project): Violation[] {
-  const violations: Violation[] = [];
-  const { ids, reserved } = readRegistry(root);
-  for (const sf of project.getSourceFiles()) {
-    if (!inScope(relPath(root, sf.getFilePath()))) {
-      continue;
-    }
-    violations.push(...danglingCitesIn(sf, root, ids, reserved));
-  }
-  return violations;
-}
-
-export const gate: GateDescriptor = {
-  name: "d-citation-integrity",
-  docRow: "core/Core-Enforcement-Active-Gates.md",
-  status: "active",
-  scopeSafety: "whole-project",
-  fsBacked: true,
-  message:
-    "a bare D<n> ledger citation resolves to nothing — it has no `- **D<n>** —` anchor in Core-Path-Registry.md and is not inside the reserved range (D79–D105). A dangling D-citation is drift a reader can't distinguish from a real ruling. See Core-Path-Registry.md.",
-  fix: "mint the entry in Core-Path-Registry.md (next free is D106+), fix the number to an existing entry, or drop the citation. Reserved-range numbers (D79–D105) resolve as-is until re-minted.",
-  run: (ctx) => {
-    for (const v of reconcileDCitations(ctx.root, ctx.project)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
+export const gate = defineGate({
+  id: "d-citation-integrity",
+  family: "text-citation",
+  authority: "hard",
+  severity: "error",
+  population: { in: ["@packages", "@showcase"] },
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [{ kind: "ledger", id: "core-path-registry" }, { kind: "authored-tree", id: "docs" }, { kind: "authored-text" }],
+  message: MESSAGE,
+  fix: "mint the entry in Core-Path-Registry.md (the registry states its own next free number), fix the number to an existing entry, or drop the citation. A reserved-range number resolves as-is until it is re-minted.",
+  create: (ctx) => {
+    const cites: Cite[] = [];
+    const collect = (path: string, text: string): void => {
+      for (const hit of scanTextCitations(text, CITE_RE)) {
+        cites.push({ path, token: hit.token, line: hit.line, column: hit.column });
+      }
+    };
+    return {
+      visitFile: (sourceFile) => collect(ctx.relativePath(sourceFile), sourceFile.getFullText()),
+      evaluate: () => {
+        const ledger = readyResourceValue(ctx.resources.ledger("core-path-registry"));
+        const registry = readRegistry(ledger.documents);
+        const corePaths = readyResourceValue(ctx.resources.authoredTree("docs"))
+          .filter((entry) => entry.kind === "file" && entry.path.startsWith(CORE_DOCS) && entry.path.endsWith(".md"))
+          .map((entry) => entry.path);
+        const corpus = readyResourceValue(ctx.resources.authoredText(corePaths));
+        for (const refusal of corpus.refusals) {
+          if (refusal.status !== "empty") {
+            throw new Error(`core doc ${refusal.path} was admitted by the docs tree and refused by the text door (${refusal.status}): ${refusal.reason}`);
+          }
+        }
+        for (const file of corpus.files) {
+          collect(file.path, file.text);
+        }
+        for (const cite of cites) {
+          if (!resolves(cite.token, registry)) {
+            ctx.report.file(cite.path, {
+              line: cite.line,
+              column: cite.column,
+              token: cite.token,
+              message: `${cite.token} cites a D-ledger entry with no anchor and outside ${reservedLabel(registry)} — mint the entry, fix the number, or drop the citation. See Core-Path-Registry.md.`,
+            });
+          }
+        }
+        // A receipt states what the run MEASURED, never what it FOUND (guide §12.3): the ledger
+        // documents read and the core docs served. A census can legitimately be zero, and a zero receipt
+        // is a REFUSAL (`lib/policy-pass.ts` receiptFailures, `count === 0`) — a ledger with no anchors
+        // would turn its own honest verdict into a tool error.
+        ctx.receipt({ kind: "population", source: "d-ledger-documents", members: ledger.documents.length });
+        ctx.receipt({ kind: "population", source: "core-doc-citers", members: corpus.files.length });
+      },
+    };
   },
   mustFlag: [
     {
+      mode: "resource",
       files: {
         "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
         "packages/contracts/src/x.ts": "// per D999 — a dangling citation, no anchor, above the ceiling.\nexport const x = 1;\n",
       },
-      expect: { messageIncludes: "cites a D-ledger entry with no anchor" },
-      why: "a bare D999 citation with no registry anchor and above the reserved range — a dangling D-citation (the F2 class)",
+      expect: { count: 1, line: 1, token: "D999", messageIncludes: "cites a D-ledger entry with no anchor" },
+      why: "the founding F2 defect: a bare D999 with no registry anchor and above the reserved range, reported at the exact authored citation",
+    },
+    {
+      mode: "resource",
+      files: {
+        "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
+        "docs/architecture/core/Some-Law.md": "---\nkind: law\n---\n\nThe ruling is D777, which nothing minted.\n",
+        "packages/contracts/src/ok.ts": "// per D1 — anchored.\nexport const x = 1;\n",
+      },
+      expect: { count: 1, line: 5, token: "D777", messageIncludes: "cites a D-ledger entry with no anchor" },
+      why: "THE RESTORED ARM: a dangling citation in a CORE DOC. The legacy descriptor claimed this scope and could never reach it — Markdown is not in the ts-morph project — so this row is the successor proof for the half that never ran",
+    },
+    {
+      mode: "resource",
+      files: {
+        "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> Nothing here declares a reserved range.\n",
+        "packages/contracts/src/x.ts": "// per D99 — reserved on the real tree, unresolvable with no note.\nexport const x = 1;\n",
+      },
+      expect: { count: 1, token: "D99", messageIncludes: "no reserved range is declared" },
+      why: "THE NARROWING ROW for keying the range off the registry's OWN note: with the note absent every reserved citation reds LOUDLY rather than resolving against a hardcoded 79..105 pair the registry no longer states",
+    },
+    {
+      mode: "resource",
+      files: {
+        "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
+        "packages/contracts/src/x.ts": "// D106 is one past the reserved ceiling and has no anchor.\nexport const x = 1;\n",
+      },
+      expect: { count: 1, token: "D106", messageIncludes: "cites a D-ledger entry with no anchor" },
+      why: "the reserved range is INCLUSIVE and bounded — the first number past its ceiling is dangling, which is the boundary a `>= lo` test alone would get wrong",
+    },
+    {
+      mode: "resource",
+      files: {
+        "docs/architecture/core/Core-Path-Registry.md":
+          "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings, e.g. main's **D777 = a rolled-back ruling**.\n",
+        "packages/contracts/src/x.ts": "// per D777 — the number is named in the registry's PROSE, never minted as an entry.\nexport const x = 1;\n",
+      },
+      expect: { count: 2, token: "D777", messageIncludes: "cites a D-ledger entry with no anchor" },
+      why: "TWO findings on purpose — the registry is itself a core doc, so its own prose mention is a citation too, and a `count: 1` here would be a row that had not read its own corpus. THE ROW THE `^- ` ANCHOR PIN TURNS GREEN WHEN CUT (§4.1's wrong-direction class — opening a fence makes this policy flag FEWER): the reserved note's own prose names D-numbers in bold, and without the list-item pin each one registers as a minted ENTRY and silently resolves every citation of it",
     },
   ],
   mustPass: [
     {
+      mode: "resource",
+      files: {
+        // A directory whose NAME ends in `.md`. The tree walk lists it as a `directory` entry, and without
+        // the `entry.kind === "file"` fence it is demanded as TEXT — the reader refuses (EISDIR) and the
+        // policy's own refusal turns the run into a tool error rather than a verdict.
+        "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
+        "docs/architecture/core/weird.md/inner.md": "no citation here.\n",
+        "packages/contracts/src/ok.ts": "// per D1 — anchored.\nexport const x = 1;\n",
+      },
+      why: 'THE NARROWING ROW for `entry.kind === "file"` in the core-doc filter, recorded as UNFALSIFIABLE by an earlier draft and falsified by a constructed fixture: a DIRECTORY named `*.md` exists the moment a fixture puts a file inside one',
+    },
+    {
+      mode: "resource",
+      files: {
+        "docs/architecture/core/Core-Path-Registry.md":
+          "- **D1** — an entry.\n- **D66 — an em-dash-inside-the-bold entry.**\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
+        "packages/contracts/src/y.ts":
+          "// per D1 (anchored), D66 (the other anchor form), D99 (reserved), FLAG[PD-17] (sibling namespace).\nexport const y = 1;\n",
+      },
+      why: "both authored anchor forms, a reserved-range number, and the PD sibling namespace — every citation resolves and the non-`P` left boundary keeps PD-17 out; drop the lookbehind and `D-17` reds",
+    },
+    {
+      mode: "resource",
       files: {
         "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
-        // D1 resolves via the anchor; D99 resolves via the reserved range; PD-17 is the sibling
-        // namespace (excluded by the non-P left boundary) and must NOT trip this gate.
-        "packages/contracts/src/y.ts": "// per D1 (anchored), D99 (reserved), FLAG[PD-17] (sibling — not a D cite).\nexport const y = 1;\n",
+        "packages/contracts/src/z.ts": "// ADD777 and a hyphenated X-D777 are substrings, not citations.\nexport const z = 1;\n",
       },
-      why: "an anchored D1 + a reserved-range D99 + a PD-17 (sibling namespace) — every citation resolves, the link is intact",
+      why: "THE NARROWING ROW for the left boundary: drop the lookbehind and `ADD777`/`X-D777` read as dangling citations. The numbers are deliberately UNMINTED — an earlier draft used `D1`, which resolves, so the row passed with the fence cut and discriminated nothing",
+    },
+    {
+      mode: "resource",
+      files: {
+        "docs/architecture/core/Core-Path-Registry.md":
+          "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings. **Next free number is D161+.**\n",
+        "packages/contracts/src/ok.ts": "// per D1 — anchored.\nexport const x = 1;\n",
+      },
+      why: "THE NARROWING ROW for the range-announcement fence: `D161+` is the registry announcing its next UNMINTED id, so it must not dangle on its own bookkeeping. Drop `(?!\\+)` and this row reds — it is also the live shape on the real tree",
+    },
+    {
+      mode: "resource",
+      files: {
+        "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
+        "docs/architecture/core/Empty-Doc.md": "",
+        "packages/contracts/src/ok.ts": "// per D1 — anchored.\nexport const x = 1;\n",
+      },
+      why: "an EMPTY core doc is a verdict, not a hole: the text door refuses it as `empty`, it carries no citation to judge, and the policy must not turn that into the tool error it raises for every OTHER refusal status",
+    },
+    {
+      mode: "resource",
+      files: {
+        "docs/architecture/core/Core-Path-Registry.md": "- **D1** — an entry.\n> **RESERVED RANGE — D79–D105:** reserved for main-era rulings.\n",
+        "docs/architecture/history/Archaeology.md": "---\nkind: history\n---\n\nMain-era D777 and D888 are cited here as archaeology.\n",
+        "packages/contracts/src/ok.ts": "// per D1 — anchored.\nexport const x = 1;\n",
+      },
+      why: "THE NARROWING ROW for the `docs/architecture/core/` prefix: `history/**` legitimately cites dead and renumbered entries, so widening the corpus filter to the whole docs tree reds this row",
     },
   ],
-};
+});
