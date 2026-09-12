@@ -407,6 +407,10 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     // vs a fresh derivation. Their freshness checks were vitest suites, so `pnpm check` stayed green while
     // main sat red on the next whole node run.
     "ledgers:fresh",
+    // #2074: the RULE half of biome grant liveness, successor to the policy arm `97e68be91` deleted under
+    // §12.3 (a write plus a spawn). Path liveness proves the granted SUBJECT exists; nothing proved the
+    // granted RULE still fires, so a rule-off override on a file that stopped violating it was unpoliced.
+    "config:biome-rule-liveness",
     "imports:depcruise",
     "deps:knip",
     "docs:format",

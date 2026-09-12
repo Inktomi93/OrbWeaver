@@ -1,7 +1,15 @@
 // `pnpm gate:new <kebab-name>` — scaffolds a structural gate with EVERY coupled site stubbed, then prints
-// the ones that live outside the gate file (the doc row, the count bump, the anti-drift fixture). The
-// template is the law executable: it ships two-sided from birth (an exemption table WITH its stale arm and
-// a real-tree anchor guard) so the shape is copied instead of remembered. Law: gates/GATE-AUTHORING.md.
+// the ones that live outside the gate file. The template is the law executable: the shape is COPIED
+// instead of remembered, which is exactly why it must emit the CURRENT contract.
+//
+// #2102: it emitted the LEGACY one. Until 2026-09-12 this scaffold wrote a `GateDescriptor` with an
+// `ExemptionTable`, a `scanRoot` predicate, `visit`/`finalize` hooks and a hand-rolled stale arm, and its
+// ritual sent the operator to `GATE-AUTHORING.md`, to a `check-gates.repo.int.test.ts` fixture and to the
+// legacy proof shape. §12.5 forbids an `ExemptionTable` in a final policy, so every gate minted from this
+// template was born owing an authority migration — a generator that teaches the shape its own program
+// bans. The template below is a `defineGate` FINAL policy: it loads, validates, and its `mustFlag` /
+// `mustPass` rows pass `pnpm check:policy-conformance` on arrival, so a freshly scaffolded gate is green
+// until the author makes it mean something. Law: docs/design/gate-runtime-standardization.md §12.
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -14,111 +22,87 @@ refuseDirectInvocation(import.meta.url, "pnpm gate:new <kebab-name>");
 const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const NAME_TOKEN = "__NAME__";
 const GATES_DIR = "tooling/src/verify/gates";
-const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
+const LAW = "docs/design/gate-runtime-standardization.md";
 const ENFORCEMENT_DOC = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
-const FIXTURE_TEST = "tests/tooling/check-gates.repo.int.test.ts";
+const FAMILY_TESTS = "tests/tooling/verify/gates";
 
 const TEMPLATE = `// Gate: __NAME__ — <ONE line: what shape is banned and WHY it is a defect, not a preference>.
 // <the ARMS, one line each> · DECLARED LIMITS: <what this reader cannot see — each one owes a mustPass row>.
-// Header budget is 5 lines (GATE-AUTHORING.md §7); delete this line and the two above once real.
+// FAMILY: <the shared lib/ reader (module + function) this policy belongs to, or "singleton" and why>.
+// Header budget is 5 lines; delete this line and the three above once real.
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import { defineGate } from "../contract/policy.ts";
 
-// TODO(scaffold): the shape this gate bans. Replace the placeholder with the real predicate — and read
-// §3 of the law first: a \`scanRoot\` predicate takes a BARE repo-relative path, and the absolute form
-// fails SILENTLY GREEN (conformance's virtual paths never catch it).
+// TODO(scaffold): the shape this gate bans. Replace the placeholder with the real predicate.
 const BANNED_IDENTIFIER = "__ORB_GATE_PLACEHOLDER__";
 
-// The REAL-TREE ANCHOR the stale arm guards on: a file present on every real run and never needed by an
-// example. \`ctx.scope.kind === "project"\` alone is NOT enough — conformance mini-projects report
-// "project" too and would red this gate's own self-proof (GATE-AUTHORING.md §4.5).
-const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
-
-const GATE_SELF = "tooling/src/verify/gates/__NAME__.ts";
-
-// Sanctioned exceptions. TYPED rows: \`why\` is mandatory and MUST carry the condition that ends the
-// exemption. Born EMPTY on purpose — fix violations at landing; an allowlist is for PERMANENT deliberate
-// exceptions only (GATE-AUTHORING.md §4.7).
-const ALLOWLIST: ExemptionTable = {};
-
 const MESSAGE =
-  "TODO(scaffold): the rule this gate enforces — what is wrong, and why. Written ONCE here; a Finding " +
+  "TODO(scaffold): the rule this gate enforces — what is wrong, and why. Written ONCE here; a finding " +
   "never repeats it. End it with a pointer (a <Doc>.md §N, a packages/… home, or a concrete file.ts) or " +
-  "diagnostic-legibility reds. See GATE-AUTHORING.md.";
+  "diagnostic-legibility reds.";
 
 const FIX = "TODO(scaffold): how to correct it — the smallest honest change, named concretely.";
 
-const STALE_ENTRY_PREFIX =
-  "ALLOWLIST row matching NO live violation any more (ratchet down) — the exemption is unused; delete the " +
-  "stale row in tooling/src/verify/gates/__NAME__.ts: ";
-
-const seenAllowlisted = new Set<string>();
-
-export const gate: GateDescriptor = {
-  name: "__NAME__",
-  // TODO(scaffold): the enforcement-doc citation. A \`§\` anchor must be DEFINED in the doc it names —
-  // gate-modernization arm C reds a phantom section.
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
-  status: "active",
-  // TODO(scaffold): "whole-project" whenever the verdict needs more than the file it is looking at
-  // (registry / parity / uniqueness / coverage). Getting this wrong FALSE-GREENS every scoped run.
-  scopeSafety: "incremental-safe",
+export const gate = defineGate({
+  id: "__NAME__",
+  // The FAMILY string. A policy that shares a lib/ reader with siblings shares their family; a split by
+  // AUTHORITY (this policy plus a hard \`-health\` sibling) uses the IDENTICAL family on both halves. A
+  // singleton's family equals its id — the loader enforces that, so getting it wrong refuses at load.
+  family: "__NAME__",
+  // "ordinary" is waivable at the reported position with an \`@orb-waive __NAME__(<pos>)\` marker;
+  // "hard" is not; "reviewed-grant" means every exception is a row in the central grant table. There is
+  // no fourth option and NO private exemption table — §12.5 bans one in a final policy outright.
+  authority: "ordinary",
+  // "error" takes no workItem; "warning" REQUIRES one (the debt it is parked against).
+  severity: "error",
+  // TODO(scaffold): the POPULATION, and the \`why\` is a claim about REACH, not a convenience filter. A
+  // \`notUnder\` subtraction owes a mustPass row with a SECOND admitted file beside it — a fixture holding
+  // only the subtracted path admits nothing and comes back a [population] TOOL ERROR, not a finding.
+  population: { of: "all", why: "TODO(scaffold): why THIS population, in one sentence" },
+  // "syntax" must not reach the type checker — not via ctx.checker(), and not via a ts-morph node's
+  // getType/getSymbol/getContextualType either (gate-modernization arm E reads the DECLARATION).
+  analysis: "syntax",
+  execution: "selected-files",
+  // Facts and resources are DECLARED, never taken: \`facts: []\` explicit, and every resource read owes a
+  // kind from contract/resource-declaration.ts. A private filesystem read, walk or cache is banned here.
+  facts: [],
+  resources: [],
   message: MESSAGE,
   fix: FIX,
-  // Sanctioned homes are SCANNED, not scoped OUT: the only exemption is a cited ALLOWLIST row, so a moved
-  // file goes RED at its new path instead of silently carrying its exemption (GATE-AUTHORING.md §3).
-  scanRoot: (p) => p.startsWith("packages/"),
-  kinds: [SyntaxKind.Identifier],
-
-  begin: () => {
-    seenAllowlisted.clear();
-  },
-
-  visit: (node, sf, ctx) => {
-    if (node.getText() !== BANNED_IDENTIFIER) {
-      return;
-    }
-    const rel = ctx.root.length > 0 && sf.getFilePath().startsWith(ctx.root) ? sf.getFilePath().slice(ctx.root.length + 1) : sf.getFilePath();
-    if (rel in ALLOWLIST) {
-      seenAllowlisted.add(rel);
-      return;
-    }
-    ctx.report(node);
-  },
-
-  finalize: (ctx) => {
-    if (!fileLoaded(ctx, REAL_TREE_ANCHOR)) {
-      return; // not the real tree — a stale claim here would judge a synthetic fileset
-    }
-    for (const rel of Object.keys(ALLOWLIST)) {
-      if (!seenAllowlisted.has(rel)) {
-        ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_ENTRY_PREFIX + rel });
-      }
-    }
-  },
-
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.Identifier],
+        visit: (node) => {
+          if (node.getText() === BANNED_IDENTIFIER) {
+            ctx.report.node(node, { token: BANNED_IDENTIFIER, offset: 0 });
+          }
+        },
+      },
+    ],
+  }),
   // TODO(scaffold): replace with the REAL violation shape — the actual defect this gate was minted from.
   // Cover EVERY spelling of it (object vs array; self-closing vs paired JSX; wrapped vs bare literal): a
   // gate that catches one form is a half-gate, and a fixture the reader cannot parse is a LYING PROOF.
   mustFlag: [
     {
-      files: "export const x = __ORB_GATE_PLACEHOLDER__;\\n",
-      at: "packages/server/src/domain/x/x.ts",
-      expect: { count: 1 },
+      mode: "source",
+      files: { "packages/server/src/domain/x/x.ts": "export const x = __ORB_GATE_PLACEHOLDER__;\\n" },
+      expect: { count: 1, token: "__ORB_GATE_PLACEHOLDER__" },
       why: "TODO(scaffold): the founding shape — name the real defect this row reproduces",
     },
   ],
   // TODO(scaffold): one row per NEAR-MISS the gate must not bite, and one per DECLARED LIMIT — a written
-  // baseline beats an assumption.
+  // baseline beats an assumption. A row whose \`why\` does not name what would RED if the fence were cut is
+  // a row nobody can audit.
   mustPass: [
     {
-      files: "export const x = 1;\\n",
-      at: "packages/server/src/domain/x/x.ts",
+      mode: "source",
+      files: { "packages/server/src/domain/x/x.ts": "export const x = 1;\\n" },
       why: "TODO(scaffold): the sanctioned shape the rule deliberately allows",
     },
   ],
-};
+});
 `;
 
 /** The `gate:new` verb — scaffold the gate file, then print every coupled site that lives outside it. */
@@ -146,39 +130,37 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       "",
       `wrote ${rel}`,
       "",
-      `READ ${LAW} IN FULL before filling it in. The gate is ACTIVE from this moment — the loader IS the`,
-      "registry — so `pnpm check` will RED until the remaining coupled sites land. That is the ritual:",
+      `READ ${LAW} §12 IN FULL before filling it in — it is the \`defineGate\` contract, and`,
+      "`tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide: read it only to",
+      "understand a descriptor you are REPLACING, never to copy a shape into this file. The gate is ACTIVE",
+      "from this moment — the loader IS the registry — so the coupled sites below are owed in THIS lane:",
       "",
       `  1. ${rel}`,
-      "     fill every TODO(scaffold). Prove it BITES the REAL shape on the REAL tree:",
-      "       pnpm check:structure                      # conformance passing proves NOTHING about scanRoot",
+      "     fill every TODO(scaffold). The scaffold is green on arrival; it starts MEANING something when",
+      "     its predicate and its proof rows describe the real defect. Prove it bites:",
       "",
-      `  2. ${ENFORCEMENT_DOC}`,
+      "       pnpm check:policy-conformance            # runs this policy's mustFlag/mustPass rows",
+      "",
+      `  2. ${FAMILY_TESTS}/<family>.test.ts`,
+      "     the committed receipt — import this module and assert `verifyPolicyProofs([gate])` equals `[]`.",
+      "     A family test often lives under the WAVE's name rather than the gate's, so grep the gate ID as a",
+      "     STRING across that directory before writing a new file; an existing family file takes the row.",
+      "",
+      `  3. ${ENFORCEMENT_DOC}`,
       "     add the Layer-3 ACTIVE table row:",
       "",
       `       | \`${name}\` | <what it enforces, incl. the arms + declared limits> |`,
       "",
-      `  3. ${ENFORCEMENT_DOC}`,
-      '     bump the "(N registered gates)" count line by one.',
+      `  4. ${ENFORCEMENT_DOC}`,
+      '     bump the "(N registered gates)" count line. Do NOT hand-compute it: `enforcement-registry-parity`',
+      "     holds the literal two-sided against the discovered roster and NAMES the right number when it reds.",
       "",
-      `  4. ${FIXTURE_TEST}`,
-      "     add the anti-drift fixture inside writeFixtures() — a MINIMAL real-tree violation at the path",
-      "     your scanRoot anchors on:",
-      "",
-      `       // ${name}: <one line — what this fixture violates>`,
-      `       fx("packages/server/src/domain/__g_${name.replaceAll("-", "")}/x.ts", "export const x = __ORB_GATE_PLACEHOLDER__;\\n");`,
-      "",
-      "     ...OR, if no throwaway file can trigger it (a whole-corpus ratchet / real-manifest parity), add",
-      `     "${name}" to UNFIXTURABLE_GATES with a comment stating WHY. Never fake a fixture.`,
-      "",
-      "  5. verify:",
-      "       pnpm check:structure",
-      "       pnpm vitest run tests/tooling/gate-conformance.repo.int.test.ts tests/tooling/check-gates.repo.int.test.ts",
-      "",
-      "  6. FIX the live violations it finds, in THIS lane. An allowlist row is for a PERMANENT deliberate",
-      "     exemption only (reason + stale arm, both scaffolded above) — never debt parking.",
+      "  5. FIX the live violations it finds, in THIS lane. There is no private exemption table in a final",
+      "     policy (§12.5): a permanent, reasoned exception is a row in the central reviewed-grant table with",
+      '     its `why` AND its `endsWhen`, and `authority: "reviewed-grant"` on this policy. Never debt parking.',
       "",
     ].join("\n"),
   );
+
   return EXIT.clean;
 }

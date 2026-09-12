@@ -29,6 +29,8 @@ const GATES_REL = "tooling/src/verify/gates/";
 const GATE_SELF = `${GATES_REL}gate-modernization.ts`;
 const LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
 const TS_EXT_RE = /\.ts$/u;
+/** A sibling gate module imports its family-mate as `./<name>.ts` — both modules are top-level in `gates/`. */
+const RELATIVE_PREFIX_RE = /^\.\//u;
 
 // ── ARM B vocabulary ─────────────────────────────────────────────────────────────────────────────────
 // A const NAME carrying exemption vocabulary is a PROMISE: these rows are deliberate, permanent, and
@@ -303,6 +305,31 @@ export function exemptionCollections(sf: SourceFile): Collection[] {
   return out;
 }
 
+/** ARM B's SPLIT-FAMILY door (#2093). A family that SPLITS by authority (guide: an ordinary policy plus a
+ *  hard `-health` sibling carrying the identical `family`) puts the exemption TABLE in the ordinary half
+ *  and the liveness arm in the sibling — so a per-MODULE `hasStaleArm` accused three ordinary halves whose
+ *  property was held one file over. Measured 2026-09-12 over all 300 corpus modules: arm B accused four,
+ *  and `no-raw-spacing-in-features` · `no-raw-typography-in-features` · `serde-core-seal` were exactly this
+ *  shape, each one's `-health` sibling importing the very symbol and carrying the stale arm.
+ *
+ *  The door is the IMPORT, deliberately NOT the `family` string: a shared family name would excuse any
+ *  table in the family, while an import of THIS collection by a module that carries a stale arm is
+ *  evidence about THIS collection. It follows that an UNEXPORTED one-sided table can never be excused —
+ *  nothing can reach it — which is why `vector-scope-derived`'s `IMPORT_SANCTIONED` stays red, and it was
+ *  the one accusation of the four that this door deliberately leaves standing. */
+export function coveringSibling(collection: Collection, selfRel: string, corpus: ReadonlyMap<string, SourceFile>): string | undefined {
+  const selfBase = selfRel.slice(GATES_REL.length).replace(TS_EXT_RE, "");
+  const importsCollection = (sibling: SourceFile): boolean =>
+    sibling
+      .getImportDeclarations()
+      .some(
+        (declaration) =>
+          declaration.getModuleSpecifierValue().replace(RELATIVE_PREFIX_RE, "").replace(TS_EXT_RE, "") === selfBase &&
+          declaration.getNamedImports().some((named) => named.getName() === collection.name),
+      );
+  return [...corpus].find(([rel, sibling]) => rel !== selfRel && hasStaleArm(sibling) && importsCollection(sibling))?.[0];
+}
+
 const STRING_KINDS = [
   SyntaxKind.StringLiteral,
   SyntaxKind.NoSubstitutionTemplateLiteral,
@@ -518,12 +545,16 @@ function gateFiles(ctx: GateRunCtx): Map<string, SourceFile> {
 /** Arm B for one gate module: every one-sided exemption collection it carries. Unsuppressed by
  *  construction — the RETRO handoff baseline reached its terminal state `{}` (GATE-AUTHORING.md §4.8) and was
  *  deleted with its generator, so a NEW one-sided table is red on arrival with no ledger to add it to. */
-function armExemptions(sf: SourceFile, ctx: GateRunCtx): void {
+function armExemptions(sf: SourceFile, rel: string, corpus: ReadonlyMap<string, SourceFile>, ctx: GateRunCtx): void {
   if (hasStaleArm(sf)) {
     return;
   }
   for (const c of exemptionCollections(sf)) {
-    ctx.report(c.node, { token: c.name, offset: 0 });
+    // A collection whose stale arm lives in an importing sibling is two-sided AS A FAMILY (#2093); the
+    // door is per-COLLECTION, so a second, uncovered table in the same module still reds.
+    if (coveringSibling(c, rel, corpus) === undefined) {
+      ctx.report(c.node, { token: c.name, offset: 0 });
+    }
   }
 }
 
@@ -543,9 +574,10 @@ export const gate: GateDescriptor = {
   fix: FIX,
   run: (ctx) => {
     let ledgerReaders = 0;
-    for (const [rel, sf] of gateFiles(ctx)) {
+    const corpus = gateFiles(ctx);
+    for (const [rel, sf] of corpus) {
       const obj = armDescriptor(sf, rel, ctx);
-      armExemptions(sf, ctx);
+      armExemptions(sf, rel, corpus, ctx);
       ledgerReaders += armAdmitted(sf, ctx) ? 1 : 0;
       if (obj !== undefined) {
         armCitation(obj, ctx);
@@ -706,6 +738,16 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        "tooling/src/verify/gates/__probe.ts":
+          'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
+        "tooling/src/verify/gates/__probe-health.ts":
+          'import { OTHER } from "./__probe.ts";\nconst MSG = "row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe-health", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], seen: OTHER };\n',
+      },
+      expect: { token: "ALLOWLIST" },
+      why: "ARM B SPLIT-FAMILY, the NEGATIVE direction (#2093): a sibling that carries a stale arm but does NOT import THIS collection covers nothing. Without this row the split-family door would be a blanket excuse for any module with a stale-armed neighbour — which is the false-clean the door itself could have introduced",
+    },
+    {
+      files: {
         "docs/architecture/core/__g_gm_doc.md": "---\nkind: law\n---\n\n## 11. A real section\n\nprose.\n\nSee §12.6 for more.\n",
         "tooling/src/verify/gates/__probe.ts":
           'export const gate = { name: "__probe", docRow: "__g_gm_doc.md §12.6", message: "m", mustFlag: [1], mustPass: [1] };\n',
@@ -778,6 +820,15 @@ export const gate: GateDescriptor = {
           'const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nconst MSG = "ALLOWLIST row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
       },
       why: "ARM B — the two-sided shape: the module carries a stale-arm diagnostic, so its populated allowlist is a promise it can keep",
+    },
+    {
+      files: {
+        "tooling/src/verify/gates/__probe.ts":
+          'export const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
+        "tooling/src/verify/gates/__probe-health.ts":
+          'import { ALLOWLIST } from "./__probe.ts";\nconst MSG = "ALLOWLIST row matching no live site (ratchet down) — delete the stale row";\nexport const gate = { name: "__probe-health", docRow: "x", message: MSG, mustFlag: [1], mustPass: [1], seen: ALLOWLIST };\n',
+      },
+      why: "ARM B SPLIT-FAMILY, the POSITIVE direction (#2093): the family split by AUTHORITY, so the table lives in the ordinary half and the liveness arm in the `-health` sibling that IMPORTS it. Two-sided as a family; accusing the ordinary half named three live modules (`no-raw-spacing-in-features`, `no-raw-typography-in-features`, `serde-core-seal`) whose property was held one file over",
     },
     {
       files: {

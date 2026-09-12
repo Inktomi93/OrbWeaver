@@ -20,6 +20,7 @@
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
 //   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
 //   config-snapshot          → cli.ts config-snapshot <runner> <config>  (native-config observation)
+//   check:biome-rule-liveness → cli.ts biome-rule-liveness  (the RULE half of biome grant liveness, #2074)
 //   typecheck-plan           → cli.ts typecheck-plan --primary|--affected --file <paths…>
 //   typecheck                → cli.ts typecheck [--config <paths>…]
 //   eslint                   → cli.ts eslint  (whole-tree native compiler-owner process isolation)
@@ -34,6 +35,7 @@ import {
   refuseVerbTail,
   runAssetRefsCoverage,
   runBaseline,
+  runBiomeRuleLiveness,
   runBootChunkRatchet,
   runConfigSnapshot,
   runDbBaselineParity,
@@ -100,6 +102,8 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   debt: "usage: node tooling/src/verify/cli.ts debt [--gate <substr>] [--age]\n  A LENS over the ratchet ledgers — reports parked rows, oldest first with --age.",
   "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
   "config-snapshot": CONFIG_SNAPSHOT_HELP,
+  "biome-rule-liveness":
+    "usage: node tooling/src/verify/cli.ts biome-rule-liveness\n  Reds when a biome.json rule-off grant suppresses NOTHING — it strips the rule-off grants from a copy of the config, runs biome over the granted files, and names the grants that fired nowhere. Refuses (exit 2) on any report it cannot trust; a bare zero is never a verdict.",
   "typecheck-plan": TYPECHECK_PLAN_HELP,
   typecheck: TYPECHECK_HELP,
   eslint:
@@ -154,6 +158,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runBootChunkRatchet(root);
     case "ledgers-fresh":
       return runLedgersFresh(root);
+    case "biome-rule-liveness":
+      return runBiomeRuleLiveness(root);
     case "debt":
       return runDebtWalk(root, rest);
     case "ratchet-gate":
