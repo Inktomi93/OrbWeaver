@@ -4,13 +4,19 @@
 // version/partialize/migrate. A bare `localStorage` / `sessionStorage` / `indexedDB` in client source is
 // the door around both.
 //
-// AUTHORITY IS reviewed-grant. The legacy `RAW_STORAGE_ALLOWLIST` was six FILES, each with a written
-// standing reason: the two factories are the doors themselves, `durable-local.ts` is their shared
-// per-user namespace, `probe-mode.ts` is a pre-boot dev flag, `session-resume.ts` is a tab-scoped OIDC
-// round trip that cannot ride a store door, and `main.tsx` is the composition root's reload-once guard.
-// Every one is a recurring repository PERMISSION rather than a per-occurrence slip, so each is an exact
-// `(subject, operation)` row in `lib/reviewed-grants.ts` — keyed on the STORAGE it touches, so a file
-// licensed for `sessionStorage` does not silently acquire `localStorage`.
+// AUTHORITY IS reviewed-grant, AND THE SIX LEGACY FILES BECAME FOUR ROWS — the two-file difference is the
+// identity reader doing its job, not a dropped permission. The legacy `RAW_STORAGE_ALLOWLIST` named six
+// files because it was a TEXT scan: `createPersistedStore` and `createEntityDraftStore` spell
+// `localStorage` only in JSDoc, a header sentence and a duplicate-name error string, and they reach the
+// api exclusively through `durable-local.ts`'s helpers. A comment and a string are not references, so the
+// two factories produce NO candidate here and need NO grant; a row for them would be an over-broad licence
+// matching nothing, which central reconciliation would stale. The four homes that DO read the api —
+// `durable-local.ts` (the shared per-user namespace pointer), `probe-mode.ts` (a pre-boot dev flag),
+// `session-resume.ts` (a tab-scoped OIDC round trip that cannot ride a store door) and `main.tsx` (the
+// composition root's reload-once guard) — are each a recurring repository PERMISSION rather than a
+// per-occurrence slip, so each is an exact `(subject, operation)` row in `lib/reviewed-grants.ts`, keyed
+// on the STORAGE it touches so a file licensed for `sessionStorage` does not silently acquire
+// `localStorage`. Four is therefore the correct count and the roster row that says four is correct.
 //
 // THE REGISTRY HALF IS ITS OWN POLICY. `DEVICE_LOCAL_REGISTRY` is not an exception table at all — the
 // exception census classifies it as authoritative data (which persisted-store names the tree has decided
@@ -23,10 +29,39 @@
 // is the ambient global, resolved through the shared readers; a member read off any other receiver is NOT
 // A SUBJECT (an injected storage port is the testable shape), which is a different answer from "unproven".
 //
-// DECLARED LIMIT (its own mustPass row): the analysis program is DOM-less, so a BARE `localStorage` is
-// not resolvable precisely and lands on the fail-closed unreadable finding. Still reported — the bare
-// spelling is the one the law was written against — but only an ambient-root read gets the precise
-// message.
+// THE FAIL-CLOSED THIRD ANSWER, AND WHAT ACTUALLY REACHES IT (measured 2026-09-12; the previous paragraph
+// here claimed a BARE `localStorage` lands on the unreadable finding because the analysis program is
+// DOM-less, and that is FALSE). An UNDECLARED free identifier resolves through `resolveGlobalMemberOrigin`
+// as the ambient global of that name with an empty member path, so the bare spelling — the one the law was
+// written against — takes the `"raw"` verdict and the PRECISE message, exactly like the ambient-root
+// member spelling. What reaches `"unreadable"` is a binding the readers cannot place at all: an AMBIGUOUS
+// refusal (`write` / `cycle` / `ambiguous`), of which the live shape is a mutable `let localStorage` that
+// is assigned somewhere — a local declaration that still might hold the api, which is why silence would be
+// wrong. `mustFlag[6]` is that row.
+//
+// THE SPLIT IS PINNED, not asserted. `MESSAGE` and `UNREADABLE` share no substring, and the two arms
+// report the SAME finding count, so a row carrying only `count` passes identically whichever arm fired.
+// `mustFlag[0]`/`[1]` carry a `messageIncludes` naming the precise text and `mustFlag[6]` one naming the
+// unreadable text; without them the third answer is advertised prose over unreached code (#1990). Probe:
+// replace the refusal branch's return with a `throw` and run these rows — before `mustFlag[6]` existed the
+// branch was reached only by two `mustPass` fixtures, and it answered `"other"` in both.
+//
+// THE THREE `classify` CLAUSES ARE A NESTED CLUSTER, NOT THREE INDEPENDENT FENCES — the full 2^3 cut
+// matrix, measured 2026-09-12 against the rows below (a single-cut sweep reads all three as clean gaps and
+// is wrong about two of them):
+//   `classifyOriginRefusal` is INDIVIDUALLY ENFORCED. Fail it open (return `"unreadable"` unconditionally)
+//     and `mustPass[2]` (a class METHOD named `localStorage`) and `mustPass[3]` (a PARAMETER shadowing the
+//     global) both red. It is the clause that keeps a proven foreign binding silent.
+//   The member-read→`"other"` rule is enforced ONLY ONCE the refusal classifier is already open: cut alone,
+//     every row stays green; cut WITH the classifier, `mustPass[0]` (the injected storage port) joins them.
+//   `isCapabilityProbe` is enforced ONLY in the TRIPLE: cut with either sibling the rows hold, and
+//     `mustPass[1]` (the `typeof` probe) reds only when all three are open. It is genuinely last in line —
+//     the member rule answers its subject first — which is why `mustPass[1]`'s `why` says so rather than
+//     claiming to exercise the predicate.
+//   UNFALSIFIABLE — `memberPath.length === 0` at the resolved-global branch. That branch is reached only
+//     for a NON-member node, where `memberPath` is empty by construction, so no fixture can make the test
+//     decide anything. It stays because it is the shared reader's contract, and no row claims to prove it
+//     (§4.1's fourth outcome: record the gap, never fake a pin).
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -146,14 +181,14 @@ export const gate = defineGate({
     {
       mode: "types",
       files: { "packages/client/src/features/x/x.ts": 'export const read = (): string | null => localStorage.getItem("k");\n' },
-      expect: { count: 1, token: "localStorage" },
-      why: "the founding shape — a raw localStorage read in a feature, outside both persistence doors",
+      expect: { count: 1, token: "localStorage", messageIncludes: "outside the persistence doors" },
+      why: "the founding shape — a raw localStorage read in a feature, outside both persistence doors. The `messageIncludes` pins WHICH ARM answers: an undeclared free identifier resolves as the ambient global, so the bare spelling takes the PRECISE verdict, not the fail-closed one. Measured, because the count alone cannot tell the two arms apart and this module's header used to claim the opposite",
     },
     {
       mode: "types",
       files: { "packages/client/src/features/x/global.ts": 'export const read = (): string | null => globalThis.sessionStorage.getItem("k");\n' },
-      expect: { count: 1, token: "sessionStorage" },
-      why: "the AMBIENT-ROOT member spelling of the same api — invisible to the legacy bare-identifier check",
+      expect: { count: 1, token: "sessionStorage", messageIncludes: "outside the persistence doors" },
+      why: "the AMBIENT-ROOT member spelling of the same api — invisible to the legacy bare-identifier check. The `messageIncludes` names the PRECISE verdict's text, which the unreadable text does not contain: this is the arm the header promises an ambient-root read reaches, and it is the twin of `mustFlag[0]`'s pin",
     },
     {
       mode: "types",
@@ -176,6 +211,21 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a licensed boot home reds like any other file and is licensed by its exact grant row, so a SECOND raw-storage touch in that file — or a new file beside it — is a finding until someone reviews it",
     },
+    {
+      mode: "types",
+      files: { "packages/client/src/features/x/quasi.ts": "export const read = (): string | null => globalThis[`localStorage`].getItem('k');\n" },
+      expect: { count: 1, messageIncludes: "outside the persistence doors" },
+      why: "THE BACKTICK COMPUTED SPELLING: an element access whose argument is a `NoSubstitutionTemplateLiteral` rather than a `StringLiteral`. `storageCandidateName` reads both literal kinds; before this row only the quoted half was exercised, so dropping the template arm was a clean cut. Drop `Node.isNoSubstitutionTemplateLiteral(argument)` and this row is the one that dies",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/written.ts":
+          "let localStorage: { getItem: (key: string) => string | null } = { getItem: () => null };\nexport const bind = (store: { getItem: (key: string) => string | null }): void => {\n  localStorage = store;\n};\nexport const read = (): string | null => localStorage.getItem('k');\n",
+      },
+      expect: { count: 1, messageIncludes: "cannot place its binding" },
+      why: "THE FAIL-CLOSED THIRD ANSWER, and the only row that reaches it. A WRITTEN binding refuses as `write`, which `classifyOriginRefusal` never lets a proven-local declaration silence — `let localStorage = globalThis.localStorage` is a local declaration that still holds the api. The `messageIncludes` is load-bearing: the unreadable arm reports the same COUNT as the precise arm and differs only in message, so `count` alone would pass whether or not the arm ever fires",
+    },
   ],
   mustPass: [
     {
@@ -192,7 +242,7 @@ export const gate = defineGate({
         "packages/client/src/features/x/probe.ts":
           'export const has = (globals: { localStorage?: unknown }): boolean => typeof globals.localStorage === "object";\n',
       },
-      why: "a `typeof` CAPABILITY PROBE reads whether the environment has the api at all; it stores nothing",
+      why: 'a `typeof` CAPABILITY PROBE reads whether the environment has the api at all; it stores nothing. THE ROW DOES NOT ISOLATE `isCapabilityProbe`: measured 2026-09-12, this row reds only when `isCapabilityProbe`, the member-read rule AND `classifyOriginRefusal` are ALL open, because `globals.localStorage` is a member read off a non-ambient root and `classify` answers `"other"` before the probe test is consulted. The row states the RULE; the header\'s cut matrix states which cuts actually kill it',
     },
     {
       mode: "types",
@@ -209,6 +259,14 @@ export const gate = defineGate({
           "export const read = (localStorage: { getItem: (key: string) => string | null }): string | null => localStorage.getItem('k');\n",
       },
       why: "A PARAMETER named `localStorage` shadows the global — an injected store is the testable shape, not a fork of the api",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
+        "packages/server/src/domain/x/store.ts": 'export const read = (): string | null => globalThis.localStorage.getItem("k");\n',
+      },
+      why: "THE POPULATION FENCE: the ambient-root read of `mustFlag[1]`, moved to `@server`, produces nothing — the device-local-vs-synced belt is a CLIENT law, and server-side storage is a different question with a different answer. The client anchor is load-bearing: a fixture holding only the server file admits zero paths and the run comes back a `[population]` TOOL ERROR rather than a finding. Widen `population` to `@authored` and this is the row that dies",
     },
   ],
 });

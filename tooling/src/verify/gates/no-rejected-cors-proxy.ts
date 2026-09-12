@@ -5,8 +5,17 @@
 // The raw-`fetch` half is `no-raw-egress` (reviewed-grant), and one descriptor cannot hold both.
 //
 // The subject is a LITERAL, not an identity: the point of the rule is that the host cannot be SPELLED in
-// server source, in a string or in any part of a template. Comments are outside the subject because only
-// literal nodes are delivered — a header explaining why the proxy is banned must stay writable.
+// server source, in a string or in any part of a template. THAT SENTENCE IS A CLAIM THE ROWS CARRY, not
+// prose: `STRING_KINDS` subscribes five literal node kinds and each one has its own `mustFlag` row —
+// `StringLiteral` (mF0), `TemplateHead` (mF1), `NoSubstitutionTemplateLiteral` (mF2), `TemplateMiddle`
+// (mF3) and `TemplateTail` (mF4) — so dropping a kind from the list reds a row rather than silently
+// narrowing the ban to the spellings someone happened to fixture. Comments are outside the subject because
+// only literal nodes are delivered — a header explaining why the proxy is banned must stay writable.
+//
+// POPULATION PORT: byte-identical to the legacy `no-raw-egress` scan root, `packages/server/src` = `@server`.
+// The host is banned in SERVER source because that is where egress happens; a `corsproxy.io` string in the
+// client is a different question this policy does not answer, and `mustPass[2]` is the row that dies if the
+// population is ever widened.
 import type { Node as MorphNode } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -31,6 +40,16 @@ const FIX = "delete the proxy host; route the request through `safeFetch` (infra
  *  rule is suppressed on the one line that holds it. */
 // biome-ignore lint/suspicious/noTemplateCurlyInString: authored TypeScript inside a proof string — a real TemplateHead node is exactly what the row exercises.
 const TEMPLATE_FIXTURE = "export const proxy = (url: string): string => `https://corsproxy.io/?url=${url}`;\n";
+
+/** The TemplateMiddle row's fixture: two interpolations, so the host lands in a quasi that is neither the
+ *  head nor the tail — the only spelling that exercises `SyntaxKind.TemplateMiddle`. */
+// biome-ignore lint/suspicious/noTemplateCurlyInString: authored TypeScript inside a proof string — a real TemplateMiddle node is exactly what the row exercises.
+const TEMPLATE_MIDDLE_FIXTURE = "export const proxy = (scheme: string, url: string): string => `${scheme}://corsproxy.io/?url=${url}`;\n";
+
+/** The TemplateTail row's fixture: one interpolation with the host AFTER it, so the host lands in the
+ *  closing quasi — `SyntaxKind.TemplateTail`. */
+// biome-ignore lint/suspicious/noTemplateCurlyInString: authored TypeScript inside a proof string — a real TemplateTail node is exactly what the row exercises.
+const TEMPLATE_TAIL_FIXTURE = "export const proxy = (scheme: string): string => `${scheme}://corsproxy.io/?url=`;\n";
 
 /** The offset of the banned host inside this literal's own authored text, or -1. */
 function bannedOffset(node: MorphNode): number {
@@ -75,6 +94,24 @@ export const gate = defineGate({
       expect: { count: 1, token: CORSPROXY },
       why: "the TEMPLATE spelling: the host lives in the head quasi, which is a different node kind and the same ban",
     },
+    {
+      mode: "source",
+      files: { "packages/server/src/domain/hub/lib/backtick.ts": "export const proxy = `https://corsproxy.io/?url=`;\n" },
+      expect: { count: 1, token: CORSPROXY },
+      why: "THE BACKTICK SPELLING WITH NO INTERPOLATION is a `NoSubstitutionTemplateLiteral`, not a `StringLiteral` — a fourth node kind, subscribed by `STRING_KINDS` and, before this row, proven by nothing. Dropping that member from the list turns this row red",
+    },
+    {
+      mode: "source",
+      files: { "packages/server/src/domain/hub/lib/middle.ts": TEMPLATE_MIDDLE_FIXTURE },
+      expect: { count: 1, token: CORSPROXY },
+      why: '`TemplateMiddle` — the host in a quasi that is neither head nor tail, which is the literal reading of the header\'s "in any part of a template". Dropping `TemplateMiddle` from `STRING_KINDS` turns this row red and leaves every other row green',
+    },
+    {
+      mode: "source",
+      files: { "packages/server/src/domain/hub/lib/tail.ts": TEMPLATE_TAIL_FIXTURE },
+      expect: { count: 1, token: CORSPROXY },
+      why: '`TemplateTail` — the host in the closing quasi, the fifth and last subscribed kind. With this row the header\'s "in any part of a template" is a pinned claim rather than a sentence: every member of `STRING_KINDS` now has exactly one row that dies without it',
+    },
   ],
   mustPass: [
     {
@@ -86,6 +123,14 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/server/src/domain/hub/lib/why.ts": "// D61 rejected routing egress through a third-party CORS proxy.\nexport const proxy = null;\n" },
       why: "A COMMENT NAMING THE BAN IS NOT A VIOLATION — only literal nodes are delivered, so the header that explains the ruling stays writable. Written as a row because a text scan would have flagged it",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/hub/lib/anchor.ts": 'export const origin = "https://example.test/";\n',
+        "packages/client/src/features/x/proxy.ts": 'export const proxy = "https://corsproxy.io/?url=";\n',
+      },
+      why: "THE POPULATION FENCE: the identical literal from `mustFlag[0]`, moved to `@client`, produces nothing — this policy judges SERVER source, which is where egress happens. The server anchor is load-bearing: a fixture holding only the client file admits zero paths and the run comes back a `[population]` TOOL ERROR rather than a finding. Widen `population` to `@authored` and this is the row that dies",
     },
   ],
 });

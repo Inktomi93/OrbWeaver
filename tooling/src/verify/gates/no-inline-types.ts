@@ -21,6 +21,17 @@
 // matched had the text lined up. The subject is the module export: a call whose callee resolves through
 // the shared module-origin reader to the `zod` door, terminating in one of the three factories.
 //
+// EVERY POPULATION CLAUSE AND EVERY ARM FENCE CARRIES A ROW THAT DIES WITHOUT IT (§4.1; each measured in
+// both directions 2026-09-12, the `notUnder` and `notNamed` entries cut one at a time): the `in` root list
+// → `mustPass[8]`; the four client/server tier homes → `mustPass[9]`, which carries all four at once and
+// reds under each of the four cuts separately; `notNamed` → `mustPass[10]`, likewise reddening under each
+// of its three entries; the VariableStatement export-keyword test → `mustPass[11]`; the `zod` door →
+// `mustPass[12]`. `mustPass[0]`/`[2]`/`[3]`/`[7]` already carried `**/contract/**`, `tooling/src/_shared/**`
+// and `packages/client/src/data/**`. The ONE residual clean cut is the `factoryCandidateName` prefilter,
+// which is MUTUALLY REDUNDANT with `ZOD_FACTORIES.has(terminal)`: cut either alone and every row stays
+// green, cut BOTH and `mustPass[5]` (`z.string()`) dies — the prefilter's own comment already said it
+// decides candidacy rather than identity, and that is now measured rather than asserted.
+//
 // DECLARED LIMIT (its own mustPass row): the schema arm is NOT fail-closed. Its population is every
 // exported const in three roots, so reporting each call whose origin cannot be read would accuse the
 // whole unreadable tail rather than a candidate set — the honest opposite of a DECLARED-door arm, where
@@ -39,7 +50,12 @@ const MESSAGE =
   "exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or " +
   "@orb/contracts), not in a verb/service/component/substrate. Move it to contract/ and import it. See " +
   "Spine-TypeScript-and-Patterns.md §7.4.";
-const FIX = "move the shape to contract/ (or @orb/contracts) and import it.";
+const FIX =
+  "move the shape to contract/ (or @orb/contracts) and import it. A deliberate keep is waived with " +
+  "`// @orb-waive no-inline-types(<position>): <reason>` on a line above the declaration, where <position> is " +
+  "the DECLARED NAME alone — the alias's own identifier, or the const's, bare and unquoted. It is never " +
+  "`type`, never `export`, never `z.object` and never the whole statement; an `export const A = z.object({}), " +
+  "B = z.object({})` statement is TWO findings at two names and takes two markers.";
 
 /** The authored name a candidate call names, in every member spelling. Prefilter only: it decides whether
  *  the origin is worth resolving, never whether the call is a zod factory. */
@@ -243,6 +259,52 @@ export const gate = defineGate({
         "packages/client/src/data/entity.ts": "export type Foo = string;\n",
       },
       why: "the client `data/` tier is a type home — outside the population by the same structural clause",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
+        "packages/kit/src/shape.ts": "export type Foo = string;\n",
+      },
+      why: "THE ROOT LIST: `@kit` is a type home WHOLE, so it is not named in `in` at all — the same is true of `@contracts`, `@db` and `@ui`. A home that is an entire package is expressed by ABSENCE from the root list rather than by subtraction, which is why no `notUnder` mentions them. Add `@kit` to `in` and this is the row that dies; the server anchor keeps the population non-empty so the row measures a fence rather than a `[population]` tool error",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
+        "packages/client/src/forms/x.ts": "export type Foo = string;\n",
+        "packages/client/src/state/x.ts": "export type Bar = string;\n",
+        "packages/client/src/lib/x.ts": "export type Baz = string;\n",
+        "packages/server/src/kit/x.ts": "export type Qux = string;\n",
+      },
+      why: "THE FOUR REMAINING STRUCTURAL TIER HOMES, one file each, in ONE row because they are one clause of one legacy predicate: the client's `forms`/`state`/`lib` tiers and `server/src/kit`. Each is falsified separately — dropping any ONE `notUnder` entry makes that file flag and reds this row, measured four times. `data/` has its own row above and `**/contract/**` and `tooling/src/_shared/**` have theirs",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
+        "packages/server/src/domain/x/contract.ts": "export type Foo = string;\n",
+        "packages/server/src/domain/x/unit.test.ts": "export type Bar = string;\n",
+        "packages/client/src/features/x/view.test.tsx": "export type Baz = string;\n",
+        "packages/client/src/features/x/anchor.tsx": "export const Anchor = (): null => null;\n",
+      },
+      why: "THE `notNamed` CLAUSE, all three spellings at once: a FILE named `contract.ts` is the single-file form of a `contract/` directory, and a `.test.ts`/`.test.tsx` fixture may declare a shape deliberately (a test is allowed to spell the thing it is testing against). Each entry is falsified separately — dropping `contract.ts`, `*.test.ts` or `*.test.tsx` reds this row on its own file. The `.tsx` anchor is here so the row measures tsx admission rather than inheriting the `.ts` verdict",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts": "export declare const z: { object: (shape: unknown) => unknown };\n",
+        "packages/server/src/domain/x/local.ts": 'import { z } from "zod";\nconst Foo = z.object({});\nexport const use = (): unknown => Foo;\n',
+      },
+      why: "AN UNEXPORTED SCHEMA CONST is the zod twin of `mustPass[1]`'s unexported alias: a file-local shape has no second home to collide with, and §7.4 is about the module's EXPORTED surface. The statement is delivered to the visitor either way, so only the export-keyword test on the VariableStatement arm keeps it silent — cut `node.hasExportKeyword()` there and this row reds while the type-alias arm's own test stays untouched",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/shapes.ts": "export const object = (shape: unknown): unknown => shape;\n",
+        "packages/server/src/domain/x/schema.ts": 'import { object } from "./shapes.ts";\nexport const Foo = object({});\n',
+      },
+      why: "THE DOOR TEST, the other half of the identity claim `mustFlag[1..4]` make from the flagging side: a PROJECT module exporting a function named `object`, imported and called — the prefilter accepts the name and the origin reader RESOLVES it, to `shapes.ts` rather than to the `zod` door. `mustPass[4]`'s counterfactual uses a local object literal, which the origin reader refuses outright; this one resolves and is still not zod, so it is the row that dies when `doors.has(ZOD_DOOR)` goes",
     },
   ],
 });
