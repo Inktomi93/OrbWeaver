@@ -174,7 +174,13 @@ test.describe("final policy planner", () => {
       execution: "entire-population",
       population: { in: ["@tooling"], named: ["a.ts"] },
       facts: [provider],
-      create: (ctx) => ({ evaluate: () => void ctx.fact(provider) }),
+      // The consumer's own semantic receipt is mandatory for a fact-declaring policy (#1966).
+      create: (ctx) => ({
+        evaluate: () => {
+          void ctx.fact(provider);
+          ctx.receipt({ kind: "population", source: "fact-policy", members: 1 });
+        },
+      }),
     });
     const corpus = { gates: [gate], families: [gate.family] };
 

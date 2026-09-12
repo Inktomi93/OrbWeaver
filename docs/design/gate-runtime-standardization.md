@@ -17,7 +17,7 @@ The single operating document for the gate-runtime standardization program: the 
 | where does this exemption table / baseline / marker go? | [`exception-authority-census.md`](../reviews/gate-runtime/exception-authority-census.md) — 97 exemption tables, 319 rows, 25 sanctioned-home tables, 9 baselines and 11 duplicate grammars, each already classified as grant, waiver, warning debt, policy data or delete. **A table's NAME is not evidence of its nature** — `no-floorless-control-in-wrap`'s `JUDGMENT_DEFERRED` holds permanent rulings that belong under reviewed grants (`:113,142`) |
 | what is a marker, and what happens to this legacy grammar? | [`ordinary-waiver-source-migration.md`](../reviews/gate-runtime/ordinary-waiver-source-migration.md) §"Exact central grammar", §"Closed 11-grammar disposition", §"Explicit non-migrations". Its atomic-cutover framing is dead (see its banner); its grammar contract and per-grammar verdicts bind |
 | what shape do I copy? | [`exemplars-2026-09-11.md`](../reviews/gate-runtime/exemplars-2026-09-11.md) — one converted gate per capability, each read in full. Its "did not cover" section is part of the record: an exemplar marked unconfirmed is a lead, not a precedent. **REFUTED 2026-09-12 — NINE OF ITS TEN ARE NOT COPYABLE; read its banner FIRST.** A §5b audit refuted nine (two of the three it marked "Wart: none found" were refuted SEVERE) and found 12 of 30 narrowings unenforced; only `user-bus-deferred-member` survives. What still binds: its central-files table, the capability→shape mapping, and every §4.2 identity arm. Receipts: [`v-exemplar-audit-2026-09-12.md`](../reviews/gate-runtime/v-exemplar-audit-2026-09-12.md) |
-| **what does THIS gate actually enforce?** | **[`Core-Enforcement-Active-Gates.md`](../architecture/core/Core-Enforcement-Active-Gates.md) — 270 rows, one per gate module, and each "Enforces" cell is a dense SPECIFICATION, not a label.** `caught-failure-ownership`'s single row names its three arms with their position shapes (`promise:<work>`, `empty:<binding>`, `default:<binding>`), every owner-provenance rule and its lookalike traps, the success-discriminator refusal, that provenance dies on reassignment, the exact escape spelling, and **five DECLARED LIMITS each stated to have a `mustPass` row** — which is directly checkable, and exactly where this program keeps finding unpinned claims. **Read your gate's row before converting it.** It is also a COUPLED SITE: a conversion rewrites its row, a split adds and removes them |
+| **what does THIS gate actually enforce?** | **[`Core-Enforcement-Active-Gates.md`](../architecture/core/Core-Enforcement-Active-Gates.md) — 270 rows, one per gate module, and each "Enforces" cell is a dense SPECIFICATION, not a label.** `caught-failure-ownership`'s single row names its three arms with their position shapes (`promise:<work>`, `empty:<binding>`, `default:<binding>`), every owner-provenance rule and its lookalike traps, the success-discriminator refusal, that provenance dies on reassignment, the exact escape spelling, and **five DECLARED LIMITS each stated to have a `mustPass` row** — which is directly checkable, and exactly where this program keeps finding unpinned claims. **Read your gate's row before converting it.** It is also a COUPLED SITE: a conversion rewrites its row, a split adds and removes them. **WRITE THE ROW AS MECHANISMS, NEVER AS COORDINATES** (measured 2026-09-12): of eight false rows found in one family, SIX were false because they named a deleted helper, table, filename regex or reader path — `fileLoaded(compose/authed-app.tsx)` appearing zero times in its module, a `non-literal-copy` skip that is now a fail-closed finding, "the shared `registryDefinitionFact`" which does not exist singular. All greppable, all silently falsified by the conversion that deleted them. A row written with symbol names and BEHAVIOURS, carrying no `file:line` into a gate module, cannot be re-staled by the next edit. Wave 1 found four rows that were bare LABELS; wave 2 found five that were dense about the RETIRED implementation — the second is worse, because it reads authoritative |
 
 **THE STALENESS RULE, and it explains nearly every stale claim in that layer:** the gate program started BEFORE the type-worlds program (#1351), so every one of those documents is dated 2026-09-05/06 while #1351 completed 2026-09-10. **Anything they call blocked, required, or missing may have been built or retired by the world program rather than by us** — measured 2026-09-11: eight of `resource-gate-access-patterns`'s \~15 required facts are shipped, its §8 consumer no longer exists, and two of its nine prerequisites are closed. Their COUNTS rot by construction; their MECHANISM paragraphs are law. Re-derive every blocked/required claim against the tree before acting on it, and never quote a roster from them — the loader, `pnpm gate:contract` (what is CONVERTED) and `pnpm check:policy-conformance` (what is converted AND PROVEN) are the roster.
 
@@ -150,10 +150,41 @@ family.
    the narrowing in a `cp`-backed copy, run the module's rows, restore — and the fix is a `mustPass` row placing the
    same literal OUTSIDE the fence. This is the one place a conversion owes a planted break for a row it did not
    invent: §4.7 covers new properties, and this covers an old property nothing was ever shown to enforce.
+
+   **A CLEAN CUT HAS THREE MEANINGS, AND ONLY ONE OF THEM IS "UNENFORCED" (measured 2026-09-12 across two fix
+   lanes — the naive sweep OVER-REPORTS, so classify every clean cut before counting it):**
+
+   - **UNENFORCED** — genuinely unpinned. The fix is a `mustPass` row placing the subject OUTSIDE the fence.
+   - **MUTUALLY REDUNDANT** — two fences guard ONE subject, so each is individually uncuttable because the sibling
+     catches it. `server-layout.topEntry` carried a `startsWith(SERVER_SOURCE/)` test AND a `relative.length > 0`
+     test, both aimed at the root entry; the sweep reported both unenforced and **the obvious fix was wrong** — no
+     fixture can produce that subject at all (the tree is rooted at the prefix, and `walk` emits children only), so
+     the answer was DELETING BOTH, not adding a row. **When two cuts in one function both come back clean, cut them
+     TOGETHER before concluding.**
+   - **WRONG-DIRECTION CUT** — the standard cut assumes removing a fence makes the policy flag MORE. That holds for a
+     carrier fence and FAILS for a fence that changes a DERIVED path, which exists to prevent a FALSE CLEAN.
+     `ui-exports-map-complete`'s `target.startsWith("./")` survived, because an unfenced non-`./` target still
+     resolves to a nonexistent path and is reported either way. Falsifying it needed a fixture whose UNFENCED
+     resolution lands on a **real file** — `"~/src/primitives/button/index.ts"`, two junk characters before a live
+     path. **The row must be one the cut turns GREEN, not one asserting a bogus input is reported.**
+
+   **And a fourth outcome is legitimate: UNFALSIFIABLE, documented rather than faked.** For a reviewed-grant policy,
+   `reportReviewedGrantCandidates` dedupes by `(subject, operation)`, so any narrowing whose only counterexample sits
+   ABOVE an already-flagging node cannot change the finding count — `no-raw-matchmedia`'s `memberPath.length === 0`
+   is the worked case, measured identical with and without the clause. The clause stays (it is the shared reader's
+   contract) and the header says plainly that no fixture enforces it. **Inventing a row that does not discriminate is
+   worse than recording the gap**, because it converts an honest limit into a false pin.
+
 2. **Identity, once.** Each ORDINARY policy proves that its own report supplies the correct policy id and position:
    one POSITIVE arm, the correct `// @orb-waive <id>(<position>): <reason>` at the reported position, yielding 0
    effective findings, 1 waived, 0 alarms. Two shapes are valid — a `mustPass` row in the module
-   (`schema-branding.ts:137`) or a `runPolicyPass` pin in a family test (`ordinary-visitors-family.test.ts:187-205`).
+   (`schema-branding.ts:137`) or a `runPolicyPass` pin in a family test (`ordinary-visitors-family.test.ts:187-196`
+   — the POSITIVE arm ONLY; `:198-205` beside it is a dead-position NEGATIVE arm and the next sentence forbids copying
+   it, so the range must stop at :196). **Verified twice, once per direction: flipping `(Foo)`→`(Bar)` reds it with
+   `AUTHORITY ALARM … names a dead position`, so it DISCRIMINATES.** Its sibling at `:207-218`
+   (`empty-state-has-action`) is NOT the shape to copy — it omits the `authorityAlarms` assertion, so an over-broad
+   or duplicate marker (which alarms WITHOUT changing the finding count) would pass it. **The §4.2 arm is all three
+   assertions — `effectiveFindings []`, `waivedFindings 1`, `authorityAlarms []` — or it is not the arm.**
    The negatives are the CENTRAL engine's proof, run once
    (`tests/tooling/verify/lib/ordinary-waiver.test.ts`): wrong-policy, stale/dead position, malformed, missing reason,
    over-broad, duplicate consumption, unknown policy, hard/reviewed refusal, incomplete-owner withholding and
@@ -194,24 +225,65 @@ family.
    **Counting arms is a reading task.** A grep for `@orb-waive <id>(` overcounts: it matches sibling policies'
    negative arms, live product-tree waivers, and a module's own header prose promising a spelling. A marker naming
    your policy inside another policy's negative arm is not your arm.
+
 3. **Reviewed-grant policies** prove exact `(subject, operation)` identity beside the family: the intended row is
    consumed exactly once; a wrong operation stays effective; a renamed/missing subject stales the row or withholds
    (`home-client-family.test.ts`). Generic grant-table validation is `tests/tooling/verify/lib/reviewed-grants.test.ts`.
+
 4. **Hard policies** have no waiver arm. **Warning policies** keep their warning + `workItem` in proof and real run;
    debt is never converted into a grant to make a run clean.
+   5b. **WHAT THE PROOF RUNTIME STRUCTURALLY CANNOT EXPRESS — three gaps, measured. Do not invent a row for any of them.**
+
+   - **There is NO "must refuse" arm.** `toolFailure` runs BEFORE the arm verdict and fails on a non-success owner
+     status, so an arm whose CORRECT outcome is a refusal is neither `mustFlag` (no finding is reported) nor
+     `mustPass` (the owner did not succeed). Worked case: `warning-code-coverage` with its tuple planted outside its
+     population returns `unresolved`, the receipt scores `members: 0 / unresolved: 1`, and the policy's own receipt
+     refuses — the designed blindness tripwire firing correctly, unprovable by construction. **Measure both sides by
+     hand, record the two verbatim messages in the module header, and say plainly that no row can carry it** (#1977).
+   - **CLOSED 2026-09-11 (#1966, `178ee3a4c`) — a policy that files NO semantic receipt now REFUSES.**
+     `policyReceiptFailures` (`lib/policy-pass.ts:701-732`) reds on `facts.length > 0 && receipts.length === 0`,
+     so the guarantee is enforced rather than held by per-family convention. The pin in
+     `tests/tooling/verify/lib/schema-fact.test.ts` is inverted to assert the refusal and keeps the old fail-open
+     shape quoted verbatim. **Blast radius was measured ZERO by RUNNING the dispatcher over all 167 final policies**
+     (35 declare facts; all 35 filed ≥ 1 receipt), which is also how the registry fact count was corrected from 7 to
+     **8** — `chrome-registry-completeness` declares both `registry-definitions-chrome` and `tuple-vocabularies`.
+     Three corollaries, each of which cost time:
+     1. **The arm keys off DECLARATION, not consumption** — strictly broader, free, and it does not need the failure
+        function to know whether a fact was actually consumed.
+     2. **A `-health` policy whose job is reporting an empty census must receipt a CONSTANT** (`members: 1` = *I
+        measured one fact*), never the census — otherwise `receiptFailures`' `count === 0` predicate turns its own
+        finding into a tool error and it never reaches its report. That is §12.3's provider-side inversion
+        relocated one layer out, to the consumer. Two such sites exist and BOTH literals are correct.
+     3. **Per-declared-fact accounting is NOT buildable, at load time or run time.** A receipt is a runtime call and
+        its `source` is FREE TEXT with zero fact-id correspondence, so the arm can only demand ≥ 1 receipt. Closing
+        that correspondence is a receipt-CONTRACT change, and nothing today distinguishes an honest constant
+        `members` from a lazy one (#1982).
+   - **Nothing checks that a provider's population is a SUBSET of its consumers'.** `tupleVocabularyFact`
+     (`@client`+`@server`+`@contracts`) is a strict superset of `warning-code-coverage`'s, so the provider hands the
+     policy nodes the policy may not NAME — the structural form of the `ctx.relativePath` throw, needing no unusual
+     import. Mechanically checkable at load from `fact.population` vs `policy.population`, both `PopulationExpr`
+     (#1976). Same family as #1953 one axis over: there the provider's FAILURE granularity mismatched its consumers',
+     here its POPULATION does.
+
+   **The common shape: the runtime can PRODUCE a behaviour it cannot PROVE.** When you meet one, the honest output is
+   a measured pair of messages in the header plus a row on the board — never a proof row that does not discriminate.
+
 5. **Refusal and receipt controls** wherever correctness depends on a home, provider, resource or derived population,
    and a proof row cannot express the failure: renamed/removed home, vanished subject, missing/empty/malformed/unresolved
    resource, incomplete or inconsistent fact, entire-population under a narrowed request, absent or forged receipt.
    These are `runPolicyPass` pins in the family test (`bus-pair.test.ts`, `bus-fact-health.test.ts`). A clean zero
    from a detector that might be blind is not evidence.
+
 6. **Conversion differential.** For a converted policy, load the legacy descriptor from the pre-conversion SHA, replay
    every original example through the legacy dispatcher and the same bytes through the final policy, compare findings,
    populations and tool errors, and CLASSIFY each intended difference (split, retired arm, marker vocabulary, stronger
    reader). A retired or merged arm needs a successor proof (`simple-visitors-wave-2.test.ts`, `-wave-4.test.ts`).
    This is conversion evidence for the landing commit, not standing law.
+
 7. **Invented rows owe a planted-break receipt.** Only when a lane adds a NEW row for a NEW property (a per-file index,
    an absent-subject arm) must it break that property in a scratch copy, show the row went red, and restore. A header that says "this row proves X" for a row never shown to
    catch X is a defect; a cross-file row whose fixture offsets never overlap is the worked example.
+
 8. **Fixtures — where a proof's files actually go, and why a final policy CANNOT plant in the working tree.**
    A proof row declares `mode` plus a `files` map of path → content. **The MODULE never chooses the substrate; the
    runtime does**, from `mode` (`ops/policy-conformance.ts`):
@@ -241,6 +313,7 @@ family.
 
    A fixture's relative import that resolves to nothing makes every identity row pass by fail-closure while
    conformance stays green, so a specifier-resolution control is part of every family floor.
+
 9. **One family test may cover several siblings**; a file per gate is unnecessary. **A conversion no longer owes a
    family test for its DECLARED rows** — the conformance stage (§5) runs every final policy's `mustFlag`/`mustPass` on
    the static tier. A family test is owed only for what a row cannot express: the §4.2 identity arm through
@@ -550,6 +623,25 @@ dependencies that constrain ANY sequence, because they are law rather than sched
    (comment-only edits still owe the compile); **the step-6 per-file marker count reconciliation, with every mismatch
    classified — a lane that translated markers and cannot show this table has not finished.** After §5 lands: the mixed `check:structure` before/after on the real
    tree with the finding delta explained.
+
+   **THE ROSTER COUPLED SITE — a conversion breaks suites that are not its own (measured 2026-09-11).**
+   `loadGates()` (`tooling/src/verify/lib/loader.ts:190`) returns `corpus.legacy` ALONE — its own comment says
+   *the legacy descriptor list alone* — so **every conversion SHRINKS that roster**, and any suite asserting the
+   converted gate's membership goes red. A lane's floor names its OWN family test and therefore never sees this.
+   So: **grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL, and run every suite that names
+   it.** Cheap, mechanical, complete.
+
+   This is the one gap the migration posture does not cover. `.claude/rules/gates-and-tooling.md` declares the
+   baseline-red list EXHAUSTIVE and a scoped red never-baseline, but these suites are in NEITHER set: not
+   red-by-construction, and not in any lane's scoped floor. Because `tests/tooling/**` is `--full`-only (#1842)
+   and nothing runs `--full` on a cadence, the break is unobservable. **It has now happened three times in one
+   five-day window** — `registry-family.test.ts` (#1953), `gate-ignore-grammar.repo.int.test.ts` (red from
+   2026-09-06, broken by a #1584 conversion commit), and `gate-conformance.repo.int.test.ts:49` (found by this
+   rule, at zero load, the day `no-off-token-radius-shadow` converted). Tracked as #1983.
+
+   **A carrier in such a suite is LEGACY BY REQUIREMENT, so re-pointing it is a treadmill with an end:** at the
+   atomic cutover the legacy roster is EMPTY and there is no carrier for any arm. Those suites RETIRE with the
+   legacy `@orb-gate-ignore` grammar they exist to test. Say that in the suite header rather than per carrier.
 9. One commit, `git -c core.hooksPath=/dev/null commit` (owner-authorized until `check:structure` is green), the floor
    named in the message, `git status --short` empty, `git show --stat` in the report.
 10. Report: per-module population port, authority/severity, family + reader, proof rows added, differential result,
@@ -566,7 +658,9 @@ dependencies that constrain ANY sequence, because they are law rather than sched
   Sonnet executor / mech-executor (owner test 2026-09-11: mechanical work and header honesty consistently good;
   self-checking of an INVENTED proof's discriminating power consistently absent, so §4.7 is briefed explicitly); every
   verifier → Opus, one per wave, read-only, probes announced by SendMessage and prefixed with the lane name.
-- Cap 3 concurrent lanes; the §5 runtime lane runs alone; whole-tree runs never alongside lanes; engines stopped and
+- Cap: **5 while this program is the work, 3 otherwise** (the base cap was restored to 3 at `faed86039` on
+  2026-09-11 09:19 and the owner raised it again later the same day, conditioned on this program — the later word wins;
+  `.claude/rules/orchestration.md` is the cap's one home). The §5 runtime lane runs alone; whole-tree runs never alongside lanes; engines stopped and
   prod down for the program's duration.
 - A brief carries: this document and the exemplars by path; the exact module list with legacy SHAs for
   the differential; the family hypothesis (a hypothesis until the lane names the reader); the fence (files it owns,

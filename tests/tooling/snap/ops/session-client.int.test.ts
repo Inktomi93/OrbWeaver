@@ -20,7 +20,7 @@ const SILENCE_MS = 1200;
 
 // WALL CLOCK, through ONE door: the subject of the arms below is a real deadline settling on real time (a
 // socket that says nothing, a child that hangs) — there is no clock to inject into the other side.
-// @orb-gate-ignore test-determinism: the SUBJECT is a real deadline measured on real time — the far side (a mute socket / a hung child) has no injectable clock
+// @orb-waive test-determinism(Date.now): the SUBJECT is a real deadline measured on real time — the far side (a mute socket / a hung child) has no injectable clock
 const wallNowMs = (): number => Date.now();
 /** The settle slack: how far past its own deadline the door may run before we call it a hang. */
 const SETTLE_SLACK_MS = scaledBudget(20_000);

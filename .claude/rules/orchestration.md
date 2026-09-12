@@ -155,8 +155,14 @@ it into the linked Project issue — no lane touches `work:item`.
 
 ## Merge / load discipline
 
-- **MAX 3 CONCURRENT LANES OVERALL** (owner, 2026-08-28; briefly raised to 5 for the gate-runtime program on the night of 2026-09-11, then set BACK TO 3 by the owner the same afternoon: "limit of three for right now" — the box must be quiet regardless: engines stopped, prod down, see the runbook §8 pre-flight) — let over-cap lanes FINISH, never refill above
-  3. Owner preference 2026-09-11: try Sonnet executors for gate work where the spec is complete; Opus stays on judgment-heavy catch-up and on every verifier. Gate-heavy lanes are ≤3 within that cap and staggered by minutes: 4+ synchronize their verification
+- **CAP IS 5 WHILE THE GATE-RUNTIME PROGRAM (#1584) IS THE WORK; 3 OTHERWISE.** The base cap is 3 (owner,
+  2026-08-28), restored at 09:19 on 2026-09-11 ("limit of three for right now", `faed86039`). The owner RAISED
+  it again later the same day, conditioned on the program: "you can go to five lanes if it means getting some of
+  the groundwork and issues fixed in relation to the gate program", and the standing `/goal` is "fill lanes to
+  five". **The later word wins — do not re-litigate this against the 09:19 line.** When #1584 closes, the cap
+  reverts to 3 without a new ruling. The box must be quiet regardless: engines stopped, prod down, see the
+  runbook §8 pre-flight. Let over-cap lanes FINISH, never refill above the cap in force.
+  Owner preference 2026-09-11: try Sonnet executors for gate work where the spec is complete; Opus stays on judgment-heavy catch-up and on every verifier. Gate-heavy lanes are ≤3 within that cap and staggered by minutes: 4+ synchronize their verification
   into load spikes that flake gates and starve the foreground. This paragraph is the cap's home.
 - **A merge landed while a whole-tree check is running VOIDS that check** — its verdict describes a tree
   that no longer exists. Barrier first, merge second.

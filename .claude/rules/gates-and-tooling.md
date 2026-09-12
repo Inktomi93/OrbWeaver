@@ -36,6 +36,17 @@ paths:
     before/after (the corpus total must not rise; zero for each converted module), biome/eslint on touched
     files, `pnpm typecheck --config tsconfig.json`. Commit with `git -c core.hooksPath=/dev/null` and name
     the floor in the message.
+  - **A CONVERSION'S FLOOR MUST ALSO RUN THE SUITES IT BREAKS THAT ARE NOT ITS OWN (measured 2026-09-11, #1983).**
+    `loadGates()` (`lib/loader.ts:190`) returns `corpus.legacy` ALONE, so **every conversion SHRINKS the legacy
+    roster** and reds any suite asserting the converted gate's membership. Your floor names your OWN family test and
+    structurally cannot see this. **So grep `tests/tooling/**` for the converted gate's id AS A STRING LITERAL and run
+    every suite that names it.** These suites sit in the seam the bullet above does not cover — not red-by-construction,
+    not in any scoped floor — and `tests/tooling/**` is `--full`-only (#1842), so the break is unobservable. **Three
+    instances in one five-day window:** `registry-family.test.ts` (#1953), `gate-ignore-grammar.repo.int.test.ts` (red
+    from 2026-09-06, broken by a #1584 conversion), `gate-conformance.repo.int.test.ts:49` (found by this rule at zero
+    load). A carrier in such a suite is LEGACY BY REQUIREMENT, so those suites retire at the cutover rather than being
+    re-pointed forever. **Beware the false positive:** most `tests/tooling` files naming a converted gate are that
+    conversion's own family test and are fine — the ones that bite call `loadGates()`.
   - **Every conversion records a FAMILY decision** in the module header and the report: the shared `lib/`
     reader (module + function) or "singleton"; siblings that are two spellings of one concept MERGE (the
     stronger identity reader wins, with a successor proof for the retired arm); arms that differ in
@@ -50,7 +61,13 @@ paths:
   - **The receipt is a committed family test** under `tests/tooling/verify/gates/` importing every converted
     module and asserting `verifyPolicyProofs([...])` equals `[]`, plus for each ORDINARY policy the positive
     identity arm (the correct marker at the reported position suppresses; shape
-    `ordinary-visitors-family.test.ts:187-205`) and a frozen-legacy differential for the conversion commit.
+    `ordinary-visitors-family.test.ts:187-196` — the POSITIVE arm ONLY. **`:198-205` beside it is a dead-position
+    NEGATIVE arm; §4.2 forbids copying a negative arm into a gate (under `knownPolicies: [policy]` it rides the
+    unknown-policy short-circuit and proves nothing), so a range ending at :205 tells you to copy the one shape the
+    same rule bans.** And do NOT copy the SIBLING pin at `:207-218` (`empty-state-has-action`): it asserts
+    `effectiveFindings` and `waivedFindings` but **omits `authorityAlarms`**, so it would pass an over-broad or
+    duplicate marker — both of which ALARM without changing the finding count. The §4.2 triple is all three
+    assertions or it is not the arm.) and a frozen-legacy differential for the conversion commit.
     Retiring a private marker vocabulary for `@orb-waive` means COUNTING the live legacy markers (count /
     files / trailing-position) and recording the census in the header; translation of product files is a
     separate lane, never yours.
@@ -66,7 +83,9 @@ paths:
     row went red, restore. A header that claims a row proves something it was never shown to catch is a
     defect.
   - **Contract facts that bit:** `report.node` token is an exact slice of the node text; population
-    `under: ["x/"]` matches nothing (use `"x/**"`); state in `create`; `ctx.fact()` only in
+    `under: ["x/"]` matches nothing (use `"x/**"`); **a population `notUnder` cannot be falsified by a single-file
+    fixture INSIDE the subtraction — the run comes back a `[population]` TOOL ERROR, not a finding, so that row needs a
+    SECOND admitted file** (paid by the wave-4 audit, 2026-09-11); state in `create`; `ctx.fact()` only in
     evaluate/visitFile/visitors; every anchor inside the policy's own population; `facts: []` explicit;
     direct walks are banned regardless of receiver.
   - **Conversions are program work:** no board row per gate or batch; the orchestrator posts your receipt on

@@ -21,7 +21,7 @@ this audit and stays there through every defect below.
 
 **The set is NOT copyable as it stands.** One module of ten survives the sentence *"point a conversion lane
 at this and tell it to copy."* Twelve of thirty narrowings are UNENFORCED (40%, against the corpus's prior
-~1-in-5 rate), and the two modules the exemplars document certifies "Wart: none found" — `server-layout` and
+\~1-in-5 rate), and the two modules the exemplars document certifies "Wart: none found" — `server-layout` and
 `no-raw-matchmedia` — carry the worst of them, including a guard that **cannot execute** and a documented
 behaviour that **does not happen**.
 
@@ -70,7 +70,7 @@ the production conformance door, `mv` back. A cut that kills no row means the na
 | `no-raw-spacing-in-features` | `CLASS_COMPOSERS.has(...)` (:59) | any call expression | — | **UNENFORCED** |
 | `no-raw-spacing-in-features` | `population: ["@client","@ui"]` (:67) | `+ "@server"` | — | **UNENFORCED** |
 | `server-layout` | `!relative.includes("/")` (:19) | drop it | `mustFlag[1]` + `mustPass[0]` (6 spurious findings) | ENFORCED |
-| `server-layout` | `entry.path.startsWith(\`${SERVER_SOURCE}/\`)` (:15) | `if (false)` | — | **UNENFORCED** |
+| `server-layout` | `entry.path.startsWith(\`${SERVER\_SOURCE}/\`)\` (:15) | `if (false)` | — | **UNENFORCED** |
 | `server-layout` | `tree.status !== "ready" \|\| metadata.status !== "ready"` (:41) | see **D4** | **UNREACHABLE** | **DEAD CODE** |
 | `schema-branding` | `column.primaryKey` (:17) | drop it | — | **UNENFORCED** |
 | `schema-branding` | `column.identity.propertyName === "id"` (:17) | drop it | — | **UNENFORCED** |
@@ -193,6 +193,31 @@ cannot show up there at all — and the message it promises is not even the one 
 
 Scope of my claim: proven in the conformance runtime, the only runtime these rows execute in. Real-tree
 behaviour is UNMEASURED by me (see "what I did not cover").
+
+> **AMENDED 2026-09-12 by the fix lane `p-matchmedia-exemplar` (`b157bb9be`) — the FINDING stands, the
+> MECHANISM above is WRONG, and the unmeasured half is now measured AGAINST the module.**
+>
+> This section explains the false limit as *"DOM-lib declarations the analysis program does not load"*. It
+> does load them. Both live loaders construct ts-morph with **no `compilerOptions`** —
+> `lib/pass.ts`'s `projectCtx` → `_shared/ts-workspace.ts:62` `new Project({ skipAddingFilesFromTsConfig: true })`,
+> and `ops/policy-conformance.ts:264`'s virtual project the same way — so the **DEFAULT lib applies, and the
+> default lib includes DOM**. Driven through `runPolicyPass` on that exact construction,
+> `globalThis` / `window` / `self` / bare all resolve **PRECISE**.
+>
+> So the limit is false in the **live runtime too**, not only in conformance. The "real-tree behaviour is
+> UNMEASURED" caveat resolves against the module, not for it.
+>
+> The limit is *conditionally* true of a DOM-less program: built with the root `tsconfig.json`
+> (`lib: ["es2025","esnext.disposable","esnext.temporal"]`), `window`/`self`/bare go UNREADABLE while
+> `globalThis` stays PRECISE because it is checker-intrinsic. That residue is now pinned in
+> `home-client-family.test.ts` with an explicit `compilerOptions.lib`, with a default-lib control arm beside it.
+>
+> **The generalisable rule, and it is why this amendment exists:** a gate claiming *"the analysis program
+> cannot see X"* is asserting a property of the **LOADER**, not of the tree — measure it by driving
+> `runPolicyPass` over the exact construction before writing it into a header, a `why`, and the enforcement
+> roster. This one was wrong in all three for the corpus's most-cited exemplar. And a `lib`-dependent verdict
+> **cannot be pinned by a proof row at all** (`mode: "types"` gives the row no say over `lib`), so it belongs
+> in a family test or it is unpinnable and must say so.
 
 ### D3 — `ui-exports-map-complete` `mustFlag[1]`'s sole discriminator matches a different arm (MEDIUM)
 
@@ -338,15 +363,15 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
 ### 2. `spacing-tier-home-health` — REFUTED (minor: criteria 6, 7)
 
 1. **P** · 2. **P** · 3. **N/A** (hard; `fix` correctly absent) · 4. **P** — family `raw-spacing-tier`, shared reader `lib/sanctioned-home.ts` (`unresolvedSanctionedHomeKeys`), both named · 5. **P** — header records the split reason and the anchor rationale; roster row `:255` describes the CONVERTED implementation.
-6. **F (minor)** — the ANCHOR self-guard is ENFORCED in the direction that matters; the population fence is UNENFORCED; `mustFlag[0]`'s `messageIncludes` is a tautology (carried by `count: 1`).
-7. **F** — D8, by import.
+2. **F (minor)** — the ANCHOR self-guard is ENFORCED in the direction that matters; the population fence is UNENFORCED; `mustFlag[0]`'s `messageIncludes` is a tautology (carried by `count: 1`).
+3. **F** — D8, by import.
 
 ### 3. `no-raw-spacing-in-features` — REFUTED (criteria 5, 6, 7)
 
 1. **P** · 2. **P** — probed, not re-read: both admitted carriers are real today (the `cn(…)` `mustFlag` row bites; the uncarried-constant `mustPass` row does not flag) · 3. **P** — the best `fix` in the set; the dead-position control proves the position is the whole quoted literal · 4. **P**.
-5. **F** — the module header is excellent; its ROSTER row is a bare label (D9).
-6. **F** — §4.2 arm PROVEN; `sanctionedHome` and `inClassCarrier` ENFORCED; but the two sub-narrowings INSIDE `inClassCarrier` (the `className` attribute-name test, the `CLASS_COMPOSERS` membership test) and the population fence are UNENFORCED. The #1954 repair fixed the OUTER fence and left both halves of the claim it makes unproven.
-7. **F** — D8.
+2. **F** — the module header is excellent; its ROSTER row is a bare label (D9).
+3. **F** — §4.2 arm PROVEN; `sanctionedHome` and `inClassCarrier` ENFORCED; but the two sub-narrowings INSIDE `inClassCarrier` (the `className` attribute-name test, the `CLASS_COMPOSERS` membership test) and the population fence are UNENFORCED. The #1954 repair fixed the OUTER fence and left both halves of the claim it makes unproven.
+4. **F** — D8.
 
 ### 4. `server-layout` — REFUTED, severe (criteria 1, 4, 5, 6). "Wart: none found" is FALSE
 
@@ -372,18 +397,18 @@ Legend: **P** pass · **F** fail · **N/A** does not bind · **NE** not evaluate
 
 1. **P** · 3. **N/A** (reviewed-grant has no inline door; `fix` correctly describes the grant route).
 2. **F** — D2. §5b.2's exact failure: a context clause that is a claim, and the claim is untrue.
-4. **P (partial)** — the identity is genuinely resolved through four named shared readers; but "singleton" is never declared with its reason.
-5. **F** — the header and the roster row both record a decision the code does not implement (D2).
-6. **F** — FOUR unenforced narrowings (D-table), the fail-closed arm exercised by no row (D5), and `mustPass[1]` not proving its own declared narrowing (D6). §4.3 grant-identity pins DO exist and are correct (`home-client-family.test.ts`).
-7. **P**.
+3. **P (partial)** — the identity is genuinely resolved through four named shared readers; but "singleton" is never declared with its reason.
+4. **F** — the header and the roster row both record a decision the code does not implement (D2).
+5. **F** — FOUR unenforced narrowings (D-table), the fail-closed arm exercised by no row (D5), and `mustPass[1]` not proving its own declared narrowing (D6). §4.3 grant-identity pins DO exist and are correct (`home-client-family.test.ts`).
+6. **P**.
 
 ### 7. `no-inline-types` — REFUTED (criteria 3, 4, 6)
 
 1. **P** · 2. **P** · 5. **P** — the header is one of the two best in the set (population-as-homes rationale, the `no-inline-domain-interface` split, identity-not-spelling, the declared non-fail-closed limit), and roster row `:277` describes the converted implementation.
-3. **F** — D7.
-4. **P (partial)** — shared readers named (`readMemberReference`, `resolveModuleMemberOrigin`); singleton not declared.
-6. **F** — §4.2 arm present in `ordinary-visitors-family.test.ts:187-195` with its dead-position negative at `:197`. But `doors.has(ZOD_DOOR)` is UNENFORCED — **nothing proves the factory must come from `zod` at all**, which is the module's own headline identity claim; the VariableStatement export fence is UNENFORCED; and 7 of the 10 population clauses (4 `notUnder`, all 3 `notNamed`) have no row.
-7. **P**.
+2. **F** — D7.
+3. **P (partial)** — shared readers named (`readMemberReference`, `resolveModuleMemberOrigin`); singleton not declared.
+4. **F** — §4.2 arm present in `ordinary-visitors-family.test.ts:187-195` with its dead-position negative at `:197`. But `doors.has(ZOD_DOOR)` is UNENFORCED — **nothing proves the factory must come from `zod` at all**, which is the module's own headline identity claim; the VariableStatement export fence is UNENFORCED; and 7 of the 10 population clauses (4 `notUnder`, all 3 `notNamed`) have no row.
+5. **P**.
 
 ### 8. `no-raw-typography-in-features` + `typography-tier-home-health` — REFUTED, identically to #3 and #2
 

@@ -25,6 +25,7 @@ import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { declarationHome } from "../lib/declaration-home.ts";
 import { definitionAnchor, definitionName } from "../lib/registry-definition-anchor.ts";
 import { definitionField, definitionObjectField, definitionStringField } from "../lib/registry-definition-field.ts";
 import { DEFINITION_SLOTS, isDefinitionHome } from "../lib/registry-definition-home.ts";
@@ -116,7 +117,10 @@ export const gate = defineGate({
         return;
       }
       const object = definition.object.value;
-      const objectPath = ctx.relativePath(object.getSourceFile());
+      // The authored object is a RESOLUTION — the shared reader follows a cross-module const to its real
+      // declaration, which is routinely outside this policy's `@client` population. `ctx.relativePath`
+      // THROWS there and would withhold the whole policy (guide §12.3), so the home is read totally.
+      const objectPath = declarationHome(ctx, object.getSourceFile());
       if (!isDefinitionHome(objectPath, DEFINITION_SLOTS.section)) {
         report(definition.declaration, `Definition outside its home: "${name}" resolves to an object literal declared at ${objectPath}.`);
         return;
@@ -188,6 +192,17 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
+        "packages/client/src/features/x/lib/x-section.ts":
+          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nimport { uiSection } from "../../../../../ui/src/section-defs.ts";\nexport const xSection: SectionDefinition = uiSection;\n',
+        "packages/ui/src/section-defs.ts": 'export const uiSection = { id: "x" };\n',
+      },
+      expect: { count: 1, token: "xSection", messageIncludes: "Definition outside its home" },
+      why: "THE HOME READ IS TOTAL, and this row is the one that dies without it: `definition.object` is a RESOLUTION — the shared authored-value reader follows a cross-module const to its real declaration, which is routinely OUTSIDE this policy's `@client` population — and NOT only through a vendor `.d.ts`: an ordinary sibling-package import of a `@orb/ui` const, one hop outside `@client`, reproduces it (audit receipt, docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md D1). `ctx.relativePath` REFUSES any file outside the effective population (lib/policy-pass-context.ts:211-217), so asking it for a foreign object's home THREW and withheld the WHOLE policy — the exact failure that left `freeze-provenance-write-pairing` reporting nothing on every real-tree run while sitting at 0 conformance failures (2026-09-11, guide §12.3). The home is now read through `lib/declaration-home.ts`. AGAINST THE UNMODIFIED MODULE THIS ROW REDS AS A TOOL ERROR rather than as a missing finding, and that is not a mis-authored row: the planted out-of-population object makes `evaluate` THROW, which is the real-tree failure reproduced inside conformance. Membership in `ctx.files` is NOT the alternative — policy-pass.ts:316 intersects it with a scoped run's requested paths, so that spelling reads silently clean under every `--scope`",
+    },
     {
       mode: "types",
       files: {

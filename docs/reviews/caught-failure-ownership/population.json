@@ -7025,7 +7025,7 @@
     {
       "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::catch::1",
       "path": "tooling/src/verify/gates/depcruise-grant-liveness.ts",
-      "line": 183,
+      "line": 174,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -7033,7 +7033,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unparseable pattern matches nothing, so it",
-      "markerLine": 178
+      "markerLine": 169
     },
     {
       "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::error::1",
@@ -7389,7 +7389,7 @@
     {
       "siteId": "tooling/src/verify/lib/schema-fact.ts::error::3",
       "path": "tooling/src/verify/lib/schema-fact.ts",
-      "line": 546,
+      "line": 545,
       "column": 22,
       "grammar": "empty",
       "position": "error",
