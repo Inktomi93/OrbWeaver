@@ -41,8 +41,8 @@
 // collision (the identical value twice on one line) is unchanged. The author's repair is to put the two
 // declarations on separate lines, which the alarm names.
 import { defineGate } from "../contract/policy.ts";
-import { waivableCoordinate } from "../lib/ordinary-waiver.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
+import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const GENERATED_THEME = "packages/ui/src/styles/theme.css";
 const MESSAGE =

@@ -68,7 +68,7 @@ import type { BindingElement, Block, CallExpression, CatchClause, Node, SourceFi
 import { SyntaxKind } from "ts-morph";
 import type { CaughtFailureArm } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { isWaivablePosition } from "./ordinary-waiver.ts";
+import { isWaivablePosition } from "./waivable-coordinate.ts";
 
 const LOG_METHODS: ReadonlySet<string> = new Set(["error", "fatal", "warn"]);
 /** The GOVERNED operator-logger doors. A log-shaped method on an arbitrary object proves nothing — provenance

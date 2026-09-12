@@ -15,11 +15,11 @@ import type { GatePolicyReceipt } from "../contract/policy-primitives.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { declarationHome } from "./declaration-home.ts";
-import { isWaivablePosition } from "./ordinary-waiver.ts";
 import { assertRepoPathIdentity } from "./policy-validation.ts";
 import { populationIncludes } from "./population-resolver.ts";
 import { resourceRequestIdentity } from "./resource-declaration.ts";
 import { bindPolicyResources } from "./resource-policy.ts";
+import { isWaivablePosition } from "./waivable-coordinate.ts";
 
 const COMMON_DETAIL_KEYS = ["message", "fix", "subject", "operation"] as const;
 const NODE_DETAIL_KEYS = new Set([...COMMON_DETAIL_KEYS, "token", "offset"]);

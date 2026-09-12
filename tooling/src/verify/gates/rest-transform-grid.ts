@@ -48,10 +48,10 @@ import { defineGate } from "../contract/policy.ts";
 import type { CssDeclarationFact } from "../contract/resource-css.ts";
 import type { AuthoredCssFile } from "../contract/resource-tree.ts";
 import { atRulesContaining } from "../lib/css-rules.ts";
-import { waivableCoordinate } from "../lib/ordinary-waiver.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import type { StaticClassSegment } from "../lib/static-class-expression.ts";
 import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
+import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const MESSAGE =
   "A REST-state transform that cannot land on the device-pixel grid — a resting scale resamples the whole " +

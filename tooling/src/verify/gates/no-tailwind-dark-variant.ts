@@ -26,9 +26,9 @@ import { Scanner } from "@tailwindcss/oxide";
 import type { Node } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { waivableCoordinate } from "../lib/ordinary-waiver.ts";
 import type { RuntimeClassPrefix, StaticClassCandidate, StaticClassSegment } from "../lib/static-class-expression.ts";
 import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
+import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const MESSAGE =
   "Tailwind dark: utility creates a second polarity mechanism that cannot see ThemeScope-derived custom-theme polarity; an `unresolved:*` token means static provenance could not prove the census clean (client-architecture-lockdown.md §4.6).";
