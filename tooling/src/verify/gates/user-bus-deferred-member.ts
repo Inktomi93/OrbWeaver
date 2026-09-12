@@ -1,19 +1,24 @@
 // The owner-deferred half of UserBusEvent producer coverage, split off `bus-producer-coverage` because
-// authority and severity are per-policy: a member deferred by an owner decision is WARNING DEBT tied to a
-// positive Project issue, and an error policy cannot carry that owner (gate-runtime-standardization.md
-// §"Exceptions and debt"). The legacy DEFERRED allowlist — a citation string parked inside the gate — is
-// retired into this descriptor: the member is named once, here, and `workItem` is the machine-readable
-// debt identity the roster derives.
+// authority and severity are per-policy: a member deferred by an owner decision is tracked by a positive
+// Project issue, and the coverage policy cannot carry that owner. The legacy DEFERRED allowlist — a citation
+// string parked inside the gate — is retired into this descriptor: the member is named once, here.
+//
+// `hard`/`error` SINCE #2025 (2026-09-12; #2111): this module was born `hard` + `warning` with `workItem: 1822`,
+// and the owner ruled that pair a CONTRADICTION (unsuppressible and non-blocking at once means neither word).
+// The ruling's census named the three §5b enforcers and missed this one because it had ZERO live findings —
+// the flip changes nothing on the tree today, and when the deferred member gains a producer the retirement
+// instruction below BLOCKS instead of warning, which is what a hard policy is for. The deferral's own tracking
+// item is #1822, in prose here; it is no longer a descriptor field.
 //
 // #1822 owns the debt: `connectionsChanged` is DECLARED and never emitted because no per-user connection
 // entity exists (a user's provider/role routing lives in USER SETTINGS -> `settingsChanged`; the model
 // catalog is admin/global -> `refreshCatalog`). It stays declared so the client invalidation map and this
 // ratchet track it explicitly.
 //
-// WHY THE FINDING IS THE RETIREMENT AND NOT THE DEBT: the debt is already stated — mandatorily, and in
-// machine-readable form — by `severity: "warning"` plus `workItem`, which no descriptor may fake. What a
-// RUN must catch is the two ways this deferral can rot, and both are covered:
-//   • the member GAINS a producer -> this policy reports (warning, unsuppressible: `hard` authority), and
+// WHY THE FINDING IS THE RETIREMENT AND NOT THE DEBT: the deferral is stated once, as the `BUS_MEMBER_DEFERRALS`
+// row below with its issue in this header. What a RUN must catch is the two ways this deferral can rot, and
+// both are covered:
+//   • the member GAINS a producer -> this policy reports (error, unsuppressible: `hard` authority), and
 //     the message is the exact retirement instruction. Its sibling then owns the member by construction,
 //     because `bus-producer-coverage` reads the same `lib/bus-deferred-member.ts` registry;
 //   • the member STOPS BEING DECLARED (renamed, deleted) -> this policy REFUSES. A silent pass over a
@@ -60,8 +65,7 @@ export const gate = defineGate({
   id: "user-bus-deferred-member",
   family: "bus-fact",
   authority: "hard",
-  severity: "warning",
-  workItem: 1822,
+  severity: "error",
   population: { in: ["@contracts", "@server"] },
   analysis: "types",
   execution: "entire-population",

@@ -27,7 +27,11 @@ function policy(
     mustFlag: [{ mode: proofMode, files, why: "founding defect" }],
     mustPass: [{ mode: proofMode, files, why: "nearest legal shape" }],
   } as const;
-  return options.severity === "warning" ? defineGate({ ...base, severity: "warning", workItem: 1584 }) : defineGate({ ...base, severity: "error" });
+  // A warning fixture lands under `ordinary`: `hard` + `warning` is the #2025 contradiction the loader refuses, and nothing
+  // the planner asserts about a warning depends on its authority.
+  return options.severity === "warning"
+    ? defineGate({ ...base, authority: "ordinary", severity: "warning", workItem: 1584 })
+    : defineGate({ ...base, severity: "error" });
 }
 
 const PROGRAM = {
@@ -872,9 +876,11 @@ test.describe("final policy planner", () => {
   });
 
   test("warning findings stay visible and block only when promotion is requested", () => {
+    // An ORDINARY finding owes a waivable position token (the central engine alarms on a tokenless one, and an alarm is an
+    // error, and it must sit at the reported position); the fixture is `ordinary` since #2025 refused `hard` + `warning`.
     const warning = defineGate({
       ...policy("warning-policy", { severity: "warning" }),
-      create: (ctx) => ({ evaluate: () => ctx.report.file("tooling/src/a.ts") }),
+      create: (ctx) => ({ evaluate: () => ctx.report.file("tooling/src/a.ts", { line: 1, column: 1, token: "export" }) }),
     });
     const corpus = { gates: [warning], families: [warning.family] };
     const resolved = scope(["tooling/src/a.ts"], "file");

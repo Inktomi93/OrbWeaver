@@ -8,10 +8,15 @@ export const POLICY_CONTRACT_PATH = "tooling/src/verify/contract/policy.ts";
 export const POLICY_CONTRACT_STUB = "export function defineGate<const Policy>(policy: Policy): Policy {\n  return policy;\n}\n";
 
 /** An ambient `ts-morph` so `inspectGateContract`'s receiver-type identity can prove a direct walk (a
- *  member declared by ts-morph, on a receiver typed by ts-morph). Outside the family's population on purpose. */
+ *  member declared by ts-morph, on a receiver typed by ts-morph), and so `policy-binding-resolution`'s owner
+ *  identity can tell `Symbol#getDeclarations` from `VariableStatement#getDeclarations` (#2097). Outside the
+ *  family's population on purpose. */
 export const TS_MORPH_TYPES_PATH = "tooling/src/verify/contract/ts-morph-stub.d.ts";
 export const TS_MORPH_TYPES_STUB =
-  'declare module "ts-morph" {\n  export interface Node {\n    getSourceFile(): SourceFile;\n  }\n  export class Project {\n    getSourceFiles(): SourceFile[];\n  }\n  export interface SourceFile extends Node {\n    forEachDescendant(visitor: (node: unknown) => void): void;\n    getDescendantsOfKind(kind: number): unknown[];\n  }\n}\n';
+  'declare module "ts-morph" {\n  export interface Node {\n    getSourceFile(): SourceFile;\n    getSymbol(): Symbol | undefined;\n    getDefinitionNodes(): Node[];\n    getDefinitions(): unknown[];\n    findReferences(): unknown[];\n    findReferencesAsNodes(): Node[];\n    getImplementations(): unknown[];\n  }\n' +
+  "  export class Symbol {\n    getDeclarations(): Node[];\n    getValueDeclaration(): Node | undefined;\n    getValueDeclarationOrThrow(): Node;\n    getAliasedSymbol(): Symbol | undefined;\n    getAliasedSymbolOrThrow(): Symbol;\n  }\n" +
+  "  export interface VariableStatement extends Node {\n    getDeclarations(): Node[];\n  }\n  export class Project {\n    getSourceFiles(): SourceFile[];\n  }\n" +
+  "  export interface SourceFile extends Node {\n    forEachDescendant(visitor: (node: unknown) => void): void;\n    getDescendantsOfKind(kind: number): unknown[];\n    getVariableStatements(): VariableStatement[];\n  }\n}\n";
 
 /** The resource-guard home, planted so E4's origin test resolves a REAL import rather than a spelling. The
  *  path is the live one because the arm checks the declaration's module by suffix; a guard declared anywhere

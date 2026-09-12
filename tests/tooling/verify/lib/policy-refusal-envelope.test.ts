@@ -107,7 +107,7 @@ test("every producible prefix is the text a REAL refusal starts with, driven thr
   expect(produced[2]).toMatch(/^AUTHORITY TOOL ERROR \[invalid-reviewed-grant-identity\] /u);
   expect(produced[3]).toMatch(/^PASS TOOL ERROR \[population\] Invalid population resolution: expression admitted zero paths from 1 candidate\(s\)$/u);
   for (const detail of produced) {
-    const generic = refusalEnvelope().filter((member) => detail?.startsWith(member));
+    const generic = refusalEnvelope().filter((member) => detail !== undefined && detail.startsWith(member));
     expect(generic.length).toBeGreaterThan(0);
   }
   // And the authored slot is what survives containment: the receipt SOURCE names the policy's own text.

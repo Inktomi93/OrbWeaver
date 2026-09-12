@@ -1,5 +1,6 @@
 // Policy: policy-waiver-identity — §4.2 of the soundness enforcer (#1971; family `policy-soundness`, reader
-// `lib/policy-descriptor-read.ts`; debt row #1952): every ORDINARY policy proves ONCE that its own report
+// `lib/policy-descriptor-read.ts`; work row #1952 — `hard`/`error` since #2025, 2026-09-12: the owner ruled `hard` +
+// `warning` a contradiction, so the arms below BLOCK): every ORDINARY policy proves ONCE that its own report
 // supplies the policy id and position the central waiver engine binds to — one POSITIVE arm, the correct
 // `@orb-waive <id>(<position>): <reason>` at the reported position, yielding 0 effective findings and 1 waived.
 // Without it every waiver in the tree against that policy is a silent no-op. Two shapes are valid
@@ -170,8 +171,7 @@ export const gate = defineGate({
   id: "policy-waiver-identity",
   family: "policy-soundness",
   authority: "hard",
-  severity: "warning",
-  workItem: 1952,
+  severity: "error",
   // The gate corpus plus the family tests that may carry a policy's arm — the join is the whole verdict.
   population: {
     in: ["@tooling", "@tests"],

@@ -59,6 +59,7 @@ import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify
 import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { loadInMemoryExample, verifyGateProofs } from "../../../../tooling/src/verify/ops/conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -233,7 +234,9 @@ function sweep(
  *  real temp tree with its own Project (`ops/policy-conformance.ts#runResourceExample`) and are the final
  *  runtime's `fsBacked` — the same exclusion, for the same reason. */
 function virtualProofsOf(policy: GatePolicy): readonly GatePolicyProof[] {
-  return [...policy.mustFlag, ...policy.mustPass].filter((proof) => proof.mode !== "resource");
+  return policyProofRows(policy)
+    .map(({ proof }) => proof)
+    .filter((proof) => proof.mode !== "resource");
 }
 
 /** One FINAL policy example's full verdict, spelled out exactly like the legacy `verdictOf` so the two

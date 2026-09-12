@@ -1,8 +1,9 @@
 // The pure population algebra shared by gate dispatch, whole-population evaluation, and report counts.
 // Every public door validates instead of treating malformed descriptor data as an admit-all default.
+
+import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { LoadableExt, PopulationExpr, PopulationRef, PopulationRoot, ResolvedPopulation } from "../contract/population.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../contract/population.ts";
-import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 
 const ROOT_REFS = new Set<string>(Object.keys(POPULATION_ROOTS));
 const SET_REFS = new Set<string>(Object.keys(POPULATION_SETS));

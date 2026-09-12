@@ -43,6 +43,7 @@ import type {
   TemplateExpression,
 } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { GateContractKind } from "../contract/gate-corpus.ts";
 import type { Discrimination, FinalRegistration, ProofRows, ReportSiteMessage, StaticSegments } from "../contract/policy-descriptor-read.ts";
 import { isCanonicalDefineGate, resolveCallableMember } from "./gate-contract-origin.ts";
 import { resolveStableExpression } from "./reference-fact.ts";
@@ -85,6 +86,34 @@ export function finalRegistrationOf(sourceFile: SourceFile): FinalRegistration |
     }
   }
   return registration;
+}
+
+/** How a gate module REGISTERS under EITHER contract, or undefined — the loader's rules 1 and 2 (`lib/loader.ts`)
+ *  read statically: a `gate` variable whose initializer is a canonical `defineGate(…)` call is FINAL; a `gate`
+ *  variable whose initializer is an object literal is LEGACY (the loader validates its fields; registration is
+ *  the question here, validity is not); anything else registers nothing — a module with no `gate`, a local
+ *  `defineGate` lookalike, a `gate` bound to a call that is not the contract's. The `policy-legacy-imports`
+ *  sibling-gate arm (#2096) asks this of an import's TARGET, so a gate module can never be told apart from a
+ *  shared proof surface under `gates/_proof/` by its directory — only by whether it registers. */
+export function gateRegistrationOf(sourceFile: SourceFile): GateContractKind | undefined {
+  let contract: GateContractKind | undefined;
+  if (finalRegistrationOf(sourceFile) !== undefined) {
+    contract = "final";
+  } else {
+    const initializer = sourceFile.getVariableDeclaration("gate")?.getInitializer();
+    if (initializer !== undefined && Node.isObjectLiteralExpression(unwrapExpression(initializer))) {
+      contract = "legacy";
+    }
+  }
+  return contract;
+}
+
+/** Does this expression PROVABLY bind a parameter declaration? The receiver test behind `policy-soundness` E4: a
+ *  policy `create` context and a fact context are both parameters, a local data object carrying its own
+ *  `resources` field is not. Shared so the gate module owns no binding resolution of its own (#2097, §12.3 —
+ *  `getSymbol().getDeclarations()` inside a gate module is the private-reader shape the family now reports). */
+export function bindsParameter(expression: MorphNode): boolean {
+  return Node.isIdentifier(expression) && (expression.getSymbol()?.getDeclarations() ?? []).some((declaration) => Node.isParameterDeclaration(declaration));
 }
 
 /** The FINAL descriptor literal of a gate module, or undefined: the registration's direct object literal. A
