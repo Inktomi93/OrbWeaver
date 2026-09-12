@@ -46,13 +46,15 @@
 // ZERO file-exact rows) is `biome-grant-liveness-health`, `hard`, same family. A tripwire that refuses a
 // false clean must not itself be suppressible by the door this policy's findings carry.
 //
-// ARM SIX IS DELETED, AND IT HELD A PROPERTY NOTHING ELSE HOLDS (#2021, receipt in the landing commit).
-// The retired `judgeRuleLiveness` reader asked the only question path liveness cannot: a `"rule": "off"` grant on a
-// file that would not violate that rule is DEAD TEXT reading as protection. It answered it by writing a
+// ARM SIX LEFT THIS POLICY, AND ITS PROPERTY IS HELD BY A STAGE (#2021 deleted it; #2074 rebuilt it).
+// The `judgeRuleLiveness` reader asks the only question path liveness cannot: a `"rule": "off"` grant on a
+// file that would not violate that rule is DEAD TEXT reading as protection. It answers it by writing a
 // probe config into the repository ROOT and spawning the biome binary over the granted files — a filesystem
-// WRITE plus a subprocess, where §12.3 bans even a read from a policy. It is deleted rather than carried,
-// and its successor belongs in a verify OP (`ops/config-snapshot.ts` already spawns a child for exactly
-// this class), not in a policy. Until that op exists, a dead rule-off grant is unpoliced.
+// WRITE plus a subprocess, where §12.3 bans even a read from a policy. So it is not carried HERE: its home
+// is the `config:biome-rule-liveness` STATIC stage (`ops/biome-rule-liveness.ts`, the class
+// `ops/config-snapshot.ts` already spawns a child for), and its controls are
+// `tests/tooling/verify/ops/biome-rule-liveness.test.ts`. This policy's arms are the PATH half only; the
+// RULE half is that stage's, and neither reads as the other's verdict.
 //
 // POPULATION PORT, and the LEGACY SHA that makes it checkable (#2123; the legacy descriptor is
 // `git show c97de9d2f:tooling/src/verify/gates/biome-grant-liveness.ts`, the parent of the conversion

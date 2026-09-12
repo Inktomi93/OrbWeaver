@@ -214,6 +214,23 @@ const GATING_STAGES: readonly StageDef[] = [
     // absence IS the guard (planStage in ops/run.ts).
   },
 
+  {
+    name: "config:biome-rule-liveness",
+    group: "structure",
+    tiers: STATIC,
+    argv: ["pnpm", "check:biome-rule-liveness"],
+    // THE RULE HALF of biome grant liveness (#2074), successor to the arm `97e68be91` deleted under §12.3
+    // (a policy may not write a file and spawn a child). Path liveness proves the granted SUBJECT exists;
+    // NOTHING proved the granted RULE still fires, so a rule-off override on a file that stopped violating
+    // the rule was invisible — and an exemption nobody granted it is what the next violation at that path
+    // inherits. Our OWN 0/1/2/3-speaking op (ops/biome-rule-liveness.ts): every report shape it cannot
+    // trust (truncated, non-lint, unparseable, zero files processed) THROWS ⇒ exit 2, because each of them
+    // produces an empty diagnostic list that is byte-identical to "every grant is dead".
+    classify: ownScheme,
+    // WHOLE-TREE by nature — the subject is the CONFIG's grant table, not any changed file, and a scoped
+    // fileset would report every grant it did not probe as dead. NO `scopedArgv` ⇒ deferred when scoped.
+  },
+
   // ── imports stage-group ──
   {
     name: "imports:depcruise",

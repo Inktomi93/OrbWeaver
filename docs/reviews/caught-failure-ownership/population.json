@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 596,
+    "sites": 597,
     "reported": 23,
     "byVerdict": {
-      "deliberate-absorb": 573,
+      "deliberate-absorb": 574,
       "unproven": 23
     },
     "byGrammar": {
       "default": 161,
-      "empty": 292,
+      "empty": 293,
       "promise": 143
     }
   },
@@ -7112,6 +7112,19 @@
       "verdict": "deliberate-absorb",
       "reason": "reported via ctx.report() as an UNPARSEABLE LEDGER violation, per the doc comment above — the gate's contract treats a parse failure as a finding, never a silent pass. Ends if ctx.report() stops being read as the gate's violation stream.",
       "markerLine": 47
+    },
+    {
+      "siteId": "tooling/src/verify/lib/biome-rule-liveness.ts::error::1",
+      "path": "tooling/src/verify/lib/biome-rule-liveness.ts",
+      "line": 168,
+      "column": 12,
+      "grammar": "empty",
+      "position": "error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "EPERM alone means a LIVE process this UID may not signal — still alive, still not ours to sweep; every other errno (ESRCH, a malformed pid) means the owner is gone and its probe is ours to clear. Ends if the probe name stops carrying its owner's pid.",
+      "markerLine": 164
     },
     {
       "siteId": "tooling/src/verify/lib/compiler-source-filename-overlay.ts::catch::1",

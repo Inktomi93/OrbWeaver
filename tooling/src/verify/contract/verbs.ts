@@ -25,6 +25,7 @@ export const VERIFY_VERBS = [
   "debt",
   "ratchet-gate",
   "config-snapshot",
+  "biome-rule-liveness",
   "typecheck-plan",
   "typecheck",
   "eslint",
