@@ -24,6 +24,19 @@
 // immediately paid for itself — three of the ten regex names (`useActiveDraftSeed`, `useActiveSessionKey`,
 // `useMobileSheet`) name nothing on this tree at all and are dropped here.
 //
+// THE POINTER AXIS IS FAIL-CLOSED, like every other axis in this family and like this module's own EFFECT
+// axis. `classifyProjectDirectoryOrigin` answers three ways, and the pointer read is the ACCUSING direction —
+// a `home` verdict is what makes a call a taint SOURCE — so a predicate of `=== "home"` drops an UNREADABLE
+// pointer out of the taint set entirely and the effect keyed on it is never reported. That is the fail-open
+// shape the three-answer classifier exists to prevent (`lib/origin-verdict.ts`, GATE-AUTHORING §5, #944), and
+// it is the opposite of the ACQUITTING readers §4.6 warns not to "fix": here only a PROVEN verdict accuses.
+// The predicate is therefore `!== "other"` — only a reference PROVEN to bind something else is silent — and
+// the candidate it produces carries its own `unreadable` flag so the finding says which it was. Fail-closure
+// is safe here for the reason `origin-verdict.ts` names: the candidate set is NAME-PREFILTERED against
+// `POINTERS` before any identity is resolved, so an unreadable node is only ever accused of being the pointer
+// it already spells. The two messages are DISJOINT TEXT, not one built from the other, because a proof row
+// can only pin the arm it can discriminate by substring (§4.1).
+//
 // THE TAINT IS FILE-SCOPED AND NAME-LEVEL, exactly as the legacy fixpoint was: a name bound from a pointer
 // call is tainted, and a name whose initializer references a tainted name is tainted. What changed is HOW it
 // is computed — a policy owns no descendant traversal, so the identifiers, declarations and dep arrays all
@@ -57,6 +70,15 @@ const MESSAGE =
   "§5.1: selection readers are RENDER-only). Derive in render instead, or use `useEffectEvent` for a " +
   "non-reactive read inside an unrelated effect; if this surface genuinely cannot be render-driven, that is " +
   "a §5.1 amendment conversation, not a workaround.";
+/** The FAIL-CLOSED arm's own text. Deliberately shares no sentence with `MESSAGE`: when an unreadable
+ *  message is built as `${MESSAGE} …` the base text is a substring of both and neither arm is pinnable by
+ *  `messageIncludes` (§4.1). `CANNOT be established` appears here and nowhere else in this module. */
+const UNREADABLE =
+  "an effect keyed on a name bound by a call that SPELLS a shared-selection pointer but whose identity " +
+  "CANNOT be established — nothing this run can read declares it, so the call MIGHT be the shared store and " +
+  "the effect is reported rather than silently passed (GATE-AUTHORING §5, #944). Give the call a readable " +
+  "origin — import the pointer from `packages/client/src/state/`, or type the receiver it is read off — and " +
+  "re-run; a readable hook of the same name that is not a shared-selection pointer stays silent.";
 const FIX = "derive in render, or read non-reactively with useEffectEvent; the shell's own selection lifecycle is licensed by an exact reviewed grant.";
 
 /** The state barrel as the proofs need it: the pointer vocabulary must RESOLVE to a declaration under
@@ -182,23 +204,33 @@ export const gate = defineGate({
       if (current === null || current.effects.length === 0 || current.pointers.length === 0) {
         return;
       }
-      const pointerSpans = current.pointers
-        .filter((callee) => classifyProjectDirectoryOrigin(callee, STATE_DIR, POINTERS) === "home")
-        .map((callee) => span(callee));
-      if (pointerSpans.length === 0) {
+      const verdicts = current.pointers.map((callee) => ({ callee, verdict: classifyProjectDirectoryOrigin(callee, STATE_DIR, POINTERS) }));
+      const provenSpans = verdicts.filter((read) => read.verdict === "home").map((read) => span(read.callee));
+      const unreadableSpans = verdicts.filter((read) => read.verdict === "unreadable").map((read) => span(read.callee));
+      if (provenSpans.length === 0 && unreadableSpans.length === 0) {
         return;
       }
-      const tainted = taintedNames(current, pointerSpans);
+      // Two fixpoints rather than one: propagation is monotone and per-seed independent, so running the
+      // seeds separately is the same name set as one combined run PLUS the provenance the finding needs.
+      // An effect reached by a PROVEN pointer takes the precise message even when an unreadable one also
+      // taints it — the accusation is proven, and only a group whose every candidate is unreadable gets the
+      // fail-closed text (`lib/reviewed-grant-findings.ts`).
+      const proven = taintedNames(current, provenSpans);
+      const unreadable = taintedNames(current, unreadableSpans);
       for (const effect of current.effects) {
-        if (namesIn(current.identifiers, effect.deps).some((name) => tainted.has(name))) {
-          candidates.push({
-            node: effect.node,
-            subject: current.path,
-            operation: OPERATION,
-            token: effect.spelling,
-            offset: Math.max(effect.node.getText().indexOf(effect.spelling), 0),
-          });
+        const deps = namesIn(current.identifiers, effect.deps);
+        const provenHit = deps.some((name) => proven.has(name));
+        if (!(provenHit || deps.some((name) => unreadable.has(name)))) {
+          continue;
         }
+        candidates.push({
+          node: effect.node,
+          subject: current.path,
+          operation: OPERATION,
+          unreadable: !provenHit,
+          token: effect.spelling,
+          offset: Math.max(effect.node.getText().indexOf(effect.spelling), 0),
+        });
       }
     };
 
@@ -271,7 +303,7 @@ export const gate = defineGate({
         // barrel no longer exports leaves the receipt UNRESOLVED and refuses the run. The legacy regex just
         // stopped matching — which is how three dead names survived in it.
         ctx.receipt({ kind: "population", source: "shared-selection pointers", members: barrel.members, unresolved: barrel.unresolved });
-        reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: MESSAGE });
+        reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
       },
     };
   },
@@ -331,6 +363,17 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "GRANT GRANULARITY: two chasing effects in one file are ONE `(subject, operation)` finding, because a row matching both would be OVER-BROAD and would license neither",
     },
+    {
+      mode: "types",
+      files: {
+        [REACT_TYPES_HOME]: reactProofModule(),
+        "packages/client/src/state/index.ts": SELECTION_BARREL,
+        "packages/client/src/features/chat/hooks/opaque.ts":
+          'import { useEffect } from "react";\ndeclare function opaque(): any;\nexport function C(): void {\n  const chatId = opaque().useActiveChatId();\n  useEffect(() => {}, [chatId]);\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: 'THE FAIL-CLOSED POINTER ARM (§4.1\'s reusable falsifier). An opaque `any` receiver gives the pointer read no symbol and no declaration, so `classifyProjectDirectoryOrigin` answers `unreadable`. Under the old `=== "home"` predicate the call dropped out of the taint set and this file passed SILENTLY; the row dies without the fail-closed predicate, and `messageIncludes` is what makes it die rather than pass on the precise message',
+    },
   ],
   mustPass: [
     {
@@ -372,6 +415,17 @@ export const gate = defineGate({
           'import { useEffect } from "react";\nimport { useDraftStore } from "../../../state/index.ts";\nexport function C(): void {\n  const draft = useDraftStore();\n  useEffect(() => {}, [draft]);\n}\n',
       },
       why: "a LIFECYCLE store read (the draft/chat-stream family) is not a shared-selection pointer — §5.1 fences the pointers, and the vocabulary is exact",
+    },
+    {
+      mode: "types",
+      files: {
+        [REACT_TYPES_HOME]: reactProofModule(),
+        "packages/client/src/state/index.ts": SELECTION_BARREL,
+        "packages/client/src/features/chat/hooks/same-name.ts": 'export function useActiveChatId(): string {\n  return "x";\n}\n',
+        "packages/client/src/features/chat/hooks/imported.ts":
+          'import { useEffect } from "react";\nimport { useActiveChatId } from "./same-name.ts";\nexport function C(): void {\n  const chatId = useActiveChatId();\n  useEffect(() => {}, [chatId]);\n}\n',
+      },
+      why: 'THE OTHER POLARITY, pinned so fail-closure cannot become accuse-everything: a pointer-named hook IMPORTED from a feature module resolves to a canonical declaration outside `state/` and is PROVEN other. It is the module-alias path, where `bindsProvenNonModuleDeclaration` answers false — so if the resolver ever stopped reading this shape the verdict would be `unreadable` and this row would RED, which is exactly the over-report the `!== "other"` predicate risks',
     },
   ],
 });
