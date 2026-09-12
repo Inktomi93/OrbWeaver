@@ -79,9 +79,12 @@ order); §12 is what lanes read. This file is what YOU do, in order.
    `pnpm check:policy-conformance`** — it names every final policy and runs its rows, so it tells you what is
    CONVERTED AND PROVEN, which `gate:contract` (a shape check) cannot.
 
-6. Read `~/.claude/bridge/to-primary/` (ack SELF notes by `mv` into `done/`). Write a SELF note ONLY when a context
-   sentinel fires or you are handing the session off. A SELF note is a POINTER, never a source: verify every state
-   claim in it before acting (two of note 522's were false within the hour).
+6. Read YOUR OWN inbox — `to-primary/` for primary, `to-b/` for claude-b — and ack SELF notes by `mv` into its
+   `done/`. Write a SELF note ONLY when a context sentinel fires or you are handing the session off, **and write it
+   into the inbox YOUR onboard hook reads, never the other account's** (paid 2026-09-12: claude-b filed its 96% map
+   into `to-primary/`, which its own monitor and onboard hook never read; primary caught it and copied the map back
+   as note 644 minutes before the compact). A SELF note is a POINTER, never a source: verify every state claim in it
+   before acting (two of note 522's were false within the hour).
 
 7. **THE DOC LAYER IS A BUDGET, NOT A READING LIST — read the tier, not the directory (measured 2026-09-12, by
    reading the whole thing and paying for it).** The owner asked for "the two docs and every doc they mention, in
