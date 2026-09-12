@@ -176,7 +176,7 @@ marker grammar's position group is `[^()\r\n]+` and every marker against it pars
 
 **AND "ORDINARY" IS A CLAIM ABOUT THE DOOR, NOT A FIELD — CHECK IT AT EVERY CONVERSION (measured 2026-09-12, and it
 was FIVE OF FIVE modules in one lane).** A legacy policy can carry `authority: "ordinary"` while having **no working
-waiver door at all**, and nothing on the legacy runtime ever asked. Two classes, both silent:
+waiver door at all**, and nothing on the legacy runtime ever asked. THREE classes, all silent:
 
 1. **A position containing a paren.** `form-factory-for-multizfield` reported `` `${name} (${count} fields)` ``
    (`KnobField (4 fields)`) and `no-form-reset-in-autosave` reported `reset()`. Every marker against either parses
@@ -187,7 +187,21 @@ waiver door at all**, and nothing on the legacy runtime ever asked. Two classes,
    failure and alarms on the author's first real waiver. Three `state-files` arms and EVERY `context-definition-shape`
    arm shipped that way.
 
-**The asymmetry that let both survive: `report.node` VALIDATES its token against the node text and throws; `report.file`'s
+3. **A position inside COMMENT TRIVIA — and this one is a capability the conversion LOSES** (measured 2026-09-13 by
+   lane `p-doc-citation-three`, verified against the code). `locateFinding` blanks comments and requires the finding's
+   token to survive the blanking. A comment-resident token does not, so the finding raises
+   `ordinary finding <file>:<line>:<col> points into comment trivia rather than authored code`
+   (`lib/ordinary-waiver.ts:432`). **So a policy whose SUBJECT IS COMMENT TEXT — every citation gate, and anything
+   judging a comment, JSDoc or annotation — has no ordinary door at all and is `hard` by construction.**
+   What makes this different from classes 1 and 2: the legacy runtime **did** bind a line-adjacent `@orb-gate-ignore`
+   to a comment-resident finding. `lib/pass.ts:236-242`'s `findingSuppressedAt` is the finding overload's suppression
+   and binds to the line IMMEDIATELY ABOVE `finding.line` precisely because there is no node. So the honest outcome is
+   `hard` **with a header receipt stating that the legacy door existed and does not survive the conversion** — never
+   `hard` presented as though it were always the natural authority. The discriminator is where `report.node` POINTS,
+   not what the gate is about: a string literal is authored code and survives blanking, so a prose-in-a-string arm
+   keeps its ordinary door while a prose-in-a-comment arm has none.
+
+**The asymmetry that let classes 1 and 2 survive: `report.node` VALIDATES its token against the node text and throws; `report.file`'s
 token is unvalidated at report time and fails later as an authority ALARM.** So converting a file-anchored ordinary arm
 has exactly two honest outcomes — **re-anchor it on authored text, or split it to `hard`** (an ABSENCE verdict about an
 exact file has no node, therefore no position, therefore no ordinary door by construction). Move any count or name the
@@ -1182,7 +1196,7 @@ defineGate({
 One sanctioned `pnpm` command with tier plus file/folder/package/project/changed/whole scope; explicit `--check`,
 `--family`, strict-scope refusal, list/explain, JSON report, stable exit codes; requested and effective population
 manifests including deleted/renamed semantic paths; compiler-derived program membership and one lazy checker per
-workspace; error/warning severity (**the "opt-in warning promotion" this list used to claim is NOT BUILT — see §12.5 and #2025**); hard unsuppressible policy, exact ordinary occurrence
+workspace; error/warning severity with **opt-in warning promotion — BUILT, and pinned OFF at the one real-tree entrypoint** (`failOnWarnings` at `lib/gate-authority.ts:404`, hardcoded `false` at `ops/structure.ts:153`; see §12.5 and #2025); hard unsuppressible policy, exact ordinary occurrence
 waivers, exact reviewed subject/operation grants; missing/empty/unresolved population refusal and failed-owner
 reconciliation withholding; per-gate files/members/resources/timing receipts; one pass-local shared-fact registry (one
 collector over an exact population, read-only sibling consumers); one fixture runtime for `mustFlag`/`mustPass`.
@@ -1445,7 +1459,13 @@ trivia on the node or its ancestors up to the enclosing statement; a file/resour
 immediately above; one marker consumes exactly one occurrence; unused, malformed and over-broad markers are central
 reconciliation findings. `reviewed-grant` findings may consume only a typed central grant keyed by policy id, subject and
 operation, with `why` and `endsWhen`; after a complete owner run zero consumption is stale and more than one match is
-over-broad and suppresses none. `error` blocks. **`warning` ALSO BLOCKS — the "warning promotion" this sentence used to condition it on DOES NOT EXIST (measured 2026-09-12, #2025).** `ops/structure.ts` computes `ok: violations.length === 0` with no severity partition, and severity is read in exactly four places corpus-wide: two append a `[warning]` label (`render.ts:196`, `show-policy.ts:97`) and two carry `workItem` into a report (`policy-plan.ts:42`, `structure-report.ts:74`). **So `severity` is a label today, and declaring `warning` does NOT make a finding non-blocking** — five policies are authored against the promise that it does, including three #1971 meta-policies and §3's warning-debt exemplar. Which way that resolves is #2025, an owner decision. Unresolved
+over-broad and suppresses none. `error` blocks. **`warning` does NOT block on the FINAL side, and the promotion mechanism EXISTS — this paragraph claimed the opposite from 2026-09-12 until 2026-09-13 and the claim was FALSE (refuted by `v-wave-2026-09-13`, re-derived line by line by the orchestrator).** The partition is `lib/gate-authority.ts:404`, `blocking: errors + alarmErrors + (input.failOnWarnings ? warnings : 0)`; `ops/structure.ts:153` hardcodes `failOnWarnings: false`; `ops/structure.ts:199-200` builds `total = legacyTotal + finalBlocking` from `authority.verdict.blocking`; `:241` is `ok: total === 0 && !legacyBroken && !finalBroken`; `lib/policy-plan.ts:421` returns `blocking > 0 ? 1 : 0`. **So a final `warning` contributes 0 to `blocking`, 0 to `total`, 0 to `ok` and 0 to the exit code.** Driven, not read: the same policy at `failOnWarnings=false` gives `BLOCKING=0 exit=0` and at `true` gives `BLOCKING=4 exit=1`.
+
+**HOW THE FALSE CLAIM GOT HERE, because it is the most instructive thing in this section.** The retracted text quoted `ops/structure.ts` computing `ok: violations.length === 0` with no severity partition. That expression is real and quoted accurately — it is **`ops/structure.ts:46`, the per-gate LEGACY ROW**, not the run verdict. A per-row field was read as the exit computation, one hop short of `gate-authority.ts`. It then propagated into a commit message, an issue's evidence field, this law doc and a report to the owner before anything checked it. ***Partial reads LOCATE, they do not CONCLUDE*** is already law in this repo's recon standards; this is what breaking it costs when the result is written into the document lanes copy from.
+
+**The old "severity is read in exactly four places corpus-wide" census was also FALSE** — those four (`render.ts:196`, `show-policy.ts:97`, `policy-plan.ts:42`, `structure-report.ts:74`) are the DISPLAY-ONLY readers, and naming only them erased the verdict-affecting/display-only distinction that decides the whole question. At minimum `gate-authority.ts:404`, `pass.ts:434`, `gate-authority.ts:75`, `show-policy.ts:20`, `render.ts:203` and `ops/gen/caught-failure-population.ts:108-110` are also readers. **A corrected full census is owed and is being derived; do not quote the four.**
+
+**STILL OPEN, and it is now a much narrower question than "build the promotion"** (#2025, returned to the owner after his 2026-09-13 ruling was found to rest on the false premise above): whether `ops/structure.ts:153` should keep pinning `failOnWarnings: false`; what the LEGACY side does, since `pass.ts:434` carries the same expression and **if the two sides disagree then one declared severity means different things before and after conversion**, which is a conversion-boundary defect rather than a policy question; and the census of which warning-severity policies are currently non-blocking, with how much enforcement went quiet as modules converted. `over-art-plate-arm`'s four findings — including measured contrast failures at 3.30:1 and 3.69:1 — are one entry (#2024). Unresolved
 debt is a warning tied to a positive `workItem`. Reconciliation runs only after every selected owner completed its
 population; a thrown, incomplete, empty or unresolved owner withholds liveness rather than falsely staling grants. Gate
 modules receive neither grant tables nor marker parsers. Current-population declaration counts, every-file manifests and
