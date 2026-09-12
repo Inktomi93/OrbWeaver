@@ -2,7 +2,8 @@
 // family `policy-soundness`, readers `lib/policy-descriptor-read.ts` for both registrations and
 // `lib/gate-contract-origin.ts`'s import-origin discipline for the identity). Two arms, one visitor:
 //
-//   A the legacy descriptor contract or the central authority machinery (§12.5: *"gate modules receive neither
+//   A the legacy descriptor contract, the central authority machinery, or an ENTRYPOINT VERB under `ops/**`
+//     (#2186 — the one DIRECTORY-CLASS member, judged by prefix; §12.5: *"gate modules receive neither
 //     grant tables nor marker parsers"*; §3's non-negotiables: no gate-owned exemption table; §12.8: zero
 //     `ExemptionRow` tables, no private runtime). NOTHING held any of it for a final module until this policy:
 //     `gate-modernization` ARM B judges only whether an exemption table carries a STALE arm (the legacy law), and
@@ -39,9 +40,11 @@
 //
 // WHAT THIS IS NOT. `../contract/policy.ts`, `../contract/fact.ts` and every other `contract/*` are the FINAL
 // contract and its type homes — imported by every policy. `lib/gate-contract.ts`, `lib/gate-contract-origin.ts`
-// and `lib/policy-descriptor-read.ts` are the shared readers the family itself consumes. The home list is closed
-// on purpose; a directory-class member (`ops/**`, measured at zero consumers) is a contract edit with a named
-// consumer, not a widening here. And a top-level `gates/*.ts` module that registers NOTHING is
+// and `lib/policy-descriptor-read.ts` are the shared readers the family itself consumes. The EXACT home list is
+// closed on purpose. A DIRECTORY-CLASS member was ruled a contract edit with a named consumer rather than a
+// widening of that list, and #2186 is that edit landing: `ops/**` joined as a PREFIX member with its own verdict
+// kind and its own rows (see `FORBIDDEN_IMPORT_PREFIXES`), still measured at zero consumers when it landed
+// (1522 import declarations across 303 gate modules, none naming `ops/`). And a top-level `gates/*.ts` module that registers NOTHING is
 // `gate-modernization` ARM A's finding (UNREGISTERED), not this policy's: importing it is not importing a gate.
 //
 // BLINDNESS: this module sits inside its own population, so when it is delivered and does not read as final the
@@ -73,12 +76,33 @@ const FORBIDDEN_IMPORT_HOMES = [
 const FORBIDDEN_BASENAMES: ReadonlySet<string> = new Set(FORBIDDEN_IMPORT_HOMES.map((home) => home.slice(home.lastIndexOf("/") + 1)));
 const TOOLING_SRC = "/tooling/src/";
 
+/** ARM A's DIRECTORY-CLASS member (#2186, matrix C10) — the one home judged by a PREFIX rather than an exact
+ *  path, and the reason it may be a prefix is a property of the directory, not a convenience:
+ *
+ *  `ops/**` holds ENTRYPOINT VERB IMPLEMENTATIONS — the bodies `cli.ts` dispatches to, one per `verify` verb.
+ *  Nothing under it is a shared reader; every shared reader in this system lives in `lib/`, which is where the
+ *  family's own recognisers are imported from. So there is NO legitimate import of an `ops/` module from a gate
+ *  module, and a prefix cannot over-reach the way `gates/**` would (that directory holds `_proof/` surfaces
+ *  imported by right, which is exactly why ARM B resolves REGISTRATION instead of testing a directory).
+ *  Measured 2026-09-12 before landing: 1522 import declarations across 303 gate modules, ZERO naming `ops/`.
+ *
+ *  The rule it enforces is §12.3's: a gate is not an entrypoint. A module that reaches a verb implementation is
+ *  running the tool rather than describing a property of the tree — and it would drag that verb's whole
+ *  transitive surface (a run slot, an artifact writer, a process exit contract) behind a detector. */
+const FORBIDDEN_IMPORT_PREFIXES = ["/tooling/src/verify/ops/"] as const;
+
 const MESSAGE =
   "a FINAL policy module imports the legacy descriptor contract or the central authority machinery (gate-runtime-standardization.md §12.5, §12.8): " +
   "`contract/gate.ts` (ExemptionTable/ExemptionRow/Finding/GateDescriptor), the legacy dispatcher or marker parser, the grant table, the waiver " +
   "engine, the coordinator, the final dispatcher or the loader. A gate module receives neither grant tables nor marker parsers, owns no " +
   "exemption table, and runs no pass of its own; a legacy artifact carried across a conversion is the #1922 migration's work, never a keep. " +
   "The `from` token names the import; the message names the resolved home.";
+const PREFIX_MESSAGE =
+  "a FINAL policy module imports an ENTRYPOINT VERB IMPLEMENTATION under `tooling/src/verify/ops/**` " +
+  "(gate-runtime-standardization.md §12.3: a gate is not an entrypoint). `ops/` holds the bodies `cli.ts` dispatches to, one per verb; " +
+  "every SHARED reader lives in `lib/`, so no gate has a legitimate door here. A detector that reaches a verb implementation is running " +
+  "the tool rather than describing a property of the tree, and it drags that verb's whole surface — a run slot, an artifact writer, an " +
+  "exit contract — behind itself. The `from` token names the import; the message names the resolved target and the forbidden directory.";
 const SIBLING_MESSAGE =
   "a FINAL policy module imports ANOTHER GATE MODULE (gate-runtime-standardization.md §12.3, owner ruling #2096): a gate module never imports a gate " +
   "module. A split family's shared predicate lives in `lib/<family>.ts` and BOTH siblings import it from there; a sibling reading its twin's " +
@@ -103,6 +127,10 @@ type ModuleDoor = ImportDeclaration | ExportDeclaration;
 
 type DoorVerdict =
   | { readonly kind: "forbidden-home"; readonly home: string }
+  /** The DIRECTORY-CLASS member (#2186): the resolved path lies under a forbidden prefix. A third kind rather
+   *  than a tenth `FORBIDDEN_IMPORT_HOMES` entry, because the test is different in kind — `endsWith` an exact
+   *  path versus `includes` a directory — and collapsing them would make the home table mean two things. */
+  | { readonly kind: "forbidden-prefix"; readonly prefix: string; readonly target: string }
   | { readonly kind: "sibling-gate"; readonly contract: GateContractKind; readonly target: string }
   | { readonly kind: "unreadable" };
 
@@ -126,7 +154,11 @@ function judgeDoor(door: ModuleDoor): DoorVerdict | undefined {
   }
   const homeCandidate = FORBIDDEN_BASENAMES.has(basenameOf(specifier));
   const siblingCandidate = specifier.startsWith("./") || specifier.startsWith("../");
-  if (!(homeCandidate || siblingCandidate)) {
+  // The prefix member's candidacy is the SEGMENT, not a basename: `ops/` names a directory, so any specifier
+  // that traverses it is asked the question. A relative one is already a candidate through ARM B; this admits
+  // a package-door spelling (`@orb/tooling/verify/ops/x`) as well, which no exact-home test could see.
+  const prefixCandidate = specifier.includes("ops/");
+  if (!(homeCandidate || siblingCandidate || prefixCandidate)) {
     return;
   }
   const target = door.getModuleSpecifierSourceFile();
@@ -138,6 +170,10 @@ function judgeDoor(door: ModuleDoor): DoorVerdict | undefined {
   if (home !== undefined) {
     return { kind: "forbidden-home", home };
   }
+  const prefix = FORBIDDEN_IMPORT_PREFIXES.find((candidate) => path.includes(candidate));
+  if (prefix !== undefined) {
+    return { kind: "forbidden-prefix", prefix, target: displayPath(path) };
+  }
   const contract = siblingCandidate ? gateRegistrationOf(target) : undefined;
   return contract === undefined ? undefined : { kind: "sibling-gate", contract, target: displayPath(path) };
 }
@@ -146,6 +182,8 @@ function messageOf(verdict: DoorVerdict): string {
   switch (verdict.kind) {
     case "forbidden-home":
       return `${MESSAGE} Resolved home: ${verdict.home.slice(1)}.`;
+    case "forbidden-prefix":
+      return `${PREFIX_MESSAGE} Resolved target: ${verdict.target}, under ${verdict.prefix.slice(1)}.`;
     case "sibling-gate":
       return `${SIBLING_MESSAGE} Resolved target: ${verdict.target}, a ${verdict.contract} gate module.`;
     case "unreadable":
@@ -280,6 +318,18 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: familyFixture(IMPORTING("../ops/debt.ts", "Ledger"), TARGET("tooling/src/verify/ops/debt.ts", "Ledger")),
+      expect: { count: 1, token: '"../ops/debt.ts"', messageIncludes: "under tooling/src/verify/ops/" },
+      why: "ARM A's DIRECTORY-CLASS member (#2186, matrix C10): the only home judged by a PREFIX. `ops/debt.ts` is a real verb implementation and the live mirror image — `ops/debt.ts:51-52` reaches INTO two legacy gates' `BASELINE_REL`, which is the same coupling from the other end and retires at the cutover. The position is the specifier because deleting the import is the repair",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING("../ops/never-built.ts", "Thing")),
+      expect: { count: 1, token: '"../ops/never-built.ts"', messageIncludes: "resolves to NOTHING" },
+      why: "ARM A PREFIX FAIL-CLOSED: an `ops/` specifier that resolves nowhere is reported under the disjoint UNREADABLE text, not acquitted. Without this row the prefix candidacy could silently become fail-OPEN for exactly the spelling it was added to catch",
+    },
+    {
+      mode: "types",
       files: familyFixture(IMPORTING("../contract/gate.ts", "ExemptionTable")),
       expect: { count: 1, token: '"../contract/gate.ts"', messageIncludes: "resolves to NOTHING" },
       why: "ARM A FAIL-CLOSED (#944): a candidate specifier that resolves nowhere is reported under the disjoint UNREADABLE text — the origin cannot be established, and acquitting it on its spelling would be the failure mode",
@@ -356,6 +406,11 @@ export const gate = defineGate({
         ),
       ),
       why: "a clean final module importing only the final contract — the ordinary shape of the converted corpus (the `../contract/policy.ts` door is a relative candidate of ARM B, resolves to the contract stub, and the stub registers nothing)",
+    },
+    {
+      mode: "types",
+      files: familyFixture(IMPORTING("../lib/ops/reader.ts", "OpsRead"), TARGET("tooling/src/verify/lib/ops/reader.ts", "OpsRead")),
+      why: 'THE PREFIX\'S FALSE-POSITIVE GUARD (#2186), and it is the row that makes the prefix IDENTITY rather than SPELLING: this specifier IS a candidate — it carries the `ops/` segment — and is still acquitted, because the verdict is the RESOLVED path and this one lands under `lib/`, not under `tooling/src/verify/ops/`. Without it, `includes("ops/")` could quietly become the rule and every `lib/ops/*` reader would be a finding',
     },
     {
       mode: "types",

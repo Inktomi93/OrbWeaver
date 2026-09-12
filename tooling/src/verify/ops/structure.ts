@@ -46,7 +46,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
-import { checkoutName, openRunSlot, publishRunSlot } from "@orb/tooling/_shared/artifacts";
+import { checkoutName, openRunSlot, publishRunSlot, reportsPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
@@ -236,7 +236,7 @@ function finalSide(selectedFinal: readonly GatePolicy[], result: PolicyPassResul
  *  bearing for `abandonedRuns`. A slot that does not exist is MISUSE (exit 3): the operator named the wrong
  *  run, and silently succeeding would leave them believing a void happened. */
 function tombstoneSlot(root: string, request: { readonly slot: string; readonly reason: string }): number {
-  const file = join(root, "reports", "runs", "structure", request.slot, REPORT_NAME);
+  const file = reportsPath(root, "runs", "structure", request.slot, REPORT_NAME);
   let report: StructureReport;
   try {
     report = JSON.parse(readFileSync(file, "utf8")) as StructureReport;

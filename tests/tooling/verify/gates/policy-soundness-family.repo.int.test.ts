@@ -11,8 +11,10 @@ import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POLICY_CONTRACT_PATH, POLICY_CONTRACT_STUB } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
 import { gate as policyBindingResolution } from "../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
+import { gate as policyFixtureSubstrate } from "../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { gate as policyLegacyImports } from "../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
+import { gate as policyRefusalCoverage } from "../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
 import { gate as policyWaiverIdentity } from "../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
 import { gate as policyWaiverSpelling } from "../../../../tooling/src/verify/gates/policy-waiver-spelling.ts";
@@ -24,8 +26,10 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY: readonly GatePolicy[] = [
   policyBindingResolution,
+  policyFixtureSubstrate,
   policyLegacyImports,
   policyProofExpectations,
+  policyRefusalCoverage,
   policySoundness,
   policyWaiverIdentity,
   policyWaiverSpelling,
@@ -139,7 +143,7 @@ test(
       }
     }
     expect(dangling).toEqual([]);
-    expect(declaredUnreadable).toBe(3);
+    expect(declaredUnreadable).toBe(4);
     const declared = FAMILY.reduce((sum, policy) => sum + policyProofRows(policy).length, 0);
     expect(sequence).toBe(declared);
     expect(sequence).toBeGreaterThan(0);
@@ -156,7 +160,13 @@ const LOOKALIKE = (id: string): string =>
   `function defineGate(policy: unknown): unknown {\n  return policy;\n}\nexport const gate = defineGate({ id: "${id}" });\n`;
 const CANONICAL = (id: string): string => `import { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "${id}" });\n`;
 
-for (const policy of FAMILY) {
+/** `policy-fixture-substrate` cannot take the self-anchor arm and the reason is structural, not an omission: its
+ *  population is the TEST tree (`tests/tooling/verify/gates/**`), so its own module never enters `ctx.files` and
+ *  there is no self to anchor on. Its blindness is stated the other way the family already knows — a zero-count
+ *  receipt — and pinned by its own test directly below this loop. */
+const SELF_ANCHORED = FAMILY.filter((policy) => policy.id !== policyFixtureSubstrate.id);
+
+for (const policy of SELF_ANCHORED) {
   test(`${policy.id} REFUSES the run when its own module no longer reads as final, and runs when it does`, () => {
     const self = `${GATES_DIR}${policy.id}.ts`;
     const blind = passOf(policy, { [self]: LOOKALIKE(policy.id) });
@@ -172,6 +182,25 @@ for (const policy of FAMILY) {
     expect(seeing.authority.effectiveFindings).toEqual([]);
   });
 }
+
+test("policy-fixture-substrate REFUSES a population it read NOTHING from, and runs when it reads a file (#2185)", () => {
+  // THE BLIND DIRECTION. This policy's population is the TEST tree, so it has no own-module self-anchor; what
+  // holds it is the resolver one level up, which refuses an effective population that admits nothing BEFORE any
+  // hook runs. Measured: a zero-count receipt inside the module never executed, because this refusal fired first.
+  const blind = passOf(policyFixtureSubstrate, {});
+  expect(blind.toolErrors).toMatchObject([{ policyId: policyFixtureSubstrate.id, phase: "population" }]);
+  expect(blind.toolErrors[0]?.message).toContain("candidate corpus is empty");
+  expect(blind.authority.withheldPolicyIds).toEqual([policyFixtureSubstrate.id]);
+
+  // THE SEEING DIRECTION, which is what makes the arm above a control rather than an unfailable assertion: one
+  // real family-test file in the population, clean, no refusal.
+  const seeing = passOf(policyFixtureSubstrate, {
+    "tests/tooling/verify/gates/probe.test.ts": 'import { writeFileSync } from "node:fs";\nexport const w = (p: string): void => writeFileSync(p, "x");\n',
+  });
+  expect(seeing.toolErrors).toEqual([]);
+  expect(seeing.authority.withheldPolicyIds).toEqual([]);
+  expect(seeing.authority.effectiveFindings).toEqual([]);
+});
 
 test("policy-waiver-identity REFUSES a corpus in which it recognises no final module (the zero-count receipt)", () => {
   const legacyOnly = passOf(policyWaiverIdentity, {
