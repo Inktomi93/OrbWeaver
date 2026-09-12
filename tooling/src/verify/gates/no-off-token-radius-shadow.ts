@@ -27,7 +27,13 @@ const MESSAGE =
 /** The concrete remedy (§9.2), printed ONCE under the group header (owner rulings 2/3). */
 const FIX =
   "rounded-lg → rounded-card (or rounded-base/rounded-control/rounded-full); shadow-md → shadow-overlay " +
-  "(or shadow-glow/shadow-prose) — see tokens.json radius/shadow vocab + design-enforcement.md §3.";
+  "(or shadow-glow/shadow-prose) — see tokens.json radius/shadow vocab + design-enforcement.md §3. A " +
+  "deliberate off-token site is waived with `// @orb-waive no-off-token-radius-shadow(<position>): <reason>` " +
+  "on a line above the offending statement, where <position> is the BARE WHITESPACE-SPLIT CLASS TOKEN WITH " +
+  'NO QUOTES — `rounded-lg`, not "rounded-lg" — and INCLUDES any variant prefix — `hover:shadow-lg`, not ' +
+  "`shadow-lg` — because the report passes `token: hit.token`, the raw split segment before the variant " +
+  "strip. Each banned token is its own finding, so a `className` with two off-token utilities needs two " +
+  "markers.";
 
 const RADIUS_SCALE_RE = /^rounded-(?:sm|md|lg|xl|2xl|3xl|4xl)$/u;
 const SHADOW_SCALE_RE = /^shadow(?:-(?:sm|md|lg|xl|2xl|3xl|inner))?$/u;
@@ -186,6 +192,24 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/client/src/features/x/components/x.tsx": 'export const G = <div className="rounded-none shadow-none" />;\n' },
       why: "none = deliberate opt-out keyword, excluded from the banned scale",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/features/x/title.tsx": 'export const G = <div title="rounded-lg" />;\n' },
+      why: 'THE className ATTRIBUTE-IDENTITY HALF (v-audit-wave4 D1): the banned utility inside a NON-className JSX attribute must not flag — `isClassStringSite` requires the attribute name to be exactly `className`, not merely `jsxAttr !== undefined`. Narrowing `=== "className"` to any JSX attribute reds this row.',
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/features/x/desc.ts": 'describe("rounded-lg card corners");\n' },
+      why: "THE CLASS_STRING_CALLEES-MEMBERSHIP HALF (v-audit-wave4 D1): the banned utility as an argument to an ARBITRARY call (`describe`, not `cn`/`clsx`/`cva`/`tv`) must not flag — `isClassStringSite` requires the callee to be a member of `CLASS_STRING_CALLEES`, not merely `call !== undefined`. Widening the composer check to any call expression reds this row.",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/x/single.tsx":
+          '// @orb-waive no-off-token-radius-shadow(rounded-lg): a stand-in reason and its end condition.\nexport const G = <div className="rounded-lg" />;\n',
+      },
+      why: "THE ORDINARY IDENTITY ARM (v-audit-wave4 D2, §4.2): the correct central marker at the reported BARE token `rounded-lg` (no quotes, no variant prefix, because the report passes `token: hit.token` for a single-token className with no other banned segment) suppresses the sole finding. One finding, one marker, zero effective findings and zero authority alarms; a wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`.",
     },
   ],
 });

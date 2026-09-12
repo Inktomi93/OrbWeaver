@@ -129,5 +129,15 @@ export const gate = defineGate({
       },
       why: 'THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the SUPPLIED position — the whole quoted literal `"p-4"`, quotes included, because the report passes `token: node.getText()` — suppresses the twin of mustFlag[0]. One finding, one marker, zero effective findings and zero authority alarms; a wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`',
     },
+    {
+      mode: "source",
+      files: { "packages/client/src/test.tsx": 'const x = <div title="p-4" />;' },
+      why: 'THE className ATTRIBUTE-IDENTITY HALF (v-audit-wave4 D1): the banned utility inside a NON-className JSX attribute must not flag — `inClassCarrier` requires the attribute name to be exactly `className`, not merely `jsxAttr !== undefined`. Narrowing `=== "className"` to any JSX attribute reds this row.',
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/test.ts": 'describe("p-4 spacing helper");' },
+      why: "THE CLASS_COMPOSERS-MEMBERSHIP HALF (v-audit-wave4 D1): the banned utility as an argument to an ARBITRARY call (`describe`, not `cn`/`clsx`/`cva`/`tv`) must not flag — `inClassCarrier` requires the callee to be a member of `CLASS_COMPOSERS`, not merely `callExpr !== undefined`. Widening the composer check to any call expression reds this row.",
+    },
   ],
 });
