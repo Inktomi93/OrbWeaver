@@ -115,7 +115,7 @@ test("chevron={false} suppresses the baked chevron (a consumer renders its own)"
 // The `size` axis — DEFAULT INVERTED at #884 C2 (born side-eye 2026-08-22 P2-4). A bare trigger is a row
 // of its own — the thing you press to reach a whole section — so the BASE now pins the pointer floor; the
 // recurring defect was the opt-in floor arm not taken (the this-chat 411×40 collapsible). `text` is the
-// renamed opt-OUT for a disclosure in running content, and it owes a `@sub-floor-ok` marker at the mount
+// renamed opt-OUT for a disclosure in running content, and it owes a `@orb-waive sub-floor-disclosure("text")` waiver at the mount
 // (gate `sub-floor-disclosure`). `--spacing-control-sm` is read LIVE off the token because it is
 // pointer-conditional (44px coarse / 32px fine) and a literal here would be wrong on one of the two.
 const readControlFloor = (page: Page): Promise<number> =>

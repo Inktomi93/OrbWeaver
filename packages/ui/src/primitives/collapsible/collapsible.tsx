@@ -28,7 +28,7 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
    *  `--spacing-control-sm` row floor: a disclosure is the thing you press to reach a whole section, and
    *  the recurring defect was this arm not taken. `text` is text-height, for a disclosure sitting in
    *  running content where a control box would shear it off its copy — every `size="text"` mount owes a
-   *  line-adjacent `@sub-floor-ok: <reason>` marker (gate `sub-floor-disclosure`; variants.ts carries the
+   *  reasoned `@orb-waive sub-floor-disclosure("text"): <reason>` waiver (policy `sub-floor-disclosure`; variants.ts carries the
    *  measurements). */
   size?: "text" | "control";
 }
