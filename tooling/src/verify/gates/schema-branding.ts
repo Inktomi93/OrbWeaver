@@ -140,5 +140,33 @@ export const gate = defineGate({
       },
       why: "a deliberate plain identity uses the one central positioned waiver grammar",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const things = sqliteTable("things", { id: text("id") });\n',
+      },
+      why: "THE PRIMARY-KEY FENCE (§4.1): a column named `id` that is NOT `.primaryKey()` and carries no brand must not flag — dropping `column.primaryKey` from `primaryBrandProblem`'s condition reds this row",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const things = sqliteTable("things", { code: text("code").primaryKey() });\n',
+      },
+      why: 'THE `id`-PROPERTY-NAME FENCE (§4.1): a primary-key column named anything OTHER than `id` and carrying no brand must not flag — dropping `column.identity.propertyName === "id"` reds this row',
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_TYPES_PATH]: ID_TYPES,
+        "packages/db/src/schema/x.ts":
+          'import type { ChatId } from "../../../kit/src/ids/index";\n' +
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          'export const chats = sqliteTable("chats", { id: text("id").primaryKey().$type<ChatId>(), code: text("code") });\n' +
+          'export const messages = sqliteTable("messages", { chatId: text("chat_id").$type<ChatId>().references(() => chats.code, { onDelete: "cascade" }) });\n',
+      },
+      why: "THE UNBRANDED-PARENT FENCE (§4.1): an FK column carrying a brand while its referenced PARENT column carries NONE must not flag — the parent's own lack of a brand is out of this policy's scope, not a mismatch. `chats.code` is neither `id`-named nor `primaryKey`, so it is silent under the primary-brand check and isolates this fence; dropping `parentBrand === null ||` from `foreignKeyBrandProblem`'s condition reds this row",
+    },
   ],
 });
