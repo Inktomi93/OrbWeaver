@@ -1,22 +1,38 @@
-// Gate: session-channel-boundary (Core-Enforcement-Active-Gates.md — staleness-and-session-freshness.md
+// Policy: session-channel-boundary (Core-Enforcement-Active-Gates.md — staleness-and-session-freshness.md
 // §4.3) — the client twin of G10's rogue-EventEmitter rule: `new BroadcastChannel` has ONE home, and a
 // second channel is a second cross-tab protocol nobody versions (and the seam a server-truth payload would
 // leak through, forking the ONE invalidation router).
-// TWO ARMS: (A) a construction outside the home is RED; (B) the BLINDNESS TRIPWIRE (§4.6) — the home
-// loaded and constructing NOTHING means this fence names a home that moved, and would report ✓ forever.
+//
+// THE SPLIT (guide §12.6, #1950): the legacy descriptor carried two arms of different authority — (A) a
+// construction outside the home, a per-file occurrence an author may waive with a reason, and (B) the
+// blindness tripwire, a whole-tree HARD verdict that the home still constructs the channel. One `execution`
+// and one authority cannot serve both, so arm B is `session-channel-boundary-health` (same family) and this
+// policy is arm A alone: `selected-files`, ordinary, judged per file.
+//
+// FAMILY `session-channel` — the shared reader is `lib/broadcast-channel-origin.ts`
+// (`classifyBroadcastChannelConstruction`), consumed identically by both siblings. IDENTITY, NOT SPELLING:
+// the legacy check was `getExpression().getText() === "BroadcastChannel"`; the subject is now the AMBIENT
+// GLOBAL resolved through the shared readers behind a name prefilter — a local class of that name is `other`
+// and passes (mustPass[2]), an immutable const alias is the same construction and flags (mustFlag[2]), the
+// `globalThis.`/`self.`/`window.` receiver spelling flags (mustFlag[4], a catch the legacy text check lacked),
+// and a binding the readers cannot place is REPORTED under the disjoint UNREADABLE text (mustFlag[3], #944).
+// The comparison and the prefilter are each pinned by a row that reds when it is cut (mustPass[4], [5]).
+//
+// POPULATION PORT: byte-identical — the legacy `scanRoot: p.includes("packages/client/src/")` is `@client`.
+// The sanctioned home is SKIPPED by exact path inside the visitor, never subtracted from the population
+// (§12.4); its liveness is the sibling's whole job. The legacy server-file declared-limit row carries an
+// added in-population file because a fixture admitting nothing is a population tool error, not a pass.
+//
+// THE REPORTED POSITION is the CALLEE expression — `BroadcastChannel`, or the alias it was spelled with —
+// so a waiver names the class the author wrote. This is an ANCHOR MOVE from the legacy
+// `new BroadcastChannel` at offset 0 (§4.6 category 6): zero live markers existed, so nothing re-binds.
+//
+// Legacy descriptor: `774231540` (`tooling/src/verify/gates/session-channel-boundary.ts`). No private marker
+// grammar; zero live `@orb-gate-ignore session-channel-boundary` markers at conversion (rg over packages/,
+// tests/, tooling/, scripts/), so no translation was owed.
 import { Node, SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
-
-const CLIENT_SRC = "packages/client/src/";
-/** The ONE sanctioned home. SCANNED, not scanRoot-excluded (GATE-AUTHORING §3): a home that is merely
- *  un-scanned carries its exemption silently through a rename; this one goes RED at its new path via arm B. */
-const HOME = `${CLIENT_SRC}lib/session-channel.ts`;
-/** Real-tree anchor (§4.5): the lib barrel, present on every real run and needed by no example that must
- *  keep arm B silent. */
-const ANCHOR = `${CLIENT_SRC}lib/index.ts`;
-const GATE_SELF = "tooling/src/verify/gates/session-channel-boundary.ts";
-const CTOR = "BroadcastChannel";
+import { defineGate } from "../contract/policy.ts";
+import { classifyBroadcastChannelConstruction, SESSION_CHANNEL_HOME } from "../lib/broadcast-channel-origin.ts";
 
 const MESSAGE =
   "a BroadcastChannel constructed outside packages/client/src/lib/session-channel.ts. Cross-tab messaging " +
@@ -25,83 +41,140 @@ const MESSAGE =
   "and the seam a data payload would use to fork the ONE invalidation router (§13). Add your message kind " +
   "to `SessionMessage` and post it through `postSessionMessage`.";
 
-const BLIND_MESSAGE =
-  `session-channel-boundary is BLIND: its home "${HOME}" constructs no ${CTOR}. Either the channel moved ` +
-  "(re-point HOME) or it was deleted (delete this gate) — as written the fence would report clean forever. " +
-  "See tooling/src/verify/gates/session-channel-boundary.ts and docs/history/design/staleness-and-session-freshness.md §4.3.";
+const UNREADABLE =
+  "this `new` is spelled like the BroadcastChannel global but the shared readers cannot place its binding, so whether it opens a second cross-tab channel CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 
-let homeConstructs = false;
+const FIX =
+  "Import postSessionMessage / onSessionMessage from #lib instead of constructing a channel. A deliberate " +
+  "second channel is waived with `// @orb-waive session-channel-boundary(<callee>): <reason>` on the line " +
+  "above the statement, where <callee> is the constructed class exactly as written — `BroadcastChannel`, " +
+  "or the alias it was spelled with. One construction is one finding, so one marker suffices.";
 
-export const gate: GateDescriptor = {
-  name: "session-channel-boundary",
-  docRow: "Core-Enforcement-Active-Gates.md",
-  status: "active",
-  // Arm B is a whole-tree claim about ONE file the changed set may not include.
-  scopeSafety: "whole-project",
+export const gate = defineGate({
+  id: "session-channel-boundary",
+  family: "session-channel",
+  authority: "ordinary",
+  severity: "error",
+  population: "@client",
+  analysis: "types",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
   message: MESSAGE,
-  fix: "Import postSessionMessage / onSessionMessage from #lib instead of constructing a channel.",
-  scanRoot: (p) => p.includes(CLIENT_SRC),
-  kinds: [SyntaxKind.NewExpression],
-  begin: () => {
-    homeConstructs = false;
-  },
-  visit: (node, sf, ctx) => {
-    if (!Node.isNewExpression(node) || node.getExpression().getText() !== CTOR) {
-      return;
-    }
-    if (sf.getFilePath().endsWith(`/${HOME}`)) {
-      homeConstructs = true;
-      return;
-    }
-    ctx.report(node, { token: `new ${CTOR}`, offset: 0 });
-  },
-  // `run`, never `finalize`: every gate's `run` precedes every `finalize`, so a marker consumed here cannot
-  // be miscounted as stale by `gate-ignore-inventory`'s finalize-phase sweep (GATE-AUTHORING §1).
-  run: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR) || homeConstructs) {
-      return;
-    }
-    // The blindness tripwire is PERMANENTLY non-suppressible — a fence that can be silenced once it has gone
-    // blind is worse than no fence. Genuinely file-level (anchored on the gate file, column 0, no source node).
-    ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_MESSAGE });
-  },
+  fix: FIX,
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.NewExpression],
+        visit: (node, sourceFile) => {
+          if (!Node.isNewExpression(node)) {
+            return;
+          }
+          const verdict = classifyBroadcastChannelConstruction(node);
+          if (verdict === "other" || ctx.relativePath(sourceFile) === SESSION_CHANNEL_HOME) {
+            return;
+          }
+          const callee = node.getExpression();
+          ctx.report.node(node, {
+            token: callee.getText(),
+            offset: callee.getStart() - node.getStart(),
+            ...(verdict === "unreadable" ? { message: UNREADABLE } : {}),
+          });
+        },
+      },
+    ],
+  }),
   mustFlag: [
     {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const lib = {};\n",
-        [HOME]: `export const c = new ${CTOR}("orb:session");\n`,
-        [`${CLIENT_SRC}features/chat/lib/sync.ts`]: `export const rogue = new ${CTOR}("chat:sync");\n`,
+        "packages/client/src/lib/index.ts": "export const lib = {};\n",
+        "packages/client/src/lib/session-channel.ts": 'export const c = new BroadcastChannel("orb:session");\n',
+        "packages/client/src/features/chat/lib/sync.ts": 'export const rogue = new BroadcastChannel("chat:sync");\n',
       },
-      expect: { count: 1, messageIncludes: "ONE typed home" },
-      why: "THE founding shape — a feature growing its own cross-tab channel beside the sanctioned one",
+      expect: { count: 1, token: "BroadcastChannel", messageIncludes: "ONE typed home" },
+      why: "THE founding shape — a feature growing its own cross-tab channel beside the sanctioned one; the home's own construction is not a finding",
     },
     {
-      files: {
-        [ANCHOR]: "export const lib = {};\n",
-        [HOME]: "export function postSessionMessage(): void {}\n",
-      },
-      expect: { count: 1, messageIncludes: "is BLIND" },
-      why: "ARM B: the home no longer constructs a channel (it moved or died), so the fence would be a permanent false green",
+      mode: "types",
+      files: { "packages/client/src/features/chat/lib/sync.ts": 'export const c = new BroadcastChannel("rogue");\n' },
+      expect: { count: 1, token: "BroadcastChannel" },
+      why: "the rogue construction ALONE, with neither the home nor the real-tree anchor in the project — exactly ONE finding, because the blindness tripwire is the sibling policy's and this one never reports it",
     },
     {
-      files: `export const c = new ${CTOR}("rogue");\n`,
-      at: `${CLIENT_SRC}features/chat/lib/sync.ts`,
-      expect: { count: 1, messageIncludes: "ONE typed home" },
-      why: "THE ANCHOR GUARD as a written baseline: with no real-tree anchor in the project, arm B stays silent — exactly ONE finding, so a synthetic mini-project (and gate-conformance itself) can never red the blindness tripwire",
+      mode: "types",
+      files: {
+        "packages/client/src/features/chat/lib/alias.ts": 'const BC = BroadcastChannel;\nexport const c = new BC("chat:sync");\n',
+      },
+      expect: { count: 1, token: "BC" },
+      why: 'AN IMMUTABLE CONST ALIAS constructs the same global — the legacy `getText() === "BroadcastChannel"` check saw `BC` and passed it; the reported position is the alias as written, which is what a waiver must name',
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/chat/lib/written.ts":
+          'let BroadcastChannel = globalThis.BroadcastChannel;\nBroadcastChannel = globalThis.BroadcastChannel;\nexport const c = new BroadcastChannel("x");\n',
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944): a WRITTEN local binding of that name might still hold the api, so the readers refuse it as ambiguous and the policy reports under the disjoint UNREADABLE text instead of passing. `messageIncludes` names text only that branch emits",
+    },
+    {
+      mode: "types",
+      files: { "packages/client/src/features/chat/lib/receiver.ts": 'export const c = new globalThis.BroadcastChannel("chat:sync");\n' },
+      expect: { count: 1, token: "globalThis.BroadcastChannel" },
+      why: "THE AMBIENT-RECEIVER SPELLING: `globalThis.BroadcastChannel` (also `self.`/`window.`) is the same global. The legacy text check compared the whole callee to `BroadcastChannel` and passed this — a catch the conversion ADDED; the waiver position is the callee as written",
     },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
-        [ANCHOR]: "export const lib = {};\n",
-        [HOME]: `export const c = new ${CTOR}("orb:session");\n`,
+        "packages/client/src/lib/index.ts": "export const lib = {};\n",
+        "packages/client/src/lib/session-channel.ts": 'export const c = new BroadcastChannel("orb:session");\n',
       },
-      why: "the sanctioned home constructing the one channel — arm A skips it, arm B is satisfied",
+      why: "the sanctioned home constructing the one channel — skipped by exact path. Deleting the home skip reds this row",
     },
     {
-      files: `export const c = new ${CTOR}("orb:session");\n`,
-      at: "packages/server/src/entry/app.ts",
-      why: "DECLARED LIMIT: server code is out of scope entirely (no browser, no tabs) — the fence is a client-tier rule",
+      mode: "types",
+      files: {
+        "packages/client/src/features/chat/lib/clean.ts": "export const clean = true;\n",
+        "packages/server/src/entry/app.ts": 'export const c = new BroadcastChannel("orb:session");\n',
+      },
+      why: "DECLARED LIMIT: server code is out of population entirely (no browser, no tabs) — the fence is a client-tier rule. The clean client file keeps the fixture admitted; a fixture admitting nothing is a population tool error",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/chat/lib/polyfill.ts":
+          'export class BroadcastChannel {\n  constructor(public readonly name: string) {}\n}\nexport const c = new BroadcastChannel("shim");\n',
+      },
+      why: "THE IDENTITY COUNTERFACTUAL: a PROJECT class that merely shares the global's name resolves to its own declaration and is a different class — the readers refuse it as a proven non-module binding, which is `other`",
+    },
+    {
+      mode: "types",
+      files: { "packages/client/src/features/chat/lib/shadow.ts": "const BroadcastChannel = Map;\nexport const c = new BroadcastChannel<string, number>();\n" },
+      why: "THE GLOBAL-NAME COMPARISON, pinned: a const NAMED BroadcastChannel that aliases ANOTHER global passes the name prefilter and resolves to that other global (`Map`). Replacing the `globalName === BROADCAST_CHANNEL` comparison with a bare `constructs` reds this row — the only fixture that reaches the comparison with a different answer",
+    },
+    {
+      mode: "types",
+      files: { "packages/client/src/features/chat/lib/unrelated.ts": 'import { Thing } from "./missing.ts";\nexport const t = new Thing();\n' },
+      why: "THE PREFILTER'S JOB: a `new` of an UNRELATED class the readers cannot place is not a candidate, so fail-closure never accuses it. Deleting the name prefilter reds this row (the unreadable arm would report every unresolvable `new` in the client tree — the `new TRPCError(…)` lesson from the sanctioned-home conversion)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/chat/lib/port.ts":
+          'export function open(deps: { BroadcastChannel: new (name: string) => unknown }): unknown {\n  return new deps.BroadcastChannel("chat:sync");\n}\n',
+      },
+      why: "THE INJECTED PORT: a member NAMED BroadcastChannel read off a non-ambient receiver is that object's property — the testable injected shape — not the global. Replacing the ambient-receiver check with a bare `constructs` reds this row",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/chat/lib/sync.ts":
+          '// @orb-waive session-channel-boundary(BroadcastChannel): a stand-in reason and its end condition.\nexport const rogue = new BroadcastChannel("chat:sync");\n',
+      },
+      why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the reported position — the callee `BroadcastChannel` — suppresses the twin of mustFlag[1]. One finding, one marker, zero effective findings and zero authority alarms; a wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`",
     },
   ],
-};
+});
