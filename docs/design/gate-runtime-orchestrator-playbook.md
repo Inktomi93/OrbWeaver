@@ -304,6 +304,47 @@ cannot ADD to that backlog.** The 126 is closed, not growing. What #2000 DOES ga
 the shape whose behaviour is reproduced by two policies together with nothing checking the union, and copying that
 shape 104 times before verifying one of them is the defect-multiplication this program exists to prevent.
 
+### HOW BIG IS THE CORPUS, ACTUALLY — the arithmetic nobody had done (2026-09-12)
+
+Asked by the owner ("didn't we have 300-something gates before this started"), and the answer is **yes, and
+the number is in the docs** — it is just split across the roster PAIR, which is why every count in this
+program has quoted the smaller half.
+
+| Roster | Rows | |
+| - | -: | - |
+| Layer-3 **ACTIVE** (`Core-Enforcement-Active-Gates.md`) | **275** | held two-sided by `enforcement-registry-parity` |
+| DORMANT | 0 | — |
+| **DEFERRED** backlog (`Core-Enforcement-Deferred-Dropped.md`) | 28 | **8 of these have LANDED — see #2008** |
+| PREBUILT orphan seals | 2 | one already landed |
+| DROPPED (do not port) | 3 | must never exist |
+| **rows across the pair** | **308** | |
+
+**So the honest figures are 275 live · 22 genuinely still deferred · 3 dropped**, not 30 deferred. The
+deferred doc was last touched 2026-08-22 and \~54 gates have landed since; nothing is two-sided on that half,
+so it is wrong by 27% (**#2008**).
+
+**AND THE REMAINING LEGACY COUNT UNDERSTATES ITS OWN WORK, because a conversion can SPLIT.** The contract
+gives one authority, one severity and one execution per policy, so a legacy module whose arms differ on any
+axis becomes two or more. Measured against this program's own history: **232 modules on 2026-08-25 → 275
+today**, of which \~28 of the additions are program-attributable and **\~23 of those are authority splits**
+(`-health` siblings, `no-rejected-cors-proxy`, `persisted-store-registry`, `contract-banned-shapes`, the bus
+family). The split multiplier is not a surprise to be absorbed per lane — it is the contract working, and it
+is already RULED for the hardest cases: §12.6's 13 mixed-hook modules are ruled to become **\~32** policies
+(`tooling-shared-plumbing` alone → \~7, `no-inline-union-redecl` → 3, `tooling-argv-front-door` → 3).
+
+```
+171 final today
++  91 remaining legacy converting ~1:1 (some will split)
++  32 from the 13 ruled mixed-hook splits
+≈ 294 converted corpus
++  22 genuinely deferred, as their triggers fire
+≈ 316 policies at rest
+```
+
+**Price lanes against \~123 policies from the 104 legacy modules, not 104.** Every estimate built on the
+module count is low by roughly a fifth, and the error is concentrated in exactly the 13 modules that are
+already the most expensive.
+
 ### THE PHASE-D BLOCKER LIST NOBODY HAS READ — it is in the family records, not here (2026-09-12)
 
 **`schema-fact-family-1584.md` §"Explicit blockers" names SIX modules and, for each, the exact reader that does
