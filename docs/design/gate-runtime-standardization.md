@@ -180,7 +180,11 @@ family.
    effective findings, 1 waived, 0 alarms. Two shapes are valid — a `mustPass` row in the module
    (`schema-branding.ts:137`) or a `runPolicyPass` pin in a family test (`ordinary-visitors-family.test.ts:187-196`
    — the POSITIVE arm ONLY; `:198-205` beside it is a dead-position NEGATIVE arm and the next sentence forbids copying
-   it, so the range must stop at :196).
+   it, so the range must stop at :196). **Verified twice, once per direction: flipping `(Foo)`→`(Bar)` reds it with
+   `AUTHORITY ALARM … names a dead position`, so it DISCRIMINATES.** Its sibling at `:207-218`
+   (`empty-state-has-action`) is NOT the shape to copy — it omits the `authorityAlarms` assertion, so an over-broad
+   or duplicate marker (which alarms WITHOUT changing the finding count) would pass it. **The §4.2 arm is all three
+   assertions — `effectiveFindings []`, `waivedFindings 1`, `authorityAlarms []` — or it is not the arm.**
    The negatives are the CENTRAL engine's proof, run once
    (`tests/tooling/verify/lib/ordinary-waiver.test.ts`): wrong-policy, stale/dead position, malformed, missing reason,
    over-broad, duplicate consumption, unknown policy, hard/reviewed refusal, incomplete-owner withholding and

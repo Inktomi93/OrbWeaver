@@ -64,7 +64,10 @@ paths:
     `ordinary-visitors-family.test.ts:187-196` — the POSITIVE arm ONLY. **`:198-205` beside it is a dead-position
     NEGATIVE arm; §4.2 forbids copying a negative arm into a gate (under `knownPolicies: [policy]` it rides the
     unknown-policy short-circuit and proves nothing), so a range ending at :205 tells you to copy the one shape the
-    same rule bans.**) and a frozen-legacy differential for the conversion commit.
+    same rule bans.** And do NOT copy the SIBLING pin at `:207-218` (`empty-state-has-action`): it asserts
+    `effectiveFindings` and `waivedFindings` but **omits `authorityAlarms`**, so it would pass an over-broad or
+    duplicate marker — both of which ALARM without changing the finding count. The §4.2 triple is all three
+    assertions or it is not the arm.) and a frozen-legacy differential for the conversion commit.
     Retiring a private marker vocabulary for `@orb-waive` means COUNTING the live legacy markers (count /
     files / trailing-position) and recording the census in the header; translation of product files is a
     separate lane, never yours.
