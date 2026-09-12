@@ -1,7 +1,7 @@
 ---
 kind: review
 status: active
-updated: 2026-09-05
+updated: 2026-09-12
 ---
 
 # Uncovered gate conversion census
@@ -69,7 +69,11 @@ Population notation records each gate's admitted source set over the 6,997-file 
   population internally.
 - `syn` means syntax/static-source analysis; `types` means checker, identity, definition, or type facts.
 - Authority notation: `O` ordinary shared marker; `X` gate-local table, sanction, deferred row, stale arm,
-  or custom marker; `MI` marker-immune; `B` baseline ratchet.
+  or custom marker; `MI` marker-immune; `B` baseline ratchet; `H` hard — no gate-owned exemption artifact
+  at all (no table, no zone, no custom grammar, no baseline, no marker door). **Added 2026-09-12 (#2098):**
+  the original four letters had no way to mark this case, forcing every no-door legacy module into `X` and
+  pricing it as authority migration it does not need. `H` is already live in `cb-v-authority-census`'s own
+  correction partition (`3 O · 8 H · 4 MI · 6 B`), so this notates a letter already in use, not a new one.
 - Every row still needs population translation and byte-diff, declared fixture mode/path, and empty and
   unresolved controls. Blocker shorthand: `walk` private traversal/source lookup; `eval` free-form run;
   `state` invocation-local state; `grant` central grant migration or policy split; `reader` shared semantic

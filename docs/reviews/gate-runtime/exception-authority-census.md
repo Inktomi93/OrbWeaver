@@ -1,7 +1,7 @@
 ---
 kind: review
 status: active
-updated: 2026-09-05
+updated: 2026-09-12
 ---
 
 # Exception and authority migration census
@@ -62,7 +62,7 @@ Eleven additional gate-specific grammars currently duplicate that job. Literal o
 | - | -: | - | - |
 | `@foreign-id-ok` | 70 | `brand-in-name-position.ts:78-81` | Central ordinary waiver |
 | `@sub-floor-ok` | 2 | `sub-floor-disclosure.ts:22-25,59-71` | Central ordinary waiver |
-| `@finding-overload-ok` | 24 | `finding-overload-provenance.ts:37-39,192-247` | Delete with obsolete raw-Finding provenance gate |
+| `@finding-overload-ok` | 24 | `finding-overload-provenance.ts:37-39,192-247` | **STALE (cb-v-authority-census L5, #2100):** the gate's own header records the ban SURVIVED #828 with a changed reason — it is not obsolete. Delete WITH ITS GATE, whenever that gate retires; the ban is live and the 6 live markers stay parked |
 | `@owner-scope-ok` | 20 | `owner-scoped-reads.ts:25-26` | Central ordinary waiver |
 | `@owner-scope-write-ok` | 31 | `owner-scoped-writes.ts:41-42` | Central ordinary waiver |
 | `@owner-scope-upsert-ok` | 0 | `owner-scoped-upserts.ts:34-35` | Delete empty grammar |
