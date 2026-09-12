@@ -8,7 +8,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin } from "../lib/sealed-origin.ts";
+import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
 const PROVIDERS_HOME: SealedHome = {
   pathInfix: "/packages/server/src/infra/providers/",
@@ -69,9 +69,11 @@ export const gate = defineGate({
             return;
           }
           const verdict = readSealedOrigin(candidate.anchor, PROVIDERS_HOME);
-          // FAIL-CLOSED: a candidate whose origin cannot be read is not evidence of innocence. A seal that
-          // an unreadable barrel could walk through is not a seal.
-          if (verdict.kind !== "foreign") {
+          // FAIL-CLOSED THROUGH THE SHARED DECISION: a candidate whose IMPORT DOOR cannot be read is not
+          // evidence of innocence (a seal an unreadable barrel could walk through is not a seal), while a
+          // candidate that provably binds a non-module declaration is not a subject. `readSealedOrigin`
+          // returns the VERDICT; `sealedOriginReports` is the decision.
+          if (sealedOriginReports(verdict, candidate.anchor)) {
             ctx.report.node(candidate.anchor, { token: candidate.name, offset: candidate.anchor.getText().indexOf(candidate.name) });
           }
         },
@@ -140,6 +142,13 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/local-bag.ts": "const bag = { deriveRunner: (a: string): string => a };\nexport const n = bag.deriveRunner;\n",
+      },
+      why: 'THE LOCAL-OBJECT COUNTERFACTUAL — a plain object whose KEY is spelled like the sealed export binds a property, not a module member, so it is NOT A SUBJECT. `readSealedOrigin` returns `unresolved` here and the shared decision function scopes that refusal (lib/sealed-origin.ts): reading the VERDICT as the DECISION (`kind !== "foreign"`) accuses this row on unmodified source (#2006)',
+    },
     {
       mode: "types",
       files: {

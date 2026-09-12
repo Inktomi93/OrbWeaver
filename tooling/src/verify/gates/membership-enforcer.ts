@@ -8,7 +8,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin } from "../lib/sealed-origin.ts";
+import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
 const OWNER_ID = "ownerId";
 const EQUALITY_OPS = new Set([
@@ -92,9 +92,11 @@ export const gate = defineGate({
           if (hit === null) {
             return;
           }
-          // FAIL-CLOSED: an unreadable door for a single-owned helper is reported. Only a PROVEN foreign
-          // declaration acquits — which is the arm the legacy name-only match never had.
-          if (readSealedOrigin(hit.anchor, OWNED_HELPER_HOME).kind !== "foreign") {
+          // FAIL-CLOSED THROUGH THE SHARED DECISION: an unreadable import DOOR for a single-owned helper
+          // is reported — the arm the legacy name-only match never had — while a proven foreign declaration
+          // and a candidate that provably binds a non-module declaration (a local object's key) both acquit.
+          // `readSealedOrigin` returns the VERDICT; `sealedOriginReports` is the decision.
+          if (sealedOriginReports(readSealedOrigin(hit.anchor, OWNED_HELPER_HOME), hit.anchor)) {
             ctx.report.node(hit.anchor, { token: hit.name, offset: hit.anchor.getText().indexOf(hit.name) });
           }
         },
@@ -147,6 +149,13 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/verbs/local-bag.ts": "const bag = { fetchOwned: (a: string): string => a };\nexport const n = bag.fetchOwned;\n",
+      },
+      why: 'THE LOCAL-OBJECT COUNTERFACTUAL — a plain object whose KEY is spelled like the sealed export binds a property, not a module member, so it is NOT A SUBJECT. `readSealedOrigin` returns `unresolved` here and the shared decision function scopes that refusal (lib/sealed-origin.ts): reading the VERDICT as the DECISION (`kind !== "foreign"`) accuses this row on unmodified source (#2006)',
+    },
     {
       mode: "types",
       files: { "packages/server/src/domain/chat/verbs/z.ts": 'export const host = (r: { readonly role: string }): boolean => r.role === "host";\n' },

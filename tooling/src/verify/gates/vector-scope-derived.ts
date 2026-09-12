@@ -9,7 +9,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin } from "../lib/sealed-origin.ts";
+import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
 /** The six primary vector tables, sealed by their declaration home in the db schema. */
 const VECTOR_TABLE_HOME: SealedHome = {
@@ -109,9 +109,11 @@ export const gate = defineGate({
             if (candidate === null || IMPORT_SANCTIONED.some((home) => path.startsWith(home))) {
               return;
             }
-            // FAIL-CLOSED: a vector-table NAME whose origin cannot be read is reported. The chokepoint must
-            // not be walkable through an unreadable barrel.
-            if (readSealedOrigin(candidate.anchor, VECTOR_TABLE_HOME).kind !== "foreign") {
+            // FAIL-CLOSED THROUGH THE SHARED DECISION: a vector-table NAME whose IMPORT DOOR cannot be
+            // read is reported (the chokepoint must not be walkable through an unreadable barrel), while a
+            // candidate that provably binds a non-module declaration is not a subject. `readSealedOrigin`
+            // returns the VERDICT; `sealedOriginReports` is the decision.
+            if (sealedOriginReports(readSealedOrigin(candidate.anchor, VECTOR_TABLE_HOME), candidate.anchor)) {
               ctx.report.node(candidate.anchor, { token: candidate.name, offset: candidate.anchor.getText().indexOf(candidate.name) });
             }
           },
@@ -215,6 +217,13 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/local-bag.ts": "const bag = { chatDigests: 1 };\nexport const n = bag.chatDigests;\n",
+      },
+      why: 'THE LOCAL-OBJECT COUNTERFACTUAL — a plain object whose KEY is spelled like the sealed export binds a property, not a module member, so it is NOT A SUBJECT. `readSealedOrigin` returns `unresolved` here and the shared decision function scopes that refusal (lib/sealed-origin.ts): reading the VERDICT as the DECISION (`kind !== "foreign"`) accuses this row on unmodified source (#2006)',
+    },
     {
       mode: "types",
       files: {
