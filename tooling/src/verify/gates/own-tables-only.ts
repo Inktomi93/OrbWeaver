@@ -476,15 +476,10 @@ function completeOwnershipProofFiles(): Readonly<Record<string, string>> {
 }
 
 const COMPLETE_OWNERSHIP_PROOF_FILES = completeOwnershipProofFiles();
-const STALE_FILE_PROOFS = Object.keys(FILE_ALLOWLIST).map((file) => ({
-  mode: "types" as const,
-  files: { ...COMPLETE_OWNERSHIP_PROOF_FILES, [file]: "export const ownTablesProofQuiet = true;\n" },
-  expect: {
-    count: 1,
-    messageIncludes: `FILE_ALLOWLIST row for a file with NO foreign table import left (ratchet down) — delete it in own-tables-only.ts: "${file}"`,
-  },
-  why: `THE FILE_ALLOWLIST REVERSE RATCHET (#2343): the exact file remains present while only its foreign-table read is removed. Every schema/table/bulk/file companion and the canonical schema barrel remain unchanged, so the one expected finding can only name this stale exact-file permission: "${file}"`,
-}));
+const STALE_FILE_PROOF_FILES = {
+  ...COMPLETE_OWNERSHIP_PROOF_FILES,
+  ...Object.fromEntries(Object.keys(FILE_ALLOWLIST).map((file) => [file, "export const ownTablesProofQuiet = true;\n"])),
+};
 
 export const gate = defineGate({
   id: "own-tables-only",
@@ -602,7 +597,15 @@ export const gate = defineGate({
       expect: { count: 1, token: "characters" },
       why: "a FEATURE-ROOT slot (workload-contributions.ts), not a verb — the scan is `domain/**`, so the root slots and named subsystems are covered too",
     },
-    ...STALE_FILE_PROOFS,
+    {
+      mode: "types",
+      files: STALE_FILE_PROOF_FILES,
+      expect: {
+        countFrom: "FILE_ALLOWLIST",
+        messageIncludes: "FILE_ALLOWLIST row for a file with NO foreign table import left (ratchet down) — delete it in own-tables-only.ts: ",
+      },
+      why: "THE COMPLETE FILE_ALLOWLIST REVERSE RATCHET (#2343): every exact-file permission is present but deliberately quiet while every schema, table, bulk-reader, domain anchor, and schema-barrel companion remains live. The production reverse loop must report every exact-file permission subject; the drizzle-schema family test compares that complete finding set with the source registry.",
+    },
   ],
   mustPass: [
     {
