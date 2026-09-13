@@ -12,10 +12,29 @@
 # reach across a slice boundary. A QUOTA can: it is an absolute ceiling on how much CPU this session's
 # whole process tree may consume, enforced by the kernel, regardless of who else wants the machine.
 #
-# SIZING. CPUQuota is in percent-of-ONE-CPU, so 800% = 8 cores. Two agent sessions (primary + claude-b)
-# × 800% = 16 of this box's 24 threads; a third session (a gate worker, a manual terminal) makes 24 —
-# still bounded, still leaving the containers the headroom the weights alone never gave them. The number
-# lives in tooling/concurrency-profile.json (`sessionCpuQuotaPct`), not here.
+# SIZING — RAISED 800% -> 1600% ON 2026-09-12 (owner, measured). CPUQuota is percent-of-ONE-CPU, so
+# 1600% = 16 cores. The original 800% was sized so two sessions x 800% = 16 of 24 threads and a third made
+# 24. That arithmetic assumed the quota's cost was zero when the fleet was idle. IT IS NOT: a quota is a
+# CEILING, NOT A SHARE, and ceilings DO NOT POOL — with 800% each, an idle claude-b left 8 cores that the
+# primary session structurally could not touch.
+#
+# WHAT WAS MEASURED, 2026-09-12, with eight lanes live across two accounts:
+#   * the co-hosted containers this fence exists to protect were using ~2.3% of ONE core, total
+#     (caddy 1.69%, searxng 0.32%, valkey 0.20%, crowdsec/sillytavern/forgejo/unpoller ~0.01% each);
+#   * this session was throttled in 15.2% of all periods (nr_throttled 214778 / nr_periods 1415535,
+#     104468 s cumulative throttled time) — WHILE ~14 OF 24 CORES SAT IDLE;
+#   * the Playwright chromium processes were running at ~158% OUTSIDE this scope entirely, so the quota
+#     was never fencing that part of our own workload anyway.
+# A 33%-of-box ceiling protecting 2.3% of a core, while the owner's standing note was that the work "is
+# dragging", is a fence paying for nothing.
+#
+# 1600% IS DELIBERATE OVERSUBSCRIPTION and that is the point. Two sessions x 1600% = 3200% of a 2400% box.
+# When one session is idle the other gets 16 cores instead of 8; when both saturate, the kernel splits by
+# cpu.weight (both 100) to ~1200% each — strictly better than a hard 1200% ceiling each, which would idle
+# the same cores whenever one side paused. The containers are protected by headroom (8 cores unclaimed at
+# the split) plus their own near-zero demand, not by our ceiling.
+#
+# The number lives in tooling/concurrency-profile.json (`sessionCpuQuotaPct`), not here.
 #
 # IT ALSO TAMES THE LOAD-AVERAGE GATES, and that is a real second effect rather than a side note: a
 # THROTTLED task is not runnable, so it leaves the run queue. Linux's loadavg counts runnable+uninterruptible
