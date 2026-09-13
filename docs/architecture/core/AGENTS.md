@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-10
+updated: 2026-09-13
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -27,10 +27,11 @@ updated: 2026-09-10
    Hook bypass is only for a specific user- or coordinator-authorized exception whose reason and
    executed/owed checks are recorded. Main integration and push remain coordinator/owner scope. End the
    message with the `Co-Authored-By` trailer. **STANDING EXCEPTION (owner, 2026-09-11, until the gate-runtime
-   cutover, #1584): the production loader is legacy while modules convert, so every whole-tree check the
-   lefthook `pre-commit` / `pre-merge-commit` / `pre-push` hooks run is RED by construction. Lanes and the
-   orchestrator commit and merge with `git -c core.hooksPath=/dev/null …`, run the scoped floor by hand,
-   and name it in the commit message. That red is baseline, never a lane's defect and never laundered green.**
+   cutover, #1584): lanes and the orchestrator may commit and merge with
+   `git -c core.hooksPath=/dev/null …`, run the scoped floor by hand, and name it in the commit message.
+   The loader runs both legacy descriptors and final policies. The exception does not establish a
+   baseline: inspect each verdict and distinguish inherited findings from new defects, tool errors,
+   and withheld owners. Consolidated verification remains owed by the orchestrator.**
 7. **`pnpm ast`, never grep,** for any code question (refs / callers / importers / exports / rot lenses).
 8. **Grep is for CODE, never for LAW.** A law doc's ruling lives in the CONTEXT around a line, not the
    line — grepping "app-shell" finds the CSS exemption and misses that app-shell is NOT import-privileged.
@@ -50,7 +51,7 @@ updated: 2026-09-10
 - **Packages are a one-directional cake: `kit ← contracts ← db ← server ← client`** (+ the sealed `ui`: `kit ← ui ← client`). These are REAL pnpm workspace packages, not folders — the layer is physics (an undeclared cross-package import won't even resolve). Before you write a type or a helper, decide WHICH package owns it; if it needs something UP the cake, you're in the wrong package. `kit`/`contracts`/`db` exist precisely so shapes and primitives have a home BELOW `server` — reach for them, don't re-invent locally.
 - **A type/shape has exactly ONE home, by who needs it** (`Spine-TypeScript-and-Patterns.md`): DB row → `db` (`$inferSelect`); cross-boundary wire (server↔client, domain↔domain) → `contracts` (zod + inferred TS); pure primitive → `kit`; domain-internal → that domain's `contract/`. A hand-declared exported `type`/`interface`/`z.object` outside those four homes is gate-RED (`no-inline-types`) — never re-spell a shape a lower package already owns.
 - **`kit` = pure ISOMORPHIC primitives + engines ONLY** — no `node:*`, no domain, no `db`, no `contracts`, no I/O (isomorphic npm like zod/luxon is fine). Node-only-pure code → `@orb/server/kit`, NEVER `@orb/kit` (the browser imports kit).
-- **Tests are CENTRAL, never colocated.** The test for `packages/<pkg>/src/<path>.ts` lives at `tests/<pkg>/<path>.<kind>.test.ts` — a mechanical prefix-swap mirror (`packages/X/src/` ↔ `tests/X/`), kind by suffix (`.test` unit · `.int.test` db · `.contract.test` schema · `.test-d` types). A `.test.ts` dropped next to the source is RED (`test-layout` gate). Full policy: `Spine-Testing.md`.
+- **Tests are CENTRAL, never colocated.** Tests mirror their source package and path (`packages/X/src/` ↔ `tests/X/`). `tooling/src/_shared/test-kinds.ts` owns the supported suffixes, compiler worlds, and mirror behavior; do not reconstruct filenames from a second prose template. A `.test.ts` dropped next to the source is RED (`test-layout` gate). Full policy: `Spine-Testing.md`.
 - **CSS has SIX homes and a feature is not one of them** — the token vault, generated theme, ui globals,
   density-tier map, client globals, and ONE structural shell file. Reusable portable values are conformant
   DTCG tokens; nonportable generated CSS values use the vault's validated vendor extension, never a fake

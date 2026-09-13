@@ -8,7 +8,7 @@ paths:
 <!-- Path-scoped rule, split out of `.claude/rules/orchestration.md` on 2026-08-24 (lane
      cb-agent-fleet): these facts only bind an agent actually inside a gate or an instrument, so they
      load when you read one of the paths above instead of costing every lane context at launch.
-     ONE HOME each — this file deliberately does NOT restate gate law (`GATE-AUTHORING.md`), the
+     ONE HOME each — the gate-runtime reading router owns current gate law; this file does not restate the
      build-process floor (`.claude/agent-doctrine.md` § gate/marker laws), or the always-on facts
      (`.claude/rules/lane-standing-facts.md`). It carries only what is specific to running and
      probing these tools. -->
@@ -95,12 +95,12 @@ paths:
   §"Verification floors", which every agent also loads; it was duplicated here and is not restated (paid 2026-08-23:
   two exit-134 OOMs on a bare structure run).
 - **A committed SINGLE-WRITER ledger's freshness belongs on the static bar, not in a vitest suite** (#817).
-  `ledgers:fresh` (`pnpm check:ledgers-fresh`, `tooling/src/verify/ops/ledgers-fresh.ts`) re-derives the
-  caught-failure census, the snap-flags index, the generated type configs, the read-first SIZE column, the
-  refutation ledger's sections and CLASS ROLLUP, and the deferred-gate roster on every `pnpm check` and
-  names the drifting rows — (the test-baseline manifest row was DELETED with `monotonic-tests`, #2217) —
-  the barrier regen is now the FIX for a red, not a scheduled guess. Its per-ledger door is
-  `cli.ts baseline <kind> --check` (derives and diffs, writes nothing).
+  `pnpm check:ledgers-fresh` enters `tooling/src/verify/ops/ledgers-fresh.ts`; its production dispatch owns
+  the checked artifacts and regeneration advice. Read that dispatch for the current coverage rather
+  than maintaining a second artifact roster here. A new freshness check owes behavioral controls through
+  its registered CLI and the composed stage; a direct helper test does not prove stage registration.
+  Re-derive generated artifacts on the quiescent integrated tree when the checker names drift. The retired
+  test-baseline manifest has no regeneration step (#2217).
 - **A FAMILY TEST OFTEN LIVES UNDER THE WAVE'S NAME, NOT THE GATE'S — so grepping for the gate's FILENAME returns a
   false “no family test”.** Conformance entries for #1584 conversions are routinely filed as `contract-shape-wave-1.test.ts`,
   `simple-visitors-wave-2.test.ts` and the like. **Grep the gate ID as a STRING across `tests/tooling/verify/gates/`**,

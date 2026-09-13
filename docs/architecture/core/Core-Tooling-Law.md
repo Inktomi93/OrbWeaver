@@ -1,12 +1,12 @@
 ---
 kind: law
 status: active
-updated: 2026-09-10
+updated: 2026-09-13
 ---
 
 # `@orb/tooling` — tooling-tree law
 
-> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring: `../../../tooling/src/verify/gates/GATE-AUTHORING.md`. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../../scripts/README.md`.
+> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `../../design/gate-runtime-read-first.md`; `../../../tooling/src/verify/gates/GATE-AUTHORING.md` describes legacy descriptors only. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../../scripts/README.md`.
 
 ## 1. Standing rulings (owner — do not relitigate)
 
@@ -210,7 +210,7 @@ Worked precedents for step 3: `no-raw-clock` was FENCED with a `mustPass` row (t
 
 ## 4. Enforcement
 
-Six tooling gates, three cruiser stanzas, two extensions of existing gates. Each follows `GATE-AUTHORING.md` in full. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
+The live roster derives from the loader. Final policies follow `../../design/gate-runtime-standardization.md`; legacy descriptor maintenance uses `GATE-AUTHORING.md`. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
 
 ### 4.1 `tooling-slot-template`
 
@@ -351,24 +351,23 @@ The serializer's `test()` predicate admits only strings carrying one of those at
 
 ### 5.4 Type tests and serial routing
 
-Every tool's `contract/` ships `tests/tooling/<tool>/contract/index.test-d.ts` (the `types` vitest project already globs `tests/**/*.test-d.ts`). New tool tests default to `plantedTree`-in-scratch and are parallel-safe. A repository-resource test uses the registered `.repo.int.test.ts` kind; `vitest.config.ts` derives the `repository` execution group from that data and serializes its files after the normal groups. Standing hazard: `check-gates.repo.int` is not concurrency-safe with itself.
+Type assertions use the type-test kinds defined by `tooling/src/_shared/test-kinds.ts`; Vitest derives their project names and selectors by compiler world. Keep the source mirror described by `Spine-Testing.md`. New tool tests default to `plantedTree`-in-scratch and are parallel-safe. A repository-resource test uses the registered `.repo.int.test.ts` kind; `vitest.config.ts` derives the `repository` execution group from that data and serializes its files after the normal groups. Standing hazard: `check-gates.repo.int` is not concurrency-safe with itself.
 
 ## 6. The verification floor for a tooling change
 
-Every change to `tooling/` owes, before it is done:
+The scoped lane floor and shared-host scheduling live in `.claude/rules/lane-standing-facts.md`,
+sections “Verification floors” and “Running suites without starving the box”. Gate-program integration
+follows `../../design/gate-runtime-orchestrator-playbook.md`; a lane must not launch whole-tree checks
+alongside the integration train.
 
-- biome on the touched files;
-- `pnpm typecheck --config tooling/tsconfig.json` plus every other affected native program selected by the shared compiler reader; use no arguments for the complete discovered-program run;
-- `pnpm check:structure`;
-- `pnpm exec depcruise packages tooling --config .dependency-cruiser.cjs` (a file move changes the graph);
-- whole-tree knip (a move re-homes last-importers);
-- the tool's own suites by path, plus `check-gates.int` / `gate-conformance.int` / `gate-ignore-grammar.int` / `dependency-cruiser.int` when a gate or stanza changed;
-- the PATH SWEEP of §3.1 — proving ZERO references to the old home, with a positive control in the same invocation;
-- for an `INSTRUMENT_TOOLS` member, the `@instrument-proof` plant driven through the REAL cli, plus its passing twin.
+Run scoped Biome and ESLint, the behavioral suites for the changed contract, and every affected native
+compiler program. A shared-value change also runs coupled literal assertions. Moves require the §3.1
+path/consumer sweep and native graph and unused-code checks. An instrument member retains its actual-CLI
+violation and absence controls. The orchestrator owns the consolidated structure and whole-program
+verification on the quiescent integrated tree; scoped green does not discharge that obligation.
 
-**Run knip and depcruise BEFORE the final structure pass after any split** — they are the split-residue detectors (type-only import cycles, orphaned consts, front-door fidelity gaps a slice silently dropped).
-
-A change that moves a shared VALUE additionally runs the suites that assert the literal.
+Run the graph and unused-code checks before the final structure pass after a split: they detect cycles,
+orphaned exports and broken front doors that a local slice can miss.
 
 ## 7. Considered and rejected (recorded so nobody relitigates)
 
@@ -404,7 +403,7 @@ The ordered checklist for promoting or relocating a tool. Every step was paid fo
 6. **DOM-typed `page.evaluate` bodies become raw strings** (§2.3 — there is no DOM lib). A segmented in-page IIFE is the size-cap arm for walker-class strings: one function scope, segment files concatenated IN ORDER, byte-equality of the composition asserted at the split, and the walker CT re-run as the behavioral twin. Never route a cycle or a reorder through the segments.
 7. **Exit-contract convergence is a SHARED-VALUE change.** Aligning a tool's historical exits to `_shared/exit-contract.ts` reds assertions in suites nobody would associate with the tool — `rg -n 'toBe\(2\)|exit 2' tests/tooling` and sweep in the same commit.
 8. **`cli.ts` enters through `runTool`, and everything the cli dispatches is re-exported from `index.ts`.** The cli consumes the programmatic API it fronts.
-9. **Test relocation is a monotonic-manifest hand-edit** (§3.1), never the regenerator on a shared tree.
+9. **Test relocation follows the shared kind and mirror rules** (§3.1). The test-baseline manifest and `monotonic-tests` gate were retired in #2217; there is no filename manifest to update. Verify native compiler and runner ownership after the move.
 10. **Replay §3.2 over the phase's own delta** — the widening protocol is per-change, not one-time.
 11. **The sweeps, exact commands** (per moved file and per moved BASENAME; a zero owes a positive control in the same invocation):
     - old-path: `rg -n '<old path>'` over `package.json`, configs, `tests/`, `docs/` — expect zero;

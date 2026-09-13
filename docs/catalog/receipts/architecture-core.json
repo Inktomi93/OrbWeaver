@@ -5,13 +5,13 @@
   "entries": [
     {
       "path": "docs/architecture/core/AGENTS.md",
-      "assignedSha256": "c0d1dedd9a2b7ecbf98f7c9bdd6f051c1ff407063042fde3f403e0f398f84324",
+      "assignedSha256": "30ff7f921726312a481c13496e1ff7b7430b689675c4d2654ef998cf3bc7034a",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "7fd171851a652d2849bb3c93a25a35bc7ef04500031a856bd1999e6c3c57fae9",
-      "verifiedCommit": "1d4f6f640d6366452daafd2f2f11b7b228e09f2c",
-      "verifiedAt": "2026-09-11",
+      "verifiedSha256": "30ff7f921726312a481c13496e1ff7b7430b689675c4d2654ef998cf3bc7034a",
+      "verifiedCommit": "e3182dd060370eaa348398f7051760bb4feeb88e",
+      "verifiedAt": "2026-09-13",
       "evidence": [
         "Owner ruling 2026-09-10: lanes may commit normally in their assigned worktree or clone, including configured hook checks. Explicit iteration stays scoped; hook bypass requires a specific user/coordinator exception with its reason and executed or owed checks. Main integration and push remain coordinator/owner operations. Coupled doctrine, role and runbook guidance was reconciled without changing hook commands.",
         "#1842 (cb-push-tier): tests:tooling is --full-only; tooling-serial lane; SERIAL_INT_PRODUCT/TOOLING; push = product node tests",
@@ -573,13 +573,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Tooling-Law.md",
-      "assignedSha256": "790b958cee79e1a822ec0dbf4bfed480dbf4b4e9b3b93920cff6c2a4f4e1a076",
+      "assignedSha256": "63a575936c8acfe256c11145588502e5046c7602fe3cb39efc19996f38e60564",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "790b958cee79e1a822ec0dbf4bfed480dbf4b4e9b3b93920cff6c2a4f4e1a076",
-      "verifiedCommit": "06c560d8ee190754efdb0eeeff1036fda38cafdd",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "63a575936c8acfe256c11145588502e5046c7602fe3cb39efc19996f38e60564",
+      "verifiedCommit": "e3182dd060370eaa348398f7051760bb4feeb88e",
+      "verifiedAt": "2026-09-13",
       "evidence": [
         "Program #1351 is complete; acceptance is recorded at https://github.com/Inktomi93/orbweaver/issues/1351#issuecomment-5626592009 . The law bytes are unchanged from 06c560d8e. Shared compiler, capacity and native-tool execution changes have current native/behavioral verification; inherited gate-cutover work remains separately tracked in #1584.",
         "Full law read and closeout delta verified: standing generated compiler-root and separately scoped ambient intent promoted from the world program; all five tsconfig-entry-liveness grants retain their reasons and end conditions and cite this law. Scoped liveness/routing/roadmap controls passed. Compiler ownership and relocation-ledger instructions reconciled with current generated configs and deriveTestBaselineManifest; generated testFiles is never hand-maintained.",
