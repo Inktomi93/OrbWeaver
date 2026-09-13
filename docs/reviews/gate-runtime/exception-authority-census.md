@@ -47,7 +47,7 @@ The final law is unambiguous: one central ordinary marker, exact typed grants, w
   - `orphan-export-ratchet`: 0 entry rows.
   - `gate-spelling-twins`: 83 gate rows / 103 blind spellings.
 
-- The every-test manifest adds 2,427 current-file rows and 76 deletion rows at `docs/test-baseline/manifest.json`.
+- The every-test manifest added 2,427 current-file rows and 76 deletion rows at the former `docs/test-baseline/manifest.json` — that file and its `monotonic-tests` gate were deleted under #2217, so this row records a shape that no longer exists.
 
 - CSS carries five per-file declaration counts plus one total at [css-family-census.ts:52-118](../../../tooling/src/verify/lib/css-family-census.ts:52). The direct generated-theme count is a separate generated-output parity assertion.
 
@@ -95,9 +95,9 @@ These are recurring permissions and should become exact reviewed grants, with th
 
   - `bound-field-via-hook` excludes `use-bound-field.ts` at `:32`; scan the home and grant its raw-context import.
   - `no-inline-invalidate-outside-seam` excludes the invalidation seam at `:23`; grant that exact TanStack operation.
-  - `registry-context-via-mint` excludes `MINT_HOME` at `:37`; grant the exact React context construction.
+  - `registry-context-via-mint` excludes the former `MINT_HOME` at `:37`; grant the exact React context construction.
 
-- Two regex-zone forms: `firehose-import-allowlist`’s three `ALLOWED` regexes at `:42` and `no-raw-egress`’s two `FETCH_SANCTIONED` zones at `:23`. The latter are directory permissions, not population.
+- Two regex-zone forms: `firehose-import-allowlist`’s three `ALLOWED` regexes at `:42` and `no-raw-egress`’s two zones under the former `FETCH_SANCTIONED` at `:23`. The latter are directory permissions, not population.
 
 - Exact external-config grant families:
 
@@ -158,7 +158,7 @@ These are actual unresolved findings, not permissions:
 These are not exception rows and must remain enforced as policy/resource facts:
 
 - `ownerid-registry.ts:24` — 27 schema ownership classifications.
-- `persistence-boundary.ts:38` — 14 device-local store identities. Its separate six-file `RAW_STORAGE_ALLOWLIST` at `:14` is reviewed permission.
+- `persistence-boundary.ts:38` — 14 device-local store identities. Its separate six-file allowlist — the former `RAW_STORAGE_ALLOWLIST` at `:14` — is reviewed permission.
 - `query-freshness-coverage.ts:48` — 34 static/writer-local freshness classifications.
 - `own-tables-only.ts:64,102,119` — 8 schema/table/bulk-reader ownership rows.
 - `lifecycle-portability.ts:92` — 17 authoritative portability classifications.
@@ -169,11 +169,18 @@ These are not exception rows and must remain enforced as policy/resource facts:
 - `suppressions.ts:46,201` — the two ratified-rule tables. These classified native suppression facts; they were
   not Orb waivers.
   **LANDED 2026-09-12 (`a33b2e339`)**: both tables DELETED. **The `6 test` figure was the one number in this row that did not survive
-  re-derivation:** measured at the conversion parent `d23150315`, `RATIFIED_RULES` held **45** source rows
-  and `RATIFIED_TEST_RULES` held **7** test rows, and all of both migrated. The live surface is **46**
-  `source`-scope and **19** `tests`-scope reviewed grants in `tooling/src/verify/lib/reviewed-grants.ts`
-  (counted there today). The `tests` scope grew because one legacy table row could cover a whole rule class
-  across every test file, whereas a grant names its subject exactly.
+  re-derivation** — and the correction itself understated the SOURCE side by one, corrected here under #2210.
+  **State the method, because the first re-derivation counted the wrong universe:** a quoted-key sweep (`^  "`)
+  over the table span returns **45**, and a BARE identifier key hides from it entirely. Read the span out of
+  history at the conversion parent `d23150315` (`suppressions.ts`, table span lines 39–189 — the closing brace,
+  not the 193 the earlier note cited, which is the *next* table's comment) and count the top-level keys three
+  independent ways: keys quoted OR bare (`^  ("[^"]+"|[A-Za-z_$][A-Za-z0-9_$]*)\s*:`), one `kind: "` per entry,
+  and `sort | uniq -d` for a duplicate-key collapse. All three agree at **46**; the 46th key is the bare
+  `format:` at `:145`. So the former ratified SOURCE table held **46** source rows and the former ratified TEST
+  table held **7** test rows (span 194–223), and all of both migrated. The live surface is **46** `source`-scope
+  and **19** `tests`-scope reviewed grants in `tooling/src/verify/lib/reviewed-grants.ts` (counted there today),
+  so the true story is 46 → 46 source and 7 → 19 tests. The `tests` scope grew because one legacy table row
+  could cover a whole rule class across every test file, whereas a grant names its subject exactly.
 - `tokens.json`, `0000_baseline.sql` parity, Base UI surface manifest (39 components, 292 parts), prose hash/version manifest (148 slots), devtools asset manifest, and generated flag/parity outputs remain authoritative resource data.
 - CSS `EXPECTED_DIRECT_THEME_DECLARATIONS` is generated-output parity; the five per-file declaration counts and aggregate total are current-population counts and retire.
 
@@ -182,7 +189,7 @@ These are not exception rows and must remain enforced as policy/resource facts:
 - All 14 empty `ExemptionTable`s: `dangling-doc-cite.ALLOW`, `db-structure.BASELINE_RIDER_PRODUCERS`, `depcruise.EXEMPT`, `eslint.EXEMPT`, `list-row-adoption.ALLOWLIST`, `message-kind-policy-coverage.DEFERRED`, `no-hover-display-swap.ALLOWLIST`, `no-interactive-role-in-features.BURN_DOWN`, `no-off-token-inline-style.ALLOWLIST`, `no-off-token-radius-shadow.ALLOWLIST`, `no-raw-interactive-intrinsics.BURN_DOWN`, `runner-config-path-liveness.EXEMPT`, `scroll-container-positioned.ALLOWLIST`, and `stale-draft-commit.ALLOWLIST`.
 - All 9 `*.baseline.json` mechanisms retire after their rows are converted/fixed. Empty `ui-variant-axes-stamped` and orphan-export ledgers can delete immediately at cutover.
 - The 83-row/103-spelling gate-spelling baseline is migration debt, not permission; fix the blind readers and delete it.
-- `docs/test-baseline/manifest.json`’s 2,427-file census and 76 deletion ledger rows are the prohibited every-file manifest shape.
+- The former `docs/test-baseline/manifest.json`’s 2,427-file census and 76 deletion ledger rows were the prohibited every-file manifest shape; the file and its gate are now deleted (#2217).
 - CSS five-home counts plus aggregate total are prohibited current-population declaration counts.
 - `gate-ignore-inventory`, `finding-overload-provenance`, `ratchet-row-integrity`, admitted/admittedRatified plumbing, and gate-owned stale-table reconciliation become obsolete when central authority owns them.
 - Current test/spec population exclusions remain population algebra where they define the policy’s subject. Sanctioned implementation homes must not survive as `notUnder` subtraction.
