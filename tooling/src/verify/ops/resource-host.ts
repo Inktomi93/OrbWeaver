@@ -23,6 +23,7 @@ import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
 import { loadCssFacts } from "./resource-css.ts";
 import { loadDocumentIndex, loadLedger } from "./resource-document.ts";
 import { loadExactFiles } from "./resource-exact.ts";
+import { loadCandidateIndexDelta } from "./resource-index.ts";
 import { loadInstalledPackage } from "./resource-installed.ts";
 import { loadJsonResource } from "./resource-json.ts";
 import { loadMirrorIndex } from "./resource-mirror.ts";
@@ -189,6 +190,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
       loadNativeConfig(reader, invocationOptions, id),
     ) as ResourceHost["nativeConfig"],
     trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),
+    candidateIndexDelta: demanded("candidate-index-delta", (paths) => loadCandidateIndexDelta(root, paths)),
     json: keyed<JsonResourceId, JsonResourceFacts>("json", (id) => loadJsonResource(reader, id)),
     installedPackage: (request: InstalledPackageRequest) => installed(request),
     mirrorIndex: keyed("mirror-index", (id: MirrorFamilyId) => loadMirrorIndex(reader, id)),

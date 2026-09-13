@@ -1,56 +1,55 @@
 // The PERMANENT PIN for `no-blanket-suppression` (tooling/src/verify/gates/no-blanket-suppression.ts, #962):
-// the arms conformance cannot reach. Arm A (the harness fileset) is proven by the gate's own mustFlag/mustPass
+// the arms conformance cannot reach. Arm A (the harness fileset) is proven by the gate's policy-proof
 // rows; THIS proves arm B (the tracked non-TS corpus — a CSS, a JS and a JSON blanket each RED at its line, a
 // path biome itself ignores skipped by derivation), arm C (THE INDEX — a stale STAGED blob carrying a blanket while
 // the working file is clean is RED, the #954 shape, with its two control twins), the blindness tripwires (an
-// anchored root with no git tree refuses loudly instead of printing a clean zero), and the REAL TREE: every
+// populated root with no git tree refuses loudly instead of printing a clean zero), and the REAL TREE: every
 // arm over the actual repo reports ZERO findings across a non-zero denominator — the post-migration receipt
 // in test form, so it keeps proving. Every fixture is a throwaway git repo under the scratch fixture, never
 // the real tree (`__g_` stays the gate harness's).
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { Node } from "ts-morph";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
-import type { Finding, GateRunCtx, GateScanDeclaration } from "../../../../tooling/src/verify/contract/gate.ts";
+import type { CoordinatedGateFinding, PolicyToolError } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import type { GatePolicyReceipt } from "../../../../tooling/src/verify/contract/policy-primitives.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-blanket-suppression.ts";
-import { projectCtx, runPass } from "../../../../tooling/src/verify/index.ts";
+import { projectCtx } from "../../../../tooling/src/verify/index.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-/** The gate's own module — its §4.5 real-tree anchor; planting it is how a fixture opts IN to arms B + C. */
-const GATE_SELF_REL = "tooling/src/verify/gates/no-blanket-suppression.ts";
+/** A clean tracked TypeScript member keeps the fixture's governed population explicit. */
+const FIXTURE_SOURCE_REL = "tooling/src/verify/gates/no-blanket-suppression.ts";
 const CONFIG = '{ "files": { "includes": ["**", "!vendor"] } }\n';
 
 interface Run {
-  readonly findings: readonly Finding[];
-  readonly declarations: readonly GateScanDeclaration[];
+  readonly findings: readonly CoordinatedGateFinding[];
+  readonly receipts: readonly GatePolicyReceipt[];
+  readonly toolErrors: readonly PolicyToolError[];
 }
 
-/** Drive the REAL descriptor's `run` over a root with an EMPTY harness fileset — arm A has nothing to walk,
+/** Drive the production policy over a root with an EMPTY harness fileset — arm A has nothing to walk,
  *  so every finding here comes from arm B or arm C. */
-function runGate(root: string): Run {
-  const project = new Project({ useInMemoryFileSystem: true });
-  const findings: Finding[] = [];
-  const declarations: GateScanDeclaration[] = [];
-  const ctx: GateRunCtx = {
+function runGate(root: string, suppliedProject?: Project): Run {
+  const project = suppliedProject ?? new Project({ useInMemoryFileSystem: true });
+  if (suppliedProject === undefined) {
+    project.createSourceFile(join(root, "packages/kit/src/__harness_anchor.ts"), "export const anchor = true;\n");
+  }
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
     root,
     project,
-    scope: { kind: "project" },
-    files: [],
-    checker: () => project.getTypeChecker(),
-    report: (arg: Node | Finding): void => {
-      if ("file" in arg) {
-        findings.push(arg);
-      }
-    },
-    scan: (counts) => {
-      declarations.push(counts);
-    },
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  return {
+    findings: result.authority.effectiveFindings,
+    receipts: result.policies[0]?.receipts ?? [],
+    toolErrors: result.toolErrors,
   };
-  gate.run?.(ctx);
-  return { findings, declarations };
 }
 
 function plant(root: string, rel: string, content: string): void {
@@ -63,9 +62,9 @@ function git(root: string, args: readonly string[]): void {
   execFileSync("git", [...args], { cwd: root, stdio: "ignore" });
 }
 
-/** A throwaway git repo carrying the anchor + a strict-JSON biome.json + `files`, all COMMITTED. */
+/** A throwaway git repo carrying a governed source + strict-JSON biome.json + `files`, all COMMITTED. */
 function plantRepo(root: string, files: Readonly<Record<string, string>>): void {
-  plant(root, GATE_SELF_REL, "export const gate = 1;\n");
+  plant(root, FIXTURE_SOURCE_REL, "export const gate = 1;\n");
   plant(root, "biome.json", CONFIG);
   for (const [rel, content] of Object.entries(files)) {
     plant(root, rel, content);
@@ -76,7 +75,7 @@ function plantRepo(root: string, files: Readonly<Record<string, string>>): void 
 }
 
 const at = (run: Run): readonly string[] => run.findings.map((f) => `${f.file}:${String(f.line)} ${f.token ?? ""}`.trim());
-const messages = (run: Run): string => run.findings.map((f) => f.message ?? "").join("\n");
+const messages = (run: Run): string => [...run.findings.map((f) => f.message ?? ""), ...run.toolErrors.map((error) => error.message)].join("\n");
 
 const CSS_BLANKET = "/* biome-ignore-all lint/suspicious/noDuplicateSelectorsKeyframeBlock: css blanket */\n.a { color: red; }\n";
 const CSS_CLEAN = ".a { color: red; }\n/* biome-ignore lint/suspicious/noDuplicateSelectorsKeyframeBlock: one site */\n@keyframes k { from { top: 0 } }\n";
@@ -99,15 +98,15 @@ describe("no-blanket-suppression — arm B, the tracked non-TS corpus (planted c
     });
     const run = runGate(scratch);
     expect(run.findings).toEqual([]);
-    // 3 fixtures + biome.json + the anchor module (arm B judges everything the empty harness did not walk) + 1 index candidate (b.js).
-    expect(run.declarations[0]?.scanned).toBe(6);
+    // 3 fixtures + biome.json + the governed TypeScript member all came through the tracked resource.
+    expect(run.receipts.find(({ source }) => source === "tracked-files")).toMatchObject({ resources: 5, unresolved: 0 });
   });
 
   test("a path biome itself ignores is skipped by DERIVATION and counted, never judged", ({ scratch }) => {
     plantRepo(scratch, { "vendor/x.css": CSS_BLANKET, "styles/a.css": CSS_CLEAN });
     const run = runGate(scratch);
     expect(run.findings).toEqual([]);
-    expect(run.declarations[0]?.skipped?.["biome-ignored"]).toBe(1);
+    expect(run.toolErrors).toEqual([]);
   });
 
   test("a CSS string value carrying a comment opener is not a comment (quote-aware lexer)", ({ scratch }) => {
@@ -157,28 +156,28 @@ describe("no-blanket-suppression — arm C, THE INDEX (the #954 shape)", () => {
 });
 
 describe("no-blanket-suppression — a bare zero must be 'I could not measure', never 'clean'", () => {
-  test("an anchored root with NO git tree refuses loudly on both git-backed arms", ({ scratch }) => {
-    plant(scratch, GATE_SELF_REL, "export const gate = 1;\n");
+  test("a populated root with NO git tree refuses loudly on both git-backed arms", ({ scratch }) => {
+    plant(scratch, FIXTURE_SOURCE_REL, "export const gate = 1;\n");
     plant(scratch, "biome.json", CONFIG);
     plant(scratch, "styles/a.css", CSS_BLANKET);
     const run = runGate(scratch);
-    expect(messages(run)).toContain("came back EMPTY");
-    expect(messages(run)).toContain("could not read the index");
+    expect(messages(run)).toContain("git index could not resolve");
+    expect(run.toolErrors).toHaveLength(1);
   });
 
-  test("an anchored root whose biome.json is missing or unparseable refuses instead of deriving an empty ignore set", ({ scratch }) => {
-    plant(scratch, GATE_SELF_REL, "export const gate = 1;\n");
-    expect(messages(runGate(scratch))).toContain("not at the repo root");
+  test("a populated root whose biome.json is missing or unparseable refuses instead of deriving an empty ignore set", ({ scratch }) => {
+    plant(scratch, FIXTURE_SOURCE_REL, "export const gate = 1;\n");
+    expect(messages(runGate(scratch))).toContain("resource declaration json:biome is missing");
     plant(scratch, "biome.json", '{\n  // strict JSON rejects this\n  "files": {}\n}\n');
-    expect(messages(runGate(scratch))).toContain("did not parse as STRICT JSON");
+    expect(messages(runGate(scratch))).toContain("did not parse as strict JSON");
   });
 
-  test("an UNANCHORED root (a conformance-shaped mini-project) judges nothing beyond arm A — the declared limit", ({ scratch }) => {
+  test("a root without the former gate-file anchor still refuses when its Git resource is unavailable", ({ scratch }) => {
     plant(scratch, "biome.json", CONFIG);
     plant(scratch, "styles/a.css", CSS_BLANKET);
     const run = runGate(scratch);
     expect(run.findings).toEqual([]);
-    expect(run.declarations).toEqual([]);
+    expect(messages(run)).toContain("git index could not resolve");
   });
 });
 
@@ -186,12 +185,10 @@ describe("no-blanket-suppression — the REAL tree", () => {
   // The harness project is the real cost here (~20s): arm A needs the actual fileset, and a receipt over an
   // empty fileset would be the zero-scan placebo this gate exists to refuse.
   test("every arm over the actual repo: ZERO findings, non-zero denominators on both sides", { timeout: scaledBudget(180_000) }, ({ repoRoot }) => {
-    const pass = runPass([gate], projectCtx(repoRoot));
-    expect(pass.toolErrors).toEqual([]);
-    const result = pass.gates[0];
-    expect(result?.findings).toEqual([]);
-    // Arm A's denominator is the walk; arms B + C declare their own units on top of it.
-    expect(result?.scan.scanned ?? 0).toBeGreaterThan(1000);
-    expect(result?.scan.declared?.scanned ?? 0).toBeGreaterThan(20);
+    const run = runGate(repoRoot, projectCtx(repoRoot).project);
+    expect(run.toolErrors).toEqual([]);
+    expect(run.findings).toEqual([]);
+    expect(run.receipts.find(({ source }) => source === "tracked-files")?.resources ?? 0).toBeGreaterThan(1000);
+    expect(run.receipts.find(({ source }) => source.startsWith("authored-text"))?.resources ?? 0).toBeGreaterThan(20);
   });
 });

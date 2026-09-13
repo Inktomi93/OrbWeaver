@@ -1,113 +1,42 @@
-// Gate: no-blanket-suppression — a FILE-WIDE lint/type suppression is structurally unavailable in authored
-// code AND tests (#962): `biome-ignore-all` in every spelling and position, `@ts-nocheck`, an UNCLOSED
-// `biome-ignore-start` / `eslint-disable` block (biome 2.5.1 extends an unclosed range to EOF and only WARNS,
-// which `--diagnostic-level=error` hides; eslint disables to EOF silently), and a closed range that encloses
-// the file's every statement (a blanket in disguise). THREE ARMS over ONE directive reader
-// (`lib/suppression-directive.ts` `readDirectiveComment`, shared with the `suppressions` ledger — a
-// FOREIGN-tool grammar, never an Orb waiver): A the harness fileset (working tree, TS/TSX) · B every other
-// file biome lints — js/jsx/mjs/cjs/mts/cts/json/jsonc/css from the TRACKED corpus (`git ls-files`, never an
-// FS walk) minus biome.json's own top-level ignores (derived, declared as a skip) · C THE INDEX — `git grep
-// --cached` candidates re-judged from their STAGED blobs, so a stale staged blob cannot commit merely
-// because the working file removed it (the #954 shape); arm C reports only what the working tree does NOT
-// carry, arm A/B report the rest. NO allowlist, NO baseline, `markerImmune`: the two sanctioned escapes —
-// narrow to a line/range (counted by `suppressions`) or move the whole-file decision to a `biome.json`
-// override (stale-armed by `biome-grant-liveness`) — are each governed elsewhere, so a marker here would be
-// an ungoverned third door (docs/design/962-blanket-suppression-control-plane.md §2.4). COMMENT POSTURE:
-// comments-INTENDED — the directive IS a comment; a spelling inside a string or mid-sentence is inert.
-// CONVERSION TO `defineGate` REFUSED 2026-09-11 (#1930), and the resource vocabulary is now FROZEN at 18
-// kinds (`docs/design/gate-runtime-standardization.md` §4), so this module stays on the legacy descriptor
-// and stays fully armed — indefinitely, under the mixed runtime. ARM C reads THE GIT INDEX (`git grep
-// --cached` at `judgeIndex`, then `git show :<path>` per candidate blob) and no shipped kind serves a staged
-// blob: `TrackedResourceIndex` is `{ repoPaths }` only, which names the working-tree path set and can say
-// nothing about what is STAGED there. A staged-blob capability was considered and DELIBERATELY NOT MINTED:
-// re-derived across the whole verify tree, this gate is its ONLY consumer, and a capability serving one gate
-// is that gate's private reader wearing a contract's clothes (guide §4). The refusal is the success.
-// REFUSAL RE-DERIVED AND RE-DATED 2026-09-12 (#2013), because a refusal that cites a capability is a
-// SNAPSHOT and this program has no mechanism that re-opens one when its blocker lands. What was measured
-// today, and the SCOPE of each measurement, so the next reader re-derives rather than inherits:
-//   · the one-consumer test still holds. `--cached` across `tooling/src/verify/**`: two hits, both in THIS
-//     module (`judgeIndex`, plus its own header), and `lib/repo-paths.ts:61-62`'s inventory of the git verbs
-//     this tree runs, which names this gate. Repo-wide across `tooling/` and `scripts/` the only other
-//     `--cached` uses are `snap/ops/stage-source.ts` (`git ls-files --cached --others` — a working-tree
-//     inventory) and `doc-catalog/ops/tree.ts` (`git diff --cached --name-only` — a path list). Neither
-//     reads a staged BLOB, so a staged-blob kind would still serve exactly one gate and §12.4's reopen
-//     condition (TWO independent consumers) is still unmet.
-//   · the refusal is now NARROWER than it was, and that is worth knowing before someone re-opens it: arms A
-//     and B are no longer blocked. `tracked-files` serves arm B's corpus and the `authored-text` demand door
-//     (minted 2026-09-11) serves its comment-aware text. ARM C ALONE is the blocker, and arm C is the whole
-//     #954 defence — a stale staged blob committing while every working-tree check reads clean — so
-//     converting the module without it would be a catch REGRESSION dressed as progress.
-// DECLARED LIMITS (each a mustPass row): arms B+C need a git work tree, so they run only on a root carrying
-// this module (the §4.5 anchor) — a conformance mini-project proves arm A, the pin proves B, C and the real
-// tree; a `// eslint-disable` LINE comment is not a block directive (eslint ignores it) and is not judged.
-import { existsSync, readFileSync } from "node:fs";
-import { extname, join } from "node:path";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+// Policy: no-blanket-suppression — a file-wide lint/type suppression is structurally unavailable in
+// authored code and tests (#962). One shared directive reader feeds three preserved arms: compiler source
+// files, tracked non-project text, and candidate-index blobs that differ from the working tree.
+//
+// FINAL RESOURCE PORT (#1930/#1584). The former conversion refusal was specific to staged bytes. The
+// tracked-files ResourceHost family now exposes `candidateIndexDelta(paths)`: exact staged text only for
+// declared tracked paths whose index blob differs from the worktree. The request contributes no new path
+// population and no new resource kind; the binding checks every demanded path against this policy's
+// effective tracked population. The provider honors a hook's ambient `GIT_INDEX_FILE` only at the real
+// invocation root and strips Git routing variables for isolated proof roots. Arm C therefore keeps #954's
+// commit-time defense without a policy-owned subprocess or an arbitrary path callback.
+//
+// POPULATION PORT. Legacy arm A admitted the harness TS/TSX files under every authored root, including
+// showcase and scripts, minus the captured SillyTavern runtime. The final population spells that same set
+// as `@authored + @showcase` with the same exclusion. Arms B/C are resource populations: `tracked-files`
+// provides candidate-index membership, `authored-text` provides working bytes, `json:biome` provides the
+// strict config and its top-level ignores, and candidateIndexDelta provides only staged/worktree divergence.
+// Missing or unreadable resources withhold the owner instead of producing a clean zero.
+//
+// AUTHORITY remains hard/error. There is no ordinary waiver or reviewed-grant door: a file-wide switch is
+// replaced by a bounded line/range directive or by a governed biome override. All legacy proof rows are
+// carried as resource proofs, while the real-Git suite preserves the staged-only, working-only, duplicate,
+// ignored-path, blindness, and real-tree controls.
+import { extname } from "node:path";
 import type { SourceFile } from "ts-morph";
-import type { ConversionRefusal } from "../contract/conversion-refusal.ts";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
+import { defineGate } from "../contract/policy.ts";
+import type { JsonValue } from "../contract/resource-json.ts";
+import type { AuthoredTextCorpus } from "../contract/resource-text.ts";
 import { commentSpansInText, parseScratch } from "../lib/comment-spans.ts";
-import { globMatcher, memberSources } from "../lib/grant-liveness.ts";
-import { repoRel } from "../lib/pass.ts";
+import { globMatcher } from "../lib/grant-liveness.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 import type { SuppressionSite } from "../lib/suppression-directive.ts";
 import { readDirectiveComment, suppressionSites } from "../lib/suppression-directive.ts";
 
-/** THE REFUSAL ABOVE, AS DATA (#2017) — the half of it a machine can re-derive, so this module's legacy
- *  status stops resting on a comment nobody re-reads. `gates/conversion-refusal-liveness.ts` re-runs the
- *  census below on every static run and reports in BOTH directions; the prose above stays the reasoning and
- *  this declaration is the CONDITION. Nothing here re-states the refusal — it states what must remain true
- *  for the refusal to survive, which is the thing 2026-09-12 had to re-derive by hand. */
-export const CONVERSION_REFUSAL = {
-  gate: "no-blanket-suppression",
-  issue: "#1930",
-  rederived: "2026-09-12",
-  why:
-    "ARM C re-judges CANDIDATES FROM THE GIT INDEX and no shipped resource kind serves a staged blob — `TrackedResourceIndex` is " +
-    "`{ repoPaths }` only, which names the working-tree path set and can say nothing about what is STAGED there. Arms A and B are " +
-    "no longer blocked (`tracked-files` + the `authored-text` demand door serve them), so ARM C ALONE is the blocker, and it is the " +
-    "whole #954 defence: converting without it would be a catch REGRESSION dressed as progress.",
-  blockers: [
-    {
-      kind: "sole-consumer",
-      why:
-        "a staged-BLOB read. Guide §12.4 reopens the frozen kind set only for a read with TWO OR MORE independent consumers, because a " +
-        "capability serving one gate is that gate's private reader wearing a contract's clothes (§11.5) — so this policy staying the " +
-        "SOLE consumer inside the verify tree is precisely the condition the refusal rests on.",
-      under: "tooling/src/verify/",
-      // `--cached` is the discriminator for "this module talks to the git INDEX". The blob read itself is
-      // spelled `git show :${rel}`, whose only distinctive token is `:` — uncensusable, and stated in
-      // `unheld` rather than faked. A `--cached` used inside this scope for an unrelated purpose (an
-      // inventory, as `snap/ops/stage-source.ts` does OUTSIDE it) reports as a new consumer: the correct
-      // polarity for a snapshot tripwire, whose finding says RE-DERIVE, not convert.
-      spellings: ["--cached"],
-      consumers: ["tooling/src/verify/gates/no-blanket-suppression.ts"],
-    },
-    {
-      kind: "missing-kind",
-      why:
-        "the OTHER half of the refusal, and the one #2013 is about: no shipped kind serves a STAGED BLOB. A staged-blob " +
-        "capability was considered and deliberately NOT minted (guide §4 — a kind serving one gate is that gate's private " +
-        "reader wearing a contract's clothes), so the claim is that this name does not exist. The day it does, this refusal " +
-        "has no ground left and the module converts or is re-derived, rather than sitting legacy the way " +
-        "`runner-config-path-liveness` did after its own cited door shipped.",
-      wouldBeKind: "staged-blob",
-    },
-  ],
-  unheld: [
-    "the ONE-CONSUMER claim outside `tooling/src/verify/` — `snap/ops/stage-source.ts` (`git ls-files --cached --others`) and `doc-catalog/ops/tree.ts` (`git diff --cached --name-only`) both spell the flag and neither reads a staged BLOB. Widening the census to all of `tooling/` would report both as consumers and would be wrong; distinguishing them needs a read of what the argv DOES, which is a judgment and not a census.",
-    "the staged-blob read itself (`git show :<path>`), which has no distinctive string spelling to census.",
-    "whether a staged-blob CAPABILITY is worth minting if a second consumer appears — that is §12.4's ruling to make, and this declaration only reports that the condition for asking has changed. What IS now held is the other direction: the `missing-kind` blocker above reds the day `staged-blob` becomes a shipped kind.",
-  ],
-} as const satisfies ConversionRefusal;
-
-const GATE_SELF = "tooling/src/verify/gates/no-blanket-suppression.ts";
 const CONFIG_REL = "biome.json";
 const DESIGN = "docs/design/962-blanket-suppression-control-plane.md";
 const NEGATION_PREFIX = "!";
 const NEWLINE = 10;
-/** `git grep -l` lists paths and `git show :<path>` yields one blob — 16 MiB is orders above either; a blob
- *  past it is a KILLED child (status null), which reads as a refusal, never as a clean zero. */
-const GIT_MAX_BUFFER_BYTES = 16_777_216;
 
 // ── the language table ────────────────────────────────────────────────────────────────────────────────
 /** How a NON-harness tracked file is read. TS/TSX ride the harness walk (arm A) — but a staged TS blob (arm
@@ -127,14 +56,6 @@ const READER_BY_EXT: Readonly<Record<string, Reader>> = {
   ".jsonc": "text-line",
   ".css": "text-block",
 };
-const GOVERNED_PATHSPECS: readonly string[] = Object.keys(READER_BY_EXT).map((ext) => `*${ext}`);
-
-/** The index CANDIDATE FENCE (an ERE for `git grep -E`): a blob without any of these openers cannot carry a
- *  blanket, so the fence only ever skips work — the reader decides. Unanchored on purpose: a directive can
- *  trail code on its line. The eslint half admits only the BLOCK form (`/* eslint-disable` + space or `*`),
- *  never `-next-line`/`-line`. */
-const INDEX_FENCE = String.raw`(//|/\*+|\{/\*+)[[:space:]]*(biome-ignore-all|biome-ignore-start|@ts-nocheck)|/\*[[:space:]]*eslint-disable([[:space:]]|\*)`;
-
 // ── messages ──────────────────────────────────────────────────────────────────────────────────────────
 const MESSAGE =
   "a FILE-WIDE lint/type suppression — `biome-ignore-all` (any spelling, any position), `@ts-nocheck`, an UNCLOSED " +
@@ -172,22 +93,6 @@ const KIND_MESSAGE: Readonly<Record<BlanketKind, (token: string) => string>> = {
 const INDEX_PREFIX =
   "STAGED — the INDEX carries this blanket and the WORKING TREE does not, so the next commit would ship it while every " +
   "working-tree check reads clean (the #954 shape). Re-stage the file (`git add`) after fixing it: ";
-
-const MSG_CONFIG_MISSING =
-  `${CONFIG_REL} is not at the repo root — the tracked-corpus arm cannot derive biome's ignore set, so its verdict is ` +
-  `unknowable and a ✓ would be a lie (tooling/src/verify/gates/GATE-AUTHORING.md §4.6). See ${GATE_SELF}.`;
-
-const MSG_CONFIG_UNPARSEABLE =
-  `${CONFIG_REL} did not parse as STRICT JSON — fail LOUD, never fall back to a default (a silently-defaulted lint config ` +
-  `lints nothing this repo asked for). Fix the JSON. See ${GATE_SELF}.`;
-
-const MSG_CORPUS_BLIND =
-  "the tracked-file corpus came back EMPTY on a real tree — `git ls-files` failed or this is not a work tree, so the " +
-  `non-harness arm judged nothing and a ✓ would be a lie (tooling/src/verify/gates/GATE-AUTHORING.md §4.6). See ${GATE_SELF}.`;
-
-const MSG_INDEX_BLIND = (detail: string): string =>
-  `the INDEX arm could not read the index — ${detail}. The staged-blob control is the #954 fence; a run that cannot ` +
-  `read the index is not a verdict (tooling/src/verify/gates/GATE-AUTHORING.md §4.6). See ${GATE_SELF}.`;
 
 // ── the judge (one for every arm) ────────────────────────────────────────────────────────────────────
 interface Blanket {
@@ -325,30 +230,27 @@ function judgeBytes(rel: string, text: string): readonly Blanket[] {
 }
 
 // ── the corpus (arms B + C) ───────────────────────────────────────────────────────────────────────────
-type IgnoreRead =
-  | { readonly kind: "ok"; readonly ignored: (rel: string) => boolean }
-  | { readonly kind: "missing" }
-  | { readonly kind: "unparseable"; readonly detail: string };
-
-interface BiomeFiles {
-  readonly files?: { readonly includes?: readonly string[] };
-}
-
 /** biome's top-level ignore set (`files.includes` negations), as a predicate. A file biome never lints cannot
  *  carry a live directive; the count is declared on the scan line, never silently dropped. */
-function readBiomeIgnores(root: string): IgnoreRead {
-  const abs = join(root, CONFIG_REL);
-  if (!existsSync(abs)) {
-    return { kind: "missing" };
+function isJsonRecord(value: JsonValue): value is { readonly [key: string]: JsonValue } {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readBiomeIgnores(value: JsonValue): (rel: string) => boolean {
+  if (!isJsonRecord(value)) {
+    throw new Error(`${CONFIG_REL} must contain a JSON object`);
   }
-  try {
-    const config = JSON.parse(readFileSync(abs, "utf8")) as BiomeFiles;
-    const matchers = (config.files?.includes ?? []).filter((p) => p.startsWith(NEGATION_PREFIX)).map((p) => globMatcher(p.slice(NEGATION_PREFIX.length)));
-    return { kind: "ok", ignored: (rel) => matchers.some((matches) => matches(rel)) };
-  } catch (error) {
-    // The parse failure IS the finding: its text rides into the refusal so the operator reads WHY strict JSON balked.
-    return { kind: "unparseable", detail: error instanceof Error ? error.message : String(error) };
+  const files = value["files"];
+  if (files !== undefined && !isJsonRecord(files)) {
+    throw new Error(`${CONFIG_REL} files must be an object`);
   }
+  const includes = files === undefined ? undefined : files["includes"];
+  if (includes !== undefined && (!Array.isArray(includes) || includes.some((entry) => typeof entry !== "string"))) {
+    throw new Error(`${CONFIG_REL} files.includes must be an array of strings`);
+  }
+  const includeEntries = (includes ?? []) as readonly string[];
+  const matchers = includeEntries.flatMap((entry) => (entry.startsWith(NEGATION_PREFIX) ? [globMatcher(entry.slice(NEGATION_PREFIX.length))] : []));
+  return (rel) => matchers.some((matches) => matches(rel));
 }
 
 function isGovernedExt(rel: string): boolean {
@@ -362,73 +264,34 @@ interface FileVerdict {
 
 interface CorpusOutcome {
   readonly verdicts: readonly FileVerdict[];
-  readonly candidates: number;
-  readonly scanned: number;
-  readonly ignored: number;
-  readonly blind: boolean;
 }
 
 /** Arm B: every tracked file biome lints that the harness walk did not already carry. */
-function judgeTrackedCorpus(root: string, walked: ReadonlySet<string>, ignored: (rel: string) => boolean): CorpusOutcome {
-  const tracked = memberSources(root).repoPaths;
-  if (tracked.length === 0) {
-    return { verdicts: [], candidates: 0, scanned: 0, ignored: 0, blind: true };
-  }
+function judgeTrackedCorpus(
+  tracked: readonly string[],
+  text: AuthoredTextCorpus,
+  walked: ReadonlySet<string>,
+  ignored: (rel: string) => boolean,
+): CorpusOutcome {
   const candidates = tracked.filter((rel) => isGovernedExt(rel) && !walked.has(rel));
+  const byPath = new Map(text.files.map((file) => [file.path, file.text]));
+  const refusals = new Map(text.refusals.map((refusal) => [refusal.path, refusal]));
   const verdicts: FileVerdict[] = [];
-  let skipped = 0;
   for (const rel of candidates) {
     if (ignored(rel)) {
-      skipped += 1;
       continue;
     }
-    const abs = join(root, rel);
-    if (!existsSync(abs)) {
+    const source = byPath.get(rel);
+    const refusal = refusals.get(rel);
+    if (source === undefined && (refusal?.status === "missing" || refusal?.status === "empty")) {
       continue; // tracked but deleted in the working tree — nothing to judge here; arm C still sees the index
     }
-    verdicts.push({ rel, blankets: judgeBytes(rel, readFileSync(abs, "utf8")) });
-  }
-  return { verdicts, candidates: candidates.length, scanned: verdicts.length, ignored: skipped, blind: false };
-}
-
-/** Arm C's outcome is DISCRIMINATED: a run that could not read the index is not a partial verdict with a
- *  note beside it — it is no verdict (the laundering shape `caught-failure-ownership` refuses is exactly
- *  "success data with an error field beside it"). */
-type IndexOutcome =
-  | { readonly kind: "ok"; readonly verdicts: readonly FileVerdict[]; readonly candidates: number }
-  | { readonly kind: "blind"; readonly detail: string };
-
-/** Arm C: the index's candidate blobs, re-judged by the same readers. `git grep` exits 1 on no match. */
-function judgeIndex(root: string, ignored: (rel: string) => boolean): IndexOutcome {
-  const grep = runNicedSync("git", ["grep", "--cached", "-l", "-I", "-E", INDEX_FENCE, "--", ...GOVERNED_PATHSPECS], {
-    cwd: root,
-    maxBuffer: GIT_MAX_BUFFER_BYTES,
-  });
-  if (grep.status !== 0 && grep.status !== 1) {
-    return { kind: "blind", detail: `git grep --cached exited ${String(grep.status)}: ${grep.stderr.trim()}` };
-  }
-  const candidates = grep.stdout.split("\n").filter((rel) => rel !== "" && isGovernedExt(rel) && !ignored(rel));
-  const verdicts: FileVerdict[] = [];
-  for (const rel of candidates) {
-    // The staged BLOB, never the working file. A non-zero status (or a killed child) voids the whole index
-    // verdict — a run that cannot read the index is no verdict, not a partial one.
-    const shown = runNicedSync("git", ["show", `:${rel}`], { cwd: root, maxBuffer: GIT_MAX_BUFFER_BYTES });
-    if (shown.status !== 0) {
-      return { kind: "blind", detail: `git show :${rel} exited ${String(shown.status)}: ${shown.stderr.trim()}` };
+    if (source === undefined) {
+      throw new Error(`authored text for ${rel} was not readable: ${refusal?.reason ?? "no resource row"}`);
     }
-    verdicts.push({ rel, blankets: judgeBytes(rel, shown.stdout) });
+    verdicts.push({ rel, blankets: judgeBytes(rel, source) });
   }
-  return { kind: "ok", verdicts, candidates: candidates.length };
-}
-
-/** The working tree's blankets for one path, by the same readers (absent file ⇒ none). */
-function workingBlankets(root: string, rel: string, walked: ReadonlyMap<string, readonly Blanket[]>): readonly Blanket[] {
-  const fromWalk = walked.get(rel);
-  if (fromWalk !== undefined) {
-    return fromWalk;
-  }
-  const abs = join(root, rel);
-  return existsSync(abs) ? judgeBytes(rel, readFileSync(abs, "utf8")) : [];
+  return { verdicts };
 }
 
 /** Arm C reports only the DELTA: an index blanket (by token + kind) the working tree does not also carry —
@@ -439,87 +302,89 @@ function indexOnly(index: readonly Blanket[], working: readonly Blanket[]): read
 }
 
 // ── reporting ─────────────────────────────────────────────────────────────────────────────────────────
-function reportBlanket(ctx: GateRunCtx, file: string, blanket: Blanket, staged: boolean): void {
+function reportBlanket(ctx: GatePolicyContext, file: string, blanket: Blanket, staged: boolean): void {
   const detail = KIND_MESSAGE[blanket.kind](blanket.token);
-  ctx.report({ file, line: blanket.line, column: 0, token: blanket.token, message: staged ? INDEX_PREFIX + detail : detail });
-}
-
-function reportFileLevel(ctx: GateRunCtx, file: string, message: string): void {
-  ctx.report({ file, line: 0, column: 0, message });
+  ctx.report.file(file, { line: blanket.line, column: 1, token: blanket.token, message: staged ? INDEX_PREFIX + detail : detail, fix: FIX });
 }
 
 /** Arm A over the harness fileset; returns every walked file's verdict so arm C can diff against it. */
-function reportHarnessArm(ctx: GateRunCtx): Map<string, readonly Blanket[]> {
-  const walked = new Map<string, readonly Blanket[]>();
-  for (const sf of ctx.files) {
-    const rel = repoRel(ctx.root, sf.getFilePath());
-    const blankets = judgeSourceFile(sf);
-    walked.set(rel, blankets);
-    for (const blanket of blankets) {
-      reportBlanket(ctx, rel, blanket, false);
-    }
-  }
-  return walked;
-}
-
-function runArms(ctx: GateRunCtx): void {
-  const walked = reportHarnessArm(ctx);
-  if (!existsSync(join(ctx.root, GATE_SELF))) {
-    return; // not a real tree (a conformance mini-project) — arms B+C are a declared limit here
-  }
-  const ignores = readBiomeIgnores(ctx.root);
-  if (ignores.kind !== "ok") {
-    reportFileLevel(ctx, CONFIG_REL, ignores.kind === "missing" ? MSG_CONFIG_MISSING : `${MSG_CONFIG_UNPARSEABLE} (${ignores.detail})`);
-    return;
-  }
-  runGitBackedArms(ctx, walked, ignores.ignored);
-}
-
-/** Arms B + C, on a root that carries the anchor. */
-function runGitBackedArms(ctx: GateRunCtx, walked: Map<string, readonly Blanket[]>, ignored: (rel: string) => boolean): void {
-  const corpus = judgeTrackedCorpus(ctx.root, new Set(walked.keys()), ignored);
-  if (corpus.blind) {
-    reportFileLevel(ctx, GATE_SELF, MSG_CORPUS_BLIND);
-  }
+function reportResourceArms(ctx: GatePolicyContext, walked: Map<string, readonly Blanket[]>): void {
+  const tracked = readyResourceValue(ctx.resources.trackedFiles()).repoPaths;
+  const config = readyResourceValue(ctx.resources.json("biome"));
+  const ignored = readBiomeIgnores(config.value);
+  const candidates = tracked.filter((rel) => isGovernedExt(rel) && !walked.has(rel));
+  const text = readyResourceValue(ctx.resources.authoredText(candidates.length > 0 ? candidates : [CONFIG_REL]));
+  const corpus = judgeTrackedCorpus(tracked, text, new Set(walked.keys()), ignored);
   for (const { rel, blankets } of corpus.verdicts) {
     walked.set(rel, blankets);
     for (const blanket of blankets) {
       reportBlanket(ctx, rel, blanket, false);
     }
   }
-  const index = judgeIndex(ctx.root, ignored);
-  if (index.kind === "blind") {
-    reportFileLevel(ctx, GATE_SELF, MSG_INDEX_BLIND(index.detail));
-  }
-  const indexVerdicts = index.kind === "ok" ? index.verdicts : [];
-  const indexCandidates = index.kind === "ok" ? index.candidates : 0;
-  for (const { rel, blankets } of indexVerdicts) {
-    for (const blanket of indexOnly(blankets, workingBlankets(ctx.root, rel, walked))) {
-      reportBlanket(ctx, rel, blanket, true);
+  const index = readyResourceValue(ctx.resources.candidateIndexDelta(tracked.filter(isGovernedExt)));
+  for (const { path, text: stagedText } of index.files) {
+    if (ignored(path)) {
+      continue;
+    }
+    for (const blanket of indexOnly(judgeBytes(path, stagedText), walked.get(path) ?? [])) {
+      reportBlanket(ctx, path, blanket, true);
     }
   }
-  ctx.scan({
-    unit: "file",
-    candidates: corpus.candidates + indexCandidates,
-    scanned: corpus.scanned + indexVerdicts.length,
-    skipped: { "biome-ignored": corpus.ignored, "index-candidates": indexCandidates },
-  });
 }
 
 // ── self-proof fixtures ──────────────────────────────────────────────────────────────────────────────
 const TWO_STATEMENTS = "export const a = 1 | 2;\nexport const b = 3;\n";
+const PROOF_CONFIG = '{ "files": { "includes": ["**"] } }\n';
+const PROOF_ANCHOR = "packages/kit/src/__no_blanket_proof_anchor.ts";
 
-export const gate: GateDescriptor = {
-  name: "no-blanket-suppression",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
-  status: "active",
-  scopeSafety: "whole-project",
-  markerImmune: true,
+interface CarriedProof {
+  readonly files: string | Readonly<Record<string, string>>;
+  readonly at?: string;
+  readonly expect?: GatePolicyProof["expect"];
+  readonly why: string;
+}
+
+/** Preserve the legacy proof corpus while giving each row a real Git index and the resource config the
+ *  final policy declares. A string fixture's former `at` becomes its explicit file-map key. */
+function resourceProof(proof: CarriedProof): GatePolicyProof {
+  if (typeof proof.files === "string" && proof.at === undefined) {
+    throw new Error("a string no-blanket-suppression proof must declare its file path");
+  }
+  const files = typeof proof.files === "string" ? { [proof.at as string]: proof.files } : proof.files;
+  return {
+    mode: "resource",
+    files: { [CONFIG_REL]: PROOF_CONFIG, [PROOF_ANCHOR]: "export const anchor = true;\n", ...files },
+    ...(proof.expect === undefined ? {} : { expect: proof.expect }),
+    why: proof.why,
+  };
+}
+
+export const gate = defineGate({
+  id: "no-blanket-suppression",
+  family: "no-blanket-suppression",
+  authority: "hard",
+  severity: "error",
+  population: { in: ["@authored", "@showcase"], notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"] },
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [{ kind: "tracked-files" }, { kind: "json", id: "biome" }, { kind: "authored-text" }],
   message: MESSAGE,
   fix: FIX,
-  // Every harness file is a candidate (arm A's denominator is the walk itself); arms B+C add their own units.
-  scanRoot: () => true,
-  run: runArms,
+  create: (ctx) => {
+    const walked = new Map<string, readonly Blanket[]>();
+    return {
+      visitFile: (sourceFile) => {
+        const file = ctx.relativePath(sourceFile);
+        const blankets = judgeSourceFile(sourceFile);
+        walked.set(file, blankets);
+        for (const blanket of blankets) {
+          reportBlanket(ctx, file, blanket, false);
+        }
+      },
+      evaluate: () => reportResourceArms(ctx, walked),
+    };
+  },
   mustFlag: [
     {
       files: `// biome-ignore-all lint/suspicious/noBitwiseOperators: fixture\n${TWO_STATEMENTS}`,
@@ -602,7 +467,7 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "biome-ignore-all" },
       why: "#962's founding population — 58 of the 74 blankets lived under tests/, outside every ratchet",
     },
-  ],
+  ].map(resourceProof),
   mustPass: [
     {
       files:
@@ -662,7 +527,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/styles/x.css": ".a { color: red; }\n",
         "eslint.config.js": "export default [];\n",
       },
-      why: "DECLARED LIMIT — arms B (tracked non-TS corpus) and C (the index) need a git work tree and run only on a root carrying this gate's own module (§4.5); a mini-project has neither, so a clean CSS/JS/config trio is silent here and the git-backed arms are proven by tests/tooling/verify/gates/no-blanket-suppression.repo.int.test.ts (an in-memory example is walked by arm A whatever its extension, so a blanket planted here would be arm A's finding, never a limit)",
+      why: "the resource proof owns a real candidate index, so this clean CSS/JS/config trio exercises the tracked-text and staged-delta arms without a private real-tree anchor",
     },
-  ],
-};
+  ].map(resourceProof),
+});

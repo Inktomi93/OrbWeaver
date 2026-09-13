@@ -8,6 +8,7 @@ import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfi
 import type { CssFacts, CssInventoryRequest } from "./resource-css.ts";
 import type { DocumentIndex, LedgerFactsFor, LedgerId } from "./resource-document.ts";
 import type { ExactFile, ExactResourceId } from "./resource-exact.ts";
+import type { CandidateIndexDelta } from "./resource-index.ts";
 import type { InstalledPackageFacts, InstalledPackageRequest } from "./resource-installed.ts";
 import type { JsonResourceFacts, JsonResourceId } from "./resource-json.ts";
 import type { MirrorFamilyId, MirrorIndex } from "./resource-mirror.ts";
@@ -25,6 +26,9 @@ export interface ResourceHost {
   readonly staticConfig: (id: StaticConfigResourceId) => ResourceFact<StaticConfigFacts>;
   readonly nativeConfig: <R extends ConfigSnapshotRunner>(id: R) => ResourceFact<ConfigSnapshotByRunner[R]>;
   readonly trackedFiles: () => ResourceFact<TrackedResourceIndex>;
+  /** Exact staged text for demanded tracked paths whose candidate-index bytes differ from the worktree.
+   *  This is fenced by the `tracked-files` declaration and never widens its path population. */
+  readonly candidateIndexDelta: (paths: readonly string[]) => ResourceFact<CandidateIndexDelta>;
   readonly json: (id: JsonResourceId) => ResourceFact<JsonResourceFacts>;
   readonly installedPackage: (request: InstalledPackageRequest) => ResourceFact<InstalledPackageFacts>;
   /** The derived source/test mirror index — membership, not the mirror RULE (`resource-mirror.ts`). */
