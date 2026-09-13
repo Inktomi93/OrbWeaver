@@ -1092,7 +1092,11 @@ A converted module is pristine when all seven hold. The first six are the contra
    the message. The position is routinely not what a reader would call the offense (§3), so a missing or guessed `fix`
    makes the policy unusable by the person it fires on.
 4. **The family is a real shared `lib/` reader** (module + function, named in the header) or a declared singleton with
-   its reason. A theme, a filename prefix and a shared topic are not families.
+   its reason. A theme, a filename prefix and a shared topic are not families. **THE IMPORT HALF IS NOW MECHANIZED**
+   (#2187, `policy-family-readers`): a member of a multi-member family that imports no `tooling/src/verify/lib/`
+   module at least one SIBLING imports is a live finding at its own `family` property — 11 members across 6 families
+   at mint. The reader's FUNCTION, whether the header names it, and whether a singleton's reason is a reason remain
+   the hand read this item describes; the policy holds the half a machine can hold and nothing more.
 5. **The header records the decisions**: the family and its reader, the population port (byte-identical, or the
    intentional correction and why), and the marker census if a private vocabulary was retired. **Censusing this
    criterion is a HAND READ over the header span, because every instrument tried lies in one direction or the
