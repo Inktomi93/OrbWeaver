@@ -25,11 +25,11 @@
 // `tokens.build.ts#renderThemeCss`, and whether a hand-copied literal earns the name "generated-output
 // parity" is escalated, not settled). This lane READS it and moves nothing.
 //
-// THE FOUR BARE COUNT RATCHETS ARE RETIRED (audit ledger row 11, §12.5 "no count ratchet"), and the
-// distinction matters: `EXPECTED_RUNTIME_WRITERS`' three surviving keys are DERIVED from this module's own
-// vocabulary set sizes, so each is a COMPLETENESS claim ("every declared seam × every declared selector is
-// written exactly once"), not a population count — a legitimate new declaration changes both sides at once.
-// `fade: 12` was a bare literal over the current population and had no such derivation; it is deleted.
+// EVERY COUNT RATCHET IS RETIRED (audit ledger row 11 + #2305, §12.5 "no count ratchet"), and NO
+// CARDINALITY SURVIVES IN ANY FORM. The first leg deleted `fade: 12` and kept three expectations it called
+// derived; two of those three multiplied a declared set by a LITERAL and were current-population counts
+// under a derivation's name. `lib/css-family-policy.ts` now asks PRESENCE of each seam's declared members —
+// at least once, never a number — so this module keeps the VOCABULARIES and owns no expectation at all.
 // `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS`' three counts were the same shape wrapped around an EXEMPTION, so
 // the exemption moved to three 1:1 reviewed grants with central liveness
 // (`gates/css-family-direct-client-mechanism.ts`) and the counts died with the table.
