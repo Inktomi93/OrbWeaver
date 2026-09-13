@@ -26,7 +26,9 @@
 //
 // THE FLIP CONDITION IS AN EVENT, NOT AN ASPIRATION: flip to `hard` + `error` (and drop `workItem`) in the commit
 // that takes THIS POLICY'S OWN EFFECTIVE COUNT TO ZERO on a whole-corpus run. The count IS the burn-down, so the
-// condition is readable off `reports/check-structure.json` — nobody has to remember it.
+// condition is readable off `reports/check-structure.json` — nobody has to remember it. RE-MEASURED at `80b0693cb`
+// with the #2274 repair below: 60 → 17. The 43 that discharged were pinned all along by real family tests the dead
+// recognizer could not see, so the drop is a READER fix, not a burn-down; 17 is the real remaining debt.
 //
 // AND THE DOOR THE WARNING TIER OPENS IS WATCHED. `ordinary` means a consumer can `@orb-waive` this finding
 // instead of writing the pin. That waiver is reconciled centrally into the policy's `waived` count, and
@@ -34,12 +36,39 @@
 // MOVES A NUMBER the barrier already reads. The door is open during the drain; it is not unobserved.
 //
 // WHAT SATISFIES THE RULE, and why the test half is recognised the way it is. `mustRefuse` is read off the
-// descriptor literal. The family-test half is a `runPolicyPass(<binding>, …)` call inside a `test(…)`, where
-// `<binding>` resolves to an IMPORT OF THE POLICY MODULE ITSELF — the import is the binding between pin and
+// descriptor literal. The family-test half is a `runPolicyPass({ policies: […] , … })` call inside a `test(…)`
+// whose DRIVEN SET resolves to an import of the policy module itself — the import is the binding between pin and
 // subject, so a test that imports six policies and drives one covers only the one it drove. The dispatcher call
 // is recognised by NAME rather than by import origin, deliberately and by this family's own precedent: proof
 // fixtures `declare` the dispatcher rather than importing it (`policy-waiver-identity`'s family rows do exactly
 // this), so an origin test would be unsatisfiable inside the very proofs that must falsify the rule.
+//
+// ═══ THE TEST HALF WAS DEAD FOR ITS FIRST WEEK, AND THE FIXTURE IS WHY (#2274) ═══
+//
+// The founding recognizer asked for `runPolicyPass(<policy identifier>, …)` — a FIRST POSITIONAL ARGUMENT. The
+// production dispatcher has never had one: `lib/policy-pass.ts:835` is `runPolicyPass(input: PolicyPassInput)`,
+// ONE options object, and the driven set is its `policies` property. So no real family test could ever be
+// recognised, and the `mustPass` "TEST HALF" row was green only because its fixture `declare`d a two-positional
+// dispatcher that exists nowhere on the tree. Measured by `cb-v-wave-8b` on `50e31c534` and reproduced here at
+// `80b0693cb`: a fixture-shaped scratch test moved the real-tree count 60 → 59, while
+// `tests/tooling/verify/gates/mirror-index-family.test.ts` — fifteen refusal pins over all three mirror gates —
+// discharged nothing, and all three of its subjects sat in the accused list. With the recognizer below the same
+// real-tree drive reads 17, and NOTHING newly accused (43 discharged, 0 added) — the repair's two-sided receipt.
+// THE LESSON, which is the reason this
+// paragraph is long: a proof fixture that INVENTS the shape it is proving against tests the fixture. The retired
+// shape is now a `mustFlag` row (§4.1's "land a retired exception as an ASSERTION, not an absence"), so the
+// recognizer can never drift back to it silently.
+//
+// HOW THE DRIVEN SET IS READ, and why it is a walk rather than one property read. `policies` is authored four
+// ways across the ~60 live family tests, and all four are correct: a literal `[gate]`, a module const
+// (`policies: FAMILY`), a spread (`[...policies]`), and — the DOMINANT shape — a local `pass(policy, …)` helper
+// whose parameter is the driven set. `resolveStableExpression` cannot resolve a parameter BY CONTRACT
+// (`policy-fixture-substrate.ts:23`), so the walk hops one further step: the parameter's position in its
+// declaring function, then that function's call sites IN THE SAME FILE, then the argument at that position. The
+// hop is not optional politeness. This policy's unreadability direction is INVERTED from its
+// `policy-fixture-substrate` sibling — there an unresolved read ACQUITS, here it ACCUSES — so the family's own
+// doctrine ("a positive-proof requirement the reader structurally cannot satisfy is fail-closed in name and
+// false-accusing in fact") lands on the helper shape as a hard requirement rather than a nicety.
 //
 // WHAT THIS IS NOT. A policy with `facts: []` and `resources: []` computes its own population from the corpus and
 // is not asked — its denominator is the tree, and a zero there is a real zero. This module does not judge whether
@@ -59,11 +88,20 @@
 //
 // BLINDNESS: this module reads final descriptors through the shared reader, so if that recognizer dies every
 // module reads "not final" and the corpus reports ✓ forever. It self-anchors on its OWN path and THROWS instead.
-import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
+import type { CallExpression, Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { descriptorProperty, descriptorValue, finalDescriptorOf, policyIdOfPath } from "../lib/policy-descriptor-read.ts";
+import {
+  bindsParameter,
+  descriptorProperty,
+  descriptorValue,
+  finalDescriptorOf,
+  objectLiteralOf,
+  policyIdOfPath,
+  stableTerminal,
+} from "../lib/policy-descriptor-read.ts";
+import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 import { familyFixture, finalProbeModule, ORDINARY_TRUNK } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-refusal-coverage.ts";
@@ -71,6 +109,10 @@ const GATES_DIR = "tooling/src/verify/gates/";
 const TESTS_DIR = "tests/";
 /** The production dispatcher's name — see the header for why the TEST side is keyed on the name. */
 const DISPATCHER = "runPolicyPass";
+/** The dispatcher's SELECTED set (`PolicyPassInput.policies`, `contract/policy-pass.ts:131`). `knownPolicies` is
+ *  deliberately NOT read: it is the roster authority reconciliation needs, and a policy listed there but not
+ *  selected is never RUN — crediting it would be the coverage-by-coincidence the `mustFlag` rows below forbid. */
+const DRIVEN_FIELD = "policies";
 const DERIVED_FIELDS = ["facts", "resources"] as const;
 const MUST_REFUSE = "mustRefuse";
 
@@ -84,7 +126,10 @@ const FIX =
   "Add a `mustRefuse` row (§4.5b: never empty; each row's `expect` is `messageIncludes` ONLY) naming the refusal text this policy's failure " +
   "mode produces — a withheld fact, an unresolved resource, a population that admits zero paths. OR, where the refusal is something a row " +
   "cannot express (an owner STATUS, an empty finding set, the phase it refused in), drive the policy through `runPolicyPass` in a family " +
-  "test under `tests/tooling/verify/gates/` that IMPORTS this module, and assert those. One or the other, never neither. " +
+  "test under `tests/tooling/verify/gates/` that IMPORTS this module, and assert those. THE ROUTE IS THE PRODUCTION SIGNATURE, spelled " +
+  "exactly: `runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false })` inside a " +
+  "`test(…)`, with `gate` imported from this module — a local `pass(policy, …)` helper is read through to its call sites, so the shape you " +
+  "already write is the shape that counts. One or the other, never neither. " +
   // THE ESCAPE HATCH, SPELLED EXACTLY — and the POSITION is not a guess: it is the token this policy reports,
   // which is the name of the `facts` or `resources` property that created the obligation (see `judgeCorpus`).
   // A `fix` that promises a waiver without naming the position a marker must carry is a promise the operator
@@ -112,42 +157,162 @@ function hasRefusalRow(descriptor: ObjectLiteralExpression): boolean {
   return isNonEmptyArray(descriptorValue(descriptor, MUST_REFUSE));
 }
 
-/** Is `name` imported in `testFile` from a module under the gate corpus — and if so, which policy id? The import
- *  is the binding between a pin and its subject: a test that imports six policies and drives one covers one. */
-function importedPolicyOf(testFile: SourceFile, name: string): string | undefined {
+/** The policy id an expression NAMES, or undefined: the reference resolved to a module export whose canonical
+ *  home is a gate module. Resolved through the shared origin reader rather than by re-walking the file's import
+ *  declarations (#2097 — a `getSymbol().getDeclarations()` chain inside a gate module is the private-reader
+ *  shape this family reports), so an alias, a re-export and a namespace read are all the same binding.
+ *
+ *  NO `_proof/` FENCE, and that is a MEASUREMENT rather than an oversight (#2274 review): a fixture-substrate
+ *  module resolves to the id `_proof/<name>` — `policyIdOfPath` slices the whole corpus-relative remainder, not
+ *  the basename — and an id carrying a slash equals no policy id that exists, so a pin naming one discharges
+ *  nothing. The fence this comment replaces was cut in both directions: proof rows stayed green and the
+ *  real-tree count stayed 17, which is what dead defensive code looks like. */
+function policyIdOfExpression(node: MorphNode): string | undefined {
+  const origin = resolveModuleMemberOrigin(node);
   let found: string | undefined;
-  for (const declaration of testFile.getImportDeclarations()) {
-    const target = declaration.getModuleSpecifierSourceFile();
-    const named = declaration.getNamedImports().some((specifier) => (specifier.getAliasNode() ?? specifier.getNameNode()).getText() === name);
-    if (target !== undefined && named) {
-      const path = target.getFilePath().replaceAll("\\", "/");
-      const index = path.indexOf(GATES_DIR);
-      if (index !== -1 && path.endsWith(".ts")) {
-        found = policyIdOfPath(path.slice(index));
-        break;
-      }
+  if (origin.kind === "resolved" && origin.value.canonical.kind === "project") {
+    const path = origin.value.canonical.sourceFile.getFilePath().replaceAll("\\", "/");
+    const index = path.indexOf(GATES_DIR);
+    const relative = index === -1 ? undefined : path.slice(index);
+    if (relative !== undefined && relative.endsWith(".ts")) {
+      found = policyIdOfPath(relative);
     }
   }
   return found;
 }
 
-/** Record ONE `runPolicyPass(<imported policy>, …)` call as a pin for the module its subject was imported from.
+/** Every call in one test file whose callee is a bare identifier, keyed `<path>\0<name>`. Collected by the SAME
+ *  visitor that finds the dispatcher calls, because a helper's call sites may be authored BELOW the helper and
+ *  because `policy-soundness` E3 bans a descendant walk in a gate module. */
+type CallIndex = Map<string, CallExpression[]>;
+const callKey = (path: string, name: string): string => `${path}\u0000${name}`;
+
+/** One recorded dispatcher call. Resolution waits for `evaluate`: the call-site index is not complete until the
+ *  whole population has been visited. */
+interface Drive {
+  readonly call: CallExpression;
+  readonly path: string;
+}
+
+/** The function-like declaration that DECLARES a parameter named `name`, walking ANCESTORS only. */
+function declaringFunction(node: MorphNode, name: string): MorphNode | undefined {
+  return node.getFirstAncestor(
+    (candidate) => Node.isFunctionLikeDeclaration(candidate) && candidate.getParameters().some((parameter) => parameter.getName() === name),
+  );
+}
+
+/** How a function-like declaration is CALLED: its own name, or the variable an arrow/function expression is
+ *  bound to. Anything else (an inline callback, a method) has no call-site name this reader can index. */
+function callableName(owner: MorphNode): string | undefined {
+  let name: string | undefined;
+  if (Node.isFunctionDeclaration(owner)) {
+    name = owner.getName();
+  } else {
+    const parent = owner.getParent();
+    if (parent !== undefined && Node.isVariableDeclaration(parent)) {
+      name = parent.getName();
+    }
+  }
+  return name;
+}
+
+/** The `for (const policy of […])` statement that BINDS `name`, walking ANCESTORS only. */
+function declaringForOf(node: MorphNode, name: string): MorphNode | undefined {
+  return node.getFirstAncestor((candidate) => {
+    const list = Node.isForOfStatement(candidate) ? candidate.getInitializer() : undefined;
+    return list !== undefined && Node.isVariableDeclarationList(list) && list.getDeclarations().some((declaration) => declaration.getName() === name);
+  });
+}
+
+/** THE LOOP HOP — the fifth authored shape, and a FALSE ACCUSATION until it was read (measured on this lane's
+ *  own re-run: `bus-pair.test.ts:162` drives three policies through `for (const policy of [a, b, c])` and two of
+ *  them stayed accused). A loop binding has no single authored value either, so the subject is the ITERATED
+ *  expression — every member of it is driven, which is exactly what the loop does. */
+function hopIteration(node: MorphNode, subjects: Subjects): void {
+  const owner = Node.isIdentifier(node) ? declaringForOf(node, node.getText()) : undefined;
+  if (owner !== undefined && Node.isForOfStatement(owner)) {
+    collectDriven(owner.getExpression(), subjects);
+  }
+}
+
+/** THE PARAMETER HOP — the dominant real shape (`function pass(policy, …) { runPolicyPass({ policies: [policy] …`).
+ *  A parameter has no single authored value, so `resolveStableExpression` refuses it BY CONTRACT; the driven
+ *  policy is at the same POSITION in every call site of the declaring function, in this file. */
+function hopParameter(node: MorphNode, subjects: Subjects): void {
+  if (!(Node.isIdentifier(node) && bindsParameter(node))) {
+    hopIteration(node, subjects);
+    return;
+  }
+  const name = node.getText();
+  const owner = declaringFunction(node, name);
+  const called = owner === undefined ? undefined : callableName(owner);
+  if (owner === undefined || called === undefined || !Node.isFunctionLikeDeclaration(owner)) {
+    return;
+  }
+  const position = owner.getParameters().findIndex((parameter) => parameter.getName() === name);
+  for (const site of subjects.index.get(callKey(subjects.path, called)) ?? []) {
+    const argument = site.getArguments()[position];
+    if (argument !== undefined) {
+      collectDriven(argument, subjects);
+    }
+  }
+}
+
+/** The resolution state for ONE dispatcher call: where it lives, every indexed call site, the pins it produces,
+ *  and the cycle fence a const-alias loop would otherwise turn into an infinite descent. */
+interface Subjects {
+  readonly path: string;
+  readonly index: CallIndex;
+  readonly pinned: Set<string>;
+  readonly seen: Set<object>;
+}
+
+/** Every policy a driven-set expression names. FOUR authored shapes, each measured live on this tree: a module
+ *  import, an array literal (spreads unwrapped), a const alias of an array, and a binding with no single
+ *  authored value — a helper parameter or a `for…of` head, which the two hops below reach.
  *
- *  Reached from a VISITOR, never from a descendant walk: `policy-soundness` E3 bans `getDescendantsOfKind` in a
- *  gate module ("use visitors, ctx.files, or a shared reader [direct-walk]") — measured here as a real finding
- *  against this very module on the family's real-corpus arm before the collection moved. */
-function recordPin(pinned: Set<string>, call: CallExpression, testFile: SourceFile): void {
-  const callee = call.getExpression();
-  if (!(Node.isIdentifier(callee) && callee.getText() === DISPATCHER)) {
+ *  There is NO fifth "alias to a non-array terminal" branch: it was written, cut in both directions, and
+ *  removed — the proof rows stayed green and the real-tree count stayed 17, because `resolveModuleMemberOrigin`
+ *  already resolves an alias chain to its module export before this reader ever sees a terminal. An
+ *  unrecognised shape falls through to no pin, which ACCUSES; that direction is the family's doctrine and it is
+ *  what makes a new authored shape visible instead of silently credited. */
+function collectDriven(node: MorphNode, subjects: Subjects): void {
+  if (subjects.seen.has(node.compilerNode)) {
     return;
   }
-  const subject = call.getArguments()[0];
-  if (subject === undefined || !Node.isIdentifier(subject)) {
+  subjects.seen.add(node.compilerNode);
+  const id = policyIdOfExpression(node);
+  if (id !== undefined) {
+    subjects.pinned.add(id);
     return;
   }
-  const module = importedPolicyOf(testFile, subject.getText());
-  if (module !== undefined) {
-    pinned.add(module);
+  const terminal = stableTerminal(node);
+  if (terminal === undefined) {
+    hopParameter(node, subjects);
+  } else if (Node.isArrayLiteralExpression(terminal)) {
+    for (const element of terminal.getElements()) {
+      collectDriven(Node.isSpreadElement(element) ? element.getExpression() : element, subjects);
+    }
+  } else {
+    hopParameter(node, subjects);
+  }
+}
+
+/** Record ONE `runPolicyPass({ policies: […] , … })` call as a pin for every module it DRIVES.
+ *
+ *  THE `test(…)` FENCE IS DELIBERATELY NOT HERE, and that is a measurement rather than an omission. The founding
+ *  header promised one ("inside a `test(…)`") and the founding code never checked; adding it here took the
+ *  helper arm from a pin to a false accusation on this lane's own fixture, because the DOMINANT authored shape
+ *  puts the dispatcher call in a MODULE-SCOPE `pass(policy, …)` helper that only the test body calls
+ *  (`mirror-index-family.test.ts:48-56` is the exemplar). "Executed by a test" is a call-graph question, and a
+ *  reader that answers it approximately accuses the correct majority. What survives is the fence that is real
+ *  and checkable: the call is IN A FAMILY TEST FILE (the population), and it DRIVES this module (the walk).
+ *  The remaining fence is the field: the driven set is `policies`, never `knownPolicies`. */
+function recordPin(drive: Drive, index: CallIndex, pinned: Set<string>): void {
+  const input = objectLiteralOf(drive.call.getArguments()[0]);
+  const driven = input === undefined ? undefined : descriptorValue(input, DRIVEN_FIELD);
+  if (driven !== undefined) {
+    collectDriven(driven, { path: drive.path, index, pinned, seen: new Set<object>() });
   }
 }
 
@@ -190,15 +355,48 @@ function judgeCorpus(ctx: GatePolicyContext, pinned: ReadonlySet<string>): void 
 
 /** A family test at a real family-test path, importing the probe module and driving it through the dispatcher. */
 const PIN_TEST_PATH = "tests/tooling/verify/gates/probe-family.test.ts";
-/** `binding` is the local name the test imports from `module`; the body is what runs inside the one `test(…)`. */
-const PIN_TEST = (body: string, module = "probe", binding = "probe"): string =>
-  `import { gate as ${binding} } from "../../../../tooling/src/verify/gates/${module}.ts";\ndeclare function ${DISPATCHER}(policy: unknown, files: unknown): { authority: { toolErrors: unknown[] } };\ndeclare function test(name: string, body: () => void): void;\ndeclare function expect(value: unknown): { toHaveLength: (n: number) => void };\ntest("refusal", () => {\n${body}\n});\n`;
+/** THE DISPATCHER AS IT ACTUALLY IS — one options object (`lib/policy-pass.ts:835`). The fixture `declare`s it
+ *  rather than importing it, which is this family's precedent (the header says why the NAME is the recognizer);
+ *  what it may never again do is invent a SIGNATURE, which is the whole of #2274. */
+const DISPATCHER_DECLARATION = `declare function ${DISPATCHER}(input: { policies: readonly unknown[]; knownPolicies?: readonly unknown[] }): { authority: { toolErrors: unknown[] } };`;
+/** The RETIRED two-positional signature, kept as a fixture so the `mustFlag` row below can assert that a call
+ *  shaped like it credits NOTHING (§4.1: a removed exception lands as an assertion, not as an absence). */
+const RETIRED_DECLARATION = `declare function ${DISPATCHER}(policy: unknown, files: unknown): { authority: { toolErrors: unknown[] } };`;
+/** How ONE pin-test fixture varies: `binding` is the local name the test imports from `module`, `dispatcher` is
+ *  the `declare`d signature, and `alsoImport` names a SECOND gate module imported under its own name — the row
+ *  that puts the judged module in `knownPolicies` while a DIFFERENT one is driven needs both bindings in scope
+ *  to be a real falsifier. An options object rather than four positionals because biome's `useMaxParams` caps at
+ *  four and the cap is right here: every call site below reads better naming the one field it varies. */
+interface PinTestShape {
+  readonly module?: string;
+  readonly binding?: string;
+  readonly dispatcher?: string;
+  readonly alsoImport?: string;
+}
+/** The body is what runs inside the one `test(…)`; everything else defaults to the probe module. */
+const PIN_TEST = (body: string, shape: PinTestShape = {}): string => {
+  const { module = "probe", binding = "probe", dispatcher = DISPATCHER_DECLARATION, alsoImport } = shape;
+  const second = alsoImport === undefined ? "" : `import { gate as ${alsoImport} } from "../../../../tooling/src/verify/gates/${alsoImport}.ts";\n`;
+  return `${second}import { gate as ${binding} } from "../../../../tooling/src/verify/gates/${module}.ts";\n${dispatcher}\ndeclare function test(name: string, body: () => void): void;\ndeclare function expect(value: unknown): { toHaveLength: (n: number) => void };\ntest("refusal", () => {\n${body}\n});\n`;
+};
 /** A registering FINAL sibling the "wrong module" row's pin binds to instead — planted so its relative import
  *  RESOLVES (a dangling one would be the family's fail-closed control, which is a different row entirely). */
 const ELSEWHERE = {
   "tooling/src/verify/gates/elsewhere.ts": 'import { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "elsewhere" });\n',
 };
-const DRIVEN = `  const refused = ${DISPATCHER}(probe, { "packages/client/src/a.ts": "export const x = 1;\\n" });\n  expect(refused.authority.toolErrors).toHaveLength(1);`;
+/** The dispatcher driven at the production shape, with the subject in the `policies` array literal. */
+const driving = (binding: string): string =>
+  `  const refused = ${DISPATCHER}({ knownPolicies: [${binding}], policies: [${binding}] });\n  expect(refused.authority.toolErrors).toHaveLength(1);`;
+const DRIVEN = driving("probe");
+/** THE HELPER SHAPE — the dominant authored spelling across the live family tests, and the one the parameter
+ *  hop exists for. The driven set is a PARAMETER; only its call site names the subject. */
+const DRIVEN_THROUGH_HELPER = `  function pass(policy: unknown): { authority: { toolErrors: unknown[] } } {\n    return ${DISPATCHER}({ knownPolicies: [policy], policies: [policy] });\n  }\n  expect(pass(probe).authority.toolErrors).toHaveLength(1);`;
+/** THE LOOP SHAPE — a for-of binding has no single authored value either, so the subject is the ITERATED
+ *  expression (`bus-pair.test.ts:162` drives three policies this way). */
+const DRIVEN_THROUGH_LOOP = `  for (const policy of [probe]) {\n    const refused = ${DISPATCHER}({ knownPolicies: [policy], policies: [policy] });\n    expect(refused.authority.toolErrors).toHaveLength(1);\n  }`;
+/** THE ALIAS-AND-SPREAD SHAPE — a module const of the family, spread into the driven set. Two hops in one
+ *  fixture on purpose: the spread element and the const alias behind it are separate branches of the walk. */
+const DRIVEN_THROUGH_SPREAD = `  const family = [probe];\n  const refused = ${DISPATCHER}({ knownPolicies: [...family], policies: [...family] });\n  expect(refused.authority.toolErrors).toHaveLength(1);`;
 /** A probe that DERIVES its population (one declared resource) — the shape this policy asks about.
  *
  *  The trunk's `resources: []` is REPLACED, never appended to: `ORDINARY_TRUNK` already declares the empty array,
@@ -238,18 +436,35 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const pinned = new Set<string>();
+    const drives: Drive[] = [];
+    const index: CallIndex = new Map();
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node, sourceFile): void => {
-            if (Node.isCallExpression(node) && ctx.relativePath(sourceFile).startsWith(TESTS_DIR)) {
-              recordPin(pinned, node, sourceFile);
+            const path = ctx.relativePath(sourceFile);
+            const callee = Node.isCallExpression(node) ? node.getExpression() : undefined;
+            if (callee === undefined || !Node.isCallExpression(node) || !path.startsWith(TESTS_DIR) || !Node.isIdentifier(callee)) {
+              return;
+            }
+            // BOTH sides of the join are collected in this one pass: the dispatcher calls, and every
+            // identifier-callee call so a helper's ARGUMENTS can be reached from its parameter later. Nothing
+            // is resolved yet — a helper is routinely authored above its own call sites.
+            const key = callKey(path, callee.getText());
+            index.set(key, [...(index.get(key) ?? []), node]);
+            if (callee.getText() === DISPATCHER) {
+              drives.push({ call: node, path });
             }
           },
         },
       ],
-      evaluate: (): void => judgeCorpus(ctx, pinned),
+      evaluate: (): void => {
+        for (const drive of drives) {
+          recordPin(drive, index, pinned);
+        }
+        judgeCorpus(ctx, pinned);
+      },
     };
   },
   mustFlag: [
@@ -263,10 +478,31 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture(DERIVING(""), {
         ...ELSEWHERE,
-        [PIN_TEST_PATH]: PIN_TEST(`  const other = ${DISPATCHER}(sibling, {});\n  void other;`, "elsewhere", "sibling"),
+        [PIN_TEST_PATH]: PIN_TEST(`  const other = ${DISPATCHER}({ policies: [sibling] });\n  void other;`, { module: "elsewhere", binding: "sibling" }),
       }),
       expect: { count: 1, token: "resources" },
       why: "THE PIN MUST BIND TO THIS MODULE: a family test that drives the dispatcher but imports a DIFFERENT module covers nothing here. Without this row the test half would be satisfied by any `runPolicyPass` anywhere in the suite — coverage by coincidence",
+    },
+    {
+      mode: "types",
+      files: familyFixture(DERIVING(""), {
+        [PIN_TEST_PATH]: PIN_TEST(`  const refused = ${DISPATCHER}(probe, {});\n  void refused;`, { dispatcher: RETIRED_DECLARATION }),
+      }),
+      expect: { count: 1, token: "resources" },
+      why: "#2274, THE DEAD HALF LANDED AS AN ASSERTION RATHER THAN AN ABSENCE (§4.1): a call in the RETIRED two-positional shape `runPolicyPass(<policy>, …)` credits NOTHING, because the production dispatcher takes one options object and never had a positional subject. The founding recognizer read exactly this shape, so its `mustPass` TEST-HALF row was green over a signature that exists nowhere on the tree while every real family test discharged nothing — measured 60 → 59 for the invented shape and 60 → 60 for the real one at `80b0693cb`. Without this row the recognizer could drift back and the proof set would not notice",
+    },
+    {
+      mode: "types",
+      files: familyFixture(DERIVING(""), {
+        ...ELSEWHERE,
+        [PIN_TEST_PATH]: PIN_TEST(`  const other = ${DISPATCHER}({ knownPolicies: [probe], policies: [sibling] });\n  void other;`, {
+          module: "elsewhere",
+          binding: "sibling",
+          alsoImport: "probe",
+        }),
+      }),
+      expect: { count: 1, token: "resources" },
+      why: "`knownPolicies` IS NOT THE DRIVEN SET, and the fixture puts THE JUDGED MODULE in it so the row can actually fail: the roster authority reconciliation needs lists policies that are never RUN, so a module appearing only there was never exercised and its refusal was never reached. Point `DRIVEN_FIELD` at `knownPolicies` and this row alone goes green. Crediting it would be the same coverage-by-coincidence the row above forbids, one field over",
     },
     {
       mode: "types",
@@ -288,7 +524,22 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN) }),
-      why: "THE TEST HALF: a family test that IMPORTS this module and drives it through `runPolicyPass` inside a `test(…)`. This is the arm a row cannot express — an owner status, an empty finding set, a phase — and #1977 exists because it used to live in a header instead",
+      why: "THE TEST HALF, AT THE PRODUCTION SIGNATURE: a family test that IMPORTS this module and drives it through `runPolicyPass({ policies: [<it>] , … })` inside a `test(…)`. This is the arm a row cannot express — an owner status, an empty finding set, a phase — and #1977 exists because it used to live in a header instead. The fixture is the shape `mirror-index-family.test.ts:55` actually writes; #2274 is what an invented one costs",
+    },
+    {
+      mode: "types",
+      files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_HELPER) }),
+      why: "THE HELPER SHAPE, which is the DOMINANT one across the live family tests (`pass(policy, …)` wrapping the dispatcher, ~half of the ~60 files): the driven set is a PARAMETER, and `resolveStableExpression` cannot resolve a parameter by contract. The walk hops to the declaring function's call sites in the same file. This policy's unreadability direction is inverted from `policy-fixture-substrate`'s — an unresolved read here ACCUSES — so without the hop the family's own doctrine makes it a false-accusation engine over the correct majority",
+    },
+    {
+      mode: "types",
+      files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_LOOP) }),
+      why: "THE LOOP SHAPE: a `for (const policy of […])` driving several policies through one dispatcher call. The binding has no single authored value, so the subject is the ITERATED expression — every member is driven, which is exactly what the loop does. Live at `bus-pair.test.ts:162`, where three policies share one loop and two of them stayed accused until the hop was read",
+    },
+    {
+      mode: "types",
+      files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_SPREAD) }),
+      why: "THE ALIAS-AND-SPREAD SHAPE: the driven set is `[...family]` over a const the file declares. Two branches of the walk in one row — the spread element, and the alias behind it resolved through `stableTerminal`. Cut either and this row alone reds",
     },
     {
       mode: "types",
