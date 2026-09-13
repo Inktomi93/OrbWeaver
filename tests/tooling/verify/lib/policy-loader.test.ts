@@ -207,6 +207,24 @@ test("a proof `links` map is resource-mode only and cannot collide with a declar
   expect(() => assertGatePolicyDescriptor(linked({ "/absolute.ts": ".." }))).toThrow(/repo-relative/i);
 });
 
+test("a proof destination may not name a .git control segment in any case, while node_modules and .git-prefixed names stay valid (#2333)", () => {
+  const withFiles = (files: Record<string, string>, links?: Record<string, string>): unknown =>
+    resourcePolicy({ mustPass: [{ mode: "resource", files: { "biome.json": "{}", ...files }, ...(links === undefined ? {} : { links }), why: "w" }] });
+  // A `.git/config` fixture is written before the runner's own `git add`, and repository config can name a
+  // command (`core.fsmonitor`) that git then executes. Case variants name the same directory on a
+  // case-insensitive filesystem.
+  for (const key of [".git/config", ".GIT/config", "packages/x/.Git/hooks/pre-commit"]) {
+    expect(() => assertGatePolicyDescriptor(withFiles({ [key]: "[core]\n" })), key).toThrow(/files path names a \.git control segment/u);
+    expect(() => assertGatePolicyDescriptor(withFiles({}, { [key]: "target" })), key).toThrow(/links path names a \.git control segment/u);
+  }
+  // NEAR MISSES: installed-package files and names that merely start with `.git` are ordinary destinations.
+  expect(() =>
+    assertGatePolicyDescriptor(
+      withFiles({ "node_modules/pkg/index.js": "x", ".gitignore": "x", ".github/workflows/ci.yml": "x", "packages/x/.gitkeep": "x", "a.git/b": "x" }),
+    ),
+  ).not.toThrow();
+});
+
 test("a proof link may not be an ANCESTOR of another declared destination, which would be written THROUGH it (#2333)", () => {
   const linked = (files: Record<string, string>, links: Record<string, string>): unknown =>
     resourcePolicy({ mustPass: [{ mode: "resource", files: { "biome.json": "{}", ...files }, links, why: "w" }] });
