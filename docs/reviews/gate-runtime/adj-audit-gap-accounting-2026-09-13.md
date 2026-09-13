@@ -212,3 +212,7 @@ from current literal/source searches; that is not a negative proof that no test 
 The accounting above did not justify new rows from omissions alone. The subsequent
 [targeted probe report](adj-audit-gap-probes-2026-09-13.md) reproduced a concrete cast-anchor tool error
 and filed #2325. This is new measured evidence, not a reclassification of every omitted probe as a defect.
+
+## Authorization census follow-up
+
+The separately routed security review completed the previously omitted measurement. Across the real policy population of 1,148 files at `83215b816`, all three header-defined omitted shapes have zero instances. Each recognizer detected its planted positive control. The named production gate reported three raw findings, all three granted, with no effective findings, alarms, tool errors, or withheld policies. This clears the census question within those exact shapes; it does not claim every possible enforcement encoding is measured. The [full census report](adj-role-authority-census-2026-09-13.md) preserves the source scope, controls, production artifact and limits.
