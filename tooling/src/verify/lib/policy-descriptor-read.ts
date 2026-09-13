@@ -39,6 +39,7 @@ import type {
   Node as MorphNode,
   ObjectLiteralExpression,
   PropertyAssignment,
+  ShorthandPropertyAssignment,
   SourceFile,
   TemplateExpression,
 } from "ts-morph";
@@ -148,9 +149,9 @@ export function descriptorValue(object: ObjectLiteralExpression, name: string): 
 }
 
 /** The property node itself — the report anchor for a finding about that property. */
-export function descriptorProperty(object: ObjectLiteralExpression, name: string): PropertyAssignment | undefined {
+export function descriptorProperty(object: ObjectLiteralExpression, name: string): PropertyAssignment | ShorthandPropertyAssignment | undefined {
   const property = object.getProperty(name);
-  return Node.isPropertyAssignment(property) ? property : undefined;
+  return Node.isPropertyAssignment(property) || Node.isShorthandPropertyAssignment(property) ? property : undefined;
 }
 
 /** Through immutable aliases to the terminal expression; a dynamic terminal (call, template, conditional…)
