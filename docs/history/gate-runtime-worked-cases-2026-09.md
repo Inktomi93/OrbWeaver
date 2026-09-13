@@ -75,13 +75,79 @@ shared indexes. A resolved declaration escaped a consumer population and `ctx.re
 The repairs became live law §3: `readyResourceValue`, measured receipts at dependency granularity, health conditions
 inside ready values, union provider populations, and `declarationHome` for fact-delivered declarations.
 
+## Resource vocabulary provenance and residual dispositions
+
+The parent’s former §12.4 table (lines 1825–1844 at `cd8a25c91a6bbee2e37e6a79195138f87759fac2`)
+recorded why each admitted kind existed. This is a historical summary of every row; the current tuple and contract
+headers own membership, ids, status and receipt semantics. Counts and file lists are not copied as current authority.
+
+| Historical kind | Recorded purpose and admission reason |
+| - | - |
+| `authored-tree` | closed directory identities; later docs/scripts roots admitted authored-text subjects |
+| `authored-css` | stylesheet corpus and authored CSS inventory; no competing CSS census fact |
+| `product-css` | exact product CSS identity and its inventory; same no-duplicate-census ruling |
+| `package-metadata` | closed package manifest identities; shipped before the Phase C ruling |
+| `static-config` | preserve the existing evaluator, host its loading; not a second evaluator |
+| `native-config` | native ESLint/depcruise observations inherited from the world program; whole inventory carrier hazard was kind-specific |
+| `tracked-files` | shared Git tracked inventory for grant liveness |
+| `json` | strict named JSON inputs, built at `4f9726e78`; missing, empty and unparseable never become an empty object |
+| `installed-package` | owner combined the narrow installed facts into one Node-resolved, three-mode kind; authored readers reject pnpm store symlinks |
+| `mirror-index` | source/test membership rather than the mirror rule, built at `899ec74a7` |
+| `documents` | living document corpus and catalog status for citation questions |
+| `ledger` | exact registry identity beside the document corpus: a corpus can tolerate a refused member where an identity cannot |
+| `exact-file` | named exact inputs, built at `899ec74a7`; one declaration per id prevents argument widening |
+| `vendor-css-surface` | committed versus installed vendor surface comparison |
+| `token-contract` | preserved canonical token-bundle validation |
+| `devtools-closure` | preserved exact pin, closure and licence validation |
+| `authored-path` | demand identity, including absolute selectors and outside-tree symlinks, specified by the runner-config conversion refusal |
+| `authored-text` | exposure of the existing private ordinary-waiver carrier door, not a new Phase C ruling; total over demanded formats |
+
+The parent distinguished unpopulated requests from demand requests and a host door from a kind: `cssInventory` used
+CSS declarations. It priced kind admission from `899ec74a7` and `4f9726e78`: declaration, host, binding/receipt and
+validation edits; family contract/provider files; conformance changes when fixtures needed new substrate. Its correction
+excluded roster parity and an unrelated modernization hunk from that pricing. Current law §4 retains the admission
+obligations without freezing that implementation file list.
+
+The residual outcomes (former lines 1881–1924) were distinct. A staged-blob read had one measured consumer, so the
+ruling refused a private new kind while retaining staged/worktree divergence and requiring a conversion or successor
+proof. A `jsonc` kind was first requested, then ruled out: folding already belonged to the compiler reader, and the
+remaining question was raw entry exposure. `tsconfig-entry-liveness` used that route at `97e68be91`; Biome rule liveness
+remained a separate stage. Installed-package traversal was admitted only through its declared base/id/mode contract.
+
+The directory-tier operator (former lines 1926–1942) was an unbuilt proposal with two arms: measured admission algebra
+versus existing exact reviewed grants. The default remained grants. Adoption required a directory-tier/file-exact census,
+unchanged existing populations, and two-sided operator proof; population subtraction was forbidden. This preserves the
+proposal and its decision burden as history, without scheduling it or making it live authority.
+
 ## Mixed-hook arity amendments
 
-The thirteen legacy mixed-hook modules converted into final policies. Two initial mappings assumed nonempty legacy data
+The parent guide recorded the thirteen legacy mixed-hook modules as converted on 2026-09-12. Two initial mappings assumed nonempty legacy data
 and were amended after reading the real evidence: `ui-variant-axes-stamped` had an empty baseline object and
 `no-inline-union-redecl` had an empty exemption table. Empty does not mean absent or irrelevant. Arity and split
 decisions come from authority, severity, execution, and distinct semantic arms, not from the current number of rows in
 an exemption object.
+
+The exact ruled mapping below is copied from `cd8a25c91a6bbee2e37e6a79195138f87759fac2`, former
+standardization lines 2004–2018. It records the 2026-09-11 ruling as amended by 2026-09-12, not a claim that current
+modules still have these shapes. The parent’s amendment specifically names `tooling-argv-front-door`: splitting one
+predicate into two policies would double-report, while consulting grants to distinguish them was forbidden. Current
+source can supersede this mapping only with the source/proof reconciliation required by live law §2.
+
+| Current module | Final mapping |
+| - | - |
+| `agent-bridge-lock` | visitors plus exact-file `visitFile`; all cross-file reconciliation in `evaluate`; one hard policy |
+| `design-audit-rule-proof` | registry/proof visitors plus `evaluate`; one hard policy |
+| `no-inline-union-redecl` | ordinary union/respell policy, reviewed SDK-mirror grant policy, and hard grant-health policy under one family |
+| `query-boundary-reservation` | ordinary unreserved-boundary policy plus hard duplicate/seam-health policies |
+| `session-channel-boundary` | ordinary construction policy plus hard home-health policy |
+| `sub-floor-disclosure` | ordinary occurrence policy plus hard vocabulary-health policy |
+| `testid-liveness` | ordinary dead-consumer/row policy plus hard registry-health policy |
+| `tooling-argv-front-door` | ordinary illegal-reader, reviewed entry-grant, and hard population-health policies |
+| `tooling-front-door` | ordinary import-boundary policy plus reviewed root-config grant policy |
+| `tooling-instrument-proof` | syntax/resource visitors plus `evaluate`; one hard policy |
+| `tooling-ops-direct-invocation` | canonical exported-function/module-call facts plus `evaluate`; one hard policy |
+| `tooling-shared-plumbing` | separate family ids for Project home, browser doors, artifact/run-slot, exit/CLI, child-process priority, ports, and clock budgets; each id has one authority |
+| `ui-variant-axes-stamped` | hard recipe/duplicate/blindness policies plus work-item-linked warning debt; baseline deleted |
 
 ## Runtime and orchestration incidents
 
@@ -94,6 +160,32 @@ Transcript review found repeated decisions made from names, summaries, or stale 
 source. It also found lanes drained during bookkeeping, unclaimed dispatched rows, Verify rows treated as proven,
 oversized repeated briefs, and standing rules left only in chat. The current procedure is in the playbook; this record
 does not preserve account-specific division or live concurrency numbers as authority.
+
+## Dated ruling and transcript dispositions
+
+These summaries identify the former owner chronology at `cd8a25c91a6bbee2e37e6a79195138f87759fac2`.
+The durable conservation map is [the #2071 repair receipt](../reviews/gate-runtime/docs-preservation-map-2071.md).
+Summarizing an incident retires its narration, not any standing protection it produced.
+
+| Parent span | Historical outcome retained here | Current rule destination |
+| - | - | - |
+| standardization 1448–1492 | September 12 convert/delete, proof polarity, verifier ledger, serialized checks, teardown and formatter-generator corrections | law §§2–8; playbook §§2–7; generator-input coupling in playbook §4.1 |
+| standardization 1494–1539 | Phase C reused the access-pattern design, retired the routing-parity proposal, closed status/overlay questions, combined installed facts, and specified authored-path | law §§3–4; resource provenance above; world-program table below |
+| standardization 1541–1546 | TS/TSX population, exact sanctioned-home grants, modeled conditional publisher, sentinel-only compact map, and optional `--dod` posture | law §§4–5; historical product/snapshot details remain dated evidence, not a new gate contract |
+| standardization 1548–1564 | mixed execution replaced atomic cutover; one receipt vocabulary, marker ownership and proof rules survived; hook/model/account assignments changed during the train | law §§1–3,6; playbook §§4,8 and current constitution commit policy |
+| playbook 653–731 | transcript audit found skipped evidence levels, repetitive bookkeeping, stale Verify/audit cells and a false claim that a missing gate meant missing behavioral proof | read-first §§2–3; law §6.1; playbook §§1–2,5 |
+| playbook 732–767 | symbol moves crossed lint boundaries and left duplicate/false precedent text; a warm lane measured an old base; aggregate counts misidentified causes | playbook §§4.1,5–6 |
+| playbook 768–801 | wrong TS configs passed; two accounts duplicated a finding; hidden/artifact-path citers escaped retirement; claimed ledger flips never happened; substitute instrument counts were not verdicts | current native-program floor; playbook §§4.1,6 |
+| playbook 802–840 | a test depended on backwards chronology; conflict resolution broke parsing after its floor; generator/formatter disagreement and ignored fixtures invalidated clean claims; config population changes differed from respelling | playbook §§4.1,5–6; world-program table below |
+| playbook 841–968 | pre-claim rows were already closed; keyword recovery missed promises; defect-split fixes missed modules; overlong briefs and post-closure verification recurred; marker grammar/name counts misled | read-first §3; law §§2.1,6–7; playbook §§2–6 |
+| read-first 7–13,47–93,97–133 | recursive reading consumed context, handwritten sizes all staled, contract headers were skipped, and census labels missed differently named tables | read-first §§1–2; current generated size block |
+
+Named phase/wave assignments, account quotas and engine posture in the former playbook 17–388 and read-first 135–214
+are snapshots, not reusable dispatch instructions. They remain retrievable at the parent revision; live Git, board and
+runtime controls replace them. The mixed-runtime section above preserves what those changing inventories demonstrate.
+The old September 11 `duplicate-action-doors` sentence combined hard cardinality and reviewed surfaces in one shorthand;
+current law’s one-authority rule governs the actual split. Historical hook and model assignments do not override current
+constitution or runtime routing. The former transcript extractor is Claude-format evidence, not a portable Codex API.
 
 ## Cardinality rulings
 
