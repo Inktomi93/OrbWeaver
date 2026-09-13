@@ -18,11 +18,21 @@
 //   1. THE PRIVATE CROSS-MODULE RESOLVER IS GONE. Legacy `resolveName` hand-rolled identifier lookup
 //      (`sf.getVariableDeclaration` plus a named-import hop through `getModuleSpecifierSourceFile`) — a
 //      private reader wearing a shared reader's clothes (§5b item 7). Identity now goes through
-//      `lib/reference-fact.ts#resolveStableExpression` and `lib/reference-fact-call.ts#resolveCallableOrigin`,
-//      the shared binding readers, which are STRICTLY STRONGER: they see through aliases, re-export
-//      renames and namespace members, and they REFUSE a binding that is written to (a reassigned `let`
-//      resolved silently in the legacy reader and now lands on the UNSAFE arm, which is the correct
-//      direction for this policy). That is why `analysis` is "types" and the proof rows are `mode: "types"`.
+//      `lib/reference-fact.ts#resolveStableExpression` and
+//      `lib/reference-fact-call.ts#resolveCallableDeclaration`, the shared binding readers, which are
+//      STRICTLY STRONGER: they see through aliases, re-export renames and namespace members, and they
+//      REFUSE a binding that is written to (a reassigned `let` resolved silently in the legacy reader and
+//      now lands on the UNSAFE arm, which is the correct direction for this policy). That is why
+//      `analysis` is "types" and the proof rows are `mode: "types"`.
+//      **AND THE LAST HALF OF IT WENT AT #2163.** Until then `calleeDeclaration` was TWO halves: the
+//      shared origin reader for the cross-module case plus a local
+//      `lexicalReferenceSymbol(...).getDeclarations()` fallback with a private exactly-one-declaration
+//      rule, because the origin reader answers "which module EXPORT is this" and refuses a module-LOCAL
+//      factory by design. That fallback was the shape the owner ruling on #2097 forbids, and its
+//      exactly-one rule was this module's own answer to declaration multiplicity. Both halves now live in
+//      `resolveCallableDeclaration`, which tries the module axis first and falls back to the lexical
+//      binding — so a local overload set resolves to its implementation instead of refusing, and a
+//      reassigned callee refuses instead of resolving. `mustPass[1]` is the module-local arm's pin.
 //   2. THE FUNCTION-RETURN DESCENDANT WALK IS GONE. Legacy read a callee's returns with
 //      `decl.getDescendantsOfKind(SyntaxKind.ReturnStatement)` — one of §3's named bans, and recorded as
 //      such at `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:103`. ReturnStatement is now
@@ -63,8 +73,7 @@ import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { resolveStableExpression } from "../lib/reference-fact.ts";
-import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
-import { lexicalReferenceSymbol } from "../lib/reference-fact-writes.ts";
+import { resolveCallableDeclaration } from "../lib/reference-fact-call.ts";
 
 const LEADING_SPACE = /^\s/u;
 const TRAILING_SPACE = /\s$/u;
@@ -137,17 +146,17 @@ function staticValues(expr: Node, depth: number, read: (node: Node, depth: numbe
   return values;
 }
 
-/** The single declaration a direct call names. The shared callable reader answers the cross-module case
- *  (aliases, re-export renames); a MODULE-LOCAL factory refuses there by design, and the documented
- *  fallback is the shared lexical symbol with an exactly-one-declaration rule. */
+/** The single declaration a direct call names — ONE question, ONE shared reader (#2097).
+ *
+ *  This used to be two halves: `resolveCallableOrigin` for the cross-module case plus a local
+ *  `lexicalReferenceSymbol(...).getDeclarations()` fallback with an exactly-one rule, because the origin
+ *  reader answers "which module EXPORT is this" and a module-LOCAL factory refuses there by design. The
+ *  fallback was the forbidden shape, and its exactly-one rule was this module's private answer to
+ *  multiplicity — `resolveCallableDeclaration` now owns both halves and every hard case with them
+ *  (a reassigned binding refuses, an overload set resolves to its implementation, a cycle terminates). */
 function calleeDeclaration(call: CallExpression): Node | undefined {
-  const origin = resolveCallableOrigin(call);
-  if (origin.kind === "resolved" && origin.value.target.kind === "module" && origin.value.target.canonical.kind === "project") {
-    return origin.value.target.canonical.declaration;
-  }
-  const callee = unwrapExpression(call.getExpression());
-  const declarations = callee.isKind(SyntaxKind.Identifier) ? (lexicalReferenceSymbol(callee)?.getDeclarations() ?? []) : [];
-  return declarations.length === 1 ? declarations[0] : undefined;
+  const callable = resolveCallableDeclaration(call);
+  return callable.kind === "resolved" ? callable.value.declaration : undefined;
 }
 
 interface SpliceState {
@@ -389,7 +398,7 @@ export const gate = defineGate({
         "packages/client/src/probe.tsx":
           'function widthClass(c: boolean): string {\n  return c ? " w-avatar-hero" : "";\n}\nconst x = <div className={`shrink-0${widthClass(true)}`} />;\n',
       },
-      why: "the same idiom through a MODULE-LOCAL function, which `resolveCallableOrigin` refuses by design (it answers 'which module EXPORT is this') — the documented `lexicalReferenceSymbol` fallback is what resolves it, and real code is full of module-local factories",
+      why: "the same idiom through a MODULE-LOCAL function, and the pin on the shared callable reader's LEXICAL arm — the module-origin axis refuses this by design (it answers 'which module EXPORT is this'), so `resolveCallableDeclaration`'s lexical fallback is what resolves it, and real code is full of module-local factories. Cut that fallback (as this lane did, red-first) and this row alone reds",
     },
     {
       mode: "types",
