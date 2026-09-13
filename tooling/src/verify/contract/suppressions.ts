@@ -5,7 +5,7 @@
 // file (`governedScope` in gates/suppressions.ts), never from a second list.
 
 /** ONE tuple, so a third scope is a row here and `tsc` finds every reader (Spine-TypeScript-and-Patterns.md §7.5).
- *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `GovernedScope` union (line 9) — the
+ *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `GovernedScope` union — the
  *  ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the
  *  re-spell `no-inline-union-redecl` exists to stop. */
 export const GOVERNED_SCOPES = ["source", "tests"] as const;

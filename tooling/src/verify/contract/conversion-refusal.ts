@@ -33,7 +33,7 @@
  *  that refusal and shipped, and the module sat legacy and refusing because nothing re-opens a refusal when
  *  its blocker lands. `missing-kind` is that half.
  *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `ConversionRefusalBlockerKind` union
- *  (line 39) — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would
+ *  — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would
  *  invite the re-spell `no-inline-union-redecl` exists to stop. */
 export const CONVERSION_REFUSAL_BLOCKER_KINDS = ["sole-consumer", "missing-kind"] as const;
 /** @public knip type-face false positive — the importable union spelling of the `CONVERSION_REFUSAL_BLOCKER_KINDS` vocabulary —
@@ -50,7 +50,7 @@ export type ConversionRefusalBlockerKind = (typeof CONVERSION_REFUSAL_BLOCKER_KI
  *  citing it) as a consumer. The header-span half of the same lesson was paid on 2026-09-12 (#2047), where
  *  a whole-file grep scored three genuinely-missing FAMILY lines as PRESENT because the modules' own proof
  *  rows quoted the field names.
- *  @public knip type-face false positive — an arm of the exported `ConversionRefusalBlocker` union (line 86), reached by
+ *  @public knip type-face false positive — an arm of the exported `ConversionRefusalBlocker` union, reached by
  *  narrowing on its discriminant and never named at a call site. */
 export interface SoleConsumerBlocker {
   readonly kind: "sole-consumer";
@@ -80,7 +80,7 @@ export interface SoleConsumerBlocker {
  *  serving one gate is that gate's private reader wearing a contract's clothes, so a refusal on this
  *  ground has already decided what the kind would be called if it were ever minted. Declaring that name is
  *  what makes the claim falsifiable.
- *  @public knip type-face false positive — an arm of the exported `ConversionRefusalBlocker` union (line 84), reached by
+ *  @public knip type-face false positive — an arm of the exported `ConversionRefusalBlocker` union, reached by
  *  narrowing on its discriminant and never named at a call site. */
 export interface MissingKindBlocker {
   readonly kind: "missing-kind";
@@ -89,7 +89,7 @@ export interface MissingKindBlocker {
   readonly wouldBeKind: string;
 }
 
-/** @public knip type-face false positive — a structural field (`blockers`) of the exported `ConversionRefusal` shape (line 97),
+/** @public knip type-face false positive — a structural field (`blockers`) of the exported `ConversionRefusal` shape,
  *  never referenced by its own name at any call site. */
 export type ConversionRefusalBlocker = SoleConsumerBlocker | MissingKindBlocker;
 

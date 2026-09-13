@@ -45,11 +45,11 @@ import type { PolicySelector } from "./policy-plan.ts";
  *
  *  So the two axes are orthogonal and both are recorded: `complete` = the run finished · `verdict` = what it
  *  finished is about the real tree. Every reader refuses a `non-verdict` LOUDLY and names the reason.
- *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `RunVerdictKind` union (line 51) —
+ *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `RunVerdictKind` union —
  *  the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the
  *  re-spell `no-inline-union-redecl` exists to stop. */
 export const RUN_VERDICT_KINDS = ["verdict", "non-verdict"] as const;
-/** @public knip type-face false positive — a structural field (`verdict`) of the exported `RunManifest` shape (line 56), never
+/** @public knip type-face false positive — a structural field (`verdict`) of the exported `RunManifest` shape, never
  *  referenced by its own name at any call site. */
 export type RunVerdictKind = (typeof RUN_VERDICT_KINDS)[number];
 

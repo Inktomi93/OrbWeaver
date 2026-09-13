@@ -4,7 +4,7 @@
 // ../ops/run.ts.
 import type { Selection } from "./selection.ts";
 
-/** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `Tier` union (line 8) — the ONE
+/** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `Tier` union — the ONE
  *  importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the re-spell
  *  `no-inline-union-redecl` exists to stop. */
 export const VERIFY_TIERS = ["changed", "static", "push", "full", "manual"] as const;

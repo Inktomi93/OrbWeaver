@@ -64,7 +64,7 @@ export const INSTALLED_PACKAGE_DEFINITIONS: Readonly<Record<InstalledPackageId, 
   streamdown: { specifier: "streamdown", from: "packages/ui/package.json", directoryAnchor: "styles.css" },
 };
 
-/** @public knip type-face false positive — a structural field (`id`) of the exported `InstalledPackageFacts` shape (line 102),
+/** @public knip type-face false positive — a structural field (`id`) of the exported `InstalledPackageFacts` shape,
  *  never referenced by its own name at any call site. */
 export interface InstalledPackageMetadata {
   readonly name: string;
@@ -79,7 +79,7 @@ export interface InstalledPackageMetadata {
   readonly exportKeys: readonly string[];
 }
 
-/** @public knip type-face false positive — a structural field (`id`) of the exported `InstalledPackageFacts` shape (line 101),
+/** @public knip type-face false positive — a structural field (`id`) of the exported `InstalledPackageFacts` shape,
  *  never referenced by its own name at any call site. */
 export interface InstalledPackageText {
   /** The named file, exactly as the request spelled it, relative to the package directory. */
@@ -89,7 +89,7 @@ export interface InstalledPackageText {
 
 /** Declaration files of the installed package, parsed once per invocation in the door's own workspace. The
  *  paths are the door's identity; the parsed sources are handed to the consumer's own interpretation.
- *  @public knip type-face false positive — a structural field (`id`) of the exported `InstalledPackageFacts` shape (line 100),
+ *  @public knip type-face false positive — a structural field (`id`) of the exported `InstalledPackageFacts` shape,
  *  never referenced by its own name at any call site. */
 export interface InstalledPackageDeclarations {
   /** Absolute declaration-file paths, sorted. They are NOT repo paths: an installed package legitimately

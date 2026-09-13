@@ -16,7 +16,7 @@ import { Node, VariableDeclarationKind } from "ts-morph";
 import type { ProjectHomeVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "./reference-fact.ts";
-import { declaredByAnyPackage, resolveTypeMemberOrigin } from "./type-member-origin.ts";
+import { declaredByAnyPackage, resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "./type-member-origin.ts";
 
 /** The home a policy seals: one repo-relative file and the exported names it owns. */
 export interface ProjectHomeDeclaration {
@@ -149,9 +149,11 @@ function uncastMemberDeclaredByPackage(node: MorphNode, packageNames: readonly s
     return false;
   }
   const receiver = uncastReceiver(read.value.receiver);
-  const symbol = receiver.getType().getNonNullableType().getProperty(read.value.name);
-  const declarations = symbol?.getDeclarations() ?? [];
-  return declaredByAnyPackage(declarations, packageNames);
+  // Through the shared reader (#2097): "no property symbol" and "a symbol with no declaration" are the same
+  // NO-EVIDENCE answer for this predicate, which is what the doc above states, so an unresolved fact
+  // collapses to the empty set exactly as the open-coded `?? []` did.
+  const origin = resolveTypePropertyOrigin(receiver, read.value.name);
+  return declaredByAnyPackage(origin.kind === "resolved" ? origin.value : [], packageNames);
 }
 
 /** Judge one MEMBER read against a third-party package home: the property symbol the checker resolved off

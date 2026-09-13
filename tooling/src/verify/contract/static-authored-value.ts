@@ -3,7 +3,7 @@ import type { Node } from "ts-morph";
 
 export type StaticAuthoredScalar = string | number | boolean | null;
 
-/** @public knip type-face false positive — an arm of the exported `StaticAuthoredValue` union (line 33), reached by narrowing on
+/** @public knip type-face false positive — an arm of the exported `StaticAuthoredValue` union, reached by narrowing on
  *  its discriminant and never named at a call site. */
 export interface StaticAuthoredScalarValue {
   readonly kind: "scalar";
@@ -11,7 +11,7 @@ export interface StaticAuthoredScalarValue {
   readonly node: Node;
 }
 
-/** @public knip type-face false positive — an arm of the exported `StaticAuthoredValue` union (line 31), reached by narrowing on
+/** @public knip type-face false positive — an arm of the exported `StaticAuthoredValue` union, reached by narrowing on
  *  its discriminant and never named at a call site. */
 export interface StaticAuthoredTupleValue {
   readonly kind: "tuple";

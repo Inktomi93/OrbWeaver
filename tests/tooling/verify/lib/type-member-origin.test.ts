@@ -14,6 +14,7 @@ import {
   resolveTypeIdentityChain,
   resolveTypeIdentityOrigin,
   resolveTypeMemberOrigin,
+  resolveTypePropertyOrigin,
 } from "../../../../tooling/src/verify/lib/type-member-origin.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -230,4 +231,70 @@ test("an empty declaration set is never a home — the fail-closed floor under b
   expect(declaredByPackage([], "@vendor/cache")).toBe(false);
   expect(declaredByAnyPackage([], ["@vendor/cache"])).toBe(false);
   expect(declaredByFile([], file(project, "j.ts"))).toBe(false);
+});
+
+// ── THE BINDING-PATTERN TWIN (#2097 / #2194) ────────────────────────────────────────────────────────
+// `resolveTypePropertyOrigin` exists because a destructure has NO member-access node: its subject is a
+// `BindingElement`, so `resolveTypeMemberOrigin` cannot be asked at all and three modules were finishing
+// `type.getProperty(name)?.getDeclarations()` themselves. These two arms walk the reader the way its callers
+// do — from the BindingElement to its VariableDeclaration's initializer — and pin the fail-closed floor,
+// which is the half that matters: an unreadable receiver must REFUSE, never come back as an empty set that
+// reads exactly like "declared somewhere else".
+function destructuredInitializer(source: SourceFile, name: string): Node {
+  const binding = source.getDescendantsOfKind(SyntaxKind.BindingElement).find((element) => element.getName() === name);
+  if (binding === undefined) {
+    throw new Error(`no BindingElement named ${name}`);
+  }
+  const initializer = binding.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
+  if (initializer === undefined) {
+    throw new Error(`the BindingElement named ${name} has no VariableDeclaration initializer`);
+  }
+  return initializer;
+}
+
+test("a DESTRUCTURED property resolves to the same declaration home the dotted read gives", () => {
+  const project = projectOf({
+    "o.ts": [
+      'import type { Cache } from "@vendor/cache";',
+      "export function vendor(cache: Cache): void {",
+      "  const { setQueryData } = cache;",
+      "  setQueryData('k', 1);",
+      "}",
+    ].join("\n"),
+    "p.ts": [
+      "interface LocalCache { setQueryData(key: string, value: unknown): void }",
+      "export function local(cache: LocalCache): void {",
+      "  const { setQueryData } = cache;",
+      "  setQueryData('k', 1);",
+      "}",
+    ].join("\n"),
+  });
+
+  const vendor = expectResolved(resolveTypePropertyOrigin(destructuredInitializer(file(project, "o.ts"), "setQueryData"), "setQueryData"));
+  const local = expectResolved(resolveTypePropertyOrigin(destructuredInitializer(file(project, "p.ts"), "setQueryData"), "setQueryData"));
+
+  // Same spelling, two identities — the pair the whole module exists for, now answerable without a
+  // member-access node. The negative package is the planted control on the matcher itself.
+  expect(declaredByPackage(vendor.value, "@vendor/cache")).toBe(true);
+  expect(declaredByPackage(vendor.value, "@vendor/other")).toBe(false);
+  expect(declaredByPackage(local.value, "@vendor/cache")).toBe(false);
+  expect(declaredByFile(local.value, file(project, "p.ts"))).toBe(true);
+});
+
+test("a destructure the checker cannot place REFUSES as missing — never an empty declaration set", () => {
+  const project = projectOf({
+    "q.ts": [
+      "declare const opaque: Record<never, never>;",
+      "export function ghost(): void {",
+      "  const { setQueryData } = opaque as Record<never, never>;",
+      "  void setQueryData;",
+      "}",
+    ].join("\n"),
+  });
+  const fact = resolveTypePropertyOrigin(destructuredInitializer(file(project, "q.ts"), "setQueryData"), "setQueryData");
+
+  // FAIL-CLOSED: the open-coded chain this reader replaced answered `[]` here, which `declaredByPackage`
+  // then turned into a confident "not this package" — a refusal wearing a verdict's clothes.
+  expect(fact).toMatchObject({ kind: "unresolved", reason: "missing" });
+  expect(fact.kind === "unresolved" ? fact.detail : "").toContain("setQueryData");
 });

@@ -23,14 +23,14 @@ export interface RuntimeClassPrefix {
   readonly consumers: readonly Node[];
 }
 
-/** @public knip type-face false positive — a structural field (`unresolved`) of the exported `StaticClassWalk` shape (line 42),
+/** @public knip type-face false positive — a structural field (`unresolved`) of the exported `StaticClassWalk` shape,
  *  never referenced by its own name at any call site. */
 export interface StaticClassUnresolved {
   readonly node: Node;
   readonly reason: string;
 }
 
-/** @public knip type-face false positive — a structural field (`opaque`) of the exported `StaticClassWalk` shape (line 41), never
+/** @public knip type-face false positive — a structural field (`opaque`) of the exported `StaticClassWalk` shape, never
  *  referenced by its own name at any call site. */
 export interface StaticClassOpaque {
   readonly node: Node;
@@ -72,7 +72,7 @@ export type Composer = (typeof COMPOSERS)[number];
  *  70) — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite
  *  the re-spell `no-inline-union-redecl` exists to stop. */
 export const STATIC_CLASS_CARRIER_KINDS = ["jsx-class", "jsx-spread", "class-property", "composer"] as const;
-/** @public knip type-face false positive — a structural field (`kind`) of the exported `StaticClassCarrierFact` shape (line 71),
+/** @public knip type-face false positive — a structural field (`kind`) of the exported `StaticClassCarrierFact` shape,
  *  never referenced by its own name at any call site. */
 export type StaticClassCarrierKind = (typeof STATIC_CLASS_CARRIER_KINDS)[number];
 
