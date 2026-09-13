@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -182,6 +182,84 @@ test("ui-exports-map-complete: a malformed manifest refuses with its own status 
   expect(refusalShape(result)).toEqual(
     populationRefusal("ui-exports-map-complete", "resource declaration package-metadata:ui is unresolved: malformed package metadata"),
   );
+});
+
+// ---------------------------------------------------------------------------------------------------
+// THE §4.5 REFUSAL PINS for `feature-owns-definition`'s one declared resource (`authored-tree:client-feature`),
+// owed by `resource-policy-contract.md` §3.6 — one pin per declared resource per REACHABLE non-ready status
+// — and absent until 2026-09-13 (#2327, the `policy-refusal-coverage` warning debt). The two pin sets above
+// cover `server-layout` and `ui-exports-map-complete`; this module declares the SAME KIND with a different
+// id and inherits none of them, which is exactly why the contract asks per DECLARED RESOURCE.
+//
+// THE STATUS SET IS READ OFF THE TREE READER, not copied from the manifest kind above.
+// `ops/resource-reader.ts#tree` can answer exactly three non-ready statuses for an authored tree:
+//   • `missing`    — nothing at the tree path (`diskTreePresent` false and no overlay member beneath it);
+//   • `empty`      — the directory EXISTS on disk and has no members, which the overlay cannot express, so
+//                    the pin uses the real mkdtemp scratch root;
+//   • `unresolved` — `loadTree` threw: the path is a regular FILE rather than a directory (a symlink
+//                    traversal is the other cause of the SAME status; the contract asks one pin per status,
+//                    and the file case is the one a lane reproduces without link semantics).
+// `snapshot`'s arm is not reachable here — `authoredTree` never calls it.
+// ---------------------------------------------------------------------------------------------------
+
+const FEATURE_TREE = {
+  "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+  "packages/client/src/features/character/lib/character-section.tsx": "export const S = () => null;\n",
+} as const;
+
+function featureOwnsPass(scratch: string, overlay: Readonly<Record<string, string>>): PolicyPassResult {
+  return runPolicyPass({
+    knownPolicies: [featureOwnsDefinition],
+    policies: [featureOwnsDefinition],
+    root: scratch,
+    project: new Project({ skipAddingFilesFromTsConfig: true }),
+    resourceOptions: { overlay },
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+}
+
+test("feature-owns-definition: a MISSING client-feature tree refuses instead of finding zero unowned features", ({ scratch }) => {
+  const result = featureOwnsPass(scratch, {});
+
+  expect(refusalShape(result)).toEqual(populationRefusal("feature-owns-definition", "resource declaration authored-tree:client-feature is missing"));
+});
+
+test("feature-owns-definition: an EMPTY client-feature tree is a refusal, not a clean sweep of no features", ({ scratch }) => {
+  // The overlay cannot express an empty directory; the scratch fixture is a real mkdtemp root, so the
+  // directory exists on disk with no members — the boundary between "no features" and "no tree".
+  mkdirSync(join(scratch, "packages/client/src/features"), { recursive: true });
+  const result = featureOwnsPass(scratch, {});
+
+  expect(refusalShape(result)).toEqual(populationRefusal("feature-owns-definition", "resource declaration authored-tree:client-feature is empty"));
+});
+
+test("feature-owns-definition: a client-feature tree path that is a FILE refuses as unresolved", ({ scratch }) => {
+  mkdirSync(join(scratch, "packages/client/src"), { recursive: true });
+  writeFileSync(join(scratch, "packages/client/src/features"), "not a directory\n");
+  const result = featureOwnsPass(scratch, {});
+
+  expect(refusalShape(result)).toEqual(populationRefusal("feature-owns-definition", "resource declaration authored-tree:client-feature is unresolved"));
+});
+
+test("feature-owns-definition: the healthy twin reaches a verdict on the same substrate and files one receipt", ({ scratch }) => {
+  const result = featureOwnsPass(scratch, FEATURE_TREE);
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.policies.map(({ receipts }) => receipts)).toEqual([
+    [{ kind: "resource", source: "authored-tree:client-feature", resources: 4, unresolved: 0 }],
+  ]);
+});
+
+test("feature-owns-definition: the twin's silence is a READ — one feature without a definition and it accuses", ({ scratch }) => {
+  // The control for the control: the same healthy tree plus a second feature dir owning no definition.
+  // Without it the clean twin could be green because the tree was never walked.
+  const result = featureOwnsPass(scratch, { ...FEATURE_TREE, "packages/client/src/features/orphan/index.ts": "export const y = 1;\n" });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "feature-owns-definition", token: "orphan" }]);
 });
 
 test("ui-exports-map-complete: an exports block that is not a string map is the REFUSAL half of the retired A4 arm", ({ scratch }) => {
