@@ -795,15 +795,28 @@
     },
     {
       "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
-      "assignedSha256": "a5a4c9a191b79c8690c2d0ecfb03704ccd1e9e699cccce6ca675f89dd50e91ca",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "assignedSha256": "0b5083f8959c5019ba5d8d5e57b8e9b4c03833cafa7b7ea566f2dab723cb40db",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0b5083f8959c5019ba5d8d5e57b8e9b4c03833cafa7b7ea566f2dab723cb40db",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document is the dated review index of refutation findings and their recorded states; Project 1 remains authoritative for mutable ownership and open program debt remains open.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Current dated refutation-ledger index through the integrated repair train, with per-row states, reconciliation receipts, rollup method, and extensive historical limitations."
     },
     {
       "path": "docs/reviews/gate-runtime/registry-family-1584-checkpoint.md",
@@ -5610,6 +5623,256 @@
         }
       ],
       "summary": "Reviewed formatter repair and current-population census, preserving rejected intermediate approaches and the remaining canonical-format backlog."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/adj-audit-gap-accounting-2026-09-13.md",
+      "assignedSha256": "de795d6620a1c62f02d30bcb2958a2c61bae7dd0d11ed448f19d73f334dd294b",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "de795d6620a1c62f02d30bcb2958a2c61bae7dd0d11ed448f19d73f334dd294b",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document records bounded omission accounting and preserves #2319 and other named residual owners without declaring the pending program debt complete.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated accounting of the ten original audit waves’ declared omissions, separating historical limits, already-owned work, and omissions that do not establish defects."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/adj-audit-gap-probes-2026-09-13.md",
+      "assignedSha256": "39691081998533af4b7ccf276f2c20e33285a20dd7e2f6535c79a79c2819bf42",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "39691081998533af4b7ccf276f2c20e33285a20dd7e2f6535c79a79c2819bf42",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document preserves the dated probe verdicts and their corrections; its scoped evidence does not establish whole-corpus completion.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated audit-gap probe report with corrected cast and role-authority dispositions and explicit source/run limits."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/adj-closure-review-2026-09-13.md",
+      "assignedSha256": "61eed553b538006560e9e9651da40738965bf9ae25df9478ba0251dc9f1ddb46",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "61eed553b538006560e9e9651da40738965bf9ae25df9478ba0251dc9f1ddb46",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document preserves the dated independent closure adjudication and its per-row corrections and limitations; it is review evidence rather than a whole-program verdict.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated adversarial review of thirteen tooling closure proposals, preserving accepted corrections, refutations, planted-control receipts, and explicit untested boundaries."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/adj-role-authority-census-2026-09-13.md",
+      "assignedSha256": "c5248a114e54a70699cf691d22510fcbca00df084a05189434ae7c307c5604a3",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "c5248a114e54a70699cf691d22510fcbca00df084a05189434ae7c307c5604a3",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document records a bounded zero-instance census for the three named role-authority shapes and does not claim absence of every possible enforcement encoding.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated census of the three declared omitted two-class-role-authority shapes over the gate population, with in-memory controls and explicit scope exclusions."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-46-records-2026-09-13.md",
+      "assignedSha256": "db8a883c3f70939299caf4d93d985a66aa4e69455050c89df9576486634436d4",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "db8a883c3f70939299caf4d93d985a66aa4e69455050c89df9576486634436d4",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document records the bounded #2273 config-pair and no-color proof repairs while retaining #2319 ownership of the remaining filesystem catch-parity work.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated #2273 report for the three repaired §4.6 proof gaps, including refusal-pin correction and the separately owned filesystem replay remainder."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-attest-fixture-isolation-2026-09-13.md",
+      "assignedSha256": "1dfcb8be85df6fa324822ac256d748786a16961c4bdfc2e0c92dfe48a7f037a7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1dfcb8be85df6fa324822ac256d748786a16961c4bdfc2e0c92dfe48a7f037a7",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document records the bounded fixture Git-isolation correction and its sentinel evidence without claiming a broad verification battery.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated #2238 fixture-isolation receipt covering Git routing variables, disabled hooks, the inherited-index sentinel, and its scoped verification floor."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-cast-anchor-2026-09-13.md",
+      "assignedSha256": "4b55f38d85dd4c56523ec7f400a95f883a6be65eb388b807b18947f6be1edc02",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "4b55f38d85dd4c56523ec7f400a95f883a6be65eb388b807b18947f6be1edc02",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document records the bounded parenthesized-cast coordinate repair and its reviewed proof limits.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated #2325 evidence report for parenthesized branded-cast anchoring, its controls, integration correction, and declared limits."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-eslint-envelope-2026-09-13.md",
+      "assignedSha256": "0fbe6239c40433ddea116b9bbe9185b5d445105b90957e6cb93f051f4a49010a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0fbe6239c40433ddea116b9bbe9185b5d445105b90957e6cb93f051f4a49010a",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document records envelope consistency and malformed-payload refusal while explicitly disclaiming independent proof of native enumeration completeness.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated #2212 repair and final review for honest ESLint discovery envelope diagnostics, native discovery ownership, and measured capture limits."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-instrument-controls-2026-09-13.md",
+      "assignedSha256": "4c5f0a992aad09c01b7cd203099577dbe3952687441207d3c4d150e550fcfb23",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "4c5f0a992aad09c01b7cd203099577dbe3952687441207d3c4d150e550fcfb23",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document records the bounded instrument proof repairs and their corrected explanations without inferring a whole-tree verdict.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated #2248/#2284 instrument-control report with corrected concurrency prose, production-arity capture proof, independent review, and scoped integration receipts."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-production-drivers-2026-09-13.md",
+      "assignedSha256": "d421a7ce6254a706b5518e4c2c415c41e63cc587e32a044ad60ec131151bf9fa",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "d421a7ce6254a706b5518e4c2c415c41e63cc587e32a044ad60ec131151bf9fa",
+      "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+      ],
+      "claims": [
+        {
+          "claim": "At the integrated tree, this document preserves the final accepted #2238 default-reader and #2225 childExit producer proofs, including their stated lifecycle, evidence-kind, and test-scope limits.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+            }
+          ]
+        }
+      ],
+      "summary": "Dated aggregate producer/driver report with the final #2238 and #2225 corrective reviews and integrated main receipts."
     }
   ]
 }
