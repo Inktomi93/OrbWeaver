@@ -414,8 +414,8 @@ function tableIdents(model: SchemaModel, keep: (table: SchemaTable) => boolean):
 /** The drizzle table IDENTIFIERS whose SQL table the caller's classifier accepts (`table-scoping-class`'s
  *  own (a)-class predicate) — derived per run from the schema model, never a hand-kept list, so a
  *  re-classification moves every consumer at once. ONE home for the WALK: `owner-scoped-reads`,
- *  `owner-scoped-writes`, and `owner-scoped-upserts` all key their (a)-set on this (through
- *  `table-scoping-class.ts`'s wrapper), and each keeps its OWN blindness tripwire (an empty set means the
+ *  `owner-scoped-writes`, and `owner-scoped-upserts` import this reader directly, and each keeps its
+ *  OWN blindness tripwire (an empty set means the
  *  derivation went blind, never that the tree is clean). */
 export function ownerScopedTableIdents(model: SchemaModel): ReadonlySet<string> {
   const classes = tableScopingClasses();
