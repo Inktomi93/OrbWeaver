@@ -110,6 +110,31 @@ the lane brief reserves that decision to the orchestrator, a zero one hour old i
 stays at zero, and the flip also closes the `@orb-waive` door the header describes as watched-while-
 draining. The module header states this explicitly so the next reader does not read a violated flip rule.
 
+**And the row keeps its `workItem` while it stays `warning` — checked, not assumed.** A correction reached
+this lane claiming the zeroing commit had left `severity: "warning"` with the `workItem` DELETED. Both
+halves are refuted on the tree:
+
+1. **The key was never touched.** It stands at `policy-refusal-coverage.ts:469` as `workItem: 2184`, and
+   `git diff db6e5bbd6 HEAD -- <the module>` filtered to `workItem|authority|severity` returns only ADDED
+   comment/fixture lines — no `-` line on any of the three.
+2. **The shape is unrepresentable anyway.** Deleting the key and running
+   `pnpm check:structure --check policy-refusal-coverage` exits **2** at load —
+   *"gate module …: Invalid gate policy: descriptor.workItem must be an own enumerable property when
+   severity is warning"* (`lib/policy-module.ts:51` via `loader.ts:130`), and the corpus never loads. So
+   **there is no validator gap** and no second ledger row: every green floor in §5 is itself proof the key
+   was present, because none of those runs could have loaded the corpus without it. Probe planted with
+   `cp`/`sed -i`, restored by `cp` back, `git status --short` empty.
+
+**The pointer's VALUE is a sibling's hunk, deliberately left alone.** `c40752560` on
+`wt/agent-a413f153774cb57e9` (NOT yet an ancestor of `main` — `git merge-base --is-ancestor` says
+`NOT-on-main`) repoints `2184 → 2327` under #2070. This lane did not make that edit and must not: an
+unmodified line takes the sibling's change cleanly at integration, whereas making the same edit here would
+put two branches on one line whose surrounding hunk both lanes have touched. **Integrator note:** that
+sibling's other hunk rewrites the `THE FLIP CONDITION IS AN EVENT` paragraph at old lines 24-31, three
+lines above this lane's inserted paragraph — adjacent, resolvable by union, and worth reading rather than
+auto-merging. This lane's paragraph deliberately owns the STATE (`warning` and its `workItem` move together
+or not at all) and never restates the id.
+
 ## 7. Deviations, with receipts
 
 - The `authored-tree` pins live in `resource-layout-wave-1/2`, the drizzle pins in `schema-fact-wave-1`,
