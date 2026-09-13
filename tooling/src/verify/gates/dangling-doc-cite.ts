@@ -79,7 +79,20 @@ import { scanTextCitations } from "../lib/text-cite-scan.ts";
 
 // A repo-relative doc token. Anchored on the `docs/` tier because that is the only one this repo has; a
 // bare `foo.md` in prose is not a repo-path claim and is deliberately out of scope (precision over
-// recall). THE LOOKBEHIND IS LOAD-BEARING: a vendor URL carries the same segment
+// recall).
+//
+// THAT LIMIT HAS A LIVE OWNER AND A MEASURED SIZE — #1334, which is where the widened recognizer belongs;
+// do not re-argue it here and do not read arm-B membership as coverage of it (#2288, 2026-09-13). Arm B
+// genuinely reaches a root `.cjs`: two-direction planted control on `.dependency-cruiser.cjs`, ONE bounded
+// `--check dangling-doc-cite` run each — a `docs/`-prefixed nonexistent cite is FLAGGED at
+// `.dependency-cruiser.cjs:855:33` (baseline raw 0 → planted raw 1), and its bare-basename twin planted on
+// the very next line is NOT. So membership is proven and the grammar is what limits the verdict. On that
+// same file, measured the same day: 64 `.md` cites, of which exactly ONE is `docs/`-prefixed and the other
+// 63 (14 bare basenames plus one `history/`-relative spelling) are outside this token grammar. All 64
+// resolve today, so this is prospective blindness rather than a live lie — which is precisely why the
+// repair is #1334's widening and not a claim of coverage here.
+//
+// THE LOOKBEHIND IS LOAD-BEARING: a vendor URL carries the same segment
 // (`https://platform.claude.com/docs/en/…`), and without the fence three live comments citing a vendor's
 // own published docs read as phantom REPO paths. A cite must start at a word boundary to be ours.
 //
