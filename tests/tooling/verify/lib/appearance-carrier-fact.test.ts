@@ -50,8 +50,23 @@ test("all frozen legacy examples preserve complete finding messages and tokens",
     const after = runPolicyPass({ root: scratch, project, knownPolicies: [gate, health], policies: [gate, health], reviewedGrants: [], failOnWarnings: false });
     expect(after.toolErrors).toEqual([]);
     expect(after.factErrors).toEqual([]);
-    const normalize = (findings: readonly { message?: string; token?: string }[]): { message: string | undefined; token: string | undefined }[] =>
-      findings.map(({ message, token }) => ({ message, token }));
+    // Hard health findings preserve their manifest file/line and descriptive token. The legacy zero
+    // column becomes the final runtime's one-based column; this is the only coordinate normalization.
+    interface Identity {
+      file: string;
+      line: number;
+      column: number;
+      message?: string;
+      token?: string;
+    }
+    const normalize = (findings: readonly Identity[]): Identity[] =>
+      findings.map(({ file, line, column, message, token }) => ({
+        file,
+        line,
+        column: Math.max(1, column),
+        ...(message === undefined ? {} : { message }),
+        ...(token === undefined ? {} : { token }),
+      }));
     expect(normalize(after.authority.effectiveFindings), row.why).toEqual(normalize(before.gates[0]?.findings ?? []));
   }
 });
