@@ -83,6 +83,67 @@ test("admission is by SCHEMA: a table naming both `defect` and `state` is read, 
   expect(ledgerCitations(ledger(row(2187))).map(({ citation }) => citation.issue)).toEqual([2187]);
 });
 
+test("ledger admission refuses escaped and separator-less top-level row paragraphs beside a healthy table", () => {
+  const escaped = doc("## THE LEDGER", "", HEADER, RULE, row(2187), "", "\\| module | defect | state |", "\\| lost | orphan | **OPEN** (board #9998) |");
+  expect(() => ledgerCitations(escaped)).toThrow(/ledger\.md:7.*table-like row is a Markdown paragraph/);
+  expect(() => assertLedgerSource(escaped)).toThrow(/ledger\.md:7.*table-like row is a Markdown paragraph/);
+
+  const separatorless = doc("## THE LEDGER", "", HEADER, RULE, row(2187), "", "| module | defect | state |", "| lost | orphan | **OPEN** (board #9999) |");
+  expect(() => ledgerCitations(separatorless)).toThrow(/ledger\.md:7.*table-like row is a Markdown paragraph/);
+  expect(() => assertLedgerSource(separatorless)).toThrow(/ledger\.md:7.*table-like row is a Markdown paragraph/);
+});
+
+test("a partially decoded GFM table refuses instead of dropping an unsupported row and its successors", () => {
+  const middle = row(9998);
+  for (const unsupported of [`\\${middle}`, middle.replaceAll("| ", "|"), middle.slice(2)]) {
+    const partial = ledger(row(2187), unsupported, row(9999));
+    expect(() => ledgerCitations(partial)).toThrow(/top-level GFM table whose authored spelling the ledger cell reader cannot preserve/);
+    expect(() => assertLedgerSource(partial)).toThrow(/top-level GFM table whose authored spelling the ledger cell reader cannot preserve/);
+  }
+  const complete = ledger(row(2187), middle, row(9999));
+  expect(ledgerCitations(complete).map(({ citation }) => citation.issue)).toEqual([2187, 9998, 9999]);
+  expect(assertLedgerSource(complete)).toBe(3);
+});
+
+test("only top-level GFM tables are ledger evidence; code, quotes, indented code and prose remain examples", () => {
+  const examples = doc(
+    "## THE LEDGER",
+    "",
+    HEADER,
+    RULE,
+    row(2187),
+    "",
+    "```md",
+    HEADER,
+    RULE,
+    row(9999),
+    "```",
+    "",
+    `> ${HEADER}`,
+    `> ${RULE}`,
+    `> ${row(9998)}`,
+    "",
+    `    ${HEADER}`,
+    `    ${RULE}`,
+    `    ${row(9997)}`,
+    "",
+    "Ordinary prose can compare left | right without becoming ledger evidence.",
+  );
+  expect(ledgerCitations(examples).map(({ citation }) => citation.issue)).toEqual([2187]);
+  expect(assertLedgerSource(examples)).toBe(1);
+});
+
+test("heading fences also come from the root AST, and unsupported GFM table spellings refuse", () => {
+  const fakeFence = doc("```md", "## THE LEDGER", "## CLASS ROLLUP", "```", "", "> ## THE LEDGER", "", "## THE LEDGER", "", HEADER, RULE, row(2187));
+  expect(ledgerSpan(fakeFence.text.split("\n"))).toEqual({ start: 8, end: 14 });
+  expect(ledgerCitations(fakeFence).map(({ citation }) => citation.issue)).toEqual([2187]);
+
+  const noOuterPipes = doc("## THE LEDGER", "", "module | defect | state", "--- | --- | ---", "m | d | **OPEN** (board #9999)");
+  expect(() => ledgerCitations(noOuterPipes)).toThrow(/top-level GFM table whose authored spelling the ledger cell reader cannot preserve/);
+  const indentedTable = doc("## THE LEDGER", "", ` ${HEADER}`, ` ${RULE}`, ` ${row(9998)}`);
+  expect(() => ledgerCitations(indentedTable)).toThrow(/top-level GFM table whose authored spelling the ledger cell reader cannot preserve/);
+});
+
 test("the row's SUBJECT is read off the `wave`/`lane` column, and a table without one yields citations with no key", () => {
   expect(ledgerCitations(ledger(row(2187, "cb-v-parity-instruments L5")))[0]?.citation.subjectKey).toBe("cb-v-parity-instruments L5");
   const noSubject = doc("## THE LEDGER", "", "| module | defect | state |", "| - | - | - |", "| m | d | **CLOSED** (board #2187) |");

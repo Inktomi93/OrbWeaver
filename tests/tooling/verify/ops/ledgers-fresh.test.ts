@@ -21,6 +21,7 @@ import {
   classRollupDrift,
   committedOtherClassCensus,
   deferredRosterDrift,
+  deriveClassRollup,
   deriveReadFirstCosts,
   deriveSnapFlagsIndexMarkdown,
   LEDGER_CHECKS,
@@ -497,7 +498,7 @@ test("a section whose header is NOT `module` counts its header as a HEADER, on b
   }
 });
 
-test("a section that LOST its `| - | - |` separator is not a table and counts ZERO — the shape that caught real damage", () => {
+test("a section that LOST its `| - | - |` separator REFUSES beside healthy admitted rows", () => {
   const root = mkdtempSync(join(tmpdir(), "orb-escaped-pipes-"));
   try {
     const dir = join(root, "docs/reviews/gate-runtime");
@@ -512,12 +513,15 @@ test("a section that LOST its `| - | - |` separator is not a table and counts ZE
       join(dir, "refutation-ledger-2026-09-12.md"),
       ["## THE LEDGER", "", "### dropped (`v-drop-2026-09-12.md`)", "", "\\| module | defect |", "\\| `a` | x |", "\\| `b` | y |", ""].join("\n"),
     );
-    const result = ledgerSectionDrift(root);
-    // ZERO, and therefore LOUD. The RETIRED predicate also read this exact input as 0 (`\|` fails its
-    // `startsWith("| ")`), so the real catch was owed to remark's ESCAPING rather than to the predicate —
-    // which is why the sibling arm below, where the serialiser did NOT escape, is the discriminating one.
-    expect(result.drift.join("\n")).toContain("carries 0 row(s)");
-    expect(result.drift.join("\n")).toContain("declares 2");
+    // A healthy table elsewhere in the same fence must not let this malformed section become a partial
+    // freshness verdict. Both production consumers share the same admission refusal.
+    const ledgerPath = join(dir, "refutation-ledger-2026-09-12.md");
+    writeFileSync(
+      ledgerPath,
+      `${readFileSync(ledgerPath, "utf8")}\n### healthy\n\n| module | defect | class | state |\n| - | - | - | - |\n| ok | held | other | OPEN |\n`,
+    );
+    expect(() => ledgerSectionDrift(root)).toThrow(/table-like row is a Markdown paragraph/);
+    expect(() => classRollupDrift(root)).toThrow(/table-like row is a Markdown paragraph/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -539,7 +543,7 @@ test("a stale SIZE cell names the ROW and both cells, never a bare difference co
   }
 });
 
-test("a separator-less block with UNESCAPED pipes also counts zero — the case the shape rule actually closes", () => {
+test("a separator-less block with UNESCAPED pipes refuses rather than silently shrinking the population", () => {
   const root = mkdtempSync(join(tmpdir(), "orb-no-separator-"));
   try {
     const dir = join(root, "docs/reviews/gate-runtime");
@@ -555,7 +559,8 @@ test("a separator-less block with UNESCAPED pipes also counts zero — the case 
       join(dir, "refutation-ledger-2026-09-12.md"),
       ["## THE LEDGER", "", "### nosep (`v-nosep-2026-09-12.md`)", "", "| module | defect |", "| `a` | x |", "| `b` | y |", ""].join("\n"),
     );
-    expect(ledgerSectionDrift(root).drift.join("\n")).toContain("carries 0 row(s)");
+    expect(() => ledgerSectionDrift(root)).toThrow(/table-like row is a Markdown paragraph/);
+    expect(() => classRollupDrift(root)).toThrow(/table-like row is a Markdown paragraph/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -904,6 +909,26 @@ test("#2224 NEGATIVE CONTROL — the widening does NOT make every heading below 
     "| instrument | 11 |",
   ]);
   expect(strayLedgerSections(clean)).toStrictEqual([]);
+});
+
+test("table-shaped code and blockquotes are not section, rollup, or stray ledger data", () => {
+  const exampleRows = ["| module | defect | class | state | receipt |", "| - | - | - | - | - |", "| example | not data | other | OPEN | none |"];
+  const text = strayShapeLedger(["```md", ...exampleRows, "```", "", ...exampleRows.map((line) => `> ${line}`)]).replace(
+    "## CLASS ROLLUP",
+    ["```md", ...exampleRows, "```", "", "## CLASS ROLLUP"].join("\n"),
+  );
+  expect(ledgerSections(text)).toHaveLength(1);
+  expect(deriveClassRollup(text).total.rows).toBe(1);
+  expect(strayLedgerSections(text)).toStrictEqual([]);
+});
+
+test("table-like headings inside code and quotes cannot move the ledger or rollup fence", () => {
+  const text = ledgerFixture({ rows: TWO_ROWS, rollup: MATCHING_ROLLUP }).replace(
+    "### `p-probe` — a synthetic section",
+    ["```md", "## CLASS ROLLUP", "### fake", "```", "", "> ## CLASS ROLLUP", "", "### `p-probe` — a synthetic section"].join("\n"),
+  );
+  expect(ledgerSections(text)).toHaveLength(1);
+  expect(deriveClassRollup(text).total.rows).toBe(2);
 });
 
 // ─── #2224 fifth shape: the `other`-bin sub-table below the rollup ───────────────────────────────────
