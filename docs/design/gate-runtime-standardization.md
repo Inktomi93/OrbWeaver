@@ -200,10 +200,15 @@ its findings are retired in bounded chunks. At the final chunk it becomes `hard`
 population to manufacture a clean result, and does not authorize a permanent warning or waiver door.
 
 Numeric ratchets are forbidden when the value is derivable from source, generated output, a tuple, registry, or native
-tool result. Hold derivable relationships directly. The required `theme.css` guarantee is byte identity with
-`renderThemeCss` in the `ledgers:fresh` baseline path, with no policy or fixture spelling an expected declaration count.
-This is an implementation obligation from #2230, not a claim that the check is already present: until its owning change
-lands, `EXPECTED_DIRECT_THEME_DECLARATIONS` and its fixture spellings are known noncompliance with this rule.
+tool result. Hold derivable relationships directly. **LANDED 2026-09-13 (`284dedcee`, #2230 ARM B):** `ledgers:fresh`
+and `baseline theme-css --check` compare the complete committed `theme.css` bytes with `deriveThemeCss` → canonical
+`generateArtifacts`. The former `EXPECTED_DIRECT_THEME_DECLARATIONS` constant and parity fixtures are retired;
+no policy or fixture maintains an expected declaration count. Canonical validation remains required for this baseline,
+including required token history: inability to derive is exit 2; successfully derived but missing or different output
+is exit 1. The coordinating primary's whole-stage controls on integrated main `1ef220c20` observed same-count drift,
+loss of the theme verdict when its stage edge was cut, and malformed-token refusal. These are primary-run receipts,
+not final integration acceptance; the dated evidence and code/data limitation are in
+[the theme-freshness disposition](../reviews/gate-runtime/theme-freshness-doc-disposition-2026-09-13.md).
 
 The only sanctioned non-derivable cardinality guard is `depcruise-grant-liveness.BACKREF_BUDGET = 16`. It covers the
 sixteen `$1` backreference dependency-cruiser rules whose bound member set exists only at cruise time and cannot be
