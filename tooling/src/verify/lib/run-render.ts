@@ -59,6 +59,22 @@ export function failReason(r: StageResult): string {
   return `  ${stageMark(r)} ${r.name} — ${kind} · ${where}`;
 }
 
+/** Print-order rank for the FAIL block: a TOOL ERROR first, then a strict-scope refusal, then violations.
+ *  #2225 — a stage that exited 2 produced NO VERDICT, so the tier's coverage is a claim that did not hold;
+ *  a reader who scans only the first failing line must meet that before a lint finding. It is the same
+ *  severity order `aggregateExit` already uses for the run's own exit; this makes the CONSOLE agree.
+ *
+ *  THIS SORTS WHAT IS PRINTED, NEVER WHAT IS RECORDED. `report.stages` stays in registry order because the
+ *  artifact is read by other instruments and by later runs; the summary is read by a human scanning for
+ *  what broke. A reporter may reorder its presentation and must never reorder the record. */
+const VIOLATIONS_RANK = 2;
+const FAIL_RANK: Readonly<Record<number, number>> = { [EXIT.toolError]: 0, [EXIT.misuse]: 1, [EXIT.violations]: VIOLATIONS_RANK };
+
+/** The FAIL block's stages, worst first — a stable sort, so rows of equal severity keep registry order. */
+export function failuresWorstFirst(stages: readonly StageResult[]): readonly StageResult[] {
+  return [...stages.filter((s) => !s.ok)].sort((a, b) => (FAIL_RANK[a.exitCode] ?? VIOLATIONS_RANK) - (FAIL_RANK[b.exitCode] ?? VIOLATIONS_RANK));
+}
+
 /** The NOTICES block — lines a PASSING stage needs seen (contract/stage.ts `notices`). It prints INSIDE
  *  the tail region, above the verdict, because that is the part of the output a reader (or a truncating
  *  terminal) actually keeps. A notice never touches the verdict: `verify` can print a notice and still say
@@ -84,7 +100,7 @@ export function printSummary(report: VerifyReport): void {
   for (const r of report.stages) {
     process.stdout.write(`${stageLine(r)}\n`);
   }
-  const failed = report.stages.filter((s) => !s.ok);
+  const failed = failuresWorstFirst(report.stages);
   printNotices(report);
   process.stdout.write("\n════════════════════════════════════════════════════════════════════\n");
   if (report.ok) {

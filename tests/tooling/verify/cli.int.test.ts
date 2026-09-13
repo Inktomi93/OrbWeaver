@@ -9,6 +9,7 @@
 // whose help path touches the project fails HERE rather than only on a smaller machine. The verb list is
 // read from the tool's own contract (VERIFY_VERBS), never a copy — a new verb joins this pin the day it is
 // minted, which is the only shape that would have caught #809 (a code path nobody exercised).
+import process from "node:process";
 import type { MembershipReport } from "@orb/tooling/verify";
 import { VERIFY_VERBS } from "@orb/tooling/verify";
 import { readPolicyRepositoryInventory } from "../../../tooling/src/verify/lib/policy-repo-inventory.ts";
@@ -26,6 +27,15 @@ const SMALL_HEAP_ENV: Readonly<Record<string, string>> = Object.fromEntries([
 ]);
 /** Generous next to the ~0.5s a real help answer takes, and multiples of the ~5s the OOM took to abort. */
 const HELP_TIMEOUT_MS = scaledBudget(30_000);
+
+/** SMALL_HEAP_ENV with a PATH that can resolve the registry's argv[0]s (#2225 — `--list` now reads the
+ *  environment it is handed). Keys stay ENV VOCABULARY, built from pairs, so the naming rule holds. */
+function smallHeapEnvWithPath(path: string): Readonly<Record<string, string>> {
+  return Object.fromEntries([...Object.entries(SMALL_HEAP_ENV), ["PATH", path]]);
+}
+
+// biome-ignore lint/style/noProcessEnv: the caller's PATH is the fixture INPUT here — the real `--list` door is always reached through `pnpm`, so this reproduces it rather than configuring anything.
+const CALLER_PATH = process.env["PATH"] ?? "";
 
 // The explicit timeout is part of the pin: without it a regressed verb aborts at ~5s and vitest's own 5s
 // default reports a TIMEOUT, hiding the 134 that names the defect (observed on the red-first run).
@@ -110,9 +120,32 @@ test("a no-tail verb still answers --help, and a real flag still reaches its ver
   expect(debt.stderr + debt.stdout).toContain("no-such-gate-anywhere");
   // `pnpm verify --list` is `cli.ts run --list` — the single most-driven spelling in the repo (every lane
   // reads the tier ladder from it). It stays clean and still prints the registry.
-  const list = await runCli("verify", ["run", "--list"], { env: SMALL_HEAP_ENV, timeoutMs: HELP_TIMEOUT_MS });
+  //
+  // THE PATH IS PART OF THIS PIN NOW, not incidental (#2225). `--list` refuses a registry row whose
+  // `argv[0]` resolves to nothing runnable, so it reads the environment it is handed. `SMALL_HEAP_ENV`'s
+  // PATH is three directories chosen to make `nice` resolvable and nothing else, and `pnpm` — the argv[0]
+  // of 29 of the 30 rows — is not among them; under it the refusal is CORRECT and this assertion was
+  // measuring the fixture's PATH rather than the door. The REAL door is always reached through `pnpm`
+  // itself, so pnpm resolves by construction: keep the 512MB ceiling, hand it the caller's PATH.
+  const list = await runCli("verify", ["run", "--list"], { env: smallHeapEnvWithPath(CALLER_PATH), timeoutMs: HELP_TIMEOUT_MS });
   await expect(list).toExitWith(0);
   expect(list.stdout).toContain("the stage registry");
+
+  // THE PLANTED POSITIVE CONTROL for that refusal — without it the exit 0 above is only evidence that
+  // nothing can make `--list` fail. `SMALL_HEAP_ENV` UNCHANGED is that control: its three directories
+  // resolve `nice` (so the runner still spawns) and NOT `pnpm` (argv[0] of 29 of the 30 rows), so the
+  // listing must say so and exit 2 — TOOL ERROR, a registry the runner cannot execute is a broken
+  // instrument — rather than printing thirty rows as if they were runnable. A PATH that resolves nothing
+  // at all is NOT this control: it starves `nice` and the harness dies before the registry is consulted.
+  const blind = await runCli("verify", ["run", "--list"], { env: SMALL_HEAP_ENV, timeoutMs: HELP_TIMEOUT_MS });
+  await expect(blind).toExitWith(2);
+  expect(blind.stdout, "it still prints the map").toContain("the stage registry");
+  expect(blind.stdout, "and then names what it cannot run").toContain("REFUSED");
+  expect(blind.stdout, "a `pnpm <script>` row is unrunnable without pnpm on PATH").toContain("lint:biome");
+  // AND IT IS NOT INDISCRIMINATE: `lint:hook-syntax`'s argv[0] is `bash`, which /usr/bin DOES hold, so
+  // that row stays out of the refusal. The resolver answers per row from evidence — the property #2220
+  // was missing when a name allowlist sent `bash` to a node_modules/.bin that never had it.
+  expect(blind.stdout).not.toContain('argv[0] "bash"');
 });
 
 // The abort itself takes ~5s (v8 fills the heap first), which is exactly vitest's default testTimeout —
