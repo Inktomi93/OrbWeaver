@@ -89,7 +89,7 @@ export const gate = defineGate({
       const demanded = selectors.length > 0 ? selectors : [anchor.path];
       const identities = readyResourceValue(ctx.resources.authoredPaths(demanded)).identities;
       for (const identity of identities) {
-        if (selectors.includes(identity.selector) && (identity.status === "file" || identity.status === "directory")) {
+        if (selectors.includes(identity.selector) && identity.form === "repo-relative" && (identity.status === "file" || identity.status === "directory")) {
           liveCites.add(identity.selector);
         }
       }
