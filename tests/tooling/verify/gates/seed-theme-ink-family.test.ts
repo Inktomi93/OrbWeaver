@@ -77,6 +77,70 @@ test("a nested PLAIN SELECTOR inside a seed is EXCLUDED on purpose — the twin 
   ]);
 });
 
+/** THE SUBJECT ADJUDICATION (#2293 leg 3). Root membership is decided per COMPLEX SELECTOR off its
+ *  SUBJECT compound — what the rule actually styles — through the shared `selectorSubject` reader.
+ *
+ *  Before this, `SEED_SELECTOR` ran unanchored over the whole `selectorList`, so a FLATTENED descendant
+ *  (`[data-theme="dusk"] .x`) was absorbed as the dusk root while its NESTED twin (`& .x`) was excluded by
+ *  the ancestry read: the same CSS, two answers, decided by authoring style. A SIBLING subject
+ *  (`[data-theme="dusk"] + .y`) was absorbed the same way. Anchoring the regex would have been the wrong
+ *  repair — it throws away every legitimate compound root, which is why three of them are pinned here as
+ *  positive controls beside the two exclusions. */
+const SEEDED = `${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n}\n`;
+
+test("a FLATTENED descendant subject is not the palette — and agrees with its nested twin", () => {
+  const flattened = palettesOf(`${SEEDED}[data-theme="dusk"] .x {\n  --color-w: oklch(0.8 0.1 50);\n}\n`);
+  const nested = palettesOf(`${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n  & .x {\n    --color-w: oklch(0.8 0.1 50);\n  }\n}\n`);
+
+  // The two spellings AGREE, which is the whole point: neither carries `--color-w`.
+  expect(flattened).toEqual(nested);
+  expect(flattened).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+    { name: "dusk", scheme: "light", vars: ["--color-x"] },
+  ]);
+});
+
+test("a SIBLING subject is not the palette either — the same defect one combinator over", () => {
+  expect(palettesOf(`${SEEDED}[data-theme="dusk"] + .y {\n  --color-s: oklch(0.1 0.1 50);\n}\n`)).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+    { name: "dusk", scheme: "light", vars: ["--color-x"] },
+  ]);
+});
+
+test("a COMPOUND root stays a root — the three positive controls that forbid anchoring the regex", () => {
+  // Each still STYLES the seed element, so each IS the palette: a subject qualifier narrows WHICH elements
+  // carry the seed, never what the palette is, and a second block resolving to the same seed merges into
+  // it rather than forking an arm. `^…$` on `SEED_SELECTOR` would have killed all three.
+  for (const selector of ['[data-theme="dusk"].foo', 'html[data-theme="dusk"]', '[data-theme="dusk"]:where(.a, .b)']) {
+    expect(palettesOf(`${SEEDED}${selector} {\n  --color-q: oklch(0.4 0.1 50);\n}\n`), selector).toEqual([
+      { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+      { name: "dusk", scheme: "light", vars: ["--color-q", "--color-x"] },
+    ]);
+  }
+});
+
+test("an ANCESTOR context whose subject is still the seed is an ARM, never a drop", () => {
+  const palettes = palettesOf(`${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n  .card & {\n    --color-c: oklch(0.3 0.1 50);\n  }\n}\n`);
+
+  // `.card &` styles the SEED element inside a card — a ground the ink really rests on. Leg 2's prose
+  // called this a descendant subject and dropped it; dropping a reachable arm is the blindness this gate
+  // exists to refuse, so it is an arm exactly like a conditional at-rule, polarity inherited.
+  expect(palettes).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+    { name: "dusk", scheme: "light", vars: ["--color-x"] },
+    { name: "dusk @ .card &", scheme: "light", vars: ["--color-c", "--color-x"] },
+  ]);
+});
+
+test("a selector LIST is decided per complex selector, not per list", () => {
+  // One list, two subjects: the seed itself and a descendant. The seed genuinely receives the value, so
+  // the palette carries it — and the decision is made arm by arm rather than by matching the list text.
+  expect(palettesOf(`${SEEDED}[data-theme="dusk"], [data-theme="dusk"] .x {\n  --color-m: oklch(0.2 0.1 50);\n}\n`)).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+    { name: "dusk", scheme: "light", vars: ["--color-m", "--color-x"] },
+  ]);
+});
+
 test("an ordinary flat sheet is untouched by the ancestry read — the control", () => {
   const palettes = palettesOf(`${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n  --color-x: oklch(0.9 0.1 50);\n}\n`);
 
