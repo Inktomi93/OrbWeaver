@@ -98,24 +98,23 @@ resolver. `pnpm check` = `pnpm verify --static` (byte-compatible with the retire
 Four runnable tiers + a `manual` bucket. The WHOLE-TREE ladder nests by MEMBERSHIP: **static ⊂ push ⊂ full**
 — each tier ADDS stages, never drops one, and since #1842 every rung's membership is UNCONDITIONAL data
 (the `tierPrecondition` mechanism survives for the next row that needs it — see the note under the table —
-but no row declares one). `changed` is the SCOPED inner loop and is deliberately NOT ⊆ static:
-it carries related-tests (`tests:node` over vitest's changed-file graph) that static omits by doctrine —
-static is the born-compliant TEST-FREE commit gate. The honest containment for the inner loop is
+but no row declares one). `changed` is the SCOPED inner loop and is deliberately NOT ⊆ static: it carries
+related tests selected from the changed-file graph that static omits by doctrine — static is the
+born-compliant TEST-FREE commit gate. The honest containment for the inner loop is
 **changed ⊆ push**.
 
 | tier | what it runs | role |
 | - | - | - |
-| `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
+| `changed` | scoped structural checks over the changed set plus related behavioral tests | fast iteration; `verify --changed` |
 | `static` | every STRUCTURAL surface — lint, the type programs, the structure/registry/ledger reconciliations, imports, deps, docs — and **no behavioral suite**. That characterization is the doctrine; the MEMBERSHIP is data (`pnpm verify --list`) and is never enumerated here (#1949: this cell named 13 stages while the tier carried 19, missing `lint:hook-syntax`, `structure:asset-refs`, `structure:agent-config`, `structure:policy-conformance`, `config:biome-rule-liveness` and `docs:catalog` — a prose copy of a registry rots on the next row) | `pnpm check` = `verify --static`; the commit gate |
-| `push` | static + the BEHAVIORAL surfaces a commit gate cannot afford: the PRODUCT vitest projects (never the instrument battery, #1842), the WHOLE CT suite (its own stage again since #1848 so it carries its own profile-derived hang ceiling), e2e-smoke, the tool-guard suite, the export-rot ratchet (whole-graph liveness), `quality:cpd` (promoted here from `full` 2026-08-03 — measured 0.86s) and the client boot-chunk byte ratchet (§3.7 — it runs a real vite build, so never the structural-fast commit bar). Membership is `pnpm verify --list` | pre-push bar; `verify --push` |
-| `full` | push + the surfaces no cheaper tier can afford: the WHOLE instrument battery (both tooling vitest projects — `--full`-only since #1842, see the note under this table), the exhaustive browser e2e sweep beside push's smoke arm, the mutation-quality gate, and the production-strict dependency lens whose delta over the ordinary one is the kept-alive-only-by-tests rot (full-tier during the buildout; its registry row carries the promotion condition). Membership is `pnpm verify --list` | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
+| `push` | static + the BEHAVIORAL surfaces a commit gate cannot afford: product behavior, component and browser smoke, tool guards, whole-graph liveness, and bounded quality/build checks. Membership is `pnpm verify --list` | pre-push bar; `verify --push` |
+| `full` | push + exhaustive surfaces whose cost belongs on the works: the whole instrument battery, exhaustive browser coverage, mutation quality, and stricter dependency analysis. Membership is `pnpm verify --list` | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
-**THE INSTRUMENT BATTERY IS `--full`-ONLY (#1523 split it, #1842 cut it loose).** `tests:tooling` runs at
-`full` and at NO other tier. #1523's first cut kept a CONDITIONAL `push` rung — run the battery when the
-branch diff touched `tooling/**` or `tests/tooling/**` — and #1842 deleted that rung on the owner's word
-(2026-09-06: *"take tooling out of the verify push and into full"*). A lane iterating on an instrument
-still gets its RELATED tests through native configured-project selection at `changed` and can run the
-whole battery by hand with `pnpm test:tooling`; the whole-battery verdict is `verify --full`.
+**THE INSTRUMENT BATTERY LEFT THE PRE-PUSH RUNG (#1523 split it, #1842 cut it loose).** #1523's first cut
+made that expensive battery conditional on a branch diff touching its implementation or tests; #1842
+removed that conditional rung on the owner's word (2026-09-06: *"take tooling out of the verify push and
+into full"*). A lane iterating on an instrument still gets related tests through native configured-project
+selection and can run the whole battery directly. Query `pnpm verify --list` for its current tier membership.
 
 **CONDITIONAL TIER MEMBERSHIP, the mechanism (#1523).** One rung of the ladder CAN be narrowed by a fact
 about the RUN, declared as registry DATA beside the tiers list (`StageDef.tierPrecondition`) and rendered
@@ -139,12 +138,9 @@ DOES touch an instrument pays for it at `--full` (or by hand) rather than on eve
 the runner run the stage. An expensive gate that goes quiet on a question it could not answer is a false
 clean wearing a tier's clothes. That polarity is the contract's (`contract/stage.ts`), not one row's.
 
-The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:native, types:testd,
-types:ownership, tests:execution-membership, structure:db-baseline,
-structure:drizzle-kit, structure:agent-config, structure:full, ledgers:fresh, imports:depcruise, deps:knip, docs:format,
-docs:catalog` (pinned in the int test) — so `pnpm check` stays
-byte-compatible with the retired orchestrator, modulo the two membership-floor additions and the
-db-baseline promotion.
+The static tier's exact membership and order live in `registry.ts`, are rendered by `pnpm verify --list`,
+and are pinned by the registry/run integration tests. This keeps `pnpm check`'s compatibility contract
+machine-checked instead of copying its roster here.
 `.github/workflows/ci.yml` runs the full tier (§3.2, V4 — the "nothing omitted" bar).
 
 ### 3.3 The exit contract
