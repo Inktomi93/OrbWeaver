@@ -11,13 +11,15 @@ Lane `cb-sec-p7-review`, fresh context, READ-ONLY on the subject tree
 → `484d1764e` (merge of main `b1a23e534`) → `b29dc50ab` (Astra: mandatory witness + 45-policy adoption + Q05).
 Claim manifest reviewed against: `/tmp/codex-enforcement-p7-completion.md`.
 
-**VERDICT: INTEGRATE WITH NAMED CORRECTIONS.** The authority contract is sound. The annotation is
+**VERDICT: INTEGRATE `b29dc50ab` WITH `88f80369b`.** (Original verdict, 2026-09-13: integrate with named corrections. Two of the three corrections — L3 and L5 — were repaired by `88f80369b` and independently verified below; L4, the law delta, remains OPEN and orchestrator-owned.) The authority contract is sound. The annotation is
 inert in production — it is read by the conformance runner, the row counter and the loader validator and by
 nothing else, and the grant it mints is synthetic, in-memory, and never reaches `REVIEWED_GRANTS` or a real
 structure run, so no witness can silence a real finding. Every one of the ten review items is CONFIRMED by a
-driven receipt, including the item-6 tautology cut. The three corrections are documentation/consistency, none
-blocking: L4 (a law doc now states a falsehood), L5 (a `status: active` review doc contradicted by its own
-stack), L3 (a low-severity own-key asymmetry the same stack tightened everywhere else).
+driven receipt, including the item-6 tautology cut. The three corrections were documentation/consistency, none
+blocking: L4 (a law doc now states a falsehood — **still OPEN**), L5 (a `status: active` review doc
+contradicted by its own stack — **REPAIRED by `88f80369b`**), L3 (a low-severity own-key asymmetry the same
+stack tightened everywhere else — **REPAIRED by `88f80369b`**, and the repair widened it from one line to the
+whole eight-site class). The followup verification of `88f80369b` is the dated section near the end.
 
 ## Method and base
 
@@ -320,9 +322,9 @@ the validator). **A proof-row witness therefore cannot license anything on a rea
 
 | module | wave · `path:line` | defect | class | state | receipt |
 | - | - | - | - | - | - |
-| `policy-validation` | sec-p7 `tooling/src/verify/lib/policy-validation.ts:203` | `assertProofGrant` gates on `proof["grant"] === undefined`, so an OWN `grant: undefined` key on a `mustPass`/`mustRefuse` row of a reviewed-grant policy is silently ADMITTED — while the two sibling rules shipped beside it in the same commit use `Object.hasOwn` (`:178` the Q05 expectation keys, `:528` the optional-arm check, which correctly refuses `mustRefuse: undefined`). One validator, two strictnesses | §5b validator consistency | **OPEN** | Driven 2026-09-13: `assertGatePolicyDescriptor` on a reviewed-grant descriptor whose `mustPass[0]` carries `grant: undefined` does NOT throw, where `grant: G` throws `mustPass[0].grant is valid only for a mustFlag proof`. MITIGATED, not unreachable: `tsconfig.base.json:88` sets `exactOptionalPropertyTypes: true`, so a TYPED `defineGate` descriptor cannot spell it; the hole is reachable only through the `as GatePolicy` cast the fixtures use. No suppression consequence — an `undefined` witness binds nothing. Minimal fix: `Object.hasOwn(proof, "grant")` at `:202`, one line, matching `:178` |
+| `policy-validation` | sec-p7 `tooling/src/verify/lib/policy-validation.ts:203` | `assertProofGrant` gates on `proof["grant"] === undefined`, so an OWN `grant: undefined` key on a `mustPass`/`mustRefuse` row of a reviewed-grant policy is silently ADMITTED — while the two sibling rules shipped beside it in the same commit use `Object.hasOwn` (`:178` the Q05 expectation keys, `:528` the optional-arm check, which correctly refuses `mustRefuse: undefined`). One validator, two strictnesses | §5b validator consistency | **REPAIRED `88f80369b`** (verified below; integrator's sha pending) | Driven 2026-09-13: `assertGatePolicyDescriptor` on a reviewed-grant descriptor whose `mustPass[0]` carries `grant: undefined` does NOT throw, where `grant: G` throws `mustPass[0].grant is valid only for a mustFlag proof`. MITIGATED, not unreachable: `tsconfig.base.json:88` sets `exactOptionalPropertyTypes: true`, so a TYPED `defineGate` descriptor cannot spell it; the hole is reachable only through the `as GatePolicy` cast the fixtures use. No suppression consequence — an `undefined` witness binds nothing. Minimal fix: `Object.hasOwn(proof, "grant")` at `:202`, one line, matching `:178` |
 | `gate-runtime-standardization` | sec-p7 `docs/design/gate-runtime-standardization.md:735` | the guide states as LAW that *"a reviewed-grant policy cannot prove grant consumption in a module row at all; that belongs in a family test with a real grant table (§4.3)"* — which this stack makes FALSE. `:741` (§4 item 3) still says the §4.3 identity arm lives "beside the family" only; `:1019` and `:1040` repeat it; §5's "the stage prints THREE arms" is now four segments; §12.1's descriptor block and its "THE FIELD VOCABULARY IS DATA" paragraph never mention `grant` / `POLICY_PROOF_GRANT_KEYS` | law delta | **OPEN** | The stack changes zero bytes of the guide (`git diff --stat b1a23e534...b29dc50ab -- docs/design/gate-runtime-standardization.md` empty) while three gate modules (`tooling-argv-front-door.ts:159`, `tooling-port-registry.ts:117`, `tooling-root-config-import.ts:22-24`) DELETE their local copies of the same sentence. A cold conversion lane reading `:735` as law will decline to author a witness the loader now requires — the exact contradiction constitution §0.1.1 routes to the ledger. Declared as owed and orchestrator-owned in `x-grant-proof-2026-09-13.md:253-256`; it should land WITH integration, not after |
-| `x-grant-proof-2026-09-13` | sec-p7 `docs/reviews/gate-runtime/x-grant-proof-2026-09-13.md:9,35,247,249-251,255` | a `status: active` review doc carries four claims its OWN stack falsified two commits later: `:35` documents `REVIEWED_GRANT_WITNESS_REQUIRED: boolean = false` as a live contract constant (DELETED in `b29dc50ab`); `:9` says adoption and the flip "are the next owner's" (both landed); `:247` "The GLOBAL obligation is gated OFF. 44 of 45 reviewed-grant policies carry no witness today" (now unconditional, 45/45); `:249-251` "Not run: `pnpm check:policy-conformance` whole … owed before the flip" (I ran it: clean, exit 0) | doc freshness | **OPEN** | `REVIEWED_GRANT_WITNESS_REQUIRED` now survives repo-wide at exactly ONE site — this doc line — so a grep for the gating flag returns a false positive and nothing else (that is how I first found it). Its ledger row L1 is likewise SETTLED by `b29dc50ab` and still reads "NOT this lane's … the settling command is `pnpm check:policy-conformance` on main". Minimal fix: a CHECKPOINT→SUPERSEDED banner naming `b29dc50ab`, plus striking the four claims and marking L1 settled |
+| `x-grant-proof-2026-09-13` | sec-p7 `docs/reviews/gate-runtime/x-grant-proof-2026-09-13.md:9,35,247,249-251,255` | a `status: active` review doc carries four claims its OWN stack falsified two commits later: `:35` documents `REVIEWED_GRANT_WITNESS_REQUIRED: boolean = false` as a live contract constant (DELETED in `b29dc50ab`); `:9` says adoption and the flip "are the next owner's" (both landed); `:247` "The GLOBAL obligation is gated OFF. 44 of 45 reviewed-grant policies carry no witness today" (now unconditional, 45/45); `:249-251` "Not run: `pnpm check:policy-conformance` whole … owed before the flip" (I ran it: clean, exit 0) | doc freshness | **REPAIRED `88f80369b`** (verified below; integrator's sha pending) | `REVIEWED_GRANT_WITNESS_REQUIRED` now survives repo-wide at exactly ONE site — this doc line — so a grep for the gating flag returns a false positive and nothing else (that is how I first found it). Its ledger row L1 is likewise SETTLED by `b29dc50ab` and still reads "NOT this lane's … the settling command is `pnpm check:policy-conformance` on main". Minimal fix: a CHECKPOINT→SUPERSEDED banner naming `b29dc50ab`, plus striking the four claims and marking L1 settled |
 
 ledger rows OWED: 3
 
@@ -372,6 +374,135 @@ ledger rows OWED: 3
   multi-lane file and a whole-tree regenerator run from a lane bakes in whatever else the tree is carrying.
   Both rows are the orchestrator's, in the integration commit.
 - **`pnpm check:docs docs/reviews/gate-runtime/sec-p7-review-2026-09-13.md` exits 0** on this file.
+
+## Followup verification (`88f80369b`) — 2026-09-13
+
+Warm leg, review/author separation preserved: I did not author the repair. `88f80369b` (lane
+`cb-x-p7-ownprop`) has **`b29dc50ab` as its exact parent** and touches **3 files, +263/−31**. Verified
+READ-ONLY by copying its three files into MY worktree (`git show 88f80369b:<path> > <mine>/<path>`, one
+command per call), driving, then restoring each from `git show HEAD:<path>`; `git status --short` EMPTY after.
+**Verdict: the repair is CORRECT and COMPLETE, and it closes both L3 and L5. Integrate `b29dc50ab` WITH
+`88f80369b`.**
+
+### 1. Every listed line and its direction — CONFIRMED (with a citation-drift note)
+
+Post-fix, `Object.hasOwn` appears at 13 sites; **8 are new**, and every one moves in the TIGHTENING direction
+(a shape that was admitted is now refused; nothing previously refused is now admitted):
+
+| post-fix line | rule | direction under an own `…: undefined` |
+| - | - | - |
+| `:120` | `assertExpectation` count validity | was skipped → now `count must be a positive integer` |
+| `:123` | `assertExpectation` line validity | was skipped → now `line must be a positive integer` |
+| `:127` | `assertExpectation` `token`/`messageIncludes`/`countFrom` nonblank | was skipped → now `must be a nonempty control-free string` |
+| `:133` | `assertExpectation` count/countFrom mutual exclusion | own-presence; in practice `:127` refuses first, so strictly non-loosening |
+| `:143` | `assertProofLinks` early return | was silent return → now falls through to `links must be an object` (and to the resource-mode fence) |
+| `:209` | `assertProofGrant` early return — **the L3 row** | was silent return → now the arm/authority/shape rules run |
+| `:269` | `assertProof` `expect` mustFlag-only | was skipped → now `expect is valid only for mustFlag proofs` / `must be an object` |
+| `:523` | `assertGatePolicyDescriptor` `fix` | was skipped → now `descriptor.fix must be a nonempty control-free string` |
+
+**Citation drift, worth one word to the integrator:** the handoff cites `:202` / `:260` / `:514` and the
+pre-existing spellings `:367` / `:483` / `:528`. Those are PRE-fix line numbers — the 7-line comment block
+added above `assertProofGrant` shifts everything below it. Post-fix the same rules are `:209` / `:269` /
+`:523` and `:376` / `:492` / `:537`. The claim is true; only its coordinates are one commit stale.
+
+### 2. The two value-reading sites are correctly left — CONFIRMED, and no admission site was missed
+
+I enumerated **every** remaining `=== undefined` / `!== undefined` in the post-fix file (11 sites) and judged
+each. Nine are not key tests at all (`:71` a `.find()` result, `:86` `codePointAt`, `:184` a lookup result,
+`:371`/`:372` an internal vocabulary lookup, `:577`/`:585`/`:591`/`:599` the runtime `create` result). The two
+the handoff names are the judgment calls, and both are right:
+
+- **`:263` — the `mustRefuse` REQUIREMENT for `expect`.** Correctly value-based. Switching it to
+  `Object.hasOwn` would make an own `expect: undefined` PASS the presence test and fall into
+  `assertRefusalExpectation(undefined)` → the generic `must be an object`, which is a WORSE message than the
+  `expect.messageIncludes is required for a mustRefuse proof` the author actually needs. Own-undefined
+  refuses either way, so the choice is message quality, and the in-code comment says exactly that.
+- **`assertGatePolicyHooks` (`:585`/`:591`/`:599`) and `assertOptionalHook` (`:577`).** These read a value
+  RETURNED by user code at runtime, not an authored descriptor literal. `{ visitFile: undefined }` returned
+  from `create` genuinely means "no visitFile", and the "at least one hook" check at `:591` correctly refuses
+  it. Reading by value is right here.
+- One site the handoff does not list and that MUST stay value-based: **`:292`,
+  `reviewedGrantWitnessFailure`'s `proof.grant !== undefined`.** It is the witness COUNTER, not an admission
+  rule — an own `grant: undefined` must never count as a witness. It stays value-based, and `:209` now
+  refuses such a row before it can reach the counter anyway. Correct as left.
+
+**No missed admission site.** The fence is complete.
+
+### 3. The five-door red-first matrix — CONFIRMED for BOTH arms, control unchanged
+
+Driven twice in this session over the same probe: once with the validator restored to `b29dc50ab`, once with
+`88f80369b`'s. `ADMITTED` means the descriptor passed validation at that door.
+
+| subject | D1 `assertGatePolicyDescriptor` | D2 `runPolicyPass` | D3 `planPolicyCommand` | D4 `verifyPolicyProofs` | D5 `loadMixedGateCorpus` |
+| - | - | - | - | - | - |
+| own `grant: undefined` on **mustPass** — BEFORE | ADMITTED | ADMITTED | ADMITTED (`ok` past validation) | ADMITTED (0 failures) | ADMITTED (`final=1`) |
+| own `grant: undefined` on **mustPass** — AFTER | `mustPass[0].grant is valid only for a mustFlag proof` | same | same | same | same, named with the module path |
+| own `grant: undefined` on **mustRefuse** — BEFORE | ADMITTED | ADMITTED | ADMITTED | ADMITTED (only the unrelated row expectation reds) | ADMITTED (`final=1`) |
+| own `grant: undefined` on **mustRefuse** — AFTER | `mustRefuse[0].grant is valid only for a mustFlag proof` | same | same | same | same, named with the module path |
+| **witnessless control** — BEFORE / AFTER | refuses / refuses, identical text | idem | idem | idem | idem |
+| **witnessed positive control** — BEFORE / AFTER | ADMITTED / ADMITTED | idem | idem | 0 failures / 0 failures | `final=1` / `final=1` |
+
+The witnessed control is byte-identical across the repair at all five doors, and the witnessless control
+refuses identically at all five — the fix adds a refusal and removes none.
+
+### 4. Own-undefined on a `mustFlag` row cannot satisfy the at-least-one rule — CONFIRMED both directions
+
+`reviewedGrantWitnessFailure` is private post-`b29dc50ab`, so I drove its observable at all five doors, in two
+shapes: a reviewed-grant policy whose ONLY `mustFlag` row carries own `grant: undefined`, and one with two
+`mustFlag` rows (one own-undefined, one with no `grant` key at all).
+
+- BEFORE: both refuse with `descriptor.mustFlag carries no grant identity witness` — the counter's
+  value-based filter already declined to count them.
+- AFTER: both refuse earlier and more precisely with `mustFlag[0].grant must be an object`.
+
+Either way the shape can never be GREEN, at any door. The handoff's claim is exact.
+
+### 5. Zero engine bytes — CONFIRMED
+
+`git diff --stat b29dc50ab 88f80369b` over `lib/gate-authority.ts`, `lib/gate-authority-validation.ts`,
+`lib/reviewed-grants.ts`, `lib/policy-pass.ts`, `lib/loader.ts`, `lib/policy-module.ts`, `lib/policy-plan.ts`,
+`contract/`, `ops/` and `gates/` is **EMPTY**. The whole change is one validator, one test file, one doc.
+
+**The regression receipt the author's own floor could not give.** Their floor was 5 suites / 132 tests; I ran
+my full 11-suite floor against the patched validator — the six suites they omitted
+(`gate-authority`, `ordinary-waiver`, `bus-payload-family`, `resource-policy`, `policy-refusal-envelope`,
+`policy-pass-readers`) are precisely the ones that hand-build descriptors and were the plausible breakage
+surface for a presence-based tightening. Result: **11 files / 219 tests passed** (217 before, +2 from the
+repair's own arms). And the corpus is unchanged: `loadMixedGateCorpus` still 309/267/42/0 with 45 witnesses on
+45 reviewed-grant policies, and `pnpm check:policy-conformance` exits **0** with a byte-identical summary
+(`267 final · 3229 proof rows · 30 refusal rows · 45 identity-proof rows · 0 failure(s) · 218 grant rows ·
+0 invalid`). No real gate module authored an own-undefined key, so the tightening cost the corpus nothing.
+
+### 6. The report corrections are true and the table is machine-readable — CONFIRMED
+
+All four stale claims I raised as L5 are corrected IN PLACE, annotated rather than rewritten, with the
+original measured text preserved as history — the right pattern for a checkpoint record:
+`:9-14` (the flip and adoption both landed), `:37-42` (the constant is deleted, and the bullet now tells a
+future grepper it is HISTORY, not a live gate — which is exactly the false positive I hit), `:260-264`
+(unconditional, 45 of 45, re-derived through the loader), `:265-271` (`check:policy-conformance` driven and
+clean, with `policy-soundness-family.repo.int.test.ts` correctly still declared NOT RUN).
+
+Machine-readability driven through the production reader `reportLedgerRows`
+(`lib/gate-program-docs.ts:238`), with its negative control:
+
+| document | `reportLedgerRows` |
+| - | - |
+| `x-grant-proof-2026-09-13.md` at `88f80369b` | `{ rows: 3, declared: 3 }` |
+| the same file at `b29dc50ab` (the pre-repair bullet list) | `{ declared: 2 }`, **`rows` UNDEFINED — unreadable** |
+| this report | `{ rows: 3, declared: 3 }` |
+
+L1 is correctly restated as **SETTLED (`b29dc50ab`)**, L2 as **CONFIRMED**, L3 as **REPAIRED**, and
+`ledger rows OWED: 0`. The one thing the repair does NOT touch, correctly, is **L4** — the guide's
+`:735` "a reviewed-grant policy cannot prove grant consumption in a module row at all" is still false and
+`docs/design/gate-runtime-standardization.md` is still byte-unchanged across the whole stack. L4 stays OPEN
+and orchestrator-owned.
+
+### 7. Nothing outside the fence — CONFIRMED
+
+`git show --stat 88f80369b` lists exactly the three declared files, and applying them into my worktree
+produced exactly three `M` entries in `git status --short`. No board file, no shared ledger, no catalog, no
+peer-tree edit. The two uncatalogued review docs flagged above are still uncatalogued (this commit adds no
+catalog row), so that integration chore stands unchanged.
 
 ## Commit receipt
 
