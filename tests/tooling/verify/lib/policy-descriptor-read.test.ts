@@ -452,6 +452,18 @@ test("an imported create function and its parameter defaults are production depe
   expect(dependencies.has(reader.getVariableDeclarationOrThrow("SUBJECT"))).toBe(true);
 });
 
+test("method-form create roots reach shared readers without turning ordinary methods into descriptor values", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/reader.ts": "export function reader() { return 1; }",
+    "tooling/src/verify/gates/probe.ts": `${CANONICAL_HEAD}import { reader } from "../lib/reader.ts"; export const gate = defineGate({ create() { return { evaluate: () => reader() }; } });`,
+  });
+  const source = project.getSourceFileOrThrow("/repo/tooling/src/verify/gates/probe.ts");
+  const descriptor = finalDescriptorOf(source);
+  expect(descriptor?.getProperty("create")?.getKind()).toBe(SyntaxKind.MethodDeclaration);
+  expect(descriptor === undefined ? undefined : descriptorValue(descriptor, "create")).toBeUndefined();
+  expect(productionDependencies(project).has(project.getSourceFileOrThrow("/repo/tooling/src/verify/lib/reader.ts").getFunctionOrThrow("reader"))).toBe(true);
+});
+
 test("a fresh production census reads overwritten helper source instead of a cached dependency", () => {
   const project = projectOf({
     "tooling/src/verify/lib/subject.ts": "export const FIRST = 1; export const SECOND = 2;",
