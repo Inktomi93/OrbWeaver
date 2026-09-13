@@ -295,21 +295,26 @@ test("project settings use command plus args so a project path with spaces stays
   ]);
 });
 
-test("a non-TypeScript file may carry an explicit not-applicable plan", ({ scratch, repoRoot }) => {
+test("JSON and Markdown files may carry an explicit not-applicable plan", ({ scratch, repoRoot }) => {
   const checkout = plantCheckout(scratch);
   const bin = join(scratch, "stub bin");
   stubPnpm(bin);
-  const result = runHook({
-    hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
-    project: checkout.main,
-    cwd: checkout.worktree,
-    file: join(checkout.worktree, "package.json"),
-    bin,
-    log: join(scratch, "pnpm.log"),
-    runtime: join(scratch, "runtime"),
-    mode: "not-applicable",
-  });
-  expect(result.status).toBe(0);
+  const markdown = join(checkout.worktree, "README.md");
+  writeFileSync(markdown, "# Fixture\n");
+  for (const file of [join(checkout.worktree, "package.json"), markdown]) {
+    const result = runHook({
+      hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+      project: checkout.main,
+      cwd: checkout.worktree,
+      file,
+      bin,
+      log: join(scratch, "pnpm.log"),
+      runtime: join(scratch, "runtime"),
+      mode: "not-applicable",
+    });
+    expect(result.status, file).toBe(0);
+    expect(result.stderr, file).toBe("");
+  }
 });
 
 test("a foreign checkout is refused before any repository command executes", ({ scratch, repoRoot }) => {
