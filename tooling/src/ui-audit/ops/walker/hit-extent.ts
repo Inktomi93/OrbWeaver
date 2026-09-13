@@ -122,9 +122,26 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // border box (the ring's \`inset: 0\` reaches nowhere), and credit is granted only at points INSIDE that
   // rect. The identical clauses are mirrored in the CT kit (tests/support/iso/hit-extent-walk.ts), which
   // cannot be shared with this file in either direction — this is raw JS inside a template literal, above
-  // the test tree in the layer cake — so the two are pinned EQUAL on shared fixtures by
-  // tests/tooling/ui-audit/ops/walker/hit-extent.int.test.ts, which runs the kit's rule inside the page
-  // this walker is judging, in the SAME run. Change one and that proof reds.
+  // the test tree in the layer cake.
+  //
+  // WHAT HOLDS THE TWO SPELLINGS TOGETHER, STATED AS WHAT IT ACTUALLY IS (rewritten 2026-09-13 after
+  // cb-v-hit-geometry REFUTED the sentence that stood here). This comment used to end "the two are pinned
+  // EQUAL … change one and that proof reds", and that was false: reverting this function to the
+  // existence-only predicate, deleting the pointer-events clause, or disabling the kit's credit each left
+  // the instrument proof 10/10 GREEN, because its fixture's hit pseudos SELF-REPORT and clause 2 never ran
+  // on it at all. A fixture that cannot reach the code it names is a fence, not a proof.
+  // The pins that exist now, all in tests/tooling/ui-audit/ops/walker/hit-extent.int.test.ts:
+  //   · CREDIT_DOCUMENT — four stages where ancestor credit is the ONLY thing that can answer at the
+  //     probed rungs (a capped pseudo, one CLIPPED by an ancestor's overflow, an untappable one, and a
+  //     self-reporting counter-control). Reverting this function to existence-only reds it; deleting the
+  //     pointer-events clause reds it. Measured, both directions, 2026-09-13.
+  //   · the ENVELOPE arm — this file's own pseudoHitEnvelope, evaluated from this very source string,
+  //     beside the kit's, on the same elements in the same page, required EXACTLY equal. That is the one
+  //     thing the two homes must answer identically; their published EXTENTS cannot be compared (a
+  //     rung-quantised ring against a 1px walk — "the numbers differ by design" since #1678), so each
+  //     home's numbers are pinned to their own measured values instead.
+  // Change either home's arithmetic and the envelope arm reds; change either home's clause 2 and its own
+  // fixture arm reds.
   var PURE_TRANSLATE = "matrix(1, 0, 0, 1, ";
   function translateAlong(token, basis) {
     if (token === undefined) return 0;
@@ -141,8 +158,18 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
     var s = getComputedStyle(el, which);
     if (s.content === "none" || s.content === "normal") return null;
     if (s.position !== "absolute" || own.position === "static") return null;
-    if (s.pointerEvents === "none" || s.visibility === "hidden" || s.display === "none") return null;
+    if (s.pointerEvents === "none" || s.visibility === "hidden" || s.visibility === "collapse") return null;
+    if (s.display === "none" || s.display === "contents") return null;
     if (s.rotate !== "none" || s.scale !== "none") return null;
+    // TWO COORDINATE SPACES, AND MIXING THEM OVER-CREDITS (cb-v-hit-geometry, 2026-09-13). \`border\` is
+    // POST-transform (getBoundingClientRect) while the resolved insets below are LOCAL CSS px, so under a
+    // 0.5-scaled ancestor the band ran ~14px past the pseudo's real reach — the over-credit direction this
+    // probe must never take. The layout box is transform-free, so its disagreement with the border rect is
+    // the tell (any ancestor, any depth, scale or rotation alike), and the answer is a REFUSAL, not a
+    // conversion: the scale would have to be recovered from a rounded integer, which puts approximation
+    // inside the one number that must stay conservative. No offset box to ask = cannot tell = refuse.
+    if (typeof el.offsetWidth !== "number" || typeof el.offsetHeight !== "number") return null;
+    if (Math.abs(border.width - el.offsetWidth) > 0.5 || Math.abs(border.height - el.offsetHeight) > 0.5) return null;
     if (s.transform !== "none" && s.transform.indexOf(PURE_TRANSLATE) !== 0) return null;
     var matrix = s.transform === "none" ? [] : s.transform.slice(PURE_TRANSLATE.length, -1).split(", ");
     var moved = s.translate === "none" ? [] : s.translate.split(" ");

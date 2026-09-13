@@ -201,3 +201,78 @@ accepted the implementation. The two integrated node/instrument files passed 10/
 within `reports/runs/test/main-4058674-2026-09-13T05-33-08-762Z/test-report.json`.
 The CT receipts above belong to the lane checkout. Current-main CT verification and the rendered
 RAIL tap-target triage remain owed; these node results do not establish either outcome.
+
+## LEG 2 — the pin that was not a pin (rework, 2026-09-13)
+
+`cb-v-hit-geometry` REFUTED this report's claim 1. The refutation is correct and its receipts reproduce:
+the fix was right, its PROOF was not. On `DOCUMENT` every hit pseudo SELF-REPORTS, so ownership clause 1
+answers and clause 2 — the entire subject of #2300 — never runs; `ringed-glyph` is capped by `hitForwards`
+against a 25px wrapper under BOTH predicates. Reverting the walker to the pre-#2300 existence-only
+predicate, deleting its `pointer-events` clause, or disabling the kit's credit each left the suite 10/10
+GREEN, with two planted controls proving the edits were live. The sentences at
+`tooling/src/ui-audit/ops/walker/hit-extent.ts:126-127` and in the kit header asserted a property nothing
+held. Both are rewritten to what the pins now prove; neither claims equality of the published extents.
+
+### The red-first matrix (all measured this session, one child process per cut, restored in a `trap`)
+
+| fixture | unmodified | walker reverted to existence-only (probe B) | walker `pointer-events` clause deleted (probe A) | kit ancestor credit disabled (probe C) | kit transform refusal deleted (probe D) |
+| - | - | - | - | - | - |
+| OLD `DOCUMENT` (the shipped arms) | pass | pass — **the false clean** (cb-v probes, 10/10) | pass | pass | pass |
+| `credit-capped` (30px pseudo, 20px box) | pass | **RED** `expected [] to include '[data-slot=credit-capped]'` | pass | pass | pass |
+| `credit-unreachable` (60px pseudo, `pointer-events: none`) | pass | **RED** (same empty census) | **RED** `expected ['…credit-capped'] to include '[data-slot=credit-unreachable]'` | pass | pass |
+| `credit-clipped` (60px pseudo behind a 30px `overflow: hidden`) | pass | pass | pass | **RED** `expected '30x30' to be '60x60'` | pass |
+| envelope equality arm (both homes, same page) | pass | pass | **RED** `credit-unreachable: expected '120,995,180,1055' to be 'null'` | pass | pass |
+| unit: scaled-ancestor refusal | pass | pass | pass | pass | **RED** `expected { left: 111.25, …, right: 153.75 } to be null` |
+
+Probe logs: `xhit-l2-probe{A,B,C,D}.log` in this session's scratchpad, each opening with the planted diff.
+Baseline after every restore: **13 passed** (`git status --short` showed only the four intended files).
+
+Why each stage can reach clause 2 where the old one could not: the stage is 300x300, textless and holds
+ONE control, so a probe that leaves the control lands on an ancestor that CONTAINS it (`hitForwards`
+passes, which the 25px wrapper denied); the control is centred with ≥100px of clear space (no rung falls
+off the frame); nothing else is offered (`sharedCompositeOwns` cannot be what decided).
+
+### The numbers arm, and the equality I refused
+
+The brief asked for EXACT equality of the two homes' numbers on the same element. **Refused, with the
+measurement:** the walker publishes `2 × rung` from the ladder `[11, 12, 16, 22]` and the kit walks 1px at
+a time, so on `credit-clipped` the same element is 44 (walker) and 60 (kit) — a difference the two
+algorithms are DESIGNED to have and which #1678's header has stated since it was written. Equating them
+would mean deleting one of the two algorithms. What is pinned instead, and what "pinned equal" now means
+here:
+
+- **the CREDIT ENVELOPE, exactly.** `PSEUDO_ENVELOPE_SOURCE` (composed from the kit's real functions) and
+  the walker's own `pseudoHitEnvelope` (evaluated from `WALKER_HIT_EXTENT`, the real product string) run
+  on the same elements in the same page, and every pair must be string-identical. This is the #2300 rule
+  itself, and probe A shows it catches a one-sided change (`120,995,180,1055` vs `null`).
+- **each home's own numbers, exactly**: walker verdicts by selector (2 findings of 4 candidates), kit
+  extents `30/60/20/44`. The half-open band makes the count `2r`, not `2r − 1`; the first run answered 30
+  where the author had written 29, and the comment now records that it was measured rather than predicted.
+
+### Ledger row 4 (the scale mix) — FIXED, not scoped out
+
+Both homes now REFUSE credit where the coordinate spaces disagree. `getBoundingClientRect` is
+post-transform and the resolved insets are local px; the layout box (`offsetWidth`/`offsetHeight`) is
+transform-free, so `border` disagreeing with it by more than 0.5px is the tell — from any ancestor, at any
+depth, for scale and rotation alike — and an element with no offset box is "cannot tell", which lands on
+the same refusal. Refusal rather than conversion because the scale would have to be recovered from a
+`Math.round`ed integer, and an approximation inside the credit band is an over-credit waiting to happen; a
+transformed control now measures its own box, which is a finding to dismiss rather than a defect nobody
+hears about. The unit arm asserts BOTH sides: the exact over-credit the verifier measured
+(`{111.25, 111.25, 153.75, 153.75}` for a truth of `{112.5, 112.5, 140, 140}`) is what the old code
+answers, and `null` is what the new code answers. `visibility: collapse` and `display: contents` (the same
+row's fence-completeness half) are refused too, in both homes.
+
+### Floor
+
+`pnpm test:scoped tests/support/iso/hit-extent-walk.test.ts tests/tooling/ui-audit/ops/walker/hit-extent.int.test.ts`
+→ **13 passed** (9 unit + 4 instrument-proof arms; slot
+`reports/runs/test/agent-a384c9bc64477f381-104405-2026-09-13T06-15-16-295Z`) · scoped `biome` and
+`pnpm exec eslint` on the four touched files → clean ·
+`pnpm typecheck --config tsconfig.tests-iso.json --config tsconfig.json --config tooling/tsconfig.json` →
+3 runnable, 3 PASS. No CT and no browser run from this leg.
+
+`ledger rows OWED: 0` — this leg CLOSES cb-v rows 1 (the unpinned invariant) and 4 (the coordinate mix,
+including the `collapse`/`contents` half). Its rows 2 and 3 (`setting-teach-row.ct.tsx:353-360` and
+`params-deck.ct.tsx`'s `|| 0`-blinded reads) are the same #2301 class and are NOT touched here — they are
+CT-tier work and this leg was told to run no CT.

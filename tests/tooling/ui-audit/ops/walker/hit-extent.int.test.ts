@@ -17,7 +17,8 @@
 // agreement is measured rather than asserted from two separate runs.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { HIT_EXTENT_WALK_SOURCE } from "../../../../support/iso/hit-extent-walk.ts";
+import { WALKER_HIT_EXTENT } from "../../../../../tooling/src/ui-audit/ops/walker/hit-extent.ts";
+import { HIT_EXTENT_WALK_SOURCE, PSEUDO_ENVELOPE_SOURCE } from "../../../../support/iso/hit-extent-walk.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { AUDIT_ARGV, auditReport, RELATIONAL_CLI_TIMEOUT_MS } from "../../../../support/ui-audit-relational.ts";
 
@@ -74,6 +75,76 @@ const CT_WALK_EVAL = `(() => {
     out.push(el.dataset.slot + "=" + walk(el, "x") + "x" + walk(el, "y"));
   }
   return out.join(" ");
+})()`;
+
+/** THE DISCRIMINATING DOCUMENT (#2300, rework — the first one could not fail).
+ *
+ *  `DOCUMENT` above cannot exercise ancestor credit AT ALL, and three probes with two planted controls
+ *  proved it (cb-v-hit-geometry, 2026-09-13): reverting the walker to the pre-#2300 existence-only
+ *  predicate, deleting its `pointer-events` clause, and disabling the kit's credit each left the suite
+ *  10/10 GREEN. On that DOM every hit pseudo SELF-REPORTS, so ownership clause 1 answers and clause 2 —
+ *  the entire subject of #2300 — never runs; and `ringed-glyph` is capped by `hitForwards` against a 25px
+ *  wrapper under both predicates, so it is a finding either way. A control that passes against the defect
+ *  it was written to catch is a fence, not a proof.
+ *
+ *  Every stage here is built so that CLAUSE 2 IS THE ONLY THING THAT CAN ANSWER at the probed rungs:
+ *   · the stage is 300x300, textless and EMPTY apart from its one control, so a probe that leaves the
+ *     control lands on an ancestor that CONTAINS it — `hitForwards` passes and the credit rung is
+ *     reachable (what the 25px wrapper denied);
+ *   · the control sits at the stage's centre with ≥100px of clear space, so no rung falls off the frame
+ *     and `probeFrameFits` never refuses;
+ *   · nothing else is offered, so `sharedCompositeOwns` cannot be the thing that decided.
+ *
+ *  The four arms and what each one holds down:
+ *   · `credit-capped` — a 30px hit pseudo on a 20px box. Beyond ±15 the pseudo is simply not there, so the
+ *     ancestor answers and the EXISTENCE-only predicate credits it out to the 44px rung. The measured
+ *     rect stops at 15. This is the arm that reds when the credit stops being geometry-scoped.
+ *   · `credit-clipped` — a 60px hit pseudo CLIPPED to 30px by an ancestor's `overflow: hidden`: the shape
+ *     ancestor credit EXISTS for. Inside the clip the pseudo self-reports; outside it the pseudo paints
+ *     nothing and the stage answers, so the extent past the clip is credit or nothing. Reds when either
+ *     home's clause 2 is disabled.
+ *   · `credit-unreachable` — a 60px OUTWARD pseudo with `pointer-events: none`. Geometry alone credits it;
+ *     only the pointer clause refuses. Reds when that clause is deleted.
+ *   · `credit-selfreporting` — a 44px hittable pseudo, nothing clipping it: clause 1 answers everywhere.
+ *     The counter-control that keeps the other three from reading as "this fixture reds at everything". */
+const CREDIT_DOCUMENT = `<!doctype html>
+<html lang="en" data-app-ready="settled"><head><meta charset="utf-8"><title>ancestor credit</title>
+<style>
+  body { margin: 0; background: #fff; }
+  .stage { position: relative; width: 300px; height: 300px; }
+  .ctl { position: relative; display: block; width: 20px; height: 20px; padding: 0; border: 0; background: #ddd; margin: 140px auto; }
+  .p30::before  { content: ""; position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; translate: -50% -50%; }
+  .p60::before  { content: ""; position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; translate: -50% -50%; }
+  .p44::before  { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; translate: -50% -50%; }
+  .dead::before { pointer-events: none; }
+  .clip { overflow: hidden; width: 30px; height: 30px; margin: 135px auto; }
+  .clip .ctl { margin: 5px; }
+</style></head>
+<body><main>
+  <div class="stage"><button type="button" class="ctl p30" data-slot="credit-capped" aria-label="Capped"></button></div>
+  <div class="stage"><div class="clip"><button type="button" class="ctl p60" data-slot="credit-clipped" aria-label="Clipped"></button></div></div>
+  <div class="stage"><button type="button" class="ctl p60 dead" data-slot="credit-unreachable" aria-label="Unreachable"></button></div>
+  <div class="stage"><button type="button" class="ctl p44" data-slot="credit-selfreporting" aria-label="Self reporting"></button></div>
+</main></body></html>`;
+
+/** The WALKER's own `pseudoHitEnvelope`, evaluated from the product source string, beside the KIT's. The
+ *  segment is a run of `var`/`function` declarations, so wrapping it in an IIFE and returning the one
+ *  function is enough — and no sibling-segment identifier is touched, because the envelope arithmetic
+ *  reaches none of them (`isVisible`/`isDevChrome`/`isVisuallyHidden`/`INTERACTIVE_SELECTOR` are only
+ *  reached from `ownsPoint`'s other clauses). Importing the REAL string is the point: a drift in the
+ *  walker's arithmetic reds here rather than being described as impossible in a comment. */
+const ENVELOPE_AGREEMENT_EVAL = `(() => {
+  const walkerEnvelope = (() => {
+${WALKER_HIT_EXTENT}
+    return pseudoHitEnvelope;
+  })();
+  const kitEnvelope = ${PSEUDO_ENVELOPE_SOURCE};
+  const say = (rect) => rect === null ? "null" : [rect.left, rect.top, rect.right, rect.bottom].map((n) => Math.round(n * 100) / 100).join(",");
+  const out = [];
+  for (const el of document.querySelectorAll("[data-slot]")) {
+    out.push(el.dataset.slot + " walker=" + say(walkerEnvelope(el)) + " kit=" + say(kitEnvelope(el)));
+  }
+  return out.join(" | ");
 })()`;
 
 interface TapTargetReport {
@@ -150,4 +221,83 @@ test("#1678 — the CT kit's walk reaches the SAME VERDICT on the same DOM, in t
   // 161x161 before the fix — the same number it read for the FIXED control, which is what made it useless.
   const ringed = walked("ringed-glyph");
   expect(Math.max(ringed.x, ringed.y), `an untappable CTA ring must not be credited: ${JSON.stringify(ringed)}`).toBeLessThan(44);
+});
+
+/** `<slot>=<w>x<h>` pairs out of the kit-walk eval, keyed by slot. Missing extents fail LOUDLY: the walk's
+ *  own output is the evidence, so a slot that never printed means the eval did not run, which is not the
+ *  same as a small target. */
+function walkedExtents(stdout: string, slots: readonly string[]): Readonly<Record<string, string>> {
+  const found: Record<string, string> = {};
+  for (const slot of slots) {
+    const match: RegExpExecArray | null = new RegExp(`${slot}=(\\d+x\\d+)`, "u").exec(stdout);
+    expect(match?.[1], `no ${slot} extent in:\n${stdout}`).toBeTypeOf("string");
+    found[slot] = String(match?.[1]);
+  }
+  return found;
+}
+
+const CREDIT_SLOTS = ["credit-capped", "credit-clipped", "credit-unreachable", "credit-selfreporting"] as const;
+
+test("#2300 — ancestor credit, on a DOM where credit is the only thing that can answer: the WALKER's verdicts", async ({ runCli, scratch }) => {
+  const file = join(scratch, "credit-discriminating.html");
+  await writeFile(file, CREDIT_DOCUMENT);
+
+  const run = await runCli("snap", ["--file", file, "--mobile", ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(auditReport(run.stdout), "utf8")) as TapTargetReport;
+  const flagged = tapTargetSelectors(report);
+
+  // THE TWO ARMS THAT RED WHEN THE CREDIT STOPS BEING A MEASUREMENT. Both are sub-floor controls that the
+  // pre-#2300 predicate published at the 44px rung by crediting the stage they sit in.
+  expect(flagged, "a 30px pseudo on a 20px box owns 30px — the ancestor beyond it is not the control's target").toContain("[data-slot=credit-capped]");
+  expect(flagged, "an untappable 60px pseudo carries NO target, however outward its rect is").toContain("[data-slot=credit-unreachable]");
+  // …and the two that must NOT fire, in the same run: the clipped pseudo is exactly what ancestor credit
+  // exists for, and the self-reporting one never needs it.
+  expect(flagged, "a hit pseudo clipped by an ancestor still carries its floor — this is the credit's minted purpose").not.toContain(
+    "[data-slot=credit-clipped]",
+  );
+  expect(flagged, "a 44px hittable pseudo answers for itself at every rung").not.toContain("[data-slot=credit-selfreporting]");
+  // The population is genuinely judged — a silent census would satisfy every assertion above.
+  expect(run.stdout).toMatch(/tap-target candidates=4 judged=4 affected=2/u);
+});
+
+test("#2300 — the same DOM through the KIT's walk: the numbers, and the envelope the two homes must share", async ({ runCli, scratch }) => {
+  const file = join(scratch, "credit-agreement.html");
+  await writeFile(file, CREDIT_DOCUMENT);
+
+  const run = await runCli("snap", ["--file", file, "--mobile", "--eval", CT_WALK_EVAL, "--eval", ENVELOPE_AGREEMENT_EVAL, ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const extents = walkedExtents(run.stdout, CREDIT_SLOTS);
+
+  // EXACT NUMBERS, because this fixture is integer geometry with no text in it. The walk counts OWNED
+  // SAMPLE POINTS at 1px steps from the centre and the credited band is HALF-OPEN — a 2r target centred
+  // at c occupies [c - r, c + r), so the left walk reaches c - r and the right walk stops at c + r - 1,
+  // and the count is 2r rather than the symmetric 2r - 1 a reader expects. Measured, not predicted: the
+  // first run of this arm answered 30 where this comment's author had written 29.
+  //   · 30px pseudo → 30 · 60px pseudo behind a 30px clip, credited to its real rect → 60
+  //   · no reachable pseudo at all → the 20px border box → 20 · 44px hittable pseudo → 44
+  // Pinning the numbers rather than a floor is what makes the kit's half of clause 2 falsifiable: with
+  // the kit's ancestor credit disabled, `credit-clipped` collapses to the clip and this reds.
+  expect(extents["credit-capped"], "the kit stops at the pseudo, not at the stage").toBe("30x30");
+  expect(extents["credit-clipped"], "credit carries the walk past the clip, to the pseudo's real rect").toBe("60x60");
+  expect(extents["credit-unreachable"], "an untappable pseudo leaves only the border box").toBe("20x20");
+  expect(extents["credit-selfreporting"], "clause 1 answers the whole way").toBe("44x44");
+
+  // THE CROSS-HOME PIN, and the honest form of it. The two published EXTENTS cannot be compared directly
+  // — a rung-quantised ring against a 1px walk, "the numbers differ by design" since #1678 — but the
+  // #2300 RULE is the credit envelope, and that must be one answer. Both are computed here from the two
+  // homes' REAL sources, on the same elements, in the same page.
+  for (const slot of CREDIT_SLOTS) {
+    // The rect alphabet only — digits, dot, comma, minus — or the literal `null`. A `[^ |]+` tail captured
+    // the closing quote of snap's JSON-encoded eval line and the next line's `URL` on the LAST slot, which
+    // reads exactly like a disagreement.
+    const rect = "(null|[-0-9.,]+)";
+    const line: RegExpExecArray | null = new RegExp(`${slot} walker=${rect} kit=${rect}`, "u").exec(run.stdout);
+    expect(line?.[1], `no envelope pair for ${slot} in:\n${run.stdout}`).toBeTypeOf("string");
+    expect(line?.[1], `${slot}: the walker and the kit must compute the SAME credit envelope`).toBe(line?.[2]);
+  }
+  // …and the pin is not vacuous: at least one of them is a real rect and one is a refusal, so a pair of
+  // functions that both answered `null` everywhere could not satisfy this.
+  expect(run.stdout).toMatch(/credit-capped walker=\d/u);
+  expect(run.stdout).toMatch(/credit-unreachable walker=null kit=null/u);
 });
