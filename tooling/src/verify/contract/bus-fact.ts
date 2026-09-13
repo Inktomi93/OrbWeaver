@@ -3,11 +3,11 @@ import type { Node } from "ts-morph";
 import type { GatePolicyContext } from "./policy.ts";
 import type { ReferenceUnresolvedReason } from "./reference-fact.ts";
 
-/** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `BusFactStatus` union (line 9) — the
+/** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `BusFactStatus` union — the
  *  ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the
  *  re-spell `no-inline-union-redecl` exists to stop. */
 export const BUS_FACT_STATUSES = ["ready", "missing", "empty", "unresolved"] as const;
-/** @public knip type-face false positive — a structural field (`status`) of the exported `BusFactReceipt` shape (line 75), never
+/** @public knip type-face false positive — a structural field (`status`) of the exported `BusFactReceipt` shape, never
  *  referenced by its own name at any call site. */
 export type BusFactStatus = (typeof BUS_FACT_STATUSES)[number];
 
@@ -23,7 +23,7 @@ export interface BusAnchor {
   readonly node: Node;
 }
 
-/** @public knip type-face false positive — a structural field (`union`) of the exported `BusRecord` shape (line 57), never
+/** @public knip type-face false positive — a structural field (`union`) of the exported `BusRecord` shape, never
  *  referenced by its own name at any call site. */
 export interface BusUnionIdentity extends BusDeclarationIdentity {
   readonly anchor: BusAnchor;

@@ -52,7 +52,7 @@ export interface MarkdownDocument {
 
 /** `listed` means the committed catalog names this exact path; `unlisted` means it does not. Neither is a
  *  verdict — the catalog gate owns whether an unlisted document is a defect.
- *  @public knip type-face false positive — a structural field (`catalog`) of the exported `DocumentFacts` shape (line 58), never
+ *  @public knip type-face false positive — a structural field (`catalog`) of the exported `DocumentFacts` shape, never
  *  referenced by its own name at any call site. */
 export type DocumentCatalogStatus = "listed" | "unlisted";
 

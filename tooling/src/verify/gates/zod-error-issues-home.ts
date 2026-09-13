@@ -34,6 +34,12 @@
 // `mustFlag[4]`'s `messageIncludes` is the only row that can tell it apart from the ordinary verdict — both
 // arms emit exactly ONE finding, so a bare `{ count: 1 }` would pass whether the arm fires or is dead.
 //
+// BOTH ARMS NOW ASK A SHARED READER (#2097, closed here with #2194's second half): the member arm through
+// `resolveTypeMemberOrigin` and the destructure arm through `resolveTypePropertyOrigin` — the binding-pattern
+// twin added to `lib/type-member-origin.ts` in the same commit, because a `BindingElement` has no
+// member-access node to hand over and this module was finishing `type.getProperty(name)?.getDeclarations()`
+// itself. The audit row that named the site (`policing-surface-audit-2026-09-12.md`) is closed with it.
+//
 // DECLARED LIMIT, unchanged by that repair: a destructure with no VariableDeclaration initializer (a
 // PARAMETER pattern, `function f({ issues })`) is not a candidate at all — there is no receiver expression
 // to take a type from, so the policy has no identity question to answer and never had. It is the binding's
@@ -44,7 +50,7 @@ import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
+import { declaredByPackage, resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
 
 const ISSUES = "issues";
 const ZOD_PACKAGE = "zod";
@@ -107,8 +113,11 @@ function classifyIssuesDestructure(node: MorphNode): IssuesVerdict | null {
   if (initializer === undefined) {
     return null;
   }
-  const symbol = initializer.getType().getNonNullableType().getProperty(ISSUES);
-  return homeVerdict(symbol?.getDeclarations() ?? []);
+  // THROUGH THE SHARED READER, not a chain finished here (#2097 / #2194's second half): the binding-pattern
+  // twin of `resolveTypeMemberOrigin`, so this arm asks the same door the member arm asks and the "no
+  // property symbol" and "no declaration" cases arrive already classified as unresolved.
+  const origin = resolveTypePropertyOrigin(initializer, ISSUES);
+  return origin.kind === "resolved" ? homeVerdict(origin.value) : "unreadable";
 }
 
 /** One node, one answer, both spellings. */

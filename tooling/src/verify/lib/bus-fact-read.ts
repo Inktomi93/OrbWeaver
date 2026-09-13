@@ -17,6 +17,7 @@ import { resolveCallableMember } from "./gate-contract-origin.ts";
 import { readMemberReference, readStaticString, resolveStableExpression } from "./reference-fact.ts";
 import { resolveCallableOrigin } from "./reference-fact-call.ts";
 import { readStaticAuthoredScalar, readStaticAuthoredValue } from "./static-authored-value.ts";
+import { resolveTypePropertyOrigin } from "./type-member-origin.ts";
 
 export const BUS_UNION_SUFFIX = "BusEvent";
 /** The one live-fan member name. A candidate FILTER only — every candidate is proven by the declaration
@@ -372,7 +373,11 @@ export function callableDeclaration(call: CallExpression): MorphNode | undefined
 const BUS_CHANNEL_HOME = "packages/server/src/transport/trpc/bus-channel.ts";
 
 function busChannelPublisher(context: GateFactContext, receiver: MorphNode, name: string): boolean {
-  const declarations = receiver.getType().getNonNullableType().getProperty(name)?.getDeclarations() ?? [];
+  // Through the shared reader (#2097): this predicate already demanded a NON-EMPTY declaration set, so the
+  // unresolved arms ("no property symbol", "a symbol with no declaration") collapse to the empty set and
+  // answer false exactly as the open-coded `?? []` did.
+  const origin = resolveTypePropertyOrigin(receiver, name);
+  const declarations = origin.kind === "resolved" ? origin.value : [];
   return declarations.length > 0 && declarations.every((declaration) => declaredAt(context, declaration.getSourceFile(), BUS_CHANNEL_HOME));
 }
 

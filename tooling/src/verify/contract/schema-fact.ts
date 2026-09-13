@@ -3,11 +3,11 @@ import type { CallExpression, Node, SourceFile, Type, TypeChecker, VariableDecla
 import type { GatePolicyContext } from "./policy.ts";
 import type { ReferenceFact } from "./reference-fact.ts";
 
-/** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `SchemaFactStatus` union (line 9) —
+/** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `SchemaFactStatus` union —
  *  the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the
  *  re-spell `no-inline-union-redecl` exists to stop. */
 export const SCHEMA_FACT_STATUSES = ["ready", "missing", "empty", "unresolved"] as const;
-/** @public knip type-face false positive — a structural field (`status`) of the exported `SchemaFactReceipt` shape (line 11),
+/** @public knip type-face false positive — a structural field (`status`) of the exported `SchemaFactReceipt` shape,
  *  never referenced by its own name at any call site. */
 export type SchemaFactStatus = (typeof SCHEMA_FACT_STATUSES)[number];
 
@@ -50,7 +50,7 @@ export interface SchemaColumnIdentity {
   readonly key: string;
 }
 
-/** @public knip type-face false positive — a structural field (`builder`) of the exported `SchemaColumn` shape (line 98), never
+/** @public knip type-face false positive — a structural field (`builder`) of the exported `SchemaColumn` shape, never
  *  referenced by its own name at any call site. */
 export interface SchemaColumnBuilder {
   readonly moduleSpecifier: string;
@@ -59,7 +59,7 @@ export interface SchemaColumnBuilder {
 }
 
 /** The semantic type supplied through one authored Drizzle `.$type<T>()` operation.
- *  @public knip type-face false positive — a structural field (`typeOverride`) of the exported `SchemaColumn` shape (line 97),
+ *  @public knip type-face false positive — a structural field (`typeOverride`) of the exported `SchemaColumn` shape,
  *  never referenced by its own name at any call site. */
 export interface SchemaColumnTypeOverride {
   readonly node: Node;
@@ -74,7 +74,7 @@ export type SchemaJsonShape =
   | { readonly kind: "closed"; readonly keys: readonly string[]; readonly typeNode: Node }
   | { readonly kind: "scalar"; readonly typeNode: Node };
 
-/** @public knip type-face false positive — a structural field (`json`) of the exported `SchemaColumn` shape (line 99), never
+/** @public knip type-face false positive — a structural field (`json`) of the exported `SchemaColumn` shape, never
  *  referenced by its own name at any call site. */
 export interface SchemaJsonColumn {
   readonly mode: "json";

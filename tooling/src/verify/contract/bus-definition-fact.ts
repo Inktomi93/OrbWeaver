@@ -31,7 +31,7 @@ export interface BusUnionDefinition {
   readonly exhaustiveConsumers: readonly string[];
 }
 
-/** @public knip type-face false positive — a structural field (`receipt`) of the exported `BusDefinitionFact` shape (line 47),
+/** @public knip type-face false positive — a structural field (`receipt`) of the exported `BusDefinitionFact` shape,
  *  never referenced by its own name at any call site. */
 export interface BusDefinitionFactReceipt {
   readonly source: "bus-definition-fact";

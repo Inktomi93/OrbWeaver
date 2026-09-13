@@ -9,6 +9,15 @@
 // scoped verify lane could not see (`resolveSelection`'s scoped argv passes `--no-warn-ignored`, per
 // `run.int.test.ts`'s #459/#473 pins).
 //
+// NO ARM HERE DECLARES ITS OWN `timeout`, AND THAT IS NOT A MISSING LOAD BUDGET (#2218, filed, RETRACTED by
+// its author, implemented anyway, then REFUTED with a planted control by cb-v-instruments-3 and reverted on
+// 2026-09-13). `vitest.config.ts:90` sets `testTimeout: budget(5000)` at the ROOT and the `tooling` project
+// carries `extends: true` with no `testTimeout` of its own, so a body with no `timeout` option is ALREADY
+// load-scaled: `scaledBudget(5000)` is the identical call (`budget(base, readBoxLoad, FACTOR_CAP)`) and
+// adding it changed nothing but the moment the box was sampled. The receipt is a resolved-config read under
+// a planted `ORB_BOX_LOAD="48/16"`: root `testTimeout: 15000`, tooling project `own testTimeout: undefined`.
+// The ONE arm that declares a budget is the last one, which genuinely needs more than the 5 s default.
+//
 // THE ORACLE: `ESLint#calculateConfigForFile` returning `undefined` for a real tracked file IS "no matching
 // configuration" — the same signal #1574's own census used. This walks the WHOLE `tests/**` ts+tsx census
 // (via `git ls-files`, so an untracked file cannot masquerade as covered) and asserts the uncovered set is
@@ -24,14 +33,6 @@ import { scaledBudget } from "./_load-budget.ts";
 /** Below this the derivation stopped reading (a moved tree, a broken `git ls-files`) — a bare zero census
  *  would read exactly like "everything is covered", which is the failure mode this pin exists to name. */
 const MIN_CENSUS_FILES = 1000;
-/** The quiet-box ceiling for one census arm, and it is deliberately the VITEST DEFAULT these four arms
- *  already ran under (5 s) — the fix here is the SCALING, not a widening (#2218). Measured quiet on this
- *  box: the `tests/**` walk 1.45 s, the package walk 0.33 s, the other two under the print threshold. Each
- *  one is a ~2700-file SEQUENTIAL `calculateConfigForFile` census, so a contended box multiplies the whole
- *  walk while the code it judges is unchanged — the exact "a wall clock written for a quiet box reads as a
- *  false RED on a contended one" class `_shared/load-budget.ts` owns. Their one sibling below already
- *  scaled; these four were the reason the file could red on load alone. */
-const CENSUS_BASE_MS = 5000;
 const LS_FILES_MAX_BUFFER = 268_435_456;
 
 /** Every tracked `tests/**` TS/TSX file, as repo-relative posix paths (sorted). */
@@ -49,8 +50,11 @@ async function uncoveredFiles(root: string, files: readonly string[]): Promise<r
   const out: string[] = [];
   for (const rel of files) {
     // Sequential by design (`noAwaitInLoops` is off repo-wide — see async-policy-config.int.test.ts's own
-    // pin): one config-resolution call per file, no shared mutable state to race, and the whole census
-    // (~2700 files) resolves in ~1s regardless.
+    // pin): one config-resolution call per file, no shared mutable state to race. The whole ~2700-file
+    // census MEASURED 1.2-2.5 s across five runs on this 16-core fenced box — 1206 ms and 1453 ms solo,
+    // 2470 ms inside a three-file `pnpm test:scoped`. The word "regardless" used to sit here and was the one
+    // item #2218's retraction kept: it is a range that moves with the box, not a constant, which is why the
+    // arm leans on the config's own `budget(5000)` rather than on this sentence.
     const config = await eslint.calculateConfigForFile(rel).catch(() => undefined);
     if (config === undefined) {
       out.push(rel);
@@ -59,9 +63,7 @@ async function uncoveredFiles(root: string, files: readonly string[]): Promise<r
   return out;
 }
 
-test("every tracked tests/** TS/TSX file resolves to a real eslint config block — zero `File ignored`", { timeout: scaledBudget(CENSUS_BASE_MS) }, async ({
-  repoRoot,
-}) => {
+test("every tracked tests/** TS/TSX file resolves to a real eslint config block — zero `File ignored`", async ({ repoRoot }) => {
   const census = testCensus(repoRoot);
   expect(census.length).toBeGreaterThan(MIN_CENSUS_FILES);
 
@@ -74,9 +76,7 @@ test("every tracked tests/** TS/TSX file resolves to a real eslint config block 
   ).toEqual([]);
 });
 
-test("every tracked root/package-root/direct-script Node tool resolves to a real eslint config block", { timeout: scaledBudget(CENSUS_BASE_MS) }, async ({
-  repoRoot,
-}) => {
+test("every tracked root/package-root/direct-script Node tool resolves to a real eslint config block", async ({ repoRoot }) => {
   const census = execSync("git ls-files -- '*.ts' '*.mts' '*.cts'", { cwd: repoRoot, maxBuffer: LS_FILES_MAX_BUFFER })
     .toString()
     .split("\n")
@@ -86,9 +86,7 @@ test("every tracked root/package-root/direct-script Node tool resolves to a real
   expect(await uncoveredFiles(repoRoot, census)).toEqual([]);
 });
 
-test("generated sandboxes and caches are excluded while authored JavaScript remains linted", { timeout: scaledBudget(CENSUS_BASE_MS) }, async ({
-  repoRoot,
-}) => {
+test("generated sandboxes and caches are excluded while authored JavaScript remains linted", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });
   expect(await eslint.isPathIgnored(".stryker-tmp/sandbox-probe/stryker-setup-0.js")).toBe(true);
   expect(await eslint.isPathIgnored(".cache/eslint-discovery-probe.mjs")).toBe(true);
@@ -99,7 +97,7 @@ test("generated sandboxes and caches are excluded while authored JavaScript rema
   expect(results[0]?.messages.some(({ message }) => message.includes("Unused eslint-disable directive"))).toBe(true);
 });
 
-test("every tracked non-browser package source resolves to a real eslint config block", { timeout: scaledBudget(CENSUS_BASE_MS) }, async ({ repoRoot }) => {
+test("every tracked non-browser package source resolves to a real eslint config block", async ({ repoRoot }) => {
   const packagePrefixes = Object.keys(PACKAGE_WORLDS)
     .filter((name) => !BROWSER_PACKAGES.has(name))
     .map((name) => `packages/${name}/src/`);

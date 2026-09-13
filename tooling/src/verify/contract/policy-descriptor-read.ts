@@ -28,7 +28,7 @@ export type ReportSiteMessage =
   | { readonly kind: "unreadable" };
 
 /** What a `messageIncludes` substring can tell apart, given a module's message sources.
- *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `Discrimination` union (line 32) —
+ *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `Discrimination` union —
  *  the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the
  *  re-spell `no-inline-union-redecl` exists to stop. */
 export const DISCRIMINATIONS = ["discriminates", "tautology", "shared", "unjudged"] as const;

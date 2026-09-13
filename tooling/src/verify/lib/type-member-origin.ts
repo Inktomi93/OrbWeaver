@@ -49,6 +49,36 @@ export function resolveTypeMemberOrigin(node: MorphNode): ReferenceFact<TypeMemb
     : resolved({ name, access, receiver, nameNode, symbol, declarations: declarations.value }, nameNode, declarations.value);
 }
 
+/** Resolve `<expression>.<name>` WHEN THERE IS NO MEMBER-ACCESS NODE TO HAND OVER — the BINDING-PATTERN twin
+ *  of {@link resolveTypeMemberOrigin}. A destructure (`const { issues } = failure`) asks the same question
+ *  the dotted read asks, but its subject is a `BindingElement`: there is no `PropertyAccessExpression` for
+ *  the member reader to normalise, only the initializer expression and a name. Without this door a policy
+ *  finishes the chain itself (`type.getProperty(name)?.getDeclarations()`) — the #2097 class, and the exact
+ *  reason the audit routes those sites to a shared reader: a `lib/` reader that hands back a `Symbol`
+ *  invites the gate to answer the declaration question, so the reader answers it.
+ *
+ *  NON-NULLABLE for the same reason the member reader is: a union carrying `undefined` exposes NO property
+ *  symbols at all, and the read only happens where the receiver is present. Unresolved exactly when the
+ *  checker resolves no such property, or resolves one with no declaration — both of which are "cannot be
+ *  established", never "not this identity".
+ *
+ *  WHAT FOLDED ONTO IT, AND WHAT DID NOT (the move must END a duplicate, never create one). Folded in the
+ *  same commit: `project-home-origin.ts#uncastMemberDeclaredByPackage` and
+ *  `bus-fact-read.ts#busChannelPublisher` — both spelled the identical chain and both already treated "no
+ *  symbol" and "no declaration" as one no-evidence answer, so each collapses an unresolved fact to `[]` and
+ *  is behaviour-identical. NOT folded: `resolveTypeMemberOrigin` directly above, which looks like the same
+ *  three lines and is a DIFFERENT predicate — it anchors its refusal on the `nameNode` rather than on the
+ *  receiver expression (the coordinate a policy reports), and it needs the property SYMBOL itself for the
+ *  `TypeMemberOrigin` it returns, which this reader deliberately does not hand back. Folding it would move
+ *  every one of that reader's refusal positions. */
+export function resolveTypePropertyOrigin(expression: MorphNode, name: string): ReferenceFact<readonly MorphNode[]> {
+  const symbol = expression.getType().getNonNullableType().getProperty(name);
+  if (symbol === undefined) {
+    return unresolved("missing", expression, `the checker resolved no property symbol named ${name} on ${expression.getText()}`);
+  }
+  return symbolDeclarations(symbol, expression, `property ${name}`);
+}
+
 /** Resolve one object-literal key to the property of the CONTEXTUAL type the literal is checked against.
  *  The key's own symbol declares on the literal and therefore carries no identity at all; the contextual
  *  property is what says the key belongs to a query-options type rather than an unrelated config bag. */

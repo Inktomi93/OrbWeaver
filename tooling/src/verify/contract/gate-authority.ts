@@ -75,7 +75,7 @@ export interface AuthorityConsumption {
  *  refusal envelope (`lib/policy-refusal-envelope.ts`) derives its `[<kind>]` tokens from it — so a fourth
  *  alarm is one row here and `tsc` finds every reader (string-union dispatch discipline). */
 export const GATE_AUTHORITY_ALARM_KINDS = ["ordinary-waiver", "stale-reviewed-grant", "over-broad-reviewed-grant"] as const;
-/** @public knip type-face false positive — a structural field (`kind`) of the exported `OrdinaryAuthorityAlarm` shape (line 81),
+/** @public knip type-face false positive — a structural field (`kind`) of the exported `OrdinaryAuthorityAlarm` shape,
  *  never referenced by its own name at any call site. */
 export type GateAuthorityAlarmKind = (typeof GATE_AUTHORITY_ALARM_KINDS)[number];
 
@@ -86,7 +86,7 @@ export interface OrdinaryAuthorityAlarm {
   readonly waiverId?: string;
 }
 
-/** @public knip type-face false positive — an arm of the exported `GateAuthorityAlarm` union (line 106), reached by narrowing on
+/** @public knip type-face false positive — an arm of the exported `GateAuthorityAlarm` union, reached by narrowing on
  *  its discriminant and never named at a call site. */
 export interface StaleGrantAuthorityAlarm {
   readonly kind: Extract<GateAuthorityAlarmKind, "stale-reviewed-grant">;
@@ -130,7 +130,7 @@ export const GATE_AUTHORITY_TOOL_ERROR_KINDS = [
   "duplicate-grant-identity",
   "invalid-grant-authority",
 ] as const;
-/** @public knip type-face false positive — a structural field (`kind`) of the exported `GateAuthorityToolError` shape (line 132),
+/** @public knip type-face false positive — a structural field (`kind`) of the exported `GateAuthorityToolError` shape,
  *  never referenced by its own name at any call site. */
 export type GateAuthorityToolErrorKind = (typeof GATE_AUTHORITY_TOOL_ERROR_KINDS)[number];
 

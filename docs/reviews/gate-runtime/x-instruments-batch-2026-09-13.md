@@ -86,12 +86,18 @@ RE-RUN AFTER THE REBASE onto main (8 commits): EXIT 1, 65 + **4** — the fourth
 `lib/show-artifact.ts:46 LegacyGateView`, introduced by main's own `structure-report`/`show` work and
 outside this fence; the `contract/**` count is still exactly the one deliberate row.
 
-**RESIDUAL for the follow-up row** — 68 rows, none in this lane's fence, each with this lane's read:
+**RESIDUAL for the follow-up row** — **69 rows** (the measured 65 + 4; the header said 68 until
+cb-v-instruments-3 caught it as the pre-rebase number left standing), **68 of them outside this lane's
+fence**. The one INSIDE it is `isGateResourceDemandKind`, kept deliberately and classified below. Each row
+carries this lane's read:
 
-- `tooling/src/verify/contract/resource-declaration.ts:93 isGateResourceDemandKind` — *delete candidate*. A
-  dead type guard: its twin `isGateResourceUnpopulatedKind` has callers, this one has none. Left because it
-  is a FUNCTION and this row's subject (and this lane's fence) is the type surface; deleting it cascades
-  onto `GATE_RESOURCE_DEMAND_KINDS`, which is a vocabulary judgement, not hygiene.
+- `tooling/src/verify/contract/resource-declaration.ts:93 isGateResourceDemandKind` — **IN this fence, and
+  the one deliberate survivor.** Classification: *delete candidate, deferred as a vocabulary judgement*. It
+  is a dead type guard whose twin `isGateResourceUnpopulatedKind` has callers; it is a FUNCTION while this
+  row's subject is the unused-exported-TYPE surface; and deleting it cascades onto
+  `GATE_RESOURCE_DEMAND_KINDS` and `GateResourceDemandKind`, i.e. it retires a documented distinction in the
+  frozen `GateResourceRequest` vocabulary ("kinds whose subject arrives at the call rather than at
+  planning"). That is an owner-facing call about the resource contract, not knip hygiene.
 - `tooling/src/verify/lib/config-static-read.ts:17 ExtractRequest` · `RowExtraction` — *consumer knip cannot
   see*: both are re-exports of `contract/config-read.ts` types that already carry `@public` at their
   declaration; the tag does not travel through the re-export. The fix is a tag on the re-export line or the
@@ -202,10 +208,64 @@ tsconfig.tests-dom.json` → **EXIT 0** (3 runnable programs, all PASS) and `pnp
 The CT was not re-run: main's diff touches `tests/e2e/**` and `tests/support/node/open-context-sections.ts`,
 neither of which is in the corpus CT's import graph.
 
+## Warm leg, 2026-09-13 — cb-v-instruments-3's four findings
+
+`docs/reviews/gate-runtime/v-instruments-3-2026-09-13.md` CONFIRMED #2226 and #2193 (both with its own
+planted controls) and sent four items back. Everything above stands as written EXCEPT where this section
+says otherwise; each correction landed in one commit on top of the three.
+
+**#2218 — REFUTED, and REVERTED.** The verifier's planted control is decisive: with `ORB_BOX_LOAD="48/16"`
+the RESOLVED vitest config prints `testTimeout: 15000` and the `tooling` project prints
+`extends: true · own testTimeout: undefined`, so the four census arms ALREADY inherited `budget(5000)` from
+`vitest.config.ts:90` — `scaledBudget(5000)` is the identical call and the change was a semantic no-op that
+also planted, in a comment, the premise the row's own author had retracted. The four inline timeouts and
+`CENSUS_BASE_MS` are gone; the file header now RECORDS the retraction with its receipt so a third pass does
+not re-file it. The one live item the retraction kept — the inline *"~1s regardless"* — is replaced by the
+measured range (1.2-2.5 s across five runs: 1206 ms and 1453 ms solo, 2470 ms in a three-file scoped run)
+with the word "regardless" gone. My original claim *"these four were the reason the file could red on load
+alone"* was false; the arm that actually reds under contention is the FIFTH, which already scaled.
+
+**#2192 — PARTIAL, and the residual is stated rather than papered over.** The seam and the base are right
+(the old literal DID override the scaled default), but `budget()` returned **1.0116** at
+`loadavg1 10.2 · cpuCount 16 · throttle 5346/462343`, so 10 000 became 10 117 and the arm still timed out in
+a three-file scoped run while passing solo at 5 770 ms. The literal is NOT raised — an unscaled larger
+number has the same defect one load class later. Instead the test header now carries the measured triple
+(5 770 ms solo · 7 865 ms two-file · timeout at 10 117 ms three-file), names the curve
+(`computeLoadFactor` is `max(1, loadavg/cores)` and returns exactly 1 across the whole sub-saturation band,
+so the entire 1.16 % came from the throttle arm) and states the rule for a red here: **re-run the file solo
+before calling it a defect** — a vitest `testTimeout` carries no `LOAD_KILL_MARKER` and reads exactly like
+an assertion failure. The residual belongs to #2206's curve.
+
+**#2194 — the second half landed.** The #2097 chain (`symbol?.getDeclarations()`, moved by the first commit
+from `:81` to `:111`) is gone: `lib/type-member-origin.ts` gains `resolveTypePropertyOrigin(expression,
+name)` — the BINDING-PATTERN twin of `resolveTypeMemberOrigin`, which a `BindingElement` cannot use because
+it has no member-access node — and the gate asks the door instead of finishing the chain. Under the
+orchestrator's two conditions: the two byte-identical open-coded copies FOLDED onto it
+(`project-home-origin.ts#uncastMemberDeclaredByPackage`, `bus-fact-read.ts#busChannelPublisher` — both
+already treated "no symbol" and "no declaration" as one no-evidence answer), while
+`resolveTypeMemberOrigin`'s own three lines did NOT: it anchors its refusal on the `nameNode` rather than
+the receiver and needs the property symbol itself, so folding it would move every refusal position it
+reports. That non-fold is recorded at the new reader. The reader owes and has a pin —
+`tests/tooling/verify/lib/type-member-origin.test.ts` gains a BindingElement fixture (vendor vs local
+lookalike) and a planted unresolvable control asserting `{ kind: "unresolved", reason: "missing" }`, because
+the chain it replaces answered `[]` there and `declaredByPackage` turned that into a confident "not this
+package". `policing-surface-audit-2026-09-12.md`'s row is re-pointed and closed.
+
+**#2228 — the coordinates are gone.** 33 of 34 `(line N)` citations were wrong, off by 1-8 in both
+directions, because the reason is written against the file as read and then INSERTED above the thing it
+names. Every parenthetical is stripped (46 of them, 22 files): a reason now names its target by SYMBOL
+only, which is the house rule (#2109 item 3, "write it as a mechanism, not a coordinate") and is stable
+under insertion. The substance of the reasons is unchanged and was spot-verified by the verifier.
+
 ## What this lane did NOT do
 
 - Did not touch `verify/lib/**` or `verify/ops/**` knip rows (fence; three sibling lanes).
 - Did not delete `isGateResourceDemandKind` (a dead FUNCTION whose deletion cascades onto a vocabulary).
 - Did not re-assert the TS7 argv half that `concurrency-profile.test.ts` already owns.
+- Did not fold `resolveTypeMemberOrigin`'s own property lookup onto the new shared reader (a different
+  predicate — see above), and did not touch the other twelve `#2097` binding-chain sites the audit routes to
+  `p-binding-readers`; only `zod-error-issues-home`'s, which #2194 names.
+- Did not raise the D53 tripwire's literal, and did not re-file #2218 in another shape: its base was
+  already load-scaled by the root config.
 - Did not run a whole-tree `check`/`verify`/`check:structure` (the `--check <id>` door is a SELECTED run and
   publishes no pointer).

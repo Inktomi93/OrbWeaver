@@ -82,14 +82,28 @@ const BENIGN_SCRIPT = (): RegexScriptRow =>
  *  50ms interrupt if it is present. Enough that a broken/unwired watchdog blows well past the vitest timeout. */
 const REDOS_INPUT = `${"a".repeat(40)}!`;
 
-/** THE TRIPWIRE'S QUIET-BOX BASE, load-scaled (#2192). The number is unchanged — what changed is that it is
- *  no longer FLAT: this arm builds the REAL composition root and seeds through the real regex + chat verbs,
- *  and it was measured at 7,634 ms of its own 10,000 ms ceiling under lane load, i.e. one contended run away
- *  from a red that would have been about the BOX, not about the watchdog. `budget()` stretches it by the
- *  box's contention and leaves it BYTE-IDENTICAL on a quiet one (`_shared/load-budget.ts`, the one policy —
- *  the `tests/server` spelling is the bare `budget`, as `infra/plugin-host/sandbox.test.ts` uses it). The
- *  tripwire survives: an UNWIRED watchdog hangs the catastrophic backtrack for MINUTES, which no factor of
- *  10 s reaches, and the elapsed ceiling below is the second, tighter refutation. */
+/** THE TRIPWIRE'S QUIET-BOX BASE, load-scaled (#2192) — and READ THE NEXT PARAGRAPH BEFORE TREATING A RED
+ *  HERE AS A DEFECT. The number is unchanged; what changed is that it is no longer FLAT. The old literal
+ *  `{ timeout: 10_000 }` OVERRODE the config's scaled default, so this was the one arm in the file that did
+ *  not scale at all. `budget()` is the one policy (`_shared/load-budget.ts`); the `tests/server` spelling is
+ *  the bare `budget`, as `infra/plugin-host/sandbox.test.ts:31` uses it.
+ *
+ *  THE MEASURED PAIR, AND WHY THE SCALING DOES NOT RESCUE IT (cb-v-instruments-3, 2026-09-13). This arm
+ *  builds the REAL composition root and seeds through the real regex + chat verbs, so its wall clock is
+ *  mostly the BOX: **5,770 ms solo · 7,865 ms in a two-file scoped run · TIMED OUT at 10,117 ms in a
+ *  three-file one**. That 10,117 is `budget(10_000)` at `loadavg1 10.2 · cpuCount 16 · throttle
+ *  5346/462343` — a factor of **1.0116**, and the whole 1.16% came from the throttle arm, because
+ *  `computeLoadFactor` is `max(1, loadavg/cores)` and returns EXACTLY 1 across the entire sub-saturation
+ *  band this box actually runs in. So the scaling is correct and it is not enough: the residual is the
+ *  CURVE, which is #2206's subject, not this base.
+ *
+ *  THEREFORE THE RULE FOR A RED HERE, and it is not "raise the literal" (an unscaled larger number has the
+ *  same defect one load class later): **re-run this file SOLO before calling it a defect.** A vitest
+ *  `testTimeout` is not the load-kill path — it carries no `LOAD_KILL_MARKER` and reads exactly like an
+ *  assertion failure — so the box's own contention is the first hypothesis, and a solo pass at ~5.8 s is the
+ *  receipt that refutes it. What the tripwire still proves at any factor: an UNWIRED watchdog hangs the
+ *  catastrophic backtrack for MINUTES, which no multiple of 10 s reaches, and the elapsed ceiling below is
+ *  the second, tighter refutation. */
 const REDOS_TRIPWIRE_BASE_MS = 10_000;
 /** The sub-second elapsed ceiling (#831), likewise scaled and for the same reason: it is a WALL CLOCK over a
  *  call that does real db work under whatever else the box is running. The watchdog throws at ~52 ms, so even
