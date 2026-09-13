@@ -842,3 +842,193 @@ test("failure order is policy, arm, then example index", () => {
     ["policy-b", "mustPass", 0],
   ]);
 });
+
+// ── #2189 (P7): THE REVIEWED-GRANT IDENTITY ARM, through the production dispatcher ──────────────────────────
+//
+// RED BASELINE, measured on the unmodified tree before any of this existed: `verifyPolicyProofs` returned `[]`
+// for a reviewed-grant policy emitting `operation: "the-oepration-TYPO-no-grant-can-name"` exactly as it did for
+// the intended spelling. Nothing in the corpus asked whether a policy's emitted `(subject, operation)` could bind
+// a grant at all, so a conversion could ship an unlicensable identity fully green.
+//
+// The two rows that carry this whole arm are WRONG SUBJECT and WRONG OPERATION: they are what proves the runner
+// mints its grant from the row's AUTHORED strings rather than from the finding it just watched the policy emit.
+// A tautological implementation passes every other row here.
+
+const GRANT_FLAG_FILE = "packages/client/src/proof.ts";
+const GRANT_SUBJECT = "the-subject";
+const GRANT_OPERATION = "the-operation";
+
+interface ReviewedPolicyOptions {
+  readonly subject?: string;
+  readonly operation?: string;
+  readonly grant?: { readonly subject: string; readonly operation: string };
+  readonly expect?: GatePolicyProof["expect"];
+  readonly files?: Readonly<Record<string, string>>;
+  readonly refuseInVisit?: boolean;
+}
+
+/** A reviewed-grant policy that stamps ONE identity onto every planted file it sees. The emitted identity and the
+ *  ANNOTATED identity are independent inputs on purpose — that gap is the whole subject of this section. */
+function reviewedPolicy(id: string, options: ReviewedPolicyOptions = {}): GatePolicy {
+  const subject = options.subject ?? GRANT_SUBJECT;
+  const operation = options.operation ?? GRANT_OPERATION;
+  const files = options.files ?? { [GRANT_FLAG_FILE]: "export const planted = true;\n" };
+  return defineGate({
+    id,
+    family: id,
+    authority: "reviewed-grant",
+    severity: "error",
+    population: "@client",
+    analysis: "syntax",
+    execution: "selected-files",
+    facts: [],
+    resources: [],
+    message: `${id} message`,
+    fix: "add an exact reviewed grant row.",
+    create: (ctx) => ({
+      visitFile: (sourceFile) => {
+        if (options.refuseInVisit === true) {
+          throw new Error("the policy's own reader refused");
+        }
+        if (sourceFile.getFullText().includes("planted")) {
+          ctx.report.file(ctx.relativePath(sourceFile), { subject, operation });
+        }
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "source",
+        files,
+        expect: options.expect ?? { count: 1 },
+        ...(options.grant === undefined ? {} : { grant: options.grant }),
+        why: "the founding defect, carrying the policy's reviewed-grant identity",
+      },
+    ],
+    mustPass: [{ ...SOURCE_PASS, files: { [GRANT_FLAG_FILE]: "export const clean = true;\n" } }],
+  } as GatePolicy);
+}
+
+const MATCHING_GRANT = { subject: GRANT_SUBJECT, operation: GRANT_OPERATION } as const;
+
+test("an annotated row proves its emitted identity binds a grant, and an unannotated row is unchanged", () => {
+  expect(verifyPolicyProofs([reviewedPolicy("grant-identity-valid", { grant: MATCHING_GRANT })])).toEqual([]);
+  // The SAME policy with no annotation also passes — the arm is opt-in and adds no verdict where it is absent.
+  expect(verifyPolicyProofs([reviewedPolicy("grant-identity-absent")])).toEqual([]);
+});
+
+test("the identity run uses the AUTHORED pair — a wrong subject or operation stales the grant and reds", () => {
+  for (const [label, grant] of [
+    ["subject", { subject: "not-the-subject", operation: GRANT_OPERATION }],
+    ["operation", { subject: GRANT_SUBJECT, operation: "not-the-operation" }],
+  ] as const) {
+    const failures = verifyPolicyProofs([reviewedPolicy(`grant-identity-wrong-${label}`, { grant })]);
+    expect(failures).toHaveLength(1);
+    const [failure] = failures;
+    expect(failure?.arm).toBe("mustFlag");
+    // The finding matched no grant, so it stayed EFFECTIVE and the generated row was consumed zero times: the
+    // central reconciler alarms `stale-reviewed-grant` and `toolFailure` turns that alarm into the row's failure.
+    expect(failure?.detail).toContain("grant identity run");
+    expect(failure?.detail).toContain("[stale-reviewed-grant]");
+    // …and the wrong pair is NAMED, so the repair is readable without re-running anything.
+    expect(failure?.detail).toContain(JSON.stringify(grant.subject));
+    expect(failure?.detail).toContain(JSON.stringify(grant.operation));
+  }
+});
+
+test("two findings sharing the authored identity license NOTHING — the row reds over-broad", () => {
+  // §12.5: a grant matching N > 1 candidates suppresses none of them. A policy that fails to aggregate its class
+  // into one finding per identity is exactly the policy whose real central row can never be consumed.
+  const failures = verifyPolicyProofs([
+    reviewedPolicy("grant-identity-over-broad", {
+      grant: MATCHING_GRANT,
+      expect: { count: 2 },
+      files: { [GRANT_FLAG_FILE]: "export const planted = true;\n", "packages/client/src/second.ts": "export const planted = true;\n" },
+    }),
+  ]);
+  expect(failures).toHaveLength(1);
+  expect(failures[0]?.detail).toContain("[over-broad-reviewed-grant]");
+});
+
+test("the identity verdict never accepts one half alone — a second unlicensed finding still reds", () => {
+  // One granted AND zero effective, together. This policy emits the authored identity on one file and a DIFFERENT
+  // identity on another, so the grant run reaches `grantedFindings` 1 while a finding remains effective.
+  const policy = defineGate({
+    ...reviewedPolicy("grant-identity-partial", {
+      grant: MATCHING_GRANT,
+      expect: { count: 2 },
+      files: { [GRANT_FLAG_FILE]: "export const planted = true;\n", "packages/client/src/other.ts": "export const planted = true;\n" },
+    }),
+    create: (ctx) => ({
+      visitFile: (sourceFile) => {
+        const path = ctx.relativePath(sourceFile);
+        if (sourceFile.getFullText().includes("planted")) {
+          ctx.report.file(path, path === GRANT_FLAG_FILE ? MATCHING_GRANT : { subject: "a-second-subject", operation: GRANT_OPERATION });
+        }
+      },
+    }),
+  } as GatePolicy);
+  const failures = verifyPolicyProofs([policy]);
+  expect(failures).toHaveLength(1);
+  expect(failures[0]?.detail).toMatch(/grant identity run: expected ZERO effective findings.*but got 1/su);
+});
+
+test("the baseline mustFlag verdict is preserved and runs FIRST — a refusal never reaches the identity run", () => {
+  // Detection proof intact: a row whose count is wrong reds on its own expectation even though its annotation is
+  // correct, so an identity witness can never launder a broken detection claim.
+  const miscounted = verifyPolicyProofs([reviewedPolicy("grant-identity-miscount", { grant: MATCHING_GRANT, expect: { count: 7 } })]);
+  expect(miscounted).toHaveLength(1);
+  expect(miscounted[0]?.detail).toBe("expected effective finding count=7 but got 1");
+
+  // And a policy that refuses is reported by the EXISTING refusal logic, which runs ahead of the arm verdict by
+  // design (`toolFailure`): the identity run is never reached, and the row names the refusal rather than the grant.
+  // BOTH its arms red on the refusal (the reader throws on every file), and NEITHER mentions the identity run.
+  const refused = verifyPolicyProofs([reviewedPolicy("grant-identity-refused", { grant: MATCHING_GRANT, refuseInVisit: true })]);
+  expect(refused.map(({ arm }) => arm)).toEqual(["mustFlag", "mustPass"]);
+  for (const failure of refused) {
+    expect(failure.detail).toContain("the policy's own reader refused");
+    expect(failure.detail).not.toContain("grant identity run");
+  }
+});
+
+test("a SECOND valid witness on another row is legal and is proven too", () => {
+  const twoWitnesses = defineGate({
+    ...reviewedPolicy("grant-identity-two-witnesses", { grant: MATCHING_GRANT }),
+    create: (ctx) => ({
+      visitFile: (sourceFile) => {
+        const path = ctx.relativePath(sourceFile);
+        if (sourceFile.getFullText().includes("planted")) {
+          ctx.report.file(path, path === GRANT_FLAG_FILE ? MATCHING_GRANT : { subject: "second-subject", operation: "second-operation" });
+        }
+      },
+    }),
+    mustFlag: [
+      {
+        mode: "source",
+        files: { [GRANT_FLAG_FILE]: "export const planted = true;\n" },
+        expect: { count: 1 },
+        grant: MATCHING_GRANT,
+        why: "the first emitted identity",
+      },
+      {
+        mode: "source",
+        files: { "packages/client/src/second.ts": "export const planted = true;\n" },
+        expect: { count: 1 },
+        grant: { subject: "second-subject", operation: "second-operation" },
+        why: "a second emitted identity, equally bindable",
+      },
+    ],
+  } as GatePolicy);
+  expect(verifyPolicyProofs([twoWitnesses])).toEqual([]);
+
+  // The control that keeps the row above from being vacuous: give the SECOND row the FIRST row's identity and only
+  // that row reds, at index 1 — each witness is judged against the finding its own fixture produces.
+  const crossed = defineGate({
+    ...twoWitnesses,
+    id: "grant-identity-two-witnesses-crossed",
+    family: "grant-identity-two-witnesses-crossed",
+    mustFlag: [twoWitnesses.mustFlag[0] as GatePolicyProof, { ...(twoWitnesses.mustFlag[1] as GatePolicyProof), grant: MATCHING_GRANT }],
+  } as GatePolicy);
+  const failures = verifyPolicyProofs([crossed]);
+  expect(failures.map(({ arm, exampleIndex }) => [arm, exampleIndex])).toEqual([["mustFlag", 1]]);
+  expect(failures[0]?.detail).toContain("[stale-reviewed-grant]");
+});

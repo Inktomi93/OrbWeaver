@@ -129,6 +129,22 @@ export const gate = defineGate({
       mode: "types",
       files: { [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; chatId: string; apiKey: string };\n' },
       expect: { count: 1, token: "apiKey", messageIncludes: "TYPE-LEVEL UNREPRESENTABLE" },
+      // THE REVIEWED-GRANT IDENTITY WITNESS (#2189, §4.3). This policy's whole exception door is the FIELD NAME
+      // as `subject` plus the one `bus-payload-field` `operation` — which is what makes the live `credentialId`
+      // row grantable at all — so the row proves that pair is bindable: the same fixture re-runs with one
+      // generated grant naming exactly these authored strings, and holds only at `grantedFindings` 1 /
+      // `effectiveFindings` 0 / `authorityAlarms` 0. Driven 2026-09-13 before it was written: this fixture's raw
+      // finding carries `subject: "apiKey"`, `operation: "bus-payload-field"`. The subject is `apiKey` rather
+      // than `credentialId` on purpose — the claim is that the policy's EMITTED identity can reach the central
+      // door, not that this particular field deserves a grant, which `why`/`endsWhen` and owner review own.
+      //
+      // BOTH STRINGS ARE AUTHORED LITERALS, AND `OPERATION` IS DELIBERATELY NOT REUSED HERE — measured by this
+      // row's own planted break (#2189, 2026-09-13). Written first as `operation: OPERATION`, the cut that
+      // renames the module constant moved the EMITTED and the AUTHORED value together and the row stayed GREEN,
+      // which is the same tautology as deriving the identity from the finding: the central table still spells
+      // `bus-payload-field`, so a rename would break every real grant while this proof reported success. With
+      // the literal, that cut reds.
+      grant: { subject: "apiKey", operation: "bus-payload-field" },
       why: "a ChatBusEvent member carrying `apiKey` — the exact D16 leak the firewall forbids",
     },
     {
