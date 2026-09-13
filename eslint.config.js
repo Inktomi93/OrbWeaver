@@ -261,6 +261,11 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 const TOOLING_SRC = "tooling/src/**/*.ts";
 const TOOLING_TESTS = "tests/tooling/**/*.ts";
 const NODE_TOOL_SURFACE = [...NODE_TOOL_SURFACE_GLOBS];
+/** The NESTED `scripts/` trees (#2290) — what `NODE_TOOL_SURFACE_GLOBS`'s `scripts/*` deliberately does not
+ *  reach. Enumerated rather than `scripts/**` so a NEW top-level scripts directory is a decision someone
+ *  makes, not a surface that silently absorbs it: the block's rule set is type-aware and its parser is the
+ *  root program, and a tree outside that program (the st-goldens browser world) must not be swept in. */
+const SCRIPTS_NESTED_SURFACE = ["scripts/codemods/**/*.{ts,mts,cts}", "scripts/probes/**/*.{ts,mts,cts}", "scripts/research/**/*.{ts,mts,cts}"];
 const NON_BROWSER_PACKAGES = Object.keys(PACKAGE_WORLDS).filter((name) => !BROWSER_PACKAGES.has(name));
 const NON_BROWSER_PACKAGE_SRC = NON_BROWSER_PACKAGES.map((name) => `packages/${name}/src/**/*.ts`);
 // Node test dirs — root-owned since the type-worlds split (#1351: no per-file escapee lives in
@@ -530,6 +535,49 @@ export default tseslint.config(
     // declarations are ambient contracts, so this block excludes them rather than treating them as tools.
     files: NODE_TOOL_SURFACE,
     ignores: ["**/*.d.{ts,mts,cts}"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
+    },
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    rules: ASYNC_SAFETY_RULES,
+  },
+  {
+    // THE NESTED `scripts/` TREES (#2290) — the COVERAGE half of the block above, landed 2026-09-13.
+    //
+    // `NODE_TOOL_SURFACE_GLOBS` is `scripts/*.{ts,mts,cts}`: DIRECT children only. So 42 of the 44 tracked
+    // `.ts` files under `scripts/` — codemods 10, probes 30, research 2 — matched NO `files:` glob at all,
+    // and only the no-`files` global block reached them: zero substantive rules. This is a COVERAGE hole
+    // and NOT a fence question, which is the distinction the two are easiest to confuse: #2281/#2282 fence
+    // directories OUT of discovery because they are untracked vendor or transient trees; these are
+    // authored, tracked, first-party TypeScript that nobody linted. `scripts/` is treated as first-party
+    // everywhere else — `scripts/depcruise.mjs` hands `HELPER_WORLD_DIRS` to dependency-cruiser and
+    // `@scripts` is a named population root in the gate runtime's own vocabulary.
+    //
+    // IT IS A SEPARATE BLOCK RATHER THAN A WIDER `NODE_TOOL_SURFACE_GLOBS`, deliberately: that constant is
+    // the ESLint spelling of `isNodeToolSource`/`NODE_TOOL_RE` in `_shared/project-worlds.ts`, which is a
+    // statement about COMPILER routing ("root, package-root, and direct scripts/ tools"). Widening the
+    // glob alone would silently desync the two halves of one identity; widening both would change compiler
+    // routing to close a lint hole. The surface this block names is a lint surface and says so.
+    //
+    // MEASURED BEFORE LANDING, the way the async-safety family was (591 files at #459, 1,276 more at #473
+    // — see the SAFETY_SURFACE header): the full `ASYNC_SAFETY_RULES` set over this population reported
+    // **3 findings**, all `restrict-template-expressions` on an `unknown` interpolation, all FIXED in the
+    // landing lane with none suppressed. A surface that arrives red is a surface someone disables, so the
+    // count is stated rather than discovered. `require-await` was measured separately (1 more finding, an
+    // async generator) and is NOT in this set — same rule/surface mismatch, and the same receipt, as
+    // `tests/**` above.
+    //
+    // `scripts/probes/st-goldens/**` IS EXCLUDED, and not as a convenience: it is BROWSER world
+    // (`BROWSER_SURFACE_DIRS`), the root `tsconfig.json` EXCLUDES it, and this block's parser is that
+    // program — so a file from there would parse-error rather than lint. Its own surface is its own row.
+    // NO `**/*.d.{ts,mts,cts}` ignore, unlike the block above — and that is a MEASUREMENT, not an
+    // oversight. These trees carry ZERO declaration files (`git ls-files 'scripts/**/*.d.ts'` → 0), and
+    // `eslint-grant-liveness` reds a selector with zero members in its native scope: copying the sibling's
+    // ignore shipped a dead one and the gate caught it in this lane's own before/after drive. The
+    // st-goldens ignore stays because it has 5 members.
+    files: SCRIPTS_NESTED_SURFACE,
+    ignores: ["scripts/probes/st-goldens/**"],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
@@ -846,8 +894,12 @@ export default tseslint.config(
   {
     // Zustand escape-hatch guard. Outside client state/, components/routes may not call
     // `useFooStore.setState(...)`/`.getState()` on the store's static API — those bypass the action
-    // seam. The canonical `useFooStore((s) => s.foo)` selector usage is unaffected. Dormant until
-    // `packages/client/src/state/` exists.
+    // seam. The canonical `useFooStore((s) => s.foo)` selector usage is unaffected. LIVE, and has been
+    // since the client-foundation wave: `packages/client/src/state/` carries 88 tracked files, which is
+    // also why this block's own `ignores` names that directory — a store's file legitimately calls its
+    // internal setState/getState. The header's item 6 says LIVE; this line said "Dormant until
+    // `packages/client/src/state/` exists" until #2286, so the header↔body contradiction #2236 repaired
+    // survived here INVERTED, in the one item whose body that sweep did not reach.
     files: [CLIENT_SRC],
     ignores: ["packages/client/src/state/**"],
     rules: {

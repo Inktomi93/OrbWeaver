@@ -75,12 +75,30 @@ import { policyTimingAlarms, timingAlarms } from "../lib/timing.ts";
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
 /** Map the legacy PassResult onto the artifact's legacy rows: each gate's per-occurrence findings collapse into
- *  `{file,line,message}` violations, where the message is the finding's own override or the descriptor's `message`. */
+ *  `{file,line,message}` violations, where the message is the finding's own override or the descriptor's `message`.
+ *
+ *  `ok` IS CARRIED FROM THE PASS, NEVER RECOMPUTED (#2285). `lib/pass.ts#gateOk` already answers the TWO-TERM
+ *  verdict — nothing to report AND nothing broken — and `stripProbeFindings` states the rule this line used to
+ *  break: *"ONE SPELLING of the two-term verdict (#2234): recomputing `findings.length === 0` here would have
+ *  laundered a BROKEN gate back to green."* That is exactly what happened here, one file over: a gate whose
+ *  `run` phase THREW came back with zero findings, and this row published `ok: true` into
+ *  `reports/check-structure.json` — the artifact `structure-delta`, `check:show` and the barrier all read.
+ *
+ *  THE #2234 RULING SURVIVES; ITS INPUT CHANGED. `lib/pass.ts`'s header (2026-09-12) recorded the front door as
+ *  DELIBERATELY unchanged, and the property it was protecting — *"the run verdict and the exit code are
+ *  byte-identical before and after"* — is preserved here unconditionally: nothing in this verb's exit path reads
+ *  a legacy row's `ok`. Re-derived 2026-09-13 over 7,570 files (`pnpm ast refs LegacyGateRow` / `StructureGateRow`
+ *  / `StructureReport`, then every `.ok` / `?.ok` / `["ok"]` / destructured spelling across the eight resulting
+ *  files): the run verdict is `:345`'s `total === 0 && !legacyBroken && !finalBroken`, whose brokenness term is
+ *  `pass.toolErrors` at `:334`; `ops/structure-delta.ts` types its `counts(row: FinalPolicyRow)` to the FINAL
+ *  side and never sees a legacy row; `ops/debt.ts`'s `ok` is its own reader-result union. The ONE consumer of
+ *  this field is `ops/show.ts:164`'s per-gate ✓/✗ glyph, which now agrees with `lib/render.ts:106` — the reader
+ *  #2234 already fixed, and the disagreement between the two was the defect. */
 function toLegacyRows(pass: PassResult, gatesByName: ReadonlyMap<string, GateDescriptor>): readonly LegacyGateRow[] {
   return pass.gates.map((g) => {
     const descriptor = gatesByName.get(g.name);
     const violations: Violation[] = g.findings.map((f) => ({ file: f.file, line: f.line, message: f.message ?? descriptor?.message ?? g.name }));
-    return { contract: "legacy", name: g.name, ok: violations.length === 0, violations, scan: g.scan, timing: g.timing };
+    return { contract: "legacy", name: g.name, ok: g.ok, violations, scan: g.scan, timing: g.timing };
   });
 }
 

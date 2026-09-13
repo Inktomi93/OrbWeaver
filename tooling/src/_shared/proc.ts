@@ -78,7 +78,12 @@ export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): v
  *  load) because a long-lived process spawns children across changing load. */
 const DEFAULT_TIMEOUT_BASE_MS = 120_000;
 
-/** Sync spawn under `nice -n 19` — never throws on a non-zero status (the caller judges). */
+/** Sync spawn under `nice -n 19` — never throws on a non-zero status (the caller judges).
+ *
+ *  IT ALSO NEVER THROWS ON A FAILED SPAWN, which is why `errorCode` exists (#2284): `spawnSync` puts that
+ *  failure on `res.error` and leaves `status` null, so a door that returns only `{status, stdout, stderr}`
+ *  hands the caller a null it cannot interpret. See the field's own note in ./proc-contract.ts for the four
+ *  causes it separates and the refusal that blamed git for one of them. */
 export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
   const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
   const res = spawnSync("nice", ["-n", "19", cmd, ...args], {
@@ -88,7 +93,22 @@ export function runNicedSync(cmd: string, args: readonly string[], opts: RunNice
     ...(opts.timeout === undefined ? {} : { timeout: opts.timeout }),
     ...(stdio === undefined ? { encoding: "utf8" as const } : { stdio }),
   });
-  return { status: res.status, stdout: typeof res.stdout === "string" ? res.stdout : "", stderr: typeof res.stderr === "string" ? res.stderr : "" };
+  const errorCode = errnoCodeOf(res.error);
+  return {
+    status: res.status,
+    stdout: typeof res.stdout === "string" ? res.stdout : "",
+    stderr: typeof res.stderr === "string" ? res.stderr : "",
+    ...(errorCode === undefined ? {} : { errorCode }),
+  };
+}
+
+/** node types `SpawnSyncReturns.error` as a bare `Error`, but every spawn failure it carries is an
+ *  `ErrnoException` whose `code` is the cause (`ENOBUFS` / `ETIMEDOUT` / `ENOENT`). Read narrowly and
+ *  structurally rather than casting the whole error: a future node that reports a cause-less error still
+ *  answers `undefined` here instead of throwing inside a door whose contract is "never throws". */
+function errnoCodeOf(error: Error | undefined): string | undefined {
+  const code = (error as { readonly code?: unknown } | undefined)?.code;
+  return typeof code === "string" ? code : undefined;
 }
 
 /** execFileSync's DEFAULT forwards the child's stderr to the parent's stderr even though it also captures

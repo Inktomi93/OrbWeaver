@@ -61,6 +61,16 @@ export interface RunNicedSyncResult {
   readonly status: number | null;
   readonly stdout: string;
   readonly stderr: string;
+  /** THE DISCRIMINATOR FOR A `status: null` (#2284). `spawnSync` reports a failure of the SPAWN — as opposed
+   *  to a child that ran and exited — on its `error` field, and this door used to drop it, leaving `null` to
+   *  mean four different things a caller could not tell apart: the capture ceiling killed the child
+   *  (`ENOBUFS`, and `execFileSync`'s sibling THROWS this where `spawnSync` does not), the wall-clock
+   *  `timeout` killed it (`ETIMEDOUT`), the binary is missing (`ENOENT`), or the child was signalled. Every
+   *  caller that hit one of the first three then blamed the COMMAND for a ceiling the CALLER set: the
+   *  `check:ledger-claims` refusal printed *"git log … failed (status null)"* at 1,457,840 bytes of log, which
+   *  is a sentence about git and was a sentence about a 1 MiB default. `undefined` means the child really did
+   *  run — read `status` — so the field costs an existing caller nothing. */
+  readonly errorCode?: string;
 }
 
 export interface FullPriorityChildOptions {

@@ -169,7 +169,16 @@ export const gate = defineGate({
   // The narrowing is safe BECAUSE of the missing-subject arm below: a subject that moves out of contracts
   // reds rather than going quiet.
   population: "@contracts",
-  analysis: "syntax",
+  // `types`, NOT `syntax` (#2256, corrected 2026-09-13). The declaration used to read `syntax` while this
+  // policy rests its verdict on the CHECKER one import hop out: `lib/reference-fact.ts#readMemberReference`
+  // reaches `resolveStableExpressionInternal` -> `importedTarget`, which calls
+  // `lexicalReferenceSymbol(current)?.getAliasedSymbol()` to follow an import door to its declaration — and
+  // that reader's own header already says "checker-proven". A syntax declaration on a checker-backed policy
+  // is not a formality: `analysis` is DATA the runtime dispatches on, it fixes the proof MODE every row must
+  // carry (`lib/policy-validation.ts#expectedMode`), and a `types` owner is priced differently. Every
+  // `mustFlag`/`mustPass` row below therefore moved from `mode: "source"` to `mode: "types"` in the same
+  // commit and was re-run; no claim about the syntax plane survives in this header.
+  analysis: "types",
   execution: "entire-population",
   facts: [],
   resources: [],
@@ -255,13 +264,13 @@ export const gate = defineGate({
   },
   mustFlag: [
     {
-      mode: "source",
+      mode: "types",
       files: { ...COMPLIANT_HOMES, [PRINCIPAL_HOME]: "export interface Principal {\n  userId: string;\n  kind: string;\n}\n" },
       expect: { count: 1, token: "kind", messageIncludes: "D60" },
       why: "a `kind` field on Principal — agents are structurally Principal-less (D60)",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         ...COMPLIANT_HOMES,
         [SETTINGS_HOME]: 'import { z } from "zod";\nexport const appSettingsSchema = z.object({\n  guidedActions: z.array(z.string()),\n});\n',
@@ -270,7 +279,7 @@ export const gate = defineGate({
       why: "appSettingsSchema.guidedActions — a neo phantom; guided actions live only on the preset (D33)",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         ...COMPLIANT_HOMES,
         "packages/contracts/src/settings/base.ts": 'import { z } from "zod";\nexport const baseSchema = z.object({ guidedActions: z.array(z.string()) });\n',
@@ -281,7 +290,7 @@ export const gate = defineGate({
       why: "the banned key reached through `.extend(…).strict()` off an IMPORTED base is the same shape — a reader that only read the outermost object literal would pass it",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         ...COMPLIANT_HOMES,
         [SETTINGS_HOME]:
@@ -291,7 +300,7 @@ export const gate = defineGate({
       why: "an OBJECT SPREAD of a same-file const carries the key just as a literal member does",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         ...COMPLIANT_HOMES,
         [SETTINGS_HOME]: 'import { z } from "zod";\nexport const appSettingsSchema = z.object({ ["guidedActions"]: z.boolean() });\n',
@@ -300,19 +309,19 @@ export const gate = defineGate({
       why: "a COMPUTED static key is the same declared key — the #1506 respelling class",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { ...COMPLIANT_HOMES, [SETTINGS_HOME]: "declare function build(): unknown;\nexport const appSettingsSchema = build();\n" },
       expect: { count: 1, messageIncludes: "cannot resolve" },
       why: "FAIL-CLOSED (#944): a ruled schema whose shape the readers cannot read is REPORTED, never silently skipped — a silent skip is the audited escape verbatim",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { ...COMPLIANT_HOMES, [PRINCIPAL_HOME]: "export interface Caller {\n  userId: string;\n}\n" },
       expect: { count: 1, messageIncludes: "SILENT NO-OP" },
       why: "§4.6 BLINDNESS: `Principal` renamed away in its own home — the D60 row now matches nothing, and a name-keyed ban that stops matching must RED, not report ✓ forever",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { [SETTINGS_HOME]: COMPLIANT_HOMES[SETTINGS_HOME] as string },
       expect: { count: 1, messageIncludes: "not in this policy's population" },
       why: "§4.6, the other half: the row's declared HOME FILE is gone entirely (a move out of contracts), so the finding anchors on the population's first path rather than vanishing with the file",
@@ -320,12 +329,12 @@ export const gate = defineGate({
   ],
   mustPass: [
     {
-      mode: "source",
+      mode: "types",
       files: { ...COMPLIANT_HOMES },
       why: "both ruled subjects present and born-compliant — a kind-less Principal and an appSettingsSchema with no guidedActions key",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         ...COMPLIANT_HOMES,
         [SETTINGS_HOME]:
@@ -334,12 +343,12 @@ export const gate = defineGate({
       why: "the LIVE authoring shape — per-field `.nullable().optional().catch()` wrappers plus a trailing `.strict()` — resolves to its keys and passes",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { ...COMPLIANT_HOMES, "packages/contracts/src/chat/index.ts": "export interface Envelope {\n  kind: string;\n}\n" },
       why: "DECLARED LIMIT / no-false-positive: `kind` is banned on `Principal` BY NAME — an ordinary discriminant on another interface is not the ruled shape",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         ...COMPLIANT_HOMES,
         "packages/contracts/src/preset/index.ts": 'import { z } from "zod";\nexport const presetSchema = z.object({ guidedActions: z.array(z.string()) });\n',
@@ -347,7 +356,7 @@ export const gate = defineGate({
       why: "DECLARED LIMIT: D33 says guided actions live ONLY on the preset — the key on a preset schema is its CORRECT home, and the ban is keyed to `appSettingsSchema` by name",
     },
     {
-      mode: "source",
+      mode: "types",
       files: { ...COMPLIANT_HOMES, "packages/contracts/src/notes.ts": 'export const note = "appSettingsSchema.guidedActions was dropped by D33";\n' },
       why: "comment/mention fence: the policy subscribes to declaration node KINDS, so a string (or comment) naming the banned shape is prose, never a declaration",
     },

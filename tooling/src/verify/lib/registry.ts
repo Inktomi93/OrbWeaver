@@ -5,10 +5,10 @@
 import type { StageDef, Tier } from "../contract/stage.ts";
 import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
-import { eslintScopedArgv, tscScopedArgv, vitestScopedArgv } from "./registry-argv.ts";
+import { eslintScopedArgv, tscScopedArgv } from "./registry-argv.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
+import { TEST_LANE_STAGES } from "./registry-test-lanes.ts";
 import { applyPathTriggers } from "./registry-triggers.ts";
-import { ctSuiteHangCeilingMs } from "./stage-budget.ts";
 
 // ── the registry ──────────────────────────────────────────────────────────────────────────────────────
 // Build history (all LANDED): V1 wired argv (whole-scope) + tiers + classify; V2 landed the `scopedArgv`
@@ -303,134 +303,9 @@ const GATING_STAGES: readonly StageDef[] = [
   },
 
   // ── tests stage-group (§3.7: the eight lanes as ONE concept with tier + scope) ──
-  {
-    name: "tests:node",
-    group: "tests",
-    tiers: ["changed", "push", "full"],
-    // THE VITEST HALF ONLY (#1848). It ran `pnpm test` — the composite that ALSO runs the CT suite — and
-    // the two halves shared one 45-minute hang ceiling that the sum outgrew the moment #1835 put CT on the
-    // shared worker cap: `verify --full` reported `[tool-error] TIMED OUT` on a QUIET box for a stage that
-    // was still working. The composite remains available as the explicit product-test command (and keeps
-    // its own manual row); the RUNNER now runs the halves as two stages, so each carries the ceiling its
-    // own runtime needs. `pnpm test:ct --retries=2` is the sibling `browser:ct` row below.
-    argv: ["pnpm", "test:node"],
-    classify: ownScheme,
-    // At changed scope: explicit test claims use the guarded `test:scoped` door; explicit source claims
-    // use Vitest's native related graph; a Git-derived selection stays `--changed`. No project roster is
-    // copied here — the native config remains the population authority. CT does NOT ride this lane at
-    // changed scope: its mirror mapping is the separate `browser:ct` stage below.
-    //
-    // `--passWithNoTests` RIDES THE SCOPED ARGV ONLY (#1272) — the whole-scope `pnpm test` above must never
-    // carry it. THE DEFECT: `--changed` on a CLEAN COMMITTED TREE selects nothing, vitest prints "No test
-    // files found, exiting with code 1", and `asViolations` reads that digit as VIOLATIONS — so a lane that
-    // verified green BEFORE committing gets a RED after committing, at the exact door §L tells it to walk.
-    // A red meaning "there was nothing to run" either sends a lane chasing a phantom or teaches it that
-    // reds from this door are ignorable.
-    // THE RULING IT REOPENS: vitest 4 DEFAULTS `passWithNoTests` to true; `vitest.config.ts` turns it OFF
-    // repo-wide — "false (PD-115): every lane … has matching files now, so a lane whose include glob
-    // matches NOTHING (a typo'd pattern, a moved tree) FAILS instead of passing" (Core-Debt-Cleared-Ledger
-    // PD-115, 2026-07-03). That ruling SURVIVES; its INPUT changed. PD-115 judges an ASSERTED selector — a
-    // lane's config include glob, which asserts a fileset — while this argv's selector is always the
-    // DERIVED one (`--changed`), and derived-empty is CLEAN by the same asymmetry ops/scoped.ts's
-    // `emptyScopeNotice` already draws (AGENTS.md §4: an asserted selector resolving to zero is exit 2,
-    // a derived one resolving to zero is an ordinary state). PD-115's own class stays guarded without this
-    // door: `tests:execution-membership` REDs a runner view matching ZERO files at the STATIC tier, and
-    // every whole-scope `pnpm test` still runs under `passWithNoTests: false`.
-    // The flag sits BEFORE `--changed` because `--changed`'s ref value is OPTIONAL — a flag placed after it
-    // can be swallowed as that value. `vitest related` defaults to derived-empty success; the explicit
-    // spelling below makes that asymmetry visible beside the Git arm. Asserted test paths do NOT carry it:
-    // `test:scoped` asks Vitest's collection view and refuses a barren operand.
-    scopedArgv: vitestScopedArgv,
-  },
-  {
-    // THE INSTRUMENT BATTERY, OFF THE PUSH BAR ENTIRELY (#1523 split it; #1842 finished the cut).
-    // Measured 2026-09-04 over 1,867 files: `tests/tooling` was 71.1 CPU-min across 284 files against 9.0
-    // for tests/server's 1,185 and 1.3 for everything else — 82% of the node battery, all of it
-    // recertifying OUR TOOLS. Owner 2026-09-04: "about 30 minutes of tooling recertification, which makes
-    // it tedious to run tests… move that to verify --full"; owner 2026-09-06: "take tooling out of the
-    // verify push and into full". #1523's first cut kept a CONDITIONAL push rung (run it when the branch
-    // touched an instrument) — that rung is GONE: a tooling diff pays this cost at `--full` or through
-    // `pnpm test:tooling` by hand, and `--push` never spawns it. The `tierPrecondition` MECHANISM stays in
-    // the stage contract (contract/stage.ts) for the next row that needs it; this row's push-tier DATA is
-    // what was deleted, along with the predicate it hung on (lib/registry-preconditions.ts).
-    //
-    // The full instrument battery includes its parallel and remaining serial projects.
-    name: "tests:tooling",
-    group: "tests",
-    tiers: ["full"],
-    argv: ["pnpm", "test:tooling"],
-    classify: ownScheme,
-    // Whole-only by nature, and that is only honest because `tests:node`'s scoped path delegates to
-    // Vitest's native configured projects, so a tooling source still reaches its related tests at
-    // `changed`. A second row at `changed` would spawn a second Vitest over the same selection.
-  },
-  {
-    name: "tests:tool-guard",
-    group: "tests",
-    // THE ONE INSTRUMENT WHOSE PIN CANNOT WAIT FOR `--full` (#1943 F3). The #1842 cut is right about the
-    // battery — 71 CPU-minutes of instrument recertification does not belong on the push bar — but it
-    // left the PreToolUse Bash guard (.claude/hooks/tool-guard.mjs) with NO executing check below
-    // `--full`: nothing lints it (see `lint:hook-syntax`), and its only behavioural proof lived in the
-    // `--full`-only battery. The guard gates every Bash call in every session, it fails OPEN by contract,
-    // and it is edited by lanes — so its contract rows (rewrite template, hard floor, fail-open, kill
-    // switch, wire shape) are a PUSH-tier fact. 2.35 s measured for the whole file, which is why the row
-    // is the file rather than a subset: a pin nobody can name is a pin nobody runs.
-    // It runs a SECOND time inside `tests:tooling` at `--full`; that duplication costs seconds and keeps
-    // the battery's membership honest (the file is a tooling test and stays one).
-    tiers: ["push", "full"],
-    argv: ["pnpm", "test:scoped", "tests/tooling/tool-guard.int.test.ts"],
-    classify: ownScheme,
-    // Whole-only BY NATURE: the stage IS one file. At a scoped tier the guard's own diff reaches this
-    // test through `tests:node`'s native related-tests resolution, exactly like any other tooling source.
-  },
-  {
-    name: "browser:ct",
-    group: "browser",
-    // THE WHOLE CT SUITE IS ITS OWN STAGE AGAIN (#1848) — it rode inside `tests:node` from 2026-07-17 (a
-    // merge made for the old single-thread constraint) and shared that stage's hang ceiling with the
-    // vitest projects. It is the ONE stage whose runtime is a function of a worker cap, so it is also the
-    // one that needs a DERIVED ceiling; sharing a constant with a 10-minute suite is what produced a false
-    // `[tool-error]`. `changed` keeps the scoped inner loop (mirrors + declared sweeps, never the whole
-    // suite — LANDED 2026-07-17); push/full run the whole suite, which remains the coverage verdict.
-    tiers: ["changed", "push", "full"],
-    // `--retries=2` rides the argv VISIBLY (parallelism flakes retry instead of blocking a push); ad-hoc
-    // `pnpm test:ct` keeps the config's retries:0 for debugging. It moved here from the `pnpm test`
-    // composite with the stage.
-    argv: ["pnpm", "test:ct", "--retries=2"],
-    classify: asViolations,
-    // DERIVED, never typed: ctWorkers moves the CT wall clock, so it moves this ceiling too (lib/stage-budget.ts).
-    hangCeilingBaseMs: ctSuiteHangCeilingMs(),
-    // The scoped CT invocation enters the same launcher as every other CT run: that is where one run slot
-    // is opened before Playwright evaluates its config in several processes. Retries remain 0 (the config
-    // default), so the small inner-loop selection still reports raw signal. skip ⇒ no CT-relevant change.
-    scopedArgv: (sel) => (sel.ct.mode === "skip" ? "skip-empty" : ["pnpm", "test:ct", ...sel.ct.targets]),
-  },
-  {
-    name: "browser:e2e-smoke",
-    group: "browser",
-    tiers: ["push", "full"],
-    argv: ["pnpm", "e2e:smoke"],
-    classify: asViolations,
-    // Cross-cutting by nature — never scoped; deferred at a scoped tier.
-  },
-
-  {
-    name: "quality:boot-chunk",
-    group: "quality",
-    // PUSH tier, never the commit bar: it runs a real vite production build of @orb/client (15.45s warm,
-    // measured 2026-08-22). `pnpm check` is the STRUCTURAL-fast bar (§3.2, "no behavioral suite"), and a
-    // bundler invocation is neither. It defends the #433 + #448 boot-chunk wins (1,146,760 → 740,339 B)
-    // that NOTHING else on the ladder can see: a single new barrel import in main.tsx's static graph
-    // silently re-pays the whole cost, and every other stage stays green while it happens (#460).
-    tiers: ["push", "full"],
-    argv: ["pnpm", "check:boot-chunk"],
-    // Our OWN 0/1/2/3-speaking script (tooling/src/verify/ops/boot-chunk-ratchet.ts) — and it USES the
-    // tool-error code: an unmeasurable dist (no entry chunk / more than one / a failed build) exits 2, so
-    // the run is not a verdict rather than a silent pass.
-    classify: ownScheme,
-    // WHOLE-TREE by nature — the boot chunk is a property of the ENTIRE static import graph reachable
-    // from main.tsx, so no changed-file subset makes an honest partial. Deferred at a scoped tier.
-  },
+  // The six rows that RUN a suite live in ./registry-test-lanes.ts and are spliced in HERE, at the exact
+  // position they held, so REGISTRY order — and therefore `verify --list` — is unchanged (#2291).
+  ...TEST_LANE_STAGES,
 
   // ── full-tier additions (the "nothing omitted" bar) ──
   {

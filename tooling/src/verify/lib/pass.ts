@@ -386,9 +386,18 @@ export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunC
  *  `toolErrors: [{ gate: "css-length-tokens", phase: "run", message: "Maximum call stack size exceeded" }]`.
  *  It silently converted two of that verifier's own runs into false cleans.
  *
- *  THE PRODUCTION FRONT DOOR IS UNCHANGED BY THIS, DELIBERATELY. `ops/structure.ts:83` recomputes its own
- *  per-gate row as `violations.length === 0` and reads brokenness from `pass.toolErrors` at `:344`, so the
- *  run verdict and the exit code are byte-identical before and after. What changes is every OTHER reader —
+ *  THE FRONT-DOOR HALF WAS CORRECTED 2026-09-13 (#2285), and the original claim is kept verbatim because a
+ *  corrected ruling must stay legible as a correction: *"THE PRODUCTION FRONT DOOR IS UNCHANGED BY THIS,
+ *  DELIBERATELY. `ops/structure.ts:83` recomputes its own per-gate row as `violations.length === 0` and reads
+ *  brokenness from `pass.toolErrors` at `:344`, so the run verdict and the exit code are byte-identical before
+ *  and after."* The ruling survives; its INPUT changed. That recomputation kept the exit code stable and
+ *  published `ok: true` for a THROWING gate into `reports/check-structure.json` — so the false clean simply
+ *  moved from the console into the artifact every reader is sent to instead of a re-run.
+ *  `ops/structure.ts#toLegacyRows` now carries `g.ok` through, and the protected property holds
+ *  UNCONDITIONALLY rather than incidentally; that function records the re-derivation, its method and its
+ *  scanned count. What changed is what the ARTIFACT says, not any verdict or exit code.
+ *
+ *  What #2234 changed on its own day was every OTHER reader —
  *  `lib/render.ts:106` now prints `✗` rather than `✓` for a gate that could not run, and
  *  `lib/population.ts:33`'s unresolved alarm (deliberately raised only BEHIND a green verdict) stops firing
  *  for a gate whose verdict is no longer green, which is the same rule it already states.
