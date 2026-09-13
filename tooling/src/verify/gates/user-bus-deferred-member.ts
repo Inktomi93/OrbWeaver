@@ -53,10 +53,8 @@
 // `bus-definition-belts` `mustPass[0]`, which reproduces the real-tree throw inside conformance.
 import { busByUnion, recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { deferralsFor } from "../lib/bus-deferred-member.ts";
+import { deferralsFor, USER_BUS_UNION } from "../lib/bus-deferred-member.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
-
-const UNION = { path: "packages/contracts/src/user-bus/index.ts", exportName: "UserBusEvent" } as const;
 
 const MESSAGE =
   "owner-deferred UserBusEvent member now HAS a server producer — the deferral is retired. Delete BOTH tooling/src/verify/gates/user-bus-deferred-member.ts AND tooling/src/verify/lib/bus-deferred-member.ts, then drop the now-unresolvable deferral read from bus-producer-coverage (which then owns the member by construction), and close the work item.";
@@ -77,17 +75,17 @@ export const gate = defineGate({
     evaluate: () => {
       const fact = ctx.fact(busProducerFact);
       recordReadyBusFact(ctx, fact);
-      const bus = busByUnion(fact, UNION);
+      const bus = busByUnion(fact, USER_BUS_UNION);
       if (bus === undefined) {
-        throw new Error(`expected bus union is missing: ${UNION.path}#${UNION.exportName}`);
+        throw new Error(`expected bus union is missing: ${USER_BUS_UNION.path}#${USER_BUS_UNION.exportName}`);
       }
       // THE UNION HALF OF THE KEY IS LOAD-BEARING HERE TOO: this policy owns ONE union, and a deferral row
       // minted for another bus is not its subject — reading the rows unfiltered would make a second row throw
       // "no longer declared" against a union that never declared it.
-      for (const deferred of deferralsFor(UNION)) {
+      for (const deferred of deferralsFor(USER_BUS_UNION)) {
         const member = bus.declaredMembers.find(({ name }) => name === deferred);
         if (member === undefined) {
-          throw new Error(`deferred ${UNION.exportName} member ${deferred} is no longer declared — this deferral outlived its subject`);
+          throw new Error(`deferred ${USER_BUS_UNION.exportName} member ${deferred} is no longer declared — this deferral outlived its subject`);
         }
         if (bus.emitters.some((emitter) => emitter.member.name === deferred)) {
           ctx.report.node(member.anchor.node, { message: `${MESSAGE} Member: ${deferred}` });
