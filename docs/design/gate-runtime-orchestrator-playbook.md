@@ -23,8 +23,8 @@ order); §12 is what lanes read. This file is what YOU do, in order.
    time** — it was briefed wrong for most of 2026-09-11 and cost at least one lane, and on 2026-09-12 I ruled a
    lane into parking a shared-reader gap that the owner reversed within the hour.
 
-1. Prove the guard is bound: run `git stash` (bare) and expect the hook to DENY it. If it passes, relaunch from `main`
-   before touching anything (hooks bind at launch).
+1. Inspect Git/worktree state and the current session's actual mutation controls. Claude hook configuration does
+   not establish Codex runtime behavior. Never use `git stash`, `checkout`, or `restore` as a guard probe.
 
 2. **Pre-flight: DETECT THE PROCESS. Do not infer it from memory** (owner, 2026-09-13: *“we could also literally
    just detect the vllm process?”* — yes, and the tool already records everything needed to do it exactly).
@@ -108,9 +108,9 @@ order); §12 is what lanes read. This file is what YOU do, in order.
    | Tier | Docs | Size | Read it? |
    | - | - | -: | - |
    | **LAW — you** | the THREE gate docs — `gate-runtime-read-first.md` + this file + `gate-runtime-standardization.md` | 222 KB | **ALWAYS, in full** (owner, amended 2026-09-13: *“it should be three docs — gate runbook, the gate plan doc, and then the gate read this first”*). They are the control. |
-   | **LAW — you** | `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | 155 KB | **ALWAYS.** These are the four the guide delegates to, and re-deriving one cost a full session on 2026-09-11, four separate times. **Skip `ordinary-waiver-source-migration`'s 1,600-line `path:line` appendix** — its own banner says every count in it is to re-derive, never to quote. |
-   | **LAW — you** | `shared-semantic-readers` (M/O/G/V are COMPUTATION GROUPS — a lane must prove shared consumption before naming a `family`) · `checkpoint-2026-09-05` §"Resume order" + its per-wave lessons | 78 KB | **ALWAYS.** Mechanism law that reads like a receipt. |
-   | **COUPLED SITE — you, once** | `Core-Enforcement-Active-Gates.md` | **281 KB** | **Once per program, then by ROW.** It is a coupled site you maintain and 270 dense rows; after one full pass, read only the row you are about to break. |
+   | **LAW — you** | `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | See read-first | On demand under read-first §1b. Read the relevant mechanism and constraints; for marker migration, retain the method receipts after the bare inventory. |
+   | **LAW — you** | `shared-semantic-readers` (M/O/G/V are COMPUTATION GROUPS — a lane must prove shared consumption before naming a `family`) · `checkpoint-2026-09-05` §"Resume order" + its per-wave lessons | 78 KB | On demand under read-first §1b: read the relevant complete section and linked constraints. Revalidate checkpoint work leads against current source and board state. |
+   | **COUPLED SITE — targeted** | `Core-Enforcement-Active-Gates.md` | **281 KB** | On demand by the affected gate row and its linked constraints. Current size and row count are generated in read-first. |
    | **EVIDENCE — you, selectively** | the 16 family conversion records (`*-family-1584.md`, `bus-pair`, `mixed-runtime-front-door`, `policy-soundness-family`, both `simple-visitors`) | ~300 KB | **Read the ONE whose family you are dispatching.** These carry §4.6 differentials, per-module blockers and declared limits that exist nowhere else — `schema-fact-family-1584.md`'s "Explicit blockers" section alone names five Phase-D modules' exact missing reader. |
    | **EVIDENCE — a LANE, not you** | `v-audit-wave*`, `v-exemplar-audit`, `v-gate-batch` | ~430 KB | **DO NOT READ THESE WHOLE.** Their conclusions are already distilled into §2b, and §4.1's decay rule forbids building from their cells without re-cutting. When you need one, dispatch it. |
 

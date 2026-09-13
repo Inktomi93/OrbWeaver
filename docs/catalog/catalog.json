@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 26,
+    "pending": 25,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -12660,37 +12660,47 @@
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
       "lane": "design",
       "issue": 5,
-      "lines": 859,
-      "bytes": 83554,
-      "sha256": "0ef8a71a25519885fb1a032974c5bd6059c52ae3340483cb3d322e3045b68da9",
+      "lines": 976,
+      "bytes": 97413,
+      "sha256": "992c9b02547ff22907523cf57a0a97050a0ce52d51965252ce37af4d63975d9a",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-12"
+          "updated": "2026-09-13"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/gate-runtime-orchestrator-playbook.md",
-        "assignedSha256": "0ef8a71a25519885fb1a032974c5bd6059c52ae3340483cb3d322e3045b68da9",
-        "disposition": "current",
+        "assignedSha256": "992c9b02547ff22907523cf57a0a97050a0ce52d51965252ce37af4d63975d9a",
+        "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0ef8a71a25519885fb1a032974c5bd6059c52ae3340483cb3d322e3045b68da9",
-        "verifiedCommit": "d968fc3fb29076a0c736c47c4c7182b02cc9a6e2",
-        "verifiedAt": "2026-09-12",
-        "evidence": ["authored by the orchestrator from this session's owner rulings and read in full at 418f94aa4"],
-        "summary": "Step list for a fresh orchestrator session running #1584: start ritual, standing rules, phased work order at cap 3, brief skeleton, landing procedure, binding lessons.",
+        "verifiedSha256": "992c9b02547ff22907523cf57a0a97050a0ce52d51965252ce37af4d63975d9a",
+        "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion."
+        ],
+        "summary": "Bounded contradiction repair after full program-document reads and current-diff review. Historical counts and findings require revalidation; the larger #2071 consolidation and gate-program acceptance remain incomplete.",
         "claims": [
           {
-            "claim": "The phased order (runtime lane alone, then backlog/rework/guard residuals, then resource kinds, then conversions, then splits and authority, then legacy deletion) reflects the owner rulings of 2026-09-11 and the dependency order in gate-runtime-standardization.md.",
+            "claim": "The runbook assigns whole-tree integration checks to the coordinator, directs relevant companion reads on demand, and forbids destructive Git commands as mutation-guard probes. Current source and the board supersede dated work leads.",
             "evidence": [
               {
                 "kind": "issue",
                 "target": "#1584"
+              },
+              {
+                "kind": "issue",
+                "target": "#2071"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:711e207d670f587ca24ead8f73c7aacfc733aff4"
               }
             ]
           }
@@ -12702,85 +12712,105 @@
       "path": "docs/design/gate-runtime-read-first.md",
       "lane": "design",
       "issue": 5,
-      "lines": 161,
-      "bytes": 14393,
-      "sha256": "d2cae52f381f4785b549588b678da49a7a99c1a7fcebdc0caa1c878042b3d761",
+      "lines": 214,
+      "bytes": 19848,
+      "sha256": "31719a76909f8811aa3ccecf26963d02244bf1cea16c21faa853613fcc70dbe6",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-12"
+          "updated": "2026-09-13"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/gate-runtime-read-first.md",
-        "assignedSha256": "b143042eb05106a5de4a608a84762410479fbe6dc1eb650afafb2c8bf64b9945",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
-      },
-      "receiptCurrent": false
-    },
-    {
-      "path": "docs/design/gate-runtime-standardization.md",
-      "lane": "design",
-      "issue": 5,
-      "lines": 1774,
-      "bytes": 184259,
-      "sha256": "eed1cc50f3958c2a122ada49094130d0078d5e18e74d1b69e09dfd5b16ccb91a",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "design",
-          "status": "active",
-          "updated": "2026-09-12"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/design/gate-runtime-standardization.md",
-        "assignedSha256": "f0702abe1a5617f01f1d3ec372febca9363f79fc9d6c6d1b5104c33506387e60",
-        "disposition": "current",
+        "assignedSha256": "31719a76909f8811aa3ccecf26963d02244bf1cea16c21faa853613fcc70dbe6",
+        "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "112b2cc4eb7f595851255c422f3a5ceca51da2fbf04973a3f8842776d2f016ce",
-        "verifiedCommit": "ae3904c01c5dab03154a6909946e8a16d91298b1",
-        "verifiedAt": "2026-09-11",
+        "verifiedSha256": "31719a76909f8811aa3ccecf26963d02244bf1cea16c21faa853613fcc70dbe6",
+        "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion."
+        ],
+        "summary": "Bounded contradiction repair after full program-document reads and current-diff review. Historical counts and findings require revalidation; the larger #2071 consolidation and gate-program acceptance remain incomplete.",
         "claims": [
           {
-            "claim": "The active gate-runtime design requires atomic descriptor cutover and preservation of world-program semantics, native observations, performance and regression proofs.",
+            "claim": "The whole-read entry set is the three gate program documents. Companion mechanisms and enforcement rows are consulted on demand; generated reading-cost cells are checked by the existing freshness generator.",
             "evidence": [
               {
                 "kind": "issue",
                 "target": "#1584"
               },
               {
+                "kind": "issue",
+                "target": "#2071"
+              },
+              {
                 "kind": "provenance",
-                "target": "git:65220530dc1349526154f964d00a93e53719142a"
+                "target": "git:711e207d670f587ca24ead8f73c7aacfc733aff4"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/gate-runtime-standardization.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 2184,
+      "bytes": 228471,
+      "sha256": "d4599d80e88e020c805a8fc8a294117347f2e70b395b0364a984dccb378230d0",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/gate-runtime-standardization.md",
+        "assignedSha256": "d4599d80e88e020c805a8fc8a294117347f2e70b395b0364a984dccb378230d0",
+        "disposition": "repaired",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "d4599d80e88e020c805a8fc8a294117347f2e70b395b0364a984dccb378230d0",
+        "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
+        "verifiedAt": "2026-09-13",
+        "claims": [
+          {
+            "claim": "The program uses mixed legacy/final runtime during migration, preserves world/compiler and native-config guarantees, and requires scoped lane checks plus coordinated integration verification. Missing capabilities require an orchestrator decision rather than indefinite legacy parking.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1584"
+              },
+              {
+                "kind": "issue",
+                "target": "#2071"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:711e207d670f587ca24ead8f73c7aacfc733aff4"
               }
             ]
           }
         ],
-        "summary": "Active gate-runtime migration design with world-program carry-forward obligations; historical wave receipts do not establish current whole-corpus completion.",
+        "summary": "Bounded contradiction repair after full program-document reads and current-diff review. Historical counts and findings require revalidation; the larger #2071 consolidation and gate-program acceptance remain incomplete.",
         "evidence": [
-          "Full document read by the orchestrator at the 2026-09-11 wake, before and after editing: resume step 3 now states that the gate:contract census measures descriptor shape only and that convertibility is traced against the shipped GateResourceRequest kinds (the unshipped kinds are #1930, this step's deliverable); the lane paragraph gains the family decision duty and the program-row tracking rule. Every other section re-read unchanged. Edit committed at dc252f52d7293aabf07f414a7438b1bf97b088d1; the receipt re-attests against that commit's bytes.",
-          "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
-          "Full document read by the orchestrator, including historical waves and acceptance, before updating carry-forward requirements. Current hook/router checkpoint dc8ccbd0b and browser guard checkpoint are recorded; live-tree fixture redesign remains explicitly deferred.",
-          "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
-          "Added the measured native-snapshot startup guarantee after 72e0aa008: private worker preserves snapshot/error/root semantics while avoiding eager public-CLI imports; 108 regression cases pass at ordinary timeouts.",
-          "Full program and companion reads plus all 19 comments on #1584; resume instructions checked against integration dc5da295d and fresh gate:contract (264 modules, 145 legacy modules, 1015 findings). World closeout is complete; retained release/tooling reds remain evidence, not a fresh full-battery verdict. CSS discrepancies remain unadjudicated. This receipt attests the updated plan, not completed gate implementation."
+          "Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion."
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/home-tile-promotion.md",
@@ -30532,9 +30562,9 @@
       "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 551,
-      "bytes": 188118,
-      "sha256": "fe77cc42fb97c2a4ab64f83d04052230078beceb2d3d39f44ffe15357a454bfd",
+      "lines": 1146,
+      "bytes": 467145,
+      "sha256": "ba2560f030a18f4e6945f4186f0265e9114c0125ebba5605eab48d3392a1d433",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -40533,6 +40563,106 @@
           }
         ],
         "summary": "Full-read current review; lane p-docs-residue. The #2071 split PLANNED and not executed (no quiet barrier): a 49-sentence dated-worked-case census with its signature, four move candidates with line spans and destinations — three verified, 12.6 explicitly UNVERIFIED with what must be read first — the arithmetic 2,148 - 228 = 1,920, and the 800-line target measured and refused with its reason."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-12b-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 157,
+      "bytes": 29072,
+      "sha256": "35918a32678996c020182814a54233ed76da60008f016c3f80875db5c361403f",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-wave-12b-2026-09-13.md",
+        "assignedSha256": "35918a32678996c020182814a54233ed76da60008f016c3f80875db5c361403f",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "35918a32678996c020182814a54233ed76da60008f016c3f80875db5c361403f",
+        "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full report read by gate_doc_consistency; command and test results are retained as the report author’s evidence and were not independently rerun by this catalog lane."
+        ],
+        "claims": [
+          {
+            "claim": "The report records a code-lens verification of eight named rows across the mirror-family and client fixes, explicitly retaining #2270 and #1871 as partial and listing its untested and appearance scope limits.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ],
+        "summary": "Full-read verification report preserved as reported evidence: six rows confirmed, #2270 and #1871 partial by stated scope, three follow-up ledger rows, and explicit exclusions for appearance and broader verification."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-css-train-fixes-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 243,
+      "bytes": 18048,
+      "sha256": "83a1061a46345372e700e4b2293c4d4053bf071aec4c3d40696adf27eddc82e8",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-css-train-fixes-2026-09-13.md",
+        "assignedSha256": "83a1061a46345372e700e4b2293c4d4053bf071aec4c3d40696adf27eddc82e8",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "83a1061a46345372e700e4b2293c4d4053bf071aec4c3d40696adf27eddc82e8",
+        "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full report read by gate_doc_consistency; command and test results are retained as the report author’s evidence and were not independently rerun by this catalog lane."
+        ],
+        "claims": [
+          {
+            "claim": "The report records the fix lane’s evidence for #2292, #2293, and #2294, including its focused floor, whole-tree baseline failures, the unrun planter suite, and the separate #2297 coupled-site regression.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#2292"
+              },
+              {
+                "kind": "issue",
+                "target": "#2293"
+              },
+              {
+                "kind": "issue",
+                "target": "#2294"
+              },
+              {
+                "kind": "issue",
+                "target": "#2297"
+              }
+            ]
+          }
+        ],
+        "summary": "Full-read CSS train fix report preserved as reported evidence for #2292–#2294, with the author’s verification receipts, declared baseline failures and exclusions, and the separate #2297 regression left open."
       },
       "receiptCurrent": true
     }

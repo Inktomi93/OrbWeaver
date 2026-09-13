@@ -134,9 +134,8 @@ the module's PROOF shape and take its HEADER from `section-registry-completeness
 Non-negotiables inside a module: no `Project#getSourceFiles`, `getDescendants*`, `forEachDescendant`, `new Project`,
 private cache, private marker parser, gate-owned exemption table, scope predicate or filesystem read; state in
 `create`; every anchor inside the policy's own resolved population; population `under: ["x/**"]` (a `"x/"` matches
-nothing). A read the 18 FROZEN resource kinds (§12.4) cannot serve STOPS that module — it stays legacy and armed, and the
-exact read goes to #1930. That refusal is a SUCCESS; keeping a private reader behind `defineGate` lowers the census
-while leaving the forbidden machinery in place.
+nothing). A missing capability follows the convert-or-delete ruling below and the resource-kind boundary in §12.4.
+Keeping a private reader behind `defineGate` is not a conversion.
 
 **NOTHING GETS TO REFUSE TO CONVERT — owner ruling, 2026-09-12, and it is the stronger form of the paragraph
 above.** *"Convert or die, and we build what we need."* A gate that needs a capability the tree does not have is a
@@ -661,7 +660,7 @@ family.
    check is green for the wrong reason.
 
    **TO ENUMERATE WHAT A GATE SEES, DRIVE THE GATE'S OWN WALK OVER THE REAL FILESET** (paid 2026-09-12, `e7e3f083b`,
-   #2181/#2101): a re-implementation of the walk over a convenient subset under-reports silently and in the
+   \#2181/#2101): a re-implementation of the walk over a convenient subset under-reports silently and in the
    direction that looks like success — fewer findings. `css-length-tokens`' header had ruled its per-file budget
    table un-narrowable because a four-file probe read `pager-chrome.ts` as ZERO against its row's 3; the probe had
    re-implemented the walk, and the file's class strings resolve at their CONSUMERS, outside the subset. Driving the
@@ -1304,8 +1303,9 @@ dependencies that constrain ANY sequence, because they are law rather than sched
 1. Re-derive: is the module legacy or final (`gate:contract` row, not the filename)? Read it in full, plus §12's
    contract sections, the exemplar for its plane, and any world-program carry-forward row naming it (re-read the CURRENT
    implementation on `main`, never an older branch copy).
-2. Trace every read, one `lib/` hop included. A read outside the 18 frozen resource kinds (§12.4), or a needed reader not in
-   `lib/`, stops the module with the exact `file:line` and continues with the others.
+2. Trace every read, one `lib/` hop included. For a missing resource capability or shared reader, report the exact
+   `file:line`, ask the orchestrator with a proposed default, and continue independent work. Resolve the gap under
+   §12.4 and the convert-or-delete ruling; a missing capability does not authorize parking the conversion.
 3. Check already-converted siblings for the same rule (`pnpm ast` on the module's core literal): a stronger detector
    elsewhere means MERGE with a successor proof, not a second gate.
 4. Name the family and its `lib/` reader, or declare a singleton. Split arms that differ in authority or severity into
@@ -1360,28 +1360,16 @@ dependencies that constrain ANY sequence, because they are law rather than sched
    "576 raw − 2 prose = 574".
 7. Proofs per §4: carry every legacy row; add the positive identity arm if ordinary; add refusal/receipt pins where the
    verdict depends on a derived population; conversion differential; planted-break receipt only for invented rows.
-8. Floors (scoped, never whole-tree): the family test(s) you touched; `pnpm gate:contract` before/after (per-module zero,
-   total not rising); `pnpm exec biome check <files> --diagnostic-level=error`; `pnpm exec eslint <files>`;
-   `pnpm typecheck --config tsconfig.json`; behavioral mirror suites for any product file whose comments you touched
-   (comment-only edits still owe the compile); **the step-6 per-file marker count reconciliation, with every mismatch
-   classified — a lane that translated markers and cannot show this table has not finished.** **The §4.6 DIFFERENTIAL,
-   either as a committed test or as a commit-message statement of what it found (#2000) — silence is not compliance.**
-   **AND THE TWO POLICING RUNS, BY NAME (added 2026-09-12 after a full read of every policing surface — neither was
-   in this list, and the hooks that would run them are bypassed by the standing exception):** `pnpm
-   check:policy-conformance` whole (~25 s quiet; it is `structure:policy-conformance`, whole-only in every tier of
-   `pnpm verify --list`, and it runs every final policy's three arms plus the grant table — exit 2 is a broken
-   checker, never a verdict), and the mixed `pnpm check:structure` before/after on the real tree in YOUR worktree
-   with the PER-POLICY delta explained — the whole-tree verdict is red by construction, so the aggregate tail is
-   not the receipt; the per-policy raw/waived/granted/effective and `N tool error(s)` / `N withheld` lines are.
-   A HARD gate sat red on `main` against its one live subject for a day under the standing red because nobody read
-   the per-policy line (#2106). **#2110 LANDED (`e0dcf56d8`, 2026-09-12) — the delta is a door, not a hand read:**
-   after the merge train's `pnpm check:structure`, run `pnpm check:structure-delta` and read the per-policy diff.
-   `check:structure`'s exit code is red by construction while the loader is mixed, so it cannot show a NEW red on
-   one final policy; the delta exits 1 when a final policy's effective count rose or it went ok → red, and exits 2
-   rather than a serene zero when either slot is unreadable, died, is a non-verdict (#2167 — the three planter
-   fixture slots are stamped `verdict: non-verdict` on disk and a non-verdict never publishes `latest`), was
-   gate-scoped, or when there is no prior slot to compare against. It is registered as a `manual` stage, not a
-   `check` script, because it returns a VERDICT and `verify-registry-parity` would have redded the cheap door.
+8. Lane floor: touched family tests; `pnpm gate:contract` before/after with per-module results; Biome and ESLint on
+   touched files; every affected native TypeScript program via repeated `pnpm typecheck --config <config>` arguments;
+   affected product behavior; the step-6 marker reconciliation; and the §4.6 differential. Engine-plus-spec changes
+   commonly require both `tooling/tsconfig.json` and root `tsconfig.json`; actual compiler membership determines the set.
+
+   The orchestrator/verifier owns the coordinated post-fold floor: whole-only `pnpm check:policy-conformance`,
+   serialized `pnpm check:structure` before/after, and `pnpm check:structure-delta`. Follow the playbook's load and
+   publishing constraints. Read each policy's raw/waived/granted/effective findings, authority alarms, tool errors and
+   withheld status; an inherited aggregate red does not excuse a new failure. Use explicit comparison run IDs when
+   the default baseline has not been verified. These coordinated checks are not ordinary lane-local scoped checks.
 
    **A SPLIT ALSO BREAKS A SUITE THE ID-GREP CANNOT FIND (measured 2026-09-12).** The roster carries a
    literal "N registered gates" count line, and `tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts`
@@ -1878,15 +1866,16 @@ control must REFUSE and a planted control must be ADMITTED.
 
 ##### The three residuals, closed
 
-1. **A STAGED-BLOB / git-index read — NOT MINTED, and its gate stays LEGACY.** `no-blanket-suppression` arm C shells
+1. **A STAGED-BLOB / git-index read — no dedicated resource kind.** `no-blanket-suppression` arm C shells
    `git grep --cached` + `git show :<path>` (`:330`, `:342`) to re-judge STAGED blobs, so a stale staged blob cannot
    commit while every working-tree check reads clean (the #954 shape). `TrackedResourceIndex` is `{ repoPaths }` only,
    and no shipped kind serves it. **It has exactly ONE consumer in the whole verify tree** (re-derived 2026-09-11:
    every other git call under `verify/**` is `ls-files` / `diff` / `rev-parse` / `merge-base` / `log`, and the only
    other `--cached` mention is `lib/repo-paths.ts:61-62`'s inventory of the verbs this tree runs, which names this
    gate). §11.5's own principle governs: *a capability serving one gate is that gate's private reader wearing a
-   contract's clothes.* So `no-blanket-suppression` stays a legacy `GateDescriptor`, armed and enforcing, and its
-   private reader survives to Phase F. That is the STOP-IF-MISSING-KIND refusal working, not a gap.
+   contract's clothes.* Preserve the staged-index guarantee while resolving its conversion. The historical
+   one-consumer measurement does not authorize permanent legacy retention: use a suitable existing boundary or
+   obtain a conversion/deletion ruling with the successor proof required by §4.6.
 2. **`jsonc` — RULED REQUIRED IN §11.4, NEVER BUILT, AND NOW RULED OUT.** This is the one real diff between the ruling
    and the tree, and it is stated rather than quietly dropped. §11.4 says *"`tsconfig` is `jsonc()` plus `extends`
    FOLDING"*; `contract/resource-json.ts`'s own header still describes a `jsonc` door beside `json`. Two measurements
@@ -1899,8 +1888,8 @@ control must REFUSE and a planted control must be ADMITTED.
    exposing per-config RAW `include`/`exclude` entries, unfolded and unexpanded, which is what that gate actually
    judges — not a capability question. CONVERTED 2026-09-12 at `97e68be91` by exactly that route (#2021, ruled NOT
    superseded; it split into `tsconfig-entry-liveness` + `-health`), with `biome-grant-liveness` + `-health` in the
-   same commit — which deleted biome's rule-liveness arm six, an UNPOLICED property until its successor verify op
-   lands (#2074).** The `jsonc` ruling stands. `biome.json` does not reopen this: §11.4 ruled it a strict `json()`
+   same commit. Biome rule liveness is now owned by the registered `config:biome-rule-liveness` verification
+   stage (`tooling/src/verify/ops/biome-rule-liveness.ts`), separately from selector liveness.** The `jsonc` ruling stands. `biome.json` does not reopen this: §11.4 ruled it a strict `json()`
    read and that shipped.
 3. **`authored-text`'s provenance** — see its row above.
 
@@ -1918,8 +1907,8 @@ fourth mode and is a reopening under the condition below.
 
 Exactly one condition, and it is a RULING, not a lane's call: a CONVERSION that is blocked by a read no shipped kind
 serves, **and** whose read has TWO OR MORE independent consumers after read-tracing the remaining legacy corpus one
-`lib/` hop deep. One consumer is a private reader by definition and the gate stays legacy instead (both residuals above
-took that arm). A new id inside an existing kind is not a reopening — it is a contract edit with a named consumer, which
+`lib/` hop deep. A one-consumer read does not justify a new kind: the orchestrator resolves its conversion or deletion
+without weakening the existing guarantee. A new id inside an existing kind is not a reopening — it is a contract edit with a named consumer, which
 is what keeps `json`/`exact-file`/`ledger` from becoming `readFile(path)`.
 
 ##### OPEN, proposal only — one directory-tier population operator (#1922)
@@ -2132,8 +2121,8 @@ The same measurement exposed a real coverage hole that is NOT a fence question: 
 
 **The rule that binds every row above** (#1351's own words): *"Preserve and adapt native-config liveness checks when
 selectors move behind imports or generated layers. A static reader that cannot follow the new form must REFUSE or be
-replaced by an effective-config witness, never silently pass."* `runner-config-path-liveness`'s documented refusal to
-convert is that rule working correctly, not a gap in this program. And #1351 scoped itself explicitly: *"the remaining
+replaced by an effective-config witness, never silently pass."* The converted `runner-config-path-liveness` must
+preserve that native-observation guarantee; its historical refusal is not a current migration rule. And #1351 scoped itself explicitly: *"the remaining
 gate conversions are not bundled into this program by default … the gate program remains a subsequent work queue."*
 So these are OUTPUTS we inherit and must convert without breaking — never evidence that the gate contract can already
 express them.

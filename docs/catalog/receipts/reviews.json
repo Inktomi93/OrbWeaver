@@ -4930,6 +4930,68 @@
         }
       ],
       "summary": "Full-read current review; lane p-docs-residue. The #2071 split PLANNED and not executed (no quiet barrier): a 49-sentence dated-worked-case census with its signature, four move candidates with line spans and destinations — three verified, 12.6 explicitly UNVERIFIED with what must be read first — the arithmetic 2,148 - 228 = 1,920, and the 800-line target measured and refused with its reason."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-wave-12b-2026-09-13.md",
+      "assignedSha256": "35918a32678996c020182814a54233ed76da60008f016c3f80875db5c361403f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "35918a32678996c020182814a54233ed76da60008f016c3f80875db5c361403f",
+      "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full report read by gate_doc_consistency; command and test results are retained as the report author’s evidence and were not independently rerun by this catalog lane."
+      ],
+      "claims": [
+        {
+          "claim": "The report records a code-lens verification of eight named rows across the mirror-family and client fixes, explicitly retaining #2270 and #1871 as partial and listing its untested and appearance scope limits.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read verification report preserved as reported evidence: six rows confirmed, #2270 and #1871 partial by stated scope, three follow-up ledger rows, and explicit exclusions for appearance and broader verification."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-css-train-fixes-2026-09-13.md",
+      "assignedSha256": "83a1061a46345372e700e4b2293c4d4053bf071aec4c3d40696adf27eddc82e8",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "83a1061a46345372e700e4b2293c4d4053bf071aec4c3d40696adf27eddc82e8",
+      "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full report read by gate_doc_consistency; command and test results are retained as the report author’s evidence and were not independently rerun by this catalog lane."
+      ],
+      "claims": [
+        {
+          "claim": "The report records the fix lane’s evidence for #2292, #2293, and #2294, including its focused floor, whole-tree baseline failures, the unrun planter suite, and the separate #2297 coupled-site regression.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#2292"
+            },
+            {
+              "kind": "issue",
+              "target": "#2293"
+            },
+            {
+              "kind": "issue",
+              "target": "#2294"
+            },
+            {
+              "kind": "issue",
+              "target": "#2297"
+            }
+          ]
+        }
+      ],
+      "summary": "Full-read CSS train fix report preserved as reported evidence for #2292–#2294, with the author’s verification receipts, declared baseline failures and exclusions, and the separate #2297 regression left open."
     }
   ]
 }
