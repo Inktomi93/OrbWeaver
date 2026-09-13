@@ -53,3 +53,5 @@ before declaring a guarantee absent.
 - Claim rows at dispatch and re-derive them before batching.
 - Never wrap repository runners in an external timeout or interpret a killed run as a verdict.
 - Read the source that owns the question. Grep locates candidates; code and exercised controls decide.
+- When recovering promises from a transcript, read the relevant turns in full; keyword-only recovery cannot establish
+  the complete remaining obligations. Re-derive those claims against the current tree and board before acting.

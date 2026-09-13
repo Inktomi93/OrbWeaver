@@ -145,7 +145,8 @@ family test that imports the policy and asserts the stronger condition a row can
 ## 4. Resource vocabulary
 
 The ResourceHost vocabulary is closed. The tuple and contract files own its current members; prose never hand-counts
-them. A new kind requires two or more independent consumers, a capability matrix proving no existing kind can serve
+them. Reopening requires an orchestrator ruling and a conversion blocked by a read no existing kind serves; trace
+the remaining legacy consumers at least one shared-reader hop deep before claiming independence. A new kind requires two or more independent consumers, a capability matrix proving no existing kind can serve
 them, runtime and fixture implementations, discriminated status/receipt handling, validator and planner wiring, and
 positive, negative, empty, malformed, unresolved, overlay, and isolation controls. A one-consumer kind is a private
 reader in contract clothing and is refused.
@@ -161,6 +162,12 @@ undeclared base. A new request id may name a new consumer under an existing mode
 any other new reading shape reopens the closed vocabulary and must satisfy the full reopening condition; similarity to
 an existing evidence contract does not authorize it. A different status, value, or receipt contract is a new kind and
 pays the same full admission cost.
+
+The contract distinguishes unpopulated requests (no authored path) from demand requests (subject supplied at the call).
+Consume those named classifications from `contract/resource-declaration.ts`, never silently skip an empty declaration.
+A demand door still enforces its declaration fence. `exact-file` requires one declaration per id even when its read
+accepts several ids; `cssInventory` rides an authored/product CSS declaration rather than minting another census kind.
+Read resource-specific identity versus corpus refusal semantics in their contract headers before extending a kind.
 
 Population named roots are only independently selectable packages or top-level trees. A nested `under`/`notUnder`
 constraint refines a declared root and does not mint an alias. Authored source populations admit `.ts` and `.tsx`;
@@ -251,13 +258,20 @@ positive counts alone do not prove that the authored position controls consumpti
 Every warning policy retains its warning and positive `workItem` in both fixture evidence and a production-dispatched
 real run; schema-valid metadata alone does not prove the emitted pair.
 
-Every reviewed-grant policy annotates at least one existing `mustFlag` row with its authored subject/operation witness.
-The baseline run must flag the ungranted case; a production rerun injects the matching exact synthetic grant and must
-consume one grant, leave zero effective findings and zero alarms, complete the owner receipt, and produce no errors.
-Wrong authority or proof arm is rejected. The exact witness field name is contract data, not prose, and lands with the
-P7 checkpoint; until that checkpoint and corpus adoption land, this paragraph is the required end state rather than a
-claim that the current empty-grant row runner enforces it. Central wrong-identity, duplicate, and stale controls remain
-family-owned. Hard policies have no waiver arm.
+Every reviewed-grant policy annotates at least one existing `mustFlag` row with `grant: { subject, operation }`, using
+authored identity strings. The loader requires that witness unconditionally; additional witnessed rows are legal.
+The baseline must flag without a grant, then the production runner injects the exact synthetic grant over the same
+materialized fixture. That second pass must consume exactly one grant, leave zero effective findings and zero authority
+alarms, complete the owner receipt, and produce no errors. It runs only after the baseline expectation succeeds.
+Own-property presence controls annotation admission: even `grant: undefined` is refused on the wrong authority or arm,
+and is not a valid witness on a reviewed `mustFlag` row. `POLICY_PROOF_GRANT_KEYS` owns the exact witness key vocabulary.
+
+P7 and its own-property follow-up are integrated on main through `177d72e0a` (2026-09-13). The coordinator also
+passed the whole declared-proof conformance stage on main `141c1f73b`. These scoped, native-program and declared-proof
+receipts do not establish full program acceptance; consolidated structure/delta and the remaining barrier stay owed. Central wrong-identity, duplicate, stale, and real-grant-table controls remain family-owned; the synthetic
+witness does not replace them. Hard policies have no waiver arm. Real-tree authority receipts pass the complete final
+roster as `knownPolicies`; a partial roster manufactures unknown-policy alarms. Expected authority alarms belong in an
+importing test driven through `runPolicyPass`, never in a `mustFlag` or `mustPass` row.
 
 ### 6.3 Refusal and receipts
 
