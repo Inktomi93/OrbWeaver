@@ -24,8 +24,8 @@
 //         that caught #2032 for another lane, and it is the reason the two `@surface-focus-elsewhere`
 //         translations in this commit are not taken on trust.
 //   §4.6  the CONVERSION DIFFERENTIAL, stated as what it FOUND rather than merely run.
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -241,6 +241,17 @@ describe("§4.5 — a broken ledger is a REFUSAL, never a finding and never a cl
     expect(result.authority.withheldPolicyIds).toContain(stateDataAttributes.id);
   });
 
+  test("an EMPTY ledger withholds the owner too — the third reachable `json` status", ({ scratch }) => {
+    // The status this block was missing (#2297): the reader answers `empty` for a zero-byte file BEFORE the
+    // parser runs, so a truncated write on the generated ledger is neither the missing nor the unparseable
+    // case above. This policy's header claims all three; this is the row that makes the claim true.
+    const result = pass(stateDataAttributes, scratch, { [MANIFEST_REL]: "", [SEAL_PATH]: SEAL_SOURCE });
+
+    expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
+    expect(result.toolErrors[0]?.message).toContain("json:baseui-manifest is empty");
+    expect(result.authority.withheldPolicyIds).toContain(stateDataAttributes.id);
+  });
+
   test("an EMPTY population refuses — this IS the retired `surface-a11y-focus` blindness tripwire", ({ scratch }) => {
     // Legacy carried a hand-rolled arm (`featuresSeen && surfacesSeen === 0` reporting at a DIRECTORY path)
     // against `surfaces/` being renamed out from under a directory-name-keyed scan. Under this contract the
@@ -277,6 +288,20 @@ describe("§4.5 — the baseui-read ledger consumers all refuse, and the phase d
       expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
       expect(result.authority.withheldPolicyIds).toContain(policy.id);
     });
+
+    test(`${policy.id}: an EMPTY ledger withholds too — the THIRD json status, and it is not "missing"`, ({ scratch }) => {
+      // `resource-policy-contract.md` §3.6 asks one pin per declared resource per REACHABLE non-ready
+      // status, and `empty` is a distinct `json` fact by that document's own §2 table: the reader answers
+      // `missing` for an absent path and `empty` for a zero-byte one (`ops/resource-reader.ts#read`
+      // returns `unavailable("empty", …)` on `value.length === 0`, BEFORE the parser is reached, so this
+      // can never collapse into the unparseable pin above). A truncated write on the generated ledger is
+      // the real-world shape, and until 2026-09-13 nothing pinned it (#2297).
+      const result = pass(policy, scratch, { [MANIFEST_REL]: "", [SEAL_PATH]: SEAL_SOURCE });
+
+      expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
+      expect(result.toolErrors[0]?.message).toContain("json:baseui-manifest is empty");
+      expect(result.authority.withheldPolicyIds).toContain(policy.id);
+    });
   }
 
   test("baseui-surface-manifest: an UNINSTALLED package is an [evaluate] tool error, NOT a finding", ({ scratch }) => {
@@ -290,6 +315,103 @@ describe("§4.5 — the baseui-read ledger consumers all refuse, and the phase d
     expect(result.toolErrors.map((error) => error.phase)).toEqual(["evaluate"]);
     expect(result.toolErrors[0]?.message).toContain("installed-package:base-ui:ast");
     expect(result.toolErrors[0]?.message).toContain("missing");
+  });
+});
+
+// ── §4.5 — the INSTALLED doors, one pin per REACHABLE status, and the one that is unconstructible ────
+//
+// THE CONSTRUCTION LIMIT, MEASURED RATHER THAN ASSUMED, because §3.6's "one pin per declared resource per
+// non-ready status" reads as if `missing` were a per-MODE fact and it is not. `ops/resource-installed.ts`
+// resolves BOTH modes through the SAME `manifestPath(root, id, …)` call and only then branches on
+// `request.mode`, so `missing` is a property of the PACKAGE: there is no tree on which `ast` is missing and
+// `metadata` is ready, or the reverse. Driven on five constructed roots: with the package absent, both
+// doors report `missing` together, and the `ast` door answers first because `evaluate` opens it first
+// (`installedPackage({mode: "ast"})` precedes the metadata read). That single case is the pin directly
+// above. What IS per-mode is `unresolved`, because each mode reads a DIFFERENT thing out of the resolved
+// directory — the manifest's name/version pair for `metadata`, the `.d.ts` inventory for `ast` — so each
+// gets its own pin below and each was reached by a different planted defect.
+describe("§4.5 — the installed-package doors refuse per MODE, and `missing` is not one of them", () => {
+  const pkgRel = "packages/ui/node_modules/@base-ui/react";
+  /** The resolution base `INSTALLED_PACKAGE_DEFINITIONS["base-ui"].from` names. */
+  const uiManifest = { "packages/ui/package.json": '{ "name": "@orb/ui", "version": "0.0.0" }\n' };
+  /** Enough of an installed anatomy for the `ast` door to come back READY. */
+  const installedDeclarations = {
+    [`${pkgRel}/select/index.d.ts`]: 'export * as Select from "./index.parts.js";\n',
+    [`${pkgRel}/select/index.parts.d.ts`]: 'export { SelectRoot as Root } from "./root/SelectRoot.js";\n',
+    [`${pkgRel}/select/root/SelectRoot.d.ts`]: "export interface SelectRootProps {\n  items?: readonly string[] | undefined;\n}\n",
+  };
+  const surfaceManifestJson =
+    '{ "version": "9.9.9", "components": { "Select": { "module": "@base-ui/react/select", "namespaced": true, "parts": {' +
+    '"Root": { "kind": "part", "symbol": "SelectRoot", "from": "./root/SelectRoot.js", "props": ["items"], "state": [], "inherits": [], "disposition": "exposed", "why": "" }' +
+    "} } } }\n";
+
+  /** The installed tree is REAL files, never an overlay: `loadInstalledPackage` goes through node's own
+   *  resolver and `readdirSync`, neither of which the resource overlay reaches (that is the whole point of
+   *  the kind — an installed package is not the authored transaction). */
+  function plantInstalled(root: string, files: Readonly<Record<string, string>>): void {
+    for (const [rel, content] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, rel)), { recursive: true });
+      writeFileSync(join(root, rel), content, "utf8");
+    }
+  }
+
+  test("the COMPLETE run judges and receipts all three declared resources with nothing unresolved", ({ scratch }) => {
+    plantInstalled(scratch, { ...uiManifest, ...installedDeclarations, [`${pkgRel}/package.json`]: '{ "name": "@base-ui/react", "version": "9.9.9" }\n' });
+    const result = pass(surfaceManifest, scratch, { [MANIFEST_REL]: surfaceManifestJson });
+
+    expect(result.toolErrors).toEqual([]);
+    expect(result.policies.map((owner) => owner.owner.status)).toEqual(["success"]);
+    expect(result.authority.effectiveFindings).toEqual([]);
+    expect(
+      result.policies
+        .flatMap((owner) => owner.receipts.filter((receipt) => receipt.kind === "resource"))
+        .map((receipt) => ({ source: receipt.source, unresolved: receipt.unresolved }))
+        .toSorted((left, right) => left.source.localeCompare(right.source)),
+    ).toEqual([
+      { source: "installed-package:base-ui:ast", unresolved: 0 },
+      { source: "installed-package:base-ui:metadata", unresolved: 0 },
+      { source: "json:baseui-manifest", unresolved: 0 },
+    ]);
+  });
+
+  test("metadata UNRESOLVED — a manifest with a name and no version is a broken read, not an absent one", ({ scratch }) => {
+    // Reachable from a real defect: a package whose manifest carries `name` but no string `version`.
+    // `metadataFacts` throws and `loadInstalledPackage` maps that to `unresolved` — deliberately NOT
+    // `missing`, because "run pnpm install" and "the reader is broken" send a reader to two places.
+    plantInstalled(scratch, { ...uiManifest, ...installedDeclarations, [`${pkgRel}/package.json`]: '{ "name": "@base-ui/react" }\n' });
+    const result = pass(surfaceManifest, scratch, { [MANIFEST_REL]: surfaceManifestJson });
+
+    expect(refusalShape(result)).toMatchObject({ phases: ["evaluate"], ownerStatuses: ["incomplete"], findings: 0 });
+    expect(result.toolErrors[0]?.message).toContain("installed-package:base-ui:metadata");
+    expect(result.toolErrors[0]?.message).toContain("came back unresolved");
+    expect(result.authority.withheldPolicyIds).toContain(surfaceManifest.id);
+  });
+
+  test("ast UNRESOLVED — an installed package publishing no declarations is the OTHER per-mode refusal", ({ scratch }) => {
+    // The pair to the row above, and what proves the two doors refuse independently rather than sharing
+    // one verdict: here the manifest is perfect and the `.d.ts` inventory is empty, so `metadata` is READY
+    // and `ast` refuses. `ast` is read first in `evaluate`, so it is also the message that surfaces.
+    plantInstalled(scratch, {
+      ...uiManifest,
+      [`${pkgRel}/package.json`]: '{ "name": "@base-ui/react", "version": "9.9.9" }\n',
+      [`${pkgRel}/index.js`]: "module.exports = {};\n",
+    });
+    const result = pass(surfaceManifest, scratch, { [MANIFEST_REL]: surfaceManifestJson });
+
+    expect(refusalShape(result)).toMatchObject({ phases: ["evaluate"], ownerStatuses: ["incomplete"], findings: 0 });
+    expect(result.toolErrors[0]?.message).toContain("installed-package:base-ui:ast");
+    expect(result.toolErrors[0]?.message).toContain("publishes no declaration files");
+    expect(result.authority.withheldPolicyIds).toContain(surfaceManifest.id);
+  });
+
+  test("`missing` is NOT per-mode — both doors report it together, so one pin covers the status", ({ scratch }) => {
+    // The construction limit, ASSERTED rather than written in prose above: this is the direct read of the
+    // provider that makes "one pin per declared resource per status" satisfiable with a single row for
+    // `missing`, and it reds if a future refactor ever gives the two modes separate resolutions.
+    plantInstalled(scratch, uiManifest);
+
+    expect(loadInstalledPackage(scratch, { id: "base-ui", mode: "ast" }).status).toBe("missing");
+    expect(loadInstalledPackage(scratch, { id: "base-ui", mode: "metadata" }).status).toBe("missing");
   });
 });
 
