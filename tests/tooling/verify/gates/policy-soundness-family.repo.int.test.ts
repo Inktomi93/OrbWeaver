@@ -5,6 +5,15 @@
 // errors, not findings), the fixture-specifier resolution control, and the REAL-corpus control — a meta-policy
 // over the gate corpus is exactly the shape that can sit at 0 conformance failures while reading nothing on
 // the live tree (guide §5), so the recognizer's live count is checked against a second opinion.
+//
+// AND A SECOND OPINION CAN BE GREEN FOR THE WRONG REASON (#2274). `policy-refusal-coverage`'s was one-sided
+// containment — "every module whose text owes a pin is accused" — which held TRIVIALLY for a week because the
+// arm's test half could discharge nothing at all. It is now TWO-SIDED, and the second side is computed by a
+// PREDICATE THIS FILE OWNS: over the family-test tree (`FAMILY_TESTS_DIR`), a file mentioning the dispatcher
+// NAME (`DISPATCHER_NAME`) pins the gate modules its IMPORT SPECIFIERS name (`GATE_MODULE_IMPORT_RE`); where a
+// file names exactly ONE, the attribution is exact and that module MUST be discharged. Specifiers, never the
+// module graph — the arm it judges walks the graph, so an opinion that walked it too would agree by
+// construction. Restore the pre-#2274 reader and the NOT-DEAD assertion is the one that reds.
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
@@ -48,6 +57,12 @@ const REGISTERS_RE = /^export const gate(?::| =)/mu;
  *  deliberately, so the opinion is computed by something other than the arm it judges. */
 const DERIVES_POPULATION_RE = /^ {2}(?:facts|resources): \[[^\]]/mu;
 const MUST_REFUSE_RE = /^ {2}mustRefuse: \[/mu;
+/** The PIN half of that opinion (#2274), also text: the family-test tree, the dispatcher's name, and the gate
+ *  modules a test file imports. Deliberately a regex over the specifier rather than the module graph — the arm
+ *  it judges walks the graph, so an opinion that walked it too would agree with the reader by construction. */
+const FAMILY_TESTS_DIR = "tests/tooling/verify/gates/";
+const DISPATCHER_NAME = "runPolicyPass";
+const GATE_MODULE_IMPORT_RE = /from "(?:\.\.\/)+tooling\/src\/verify\/gates\/([a-z0-9-]+)\.ts"/gu;
 /** `policy-binding-resolution`: the members whose NAME alone is unambiguous (every one is declared only on a
  *  ts-morph node or symbol), so a module CALLING one must be accused; `getDeclarations` is ambiguous by name
  *  (`VariableStatement#getDeclarations` is a syntax accessor) and joins only the SUPERSET side. The census is
@@ -347,17 +362,46 @@ test(
       expect({ id, accused: accusedBy(id) }).toEqual({ id, accused: [] });
     }
 
-    // `policy-refusal-coverage`'s SECOND OPINION, one-sided by containment (#2184): every final module whose
-    // text declares a NON-EMPTY `facts`/`resources` and carries no `mustRefuse` must be accused — the arm is
-    // not blind. The reverse containment is deliberately NOT asserted: the pin half lives in a family test's
-    // `runPolicyPass` call, which no text predicate over the gate corpus can see.
+    // `policy-refusal-coverage`'s SECOND OPINION (#2184), REWRITTEN AT #2274 — and the rewrite is the lesson.
+    // The arm used to read "every module whose text owes a pin must be accused", with a comment explaining that
+    // the reverse containment could not be asserted because "the pin half lives in a family test's
+    // `runPolicyPass` call, which no text predicate over the gate corpus can see". That arm was green for the
+    // wrong reason: the recognizer's test half was DEAD (it wanted a positional dispatcher that never existed),
+    // so NOTHING was ever discharged and one-sided containment held trivially. Repairing the reader discharged
+    // 43 modules and this arm went red — correctly. The fix is not to weaken it but to compute the OTHER half
+    // the same way: as TEXT over the family-test tree, which this project already loads.
     const refusalOpinion = finals
       .filter((sourceFile) => DERIVES_POPULATION_RE.test(sourceFile.getFullText()) && !MUST_REFUSE_RE.test(sourceFile.getFullText()))
       .map(relative)
       .toSorted();
     const refusalAccused = new Set(accusedBy(policyRefusalCoverage.id));
-    expect(refusalOpinion.filter((path) => !refusalAccused.has(path))).toEqual([]);
+    // A family test that mentions the dispatcher AND imports gate modules pins the ones it imports. Where it
+    // imports EXACTLY ONE the attribution is exact, which is the half with real bite: such a module MUST be
+    // discharged, or the recognizer has gone blind again in a way one-sided containment would never show.
+    const pinnedByText = new Set<string>();
+    const pinnedUnambiguously = new Set<string>();
+    for (const sourceFile of project.getSourceFiles()) {
+      const text = sourceFile.getFullText();
+      if (!(sourceFile.getFilePath().startsWith(`${repoRoot}/${FAMILY_TESTS_DIR}`) && text.includes(`${DISPATCHER_NAME}(`))) {
+        continue;
+      }
+      const imported = [...new Set([...text.matchAll(GATE_MODULE_IMPORT_RE)].flatMap(([, id]) => (id === undefined ? [] : [id])))];
+      for (const id of imported) {
+        pinnedByText.add(id);
+      }
+      const only = imported.length === 1 ? imported[0] : undefined;
+      if (only !== undefined) {
+        pinnedUnambiguously.add(only);
+      }
+    }
+    const idOf = (path: string): string => path.slice(GATES_DIR.length, -".ts".length);
+    // NOT BLIND: a module that owes a pin and has no family test naming it at all must be accused.
+    expect(refusalOpinion.filter((path) => !(refusalAccused.has(path) || pinnedByText.has(idOf(path))))).toEqual([]);
+    // NOT DEAD: a module whose ONLY family test drives it and nothing else must be discharged. This is the
+    // assertion #2274 would have failed for a week, and the reason the arm is now two-sided.
+    expect(refusalOpinion.filter((path) => pinnedUnambiguously.has(idOf(path)) && refusalAccused.has(path))).toEqual([]);
     expect(refusalOpinion.length).toBeGreaterThan(0);
+    expect(pinnedUnambiguously.size).toBeGreaterThan(0);
 
     // The error policy pins its CLOSED classes; the tree is the proof they are closed. Asserted LAST so a red here
     // (a foreign module landing an unwrapped read, as `97e68be91` did for E4) still lets every receipt above print.
