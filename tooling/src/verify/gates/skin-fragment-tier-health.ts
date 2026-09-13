@@ -27,8 +27,14 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/ui/src/primitives/x.ts": "export const x = 1;" },
       expect: { messageIncludes: HOME },
-      why: "a missing reviewed home is a hard finding",
+      why: "LEGACY mustFlag[3], hard home-health arm: the reviewed definition home is missing",
     },
   ],
-  mustPass: [{ mode: "source", files: { "packages/ui/src/lib/x.ts": "export const x = 1;" }, why: "the reviewed home exists even with zero raw hits" }],
+  mustPass: [
+    {
+      mode: "source",
+      files: { "packages/ui/src/lib/x.ts": "export const x = 1;" },
+      why: "LEGACY mustPass[2], hard half: the reviewed home exists even with zero raw hits",
+    },
+  ],
 });

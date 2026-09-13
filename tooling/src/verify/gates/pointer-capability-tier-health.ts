@@ -20,7 +20,7 @@ export const gate = defineGate({
       if (anchor === undefined) {
         return;
       }
-      if (liveHomeFiles(facts, HOME).length === 0) {
+      if (facts.featureFiles > 0 && liveHomeFiles(facts, HOME).length === 0) {
         ctx.report.node(anchor, { message: `missing reviewed pointer-capability home: ${HOME}` });
       }
       if (facts.featureFiles === 0) {
@@ -32,15 +32,21 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/main.tsx": "export const x = 1;" },
-      expect: { count: 2, messageIncludes: "feature-root census" },
-      why: "a vanished feature root and shell home fail hard",
+      expect: { count: 1, messageIncludes: "feature-root census" },
+      why: "LEGACY mustFlag[3], hard blindness arm: a vanished feature root cannot also double-report the nested shell home",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/features/rpg/x.ts": "export const x = 1;" },
+      expect: { count: 1, messageIncludes: "features/app-shell/" },
+      why: "LEGACY mustFlag[4], hard home-health arm: features remain live while the reviewed shell home is missing",
     },
   ],
   mustPass: [
     {
       mode: "source",
       files: { "packages/client/src/features/app-shell/x.ts": "export const x = 1;" },
-      why: "the feature root and reviewed shell home exist with zero raw hits",
+      why: "LEGACY mustPass[3], hard half: the feature root and reviewed shell home exist with zero raw hits",
     },
   ],
 });

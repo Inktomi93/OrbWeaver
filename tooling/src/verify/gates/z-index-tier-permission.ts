@@ -42,10 +42,17 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
-      files: { "packages/ui/src/layout/x.tsx": 'export const x = <div className="z-50" />;' },
+      files: { "packages/ui/src/layout/x.tsx": 'export const x = <><div className="z-50" /><div className="z-[60]" /></>;' },
       expect: { count: 1, messageIncludes: "line(s)" },
       grant: { subject: "packages/ui/src/layout/", operation: OPERATION },
-      why: "one live home emits one grant candidate while folding its raw sites",
+      why: "LEGACY mustPass[1] plus the N-hit prospective control: one live layout home emits one grant candidate while folding every raw site",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/markdown/x.ts": "export const clean = true;" },
+      expect: { count: 1, messageIncludes: "line(s)" },
+      grant: { subject: "packages/ui/src/markdown/", operation: OPERATION },
+      why: "the zero-hit prospective control: a live reviewed markdown home emits exactly one semantic candidate before it authors any raw occurrence",
     },
   ],
   mustPass: [{ mode: "source", files: { "packages/client/src/x.ts": "export const x = 1;" }, why: "no reviewed home is present" }],
