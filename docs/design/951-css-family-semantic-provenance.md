@@ -161,8 +161,13 @@ the lane that wrote this section. Its survival here records the ruling's boundar
 **Two transcription corrections, stated because a moved comment is where a silent edit hides.** A
 continuation line beginning "+8 on the sheet total above" was re-joined to the bullet it belongs to (the
 lift read it as a new delta), and one directional phrase — "the #1362 row below" — is re-spelled by name,
-since it pointed the wrong way in the source too. No other word changed: the lift asserted an identical
-word count on both sides (1919).
+since it pointed the wrong way in the source too. No other word changed — and the count says so honestly:
+**1919 words on the SOURCE side, 1921 here** (re-measured 2026-09-12 by a word-level diff over the 1,919
+normalised tokens, which found exactly ONE difference: `below:` → `under client globals.css:`, the
+directional re-spelling this paragraph already discloses). The lift's own receipt said "an identical word
+count on both sides (1919)", which was true of the source and stale by two for the destination: the
+disclosed re-spelling MOVED the count, and saying "identical" was the one sentence in this paragraph that a
+reader could not check.
 
 ### theme.css (generated) — 312
 
