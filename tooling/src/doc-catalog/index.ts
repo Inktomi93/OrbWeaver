@@ -28,7 +28,7 @@ export { CATALOG_MODES, FORMAT_MODES } from "./contract/types.ts";
 export { debtPathErrors, migrationDebt, migrationMetrics } from "./lib/debt.ts";
 export { countLines, frontmatterErrors, parseFrontmatter } from "./lib/frontmatter.ts";
 export { catalogReceipt, validateReceiptEntry } from "./lib/receipt-rules.ts";
-export { planAttestation, resolveEvidenceErrors, runAttest } from "./ops/attest.ts";
+export { planAttestation, resolveEvidenceErrors, runAttest, runAttestAtRoot } from "./ops/attest.ts";
 export {
   authoredArtifacts,
   candidateTouchesCatalog,

@@ -13,15 +13,17 @@
 // default at `attest.ts:226` left this whole directory green, and the default is what `cli.ts:62` calls.
 // The third arm below is that half, and the sentence is corrected rather than deleted because the false
 // claim is the reason nobody looked.
-import { readdirSync, readFileSync } from "node:fs";
+
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { REPO_ROOT } from "../../../../tooling/src/_shared/artifacts.ts";
 import { EXIT } from "../../../../tooling/src/_shared/exit-contract.ts";
 import { installOutputSink } from "../../../../tooling/src/_shared/log.ts";
-import type { AttestEvidenceResolver, Doc, LaneConfig, Receipt } from "../../../../tooling/src/doc-catalog/index.ts";
-import { documents, loadReceipts, resolveEvidenceErrors, runAttest } from "../../../../tooling/src/doc-catalog/index.ts";
+import type { AttestEvidenceResolver, LaneConfig, Receipt } from "../../../../tooling/src/doc-catalog/index.ts";
+import { documents, loadReceipts, resolveEvidenceErrors, runAttest, runAttestAtRoot } from "../../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-import { scaledBudget } from "../../_load-budget.ts";
 
 // The receipt corpus's home, spelled here because the tool publishes no reader for it. A move makes
 // `receiptBytes` return an EMPTY map, which the first arm asserts against — the miss is loud, never clean.
@@ -99,86 +101,95 @@ test("the DEFAULT resolver is the tree reader, and it judges the real row rather
 
 // ── THE DEFAULT PARAMETER IS THE PATH PRODUCTION TAKES, and the two arms above both miss it ──────────
 //
-// `cli.ts:62` is `return runAttest(paths);` — ONE argument. Arm 1 injects its own resolver, so it proves
-// the driver CONSULTS whatever it was handed; arm 2 calls `resolveEvidenceErrors` directly, so it proves
-// the reader BEHAVES. Neither touches the binding between them, and measured 2026-09-13 that gap is real:
-// cutting the default at `attest.ts:226` to `() => new Map()` left the whole `tests/tooling/doc-catalog`
-// directory green while `pnpm doc-catalog:attest` silently stopped refusing moved evidence — the same
-// hole one layer down from the one this file was written to close (#2238, refuted by v-wave-9a).
-//
-// SO THIS ARM CALLS `runAttest` WITH ONE ARGUMENT. Its subject is a real catalogued row that the DEFAULT
-// reader reports an evidence error for TODAY, taken from the reader itself rather than hand-pinned, and
-// the assertion is the refusal sentence that exists ONLY on the evidence path (`attest.ts:90`) plus the
-// reader's own message. Under an empty-map default the row still refuses for its ROW reasons and that
-// sentence disappears, which is exactly the discrimination the two arms above cannot make.
-//
-// READ-ONLY, AND THAT IS A LIMIT, NOT A CHOICE. `tree.ts:26` is `export const root = REPO_ROOT`, derived
-// from `import.meta.dirname` (`_shared/artifacts.ts:17`), so `runAttest` has no isolated corpus: every
-// read AND the write at `attest.ts:248` are bound to this checkout. The success/write half of the driver
-// is therefore owed to a lane that threads a root through `ops/tree.ts`; a suite must not mint it by
-// mutating the tracked receipts. What IS provable here is the refusal path — and a refusal writes
-// nothing, which the byte-identical corpus below asserts as a disk fact.
+// `cli.ts` calls `runAttest(paths)` with ONE argument. The isolated-root factory below is also the exact
+// lexical owner of production's exported `runAttest`; only its root differs. That makes a controlled Git
+// tree prove both sides of the default reader binding without depending on a defect in the live corpus.
 
-/** The rows the reader is asked about per pass. It is a COST fence, not a semantic one: the reader's
- *  sources are selection-independent and its answer is per row, so a batched scan and a whole-corpus call
- *  agree — measured 2026-09-13 at ~550ms of sources plus ~30ms per row, which is 28s over the whole
- *  corpus and ~9s to the first refusing row. */
-const SUBJECT_SCAN_BATCH = 64;
+const FIXTURE_DOC = "docs/design/subject.md";
+const FIXTURE_RECEIPT = "docs/catalog/receipts/design.json";
+const FIXTURE_CODE = "packages/example/src/value.ts";
+const FIXTURE_REGISTRY = "docs/architecture/core/Core-Path-Registry.md";
 
-/** A catalogued row the DEFAULT reader objects to, WITH the objection it made — the subject is taken from
- *  the production reader rather than hand-pinned, so it cannot rot into a path that stopped refusing. */
-function refusedByTheDefaultReader(
-  rows: readonly string[],
-  docs: readonly Doc[],
-  receipts: readonly Receipt[],
-): { readonly subject: string; readonly reason: string } {
-  for (let start = 0; start < rows.length; start += SUBJECT_SCAN_BATCH) {
-    const batch = rows.slice(start, start + SUBJECT_SCAN_BATCH);
-    const errors = resolveEvidenceErrors(batch, docs, receipts);
-    const subject = batch.find((path) => (errors.get(path) ?? []).length > 0);
-    if (subject !== undefined) {
-      return { subject, reason: errors.get(subject)?.[0] ?? "" };
-    }
-  }
-  // A corpus with no such row cannot host this arm — a loud refusal, never a silent pass: the arm would
-  // otherwise assert a difference it can no longer produce and go green for the wrong reason.
-  throw new Error(
-    "attest.int: no catalogued row's evidence is refused by the default reader today, so the DEFAULT cannot be told from an empty map through behaviour — re-point this arm at a row the reader objects to (or at the write half, once ops/tree.ts takes a root)",
-  );
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
-test("the DEFAULT resolver is the one production uses: runAttest with ONE argument refuses on the reader's own evidence error, and writes nothing", {
-  timeout: scaledBudget(180_000),
-}, () => {
-  const docs = documents();
-  const receipts = loadReceipts(laneConfig());
-  const catalogued = new Set(docs.map((doc) => doc.path));
-  const rows = receipts
-    .flatMap((receipt) => receipt.entries.map((entry) => entry.path))
-    .filter((path) => catalogued.has(path))
-    .toSorted((left, right) => left.localeCompare(right));
-  const { subject, reason } = refusedByTheDefaultReader(rows, docs, receipts);
-  const before = receiptBytes();
-  expect(before.size).toBeGreaterThan(0);
+function git(cwd: string, args: readonly string[]): string {
+  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+}
 
+function isolatedAttestationRoot(scratch: string, brokenEvidence: boolean): { readonly root: string; readonly originalReceipt: string } {
+  const fixtureRoot = join(scratch, brokenEvidence ? "broken" : "healthy");
+  for (const path of ["docs/design", "docs/catalog/receipts", "docs/architecture/core", "packages/example/src"]) {
+    mkdirSync(join(fixtureRoot, path), { recursive: true });
+  }
+  writeFileSync(
+    join(fixtureRoot, "docs/catalog/lanes.json"),
+    `${JSON.stringify({ schemaVersion: 1, lanes: [{ id: "design", issue: 5, patterns: ["docs/design/**/*.md"] }] }, null, 2)}\n`,
+  );
+  writeFileSync(join(fixtureRoot, FIXTURE_REGISTRY), "---\nkind: law\nstatus: active\nupdated: 2026-09-13\n---\n\n# Decisions\n");
+  writeFileSync(join(fixtureRoot, FIXTURE_CODE), "export const value = 1;\n");
+  const oldDocument = "---\nkind: design\nstatus: active\nupdated: 2026-09-13\n---\n\n# Subject\n\nBefore.\n";
+  writeFileSync(join(fixtureRoot, FIXTURE_DOC), oldDocument);
+  git(fixtureRoot, ["init", "-q"]);
+  git(fixtureRoot, ["config", "user.email", "fixture@example.invalid"]);
+  git(fixtureRoot, ["config", "user.name", "Fixture"]);
+  git(fixtureRoot, ["add", "."]);
+  git(fixtureRoot, ["commit", "-qm", "fixture base"]);
+  const oldCommit = git(fixtureRoot, ["rev-parse", "HEAD"]);
+  const originalReceipt = `${JSON.stringify(
+    {
+      schemaVersion: 1,
+      lane: "design",
+      issue: 5,
+      entries: [
+        {
+          path: FIXTURE_DOC,
+          assignedSha256: sha256(oldDocument),
+          disposition: "current",
+          authority: "design",
+          fullRead: true,
+          verifiedSha256: sha256(oldDocument),
+          verifiedCommit: oldCommit,
+          verifiedAt: "2026-09-12",
+          evidence: ["fixture review"],
+          claims: [{ claim: "the example exists", evidence: [{ kind: "code", target: `${FIXTURE_CODE}:1` }] }],
+          summary: "controlled attestation fixture",
+        },
+      ],
+    },
+    null,
+    2,
+  )}\n`;
+  writeFileSync(join(fixtureRoot, FIXTURE_RECEIPT), originalReceipt);
+  git(fixtureRoot, ["add", FIXTURE_RECEIPT]);
+  git(fixtureRoot, ["commit", "-qm", "add receipt"]);
+  writeFileSync(join(fixtureRoot, FIXTURE_DOC), `${oldDocument}\nAfter.\n`);
+  git(fixtureRoot, ["add", FIXTURE_DOC]);
+  if (brokenEvidence) {
+    rmSync(join(fixtureRoot, FIXTURE_CODE));
+  }
+  return { root: fixtureRoot, originalReceipt };
+}
+
+test("production's DEFAULT resolver binding refuses invalid evidence without writing and writes the healthy twin", ({ scratch }) => {
+  const broken = isolatedAttestationRoot(scratch, true);
+  const healthy = isolatedAttestationRoot(scratch, false);
   const warnings: string[] = [];
-  const release = installOutputSink({ line: () => undefined, warn: (message) => warnings.push(message) });
-  let code: number;
+  const lines: string[] = [];
+  const release = installOutputSink({ line: (message) => lines.push(message), warn: (message) => warnings.push(message) });
   try {
-    // ONE ARGUMENT. The default parameter IS the subject of this arm.
-    code = runAttest([subject]);
+    expect(runAttestAtRoot(broken.root)([FIXTURE_DOC])).toBe(EXIT.violations);
+    expect(warnings.join("\n")).toContain("the row's evidence no longer resolves");
+    expect(warnings.join("\n")).toContain(`code evidence target does not resolve: ${FIXTURE_CODE}:1`);
+    expect(readFileSync(join(broken.root, FIXTURE_RECEIPT), "utf8")).toBe(broken.originalReceipt);
+
+    expect(runAttestAtRoot(healthy.root)([FIXTURE_DOC])).toBe(EXIT.clean);
+    const written = JSON.parse(readFileSync(join(healthy.root, FIXTURE_RECEIPT), "utf8")) as Receipt;
+    expect(written.entries[0]?.verifiedSha256).toBe(sha256(readFileSync(join(healthy.root, FIXTURE_DOC), "utf8")));
+    expect(written.entries[0]?.verifiedCommit).toBe(git(healthy.root, ["rev-parse", "HEAD"]));
+    expect(lines.join("\n")).toContain(`re-attested ${FIXTURE_DOC}`);
   } finally {
     release();
   }
-
-  expect(code).toBe(EXIT.violations);
-  // The evidence sentence exists on no other refusal path in the verb, and the reader's own message rides
-  // inside it — an empty-map default keeps the row's OTHER refusals and drops exactly these two strings.
-  expect(warnings.join("\n"), `the default reader's verdict on ${subject} must reach the plan`).toContain(
-    "the row's evidence no longer resolves, so re-attesting would land a receipt that reds at check:doc-catalog",
-  );
-  expect(warnings.join("\n")).toContain(reason);
-  expect(warnings.join("\n")).toContain("NOTHING WRITTEN");
-  // …and NOTHING WRITTEN is a disk fact, not a plan fact.
-  expect(receiptBytes()).toEqual(before);
 });

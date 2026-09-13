@@ -25,8 +25,8 @@ refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-c
 
 export const root = REPO_ROOT;
 
-export function json<T>(path: string): T {
-  return JSON.parse(readFileSync(join(root, path), "utf8")) as T;
+export function json<T>(path: string, repoRoot = root): T {
+  return JSON.parse(readFileSync(join(repoRoot, path), "utf8")) as T;
 }
 
 function sha256(content: Buffer | string): string {
@@ -44,13 +44,13 @@ function sha256(content: Buffer | string): string {
  *  each read back whatever the other had just written, and the `finally` of the first to finish deleted the
  *  second's input mid-flight. Same class as the `reports/` clobber the run-slot layout closes, one
  *  directory over — the fix is the same, a name only this run can produce. */
-export function stableJson(value: unknown): string {
+export function stableJson(value: unknown, repoRoot = root): string {
   const source = `${JSON.stringify(value, null, 2)}\n`;
   // Stays INSIDE docs/catalog so biome.json's per-directory `files.maxSize` override still matches it.
-  const tmp = join(root, `${CATALOG_DIR}/catalog.tmp.${runId(root)}.json`);
+  const tmp = join(repoRoot, `${CATALOG_DIR}/catalog.tmp.${runId(repoRoot)}.json`);
   try {
     writeFileSync(tmp, source);
-    execNicedSync(join(root, "node_modules/.bin/biome"), ["format", "--write", tmp], { cwd: root });
+    execNicedSync(join(root, "node_modules/.bin/biome"), ["format", "--write", tmp], { cwd: repoRoot });
     const formatted = readFileSync(tmp, "utf8");
     // FAIL LOUD, never write garbage: an empty or non-JSON round-trip is a tool failure, not a result.
     if (formatted.trim() === "") {
@@ -98,17 +98,21 @@ function gitBlob(args: readonly string[], cwd = root, isolateGitEnvironment = fa
 
 /** Line counts for every tracked TEXT file — the denominator every `path:line` evidence target is
  *  bounds-checked against, resolved once per run. */
-export function localEvidenceLines(): ReadonlyMap<string, number> {
-  const paths = execNicedSync("git", ["ls-files", "-z"], { cwd: root })
+export function localEvidenceLines(repoRoot = root, isolateGitEnvironment = false): ReadonlyMap<string, number> {
+  const paths = execNicedSync(
+    isolateGitEnvironment ? "env" : "git",
+    isolateGitEnvironment ? ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", "ls-files", "-z"] : ["ls-files", "-z"],
+    { cwd: repoRoot },
+  )
     .split("\0")
-    .filter((path) => path !== "" && TEXT_EVIDENCE_EXTENSIONS.has(extname(path)) && existsSync(join(root, path)));
-  return new Map(paths.map((path) => [path, countLines(readFileSync(join(root, path)))] as const));
+    .filter((path) => path !== "" && TEXT_EVIDENCE_EXTENSIONS.has(extname(path)) && existsSync(join(repoRoot, path)));
+  return new Map(paths.map((path) => [path, countLines(readFileSync(join(repoRoot, path)))] as const));
 }
 
 /** The commit a re-attestation names (#1996). Null when HEAD does not resolve — an unborn branch or a
  *  broken checkout — which the attest verb reports rather than writing a receipt nothing can verify. */
-export function headCommit(): string | null {
-  return gitResult(["rev-parse", "HEAD"])?.trim() ?? null;
+export function headCommit(repoRoot = root, isolateGitEnvironment = false): string | null {
+  return gitResult(["rev-parse", "HEAD"], repoRoot, isolateGitEnvironment)?.trim() ?? null;
 }
 
 /** The attestation DATE, as UTC YYYY-MM-DD. One home, so the verb's only clock read is here and the
@@ -117,9 +121,9 @@ export function today(): string {
   return (new Date().toISOString().split("T")[0] ?? "") as string;
 }
 
-export function headAncestors(): ReadonlySet<string> {
+export function headAncestors(repoRoot = root, isolateGitEnvironment = false): ReadonlySet<string> {
   return new Set(
-    gitResult(["rev-list", "HEAD"])
+    gitResult(["rev-list", "HEAD"], repoRoot, isolateGitEnvironment)
       ?.split("\n")
       .filter((commit) => commit !== "") ?? [],
   );
@@ -232,6 +236,8 @@ export function receiptFacts(
     readonly candidateTouchesPair: boolean;
     readonly candidateChangedPaths: ReadonlySet<string> | null;
     readonly candidateEvidencePathsDifferFromIndex: ReadonlySet<string> | null;
+    readonly repoRoot?: string;
+    readonly isolateGitEnvironment?: boolean;
   },
   sources: EvidenceSources,
 ): ReceiptFacts {
@@ -243,7 +249,8 @@ export function receiptFacts(
     candidateChangedPaths: receiptSource.candidateChangedPaths,
     candidateEvidencePathsDifferFromIndex: receiptSource.candidateEvidencePathsDifferFromIndex,
     sources,
-    repoRoot: root,
+    repoRoot: receiptSource.repoRoot ?? root,
+    isolateGitEnvironment: receiptSource.isolateGitEnvironment ?? false,
   });
 }
 
@@ -263,16 +270,22 @@ export function __receiptFactsForTest(
 
 /** The catalog's corpus = TRACKED markdown under docs/ (git, not a glob — an untracked draft is not a
  *  document, and a deleted-but-unstaged one is). */
-function trackedDocs(): readonly string[] {
-  return execNicedSync("git", ["ls-files", "-z", "--", "docs"], { cwd: root })
+function trackedDocs(repoRoot = root, isolateGitEnvironment = false): readonly string[] {
+  return execNicedSync(
+    isolateGitEnvironment ? "env" : "git",
+    isolateGitEnvironment
+      ? ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", "ls-files", "-z", "--", "docs"]
+      : ["ls-files", "-z", "--", "docs"],
+    { cwd: repoRoot },
+  )
     .split("\0")
     .filter((path) => path.endsWith(".md"))
     .sort();
 }
 
-export function documents(): readonly Doc[] {
-  return trackedDocs().map((path) => {
-    const content = readFileSync(join(root, path));
+export function documents(repoRoot = root, isolateGitEnvironment = false): readonly Doc[] {
+  return trackedDocs(repoRoot, isolateGitEnvironment).map((path) => {
+    const content = readFileSync(join(repoRoot, path));
     const frontmatter = parseFrontmatter(content.toString("utf8"), path);
     const vendor = path.startsWith(VENDOR_PREFIX);
     return {
@@ -291,14 +304,14 @@ export function documents(): readonly Doc[] {
 
 /** `<law doc> §<n>` targets resolve against ACTIVE core law only, and must be UNAMBIGUOUS — a doc with
  *  two `## 3.` headings makes every `§3` citation into it un-anchorable. */
-export function stableLawSections(docs: readonly Doc[]): ReadonlyMap<string, ReadonlyMap<string, number>> {
+export function stableLawSections(docs: readonly Doc[], repoRoot = root): ReadonlyMap<string, ReadonlyMap<string, number>> {
   const sections = new Map<string, ReadonlyMap<string, number>>();
   for (const doc of docs) {
     if (!doc.path.startsWith("docs/architecture/core/") || doc.frontmatter.fields["kind"] !== "law" || doc.frontmatter.fields["status"] !== "active") {
       continue;
     }
     const counts = new Map<string, number>();
-    for (const line of readFileSync(join(root, doc.path), "utf8").split("\n")) {
+    for (const line of readFileSync(join(repoRoot, doc.path), "utf8").split("\n")) {
       const section = NUMERIC_HEADING_RE.exec(line)?.[1];
       if (section !== undefined) {
         counts.set(section, (counts.get(section) ?? 0) + 1);
@@ -311,11 +324,11 @@ export function stableLawSections(docs: readonly Doc[]): ReadonlyMap<string, Rea
 
 /** D-number anchors in the ledger. A `## D<n>` heading immediately followed by its own `- **D<n>` bold
  *  restatement is ONE anchor, not two — the ledger's house entry shape. */
-export function stableRulingAnchors(): ReadonlyMap<string, number> {
+export function stableRulingAnchors(repoRoot = root): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
   let headedRuling: string | undefined;
   let headedRulingPaired = false;
-  for (const line of readFileSync(join(root, CORE_PATH_REGISTRY_PATH), "utf8").split("\n")) {
+  for (const line of readFileSync(join(repoRoot, CORE_PATH_REGISTRY_PATH), "utf8").split("\n")) {
     const heading = LEDGER_ENTRY_HEADING_RE.exec(line)?.[1];
     if (heading !== undefined) {
       counts.set(heading, (counts.get(heading) ?? 0) + 1);
@@ -378,6 +391,6 @@ export function receiptPath(lane: Lane): string {
   return `${RECEIPTS_DIR}/${lane.id}.json`;
 }
 
-export function loadReceipts(config: LaneConfig): readonly Receipt[] {
-  return config.lanes.map((lane) => json<Receipt>(receiptPath(lane)));
+export function loadReceipts(config: LaneConfig, repoRoot = root): readonly Receipt[] {
+  return config.lanes.map((lane) => json<Receipt>(receiptPath(lane), repoRoot));
 }

@@ -167,8 +167,9 @@ function receiptPathOf(config: LaneConfig, laneId: string): string {
 }
 
 /** The driver's ONE tree read for the grammar half: the evidence sources resolve once for the whole
- *  selection, and each selected row is judged through `lib/receipt-rules.ts` — the same reader
- *  `check:doc-catalog` uses, so a row this verb accepts is a row that stage accepts.
+ *  selection, and each selected row's typed evidence is judged through `lib/receipt-rules.ts`. The
+ *  catalog stage uses that same grammar after its disposition checks; re-attestation deliberately also
+ *  diagnoses stale evidence on a pending row, although the independent pending refusal still forbids writing it.
  *
  *  The candidate-index arms are handed their NEUTRAL values (`candidateTouchesPair: false`, an empty
  *  changed-path set), which short-circuits the index-coexistence tail inside the local-evidence reader.
@@ -185,17 +186,19 @@ export function resolveEvidenceErrors(
   selection: readonly string[],
   docs: readonly Doc[],
   receipts: readonly Receipt[],
+  tree: { readonly repoRoot: string; readonly isolateGitEnvironment: boolean } = { repoRoot: root, isolateGitEnvironment: false },
 ): ReadonlyMap<string, readonly string[]> {
+  const { isolateGitEnvironment, repoRoot } = tree;
   const selected = new Set(selection);
   const rows = receipts.flatMap((receipt) => receipt.entries.filter((entry) => selected.has(entry.path)));
   if (rows.length === 0) {
     return new Map();
   }
   const sources = {
-    localEvidence: localEvidenceLines(),
-    lawSections: stableLawSections(docs),
-    ancestors: headAncestors(),
-    rulingAnchors: stableRulingAnchors(),
+    localEvidence: localEvidenceLines(repoRoot, isolateGitEnvironment),
+    lawSections: stableLawSections(docs, repoRoot),
+    ancestors: headAncestors(repoRoot, isolateGitEnvironment),
+    rulingAnchors: stableRulingAnchors(repoRoot),
   };
   const docsByPath = new Map(docs.map((doc) => [doc.path, doc] as const));
   return new Map(
@@ -207,7 +210,14 @@ export function resolveEvidenceErrors(
       const facts = receiptFacts(
         entry,
         doc,
-        { path: undefined, candidateTouchesPair: false, candidateChangedPaths: new Set<string>(), candidateEvidencePathsDifferFromIndex: new Set<string>() },
+        {
+          path: undefined,
+          candidateTouchesPair: false,
+          candidateChangedPaths: new Set<string>(),
+          candidateEvidencePathsDifferFromIndex: new Set<string>(),
+          repoRoot,
+          isolateGitEnvironment,
+        },
         sources,
       );
       return [[entry.path, receiptEvidenceErrors(entry, facts)] as const];
@@ -223,38 +233,45 @@ export function resolveEvidenceErrors(
  *  data, so replacing this call with an empty map left every one of the suite's 68 tests green — the verb
  *  kept refusing everything the ROW rules refuse and silently stopped refusing moved EVIDENCE. The spec
  *  cuts the call through this parameter; `ops/attest.int.test.ts` is the pin. */
-export function runAttest(selection: readonly string[], resolveEvidence: AttestEvidenceResolver = resolveEvidenceErrors): ExitCode {
-  const config = json<LaneConfig>(LANES_PATH);
-  const docs = documents();
-  const commit = headCommit();
-  const known = new Set(docs.map((doc) => doc.path));
-  const unstagedDocuments = new Set(selection.filter((path) => known.has(path) && !indexFileMatchesWorkingTree(path)));
-  const receipts = loadReceipts(config);
-  const plan = planAttestation({
-    config,
-    docs,
-    receipts,
-    selection,
-    headCommit: commit,
-    today: today(),
-    unstagedDocuments,
-    evidenceErrors: resolveEvidence(selection, docs, receipts),
-  });
-  if (plan.refusals.length > 0) {
-    warn(`doc-catalog:attest — NOTHING WRITTEN; ${plan.refusals.length} refusal(s):\n${plan.refusals.map(({ message }) => `  ${message}`).join("\n")}`);
-    return plan.refusals.some(({ kind }) => kind === "misuse") ? EXIT.misuse : EXIT.violations;
-  }
-  for (const write of plan.writes) {
-    writeFileSync(join(root, write.path), stableJson(write.receipt));
-  }
-  for (const path of plan.attested) {
-    print(`doc-catalog:attest — re-attested ${path} at ${(commit ?? "").slice(0, SHA_ECHO_LENGTH)}`);
-  }
-  // THE CLOSING LINE NAMES THE SCOPED DOOR (#2165). It used to say `pnpm doc-catalog:write`, and an
-  // operator who followed it after a ONE-FILE re-attest got 184 insertions across every document that had
-  // changed that day. The advice line was as much the defect surface as the verb it pointed at.
-  print(
-    `doc-catalog:attest — wrote ${String(plan.writes.length)} receipt file(s); stage the documents AND the receipts together, then regenerate JUST these rows:\n  pnpm doc-catalog:write --paths ${plan.attested.join(" ")}`,
-  );
-  return EXIT.clean;
+export function runAttestAtRoot(repoRoot: string) {
+  const isolateGitEnvironment = repoRoot !== root;
+  const defaultResolver: AttestEvidenceResolver = (selection, docs, receipts) =>
+    resolveEvidenceErrors(selection, docs, receipts, { repoRoot, isolateGitEnvironment });
+  return (selection: readonly string[], resolveEvidence: AttestEvidenceResolver = defaultResolver): ExitCode => {
+    const config = json<LaneConfig>(LANES_PATH, repoRoot);
+    const docs = documents(repoRoot, isolateGitEnvironment);
+    const commit = headCommit(repoRoot, isolateGitEnvironment);
+    const known = new Set(docs.map((doc) => doc.path));
+    const unstagedDocuments = new Set(selection.filter((path) => known.has(path) && !indexFileMatchesWorkingTree(path, repoRoot, isolateGitEnvironment)));
+    const receipts = loadReceipts(config, repoRoot);
+    const plan = planAttestation({
+      config,
+      docs,
+      receipts,
+      selection,
+      headCommit: commit,
+      today: today(),
+      unstagedDocuments,
+      evidenceErrors: resolveEvidence(selection, docs, receipts),
+    });
+    if (plan.refusals.length > 0) {
+      warn(`doc-catalog:attest — NOTHING WRITTEN; ${plan.refusals.length} refusal(s):\n${plan.refusals.map(({ message }) => `  ${message}`).join("\n")}`);
+      return plan.refusals.some(({ kind }) => kind === "misuse") ? EXIT.misuse : EXIT.violations;
+    }
+    for (const write of plan.writes) {
+      writeFileSync(join(repoRoot, write.path), stableJson(write.receipt, repoRoot));
+    }
+    for (const path of plan.attested) {
+      print(`doc-catalog:attest — re-attested ${path} at ${(commit ?? "").slice(0, SHA_ECHO_LENGTH)}`);
+    }
+    // THE CLOSING LINE NAMES THE SCOPED DOOR (#2165). It used to say `pnpm doc-catalog:write`, and an
+    // operator who followed it after a ONE-FILE re-attest got 184 insertions across every document that had
+    // changed that day. The advice line was as much the defect surface as the verb it pointed at.
+    print(
+      `doc-catalog:attest — wrote ${String(plan.writes.length)} receipt file(s); stage the documents AND the receipts together, then regenerate JUST these rows:\n  pnpm doc-catalog:write --paths ${plan.attested.join(" ")}`,
+    );
+    return EXIT.clean;
+  };
 }
+
+export const runAttest = runAttestAtRoot(root);
