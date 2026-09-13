@@ -547,6 +547,165 @@ under-counted by one (`modal-body-not-placeholder` excluded because a harness-im
 of them could be tabled without first constructing a twin per module from that module's own final fixture.
 A backlog count built on "does the frozen descriptor load" would still overstate the work that is done.
 
+### 5d.7 SUB-CHUNK 2, TABLED — `modal-registry-completeness` (13) and `placeholder-copy-registry` (8)
+
+Lane `cb-x-replay-family3`, on top of `b9b51f43d`, same worktree, same fence (this report + the family-3
+test). The harness is untouched. §5d.4b's 21 measurements are now COMMITTED ROWS, and its three open rows
+are RESOLVED — each by a measurement, none by a guess.
+
+**TWO TWIN SHAPES IN ONE FAMILY, and the shape follows the legacy BYTES rather than the module.** §5d.3b
+step 4 says the target must be an exported module the subject imports; it does not say the subject has no
+import already. `modal-registry-completeness`'s legacy fixtures annotate `: ModalDefinition` and import
+NOTHING, so its twin PREPENDS and every subject line shifts by one (declared per row as a twin artefact).
+`placeholder-copy-registry`'s fixtures already carry `import type { SectionDefinition } from "#state";` — a
+specifier with no target in the fixture map — so its twin REPOINTS that one import at the shared target and
+**no line moves at all**, which is why those rows' lines are byte-identical on both engines. A lane that
+copied module 1's prepend-everything shape would have declared eight false line deltas.
+
+**THE TABLE IS WRITTEN IN ARM VOCABULARY, not in a message slice.** Every finding in these two policies
+carries the same ~350-character policy `message` with the arm appended, so the shared `label`'s 46-character
+slice is the SAME STRING on every row: a table in that vocabulary cannot tell `Not co-located` from
+`Unreachable surface modal`, which is most of what these rows claim. `armLabel` names the final arm from a
+closed list and THROWS on an arm it cannot name (the `toolErrorCode` totality shape). The legacy side keeps
+the shared `label` — its whole verdict lives in the synthetic token/message it built.
+
+#### `modal-registry-completeness` — 13 legacy examples at `f5b222e10`
+
+Legacy tool errors 0 on every row; the WITHHELD receipt (`ModalDefinition`) holds on the ORIGINAL bytes for
+every row; every twin is INERT unlined; every twin ALONE refuses for want of a population.
+
+| # | Legacy example | Legacy | Final on twin | Pop L → twin | Class | Successor |
+| -: | - | -: | -: | - | - | - |
+| 0 | `mustFlag[0]` not co-located | 1 @ `not-a-modal-file.ts:1` | 1 @ `:2` `xModal` · Not co-located | 1 → 2 | **anchor-move** | `xModal` |
+| 1 | `mustFlag[1]` empty planned reason | 1 @ `x-modal.ts:1` | 1 @ `:2` `xModal` · Empty planned reason | 1 → 2 | **anchor-move** | `xModal` |
+| 2 | `mustFlag[2]` duplicate `mobile-tab` singleton | 1 @ `b-modal.ts:1` | 1 @ `:2` `bModal` · Duplicate singleton placement | 2 → 3 | **anchor-move** | `bModal` |
+| 3 | `mustFlag[3]` duplicate id | 1 @ `b-modal.ts:1` | 1 @ `:2` `bModal` · Duplicate id | 2 → 3 | **anchor-move** | `bModal` |
+| 4 | `mustFlag[4]` unreachable `surface` modal | 1 @ `x-modal.tsx:1` | 1 @ `:2` `xModal` · Unreachable surface modal | 1 → 2 | **anchor-move** | `xModal` |
+| 5 | `mustFlag[5]` duplicate id `'dup' as never` | 1 @ `b-modal.ts:1` | 1 @ `:2` `bModal` · Duplicate id | 2 → 3 | **anchor-move** | `bModal` |
+| 6 | `mustFlag[6]` THE ANTI-GOD-MAP ARM | 1 @ `some-route.tsx:1` | **WITHHELD** (`ModalDefinition` 0 members) | 1 → 2 | **`UNCLASSIFIED-POPULATION-UNADMITTABLE`** | CONSTRUCTED (below) |
+| 7 | `mustFlag[7]` the #944 imported initializer | 1 @ `x-modal.tsx:2` | 1 @ `:3` `xModal` · **Definition outside its home** | 2 → 3 | **stronger-reader** | `Definition outside its home` |
+| 8 | `mustPass[0]` a full co-located modal | 0 | 0 | 1 → 2 | vacuous-both-zero | — |
+| 9 | `mustPass[1]` a declared-planned surface modal | 0 | 0 | 1 → 2 | vacuous-both-zero | — |
+| 10 | `mustPass[2]` a surface modal WITH an opener | 0 | **1** @ `x-modal.tsx:2` `xModal` · Unreachable surface modal | 2 → 3 | **stronger-reader** | `Unreachable surface modal` |
+| 11 | `mustPass[3]` same-file indirection | 0 | 0 | 1 → 2 | vacuous-both-zero | — |
+| 12 | `mustPass[4]` whole-literal `satisfies` | 0 | 0 | 1 → 2 | vacuous-both-zero | — |
+
+Six anchor moves with the same receipt: the catch, the file and the subject are carried, the TOKEN moves
+from the legacy descriptor's packed synthetic string (`duplicate singleton placement "mobile-tab" (bModal) —
+first claimed by "aModal" (…)`) to the bare declared name with the explanation in the message, and the LINE
+delta is this twin's one-line prepend, which is an artefact and not a conversion anchor move.
+
+**Row 7 is NOT a seventh anchor move — the ARM changed, and that is the whole finding.** The legacy reader
+could only REFUSE ("unreadable definition: xModal — the identifier xDef, not an object literal declared in this file"); the final reader resolves
+the imported initializer, finds the real declaration's home and judges it there
+(`Definition outside its home`). Same subject, same verdict, a reason the legacy reader could not reach.
+
+#### `placeholder-copy-registry` — 8 legacy examples at `f5b222e10`
+
+Same four per-row controls. Populations are the planted files plus the shared target; no line moves.
+
+| # | Legacy example | Legacy | Final on twin | Pop L → twin | Class | Successor |
+| -: | - | -: | -: | - | - | - |
+| 0 | `mustFlag[0]` identical (title, description) | 1 @ `b-section.ts:2` | 1 @ `:2` `bSection` · Duplicate copy | 2 → 3 | **anchor-move** | `bSection` |
+| 1 | `mustFlag[1]` empty title | 1 @ `a-section.ts:2` | 1 @ `:2` `aSection` · Empty copy | 1 → 2 | **anchor-move** | `aSection` |
+| 2 | `mustFlag[2]` empty title `"" as string` | 1 @ `a-section.ts:2` | 1 @ `:2` `aSection` · Empty copy | 1 → 2 | **anchor-move** | `aSection` |
+| 3 | `mustFlag[3]` THE #944 unreadable control | 1 @ `a-section.ts:3` | **0**, no tool error | 2 → 3 | **retired-arm** (successor `null` + `retiredWhy`) | none — DISSOLVED, see below |
+| 4 | `mustFlag[4]` the factory duplicating a const's copy | 1 @ `b-section.ts:2` | 1 @ `:2` `bSection` · Duplicate copy | 2 → 3 | **anchor-move** | `bSection` |
+| 5 | `mustPass[0]` distinct non-empty pairs | 0 | 0 | 2 → 3 | vacuous-both-zero | — |
+| 6 | `mustPass[1]` the factory arm's false branch | 0 | 0 | 2 → 3 | vacuous-both-zero | — |
+| 7 | `mustPass[2]` same-file indirection | 0 | 0 | 1 → 2 | vacuous-both-zero | — |
+
+Here the anchor move is the opposite direction from `modal-registry-completeness`'s: the legacy descriptor
+reported with NO token at all and put everything in the message; the final anchors on the declared name.
+
+#### The three rows §5d.4b left open, each resolved by a measurement
+
+**1. `modal-registry-completeness mustFlag[6]` (anti-god-map) — a DECLARED LIMIT with its RUN row, AND a
+constructed successor.** Both halves are committed. The limit: the example's only subject is a ROUTE that
+declares no modal, so the twin's target resolves and the MEMBER denominator is still zero —
+`receiptFailures` withholds the owner before the god-map arm is ever consulted, and the row asserts that
+tool error rather than an empty finding list. Admitting a member means ADDING a definition, at which point
+these are no longer the legacy example's bytes, so the row is labelled `UNCLASSIFIED-POPULATION-UNADMITTABLE`
+and the test asserts that label BY NAME (`/^UNCLASSIFIED-[A-Z-]+$/`) instead of filing a category. The
+successor is then CONSTRUCTED from the arm's own trigger conditions — the legacy route bytes UNCHANGED plus
+one live `aModal` definition — and the arm fires: `some-route.tsx:1 | modals | A route declares a modals={{…}} prop`,
+with the owner no longer withheld. The arm is carried; the legacy EXAMPLE simply cannot show it.
+
+**2. `modal-registry-completeness mustPass[2]` (the opener) — `stronger-reader`, and it is neither a lost
+catch nor a false positive.** Three runs, one differential:
+
+| run | fixture | final |
+| - | - | -: |
+| A | twin prepend on EVERY file, `opener.tsx` included | 1 · Unreachable surface modal |
+| B | prepend dropped from `opener.tsx` ALONE | **the same 1** |
+| C | the same bytes with a RESOLVABLE canonical opener | **0** |
+
+B REFUTES the twin-artefact hypothesis. C names the mechanism: the final FAILS CLOSED on an opener whose
+ORIGIN does not resolve. The legacy fixture's opener is `import { openModal } from '#state'`, and `#state`
+has no target in the fixture map and **is not a real specifier on this tree** (no `imports` map in
+`packages/client/package.json`; every live opener imports `state/shell-store.ts` or the `state/index.ts`
+barrel — `state/{imagery,plugin-dialog,active-chat}-store.ts`). The grammar difference by line: legacy
+`collectOpenModalCallSites` (`f5b222e10:…/modal-registry-completeness.ts:117-129`) TEXT-matches the callee
+identifier and resolves nothing; final `openedSlotId` (`:96-110`) requires `resolveCallableOrigin` to land on
+a MODULE whose canonical export is `openModal`. **That narrowing is the DESIGN, pinned by the final module's
+own rows** — `mustFlag[8]` (a LOCAL function named `openModal` must NOT satisfy the arm) and `mustPass[2]`
+(an aliased import through a barrel MUST) — and run C is that second pin reproduced on the legacy bytes, so
+it is committed as the row's coverage statement. Mitigating fact, unchanged: real-tree
+`--check modal-registry-completeness` is 0 effective over 11 `ModalDefinition` members. **No ledger row.**
+
+**3. `placeholder-copy-registry mustFlag[3]` (the #944 unreadable control) — a DISSOLVED refusal, not a lost
+catch.** `retired-arm` with `successor: null` and a `retiredWhy` that names two committed controls rather
+than an argument:
+
+- **(D) the comparison control** — the same legacy bytes plus a second section carrying the SAME copy as the
+  imported definition: the final reports `bSection · Duplicate copy`. If the final had merely SKIPPED the
+  cross-module definition the way the legacy reader did, nothing could have collided with it. So the
+  resolved pair is IN the distinctness comparison.
+- **(E) the fail-closed control** — the same shape made genuinely unresolvable (a builder initializer): the
+  final still reports `aSection · Unreadable definition`. The unreadable arm did not leave the policy; its
+  TRIGGER moved from "the definition is imported" to "the definition cannot be resolved at all".
+
+The legacy catch was a refusal of ignorance about a const the reader could not follow. Nothing carries it
+because there is nothing left to refuse. **No ledger row.**
+
+#### Floor executed (family 3, sub-chunk 2)
+
+| Check | Result |
+| - | - |
+| `pnpm test:scoped tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts` | **8 passed** (4 pre-existing + 4 new) |
+| all SEVEN suites importing the shared harness | **7 files / 45 tests passed** — the other six unchanged at 41 − 4 = 37 pre-existing, delta exactly this lane's four |
+| `pnpm check:structure --check modal-registry-completeness` (real tree, ONE AT A TIME) | exit 0 · `ModalDefinition: 11 member(s)` · raw 0 = effective 0 · 0 alarms · 0 tool errors · 0 withheld |
+| `pnpm check:structure --check placeholder-copy-registry` | exit 0 · `SectionDefinition: 10 member(s)` · raw 0 = effective 0 · 0 alarms · 0 tool errors · 0 withheld |
+| `pnpm exec biome check` · `pnpm exec eslint` on the one touched test file | clean (one scoped `--write` for formatting; two nursery rules answered by RESTRUCTURING — the per-row verdict is one unconditional `expect` over a `verdictViolations` list rather than a conditional `expect`, and `driveTable` returns its row count so each table test carries its own assertion) · exit 0 |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | PASS both (11 discovered, 2 runnable) |
+| `pnpm check:docs` on this report | exit 0 |
+| probe residue | the measurement probe `cbx-f3-probe.test.ts` is DELETED; `git status --short` names only the two fenced files |
+
+**Four planted controls, all RED and restored (`cp`/`mv`, one command per call, `git status --short` clean
+after each):**
+
+1. **Twin-prerequisite** — `export` dropped from the shared target interface, everything else intact.
+   RED on ALL FOUR new tests, both constructed controls included: every final side went to `[]`
+   (`isExportedType` rejects it, the target never resolves). The tables measure a RESOLVED population, not
+   an accident of file count.
+2. **Arm control** — row 7's expected arm `Definition outside its home` → `Unreadable definition`, numbers
+   and positions untouched. RED. **This is the one that matters most for these two modules**: it proves the
+   table measures WHICH ARM fired, which is the entire content of the six anchor-move rows and of row 7.
+3. **Successor** — row 10's successor → `"a-successor-nothing-carries"`. RED:
+   `the declared SUCCESSOR … appears in no final finding or tool error`.
+4. **Withheld denominator** — the driver's expected denominator pinned to `ModalDefinition`. RED on the
+   `placeholder-copy-registry` table: `expected [… SectionDefinition] to deeply equal [… ModalDefinition]`.
+
+#### What this sub-chunk did NOT cover
+
+The four remaining non-split members (`chrome-registry-completeness`, `home-tile-registry-completeness`,
+`no-parallel-section-map`, `section-factory-contribution-bundle`) and the two SPLITs
+(`config-group-completeness`, `section-registry-completeness`) are UNTOUCHED — the lane was stopped after
+sub-chunk 2 by the orchestrator. They keep the withheld-by-population receipt (now
+`the other four …`, `MEMBERS.slice(3)`), so none of them reads as a clean zero. What is already known about
+each is in §5d.3b's "two awkward ones" paragraph plus this sub-chunk's finding that the TWIN SHAPE is read
+off the legacy fixture's imports, not off the family.
+
 ## 6. Reproducing the §3 derivation
 
 ```
