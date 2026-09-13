@@ -3653,7 +3653,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
     probe.remove();
     const box = el.getBoundingClientRect();
     const row = (el.parentElement as HTMLElement).getBoundingClientRect();
-    const after = getComputedStyle(el, "::after");
+    const after = getComputedStyle(el, "::before");
     return {
       token,
       width: box.width,
@@ -3676,7 +3676,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             probe.remove();
             const box = el.getBoundingClientRect();
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
-            const after = getComputedStyle(el, "::after");
+            const after = getComputedStyle(el, "::before");
             return {
               token,
               width: box.width,
@@ -3701,7 +3701,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             probe.remove();
             const box = el.getBoundingClientRect();
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
-            const after = getComputedStyle(el, "::after");
+            const after = getComputedStyle(el, "::before");
             return {
               token,
               width: box.width,
@@ -3726,7 +3726,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             probe.remove();
             const box = el.getBoundingClientRect();
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
-            const after = getComputedStyle(el, "::after");
+            const after = getComputedStyle(el, "::before");
             return {
               token,
               width: box.width,
@@ -3752,7 +3752,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             probe.remove();
             const box = el.getBoundingClientRect();
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
-            const after = getComputedStyle(el, "::after");
+            const after = getComputedStyle(el, "::before");
             return {
               token,
               width: box.width,
@@ -3777,7 +3777,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             probe.remove();
             const box = el.getBoundingClientRect();
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
-            const after = getComputedStyle(el, "::after");
+            const after = getComputedStyle(el, "::before");
             return {
               token,
               width: box.width,
@@ -3790,7 +3790,10 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
         ).overflowsRow,
     )
     .toBe(false);
-  // The hit area still exceeds the visible box (the ::after the arm carries), even on this fine-pointer run.
+  // The hit area still exceeds the visible box (the ::before the arm carries — it was an ::after until #1843
+  // moved it off the CTA ring's unlayered layer, and this reader was not swept with it: a ghost glyph has no
+  // ::after at all, so `parseFloat("auto")` was NaN and the poll could never pass, #2301), even on this
+  // fine-pointer run.
   await expect
     .poll(
       async () =>
@@ -3803,7 +3806,7 @@ test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, tok
             probe.remove();
             const box = el.getBoundingClientRect();
             const row = (el.parentElement as HTMLElement).getBoundingClientRect();
-            const after = getComputedStyle(el, "::after");
+            const after = getComputedStyle(el, "::before");
             return {
               token,
               width: box.width,
