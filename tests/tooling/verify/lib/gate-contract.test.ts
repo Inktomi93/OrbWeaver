@@ -1,4 +1,5 @@
 import { Project } from "ts-morph";
+import { readExpressionString, readExpressionStrings } from "../../../../tooling/src/verify/lib/config-static-read.ts";
 import { inspectGateContract } from "../../../../tooling/src/verify/lib/gate-contract.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -440,6 +441,49 @@ test("reports statically concatenated and templated baseline paths once each", (
     export const gate = defineGate({ create() { return { visitors: {} }; } });
   `);
   expect(report.findings.filter((finding) => finding.code === "baseline-ledger")).toHaveLength(2);
+});
+
+test("batch static-string reads preserve singular results across files, aliases, and escaped mutable collections", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const first = project.createSourceFile(
+    "/repo/first.ts",
+    `
+      const LITERAL = "one.baseline.json";
+      const ALIAS = LITERAL;
+      const MUTABLE = ["hidden.baseline.json"];
+      const escaped = MUTABLE;
+      escaped.push("changed");
+      const READ = MUTABLE;
+      export {};
+    `,
+  );
+  const second = project.createSourceFile(
+    "/repo/second.ts",
+    `
+      const LITERAL = "two.baseline.json";
+      const ALIAS = LITERAL;
+      const SAFE = ["visible.baseline.json"];
+      export {};
+    `,
+  );
+  const candidates = [
+    first.getVariableDeclarationOrThrow("LITERAL").getInitializerOrThrow(),
+    first.getVariableDeclarationOrThrow("ALIAS").getInitializerOrThrow(),
+    first.getVariableDeclarationOrThrow("READ").getInitializerOrThrow(),
+    second.getVariableDeclarationOrThrow("LITERAL").getInitializerOrThrow(),
+    second.getVariableDeclarationOrThrow("ALIAS").getInitializerOrThrow(),
+    second.getVariableDeclarationOrThrow("SAFE").getInitializerOrThrow(),
+  ];
+
+  expect(readExpressionStrings(candidates)).toEqual(candidates.map((candidate) => readExpressionString(candidate)));
+  expect(readExpressionStrings(candidates).map(({ values, unresolved }) => ({ values, unresolved: unresolved.map(({ kind }) => kind) }))).toEqual([
+    { values: ["one.baseline.json"], unresolved: [] },
+    { values: ["one.baseline.json"], unresolved: [] },
+    { values: [], unresolved: ["Reference:write"] },
+    { values: ["two.baseline.json"], unresolved: [] },
+    { values: ["two.baseline.json"], unresolved: [] },
+    { values: ["visible.baseline.json"], unresolved: [] },
+  ]);
 });
 
 test("the command refuses a zero-module corpus", { timeout: scaledBudget(30_000) }, async ({ runCli, scratch }) => {

@@ -8,6 +8,7 @@
 // unreadable shape is never silently dropped. The ordered-evaluation approach is `dangling-refs.ts`'s
 // `evalString` precedent, widened to arrays/spreads/identifiers with a cycle fence.
 import { existsSync, readFileSync } from "node:fs";
+import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import type { ConfigRead, ExtractRequest, RowExtraction, StaticRead, UnresolvedShape } from "../contract/config-read.ts";
 import type { ExactRow } from "./grant-liveness.ts";
@@ -278,6 +279,19 @@ function readValueInner(node: Node, seen: Set<Node>, escaped: ReadonlySet<object
  *  from `+`-concatenated fragments. */
 export function readExpressionString(node: Node): StaticRead {
   return readValue(node);
+}
+
+/** Evaluate a finite expression batch while sharing only the source-level escape census. Each expression
+ * keeps an independent recursion path, and the cache dies with this call, so mutation/alias refusal is
+ * byte-identical to {@link readExpressionString} without rescanning a source for every candidate. */
+export function readExpressionStrings(nodes: readonly Node[]): readonly StaticRead[] {
+  const escapedBySource = new Map<SourceFile, ReadonlySet<object>>();
+  return nodes.map((node) => {
+    const source = node.getSourceFile();
+    const escaped = escapedBySource.get(source) ?? escapedCollectionSymbols(source);
+    escapedBySource.set(source, escaped);
+    return readValue(node, new Set(), escaped);
+  });
 }
 
 // ── the file reader ───────────────────────────────────────────────────────────────────────────────────
