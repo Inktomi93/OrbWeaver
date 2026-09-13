@@ -218,7 +218,7 @@ const IDENTITY_FIELDS = POLICY_EXPECTATION_IDENTITY_KEYS;
  *  exemption leaves the row asserting nothing, which is worse than the literal `count` it replaces. */
 function judgeCountFrom(ctx: GatePolicyContext, expectation: ObjectLiteralExpression, sourceFile: SourceFile): void {
   const property = descriptorProperty(expectation, "countFrom");
-  const name = property === undefined ? undefined : staticText(property.getInitializer());
+  const name = property === undefined ? undefined : staticText(descriptorValue(expectation, "countFrom"));
   if (property === undefined) {
     return;
   }
@@ -239,7 +239,7 @@ function judgeRow(ctx: GatePolicyContext, row: ObjectLiteralExpression, census: 
     ctx.report.node(row, { message: NO_COUNT_MESSAGE });
   }
   const includes = expectation === undefined ? undefined : descriptorProperty(expectation, "messageIncludes");
-  const substring = includes === undefined ? undefined : staticText(includes.getInitializer());
+  const substring = expectation === undefined ? undefined : staticText(descriptorValue(expectation, "messageIncludes"));
   if (includes === undefined || substring === undefined) {
     return;
   }
@@ -355,6 +355,20 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      files: familyFixture(REGISTRY_DRIVEN_MODULE('{ countFrom, token: "x" }', 'const countFrom = "MISSING_DRIVER";\n')),
+      expect: { count: 1, token: "countFrom", messageIncludes: "declares NOWHERE at module scope" },
+      why: "A shorthand countFrom has exactly the same driver obligation as a property assignment; ignoring its anchor previously skipped the entire check.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        TWO_SOURCE_MODULE("{ count: 1, messageIncludes }").replace("import { defineGate }", 'const messageIncludes = "not";\nimport { defineGate }'),
+      ),
+      expect: { count: 1, token: "messageIncludes", messageIncludes: "MORE THAN ONE" },
+      why: "The shorthand message discriminator appears in both report texts and must be checked through the same stable-value reader as an explicit property.",
+    },
+    {
+      mode: "types",
       files: familyFixture(
         finalProbeModule(
           `${HARD_TRUNK}\n  message: "m",\n  create: (ctx) => ({ visitors: [{ kinds: [1], visit: (node) => ctx.report.node(node) }] }),\n  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { token: "x" }, why: "w" }],`,
@@ -438,6 +452,18 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: familyFixture(REGISTRY_DRIVEN_MODULE('{ countFrom, token: "x" }', `${DRIVER}const countFrom = "PORTABLE_CANON_TABLES";\n`)),
+      why: "A shorthand countFrom whose driver exists and whose row retains identity is an admitted proof shape.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        TWO_SOURCE_MODULE("{ count: 1, messageIncludes }").replace("import { defineGate }", 'const messageIncludes = "does not exist";\nimport { defineGate }'),
+      ),
+      why: "A shorthand discriminator occurring in only one report text remains valid.",
+    },
     {
       mode: "types",
       files: familyFixture(

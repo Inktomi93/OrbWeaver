@@ -89,7 +89,7 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import { descriptorProperty, descriptorValue, finalDescriptorOf } from "../lib/policy-descriptor-read.ts";
+import { descriptorProperty, descriptorValue, finalDescriptorOf, staticText } from "../lib/policy-descriptor-read.ts";
 import { familyFixture, finalProbeModule, ORDINARY_TRUNK } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-family-readers.ts";
@@ -140,11 +140,11 @@ interface Member {
   readonly anchor: MorphNode;
 }
 
-/** The `family` string a final descriptor declares, or undefined — a non-literal `family` is a validator error
- *  elsewhere, never this policy's finding. */
+/** Read the family's authored value through the same stable aliases, assertions and text composition as
+ *  every other descriptor consumer. A runtime string is not necessarily a statically readable literal. */
 function familyOf(descriptor: ReturnType<typeof finalDescriptorOf>): string | undefined {
   const value = descriptor === undefined ? undefined : descriptorValue(descriptor, FAMILY_FIELD);
-  return value !== undefined && Node.isStringLiteral(value) ? value.getLiteralValue() : undefined;
+  return staticText(value);
 }
 
 /** The repo-relative `lib/` module a door RESOLVES to, or undefined. Identity rather than spelling: the same
@@ -197,13 +197,15 @@ function census(ctx: GatePolicyContext, libsByPath: ReadonlyMap<string, Readonly
       continue;
     }
     finals += 1;
-    // A descriptor WITHOUT a readable `family` is not this policy's finding and not its blindness either: the
-    // field is required by the contract and a missing or non-literal one is the loader validator's refusal.
-    // The tripwire above is about the RECOGNIZER dying, which is the case where nothing reads as final at all.
+    // A missing field is a loader error. A present but unreadable field may be a valid runtime string;
+    // omitting it could turn another member into a singleton and falsely complete a partial census.
     const family = familyOf(descriptor);
     const anchor = descriptorProperty(descriptor, FAMILY_FIELD);
-    if (family === undefined || anchor === undefined) {
+    if (descriptor.getProperty(FAMILY_FIELD) === undefined) {
       continue;
+    }
+    if (family === undefined || anchor === undefined) {
+      throw new Error(`family census cannot resolve the declared family in ${path}; refusing the incomplete family census`);
     }
     members.push({ path, family, libs: libsByPath.get(path) ?? new Set<string>(), anchor });
   }
@@ -292,6 +294,35 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      files: familyFixture(
+        PROBE("twin")
+          .replace('family: "twin",', "family: (FAMILY as string) satisfies string,")
+          .replace("import { defineGate }", 'const FAMILY = "twin";\nimport { defineGate }'),
+        {
+          ...LIBS,
+          [siblingPath("twin-sibling")]: SIBLING("twin-sibling", "twin", "../lib/shared-probe.ts"),
+        },
+      ),
+      expect: { count: 2, token: FAMILY_FIELD },
+      why: "A const family value inside as/satisfies wrappers is the same family as the literal sibling. Dropping the nonliteral member from the census must not turn the pair into a clean singleton.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        PROBE("twin")
+          .replace('family: "twin",', "family,")
+          .replace("import { defineGate }", 'import { FAMILY as family } from "../lib/family-probe.ts";\nimport { defineGate }'),
+        {
+          ...LIBS,
+          "tooling/src/verify/lib/family-probe.ts": 'export const FAMILY = "twin";\n',
+          [siblingPath("twin-sibling")]: SIBLING("twin-sibling", "twin", "../lib/shared-probe.ts"),
+        },
+      ),
+      expect: { count: 2, token: FAMILY_FIELD },
+      why: "An imported constant used through an alias and a shorthand property retains both its family identity and its report anchor. The extra family-value import is private to the probe, so it cannot acquit either member.",
+    },
+    {
+      mode: "types",
       files: familyFixture(PROBE("twin"), { ...LIBS, [siblingPath("twin-sibling")]: SIBLING("twin-sibling", "twin", "../lib/shared-probe.ts") }),
       expect: { count: 2, token: FAMILY_FIELD },
       why: "THE FOUNDING SHAPE and the live class (11 members across 6 families at mint): two policies carrying one `family` string with no `lib/` module between them. BOTH are reported, and that is the rule read honestly — sharing is symmetric, so a pair in which only one member imports a reader shares nothing, and the census counts exactly this way (`no-inline-types`, `no-raw-egress`, `registry-assembly-at-door-only`, `scrubber-home`, `windowed-infinite-query` are all this shape). THE `lib/` HOME FENCE DIES HERE: every final module imports `../contract/policy.ts` for `defineGate`, so admitting any relative door would make this pair 'share' the contract and turn the row green",
@@ -308,6 +339,19 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: familyFixture(
+        PROBE("twin", "../lib/shared-probe.ts")
+          .replace('family: "twin",', "family,")
+          .replace("import { defineGate }", 'const family = ("tw" + "in") satisfies string;\nimport { defineGate }'),
+        {
+          ...LIBS,
+          [siblingPath("twin-sibling")]: SIBLING("twin-sibling", "twin", "../lib/shared-probe.ts"),
+        },
+      ),
+      why: "A readable shorthand/concatenated family still passes when both members share a reader; the repair must resolve admitted values, never ban every nonliteral family.",
+    },
     {
       mode: "types",
       files: familyFixture(PROBE("twin", "../lib/shared-probe.ts"), {
@@ -337,6 +381,18 @@ export const gate = defineGate({
         [siblingPath("trio-b")]: SIBLING("trio-b", "trio", "../lib/shared-probe.ts"),
       }),
       why: "THE §4.2 POSITIVE IDENTITY ARM, in-module — and it is the THREE-member fixture on purpose: in a PAIR both members are accused (sharing is symmetric), so the marker in one file would leave the sibling's finding standing and the row would be red for a reason that has nothing to do with waiver identity. Two connected siblings plus the waived outlier isolates the one finding the marker must suppress. the correct `@orb-waive policy-family-readers(family)` marker at the REPORTED position suppresses the finding, which is what makes the `ordinary` tier's escape hatch real rather than a promise in `fix` prose. Its discrimination control (a marker naming a DEAD position must ALARM) lives in the family test through `runPolicyPass`, because §4.2 forbids a negative arm here: under `knownPolicies: [policy]` it would ride the unknown-policy short-circuit and prove nothing",
+    },
+  ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: familyFixture(
+        PROBE("twin")
+          .replace('family: "twin",', "family: chooseFamily(),")
+          .replace("import { defineGate }", "declare function chooseFamily(): string;\nimport { defineGate }"),
+      ),
+      expect: { messageIncludes: "family census cannot resolve the declared family" },
+      why: "A present but unreadable family can change another module from sibling to singleton. The entire-population census must withhold instead of declaring the remaining partial census complete.",
     },
   ],
 });

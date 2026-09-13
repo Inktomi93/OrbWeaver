@@ -7,6 +7,7 @@ import { Project, SyntaxKind } from "ts-morph";
 import type { StaticSegments } from "../../../../tooling/src/verify/contract/policy-descriptor-read.ts";
 import {
   contextParameterOf,
+  descriptorProperty,
   descriptorValue,
   discriminationOf,
   enclosingStringExpression,
@@ -336,4 +337,15 @@ test("contextParameterOf and isContextRooted see the context through members, de
 test("policyIdOfPath strips exactly the corpus directory and the extension, and refuses anything else", () => {
   expect(policyIdOfPath("tooling/src/verify/gates/no-inline-types.ts")).toBe("no-inline-types");
   expect(() => policyIdOfPath("tooling/src/verify/lib/no-inline-types.ts")).toThrow("not a gate corpus path");
+});
+
+test("descriptor property anchors retain shorthand values without accepting methods or accessors", () => {
+  const sf = moduleOf('const family = "twin"; const fields = { family, count: 1, method() {}, get computed() { return 1; } };');
+  const object = sf.getVariableDeclarationOrThrow("fields").getInitializerIfKindOrThrow(SyntaxKind.ObjectLiteralExpression);
+  expect(descriptorProperty(object, "family")?.getKind()).toBe(SyntaxKind.ShorthandPropertyAssignment);
+  expect(staticText(descriptorValue(object, "family"))).toBe("twin");
+  expect(descriptorProperty(object, "count")?.getKind()).toBe(SyntaxKind.PropertyAssignment);
+  expect(descriptorProperty(object, "missing")).toBeUndefined();
+  expect(descriptorProperty(object, "method")).toBeUndefined();
+  expect(descriptorProperty(object, "computed")).toBeUndefined();
 });
