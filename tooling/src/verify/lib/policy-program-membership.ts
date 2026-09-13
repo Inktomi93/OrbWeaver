@@ -251,13 +251,11 @@ function discoverProgramConfigs(inventory: PolicyRepositoryInventory, sourceRead
     return [];
   }
   const parsed = configs.map((config) => parseConfig(inventory, config, sourceReader));
-  const extended = new Set(parsed.flatMap((config) => localExtendsTargets(inventory, config)));
-  const referenced = new Set(parsed.flatMap((config) => referenceConfigs(inventory, config.parsed)));
-  const candidates = parsed.filter((config) => !extended.has(config.canonical.relative) || referenced.has(config.canonical.relative));
-  if (candidates.length === 0) {
-    throw new Error("TypeScript config discovery found no runnable program roots");
+  // Validate inheritance even for templates, but an extends edge does not make its parent abstract.
+  for (const config of parsed) {
+    localExtendsTargets(inventory, config);
   }
-  return candidates
+  return parsed
     .filter((config) => !isExplicitTemplate(config))
     .map((config) => config.canonical.relative)
     .toSorted(compare);

@@ -53,6 +53,33 @@ test("used and unused files-empty templates stay abstract while their leaf retai
   expect(() => readPolicyProgramGraph(inventory, ["tsconfig.unused.json"])).toThrow(/zero authored files/u);
 });
 
+test.for(["files", "include"] as const)("a concrete extended parent retains its %s roots beside overriding child roots", (field, { scratch }) => {
+  plant(scratch, {
+    "tsconfig.json": JSON.stringify({ [field]: ["parent.ts"] }),
+    "tsconfig.child.json": JSON.stringify({ extends: "./tsconfig.json", [field]: ["child.ts"] }),
+    "parent.ts": "export const parent = 1;",
+    "child.ts": "export const child = 1;",
+  });
+  expect(readCompilerPrograms(scratch).map(({ config, files }) => ({ config, files }))).toEqual([
+    { config: "tsconfig.child.json", files: ["child.ts"] },
+    { config: "tsconfig.json", files: ["parent.ts"] },
+  ]);
+});
+
+test("extended programs sharing roots retain their distinct compiler options", ({ scratch }) => {
+  plant(scratch, {
+    "tsconfig.json": JSON.stringify({ compilerOptions: { strictNullChecks: true }, files: ["shared.ts"] }),
+    "tsconfig.child.json": JSON.stringify({ extends: "./tsconfig.json", compilerOptions: { strictNullChecks: false } }),
+    "shared.ts": "export const value: number = null;",
+  });
+  expect(
+    readCompilerPrograms(scratch).map(({ config, files, commandLine }) => ({ config, files, strictNullChecks: commandLine.options.strictNullChecks })),
+  ).toEqual([
+    { config: "tsconfig.child.json", files: ["shared.ts"], strictNullChecks: false },
+    { config: "tsconfig.json", files: ["shared.ts"], strictNullChecks: true },
+  ]);
+});
+
 test("empty templates never absolve an unmatched include or a broken reference", ({ scratch }) => {
   plant(scratch, {
     "tsconfig.world.json": '{ "files": [] }',
