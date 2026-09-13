@@ -160,6 +160,24 @@ export function inspectReferenceWrites(identifier: Identifier): ReferenceFact<tr
     : inspectSymbolWrites(symbol, identifier);
 }
 
+/** Refuse when this lexical BINDING is reassigned, updated or deleted in its authored source file.
+ *
+ *  The binding-scope twin of `inspectReferenceWrites`, which is value-scope. The distinction is the whole
+ *  reason both exist: a member mutation (`f.cache = x`) changes the VALUE and leaves the DECLARATION the
+ *  name denotes untouched, so a reader asking "which declaration is this" must not refuse on it, while a
+ *  reader asking "what does this hold" must. Shares the open pass's write caches, so the file-wide scan
+ *  still happens once per file per pass. */
+export function inspectBindingReassignment(identifier: Identifier): ReferenceFact<true> {
+  const target = state();
+  const symbol = lexicalReferenceSymbol(identifier);
+  if (symbol === undefined) {
+    return unresolved("missing", identifier, target, `no lexical symbol binds ${identifier.getText()}`);
+  }
+  return reassignedReferenceSymbols(identifier.getSourceFile(), target.reassignedSymbolsBySource).has(symbol.compilerSymbol)
+    ? unresolved("write", identifier, target, `the binding ${identifier.getText()} is reassigned after its declaration`)
+    : resolved(true, target, identifier);
+}
+
 /** Refuse when the checker symbol is written anywhere in this authored source file. */
 export function inspectSymbolWrites(symbol: import("ts-morph").Symbol, node: MorphNode): ReferenceFact<true> {
   const target = state();

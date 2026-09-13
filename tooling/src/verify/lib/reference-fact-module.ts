@@ -122,11 +122,15 @@ function isOverloadImplementation(declaration: MorphNode): boolean {
  *  there is one, otherwise the first signature. Two files, a value/type merge, and an `export *` fan-in all
  *  fail at least one of those and keep the refusal.
  *
+ *  EXPORTED for the LEXICAL axis too (`reference-fact-call.ts#resolveCallableDeclaration`, #2097): a
+ *  module-LOCAL overloaded function has exactly the same shape and exactly the same one home, and giving
+ *  the two axes two answers to one question is what the shared-reader migration exists to stop.
+ *
  *  This is the MODULE-EXPORT axis only. A member resolved off a RECEIVER'S TYPE (`type-member-origin.ts`,
  *  `drizzle-client-call.ts`) deliberately keeps asking every declaration of the property symbol, because that
  *  reader's question is "is EVERY declaration of this member declared by that home" — a set-membership test
  *  that an overload set answers correctly as-is. */
-function overloadHome(declarations: readonly MorphNode[]): MorphNode | undefined {
+export function overloadHome(declarations: readonly MorphNode[]): MorphNode | undefined {
   const first = declarations[0];
   if (first === undefined || declarations.length < 2 || !OVERLOAD_DECLARATION_KINDS.has(first.getKind())) {
     return;

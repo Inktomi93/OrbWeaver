@@ -73,6 +73,27 @@ export interface GlobalMemberOrigin {
 
 export type ReferenceOrigin = ModuleMemberOrigin | GlobalMemberOrigin;
 
+/** WHICH callable declaration a call denotes, and the body that implements it.
+ *
+ *  The question three policies each finished with their own `getSymbol().getDeclarations()` chain (#2097):
+ *  the audit of a test's assertion helper, the returns of a class-string factory, and the identity of the
+ *  membrane's canonical dump guard. It is deliberately NOT a declaration LIST — a caller receives ONE
+ *  proven declaration or one precise refusal, so multiplicity, reassignment and cycles cannot be answered
+ *  differently by each consumer.
+ *
+ *  `body` ABSENT IS A FACT, NOT A REFUSAL: `declare function`, an overload signature and an ambient global
+ *  are real callable declarations with no authored body, and a caller asking about IDENTITY (is this the
+ *  membrane's own guard?) must still get its answer. A caller asking about the body reads `body`. */
+export interface CallableDeclaration {
+  /** The authored function-like node: a `FunctionDeclaration`, or the arrow/function expression an
+   *  immutable binding holds. Never the binding itself, so two spellings of one callable compare equal. */
+  readonly declaration: Node;
+  readonly body: Node | undefined;
+  /** The declaration's own file — the house idiom for a home question about a RESOLVED declaration, which
+   *  `ctx.relativePath` throws on when the resolution escapes the policy's population (guide §12.3). */
+  readonly sourceFile: SourceFile;
+}
+
 /** The semantic target of a direct call/new expression after immutable binding aliases. */
 export interface CallableOrigin {
   readonly invocation: "call" | "construct";
