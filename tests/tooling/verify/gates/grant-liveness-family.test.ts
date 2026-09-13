@@ -46,7 +46,7 @@ import { gate as tsconfigEntryLiveness } from "../../../../tooling/src/verify/ga
 import { gate as tsconfigEntryLivenessHealth } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { filesystemReach } from "../../../support/legacy-differential.ts";
+import { filesystemReach, frozenLegacyGate } from "../../../support/legacy-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -93,12 +93,13 @@ const LEGACY_BASE = "c97de9d2f";
 // blobs at `c97de9d2f` are filesystem readers — that is what the conversion RETIRED. This arm pins the
 // refusal, so the §4.6 records in both module headers cite an executed fact rather than a reading, and so
 // a later lane cannot quietly relax the scan to "add the missing differential".
-test("§4.6 — the shared in-memory replay harness REFUSES both legacy descriptors, which is why their records are real-tree drives", () => {
+test("§4.6 — the shared in-memory replay harness REFUSES both legacy descriptors, which is why their records are real-tree drives", async ({ scratch }) => {
   const blobs = ["tooling/src/verify/gates/biome-grant-liveness.ts", "tooling/src/verify/gates/tsconfig-entry-liveness.ts"] as const;
   for (const path of blobs) {
     const source = execFileSync("git", ["show", `${LEGACY_BASE}:${path}`], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
     expect(source, `${path} at ${LEGACY_BASE} is the LEGACY descriptor, not an already-converted policy`).toContain("GateDescriptor");
     expect(filesystemReach(source), `${path} reaches disk, so the in-memory harness must refuse it`).toContain("existsSync");
+    await expect(frozenLegacyGate(scratch, LEGACY_BASE, path)).rejects.toThrow("Replay it on a real tmpdir instead of relaxing this refusal");
   }
   // The reader's own controls, both directions — a `toContain` that never sees an empty answer proves nothing.
   expect(filesystemReach("export const gate = { name: 'x' };\n"), "the clean control").toEqual([]);
