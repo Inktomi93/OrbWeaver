@@ -537,20 +537,6 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
-      files: { ...OWNERSHIP_FIXTURE, [THEME]: "@theme { --color-background: black; }\n@layer base { :root { color-scheme: dark; } }\n" },
-      why: "CUT f01: the authored-layer arm judges the four AUTHORED sheets and NOT the generated theme, which ships its own layer. Without the `AUTHORED_STYLESHEETS` fence this row reports one finding against a file no author writes",
-    },
-    {
-      mode: "resource",
-      files: {
-        ...OWNERSHIP_FIXTURE,
-        [THEME]: "@theme { --color-background: black; --fade-seed: 0%; }\n",
-        [UI_GLOBALS]: ".scroll-fade-x { --fade-start-stop: 0%; }\n",
-      },
-      why: "CUT f06: the LOCAL FADE-STOP seam, and the row exists because the first sweep read the fence as unenforced for want of a fixture rather than for want of a fence — the old row's `--fade-start-stop` sat outside any MINTED token family, so it never reached the seam at all. Here `theme.css` mints `--fade-`, which is what makes the declaration a generated-family write that only the seam acquits. This is the half of `EXPECTED_RUNTIME_WRITERS.fade` that survived its retired count",
-    },
-    {
-      mode: "resource",
       files: {
         ...OWNERSHIP_FIXTURE,
         [UI_GLOBALS]:

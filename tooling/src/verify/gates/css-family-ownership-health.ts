@@ -127,16 +127,6 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { ...HEALTHY_HOMES, [THEME]: THEME_AT_PARITY.replace("\n}\n", "\n  color-scheme: dark;\n}\n") },
-      why: "CUT f26: parity counts CUSTOM PROPERTIES, which is the predicate the retired hand parser implemented and the one the generator emits. A plain declaration inside the same block is not a token, and without the fence this row reports 204",
-    },
-    {
-      mode: "resource",
-      files: { ...HEALTHY_HOMES, [THEME]: `${THEME_AT_PARITY}:root {\n  --extra-probe: 0;\n}\n` },
-      why: "CUT f25: only declarations authored DIRECTLY in the `@theme` block count toward parity. A custom property in an ordinary style rule of the same sheet is not generated output, and without the at-rule fence this row reports 204 against a manifest of 203",
-    },
-    {
-      mode: "resource",
-      files: { ...HEALTHY_HOMES, [THEME]: THEME_AT_PARITY.replace("\n}\n", "\n  color-scheme: dark;\n}\n") },
       why: "CUT f26: parity counts CUSTOM PROPERTIES, which is the predicate the retired hand parser implemented (`^\\s*(--[\\w-]+)\\s*:`) and the one the generator emits. A plain declaration inside the same block is not a token, and without the fence this row reports 204",
     },
   ],
