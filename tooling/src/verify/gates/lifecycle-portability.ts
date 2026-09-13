@@ -51,7 +51,6 @@
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_KINDS } from "@orb/contracts/portability";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionRow, ExemptionTable } from "../contract/gate.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
@@ -79,8 +78,10 @@ type NonPortableClass =
   /** Ruled to be LOST on a cross-box restore, with the reason the loss is acceptable. */
   | "ACCEPTED-LOSSY";
 
-interface NonPortableRow extends ExemptionRow {
+interface NonPortableRow {
   readonly classification: NonPortableClass;
+  /** Why this classification holds and the condition that ends it. */
+  readonly why: string;
 }
 
 /** The canon tables each portable kind CARRIES. Exhaustive over `PortableKind` by tsc — a new kind cannot
@@ -111,7 +112,7 @@ const PORTABLE_CANON_TABLES: Record<PortableKind, readonly string[]> = {
 /** The owner-stamped tables that deliberately do NOT travel. Two-sided: a row naming a table the schema no
  *  longer declares is RED (delete it), and an owner-stamped table with neither a row here nor a
  *  `PORTABLE_CANON_TABLES` cell is RED (classify it). */
-const NON_PORTABLE_CANON: ExemptionTable<NonPortableRow> = {
+const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
   userCredentials: {
     classification: "RULED-OUT",
     why: "spec R10 — secrets never leave the box; the restore posture is re-enter your keys. Ends never (a portable credential IS the defect).",
