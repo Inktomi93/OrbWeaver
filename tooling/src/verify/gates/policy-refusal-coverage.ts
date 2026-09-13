@@ -30,6 +30,25 @@
 // with the #2274 repair below: 60 → 17. The 43 that discharged were pinned all along by real family tests the dead
 // recognizer could not see, so the drop is a READER fix, not a burn-down; 17 is the real remaining debt.
 //
+// THE COUNT REACHED ZERO ON 2026-09-13 AND THE FLIP DID NOT HAPPEN IN THAT COMMIT — read this before
+// concluding the condition above was ignored. The burn-down was discharged by #2327 (sixteen consumers
+// pinned across five commits: `verify-registry-parity`, the three authored-tree consumers, the two
+// registry-fact consumers, and the ten `drizzle-schema` fact consumers) and by the #2330 recognizer repair
+// below, which retired the seventeenth as a FALSE accusation. 17 → 16 → 13 → 11 → 1 → 0, each step measured
+// by name with `pnpm check:structure --check policy-refusal-coverage`. Flipping `ordinary`/`warning` to
+// `hard`/`error` and dropping `workItem` is an OWNER decision that was deliberately held back from the
+// zeroing commit rather than forgotten: a zero one hour old is not yet evidence that the corpus stays at
+// zero, and the flip also closes the `@orb-waive` door the section below describes as watched-while-draining.
+//
+// AND THE #2330 REPAIR, WHICH IS #2274 ONE SPELLING OVER. The recognizer read the driven set through
+// `bindsParameter`, which cannot see a SHORTHAND property's value binding (`{ knownPolicies: policies,
+// policies }`) — TypeScript resolves that name node to the PROPERTY symbol. Ten live family tests spell the
+// dispatcher input that way, and `freeze-provenance-write-pairing-health` sat accused for the module's whole
+// life while carrying a real §4.5 refusal pin at `freeze-provenance-conversion.test.ts:110`. Measured with a
+// one-token probe (`policies` → `policies: policies`): 11 → 10, restored, 11. The lesson is the same one the
+// section above paid for: THE PROOF SET ONLY EVER SPELLED THE SHAPE ONE WAY, so its own fixtures could not
+// see the gap. Both the repaired shape and the still-unreachable OBJECT-PATTERN shape are now rows.
+//
 // AND THE DOOR THE WARNING TIER OPENS IS WATCHED. `ordinary` means a consumer can `@orb-waive` this finding
 // instead of writing the pin. That waiver is reconciled centrally into the policy's `waived` count, and
 // `pnpm check:structure-delta` (#2110) prints `waived` before → after per policy — so waiving instead of fixing
@@ -235,11 +254,30 @@ function hopIteration(node: MorphNode, subjects: Subjects): void {
   }
 }
 
+/** THE SHORTHAND'S VALUE BINDS WHAT ITS NAME CANNOT RESOLVE (#2330). `descriptorValue` hands back a shorthand
+ *  property's NAME NODE, and on that node `getSymbol()` resolves the PROPERTY — the value binding needs the
+ *  checker's `getShorthandAssignmentValueSymbol`, which a gate module may not reach for. So `bindsParameter`
+ *  reads FALSE for `{ knownPolicies: policies, policies }` and the hop below never ran: ten live family tests
+ *  spell the driven set that way, and `freeze-provenance-write-pairing-health` was falsely accused for the
+ *  module's whole life while carrying a real §4.5 pin.
+ *
+ *  WHY THIS IS NOT A LOOSER GUARD. The hop's actual work is `declaringFunction(node, name)`, which demands an
+ *  ANCESTOR function-like declaring a parameter of exactly that name and returns undefined otherwise — so a
+ *  shorthand naming nothing still credits nothing. And a shorthand whose name binds a stable local instead is
+ *  never seen here: `collectDriven` resolves an identifier through `stableTerminal` FIRST, and only an
+ *  unresolvable binding falls through. The shared `bindsParameter` is deliberately untouched —
+ *  `policy-soundness` ARM E4 reads it for a different question (a receiver that PROVABLY binds a parameter),
+ *  and widening it there would answer that question differently. */
+function bindsShorthandValue(node: MorphNode): boolean {
+  const parent = node.getParent();
+  return parent !== undefined && Node.isShorthandPropertyAssignment(parent) && parent.getNameNode() === node;
+}
+
 /** THE PARAMETER HOP — the dominant real shape (`function pass(policy, …) { runPolicyPass({ policies: [policy] …`).
  *  A parameter has no single authored value, so `resolveStableExpression` refuses it BY CONTRACT; the driven
  *  policy is at the same POSITION in every call site of the declaring function, in this file. */
 function hopParameter(node: MorphNode, subjects: Subjects): void {
-  if (!(Node.isIdentifier(node) && bindsParameter(node))) {
+  if (!(Node.isIdentifier(node) && (bindsParameter(node) || bindsShorthandValue(node)))) {
     hopIteration(node, subjects);
     return;
   }
@@ -397,6 +435,14 @@ const DRIVEN_THROUGH_LOOP = `  for (const policy of [probe]) {\n    const refuse
 /** THE ALIAS-AND-SPREAD SHAPE — a module const of the family, spread into the driven set. Two hops in one
  *  fixture on purpose: the spread element and the const alias behind it are separate branches of the walk. */
 const DRIVEN_THROUGH_SPREAD = `  const family = [probe];\n  const refused = ${DISPATCHER}({ knownPolicies: [...family], policies: [...family] });\n  expect(refused.authority.toolErrors).toHaveLength(1);`;
+/** THE SHORTHAND SHAPE (#2330) — the helper shape one token over: the parameter is NAMED `policies`, so the
+ *  driven set is written `{ knownPolicies: policies, policies }`. Ten live family tests spell it this way. */
+const DRIVEN_THROUGH_SHORTHAND = `  function pass(policies: readonly unknown[]): { authority: { toolErrors: unknown[] } } {\n    return ${DISPATCHER}({ knownPolicies: policies, policies });\n  }\n  expect(pass([probe]).authority.toolErrors).toHaveLength(1);`;
+/** THE DESTRUCTURED SHAPE — a DECLARED LIMIT, landed as an assertion rather than a paragraph (§4.1). The
+ *  driven set binds a BindingElement inside a parameter's object pattern, so its subject is not at any
+ *  ARGUMENT POSITION: it is a property of an object each call site builds, and reaching it is a different
+ *  walk. `split-arm-parity.test.ts:207` is the one live instance and it drives no accused module today. */
+const DRIVEN_THROUGH_DESTRUCTURED = `  function pass({ policies }: { policies: readonly unknown[] }): { authority: { toolErrors: unknown[] } } {\n    return ${DISPATCHER}({ knownPolicies: policies, policies });\n  }\n  expect(pass({ policies: [probe] }).authority.toolErrors).toHaveLength(1);`;
 /** A probe that DERIVES its population (one declared resource) — the shape this policy asks about.
  *
  *  The trunk's `resources: []` is REPLACED, never appended to: `ORDINARY_TRUNK` already declares the empty array,
@@ -510,6 +556,12 @@ export const gate = defineGate({
       expect: { count: 1, token: "resources" },
       why: "IMPORTING IS NOT PINNING: the family test imports this very module and never drives it through the dispatcher. The import alone is the shape a lane produces when it deletes a flaky pin but leaves the header claiming one",
     },
+    {
+      mode: "types",
+      files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_DESTRUCTURED) }),
+      expect: { count: 1, token: "resources" },
+      why: "THE DECLARED LIMIT, LANDED AS AN ASSERTION RATHER THAN A PARAGRAPH (§4.1, #2330): a helper whose driven set arrives through an OBJECT PATTERN (`function pass({ policies })`) credits nothing. The binding is a BindingElement, not a parameter, and its subject sits at no ARGUMENT POSITION — it is a property of an object each call site builds, which is a different walk from the positional hop. Read the direction: this row ACCUSES, so the limit is fail-closed, and the day the walk learns object patterns this row goes red and must be promoted to a `mustPass`. One live instance (`split-arm-parity.test.ts:207`), driving no derived-population module today",
+    },
   ],
   mustPass: [
     {
@@ -535,6 +587,11 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_LOOP) }),
       why: "THE LOOP SHAPE: a `for (const policy of […])` driving several policies through one dispatcher call. The binding has no single authored value, so the subject is the ITERATED expression — every member is driven, which is exactly what the loop does. Live at `bus-pair.test.ts:162`, where three policies share one loop and two of them stayed accused until the hop was read",
+    },
+    {
+      mode: "types",
+      files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_SHORTHAND) }),
+      why: "THE SHORTHAND SHAPE (#2330), and it was a FALSE ACCUSATION for the module's whole life: a helper whose parameter is NAMED `policies` writes the driven set as `{ knownPolicies: policies, policies }`, and `descriptorValue` correctly returns a shorthand's NAME NODE — but `bindsParameter` asks `getSymbol()` for a ParameterDeclaration, and on a shorthand's name TypeScript resolves the PROPERTY symbol, never the value binding. The guard read false, the parameter hop never ran, and a real pin credited nothing. Measured: `freeze-provenance-conversion.test.ts:110` carries a live §4.5 refusal pin and the one-token edit `policies` → `policies: policies` moved the real-tree count 11 → 10 with nothing else touched. Ten live family tests spell it this way, so the blast radius was the dominant helper shape's twin",
     },
     {
       mode: "types",
