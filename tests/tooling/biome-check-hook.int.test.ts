@@ -4,6 +4,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { expect, test } from "../support/tool-fixtures.ts";
+import { scaledBudget } from "./_load-budget.ts";
 
 const GIT_ARGS = ["-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"] as const;
 
@@ -422,7 +423,9 @@ test("hostile admission directories and lock symlinks are refused without touchi
   expect(readFileSync(target, "utf8")).toBe("preserved\n");
 });
 
-test("planner failure and admission contention are visible non-verdicts", async ({ scratch, repoRoot }) => {
+// Eleven complete hook invocations share one fixture here so each planner/tool refusal and the admission
+// non-verdict crosses the real shell boundary. Together they exceeded the generic 5s budget under load (#2308).
+test("planner failure and admission contention are visible non-verdicts", { timeout: scaledBudget(10_000) }, async ({ scratch, repoRoot }) => {
   const checkout = plantCheckout(scratch);
   const bin = join(scratch, "stub bin");
   const log = join(scratch, "pnpm.log");
