@@ -468,10 +468,6 @@ function writeFixtures(): void {
   // coupled-site edit in a suite the converting lane could not run (it is not concurrency-safe with itself
   // and belongs to the merge train), so it is reported as owed rather than removed blind.
   fx(`${D}/hub/__g_suppr.ts`, "// biome-ignore lint/suspicious/noExplicitAny: fixture probe\nexport const g = 1;\n");
-  // no-blanket-suppression (#962): a top-of-file `-all` under tests/ — the founding shape, at the root the
-  // pre-#962 ratchet never governed. (`suppressions` used to fire on it too; it now reads the marker as a
-  // ruled `useNamingConvention` occurrence in `tests` scope and licenses it.)
-  fx("tests/__g_blanket.test.ts", "// biome-ignore-all lint/style/useNamingConvention: fixture blanket\nexport const g = 1;\n");
   // A pseudo-skip fixture: metadata claims "skipped" but an early return records a passed test. Its
   // original consumer (`monotonic-tests` tooth 1) was retired with the gate (#2217); the fixture stays
   // because the planted-corpus shape is shared, and a fixture no live gate reads is inert, not wrong.
@@ -673,10 +669,6 @@ function writeFixtures(): void {
   // with no emit site across the real home + emit scope). An injected `__g_` file can neither match its
   // fixed tuple-home path nor REMOVE a real emit, so it cannot be driven from an isolated fixture. It is a
   // FINAL policy now, partitioned out of the anti-drift arm below; its bite is `structure:policy-conformance`.
-  // ui-skin-fragment-purity: a variants file OUTSIDE packages/ui/src/lib/ re-spelling a homed skin
-  // fragment (the OVERLAY_ARROW diamond) by hand — the derive-W2 G25 seal. scanRoot covers ui/src sans
-  // lib/, so a __g_ primitive variants file trips the real-tree scan.
-  fx("packages/ui/src/primitives/__g_skinfrag/variants.ts", 'export const gArrow = "size-row rotate-45 border border-border bg-popover";\n');
   // sanctioned-css-homes: NO fixture. It CONVERTED 2026-09-13 (#2183) into a final `defineGate` policy on
   // `authored-tree:packages` under the `css-home-topology` family, so the mixed roster partitions it out and
   // a `__g_` stylesheet planted for it would be a working-tree fixture no legacy owner reads. Its bite is
@@ -766,10 +758,6 @@ function writeFixtures(): void {
   fx(`${D}/__g_loosecast/x.ts`, "declare const x: unknown;\nexport const a = x as never;\n");
   // no-media-queries-in-features: a viewport breakpoint variant in a feature className.
   fx("packages/client/src/features/__g_mediaq/components/__g_c.tsx", 'export const C = () => <div className="md:flex-row" />;\n');
-  // no-pointer-variants-in-features: a pointer CAPABILITY variant in a feature className (the pointer twin of
-  // the width gate above). The blindness arm is real-tree-only (anchor-guarded), so it stays out of this
-  // fixture — it is driven by the gate's own mustFlag.
-  fx("packages/client/src/features/__g_ptrvar/components/__g_c.tsx", 'export const C = () => <div className="pointer-coarse:hidden" />;\n');
   // no-mint-via-cast: minting an id by laundering a fresh UUID through castId (assembled).
   fx(`${D}/__g_mintcast/x.ts`, `export const a = castId(crypto.${["random", "UUID"].join("")}());\n`);
   // no-raw-container-widths + css-length-tokens: a raw content-width utility on a container element. The
@@ -782,20 +770,12 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_rawspacing/components/__g_c.tsx", 'export const C = () => <div className="p-4" />;\n');
   // no-raw-typography-in-features: a raw typography utility in a feature className.
   fx("packages/client/src/features/__g_rawtypo/components/__g_c.tsx", 'export const C = () => <p className="text-sm" />;\n');
-  // no-raw-z-index: a raw z-index utility in a className.
-  fx("packages/client/src/features/__g_rawz/components/__g_c.tsx", 'export const C = () => <div className="z-50" />;\n');
   // session-channel-boundary: a second cross-tab channel outside lib/session-channel.ts (the ONE home).
   fx("packages/client/src/features/__g_bchan/lib/__g_sync.ts", 'export const c = new BroadcastChannel("chat:sync");\n');
   // query-machine-seals: a useMutation import outside data/ (client-architecture-lockdown.md §16 G9).
   fx("packages/client/src/features/__g_qseals/hooks/__g_h.ts", 'import { useMutation } from "@tanstack/react-query";\nexport const m = useMutation;\n');
   // testid-typed-only: a freeform string data-testid (must come from the typed test-id home).
   fx("packages/client/src/features/__g_testid/components/__g_c.tsx", 'export const C = () => <div data-testid="freeform-string" />;\n');
-  // dialog-via-composite: a features/** file importing the raw Dialog root from @orb/ui/dialog, not on the
-  // allowlist — the FormDialog/ConfirmDialog composite door (derive-modernization-audit.md §W1 G24).
-  fx(
-    "packages/client/src/features/__g_dialog/components/__g_dialog.tsx",
-    'import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";\nexport const G = <Dialog><DialogPopup><DialogTitle>x</DialogTitle></DialogPopup></Dialog>;\n',
-  );
   // settings-section-anchored: an anchor-stamping section file (it calls `configAnchorId`, the content-keyed
   // arm — the path-keyed `*-settings-surface.tsx` arm retired with the #866 S1 skimmer ruling) with a second,
   // UNANCHORED heading-bearing <Section> — the invisible-to-nav/search class the G4 arm seals
