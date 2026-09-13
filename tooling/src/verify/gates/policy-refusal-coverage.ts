@@ -39,6 +39,13 @@
 // `hard`/`error` and dropping `workItem` is an OWNER decision that was deliberately held back from the
 // zeroing commit rather than forgotten: a zero one hour old is not yet evidence that the corpus stays at
 // zero, and the flip also closes the `@orb-waive` door the section below describes as watched-while-draining.
+// SO THE ROW STAYS `ordinary`/`warning` **WITH** ITS `workItem` UNTIL THAT FLIP — the two move together and
+// neither moves alone. `warning` with no `workItem` is not a third state this module may sit in even for one
+// commit: `lib/policy-module.ts:51` refuses it AT LOAD (measured 2026-09-13 by deleting the key —
+// `pnpm check:structure --check policy-refusal-coverage` exits 2, *"descriptor.workItem must be an own
+// enumerable property when severity is warning"*, and the corpus never loads), so a zeroing commit that
+// dropped only the pointer could not even run. WHICH number the pointer names is decided one paragraph up
+// and never here; this paragraph owns the STATE, not the id.
 //
 // AND THE #2330 REPAIR, WHICH IS #2274 ONE SPELLING OVER. The recognizer read the driven set through
 // `bindsParameter`, which cannot see a SHORTHAND property's value binding (`{ knownPolicies: policies,
