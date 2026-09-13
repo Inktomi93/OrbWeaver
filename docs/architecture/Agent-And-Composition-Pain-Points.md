@@ -143,9 +143,9 @@ updated: 2026-08-14
 
 - **\[MEASURED]** **Parallel tool calls are lost on the SDK path.** Same model, same engine, same
   3-city prompt:
-  - raw `/v1/chat/completions` (hermes): 3 tool\_calls in one response.
-  - raw `/v1/messages` (no SDK, `tool_choice: auto`): 3 tool\_use blocks in one response.
-  - SDK → `/v1/messages`: one tool\_use per turn, sequential across turns.
+  - raw `/v1/chat/completions` (hermes): 3 tool_calls in one response.
+  - raw `/v1/messages` (no SDK, `tool_choice: auto`): 3 tool_use blocks in one response.
+  - SDK → `/v1/messages`: one tool_use per turn, sequential across turns.
     The Claude Code CLI serializes (via `disable_parallel_tool_use`, a real field on
     `ToolChoiceAuto/Any/Tool` in `@anthropic-ai/sdk`, set nowhere in the readable SDK JS — it lives in
     the compressed CLI binary and is not reachable through the SDK's `Options`). So on the SDK path,
@@ -183,7 +183,7 @@ updated: 2026-08-14
   other domains (`rpg-*`, `crew-*`, `databank-*`, `assets-*`, `distill-*`, `reconcile-*`). Because a
   runner cannot import its home domain, `contract/runner-env.ts` imports from `@orb/contracts/crew`,
   `/databank`, `/rpg`, `/role-clients` and threads **13 `Workload<X>Env` bundles** wired at compose
-  (its own header: *"the one true cross-feature composition seam"*). A new background job touches \~6
+  (its own header: *"the one true cross-feature composition seam"*). A new background job touches ~6
   sites. Jobs are organized by mechanism (async → workloads), not by ownership.
 
 - **\[CODE]** **Import and export of the same entities live in different places.**

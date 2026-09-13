@@ -9,7 +9,7 @@ updated: 2026-09-05
 Lens: the grammar of the panel itself, the debugging loop, mobile, a11y. Scoped to the owner's steer of
 2026-09-05: *"a collapsible thing like Injections or Overrides where you can control regex applied from one
 spot but the main editing home is in Config."* Everything below is drawn at the CONTEXT column
-(384px pane / **\~367px content box** — the width `injections-manager.tsx` measured its own collapse against)
+(384px pane / **~367px content box** — the width `injections-manager.tsx` measured its own collapse against)
 and at a 430px phone.
 
 ---
@@ -158,7 +158,7 @@ removed. The scope rides the accessible name instead (§6).
 
 **The duplicate-action-door check, run.** `enabled` is currently writable from the editor and from the bulk
 bar (`regex-bulk-bar.tsx` — "on/off (the row's own `enabled`)"). Neither is on this screen. The 2026-08-19
-fork removed a *second live copy of one switch on one screen \~990px apart*
+fork removed a *second live copy of one switch on one screen ~990px apart*
 (`regex-collection-rows.tsx` header) — that fork is about the **global-ATTACH** switch and stays closed; my
 row switch is a different fact with a different word, and after this change there is exactly **one row-level
 switch in the app and it is here** (the config library row stays quiet, per DESIGN.md §3.3 and STUDY §7).
@@ -280,8 +280,8 @@ action. What the chat panel **adds**:
 ### The width budget at 367px, measured against the 2026-08-19 finding
 
 That finding killed a row switch at a *290px* row where switch+kebab were **42%** and the text column
-measured **133px**. Here the row sits in a 367px content box (\~317px of row after the pane and card
-insets), and switch+kebab is \~76–88px ≈ **27%**. Survivable — but only if the row gives something back:
+measured **133px**. Here the row sits in a 367px content box (~317px of row after the pane and card
+insets), and switch+kebab is ~76–88px ≈ **27%**. Survivable — but only if the row gives something back:
 
 **Drop the edit stamp from this panel's scent.** `regexRowScent` ends with `edited 4m ago`
 (`regex-placement-labels.ts`), which exists to tell four rows all called "New script" apart *in the
@@ -323,7 +323,7 @@ Consequences, both good:
 
 - **Do not reserve the grip column** in the other three sections. The reserve rule (side-eye 2026-08-06 P3,
   `scopeOrderShowsGrips`) exists so two slices *of one list* share a left edge; these are four separate
-  `Section`s with four independent left edges, so reserving would spend \~32px × 3 sections on nothing.
+  `Section`s with four independent left edges, so reserving would spend ~32px × 3 sections on nothing.
 - **Past `COLLECTION_LARGE_GROUP`** the chat section swaps grips for per-row `Move up`/`Move down`, free
   from `RegexScopeOrder`'s existing two-arm shape — the capability never disappears, only the mechanism.
 
@@ -388,7 +388,7 @@ Host-controls band already nests `DisclosureSection` kickers under a `Disclosure
 
 **Strikethrough is dropped.** ST struck the name of a disabled script (`dropdown.html` + the screenshot).
 Three reasons not to copy it: (a) it is invisible to a screen reader, so it can never be the only signal
-anyway; (b) at the instrument tier's \~13px in a 367px column it is a legibility tax on the row's most
+anyway; (b) at the instrument tier's ~13px in a 367px column it is a legibility tax on the row's most
 important string; (c) we already have a shipped, tested, dual-channel signal for exactly this state — the
 switch (announced) plus `opacity-60` on the identity cluster (seen). Two channels, no third.
 
@@ -454,7 +454,7 @@ channel for the same event is a double announcement.
 > `EVERYWHERE / PRESET SCRIPTS / CHARACTER SCRIPTS / ONLY HERE` are the tier kickers (`interactiveKicker`
 > voice is for the *disclosure* trigger only; these are plain `kicker`, since they are not triggers).
 
-### A. Desktop — CONTEXT column, 384px pane / \~367px content box
+### A. Desktop — CONTEXT column, 384px pane / ~367px content box
 
 ```
  CONTEXT                       [ People | This chat | Preview ]

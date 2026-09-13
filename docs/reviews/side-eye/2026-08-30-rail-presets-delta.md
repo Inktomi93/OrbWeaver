@@ -59,7 +59,7 @@ and all four PNGs differ by md5, so the shim demonstrably bit.
 | 6 | Recognition over recall | **4/4** | An info door on every knob; the unset knob now renders a hollow ghost thumb AND announces `aria-valuetext="default (model decides)"`; the closed select states its value in full; the Prompt glyph column discriminates |
 | 7 | Flexibility & efficiency | 3/4 | ⌘K, roving radiogroup with wrap, a filter in Actions and a search in the list. No bulk ops |
 | 8 | Aesthetic & minimalist | 3/4 | Handsome and ordered. The CONTEXT readout still restates CONTENT row-for-row on Prompt and Transforms, and the Prompt rack's thirteen always-on accent switches carry no information at rest (T-2) |
-| 9 | Error recovery | **2/4** | Same as the prior pass: the failure band exists in code but I reached **zero** error states across \~25 runs and 0 errored queries. Scored conservatively rather than credited — this is an untested layer, not a proven one |
+| 9 | Error recovery | **2/4** | Same as the prior pass: the failure band exists in code but I reached **zero** error states across ~25 runs and 0 errored queries. Scored conservatively rather than credited — this is an untested layer, not a proven one |
 | 10 | Help & documentation | 4/4 | Every knob has an info door, every tab leads with a sentence, every empty state teaches and offers the next action. The zero-results state is now honest in all three panes |
 
 **31/40** (was 29/40).
@@ -208,7 +208,7 @@ The value cell is neither left-aligned with the label and track (x=12) nor right
 (right=418) — it floats 54px short of the right edge on a third axis. Identical on all ten knobs (`Top-P`
 label 12, track 12→418, cell 284→364; `Max output tokens` the same). Vertical cost: `Temperature` label at
 y=393, `Top-P` label at y=541 → **148px per row**, against 38px per row on desktop; `Max output tokens` lands
-at y=2031, so the Params tab is \~2,800px of scroll for one preset.
+at y=2031, so the Params tab is ~2,800px of scroll for one preset.
 
 **Why it hurts a user.** Casey reads eight consecutive rows whose three elements each start at a different x.
 The eye has no column to track down, so scanning "which knobs have I set?" — the single most common read on
@@ -217,7 +217,7 @@ exactly right (label · control · value in fixed columns); the mobile stack thr
 
 **Fix.** `layout` + `adapt`: put the value cell on the **label's** line (label left, value right, slider
 full-width beneath). That restores a right-hand value column, gives the cell an edge to align to, and saves
-\~46px per row (\~460px of scroll on Params alone).
+~46px per row (~460px of scroll on Params alone).
 Receipt: the same census with `valueCell.right === track.right` at 430px, and the per-row pitch measured.
 
 ---
@@ -239,7 +239,7 @@ Corroborated by the app's own instrumentation (`[perf] slow commit region:conten
 maxMs 72`. Under 4× CPU throttle (`--cpu-throttle 4`) the react-dom commit blocks **183ms**.
 
 **Input delay is 7ms**, so INP is nowhere near its 200ms budget — this is a visible hitch, not an
-unresponsive control, which is why it is P2 and not P1. But a 133ms rAF gap is \~8 dropped frames on the
+unresponsive control, which is why it is P2 and not P1. But a 133ms rAF gap is ~8 dropped frames on the
 section's primary action, and the box this ships to is explicitly not a workstation.
 
 **Why it hurts a user.** Every entry into the surface's main artifact judders once. It reads as the app
@@ -509,7 +509,7 @@ No warning was dispositioned "it's dev mode".
 | 11 | Pane-state arms | **RAN** — both open (default), list hidden + context hidden (`cbrp-geom`, `cbrp-both-hidden`, `cbrp-da-bothhidden`), and mobile where both panes are structurally absent |
 | — | Two prior findings NOT re-drivable | **BLOCKED, stated** — P2-2 (regex `off` vs attach switch) needs a preset that can hold regex scripts; the built-in structurally cannot, and I restored the corpus to 1 row. Verified **structurally** instead: the `Disabled in your library` badge exists at `regex-script-picker.tsx:285`. Same for the "deck"→Params leak, verified at `readout-parts.tsx:156`. Neither has a rendered receipt in this pass |
 
-**MCP budget: 4 calls used** (navigate, one bridge eval, two Lighthouse) of \~12.
+**MCP budget: 4 calls used** (navigate, one bridge eval, two Lighthouse) of ~12.
 
 ---
 

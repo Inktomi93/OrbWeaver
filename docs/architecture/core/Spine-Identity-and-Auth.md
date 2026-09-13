@@ -43,7 +43,7 @@ The two BUILT factors route through the one `can()` seam (invariant #6); `Resour
 
 **A table without an `ownerId` column is not unscoped — its scope DERIVES from the Principal through
 its FK chain to the owning row, gated at the producer verb.** The pattern (D18/D20): chats scope via
-`chat_participants` membership; a chat's messages/variants/digests/pending\_turns inherit through
+`chat_participants` membership; a chat's messages/variants/digests/pending_turns inherit through
 `chatId`; vector rows carry only their producer FK and search derives owner-scope from the producer's
 category; character satellites (sprites, embeddings) inherit through `characters.ownerId`; asset
 variants inherit through `assets.ownerId`. The AUTHZ lives at the verb (`fetchOwned` /

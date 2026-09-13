@@ -6,10 +6,10 @@ updated: 2026-09-05
 
 # Config collections in CONTENT — the #1725 canvas (owner-approved 2026-09-05)
 
-**Owner-ruled 2026-09-05.** Nate, \~16:40Z: "k but tag list under in list is kinda a no go that needs to move
+**Owner-ruled 2026-09-05.** Nate, ~16:40Z: "k but tag list under in list is kinda a no go that needs to move
 into content when clicking onto tags, same thing for regex and world info is what im trying to say right now
 its mixed and looks weird" · "so that means content will need to be redesigned for those interfaces to properly
-be consistent" · \~18:05Z, on version 3: "redesign approved it can be built to spec but must match the mockups".
+be consistent" · ~18:05Z, on version 3: "redesign approved it can be built to spec but must match the mockups".
 
 The clickable canvas is the artifact `https://claude.ai/code/artifact/97cd2576-7f95-4cbe-8e8f-e004e83c16d5`
 (version 3). These files are its repo source — `build.mjs` writes `canvas.html` (one self-contained page:

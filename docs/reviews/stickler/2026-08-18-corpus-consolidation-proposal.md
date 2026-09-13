@@ -34,7 +34,7 @@ Definition: `packages/client/src/features/stats/lib/analytics-section.tsx` — r
 
 Live census (dev stack, 2026-08-17 22:29, `--goto analytics`, whole-DOM sweep of
 `[data-slot=list-row-content]` → parent tag): **108 ListRow bodies; 57 `<BUTTON>` (all leaderboard
-rows), \~51 `<DIV>` (static): the Hikari top-character callout + every model-breakdown row**
+rows), ~51 `<DIV>` (static): the Hikari top-character callout + every model-breakdown row**
 (scratch log `cd-analytics.log`; shots `reports/snaps/cd-analytics-overview.png`,
 `cd-analytics-list-context.png`). Live figures: 328 characters · 895 chats · 7M words · 11.7k replies
 · 65.1k swipes · 503h generating.
@@ -119,7 +119,7 @@ only in cursor/hover — an affordance difference below noticeability at a glanc
 | - | - | - | - | - |
 | 1 | Character rows (leaderboard · browse · gems · never-played · worst-art · facet drill · neighbours · similar-art · map points) | both sections | WORKS → drill/dossier | e.g. `analytics-list-surface.tsx:75`, `corpus-browse-view.tsx:144` |
 | 2 | Top-character callout | analytics overview | **NOTHING** | `analytics-overview-surface.tsx:82-92` (no `clickable`); census DIV |
-| 3 | Model breakdown rows (\~50) | analytics CONTEXT Models | **NOTHING** | `analytics-models-tab.tsx:53-68`; census DIV ×\~48 |
+| 3 | Model breakdown rows (~50) | analytics CONTEXT Models | **NOTHING** | `analytics-models-tab.tsx:53-68`; census DIV ×~48 |
 | 4 | Persona breakdown rows | analytics CONTEXT Personas | **NOTHING** | `analytics-personas-tab.tsx:41-52` |
 | 5 | Writing/art archetype clusters + member-name walls | corpus CONTEXT Archetypes | **NOTHING** (members are a plain-text join) | `corpus-archetypes-tab.tsx:146-183`; shot `cd-corpus-archetypes.png` |
 | 6 | Visual family plates | corpus CONTENT family map | **NOTHING** — deliberately read-only, reason recorded ("no family dossier exists") | `corpus-family-map.tsx:29-31` |
@@ -172,15 +172,15 @@ a semantically-empty pass — the readiness rail, not the job status, is where t
 - The provenance receipt for judgment defect 7 is in the same distilled home shot: the no-portrait
   cluster ("?" faces ×19) labelled "melancholic fantasy".
 
-**Final job results (all terminal, 2026-08-17 \~23:06):**
+**Final job results (all terminal, 2026-08-17 ~23:06):**
 
 - **Find duplicates SUCCEEDED** — `{scanned: 768, written: 30}`. The Similarity tab now renders
   live pairs (`reports/snaps/cd-corpus-similarity-final.png`): exact self-duplicates at cosine 1.00
   (Seraphina↔Seraphina, Freya↔Freya) down through 0.79 — and every one of those pair rows is the
   §1.5 row-8 dead end, now receipted POPULATED (twenty findings on screen, no way to act on any).
   Final home state: `cd-corpus-final.png`.
-- **Memory backfill WORKER\_DIED** — "worker heartbeat went stale — row reaped (worker\_died)" after
-  \~30 min of sweeping. Cause per the orchestrator: a server restart from a merge killed the worker
+- **Memory backfill WORKER_DIED** — "worker heartbeat went stale — row reaped (worker_died)" after
+  ~30 min of sweeping. Cause per the orchestrator: a server restart from a merge killed the worker
   (engine-honest reaping, not a model failure). Zero digests existed at this capture; the memory-fed
   surfaces (story themes, keywords, Memories search) remained pipeline-empty. **Queue custody then
   moved to the orchestrator** (owner deconfliction): a fresh vLLM-pinned Memory backfill was running
@@ -220,7 +220,7 @@ a semantically-empty pass — the readiness rail, not the job status, is where t
 4. **Section retirement is a proven one-way-safe move**: config-rail R2 removed `worldInfo` from
    `SECTION_IDS` with a `RETIRED_SECTION_HEAL` row; the databank D-0 header records "demoting later
    is one file plus a heal row — exactly the move R2 already made" (`databank-section.tsx:6-20`).
-5. **The SECTION\_IDS coupled-site playbook** (`client-architecture-lockdown.md` §6a, ten steps) is
+5. **The SECTION_IDS coupled-site playbook** (`client-architecture-lockdown.md` §6a, ten steps) is
    the mandatory walk for the tuple edit; `feature-owns-definition` (G23/O2) deletes a feature dir
    that owns no definition — `features/stats` must dissolve or re-earn.
 6. **CONTEXT law**: "detail + config OF CONTENT's active artifact… never navigation"
@@ -246,7 +246,7 @@ a semantically-empty pass — the readiness rail, not the job status, is where t
    for the merge.
 2. **The CONTEXT panel is being used as a dashboard shelf, twice.** Eight owner-scoped,
    selection-blind report tabs (5 corpus + 3 analytics) cram instrument content into a fixed
-   \~320px column (the archetypes shot: full member walls wrapped to 3-line runs; the Map scatter at
+   ~320px column (the archetypes shot: full member walls wrapped to 3-line runs; the Map scatter at
    postage-stamp size), while CONTENT sits idle beside them. This inverts the shell physics (CONTEXT
    follows CONTENT) and is the root of "needs refined… look good".
 3. **Artifacts are rendered as rows but not as DESTINATIONS.** Thirteen row classes (§1.5), five of
@@ -445,7 +445,7 @@ Analytics KEEPS its rail section; the merge happens only at the artifact level:
   on the section merge.
 - LIST stays split (leaderboard in analytics, browse in corpus).
 
-What it buys: no tuple edit, no feature dissolution, \~40% less migration surface. What it costs: the
+What it buys: no tuple edit, no feature dissolution, ~40% less migration surface. What it costs: the
 owner's actual ask ("wrapped into Corpus") is unmet — two dashboards survive, the finder stays
 split, and the one-KIND argument (D121) stands unanswered. **Recommended only if the owner wants
 Analytics to remain its own destination.**

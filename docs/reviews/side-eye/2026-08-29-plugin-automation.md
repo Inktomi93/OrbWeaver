@@ -32,7 +32,7 @@ polish-tier (tap targets, one mobile collision, empty-state and a11y-name nits).
 
 ### P2 — Mobile plugin-row header collides: toggle overlaps the status badge + Update button
 
-`Settings → Plugins → Installed`, \~390px. On the Draft Polish row the long status badge
+`Settings → Plugins → Installed`, ~390px. On the Draft Polish row the long status badge
 "Off — asked for more than you allowed" collides with the toggle switch (white knob painted OVER
 "…more th\[an]…") and the "Update" button box overlaps the badge. The Affinity Tracker row above (short
 "Off" badge) fits fine — so the row header does not reflow when the badge string is long.
@@ -59,7 +59,7 @@ separate, non-clickable element.
 
 ### P2 — Disclosure buttons ("What it's allowed to do" / "Recent activity") are 16px tall
 
-`Settings → Plugins`, the two collapsible triggers on every installed-plugin row. Full width (\~746px)
+`Settings → Plugins`, the two collapsible triggers on every installed-plugin row. Full width (~746px)
 but only 16px tall — below the 24px fine-pointer floor AND still 16px (below the 32px hard floor)
 under coarse pointer, i.e. they do NOT get an expanded touch hit area on mobile.
 
@@ -161,7 +161,7 @@ user toward the grant step. Receipt: `reports/snaps/oracle-perms.png`.
   to be open.", the safety-limit copy, the empty-state with a concrete example, the two-step rule
   template popover, the created rule row ("Hasn't run yet", Test, off-by-default). No IA duplication
   spotted. Reflows well on mobile.
-- **Shell IA:** the `extensions` rail section is the 10th (sanctioned #679 plugin plane, SECTION\_IDS
+- **Shell IA:** the `extensions` rail section is the 10th (sanctioned #679 plugin plane, SECTION_IDS
   carries it) — NOT a rail-overflow finding; the shell anatomy is respected (finding in LIST, page in
   CONTENT, settings in the modal).
 

@@ -35,7 +35,7 @@ separate owner-sacred fences sit on top of it — flag both before any build:
 
 ### 1.1 What a persona IS vs what a character IS, in code
 
-They are **separate producer-owned tables that already share \~80% of their content shape but diverge hard on
+They are **separate producer-owned tables that already share ~80% of their content shape but diverge hard on
 identity, history, and resolution role.**
 
 | Axis | Persona (`db/schema/persona.ts`) | Character (`db/schema/character.ts`) |

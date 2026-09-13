@@ -48,7 +48,7 @@ Final-state receipt (`cbrs-final.log`, fresh load, server truth):
 | Path | Mouse | Keyboard | 430 coarse |
 | - | - | - | - |
 | **Start via ⋯** | 3 clicks: `Chat options` → `Turn on RPG` → `Freeform story` | 7 Tabs from the opened transcript to `Chat options` (`cbrs-kbd.log`, `fv=true` at all 34 stops), then Enter · ↓ · ↓ · → · Enter = **5 keys** | 3 taps, same shape; `Chat options` is a 3-dot glyph in the composer row |
-| **Start via the Game tab door** | 3 clicks: `Show detail panel` → `Game` → `Freeform story` — but the panel is **CLOSED by default** (`cbrs-01`), so hop 1 is invisible | `Show details` is in the topbar; the Game cell is inside a `toolbar` (one tab stop + arrows) — reachable, \~14 stops | `Show details` (topbar) → `Game` → button |
+| **Start via the Game tab door** | 3 clicks: `Show detail panel` → `Game` → `Freeform story` — but the panel is **CLOSED by default** (`cbrs-01`), so hop 1 is invisible | `Show details` is in the topbar; the Game cell is inside a `toolbar` (one tab stop + arrows) — reachable, ~14 stops | `Show details` (topbar) → `Game` → button |
 | **Exit** | 2 clicks: `Chat options` → `Turn off RPG` | Enter · ↓ · ↓ · Enter = **4 keys** | 2 taps |
 
 Both start doors are 3 hops. Neither is discoverable: one is buried in a generic overflow menu
@@ -92,7 +92,7 @@ meters and a `Ward-Burned` condition, and six game tabs — one click on `Turn o
 entire pane with a plain Members list. No confirm dialog, no toast, no undo, no announcement.
 
 The item's only explanation is `title="Turns the RPG overlay off — your sheets, scene, and quests are
-kept."` A native `title` requires a \~1 s hover dwell on a pointer device and **does not exist on
+kept."` A native `title` requires a ~1 s hover dwell on a pointer device and **does not exist on
 touch** — so on the 430 arm the decision is a bare *"Turn off RPG"* with zero context (`cbrs-13`).
 It is also not the accessible name (accname = `"Turn off RPG"` from textContent); it is wired as a
 description, so SR support is inconsistent.
@@ -186,12 +186,12 @@ list marker is `Game chat` and #862 is about to make this a per-room ruleset, th
 
 ---
 
-### \[P2] The enter/exit toggle blocks the main thread \~380 ms at 4× CPU
+### \[P2] The enter/exit toggle blocks the main thread ~380 ms at 4× CPU
 
 `motion-audit` on the exit: `verdict=FAIL worst-blocking-budgeted=379ms loaf-style-in-frame=3` —
 a 429 ms LoAF via `setTimeout` in `modern-Cyfp2l7S.js` with 54 ms of forced style/layout, plus a
 137 ms React commit. Everything else is clean: `cls-non-virtualized=0`, `dropped-frames=0%`,
-`dirty-animations=0`. Unthrottled the same work is \~98 ms (`perf-meter` step 3: `98ms` long task,
+`dirty-animations=0`. Unthrottled the same work is ~98 ms (`perf-meter` step 3: `98ms` long task,
 `40ms` blocking, `83ms` worst rAF gap, `shift 0`). On a modest laptop that is a visible hitch with
 **no pending state on the menu item** — the menu closes instantly and nothing indicates work in
 flight. (The Game-tab door DOES guard with `createAdmission` + `disabled={createGame.isPending}`;
@@ -266,7 +266,7 @@ not re-filed. Four things it leaves untouched:
    `["d20","d6","2d6","d100"]` gated only on `isRpgEngaged` — no profile read anywhere in the file.
    So picking **Freeform story** produces four d20-family chips above the composer immediately
    (`cbrs-05-enter-t0.png`), contradicting the door's own copy, and on mobile they occupy two rows
-   and \~110 px of the composer's vertical budget (`cbrs-11-mobile-gameon.png`). Once #862 makes
+   and ~110 px of the composer's vertical budget (`cbrs-11-mobile-gameon.png`). Once #862 makes
    ruleset a setting, this row must follow the setting or the setting has no visible consequence — a
    dead-toggle risk.
 2. **Nothing about the announcement, the landing tab, the tooltip-only kept-state copy, or the stale
@@ -330,7 +330,7 @@ wrap threshold, centre or full-width the second row instead of leaving a 3+2 rag
    BUTTON itself, not a wrapper. The auditor read the 15/18 px border box.
    **Receipt:** `cbrs-tap2.log`, `cbrs-tap3.log`.
    *Residual real observation, P3:* the pseudo is asymmetric —
-   `inset: 6.5625px -32.3281px -37.4375px 11.6719px` — so the target is offset \~14 px DOWN from the
+   `inset: 6.5625px -32.3281px -37.4375px 11.6719px` — so the target is offset ~14 px DOWN from the
    glyph it belongs to, and the `—` cell's expanded target and `+ condition`'s overlap: at
    `cy+16` the point resolves to `+ condition`, not to `—`. A thumb aiming below the `—` glyph hits
    the neighbour. Outside start/exit scope; filed as stumbled-on.
@@ -490,7 +490,7 @@ Breaks UX rule N4 (same action = same label everywhere). Fix: standardise on **g
 `Turn on game mode` / `Turn off game mode`, door button `Turn game mode back on`, kicker `Game mode
 off`. Cheapest to land inside #862, which is already rewriting both doors.
 
-**#863 · P2 — the toggle blocks \~380 ms at 4× CPU with no pending state on the menu item.**
+**#863 · P2 — the toggle blocks ~380 ms at 4× CPU with no pending state on the menu item.**
 `motion-audit` on the exit returns `verdict=FAIL worst-blocking-budgeted=379ms
 loaf-style-in-frame-budgeted=3` (a 429 ms LoAF via `setTimeout` in `modern-Cyfp2l7S.js` with 54 ms of
 forced style/layout, plus a 137 ms React commit); everything else is clean — `cls-non-virtualized=0`,
@@ -512,7 +512,7 @@ directly under the RPG row (`cbrs-02-menu.png`).
 every `[data-slot=tracker-value-rest]` carries a pointer-conditional `::after` of 28×28 (fine) / 44×44
 (coarse) which self-reports under `elementFromPoint` at the centre and at ±10/±16 px
 (`cbrs-tap2.log`, `cbrs-tap3.log`). What IS real: the pseudo is asymmetric
-(`inset: 6.5625px -32.3281px -37.4375px 11.6719px`), so the target sits \~14 px BELOW the glyph it
+(`inset: 6.5625px -32.3281px -37.4375px 11.6719px`), so the target sits ~14 px BELOW the glyph it
 belongs to, and at `cy+16` the point resolves to the neighbouring `+ condition` button rather than to
 `—`. A thumb aiming just under the `—` hits the wrong control.
 
@@ -522,7 +522,7 @@ profile-blind**: `packages/client/src/features/rpg/lib/dice-ask-source.tsx:48` p
 `["d20","d6","2d6","d100"]` gated ONLY on `isRpgEngaged`, with no profile read anywhere in the file — so
 picking "Freeform story" immediately produces four d20-family chips above the composer
 (`cbrs-05-enter-t0.png`), contradicting the door's own copy, and on the 430 arm they wrap to two rows
-and eat \~110 px of composer budget (`cbrs-11-mobile-gameon.png`). Once ruleset is a setting this row
+and eat ~110 px of composer budget (`cbrs-11-mobile-gameon.png`). Once ruleset is a setting this row
 must follow it, or the setting is a dead toggle. (2) None of the start/exit P1s and P2s above are
 touched by the profile change — the announcement, the landing tab, the tooltip-only kept-state copy and
 the stale list marker are all orthogonal. (3) The naming split (RPG / overlay / game) is cheapest to fix

@@ -1482,7 +1482,7 @@ Either way the contradiction must close; **do not leave both statuses standing.*
 
 **BEFORE:**
 
-> \| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **SHELL only** (\~1 file; the sole legal `@media` site) |
+> \| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **SHELL only** (~1 file; the sole legal `@media` site) |
 
 **AFTER:**
 
@@ -1574,7 +1574,7 @@ planted control.**
 | `no-off-token-radius-shadow` | gate | `packages/{client,ui}/src` (`:121`) | mustFlag+mustPass | `packages/client/src/features/preset/**` structurally excluded (declared) |
 | `no-off-token-inline-style` | gate | `packages/{client,ui}/src` (`:192`) | mustFlag+mustPass | DYNAMIC values deliberately not flagged (declared) |
 | `no-hover-display-swap` | gate | `packages/{client,ui}/src` (`:188`) | mustFlag+mustPass | runtime-assembled strings; hand-authored CSS (both declared) |
-| `no-raw-spacing-in-features` · `no-raw-typography-in-features` · `no-raw-z-index` · `class-token-splice` · `theme-override-only-via-scope` | gate | `/packages/(client\|ui)/src/` (SCOPE\_REGEX) | mustFlag+mustPass | historical: `no-raw-z-index` did not check the token existed (F4); #940 now checks semantic z-vars in JSX and exported literals plus 7/7 vault parity. Dynamic substitutions remain outside the exact-literal claim |
+| `no-raw-spacing-in-features` · `no-raw-typography-in-features` · `no-raw-z-index` · `class-token-splice` · `theme-override-only-via-scope` | gate | `/packages/(client\|ui)/src/` (SCOPE_REGEX) | mustFlag+mustPass | historical: `no-raw-z-index` did not check the token existed (F4); #940 now checks semantic z-vars in JSX and exported literals plus 7/7 vault parity. Dynamic substitutions remain outside the exact-literal claim |
 | `no-media-queries-in-features` · `no-raw-container-widths` | gate | `{client,ui}/src` minus `features/app-shell/` (`:37-42`) | mustFlag+mustPass | `.css` files (they are not TS) |
 | `no-pointer-variants-in-features` | gate | `packages/client/src/features/` (`:87`) | mustFlag+mustPass | `packages/ui/src` (by design — ui is the token layer) |
 | `no-raw-interactive-intrinsics` | gate | `packages/client/src/features/**` **and `.tsx` only** (`:80`) | mustFlag+mustPass | `.ts` files that build elements |
@@ -1589,7 +1589,7 @@ planted control.**
 | **biome `noRestrictedImports`** | lint | bans named `cn`/`cnMerge`/`tv` from `tailwind-variants` repo-wide | rule | same |
 | **`suppressions` + Biome file-wide directives (#962)** | gate + lint | current gate governs `packages/*/src`, `tooling/src`, and `scripts`; exhaustive literal census separately covers authored source/tests | current ratchet has both-ways file budgets, but `tests/**` is deliberately outside its reach | 70 files currently carry 74 `biome-ignore-all` directives; test blankets are invisible to the ratchet, and a stale staged blob can differ from the clean working copy. #962 closes both holes and permits no blanket baseline |
 | **eslint compose-only keystone** | lint | `files: [CLIENT_SRC]`, ignoring `features/app-shell/**`, `state/**`, `lib/weave-glyph.tsx`, `**/*.test.{ts,tsx}` — §4's description is ACCURATE | rule | `packages/ui/src` (by design — ui IS the painter) |
-| `tests/ui/styles/css-structure.suite.test.ts` | vitest | the five authored files, by literal assertion (theme enumeration · the unlayered floor · the light block's `color-scheme` · BLUR\_SURFACES sync · the reduce/contrast arms' source order and conditions · the 48rem four-way agreement · the reading-scale `, 1` fallbacks) | — | only what it enumerates; the dark-variant arm is **one-directional (F7)** |
+| `tests/ui/styles/css-structure.suite.test.ts` | vitest | the five authored files, by literal assertion (theme enumeration · the unlayered floor · the light block's `color-scheme` · BLUR_SURFACES sync · the reduce/contrast arms' source order and conditions · the 48rem four-way agreement · the reading-scale `, 1` fallbacks) | — | only what it enumerates; the dark-variant arm is **one-directional (F7)** |
 | `tests/ui/lib/class-merge.test.ts` + `css-merge-parity` | vitest/integration | every compiler-positive governed family plus TV ordinary/slot paths and bounded replay | 107/107 merge/token + 7/7 parity | does not claim browser cascade attribution |
 | `tests/ui/tokens/index.test.ts` | vitest | re-runs the codegen and diffs the committed artifacts | — | — |
 | `tests/ui/content/theme-scope/palette-contrast.suite.test.ts` + `tests/kit/theme-derivation/accepted-base-foreground.suite.test.ts` | vitest | every seed value-set × polarity at the text/pill floors; #939's seed/custom chart-host, spelling/alpha/gamut, planted-failure, and pair-distance matrices; #969's actual per-surface foregrounds, input composites, reading plate over both art extremes, exact `.62`/`.6201` bases, and a 2,060-sample L/chroma/h matrix with nonzero unsafe-ramp/input controls | — | rendered ECharts and exact control pixels are intentionally proved separately in CT |

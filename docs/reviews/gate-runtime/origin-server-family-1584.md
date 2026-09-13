@@ -113,7 +113,7 @@ on the live tree, all of them formatting or vocabulary rather than semantics:
 The canonical reader has none of those seams, because it asks the checker where the called METHOD is
 declared. All seven are genuinely deliberate and now carry positioned waivers with end conditions: a
 per-registry-row fan-out and a bound-variable chunk loop (`assets/persistence/asset-refs.ts`), two
-converge-to-fixpoint json\_set migrations, one per-row owner-scoped backfill, and two keyset-paginated
+converge-to-fixpoint json_set migrations, one per-row owner-scoped backfill, and two keyset-paginated
 streaming scans (`stats/write/rebuild-from-canon.ts`).
 
 ## Three policy defects the differential caught

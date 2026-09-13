@@ -85,17 +85,17 @@ seed narrowed to their NotFoundError (`196669c26`, #759/#760).
 - `tooling/src/verify/gates/detached-work-traced.ts` — #783 `literalMember` (bracket-access
   laundering, `p["catch"]`), opener-vocab scoped to the PASS (`3f7666c37`)
 - `tooling/src/verify/gates/gate-ignore-inventory.ts` wiring, `verify/cli.ts` + `verify/index.ts`
-  registration, `vitest.config.ts` SERIAL\_INT row, 15 owner-named markers, 12 marker retires,
+  registration, `vitest.config.ts` SERIAL_INT row, 15 owner-named markers, 12 marker retires,
   `Core-Enforcement-Active-Gates.md` row + catalog re-attest, `tests/tooling/check-gates.int.test.ts` (+2)
 
 ### Conflict risk for #1 (81 behind; main absorbed the plugin train since its fork)
 
 | Surface | Risk | Note |
 | - | - | - |
-| `vitest.config.ts` | LOW, certain textual conflict | Both sides append to the same SERIAL\_INT block (`358ec9bfa` added test-presence.int + motion-audit/cli.int; branch adds caught-failure-ownership.int). Resolution = union. |
+| `vitest.config.ts` | LOW, certain textual conflict | Both sides append to the same SERIAL_INT block (`358ec9bfa` added test-presence.int + motion-audit/cli.int; branch adds caught-failure-ownership.int). Resolution = union. |
 | `docs/catalog/catalog.json` + `receipts/architecture-core.json` | LOW, certain conflict | 8/4 main-side commits since fork (plugin-train attestations). Mechanical: re-attest on the merged tree; receipts are the authored source. |
 | `packages/server/src/infra/plugin-host/{membrane,port,sandbox}.ts` | MODERATE | Main churned these 17/7/11 commits (plugin train). Branch hunks are 1–2-line marker comments anchored to specific catch sites — expect conflicts or mis-anchoring; re-anchor by hand against main's current catch sites. |
-| **Census staleness** | CERTAIN post-merge work | `population.json` was derived on the fork-era tree. The plugin train's \~81 commits added catch sites (the plugin-host files alone churned 35 commits), so the committed census will FAIL its own bijection test on the merged tree until re-derived via the branch's generator — on the QUIESCED merged tree only (whole-tree regenerator hazard, `lane-standing-facts`). New sites land as `unproven` census rows, which the design tolerates mid-classification. |
+| **Census staleness** | CERTAIN post-merge work | `population.json` was derived on the fork-era tree. The plugin train's ~81 commits added catch sites (the plugin-host files alone churned 35 commits), so the committed census will FAIL its own bijection test on the merged tree until re-derived via the branch's generator — on the QUIESCED merged tree only (whole-tree regenerator hazard, `lane-standing-facts`). New sites land as `unproven` census rows, which the design tolerates mid-classification. |
 | Everything else | CLEAN | Zero main-side commits since fork on: `dangling-refs.ts`, `detached-work-traced.ts`, `gate-ignore-inventory.ts`, `verify/cli.ts`, `verify/index.ts`, `Core-Enforcement-Active-Gates.md`, `check-gates.int.test.ts`, and 8 of the 11 marker-target server files. |
 
 **Status caveat on #1:** the classification program is IN FLIGHT — 329 of 378 census rows are still
@@ -185,7 +185,7 @@ the active `ct-no-oneshot-live-read-assert` gate), and the codex #751 branches' 
 via the review-approved rebuild `320e4d7a9..62461134d` while their gate/marker half was formally
 refused by the 2026-08-26 review. ONE branch must be integrated: `wt/agent-af609b98eb3c64643` — the
 caught-failure-ownership gate build (detector + census + #775 dangling-refs fix + #783
-detached-work-traced hardening), absent from main. Conflict surfaces: vitest.config SERIAL\_INT
+detached-work-traced hardening), absent from main. Conflict surfaces: vitest.config SERIAL_INT
 (trivial), doc catalog (re-attest), plugin-host marker anchors (moderate), and a REQUIRED census
 re-derivation on the merged tree. #751 remains Running post-merge (329/378 census rows unproven).
 Full manifest: `docs/reviews/stickler/2026-08-28-stranded-branch-integration-manifest.md`.

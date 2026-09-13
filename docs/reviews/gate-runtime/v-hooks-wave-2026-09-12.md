@@ -377,7 +377,7 @@ This CONFIRMED covers what is measured above and nothing its own disclaimers exc
    the 13 — 8 clocks + the un-waived tool-guard row + 3 `playwright.config.ts` clocks + `model-ab` — is
    UNVERIFIED by me.
 2. **I sampled 7 of roughly 44 recorded §4.1 cells** (3 of `no-inline-union-redecl`'s 13, 2 of the
-   plumbing 19, 1 fence in each `-health`). The other \~37 are unverified. A refutation could be hiding in
+   plumbing 19, 1 fence in each `-health`). The other ~37 are unverified. A refutation could be hiding in
    any of them.
 3. **I did not re-derive the population-port byte-identity claims** (`testid-liveness`'s admitted-set
    equality, `no-inline-union-redecl`'s 7,165 = 7,165 symmetric-difference-zero). I read the measured

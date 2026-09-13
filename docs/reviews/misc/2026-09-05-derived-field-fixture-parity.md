@@ -116,7 +116,7 @@ ASSERTION sites (`toStrictEqual` / `toHaveBeenCalledWith` — asserting a shape 
 
 **Verdict: do not ratchet.** The field NAME is not the enforcement key — `provenance` names three
 unrelated concepts in this repo, and ast-grep cannot see which type an object literal inhabits, so it
-cannot tell a fixture from an assertion or a card from a preset knob. A ratchet here would be \~97% noise
+cannot tell a fixture from an assertion or a card from a preset knob. A ratchet here would be ~97% noise
 and would train readers to allowlist.
 
 ### What to build instead (recommended, in priority order)

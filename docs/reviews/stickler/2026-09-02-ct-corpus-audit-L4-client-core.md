@@ -53,7 +53,7 @@ None confirmed. See per-directory sections below.
 
 ## Per-file verdicts — chunk 1: lib/, agent-nav/, forms/, settings/, databank/, home/ (24 files, all CLEAN)
 
-Every file below read whole, top to bottom (all under \~560 lines; none required a second offset read).
+Every file below read whole, top to bottom (all under ~560 lines; none required a second offset read).
 
 | File | Lines | Verdict |
 | - | - | - |
@@ -252,7 +252,7 @@ apply here; the DATA-layer files in chunks 1-3 carry that class and were checked
 - `tests/client/features/home/**`: 5 total — 1 already read (leg 3: `home-surface`) → **4 read**.
 
 **Total this shard: 107 files full-read, 0 sampled, 0 partially read.** No file in the population exceeded
-the Read tool's \~2000-line single-call limit (largest: `shell-store.ct.tsx` at 368 lines), so no file
+the Read tool's ~2000-line single-call limit (largest: `shell-store.ct.tsx` at 368 lines), so no file
 required a second offset read.
 
 ## Findings summary

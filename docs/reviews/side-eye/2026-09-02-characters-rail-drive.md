@@ -23,7 +23,7 @@ updated: 2026-09-02
 Main tip `97a110dff` (Wed Sep 2 03:17:46 −0600). `:5173` served by **vite pid 3858659, started
 01:16:02** — age-verified against the tip before the first receipt; the tip landed 2h01m AFTER the
 vite start, so the served graph absorbed a merge era. Every receipt below was re-taken through
-`--idle` and no page error, console error, failed request or dep-churn appeared in \~35 runs, so the
+`--idle` and no page error, console error, failed request or dep-churn appeared in ~35 runs, so the
 long-lived-vite corruption tell (`long-lived-vite-corrupt-graph`) is absent. Server `:8788` pid
 3858309, healthz ok.
 
@@ -217,7 +217,7 @@ CLS obs     non-virtualized 0.0233
 
 The `record` 6-tile strip (`p-eye-characters-drive-click2.png`, 120ms/tile) shows why it feels bad:
 tiles 1–2 render the CONTENT pane **empty except for a "Loading character…" line at the top-left**;
-tile 3 onward has the whole editor. So the pane blanks, shows a bare sentence for \~240ms, then fills
+tile 3 onward has the whole editor. So the pane blanks, shows a bare sentence for ~240ms, then fills
 — and 84px of the greeting block still moves after it has filled.
 
 **Why it hurts a user:** this is THE action of the surface. A quarter of dropped frames plus a
@@ -355,7 +355,7 @@ explained anywhere on the surface.
 `main` = `[363, 48, 917, 752]`. Visible content ends at y≈530 (`p-eye-characters-landing.png`,
 `p-eye-characters-light.png`): the "RECENTLY CHATTED" header band spans the full 869px with its label
 at x=387 and "sorted by last chat" at x=1166 — **1053px apart** — over a single 136×200 thumbnail at
-the far left. Below the divider, one 10.5px sentence. Then \~270px of nothing.
+the far left. Below the divider, one 10.5px sentence. Then ~270px of nothing.
 **Why it hurts a user:** the pane that is supposed to teach a first-timer what this section is for
 looks like a page that failed to load. See the taste verdict.
 **Fix — `onboard`:** the landing needs either a real recently-chatted row (a grid, not one card) or a
@@ -407,9 +407,9 @@ run of paragraphs. Nothing binds "Added" to "2d ago" programmatically: no `dl`/`
 21. **The import dialog's primary control is the browser default string.** Copy says *"Drop a
     SillyTavern character card (PNG or JSON), or click to browse"*; the button says **`Choose File`**.
     Two vocabularies for one action, one of them not ours.
-22. **Mobile: \~262px of chrome above the first character on a 740px viewport (35%).** Five stacked
+22. **Mobile: ~262px of chrome above the first character on a 740px viewport (35%).** Five stacked
     bands — title bar, New/import row, search row, `VIEW` row, `FILTERS` row — before row 1
-    (`p-eye-characters-mobile.png`). The `VIEW` and `FILTERS` caps kickers each consume a full \~50px
+    (`p-eye-characters-mobile.png`). The `VIEW` and `FILTERS` caps kickers each consume a full ~50px
     row at 430px to label two controls and one control respectively.
 23. **Six of ten sections live under a drawer called "You", beside the account block.** `--mobile --click '[aria-label="You"]' --aria` → `dialog "You"` → `group "Account and settings"` (persona,
     `inktomi93@gmail.com`, `Log out`) → `heading "Notifications"` → **`group "More"`** →
@@ -564,7 +564,7 @@ is the surface's real load problem and F9 is its fix.
 | `[orb] dev introspection ready → window.__orb…` | every load | **NOT PRODUCT** — the dev bridge's own banner, gated on `IS_DEV`; it is the instrument announcing itself |
 | `[trpc] → / ← query …` (×20 per load) | every load | **NOT PRODUCT** — the instrument channel. Its *content* is F5's receipt |
 
-**Zero console errors and zero page errors across \~35 runs.**
+**Zero console errors and zero page errors across ~35 runs.**
 
 ---
 
@@ -682,7 +682,7 @@ eleven groups in the editor all shout at once.
 | `snap --aria` | **RAN ×5** — landing (96 lines), bulk mode, import dialog, open character (278 lines), context pane docked, mobile `You` drawer |
 | `snap --contrast` | **RAN ×3 arms** — Hearth (5 selectors), `--theme Light` (5), open-character (2), + row-name under `--theme none`. **12 PASS, 0 FAIL, 0 OFF-SCREEN refusals.** Fill-only subjects (the Opening-1 selection border) were NOT put through `--contrast` per `snap-contrast-reads-ink-not-fill` — they went through a canvas composite instead |
 | Canvas/pixel composite (the fill arm) | **RAN** — `p-eye-characters-border.log`: the F2 selection border composited and rated 1.189:1 against its measured backdrop |
-| `snap --eval` geometry/state probes | **RAN — \~30** — appearance handles (root + `.shell-grid`), content-leaf census, heading census, list-row + avatar geometry (incl. `naturalWidth`), card metadata box/wrap, Opening-tab state ×2, field-button association, quote/narration font-style, hover-reveal rest-vs-focus, bulk bar geometry + `aria-live` ancestor walk, checkbox `::before`, coarse tap census, rail/pane backgrounds ×3 themes, `__orb` suite |
+| `snap --eval` geometry/state probes | **RAN — ~30** — appearance handles (root + `.shell-grid`), content-leaf census, heading census, list-row + avatar geometry (incl. `naturalWidth`), card metadata box/wrap, Opening-tab state ×2, field-button association, quote/narration font-style, hover-reveal rest-vs-focus, bulk bar geometry + `aria-live` ancestor walk, checkbox `::before`, coarse tap census, rail/pane backgrounds ×3 themes, `__orb` suite |
 | `snap --expect-*` | **RAN** — `--expect-no-overflow` on `html`, `aside`, `main`: **3 PASS**, `overflow=0x0 escapes=0`, `assertion-fails=0` |
 | `snap --json` | **SKIPPED** — console never approached the 200-message cap (max 38 in one run); the terminal view was never truncated |
 | `snap --matrix` | **SKIPPED with reason** — the isolated stage band (`:8888`/`:5273`) is held by sibling worktree `agent-a963e6683c39fd730`; tearing it down is banned. The five appearance presets + two themes + three pane states + two devices were taken as explicit arms instead, which covers the same axes non-pairwise |
@@ -729,7 +729,7 @@ only and reset on reload. No file written outside `reports/`, the scratchpad, an
 ## Issue summary for #1114
 
 Full-battery side-eye of the **Characters** rail surface against main tip `97a110dff` (vite pid
-3858659, age-verified; \~35 runs, 0 page errors, 0 console errors, 0 failed requests, 0 overflow, 0
+3858659, age-verified; ~35 runs, 0 page errors, 0 console errors, 0 failed requests, 0 overflow, 0
 assertion failures). **Verdict: DO NOT SHIP AS IS.** The mechanics are strong — 43 mapped elements
 with **zero DOM fallbacks**, Lighthouse a11y **100** desktop and mobile, all 12 measured contrast
 ratios PASS in both themes (7.0–15.8:1), `tap-target` 50/50 clean at **both** pointer classes, no

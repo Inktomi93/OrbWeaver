@@ -56,7 +56,7 @@ corpus-wide sweep landed: `history/misc-core-archaeology-record.md`.)
 
 ## Why bytes, not just tokens
 
-BPE tokenizers compress space runs, so compacting alignment padding saves only \~1.5% of corpus tokens —
+BPE tokenizers compress space runs, so compacting alignment padding saves only ~1.5% of corpus tokens —
 but the byte/line-width win is the real payoff: padded table rows ran 500–1500+ chars wide, burning
 tool-output truncation budgets (30k-char Bash caps, grep line dumps) and making targeted `Read` offsets
 useless. Compact docs are cheaper to grep, diff, and excerpt. Measured demo:

@@ -14,7 +14,7 @@ updated: 2026-08-30
 >
 > **Environment:** fresh vite (restarted immediately before the drive after a 5h32m instance that had
 > absorbed the night's merge train), `nav=OK` on every run, **0 page errors, 0 console errors, 0 failed
-> requests, deadcss 0** across \~35 driven runs.
+> requests, deadcss 0** across ~35 driven runs.
 
 ## VERDICT — DO NOT SHIP AS IS
 
@@ -50,7 +50,7 @@ By construction: `bg-background` and `bg-card` are adjacent steps of one D71-der
 827px strip is one apparent colour**; under Light the Light card's swatch is invisible against the card body
 while Hearth/Mocha render as giant black slabs.
 **Recommended form:** not a horizontal three-cell strip. A theme is recognised by **base + ink + accent + a
-shape**. Ship a small composed **mini-surface** — \~120×72 showing the card surface on the page surface, one
+shape**. Ship a small composed **mini-surface** — ~120×72 showing the card surface on the page surface, one
 line of body ink, one accent chip, one hairline — as a fixed grid cell
 (`repeat(auto-fit, minmax(min(180px,100%),1fr))`): 4-up at the content pane's 869px, 2-up at the context
 pane's 384px, 1-up at 256px (correct — 1-up at 256 is a *list*, not a stretched card). Cell size never varies
@@ -70,7 +70,7 @@ the cell size disagrees.
 List order: Looks · Message style · Avatars · **Sizing & motion** · Message details · Background ·
 **Reading typography** · **Effects** · Library. Content order (measured y): Looks 72 · Message style 482 ·
 Avatars 1050 · Message details 1334 · Background 1751 · Library 2079 · **fold trigger 2183** ·
-Sizing & motion 2215 · Reading typography 2788 · Effects 3227. "Sizing & motion" is 4th on the map and \~7th
+Sizing & motion 2215 · Reading typography 2788 · Effects 3227. "Sizing & motion" is 4th on the map and ~7th
 in the territory, behind a collapsed disclosure the map gives no sign of. §3.2 calls the LIST "the map, with
 scroll-spy"; a map that reorders and hides is not one.
 
@@ -136,8 +136,8 @@ do this yet." Pre-launch, this is the first thing a new user reads about Regex, 
 `side-tab` / `border-accent-on-rounded` — an **absolute ban** in §6 — and it is the first visual on the
 config landing.
 
-**F13 · Backup's eleven checkboxes sit \~1210px from their labels, on the wrong side.**
-"Tags" label \~30px at x=387; its checkbox at x=1240–1256. Eleven rows, 24px pitch, checkbox on the RIGHT.
+**F13 · Backup's eleven checkboxes sit ~1210px from their labels, on the wrong side.**
+"Tags" label ~30px at x=387; its checkbox at x=1240–1256. Eleven rows, 24px pitch, checkbox on the RIGHT.
 Checkboxes conventionally lead their label; at this distance you cannot associate a mark with a row by eye.
 No select-all/none, so clearing ten is ten clicks.
 
@@ -166,10 +166,10 @@ Row `[data-setting=avatar-size]` y=1134 h=32 → centre **1150**. `⋯` y=1138 h
 is `items-start` and the reveal wrapper carries `mt-tight`. Present on all 20 Appearance and 15 Chat-behavior
 rows. The modified rail on the same row **is** centred — three alignment strategies in one row.
 
-**F18 · The ⋯ and ⓘ hit areas overlap; the ⋯ loses \~8px of its own target.**
+**F18 · The ⋯ and ⓘ hit areas overlap; the ⋯ loses ~8px of its own target.**
 Grid-scanned with `elementFromPoint` at 1px steps: `⋯` glyph 16×16, effective hit **28×29 spanning x 1216–1243**;
 `ⓘ` glyph 12×12, effective hit **28×29 spanning x 1236–1263**. The overlap 1236–1243 resolves to the ⓘ,
-leaving the ⋯ **\~20×29 usable**. Below the 24px floor; design-audit measured 22×22 for the pair.
+leaving the ⋯ **~20×29 usable**. Below the 24px floor; design-audit measured 22×22 for the pair.
 
 **F19 · Every setting row is two lonely islands with an ocean between them.**
 Label-right → control-left gap, Appearance at 1280: **546–706px, median 654px**. Worst: `show-model` — 75px
@@ -195,7 +195,7 @@ uppercase/0.84px tracking; group button = 13px/500, also caps. The only voice di
 "APPEARANCE" is 2.5px. Page sizes: **10.5 / 13 / 15 / 16 (ratio 1.5:1)** — design-audit raises
 `flat-type-hierarchy` independently.
 
-**F24 · The surface has no display voice: its largest text is 16px — except an account balance at \~24px.**
+**F24 · The surface has no display voice: its largest text is 16px — except an account balance at ~24px.**
 Section headings `h3` = 16px/500; a Select's value = 15px; a label = 13px. A section title is 1px bigger than
 a dropdown's text. The one genuinely large thing on the surface is **"$30.32"** on Connections.
 
@@ -269,7 +269,7 @@ moves between panes (613 / 1016 / 1255) it re-learns that traverse per pane. mac
 a control column; VS Code caps at a reading measure and left-aligns. **Ship:** one grid,
 `max-w-(--reading-measure)` on the row block, label column sized to the longest label in the *section*, control
 column immediately adjacent, trailing ⓘ/⋯ pinned to the **block's** right edge, not the pane's. The ⓘ then
-sits \~40px from the control it annotates instead of 830px.
+sits ~40px from the control it annotates instead of 830px.
 
 **E2 · Pick ONE selection idiom. There are currently eight.** (1) list item = orange left border + tint;
 (2) expanded group = filled bar; (3) picker cards = 2px orange ring; (4) density segment = ring on one button
@@ -280,13 +280,13 @@ block on the surface for the lowest-stakes state.
 
 **E3 · Invert the switch. The quiet state must be the quiet one.** 17.61:1 OFF vs 7.65:1 ON is backwards. An
 opaque near-white 32px thumb in a 48px track also reads as a fat pill — the thumb is 2/3 of the track, so
-there is almost no visible travel. **Ship:** OFF = muted track, muted thumb (\~3:1 against the page, not 17:1);
-ON = accent track with a *light* thumb; thumb \~55% of track height with visible travel. Removes most of the
+there is almost no visible travel. **Ship:** OFF = muted track, muted thumb (~3:1 against the page, not 17:1);
+ON = accent track with a *light* thumb; thumb ~55% of track height with visible travel. Removes most of the
 perceived noise from Message details, Chat behavior and Plugins at once.
 
 **E4 · Give the surface a display voice.** Max 16px, four steps, ratio 1.5:1. The pane title, the section
 heading and a dropdown's value are within 3px of each other, and the largest object on the surface is an
-account balance. **Ship:** a real step for the pane subject, sections at \~16/600, labels at 13, gloss at 11
+account balance. **Ship:** a real step for the pane subject, sections at ~16/600, labels at 13, gloss at 11
 (which also clears F31). Two steps of separation, not one.
 
 **E5 · The teacher's premise is wrong — ship section-first with drill-on-focus (#926).**
@@ -325,7 +325,7 @@ the section's `teach`; you change *when* the leaf level engages.
 puts a one-line gloss under the label and keeps depth elsewhere. S3 removed them because rows felt heavy; the
 measured outcome is a 654px void per row, so rows did not get *tighter*, they got *emptier*. A single 11px
 gloss capped at the reading measure costs zero vertical rhythm (32px rows with a 16px label become 48px —
-exactly the height the collection rows already use) and takes 33% to \~85%. **The teacher then becomes what it
+exactly the height the collection rows already use) and takes 33% to ~85%. **The teacher then becomes what it
 should be: Affects, Related, default-vs-current and Reset — the things a gloss genuinely cannot carry.**
 
 **E6 · Rebuild the visual controls as one family. Right now they are four people's work.** Chat-style cards
@@ -353,7 +353,7 @@ its two siblings are sentence-case `h3`s, while the LIST calls it "Your personas
 
 **Errand A — change a setting, regret it, restore it without knowing which one. FAILS at discovery.**
 Toggle "Show model" → nothing on screen indicates a change (the modified mark is a 2×24px orange tick at
-x=379, \~900px down; the LIST group and sub-item carry no roll-up) → search `@modified` → **10 results, none
+x=379, ~900px down; the LIST group and sub-item carry no roll-up) → search `@modified` → **10 results, none
 marked** → guess → scroll → hover → ⋯ → Reset. **Missing: a modified count on the group row and the shelf, and
 a modified marker on the search result.** Once the row is known the reset is clean — Reset is correctly
 disabled with `title="Already at its default."` when unmodified, enabled when modified, and clears the rail.
@@ -392,14 +392,14 @@ pins, two element types, nothing says which are clickable. The account foot surf
 "Manage personas in Settings".
 
 **Errand G — Settings on a phone.** Drill-down works (list slides off-canvas, back chevron, correct title).
-Three problems: the config landing puts **\~350px of prose above the first settings row** (38% of the first
+Three problems: the config landing puts **~350px of prose above the first settings row** (38% of the first
 screen); the group rows are still **16px** at coarse; and the ⓘ opens the teacher **full-screen**, so learning
 any row means losing every row.
 
 ### Information architecture
 
 - **Wrong depth.** *Density* and *Surface elevation* are among the most-reached-for appearance settings and
-  are five moves deep: Settings → Appearance → scroll \~1900px → open "Customize this look" → scroll →
+  are five moves deep: Settings → Appearance → scroll ~1900px → open "Customize this look" → scroll →
   Sizing & motion. *Library / Rows per page* is a pagination setting living in Appearance — and the one row on
   that pane that kept its inline description and the old full-width layout.
 - **Two homes for one word.** "World info" is a Chat-behavior sub-section (scan depth, token budget) **and** a
@@ -461,13 +461,13 @@ breaks the teacher seam too.
     three cards read as one band with gaps.
 19. Under Light the theme card body keeps the *app's* card colour while the swatch shows the *theme's* — the
     Light card is a near-white strip over a dark body.
-20. The teacher's subject title "AVATAR SIZE" is 10.5px caps while its summary is \~17px — the title is the
+20. The teacher's subject title "AVATAR SIZE" is 10.5px caps while its summary is ~17px — the title is the
     smallest text in the pane.
 21. The teacher's band label "SETTINGS · ABOUT" restates the selected tab immediately below it.
 22. The teacher's AFFECTS list is a bulleted list of one; the bullet is near-invisible at x=905, text at 913.
 23. The teacher's two tabs occupy **92px of an 800px pane (11.5%)** for a two-way switch, the selected one a
     solid accent block.
-24. Same context bracket, two tab sizes: config gets 2 tabs at \~192px each; the character card gets 6 at \~60px
+24. Same context bracket, two tab sizes: config gets 2 tabs at ~192px each; the character card gets 6 at ~60px
     plus an overflow ⋯.
 25. Number fields on Library / Chat behavior / Jobs right-align to 1255–1256 — **39px past** every converted
     row's control edge, into the ⓘ column's x-range.
@@ -480,7 +480,7 @@ breaks the teacher seam too.
 31. Jobs: "Run a job…" is accent-filled; "New schedule…" one section below is a bordered ghost.
 32. Jobs / Connections: "Succeeded" and "Active" are green pills; "Bulk" is a grey/tan pill — two badge systems
     in one row.
-33. Tags list: "5 uses" vs "1 use" — the unit word's width changes, so numerals stagger \~14px down 28 rows.
+33. Tags list: "5 uses" vs "1 use" — the unit word's width changes, so numerals stagger ~14px down 28 rows.
 34. Tags list: "Manual order lets you drag rows." is permanently displayed while the sort is "Most used".
 35. Tags list: the description says "Color-coded labels" and all 28 row dots render the same grey.
 36. Tag editor: two 32×32 colour swatches with 154px and 165px captions below, pushing the controls 176px
@@ -590,7 +590,7 @@ teacher become what it was meant to be: Affects, Related, default-vs-current and
 | `snap --aria` | RAN — settings list (38 lines), row menu, persona popover, ⌘K palette, teacher panes |
 | `snap --contrast` | RAN — Light arm: field-label 15.56:1 PASS, chat-style card 7.37:1 PASS; one selector NOT FOUND (logged). Supplemented by direct oklch→sRGB math on swatch cells, elevation illustrations and switch states |
 | `snap --expect-no-overflow` | RAN — mobile settings content PASS, overflow 0x0, escapes 0 |
-| `snap --eval` | RAN — \~20 probes: row geometry, hit-area grid scan, computed styles, `__orb.motion()`, `__orb.animations()`, pane widths, per-group census |
+| `snap --eval` | RAN — ~20 probes: row geometry, hit-area grid scan, computed styles, `__orb.motion()`, `__orb.animations()`, pane widths, per-group census |
 | `snap --matrix` | SKIPPED — replaced by hand-driven arms (1280, 1400/1500/2400/2600, 430, 900) × (Hearth, Light) × (fold closed/open); the 8 fixed variants would not cover the pane-state and fold arms |
 | `snap --json` | SKIPPED — console never hit the 200-message cap |
 | `design-audit` desktop | RAN — `findings=39 p0=0 p1=29 p2=9 p3=1`, census 773, reached 116 |

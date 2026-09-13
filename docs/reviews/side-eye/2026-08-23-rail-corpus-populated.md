@@ -76,7 +76,7 @@ started writing prose to apologise for it. That is the structural theme of this 
 | Invitation body runs 87 chars/line | **STANDS — worse: 145** | `design-audit / --goto corpus` → `P3 line-length … prose line measures 145 chars` on `[data-testid=corpus-home-surface] > … > p.font-sans[data-slot=text]`. |
 | Two identically-named rows, no qualifier | **STANDS — worse** | `--map` yields `Yuki >> nth=0/1`, `Your Shitty Life >> nth=0/1`; the family glosses carry `Freya · Freya`, `Emily · Emily`, `Assistant · Assistant`; the pair list renders `Freya ↔ Frida 81%` twice and `Freya ↔ Miyako 80%` twice. **The app already solves this for chats** — `Ayami — Aug 18, 2025 (3) ↔ Ayami — Aug 19, 2025 (4)` — and not for characters. |
 | `Sort` / `Min similarity` / `Max nodes` read "Default" | **STANDS — sharper** | On the same filter row: `Genre "All genres" · Tone "All tones" · Tag "All tags" · Sort "Default"`. Three siblings resolve their value, one doesn't. And the default is `recent` = `desc(characters.createdAt)` (`packages/server/src/domain/discovery/verbs/browse.ts:90`), which on a bulk alphabetical import renders Z→A — indistinguishable from "reverse alphabetical" to a reader with no label. |
-| Three stacked sections + \~1,300px dead right column | **CHANGED SHAPE — worse ratio** | Page is now 3,824px; READINESS occupies 581px of the right column and nothing follows. **\~3,240px of dead right column.** |
+| Three stacked sections + ~1,300px dead right column | **CHANGED SHAPE — worse ratio** | Page is now 3,824px; READINESS occupies 581px of the right column and nothing follows. **~3,240px of dead right column.** |
 | 29 content renders / three over-budget commits | **STANDS — much worse** | `__orb.renders()` → `region:content 41 (40 updates, maxMs 35)`, `region:list 54`. `motion-audit` worst blocking **15ms → 287ms**. See \[P1-4]. |
 
 **ARIA recommendations 1–7 from the prior sweep: all seven STAND, none fixed.** Live receipts:
@@ -128,7 +128,7 @@ covered as its comment already promises.
 ## Deliverable 3 — #544b: the #538 walker delta on the populated surface
 
 **The #538 fix HOLDS, live-disproven the hard way.** `pnpm design-audit / --goto corpus` on 327
-characters with **32 `[data-slot=avatar-stack-item]` seats mounted across 8 family plates** (plus \~40
+characters with **32 `[data-slot=avatar-stack-item]` seats mounted across 8 family plates** (plus ~40
 more in the gem shelf and never-played lists):
 
 ```
@@ -236,7 +236,7 @@ heading offsets from panel top:
 ```
 
 **Why it hurts a user.** The tab's three named jobs — find duplicate characters, duplicate art,
-duplicate chats — begin **52,151px down**. At \~600px per scroll flick that is \~87 flicks past a wall
+duplicate chats — begin **52,151px down**. At ~600px per scroll flick that is ~87 flicks past a wall
 of text you cannot click. And the data down there is good: `Ayami — Aug 18, 2025 (3) ↔ Ayami —
 Aug 19, 2025 (4) · forked · 100%` is exactly the disambiguated, actionable row the rest of this
 section needs. It is unreachable.
@@ -421,7 +421,7 @@ the right end. And the 50 "top keywords" of a 896-chat library are `ward-stone, 
 hall, tired bell, star-metal, ledger, doomblade, ashen spire, ninth epoch, black glass stairs…` —
 n-grams from what reads as **one story**, presented with no caveat.
 
-**Why it hurts a user.** §14 physics 4 caps accent at ≤10% of viewport; this band is **\~3×** that, and
+**Why it hurts a user.** §14 physics 4 caps accent at ≤10% of viewport; this band is **~3×** that, and
 the accent is the "look here" ink being spent as a default fill for 51 bars. The chart is also the
 single largest thing on the page and the \[P1-4] 287ms block. Meanwhile the section with 11,321
 generations behind it gets 95px. **The page's vertical budget is allocated almost exactly inversely to
@@ -486,10 +486,10 @@ a pre-built filter.
 a longer member run. `typeset: the corpus home prose — receipt: computed measure ≤75ch at 1280 with the
 list pane docked and hidden.`
 
-### \[P3-2] \~3,240px of dead right column
+### \[P3-2] ~3,240px of dead right column
 
-READINESS occupies y≈148–729 of a **3,824px** page; the right column is empty for the remaining \~3,240px
-while CONTENT stacks five sections at three different widths. The empty arm filed this at \~1,300px; the
+READINESS occupies y≈148–729 of a **3,824px** page; the right column is empty for the remaining ~3,240px
+while CONTENT stacks five sections at three different widths. The empty arm filed this at ~1,300px; the
 page tripled and the rail did not. `layout: the corpus home column model — receipt: one shared content
 measure across the five stacked sections at 1280/docked, 1280/hidden and 1600, plus a right column that
 either continues or dissolves.` The Map preview or the per-pass timestamps are the obvious tenants.
@@ -564,7 +564,7 @@ why "Model economics" is eight cents.
 ## The single biggest opportunity
 
 **Re-budget the landing page against what the data actually says.** The instruments make the
-prescription unusually concrete: cut the keyword canvas from 1,616px to \~200px (P2-3), and spend the
+prescription unusually concrete: cut the keyword canvas from 1,616px to ~200px (P2-3), and spend the
 1,400px you recover on the three facts the surface currently hides — 204 unplayed characters (P2-4),
 52 models / 11,321 generations (P1-1), and the 85 characters in no visual family (the unexplained 242).
 That single re-allocation retires P1-1, P1-4 (the 287ms block is that canvas), P2-3 and P2-4, fixes the

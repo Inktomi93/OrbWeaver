@@ -139,7 +139,7 @@ pattern check against the same file list, not a committed plant).
   viewport sizes) and the P2 destructive-confirm gate (mutation count asserted 0 before confirm, ≥1 after);
   the held-batch add-picker tests use `trpcHold` to prove same-tick double-dispatch is guarded and a
   rejected batch stays retryable.
-- **`join-invite-dialog.ct.tsx`** (76 ln) — preview→redeem flow, leak-free NOT\_FOUND arm (asserts no
+- **`join-invite-dialog.ct.tsx`** (76 ln) — preview→redeem flow, leak-free NOT_FOUND arm (asserts no
   `Host:` text leaks), "Not now" dismissal fires no redeem.
 - **`add-chat-book-dialog.ct.tsx`** (67 ln) — held-attach ownership + same-tick-repeat guard + reject/retry,
   `trpcHold`-based, mirrors the gallery dialog's pattern.
@@ -267,7 +267,7 @@ pattern check against the same file list, not a committed plant).
 - **`member-card-viewer.ct.tsx`** (153 ln) — three visibility-tier clamps (sheet/name-avatar/full), each
   proving the hidden-tier note COUNT matches the tier gate (never stacked notes for a single gate, checked
   via `data-testid` count), the name-renders-exactly-once a11y proof (no duplicate title span), and a typed
-  NOT\_FOUND gone-arm distinguished from the transient Retry surface.
+  NOT_FOUND gone-arm distinguished from the transient Retry surface.
 - **`memory-recall-detail.ct.tsx`** (36 ln) — missing-trace vs zero-result distinguished, every verdict
   label exercised on a populated trace.
 - **`memory-settings-section.ct.tsx`** (85 ln) — bidirectional enable/disable mutation proof, a

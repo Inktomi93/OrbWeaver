@@ -82,7 +82,7 @@ that share all app code and differ only in whether the vLLM fleet is baked in:
 | For | the owner + any GPU self-hoster who wants turnkey | cloud-only / CPU-only / GPU-less deployers |
 | `ENGINES_POSTURE` | `adopt-or-start` (the container spawns the fleet) | `off` (D3) or `adopt-only` + external URL (D2) |
 | `VLLM_ENGINE_HOST` | `127.0.0.1` (default — fleet shares the namespace) | unset (off) or the external engine host |
-| GPU | MANDATORY (`--gpus all`; \~34 GiB VRAM/card, 2×A6000 class) | none |
+| GPU | MANDATORY (`--gpus all`; ~34 GiB VRAM/card, 2×A6000 class) | none |
 | Image size | HUGE (CUDA + vLLM + model weights, many GB) | small (node + app + client dist) |
 | Base image | an NVIDIA CUDA runtime base + node 26 | `node:26-slim` |
 
@@ -250,7 +250,7 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
     (`lifecycle.ts:393-396`).
 - **Container posture — the peer-IP gotcha:** inside the compose network the TCP peer the app sees is the
   reverse-proxy's container IP (Caddy is pinned to `172.18.0.100`, `docker-compose.yaml:157`), which is in
-  `172.16.0.0/12` (RFC1918, DEFAULT\_TRUSTED\_RANGES `ip-ranges.ts:181`). So for the UNSIGNED path
+  `172.16.0.0/12` (RFC1918, DEFAULT_TRUSTED_RANGES `ip-ranges.ts:181`). So for the UNSIGNED path
   `FORWARD_AUTH_TRUSTED_PROXIES` must be set to the proxy's exact container IP — recommend `172.18.0.100/32`,
   **NOT** the whole subnet (any container on the net would otherwise forge `Remote-User: owner`). For the
   SIGNED path the peer gate is irrelevant (crypto replaces it); prefer signed.
@@ -279,7 +279,7 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
 orb and the three engines (`gen`/`embed`/`rerank`) run in ONE container, one PID + network namespace, one
 GPU passthrough. This replicates the bare-host `pnpm stack up prod` topology, which is: the stack tool's prod
 half (`tooling/src/stack/ops/prod-up.ts`) spawns
-the SERVER detached (`node entry/index.ts`, NODE\_ENV=production — the plan is built by
+the SERVER detached (`node entry/index.ts`, NODE_ENV=production — the plan is built by
 `buildProdSpawnPlan`, `tooling/src/stack/lib/spawn-plan.ts:27`), and the SERVER — under
 `ENGINES_POSTURE=adopt-or-start` — runs the in-process supervisor that triggers a **detached `setsid` fleet
 spawn** when an engine is down (`supervisor.ts:1-5`). The container inherits that exact flow.
@@ -310,13 +310,13 @@ spawn** when an engine is down (`supervisor.ts:1-5`). The container inherits tha
   `postureManages(posture)` (`foundation/env/posture.ts:61-65`), so a passive `adopt-only` consumer of a
   remote engine no longer needs a local GPU.
 
-**Fleet-launch reconciliation (`never-run-engine-launcher-live` + \~34 GiB/card):**
+**Fleet-launch reconciliation (`never-run-engine-launcher-live` + ~34 GiB/card):**
 
 - The detached-`setsid` design makes the fleet "nobody's child" so a SERVER restart reuses a warm fleet via
   adopt (`supervisor.ts:1-5`). Inside a container this is naturally bounded: a *server-process* restart keeps
   the fleet warm (same PID namespace), while `docker stop` reaps the whole namespace — fleet included. So the
   container is a clean lifecycle boundary for the immortal-launcher class, not a leak.
-- \~34 GiB VRAM/card (2×A6000 class, `foundation/env` header) is a HARD runtime floor: profile 1 refuses to be
+- ~34 GiB VRAM/card (2×A6000 class, `foundation/env` header) is a HARD runtime floor: profile 1 refuses to be
   useful without adequate GPU. Cold fleet spawn is slow (the stack.sh boot-readiness bounds exist for exactly
   this) — the container's healthcheck must allow a long `start_period` (minutes) so the orchestrator doesn't
   kill the container while the fleet warms. Engines bind loopback (`--host LOOPBACK_HOST`, `build-argv.ts:210-211`),
@@ -388,7 +388,7 @@ of the debug gate — and since #1193 that exclusion is stated as a POSTURE rath
 design** (the verdict now reads the request's already-resolved principal, which does carry a peer, instead of
 re-resolving without one), so the production exclusion rests on the posture alone — that is why the posture
 is production-EXCLUDING rather than "SSO-modes-only". Enforcer:
-`tests/server/entry/debug-gate.suite.test.ts` (every AUTH\_MODE × Host × peer × posture × token state,
+`tests/server/entry/debug-gate.suite.test.ts` (every AUTH_MODE × Host × peer × posture × token state,
 including "the PRODUCTION posture refuses the same loopback owner, single-user included").
 
 **The secure-default answer (belt AND suspenders):**
@@ -537,7 +537,7 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
 
 - **Fork A — base image.** *Recommend `node:26` builder + `node:26-slim` runtime (Debian/glibc).* Rejected:
   Alpine/musl (native `@libsql` + TS-strip risk, no proven path); distroless (loses the shell the healthcheck
-  and debugging want, and node-distroless lags the 26 tag). Cost: slim image is \~200-300 MB larger than
+  and debugging want, and node-distroless lags the 26 tag). Cost: slim image is ~200-300 MB larger than
   distroless; worth it for operability.
 
 - **Fork B — single-image-all-modes vs per-mode images.** *Recommend ONE image, mode selected by
@@ -559,7 +559,7 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
   as the default the owner runs and Profile 2 as the documented "everyone" alternative.*
   - **Profile 1 (DEFAULT): all-in-one GPU image** — orb + the 3-engine fleet + CUDA + models, one namespace,
     loopback, `ENGINES_POSTURE=adopt-or-start`, `--gpus all`. Turnkey for the owner + GPU self-hosters. HUGE
-    and GPU-mandatory (\~34 GiB VRAM/card). None of the remote-engine plumbing bites it (§3.6 confirmed).
+    and GPU-mandatory (~34 GiB VRAM/card). None of the remote-engine plumbing bites it (§3.6 confirmed).
   - **Profile 2 (alternative for GPU-less/cloud deployers): slim app-only image** — `ENGINES_POSTURE=off`
     (D3), or `adopt-only` + `VLLM_ENGINE_HOST` at an external engine (D2). Small. This arm is what keeps the
     "designing for everyone" contract; the `VLLM_ENGINE_HOST` lever and the posture-scoped GPU-detect gate that

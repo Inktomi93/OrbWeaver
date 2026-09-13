@@ -33,7 +33,7 @@ rebuilding what the intent axis already declares or what a variant arm should ow
 | - | - | - |
 | `packages/client/src/features/rpg/components/rpg-card-row.tsx:26` (className at the same element) | `border border-border` on `intent="ghost" size="inline"` | `intent="outline"` is EXACTLY ghost + `border border-border bg-transparent` (`packages/ui/src/primitives/button/variants.ts:54`) |
 | `packages/client/src/features/rpg/components/rpg-pack-rows.tsx:108` (`TILE_CLASS`, mounted :189) | `rounded-control border border-border bg-card px-row py-field` on `intent="ghost" size="inline"` | the border half duplicates `outline`; the `bg-card` fill is a card-tile skin NO intent arm owns — a feature-decided component skin |
-| `packages/client/src/features/preset/components/prompt-assembly/assembly-preview.tsx:127` | `rounded-control border border-border p-row` on `intent="ghost" size="sm"` | border duplicates `outline`; `p-row` overrides the `sm` arm's sealed `px-block` (CONTROL\_SIZE, `packages/ui/src/lib/control-size.ts:5`) |
+| `packages/client/src/features/preset/components/prompt-assembly/assembly-preview.tsx:127` | `rounded-control border border-border p-row` on `intent="ghost" size="sm"` | border duplicates `outline`; `p-row` overrides the `sm` arm's sealed `px-block` (CONTROL_SIZE, `packages/ui/src/lib/control-size.ts:5`) |
 
 - **Concrete failure scenario (why this matters beyond taste):** the #1080 stamp seam
   (`packages/ui/src/lib/variant-attrs.ts`) exists because "with zero emitters, a `size="glyph-xs"`
@@ -118,9 +118,9 @@ names itself `role="region"` and delegates operability to the inner secondary Bu
 
 **What the (c)+(d) headline would have hand-spelled: nothing.** The geometry/sizing question the
 brief asked ("what h-*/px-*/text-*/rounded-* would the primitive own?") has no raw-element carrier —
-the belts that make this so are `no-raw-interactive-intrinsics` (BURN\_DOWN `{}` — read in full),
-`no-interactive-role-in-features` (BURN\_DOWN `{}`), the compose-only ESLint keystone
-(`eslint.config.js:231-241,687-719` — className/style banned on raw intrinsics across CLIENT\_SRC,
+the belts that make this so are `no-raw-interactive-intrinsics` (BURN_DOWN `{}` — read in full),
+`no-interactive-role-in-features` (BURN_DOWN `{}`), the compose-only ESLint keystone
+(`eslint.config.js:231-241,687-719` — className/style banned on raw intrinsics across CLIENT_SRC,
 exemptions: app-shell, state, weave-glyph, tests), and resolver physics for (b).
 
 ### The call-site className census on Button (the gates' declared blind spots, hand-reviewed)
@@ -134,7 +134,7 @@ overwhelming vocabulary is sanctioned call-site layout (`justify-start`, `min-w-
 | - | - | - |
 | F1's three sites | border/fill skin | **finding — see F1** |
 | `rpg/components/rpg-scene-tab.tsx:295` | `border border-transparent px-field` on ghost/inline | benign: transparent border is a layout reserve against a bordered sibling, not a skin |
-| `rpg/components/rpg-header-band.tsx:43` | `text-accolade hover:text-accolade` | designed: crown-gold veiled-truth cue, in-place WHY (the hover pin keeps the cue's ink through ACCENT\_HOVER) |
+| `rpg/components/rpg-header-band.tsx:43` | `text-accolade hover:text-accolade` | designed: crown-gold veiled-truth cue, in-place WHY (the hover pin keeps the cue's ink through ACCENT_HOVER) |
 | `character/components/character-filter-rail-parts.tsx:289` | `text-muted-foreground underline decoration-dotted` | designed: the disclosure-underline ruling is written at :271-272 (side-eye 2026-08-17 taste (d)) |
 | `preset/components/readout/prompt-readout.tsx:287` | conditional `bg-primary/10` selected tint | follows the LIST-ROW selection language (left-ember-bar + primary/10 — `character-facet-row.tsx:57-60` documents it as "the chats-lane list-row pattern", token-driven) rather than Button's `selection` axis (accent + inset-ring). Two selection vocabularies exist BY PATTERN (control-selection vs row-selection); this Button uses the row language without the `data-selected` marker the Row variant carries. Census note, not a defect. |
 | `config/components/config-list-group.tsx:195` · `config-list-collection-group.tsx:158,242` | `px-tight`/`px-field` on `sm`-ramp Buttons | padding overrides on a control-ramp size whose arm carries `px-block`. Deterministic post-#146 (spacing scale registered in tailwind-merge) and token-valued; `ui-size-via-variant` deliberately scopes to h/min-h/size/w, so padding is un-policed by design. Census note. |
@@ -224,7 +224,7 @@ the FIX-TOOLS-AS-THEY-LIE standing rule.
   `ui-size-via-variant`, `ui-variant-axes-stamped`).
 - Law read in full: `client-architecture-lockdown.md` §0-§6 (incl. all of §4),
   `ui-package-design.md`, `UI-Primitives-and-Reuse.md`, `variant-attrs.ts`, `button/button.tsx`,
-  `button/variants.ts`, `card/card.tsx`, the ESLint keystone blocks, `control-size.ts` (CONTROL\_SIZE
+  `button/variants.ts`, `card/card.tsx`, the ESLint keystone blocks, `control-size.ts` (CONTROL_SIZE
   region), shell.css lines 770-900.
 - Sweeps (each with scanned-file counts + a second method): ts-morph census (604 files / 7,931
   elements); ast-grep raw-`<button>`/`<a>` (604 files); ast-grep Base UI imports (673+591 files, grep
@@ -239,7 +239,7 @@ the FIX-TOOLS-AS-THEY-LIE standing rule.
   by import source, not per-site hand-read (they carry no classNames of interest — the census records
   className presence per row and these were `cn=none` except the sites listed above). The census
   cannot see an `onClick` arriving via `{...props}` spread (structural limit, same class as the
-  gates' LIMIT 1). Rendered sampling capped at 26 controls/surface/arm (\~50 identities on home+config
+  gates' LIMIT 1). Rendered sampling capped at 26 controls/surface/arm (~50 identities on home+config
   - 26 on characters), and covered three of the ten sections; menus/popovers were not opened, and
     hover/active/focus paints were not driven (rest-state only). The multi-human-gated affordances
     (notifications bell) are absent on a single-user isolated stage by design
@@ -271,8 +271,8 @@ the FIX-TOOLS-AS-THEY-LIE standing rule.
   channel; gate proves the door, never the shadow`
   Body: type project. `ui-variant-axes-stamped` proves a recipe reached a stamp door; a call-site
   `border border-border`/`bg-card` on a ghost Button re-creates the F8 authored-identity collapse
-  (walker reads TARGET\_VARIANT\_ATTRS, not classes). Founding sites: rpg-card-row\.tsx,
-  rpg-pack-rows.tsx TILE\_CLASS, assembly-preview\.tsx (2026-09-02, #1224 census). **How to apply:**
+  (walker reads TARGET_VARIANT_ATTRS, not classes). Founding sites: rpg-card-row\.tsx,
+  rpg-pack-rows.tsx TILE_CLASS, assembly-preview\.tsx (2026-09-02, #1224 census). **How to apply:**
   when auditing authored decisions off the stamp, sweep the same elements' classNames for tokens that
   re-spell a sibling arm; when reviewing a ghost+border call site, the fix is `intent="outline"` or a
   named arm, never the class.

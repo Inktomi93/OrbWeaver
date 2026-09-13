@@ -44,12 +44,12 @@ title truncates to **`Chara…`** the moment you open a character.
 | - | - | - |
 | ① | Hub ingest, end to end (consent → enable → search → add) | **Drivable, and it works.** Consent flow is legible and specific; the hub returns real results; the import lands the card, its avatar (768×768, `object-fit: cover`, no distortion) and its full field set. Three defects: the P1 provenance lie, no success announcement, and an "already in your library" message shown on a FIRST import. |
 | ② | The ingested character on the Characters surface | **Clean apart from provenance.** `contrast candidates=84 judged=84 affected=0` in Hearth AND Light (with a planted control firing), tap targets 0 affected at coarse, focus-visible at every stop of an 8-stop keyboard walk, Lighthouse a11y/BP/SEO 100. |
-| ③ | Scale (312 characters) | **Virtualization and search hold; the two page-local lenses do not.** 13 rows mounted at any scroll depth over a 16 216px track; non-virtualized CLS **0.0004**; search reaches row \~260 of 312. Group-by-tag is page-local; the list header truncates. |
+| ③ | Scale (312 characters) | **Virtualization and search hold; the two page-local lenses do not.** 13 rows mounted at any scroll depth over a 16 216px track; non-virtualized CLS **0.0004**; search reaches row ~260 of 312. Group-by-tag is page-local; the list header truncates. |
 | ④ | #891 `2× "chats"` on both arms, desktop + mobile | **Reproduced, measured, and judged NOT one door.** Positive control 2 → 3. |
 
 Not reached, stated: a **third** appearance arm (`compact`/`reading`) on the ingested character — the 09-02
 pass ran them at 10 rows and I spent that budget on the scale arm instead; **`--matrix`** (a ninth concurrent
-browser against the \~6/origin SSE budget while the stage was already carrying a 312-row library); and
+browser against the ~6/origin SSE budget while the stage was already carrying a 312-row library); and
 **Lighthouse mobile** (the desktop arm's only failure is the already-ruled `label-content-name-mismatch`,
 and the coarse tap-target question is answered authoritatively by `--design-audit --mobile`).
 
@@ -292,7 +292,7 @@ sort, tag filter, favorites — must be a server-side query param, or the lens s
 whatever is loaded'." The other lenses already comply, and I proved it rather than assuming it:
 
 - **Search is server-side.** `agent-a28cfde5613d26606-836246-2026-09-05T13-52-30-717Z` — typing `Cast 5`
-  with 30 rows loaded returns `11 of 312` and mounts `Cast 59 … Cast 50`, rows created \~250 positions past
+  with 30 rows loaded returns `11 of 312` and mounts `Cast 59 … Cast 50`, rows created ~250 positions past
   the loaded window. Honest.
 - **Sort** is the census key and moves the whole set (the header count follows).
 
@@ -572,7 +572,7 @@ that has been true across this pass, the 09-02 pass (which recorded the same `un
    `div.@container/list-row > button.group` list rows. That is the owner-accepted Label-in-Name exception the
    08-30 pass recorded; the only delta is that its node count now scales with the library (6–10 → 22).
    Report: `…-826232/lighthouse/root.json`.
-8. **Console: 0 errors, 0 page errors, in every one of \~30 runs.**
+8. **Console: 0 errors, 0 page errors, in every one of ~30 runs.**
 
 ---
 
@@ -598,7 +598,7 @@ is also where the P1 lives, which is the cruel part: the pane you trust is the p
 thing. `Made here` sits two lines above `Added 1m ago`, in the same typographic voice, with the same
 confidence.
 
-**Empty space.** On the Overview tab with a fresh character the context pane spends its bottom \~400px on
+**Empty space.** On the Overview tab with a fresh character the context pane spends its bottom ~400px on
 nothing (see `snaps/cb-se-illyria-light.png`). Six tabs across the foot, three short groups at the top, and a
 void between. Not broken, but unbalanced — the pane looks like it lost something.
 
@@ -635,10 +635,10 @@ survives — see the collision note under the coarse finding.
 | # | Instrument | Status |
 | - | - | - |
 | 1 | `snap --map` | **RAN** — Characters (48 controls, 0 DOM fallbacks, 41 actionable), Extensions granted (22/0) and ungranted (22 controls, **1 DOM fallback** — itself the finding) |
-| 1 | `snap --aria` / `--text` | **RAN** — \~12 captures: the bell, the consent dialog, the plugins region, the atlas panel (results + detail + post-add), the character content, the context pane in Overview / Provenance / Chats |
+| 1 | `snap --aria` / `--text` | **RAN** — ~12 captures: the bell, the consent dialog, the plugins region, the atlas panel (results + detail + post-add), the character content, the context pane in Overview / Provenance / Chats |
 | 1 | `snap --contrast` | **DELEGATED to `--design-audit`'s `contrast` rule** (84 judged, 0 affected, both themes) with a planted 1.08:1 positive control firing. No hand `--contrast` line was needed; stated rather than skipped silently |
-| 1 | `snap --eval` | **RAN** — \~20: appearance handles (root + `.shell-grid`), avatar natural/box/aspect/object-fit, both `chats` doors' identity, coarse row geometry, header clip chain ×2, virtualizer census ×2, `__orb.motion()` ×3, `__orb.animations()`, focus census ×8 |
-| 1 | `snap --matrix` | **SKIPPED** — a 16-cell pairwise sweep is a ninth concurrent browser against the \~6/origin SSE budget while the stage was already carrying a 312-row library; the two theme arms + two device arms + four pane states were taken by hand instead |
+| 1 | `snap --eval` | **RAN** — ~20: appearance handles (root + `.shell-grid`), avatar natural/box/aspect/object-fit, both `chats` doors' identity, coarse row geometry, header clip chain ×2, virtualizer census ×2, `__orb.motion()` ×3, `__orb.animations()`, focus census ×8 |
+| 1 | `snap --matrix` | **SKIPPED** — a 16-cell pairwise sweep is a ninth concurrent browser against the ~6/origin SSE budget while the stage was already carrying a 312-row library; the two theme arms + two device arms + four pane states were taken by hand instead |
 | 1 | `snap --json` | **SKIPPED** — the terminal console never approached the 200-message cap (max 75 in any run) |
 | 1 | `snap --watch` | **SKIPPED** — no streaming surface on this path; the import's post-click window was covered by an argv `--pause` + full `--aria` |
 | 2 | `--design-audit` desktop, character open, context collapsed | **RAN — NO VERDICT** (`selection-idiom:unmatchedUnselected×2`). `…-627761`, census 507, findings 6 (1 = my plant) |
@@ -675,7 +675,7 @@ survives — see the collision note under the coarse finding.
 
 | Class | Count / worst | Disposition |
 | - | - | - |
-| `console errors` / `page errors` | **0 / 0** across \~30 runs, every arm | clean |
+| `console errors` / `page errors` | **0 / 0** across ~30 runs, every arm | clean |
 | `[frame] long frame … blocking …` @ `main.tsx` / `authed-app.tsx` / `modern-*.js` | 512ms frame / 461ms blocking worst; also 293/243, 214/148, 211/161 | **known-ruled** boot family (#433) — **and load-suspect**: loadavg 24–52 on 24 cores throughout, every run stamped `load-suspect=app-snapshot`. Read as evidence, not verdict |
 | `[perf] slow commit region:list` | 63ms (mount), 167ms / 124ms / 32ms / 14ms (nested-update) at **312 rows** | **INVESTIGATE, load-suspect.** The 08-30 pass measured a 78ms worst long task at 10 rows. I did NOT control for load, so I do not claim a scale delta — but a quiet-tree re-run of section entry at 312 rows is owed before anyone calls this fine |
 | `[drop] … rendered frame mid-animation · aside[aria-label=Characters list]` | 1 per section entry | **already filed** — the 08-30 pass's P3 for exactly this selector |
@@ -726,7 +726,7 @@ context pane, contrast (84 judged / 0 affected, both themes, planted control fir
 (0 affected at `coarse:dpr3:430x740`), keyboard (8/8 `:focus-visible`) and Lighthouse (100/100/100) are all
 clean. The scale arm at **312 characters**: virtualization holds (13 rows mounted at any depth over a
 16 216px track), non-virtualized CLS **0.0004**, search is honestly server-side (`11 of 312`, reaches rows
-\~250 past the loaded window), and the list states `30 of 312 loaded`. Note the brief's button label is
+~250 past the loaded window), and the list states `30 of 312 loaded`. Note the brief's button label is
 stale — the hub CTA reads **"Add to library"**, not "Summon to your library".
 
 **NEW — P1 · character: a hub-ingested card reports `Source: Made here`.** A card downloaded from
@@ -822,7 +822,7 @@ the driven arm adds `quiet-state:unmatchedOff×1` and still withholds. Receipt: 
 > ---
 >
 > name: chat-seeder-owner-handles-bricks-a-snap-stage
-> description: "Seeding a snap stage db with OWNER\_HANDLES from the dev .env makes boot's adoptMovedSeedKey RENAME the stage's owner row; the stage server's dev fallback principal then asks for handle `owner`, ensureUser refuses, every request 500s, and the app takes its own destructive-reset path — backing up the db and re-seeding defaults. Use OWNER\_HANDLES=owner."
+> description: "Seeding a snap stage db with OWNER_HANDLES from the dev .env makes boot's adoptMovedSeedKey RENAME the stage's owner row; the stage server's dev fallback principal then asks for handle `owner`, ensureUser refuses, every request 500s, and the app takes its own destructive-reset path — backing up the db and re-seeding defaults. Use OWNER_HANDLES=owner."
 > metadata:
 > type: project
 > -------------

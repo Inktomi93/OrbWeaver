@@ -25,7 +25,7 @@ orbweaver ships as first-class engines.
 - **Orbweaver tree:** main at `eff003d6e` (U5/U6/U7 of #679 all landed — `668536e69`, `9c3089789`,
   `c49bbbb49`; U8 NOT landed, confirmed by `git log --all --since=2026-08-26` grep for U8 markers).
 - **Read IN FULL (ST):** `public/scripts/st-context.js` (all 311 lines — the complete `getContext()`
-  surface, \~150 members), `events.js` (all \~105 `event_types`), `extensions.js` (all 2325 lines — the
+  surface, ~150 members), `events.js` (all ~105 `event_types`), `extensions.js` (all 2325 lines — the
   loader: manifest shape, install/update/move/branch/delete, hooks
   `install|update|delete|clean|enable|disable|activate`, `generate_interceptor`,
   `writeExtensionField[Bulk]`, Extras API), `extensions-slashcommands.js`,
@@ -93,7 +93,7 @@ build) · **REFUSED** (deliberate wall, priced) · **SUB** (substrate-blocked) �
 | B2 | Mutate chat history / rearrange (vectors `rearrangeChat` splices `chat[]`, `vectors/index.js:776-859`; `generate_interceptor`) | **REFUSED** — class-1 wall (unattributed canon edit by non-human code); sanctioned routes: transforms (attributed) + S4 suggest; the vectors use-case itself is first-party (row F1) | **REFUSED** (priced §5a: narrow own-messages attributed edit arm if ever demanded) |
 | B3 | Inject prompt text (`setExtensionPrompt` at `IN_PROMPT/IN_CHAT/BEFORE_PROMPT` + depth + role + WI-scan, `script.js:484-499,3301`) | `transforms.register` at `user_input`/`assembled_dynamic` (D50 band 1000+, 250 ms, skip-on-fail; `bus.ts:200-250`) + `worldInfo.upsertEntry` with `EntryPosition` (`host-v1.ts:48-54`) + automation `insert_world_info_entry` | **PARITY** on ability; fidelity note: no arbitrary depth/role-addressed in-chat injection primitive — positions ride the WI position vocabulary and the two transform points. No bundled extension needed more than these two mechanisms deliver |
 | B4 | Abort generation from an interceptor (`abort()` in `runGenerationInterceptors`, `extensions.js:2024-2049`) | `PromptTransformAbort` return arm — typed, reason-capped, distinct from D53 skip (`bus.ts:224-235`) — BUILT U6 | **PARITY** |
-| B5 | Quiet/raw generation (`generateQuietPrompt`/`generateRaw` — expressions LLM classify `index.js:1124-1151`, vectors summarize `:355-358`) | `llm.quiet` — installer's own summarize-role connection, hourly floor, prompt cap 8 KiB, non-canon (`host-v1.ts:169-198`, `budgets.ts:78`) + structured-output `schema` (→ `structured` role, xgrammar lever) + `imageAssetIds` vision arm (≤4, installer CAS only) — BOTH BUILT U6 | **PARITY+** — the schema arm exceeds ST (expressions has to hijack `TEXT_COMPLETION_SETTINGS_READY` to inject a json\_schema, `expressions/index.js:1067-1079`; ours is a first-class parameter) |
+| B5 | Quiet/raw generation (`generateQuietPrompt`/`generateRaw` — expressions LLM classify `index.js:1124-1151`, vectors summarize `:355-358`) | `llm.quiet` — installer's own summarize-role connection, hourly floor, prompt cap 8 KiB, non-canon (`host-v1.ts:169-198`, `budgets.ts:78`) + structured-output `schema` (→ `structured` role, xgrammar lever) + `imageAssetIds` vision arm (≤4, installer CAS only) — BOTH BUILT U6 | **PARITY+** — the schema arm exceeds ST (expressions has to hijack `TEXT_COMPLETION_SETTINGS_READY` to inject a json_schema, `expressions/index.js:1067-1079`; ours is a first-class parameter) |
 | B6 | Pick the connection/model/profile for a generation (`ConnectionManagerRequestService`, `ChatCompletionService`, `getPresetManager` — full access to the user's configured backends and secrets `secret_state`) | **REFUSED** — the credential firewall: funder + connection are closed over host-side, a guest can never name either (`bridge.ts:89-103`); a plugin needing its own backend uses `net.fetch` + its own key in its own `storage.kv` (BYOK — allowlisted hosts, SSRF-guarded, hourly egress floor) | **REFUSED** (deliberate wall; the BYOK arm is the sanctioned shape and covers the third-party-service class) |
 | B7 | Per-token streaming hook (`STREAM_TOKEN_RECEIVED`; `streamingProcessor`) | **REFUSED** — per-invocation budget architecture; per-message facts are the floor; priced throttled-digest shape on record (§5a row 1, recommend-against) | **REFUSED** (priced) |
 | B8 | Trigger a generation (`Generate`, `sendGenerationRequest`) | `chat.requestTurn` — spend-classed, budget-debited, D17 consent, cascade-depth stamped (`host-v1.ts:124-127`, `bridge.ts:37-44`); non-host installers get the S4 ask instead of refusal | **PARITY** with **BETTER** loop/budget containment (ST has no cascade-depth concept at all) |
@@ -136,7 +136,7 @@ build) · **REFUSED** (deliberate wall, priced) · **SUB** (substrate-blocked) �
 
 | # | ST ability | Orbweaver equivalent | Verdict |
 | - | - | - | - |
-| E1 | Hook lifecycle events (\~105 `event_types`) | `events.subscribe` over the closed taxonomy: 16 chat + 4 domain members (`contracts/automation/index.ts:20-63`), resolved `TriggerFact`s, cascade-suppression default (`matchAutomationEvents`), FIFO-16 delivery | **PARITY on the load-bearing set** — the \~20 events the four bundled extensions actually consume (message sent/received/edited/deleted/swiped, chat changed/created/deleted, generation start/end, character deleted/edited, WI, persona) are covered by the 20-member taxonomy at message-or-coarser granularity. Missing classes, stated: settings/preset lifecycle events, secret events, render-complete events (superseded by display transforms), group-member-drafted. Widenings ride the S7 merge-window discipline by demand — the right posture, not a backlog |
+| E1 | Hook lifecycle events (~105 `event_types`) | `events.subscribe` over the closed taxonomy: 16 chat + 4 domain members (`contracts/automation/index.ts:20-63`), resolved `TriggerFact`s, cascade-suppression default (`matchAutomationEvents`), FIFO-16 delivery | **PARITY on the load-bearing set** — the ~20 events the four bundled extensions actually consume (message sent/received/edited/deleted/swiped, chat changed/created/deleted, generation start/end, character deleted/edited, WI, persona) are covered by the 20-member taxonomy at message-or-coarser granularity. Missing classes, stated: settings/preset lifecycle events, secret events, render-complete events (superseded by display transforms), group-member-drafted. Widenings ride the S7 merge-window discipline by demand — the right posture, not a backlog |
 | E2 | Emit app events (`eventSource.emit`, incl. `WORLDINFO_FORCE_ACTIVATE` — vectors `:1725`) | **REFUSED** (a plugin-emitted domain event is a forged fact); WI force-activate's effect reachable via transforms/WI upsert; inter-plugin events = A11 | **REFUSED** (forgery wall stays; A11 is the composition arm) |
 
 ### F. Module classes (the big bundled/official extensions)
@@ -264,7 +264,7 @@ Checked every §5 register row that claims BUILT/PT against the tree at `eff003d
      were edited to BUILT. A re-attestation pass marking the U5-U7 rows BUILT would make the register
      current.
   3. The register nowhere credits the **automation platform** as a parity asset — its own row 10
-     fidelity note ("narrower than ST's \~40 event types") reads as a deficit, when the honest
+     fidelity note ("narrower than ST's ~40 event types") reads as a deficit, when the honest
      framing is that ST's event breadth exists BECAUSE extensions must hand-roll what our rules
      plane ships (D4 in the table above). Rows 28 and 9 gesture at it; a §5 preamble line would fix
      the framing.
@@ -313,7 +313,7 @@ Checked every §5 register row that claims BUILT/PT against the tree at `eff003d
 ## Issue summary (paste-ready)
 
 Definitive ST-extension parity audit complete (stickler-st-parity, report:
-`docs/reviews/stickler/2026-08-28-st-extension-parity.md`). Outcome: **match-or-exceed on \~41/48
+`docs/reviews/stickler/2026-08-28-st-extension-parity.md`). Outcome: **match-or-exceed on ~41/48
 distinct ST extension abilities today**; the whole-surface reading (plugin host + macro/CEL/regex
 engines + automation platform + first-party RAG/imagery) flips the prior understated verdict — 15
 rows are structurally BETTER (automation platform, consent architecture, containment, engines,

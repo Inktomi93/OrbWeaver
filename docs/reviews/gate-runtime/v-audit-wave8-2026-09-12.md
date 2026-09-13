@@ -23,7 +23,7 @@ file was touched, so no mid-run probe announcement was owed. `git status --short
 
 ## Subject set and its size
 
-The two imports give **25 distinct policies — 11 + 14**, well past the \~14 the brief capped a full pass at.
+The two imports give **25 distinct policies — 11 + 14**, well past the ~14 the brief capped a full pass at.
 Per the brief's instruction I audited **home-server in full (11/11)** and took origin-server through the
 **axes that are cheap and corpus-wide (14/14 on §4.2, §4.1-expectations, §5b.1/3/4/5 census)** while
 leaving its §4.1 narrowing cuts and §4.5 reachability probes uncovered. What I did not cover is itemised

@@ -27,7 +27,7 @@ are in the FLOORS section, each narrowed to the exact Authentik setting that dec
    **our** `OIDC_REDIRECT_URIS` (exact-match, comma-list) **and** in the **Authentik** provider's Redirect
    URIs. Both gates are exact-match; a mismatch on either side fails the flow.
 3. **\[verify AUTHENTIK]** Provider → Advanced protocol settings: (a) a **Signing Key is selected** — it is,
-   the JWKS serves an RS256 `use:sig` key today; do NOT clear it or A5 + id\_token validation break; and
+   the JWKS serves an RS256 `use:sig` key today; do NOT clear it or A5 + id_token validation break; and
    (b) **Subject mode = "Based on the User's hashed ID"** (the stable default) — this closes the #53 open
    item; if it's set to username/email, rename-safety and the bind-once model break.
 4. **\[verify AUTHENTIK]** Confirm the Authentik `profile` scope mapping actually emits **`groups`**. We
@@ -35,10 +35,10 @@ are in the FLOORS section, each narrowed to the exact Authentik setting that dec
    omits it, `OIDC_ADMIN_GROUPS` / `OWNER_GROUP` / `OIDC_ALLOWED_GROUPS` all silently see `[]`.
 5. **\[AUTHENTIK · only if enabling A5]** If you set `OIDC_BACKCHANNEL_LOGOUT=on`, register the provider's
    back-channel logout URI = `https://orbweaver.inktomi.tech/api/auth/oidc/backchannel-logout`, and confirm
-   the logout\_token carries **`sub`** (not sid-only) — a sid-only token is a validated no-op for us.
+   the logout_token carries **`sub`** (not sid-only) — a sid-only token is a validated no-op for us.
 6. **\[OURS · optional papercut]** Logout today drops the user on Authentik's generic logout-confirm page
-   with no return path (we hold no id\_token to pass as `id_token_hint`). Decide if that's acceptable; the
-   seamless fix is a design change (store the id\_token), not a config tweak. See Q4.
+   with no return path (we hold no id_token to pass as `id_token_hint`). Decide if that's acceptable; the
+   seamless fix is a design change (store the id_token), not a config tweak. See Q4.
 
 Nothing below is a live security hole. The items are correctness/config-drift risks and one UX papercut.
 
@@ -101,13 +101,13 @@ both.** Code is correct.
 Discovery advertises **RS256 only** and the JWKS serves an RSA `use:sig` key → a Signing Key is selected;
 tokens are signed **asymmetrically** and JWKS-verifiable. This is exactly what our verification assumes:
 
-- id\_token / code-exchange: openid-client verifies against the discovered JWKS.
+- id_token / code-exchange: openid-client verifies against the discovered JWKS.
 - A5 back-channel logout: `createBackchannelLogoutVerifier` pins asymmetric algs `["RS256","ES256"]` and
   verifies against the issuer JWKS (`infra/auth/backchannel.ts:24,72,79`); jose also blocks `alg:none` and
   key-class confusion.
 
 **Verdict OK.** One-line warning for the owner: if the provider's Signing Key is ever cleared, Authentik
-falls back to symmetric (HS256 over the client secret), the JWKS empties, and **both** id\_token validation
+falls back to symmetric (HS256 over the client secret), the JWKS empties, and **both** id_token validation
 and A5 break — our code will (correctly) fail closed, not fall open. Keep the Signing Key selected.
 
 ### Q4 · End-session (A6) — OK for logout, PARTIAL for UX (ADJUST-OURS, optional)
@@ -124,10 +124,10 @@ page* with no automatic return to orbweaver. That ends the upstream SSO session 
 
 Why we can't just add the params: a clean redirect-back needs `id_token_hint` so Authentik can associate
 the request with this client and honor `post_logout_redirect_uri`. **We deliberately don't retain the
-id\_token** (DB-backed BFF sessions; tokens are discarded after `tokens.claims()`), so we have no hint to
-pass. Making logout seamless is a *design change* (persist the id\_token in/beside the session row to pass as
+id_token** (DB-backed BFF sessions; tokens are discarded after `tokens.claims()`), so we have no hint to
+pass. Making logout seamless is a *design change* (persist the id_token in/beside the session row to pass as
 hint, then register the post-logout redirect on Authentik) — not a config tweak. **Verdict: OK as a
-security/logout matter; ADJUST-OURS only if the papercut is worth the id\_token-retention change.** If pursued
+security/logout matter; ADJUST-OURS only if the papercut is worth the id_token-retention change.** If pursued
 it also needs an ADJUST-AUTHENTIK: register `https://orbweaver.inktomi.tech/login` (or wherever) as a
 post-logout redirect URI on the provider.
 
@@ -136,19 +136,19 @@ post-logout redirect URI on the provider.
 Endpoint `POST /api/auth/oidc/backchannel-logout` is registered only when `OIDC_BACKCHANNEL_LOGOUT=on`
 (`auth-routes.ts:537-539`, `lifecycle.ts:434`). Validation (`infra/auth/backchannel.ts`) matches the OIDC
 BCL 1.0 §2.4 checklist and what Authentik sends: signature vs issuer JWKS with pinned asymmetric alg
-(`:79`), `iss` + `aud`==our client\_id (jose, `:79`), `iat` present (`:97`), the `backchannel-logout` event
+(`:79`), `iss` + `aud`==our client_id (jose, `:79`), `iat` present (`:97`), the `backchannel-logout` event
 member in `events` (`:48-54,101`), **no `nonce`** (`:89`), and `sub`-or-`sid` present (`:57-65,109`). Any
 violation ⇒ null ⇒ 400, with a `securityEvent` naming the reason. No Redis, idempotent (a re-delivered
 token just re-revokes).
 
 **sid-only is still a validated no-op** (`auth-routes.ts:567-573`): we revoke by `revokeByExternalId(sub)`
 because sessions key on `external_id == sub` and we store no per-session IdP `sid`. This is correct and
-acceptable **iff Authentik includes `sub` in the logout\_token**. `backchannel_logout_session_supported:
+acceptable **iff Authentik includes `sub` in the logout_token**. `backchannel_logout_session_supported:
 true` tells us it sends `sid`; it does not, by itself, tell us it sends `sub`. If the provider is configured
 to send sid-only, A5 validates the token and revokes nothing.
 
 **ADJUST-AUTHENTIK (only if enabling):** set the provider's back-channel logout URI to our endpoint, and
-confirm the emitted logout\_token carries `sub`. **Code verdict OK.**
+confirm the emitted logout_token carries `sub`. **Code verdict OK.**
 
 ### Q6 · Scopes — OK (verify the groups mapping)
 
@@ -211,7 +211,7 @@ Discovery `code_challenge_methods_supported` includes `S256`. We use PKCE **unco
 
 **ADJUST-OURS (code — optional, only if pursued):**
 
-- Seamless logout return needs id\_token retention to pass `id_token_hint`+`post_logout_redirect_uri` \[Q4].
+- Seamless logout return needs id_token retention to pass `id_token_hint`+`post_logout_redirect_uri` \[Q4].
   This is a design change; today's behavior is correct-but-not-seamless. *Report only — no code changed.*
 
 **ADJUST-AUTHENTIK (provider settings in the admin UI):**
@@ -220,7 +220,7 @@ Discovery `code_challenge_methods_supported` includes `S256`. We use PKCE **unco
 - Set **Subject mode = "Based on the User's hashed ID"** \[Q8].
 - Confirm the **`profile` scope mapping emits `groups`** \[Q6].
 - Add the Authentik provider Redirect URI `https://orbweaver.inktomi.tech/api/auth/oidc/callback` \[Q2].
-- If enabling A5: set the **back-channel logout URI** to our endpoint and confirm the logout\_token carries
+- If enabling A5: set the **back-channel logout URI** to our endpoint and confirm the logout_token carries
   `sub` \[Q5].
 - If pursuing seamless logout (Q4): register a **post-logout redirect URI**.
 
@@ -245,7 +245,7 @@ Discovery `code_challenge_methods_supported` includes `S256`. We use PKCE **unco
 2. **Whether `groups` actually arrives on the token.** `claims_supported` lists it; whether the `profile`
    mapping emits it for a real user needs one login's decoded claims (Q6). Until then, `OIDC_ADMIN_GROUPS`/
    `OWNER_GROUP`/`OIDC_ALLOWED_GROUPS` behavior is unverified end-to-end.
-3. **Whether the A5 logout\_token carries `sub`.** `backchannel_logout_session_supported:true` proves `sid`;
+3. **Whether the A5 logout_token carries `sub`.** `backchannel_logout_session_supported:true` proves `sid`;
    only a real IdP-initiated logout (or the provider's logout-token config) shows if `sub` is included (Q5).
 4. **No interactive SSO flow was driven.** Every sequencing claim above is read off source + the live
    discovery/JWKS docs; the code-exchange, PKCE verification, and nonce/state binding are asserted by

@@ -14,7 +14,7 @@ review is `docs/reviews/research/2026-08-30-ts-morph-speedups.md` (measured on w
 ## 0. Verdict in five lines
 
 1. The **diagnosis is CONFIRMED** — the stage really is two-thirds of `pnpm check`, the bus-coverage family
-   really is \~37% of it, the quadratic re-walk is real, and the token-kind cliff is real and mechanically
+   really is ~37% of it, the quadratic re-walk is real, and the token-kind cliff is real and mechanically
    explained by ts-morph source.
 2. The **plan's ranking is wrong**. Item **B alone delivers item A's entire win**, measured: the bus family
    drops 74.0s → 2.5s with **byte-identical findings** and zero edits to `lib/bus-coverage.ts`. A is
@@ -25,13 +25,13 @@ review is `docs/reviews/research/2026-08-30-ts-morph-speedups.md` (measured on w
    that throw**. The fix is one word: key on **`sf.compilerNode`**, proven sound here.
 4. Item **C is not a drop-in** and would make gates **more permissive**: raw `ts.forEachChild` misses
    **1,698 identifiers** repo-wide (all inside JSDoc) that `getDescendantsOfKind(Identifier)` returns.
-5. The **60–90s landing is optimistic**. B alone lands the stage at **\~150s** (from \~262s). The residual is
-   six named gates, not the bus family. And **even a 60s stage leaves pre-commit at \~3 minutes** — the
-   lefthook header's "\~30s" is a **13× understatement today** and stays a lie after any §4 outcome.
+5. The **60–90s landing is optimistic**. B alone lands the stage at **~150s** (from ~262s). The residual is
+   six named gates, not the bus family. And **even a 60s stage leaves pre-commit at ~3 minutes** — the
+   lefthook header's "~30s" is a **13× understatement today** and stays a lie after any §4 outcome.
 
 ## 1. Per-claim verdicts
 
-### Claim 1 — "`structure:full` costs \~290s of a \~470s `pnpm check`" — **PARTIAL (true instance, unrepresentative number)**
+### Claim 1 — "`structure:full` costs ~290s of a ~470s `pnpm check`" — **PARTIAL (true instance, unrepresentative number)**
 
 `reports/verify-history.jsonl`, last 25 `scope:whole` `tier:static` runs (all 186 history rows are
 `whole/full`; there is not one scoped row on record):
@@ -43,7 +43,7 @@ review is `docs/reviews/research/2026-08-30-ts-morph-speedups.md` (measured on w
 
 `structure:full` is a median **66.6%** of the run (range 48.4%–74.8%). The study's 290,050ms / 457,756ms is
 the `af3fd5c81` run at 17:28 — a real datapoint at the **75th percentile**, not the middle. The honest
-headline is **\~257s of \~385s**. The `f5d019e0c` run the study cites as "the last real check" (307,308ms)
+headline is **~257s of ~385s**. The `f5d019e0c` run the study cites as "the last real check" (307,308ms)
 is the second-highest of the 25.
 
 Two facts the study never states and that the plan depends on:
@@ -224,11 +224,11 @@ list. Kind `214` is `CallExpression`.
 
 | | pass wall | stage estimate |
 | - | - | - |
-| today, profiler harness | 245.1s | \~257s median (`verify-history`) |
-| **+ B (memo), profiler harness, cold** | **138.3s** | **\~148s** |
+| today, profiler harness | 245.1s | ~257s median (`verify-history`) |
+| **+ B (memo), profiler harness, cold** | **138.3s** | **~148s** |
 | + B (memo), fullmemo harness, warm caches | 77.4s | (best case, not a cold-run number) |
 
-So **item B alone buys \~110s off the stage** — and it needs **zero** changes to `lib/bus-coverage.ts`, i.e.
+So **item B alone buys ~110s off the stage** — and it needs **zero** changes to `lib/bus-coverage.ts`, i.e.
 item **A is subsumed**. Post-B the bus family is **3.4s = 2.5% of the pass** (`cbtv-profile-memo.ts`,
 memo keyed on `compilerNode`), and `contract-verb-presence` falls 14.2s → 1.7s,
 `freeze-provenance-write-pairing` 12.8s → 2.5s, both for free.
@@ -249,7 +249,7 @@ requires:
 | brand-in-name-position | 5.2s | `visitFile`, double full-text split |
 
 Top-9 residual ≈ 83s of the 138s pass. **B + fully solving all nine** would reach the 60–90s band; B + the
-tractable half of them lands \~110–120s. The study's "A + B/C ⇒ 60–90s" is directionally right and
+tractable half of them lands ~110–120s. The study's "A + B/C ⇒ 60–90s" is directionally right and
 arithmetically optimistic.
 
 ### Claim 5 — item C, the raw-node token helper ("18.2s → 0.34s") — **the timing is right; the SEMANTICS are REFUTED**
@@ -298,7 +298,7 @@ EXIT=0 wall=10990ms
   `domain-events-coverage.ts:39`) — so they are **already deferred** at every scoped tier. **Item A buys a
   scoped run exactly zero.** Item B buys whatever the 131 incremental gates spend on `getDescendantsOfKind`
   over the scoped fileset — small at 3 files, larger for `--package`.
-- A scoped run costs **11.0s total** including the \~3.5s full-workspace load. There is no scoped-run
+- A scoped run costs **11.0s total** including the ~3.5s full-workspace load. There is no scoped-run
   performance problem to fix.
 - **Memo behaviour is identical under scoping.** `SourceFile` (and `compilerNode`) identity is stable within
   a Project; scoping changes only which files the pass iterates. Nothing invalidates.
@@ -324,7 +324,7 @@ non-conflicted-auto-merge hole); `pre-push` → `pnpm verify --push`; `post-chec
 items touches any of this** — they are all inside the `structure:full` stage's own process. Confirmed
 compatible.
 
-**The header lie is real.** `lefthook.yml` (pre-commit bullet) says the static bundle is "**\~30s**". Measured
+**The header lie is real.** `lefthook.yml` (pre-commit bullet) says the static bundle is "**~30s**". Measured
 over the last 25 whole static runs: **median 385s, min 322s, max 589s**. That is a **13× understatement**,
 and it materially misinforms anyone reasoning about commit cadence. Flagging it as a separate fix
 regardless of what happens to §4.
@@ -334,13 +334,13 @@ Wall-clock arithmetic (stages are strictly sequential, proven in §1 claim 1, so
 | scenario | `structure:full` | pre-commit / pre-merge-commit total |
 | - | - | - |
 | **today (median)** | 257s | **385s ≈ 6m25s** |
-| **+ B only** (measured 138.3/245.1 ratio applied) | \~148s | **\~274s ≈ 4m34s** (−29%) |
-| + B + C + the §3.2/§3.5 residual, realistic | \~110s | **\~239s ≈ 4m00s** |
-| + the study's optimistic floor | 60s | **\~189s ≈ 3m09s** |
+| **+ B only** (measured 138.3/245.1 ratio applied) | ~148s | **~274s ≈ 4m34s** (−29%) |
+| + B + C + the §3.2/§3.5 residual, realistic | ~110s | **~239s ≈ 4m00s** |
+| + the study's optimistic floor | 60s | **~189s ≈ 3m09s** |
 
 `pre-push` (`verify --push`) adds `deps:orphan-ratchet` + `tests:node` + `e2e-smoke` + `quality:cpd` on top
-of the static bundle (\~16–17 min total per doctrine), so it absorbs the same subtraction: **−110s off a
-\~17-minute push, \~11%**. Structure is not the push tier's problem.
+of the static bundle (~16–17 min total per doctrine), so it absorbs the same subtraction: **−110s off a
+~17-minute push, ~11%**. Structure is not the push tier's problem.
 
 **The load-bearing consequence: even the best §4 outcome leaves pre-commit above 3 minutes,** because the
 non-structure static stages cost a median **129s** on their own (`ledgers:fresh` 25s, `lint:biome` 19s,
@@ -387,7 +387,7 @@ record `scope` alongside the timings — a scoped run's numbers are not comparab
 exactly). `lint:biome`, `lint:eslint`, `docs:catalog`, `docs:format`, `deps:knip`, `imports:depcruise` and
 the three `structure:*` small stages are mutually independent processes with no shared state. Running the
 non-`structure:full` static stages *concurrently with* `structure:full` would hide most of that 129s floor
-behind the long pole — worth **\~100s at today's numbers and \~60s post-B′**, i.e. more than item C, for
+behind the long pole — worth **~100s at today's numbers and ~60s post-B′**, i.e. more than item C, for
 scheduler work in `ops/run.ts` rather than gate surgery. Caveats to price first: the 16GB heap floor is
 per-process, several stages are already multi-process (`types:packages` is `pnpm -r`), and the box is
 co-hosted — this needs a concurrency cap, not a fan-out. Not recommended blind; recommended as the next
@@ -395,7 +395,7 @@ thing to *measure*.
 
 **F — parallelizing the `run` phase across workers: still DON'T.** The study rules this out for the walk
 (correctly, 5.2s). The `run` phase is 73.8s post-B′ across 82 independent gates, which looks tempting — but
-they share one ts-morph Project, so a worker fan-out means N× a 3.3s load and N× \~1GB, and several gates
+they share one ts-morph Project, so a worker fan-out means N× a 3.3s load and N× ~1GB, and several gates
 carry cross-gate module state (`gateIgnoreUses` in `pass.ts:177`). Confirming the study's instinct with the
 numbers it did not take.
 

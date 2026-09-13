@@ -338,7 +338,7 @@ Per-module naive/classified: fetch 3/2 · trpc 2/2 · provider 1/1 · returntype
 2/2 (shared) · optimistic 2/2 · autosave 3/3 · tokens 5/5 · multiplex 3/3 · staletime 3/3 · zustand 3/2.
 
 **Methodology note for comparability:** my 59 includes population fences and shared-reader prefilters, which
-earlier waves may not have cut (wave 4 reported 31 cuts across 9 modules, \~3.4/module; this is \~4.9/module).
+earlier waves may not have cut (wave 4 reported 31 cuts across 9 modules, ~3.4/module; this is ~4.9/module).
 The UNENFORCED rate is therefore an upper bound relative to wave 4's 32%, not a strict regression. Removing
 the 7 population-fence cuts (all unenforced: A7 is enforced, but E4, G5, H9, I6 are not; J7 is) still leaves
 **21 of 52 (40%)**.

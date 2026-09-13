@@ -108,7 +108,7 @@ The identical list of 28 tags:
 
 - In **Config**, it reads "administer these knobs" — a chore, a DMV, nothing to *do*. Useless-feeling.
 - In **Corpus**, it reads "here is the skeleton of how your whole library is organised" — a **map**.
-  Useful. What's load-bearing, where the sprawl is, which tags carry the taxonomy vs the \~20 one-use
+  Useful. What's load-bearing, where the sprawl is, which tags carry the taxonomy vs the ~20 one-use
   orphans. **Bulk cleanup falls out naturally** because you can finally see everything at once.
 
 The list did not need to *do* more; it needed to live where seeing it *means* something. Corpus's job

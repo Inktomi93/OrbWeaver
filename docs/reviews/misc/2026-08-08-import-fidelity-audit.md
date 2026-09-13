@@ -24,8 +24,8 @@ a column names its `path:line`. Where a column's value is *computed* at hop 4 (`
 
 ## 0. THE HEADLINE — the distribution check
 
-The owner's acceptance criterion: the corpus is \~3 years of chats, so the imported distribution must span
-\~3 years and must **not** cluster at import time.
+The owner's acceptance criterion: the corpus is ~3 years of chats, so the imported distribution must span
+~3 years and must **not** cluster at import time.
 
 **It does not cluster.** Message timestamps are the ST `send_date`, not the import clock
 (`chat-input.ts:112` — `m.sendDate ?? created`), and the corpus-wide histograms agree:
@@ -67,7 +67,7 @@ and **513 header `create_date`** values.
 
 ## 1. DEFECT A — ST's zone-less dates were read as UTC; they are a LOCAL wall clock
 
-**Severity: the owner-reported one. 49.6 % of all imported messages + \~100 % of chats.**
+**Severity: the owner-reported one. 49.6 % of all imported messages + ~100 % of chats.**
 
 ### The evidence
 
@@ -347,7 +347,7 @@ almost everywhere. Measured across the same corpus:
 | `swipe_info[i].extra.reasoning_duration` | **3,121** | 69,992 | 929 | 74,042 |
 | message-level `extra.reasoning_duration` | 768 | 11,178 | 12,131 | 24,077 |
 
-So the corpus payoff is \~3.1k variants, not \~75k. The DEFECT and the fix are unchanged — the reader could
+So the corpus payoff is ~3.1k variants, not ~75k. The DEFECT and the fix are unchanged — the reader could
 resolve *nothing* on a swiped row and now resolves *everything ST recorded* — but the headline "12,718 rows
 of lost reasoning time" overstates the recoverable data, and anyone sizing this work off that number should
 use the table above.
@@ -479,7 +479,7 @@ available signal and the collector does not read it.
 
 | # | Defect | Files |
 | - | - | - |
-| A | ST wall-clock dates read as UTC → 6–7 h shift on 49.6 % of messages + \~all chats | `packages/kit/src/time/index.ts` · `packages/server/src/kit/serde/chat/index.ts` · `domain/import/{contract/service,loader/collect,verbs/import-chat-file}.ts` · `entry/import/run-profile-dir-import.ts` · `entry/compose/portability.ts` · `domain/export/verbs/export-chat.ts` |
+| A | ST wall-clock dates read as UTC → 6–7 h shift on 49.6 % of messages + ~all chats | `packages/kit/src/time/index.ts` · `packages/server/src/kit/serde/chat/index.ts` · `domain/import/{contract/service,loader/collect,verbs/import-chat-file}.ts` · `entry/import/run-profile-dir-import.ts` · `entry/compose/portability.ts` · `domain/export/verbs/export-chat.ts` |
 | B | 76 filenames' date rejected → 3 chats stamped at the import clock, in the future | `packages/server/src/kit/serde/chat/index.ts` |
 | C | user/system `token_count` booked as `tokens_out` (1,267,076 tokens) | `packages/server/src/kit/serde/chat/index.ts` · `domain/import/substrate/chat-input.ts` · `packages/contracts/src/chat/bulk-import.ts` (doc) · `domain/export/verbs/export-chat.ts` |
 

@@ -51,7 +51,7 @@ Read IN FULL:
 Regions NOT read (declared per the evidence bar): `motion-dead-class-flagger.ts` (the `[css]` channel
 — dead-CSS detection, not a motion mechanism; its shared throttle constant was read via
 `motion-flaggers.ts`), the CJS halves of the vendor package, `DrawerViewport.mjs` outside lines
-\~80–460 and \~550–740, the toast swipe source (same `useSwipeDismiss` family as drawer, not
+~80–460 and ~550–740, the toast swipe source (same `useSwipeDismiss` family as drawer, not
 independently verified), `tests/tooling/motion-audit/{index,ops/*}.test.ts` bodies,
 `_shared/{appearance-matrix,variant-matrix,browser-environment}.ts` internals (consumed shapes only),
 and the full bodies of the 37 component pages (vocabulary swept by count; drawer/select claims are
@@ -104,7 +104,7 @@ backed by SOURCE, not the pages).
   (`motion-animation-record.ts` `activeAnimations`).
 - **Law/vendor reality**: every house band is 130/220/360ms (guide §2), and Base UI open/close rides
   CSS transitions in the same band. A dirty transition launched by the measured click is finished
-  \~2 seconds before the sample (CPU throttling drops frames; it does not stretch wall-clock
+  ~2 seconds before the sample (CPU throttling drops frames; it does not stretch wall-clock
   animation durations). So the cli-header budget arm "any active animation with
   `compositorClean:false`" is in practice a continuous-loop detector; the entire `sanctionedLibrary`
   machinery in `lib/animations.ts` judges a population that, for a click at window start, cannot
@@ -173,7 +173,7 @@ backed by SOURCE, not the pages).
   `reports/motion-audit/<slug>-matrix.json` `cells[].data.motion.shifts[]` carries each wave's
   `startTime` and sources.
 - **Named probe (post-battery, merged post-train SHA)**: (1) read the existing receipt's `shifts[]`
-  startTimes relative to window start — waves clustered in the first \~1s ⇒ boundary leak, spread ⇒
+  startTimes relative to window start — waves clustered in the first ~1s ⇒ boundary leak, spread ⇒
   real Config instability; (2) re-run the cell `--no-throttle` and diff; (3) if still ambiguous, the
   buffered layout-shift replay (`buffered-layout-shift-replay`) on the same route names movers per
   wave with rects. Fix shape if the leak is real: scale `REACH_SETTLE_MS`/`MOUNT_SETTLE_MS` by the
@@ -201,7 +201,7 @@ backed by SOURCE, not the pages).
 ### F6 — P2 · #1040's premise CONFIRMED on today's tree: the live-drive budget arms are still raw under load; the load-honesty machinery exists and is not wired to them
 
 - `tests/tooling/motion-audit/cli.int.test.ts` — the clean twin still gates the raw 5%
-  dropped-frames budget over a real headless drive (`FRAME_WINDOW_MS=1000`, `--no-throttle`; \~60
+  dropped-frames budget over a real headless drive (`FRAME_WINDOW_MS=1000`, `--no-throttle`; ~60
   frames, so ≥4 stray drops red it — the file's own comment prices ONE stray drop at 5.56% on an
   18-frame window). No withhold arm, no load-aware precondition: the file imports nothing from
   `tests/tooling/_load-budget.ts` (its consumers today: `gate-conformance.int`,
@@ -271,7 +271,7 @@ backed by SOURCE, not the pages).
 - **L3** — UA View Transition pseudo-animations animate width/height/transform by spec design; they
   escape `[anim]` (an `animationstart` for a pseudo lands on the originating element, and
   `el.getAnimations()` without `subtree:true` excludes pseudo targets) and generally the sampler
-  (\~360ms, gone by window end). Correct POLARITY for the ratified VT crossfade — but accidental: a
+  (~360ms, gone by window end). Correct POLARITY for the ratified VT crossfade — but accidental: a
   custom-named VT region carrying a hand-authored dirty animation escapes identically.
 
 ## 2. Mechanism-match table (instrument × behavior)

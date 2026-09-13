@@ -59,7 +59,7 @@ rows**. The prose leads and says the least; the rows are what you came for and t
 "From Alice" followed by "Came with Alice's card." is the same fact twice, 18px apart, in a pane that
 is already 94px over budget.
 
-**What reads cramped:** the scent line. 52px of stage squares plus \~77px of `· edited 5d ago` eat
+**What reads cramped:** the scent line. 52px of stage squares plus ~77px of `· edited 5d ago` eat
 **55% of the 236px scent column before the pattern gets a character** — and the pattern is the one
 authored field that tells two rows apart. This is not a new mistake; it is the mistake
 `regex-placement-labels.ts` already records having made and fixed ("the stage phrase alone wanted
@@ -106,7 +106,7 @@ is honest: driving a row off took it 6 → 5 live (`drive.mjs`).
 
 **The toast is in the wrong place.** `canvas.html:121` pins it `position:absolute; left:50%;
 bottom:84px` **of the whole shell**, so it lands at x=521–919 over the transcript's last message,
-\~500–800px from the switch that raised it (`shots/hearth-f1.png`, `shots/driven-rowoff.png`). Feedback
+~500–800px from the switch that raised it (`shots/hearth-f1.png`, `shots/driven-rowoff.png`). Feedback
 belongs near its source, and covering the transcript you are reading to judge the flip is the one
 thing this panel was placed beside the transcript to avoid.
 
@@ -169,11 +169,11 @@ Measured (`geo.mjs`, board 1, 382px pane / 358px content):
   which makes the mock's own "Display vs prompt" note ("The stage glyphs on each row already say
   which") false as drawn. The shipped `REGEX_PLACEMENT_GLYPHS` are self-describing (Send / BookOpen /
   History / BrainCircuit / Sparkles / Eye), carry their label as the icon's accessible name, and are
-  drawn **present-stages-only** (`regexPlacementStages` filters). At \~16px each the median row here
+  drawn **present-stages-only** (`regexPlacementStages` filters). At ~16px each the median row here
   (2 stages) spends **32px against the mock's 52** and is readable without a legend. The brief said
   judge the information, not the square: the information is worse than what ships.
 - **The edit stamp must go**, exactly as `PROPOSAL-ux.md` §4 prescribed (`regexPanelScent` = glyphs +
-  the whole pattern, nothing else) and exactly as the mock did not. It costs \~77px, it is the reason
+  the whole pattern, nothing else) and exactly as the mock did not. It costs ~77px, it is the reason
   the one truncation exists, and its stated purpose — telling four rows called "New script" apart in
   the *library* — is not this panel's question. Dropping it takes the pattern's budget from 107px to
   184px (**+72%**) and retires the truncation.
@@ -265,7 +265,7 @@ Two problems:
 - **Nothing is overlapped or clipped.** The context tab strip and the app rail stack cleanly; the
   wider content box means no scent truncates at 430px.
 - **50% below the fold** (1254 / 630) — worse than desktop, and the two bottom bars plus the back bar
-  and the room band spend \~230px of the 860px screen on chrome before the section starts.
+  and the room band spend ~230px of the 860px screen on chrome before the section starts.
 - **Tap targets, as drawn**: 14 of 28 under 44px on p1, 16 of 31 on p2. Every switch is 34×20; the
   grip is 16×24; `Add to this chat` is 139×**32**; the picker's `Cancel` / `Attach 1` are **32** tall.
   The kebabs and the `Back` / `Close` buttons *are* 44×44 — so the mock modelled the coarse floor for
@@ -273,7 +273,7 @@ Two problems:
   64×44 at a coarse pointer, so the build will not ship 34×20 — but it also means the mock's phone
   row geometry is 30px-per-switch optimistic in width and shorter in height than the real thing.
 - **The picker sheet has a real close (44×44) and a scrim.** But it is **658px tall with content
-  ending at \~370px — \~290px of dead sheet below the `Attach` button**, sitting exactly in the thumb
+  ending at ~370px — ~290px of dead sheet below the `Attach` button**, sitting exactly in the thumb
   zone. It reads as "the rest failed to load." Size the sheet to its content, or bottom-anchor it.
 - **The picker offers rows it should not.** "Curly quotes — already attached everywhere" is
   selectable; attaching it to this chat is a no-op the dedup rule will swallow (it would still run at
@@ -326,7 +326,7 @@ Against `injections-manager.tsx`, `chat-books-section.tsx`, `room-overrides-tab.
 
 | | Why the drawing cannot answer it |
 | - | - |
-| **The real switch's width and height** | **The single biggest fidelity gap.** The mock draws 28×16 (desktop) / 34×20 (phone). The shipped `Switch` is **48×32 fine / 64×44 coarse** (`packages/ui/src/primitives/switch/variants.ts`, #1109). Every width and height budget this mock appears to prove is optimistic by \~20px/switch at fine and \~30px at coarse. The 236px name column becomes \~205–212px; the phone rows all grow to ≥44px tall and the 50% fold gets worse. **Re-measure the whole body with the real primitive before trusting any number in §3.** |
+| **The real switch's width and height** | **The single biggest fidelity gap.** The mock draws 28×16 (desktop) / 34×20 (phone). The shipped `Switch` is **48×32 fine / 64×44 coarse** (`packages/ui/src/primitives/switch/variants.ts`, #1109). Every width and height budget this mock appears to prove is optimistic by ~20px/switch at fine and ~30px at coarse. The 236px name column becomes ~205–212px; the phone rows all grow to ≥44px tall and the 50% fold gets worse. **Re-measure the whole body with the real primitive before trusting any number in §3.** |
 | Long names | The six sample names are 9–19 chars and none overflows. Prove with the longest name in the owner's library at 358px **and** at the 272px pane floor. |
 | 40 scripts in a tier | `COLLECTION_LARGE_GROUP` behaviour (filter box + Move up/down instead of grips) is undrawn. At 44px/row, 40 scripts is 1,760px in one tier. |
 | A preset / character with none | The `· 0` header-only arm is drawn only as a side effect of board 2 and it renders **`· 0` above a visible row**, which is not the empty arm at all. |
@@ -367,7 +367,7 @@ Against `injections-manager.tsx`, `chat-books-section.tsx`, `room-overrides-tab.
 | 17 | 1 | Regex sits above the Host-controls **permission line** while carrying the host-only broadcast; and `Show my display scripts to everyone` moves from `defaultOpen` in an open band to buried in a closed section. | `settings-context-tab.tsx` D-1 comment + `:322-330` | State it in the build, or leave the broadcast in Host controls |
 | 18 | 2 | **Disabled with no reason, and announcing the wrong state.** Row switches disable when the tier is off; tier switches disable when the master is off; nothing says why, and `aria-disabled=true` sits beside `aria-checked=true`. | `canvas.html:203,208`; `probe2.mjs` frame 1 | Give the reason in the row; do not announce "on" for a script that is not running |
 | 19 | 2, driven | **The toast lands over the transcript**, 500–800px from its switch. | `canvas.html:121`; toast rect x=541 w=423 over the last message | Anchor it in the CONTEXT pane |
-| 20 | p2 | **Picker sheet: \~290px of dead space** below `Attach`, in the thumb zone; and rows already attached everywhere are selectable no-ops. | `drive.mjs` sheetRect h=658, content ends \~370; `shots/hearth-f4.png` | Size to content; disable-with-reason the no-op rows |
+| 20 | p2 | **Picker sheet: ~290px of dead space** below `Attach`, in the thumb zone; and rows already attached everywhere are selectable no-ops. | `drive.mjs` sheetRect h=658, content ends ~370; `shots/hearth-f4.png` | Size to content; disable-with-reason the no-op rows |
 
 ### P3
 
@@ -382,7 +382,7 @@ Against `injections-manager.tsx`, `chat-books-section.tsx`, `room-overrides-tab.
 These are properties of the hand-drawn mock, not of the proposed design. I am **not** filing them
 against the design; I am filing them against anyone who reads a number off this drawing.
 
-- **The switch is drawn at \~58% of the shipped primitive's fine-pointer width and \~53% of its coarse
+- **The switch is drawn at ~58% of the shipped primitive's fine-pointer width and ~53% of its coarse
   width** (28×16 / 34×20 vs 48×32 / 64×44). Voids every row-width and section-height number.
 - **The mock's off-switch track measures 1.27:1 (Hearth) / 1.01:1 (Light) against the panel** —
   effectively invisible, so the knob-position channel has no reference frame. The shipped primitive
@@ -429,7 +429,7 @@ against the design; I am filing them against anyone who reads a number off this 
 this board is a fix; this is the one that changes what the surface *is*. Right now a debugger can see
 either the levers or the row they are judging, never both, at either viewport, with six scripts. The
 budget is already there without inventing anything: −72px of redundant tier gloss, −77px of edit
-stamp per row, −20px/row of stage strip, and a sticky master+tier strip. That is \~250px against a
+stamp per row, −20px/row of stage strip, and a sticky master+tier strip. That is ~250px against a
 94px overrun — enough to fit the whole ladder *and* absorb the real switch primitive's extra height.
 Do that and "flip a tier, flip a row, look left" is one uninterrupted gesture, which is precisely the
 thing SillyTavern's one screen buys and ours currently would not.
@@ -523,6 +523,6 @@ is a finding, not a licence to mint), and `STUDY.md` §5 states the *opposite* t
 `DESIGN` §3 and needs a superseded marker or a builder will implement the global flag. Genuinely
 excellent and to be preserved verbatim: the scope-carrying accessible names, the live-and-honest count
 chip, the intro line that retires SillyTavern's hidden reload step, and the whole refusal set. The
-single biggest opportunity is fitting the ladder — \~250px is already recoverable from redundant
+single biggest opportunity is fitting the ladder — ~250px is already recoverable from redundant
 glosses, the edit stamp and the stage strip against a 94px overrun, which is enough to fit the whole
 ladder *and* absorb the real switch primitive.

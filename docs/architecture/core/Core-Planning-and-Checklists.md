@@ -44,7 +44,7 @@ tallies). Memory was never in scope — it is a rewrite that intentionally retri
 its OWN tests (the 6-semantics map). Nothing is measured against neo any more: a behaviour is proven by
 its own tests, never by a neo diff.
 
-## C2. The \~150 "preserve exactly" esoterica → named tests
+## C2. The ~150 "preserve exactly" esoterica → named tests
 
 The standing rule: every load-bearing quirk becomes a named test or asserted invariant, and its comment
 travels with the code — the AAD byte-string, ZWSP-between-the-braces (`neutralizeMacros`), the
@@ -64,7 +64,7 @@ BYO form ships. No PD row yet — mint it at the next debt-registry pass. Deferr
   across vLLM/OpenRouter). The cosine≈1.0 probe guards it; if it fails, "free local↔hosted switch" → a
   re-index. Acceptable for the stated product; owned, not mitigated.
 - **Single-replica** is the v1 stance (honest + cleanly seamed — every `ASSUMES(single-replica)` site
-  has a named DB-backed replacement). Scaling out = replacing \~12 surfaces; not a v1 concern.
+  has a named DB-backed replacement). Scaling out = replacing ~12 surfaces; not a v1 concern.
 - **Deferred features** (acceptable): agent-principal mint mechanics superseded by the committed D60
   design (`proposed/agent-principal-design/`), BYO response-mapping form, bulk/zip library export, the
   4 AI-native v2 swings (seams reserved).

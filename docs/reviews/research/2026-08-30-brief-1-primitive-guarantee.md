@@ -126,7 +126,7 @@ Rules 185→704, Macro picks 137→65 — `settings-context-tab.tsx:278-402` lit
   what, instead of hand-listed in `palette-contrast.suite.test.ts`.
 - **Enforcer**: the CT itself (push tier) + `test-presence` for its existence; the sweep's census on its own
   RESULT/assertion (a 0-node walk fails, never passes).
-- **Cost**: one CT (\~3–5s), reusing `pixelContrast` and the existing `[data-has-bg-image]` mount recipe.
+- **Cost**: one CT (~3–5s), reusing `pixelContrast` and the existing `[data-has-bg-image]` mount recipe.
 
 ### 2.2 Touch — the control floor is guaranteed; invert the default and floor the PITCH at the gate
 

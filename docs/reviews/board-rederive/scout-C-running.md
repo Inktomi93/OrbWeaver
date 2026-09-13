@@ -19,7 +19,7 @@ RECOMMENDATION: verify-and-close.
 
 Commit `a68d95fe2` (ancestor of main), title matches row description exactly: "the pump re-arm (F2),
 the client realm allow-list pin (F3), and the folded advisories (#784, #679)". Commit body states
-both F2 and F3 are red-first proven (BOOT\_LOOP\_GUEST CT, closed-set realm allow-list against real worker).
+both F2 and F3 are red-first proven (BOOT_LOOP_GUEST CT, closed-set realm allow-list against real worker).
 Rung: tested (CT arms named in commit body).
 RECOMMENDATION: verify-and-close.
 
@@ -50,7 +50,7 @@ Doc: `docs/design/interaction-direction-spec.md`. §7 phase table:
 `docs/reviews/caught-failure-ownership/population.json`: totals.sites=407, enforced=404,
 byVerdict.unproven=0 (zero unproven sites). Gate at
 `tooling/src/verify/gates/caught-failure-ownership.ts` exists; its `@orb-gate-ignore
-caught-failure-ownership(...)` marker convention is used live across \~20+ files in
+caught-failure-ownership(...)` marker convention is used live across ~20+ files in
 `tooling/src/verify/**` (grep sample: monotonic-tests.ts, ratchet-row-integrity.ts, pass.ts,
 history.ts, program-routing.ts, boot-chunk-ratchet.ts, db-baseline-parity.ts, etc.), each carrying a
 stated reason + an "Ends if..." falsifiability clause — the gate's own authoring contract.

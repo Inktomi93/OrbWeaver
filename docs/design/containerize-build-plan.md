@@ -52,7 +52,7 @@ server-foundation surgery on the one `process.env` reader, outside this lane's s
 (brief enumerates exactly: `VLLM_ENGINE_HOST` + the GPU-detect gate); the shim delivers the identical
 runtime posture from the docker layer. Flagged as a possible future owner call, not built here.
 
-### 1.4 Runtime image layout: WORKSPACE-shaped sources + HOISTED `pnpm deploy` node\_modules + `@orb` symlinks
+### 1.4 Runtime image layout: WORKSPACE-shaped sources + HOISTED `pnpm deploy` node_modules + `@orb` symlinks
 
 `pnpm --filter @orb/server deploy --legacy --prod --config.node-linker=hoisted` produces the pruned
 runtime `node_modules` (221 packages vs the workspace's 1129). The image carries THAT at
@@ -64,7 +64,7 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
 **Why every piece is load-bearing (the first boot attempt REFUTED the naive shape — receipts §5):**
 
 - **The symlinks:** node 26 hard-refuses type-stripping for real files under `node_modules`
-  (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` — the naive "copy deploy node\_modules as-is" layout
+  (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` — the naive "copy deploy node_modules as-is" layout
   died on it at first boot). The dev workspace passes the same check ONLY because workspace packages are
   symlinks whose realpath is outside `node_modules` — the image reproduces exactly that shape.
 - **The hoisted linker:** once `@orb/db` runs from `/app/packages/db`, its own deps (`@libsql/client`,
@@ -128,7 +128,7 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
 6. **The spec §6 sketch (`depends_on: caddy`) is not expressible here** — Caddy lives in the stack
    repo's separate compose project. This repo's compose is self-contained (own network + `orbweaver`
    alias); the owner's Caddy integration is a documented external-network stanza + the
-   `reverse_proxy orbweaver:8788` repoint, not a dependency edge. The brief's "depends\_on conditions"
+   `reverse_proxy orbweaver:8788` repoint, not a dependency edge. The brief's "depends_on conditions"
    lands on the sibling profile: app → vllm `condition: service_started` (deliberately NOT
    `service_healthy` — the adopt-only supervisor's whole design is poll-and-adopt, and a cold engine
    takes minutes the app should spend serving auth/UI).
@@ -144,7 +144,7 @@ replaces the deploy output's copied `@orb/*` dirs with SYMLINKS to those tree so
 | - | - | - |
 | `VLLM_ENGINE_HOST` env key, default `127.0.0.1`, host-only | `foundation/env/index.ts` (beside the port floor) | covered via the two consumers below |
 | `engineBaseUrl` reads the host | `infra/providers/vllm/engine/engine-url.ts:17-20` | `tests/server/infra/providers/vllm/engine/engine-url.test.ts` — new re-import describe (the `reimportEnvWith` house pattern from `tests/server/foundation/env/index.test.ts:45-69`); red on old source (URL stays loopback). Stale test 3 ("never a routable host") truth-repaired to a default-env pin. |
-| `internalBackendHostPorts` keys off the host | `infra/network/egress.ts:81-83` | `tests/server/infra/network/egress.int.test.ts` — new describe: relocated host `127.0.0.2` ⇒ `127.0.0.2:8701` passes, `127.0.0.2:9998` blocked, `127.0.0.1:8701` blocked (the set READS env, never accumulates). Red on old source (first arm SSRF\_BLOCKED). |
+| `internalBackendHostPorts` keys off the host | `infra/network/egress.ts:81-83` | `tests/server/infra/network/egress.int.test.ts` — new describe: relocated host `127.0.0.2` ⇒ `127.0.0.2:8701` passes, `127.0.0.2:9998` blocked, `127.0.0.1:8701` blocked (the set READS env, never accumulates). Red on old source (first arm SSRF_BLOCKED). |
 | `effectiveVllmDisabled(posture, gpuPresent)` | `foundation/env/posture.ts` (new pure fn) + `entry/lifecycle.ts:201-203` uses it | `tests/server/foundation/env/posture.test.ts` — 6-row truth table; red via a cp-scratch of posture.ts carrying the OLD formula (`!(registers && gpu)`) — the `adopt-only × no-GPU` row flips. |
 | Supervisor idle-gate manages-scoped | `infra/providers/vllm/engine/supervisor.ts:291` | `tests/server/infra/providers/vllm/engine/supervisor.test.ts` — harness gains a `gpuAbsent` switch on the existing `execFileSync` mock; adopt-only × no-GPU must NOT idle (statuses probe-driven), manager × no-GPU still idles. Red on old source (adopt-only arm reads "no GPU on this host"). |
 | `engines.sh` tsx→node fallback | `tooling/src/stack/engines.sh:33` | dev tooling (constitution's KISS carve-out); shellcheck + unchanged-dev-path reasoning; no vitest suite exists for the shim |
@@ -184,7 +184,7 @@ lifecycle suites cold, plus a repo-wide grep of `127.0.0.1:87` / `no GPU on this
 `docker build --check` (BuildKit lint, no build) per target; **Fork E prove-by-boot executed on the
 HOST**: real `pnpm deploy --legacy --prod` output + client dist assembled into the §1.4 layout in
 scratch, `NODE_ENV=production` boot on a free port, `/healthz` 200, SIGTERM clean drain — proving the
-pruned node\_modules + workspace-shaped sources + migrations + SPA serve + node-26-runs-TS end to end
+pruned node_modules + workspace-shaped sources + migrations + SPA serve + node-26-runs-TS end to end
 (spec A4/Fork E), and `node tooling/src/stack/ops/engines-ctl.ts status` under the same layout proving the
 `@orb/*` symlinks + node-runs-scripts arm (it read the live fleet + both GPUs correctly).
 

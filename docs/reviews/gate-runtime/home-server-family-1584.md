@@ -141,7 +141,7 @@ ways. **Seven exact; three classified; zero paths ADDED anywhere.**
 ## Real-tree final pass
 
 One `runPolicyPass` over `getWorkspace({root, types: true})`, with **all 89 `defineGate` modules on the tree
-as `knownPolicies`** (a hand-picked roster manufactures \~100 unknown-policy waiver alarms), the eleven
+as `knownPolicies`** (a hand-picked roster manufactures ~100 unknown-policy waiver alarms), the eleven
 selected, and `reviewedGrantsFor(policies)`:
 
 ```

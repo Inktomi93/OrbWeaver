@@ -96,7 +96,7 @@ commit (shared-read sweep; grep found no other asserter of either spelling).
   the delta for one paint and self-heals on the same settle (`rememberSurfaceBox` every commit);
   `MAX_REMEMBERED_PX` caps runaway measurements; no TTL is added (a measurement cache, not a
   preference — `surface-box-store.ts` header).
-- **Store growth**: bounded by the number of keyed mounts (\~150 numeric entries ≈ a few KB of
+- **Store growth**: bounded by the number of keyed mounts (~150 numeric entries ≈ a few KB of
   localStorage); orphan keys are inert by recorded ruling (the #258 header) and sanitized rows drop
   non-finite/out-of-range values on rehydrate.
 

@@ -52,7 +52,7 @@ size; live shots are the element-only bracket at 383×800 and the 430-coarse pan
 | 8 | Character roster: five cells | Overview · Links · Look · History · Trust | six: Overview · **Chats** · Links · Look · History · Trust | **MOCK-STALE-SANCTIONED** — DESIGN.md records the correction (#501, 2026-08-30) |
 | 9 | Character sub-line "Warden of the outer stair ·@sabine" | tagline + handle | `@sabine` only | **MOCK-STALE-SANCTIONED** — DESIGN.md's contract says "handle line"; the artboard drew a datum the spec does not claim |
 | 10 | Character chips "Own look · 1 chat · 1,257 tokens" | three pills | `Own look` = kicker-cased trigger + swatch (no pill); `1 chat` / `1257 tokens` = pills | **RENDERED-WRONG** (F12) — and the number loses its separator (F13) |
-| 11 | Character band portrait | \~108px square hero portrait | \~36px avatar | **DELIBERATE-NO-CITE → QUESTION.** Defensible (the content hero already carries a big portrait) but nothing records the decision |
+| 11 | Character band portrait | ~108px square hero portrait | ~36px avatar | **DELIBERATE-NO-CITE → QUESTION.** Defensible (the content hero already carries a big portrait) but nothing records the decision |
 | 12 | Character Overview body: Origin(Source/Added/**Tokens**) · Activity(Last chat/**Chats**) · Tags(pills + Add tag) | six rows + tag affordances | Origin(Added/Source) · Activity(Last chat) · Tags(Applied: Empty) | **MOCK-STALE-SANCTIONED** for Tokens/Chats (they moved to the band chips — correct de-dup). **RENDERED-WRONG** for "Last chat": the mock names the chat (`Example — Midnight Run · 3h`), live prints only `Aug 2, 2026` (F-minor, folded into F13) |
 | 13 | RpgRoom foot rail order: … Activity · **Game** | Game last | Members · This chat · Preview · **Game** · Activity | **RENDERED-WRONG** (F15) — live is internally consistent across rooms, the mock is right on taste |
 | 14 | Receded rail with no fill | bare ground under the cells | `bg-sidebar-accent/15` + `pb-row` floor + top hairline | **RENDERED-WRONG in effect** — the fill measures 1.001:1 against the pane (F2) |
@@ -151,7 +151,7 @@ just needs `\[data-context-mode="overlay"]`too (the sheet covers the content the
 
 **\[P2] F5 — the Characters pane renders the same identity the content hero already renders, on one screen.**
 At 1280 dock+dock (`reports/snaps/cbbe-char-1280.png`) the portrait, the name, `@sabine`, the Own-look
-trigger, the chat count and the token count all appear **twice**, \~500px apart, plus a third print of the
+trigger, the chat count and the token count all appear **twice**, ~500px apart, plus a third print of the
 name in the content header row (`Sabine Veyra Character · 1257 total · 1017 permanent`). The token datum
 appears in two framings for one number. `design-audit` fires on this without being asked:
 `P3 duplicate-action-door … (2x button "own look")` and `… (2x button "chats")`, desktop AND mobile.
@@ -178,7 +178,7 @@ On mobile the chat band's chip also fails geometry: `P2 tap-target [data-slot=ch
 
 **\[P2] F7 — at the `reading` appearance preset the bracket is 79% chrome and slices a caption mid-word.**
 `snap --appearance-preset reading` at 1280×800, game room: band **327px** + top rail **157px** (folded
-3+3) + foot rail **99px** = **583 of the pane's 740px**. The viewport gets \~157px — enough for the
+3+3) + foot rail **99px** = **583 of the pane's 740px**. The viewport gets ~157px — enough for the
 `ROSTER — 4` kicker and one half-card. The foot rail reports `overflowX: true` and paints `Acti` with
 `vity` cut at the pane edge — no ellipsis, no scrollbar, no affordance.
 Companion arms are clean: `defaults` and `maximal` are byte-equivalent in geometry (band 208, rails 82/83,
@@ -207,7 +207,7 @@ cell is either fully visible or visibly scrollable (edge fade / persistent thin 
 **\[P2] F9 — on the phone the pane's foot rail and the app's section bar stack as two near-identical strips.**
 `cbbe-game-430.png`: the CHAT rail (Members · This chat · Preview · Game · Activity, icon over caption,
 56px cells) occupies y≈591–684; the shell's own bottom tab bar (Home · Chats · Characters · You, icon over
-caption) occupies y≈684–740. Two strips of the same species, touching, \~150px of a 740px screen — 20% of
+caption) occupies y≈684–740. Two strips of the same species, touching, ~150px of a 740px screen — 20% of
 the phone is navigation chrome, and nothing distinguishes "tabs of this pane" from "sections of the app".
 The mock's phone artboards do not draw the app bar, so this collision could not be seen at design time.
 *Why it hurts:* Casey taps the wrong strip. Jordan cannot tell them apart at all.
@@ -428,7 +428,7 @@ Land that and F1, F2 and the locked-cell class can never silently regress again.
   later shots removed the overlay with an ephemeral in-page `.remove()` in the probe browser only.
 - **Lighthouse's accessibility 100 does not clear F1.** I nearly filed the green as a receipt. axe's
   `color-contrast` rule does not composite ancestor `opacity`, so it read the Map cell at its undimmed
-  7.59:1. Our pixel-sample and design-audit agree at \~3.54:1. Cited as an instrument blind spot, not a
+  7.59:1. Our pixel-sample and design-audit agree at ~3.54:1. Cited as an instrument blind spot, not a
   disagreement.
 - **The mock's five-cell Characters rail and its "Warden of the outer stair" tagline are NOT findings.**
   Both are artboard state the spec text overtakes (DESIGN.md records the six-cell correction under #501;
@@ -487,7 +487,7 @@ Land that and F1, F2 and the locked-cell class can never silently regress again.
 | `[cls] shift 0.0221 unexpected … CLS 0.0224` on boot | **known** — landing-surface settle, under the 0.1 budget, not the bracket |
 | `[css] dead class — .base-ui-disable-scrollbar on [data-slot=scroll-area-viewport]` | **known-ruled** — Base UI's own class, pre-existing |
 | `DEADCSS my-6 (×1)` in the game room | **INVESTIGATE (low).** `rg 'my-6'` across `packages/client/src` + `packages/ui/src` returns **zero** matches, so the class is not ours — it arrives from a vendored renderer or a dynamic string. Filed as a tooling curiosity, not a bracket finding |
-| `console-errors` / `page-errors` / `failed-req` | **0 on every one of the \~25 runs** |
+| `console-errors` / `page-errors` / `failed-req` | **0 on every one of the ~25 runs** |
 
 ## Issue summaries (paste-ready, one paragraph per item)
 

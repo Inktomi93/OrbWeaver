@@ -40,7 +40,7 @@ gate merge.
   re-run yielding p1=41 (not the p1=0 the brief predicted) is because MORE checkboxes scroll into view,
   not because the finding is real — each checkbox is flagged once visible. **Reported clean on the
   ground-truth basis.**
-- **P2 ×2 `caveat-outweighed`** (real, minor): a caveat sentence renders \~1.23× smaller than the claim
+- **P2 ×2 `caveat-outweighed`** (real, minor): a caveat sentence renders ~1.23× smaller than the claim
   it qualifies (`card-root` #4's alert). Typographic polish; `prose` on the caveat closes it.
 - **P3 histogram (pane):** `nested-card` ×9 (the reconsent callout border inside the card border —
   box-in-box, see UGLY §), `line-length` ×45 (reading text at 90–93ch, see P3-A). `all-caps-body` ×1
@@ -75,7 +75,7 @@ animation, not the pane.
 | 9 | Error recovery | 3.5 | `lastError` shown, update failures toast, reconsent explains + recovers. |
 | 10 | Help/docs | 3.5 | Consequence lines are self-teaching contextual help. |
 
-### Hierarchy / order (the owner's exact complaint) — **8/10, up from \~3/10 old (Δ +5)**
+### Hierarchy / order (the owner's exact complaint) — **8/10, up from ~3/10 old (Δ +5)**
 
 Justification below.
 
@@ -88,7 +88,7 @@ The old layout earned the "fugly, no hierarchy or order" call:
 - **No plugin boundary** — content bled onto the pane behind one faint hairline; stacked plugins would
   read as a continuous wall.
 - **The reconsent headline floated in bare prose** with no set-apart container.
-- **The capability checkbox was stranded \~400px to the far right** of its own label (the P2-2 "18px
+- **The capability checkbox was stranded ~400px to the far right** of its own label (the P2-2 "18px
   aim" defect), disconnected from the words it grants.
 - **"(new in this update)" was baked into the visible label** AND repeated by the "New" badge 8px away.
 
@@ -116,7 +116,7 @@ This is genuinely designed now, not a wall. The −2 on the 10-scale:
 | # | Prior finding | Status | Receipt |
 | - | - | - | - |
 | P2-1 | Mobile header collision (long badge) | **FIXED** | Mobile 430px screenshot: name on its own line, "Off — asked for more than you allowed" wraps to its own line, controls drop below — no overlap. CT `plugins-settings-surface.ct.tsx:690` asserts badge box disjoint from switch AND Update AND inside the 390px pane. |
-| P2-2 | Consent-checkbox hit area (\~400px far-right gap, 18px aim) | **FIXED** | Checkbox now LEADS; `<label htmlFor>` → hidden `input[type=checkbox]`, label measured **668×54px** = the row toggles. Old far-right column gone (old vs new screenshots). |
+| P2-2 | Consent-checkbox hit area (~400px far-right gap, 18px aim) | **FIXED** | Checkbox now LEADS; `<label htmlFor>` → hidden `input[type=checkbox]`, label measured **668×54px** = the row toggles. Old far-right column gone (old vs new screenshots). |
 | P2-3 | Disclosure button height (was 746×16, sub-24px) | **FIXED** | Live: `size="control"` disclosure = **32px** (desktop/fine) / **44px** (mobile/coarse). CT pins ≥44 on coarse. |
 | P3-4 | WCAG label-in-name (disclosure) | **FIXED** | aria-label `"What it's allowed to do — Affinity Tracker"` contains the visible "What it's allowed to do" as a prefix; plugin name after the em-dash disambiguates. Confirmed in `--map` + keyboard walk. |
 | P3-5 | Run-on SR names | **FIXED** | Keyboard walk read `checkbox "Read this room's messages (new in this update)"` — badge pills excluded from the accessible name (aria-label wins), visible label stays a prefix. |
@@ -129,7 +129,7 @@ This is genuinely designed now, not a wall. The −2 on the 10-scale:
 ## Residual issues (confirmed only, ranked)
 
 - **\[P2] Reading text exceeds the 65–75ch measure (line-length ×45, 90–93ch).** The reconsent callout
-  explanation and capability consequence lines run to \~93ch in the wide content column — beyond the
+  explanation and capability consequence lines run to ~93ch in the wide content column — beyond the
   reading measure (skill §2). **Fix (`layout`/`typeset`):** cap the callout body + consequence text with
   the measure token (`max-w-prose`). Receipt: design-audit `line-length` 45→0.
 - **\[P3 · UGLY] Box-in-box: bordered callout inside bordered card (nested-card ×9).** Because the amber
@@ -163,7 +163,7 @@ the box. Corrected here so a future pass doesn't chase a ring that isn't there.
   plugin is off and offers a granular allow/remove — this is a genuinely excellent security surface.
 - **Accessibility.** Lighthouse a11y 100 both arms, every control keyboard-reachable with `:focus-visible`
   true at every stop, clean de-run-on'd accessible names, label-in-name satisfied.
-- **The checkbox-leading grant rows.** The single best fix — the \~400px far-right gap is gone and the
+- **The checkbox-leading grant rows.** The single best fix — the ~400px far-right gap is gone and the
   whole row is the target.
 
 ## The single biggest opportunity

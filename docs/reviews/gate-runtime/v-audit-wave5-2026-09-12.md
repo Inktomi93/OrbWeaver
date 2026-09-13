@@ -15,7 +15,7 @@ four-way cut classification.
 
 **Why this family and not a bigger one.** `.claude/rules/gates-and-tooling.md` — a rule injected into every
 gate lane in this repo — tells every remaining conversion to copy the positive identity arm from
-`ordinary-visitors-family.test.ts:187-205`. That shape is the transmission mechanism for the \~104
+`ordinary-visitors-family.test.ts:187-205`. That shape is the transmission mechanism for the ~104
 conversions still to come, so a defect here is not local.
 
 Every number below came out of a run produced in this session in an isolated worktree

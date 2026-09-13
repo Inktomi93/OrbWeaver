@@ -62,7 +62,7 @@ The seeder GENERATES NOTHING. It replays committed static bytes + a hand-authore
   pipeline against Sonnet-5/OR, then a capture path serializing GENUINE resulting state into the
   seed. Reaches `domain/chat` services + `infra/providers`; NOT in `seeder/**`.
 - **The rpg demo additionally:** an rpg-state-aware capture+serialize+replay spanning
-  `domain/export` + `kit/serde/chat` + `domain/rpg` (snapshots TURN arm, turn\_tool\_calls, sheets,
+  `domain/export` + `kit/serde/chat` + `domain/rpg` (snapshots TURN arm, turn_tool_calls, sheets,
   journal, checkpoints, committed lifecycle) — none representable by chat-JSONL or the seeder's
   bulk-import+hand-replay delivery today.
 

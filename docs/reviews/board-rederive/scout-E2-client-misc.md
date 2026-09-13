@@ -35,7 +35,7 @@ updated: 2026-08-29
 - Evidence rung: verb output directly from the ast tool (declared+exported+counted), not
   imported-elsewhere proof — this is the same census method #69 itself used.
 - **Verdict: ⚠️ STALE-PREMISE.** Both cited counts are materially wrong today: unwired procs
-  15 (was 33, \~2.2x lower), client-gap contracts 13 (was 9, higher). The underlying finding
+  15 (was 33, ~2.2x lower), client-gap contracts 13 (was 9, higher). The underlying finding
   (automation client surface lags its transport; several \*View/\*Summary contracts are
   server-only) still holds directionally, but the row's numbers need re-derivation before any
   consuming program is scoped off them.

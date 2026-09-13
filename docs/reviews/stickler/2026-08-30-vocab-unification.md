@@ -101,7 +101,7 @@ honest move is to make the two deviants conform, never to rename the four.
 
 **"Party" is dead for this concept, by derivation not by preference.** `party` is a ratified RPG
 tracker-carrier class (`contracts/rpg/enums.ts:81`). Using it for a non-game library artifact is
-exactly the register violation §2 bans. That kills the word the server tier currently uses in \~12
+exactly the register violation §2 bans. That kills the word the server tier currently uses in ~12
 prose sites — which is a *result of the map*, not an opinion.
 
 ### §1.4 The rpg domain (ratified, with the one carve-out)
@@ -154,7 +154,7 @@ names, not imports). The right tier is a **structural gate**:
 - Arm: a small closed denylist (`party`, `parties`, `npc`, `npcs`, `quest`, `encounter`) checked
   against **identifier positions and user-copy string literals** outside the fence scanRoot.
 - **Mandatory false-stem fence:** `third-party` / `first-party` are pervasive and legitimate — I
-  counted \~15 live `first-party` sites in `contracts/plugin` alone plus 19 `third-party` (census §0).
+  counted ~15 live `first-party` sites in `contracts/plugin` alone plus 19 `third-party` (census §0).
   The gate needs an explicit `\b(third|first)-party\b` exclusion or it is dead on arrival.
 - Escape: a line-adjacent marker with a reason (the house marker grammar), per `GATE-AUTHORING.md`.
 - Landing bar: the six-case real-tree probe `GATE-AUTHORING.md` mandates, and it lands on a FIXED tree
@@ -356,7 +356,7 @@ would mint a dead `RpgNpcId` brand"*) and `:53`. See Fork 3.
 `modal-slot-ids.ts:51` comment (§6.3). Plus the three rpg promote/back aria-labels if Fork 8 goes that
 way.
 
-**Cost:** \~30 rendered strings + 2 registry literals + \~40 coupled test pins across \~20 files **\[rd]**
+**Cost:** ~30 rendered strings + 2 registry literals + ~40 coupled test pins across ~20 files **\[rd]**
 (`"Save current cast"` 8 · `"to the roster"` 9 · `"Start from saved cast"` 5 · `"New cast"` 5 ·
 `"Saved casts"` 3 · `"Add cast"` 2 · `"New chat with same cast"` 2 · `"No saved casts"` 2 ·
 `"Back to the roster"` 2 · `"Members and cast"` 1 · `"Meet the cast"` 1). One lane, one commit.
@@ -370,14 +370,14 @@ mandatory, plus the named CT files (`cast-picker.ct.tsx`, `cast-member-surface.c
 `tests/e2e/support/chat-room.ts:292` (`const CAST_BAR = '[aria-label="Cast"]'`).
 
 **What stays muddled:** all twelve code meanings. The D137 comment fence stays load-bearing. A cold
-agent's `rg cast` still returns \~8,400 hits. Row 5/row 6 remain a comment apart.
+agent's `rg cast` still returns ~8,400 hits. Row 5/row 6 remain a comment apart.
 
 ### Option B — FULL unification
 
 **Does:** everything in §3, including `castId`.
 
-**Cost:** Option A + D5 (\~250 sites incl. a 40-site wire-field rename and every `ChatDetail` CT stub) +
-D6 (56) + D7 (46, incl. the shipped `.d.ts`) + D8 (\~460 plus a **stored-data migration and a merge
+**Cost:** Option A + D5 (~250 sites incl. a 40-site wire-field rename and every `ChatDetail` CT stub) +
+D6 (56) + D7 (46, incl. the shipped `.d.ts`) + D8 (~460 plus a **stored-data migration and a merge
 window**) + the §2 gate + **`castId` at 8,056 occurrences across 1,069 files \[rd]**.
 
 **Blast radius:** every package; the wire; the plugin public API; stored rpg snapshots; 961 test files
@@ -394,7 +394,7 @@ never ships.
 
 - **C1 = Option A, verbatim.** Retires 100% of the ranked user-facing harm (M1, M2, M3) for a
   client-only diff. Ship first, ship alone.
-- **C2 = the chat contract seam (D5).** \~250 sites, one wire field, zero stored data, zero public API.
+- **C2 = the chat contract seam (D5).** ~250 sites, one wire field, zero stored data, zero public API.
   **This is the wave with the highest law-value per site: it dissolves the D137 comment fence.** After
   C2, "the D137 cast" is `ChatIdentity` and "the D60 drive axis" is `characters`, and the two can no
   longer be confused because they no longer share a token — the compiler holds what
@@ -414,7 +414,7 @@ never ships.
 one law-grade defect — a structural fence held by a comment — in place, and that is precisely the class
 this repo's whole apparatus exists to eliminate (constitution §1: the rigor is *"the substitute for the
 memory and judgment the author lacks"*; §2.3: *"a prose-only boundary is not a placement — it's a
-wish"*). C2 converts that wish into physics for \~250 mechanical sites and no stored data.
+wish"*). C2 converts that wish into physics for ~250 mechanical sites and no stored data.
 
 ---
 
@@ -423,7 +423,7 @@ wish"*). C2 converts that wish into physics for \~250 mechanical sites and no st
 **Fork 1 — the room's seated characters (map row 4).**
 (a) **"Characters"** *(recommended)* — derives from the closed actor vocabulary; the sibling section
 "People" proves the construction; dissolves M1 and M2 at once. (b) Keep "Cast" — free, but M1/M3 stay.
-(c) "Roster" — collides with Fork 2's answer. **Price:** (a) is inside C1's \~30 strings.
+(c) "Roster" — collides with Fork 2's answer. **Price:** (a) is inside C1's ~30 strings.
 
 **Fork 2 — the saved-template user word (map row 10).**
 (a) **"Roster" / "Saved rosters"** *(recommended)* — four of five registries already say it, so the code
@@ -437,18 +437,18 @@ table family and a branded id) — an order of magnitude more, for no extra user
 **Fork 3 — the rpg scene NPC and the reserved arm (map rows 13/14).**
 (a) **Scene NPC → `npc`; rename the RESERVED future arm** *(recommended)* — unifies rpg with its own
 ratified `npcs` carrier class and deletes `tracker-view.ts:81`'s translation. The reserved arm is
-**unbuilt**, so renaming it costs \~5 live prose sites (`contracts/rpg/actor.ts:20,53`,
+**unbuilt**, so renaming it costs ~5 live prose sites (`contracts/rpg/actor.ts:20,53`,
 `docs/design/lite-plus-guided-substrate-spec.md:359,870`, `Core-Path-Registry.md:311`) — history reviews
 are immutable and untouched. Suggested boring replacement for row 14: `npcRow` or `libraryNpc`.
 (b) Scene NPC → `sceneNpc` (leaves `npc` reserved; unambiguous but verbose, and the key becomes
 `scenenpc:<slug>`). (c) Scene NPC → `extra` (film term; understates — these carry names, moods and
-relationship arcs). (d) No action. **Price:** (a)/(b)/(c) all carry D8's \~460 sites **and** the
+relationship arcs). (d) No action. **Price:** (a)/(b)/(c) all carry D8's ~460 sites **and** the
 stored-data migration + merge window; (d) is free and leaves a fourth `cast` meaning one package from
 the other three.
 
 **Fork 4 — `castId` (map row 18).**
 (a) **No action** *(recommended)*. The census priced this as *"the cheapest high-value rename on this
-list"* at 347/110. That is wrong by a factor of \~23 — see §6.1. It is **8,056 occurrences across 1,069
+list"* at 347/110. That is wrong by a factor of ~23 — see §6.1. It is **8,056 occurrences across 1,069
 files \[rd]**, the largest mechanical edit available in this tree, and 7,716 of those are in `tests/`,
 so it conflicts with every live lane. More importantly its *value collapses* once C1–C3 land: after the
 domain word "cast" leaves chat, roster-preset and rpg, `castId` becomes the **only** `cast` in the tree
@@ -466,7 +466,7 @@ public API whose word contradicts the map forever.
 
 **Fork 6 — the register boundary's enforcement tier (§2).**
 (a) **A structural gate `rpg-register-fence`** *(recommended)* — the only tier that actually holds a
-naming boundary; \~1 gate-authoring lane including the six-case probe and the mandatory
+naming boundary; ~1 gate-authoring lane including the six-case probe and the mandatory
 `first/third-party` false-stem fence. (b) Constitution prose only — free, and by the constitution's own
 §2.3 standard, a wish.
 
@@ -496,7 +496,7 @@ blanket, unchanged. **Price:** (a) = 3 aria-labels + 11 coupled test pins **\[rd
 The brief said to treat the census's claims as verified and spot-check only what my analysis makes
 load-critical. Three load-critical claims moved.
 
-### §6.1 `castId` is mis-scoped by \~23× — and it changes the recommendation
+### §6.1 `castId` is mis-scoped by ~23× — and it changes the recommendation
 
 Census §3 row 12 and §5 M5 report `castId` at **347 occ / 110 files** and call it *"the cheapest
 high-value rename on this list."* Census §3's own header declares its scope as *"`packages` + `tests`
@@ -508,7 +508,7 @@ ast-grep (both languages): `castId<$T>($$$A)` 6,405 ts + 247 tsx; bare `castId($
 scanned 4,318 files, skipped 0.
 
 **The census reported the `packages`-only number under a `packages + tests` header.** Because `castId`
-is overwhelmingly a *test* idiom, that single scope slip understates the fix by \~23× and inverts its
+is overwhelmingly a *test* idiom, that single scope slip understates the fix by ~23× and inverts its
 ranking — from "cheapest on the list" to "largest mechanical edit in the tree". Every other census count
 I re-derived was accurate (`castKey` 157/42, `buildCastNameContext` 48/16, `loadChatCastProducer` 35/11
 all matched exactly; `CastEntry` 69/24 vs 73/24 is within method noise), so this is a one-symbol slip,
@@ -593,7 +593,7 @@ choosing `ChatDetail.identities`).
 2. **No rendered verification.** Every claim is a source claim. In particular I did not confirm at any
    viewport that the "Cast" kicker and the "Add cast…" button are visually adjacent — the JSX puts them
    in one `<Row>` (`members-panel.tsx:308-313`, verified), which is structural, not pixel evidence.
-3. **I did not read in full:** `domain/chat/assembly/context.ts` (\~950 lines; the four drive-axis fields
+3. **I did not read in full:** `domain/chat/assembly/context.ts` (~950 lines; the four drive-axis fields
    are census-cited at `:308,315,412-428` and I re-derived only their occurrence counts), the
    `roster-preset` server verb/persistence tree, `cast-picker.tsx` (copy enumerated by sweep, not read
    whole), and `contracts/plugin/host-v1.ts` beyond the two regions named. A concept living only in an
@@ -628,9 +628,9 @@ actor vocabulary), the saved template is **Roster** (row 10 — four of its five
 producer becomes **`ChatIdentity`** and the D60 drive axis becomes **`characters`** (rows 5/6), and
 game-register words are fenced to the rpg domain by a proposed `rpg-register-fence` gate. **"Party" is
 excluded for the saved template by derivation, not taste** — it is a ratified RPG tracker-carrier class.
-The recommendation is **Option C**: C1 = the client-only user-facing fix (\~30 strings + 2 registry ids +
-\~40 test pins, zero server/db/wire) which retires 100% of the ranked user harm including the M1
-"Cast"-header-beside-"Add cast…" collision; C2 = the chat contract seam (\~250 sites, one wire field),
+The recommendation is **Option C**: C1 = the client-only user-facing fix (~30 strings + 2 registry ids +
+~40 test pins, zero server/db/wire) which retires 100% of the ranked user harm including the M1
+"Cast"-header-beside-"Add cast…" collision; C2 = the chat contract seam (~250 sites, one wire field),
 whose real value is that **it dissolves the D137 comment fence into compiler-enforced physics** — the
 exact "a prose-only boundary is a wish" class the constitution §2.3 exists to kill; C3 = three fenced
 lanes (plugin `chat.listRoster`→`listCharacters`, free while pre-launch and a permanent break after;

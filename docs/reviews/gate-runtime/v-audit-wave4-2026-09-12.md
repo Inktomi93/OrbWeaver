@@ -420,7 +420,7 @@ falsifier run in BOTH arms.
 | `dark` | `.slice(0, -1)` LAST-SEGMENT fence (:118) | search every segment | `mustPass[5]` — **exactly as its `why` names** | ENFORCED |
 | | `part.text === "dark"` exact equality (:119) | prefix match | `mustPass[4]` (`darkroom:bg-card`) | ENFORCED |
 | | `state.stack.length === 0` top-level test (:107) | split every colon | — | **UNENFORCED** — falsifier built |
-| | the REAL\_TREE\_ANCHOR guard on the zero-root tripwire (:211) | always judge | `mustPass[0..2]` | ENFORCED |
+| | the REAL_TREE_ANCHOR guard on the zero-root tripwire (:211) | always judge | `mustPass[0..2]` | ENFORCED |
 | | the exact-slice guard in `reportAnchored` (:160) | always anchor precisely | `mustFlag[8]` (tool error: token not anchored at its declared offset) | ENFORCED |
 
 **Totals: 31 cut → 19 ENFORCED · 10 genuinely UNENFORCED (32%) · 2 UNFALSIFIABLE (documented) · 0 MUTUALLY

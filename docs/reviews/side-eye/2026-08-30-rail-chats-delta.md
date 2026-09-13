@@ -68,7 +68,7 @@ the deliverable.
 | 5 | Error prevention | 3 | save gated on a name; nothing destructive reachable un-confirmed. Not stress-tested — read-only discipline, no sends |
 | 6 | Recognition over recall | 2 | the single-variant `›` chevron carries no visible label at all; `Map 🔒` still unexplained; `Talks 50` still unitless to a sighted user while the accname says "talks at level 50 of 100" |
 | 7 | Flexibility & efficiency | 4 | ⌘K, month anchor, character chips, roving transcript, per-row Tab cluster, "Skip to chats" — genuinely strong |
-| 8 | Aesthetic & minimalist | 3 | \~240px of list-pane chrome above the first of 6 rows; the RPG context panel stacks a stat header + 5 dials + a 6-item strip + host console + stat editor + a nav strip |
+| 8 | Aesthetic & minimalist | 3 | ~240px of list-pane chrome above the first of 6 rows; the RPG context panel stacks a stat header + 5 dials + a 6-item strip + host console + stat editor + a nav strip |
 | 9 | Error recovery | 4 | search-empty quotes the query verbatim and offers a working reset |
 | 10 | Help & documentation | 2 | the This-chat tab's per-section glosses are excellent and route the user onward ("Presets → Prompt / Macros"); the room itself still explains nothing |
 
@@ -130,7 +130,7 @@ CONTENT header is the only place the room is named. It fails exactly when the us
 detail panel — i.e. when they are configuring the room they can no longer identify.
 
 **Fix.** `layout`: the title is being squeezed because the topbar's global trailing cluster (⌘K jump,
-notifications, focus mode, panel toggle — \~200px) shares the CONTENT header's row. Let the title take
+notifications, focus mode, panel toggle — ~200px) shares the CONTENT header's row. Let the title take
 the slack, or move the global chrome into the shell topbar's own trailing region so it does not
 compete with the artifact's name. Receipt: `titleW == scrollW` at 1280 in all four pane states.
 
@@ -461,13 +461,13 @@ gutter and reads deliberately; the 7px composer offset does not.
    `snap --contrast --contrast-pixel`: body **15.90:1**, dialogue **11.04:1**.
 2. **The reading measure and overflow hold across every arm.** 62ch at owner default / maximal /
    diagnostics / reading (at 21.6px) · 63ch compact · 62ch at 768 · 62ch in all three pane states ·
-   `--expect-no-overflow` PASS (all four sides judged, 0 escapes) on every one of \~14 runs, at 430,
+   `--expect-no-overflow` PASS (all four sides judged, 0 escapes) on every one of ~14 runs, at 430,
    768, 1280 and 1920, in dark and Light, and under reduced motion.
 3. **The cold-open fix (#489) is real.** Click duration 248ms → **32ms**, input delay **2ms**, long
    tasks 596ms → 267ms, worst blocking 579ms → **143ms** at 4× CPU, and cycles 2–3 have **zero** long
    tasks. CLS 0 across raw, virtualized and non-virtualized.
 4. **Mobile is a different product than the last sweep described.** Cast bar 3 rows/115px → **1 row /
-   40px**; transcript \~110px → **436px of a 740px viewport (59%)**; composer icon row on one line;
+   40px**; transcript ~110px → **436px of a 740px viewport (59%)**; composer icon row on one line;
    message actions 48×48; `design-audit --mobile` returns **zero** tap-target findings on the
    non-game room.
 5. **The search-empty state.** `CHATS 0 of 6` · icon · "No matches" · `No chat matches "zzzqqqxx".` ·
@@ -536,7 +536,7 @@ it happens: every new context tab (Rules, Plugin panels, Game) currently pays th
 | P2 variant strip reads as pagination | **FIXED for multi-variant** (#490-2); **NOT covered for single-variant** → new P2 above | `cbrc-03.log` |
 | P2 list count lies under filtering | **FIXED** (#490-3) — `0 of 6` | `cbrc-empty.log` |
 | P2 "Jump to month" re-roots | **RENAMED** to "Show chats from" (#490-4); re-root behaviour not re-tested (6-row corpus can't reproduce it) | `cbrc-01.log` map |
-| P2 mobile transcript \~35% of screen | **FIXED** — 59%, cast bar 1 row | `cbrc-07.log`, `cbrc-room-mobile.png` |
+| P2 mobile transcript ~35% of screen | **FIXED** — 59%, cast bar 1 row | `cbrc-07.log`, `cbrc-room-mobile.png` |
 | P2 ArrowRight from in-row action drops focus to `<body>` | **not re-tested** — Tab path verified clean at 15 stops; arrow-key arm not driven this run | — |
 | P2 inline `<code>` renders 3 dead Tailwind classes | **FIXED** — `deadcss=0` on every room run | RESULT lines |
 | P2 "add a character" has two doors | **FIXED** as filed (cast-bar twin gone); **B10 introduced a new confusable pair** → new P2 | `cbrc-09.log` |
@@ -563,7 +563,7 @@ today's `2026-08-30-this-chat-cls-verify.md` owns that verdict; I did not re-mea
 | 1 | `snap --map` | **RAN** — chats landing `aside` (18), message list (4), details panel (21), New-chat dialog (16), Saved-casts dialog (4), `header` (2). `map-dom-fallbacks=0` except the New-chat dialog (1) and the RPG Cast group (1) |
 | 1 | `snap --contrast` (+ `--contrast-pixel`) | **RAN** — prose 15.90:1 · dialogue 11.04:1 (default), 13.50/11.83 (reading), 15.93/10.95 (maximal), 15.90/11.04 (Light) · cast bar 16.50:1 · composer 8.53:1 · chat header 8.34:1 · Light landing: title 14.82:1, subtitle 7.01:1, search 4.99:1. **All PASS**, `contrast-fails=0` on every run |
 | 1 | `snap --aria` | **RAN** — transcript (59 lines), details panel non-RPG (29 lines), details panel RPG (41 lines), Saved-casts dialog |
-| 1 | `snap --expect-*` | **RAN** — `--expect-no-overflow` PASS (4 sides, 0 escapes) on \~14 runs across 430/768/1280/1920, 5 appearance arms, Light, reduced-motion, 3 pane states, 2 dialogs |
+| 1 | `snap --expect-*` | **RAN** — `--expect-no-overflow` PASS (4 sides, 0 escapes) on ~14 runs across 430/768/1280/1920, 5 appearance arms, Light, reduced-motion, 3 pane states, 2 dialogs |
 | 1 | `snap --matrix` | **SKIPPED** — superseded by explicit arms (4 viewports × 5 appearance presets × 2 themes × 3 pane states × reduced-motion), each with its own receipt |
 | 1 | `snap --json` | **RAN** — `reports/snaps/cbrc-console.json` for the lossless console census |
 | 1 | `snap --checkpoint` | **RAN** — boot window split out (6 boot warnings excluded from the interaction verdict) |
@@ -666,7 +666,7 @@ Down from 596ms/579ms; cycles 2–3 are clean. Receipts: `scratchpad/cbrc-perf.l
 \#824 (Collapsible height animation), #818 (plugin per-anchor CTA), #522 (native month control stays).
 **Unchanged from 2026-08-22 and not re-filed as new:** flat type hierarchy (P3 on every arm), the
 GAME STATE strip's missing selected state and unexplained `Map 🔒`, the redundant boot
-`chat.listChats {limit:1}`, and the \~240px of list-pane chrome above the first row.
+`chat.listChats {limit:1}`, and the ~240px of list-pane chrome above the first row.
 
 ---
 

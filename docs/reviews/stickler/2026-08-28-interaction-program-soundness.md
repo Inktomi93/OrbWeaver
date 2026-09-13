@@ -238,7 +238,7 @@ Composition door read IN FULL (`compose/authed-app.tsx`, 343 lines):
 - **B4** — cards + invitations via `automationSuggestionSource`
   (`suggestion-card-mount.tsx`, read IN FULL): F1 in-RAM lifetime honored (state lives in the mount's
   own fiber; reconnect clears; client-side TTL timer mirrors the server sweep), confirm/dismiss with
-  NOT\_FOUND-collapse retirement, C3's rewrite detail as a collapsed `@orb/ui/diff` word-diff.
+  NOT_FOUND-collapse retirement, C3's rewrite detail as a collapsed `@orb/ui/diff` word-diff.
 - **B5** — `/imagine` slash (`imagerySlashCommands`), the three content-triggered modals
   (`imagineModal`/`imageDetailModal`/`imageEditModal`, `authed-app.tsx:277-282` citing §7 B5),
   lightbox provenance strip + Edit + "Set as background"
@@ -257,7 +257,7 @@ Composition door read IN FULL (`compose/authed-app.tsx`, 343 lines):
 - **B11** — `automationActivityTab` as a CONTEXT-strip sibling of Members/"This chat"/Preview
   (`authed-app.tsx:118-124`; strip verified at `features/chat/lib/chats-section.tsx:60-95`);
   ONE-HOME read honored — `verbs/list-chat-activity.ts:1-6` reads the SAME `automation_fires` store
-  as the per-rule log, host-gated with the leak-free NOT\_FOUND collapse; cross-room stays the
+  as the per-rule log, host-gated with the leak-free NOT_FOUND collapse; cross-room stays the
   existing inbox with the bell badge + the mobile You-tab badge tell
   (`features/notifications/lib/notifications-chrome.tsx:50-55` — the #227 reachability class).
 
@@ -320,7 +320,7 @@ Composition door read IN FULL (`compose/authed-app.tsx`, 343 lines):
 - **Read IN FULL:** the spec (643 lines); `presets.ts` (1361); `authed-app.tsx` (343);
   `chat-controls-band.tsx` (360); `chat-controls-contribution.tsx`; `suggestion-card-mount.tsx`
   (193); `rules-settings-section.tsx`; `cast.ts` header block; the relevant memory topic files.
-- **Read PARTIALLY (targeted regions + headers):** `arm-executors.ts` (1-100 + run\_tool region),
+- **Read PARTIALLY (targeted regions + headers):** `arm-executors.ts` (1-100 + run_tool region),
   `dispatch.ts` (195-260), `chats-section.tsx` (40-95), `roll-dice.ts` (1-30),
   `list-chat-activity.ts` (1-20), `rule-state.ts` (25-35), `bus-definition-belts.ts` (60-100),
   contracts excerpts. Regions NOT read: `analysis-arm.ts` internals (variant-pin/hash mechanics —

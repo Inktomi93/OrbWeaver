@@ -249,7 +249,7 @@ stand. Row 23's honesty note is superseded by the header: the A-round has now ge
 | 28 | 1 | #3's F6-survival is an unruled owner fork minted by this doc | FOLDED — #3 re-classed NEEDS-OWNER with stated default |
 | 29 | 1 | `chatOpened` is per-attach + viewer-blind; chips fan room-wide → reconnect spam | FOLDED — #1's invitation re-spec (host-tier, replace-per-rule) |
 | 30 | 1 | #11 is genuinely NOT the refused retrieval class (no model spend, no assembly duplication) — but plugin event delivery has NO rate belt | FOLDED — verdict kept; the no-ceiling fact stated + #24 egress-floor item |
-| 31 | 1 | run\_tool: deactivated plugin tools rot rules into auto-disable | FOLDED — pause-not-rot posture on #12 |
+| 31 | 1 | run_tool: deactivated plugin tools rot rules into auto-disable | FOLDED — pause-not-rot posture on #12 |
 | 32 | 2 | #2's actor exclusion inexpressible on `turnCompleted` (fact carries no user identity) | FOLDED — re-specced onto `messageCommitted` |
 | 33 | 2 | #2's member touches 2 tsc-invisible literal sites incl. the plugin membrane's silent downgrade + guest-visible vocabulary | FOLDED — priced in the row |
 | 34 | 2 | #13's showcase arm (`generate_image`) is itself chat-required as built | FOLDED — into #13's price + the axes §1.2 list correction |

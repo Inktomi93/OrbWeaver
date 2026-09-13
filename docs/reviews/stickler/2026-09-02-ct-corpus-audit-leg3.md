@@ -31,10 +31,10 @@ the external `kill` binary (#1254).
 
 | Leg | Full-read files | Lines | Findings |
 | - | - | - | - |
-| Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
-| Leg 2 | 45 | \~19,540 | none |
-| Leg 3 | 15 | \~12,258 | none confirmed |
-| **Campaign total** | **84 / 469** | \~57,898 | ceiling P3 |
+| Leg 1 | 24 | ~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
+| Leg 2 | 45 | ~19,540 | none |
+| Leg 3 | 15 | ~12,258 | none confirmed |
+| **Campaign total** | **84 / 469** | ~57,898 | ceiling P3 |
 
 Leg 3 read, in order: `textarea`, `credential-key-row`, `tool-card`, `input`, `notification-bell`,
 `refinery-list-surface` (chunk 1) · `virtual-list`, `composer-guided-cluster`, `design-audit-walker`
@@ -43,7 +43,7 @@ Leg 3 read, in order: `textarea`, `credential-key-row`, `tool-card`, `input`, `n
 
 ## 2. Findings
 
-**None.** Fifteen files, \~12,258 lines, every file read whole — zero confirmed defects, and the
+**None.** Fifteen files, ~12,258 lines, every file read whole — zero confirmed defects, and the
 severity ceiling for the whole campaign stays at leg 1's P3. Taxonomy sweep receipts over exactly these
 15 files (`grep` over the file list, printed counts):
 
@@ -205,7 +205,7 @@ EventSource-task mechanism is argued in-file.
 
 ### 3b.3 `tests/tooling/design-audit-walker.ct.tsx` (1,027 ln) — CLEAN — the corpus's best instrument suite
 
-Every one of the \~20 walker rules is pinned in BOTH directions in the SAME mount: the defect fires and the
+Every one of the ~20 walker rules is pinned in BOTH directions in the SAME mount: the defect fires and the
 healthy twin stays silent WHILE PRESENT in the census (the "silence is only evidence when the control was
 looked at" law is spelled out and enforced — e.g. the below-fold healthy control must be IN `tapTargets`
 before its non-finding means anything). Withheld verdicts are asserted as COUNTED
@@ -302,7 +302,7 @@ Four things in it are the best examples of their kind in the corpus so far.
    rather than a uniformly dimmed page.
 3. **A biconditional, not a floor** (#1121). The hero art band MUST paint where the host clears
    `--reading-measure-min` and MUST be zero where it does not, both directions asserted in one loop, with
-   the 1280 arm recorded as a MEASURED REFUSAL (capping the hero's prose at \~54ch to reserve a strip puts
+   the 1280 arm recorded as a MEASURED REFUSAL (capping the hero's prose at ~54ch to reserve a strip puts
    the one paragraph the surface exists to show under the minimum measure).
 4. **The must-not-fire poll is the inverted form** (#188): `expect.poll(...).toBe(2).then(() => true,
    () => false)` watched over a window the POSITIVE arm calibrates, with the reason for not writing
@@ -394,7 +394,7 @@ show (flake rates, timing under contention); `tests/e2e/**`.
   `assembly-preview-panel`, `corpus-content`, `databank-detail-surface`, `workloads-group`,
   `injections-manager`, `analytics-overview-surface`, `image-detail-body`, `message-media-block`,
   `room-overrides-form`, `form-identity.suite`, `preset-structure-tabs`, `character-create-actions`,
-  `section-drill-in`, `grid`/`touch-floor`). **Leg 4 should take the MID remainder by AREA, \~15-20 files
+  `section-drill-in`, `grid`/`touch-floor`). **Leg 4 should take the MID remainder by AREA, ~15-20 files
   per chunk**, in this order (largest coupled clusters first, because the cold read of an area is the
   expensive part): (a) chat components — `settings-context-tab` (1229), `message-list-surface` (1304),
   `chat-controls-band`, `members-panel`, `message-content`, `ghost-message-row`, `home-recents-tile-body`,
@@ -413,8 +413,8 @@ show (flake rates, timing under contention); `tests/e2e/**`.
   batching: `tests/ui/primitives/**` first (the largest cluster, and the most formulaic — seal CTs),
   then `tests/client/features/chat/components/**`, then the remaining feature dirs alphabetically.
 
-At the observed rate (leg 1: 24 files, leg 2: 45, leg 3: 15 large ones) a full drain of MID needs \~2 legs
-and LO \~5, i.e. **the campaign is roughly 7 legs from complete**. Lines, not files, are the real cost:
+At the observed rate (leg 1: 24 files, leg 2: 45, leg 3: 15 large ones) a full drain of MID needs ~2 legs
+and LO ~5, i.e. **the campaign is roughly 7 legs from complete**. Lines, not files, are the real cost:
 this leg's 15 files were 12.3k lines against leg 2's 45 files at 19.5k.
 
 ## 6. Proposed memory lessons (orchestrator owns the write — do NOT write these from a lane)
@@ -449,7 +449,7 @@ this leg's 15 files were 12.3k lines against leg 2's 45 files at 19.5k.
 
 ## 7. Issue summary (for #1229 — paste verbatim)
 
-> **CT corpus audit leg 3 (cb-ct-audit-3, stickler): the HI band is DRAINED.** 15 files / \~12,258 lines
+> **CT corpus audit leg 3 (cb-ct-audit-3, stickler): the HI band is DRAINED.** 15 files / ~12,258 lines
 > read whole — the HI-band remainder part 2 (textarea, credential-key-row, tool-card, input,
 > notification-bell, refinery-list-surface, virtual-list, composer-guided-cluster, design-audit-walker,
 > composer, character-library-surface, chat-list-surface, home-surface) plus the two config surfaces the
@@ -465,5 +465,5 @@ this leg's 15 files were 12.3k lines against leg 2's 45 files at 19.5k.
 > and reads the framebuffer because a mask is invisible to every computed-style contrast instrument we
 > own. Three sub-finding observations recorded (two weaker-than-house zero-read barriers, one stale
 > constant name) — none is a defect. Campaign total **84/469 files full-read**; leg-4 shard map (MID 74
-> by area, LO 334 by directory at 60-80/leg, \~7 legs to complete) in §5. Report:
+> by area, LO 334 by directory at 60-80/leg, ~7 legs to complete) in §5. Report:
 > `docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg3.md`.

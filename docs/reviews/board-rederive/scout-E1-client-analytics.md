@@ -38,15 +38,15 @@ Read-only recon. No code/board mutated.
 - Render order: account/settings row group (footerEntries, few items) → `overflowChrome.map(...)`
   at line 83-85 (**this is the notifications-inbox widget**, per its own comment at line 55-58:
   "the notifications inbox" lands in `sheetOverflowChrome(entries)`) → THEN the "More" heading +
-  `overflowSections` (line 87-112, the \~50-item bulk of section rows) → the dead-band tap-guard.
+  `overflowSections` (line 87-112, the ~50-item bulk of section rows) → the dead-band tap-guard.
 - So on current main, the notifications inbox renders **before** the "More" bulk section list, not
-  after it — the opposite of "buried at the foot of \~50 controls."
+  after it — the opposite of "buried at the foot of ~50 controls."
 - `git log` on the file shows commit `8a8b90b1a fix(shell): the current section always holds a
   mobile bar slot (#484)` and others touching this file since; the ordering looks like it may have
   already been addressed by a later shell-chrome pass, OR the issue's "foot" language refers to
   physical scroll position when footerEntries/other widgets are numerous (not verified further).
 - Rung: declared+read, contradicts issue's literal premise as currently worded.
-- **Verdict: ⚠️ STALE-PREMISE.** The code today does NOT place notifications after \~50 controls —
+- **Verdict: ⚠️ STALE-PREMISE.** The code today does NOT place notifications after ~50 controls —
   it renders in the second slot, ahead of the bulk "More" list. Recommend: re-verify with a live
   mobile snap before closing (this is a text-only read, not a rendered receipt), but the ordering
   in source contradicts the issue as written. Recommendation: **flag for owner/close** pending a

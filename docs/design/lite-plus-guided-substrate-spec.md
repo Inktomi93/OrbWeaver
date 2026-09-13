@@ -521,7 +521,7 @@ CHECK; every JSON column `$type<>`d and parse-on-read.
 | `rpg_snapshots` | id · gameId (CASCADE) · messageId (CASCADE) · variantId (CASCADE, **UNIQUE**) · clock JSON **nullable** · calendarDate nullable · location text notNull default "" · weather JSON nullable · presentCharacters JSON · recentEvents JSON · actorState JSON · widgetValues JSON · **quests JSON default \[]** (§2.5 — the swipe-consistent quest plane) · fieldLocks JSON nullable · committed int notNull default 0 · createdAt | the FULL volatile plane, born whole — full grafts ZERO columns here |
 | `rpg_sheets` | id · gameId (CASCADE) · characterId (nullable, CASCADE) · userId (nullable, CASCADE) · sheet JSON notNull · createdAt/updatedAt · CHECK actor XOR · UNIQ (gameId, characterId) · UNIQ (gameId, userId) | **replaces legacy `rpg_party` — deliberately** (§4.3). Full grafts `arc` as ADD COLUMN with session wraps |
 | `rpg_hud_widgets` | id · gameId (CASCADE) · type (CHECK) · label · icon nullable · position (CHECK) · accent nullable · sort int default 0 · binding JSON notNull · createdAt | legacy shape adopted whole |
-| `rpg_journal` | id · gameId (CASCADE) · type (CHECK) · title · content · **variantId (nullable, CASCADE → message\_variants)** — NULL = hand/room entry, every lineage; non-null = model entry, rendered only while its variant is the slot's selected variant (§2.5) · sourceMessageId (nullable, SET NULL) · createdAt · index (gameId, variantId) | the VARIANT-AWARE archive (ratification #1). CASCADE on variant delete is deliberate: an entry whose swipe died is unreachable forever — keeping it is a leak, not history |
+| `rpg_journal` | id · gameId (CASCADE) · type (CHECK) · title · content · **variantId (nullable, CASCADE → message_variants)** — NULL = hand/room entry, every lineage; non-null = model entry, rendered only while its variant is the slot's selected variant (§2.5) · sourceMessageId (nullable, SET NULL) · createdAt · index (gameId, variantId) | the VARIANT-AWARE archive (ratification #1). CASCADE on variant delete is deliberate: an entry whose swipe died is unreachable forever — keeping it is a leak, not history |
 | `rpg_checkpoints` | id · gameId (CASCADE) · snapshotId (**RESTRICT**) · label · trigger (CHECK) · createdAt | RESTRICT adopted: "restore broken because the snapshot vanished" must be a constraint error |
 
 Coupled: `schema/index.ts` barrel re-export + the `db-structure` gate's producer mapping row + ONE
@@ -729,13 +729,13 @@ the ops object is a forward-ref delegate over the rpg service (the crew-delegate
    surface, not a missing half.
 5. **`trackersReadOnly`** — NOT a posture: derived per-turn from connection capability (§4.6).
    A knob here would let users silently break the loop; the honest-arms doctrine forbids it.
-6. **TIME\_OF\_DAY→hour mapping, beats-window size, state-block entity caps** — ARGUED NO-KNOB:
+6. **TIME_OF_DAY→hour mapping, beats-window size, state-block entity caps** — ARGUED NO-KNOB:
    internal vocabulary + prompt-shape stability constants (domain constants, named in code); no
    user-tuning demand exists, and prompt-budget shape is an engineering concern, not preference.
    Any future demand lands them in `config.lite` additively.
 7. **The create-time profile pick** — already user-chosen at the dialog (freeform default,
    packaged/import picks); not hardcoded.
-8. **`roll_dice` availability** — MODE\_POLICY data, host-visible via the tool list; a per-game
+8. **`roll_dice` availability** — MODE_POLICY data, host-visible via the tool list; a per-game
    tool toggle is a FULL-mode house-rules concern (legacy's `overworldToolNames` swap precedent)
    and grafts with it. ARGUED defer.
 
@@ -797,7 +797,7 @@ battery on the quiesced tree; artifacts read from `reports/`, never re-run.
   two concurrent turns on one chat don't share a bucket (the ChatTurnId keying pin).
 - **Locks**: manual-edit-wins (edit → auto-lock → tool write drops the locked path) · the
   \[merge-clear] `{}`-noop / null-clear transition test.
-- **Mode**: the MODE\_POLICY matrix (every guarded verb × mode; full arms → typed errors) ·
+- **Mode**: the MODE_POLICY matrix (every guarded verb × mode; full arms → typed errors) ·
   `createGame("full")` → `RpgModeUnbuiltError`.
 - **Profile**: mutability matrix (add / referenced-remove refused / range edits) · packaged
   profiles parse + validate · sheet attribute-key∈vocabulary enforcement.
@@ -831,7 +831,7 @@ battery on the quiesced tree; artifacts read from `reports/`, never re-run.
 - **New ids**: `ID_PREFIX` entries + brand exports + (used-by) `typeIdSchema` mints.
 - **New domain**: domain dir (8-slot) + compose block + `services.ts` wiring + contracts barrel +
   the AGENTS.md §6 additive-domains line + a workboard row + knip/ast liveness sweep.
-- **New tools**: compose registration + the MODE\_POLICY tuple + the projection tests + the
+- **New tools**: compose registration + the MODE_POLICY tuple + the projection tests + the
   05-§3-style count note in `contract/tools.ts`'s header (the count home convention).
 - **New bus**: contract union + satisfies-belt + coverage-gate arm + client channel + invalidation
   Record + the subscription proc.
@@ -896,8 +896,8 @@ clone) — the knob's storage, write door, and read end are byte-stable (§4.11 
 **Tools full ADDS:** `skill_check`, `request_check`, `advance_time`, `tick_clock`, `upsert_npc`,
 `update_reputation`, `create_clock`, `move_party`, `add_map_node`, `resolve_combat_round`,
 `grant_loot`, `start_encounter`, `offer_choices`, `request_illustration`, … — additive
-registrations into the same registry; the 7 lite defs are byte-stable (update\_scene's ambient args
-and update\_inventory's walletDeltas are already full-compatible — the engines WRITE the same
+registrations into the same registry; the 7 lite defs are byte-stable (update_scene's ambient args
+and update_inventory's walletDeltas are already full-compatible — the engines WRITE the same
 planes).
 
 **Verbs full ADDS:** `setMode` · wizard/`startGame` family · seat family · encounter/clock/map/

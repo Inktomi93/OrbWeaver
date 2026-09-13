@@ -97,7 +97,7 @@ Reuse the warm store cache mount here too if any step re-resolves. `COPY . .` is
 `.dockerignore` (§5) earns its keep — without it the whole `data/`, `.git`, `node_modules`, test tree
 get shipped into the build context and bust caching.
 
-**Stage 3 — runtime:** see §3 (differs per profile) and §2 (the pruned node\_modules).
+**Stage 3 — runtime:** see §3 (differs per profile) and §2 (the pruned node_modules).
 
 ### 1.2 BuildKit cache mount reference
 
@@ -164,7 +164,7 @@ boot either way.
   `sharp`, `@libsql/client`, `onnxruntime-node` have native bindings).
 - **Runtime:** `node:26-bookworm-slim`. Debian glibc — NOT Alpine/musl (spec Fork A: native `@libsql`
   - node's TS type-strip are lower-risk on glibc; devcontainer's proven path is Debian). Slim drops
-    the \~150MB of build tooling but keeps a shell (the healthcheck and ops want it) — do NOT use
+    the ~150MB of build tooling but keeps a shell (the healthcheck and ops want it) — do NOT use
     distroless (loses shell; node-distroless lags the 26 tag).
 - Concrete tags available now: `26-bookworm-slim`, `26.7-bookworm-slim`, `26.7.0-bookworm-slim`. Pin
   the full `MAJOR.MINOR.PATCH` **and** the digest (§7).
@@ -364,7 +364,7 @@ secrets:
   the Host-spoof owner-fallback hole.
 - **`healthcheck.start_period`** — during the start period a failing check does NOT count toward
   `retries` and does NOT mark unhealthy; Profile 1 needs minutes because the cold vLLM fleet spawn is
-  slow (\~34GiB/card to warm). There's also a newer `start_interval` (probe more frequently during the
+  slow (~34GiB/card to warm). There's also a newer `start_interval` (probe more frequently during the
   start period) — optional nicety.
 - **`shm_size: "8gb"`** — vLLM's tensor-parallel workers use `/dev/shm`; the 64MB default deadlocks
   them. Profile 2 doesn't need it.
@@ -506,7 +506,7 @@ Official-first, recent (2024–2026):
 
 - [Docker docs — Build secrets](https://docs.docker.com/build/building/secrets/)
 - [Docker docs — Dockerfile reference (RUN --mount, HEALTHCHECK, STOPSIGNAL, USER, EXPOSE, LABEL, COPY --link/--chown)](https://docs.docker.com/reference/dockerfile/)
-- [Docker docs — Compose file: services (expose, healthcheck, depends\_on, env\_file, secrets, shm\_size)](https://docs.docker.com/reference/compose-file/services/)
+- [Docker docs — Compose file: services (expose, healthcheck, depends_on, env_file, secrets, shm_size)](https://docs.docker.com/reference/compose-file/services/)
 - [Docker docs — Run Compose services with GPU access](https://docs.docker.com/compose/how-tos/gpu-support/)
 - [Docker docs — GPU access (engine, --gpus)](https://docs.docker.com/engine/containers/gpu/)
 - [Docker docs — buildx build (attestations, --sbom, --provenance)](https://docs.docker.com/reference/cli/docker/buildx/build/)
@@ -519,7 +519,7 @@ Official-first, recent (2024–2026):
 - [NVIDIA NGC — CUDA container images (runtime/base/devel, ubuntu24.04/26.04 tags)](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/cuda)
 - [NVIDIA — Container Toolkit / Docker specialized configs](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/docker-specialized.html)
 - [nodejs/docker-node #1620 — PID 1 / signal handling guidance](https://github.com/nodejs/docker-node/issues/1620)
-- [Compose Tip #43 — Read-only root filesystems (read\_only + tmpfs + cap\_drop + no-new-privileges)](https://lours.me/posts/compose-tip-043-read-only-rootfs/)
+- [Compose Tip #43 — Read-only root filesystems (read_only + tmpfs + cap_drop + no-new-privileges)](https://lours.me/posts/compose-tip-043-read-only-rootfs/)
 - [Compose Tip #10 — init: true for PID 1](https://lours.me/posts/compose-tip-010-init-pid1/)
 - [BellSoft — Docker image security best practices: SBOM, non-root, provenance](https://bell-sw.com/blog/docker-image-security-best-practices-for-production/)
 - [OneUptime — Multi-stage Dockerfiles for monorepos (2026-01)](https://oneuptime.com/blog/post/2026-01-30-docker-multi-stage-monorepos/view)

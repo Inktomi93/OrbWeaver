@@ -75,7 +75,7 @@ deviation from the program doc (F6). None of F2–F6 leaks data across tenants o
 - **Reality:** `skipped` is fed only by the pre-loop `verifyCharactersOwned` re-verify (lines 35-48).
   A character deleted AFTER that re-verify but BEFORE its `addCharacterToChat` call makes chat throw
   `DomainNotFoundError("character", …)` (`chat/verbs/roster.ts:586-589`), which nothing collects —
-  the apply aborts mid-loop with NOT\_FOUND, earlier seats already landed (partial apply; idempotent
+  the apply aborts mid-loop with NOT_FOUND, earlier seats already landed (partial apply; idempotent
   re-apply recovers; the character is the caller's own, so no leak).
 - **Test reality:** NO test ever produces a non-empty `skipped`. The "vanished mid-apply" test
   (`tests/server/domain/roster-preset/verbs/apply-to-chat.int.test.ts:127-150`) deletes the character
@@ -127,7 +127,7 @@ deviation from the program doc (F6). None of F2–F6 leaks data across tenants o
   up (line 211) for the Save-current gate, so the doc's letter was one conditional away.
 - **Failure scenario:** a non-host member opens the modal in someone else's room, sees an enabled
   "Add X to this chat", clicks, gets "Couldn't apply the party to this chat." — a designed-against
-  dead-end affordance. Server-side is safe (composed-real test 2 proves chat's leak-free NOT\_FOUND
+  dead-end affordance. Server-side is safe (composed-real test 2 proves chat's leak-free NOT_FOUND
   and a byte-untouched room). Route to `side-eye`/owner: either gate the affordance on
   `active.isHost` (the doc's letter) or record the deviation in the build record with its reasoning
   (the code header's "capability-quiet rather than lying" line is an argument, not a receipt).
@@ -163,7 +163,7 @@ deviation from the program doc (F6). None of F2–F6 leaks data across tenants o
   session (29.4s).
 - **(d) Pinned — CONFIRMED, with the F4 caveat.** The refusing-arm harness test (chat's own
   `ChatNotFoundError` surfaces THROUGH the injected op; zero adds/knobs/configs recorded), the
-  composed-real non-host test (chat's leak-free NOT\_FOUND, room byte-untouched), and the sweep's
+  composed-real non-host test (chat's leak-free NOT_FOUND, room byte-untouched), and the sweep's
   scope-2 probe (stranger's OWN valid preset onto A's chat → `requireNotFound`) all ran GREEN this
   session. In-verb ordering: own-preset owner-scoped read (own data, leak-free) → `requireHost` →
   first room-shaped read (apply-to-chat.ts:27-41). The record's specific "all-present" pin is the F4
@@ -208,10 +208,10 @@ deviation from the program doc (F6). None of F2–F6 leaks data across tenants o
 kit `ID_PREFIX.rosterPreset` + `RosterPresetId` · schema + barrel · baseline squash ·
 `table-scoping-class` (both tables) · `ownerid-registry` · contracts module · user-bus member ×3
 sites (union + TYPES + COARSE) · compose builder + `services.ts` key · `context.ts Services` +
-`router.ts` mount + router · `services.test.ts` SERVICE\_KEYS array · cross-tenant sweep · SERIAL\_INT
+`router.ts` mount + router · `services.test.ts` SERVICE_KEYS array · cross-tenant sweep · SERIAL_INT
 row for the full-createServices test · test-presence mirrors (10 files) · modal slot + authed-app
-registration + ct-data-providers REAL\_MODALS mirror + agent-nav capabilities fixture ·
-invalidation row + USER\_BUS\_FILTERS test map + tracked keys · chat CT ambient route
+registration + ct-data-providers REAL_MODALS mirror + agent-nav capabilities fixture ·
+invalidation row + USER_BUS_FILTERS test map + tracked keys · chat CT ambient route
 (`rosterPreset.list: []`) · `domain-freshness-plane` row · `lifecycle-portability` DEFERRED row
 (with a real end-condition) · `dangling-refs` phantom row REMOVED (the gate's two-sided stale arm
 demanded it) · suppressions baseline row (hand-edited single row, not a regen) · docs catalog +
@@ -243,7 +243,7 @@ rider removal would have redded my check run.
   `EmitUserEvent` (void — the unawaited emits are correct), `viewerIsHost` (real field),
   `brandedId` (the house loose-id router idiom), D80-citation precedent in docs/.
 - **Executed (worktree, capped per lane-standing-facts):**
-  - `pnpm check` (whole-tree, background, \~40 min under two live sibling lanes): **FAIL, exactly 2
+  - `pnpm check` (whole-tree, background, ~40 min under two live sibling lanes): **FAIL, exactly 2
     stages** — `✗ lint:biome` (= F1, the lane's own) and `✗ structure:full`, whose single violation
     (`dangling-refs`: `Core-Enforcement-Active-Gates.md:268` backticked path
     `scripts/probes/st-goldens/sillytavern-runtime` resolves to nothing) is **ENVIRONMENTAL, not the

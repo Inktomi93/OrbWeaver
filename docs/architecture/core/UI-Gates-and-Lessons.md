@@ -117,7 +117,7 @@ rotted neo — §11.0).
 ## 9. What we explicitly do NOT carry from neo
 
 shadcn copy-paste · Radix · the react-markdown stack · react-syntax-highlighter/Prism · the single-route
-`this_chid` re-coupling sync effect · `@/` aliases (use `#`) · file-based Router codegen (\~3 hand-written
+`this_chid` re-coupling sync effect · `@/` aliases (use `#`) · file-based Router codegen (~3 hand-written
 routes) · `compact`/`inDrawer`/`density` layout props (container queries replace them) · per-feature
 `useVirtualizer` (the `@orb/ui/virtual-list` seal replaces it).
 
@@ -137,7 +137,7 @@ each ruling: `history/ui-gates-lessons-archaeology-record.md`.
 
 ### 11.0 Why neo rotted *despite* being structured + enforced (the three root causes)
 
-neo had feature-slices, dep-cruiser, a token system, and \~104 gated queryKeys — and still rotted, in
+neo had feature-slices, dep-cruiser, a token system, and ~104 gated queryKeys — and still rotted, in
 three seams. The three standing rulings (also D43 (1)/(2)/(3)):
 
 1. **No directory is exempt from a boundary rule.** Exemption zones (`features/_shared/`,
@@ -249,7 +249,7 @@ per-theme `color-scheme`).
   no compile signal). Split per-token stream fields from lifecycle fields so chrome physically cannot
   subscribe to token churn. *Gates: `zustand-selector-stability.ts` (narrow) + `zustand-selector-derived.ts`
   (full-body, both call shapes).*
-- **Registry-pairing keystone.** RAIL\_SLOTS ↔ MODAL\_SLOTS id-pairing was unguarded in neo (a missing body
+- **Registry-pairing keystone.** RAIL_SLOTS ↔ MODAL_SLOTS id-pairing was unguarded in neo (a missing body
   shipped as "the panel won't open"). *Gate `modal-registry-completeness` (`registry-pairing` RETIRED at
   M4 — the rail DERIVES modal affordances from the registry; the bijection is structural).*
 - **Typed test-id registry.** A `testId(...)` typed map makes a `data-testid` typo a type error. What it

@@ -26,12 +26,12 @@ Vite serving `:5173` is **pid 3858659, started 01:16:02, 2m54s old at first driv
 receipt was taken). Server `:8788` pid 3858309. Main tip `4f3840283`. Box load-avg 2.02 at start.
 Isolated stage staged a detached worktree at `4f3840283f9f` on `:5273/:8888`.
 
-**Run health, every one of \~40 driven runs:** `nav=OK` · `nav-actions-failed=0` · `steps-failed=0` ·
+**Run health, every one of ~40 driven runs:** `nav=OK` · `nav-actions-failed=0` · `steps-failed=0` ·
 `page-errors=0` · `console-errors=0` · `failed-req=0` · `vite-dep-churn=0` · `deadcss=0` · `emptycss=0` ·
 `environment-fails=0` · `sandbox-trace-noise=0`. Console *warnings* are non-zero and triaged in a table
 at the end of Part 3 — no row is disposed of as "it's dev mode".
 
-**One environment fault, reported mid-run:** the chrome-devtools MCP was wedged for \~12 minutes
+**One environment fault, reported mid-run:** the chrome-devtools MCP was wedged for ~12 minutes
 ("The selected page has been closed"); the orchestrator identified the cause (its own probe page
 closed, killing the shared selected-page pointer) and re-opened one. Both Lighthouse arms were then
 taken. No product receipt was affected.
@@ -49,7 +49,7 @@ the 16px group rows measure 16.0px again, the theme cards are 828.8×66 again, t
 What the re-drive adds is not more of the same. It is **five defects the 08-30 fleet could not see**,
 and the two largest are structural:
 
-1. **Clicking a settings group makes the pane jump.** The Looks section mounts \~230ms late and pushes
+1. **Clicking a settings group makes the pane jump.** The Looks section mounts ~230ms late and pushes
    the entire Appearance body down 372px — a **0.1656 non-virtualized layout shift**, the app's own
    `[cls]` flagger calling it `OVER BUDGET`, reproduced in four independent runs including a real
    Playwright click, with a frame strip that shows the jump.
@@ -88,7 +88,7 @@ What is wrong is still **coherence and ink**, plus a first-paint that visibly mo
 | F10 | The OFF state of a switch is the loudest object on the page | **STILL STANDING** (byte-identical, now machine-detected) | OFF track `oklch(0.99 0.005 60 / 0.12)`, OFF thumb `oklch(0.955 0.004 75)` **opaque = 17.673:1** vs the pane; ON track `oklch(0.72 0.175 52)` = **7.669:1**. **2.30× louder off than on.** `design-audit` now files this itself: `quiet-state` P2 — *"the OFF state is louder than the ON state"* (OFF 12.58:1 vs ON 7.06:1), in **every** appearance/theme/pane arm |
 | F11 | "NOT BUILT YET" is the kicker over shipped features | **STILL STANDING** (2 features, and it is an `h2`) | `snap --aria` on the landing: `region "Not built yet"` → `heading "Not built yet" [level=2]` → `heading "Regex scripts" [level=3]` + `heading "Rosters" [level=3]`. It is a **sibling h2 of the pane's own h2** ("The parts every chat is built from"), so the heading tree itself asserts the features are unbuilt |
 | F12 | The Tags landing card wears a banned side-tab accent border | **STILL STANDING** (byte-identical) | `[aria-label="Tags"]::after` = `content:""`, `background: oklch(0.72 0.175 52)`, `width: 3px`, `height: 252px`, `inset: 0px 503.641px 0px 0px`, `position: absolute`, on a `border-radius: 10px` card with a `1px oklch(0.99 0.005 60 / 0.08)` hairline. §6 absolute ban (`side-tab` + `border-accent-on-rounded`). **And the detector cannot see it** — see the Instrument Delta |
-| F13 | Backup's eleven checkboxes sit \~1210px from their labels, on the wrong side | **STILL STANDING** | Checkboxes at **x = 1238, 18 × 18, 24px pitch** (y 193/217/241/265/289/313/…), labels at x = 387 → **\~851px** apart, checkbox on the RIGHT, no select-all/none. `cb-config-eye-2-backup.png` |
+| F13 | Backup's eleven checkboxes sit ~1210px from their labels, on the wrong side | **STILL STANDING** | Checkboxes at **x = 1238, 18 × 18, 24px pitch** (y 193/217/241/265/289/313/…), labels at x = 387 → **~851px** apart, checkbox on the RIGHT, no select-all/none. `cb-config-eye-2-backup.png` |
 | F14 | The row-actions menu opens on top of three sibling controls | **CHANGED** (3 → 1) | Menu rect `[1072, 1019, 166, 110]`; exactly **one** sibling switch (x 1168, y 1089) now falls inside its footprint. Still occludes a control |
 | F15 | The teacher shows raw wire values where the control shows labels | **STILL STANDING** (verbatim) | Control reads **"Medium"** (`span` at x 1029, 15px); About pane reads **"Using the default — md."** (`snap --aria`: `region "About"` → `paragraph: Using the default — md.`) |
 | F16 | `@modified` returns N rows for 1 modified setting, marks none | **STILL STANDING** (10 → 5, same mechanism) | Exactly one setting is modified (the chat-display style). `@modified` + Enter returns **5 options**: `Appearance` (group) · `Message style` (section) · `Chat display` (the modified one) · `Color quoted speech` · `Auto-fix unfinished formatting`. **3 of 5 are unmodified; 0 of 5 carry a modified mark** (no "modified" token anywhere in the option markup) |
@@ -174,7 +174,7 @@ STANDING is a live defect at its original severity and is not re-listed.
 
 ### P1
 
-**G1 · Clicking a settings group makes the whole pane jump — the Looks section mounts \~230ms late and
+**G1 · Clicking a settings group makes the whole pane jump — the Looks section mounts ~230ms late and
 pushes 372px of content down.**
 Reproduced four times, including with a **real Playwright click** through `pnpm record`:
 `[cls] shift 0.1656 input-adjacent · <section> moved 0px,372px · <section> moved -387px,-676px · [data-slot=setting-row] moved -387px,-564px · [data-slot=setting-row] moved -387px,-608px · [data-slot=setting-modified-rail] moved 0px,372px · CLS 0.1660 (virtualized 0.0000) OVER BUDGET ·
@@ -258,7 +258,7 @@ different plate/shadow stack, with the per-step contrast ≥ 1.5:1 rather than t
 default.**
 `row-void` fires **8×** at 63–77% in: the default arm (`panel-context=collapsed`), `context-only`,
 `focus`, all four appearance presets, and the Light theme. It fires **0×** in `both-docked`, where the
-content pane narrows to \~520px. So the 654px void is not a taste problem, it is a *width* problem, and
+content pane narrows to ~520px. So the 654px void is not a taste problem, it is a *width* problem, and
 the state a user lands in is the worst one.
 **Fix:** this is E1's receipt, not a separate fix — `layout: the setting row — receipt: max-w on the
 row block so row-void reports 0 in ALL FOUR pane states, not just both-docked.`
@@ -392,7 +392,7 @@ rows of which three are not modified and **none carries a mark**; the only signa
 at x 379 next to the row itself. Once you find the row, Reset is correct and honest.
 
 **Errand B — change theme and change it back.** Instant, and "current" moves correctly. Crunchy: the
-only confirmation is a 10.5px grey "Saved" 24px outside the content grid, \~900px from where you
+only confirmation is a 10.5px grey "Saved" 24px outside the content grid, ~900px from where you
 clicked; and under Light you are picking between two black slabs and one invisible one.
 
 **Errand C — background on/off.** The grid is genuinely good work — 15 cells at exactly 103.6 × 103.6,
@@ -416,7 +416,7 @@ y≈340 to y≈752.
 
 **Errand G — Settings on a phone.** Drill-down works. The teaching block is **188px** of prose and the
 first settings row starts at **y 361 of a 740px viewport** — 31% of the first screen before the first
-row (an improvement on 08-30's \~38%). The group rows are still 16px at coarse (P1). "Add a search
+row (an improvement on 08-30's ~38%). The group rows are still 16px at coarse (P1). "Add a search
 filter" is still a 40×48 solid orange square, the loudest thing on the screen, for a secondary filter.
 
 ### Information architecture
@@ -537,7 +537,7 @@ walk" into "click a group and read".
 | `snap --map` | **RAN** — config landing (54 elements, 2 DOM fallbacks), Appearance content pane. `map-dom-fallbacks=2` on the landing, and the fold trigger resolves only as a DOM path (G5) |
 | `snap --aria` | **RAN** — config list (35 lines), full body on the teacher drive (201 lines), World Info landing (85 lines) |
 | `snap --contrast` | **RAN ×2 arms** — Hearth + `--theme Light`, 4 selectors each; 6 PASS, 2 OFF-SCREEN refusals reported as NO VERDICT. Supplemented by canvas-decoded oklch→sRGB math for the swatch cells and switch states |
-| `snap --eval` | **RAN** — \~30 probes: band geometry + pitch, theme card/strip/cell geometry and colours, switch states, row-void census, glyph alignment, type census, elevation illustrations (settled), density segment, menu footprint, checkbox geometry, media-grid cells, `__orb.motion()`, `__orb.renders()`, keyboard walk |
+| `snap --eval` | **RAN** — ~30 probes: band geometry + pitch, theme card/strip/cell geometry and colours, switch states, row-void census, glyph alignment, type census, elevation illustrations (settled), density segment, menu footprint, checkbox geometry, media-grid cells, `__orb.motion()`, `__orb.renders()`, keyboard walk |
 | `snap --expect-*` | **SKIPPED** — the layout questions this pass were geometric measurements, not assertions; `--expect-no-overflow` was covered by the 08-30 pass (R8) and nothing in the diff touches that surface |
 | `snap --json` | **SKIPPED** — console never approached the 200-message cap (max 99 in one matrix cell) |
 | `snap --matrix` | **RAN — NO VERDICT.** `cells=16 pairs-uncovered=0`, `declared=41 executable=36 dependencies=5 themes=5`; 5 cells completed (2 with `appearance-fails=1`, traces retained under `reports/traces/`), then INSTRUMENT ERROR at v06 (the appearance-row probe waits on a chat `message-row` that does not exist on the fresh isolated-stage db). Reported as NO VERDICT, not as clean |
@@ -584,13 +584,13 @@ changed. No files written outside `reports/`, the scratchpad, and this review.
 
 Re-drove the Config surface with the full repaired instrument battery against main tip `4f3840283`
 (vite pid 3858659, age-verified; `nav=OK`, 0 page errors, 0 console errors, 0 failed requests,
-deadcss 0 across \~40 runs). **Verdict unchanged: DO NOT SHIP AS IS.** Of the 08-30 report's 36 numbered
+deadcss 0 across ~40 runs). **Verdict unchanged: DO NOT SHIP AS IS.** Of the 08-30 report's 36 numbered
 defects, **2 are fixed, 4 changed, 26 still stand** (most byte-identical: 16px group rows, 828.8×66
 theme cards with 1.09:1 swatch cells, the 114×34-over-90×34 density stack, a 17.673:1 OFF switch vs a
 7.669:1 ON switch, "Using the default — md." vs "Medium"), and 4 were not re-measured. All 8 excellence
 recommendations are un-actioned except the teacher tab strip, which was correctly rebuilt as a
 `toolbar` + `aria-current` + roving focus. **Twelve new findings (G1–G12)**, three of them P1: (G1) the
-Looks section mounts \~230ms late and pushes 372px of content down on every settings-group click —
+Looks section mounts ~230ms late and pushes 372px of content down on every settings-group click —
 0.1656 non-virtualized shift, the app's own `[cls]` flagger calling it OVER BUDGET, reproduced 4× incl.
 under a real click, with a frame-strip receipt; the reserved-box class #885 shipped on 21 sites and
 missed here. (G2) with both panes docked the CONTEXT pane renders the LIST's nine Appearance

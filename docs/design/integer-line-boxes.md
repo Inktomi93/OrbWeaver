@@ -109,7 +109,7 @@ where the repair does not reach: a centred child whose size is NOT ours to deriv
 third-party box, a user-owned continuous multiplier) still halves whatever difference it happens to
 produce, and that stays Law 2/3/4 territory — the runtime `off-grid-transform` / `promoted-layer-offset`
 backstops, not a token the vault can retune. So does an element's ABSOLUTE landing, which is its
-ancestors': #1684's reported 0.484 device px was this control's 0.5 plus \~0.984 inherited from the
+ancestors': #1684's reported 0.484 device px was this control's 0.5 plus ~0.984 inherited from the
 settings row stack, and only the first half was the primitive's to fix. The pins are
 `tests/ui/tokens/index.test.ts` (every snapped spacing token belted on BOTH arms and integer at the 16px
 root) and `tests/ui/primitives/switch/switch.ct.tsx` (the four rows above, measured from the rendered
@@ -190,7 +190,7 @@ its CURRENT resolved value:
    leading-label` → `leading-micro` (series-row detail); `text-micro leading-body` →
    `leading-label` 16px box (highlighted-text `code`, multi-line micro mono, ratio 1.52 ≈ its
    current 1.55).
-3. **Bare `text-*` with no leading class** (\~18 live code sites; boxes currently decided by
+3. **Bare `text-*` with no leading class** (~18 live code sites; boxes currently decided by
    preflight's inherited 1.5 → 19.5/22.5px, fractional TODAY): each gains its voice's leading
    (`leading-body`/`leading-label`/`leading-label-relaxed`). SVG text classes (`charts/meter`
    ×3) take a reasoned `@orb-gate-ignore` (line-height is inert in SVG); the markdown
@@ -308,7 +308,7 @@ orchestrator, not made by this lane.
 
 ## 8. Forks stated (defaults declared, work continues)
 
-1. **Files outside the named fence that the outcome forces** — ui variant re-pairs (\~25 files),
+1. **Files outside the named fence that the outcome forces** — ui variant re-pairs (~25 files),
    `class-merge.ts` group extension, `token-contract.ts` outputRole extension. Default: proceed,
    every file named in the report (the brief's own §3c sweep is unreachable without them).
 2. **ramp.ts** (§6) — the exact diff is stated here; the lane does not touch it. Without it the

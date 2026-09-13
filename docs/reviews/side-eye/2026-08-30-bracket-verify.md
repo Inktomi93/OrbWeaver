@@ -13,10 +13,10 @@ updated: 2026-08-30
 
 **The drive did NOT run on `:5173`.** At lane start `pnpm stack status` reported the dev stack DOWN
 (server pid not bound, healthz unreachable, vite not bound) and `pnpm stack start` timed out at 180s
-with `tooling/src/stack/engines.sh start` wedged at "starting gen :8703" (both GPUs \~41/49 GiB;
+with `tooling/src/stack/engines.sh start` wedged at "starting gen :8703" (both GPUs ~41/49 GiB;
 `engines-start.log` also logged three `recorded leader is absent; refusing survivor cleanup` warns and
 a `launch identity became ambiguous during boot` refusal, with `ENGINES_POSTURE` pinned `adopt-only`).
-Reported to the orchestrator on the back channel at minute \~6; the orchestrator took the engines wedge
+Reported to the orchestrator on the back channel at minute ~6; the orchestrator took the engines wedge
 and **approved driving the orphaned stage instead**.
 
 Everything below was measured on the snap stage at **`http://localhost:5273`**, serving
@@ -52,7 +52,7 @@ finding list below is the deliverable.
 | **F4** | overlay states print the name ONCE (430/768/1024) | **PARTLY REFUTED — see N1** | 1024×768 and 768×800: **one** visible instance (band `h2`) ✓. **430 coarse AND 430 fine: TWO** — topbar `.shell-topbar-title` at y=13 + band `h2` at y=65. Same on Chats and Characters. |
 | **F5** | one Own-look trigger / one chats door at 1280 dock+dock | **CONFIRMED (door half)** | visible-node census at 1280 docked: `"own look"` → **n=1** (band only). `design-audit` `duplicate-action-door ("own look")` → **0** in both arms. The surviving `2x button "chats"` is the rail-vs-pane pair = **#891, pre-existing, not re-filed**. Token datum ×2 = the owner's ruled keep-both. |
 | **F6** | band text ≥11px everywhere | **CONFIRMED** | chat band computed: `h2` 16px/600, all three chips **13px** (was 10.5). `design-audit` `undersized-ui-text` → **0** on `chat-context-band`, `character-context-band`, `rpg-header-band` in all six arms. Mobile chip tap-target clean. |
-| **F12** | chip grammar: actionable vs inert by INK (\~2× claimed) | **CONFIRMED numerically; see taste** | chat band, owner theme: actionable `Memory — idle` **16.40:1** vs inert `Built-in preset` **7.95:1** = **2.06×**, both ≥4.5. Same axis in the character band and in Light. One pill shape for all three; the axis is ink + weight (600/500) + case. |
+| **F12** | chip grammar: actionable vs inert by INK (~2× claimed) | **CONFIRMED numerically; see taste** | chat band, owner theme: actionable `Memory — idle` **16.40:1** vs inert `Built-in preset` **7.95:1** = **2.06×**, both ≥4.5. Same axis in the character band and in Light. One pill shape for all three; the axis is ink + weight (600/500) + case. |
 | **F7** | reading preset: viewport ≥40%, orbs in the tab body | **CONFIRMED** | `--appearance-preset reading`, game room: viewport **303 of 740 = 41%** (≥40). Band **327→179**; chrome 79%→**59%**. Orbs render below the GAME STATE rail, in the tab body. Companion arms: defaults/maximal band 218 vp 52%, compact band 196 vp 57%, no overflow. |
 | **F8** | overflow announces itself (fade + `data-overflow-end`) exactly when a rail overflows | **CONFIRMED mechanically** | reading: bottom rail `scrollWidth 395 / clientWidth 363`, `data-overflow-end="true"`, one rendered `[data-slot=context-rail-fade]` 30×71 at the end edge, `linear-gradient(to left, oklch(0.132 0.006 60), transparent)`. 1024×768: `316/290`, fade true. defaults/maximal/compact: overflow false, **fade false** (not a permanent veil). The literal "overflowX:false at 1280 in all arms" clause is **not** met and was explicitly superseded by the mechanism clause — stated, not re-litigated. Affordance strength: see N9. |
 | **F9** | ONE foot strip at 430 (sheet over the app bar) | **CONFIRMED** | 430 coarse: sheet toolbar `9,676 413×56`; shell `nav "Primary"` `0,684 430×56` — the nav is **underneath** the sheet and invisible in the capture. `reports/snaps/cbbe2-game-430.png`, `cbbe2-chat-430.png`, `cbbe2-char-430.png` each show exactly one icon-over-caption strip. |
@@ -92,7 +92,7 @@ the`narrow\` arm beside it; then pin it with a CT that asserts the count at both
 **\[P2] N2 — F17's separator pushed the six-cell Characters rail into overflow at the DEFAULT desktop
 width; `Trust` paints as `Tru`.**
 The trail fix added `<Separator orientation="vertical" className="ms-row …"/>` plus a second `ms-row`
-inset (`02736d7d3`, context-rail.tsx). That is \~19px off the cell track — and the six-cell Characters
+inset (`02736d7d3`, context-rail.tsx). That is ~19px off the cell track — and the six-cell Characters
 rail at 1280 docked needs exactly 19px more than it has.
 *Receipt:* 1280 docked, Characters — toolbar `scrollWidth 319 / clientWidth 300`, `over: true`,
 `data-overflow-end="true"`, and the `Trust` caption's box (x=1187 w=31 → right edge 1218) extends
@@ -174,7 +174,7 @@ HUD follows you at three presets and does not at the fourth.
 STATUS-tab-scoped at reading, not merely "relocated".\* Or leave it; it is honestly minor.
 
 **\[P3] N8 — at 430 both the chat and the character panes are mostly empty ground.** Characters: content
-ends at y≈400, foot rail at y≈650 — \~250px of black. Chats: cast ends at y≈330, \~300px of black. The
+ends at y≈400, foot rail at y≈650 — ~250px of black. Chats: cast ends at y≈330, ~300px of black. The
 pinned-foot / ground contract is working exactly as specified (and it is one of the genuinely good
 things here), but on a phone a full-screen sheet that delivers five data rows reads as an empty screen.
 *Fix:* \`onboard: the phone sheet's ground — receipt: at 430 the pane either fills its ground with the
@@ -362,7 +362,7 @@ selector or add the `narrow` arm beside it, and pin the count at both identities
 
 **N2 — the trail separator pushed the Characters rail into a clip at the default desktop width (P2).**
 F17's fix added a vertical `Separator` plus two `ms-row` insets to the rail's trail zone
-(`02736d7d3`, context-rail.tsx), costing the cell track \~19px — and at 1280 docked the six-cell
+(`02736d7d3`, context-rail.tsx), costing the cell track ~19px — and at 1280 docked the six-cell
 Characters rail needs exactly 19px more than it now has. Measured: toolbar `scrollWidth 319 /
 clientWidth 300`, `data-overflow-end="true"`, and the `Trust` caption's right edge at 1218 against a
 track edge at 1205, so it paints as `Tru`. The other three widths are clean (1024 `223/223`, 768

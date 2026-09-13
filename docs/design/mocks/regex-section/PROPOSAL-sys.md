@@ -20,7 +20,7 @@ surfaces.
 
 **The switches split three ways and only two are cheap.** The per-row switch is free today (the library
 `enabled` column through `regex.updateScript` / `regex.bulkSetEnabled`, both `busDriven`); a per-TIER allow is a
-well-trodden \~9-file chat-metadata knob with no migration (the `setHostDisplayScripts` path verbatim); a
+well-trodden ~9-file chat-metadata knob with no migration (the `setHostDisplayScripts` path verbatim); a
 per-CHAT mute of an inherited script is a new table, a new resolver stage, a sweep classification and a
 vocabulary collision — do not assume it.
 
@@ -368,7 +368,7 @@ lanes must be told before they draw anything: the effective panel is **host-only
 the host's `runAsUserId`; a member gets the chat tier only, read-only, in the Lorebooks shape), and
 `STUDY.md` §5's plan to reuse the display-scripts opt-in as a per-tier prompt-leg allow is **refuted by the
 code** — that verb broadcasts the host's whole enabled DISPLAY library and ignores the junctions, so the tier
-allow has to be a new chat-metadata blob (no migration, the `setHostDisplayScripts` path verbatim, \~9 files).
+allow has to be a new chat-metadata blob (no migration, the `setHostDisplayScripts` path verbatim, ~9 files).
 Two findings are file-worthy independent of this feature: **(1)** a host attaching or detaching a room regex
 script never reaches other members — `regexChanged` is a per-user channel and `attach-to-chat.ts:26` emits only
 on it, so at `staleTime: Infinity` a member's `listForChat` is stale forever; **(2)** the `membership-fan-guard`

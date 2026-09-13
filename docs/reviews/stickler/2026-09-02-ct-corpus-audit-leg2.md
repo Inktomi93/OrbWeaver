@@ -8,7 +8,7 @@ updated: 2026-09-02
 
 Lane `cb-ct-audit`, #1229. Continues
 [the leg-1 report](2026-09-02-ct-corpus-audit-leg1.md) (Phase A over all 469 `.ct.tsx` + 24 full-reads).
-Leg-2 charge: full-read the un-triaged helper-hoisted-assert population (leg-1 Appendix B minus the \~70
+Leg-2 charge: full-read the un-triaged helper-hoisted-assert population (leg-1 Appendix B minus the ~70
 sites already verified inside the leg-1 shard), judging every helper-hoisted non-retrying assert as
 barriered-by-construction vs racing (leg-1 F2 is the model defect), plus the full
 honesty/premise/coverage/harness rubric per file; fold in the 11 formerly-fenced files and the HI-band
@@ -39,9 +39,9 @@ current as of the newest commit.
 
 | Leg | Full-read files | Lines | Findings |
 | - | - | - | - |
-| Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
-| Leg 2 so far | 45 | \~19,540 | none yet |
-| **Total** | **69 / 469** | \~45,640 | ceiling P3 |
+| Leg 1 | 24 | ~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
+| Leg 2 so far | 45 | ~19,540 | none yet |
+| **Total** | **69 / 469** | ~45,640 | ceiling P3 |
 
 Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toast.ct.tsx`,
 `sandbox-frame.ct.tsx`, `params-deck.ct.tsx`, `chat-room-surface.ct.tsx`,
@@ -112,7 +112,7 @@ for the request the pin says must NOT have fired. Model shape for a justified ze
 
 ### 3.7 `tests/client/features/preset/surfaces/preset-library-surface.ct.tsx` (1,050 lines) — CLEAN
 
-Full read. The three Appendix-B sites (lines \~91/95/312): `focalHierarchyRatio` reads resolved font
+Full read. The three Appendix-B sites (lines ~91/95/312): `focalHierarchyRatio` reads resolved font
 sizes (static, cascade-determined) and the rest-vs-hover `boxes()` geometry comparison follows hover +
 `toBeVisible` barriers with the hover-identity assert inside the helper. Clock is frozen via
 `page.clock.setFixedTime(FROZEN_NOW)` for the relative-time subtitle pins. The three `ONESHOT-OK`
@@ -165,7 +165,7 @@ transcript pattern is the same closed-window form the preset editor wears. No st
 
 `attemptCreate` settles on the Create button re-enabling (`isPending` drop) — the resting-dialog
 barrier every subsequent read sits behind. `hitExtent` one-shots follow visibility + coarse-pointer
-polls. Carries the two-sided control the mapper needs (the INTERNAL\_SERVER\_ERROR arm proves the field
+polls. Carries the two-sided control the mapper needs (the INTERNAL_SERVER_ERROR arm proves the field
 line does NOT render for unfixable faults). Copy spelled literally with the red-first receipt reasoning
 documented in-file.
 

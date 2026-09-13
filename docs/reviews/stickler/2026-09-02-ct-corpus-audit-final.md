@@ -47,7 +47,7 @@ All eight duplicates trace to `leg4b`, which explicitly notes in its own header 
 `leg3.md` shard-map file that did not exist in its worktree at dispatch time — it was working from a
 stale/partial view of what legs 1–2 (and, unknowingly, the concurrent L2-chat/L3-rpg/L4 shards) had already
 claimed. None of the eight is a gap — each file received at least one real, honest read — the duplicates
-just mean \~4,600 lines of the campaign's total read-volume were spent twice.
+just mean ~4,600 lines of the campaign's total read-volume were spent twice.
 
 **The rigorous method: build the true distinct union.** I read all ten reports in full (not just their
 tables), extracted every file each one actually verdicted (excluding "excl (…)"/"not read" cross-references
@@ -63,7 +63,7 @@ core of 55 files that appear NOWHERE in any of the ten reports except as an unre
 risk-scored master list** (never `[READ-LEG1]`-tagged, never mentioned by any later report).
 
 **Corpus 469 · covered by the ten folded reports 414 (105,540 lines) · TRUE remainder 55 files, 8,391
-lines.** My number disagrees with the brief's own hypothesis (428 covered / \~41 left) in both directions —
+lines.** My number disagrees with the brief's own hypothesis (428 covered / ~41 left) in both directions —
 lower on covered (the 8 duplicates), higher on remainder (55, not 41) — and the discrepancy source is
 exactly what the brief predicted: files counted twice across shard scopes, on one side, and files that
 were never actually claimed by anyone, on the other, obscured by loose cross-references on the other.
@@ -105,7 +105,7 @@ visit · shared-render-tree reads · the ONESHOT-OK adjacency window (marker on 
 `expect.line-1`) · any pin that only proves true against the unmodified tree without saying so (anchor vs
 fence vs defect-proof).
 
-All 55 files read whole, top to bottom, in full — none exceeded \~800 lines (largest:
+All 55 files read whole, top to bottom, in full — none exceeded ~800 lines (largest:
 `chat-room-track.suite.ct.tsx` at 753), so no file needed a second offset read.
 
 **Taxonomy sweep receipts, over exactly these 55 files, each corroborated by a planted positive control in
@@ -358,16 +358,16 @@ direction — no replacement needed, the block holds against today's tree.
 
 | Report | Files | Lines |
 | - | -: | -: |
-| leg1 | 24 | \~26,100 |
-| leg2 | 45 | \~19,540 |
-| leg3 | 15 | \~12,258 |
-| leg4a | 11 | \~6,900 |
-| leg4b | 45 (37 distinct new, 8 overlap w/ leg3/L2-chat/L4) | \~30,000 (as read) |
+| leg1 | 24 | ~26,100 |
+| leg2 | 45 | ~19,540 |
+| leg3 | 15 | ~12,258 |
+| leg4a | 11 | ~6,900 |
+| leg4b | 45 (37 distinct new, 8 overlap w/ leg3/L2-chat/L4) | ~30,000 (as read) |
 | leg4c | 17 | 3,050 |
 | L1-ui | 64 | 8,206 |
-| L2-chat | 65 | \~11,900 |
+| L2-chat | 65 | ~11,900 |
 | L3-rpg-refinery | 35 | 4,507 |
-| L4-client-core | 107 | \~19,300 |
+| L4-client-core | 107 | ~19,300 |
 | **this report (final)** | **55** | **8,391** |
 | **Distinct-file total** | **469 / 469** | **113,931 / 113,931** |
 
@@ -422,7 +422,7 @@ Only this report file was created; nothing else was touched (no `tests/`, no `pa
 > true covered/remainder arithmetic from the ten folded reports' own per-file verdicts (not their stated
 > totals, which both undercount via 8 cross-shard duplicate reads and overcount via loose "excl"/shard-map
 > cross-references): **corpus 469 files / 113,931 lines · covered by the ten reports 414 files / 105,540
-> lines · true remainder 55 files / 8,391 lines** (vs. the brief's own hypothesis of 428/\~41 — the actual
+> lines · true remainder 55 files / 8,391 lines** (vs. the brief's own hypothesis of 428/~41 — the actual
 > discrepancy sources were exactly the two the brief named: duplicate cross-shard reads, and files that were
 > never actually claimed by anyone). Audited all 55 remainder files (user-admin ×14, discovery ×8,
 > world-info ×5, stats ×5, regex ×5, auth ×5, credentials ×3, tag ×2, chat ×2, routes ×2, plus 5 singles) —

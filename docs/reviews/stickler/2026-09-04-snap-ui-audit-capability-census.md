@@ -23,7 +23,7 @@ updated: 2026-09-04
 | 4 | Stage / attach / session | `ops/stage.ts` · `lib/stage-request.ts` · `ops/audit-session.ts` | `ops/stage*.ts` · `lib/stage-plan.ts` · `lib/stage-bands.ts` · `ops/session-daemon-call.ts` · `lib/session-plan.ts` | **snap SURVIVES; ui-audit RETIRES**. #1321 dissolves: the arm is a session CALL, so it inherits `sessionCallTarget` (route → the daemon navigates its own page; no route → the live page; `--file` → file) — the attach path that navigated the OWNER's page goes away | judged by reading (T8 suite read; live semantics from `session-daemon-call.ts:102-107`) |
 | 5 | Appearance / theme / density matrix | `ops/matrix.ts` · `ops/matrix-contract.ts` (theme × device, 3 risk rows) | `ops/matrix.ts` · `ops/matrix-contract.ts` (6 env axes, historical rows, session-hosted cells) · `ops/matrix-scenario.ts` | **snap SURVIVES; ui-audit RETIRES** — both are projections over `_shared/appearance-matrix.ts` + `_shared/variant-matrix.ts`; the arm rides snap's cells like every page arm | judged by reading, not run (29 browser boots for a structural relation) |
 | 6 | Drive / nav / file actions | `ops/drive.ts` (click/upload/nav + `--settle`) | `ops/drive.ts` (full Step union, 4-state readiness) · `contract/actions.ts` | **snap SURVIVES; ui-audit RETIRES** — a strict subset; the arm keeps ui-audit's "a failed reveal action is NO VERDICT" exit semantic | judged by reading + the 20 live sweeps (`nav=OK` through the shared `_shared/nav.ts` engine) |
-| 7 | Report / artifact | `ops/run.ts:109` hand JSON · `ops/report.ts` printers · `lib/result-rows.ts` · \~70 RESULT pairs | run slot + `run.json` + typed arm facts + findings layer + `--report` | **snap SURVIVES as the envelope; ui-audit's printers survive as the arm's `report()`**; the JSON becomes a registered artifact + a typed fact + problem rows | judged by reading + the artifact shapes of 32 runs this session |
+| 7 | Report / artifact | `ops/run.ts:109` hand JSON · `ops/report.ts` printers · `lib/result-rows.ts` · ~70 RESULT pairs | run slot + `run.json` + typed arm facts + findings layer + `--report` | **snap SURVIVES as the envelope; ui-audit's printers survive as the arm's `report()`**; the JSON becomes a registered artifact + a typed fact + problem rows | judged by reading + the artifact shapes of 32 runs this session |
 | 8 | Population accounting | `lib/population.ts` · `lib/population-strategies.ts` · `lib/evidence.ts` · `lib/surface-state.ts` | `_shared/evidence.ts` `printVerdict` denominators | **ui-audit SURVIVES** (unique); its non-cap withholds map onto the arm state `withheld` + exit 2 | judged by reading + 5 of 20 live runs exiting 2 through it |
 | 9 | Retirement / refusal map (found during the census) | `cli.ts` (74 lines) | `lib/retired-instruments.ts` · `motion-audit/cli.ts` (the precedent door) | the `pnpm design-audit` spelling retires by the motion-audit pattern; the census gains one token, one engine prefix and one migration spec | judged by reading (`unified-instrument.suite.int.test.ts:427-480` is the pattern's pin) |
 
@@ -376,10 +376,10 @@ that engine). Three semantics the arm must carry over, each with a home in the a
 ### 2.7 Report / artifact — snap SURVIVES as the envelope; ui-audit's printers survive inside it
 
 **ui-audit home.** `ops/run.ts:109` `artifactFile("design-audit", …)` + `writeFile` of a hand JSON with
-\~30 top-level keys (`findings`, `populationAccounting`, `populationVerdict`, `censusReach`,
+~30 top-level keys (`findings`, `populationAccounting`, `populationVerdict`, `censusReach`,
 `censusCaps`, `obscuredRecentred/Unaskable`, `hoverPass`, `domPopulation`, `themeEvidence`,
 `surfaceStateAccounting`, `browserEnvironment`, `stage`, …), `printVerdict("design-audit", …)` with the
-`census` + `scanned-<family>` denominators and \~70 RESULT pairs (`lib/result-rows.ts`, `ops/run.ts`),
+`census` + `scanned-<family>` denominators and ~70 RESULT pairs (`lib/result-rows.ts`, `ops/run.ts`),
 the printers in `ops/report.ts` (REACH, SHELL STATE, SURFACE-AXIS, POPULATION, findings table, backdrop
 refusals, obscured scan).
 
@@ -410,7 +410,7 @@ RESULT pairs are derived from it — no second spelling); the JSON artifact regi
 
 - excluded`, `affected = emitted + cap + collapsed`, `assertCarried`, `populationEvidenceGap`: any
   non-cap withhold ⇒ NO VERDICT), `lib/population-strategies.ts`(the four rungs and the rung table in`lib/collect.ts:14-98`), `lib/evidence.ts`(census/reach/readiness/thin/cap/failure-surface/nav/actions/
-  instrument-page-error/theme-provenance gaps),`lib/surface-state.ts`(the panel/focus/drive axes and the #1122 exclusions),`contract/samples-populations.ts` (`CENSUS\_CAP\_FAMILIES\`).
+  instrument-page-error/theme-provenance gaps),`lib/surface-state.ts`(the panel/focus/drive axes and the #1122 exclusions),`contract/samples-populations.ts` (`CENSUS_CAP_FAMILIES\`).
 
 **snap home.** `_shared/evidence.ts:120-139` `printVerdictReceipt` — declared denominators with
 `refuseWhen: zero|below|unstable` and `honestEmpty`; the arm states in `run-facts.ts`.
@@ -536,7 +536,7 @@ tooling/src/snap --glob '*.ts'` is 0 today, so no cycle exists to break).
    regenerated by `pnpm agents:sync`, never hand-edited —
    `.claude/skills/side-eye-design-review/reference/impeccable-adoption.md` (3; 9),
    `.claude/skills/snap-driving/SKILL.md` (1; 2), `docs/design/1208-instrument-substrate.md` (2 — but
-   it is a MIGRATION\_SPEC; leave), `docs/design/state-paint-census.md` (1; `status: archived` but under
+   it is a MIGRATION_SPEC; leave), `docs/design/state-paint-census.md` (1; `status: archived` but under
    `docs/design/`, so the census would red it — one-line rewrite or move to `docs/history/design/`),
    `docs/design/design-audit-subject-accounting-976.md` (1), `packages/client/src/lib/app-failure-surface.tsx`
    (1, a comment), `tests/ui/variant-arm-matrix.def.ts` (1), `tests/tooling/ui-audit/ops/walker/

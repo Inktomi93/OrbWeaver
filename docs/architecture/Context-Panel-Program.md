@@ -260,7 +260,7 @@ floor. Behavioral contract (implementation left to the builder against Base UI):
 ### 4.4 Tab roster — lite trim
 
 Top strip: **Status · Sheet · Inventory · Scene** (4). Quests/Journal/Map are APPLICABILITY-omitted
-(lite's MODE\_POLICY excludes those data planes — mode shape, not a phase; the doorway is
+(lite's MODE_POLICY excludes those data planes — mode shape, not a phase; the doorway is
 `rpg.game`'s graduation control). Bottom strip: identical to full (`rpg.game` body wears its lite
 arm). Lite deltas inside the shared tabs:
 
@@ -355,7 +355,7 @@ de-dup note. Two lines max at the 17rem floor:
 
 ### 4.10 Small width + mobile
 
-- 17rem floor: 7 icon tabs × \~34px = \~238px — fits with margin; icon-mode guarantees the strips
+- 17rem floor: 7 icon tabs × ~34px = ~238px — fits with margin; icon-mode guarantees the strips
   never scroll in-shell. The safety `overflow-x-auto` (landed) stays for pathological hosts.
 - Mobile (<48rem): the panel is already a full-width sheet between topbar and tab bar — the
   takeover rides it unchanged; strips gain room, labels may reveal per the container thresholds.

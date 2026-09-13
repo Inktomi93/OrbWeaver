@@ -305,7 +305,7 @@ side-eye re-pass sweeps). This is the strongest single file in the shard, on par
   (:929-949) — two tests pinning opposite failure directions of the same defect class, plus an explicit
   first-read-vs-settled-read distinction in the comment (the tag-library authority hasn't answered on
   request #1, so the dead id may still ride the wire once before the correction).
-- **"The ruling survives — its input changed" idiom used twice, correctly** (:1150 RAIL\_CHROME\_CEILING,
+- **"The ruling survives — its input changed" idiom used twice, correctly** (:1150 RAIL_CHROME_CEILING,
   :1414 the count-datum's new location) — exactly the house resolution pattern
   `lane-standing-facts.md` names, applied to real prior findings with the old receipt cited each time.
 - **An owner-refused fix is recorded as a refusal, not silently re-tried** (:1140-1157, :1316-1321 — ARM B

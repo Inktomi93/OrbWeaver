@@ -311,6 +311,7 @@ count — the identical SHAPE to the three `css-var-defined` retired the same da
 token addition reds it exactly the way the retired ratchets did (`#1956`'s four-commit, five-day red).
 
 **What a derived parity check would compare.** Two arms, both free:
+
 - **The honest one:** `readDirectThemeDeclarations(theme.css).length` vs
   `contract.cssTargets` partitioned by `placement`, read through the shipped **`token-contract`** resource
   kind (`ctx.resources.tokenContract()` publishes `texts` + `paths`; the `orb.cssValues` placement split
@@ -346,6 +347,7 @@ row (f08).
 
 **`css-length-tokens` — `STRUCTURAL_CLASS_FILES` → 13 `(file, candidate)` rows + zero-occurrence liveness
 behind `onRealTree`:**
+
 - I **drove the module's OWN walk over the real tree** (`walkStaticClassExpressions` over
   `packages/{client,ui}/src`) through the legacy dispatcher — not a re-implementation — and reproduced the
   13 rows: the fixture drive at `mustFlag[3]` (which plants `REAL_TREE_ANCHOR`) names all 13 by
@@ -369,6 +371,7 @@ behind `onRealTree`:**
   is the one that IS pinned (c05, `mustFlag[3]` dies).
 
 **`css-var-defined` — the three totals → constant-receipting zero-tripwires:**
+
 - **All three tripwires sit inside `checkRealTreeVendor`, which is reached by ZERO committed proof rows.**
   Throw probe at the arm's entry, directly below the `realTree` guard: **0 rows die** (v01). Same for
   `checkRealTreeRuntime`: **0 rows die** (v02). Positive control — a `throw` at `run()` entry — fires on
@@ -418,6 +421,7 @@ subtraction — it is the ADMITTED set both policies compare against. It stays `
 Its own header names the family the pair should declare when it converts.
 
 **The fs walk: `authored-tree:packages` + `exact-file`.**
+
 - The EXTRA-PATH side (`productCssPaths`) is `authored-tree:packages` filtered to `.css`. The tree reader's
   `NON_AUTHORED_DIRECTORIES` (`node_modules`, `.git`, `dist`, `.cache`) is a strict superset of the gate's
   `GENERATED_DIRS`, so the port is a deliberate widening (`.git`/`.cache` newly excluded — no `.css` lives

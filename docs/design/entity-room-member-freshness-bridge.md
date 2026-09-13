@@ -49,7 +49,7 @@ updated: 2026-09-13
 | room pump | `transport/trpc/stream/sources/chat.ts` | live loop DROPS any entry with `seq <= maxSeq` (`:106-109`); per-yield member gate → D16 floor → §3.6 projection as ONE verdict (`:111-121`); `chatOpened` synthesized on EVERY attach with a NON-advancing seq (`:51-59`, `:189-197`) |
 | client seq guard | `client/src/data/bus/chat-event-seq-guard.ts` | drops any durable frame not advancing the per-chat mark (`:61-74`); non-durable types are exempt BY TYPE (`SYNTHESIZED_EXEMPT`, `:34`) |
 | invalidation seam | `client/src/data/invalidation.ts` | the ONE map; `chatUpdated` row = canon reads + list + `getChat` + 5 chat-scoped reads (`:174-199`); `getMemberCard` only under `charactersChanged` (`:216`); `invalidateQueries` is a no-op for a read with no cache entry (`:197`) and CANCELS+RESTARTS an in-flight fetch (`:66`) |
-| domain-event bus | `contracts/src/events/index.ts` · `entry/compose/event-bus.ts` | 2 members (`character.updated {contentChanged}`, `asset.created`); in-process, fire-and-forget, error-isolated; G-B belted with the SERVER\_INTERNAL reach lane (`events/index.ts:19-26`) |
+| domain-event bus | `contracts/src/events/index.ts` · `entry/compose/event-bus.ts` | 2 members (`character.updated {contentChanged}`, `asset.created`); in-process, fire-and-forget, error-isolated; G-B belted with the SERVER_INTERNAL reach lane (`events/index.ts:19-26`) |
 | the built character fan | `entry/compose/emit-character-updated.ts` | seated-rooms lookup = `chat_participants` where `characterId=X AND kind='character' AND leftSeq IS NULL`; fans a DURABLE `chatUpdated` per room (one `chat_events` row per seated room per edit) |
 | member-visible projections | `domain/chat/verbs/read.ts:712-775` (getMemberCard, D22 clamp) · `domain/chat/service.ts:81-118` (roster identity) · `entry/compose/chat.ts:886-906` (`resolveUserPublics`: a human seat's displayName+avatar = their ACTIVE PERSONA's `name`/`avatarAssetId`) | the reads the bridge must refresh; every one is clamped server-side at the verb |
 | clamp pass-through | `substrate/auth/clamp.ts:97-119` · `substrate/member-visibility.ts:196-204` | both are STRUCTURAL: an id-only member (no `view`, no `slotSeq`) rides through the floor anchorless and is not view-stripped — a new id-only member inherits the clamp suite with ZERO new clamp code |
@@ -285,7 +285,7 @@ event from everyone (`sources/chat.ts:145-147`). `chatDeleted` therefore bypasse
 pump: an id-only room-DEATH signal, delivered to every ATTACHED subscriber (attach was membership-gated;
 today's pre-delete emit already reaches the same set by racing the delete). Leak analysis: the only
 widened audience is a kicked-but-still-attached member, who learns "the room died after my kick" — one
-bit, no bytes, and symmetric with what their next `getChat` NOT\_FOUND already tells them. Client: the
+bit, no bytes, and symmetric with what their next `getChat` NOT_FOUND already tells them. Client: the
 seq-guard exemption is safe because no durable `chatDeleted` can ever re-replay (cascade); the
 `onChatDeleted` landing action (`apply-chat-bus-event.ts:99-105`) is idempotent.
 

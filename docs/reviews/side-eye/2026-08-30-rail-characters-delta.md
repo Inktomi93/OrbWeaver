@@ -47,7 +47,7 @@ tool call before I found it.
 | Library list pane | **Much improved.** Chrome trimmed, filters collapsed, skip link real, focus ring solid, census single-homed. Two live defects: a dead 28-facet tag vocabulary, and a 40px import button on coarse pointer. |
 | Character content / editor | **Well crafted, mis-labelled.** Prose surface clean and readable; the `Own look` chip, the spoiler toggle and the 10.5px pill labels each mis-describe themselves. |
 | Context pane | **Content is right, containers are wrong.** #513's Origin/Links/Options/Activity landed, but it lives under a tab called "Field", and "Options" is a 2253px junk drawer. |
-| Snapshot / history UX | **Built and buried.** Reachable only at the bottom of the Options tab after \~1560px of theme editor + Trust prose. Empty state itself is fine. |
+| Snapshot / history UX | **Built and buried.** Reachable only at the bottom of the Options tab after ~1560px of theme editor + Trust prose. Empty state itself is fine. |
 | Import door | **Functional, exit-less.** Clear copy (said three times), no visible Close/Cancel. |
 | Export door | **Exists, single-homed in the wrong home.** Row `⋯` only; invisible from the open character and absent from bulk. |
 | Card-atlas / hub-ingest delta | **NOT REACHED.** Every character on this db reports `Source: Made here`; no hub-ingested character exists and importing one would mutate. Explicitly uncovered — see the coverage table. |
@@ -284,7 +284,7 @@ per-character theme editor (12 colour fields + font + radius + preview), the Bac
 three-paragraph Trust essay.
 
 Measured tabpanel geometry: **`clientHeight 693` · `scrollHeight 2253` · 31% visible.** Reaching
-History costs \~1560px of scrolling past three unrelated concerns, inside a 384px pane.
+History costs ~1560px of scrolling past three unrelated concerns, inside a 384px pane.
 
 **Why it hurts a user:** "can I undo what I just did to this character" is a high-stress question, and
 there is no affordance a user would guess. The tab is also four concerns wide (look · background ·
@@ -381,7 +381,7 @@ This is distinct from the boot-splash `weave-veil` drops (known-ruled, #433 fami
 the Characters list aside, and it fires at list mount, i.e. the `data-list-flip=in` entrance.
 
 **Receipt:** console of `cbrx-chars-desk.log`, `cbrx-chars-mobile.log`, `cbrx-arch.log` and others
-(consistent across \~8 runs). Supporting: `__orb.motion()` after a full drive →
+(consistent across ~8 runs). Supporting: `__orb.motion()` after a full drive →
 `{cls: 0.0227, virtualizedCls: 0, nonVirtualizedCls: 0.0227, worstBlocking: 93}` — the 93ms LoAF is at
 `startTime 1303` from `main.tsx` (boot), and **`nonVirtualizedCls 0.0227` is comfortably inside the 0.1
 budget**, so this is a single-frame entrance cost, not layout instability.
@@ -516,7 +516,7 @@ Options tab is not intuitive at all: a person opening it to change a colour is m
    inside the virtualised scroller. Two keystrokes; the prior pass measured 18 (collapsed) and 563
    (tags expanded). The whole pane is 48 tabbable elements collapsed / 59 expanded, with 8 / 19 stops
    before the first row.
-2. **The filter block is no longer density-immune.** Chrome above the list: 180px (compact) / \~190px
+2. **The filter block is no longer density-immune.** Chrome above the list: 180px (compact) / ~190px
    (comfortable) / 240px (reading), against the old flat 272px→260px. The nested tag scroller is gone —
    exactly one scroller in the pane at every state I drove (`virtual-list-scroll`).
 3. **The library stays docked on selection** and the selected row is unmistakable. `#501` / `#255`
@@ -535,7 +535,7 @@ Options tab is not intuitive at all: a person opening it to change a colour is m
    SR-only mirror — not a visible second census. `#518` verified.
 8. **The create door.** `New character` states its requirement before you type (`A name and a
    description are both required.`) and ends in `Cancel | Create`. Prevention over recovery, done right.
-9. **Zero console errors and zero page errors across \~25 driven runs**, every arm.
+9. **Zero console errors and zero page errors across ~25 driven runs**, every arm.
 
 ---
 
@@ -597,8 +597,8 @@ and I do not cite it as a clean bill.
 | 1 | `snap --aria` | **RAN** — `main` (74 lines), context pane (33 + 70 lines), both action menus, the import dialog, the panel header |
 | 1 | `snap --contrast` | **RAN** — 9 measurements × 3 arms (owner / `--theme Light` / `maximal`), `contrast-fails=0` in every run |
 | 1 | `snap --expect-text` | **RAN** — `main h2=Sabine Veyra`, `assertion-fails=0` |
-| 1 | `snap --matrix` | **SKIPPED** — its 8 variants are covered by hand arms taken here (desktop / mobile / 768 / 1920 / Light / none / maximal / compact / reading); a 9th concurrent browser risks the \~6/origin SSE budget |
-| 1 | `snap --json` manifests | **SKIPPED** — the terminal console never capped (max \~19 messages in any run), so the lossless log added nothing |
+| 1 | `snap --matrix` | **SKIPPED** — its 8 variants are covered by hand arms taken here (desktop / mobile / 768 / 1920 / Light / none / maximal / compact / reading); a 9th concurrent browser risks the ~6/origin SSE budget |
+| 1 | `snap --json` manifests | **SKIPPED** — the terminal console never capped (max ~19 messages in any run), so the lossless log added nothing |
 | 1 | `snap --watch` | **SKIPPED** — no streaming or transient surface on this section |
 | 2 | `design-audit / --goto characters` | **RAN** — 1 finding (P3 `flat-type-hierarchy`, page-wide), census 311, `pointer=fine` |
 | 2 | `design-audit … --mobile` | **RAN** — 2 findings (P2 tap-target 40×44 → filed; P3 flat-type), census 335, `pointer=coarse`, 4 obscured candidates correctly WITHHELD |
@@ -642,7 +642,7 @@ and I do not cite it as a clean bill.
 | `[perf] slow commit region:content 17–20ms (mount)` | **section mount** — under the 50ms bar, not filed |
 | `[perf] slow commit region:list 18–31ms (nested-update)` | **INVESTIGATE → filed** as the section-entry long-task P3; note the prior pass's "551-row vocabulary" attribution is refuted (28 rows today, cost unchanged) |
 | `[cls] shift 0.0221–0.0293 · CLS … (virtualized 0.0000)` | **within budget** (0.1) — boot settle |
-| console errors / page errors | **0 across every run, every arm** (\~25 runs) |
+| console errors / page errors | **0 across every run, every arm** (~25 runs) |
 
 ---
 

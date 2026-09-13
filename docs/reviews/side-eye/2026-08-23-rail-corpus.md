@@ -13,7 +13,7 @@ digests, 0 memory segments.
 
 ## ⛔ READ THIS FIRST — the premise of this sweep was destroyed 5 minutes before it started
 
-The brief gated this pass on "all 10 analysis passes Succeeded over a 1,242-chat / \~330-character
+The brief gated this pass on "all 10 analysis passes Succeeded over a 1,242-chat / ~330-character
 imported library." **None of that is on the stack any more.** At **01:27:46 tonight** the dev server
 booted, detected a regenerated migration baseline, and **dropped the entire dev database**:
 
@@ -85,7 +85,7 @@ is the deliverable.)
 | 5 | Error prevention | 3 | nothing destructive on this surface; smart defaults. **Not stress-tested** — read-only discipline, I did not run the pass |
 | 6 | Recognition over recall | 2 | combobox values hidden behind "Default"; two identically-named rows ("Emily" / "Emily") in three separate lists with no qualifier; "fit %", "safe", "Other" all need outside knowledge |
 | 7 | Flexibility & efficiency | 3 | five search targets each with a genuinely useful hint line, four filters, ⌘K, a proper roving tablist, full keyboard operability — real strength |
-| 8 | Aesthetic & minimalist | 2 | the duplicated card; \~1,300px of dead right column below READINESS at every width; three stacked sections at three different content widths; "No pitch distilled" repeated 12× |
+| 8 | Aesthetic & minimalist | 2 | the duplicated card; ~1,300px of dead right column below READINESS at every width; three stacked sections at three different content widths; "No pitch distilled" repeated 12× |
 | 9 | Error recovery | 3 | the weak-match search state is a model of the genre; no error states reachable read-only |
 | 10 | Help & documentation | 2 | the invitation card IS good contextual help — but nothing explains fit%, "safe", "Other", the family-label axes, or what threshold "Default" means |
 
@@ -196,7 +196,7 @@ action of a Corpus surface is the section handing its own job away.
 ### \[P2] The LIST pane reports an empty library while CONTENT lists twelve characters
 
 **What.** With 12 characters in the library, the Corpus LIST pane renders
-**"No characters distilled yet / Run Distill characters to build this catalog."** and \~1,400px of
+**"No characters distilled yet / Run Distill characters to build this catalog."** and ~1,400px of
 void — while CONTENT, 30px to the right, shows eight visual families, a ten-tile shelf and a
 NEVER PLAYED list, all of characters.
 
@@ -370,7 +370,7 @@ similarity between a card's text and its portrait, say that — the number is fi
 ### \[P2] Mobile opens Corpus on the pane that says the library is empty
 
 **What.** At 430×932 the section lands on the LIST pane: search targets, four filters, "No characters
-distilled yet", and \~1,100px of black. The overview is one tap away behind the top-left panel icon
+distilled yet", and ~1,100px of black. The overview is one tap away behind the top-left panel icon
 (accessible name **"Show Corpus overview"** — correctly named, see the retraction below), and once
 opened it is genuinely excellent: single column, families stacked, readiness reflowed beneath,
 `ASSERT no-overflow main: PASS overflow=0x0`.
@@ -436,12 +436,12 @@ value ("Sort: Most recent", "Min similarity: 60%").`
 
 ---
 
-### \[P3] Three stacked sections at three different content widths, and \~1,300px of dead right column
+### \[P3] Three stacked sections at three different content widths, and ~1,300px of dead right column
 
 **What (taste, screenshot-backed).** At the shipped desktop default (1280, list docked, context
 collapsed) the CONTENT column stacks: the invitation card (388→895), the families list (388→895),
 the gem grid (388→1257), NEVER PLAYED (388→1257). READINESS occupies the right column from y=148 to
-y=310 and then nothing for the remaining \~1,300px of page. So the page has a visible two-column seam
+y=310 and then nothing for the remaining ~1,300px of page. So the page has a visible two-column seam
 that stops a fifth of the way down and never resumes, and a ragged right edge where the families
 list ends 360px short of the grid below it.
 
@@ -548,7 +548,7 @@ codebase. The typography holds at every arm I measured; the Light theme renders 
 
 What is wrong with it visually is **balance, not craft**. At the shipped desktop default the page is
 three stacked sections at three different widths with a right column that dies a fifth of the way
-down and leaves \~1,300px of black beside 1,700px of content. The eye keeps finding a column edge and
+down and leaves ~1,300px of black beside 1,700px of content. The eye keeps finding a column edge and
 then losing it. The list-hidden arm is markedly better composed, which tells you the two-column model
 was designed for the wide case and never re-checked at the default.
 

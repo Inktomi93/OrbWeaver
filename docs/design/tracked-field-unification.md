@@ -14,7 +14,7 @@ updated: 2026-08-30
 
 **Status:** direction + spec APPROVED (owner, 2026-07-31 late — noun = **TRACKER**; widgets full-fold
 
-- hud\_widgets table drop approved; appliesTo carrier classes approved; R4c journal-custom batches into
+- hud_widgets table drop approved; appliesTo carrier classes approved; R4c journal-custom batches into
   this lane's baseline regen). Nothing built.
   **Scope:** rpg panel Status/Sheet/Game tabs + band, the field def contracts, the 7-tools write surface.
   **Evidence:** eyes-on live drive 2026-07-31 (`reports/snaps/untangle-*.png`, dogfood konbini game +
@@ -68,7 +68,7 @@ focused after the fact. Default-named defs are what both add flows produce by de
 - Stat-profile arm text varies by profile ("Freeform — this game steers on prose, with no attribute
   vocabulary" vs d20's chip row) — fine per RV-13, but the freeform arm offers no path TO d20,
   which RV-13's branch-and-save direction will need.
-- Minor (W-H): at panel widths below \~1280 the meta tabs render icon-only and the game-tab strip
+- Minor (W-H): at panel widths below ~1280 the meta tabs render icon-only and the game-tab strip
   x-scrolls with a visible scrollbar.
 
 ## 2. The unified concept
@@ -130,8 +130,8 @@ values = host (existing permission grammar, unchanged).
   offers Mana on an actor that doesn't carry it — stronger prevent-at-schema than today.
 - **RV-4/RV-12** — become "attributes get the same label+hint editor," not bespoke work.
 - Migration reality: contracts + db (poolDefs/castFields/widgets converge), the 7-tools schema
-  (poolDeltas + set\_widget\_value + castField writes converge or alias), reminder segs (one gloss
-  path — fixes the R4b class for every axis at once), panel components, \~7 writable-field coupled
+  (poolDeltas + set_widget_value + castField writes converge or alias), reminder segs (one gloss
+  path — fixes the R4b class for every axis at once), panel components, ~7 writable-field coupled
   sites. A LANE, not an evening. Old wire vocab may need read-compat for existing game rows.
 
 ## 5. The schema-level spec (drafted 2026-07-31 overnight — owner review pending)
@@ -181,7 +181,7 @@ max duplication dies).
 ### 5.3 Migration map (pre-launch reality: blobs + ONE squashed baseline — no incremental SQL)
 
 - **`rpg_games.config` lift** (versioned, \[\[versioned-config-lift-drops-overrides]] discipline —
-  stamp SCHEMA\_VERSION): `features.castFields[]` → `fields[]` with `{subject:"actor",
+  stamp SCHEMA_VERSION): `features.castFields[]` → `fields[]` with `{subject:"actor",
   appliesTo:"npcs", write:"set"}`; statProfile untouched.
 - **`rpg_sheets.sheet` lift**: each actor's `poolDefs[]` → game-level `fields[]` with
   `{subject:"actor", write:"delta", appliesTo:[thatActor]}`; identical defs (name,max,hint) across
@@ -203,7 +203,7 @@ max duplication dies).
   dev DB don't constrain the design.
 - **Reminder**: ONE gloss seg builder for all fields (label value/max (hint)) — R4b's pattern
   generalized; per-plane special-casing dies.
-- Coupled-site sweep: the \~7 writable-field sites (\[\[rpg-writable-field-coupled-sites]]) + panel
+- Coupled-site sweep: the ~7 writable-field sites (\[\[rpg-writable-field-coupled-sites]]) + panel
   components + `mergeFeatures` threading + gates (knob-wire/bus-coverage rows).
 
 ### 5.4 Sizing + sequencing

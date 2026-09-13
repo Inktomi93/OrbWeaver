@@ -127,7 +127,7 @@ The +2 is a SET DIFFERENCE of the two anchor censuses, not a count:
 - `chatsChanged @ packages/server/src/transport/trpc/user-events-bus.ts:43` — the conditional publisher.
   Its ONE anchor is the `publishUserEvent(userId, event)` call inside `publishChatChanged`: the
   conditional local's own source call, not the union, not the coarse table, and not the `.publish` sink
-  two lines below it. The brief's expectation of "\~10 source-call anchors" was wrong in a benign
+  two lines below it. The brief's expectation of "~10 source-call anchors" was wrong in a benign
   direction — the relay resolves the member where it becomes provable and stops, so the domain call sites
   of `publishChatChanged` are not re-anchored.
 - `variantSelected @ packages/server/src/domain/chat/verbs/edit.ts:516` — a real producer the fact missed

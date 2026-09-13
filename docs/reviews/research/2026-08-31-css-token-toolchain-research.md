@@ -278,7 +278,7 @@ No package is stale. There is no "better version" to move to.
 
 ## 10. Are there better PACKAGES? Mostly no — one category is genuinely contested
 
-- **tailwind-variants (3.78M/wk) vs class-variance-authority (63.3M/wk).** cva has \~17x the
+- **tailwind-variants (3.78M/wk) vs class-variance-authority (63.3M/wk).** cva has ~17x the
   downloads, but tv is a superset (slots + built-in merge). D54 already ruled this. No reason
   to reopen; cva would be a downgrade in capability.
 - **tailwind-merge (82.5M/wk)** is the category, not a choice. There is no serious competitor.

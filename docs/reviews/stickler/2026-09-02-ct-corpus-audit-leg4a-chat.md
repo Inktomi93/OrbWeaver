@@ -11,7 +11,7 @@ PARALLEL shards executing leg 3 §5's shard map; this shard is item (a) — the 
 Method, taxonomy and rubric: `2026-09-02-ct-corpus-audit-leg1.md` §2 (Phase A taxonomy table) read in
 full, plus leg 3 §5/§6 (shard map + lesson quality bar) read in full.
 
-**Headline: the shard is CLEAN. 11/11 files full-read (\~6,900 lines), zero findings of any severity.**
+**Headline: the shard is CLEAN. 11/11 files full-read (~6,900 lines), zero findings of any severity.**
 Every taxonomy class swept at zero, with the file-internal register matching legs 1-3's "exceptional
 condition" verdict — red-first defect proofs, honest FENCE/anchor labels, planted positive controls,
 settle barriers, ordering proofs instead of node-side counts.
@@ -100,7 +100,7 @@ therefore "swept and absent," not "the search didn't run."
 
 ## Run budget
 
-**0 of the \~6 available `pnpm ct:scoped` runs used.** Every verdict in this shard is read-derived
+**0 of the ~6 available `pnpm ct:scoped` runs used.** Every verdict in this shard is read-derived
 (source spot-checks via `Read`/`grep`, no execution), consistent with legs 1-3's observed rate. No file
 in this shard presented a claim that needed execution to resolve.
 
@@ -121,7 +121,7 @@ nothing surfaced here would sharpen them further.
 ## Issue summary (for #1229 — paste verbatim)
 
 > **CT corpus audit leg 4a (cb-ct-audit-4a, stickler, shard (a) chat components): 11/11 assigned files
-> full-read (\~6,900 lines), ZERO findings.** Files: settings-context-tab, message-list-surface,
+> full-read (~6,900 lines), ZERO findings.** Files: settings-context-tab, message-list-surface,
 > chat-controls-band, members-panel, message-content, ghost-message-row, home-recents-tile-body,
 > prose-settings-section, appearance-message-style-section, composer-guided-buttons, chats-section.
 > Taxonomy sweep (ONESHOT-OK/FABRICATION-OK/double-casts/reports-writes/expect.soft/assertion-free) all

@@ -32,7 +32,7 @@ before reading began) and worked in directory order: `art/` → `charts/` → `c
 `density-tier`/`diff`/`layout/`/`lib/`/`markdown` (all already excluded or n/a) → `primitives/`
 (alphabetical) → `stream/`/`tokens/`/`touch-target-floor.suite`/`variant-arm-matrix.suite`.
 
-**All 64 files were read in full, top to bottom** (none exceeded \~700 lines, so no file needed a second
+**All 64 files were read in full, top to bottom** (none exceeded ~700 lines, so no file needed a second
 `Read` offset call — the largest, `variant-arm-matrix.suite.ct.tsx`, is 667 lines and came back whole in
 one call). Nothing was sampled, grepped-and-skipped, or partially read.
 

@@ -419,7 +419,7 @@ shipped (the graft rule, `lite-plus-guided-substrate-spec.md` §0.5).
 **§7.4 Acceptance matrix:** the systems-audit authority table (Q2b) is carried as this path's
 per-action acceptance floor — every landed step's tests must witness its row (Principal /
 triggeredBy-runAs / gate / capability axis) — with THREE corrections baked in over the superseded
-text: trigger\_turn's triggeredBy = the rule AUTHOR as funder (`turn.ts:2496-2498`); per-mode S1
+text: trigger_turn's triggeredBy = the rule AUTHOR as funder (`turn.ts:2496-2498`); per-mode S1
 busy semantics (§3-S1); and the Q2b "budgets (cooldown / per-hour / spend $)" cell is STALE — the
 $/day spend ceiling was stripped from automation (`contract/ops.ts:73-75,95-97`); the live gate
 set is rate caps + depth + D17 consent.
@@ -456,7 +456,7 @@ set is rate caps + depth + D17 consent.
    stores a segment index.
 3. `AUTHORS_NOTE_DEFAULT_DEPTH` has no retro constant (legacy import; zero grep hits in
    `packages/contracts/src`) — the S2 guidance contribution needs its depth argued at build (a
-   domain constant, PD-63-compliant single placement); probe: read the current in\_chat depth
+   domain constant, PD-63-compliant single placement); probe: read the current in_chat depth
    conventions in `assembly/context.ts` candidate builders before picking.
 4. The `run_analysis` window read — "recent selected-lineage window" needs the exact read
    substrate (the memory transcript substrate vs a direct message read); probe: `pnpm ast refs`

@@ -21,7 +21,7 @@ owner's standing fork rule), `empty-states-are-load-bearing.md`, `feature-root-s
 (type homes; `registry-contracts.ts` is AT the 450-line cap — a new tier-4 contract gets its own file),
 `settings-section-three-coupled-sites.md`, `arrival-default-retires-host-ct-premises.md` +
 `surface-flip-retires-the-ct-premise.md` (a shell-mount change sweeps the WHOLE shell CT family),
-`new-domain-coupled-sites.md` (expect \~6 coupled-site classes per shape change).
+`new-domain-coupled-sites.md` (expect ~6 coupled-site classes per shape change).
 
 ## 1. The evidence base (measured + source-completed)
 
@@ -354,7 +354,7 @@ fixtures in unrelated suites.
 
 \#1200 and #1206 are DONE for this table's purposes: they conform to the CURRENT standard. The program
 knowingly re-touches one of them: #1200's analytics wrapper (per-section `padding="section"`) is
-superseded by the shell inset in S2 and its \~10-line wrapper dies there — acceptable, priced; the live
+superseded by the shell inset in S2 and its ~10-line wrapper dies there — acceptable, priced; the live
 defect did not wait for this program. #1206's `ListPaneHeader` adoption converts to the hook form in S1
 like the other seven — same-shaped edit, no wasted direction.
 

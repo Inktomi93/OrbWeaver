@@ -19,7 +19,7 @@ lead, not a precedent.
 > `user-bus-deferred-member` (§8) survives as a module a lane should copy.**
 >
 > - **12 of 30 narrowings are UNENFORCED (40%)** — cut the fence, every proof row stays green. Double the
->   corpus's prior \~1-in-5 rate.
+>   corpus's prior ~1-in-5 rate.
 > - **Three "Wart: none found" lines below are FALSE** (§2, §3, §5). Each is corrected in place.
 > - **The §3 preference for `server-layout` over `ui-exports-map-complete` is WITHDRAWN.** Both carry the
 >   same defect, and the audit found `server-layout`'s worse.
@@ -85,7 +85,7 @@ this policy by name. Do not copy "no test file" as a shortcut for a policy whose
 
 Files: tooling/src/verify/gates/spacing-tier-home-health.ts (69 lines, whole file read) and
 tooling/src/verify/gates/no-raw-spacing-in-features.ts (99 lines, whole file read; the selected-files
-sibling and the SANCTIONED\_HOMES source). Commit 99b7429e2, "fix(gates): migrate the raw-CSS-literal-in-
+sibling and the SANCTIONED_HOMES source). Commit 99b7429e2, "fix(gates): migrate the raw-CSS-literal-in-
 features family to defineGate" - one of last night's four named SHAs.
 
 - execution entire-population, create returns only an evaluate hook, no visitors at all, lines 24, 29-41.
@@ -93,7 +93,7 @@ features family to defineGate" - one of last night's four named SHAs.
   narrowed subset - exactly the design doc's definition of entire-population.
 - a real-tree anchor guard, ANCHOR is packages/ui/src/tokens/index.ts, so the tripwire self-guards off
   under a mini fixture run instead of falsely declaring both sanctioned homes dead, lines 11-16, 31-33
-- imports SANCTIONED\_HOMES directly from its sibling occurrence policy so both judge identical rows,
+- imports SANCTIONED_HOMES directly from its sibling occurrence policy so both judge identical rows,
   line 9; the sibling's own header states the split reason, one execution value cannot serve both,
   no-raw-spacing-in-features.ts lines 9-11
 - mustFlag is the rename tripwire itself: one home still resolves, the other doesn't, lines 42-51
@@ -309,7 +309,7 @@ mode instead of fake real-tree anchors.
 
 ## 10. Frozen-legacy differential proof, conversion-time only, not standing law
 
-File: tests/tooling/verify/gates/simple-visitors-wave-2.test.ts (header plus first \~55 lines read) - the
+File: tests/tooling/verify/gates/simple-visitors-wave-2.test.ts (header plus first ~55 lines read) - the
 proof shape for last night's 7be684811 conversion of member-card-clamped and test-determinism:
 
 - pins BASE to the commit hash 99b7429e2b0377aa5a6ae62341f9a22aa40de94c, the commit immediately before

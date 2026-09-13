@@ -137,7 +137,7 @@ and no over-broad row:
 **Caveat, stated rather than hidden.** The structure run spanned `00:32:35.972Z → 00:38:00.221Z`; my
 first gate-file write was at `00:33:31` (mtime of `wave7-control.json`), 56s in. The loader imports each
 gate module ONCE, dynamically, at corpus load (`lib/loader.ts:159`), which precedes the 104-module legacy
-pass that occupies the run's first \~3 minutes — so the imports were complete well before the write. The
+pass that occupies the run's first ~3 minutes — so the imports were complete well before the write. The
 only module in the write window is `theme-override-only-via-scope`, and both of its cut variants produce
 the SAME real-tree output (zero findings, which is also what its header claims the tree holds), so the
 verdict is unaffected either way. I did not re-run; a second whole-tree pass with four sibling lanes live

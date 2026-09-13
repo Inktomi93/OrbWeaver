@@ -324,7 +324,7 @@ ones, and the ONLY home for destructive + dialog-opening actions).
 
 | slot | content |
 | - | - |
-| leading | **nothing.** See the phase-chip ruling below — a leading column that is empty on most rows costs \~58px of title at the 320px pane floor for no data |
+| leading | **nothing.** See the phase-chip ruling below — a leading column that is empty on most rows costs ~58px of title at the 320px pane floor for no data |
 | title | `document.name` — the full row width |
 | subtitle | the phase chip (when it fires) then `Upload · 24.5 KB · 12 chunks` (legacy's `documentSubtitle`, carried) |
 | meta | the `updatedAt` relative stamp (the mono title-line stamp `ListRow` already renders) |

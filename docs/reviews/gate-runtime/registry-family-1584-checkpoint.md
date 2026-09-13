@@ -101,7 +101,7 @@ tree; what must not move is which loader a claim cites.
 
 **A partial `knownPolicies` roster manufactures waiver alarms — judge the run by the right fields.** A
 pre-cutover real-tree pass hands `runPolicyPass` only the policies under test, so every inline
-`@orb-waive` marker on the tree that names one of the other \~250 policies reconciles as
+`@orb-waive` marker on the tree that names one of the other ~250 policies reconciles as
 `ordinary-waiver … targets unknown policy` (the fresh-context verification counted 93 with this family's
 eleven-policy roster; a single-policy roster produces its own smaller set). These are an artifact of the
 roster, not a defect, and they say nothing about the policies under test. Read

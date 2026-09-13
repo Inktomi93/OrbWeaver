@@ -150,7 +150,7 @@ convergence refactor.
 
 ## 7. The cohort-anatomy census, at BOTH pointer classes — and the convergence (lane cb-config-list)
 
-**Owner ruling (Nate, 2026-09-05 \~13:50Z, #1169): "receipt + full convergence"** — a cohort-anatomy census
+**Owner ruling (Nate, 2026-09-05 ~13:50Z, #1169): "receipt + full convergence"** — a cohort-anatomy census
 across ALL FOUR LIST panes naming EVERY divergent axis, then config rows adopt `ListRow` +
 `ListPaneHeader` + the shared voice **wherever the collections species does not forbid it**. §1–§6 above
 are arm (a) and stand; this section is the census the ruling asked for and the build it decided.
@@ -263,7 +263,7 @@ where the band's own label is `interactiveKicker`, i.e. the same micro-caps regi
 **The ruling fork, stated.** The clause it edits is #1099 Errand A's own note in that file: *"`kicker` is a
 text voice, not a box: the band's height is untouched."* The MECHANISM survives intact and is now provable
 rather than argued — the band is `size="sm"`, i.e. `h-control-sm`, a FIXED height (32px fine / 44px coarse,
-measured across all fourteen bands), so a \~30px Badge inside it cannot move it, and the CT asserts the
+measured across all fourteen bands), so a ~30px Badge inside it cannot move it, and the CT asserts the
 band's height against the resolved token. What changed is the clause's INPUT: the reason to prefer text was
 never "text", it was "no growth", and a box in a fixed-height control does not grow it.
 
@@ -305,7 +305,7 @@ converged to a `Badge` at #1214-2. Nothing to build.
 
 ## 8. The re-judgment with the species fence retired (#1714, lane cb-config-list)
 
-**Owner word, verbatim (Nate, 2026-09-05 \~15:45Z, mid-fold of #1169):** *"also yes i changed my stance on
+**Owner word, verbatim (Nate, 2026-09-05 ~15:45Z, mid-fold of #1169):** *"also yes i changed my stance on
 collections in case you or anyone is getting hung up on it lol my most recent ruling is the preference."*
 The most recent ruling is #1169's "receipt + full convergence". The fence it supersedes — "collections are
 a genuinely distinct species, therefore do not converge" — is retired at its ONE home,

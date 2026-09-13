@@ -18,7 +18,7 @@ updated: 2026-09-05
 ## Verdict — three sentences
 
 The one place is a **`Regex` disclosure section in the room's `This chat` CONTEXT tab**, sibling to
-Injections and Lorebooks, in the same `DisclosureSection` grammar and the same \~432px column — it is the
+Injections and Lorebooks, in the same `DisclosureSection` grammar and the same ~432px column — it is the
 house's one sectioned per-chat-configuration pane (`settings-context-tab.tsx:31-37`), it sits beside the
 transcript so *flip → look* is one glance, and #616 already ruled that a foreign feature's per-chat knobs
 go IN that tab rather than in a tab beside it. It is a **read-and-switch surface**: it prints the four
@@ -478,7 +478,7 @@ Cheap-first, and the honest split.
 
 | # | Thing | Cost | Why it cannot be a read |
 | - | - | - | - |
-| N1 | **One read verb** — `chat.regexForRoom` (or `regex.listForRoom`): returns the four ordered tiers with provenance labels + the deduped rank | \~1 verb + 1 params/views shape + 1 router row + 1 int test | `resolveRegexSources` is a **principal-less turn-time op** injected into chat (`domain/regex/contract/resolve.ts:7-11, 43`) — it has no caller-gate and is not on the tRPC surface. The verb is that op + the chat's `presetId`/`characterIds` + `resolveHostTierRegexScripts` (`substrate/regex-tier.ts:22`), i.e. **assembly of shipped parts**, not new logic. |
+| N1 | **One read verb** — `chat.regexForRoom` (or `regex.listForRoom`): returns the four ordered tiers with provenance labels + the deduped rank | ~1 verb + 1 params/views shape + 1 router row + 1 int test | `resolveRegexSources` is a **principal-less turn-time op** injected into chat (`domain/regex/contract/resolve.ts:7-11, 43`) — it has no caller-gate and is not on the tRPC surface. The verb is that op + the chat's `presetId`/`characterIds` + `resolveHostTierRegexScripts` (`substrate/regex-tier.ts:22`), i.e. **assembly of shipped parts**, not new logic. |
 | N2 | **`ChatMetadata.regexEnabled?: boolean`** + `chat.setRegexEnabled` (host-gated) + one guard at the two resolver call sites | 1 contracts field, 1 verb, 2 one-line guards. **Zero migrations** — the blob column exists (`packages/db/src/schema/chat.ts:172`) and three siblings already ride this exact idiom (`contracts/src/chat/metadata.ts:271-300`) | it is new state |
 | N3 | **The client section** — `RegexContextSection` + a `RegexScriptPicker` dialog mount + one `#state` hand-off action (`openRegexScriptInLibrary(scriptId)` = `selectCollectionMember("regex", id)` + `setActiveSection("config")`) | one component in `features/chat/components/`, one small `#state` action | new surface |
 

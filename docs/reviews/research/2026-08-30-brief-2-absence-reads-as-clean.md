@@ -76,14 +76,14 @@ convention.
 
 Two facts fall out. First, **five of the seven Aug 29–30 rows are inside ONE instrument** (design-audit),
 and four of those five are RULE-level (no rule / imprecise rule) — the instrument was gaining rules at
-\~2/day and each new rule found its own nearest false neighbour. Second, **every "absence" row was fixed by
+~2/day and each new rule found its own nearest false neighbour. Second, **every "absence" row was fixed by
 adding a denominator or a liveness marker, never by a planted control** — the planted control is what
 proves the fix, not what detects the class.
 
 ## 3. What a same-invocation planted control would and would not have caught
 
 Take the brief's proposal literally: every instrument run first walks a known-positive fixture (a second
-page in the same browser session, \~1–2s) and refuses if its detector does not fire.
+page in the same browser session, ~1–2s) and refuses if its detector does not fire.
 
 | Would catch | Would NOT catch |
 | - | - |
@@ -104,7 +104,7 @@ worth an opt-in `--self-check` for the day a lane suspects the walker itself.
 | **A shared verdict door.** `printResult(tool, pairs)` (`_shared/artifacts.ts:19-23`) is a printer. Add `printVerdict(tool, { verdict, denominators: { name: { value, refuseWhen: "zero" \| "unstable" \| "below" , floor? } }, pairs })` in `_shared/evidence.ts` that (a) prints the RESULT line, (b) REFUSES (exit 2 + `INSTRUMENT-ERROR`) a clean verdict whose declared denominator set is empty, or any member is `-1`/absent, or violates its own `refuseWhen`, and (c) allows an explicit `honestEmpty: <reason>` per denominator (motion-audit's quiet-frames case, `motion-audit/lib/evidence.ts:47-56`) so the honest-empty arm stays honest and SAID. | THRESHOLD-AT-ZERO and POPULATION-UNREACHED, for every present and future instrument — a tool can no longer print `findings=0` beside an undeclared or zero population | gate: `tooling-instrument-proof` gains arm F — an `INSTRUMENT_TOOLS` member whose ops call `printResult(` directly instead of `printVerdict(` is RED (sanctioned-door shape, `no-raw-zustand-persist` precedent) | small: one helper, 8 call-site migrations, one arm, mustFlag/mustPass |
 | **Per-family liveness on the RESULT line.** design-audit publishes reach for tap-target/action-door/obscured only; the text, typography, colour, a11y, decor and structure families fold silently. Each family announces `scanned-<family>=N`; a family enabled for the run that reports 0 on a page whose census is non-zero is a REFUSAL (the ct-unfed ACTIVE-marker shape, `ct-flaky-reporter.ts:244-249`). | INERT-ARM at the instrument tier — #619's shape can no longer hide inside one family | the same verdict door: a family denominator is a declared denominator with `refuseWhen: "zero"` | small |
 | **A closed rule registry + a per-rule fixture PAIR.** Rule ids are 43 free string literals across 8 check files (`nr-rule-census.py`: 43 rules, 42 spelled in some test, `landmark-missing` in none). Home them as one `as const` table with `family`, `severity`, and the gate `design-audit-rule-proof` requires, per id, a `// @rule-fires(<id>): <plant>` AND a `// @rule-silent(<id>): <nearest legitimate neighbour>` marker in `tests/tooling/ui-audit/**` or the walker CT — two-sided (a marker naming a dead id is RED). | PRECISION-NEIGHBOUR for every rule that exists — #825's ellipsis and #851's sibling rows would each have been a required `@rule-silent` plant at the rule's birth | gate (`tooling-instrument-proof` one level down; same marker grammar) | medium: 43 rules owe a neighbour fixture each — most already have the fires half |
-| **Fleet argv strictness.** `_shared/argv.ts` is six helpers (`splitLastEq`, `splitFirstEq`, `splitSelectorEq`, `parseViewport`, `splitPageSuffix`, `parseGotoTarget`); every cli parses its own argv, so an unknown token's fate is per-tool. A shared `parseArgv(spec)` that REFUSES unknown tokens and flag-shaped positionals (exit 3, did-you-mean — `ast/cli.ts:49-60` is the worked shape) + `tooling-shared-plumbing` arm G (a cli.ts that reads `process.argv` outside it is RED). | INPUT-SHAPE-SILENT (#452, #550's class) for every tool | gate arm (the plumbing gate's existing shape) | medium: \~14 cli migrations |
+| **Fleet argv strictness.** `_shared/argv.ts` is six helpers (`splitLastEq`, `splitFirstEq`, `splitSelectorEq`, `parseViewport`, `splitPageSuffix`, `parseGotoTarget`); every cli parses its own argv, so an unknown token's fate is per-tool. A shared `parseArgv(spec)` that REFUSES unknown tokens and flag-shaped positionals (exit 3, did-you-mean — `ast/cli.ts:49-60` is the worked shape) + `tooling-shared-plumbing` arm G (a cli.ts that reads `process.argv` outside it is RED). | INPUT-SHAPE-SILENT (#452, #550's class) for every tool | gate arm (the plumbing gate's existing shape) | medium: ~14 cli migrations |
 | **Register `review-mirror`.** It has a fail-closed evidence module and no proof obligation. | a verdict tool outside the registry | one row in `INSTRUMENT_TOOLS` (+ its two markers) | trivial |
 
 What stays un-mechanizable, and should be said so: NO-RULE. The coverage tables' row "the PNGs, actually

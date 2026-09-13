@@ -471,7 +471,7 @@ wave 8's receipt and I am not re-counting it.
 | 11 | `test-fixture-imports` | **REFUTED on §5b.5 + one population clause** — the richest proof set in the family: 6 of 9 cuts enforced, both third answers reached, an external-door control, a rename control, and the ONE module that solved D1's class correctly (fail-closure scoped to a declared import door, with the 89-false-positive receipt in its own row) |
 | 12 | `test-mock-doctrine` | **REFUTED** — D2 (falsified, F1) + argument position + population. Its member vocabulary, internal-prefix list and fail-closed target arm are all individually proven |
 | 13 | `turn-identity` | **REFUTED — D1 ONLY.** Zero unenforced narrowings, its one clean cut is a declared prefilter with the home fence reddening behind it, both third answers reached, and its MIXED declared-limit row genuinely discriminates. The nearest miss |
-| 14 | `vector-scope-derived` | **REFUTED — worst §4.1 record** — D1, three of five sanctioned homes unexercised, the write vocabulary, the sealed-vs-non-foreign asymmetry and the LITERAL\_KINDS comment all unproven, and the family's only two `token`-less expectation rows |
+| 14 | `vector-scope-derived` | **REFUTED — worst §4.1 record** — D1, three of five sanctioned homes unexercised, the write vocabulary, the sealed-vs-non-foreign asymmetry and the LITERAL_KINDS comment all unproven, and the family's only two `token`-less expectation rows |
 
 ## The COPY candidate
 

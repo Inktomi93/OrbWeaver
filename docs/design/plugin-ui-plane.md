@@ -291,7 +291,7 @@ by fixed first-party members, never per-plugin (the one-assembly law, G8):
 | `chat-flank` | `chatSurfaceContributors` `thread-flank` | ONE `pluginFlankSurface` contribution fanning per-plugin by `listSurfaces` data; mount-and-null when none (the flank activates on a sync `when` that cannot see query data — render null, `empty:hidden` collapses; NEVER `useSuspenseQuery` here) | `chat-room-surface.tsx:151` + a CT pinning null-render width-identity |
 | `chat-settings-section` | `chatSettingsSections` (host-controls band) | one first-party contribution per the `pluginSnippetConsoleSection` precedent (`authed-app.tsx:146-149`); host-gated by MOUNT (`contribution-contracts.ts:78-83`) | the family's own walls |
 | `tool-card` | the `toolRenderers` registry (`authed-app.tsx:187-190`) | ONE first-party `pluginToolRenderer` claiming `plugin_*`-prefixed wire names, rendering the owning plugin's registered card spec; unclaimed/unregistered names keep the generic `ToolCallBlock` fallback. **Closes the A2-F5 renderer gap.** Key scoping follows whatever #677 lands | `contribution-contracts.ts:244-254` |
-| `page` (U5) | the house **Extensions** rail SECTION (§4.5b) | full-page DSL surface (Tier S/C; frame-eligible at U7) behind the section's page switcher — ONE rail item for the platform, never per-plugin | the §6a SECTION\_IDS playbook + the page-scale shell (§4.5b) |
+| `page` (U5) | the house **Extensions** rail SECTION (§4.5b) | full-page DSL surface (Tier S/C; frame-eligible at U7) behind the section's page switcher — ONE rail item for the platform, never per-plugin | the §6a SECTION_IDS playbook + the page-scale shell (§4.5b) |
 
 - **`message-footer` is v2** (priced, phase U6): per-ROW mounts multiply by transcript length — DSL
   badges only, hard node caps, and never a scripted tier per row. The frame arm is banned there
@@ -383,7 +383,7 @@ TO GET WRONG (the vocabulary alone does not guarantee a good surface).
 
 1. **Results as management rows, not a browse grid.** `hub-card-tile.tsx` rendered a VISUAL medium
    (character cards) as `ListRow`s — small avatar, title, one compressed "by X · N downloads · N
-   tokens" meta string, \~76 px virtual rows. The genre's primary signal (card art) was absent
+   tokens" meta string, ~76 px virtual rows. The genre's primary signal (card art) was absent
    because the shelf's path of least resistance is entity-management furniture (G6 pushes
    `ListRow`).
 2. **The decision surface got the least design.** The preview — the moment a person decides to
@@ -413,7 +413,7 @@ Where a node needs a house composite that does not exist yet (the media-tile gri
 case), the composite lands in `@orb/ui`/`components/` benefiting the whole app — the §4.3
 shelf-exposure rule; a browse-genre gap in the shelf is exactly what failure 1 was.
 
-- **The section (D70 mechanics, the §6a SECTION\_IDS playbook walked in full — seam 16):** a tenth
+- **The section (D70 mechanics, the §6a SECTION_IDS playbook walked in full — seam 16):** a tenth
   `SECTION_IDS` member `extensions` (tuple ORDER IS RAIL ORDER — placement is a build-time UX
   decision, recommend beside `config`), owned by `features/plugin`
   (`lib/extensions-section.tsx`, exported on the front door, one door row —
@@ -461,7 +461,7 @@ have native latency because they run in the page. The owner opened the dep budge
   cannot unwind OOM; explicit memory + stack ceilings are mandatory, `infra/plugin-host/budgets.ts`
   - `README.md:44-61`), and the server membrane's containment story CARRIES OVER instead of being
     re-derived. The rejected list — isolated-vm, SES — is PERMANENT (`plugin-design/README.md:50-60`).
-    Size: the wasm artifact \~1 MiB, loaded LAZILY (dynamic import
+    Size: the wasm artifact ~1 MiB, loaded LAZILY (dynamic import
     behind "a scripted surface is on screen"), never in the boot chunk (the #43/#433 boot-split law —
     `client-architecture-lockdown.md` §7). Escape posture: WASM linear memory — a guest cannot alias
     host JS heap; interpreter CVEs are contained to the instance; the marshalling discipline
@@ -610,7 +610,7 @@ below is CMT with a phase, except the one substrate-blocked row, marked SUB).
 | 7 | Custom side panels / drawers | **PD** | `chat-flank` + `chat-settings-section` + `settings` anchors, Tier S/C |
 | 8 | Whole custom screens (chess, retro games, VN extras, hub browsers) | **CMT (U5/U7)** | house-vocabulary pages: `ui.page` in the Extensions section (§4.5b, U5); arbitrary-pixels screens: the `ui.frame` hatch (§6.2, U7) — the same page slot, frame-bodied |
 | 9 | Slash-command registration (with help/autocomplete) | **PD → full at U8** | `/plugin <slug> <cmd>` via one static contribution from U5 (§4.5); the dynamic palette source giving per-command first-class rows is COMMITTED at U8 |
-| 10 | Event hooks (message/chat/character/persona/settings lifecycle) | **PT** | `events.subscribe` over the closed trigger taxonomy (`host-v1.ts:159-164`); fidelity: the closed union is narrower than ST's \~40 event types — widenings ride the S7 batched merge-window discipline (`interaction-direction-spec.md:397-408`), by demand |
+| 10 | Event hooks (message/chat/character/persona/settings lifecycle) | **PT** | `events.subscribe` over the closed trigger taxonomy (`host-v1.ts:159-164`); fidelity: the closed union is narrower than ST's ~40 event types — widenings ride the S7 batched merge-window discipline (`interaction-direction-spec.md:397-408`), by demand |
 | 11 | Per-token streaming hook (`STREAM_TOKEN_RECEIVED`) | **REF** | structural: a guest invoke per token violates the per-invocation budget architecture + FIFO-16 delivery (`03:59-75`); per-message facts are the floor |
 | 12 | Prompt interceptors — inject/steer before generation | **PT** | `chat.transform` at D50 points (`host-v1.ts:178-191`) + `worldInfo.upsertEntry`; the 250 ms transform deadline vs 5 s fetch incompatibility stands (juice §4.6) |
 | 13 | Prompt interceptors — MUTATE chat history (ST's mutable `chat` array) | **REF** | the class-1 wall: an unattributed edit of prose canon by non-human code (`interaction-direction-spec.md:43-49`); the sanctioned routes are transforms (attributed to the drafting human) + the S4 propose/confirm inbox |
@@ -806,7 +806,7 @@ the engine async, not a widening of this row.
 | U2 | chat anchors: flank fan-out + settings-section contribution + the shell (seam 7) | a plugin renders a labeled flank widget updating on room events; disabled ⇒ byte-identical room | ordinary |
 | U3 | `tool-card`: `pluginToolRenderer` + card specs — **closes A2-F5** | the oracle-deck example's draw renders a house card; an unregistered tool still gets the generic block | ordinary |
 | U4 | Tier C: `uiEntry` + bytes route + worker host + `uiHostCall` + CSP delta (seams 8-10) — **security-executor review gates the merge** | a scripted surface filters a list with zero network on keystroke; a hung `ui.js` collapses to null within the deadline | ordinary (CSP edit deliberate) |
-| U5 **(BUILT)** | `/plugin` slash dispatch + the Plugins chrome menu + the `dialog` surface kind + `host.ui.toast` (§4.5a) + **`ui.page` + the Extensions section** (§4.5b, seam 16) | `/plugin oracle-deck draw` runs; the wand menu lists plugin commands; a plugin action opens a plugin-attributed house dialog and raises a prefixed toast; a plugin registers a page and it appears behind the Extensions rail entry's switcher; zero pages ⇒ the teaching empty | ordinary (the SECTION\_IDS tuple edit is the §6a playbook, not a merge window) |
+| U5 **(BUILT)** | `/plugin` slash dispatch + the Plugins chrome menu + the `dialog` surface kind + `host.ui.toast` (§4.5a) + **`ui.page` + the Extensions section** (§4.5b, seam 16) | `/plugin oracle-deck draw` runs; the wand menu lists plugin commands; a plugin action opens a plugin-attributed house dialog and raises a prefixed toast; a plugin registers a page and it appears behind the Extensions rail entry's switcher; zero pages ⇒ the teaching empty | ordinary (the SECTION_IDS tuple edit is the §6a playbook, not a merge window) |
 | U6 | the committed parity tail (all CMT rows): `message-footer` DSL badges (§5.4) · the display-transform seam (§5.5/§5.29, seam 14) · `llm.quiet` schema + vision params (§5.16/§5.32) · the typed transform-abort outcome (§5.14) · `macros.register` (§5.15) | per row: a badge renders under a message; a display transform annotates rendered text; a structured quiet call returns schema-valid JSON; a transform aborts a generation typed; a plugin macro substitutes | ordinary |
 | U7 | the `ui.frame` hatch whole (seam 13; §6.2) — **security-executor review gates the merge** | a frame surface draws a chess board at `chat-flank`; a hostile frame reaches nothing off-box except the #124 channel its consent line names; every §6.1 row is servable | ordinary (the app CSP's DIRECTIVES are untouched — the frame carries its own response policy; `security-headers.ts` gains the document-path exemption its mechanism requires, see §7a 2026-08-28) |
 | U8 | ecosystem (seams 15+17): URL install + update check (one-click, re-consented) · `databank.ingest` · **`character.ingest`** · card extension fields · dynamic palette rows | install a plugin from a URL with the same consent screen; an update lands disabled-pending-reconsent when reach widened; a scraper plugin ingests into the databank; plugin commands appear as first-class palette rows; **the HUB-BROWSER showcase becomes buildable** — a `ui.page` Extensions page (search → results grid → preview → import; the flow of THIS repo's own 2026-07-22-purged `features/hub` carried as semantics, its UI designed fresh against the §4.5b failure list, `f6c5c588e` the dated drop) importing via `character.ingest`; it joins the example-plugin candidates (#673's seeded set) as the ui.page + ingest showcase | ordinary |

@@ -86,7 +86,7 @@ autoSetSceneBackground) and C5's livingLibrary (20). ENFORCER confirmed: `as con
 Record<RulePresetId, ErasedRulePresetDef>` at `presets.ts:1360` — exhaustive, tsc-forced.
 Verdict: ✅ BUILT, count exact, no gap.
 
-## C1 — run\_analysis (S5 whole) — ✅ BUILT
+## C1 — run_analysis (S5 whole) — ✅ BUILT
 
 Arm dispatch `engine/arm-executors.ts:553` (`case "run_analysis"`), dedicated executor
 `engine/analysis-arm.ts` (structured pass, retry, response-format), state table `automation_rule_state`
@@ -104,7 +104,7 @@ executor (`engine/lore-write.ts:2`, extracted "at C1" per its own header, consum
 armType at `verbs/confirm-suggestion.ts:175` (rewrite-card hash-guard machinery referenced in spec is
 consumed by this same confirm path — not independently re-read line-by-line in this pass).
 
-## C4 — run\_tool arm — ✅ BUILT
+## C4 — run_tool arm — ✅ BUILT
 
 Executor `engine/arm-executors.ts:436` (`runRunTool`) dispatched at `:559-560` (`case "run_tool"`).
 Per §7-C7a's truth-repair, this admits ONLY plugin-sourced author-owned tools (not builtins) —

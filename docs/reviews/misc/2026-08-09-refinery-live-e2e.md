@@ -123,7 +123,7 @@ Turning it on immediately exposed a second, latent bug: the first live ramp prin
 `0 → **-5** → 2 → 4 → 5 → …` — a **negative character score**. A rAF callback receives the *frame's*
 timestamp, which can predate the `performance.now()` the effect captured, so `t` went negative and the
 cubic ease kept going below zero. **FIX:** clamp `t` at both ends. Post-fix sequence, three consecutive
-runs: `0→1→2→3→4→5→6→7→8→9` in \~225ms, monotonic, no negative frame.
+runs: `0→1→2→3→4→5→6→7→8→9` in ~225ms, monotonic, no negative frame.
 
 ---
 
@@ -136,10 +136,10 @@ runs: `0→1→2→3→4→5→6→7→8→9` in \~225ms, monotonic, no negative
 | 1 | verdict banner + axes | **PASS** (on analyze) | `lane39-20-analyze-verdict.png`, `data-tone="good"`, soul 9/10 pill |
 | 1 | REWRITE → arm-B accept review with REAL CompareBlocks | **PASS** | 7 blocks: 5 before/after pairs + 2 `greetings [new]` ADDED blocks; per-block Keep/Discard with accessible names ("Keep description"). `lane39-08-accept-review.png` |
 | 1 | tri-state consent, collapse, undecided fail-closed | **PASS** | `0 kept / 0 discarded / 7 undecided` at open; after 2 keeps + 1 discard → 3 collapsed rows, note *"4 blocks have no verb pressed — undecided blocks are NOT applied…"*, CTA `Apply 2 kept` |
-| 1 | APPLY → outcome panel + snapshot line | **PASS** | *"2 fields written. A snapshot was taken first — 'auto: before refinery apply · refinery\_session\_…' — reversible from the character's History tab."* + REPLACED rows. `lane39-10-apply-outcome.png` |
+| 1 | APPLY → outcome panel + snapshot line | **PASS** | *"2 fields written. A snapshot was taken first — 'auto: before refinery apply · refinery_session\_…' — reversible from the character's History tab."* + REPLACED rows. `lane39-10-apply-outcome.png` |
 | 1 | read-back the card (belt-9) | **PASS** | header flips to `COMPLETED` / `APPLIED · SNAPSHOT TAKEN`; `lane39-11-card-readback.png` |
 | 2 | ANALYZE verdict + tri-axis | **PASS** | ACCEPT / soul 9 / preserved·lost·gained populated, issues + recommendations "none listed" (the designed empty state) |
-| 2 | ITERATE (refine-rewrite → analyze) | **PASS** | `refinery.iterate 200` (\~29s); ledger gains a second rewrite+analyze pair; stepper shows both cells `running…` mid-round |
+| 2 | ITERATE (refine-rewrite → analyze) | **PASS** | `refinery.iterate 200` (~29s); ledger gains a second rewrite+analyze pair; stepper shows both cells `running…` mid-round |
 | 2 | runs ledger + economics | **PASS** | 5 rows, newest first, each `model · N in / M out · Xs` — e.g. `ANALYZE · round 0 · ACCEPT · Qwen/Qwen3-VL-8B-Instruct · 4899 in / 581 out · 8.2s`. `lane39-30-ledger-settled.png` |
 | 2 | step-back (view-back) | **PASS** | chip `VIEWING ROUND 0 · SUPERSEDED`; `lane39-31-step-back.png` |
 | 2 | operate-back (arm a rewrite for apply) | **PASS** | ledger chip `IN FORCE FOR APPLY`, and the armed (older) rewrite's block set loads into the pane. `lane39-32-operate-back.png` |
@@ -185,5 +185,5 @@ runs: `0→1→2→3→4→5→6→7→8→9` in \~225ms, monotonic, no negative
 - Assay rows for greetings read `greetings 0 9` / `greetings 1 9` — the greeting INDEX and the SCORE are
   two bare numerals side by side with nothing distinguishing them (`RowsBlock` renders header keys
   generically). Legible once you know; ambiguous cold.
-- The teaching state at 1440×1000 is \~70% empty below the three step cards — the side-eye's P3 "62% CONTENT
+- The teaching state at 1440×1000 is ~70% empty below the three step cards — the side-eye's P3 "62% CONTENT
   void", still true.

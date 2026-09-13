@@ -17,9 +17,9 @@ as that principal.
 **The whole-drive `0.3263` from the B10 review is not the tab body. It is the context-panel dock, and
 on the human path nobody pays it.** The "This chat" tab body's own settle costs a host **0.00000 paid
 CLS** at desktop and at mobile on every click path I could construct — but the margin to the browser's
-500ms `hadRecentInput` cliff is \~105ms, and **at 4× CPU throttle on mobile it breaks: one shift of
+500ms `hadRecentInput` cliff is ~105ms, and **at 4× CPU throttle on mobile it breaks: one shift of
 0.30837 lands 795ms after the tap and is fully paid.** The mover is one section — **Injections** — whose
-one-line skeleton stands in for \~830px of expanded editor forms.
+one-line skeleton stands in for ~830px of expanded editor forms.
 
 Per the row's decision rule: no section's own settle exceeds 0.05 → the siblings get a fence, ONE
 section (Injections) gets a fix row because it crosses the cliff under load.
@@ -113,8 +113,8 @@ Row 9 was taken through chrome-devtools MCP (4× CPU emulation, real trusted cli
 
 ## 4. Section-by-section: skeleton height vs settled height (the actual attribution)
 
-Sampled every 20ms across the tab open; three distinct frames appear, at **\~64ms** (all skeletons),
-**\~108ms** (first resolve wave), **\~364ms desktop / \~377ms mobile** (second resolve wave).
+Sampled every 20ms across the tab open; three distinct frames appear, at **~64ms** (all skeletons),
+**~108ms** (first resolve wave), **~364ms desktop / ~377ms mobile** (second resolve wave).
 
 ### Desktop 1280×800 — context panel 367×679
 
@@ -131,11 +131,11 @@ Sampled every 20ms across the tab open; three distinct frames appear, at **\~64m
 | Storytelling | 152 | 152 | 0 | clean |
 | Reactions | 292 | 292 | 0 | clean |
 | Tool use | 150 | 150 | 0 | clean |
-| **Rules (3 rules)** | **185** | **704** | **+519** | large, but below the fold (scores \~0 today) |
-| Plugin console | 323 | \~64 | −259 | over-reserved, settles late |
+| **Rules (3 rules)** | **185** | **704** | **+519** | large, but below the fold (scores ~0 today) |
+| Plugin console | 323 | ~64 | −259 | over-reserved, settles late |
 | Plugin panels | 0 | 0 | 0 | silent-contributor collapse working as designed |
 
-### Mobile 430×932 — context panel 411×\~707
+### Mobile 430×932 — context panel 411×~707
 
 | Section | skeleton | settled | Δ |
 | - | - | - | - |
@@ -151,7 +151,7 @@ Sampled every 20ms across the tab open; three distinct frames appear, at **\~64m
 The Injections rows themselves measure **362px and 385px** (`§Injections 2 = y320h920` containing
 `y413h362` + `y799h385`). The fallback is `SkeletonRows count={1} shape="line"` —
 `settings-context-tab.tsx:147`, where its neighbours use `count={2}` (`:159`, `:173`, `:184`) and Group
-behavior uses a named `GROUP_SECTION_SKELETON_ROWS = 4`. One line stands in for two \~370px forms.
+behavior uses a named `GROUP_SECTION_SKELETON_ROWS = 4`. One line stands in for two ~370px forms.
 
 ### The control that proves Injections is the dial
 
@@ -169,13 +169,13 @@ content, and the settle term is Injections. That is the positive control in both
 
 ## 5. Findings
 
-### \[P1] Injections' skeleton under-reserves by \~830px, and the resulting shift crosses the `hadRecentInput` cliff under CPU load
+### \[P1] Injections' skeleton under-reserves by ~830px, and the resulting shift crosses the `hadRecentInput` cliff under CPU load
 
 **What.** `settings-context-tab.tsx:145-152` wraps `InjectionsManager` in a `QueryBoundary` whose fallback
-is `<SkeletonRows count={1} shape="line" />` (\~89px desktop, \~105px mobile). The real content is N fully
+is `<SkeletonRows count={1} shape="line" />` (~89px desktop, ~105px mobile). The real content is N fully
 expanded per-row autosave forms — `injections-manager.tsx` is "a plain mapped list of per-row autosave
 forms" with **no collapsed state at all** — measured at 362px and 385px per row. Two injections resolve
-into 920px where 89px was reserved. The resolve arrives in a **second wave \~260ms after** the rest of the
+into 920px where 89px was reserved. The resolve arrives in a **second wave ~260ms after** the rest of the
 tab has already painted its real content, so Documents and Lorebooks — which have *already settled* — are
 shoved bodily out of the viewport.
 
@@ -202,10 +202,10 @@ Control: 0.01940 vs 0.07961 section-settle with 0 vs 2 injections.
 
 ---
 
-### \[P2] The "This chat" tab is a \~4,000px unbounded scroll whose SECOND section eats the entire viewport
+### \[P2] The "This chat" tab is a ~4,000px unbounded scroll whose SECOND section eats the entire viewport
 
 **What.** Fourteen sections, no bounding, no grouping beyond the single "Host controls" band. With two
-injections the settled tab is 2,600px on desktop and \~4,000px on mobile. `reports/snaps/cbcls-click.png`:
+injections the settled tab is 2,600px on desktop and ~4,000px on mobile. `reports/snaps/cbcls-click.png`:
 at desktop, everything visible below the Field-overrides trio is *one injection's editor* — Injection /
 Remove / Position / Role / Depth / help text / Content, six stacked full-width fields for one row.
 Documents, Lorebooks, Macro picks and all eight host-control sections are below the fold.
@@ -253,7 +253,7 @@ with zero tap-target rows.`
 
 **What.** `SkeletonRows count={2}` (137px desktop / 169px mobile) resolves to a 65px empty state, so the
 section collapses and everything below jumps *up*. This is the #815 "Macro picks collapsing to 0h0" lead,
-**confirmed live** — and priced: it contributes \~0.003 of the 0.0194 zero-injection settle.
+**confirmed live** — and priced: it contributes ~0.003 of the 0.0194 zero-injection settle.
 
 **Why it hurts a user.** Content moving upward reads as a glitch rather than as loading. Minor because the
 distance is small and it is inside the exclusion window.
@@ -268,11 +268,11 @@ state immediately (the picks declaration read is cheap and already cached).
 
 ### \[P3] Rules under-reserves by 519px (desktop) / 1063px (mobile) — currently free only because it is below the fold
 
-**What.** `§Rules 185→704` desktop, `233→1296` mobile with 3 rules. It scores \~0 CLS today purely because
+**What.** `§Rules 185→704` desktop, `233→1296` mobile with 3 rules. It scores ~0 CLS today purely because
 it sits at y≈2200 (desktop) / y≈2900 (mobile), outside the viewport, so the impact fraction is zero.
 
 **Why it matters.** This is a geometry accident, not a fix. Retire the P2 above (collapse the injection
-rows) and Rules moves up \~800px — straight into the viewport, where its +519px becomes payable. **Do not
+rows) and Rules moves up ~800px — straight into the viewport, where its +519px becomes payable. **Do not
 land the Injections fix without also bounding Rules.** #815 already fenced the rules surface's own editing
 CLS at 0.02 and recorded the fire-log skeleton mismatch (0.00613, 64–76% of an editing session) as an
 owner-deferred redesign; this is the same term, seen from the tab's side.
@@ -301,7 +301,7 @@ but it means every collapsible on this 14-section pane pays a per-frame layout p
 
 1. **RETRACTED — "the sibling sections (Lorebooks/Documents/Macro picks) are the movers" (the #815 lead
    carried into #819).** They are the **victims**. Their own growth is +52/+88/−72px desktop and
-   +19/+81/−104px mobile, worth \~0.019 combined. What removes them from the viewport is the Injections
+   +19/+81/−104px mobile, worth ~0.019 combined. What removes them from the viewport is the Injections
    section's +831/+862px landing on top of them 260ms later. The CT that produced the lead measured them
    in *error states* with Injections stubbed out, which is exactly why they looked like the movers.
 2. **DIAGNOSED — the B10 review's `__orb.motion().cls = 0.3263` is the context-panel dock, not the tab.**
@@ -340,7 +340,7 @@ designed at that point; it looks like a form dumped into a drawer.
 **Does it flow weird?** Yes, in one specific way that is worth naming. The two adjacent sections at the
 top of the pane express the *same* idea — "a per-chat override with a current state" — in two opposite
 presentation laws. Field overrides: collapsed row + "inheriting" chip, expand on demand, three concerns in
-120px. Injections: everything open, always, six stacked fields per row, \~370px each. A host reading top to
+120px. Injections: everything open, always, six stacked fields per row, ~370px each. A host reading top to
 bottom learns the compact idiom in the first section and then immediately has it broken by the second. If
 Injections wore the Field-overrides clothes, this pane would be roughly a third of its height and the
 §5-P1 CLS finding would not exist.
@@ -388,7 +388,7 @@ That is good work and should not be touched.
 | - | - | - |
 | I1 | `design-audit` | The `text-overflow` rule (impeccable origin) fires on `scrollWidth > clientWidth` **without checking `text-overflow: ellipsis`** — it minted a P1 against the topbar chat title, which is correctly truncated with an ellipsis (`scrollW 201 / clientW 116 / text-overflow: ellipsis / white-space: nowrap`). P2 per the standing rule: this is a P1-class false positive on a rule that will fire on every truncating label in the app. The honest rule is "truncated with no ellipsis AND no full-value affordance". |
 | I2 | `motion-audit` | Correctly REFUSED (`verdict=INSTRUMENT-ERROR`, exit 2, "the frame population is ABSENT … 0 PipelineReporter frames"). Working as designed — but note for future briefs: its measured window opens **after** `reach`, so it structurally cannot see the settle CLS of the surface it just navigated to (`cls-raw=0` on a surface I measured at 0.145). Not a bug; a documented limitation worth restating in briefs that reach for it. |
-| I3 | `snap` | **No CPU or network throttle flag.** The decisive measurement in this review — does the settle cross the 500ms `hadRecentInput` cliff under load — was unreachable from `snap` and cost 14 chrome-devtools MCP calls (well over the \~8 budget). A `--cpu-throttle <n>` / `--network <profile>` pair on `snap` would have made it one Bash call. Also of note: at 4× CPU **plus** Slow 4G the dev build never reaches `data-app-ready` within 60s (250 resources, unbundled ESM) — a dev-build fact, not a product finding. |
+| I3 | `snap` | **No CPU or network throttle flag.** The decisive measurement in this review — does the settle cross the 500ms `hadRecentInput` cliff under load — was unreachable from `snap` and cost 14 chrome-devtools MCP calls (well over the ~8 budget). A `--cpu-throttle <n>` / `--network <profile>` pair on `snap` would have made it one Bash call. Also of note: at 4× CPU **plus** Slow 4G the dev build never reaches `data-app-ready` within 60s (250 resources, unbundled ESM) — a dev-build fact, not a product finding. |
 | I4 | `snap --fill` | `--fill` splits on the first `=` at bracket depth 0, so a `role=` engine selector can never be a fill target (`ARG ERROR --fill selector "role" can never match`). Workaround that works and is worth recording: Playwright's `:nth-match(textarea, 2)=value` — parentheses do not count as bracket depth. |
 
 ---
@@ -440,14 +440,14 @@ reflow, +0.0003 list row = 0.34747), and it is `hadRecentInput: true` — free �
 paid only when a driver navigates programmatically. **The `contextTab` is not persisted**
 (`shell-store.ts:90-93`), so no cold load lands on this tab and every settle shift is click-adjacent:
 measured **0.00000 PAID** at desktop (0.14489 observed) and at mobile (0.46210 observed). **But the margin
-is \~105ms and it breaks under load**: at 4× CPU on 430×932 the third settle wave lands **+795ms** after a
+is ~105ms and it breaks under load**: at 4× CPU on 430×932 the third settle wave lands **+795ms** after a
 real tap and the host pays **0.30837 in one shift** (`§Documents 515h186>0h0` + `§Lorebooks 725h143>0h0`).
 The single mover is **Injections**: `SkeletonRows count={1} shape="line"` (89px desktop / 105px mobile)
-standing in for two \~370px expanded autosave forms — `89→920` desktop, `105→967` mobile. Positive control
+standing in for two ~370px expanded autosave forms — `89→920` desktop, `105→967` mobile. Positive control
 in both directions: the same programmatic open with **0 injections** costs 0.01940 section-settle vs
 **0.07961** with 2 — **4.1×** — with the 0.065282 tab-swap term byte-identical in both arms. **The #815
 sibling-section lead is retracted**: Lorebooks (+88/+81px), Documents (+52/+19px) and Macro picks
-(−72/−104px, its collapse confirmed live) total \~0.019 and are the *victims* pushed off-viewport, not the
+(−72/−104px, its collapse confirmed live) total ~0.019 and are the *victims* pushed off-viewport, not the
 movers; the CT rendered them in error states with Injections stubbed, which is why they looked causal.
 
 **New row (P1) — bound the Injections section's reserved height.** Feed the count that
@@ -458,7 +458,7 @@ skeleton within 10% of settled height at 0/1/2/5 injections at desktop and `--mo
 showing no PAID entry after the click.
 
 **New row (P2) — the pane's proportion and the two-idiom split.** With two injections the settled tab is
-2,600px desktop / \~4,000px mobile, and at mobile the viewport ends mid-way through the *first* injection's
+2,600px desktop / ~4,000px mobile, and at mobile the viewport ends mid-way through the *first* injection's
 Depth field. Adjacent sections express one idea in two opposite laws: Field overrides = three concerns in
 120px of collapsed rows; Injections = six stacked full-width fields per row, always open. Collapsing the
 injection rows fixes the taste finding and the P1 CLS finding with one change.
@@ -469,8 +469,8 @@ of ±3px outside the box under `elementFromPoint` — verified real, not the kno
 positive. 4px under the 44px floor, on the tab's first three controls.
 
 **New row (P3) — do not land the Injections fix alone.** `§Rules` under-reserves by **519px desktop /
-1063px mobile** and scores \~0 today *only* because it sits below the fold. Collapsing the injection rows
-moves it up \~800px into the viewport, where that becomes payable. Bound Rules in the same change. (Same
+1063px mobile** and scores ~0 today *only* because it sits below the fold. Collapsing the injection rows
+moves it up ~800px into the viewport, where that becomes payable. Bound Rules in the same change. (Same
 term #815 already fenced at 0.02 from the editing side, with the fire-log skeleton mismatch deferred to the
 owner.)
 
@@ -490,7 +490,7 @@ lying" law this is P2 regardless of the surface finding's own priority.
 
 **New row (P3, instrument) — `snap` needs `--cpu-throttle` / `--network`.** The measurement that decided
 this row (does the settle cross the 500ms `hadRecentInput` cliff under load) was unreachable from `snap`
-and cost 14 chrome-devtools MCP calls against a \~8 budget. Also record: `--fill` cannot take a `role=`
+and cost 14 chrome-devtools MCP calls against a ~8 budget. Also record: `--fill` cannot take a `role=`
 engine selector (depth-0 `=` split); `:nth-match(textarea, 2)=value` is the working spelling.
 
 ---

@@ -23,7 +23,7 @@ start, so younger than no merges but older than the tip — the served-module ch
 every run since has been `nav=OK` with zero page errors, so the era-limit tell never fired). Server
 `:8788` pid 3858309. Main tip `7fa019799` (2026-09-02 02:55:14). This worktree is at the same tip.
 
-**Run health across \~40 driven runs:** `nav=OK` · `nav-actions-failed=0` · `steps-failed=0` ·
+**Run health across ~40 driven runs:** `nav=OK` · `nav-actions-failed=0` · `steps-failed=0` ·
 `page-errors=0` · `console-errors=0` · `failed-req=0` · `vite-dep-churn=0` · `deadcss=0` · `emptycss=0` ·
 `environment-fails=0`. Console *warnings* are non-zero and triaged in a table at the end — no row is
 disposed of as "it's dev mode".
@@ -63,7 +63,7 @@ regardless of the band.
 
 | # | Heuristic | Score | Key issue |
 | - | - | - | - |
-| 1 | Visibility of system status | 3/4 | Fade cue works, but 147px still hidden at 1280×800; boot re-settles 0.0229 every load; Resume shows **nothing for \~240ms** then 360ms of skeleton |
+| 1 | Visibility of system status | 3/4 | Fade cue works, but 147px still hidden at 1280×800; boot re-settles 0.0229 every load; Resume shows **nothing for ~240ms** then 360ms of skeleton |
 | 2 | Match system ↔ real world | 4/4 | "Six rooms, still warm." · "Not started yet, and there is no date to promise." · "Partly built — the table runs; encounters … are still to come." The house metaphor holds and the honesty is exemplary |
 | 3 | User control & freedom | 4/4 | Everything reachable is reversible; the roadmap folds; the rail never leaves |
 | 4 | Consistency & standards | 3/4 | `data-voice="gloss"` is spelled two different ways 4px apart (H8); the rail's Settings **section** is named like the Settings **modal**; the chips duplicate the rail (sanctioned) |
@@ -89,10 +89,10 @@ regardless of the band.
 | Boot splash frame drops | **STILL STANDING, same class** | `[drop] 51–109ms · [data-slot=weave-veil] / svg[aria-label=Orbweaver] / [data-slot=skeleton]`, and motion-audit attributes a 165ms LoAF to `packages/ui/src/art/web-weave/web-weave.tsx` `loop via FrameRequestCallback`. #429 ATTRIBUTED; dev-inflated |
 | `all-caps-body` P3 (cast credit line) | **STILL STANDING**, still the only ratified-voice finding | `all-caps-body candidates=63 judged=54 affected=1` desktop, `84 judged=68 affected=1` driven, `uppercase on 34 chars` at both pointers, both themes, all five appearance presets |
 | Hero art absent at 1280 | **WORSE, and now measured** | The art-bleed layer is **0px wide at 1280** (rect `[773, 175, 0, 132]`) and **33px at 1920** (`[938, 175, 33, 132]`). 08-30 measured 172×134 at 1280 — it has gone to zero. See H7 |
-| `region:content` renders 22× / 42ms / max 17ms | **COUNT held, COST did not** | Two samples: **21 / 222ms / max 98ms** and **17 / 104ms / max 62ms**. Console range across \~12 runs: 15–105ms per commit. Stated as a range, not a regression verdict (H15) |
-| Resume gap: worst rAF 150ms | **IMPROVED on the rail, still crunchy on the hero** | `perf-meter --click [aria-label=Chats] --cycles 3`: first click 141ms of long tasks / worst 90ms / **67ms rAF gap** / 32ms click / 3ms delay; cycles 2–3 clean (0 long tasks, 33ms gap). But the *hero* Resume is now measured at \~600ms end-to-end with a 52px hero jump (H13) |
+| `region:content` renders 22× / 42ms / max 17ms | **COUNT held, COST did not** | Two samples: **21 / 222ms / max 98ms** and **17 / 104ms / max 62ms**. Console range across ~12 runs: 15–105ms per commit. Stated as a range, not a regression verdict (H15) |
+| Resume gap: worst rAF 150ms | **IMPROVED on the rail, still crunchy on the hero** | `perf-meter --click [aria-label=Chats] --cycles 3`: first click 141ms of long tasks / worst 90ms / **67ms rAF gap** / 32ms click / 3ms delay; cycles 2–3 clean (0 long tasks, 33ms gap). But the *hero* Resume is now measured at ~600ms end-to-end with a 52px hero jump (H13) |
 | ARIA: nothing to fix, 31 stops | **HELD, and grew to 35 stops** | See "What is genuinely working" |
-| Taste: top-heavy at 1920, \~430px void | **STILL STANDING, now measured exactly** | 1920×1080: both columns finished by y=773, **307px of empty below**. 1440×900: left 773 / right 915. 1280×800: left 773 / right 851, 147px hidden (08-30: 141px — 6px worse, the Databank block grew) |
+| Taste: top-heavy at 1920, ~430px void | **STILL STANDING, now measured exactly** | 1920×1080: both columns finished by y=773, **307px of empty below**. 1440×900: left 773 / right 915. 1280×800: left 773 / right 851, 147px hidden (08-30: 141px — 6px worse, the Databank block grew) |
 | Taste: six caps kickers in one viewport | **STILL STANDING, now SEVEN and all consistent** | `PICK UP WHERE YOU LEFT OFF` · `OTHER ROOMS` · `ELSEWHERE IN THE HOUSE` · `START WITH` · `TEMP CHAT` · `DATABANK` · `WHAT'S COMING`. The seventh joined the drumbeat by being FIXED into the same voice — the right fix, and it makes the flattening more uniform, not less |
 | Taste: reading-arm right gutter | **NOT RE-MEASURED at gutter granularity** | `--appearance-preset reading` was run (design-audit, `findings=1`, the fewest of any arm) but I did not re-measure the quick-pick grid's right gutter |
 | Retraction R-5: the empty/first-run state is unreached | **STILL UNREACHED** | The stage band was held by a sibling lane, so I could not take an `--isolated` arm at all. The genuine `totalCount === 0` state remains unmeasured |
@@ -345,7 +345,7 @@ recorded clicks: `[frame] long frame 129–216ms · blocking 62–155ms @ view-t
 followed by `[reflow] forced synchronous style/layout 8–18ms inside that frame · @ view-transition.ts`.
 Same class the Config drive found; reproducible on demand from Home.
 
-**H13 · Resume is the crunchiest moment on the surface: \~240ms of nothing, then \~360ms of skeleton, and
+**H13 · Resume is the crunchiest moment on the surface: ~240ms of nothing, then ~360ms of skeleton, and
 the hero jumps 52px on the way out.**
 `pnpm record` 6-tile × 120ms strip `reports/recordings/p-eye-home-drive-click3.png`: tiles 1–2 are
 unchanged Home, tiles 3–5 are the room shell with two grey skeleton bars and an empty content well, tile 6
@@ -362,7 +362,7 @@ composition item, not a re-opened P2. The two movers are unchanged from 08-30; t
 
 **H15 · `region:content` commit cost is 2.5–5× the 08-30 record, at an unchanged commit count.**
 Sample A: `count 21 · mounts 1 · updates 20 · totalMs 222 · avgMs 11 · maxMs 98`. Sample B: `17 · 1 · 16 ·
-104 · 6 · maxMs 62`. 08-30: `22 · 42ms · maxMs 17`. Console per-commit range across \~12 runs: 15ms · 18ms ·
+104 · 6 · maxMs 62`. 08-30: `22 · 42ms · maxMs 17`. Console per-commit range across ~12 runs: 15ms · 18ms ·
 23ms · 24ms · 28ms · 29ms · 34ms · 37ms · 83ms · 105ms. Two samples is enough to state a range and not
 enough to convict — dev build, load-varying, and #454 already refuted reading the *count* as churn. Stated
 as: the number of commits held, the cost per commit did not.
@@ -384,7 +384,7 @@ order, so the order is a house pattern — but Temp chat has one door, and this 
 **H19 · Stumbled on, out of scope, reported with its receipt: a dead Tailwind class in the chat
 transcript.** During the recorded drive, in the room opened by Resume:
 `[css] dead class — no rule defines it, so the style never applied · .my-6 on [data-slot=message-bubble]`.
-Home's own surface is clean — `deadcss=0 emptycss=0` on every one of \~40 runs.
+Home's own surface is clean — `deadcss=0 emptycss=0` on every one of ~40 runs.
 
 **H20 · Stumbled on: `aria-label="Chats"` is ambiguous on the Chats section.** After the quick-pick errand,
 `snap --map` has to disambiguate by index: `button "Chats" → [aria-label="Chats"]:visible >> nth=0` and
@@ -457,7 +457,7 @@ first-run state are **both** unmeasured this pass, and both need the stage.
 **Does it look like shit? No — at 1280×800 it looks genuinely made, and above that it looks unfinished.**
 Warm near-black, one Ember accent, a consistent kicker+hairline band voice on all seven regions, six
 portraits at true 1:1 with zero distortion. It trips none of the §6 slop tells and the detector agrees
-(three findings, none of them a taste rule). But the moment the window is taller than \~850px the page
+(three findings, none of them a taste rule). But the moment the window is taller than ~850px the page
 stops. `reports/snaps/p-eye-home-w1920.png` is the honest picture: everything is finished by y=773 and the
 bottom third of a 1080px screen is empty, with one orphan control (`WHAT'S COMING ⌄ … 7`) marooned in the
 bottom-right and one orphan chip (`Analytics`) marooned bottom-left. It reads like a page whose content
@@ -490,7 +490,7 @@ returning user, and the shell physics are obeyed: Home fills CONTENT only, decla
 (`__orb.shell()` → `list:collapsed, context:collapsed`), claims `rail.brand` rather than minting a slot,
 and mints no geography of its own.
 
-**What is crunchy:** Resume (H13) — \~240ms of nothing, then a dark room with skeletons, then text; the
+**What is crunchy:** Resume (H13) — ~240ms of nothing, then a dark room with skeletons, then text; the
 hero card jumping 52px as it leaves; and the whole-page re-settle every load (H14) that lifts two regions
 26px and 92px just as they become readable.
 
@@ -648,7 +648,7 @@ unusable — and it is invisible to every automated arm we own, which means noth
 | 6 | `snap --aria` (scoped, roadmap opened) | **RAN** — 25-line tree; the receipt behind H10 |
 | 7 | `snap --contrast` Hearth | **RAN** — 7 roles, all PASS 7.68–17.14:1; 1 selector miss (R-5) |
 | 8 | `snap --contrast` `--theme Light` | **RAN** — same 7 roles, all PASS 7.62–16.26:1 |
-| 9 | `snap --eval` geometry / state | **RAN** — \~20 probes: shell-grid tracks + transform, both off-canvas asides (labels/inert/aria-hidden/backdrop-filter/tabbables), the whole-document backdrop-filter + will-change census, region rects at five viewports, the fade-mask chain, canvas-measured prose measure at two widths, the roadmap type census, the sub-24px control census at Lighthouse's own viewport, the appearance handles |
+| 9 | `snap --eval` geometry / state | **RAN** — ~20 probes: shell-grid tracks + transform, both off-canvas asides (labels/inert/aria-hidden/backdrop-filter/tabbables), the whole-document backdrop-filter + will-change census, region rects at five viewports, the fade-mask chain, canvas-measured prose measure at two widths, the roadmap type census, the sub-24px control census at Lighthouse's own viewport, the appearance handles |
 | 10 | `snap --expect-*` | **SKIPPED** — this pass's layout questions were measurements, not assertions; 08-30 ran `--expect-no-overflow html` PASS and nothing in the delta touches that surface |
 | 11 | `snap --json` | **SKIPPED** — console never approached the 200-message cap (max 32 in one run) |
 | 12 | `snap --matrix` | **SKIPPED (blocked)** — `ARG ERROR --matrix requires --isolated/--dirty/--ref`, and the single stage band is held by a sibling lane (`--stage-status`: marker `d4f3601e2113`, owner `agent-a963e6683c39fd730`, pid 27663, 37m). Never tear a sibling's stage down. Filed as I4 |
@@ -704,7 +704,7 @@ reset), and the isolated stage band remains held by `agent-a963e6683c39fd730` �
 ## Issue summary for #1112
 
 Drove HOME with the full battery against main tip `7fa019799` (vite pid 3858659, age-verified; `nav=OK`,
-0 page errors / 0 console errors / 0 failed requests / `deadcss=0` across \~40 runs). **Verdict: SHIP WITH
+0 page errors / 0 console errors / 0 failed requests / `deadcss=0` across ~40 runs). **Verdict: SHIP WITH
 FIXES — 32/40.** Home remains the best-made surface in the app (35/35 `:focus-visible`, Lighthouse
 100/100/100/100 both devices, 14 images zero distortion, `text-over-art` 61 candidates all excluded as
 flat backdrops, contrast 7.62–17.14:1 in both themes) and two of the four 08-30 findings are properly

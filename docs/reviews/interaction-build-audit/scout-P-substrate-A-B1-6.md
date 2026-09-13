@@ -33,7 +33,7 @@ feeding both `teachingInjections` (line 658) and `attachedToolNames: teaching.to
 ✅ BUILT. `presets.ts` (1360 lines), `verbs/create-rule-from-preset.ts` exist. Scope axis landed:
 `automation_rules.chat_id` nullable (`packages/db/src/schema/automation.ts:82`, header comment line 7
 confirms "C5 WIRED IT"). `handle-event.ts` pre-check branches on `chatId: ChatId | null` (lines 31-100).
-`automation_owner_budgets` table present (line \~162).
+`automation_owner_budgets` table present (line ~162).
 
 ## S4 — suggest/confirm (server + S1 card)
 

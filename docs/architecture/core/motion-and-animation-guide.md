@@ -284,7 +284,7 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    what changed, where did this come from, what can I do next" — not "look cool." Prefer
    quick, precise motion over expressive.
 
-5. **Sane defaults: \~150–250ms, ease-out for entrances, ease-in-out for on-screen movement,
+5. **Sane defaults: ~150–250ms, ease-out for entrances, ease-in-out for on-screen movement,
    linear for continuous loops.** The three-tier token set already encodes this taxonomy
    (`--motion-fast` 130ms micro / `--motion-base` 220ms small-surface / `--motion-layout`
    360ms layout-scale). Do NOT add a 4th/5th duration token or a 2nd easing curve.
@@ -349,7 +349,7 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    measured turning every element in the document into `transition: all` and firing 1,064 bogus
    `scrollbar-color` transitions per room open.
 
-10. **Staggering communicates grouping.** A small stagger (20–50ms/item, capped \~5-6) reads as
+10. **Staggering communicates grouping.** A small stagger (20–50ms/item, capped ~5-6) reads as
     "one group arriving." Never stagger removals — a deleted item leaves immediately.
 
 ## 4. Orbweaver motion inventory
@@ -382,7 +382,7 @@ cross-library cause: only this repo's sealed Select entrance qualifies.
 `packages/client/src/lib/select-entrance-evidence.ts` starts provisionally on a trusted pointer or
 opening-key action at `[data-slot="select-trigger"]`. It confirms only when that trigger's ARIA-related
 `[data-slot="select-positioner"]` mounts or reactivates, and ends after the two measured
-"PRESENTED\_PARTIAL" cleanup frames following the popup's real opacity/scale transition, with a 300ms
+"PRESENTED_PARTIAL" cleanup frames following the popup's real opacity/scale transition, with a 300ms
 post-confirmation hard cap. The cap is
 post-confirmation because the first render can itself consume much of the pre-confirmation interval;
 it is not a free grace window. `motion-stats.ts` attaches that same confirmed range to
@@ -402,7 +402,7 @@ probe resolves Playwright actionability geometry before its checkpoint and sends
 after crossing a frame boundary, so its own layout reads are not mistaken for product work. Do not
 replace this with `keepMounted`, pre-mounting, a call-site marker, or a broader portal exemption.
 
-The end mark remains the measured two-PRESENTED\_PARTIAL-frame handoff; do not widen its frame count or
+The end mark remains the measured two-PRESENTED_PARTIAL-frame handoff; do not widen its frame count or
 window. Chrome cannot causally separate unrelated work inside the identical browser frame, so those two
 frames are a bounded owner-accepted risk, not a claim of perfect attribution. Separate frames and
 recognizably app-attributed LoAF work remain ordinary red inputs.

@@ -132,7 +132,7 @@ the code header records an explicit ruling that must be surfaced, not silently r
 - The roster already SAYS this out loud (side-eye P1/P2 fixes, header `tag-collection-rows.tsx:27-33`): the
   `tagOrderHint` explains that above the cap manual is inert, and the Select shares its line with the hint.
 
-**The RETIRE question (separate from the drag-cap the owner already ruled):** at \~400 tags manual is
+**The RETIRE question (separate from the drag-cap the owner already ruled):** at ~400 tags manual is
 near-unreachable as a *drag* affordance (capped ≤30), and above the cap its OUTPUT is pixel-identical to A–Z
 (every `sortOrder` is null → the comparator tiebreaks on name, `tag-sort.ts:39`). So does `sortOrder`/manual
 earn its keep, or is it dead weight?

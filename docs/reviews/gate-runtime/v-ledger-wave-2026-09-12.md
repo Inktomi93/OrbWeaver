@@ -206,7 +206,7 @@ budgeted for. Recorded as PARTIAL rather than confirmed.
   have no measured control.
 - `pnpm check` / `verify --push` / any behavioural product suite; the whole-tree checks are the standing
   \#1584 red and were not attempted.
-- The **remaining \~30 unenforced §4.1 cells** the rollup still lists as OPEN. I re-cut 18 of the cells these
+- The **remaining ~30 unenforced §4.1 cells** the rollup still lists as OPEN. I re-cut 18 of the cells these
   merges CLOSED, not the ones they left open, so I cannot say the wave's open count is right.
 - `tooling-instrument-proof`'s arm-F prefilter (`960e21cf9` D1, 654 → 0) was **not cut** — I verified its
   effect only through the whole-run structure numbers and conformance, which cannot separate it from the

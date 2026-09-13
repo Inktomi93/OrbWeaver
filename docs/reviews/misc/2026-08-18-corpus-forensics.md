@@ -21,7 +21,7 @@ doesn't, what is the mechanism?**
 ## 0. The one-paragraph root cause
 
 **The retrieval is excellent and the surface throws away everything that would let you use it.** The
-digest scan returns genuinely relevant memories in \~30 ms (§2.2 proves relevance against data whose
+digest scan returns genuinely relevant memories in ~30 ms (§2.2 proves relevance against data whose
 right answer is checkable). What reaches the reader is: the memory's text **truncated to one 215px line**,
 a **6-character raw chat id** where a chat title belongs, a relevance number that is **a clamped distance
 rendered so that every good hit reads `0.00` and a nonsense hit reads higher** (§3), and **no click
@@ -120,7 +120,7 @@ answer.** The rendered column is not merely uninformative — it is anti-informa
 `reports/snaps/cf-mem-rows.png`, ten consecutive rows reading `0.00`; measured DOM
 `[data-slot=list-row-actions]` = `["0.00","0.00","0.00"]`.
 
-### 2.4 The row shows \~28 characters of a 300-character memory, and a hex id
+### 2.4 The row shows ~28 characters of a 300-character memory, and a hex id
 
 Measured on the settled Memories result set (`--eval`, 1280×800, list pane docked):
 
@@ -130,8 +130,8 @@ Measured on the settled Memories result set (`--eval`, 1280×800, list pane dock
 | row height | 52px |
 | title element | `clientHeight 23` · `scrollHeight 23` · `white-space: nowrap` · `overflow: hidden` · `text-overflow: ellipsis` |
 | title box width | **215px** at `font-size: 15px` (list pane inner width 290px) |
-| title CONTENT | e.g. `[Nate, Selene, Lysara — hotel room bath scene]\n\nNate, Selene, and Lysara move to their upscale hotel room featuring a massive bed and a copper tub with arcane heating runes. All three strip naked; Nate enters the hot bath first. Selene feels initial embarrassm…` (\~300 chars) |
-| title VISIBLE | `[Nate and Ayami — bath sce…` (\~28 chars) |
+| title CONTENT | e.g. `[Nate, Selene, Lysara — hotel room bath scene]\n\nNate, Selene, and Lysara move to their upscale hotel room featuring a massive bed and a copper tub with arcane heating runes. All three strip naked; Nate enters the hot bath first. Selene feels initial embarrassm…` (~300 chars) |
+| title VISIBLE | `[Nate and Ayami — bath sce…` (~28 chars) |
 | subtitle | `Chat 2y1mf5` |
 | body element | `DIV` · `role: null` · `tabindex: null` · `cursor: auto` |
 
@@ -468,11 +468,11 @@ Everything below the gem tiles on the shipped surface has **no drawing behind it
 
 | # | Shipped below the mock's last element | Source | Height |
 | - | - | - | - |
-| 1 | "Story themes" — Scenes + Arcs clickable rows + an inline `ThemeDetailCard` | `corpus-home-surface.tsx:214-221` | \~600px |
+| 1 | "Story themes" — Scenes + Arcs clickable rows + an inline `ThemeDetailCard` | `corpus-home-surface.tsx:214-221` | ~600px |
 | 2 | "All story themes" — level toggle + `Story theme sizes` bars | `corpus-home-charts.tsx:44-79` | 400px |
 | 3 | "Keywords" — `Top keywords` bars + co-occurrence drill | `:82-112` | **0px (renders `null`, §9.1)** |
 | 4 | "Catalog" — Genres · Tones · Top tags bars | `:184-222` | 1,904px |
-| 5 | "Story-theme drift" — month buckets × theme badges | `:141-181` | \~200px |
+| 5 | "Story-theme drift" — month buckets × theme badges | `:141-181` | ~200px |
 | 6 | "Never played" — a 204-row `VirtualList` | `corpus-home-surface.tsx:238-249` | capped `max-h-96` |
 | 7 | "Model economics" — `Cost by route` | `:251-263` | 4,304px |
 
@@ -546,7 +546,7 @@ live*; nothing below depends on that ruling, and all of it survives either arm.
 Today the corpus can address exactly one thing: a character. Every dead end in §9 is that fact. The
 smallest change that removes it:
 
-- **R1a (cheapest, \~1 day).** Make `DigestHitRow` and the Scenes evidence snippets `clickable` →
+- **R1a (cheapest, ~1 day).** Make `DigestHitRow` and the Scenes evidence snippets `clickable` →
   `selectChat(chatId)` (already exported, `active-chat-store.ts:139`). Add `chatTitle` + `msgMidAt` to
   `DigestSearchHit` so the subtitle can read `Amethyst Hollow · 3 weeks ago` instead of `Chat 2y1mf5`.
   Let the row wrap to 3 lines (`line-clamp-3`) so the memory is legible.
@@ -555,7 +555,7 @@ smallest change that removes it:
   **Does not buy:** landing on the *message*. There is no message-level deep-link seam today, and I did
   not investigate whether one is cheap — chat-level is the honest v1 (the Observatory proposal reaches
   the same conclusion independently, its §7).
-- **R1b (the real shape, \~3–4 days).** A `MOMENT` artifact: `{chatId, blockIdx, tier, text, characters,
+- **R1b (the real shape, ~3–4 days).** A `MOMENT` artifact: `{chatId, blockIdx, tier, text, characters,
   when}` becomes a thing the corpus can select, preview in place (expand the row to show the whole
   digest + its chat + its cast), and open. Then themes drill to their moments (§4.4), scene evidence
   becomes a moment list, and the memory search result is a moment list — one artifact, four surfaces.
@@ -563,7 +563,7 @@ smallest change that removes it:
   **Buys:** §2.5, §4.4, and the "analyzed schemes and memories do nothing" complaint at its root.
   **My recommendation.** R1a is the same work started; do not build R1a and stop.
 
-### R2 — Fix the score at ONE seam (\~2 hours, highest value per line on the surface)
+### R2 — Fix the score at ONE seam (~2 hours, highest value per line on the surface)
 
 Do **not** change `cslsAdjust` — it is correct, documented and load-bearing for ranking. Add one
 presenter in the client (or one derived field on the hit shapes) that converts the clamped distance into
@@ -571,7 +571,7 @@ something a reader can use. Three arms:
 
 - **R2a — drop the number, keep the rank.** Order already carries all the information the number does.
   Replace the badge with nothing, or with a rank glyph on the top hit.
-  **Cost:** \~0. **Buys:** the anti-information disappears. **Loses:** nothing measurable, since 5 of 8
+  **Cost:** ~0. **Buys:** the anti-information disappears. **Loses:** nothing measurable, since 5 of 8
   neighbours currently read identical zeros anyway.
 - **R2b — render a similarity, not a distance.** Carry the raw cosine alongside the CSLS score and show
   `1 − distance` as a percentage. **Cost:** one field on five hit shapes. **Buys:** a number that goes
@@ -600,11 +600,11 @@ way this is one seam, not six.
 
 - Guard model economics on **spend**, not row count (`routing.some((r) => r.costUsd > 0)`) — one
   expression, removes 4,304px (46% of the surface) on this and every local-model instance.
-- Cap `Top tags` at 8–10 with a "see all" door — removes another \~1,000px.
+- Cap `Top tags` at 8–10 with a "see all" door — removes another ~1,000px.
 - Fold `Genres`/`Tones` bars into the browse filter they duplicate.
 - Keep `Story theme sizes` only if the theme ROWS above it go away (they are the same data, and the rows
   are the interactive twin).
-- Net: \~9,400px → \~2,600px, which is what makes the top of the surface readable at all.
+- Net: ~9,400px → ~2,600px, which is what makes the top of the surface readable at all.
 
 ### R5 — Fix the four readouts that state a criterion the code does not implement
 
@@ -627,7 +627,7 @@ entire job is to be believed:
   R1b **as** the moment arm of that inspector rather than twice.
 - The 52,884px Similarity tab (§5.1) is only fixable *in place* by capping it; the Observatory moves that
   report into CONTENT where a 1,543-edge list is at least the right shape of container. **Interim
-  regardless of the ruling: cap the rendered edges at \~50 and make the knobs the door to more.**
+  regardless of the ruling: cap the rendered edges at ~50 and make the knobs the door to more.**
 
 ### What I would NOT do
 

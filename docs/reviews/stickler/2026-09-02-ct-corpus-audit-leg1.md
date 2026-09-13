@@ -14,8 +14,8 @@ memory encyclopedias, and the week's taxonomy (#1207 stale premise, #1203 luck-b
 decorative pins, fabrication double-casts, oneshot live-reads, #1201 reports/ writes, accname traps,
 stand-in children, tabs-accumulate, shared-render-tree reads).
 
-**Coverage count: 24/469 files full-read** (\~26,100 lines — the shard skewed to the largest files;
-by line volume this is \~23% of the corpus). Phase A sweeps covered all 469.
+**Coverage count: 24/469 files full-read** (~26,100 lines — the shard skewed to the largest files;
+by line volume this is ~23% of the corpus). Phase A sweeps covered all 469.
 
 **Headline: the corpus is in exceptional condition.** Two confirmed findings (one P3, one P4), one
 half-tracked product observation, zero stale selectors, zero assertion-free/tautological tests, zero
@@ -136,7 +136,7 @@ gate) as noted per row.
 | Suppression markers in CTs | **5** total, all read and justified: 4× `noPlaywrightWaitForTimeout` (motion-flaggers ×2, code-editor's measured 4/20→0/40 flake wait, message-list's stability-trace interval — each is the sanctioned "no state to wait FOR" shape) + 1× `useUniqueElementIds` (accessible-name-quality: a FIXED id is the subject) | line scan; each site read | | |
 | `ONESHOT-OK` markers | **307 across 99 files**. 149 (41 files, all under `tests/ui/`) carry ONE identical boilerplate reason ("the preceding mount/action completed…"); 158 are site-specific. Every boilerplate site sampled in Phase B (density-tier, spinner, collapsible, markdown, button, badge, card, grid, list-row, skeleton, message-list, sortable) is TRUE where it stands (settled locals / static post-mount style). Every site-specific reason read in the shard is true and names its barrier. No FALSE marker found. See Observations O1 | AST/line census + Phase B reads | | |
 | `FABRICATION-OK` markers | 35, all honest (browser-context probe-slot / in-page scaffolding casts — the sanctioned class) | census + reads | | |
-| Helper-hoisted non-retrying live asserts (`expect(await fn(...)).toBe…` — the oneshot gate's declared blind spot: it taints args/receivers, never the callee body) | **149 sites across 49 files** (full path:line list in Appendix B). Every site inside the 24 read files (\~70 of the 149) verified barriered — the helpers are either action-result reads (`dispatchCommandKey`), settled-probe reads behind polls, or geometry reads post-settle. Remaining \~79 sites in un-read files are the top triage input for legs 2+ | AST; per-site judgment in Phase B | | |
+| Helper-hoisted non-retrying live asserts (`expect(await fn(...)).toBe…` — the oneshot gate's declared blind spot: it taints args/receivers, never the callee body) | **149 sites across 49 files** (full path:line list in Appendix B). Every site inside the 24 read files (~70 of the 149) verified barriered — the helpers are either action-result reads (`dispatchCommandKey`), settled-probe reads behind polls, or geometry reads post-settle. Remaining ~79 sites in un-read files are the top triage input for legs 2+ | AST; per-site judgment in Phase B | | |
 | Stale TESTIDS (#1207 class, testid half) | **covered by the GREEN `testid-liveness` gate** (A1 arm: a `getByTestId`/`[data-testid=]` consumer no producer mints is gate-red; scanned 5,825 files on this tree, green). No manual sweep needed | gate source read; gate result from the structure run | | |
 | Stale ROLE-NAME/copy literals (#1207 class, uncovered half) | **0 confirmed stale.** 1,744 unique `getByRole(name:)` string literals; 688 with no direct source-corpus substring hit; after skeleton (word prefix/suffix vs source, catches composed `${verb} ${label}` names) and fixture-mint filters → **4 hard suspects, all manually cleared**: `Run Roll d6/2d6` (composed `${CONTROL_MODE_WORD} ${label}`, "Run" under my 4-char prefix floor), `fantasy-0` (CT's own template `fantasy-${i}`), `{{narrator}}` (macro palette composition, `narrator` live in src). Positive controls: "settings" hit 629 src files; the planted bogus name hit 0 | python corpus scan (3,299 src + 2,081 non-CT test files) + manual triage of all 4 | | |
 | `getByRole` name without `exact` | 4,809 sites (360 files) vs 682 exact (102 files) | census only. NOT flagged wholesale: the majority are selector-use where substring is correct; the risk shape (shared-word collision / name-shape claims via prefix matchers) is a per-file judgment. The read shard consistently used `exact:true` where the name's SHAPE was the claim (plugins P3-5 is the exemplar) and documented every deliberate prefix matcher | | |
@@ -146,7 +146,7 @@ Corpus stats: 469 files · 4,441 tests · 114,565 lines. Risk score per file =
 3·helperAwait + 2·oneshotMarkers + fabricationMarkers + 5·doubleCasts + 5·reportsLiterals +
 2·suppressions + lines/400 + tests/10 (bands: HI ≥8 → 61 files, MID 3–8 → 74, LO <3 → 334).
 
-## Phase B — full-read shard verdicts (24 files, \~26,100 lines)
+## Phase B — full-read shard verdicts (24 files, ~26,100 lines)
 
 Every file below read whole, top to bottom. Verdict criteria: honesty (every assert can fail and
 asserts something real), premise currency (spot-checked against today's source where a claim depended
@@ -189,7 +189,7 @@ Bands by the Phase A risk score; `[READ-LEG1]` = done, `[FENCED]` = deep-audit d
 lanes own the file (config live batch; app-shell/stats debt legs — include in later leg after they
 land). Remaining full-read budget: 445 files (61−15 HI unread… see lists). Recommended order:
 legs 2–3 drain HI + the helper-await files; legs 4–6 take MID by area (preset, chat surfaces,
-character, refinery, credentials); LO is mostly small primitive seals — batch by directory, \~60–80
+character, refinery, credentials); LO is mostly small primitive seals — batch by directory, ~60–80
 files/leg at low depth (their risk signals are near zero and the read shard suggests the register
 holds there).
 
@@ -271,7 +271,7 @@ reports/ sweep); fenced files' depth (Phase A metrics + flags only, per the lane
 ## Issue summary (for #1229 — paste verbatim)
 
 > **CT corpus audit leg 1 (cb-ct-audit, stickler): Phase A structural sweeps over all 469 `.ct.tsx`
-> files + full-reads of the 24 highest-risk files (\~26k lines; 24/469 full-read coverage). Verdict:
+> files + full-reads of the 24 highest-risk files (~26k lines; 24/469 full-read coverage). Verdict:
 > the corpus is in exceptional condition. 2 confirmed findings, severity ceiling P3:
 > (1) P3 `rules-section.ct.tsx:1088` — the one surviving literal `reports/snaps/` screenshot write
 > (#1201 evidence-corruption class; the same file already uses `storyShot` at 5 sites; one-line fix);

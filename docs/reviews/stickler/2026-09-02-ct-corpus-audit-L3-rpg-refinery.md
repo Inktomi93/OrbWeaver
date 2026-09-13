@@ -43,7 +43,7 @@ exclusion list (`tracker-blocks`, `workloads-jobs-section`, `actions-view`, `fac
   `workloads-tuning-section`
 
 All 35 read whole, top to bottom, no sampling. **100% of this shard's population.** Every file is well
-under the Read tool's \~2000-line-per-call cap (largest is 327 lines), so every file was read in ONE call
+under the Read tool's ~2000-line-per-call cap (largest is 327 lines), so every file was read in ONE call
 with no offset/second read needed — no file in this shard required a multi-call read.
 
 ### 1a. Per-file line count + verdict (the coverage receipt)

@@ -10,8 +10,8 @@ updated: 2026-09-10
 
 ## First principles (load-bearing)
 
-1. **A wrong doc is worse than no doc.** Stale/misleading comments and prose actively degrade agent reasoning (measured: test success collapses to \~22% under wrong comments; \~23% output-prediction drop) and correlate with bugs (\~1.5× within 7 days). A *missing* doc is cheap. **Delete drift on sight; never leave a comment that lies about the code.**
-2. **Code + types are the source of truth.** Prose that merely restates code gives \~zero measurable agent benefit and costs tokens. If the code or a type shows it, delete the prose.
+1. **A wrong doc is worse than no doc.** Stale/misleading comments and prose actively degrade agent reasoning (measured: test success collapses to ~22% under wrong comments; ~23% output-prediction drop) and correlate with bugs (~1.5× within 7 days). A *missing* doc is cheap. **Delete drift on sight; never leave a comment that lies about the code.**
+2. **Code + types are the source of truth.** Prose that merely restates code gives ~zero measurable agent benefit and costs tokens. If the code or a type shows it, delete the prose.
 3. **Keep the irreducible WHY in prose.** Cross-cutting decisions, boundaries, and rationale NOT visible in any single file (why a boundary exists, a ledger decision, a non-obvious invariant) DO belong in retrievable prose — a codebase-only agent fails on decisions never encoded in source. This is the only prose worth maintaining.
 4. **Terse beats comprehensive.** Big generic overviews make agents over-explore (generated context files *lowered* task success and raised cost +20–23%). Write navigational and specific. No padded prose — docstrings compress 25–40% with no quality loss.
 5. **One fact, one home.** Agents over-retrieve; duplication multiplies drift. A fact lives in exactly one place; everything else points to it.
@@ -106,7 +106,7 @@ Tag verdicts (exported/public API; enforce in review):
 
 ### Comment budgets (D66 — the diet convention; hold the line)
 
-The 2026-07-13 fleet diet cut the comment corpus \~60% (39%→\~15% comment-to-code) under these budgets. They are now standing law — regrowing the old density is a review defect:
+The 2026-07-13 fleet diet cut the comment corpus ~60% (39%→~15% comment-to-code) under these budgets. They are now standing law — regrowing the old density is a review defect:
 
 - **File header: ≤3 lines** — what the file is + its non-obvious invariant. A file whose purpose is obvious from its name and exports gets NONE. (Gate files in `tooling/src/verify/gates/` get ≤5 — a gate's header IS its contract. Probe tools' usage-manual headers are the other sanctioned exception.)
 - **A WHY is ONE line.** If it can't be said in one line it's narration — the ledger or nothing. The rung-4 verbosity license (security belts, deliberate-surprise markers) survives, but it is a license for load-bearing warnings, not essays.
@@ -132,7 +132,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 
 ### Relocation & retirement (run this BEFORE moving, renaming, or deleting any doc)
 
-**CODE CITES DOCS, and a move OWES the citer sweep.** (Amended 2026-08-30, #873 — the previous text claimed the 2026-07-13 comment diet had ended code→doc citation. Measured at HEAD it had not: 44 distinct `docs/design` paths and 22 `docs/reviews` paths were cited from \~250 comment sites in `packages/`, `tooling/`, `tests/`, `scripts/` and root configs, and a prior archival pass had left eight comments pointing at paths that no longer existed.) The pointers are legitimate — a gate's `docRow`, a primitive's cite of the law that assigns its token, a config comment naming the law it implements — so the rule is not "stop citing", it is **a doc with live citers is not moved without repointing them in the same change**:
+**CODE CITES DOCS, and a move OWES the citer sweep.** (Amended 2026-08-30, #873 — the previous text claimed the 2026-07-13 comment diet had ended code→doc citation. Measured at HEAD it had not: 44 distinct `docs/design` paths and 22 `docs/reviews` paths were cited from ~250 comment sites in `packages/`, `tooling/`, `tests/`, `scripts/` and root configs, and a prior archival pass had left eight comments pointing at paths that no longer existed.) The pointers are legitimate — a gate's `docRow`, a primitive's cite of the law that assigns its token, a config comment naming the law it implements — so the rule is not "stop citing", it is **a doc with live citers is not moved without repointing them in the same change**:
 
 1. **The hard anchors, checked first:** (a) the `pd-citation-integrity` gate reads `Core-Audits-and-Debt.md` + `history/Core-Debt-Cleared-Ledger.md` by PATH — those two files never move without updating the gate in the same commit; (b) sweep the tool fleet + research zone for any other tool that reads a doc path (`/usr/bin/grep -rn 'docs/architecture' tooling/src scripts/`).
 2. **The CITER sweep, both trees.** `rg -n 'docs/(architecture|design|reviews|history)/' packages tooling tests scripts .claude *.js *.ts *.yaml` for the code side, plus the docs tree + `AGENTS.md`/`CLAUDE.md`. Repoint each site, or — where the no-bare-pointers rule (D141) applies — replace the pointer with the fact the comment actually needed and drop the path. Then re-run the sweep and prove ZERO references to the old path. The `dangling-doc-cite` gate is the backstop, not the method.
@@ -143,7 +143,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 7. **A mock/render set follows its spec** — when the spec retires, the drawing retires with it.
 8. **Never** invent a new directory tier or move a file another live session has dirty.
 
-- **Structure.** One topic per file, under \~40 KB (sanctioned exception: `Core-Path-Registry.md` — the whole decision registry is ONE topic and ONE read; splitting it re-creates the range-lookup tax). Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
+- **Structure.** One topic per file, under ~40 KB (sanctioned exception: `Core-Path-Registry.md` — the whole decision registry is ONE topic and ONE read; splitting it re-creates the range-lookup tax). Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
 - **Frontmatter (required on authored docs, deliberately minimal):**
   ```yaml
   ---
@@ -206,7 +206,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 Young field — mostly 2024–2026 primary papers; do not over-anchor on any single one. The direction is consistent across independent sources. Full adversarially-verified distill: the 2026-07 deep-research run (11 findings, 1 refuted claim).
 
 - Wrong ≫ missing, asymmetric harm — Macke & Doyle (NAACL 2024 Findings); CodeCrash (NeurIPS 2025): misleading NL −23.2% avg, −13.8% even with CoT; models shortcut-reason over NL cues.
-- Comment/code drift ↔ bugs (\~1.5× / 7 days, decaying to \~1.14× by 14) — arXiv 2409.10781 (Java; correlation, not causation).
+- Comment/code drift ↔ bugs (~1.5× / 7 days, decaying to ~1.14× by 14) — arXiv 2409.10781 (Java; correlation, not causation).
 - Correct docs ≈ no inference-time benefit (coverage improved; success didn't) — Macke & Doyle.
 - Prose 25–40% compressible, no quality loss — ShortenDoc (ACM TOSEM, 10.1145/3735636).
 - Agents over-retrieve (recall ≫ precision; explored ≫ utilized) — ContextBench (arXiv 2602.05892).

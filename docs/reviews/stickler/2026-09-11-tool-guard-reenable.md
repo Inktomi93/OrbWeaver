@@ -229,7 +229,7 @@ no-op prefix).
 `ct-runner-lock.ts:13-17` and `:207-208` mint `.cache/ct/build-<pid>-<ms>` per invocation and export it as
 `ORB_CT_CACHE_DIR`; `playwright-ct.config.ts:335-342` reads it into `use.ctCacheDir` and falls back to
 playwright-ct's stock `playwright/.cache` only when unset; `ct-run-slot.ts:11-13` documents the same. Nothing
-on the tree READS `playwright/.cache` any more: the tree-wide sweep (excluding node\_modules/reports/.cache and
+on the tree READS `playwright/.cache` any more: the tree-wide sweep (excluding node_modules/reports/.cache and
 the three `.stryker-tmp` sandbox copies) hits only comments, `biome.json:33`'s ignore, the guard's rm
 safe-target list, the pin rows, and `.claude/settings.json:139` `Bash(rm -rf playwright/.cache)` (a stale but
 harmless allow). So `PLAYWRIGHT_CACHE_CLEAR`, the "sanctioned = cache-clear + `-c`" arm and the piped-rewrite
@@ -307,7 +307,7 @@ injects `--max-old-space-size=16384` itself. Every `tooling/src/_shared/proc.ts`
 census-gated. `verify run`'s stage registry (`tooling/src/verify/lib/registry.ts:34-384`) spawns every stage
 as `["pnpm", "<script>"]` through `spawnNicedTranscript` with the ambient env, so stage children are floored
 regardless of how `run` itself was invoked. `gate-contract` measured both ways: bare `node` and `pnpm
-gate:contract` each 831 findings / 271 modules, \~82 s wall, max RSS 1,059,816 vs 1,062,672 KB (≈1.0 GiB) —
+gate:contract` each 831 findings / 271 modules, ~82 s wall, max RSS 1,059,816 vs 1,062,672 KB (≈1.0 GiB) —
 it fits under the 4 GiB default today; the ceiling is the difference, not the footprint. `structure` was not
 re-run bare (the exit-134 is on record in `gates-and-tooling.md` and `heap-floor.ts:4`).
 
@@ -377,7 +377,7 @@ vitest. `--workers`/`--maxWorkers` above the cap pass on every spelling.
   `stryker.config.js`, `.claude/hooks/cpu-fence.sh`, `biome.json` (files block), `eslint.config.js` (ignores +
   surfaces), `project-worlds.ts:65`.
 - Lint coverage of the hook probed live (biome: 0 files; eslint: exit 0 empty).
-- Tree sweep for `playwright/.cache` readers and the `.cache/ct` premise (`/usr/bin/grep -a -rn`, node\_modules/
+- Tree sweep for `playwright/.cache` readers and the `.cache/ct` premise (`/usr/bin/grep -a -rn`, node_modules/
   reports/.cache excluded; `.stryker-tmp` copies discounted).
 - Corpus counts from main's 179,120-row decision log for every spelling in F1/F4/F5/7(a).
 - `git status --short` empty at HEAD `1e6556733` before and after; nothing outside this file was written in the
@@ -416,7 +416,7 @@ vitest. `--workers`/`--maxWorkers` above the cap pass on every spelling.
   fail-open ENOENT arm returns silence — script operand, `source`operand, bare`.sh`head, pipe sink and
   write-then-run target all inherit it. **How to apply:** any operand resolver strips a trailing unquoted
   group-closer run before`statSync\`, and a pin row for the glued spelling sits beside every spaced one.
-- `- [raw CT head vocabulary](ct-rule-head-misses-dot-bin-playwright.md) — 268/782 raw CT corpus rows are \`./node\_modules/.bin/playwright test\` or \`pnpm playwright test\`; a head regex naming only npx/pnpm exec passes them un-floored`Body: measured 2026-09-11 on the 179k-row decision log. **How to apply:** a head regex for any tool must
+- `- [raw CT head vocabulary](ct-rule-head-misses-dot-bin-playwright.md) — 268/782 raw CT corpus rows are \`./node_modules/.bin/playwright test\` or \`pnpm playwright test\`; a head regex naming only npx/pnpm exec passes them un-floored`Body: measured 2026-09-11 on the 179k-row decision log. **How to apply:** a head regex for any tool must
   carry`(?:\S\*/)?<bin>`and`pnpm <bin>`beside`npx`/`pnpm exec\`, and the corpus count is the receipt.
 - `- [guard pin is --full-only](tool-guard-pin-is-full-tier-only.md) — \`tests:tooling\` runs only under \`pnpm verify --full\`; \`pnpm check\`/\`--push\` never spawn tool-guard.mjs, and biome/eslint apply zero rules to \`.claude/hooks/\*.mjs\``Body: a syntax error in the hook exits non-zero with no JSON → non-blocking hook error → every Bash call
   proceeds unguarded and the push bar stays green. **How to apply:** a hook's floor is`node --check`in the

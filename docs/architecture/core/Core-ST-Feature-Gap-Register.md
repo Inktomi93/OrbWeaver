@@ -39,18 +39,18 @@ The wall behind most of this: orbweaver speaks **`ChatApi = agent-sdk | chat-com
 | AI Horde | crowdsourced volunteer-GPU, async job-poll, text-completion | ABSENT | ARCHITECTURAL | new `ChatApi` (async-poll) + text-completion assembly; `deriveRunner` has no non-SSE arm |
 | NovelAI | proprietary text-completion wire, NAI samplers, NerdStash tokenizer | ABSENT | ARCHITECTURAL | non-OpenAI wire + tokenizer-zoo (a decided wall) |
 | KoboldAI (classic) | raw `/generate`, `sampler_order`, text-completion | ABSENT | ARCHITECTURAL | text-completion wall. (Modern KoboldCpp in OpenAI mode is covered by `custom_openai`) |
-| textgen family (ooba/aphrodite/tabby/llama.cpp/ollama/togetherai/…) | \~15 backends + \~60 samplers | PARTIAL | MODERATE (compat) / ARCHITECTURAL (raw) | OpenAI-compat members **already covered** by `custom_openai`/`vllm`; only raw-text-completion members hit the wall |
+| textgen family (ooba/aphrodite/tabby/llama.cpp/ollama/togetherai/…) | ~15 backends + ~60 samplers | PARTIAL | MODERATE (compat) / ARCHITECTURAL (raw) | OpenAI-compat members **already covered** by `custom_openai`/`vllm`; only raw-text-completion members hit the wall |
 | Direct model providers (native Anthropic/OpenAI/Google keys, not via OpenRouter) | direct chat-completion sources | ABSENT (was COVERED; anth-direct PURGED 2026-07-22) | MODERATE | the `anth-direct` backend was purged with the retro sync (D67 is the design record); route via openrouter/`custom_openai` today |
 | instruct-mode + context templates | wraps turns into one completion string | ABSENT | ARCHITECTURAL | no text-completion runner to feed; structurally rejected |
 | sysprompt library | named, macro-substituted system prompts | STILL-GAP | MODERATE | unscheduled; `systemPrompt {static,dynamic}` + `kit/macro` exist, but no named-library CRUD surface |
-| CFG scale | negative-prompt + guidance\_scale | ABSENT | ARCHITECTURAL | only text-completion/NAI honor it; OpenAI wire has no `guidance_scale` |
+| CFG scale | negative-prompt + guidance_scale | ABSENT | ARCHITECTURAL | only text-completion/NAI honor it; OpenAI wire has no `guidance_scale` |
 | logprobs display | per-token probability viz | STILL-GAP | MODERATE | unscheduled; chat-completions/responses carry `top_logprobs` (not agent-sdk); display-only |
 | sampler select / ordering | reorder `sampler_order`/priority | ABSENT | ARCHITECTURAL (PAINFUL via passthrough) | a raw-textgen concept; survives only as an untyped `customParameters` blob. (The mainstream sampling KNOBS below are BUILT — this row is the raw ordering only) |
-| mainstream sampling knobs (temp/top\_p/top\_k/min\_p/penalties/seed/stop) | per-request sampling | COVERED | — | BUILT: capability-gated, descriptor-driven in `preset/…/capability-panel-model.ts` (`SAMPLING_KNOB_SPECS`) → `params-panel.tsx`; resolved to backends. Knobs render only where `ModelCapability` carries a `Range` |
+| mainstream sampling knobs (temp/top_p/top_k/min_p/penalties/seed/stop) | per-request sampling | COVERED | — | BUILT: capability-gated, descriptor-driven in `preset/…/capability-panel-model.ts` (`SAMPLING_KNOB_SPECS`) → `params-panel.tsx`; resolved to backends. Knobs render only where `ModelCapability` carries a `Range` |
 | logit bias | per-token bias | PARTIAL | MODERATE | gate synthesized from the OpenRouter catalog + resolved to backends; UI exposes it as a boolean flag. Bias-by-word still needs a real tokenizer |
 | tokenizer zoo | per-model tokenizers (tiktoken/LLaMA/NerdStash/…) | BY-DESIGN-OUT | ARCHITECTURAL | `kit/tokens` deliberately rejects the zoo (decided); truth = provider `usage`. Only token-id features need it |
 | grammar / JSON-schema constrained output | `json_schema`/`response_format` | BUILT (D109-4, was STILL-GAP) | — | the `structured` provider role is live (`roles/structured.ts`; vLLM xgrammar + OpenRouter `response_format`); `resolve-model-capability.ts` synthesizes `output.structured`; rpg extraction rides it |
-| exotic samplers (DRY, XTC, mirostat, dynatemp, top\_a, TFS, typical\_p, smoothing…) | textgen sampler set | PARTIAL | MODERATE (per-knob) | ride `customParameters` today (no first-class UI); the mainstream knobs got a panel, these did not. First-class = a contract cascade per knob |
+| exotic samplers (DRY, XTC, mirostat, dynatemp, top_a, TFS, typical_p, smoothing…) | textgen sampler set | PARTIAL | MODERATE (per-knob) | ride `customParameters` today (no first-class UI); the mainstream knobs got a panel, these did not. First-class = a contract cascade per knob |
 
 **Gotcha:** `custom_openai` + `customParameters` already silently cover much of the textgen world; don't rebuild ollama/tabby/llama.cpp-server as named sources (that's a `no-inline-union-redecl` doubling).
 
@@ -66,7 +66,7 @@ Mostly client (Phase 6). Several resurrect the VN scene compositor orbweaver rem
 | Expressions / sprites | emotion classifier → sprite swap (+ live2d/VRM) | ABSENT (was RESERVED; seams PURGED 2026-07-25) | ARCHITECTURAL | committed D49, PD-56 — the born seams (`@orb/contracts/expressions`, `character_sprites`, the stubbed runner) died with the retro purge; rebuild rides the parked expressions-design set |
 | Backgrounds (app background image) | set an app/chat-chrome background image | BUILT | — | D63: FLAT `appearance` settings (`backgroundImageKind`/`backgroundSeededId`/`backgroundExternalUrl`/`fit`/`dim`) applied once at app root via `<ThemeBackgroundLayer>` + scrim; base surface color stays a `ThemeOverride.background` token. NOT the VN compositor |
 | Audio / BGM / blip sounds | scene/char music + typing blips | ABSENT | PAINFUL | player is trivial; "which track for this scene" needs new persistence + VN coupling |
-| TTS (text-to-speech) | \~30 providers + narrate pipeline | ABSENT | ARCHITECTURAL | a new inference role **and** a streaming-audio transport (SSE is text/JSON) + turn hook |
+| TTS (text-to-speech) | ~30 providers + narrate pipeline | ABSENT | ARCHITECTURAL | a new inference role **and** a streaming-audio transport (SSE is text/JSON) + turn hook |
 | STT (speech-recognition) | voice input | ABSENT | ARCHITECTURAL | new audio-in transport + role |
 | Dynamic custom CSS + rich HTML cards + inline media | per-char/chat CSS, stat-block HTML, inline images/audio/video | BUILT | — | D44: token-override Tier A (`@orb/ui` `<ThemeScope>`, zero injection) + Tier B `content/sandbox-frame` null-origin sandboxed iframe for raw HTML/CSS; media via `MessageMedia` + `forbidExternalMedia` |
 | UI themes / moving-UI | drag-reposition panels + themes | BY-DESIGN-OUT | N/A / MODERATE | container-driven layout replaces moving-UI; theming maps onto DTCG tokens (the appearance skins) |
@@ -86,7 +86,7 @@ Mostly client (Phase 6). Several resurrect the VN scene compositor orbweaver rem
 | Regex scripts | find/replace engine | COVERED | `kit/regex` exists |
 | Quick Reply | event→script buttons | committed | Tier 1 declarative automation (D46) |
 | STscript (imperative: `/while`, closures, pipes) | the slash-command language | committed | Tier 2 QuickJS sandbox, dual-mode (D46) |
-| Slash-command set (\~289 cmds) | command dispatch | committed | Tier 1 actions + Tier 2 host API (D46) |
+| Slash-command set (~289 cmds) | command dispatch | committed | Tier 1 actions + Tier 2 host API (D46) |
 | Third-party extensions (`getContext()` god-object) | dynamic-import plugins | committed (re-architected) | Tier 2 capability-manifest membrane (D46) — **the ST model is BY-DESIGN-OUT** |
 | `setExtensionPrompt`/`/inject` | runtime prompt injection at depth | PARTIAL | `kit/injection` exists; a Tier-1 action seam |
 | The client event bus | `eventSource`/`event_types` | ABSENT | replaced by the D50 `PromptTransform` seam + Tier-1 triggers |

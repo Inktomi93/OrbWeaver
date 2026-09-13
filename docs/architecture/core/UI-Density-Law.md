@@ -18,7 +18,7 @@ The token SCALES exist; the ASSIGNMENT LAW did not. Nothing said which surface c
 | FORM primitives building INSTRUMENT surfaces | an instrument pane composed from settings-row / `Card` airiness |
 | uniform visual weight | nothing recedes, so everything competes |
 
-The diagnosis in one number, as measured at the mint: 45 of 51 non-pill radius choices in `packages/client/src` were the LARGEST step, and one defined step (`rounded-base`) had never had a consumer. The spacing scale was already adopted (\~108 intent-utility uses in client tsx, \~200 in ui) — what was missing was which step goes where.
+The diagnosis in one number, as measured at the mint: 45 of 51 non-pill radius choices in `packages/client/src` were the LARGEST step, and one defined step (`rounded-base`) had never had a consumer. The spacing scale was already adopted (~108 intent-utility uses in client tsx, ~200 in ui) — what was missing was which step goes where.
 
 Ratified against the industry conventions this law follows: the 8pt grid with a 4pt sub-grid (4pt INSIDE a component, 8pt BETWEEN components; a non-linear widening scale), and a named shape scale WITH a per-component-class assignment.
 

@@ -229,7 +229,7 @@ A scoped suite red is never baseline, so each was dated or reproduced on a quiet
 **D2**.
 
 **Contention, NOT regressions (5 tests).** `structure.int.test.ts` (4 tests) and
-`grant-liveness-family.test.ts` (1 test) failed with file-level `STACK_TRACE_ERROR`s at \~5,000 ms each — the
+`grant-liveness-family.test.ts` (1 test) failed with file-level `STACK_TRACE_ERROR`s at ~5,000 ms each — the
 5 s per-test default under load. Re-run ALONE
 (`pnpm test:scoped tests/tooling/verify/ops/structure.int.test.ts tests/tooling/verify/gates/grant-liveness-family.test.ts tests/tooling/verify/ops/conformance.int.test.ts`):
 both files PASS. A second vitest was live on the MAIN checkout during my run
@@ -441,7 +441,7 @@ reproduced above. `severity: "error"`, `workItem` correctly absent.
 6. Proofs meet §4 — **FAIL on one clause (D4)**, and one marker LOST (**D1**). Otherwise: legacy rows
    carried, `expect` on the `mustFlag` rows, two positive identity arms (catch and promise), the
    `repeated-position` successor for the retired `promise:save_2` suffix.
-7. Nothing forbidden — **PASS.** The gate module is 940 lines of which \~810 are proof rows; its `create` is
+7. Nothing forbidden — **PASS.** The gate module is 940 lines of which ~810 are proof rows; its `create` is
    two visitors delegating to the shared reader. No Project, no cache, no marker parser, no fs.
 
 ### Lane 3's contracts and ops — PRISTINE
@@ -472,7 +472,7 @@ and not introduced here, but these are exemplar files and a copying lane will co
 - **I did not exercise the seven new doors through a consuming POLICY.** There is none yet. I read every
   contract and op in full and ran their committed pins as part of the directory suite; I did not plant a
   synthetic consumer for each door.
-- **I did not audit the remaining \~340 marker translations** beyond the 15-row sample plus the two
+- **I did not audit the remaining ~340 marker translations** beyond the 15-row sample plus the two
   file-level count comparisons that found D1. The per-file legacy-vs-current marker census I ran covered only
   the 11 files carrying the 24 effective findings. **A full census — every file's legacy marker count vs its
   translated count — is the sweep that would find a second D1, and it is the single highest-value follow-up.**
@@ -496,7 +496,7 @@ debt" line will not distinguish them. Found `tooling/src/stack/ops/engines-ctl.t
 Body: `docs/architecture/core/Core-Enforcement-Active-Gates.md` is enforced by
 `enforcement-registry-parity`'s real-tree arm in `tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts`,
 which checks both the count line AND one row per active module. A conversion REWRITES its row; a SPLIT adds
-the `-health` row and bumps the count. Running that one scoped test is the whole receipt, costs \~30 s, and a
+the `-health` row and bumps the count. Running that one scoped test is the whole receipt, costs ~30 s, and a
 lane that skips it lands a red that reads like ambient migration noise — while the stale row it left behind
 is the document the NEXT conversion lane is instructed to read first.
 

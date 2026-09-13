@@ -24,7 +24,7 @@ updated: 2026-08-30
   baked — they resolve per-view at READ (§2/§4) so multi-human `{{user}}` + the author-side-macro law hold;
   var-mutation (`{{setvar}}`/…) and conversation-context (`{{input}}`/`{{lastMessage}}`/…) macros stay raw +
   inert. **Commit points:** a **user message** freezes at SEND (composer text, macro-before-regex — the
-  freeze runs, then the D53 USER\_INPUT regex sees the baked value; both the WI haystack and the persisted row
+  freeze runs, then the D53 USER_INPUT regex sees the baked value; both the WI haystack and the persisted row
   are the one post-transform text); a **greeting** freezes at the FIRST USER TURN (malleable/swipeable until
   then) — `freezeGreetingVolatiles` (`verbs/turn.ts`) bakes each pre-first-turn assistant row's SELECTED
   variant, idempotent → concurrent-retry-safe. **Known gap:** a POST-first-turn swipe to a different

@@ -82,7 +82,7 @@ carries a ` ```dod ` block — only users with write access to Project 1 (the ow
 can mint the stamp, so an unstamped or mismatched block is refused BY NAME, never executed. The repo
 being private today is not load-bearing. Execution discipline: the run rides `runNicedSync` (`nice
 -n 19`, the one subprocess home), cwd = repo root, inherits the ambient env (so the workspace
-NODE\_OPTIONS heap floor reaches node children), and a mint-time spelling guard refuses `npx` inside a
+NODE_OPTIONS heap floor reaches node children), and a mint-time spelling guard refuses `npx` inside a
 DoD (npx strips the heap floor and the nice — measured 2026-08-27; `pnpm exec` is the sanctioned
 spelling). Commands containing a ` ``` ` line are refused at mint (they would break the fence).
 
@@ -183,7 +183,7 @@ resolutions:
 ## §Proposals (remaining — deferred, owner picks)
 
 - **P4 Done-archive sweep (DEFERRED 2026-09-01 pending this priced sketch).** Done rows accumulate
-  forever; every `list`/`overview` pages through them (the \~250KB dump class). GitHub has
+  forever; every `list`/`overview` pages through them (the ~250KB dump class). GitHub has
   `archiveProjectV2Item`. Sketch: `work:item archive [--done-before <date>]` — enumerate via the
   existing `listItems`, filter Status=Done (+ closed issue state) older than the cutoff, one archive
   mutation per item, printed as a named receipt (`archived #a #b #c`). Orchestrator-run at drains,
@@ -200,6 +200,6 @@ resolutions:
 `test-presence-mirror-not-suite.md` (the pure lib gets its mirror test),
 `shell-fronting-parser-owes-dispatch-tests.md` (refusals asserted through the spawned CLI, not only
 the parser), `near-cap-file-traps-tuple-edits.md` (all touched files audited against the 450 cap —
-max lands \~315), `write-tool-nul-byte-in-template-literal.md` (post-commit `git show --stat` byte
+max lands ~315), `write-tool-nul-byte-in-template-literal.md` (post-commit `git show --stat` byte
 check), `single-arm-union-seam-shape.md` (`override`/`dod` as `string | null` on their arms, never a
 bag of optionals).

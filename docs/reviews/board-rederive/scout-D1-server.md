@@ -10,7 +10,7 @@ updated: 2026-08-29
 
 PARTIAL. Sub-items landed piecemeal:
 
-- worldInfo.read/list (F12): DONE — `membrane.ts:857-883` HOST\_FUNCTIONs `worldInfo.listBooks`/`listEntries`,
+- worldInfo.read/list (F12): DONE — `membrane.ts:857-883` HOST_FUNCTIONs `worldInfo.listBooks`/`listEntries`,
   wired through `domain/plugin/contract/ops.ts:141-146` and `domain/plugin/substrate/bridge.ts:143-171`. rung: called in live path (membrane dispatch).
 - search/RAG query host fn (F1): DONE — `search.query` capability, `membrane.ts:933` `search.documents`,
   `host-v1.ts:671-673` capability map, `domain/plugin/contract/ops.ts:175`. rung: called in live path.
@@ -27,7 +27,7 @@ PARTIAL. Sub-items landed piecemeal:
 
 NOT STARTED.
 
-- `packages/server/src/domain/refinery/verbs/submit-manual-rewrite.ts:92-93` (actually lines \~89-90 currently):
+- `packages/server/src/domain/refinery/verbs/submit-manual-rewrite.ts:92-93` (actually lines ~89-90 currently):
   still two SEPARATE calls — `await ctx.db.insert(refineryRuns).values(view);` then
   `await ctx.db.update(refinerySessions).set(...)` — not wrapped in a single `db.batch(batchMany(...))`.
 - `packages/server/src/domain/discovery/verbs/distill.ts:310-318` `commitSummaries`: still takes

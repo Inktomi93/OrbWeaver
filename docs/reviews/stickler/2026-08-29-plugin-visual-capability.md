@@ -53,7 +53,7 @@ art-forward without moving any security wall the vocabulary holds.
 | Axis | Reachable slice | Receipt |
 | - | - | - |
 | layout gaps | 5 tokens (`tight/field/row/block/section`) | `packages/contracts/src/plugin/ui.ts:64` |
-| text voices | 3 (`body/gloss/label`) of the house's \~12; headings only via `section` kicker + the detail stage's focal title | `ui.ts:70` · `plugin-browse-nodes.tsx:119,129` |
+| text voices | 3 (`body/gloss/label`) of the house's ~12; headings only via `section` kicker + the detail stage's focal title | `ui.ts:70` · `plugin-browse-nodes.tsx:119,129` |
 | badge intents | 5, `primary` excluded (S1 law) | `ui.ts:75` |
 | button weights | 2 (`neutral/outline`), both render non-primary | `ui.ts:80` · `plugin-leaf-nodes.tsx:310` |
 | icons | NONE — no icon node exists | `PLUGIN_NODE_KINDS`, `ui.ts:101-122` |
@@ -105,8 +105,8 @@ art-forward without moving any security wall the vocabulary holds.
   (`packages/ui/src/primitives/text/variants.ts:158-160`), the `markdown` node renders with no
   measure wrap at all (`plugin-leaf-nodes.tsx:216-220`), and the detail arm is a bare `Stack`
   (`plugin-browse-nodes.tsx:124-132`). Pixel receipt: `atlas-detail-populated.png` — the blurb runs
-  \~150 chars/line edge-to-edge, and the keyValue rows put label and value at opposite ends of an
-  \~890px scan gap.
+  ~150 chars/line edge-to-edge, and the keyValue rows put label and value at opposite ends of an
+  ~890px scan gap.
 - Consequence: the exact §4.5b failure 2 the vocabulary was minted to close ("the decision surface
   got the least design") is only half-closed; at wide viewports the preview reads worse than the
   browse grid. Fix is renderer-side only (wrap the detail stage body in the house measure), zero
@@ -128,7 +128,7 @@ art-forward without moving any security wall the vocabulary holds.
   (`plugin-browse-nodes.tsx:50-56`), while the section's own empty states use the house
   `EmptyState` (icon + measure + action) one file over
   (`surfaces/extensions-page-surface.tsx:54-66`). Pixel receipt: `atlas-page.png` — the pre-search
-  page is a form + one grey sentence above \~500px of void. The three-states law calls empty states
+  page is a form + one grey sentence above ~500px of void. The three-states law calls empty states
   load-bearing; the vocabulary's most browse-shaped node has the least designed one. Renderer-side
   fix, no vocabulary change.
 
@@ -302,7 +302,7 @@ The CT machinery already stubs the whole chain: `routeTrpc` fakes `assets.resolv
 (`tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx:88-136`) and the
 MediaTileGrid CT ships data-URL cover fixtures
 (`tests/ui/primitives/media-tile-grid/media-tile-grid.fixtures.tsx:13`). Mount
-`PluginSurfaceRenderer` with the atlas's own spec + a state of \~24 bound tiles, stub the blob refs
+`PluginSurfaceRenderer` with the atlas's own spec + a state of ~24 bound tiles, stub the blob refs
 (and `page.route` the `/api/blob/*` urls to fixture PNGs), screenshot at desktop + narrow container.
 That renders the INTENDED look — covers, badges, hover — and is the cheapest way to judge the target
 aesthetic before the capability exists.

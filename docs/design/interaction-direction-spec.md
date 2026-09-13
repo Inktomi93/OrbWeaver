@@ -36,7 +36,7 @@ piece landing alone, owner-testable, byte-identical when off.
   (`postNarratorMessage`), depth-stamped and `initiator:"automation"`-attributed
   (`domain/automation/contract/ops.ts:66-70`, `:51-56`) — attributed MEDIA, never model prose;
   (2) `transform_draft` rewrites a MEMBER's outgoing draft pre-commit (`PROMPT_TRANSFORM_POINTS`
-  first point `user_input` — "after the macro pass, before USER\_INPUT regex", `contracts/chat/
+  first point `user_input` — "after the macro pass, before USER_INPUT regex", `contracts/chat/
   bus.ts:199-201`) — a host-authored template touching prose canon WITHOUT a turn, attributed to
   the human whose draft it is; it bypasses the ops surface (the dispatch engine REFUSES it,
   `arm-executors.ts:302`) and registers into chat's D50 pipeline.
@@ -374,7 +374,7 @@ validation main-era D93 records).
 8. **Costs, complete:** 1 arm member (+ the vitest EXACT tuple pin,
    `tests/contracts/automation/index.contract.test.ts:125-133`) + schema arm + the output-op
    union + `SPEND_ARM_TYPES` + executor + dry-run preview + a `validate.ts` admission row + the
-   widened quiet op (\~11-site footprint: op signature, executor call, two compose wirings, six
+   widened quiet op (~11-site footprint: op signature, executor call, two compose wirings, six
    test doubles) + a `SIDE_GEN_POSTURES` member (the `no-hardcoded-side-gen-sampling` gate) +
    the state table (the merge window) + the S2 contribution + refusal copy rows. Prompt briefs
    are authored FRESH against the legacy semantics (never ported); the proven lines carried as

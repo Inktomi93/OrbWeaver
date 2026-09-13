@@ -519,6 +519,6 @@ primitive dir. Recorded because it looks like an oversight and is not.
   is that a context menu must only ever SUPPLEMENT a visible control (`components/context-menu.md`
   §"Usage guidelines"), which this site satisfies — so the shim is a reduced enhancement, not a broken
   requirement. A proper context-menu seal (a new `primitives/context-menu/` trio + the
-  package.json exports row) is a \~1-day build (Root/Trigger/Backdrop/Portal/
+  package.json exports row) is a ~1-day build (Root/Trigger/Backdrop/Portal/
   Positioner/Popup/Arrow/Item/LinkItem/Separator/Group/GroupLabel/Submenu\*/Checkbox\*/Radio\* — Menu's
   part list plus a trigger AREA — reusing `menuVariants` wholesale) plus its CT. Owner decides.

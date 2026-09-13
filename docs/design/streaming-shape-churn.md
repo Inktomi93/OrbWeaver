@@ -85,7 +85,7 @@ is why the wrong shape is legible rather than a one-frame flash.
 **M4 — reasoning block auto-COLLAPSE (MEASURED 2026-08-14 evening, §8 — now ranked FIRST).** Not the
 mount: the disclosure is force-open while thinking and collapses to zero the instant the first answer
 token lands, dropping the prose column by the whole trace height. Measured 3/3 on an OpenRouter
-chat-completions reasoning model: **350–677px in \~300ms**, 4–7× M5. The tool-chip half of this arm is
+chat-completions reasoning model: **350–677px in ~300ms**, 4–7× M5. The tool-chip half of this arm is
 still unexercised. Revised whole-document ranking: **M4 > M5 > M1**. (§2's original text ranked M4 last
 because no turn had produced one; §7 then wrongly demoted it to unreachable — see §8.1.)
 
@@ -168,7 +168,7 @@ Two `<PROMPT>` values, run both:
   the `slots` output, not `sig`: a reasoning block or a tool chip appears as a new `data-slot`, and the
   timestamp of that change is when the message reshaped.
 
-`--eval` output is capped at \~2000 chars (truncation is announced on its own line) — split a long
+`--eval` output is capped at ~2000 chars (truncation is announced on its own line) — split a long
 signature list across two `--eval`s rather than trusting one.
 
 ### Two traps this probe already paid for
@@ -195,7 +195,7 @@ the shift measurement.
 
 **VERDICT: both M1 and a new M5 reproduce; M5 is the better match for the owner's sentence. M4 is NOT
 EXERCISED — not cleared.** M1 is real but is a ONE-TIME settle per ambiguous block. M5 — a code-block
-container born 94px too tall and collapsing \~20-100ms later — is an overshoot-and-snap-back, which is
+container born 94px too tall and collapsing ~20-100ms later — is an overshoot-and-snap-back, which is
 literally "adjusts size and fluctuates, then settles". Ranked for symptom-match: **M5 > M1 > M4**.
 
 ### Arm 1 — the structure-forcing prompt (M1): REPRODUCED, slower than §1
@@ -505,7 +505,7 @@ one-database artifact). Trigger: **all three params together**,
 runs is that each added knob buys latency (7.7 → 10.2 → 33.2 → 52.3s), so the combination is plausibly
 just the slowest arm rather than a semantic conflict between the three values.
 
-The user-visible shape: the ghost row sits on typing-dots for \~110 seconds (6566 sampled frames on run
+The user-visible shape: the ghost row sits on typing-dots for ~110 seconds (6566 sampled frames on run
 H), never gains a `ghost-stream-body`, then vanishes. No assistant message commits. No error toast is
 recorded by the probe.
 
@@ -614,7 +614,7 @@ is narrative rpg prose), so the height series has nothing to say about it.
 
 **VERDICT: M4 REPRODUCES, 3 runs out of 3, exactly as §7.4 predicted — the churn is the auto-COLLAPSE on
 the first answer token, not the mount. It is also the BIGGEST reflow this document has measured: the prose
-column drops 350–677px in \~300ms, 4–7× M5's 94px. Revised symptom-match ranking: M4 > M5 > M1.**
+column drops 350–677px in ~300ms, 4–7× M5's 94px. Revised symptom-match ranking: M4 > M5 > M1.**
 
 M4 is no longer a tail-of-the-list "unmeasured" arm. On any reasoning-capable chat-completions connection
 it is the dominant "changes shapes and goes wonky, then settles" event in a turn.
@@ -698,7 +698,7 @@ never the wrapper.
    reasoning delta mounts `<ReasoningBlock>`: panel **30px**, row **32 → 86** (+54), label `Thinking… 0s`,
    with a one-frame `stream-shimmer` before the trace's first text. Nothing is below the block yet, so
    nothing is displaced — this is a grow, not a jump.
-2. **Growth (slow, monotonic, legible).** The panel grows in \~23px line steps as the trace streams, ticking
+2. **Growth (slow, monotonic, legible).** The panel grows in ~23px line steps as the trace streams, ticking
    `Thinking… 1s … 9s`. Peak panel height 350–677px depending on how long the model thought.
 3. **THE CHURN — collapse on the first answer token.** `useGhostThinking` flips false the instant answer
    text lands (`use-ghost-stream.ts:37-45`), `expanded = override ?? thinking` closes the Collapsible
@@ -723,8 +723,8 @@ reasoning-free turn: the collapse returns the layout to precisely where a non-th
 
 Full r1 panel series (ms since load): `-1 @6902` → `30 @9332` → … → `512 @13883` → **`677 @13985`** →
 `499 @14016` → `361` → `259` → `186` → `134` → `97` → `70` → `50` → `36` → `25` → `18` → `12` → `8` → `5`
-→ `3` → `2` → `1` → `0 @14298` → `-1 @14365` (removed from the DOM). The collapse is ANIMATED, \~19 sampled
-frames — so it is not a one-frame snap the eye can miss; it is a legible \~300ms slide of everything below.
+→ `3` → `2` → `1` → `0 @14298` → `-1 @14365` (removed from the DOM). The collapse is ANIMATED, ~19 sampled
+frames — so it is not a one-frame snap the eye can miss; it is a legible ~300ms slide of everything below.
 
 Two secondary observations:
 
@@ -784,8 +784,8 @@ Ranked by symptom-match per pixel of churn removed, not by effort.
    exactly what the auto-collapse was written to prevent. Cheapest possible edit (`expanded = override ??
    thinking` → `override ?? (thinking || neverCollapsed)` in `reasoning-block.tsx:70`), and it removes 100%
    of the measured churn.
-2. **Collapse to a FIXED preview height instead of to zero.** Keep the first \~2 lines of the trace mounted
-   after the flip. Cost: still a jump, just a bounded one (\~677px → \~60px), and it needs a real design
+2. **Collapse to a FIXED preview height instead of to zero.** Keep the first ~2 lines of the trace mounted
+   after the flip. Cost: still a jump, just a bounded one (~677px → ~60px), and it needs a real design
    call about what the settled row shows. Preserves the auto-collapse intent.
 3. **Anchor the scroll instead of the block** — let the collapse happen but compensate the message list's
    scrollTop by the delta in the same frame so the PROSE stays put and the transcript above moves instead.
@@ -794,7 +794,7 @@ Ranked by symptom-match per pixel of churn removed, not by effort.
 4. **Do nothing.** Defensible only if the owner reads the collapse as informative motion. It is 4–7× M5,
    which was judged worth fixing.
 
-Not recommended: animating the collapse more slowly. It is ALREADY animated over \~300ms/19 frames — the
+Not recommended: animating the collapse more slowly. It is ALREADY animated over ~300ms/19 frames — the
 churn is the 677px of travel, not its abruptness.
 
 ### §8.7 Scratch state — every change and its restore receipt

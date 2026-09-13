@@ -20,7 +20,7 @@ measured in this session on this worktree with the two scratch scripts described
    24 of our tooling files call `getType()`/`getSymbol()`.
 2. Our posture (ts-morph on TypeScript 6.0.3, `ts7` for the type floor) is exactly the side-by-side setup
    Microsoft's 7.0 announcement prescribes; nothing to change there.
-3. `structure:full` costs 290s of a \~470s `pnpm check` (every other stage is under 35s). A per-gate
+3. `structure:full` costs 290s of a ~470s `pnpm check` (every other stage is under 35s). A per-gate
    profile of the real `runPass` reproduces it at 292.6s and shows the shared single-pass walk plus all
    130 `visit` gates cost 16s combined; gate-private `run`/`visitFile`/`begin` code costs 276s.
 4. Five idioms account for it, and the worst single one (`lib/bus-coverage.ts`, shared by five gates, 115s,
@@ -42,7 +42,7 @@ measured in this session on this worktree with the two scratch scripts described
 | typescript-go's `_packages/` today contains only `native-preview`; no JS API package is published. Latest tag `typescript/v7.0.2` (2026-07-08). | `gh api repos/microsoft/typescript-go/contents/_packages`, `.../releases` |
 | Microsoft on ts-morph specifically: "it is explicitly an anti-goal to prevent ts-morph from working altogether. Type information is effectively the reason why we need to have an API at all". | typescript-go discussion #455, quoted in #1621 |
 | `@ts-morph/bootstrap`: the same Project/file-system plumbing but returns raw `ts.SourceFile`/`ts.Program`; no wrapper layer. | packages/bootstrap/readme.md |
-| `oxc-parser`: fastest conformant TS parser; JS API returns TS-ESTree; `experimentalRawTransfer: true` (Node ≥ 22) removes the JSON serde cost that made it lose to `typescript`'s own parser in the ast-grep benchmark. No binder, no checker. Known Windows issue: the raw-transfer buffer is \~6GiB per parse (oxc #23759, knip #1813). | oxc PR #9516, issue #23759; H. Darkholme "Benchmark TypeScript Parsers" (raw text) |
+| `oxc-parser`: fastest conformant TS parser; JS API returns TS-ESTree; `experimentalRawTransfer: true` (Node ≥ 22) removes the JSON serde cost that made it lose to `typescript`'s own parser in the ast-grep benchmark. No binder, no checker. Known Windows issue: the raw-transfer buffer is ~6GiB per parse (oxc #23759, knip #1813). | oxc PR #9516, issue #23759; H. Darkholme "Benchmark TypeScript Parsers" (raw text) |
 | `@ast-grep/napi` 0.45.x: tree-sitter based, returns a tree handle (no serde), `parseAsync` uses the libuv pool. No types. | ast-grep.github.io/guide/api-usage/performance-tip.html |
 | `tsz` (Rust checker), `tsgo-wasm` (sxzz, TS 7 Wasm build): checkers/binaries, not AST APIs for tooling. | tsz.dev; npm `tsgo-wasm` |
 | ts-morph's own performance page is about MANIPULATION (structures, batching, forget blocks, analyze-then-manipulate). The one analysis-relevant primitive it documents is `.compilerNode` plus `createWrappedNode` for navigating raw compiler nodes. | ts-morph.com/manipulation/performance, ts-morph.com/navigation/compiler-nodes |

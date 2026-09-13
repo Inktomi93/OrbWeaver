@@ -17,7 +17,7 @@ updated: 2026-09-13
 > `*-grant-liveness` family"), `gate-ledger-counts-rot-cite-the-scan-line`,
 > `comment-insertion-moves-caught-failure-markers`.
 
-## 0. Premises re-derived (the \~50% stale-row rate applies to briefs too)
+## 0. Premises re-derived (the ~50% stale-row rate applies to briefs too)
 
 | Brief premise | Tree evidence | Verdict |
 | - | - | - |
@@ -154,9 +154,9 @@ Decision procedure, applied mechanically and recorded per file in the report:
    exact-path `off` only for a rule with no narrower option (`noProcessEnv` on the env reader's own test).
 4. Otherwise cluster the sites: ≥3 contiguous → one closed range around the block; else line directives.
    Every directive carries a line-adjacent WHY.
-5. A site the blanket hid that is an ORDINARY declaration (a describe-scoped CONSTANT\_CASE const) is
+5. A site the blanket hid that is an ORDINARY declaration (a describe-scoped CONSTANT_CASE const) is
    FIXED (renamed to camelCase), never re-suppressed — `probe:naming` shows biome flags function-scoped
-   CONSTANT\_CASE by default, and the tree has such consts only inside the blanketed files (13 in 5 files).
+   CONSTANT_CASE by default, and the tree has such consts only inside the blanketed files (13 in 5 files).
 
 | Class | Files | Mechanism |
 | - | - | - |
@@ -164,7 +164,7 @@ Decision procedure, applied mechanically and recorded per file in the report:
 | `useFilenamingConvention` ×1 | historical `tooling/src/verify/gates/bus-onData-no-store-write.ts` | exact-path grant (rule 1), retired and removed at #1584 when the gate became `bus-on-data-no-store-write.ts`; `RATIFIED_RULES` loses the row |
 | `noBitwiseOperators` ×7 | `packages/kit/src/png-card-chunk/index.ts` (22 sites, the byte-helper tail), `packages/server/src/infra/network/ip-ranges.ts` (13, the parsers + CIDR matcher), `packages/client/src/features/chat/lib/speaker-color.ts` (2, `fnv1aHash`), `tests/kit/png-card-chunk/index.test.ts` (7, the reference CRC-32) → closed RANGES around the codec functions; `packages/server/src/infra/storage/zip.ts` (5 scattered lines), `tests/server/infra/storage/zip.int.test.ts` (2), `tests/server/entry/import/run-bundle-import.test.ts` (1) → LINE directives | rule 4 |
 | `noProcessEnv` ×9 / `noProcessGlobal` ×2 | `tests/server/foundation/env/index.test.ts` (18 sites, 48–508: the env reader's own test) → exact-path `noProcessEnv: off` (rule 3); `wire-capture.suite` (8, 37–62), `errors-ring.suite` (4+2, 32–43), `engine-url` (9, 43–64), `egress.int` (9, 123–141), `turn-fault-outcome.suite` (4+2, 35–54) → closed RANGES around the env-crafting setup block (the `noProcessGlobal` twin rides the same range as a second rule on the directive — `probe:semantics` e proves multi-rule directives); `local-light/{embed,rerank,image-embed}.int` (1 each) → LINE directives | rules 3–4 |
-| `useNamingConvention` ×45 | 23 file-subject files (env, auth-routes, run-profile-dir-import, st-chat-fidelity, agent-sdk runner/verify-auth/agent-runner/summarize/terminal-tools, custom-byo chat, openai-compat body, build-argv, import substrate persona/chat-input/card/theme/appearance, import verbs group-chats/chats/character, preset contract, serde card/chat) → added to the `conventions` override (exact paths); the override itself is CORRECTED to be a strict superset of biome's default (add `PascalCase`, add `match: "_*(.+)"` so `_`-prefixed names are trimmed as the default does — `probe:naming`: `Authorization`, `PreToolUse`, `__sentinel`, `_registeredTools` were false reds under the override as written); the remaining 22 files (≤9 sites) → ranges/lines (rule 4); 23 describe-scoped CONSTANT\_CASE consts → renamed by ts-morph `rename()` (rule 5; two of them renamed again to `storedTx`/`verifiedClaims` because the camelCase spelling shadowed an inner parameter); `hideChatAvatars_enabled` (mixed-case ST key, 2 sites) → line directives | rules 3–5 |
+| `useNamingConvention` ×45 | 23 file-subject files (env, auth-routes, run-profile-dir-import, st-chat-fidelity, agent-sdk runner/verify-auth/agent-runner/summarize/terminal-tools, custom-byo chat, openai-compat body, build-argv, import substrate persona/chat-input/card/theme/appearance, import verbs group-chats/chats/character, preset contract, serde card/chat) → added to the `conventions` override (exact paths); the override itself is CORRECTED to be a strict superset of biome's default (add `PascalCase`, add `match: "_*(.+)"` so `_`-prefixed names are trimmed as the default does — `probe:naming`: `Authorization`, `PreToolUse`, `__sentinel`, `_registeredTools` were false reds under the override as written); the remaining 22 files (≤9 sites) → ranges/lines (rule 4); 23 describe-scoped CONSTANT_CASE consts → renamed by ts-morph `rename()` (rule 5; two of them renamed again to `storedTx`/`verifiedClaims` because the camelCase spelling shadowed an inner parameter); `hideChatAvatars_enabled` (mixed-case ST key, 2 sites) → line directives | rules 3–5 |
 
 `tooling/src/codemod/lib/example.ts` (naming, 3 contiguous sites) → one range.
 

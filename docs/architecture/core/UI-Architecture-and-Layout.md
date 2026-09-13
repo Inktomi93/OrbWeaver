@@ -448,7 +448,7 @@ Playwright CT (`.ct.tsx` under the `tests/ui` mirror — LIVE, `playwright-ct.co
 
 #### 6.3 Markdown + code → `@orb/ui/markdown` = Streamdown — BUILT
 
-- **Streamdown** is THE markdown renderer, used everywhere (chat AND static descriptions → one lib). It repairs incomplete/unterminated markdown mid-stream instead of flashing, does incremental DOM updates (react-markdown re-parses the whole message per token → \~O(n²) lag), and bundles **Shiki** + KaTeX + Mermaid + copy/download + security policies. Sealed as `@orb/ui/markdown` with **two trust policies** (`packages/ui/src/markdown/policy.ts`) + `toPlainText` (remark `strip-markdown`, D54 — previews/snippets/notifications). The concrete two-policy security spec: §11.6.
+- **Streamdown** is THE markdown renderer, used everywhere (chat AND static descriptions → one lib). It repairs incomplete/unterminated markdown mid-stream instead of flashing, does incremental DOM updates (react-markdown re-parses the whole message per token → ~O(n²) lag), and bundles **Shiki** + KaTeX + Mermaid + copy/download + security policies. Sealed as `@orb/ui/markdown` with **two trust policies** (`packages/ui/src/markdown/policy.ts`) + `toPlainText` (remark `strip-markdown`, D54 — previews/snippets/notifications). The concrete two-policy security spec: §11.6.
 
 ##### 6.3.1 The streaming-reveal stack — the three layers, and who owns each (D43)
 
@@ -463,7 +463,7 @@ neo had real markdown-parse + streaming display bugs because it hand-rolled the 
 **HONEST RISK — Streamdown's open bugs cluster in code-blocks-while-streaming, the SAME spot neo's did.** Capability is complete, but the streaming-time code-block path is its soft spot (#473 fenced blocks buffer-not-incremental, #402 Shiki re-highlight flicker, #195 huge blocks freeze the tab, #343 lazy chunks crash after deploy). Streamdown is "trade hand-rolled bugs for a maintained library's upstream-fixed bugs," NOT "weirdness solved" — still the right call, with these guards:
 
 1. **Version floor ≥ 2.5** — met (`packages/ui/package.json`).
-2. **The pacer mitigates the flicker (#402/#473):** feeding Streamdown word-snapped \~30fps commits (not raw per-token deltas) cuts the re-highlight churn — an explicit reason the pacer sits in front.
+2. **The pacer mitigates the flicker (#402/#473):** feeding Streamdown word-snapped ~30fps commits (not raw per-token deltas) cuts the re-highlight churn — an explicit reason the pacer sits in front.
 3. **Error boundary around the seal** (#343) — BUILT (`markdown.tsx` `MarkdownErrorBoundary`; white-screen → graceful fallback).
 4. **Large-block perf guard (#195)** — BUILT (`markdown.tsx` `MAX_RENDER_LENGTH` whole-input fallback to plain `<pre>`).
 5. **Golden-test streaming code fences** against the #473/#402 scenarios before chat commits — a Phase-6 chat checkpoint, not a hope.
