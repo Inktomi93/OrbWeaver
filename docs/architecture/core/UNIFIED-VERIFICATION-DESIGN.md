@@ -311,7 +311,7 @@ resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads 
   story; the CT harness/config; a shared ui GROUP CORE like `charts/chart/**` or `markdown/**` internals):
   any changed path matching a trigger escalates to running that trigger's mirror DIR(s), a superset of the
   individual mirrors. This is UNDER-selecting by design — honest ONLY because a scoped green is NEVER the
-  coverage verdict (§3.7): the push bar runs the WHOLE CT suite. The sweep table lives in `selection.ts`
+  coverage verdict (§3.7): a whole run remains the coverage verdict. The sweep table lives in `selection.ts`
   (`CT_SWEEP_TRIGGERS`), each row carrying its incident class. No CT-relevant change ⇒ the stage no-ops.
 - **`scopedArgv` returns the concrete scoped argv, OR a sentinel:**
   - `"whole-only"` ⇒ **DEFER** at a scoped tier (a cross-file reconciliation — registry/coverage/parity/
@@ -351,16 +351,16 @@ Two live parity gates keep the registry and the scripts honest, both directions:
 
 The behavioral suites are ONE `tests` concept expressed as stages with tier + scope, not a folklore list:
 
-- **`tests:tooling`** (tier `full` only) runs the complete instrument battery through the native Vitest execution groups. `tooling/src/_shared/test-kinds.ts` owns test-kind and repository-resource registration; `vitest.config.ts` derives group selectors from it rather than maintaining a filename roster. Normal execution groups use `sequence.groupOrder: 0`; the `repository` group uses order 1 and `fileParallelism: false`, so repository-resource files run afterward and serially within that group. `tests:execution-membership` reconciles collection. The former browser-drive shard is retired after its two structural suites passed concurrent execution. Measured-rate metadata remains available independently of group membership. Vitest's API calls these execution groups projects; they are unrelated to pnpm workspace packages.
-- **`tests:node`** (tiers `changed`/`push`/`full`) — `pnpm test:node` = the PRODUCT vitest projects
+- **`tests:tooling`** runs the complete instrument battery through the native Vitest execution groups. `tooling/src/_shared/test-kinds.ts` owns test-kind and repository-resource registration; `vitest.config.ts` derives group selectors from it rather than maintaining a filename roster. Normal execution groups use `sequence.groupOrder: 0`; the `repository` group uses order 1 and `fileParallelism: false`, so repository-resource files run afterward and serially within that group. `tests:execution-membership` reconciles collection. The former browser-drive shard is retired after its two structural suites passed concurrent execution. Measured-rate metadata remains available independently of group membership. Vitest's API calls these execution groups projects; they are unrelated to pnpm workspace packages. Its current tier membership is registry data rendered by `pnpm verify --list`.
+- **`tests:node`** — `pnpm test:node` = the PRODUCT vitest projects
   (`unit`/`integration`/`repository`/`contract`; since #1523 NOT `tooling`). **THE CT HALF LEFT THIS STAGE IN #1848** — it rode here from
   2026-07-17, and the merged stage's ONE 45-minute hang ceiling stopped covering the pair once #1835 put CT
   on the shared profile's worker cap: `verify --full` on 2026-09-06 reported `[tool-error] TIMED OUT` on a
   QUIET box for a stage that was still working, which under the exit contract means the run is not a
   verdict. The CT suite is `browser:ct` again, with a ceiling DERIVED from `tooling/concurrency-profile.json`
   (§3.7b). `pnpm test` still COMPOSES both halves as the explicit product-test command and the manual
-  `tests:product-composite` registry row; it is not a separate commit ritual, so no tier runs it and
-  nothing double-runs.
+  `tests:product-composite` registry row; the registry owns its exclusion from runnable tiers so nothing
+  double-runs.
   Scoped execution uses Vitest's configured projects without a copied project roster, and since #2232 the
   node arm chooses its CONFIG MODE from what the runner said it would SELECT — vitest's own per-file
   `projectName` attribution, never a filename, so a directory operand holding a `.test-d.ts` is classified
@@ -429,12 +429,11 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   signature) is exit 1, never a false green — and a contained wedge is announced on stderr and recorded in
   the merged report's `orbShards[].wedges` so a green never hides one. Guard:
   `tests/tooling/vitest-supervised.test.ts`.
-- **`browser:ct`** (tiers `changed`/`push`/`full`) — at `push`/`full` it is the WHOLE CT suite
-  (`pnpm test:ct --retries=2`, the visible retries flag so parallelism flakes RETRY instead of blocking a
-  push), and it is the push tier's CT coverage verdict. It carries `hangCeilingBaseMs` DERIVED from the
+- **`browser:ct`** — its whole form is the complete CT suite (`pnpm test:ct --retries=2`, the visible
+  retries flag so parallelism flakes RETRY instead of blocking the whole-run verdict). It carries
+  `hangCeilingBaseMs` DERIVED from the
   profile (§3.7b): the CT wall clock is a function of `ctWorkers`, which is exactly what a shared constant
-  could not express. At `changed`
-  it runs the scoped CT view (§3.4) through `test:ct`: native collection preflight, an exclusive
+  could not express. Its scoped form (§3.4) runs through `test:ct`: native collection preflight, an exclusive
   runner lease, and a private cold build directory. It does not reuse or clear another invocation's build
   directory. Scoped calls keep the config's zero-retry default; whole-suite retries remain explicit.
 
@@ -460,11 +459,11 @@ that owns every worker cap, #1835), through `lib/stage-budget.ts`:
 Change `ctWorkers` and every dependent ceiling moves with it. The runner still passes the result through
 `budget()`, so a contended box stretches it further, never shrinks it.
 
-- **`browser:e2e-smoke`** (`push`/`full`) — the fast `@smoke` model-free subset; the only automated
-  per-push browser surface. **`browser:e2e`** (`full`), **`browser:e2e-live`** (`manual` — costs model
-  credits), **`quality:mutation-gate`** (`full`), **`quality:mutation-report`**
-  - **`tests:coverage`** (`manual` — report-only, no thresholds gate).
-- **`tests:execution-membership`** (`static`/`push`/`full`, #22 — `tooling/src/verify/ops/tests-execution-membership.ts`)
+- **`browser:e2e-smoke`** is the fast `@smoke` model-free subset; **`browser:e2e`** is the exhaustive
+  browser sweep; **`browser:e2e-live`** costs model credits; **`quality:mutation-gate`** carries the mutation
+  verdict; **`quality:mutation-report`** and **`tests:coverage`** are report-only. Their current assignments
+  are registry data rendered by `pnpm verify --list`.
+- **`tests:execution-membership`** (#22 — `tooling/src/verify/ops/tests-execution-membership.ts`)
   — `types:ownership`'s EXECUTION-lane sibling: THREE directions of "a test file is run by SOME
   runner, a runner glob matches SOME file, and no file is run by MORE than one runner". Asks each runner its
   own `--list` view (`vitest list --filesOnly --json` for all six node projects — each entry carries a
@@ -478,7 +477,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   list --json`'s per-entry `projectName`), now a checked invariant. Direction 3's runtime-view set is every
   vitest project EXCEPT `types` (typecheck-only, `test.include: []` — no runtime pass, so it cannot be a
   second EXECUTOR of anything) plus the two playwright configs, each counted separately.
-- **`structure:db-baseline`** (`static`/`push`/`full` — `tooling/src/verify/ops/db-baseline-parity.ts`) — the
+- **`structure:db-baseline`** (`tooling/src/verify/ops/db-baseline-parity.ts`) — the
   committed squashed migration (`packages/db/src/migrations/0000_baseline.sql`) vs what the live
   `@orb/db/schema` generates, statement-set equal after whitespace/semicolon normalization
   (order-insensitive — FK order is proven applicable elsewhere). Pre-launch, schema changes SQUASH into that
@@ -487,7 +486,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
   (~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
   `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` calls (one home, two callers).
-- **`ledgers:fresh`** (`static`/`push`/`full`, #817 — `tooling/src/verify/ops/ledgers-fresh.ts`) — every
+- **`ledgers:fresh`** (#817 — `tooling/src/verify/ops/ledgers-fresh.ts`) — every
   committed SINGLE-WRITER output vs a fresh derivation of itself, the oldest being
   `docs/reviews/caught-failure-ownership/population.json` (the caught-failure census — every row carries the
   `line`/`markerLine` of a site, so ANY merge that inserts lines above one re-stales it). The test-baseline
@@ -501,12 +500,12 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   so the fix survives into `failureExcerpt`. Consequence for a lane: a newly TRACKED spec now needs a manifest
   regen before its commit (`git add` it first — the derivation reads `git ls-files`). Cost: the manifest half
   is milliseconds; the census half builds the whole-repo ts-morph project, measured 19.7s wall on the
-  reference box — the same project `structure:full` already builds in the same tier, and the price of the
-  derivation itself rather than of this stage. WHOLE-ONLY BY ABSENCE: no `scopedArgv`, so a scoped tier
+  reference box — the shared project build means that cost is not unique to this derivation. WHOLE-ONLY BY
+  ABSENCE: no `scopedArgv`, so a scoped tier
   DEFERS it — a census derived from a scoped fileset is a census of a different tree and would call every row
   it did not walk stale. An EMPTY derivation is exit 2 (blindness), never a clean ledger. The `--check` arm is
   also reachable per-ledger: `cli.ts baseline <kind> --check`.
-- **`structure:drizzle-kit`** (`static`/`push`/`full` — `pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts`) — drizzle-kit's OWN migration-chain validator, the ORTHOGONAL half of its
+- **`structure:drizzle-kit`** (`pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts`) — drizzle-kit's OWN migration-chain validator, the ORTHOGONAL half of its
   sibling above: `structure:db-baseline` compares the schema to the baseline's CONTENT, this one validates
   the `migrations/meta` CHAIN (every `_journal.json` entry has its snapshot; no two snapshots claim the
   same parent — the forked-chain collision two concurrently-generated migrations produce, probe-verified
@@ -514,7 +513,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   (owner ruling): the guardrail is built BEFORE the need, so the first post-launch incremental migration
   lands into an armed one rather than minting it under pressure. Whole-only (one migrations dir). The
   post-baseline procedure it guards is `Tier-1-DB.md` §"When we migrate for real".
-- **`quality:boot-chunk`** (`push`/`full`, #460, re-scoped by #591 — `tooling/src/verify/ops/boot-chunk-ratchet.ts`) — builds
+- **`quality:boot-chunk`** (#460, re-scoped by #591 — `tooling/src/verify/ops/boot-chunk-ratchet.ts`) — builds
   `@orb/client` for production and REDs when the BOOT PAYLOAD exceeds a committed byte ceiling. The measured
   quantity is the entry chunk (`packages/client/dist/assets/index-<hash>.js`) PLUS every
   `dist/assets/*.js` the emitted `dist/index.html` references (the module `<script src>` and every
@@ -526,9 +525,9 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   else on the ladder can see: #433 (−20.4%) and #448 (−19.0%) took the boot chunk 1,146,760 → 740,339 B, and
   the regression mechanism is ONE new barrel import inside `main.tsx`'s static graph — every other stage
   stays green while it re-pays the whole cost. A byte ceiling catches every mechanism (a barrel, a fat dep,
-  a lost `import type`, a route that stopped being lazy) instead of enumerating the ones already seen. PUSH,
-  not static: the build is 15.45s warm (measured 2026-08-22) — cheap by build standards, but a bundler
-  invocation is not the structural-fast commit bar. The ceiling (859,000 B = the measured 818,188 + 4.99%,
+  a lost `import type`, a route that stopped being lazy) instead of enumerating the ones already seen. The
+  build is 15.45s warm (measured 2026-08-22) — cheap by build standards, but a bundler
+  invocation does not belong on the structural-fast commit bar. The ceiling (859,000 B = the measured 818,188 + 4.99%,
   re-derived 2026-09-01 after #995 separated production readiness from dev instrumentation)
   carries the `docs/reviews/mutation-config-calibration.md` calibration discipline in its own header:
   measured value, headroom arithmetic, re-calibrate conditions. UNMEASURABLE IS EXIT 2, never a pass — zero
@@ -540,7 +539,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   an honest partial. Pinned by `tests/tooling/verify/ops/boot-chunk-ratchet.test.ts` (the summing arm over a
   planted 2b87a0d7c-shaped dist, the split-is-not-a-win symmetry, over/under, and every unmeasurable arm)
   - the registry pin in `run.int.test.ts`.
-- **`deps:orphan-ratchet`** (`push`/`full` — `tooling/src/verify/ops/orphan-export-ratchet.ts`) — the export-rot
+- **`deps:orphan-ratchet`** (`tooling/src/verify/ops/orphan-export-ratchet.ts`) — the export-rot
   lens as a standing verdict: every export of `kit`/`contracts`/`db`/`server`/`client` that NOTHING reaches
   (prod or test) and that is unused in its own file, judged against a checked-in baseline
   (`tooling/src/verify/ops/orphan-export-ratchet.baseline.json` — the tree the 2026-08-03 sweep left, one row per
@@ -559,8 +558,8 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 (`lefthook.yml`).
 
 - **pre-commit → `pnpm check` (= `verify --static`).** Type/structure/lint/boundary red ⇒ cannot commit.
-- **pre-push → `pnpm verify --push`.** ONE command, ONE summary, ONE exit, ONE json — static + `tests:node`
-  - `browser:ct` (the two halves of `pnpm test`, split into their own stages by #1848) + `e2e-smoke`. Replaces the old 4-command piped pipe (run-all-report-all, max-severity exit).
+- **pre-push → `pnpm verify --push`.** ONE command, ONE summary, ONE exit, ONE json. Its membership comes
+  from the registry; it replaces the old 4-command piped pipe with run-all-report-all and a max-severity exit.
 - **CI → `pnpm verify --full`** (`.github/workflows/ci.yml`), `workflow_dispatch`-only (auto-triggers
   disabled 2026-07-05 — the real automated gate is the hooks).
 
@@ -570,5 +569,4 @@ Pre-commit runs the whole STATIC tier, NOT `--changed`. `--changed` + related-te
 weakens the born-compliant doctrine ("won't pass `pnpm check` ⇒ won't commit"): a scoped commit gate defers
 every whole-project reconciliation, so a half-registration across maps could commit clean. Full-static-at-
 commit is the deliberate cost — the inner loop (`--changed`) is for iteration, the commit gate is the whole
-static verdict. Browser suites never gate the static tier (vitest-browser hangs, `Spine-Testing.md` §7): CT
-rides the `pnpm test` lane at push, e2e-smoke gates at push.
+static verdict. Browser suites never gate the static tier (vitest-browser hangs, `Spine-Testing.md` §7).
