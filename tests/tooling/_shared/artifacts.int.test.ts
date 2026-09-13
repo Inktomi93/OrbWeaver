@@ -24,38 +24,22 @@ import type { CliResult } from "../../support/tool-fixtures.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
-/** A valid descriptor whose `run` is a RENDEZVOUS: it blocks until TWO run slots hold an in-flight marker,
- *  so two children are provably in flight at the same moment.
+/** A valid descriptor whose `run` is a RENDEZVOUS: the first child holds its in-flight marker until the
+ *  second child acknowledges that it has opened and scanned its own slot.
  *
- *  IT USED TO SLEEP A FLAT 1.5s, AND THAT IS THE #2248 DEFECT. The census this fixture asserts needs a
- *  CONJUNCTION — the leader's marker written BEFORE the follower's slot scan, and the leader still in
- *  flight (`racing` keeps only markers whose pid is ALIVE) UNTIL that scan. A duration cannot state either
- *  half. The old `Promise.all` pair got the first by luck and the second from this sleep, which is why the
- *  case was green solo and red in a loaded batch: under contention both children could scan before either
- *  wrote. Waiting on the OTHER RUN'S MARKER states both halves directly and needs no duration at all —
- *  the leader cannot leave `runPass` (and so cannot publish and unlink its marker) until the follower has
- *  opened its slot, and the follower cannot have opened one without first taking its census of the leader.
+ *  The census needs a conjunction: the leader marker exists before the follower scans, and the leader stays
+ *  alive until that scan. The outer test establishes the first condition. Inside `runPass`, the in-flight census
+ *  identifies the follower; it writes an acknowledgement only after its slot scan and
+ *  returns immediately. The leader alone waits for that acknowledgement, so neither child can be stranded
+ *  waiting for a sibling that has already departed.
  *
- *  `Atomics.wait` yields between checks without burning CPU — a busy-wait on a co-hosted box is a load
- *  bomb for a timing fixture. The slice budget is a FAILSAFE against a hang, never the mechanism: on
- *  expiry the gate returns and the case's own assertions fail loudly instead of the suite wedging. */
-const SLOW_GATE = `import { existsSync, readdirSync } from "node:fs";
+ *  `Atomics.wait` yields between checks without burning CPU. The slice budget is only a failsafe against a
+ *  hang; normal completion is driven by the acknowledgement and the exact artifact assertions below. */
+const SLOW_GATE = `import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const SLICE_MS = 25;
-// 50s of slices — a FAILSAFE against wedging the suite, deliberately far above any plausible sibling boot
-// and just under the case's own 60s budget, so the assertions are what fail. It must NOT be tuned down to
-// "about how long a boot takes": that would re-create the #2248 defect one layer in, with the leader giving
-// up under load exactly when the follower is slowest. Measured cost of the whole case when it works: ~16s.
 const MAX_SLICES = 2000;
-
-const inflight = (root) => {
-  const base = join(root, "reports", "runs", "structure");
-  if (!existsSync(base)) {
-    return 0;
-  }
-  return readdirSync(base).filter((name) => existsSync(join(base, name, ".inflight"))).length;
-};
 
 export const gate = {
   name: "planted-slow",
@@ -66,7 +50,14 @@ export const gate = {
   scanRoot: () => true,
   visitFile: () => undefined,
   run: (ctx) => {
-    for (let i = 0; i < MAX_SLICES && inflight(ctx.root) < 2; i += 1) {
+    const slots = join(ctx.root, "reports", "runs", "structure");
+    const followerAck = join(ctx.root, "reports", "planted-concurrency-follower-ready");
+    const open = readdirSync(slots).filter((name) => existsSync(join(slots, name, ".inflight"))).length;
+    if (open >= 2) {
+      writeFileSync(followerAck, "ready\\n");
+      return [];
+    }
+    for (let i = 0; i < MAX_SLICES && !existsSync(followerAck); i += 1) {
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, SLICE_MS);
     }
     return [];
@@ -181,7 +172,7 @@ test("two concurrent `check:structure` runs both keep their verdict, and the poi
   const leading = runCli("verify", ["structure"], { cwd: root });
   const leader = await leaderRunId(root, leading);
   const [a, b] = await Promise.all([leading, runCli("verify", ["structure"], { cwd: root })]);
-  expect([a.code, b.code]).toEqual([0, 0]);
+  expect([a.code, b.code], `${a.stderr}\n${b.stderr}`).toEqual([0, 0]);
 
   // BOTH runs' artifacts survive, under DISTINCT identities — the half the fixed path could not give.
   const runs = slots(root);

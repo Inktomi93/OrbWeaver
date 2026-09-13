@@ -24,6 +24,8 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
  *  `--format=%B` emits, so this is the same payload axis a real merge-train range grows along. */
 const BODY_FILLER_BYTES = 40_000;
 const COMMITS = 6;
+const DEFAULT_CEILING_BODY_BYTES = 180_000;
+const DEFAULT_CEILING_COMMITS = 7;
 /** Below the fixture's total output and far below anything production uses — the point is that the CALLER's
  *  number is what stopped the read, so the refusal has to name a number the caller can see here. */
 const TINY_CEILING_BYTES = 4096;
@@ -38,16 +40,21 @@ function git(cwd: string, args: readonly string[]): void {
 
 /** A repository whose range output is comfortably over TINY_CEILING_BYTES and comfortably under the ample
  *  one, so the two arms below differ ONLY in the ceiling they pass. */
-function plantRange(scratch: string): { readonly base: string } {
+function plantRange(
+  scratch: string,
+  { bodyBytes = BODY_FILLER_BYTES, commits = COMMITS }: { readonly bodyBytes?: number; readonly commits?: number } = {},
+): { readonly base: string } {
   git(scratch, ["init", "--quiet"]);
   writeFileSync(join(scratch, "seed.txt"), "seed\n");
   git(scratch, ["add", "--all"]);
   git(scratch, ["commit", "--quiet", "-m", "seed"]);
   const base = runNicedSync("git", ["rev-parse", "HEAD"], { cwd: scratch }).stdout.trim();
-  for (let n = 0; n < COMMITS; n += 1) {
+  for (let n = 0; n < commits; n += 1) {
     writeFileSync(join(scratch, `file-${String(n)}.txt`), `${String(n)}\n`);
     git(scratch, ["add", "--all"]);
-    git(scratch, ["commit", "--quiet", "-m", `planted ${String(n)}\n\n${"x".repeat(BODY_FILLER_BYTES)}`]);
+    const message = join(scratch, ".git", "commit-message.fixture");
+    writeFileSync(message, `planted ${String(n)}\n\n${"x".repeat(bodyBytes)}\n`);
+    git(scratch, ["commit", "--quiet", "-F", message]);
   }
   return { base };
 }
@@ -71,7 +78,22 @@ test("a range over the capture ceiling refuses by NAMING the ceiling, and never 
   expect(read).toHaveProperty("stdout");
   const commits = parseClaimCommits("stdout" in read ? read.stdout : "");
   expect(commits).toHaveLength(COMMITS);
-  expect(commits.map((c) => c.files).flat()).toContain("file-0.txt");
+  expect(commits.flatMap((c) => c.files)).toContain("file-0.txt");
+});
+
+test("the production-arity range read captures and parses a log larger than spawnSync's default", ({ scratch }) => {
+  const { base } = plantRange(scratch, { bodyBytes: DEFAULT_CEILING_BODY_BYTES, commits: DEFAULT_CEILING_COMMITS });
+
+  // No fourth argument: this is the production call shape in `ledgerClaims`, rather than another explicit
+  // ceiling test. The planted payload crosses Node's roughly 1 MiB spawnSync default and remains ordinary
+  // ledger input, so success proves the production default reaches the parser instead of dying at capture.
+  const read = readClaimRange(scratch, base, "HEAD");
+  expect(read).toHaveProperty("stdout");
+  const stdout = "stdout" in read ? read.stdout : "";
+  expect(Buffer.byteLength(stdout)).toBeGreaterThan(1024 * 1024);
+  const commits = parseClaimCommits(stdout);
+  expect(commits).toHaveLength(DEFAULT_CEILING_COMMITS);
+  expect(commits.flatMap((commit) => commit.files)).toContain("file-0.txt");
 });
 
 test("a spawn failure is reported as a spawn failure, not as a git exit status", ({ scratch }) => {
