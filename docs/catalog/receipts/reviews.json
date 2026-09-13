@@ -6041,6 +6041,35 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/authoring-guide-preservation-map-2126.md",
+      "assignedSha256": "e7d20e391af636dfdad341c52c1a68de464665bde2fa82b77c4f8e035d710101",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e7d20e391af636dfdad341c52c1a68de464665bde2fa82b77c4f8e035d710101",
+      "verifiedCommit": "f9a49896fe10926c87f415f3bcce44a68d06c489",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "2026-09-13 #2126/#2159 docs-only final authoring rewrite at f9a49896fe10926c87f415f3bcce44a68d06c489. Complete final text reads and independent guide/conservation review; source revalidation is bounded to authoring, current contract/enforcer claims and coupled routes, not unrelated law. Original677line60347byte guide archived verbatim with SHA2563505368a62d0fa78d7745dba0c6d6b811ba7d7999369d2c46554f492d6ad3747;26contiguous disposition ranges. Reviewer corrected five enforcer/limit claims and approved repaired guide/map. Scoped formatting passed except preserved preexisting formatting in doctrine, UI law and the three additionally repaired design routes outside the edited sections; no whole corpus or scaffold/source acceptance is claimed. Existing evidence remains attributed to its original tree. Root owns separately scoped scaffold/CLI/test corrections and consolidated verification."
+      ],
+      "summary": "Complete original-line conservation map and current mechanism placement for final gate authoring, with explicit separate scaffold/source acceptance limits.",
+      "claims": [
+        {
+          "claim": "Complete original-line conservation map and current mechanism placement for final gate authoring, with explicit separate scaffold/source acceptance limits.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#2126"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:f9a49896fe10926c87f415f3bcce44a68d06c489"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
