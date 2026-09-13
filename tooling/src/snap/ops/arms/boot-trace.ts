@@ -1,7 +1,8 @@
 // Pre-navigation Chromium trace + DevTools/Lighthouse insight analyzer. The trace starts in prepare,
-// before capture calls page.goto, and stops at the shared readiness boundary in afterNavigation.
+// before capture calls page.goto, and stops at a bounded post-load presentation boundary in afterNavigation.
 import { writeFile } from "node:fs/promises";
-import { artifactFile } from "../../../_shared/artifact-out.ts";
+import type { InstrumentArtifactMetadata } from "../../../_shared/artifact-out.ts";
+import { artifactFile, registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
 import { exactScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
 import { print } from "../../../_shared/artifacts.ts";
@@ -37,7 +38,7 @@ export const BOOT_TRACE_ARM = {
   result: {
     schema: "snap-arm-boot-trace-v1",
     source: "CDP Tracing + DevTools trace processor",
-    lifetime: "pre-navigation through app readiness",
+    lifetime: "pre-navigation through boot-ready presentation before interaction",
     enabled: (opts): boolean => opts.bootTrace,
   },
   lifecycle: {
@@ -48,6 +49,19 @@ export const BOOT_TRACE_ARM = {
       let receiptPath: string | null = null;
       let rawTracePath: string | null = null;
       let failure: string | null = null;
+      const rawMetadata: InstrumentArtifactMetadata = {
+        producer: "boot-trace",
+        producerArm: "boot-trace",
+        channel: "chromium-trace",
+        mediaType: "application/json",
+        schema: "chromium-trace-events",
+        role: "raw-fallback",
+        completeness: "unknown",
+        completenessDetail: "capture has not yet established raw trace completeness",
+        scope: exactScope(0, 0, "boot-navigation"),
+        records: null,
+        limits: [],
+      };
       return {
         prepare: async (): Promise<void> => {
           if (!opts.bootTrace) {
@@ -60,19 +74,7 @@ export const BOOT_TRACE_ARM = {
           }
           // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
           try {
-            rawTracePath = await artifactFile("boot-trace", "snap-boot", ".trace.json", {
-              producer: "boot-trace",
-              producerArm: "boot-trace",
-              channel: "chromium-trace",
-              mediaType: "application/json",
-              schema: "chromium-trace-events",
-              role: "raw-fallback",
-              completeness: "complete",
-              completenessDetail: "complete raw Chromium trace for deep forensics; derived insight receipt is primary agent evidence",
-              scope: exactScope(0, 0, "boot-navigation"),
-              records: null,
-              limits: [],
-            });
+            rawTracePath = await artifactFile("boot-trace", "snap-boot", ".trace.json", rawMetadata);
             active = await beginBootTrace(page);
           } catch (error) {
             failure = error instanceof Error ? error.message : String(error);
@@ -84,7 +86,17 @@ export const BOOT_TRACE_ARM = {
           }
           // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
           try {
-            receipt = await active.finish(rawTracePath);
+            const path = rawTracePath;
+            receipt = await active.finish(path, async ({ complete, eventCount }) => {
+              await registerInstrumentArtifact("boot-trace", path, {
+                ...rawMetadata,
+                completeness: complete ? "complete" : "unknown",
+                completenessDetail: complete
+                  ? "complete raw Chromium trace; CDP stop and completion confirmed"
+                  : "partial raw Chromium trace retained after the CDP stop protocol failed",
+                records: eventCount,
+              });
+            });
           } catch (error) {
             failure = error instanceof Error ? error.message : String(error);
           } finally {

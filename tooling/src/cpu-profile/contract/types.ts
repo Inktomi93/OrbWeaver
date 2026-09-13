@@ -18,6 +18,17 @@ export interface BootTraceReceipt {
   readonly insights: Readonly<Record<BootTraceInsightName, BootTraceInsightReceipt>>;
 }
 
+/** Raw bytes have been written. Completeness proves the CDP stop protocol, not successful analysis. */
+export interface BootTraceRetention {
+  readonly complete: boolean;
+  readonly eventCount: number;
+}
+
+export interface BootTraceRetentionContext {
+  readonly earlierFailures: readonly unknown[];
+  readonly onRetained: ((retained: BootTraceRetention) => Promise<void>) | undefined;
+}
+
 /** \`dur\` is the LoAF frame duration (or the raw \`longtask\` duration on the fallback path);
  *  \`blockingDuration\`/\`worstScript\` are LoAF-only attribution, null on the \`longtask\` fallback. */
 export interface LongTask {

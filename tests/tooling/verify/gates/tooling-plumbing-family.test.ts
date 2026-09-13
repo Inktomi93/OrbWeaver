@@ -494,9 +494,13 @@ test(
     const result = runPolicyPass({ knownPolicies: ALL, policies: ALL, root, project, reviewedGrants: reviewedGrantsFor(ALL), failOnWarnings: false });
     expect(result.toolErrors).toEqual([]);
     expect(result.authority.effectiveFindings).toEqual([]);
-    expect(result.authority.waivedFindings.map(({ finding }) => `${finding.file} ${finding.token ?? ""}`)).toEqual([
-      "tests/tooling/tool-guard.int.test.ts 120_000",
-    ]);
+    // Pin the migrated occurrence, not a closed roster of every future ordinary waiver. The complete
+    // run's effective findings and authority alarms below still judge every current occurrence.
+    expect(
+      result.authority.waivedFindings
+        .filter(({ finding }) => finding.file === "tests/tooling/tool-guard.int.test.ts")
+        .map(({ finding }) => `${finding.file} ${finding.token ?? ""}`),
+    ).toEqual(["tests/tooling/tool-guard.int.test.ts 120_000"]);
     expect(result.authority.reviewedGrantConsumption.filter((row) => row.count !== 1)).toEqual([]);
     expect(result.authority.reviewedGrantConsumption).toHaveLength(PLUMBING_GRANT_COUNT);
     // Only this run's ten policies are KNOWN to it, so every other policy's live `@orb-waive` marker reads as
