@@ -311,6 +311,23 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(
+        LIVE_MEMBER("probe", SHARED_IMPORT, "() => ({ evaluate: () => readShared(1) })").replace(
+          "create: () => ({ evaluate: () => readShared(1) })",
+          "create() { return { evaluate: () => readShared(1) }; }",
+        ),
+        {
+          ...LIBS,
+          [siblingPath("twin-sibling")]: LIVE_MEMBER("twin-sibling", SHARED_IMPORT, "() => ({ evaluate: () => readShared(1) })").replace(
+            "create: () => ({ evaluate: () => readShared(1) })",
+            "create() { return { evaluate: () => readShared(1) }; }",
+          ),
+        },
+      ),
+      why: "The contract accepts method-form create hooks. Both methods return evaluators that consume the same canonical shared reader; treating their absent property initializer as an absent production root falsely accuses both members.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
         LIVE_MEMBER(
           "probe",
           'import { SUBJECTS } from "../lib/shared-probe.ts"; const names = SUBJECTS.map(subject => subject.name);',

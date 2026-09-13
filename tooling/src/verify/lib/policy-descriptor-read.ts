@@ -274,7 +274,8 @@ export function policyProductionDependencies(descriptors: readonly ObjectLiteral
   const edges = new Map<object, ProductionEdges>();
   const result = new Map<ObjectLiteralExpression, ReadonlySet<MorphNode>>();
   for (const descriptor of descriptors) {
-    const create = descriptorValue(descriptor, "create");
+    const property = descriptor.getProperty("create");
+    const create = Node.isMethodDeclaration(property) ? property : descriptorValue(descriptor, "create");
     result.set(descriptor, create === undefined ? new Set() : reachableDeclarations(create, edges));
   }
   return result;
