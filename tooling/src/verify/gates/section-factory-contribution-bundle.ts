@@ -38,6 +38,7 @@ import { Node } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
+import { resolveExportedDeclarations } from "../lib/reference-fact.ts";
 import { definitionName } from "../lib/registry-definition-anchor.ts";
 import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 
@@ -78,20 +79,24 @@ function annotatedType(parameter: ParameterDeclaration): Type | undefined {
 /** The ONE `ContributorRegistry` type the declaring module exports, or undefined when it cannot be bound.
  *
  *  This is a MODULE binding, not a name search: an unrelated exported interface of the same name anywhere
- *  else in the client package is a different declaration and never reaches this policy. `getExportedDeclarations`
+ *  else in the client package is a different declaration and never reaches this policy. The shared export reader
  *  resolves through the module's own re-exports, so the registry may move behind a barrel without a rename. */
 function canonicalRegistry(ctx: GatePolicyContext): MorphNode | undefined {
   if (!ctx.files.some((file) => ctx.relativePath(file) === REGISTRY_HOME)) {
     return;
   }
-  const declarations = (ctx.sourceFile(REGISTRY_HOME).getExportedDeclarations().get(REGISTRY) ?? []).filter(
+  const exported = resolveExportedDeclarations(ctx.sourceFile(REGISTRY_HOME), REGISTRY);
+  const declarations = (exported.kind === "resolved" ? exported.value : []).filter(
     (declaration) => Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration),
   );
   return declarations.length === 1 ? declarations[0] : undefined;
 }
 
+/** The home has exactly one declaration. Comparing its checker symbol preserves structural TYPE identity
+ *  without expanding declarations or preferring a type alias over the underlying registry. */
 function declaresCanonicalRegistry(type: Type | undefined, canonical: MorphNode): boolean {
-  return (type?.getSymbol()?.getDeclarations() ?? []).some((declaration) => declaration.compilerNode === canonical.compilerNode);
+  const symbol = type?.getSymbol();
+  return symbol !== undefined && symbol.compilerSymbol === canonical.getSymbol()?.compilerSymbol;
 }
 
 export const gate = defineGate({

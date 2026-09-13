@@ -37,3 +37,22 @@ test("an @orb-waive naming this gate's OWN id at the exact position suppresses t
   expect(waived.authority.waivedFindings).toHaveLength(1);
   expect(waived.authority.authorityAlarms).toEqual([]);
 });
+
+test("snapshot declaration identity survives imported aliases and mutable locals without following a same-named shadow", () => {
+  const result = passOf({
+    "tests/ui/snapshot.ts": "export const snapshot = document.activeElement;",
+    "tests/ui/snapshot.ct.tsx":
+      'import { snapshot as imported } from "./snapshot.ts"; expect(imported).toBe(null); let live = document.activeElement; expect(live).toBe(null); function other() { const live = null; expect(live).toBe(null); }',
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toHaveLength(2);
+});
+
+test("an imported mutable snapshot retains its authored live-read taint", () => {
+  const result = passOf({
+    "tests/ui/mutable.ts": "export let snapshot = document.activeElement;",
+    "tests/ui/mutable.ct.tsx": 'import { snapshot } from "./mutable.ts"; expect(snapshot).toBe(null);',
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toHaveLength(1);
+});

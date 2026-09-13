@@ -33,6 +33,7 @@ import type { GateFactContext } from "../contract/fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";
 import { declarationHome } from "../lib/declaration-home.ts";
+import { resolveStableExpression } from "../lib/reference-fact.ts";
 import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 
@@ -87,21 +88,33 @@ function propertyValue(object: ObjectLiteralExpression, name: string): MorphNode
   return property !== undefined && Node.isPropertyAssignment(property) ? property.getInitializer() : undefined;
 }
 
-/** Does this receiver denote the warnings accumulator, through immutable aliases of it? */
-function isWarningsSink(node: MorphNode, seen: Set<object> = new Set()): boolean {
+/** The local accumulator's authored name, never a member or an imported export-name lookalike. */
+function namesAccumulator(node: MorphNode): boolean {
+  if (Node.isIdentifier(node)) {
+    return node.getText() === SINK;
+  }
+  return (Node.isVariableDeclaration(node) || Node.isParameterDeclaration(node)) && node.getName() === SINK;
+}
+
+/** The shared trace owns alias hops. Reaching the named accumulator proves the sink even when its
+ *  own initializer is runtime data; a member merely named `warnings` does not prove that local binding. */
+function isWarningsSink(node: MorphNode): boolean {
   if (!Node.isIdentifier(node)) {
     return false;
   }
-  if (node.getText() === SINK) {
+  if (namesAccumulator(node)) {
     return true;
   }
-  const declaration = node.getSymbol()?.getDeclarations()[0];
-  if (declaration === undefined || seen.has(declaration.compilerNode) || !Node.isVariableDeclaration(declaration)) {
-    return false;
+  const binding = resolveStableExpression(node);
+  for (const declaration of binding.trace.declarations) {
+    if (Node.isImportSpecifier(declaration)) {
+      return false;
+    }
+    if (namesAccumulator(declaration)) {
+      return true;
+    }
   }
-  seen.add(declaration.compilerNode);
-  const initializer = declaration.getInitializer();
-  return initializer !== undefined && isWarningsSink(initializer, seen);
+  return binding.kind === "unresolved" && namesAccumulator(binding.node);
 }
 
 function calleeName(call: CallExpression): string | undefined {

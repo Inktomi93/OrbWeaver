@@ -34,6 +34,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { classifyPackageMemberOrigin, readPackageExportOrigin } from "../lib/project-home-origin.ts";
+import { resolveExportedDeclarations } from "../lib/reference-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 import { declaredByFile, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
@@ -336,13 +337,8 @@ export const gate = defineGate({
         // DECLARES, not merely re-exports: the state barrel forwards `registerDurableLocalStore` too, and a
         // barrel is not the registry — ARM C's subject is the file whose file-private `RegisteredStore` makes
         // it the whole reachable surface.
-        const declares = sourceFile.getExportSymbols().some((symbol) => {
-          if (symbol.getName() !== REGISTRY_DECL) {
-            return false;
-          }
-          const declarations = (symbol.getAliasedSymbol() ?? symbol).getDeclarations();
-          return declarations.length > 0 && declarations.every((declaration) => declaration.getSourceFile().compilerNode === sourceFile.compilerNode);
-        });
+        const exported = resolveExportedDeclarations(sourceFile, REGISTRY_DECL);
+        const declares = exported.kind === "resolved" && declaredByFile(exported.value, sourceFile);
         if (declares) {
           registries.push(sourceFile);
         }
@@ -549,7 +545,7 @@ export const gate = defineGate({
           "",
         ].join("\n"),
       },
-      why: "THE BARREL FENCE, the claim `visitFile`'s comment makes and nothing proved: a file that merely RE-EXPORTS `registerDurableLocalStore` is not the registry. `getExportSymbols()` offers the forwarded name, so only `declarations.every((declaration) => declaration.getSourceFile() === sourceFile)` rejects it — cut that clause and this barrel becomes an ARM C registry, its locally declared `Held.reset` satisfies `declaredByFile`, and the unblindfolded call flags. The real registry is present beside it, so the receipt still counts one member and this row cannot pass by refusal",
+      why: "THE BARREL FENCE, the claim `visitFile`'s comment makes and nothing proved: a file that merely RE-EXPORTS `registerDurableLocalStore` is not the registry. The shared export reader offers the forwarded declarations, so only `declaredByFile` rejects it — cut that clause and this barrel becomes an ARM C registry, its locally declared `Held.reset` satisfies `declaredByFile`, and the unblindfolded call flags. The real registry is present beside it, so the receipt still counts one member and this row cannot pass by refusal",
     },
     {
       mode: "types",

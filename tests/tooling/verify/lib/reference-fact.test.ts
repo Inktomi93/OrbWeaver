@@ -8,6 +8,8 @@ import {
   readMemberReference,
   readStaticNumber,
   readStaticString,
+  resolveExportedDeclarations,
+  resolveLexicalValueDeclaration,
   resolveModuleMemberOrigin,
   resolveStableExpression,
 } from "../../../../tooling/src/verify/lib/reference-fact.ts";
@@ -406,4 +408,91 @@ test("an imported const resolves statically through a re-export alias", () => {
   const sf = project.getSourceFileOrThrow("/repo/use.ts");
 
   expect(readStaticString(initializer(sf, "result"))).toMatchObject({ kind: "resolved", value: "resolved" });
+});
+
+test("lexical value declarations keep parameters, locals and mutable bindings at their authored home", () => {
+  const sf = sourceOf(
+    "let mutable = 1; mutable = 2; const alias = mutable; function f(parameter: number) { const local = parameter; return [parameter, local, mutable, alias]; }",
+  );
+  const fn = sf.getFunctionOrThrow("f");
+  const reads = fn.getFirstDescendantByKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements();
+  const homes = reads.map((read) => expectResolved(resolveLexicalValueDeclaration(read)));
+  expect(homes.map((fact) => fact.value)).toEqual([
+    fn.getParameters()[0],
+    fn.getVariableDeclarationOrThrow("local"),
+    sf.getVariableDeclarationOrThrow("mutable"),
+    sf.getVariableDeclarationOrThrow("alias"),
+  ]);
+  for (const fact of homes) {
+    expect(fact.trace.declarations).toEqual([fact.value]);
+    expect(fact.trace.origin).toBe(fact.value);
+  }
+});
+
+test("lexical value declarations retain the checker value of a merged symbol", () => {
+  const sf = sourceOf("function merged() {} namespace merged { export const member = 1; } export const value = merged;");
+  const fact = expectResolved(resolveLexicalValueDeclaration(initializer(sf, "value")));
+  expect(fact.value).toBe(sf.getFunctionOrThrow("merged"));
+});
+
+test("lexical value declarations do not chase imported targets or invent values for types", () => {
+  const project = projectOf({
+    "leaf.ts": "export const target = 1;",
+    "use.ts": 'import { target } from "./leaf.ts"; interface Shape {} export const values = [target, Shape, missing];',
+  });
+  const sf = project.getSourceFileOrThrow("/repo/use.ts");
+  const reads = sf.getFirstDescendantByKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements();
+  expect(reads.map((read) => resolveLexicalValueDeclaration(read))).toEqual([
+    expect.objectContaining({ kind: "unresolved", reason: "missing" }),
+    expect.objectContaining({ kind: "unresolved", reason: "missing" }),
+    expect.objectContaining({ kind: "unresolved", reason: "missing" }),
+  ]);
+});
+
+test("lexical value declarations keep a recursive const arrow at its binding rather than its initializer", () => {
+  const sf = sourceOf("const recur = () => recur();");
+  const binding = sf.getVariableDeclarationOrThrow("recur");
+  const reference = binding.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression).getExpression();
+  expect(expectResolved(resolveLexicalValueDeclaration(reference)).value).toBe(binding);
+});
+
+test("exported declarations identify the implementation home through a renamed barrel", () => {
+  const project = projectOf({
+    "leaf.ts": "export const mint = () => 1;",
+    "barrel.ts": 'export { mint as published } from "./leaf.ts";',
+    "impostor.ts": "export const published = () => 1;",
+  });
+  const home = project.getSourceFileOrThrow("/repo/leaf.ts");
+  const barrel = project.getSourceFileOrThrow("/repo/barrel.ts");
+  const impostor = project.getSourceFileOrThrow("/repo/impostor.ts");
+  const expected = home.getVariableDeclarationOrThrow("mint");
+  expect(expectResolved(resolveExportedDeclarations(home, "mint")).value).toEqual([expected]);
+  expect(expectResolved(resolveExportedDeclarations(barrel, "published")).value).toEqual([expected]);
+  expect(expectResolved(resolveExportedDeclarations(impostor, "published")).value).not.toContain(expected);
+});
+
+test("exported declarations retain every merged type and overload rather than reducing to one home", () => {
+  const project = projectOf({
+    "leaf.ts":
+      "export interface Seam { a: string } export interface Seam { b: string } export function mint(value: string): string; export function mint(value: string) { return value; }",
+    "barrel.ts": 'export { Seam, mint } from "./leaf.ts";',
+  });
+  const home = project.getSourceFileOrThrow("/repo/leaf.ts");
+  const barrel = project.getSourceFileOrThrow("/repo/barrel.ts");
+  const types = expectResolved(resolveExportedDeclarations(barrel, "Seam"));
+  const functions = expectResolved(resolveExportedDeclarations(barrel, "mint"));
+  expect(types.value).toEqual(home.getInterfaces());
+  expect(types.value).toHaveLength(2);
+  expect(functions.value.map((node) => node.getText())).toEqual([
+    "export function mint(value: string): string;",
+    "export function mint(value: string) { return value; }",
+  ]);
+  expect(types.trace.declarations).toEqual(types.value);
+});
+
+test("exported declarations refuse an absent export instead of publishing an empty resolved set", () => {
+  const sf = sourceOf("const privateValue = 1; export const publicValue = 2;");
+  expect(resolveExportedDeclarations(sf, "privateValue")).toMatchObject({ kind: "unresolved", reason: "missing" });
+  expect(resolveExportedDeclarations(sf, "absent")).toMatchObject({ kind: "unresolved", reason: "missing" });
+  expect(expectResolved(resolveExportedDeclarations(sf, "publicValue")).value).toHaveLength(1);
 });

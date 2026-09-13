@@ -38,7 +38,8 @@
 import type { InterfaceDeclaration, Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { referenceResolutionServices, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { resolveTypeIdentityOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
 
 const HOME = "packages/contracts/src/chat/participants.ts";
 const RECORD = "MESSAGE_KIND_POLICY";
@@ -69,13 +70,28 @@ function isReaderScope(path: string): boolean {
   return READER_ROOTS.some((root) => path.startsWith(root));
 }
 
+function resolvesInterface(expression: MorphNode): boolean {
+  const origin = resolveModuleMemberOrigin(expression);
+  const lexical = Node.isIdentifier(expression) ? referenceResolutionServices.declarationOf(expression) : undefined;
+  let declaration = lexical?.kind === "resolved" ? lexical.value : undefined;
+  if (origin.kind === "resolved" && origin.value.canonical.kind === "project") {
+    declaration = origin.value.canonical.declaration;
+  }
+  if ((origin.kind === "unresolved" && origin.reason === "ambiguous") || (lexical?.kind === "unresolved" && lexical.reason === "ambiguous")) {
+    // A merged interface has several declarations but still one checker type. A type ALIAS must
+    // not be flattened here: the non-ambiguous lexical declaration above owns that refusal.
+    const type = resolveTypeIdentityOrigin(expression);
+    return type.kind === "resolved" && type.value.declarations.some(Node.isInterfaceDeclaration);
+  }
+  return Node.isInterfaceDeclaration(declaration);
+}
+
 /** Every `extends` clause must RESOLVE. A base binding no interface would silently contribute zero axes,
  *  which is exactly the shrunken-denominator failure this policy exists to make impossible. */
 function assertHeritageResolves(iface: InterfaceDeclaration): void {
   for (const clause of iface.getExtends()) {
-    const symbol = clause.getExpression().getSymbol();
-    const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
-    if (!declarations.some((declaration) => declaration.getKind() === SyntaxKind.InterfaceDeclaration)) {
+    const interfaceResolved = resolvesInterface(clause.getExpression());
+    if (!interfaceResolved) {
       throw new Error(`${IFACE} extends "${clause.getText()}", which resolves to no interface declaration — its inherited axes cannot be enumerated`);
     }
   }
@@ -92,7 +108,8 @@ function readAxes(iface: InterfaceDeclaration): readonly Axis[] {
     .getType()
     .getProperties()
     .map((property) => {
-      const declaration = property.getDeclarations()[0];
+      const origin = resolveTypePropertyOrigin(iface, property.getName());
+      const declaration = origin.kind === "resolved" ? origin.value[0] : undefined;
       if (declaration === undefined) {
         throw new Error(`axis "${property.getName()}" of ${IFACE} resolves to no declaration — its arity cannot be established`);
       }

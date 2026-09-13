@@ -25,7 +25,7 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
-import { readMemberReference, readStaticNumber } from "../lib/reference-fact.ts";
+import { readMemberReference, readStaticNumber, resolveExportedDeclarations } from "../lib/reference-fact.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 
 const LENGTH = "length";
@@ -51,10 +51,8 @@ const UNREADABLE =
 /** Every declaration this file's exported `estimateTokens` ultimately names, seen THROUGH a re-export
  *  (`export { estimateTokens } from "./impl.ts"` yields the implementation's declaration, not the specifier). */
 function estimatorDeclarations(sourceFile: SourceFile): readonly MorphNode[] {
-  return sourceFile
-    .getExportSymbols()
-    .filter((symbol) => symbol.getName() === ESTIMATOR)
-    .flatMap((symbol) => (symbol.getAliasedSymbol() ?? symbol).getDeclarations());
+  const exports = resolveExportedDeclarations(sourceFile, ESTIMATOR);
+  return exports.kind === "resolved" ? exports.value : [];
 }
 
 /** Is this file the estimator's own home — the one place the division IS the algorithm?

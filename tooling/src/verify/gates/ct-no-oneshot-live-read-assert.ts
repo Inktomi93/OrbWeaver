@@ -59,6 +59,7 @@
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { resolveLexicalValueDeclaration, resolveStableExpression } from "../lib/reference-fact.ts";
 
 const ACTIVE_ELEMENT = "activeElement";
 
@@ -196,21 +197,33 @@ function readsMutableAsync(node: TsNode, seenDefinitions = new Set<TsNode>()): b
   return false;
 }
 
+/** Shared readers own declaration identity; the initializer is judged for snapshot taint, not constant value.
+ *  A mutable local can still originate in a live read, so lexical scope must not require a const value. */
 function readsIdentifierInitializer(identifier: TsNode, seenDefinitions: Set<TsNode>): boolean {
   if (!Node.isIdentifier(identifier)) {
     return false;
   }
-  for (const definition of identifier.getDefinitionNodes()) {
-    if (!Node.isVariableDeclaration(definition) || seenDefinitions.has(definition)) {
-      continue;
-    }
-    seenDefinitions.add(definition);
-    const initializer = definition.getInitializer();
-    if (initializer !== undefined && readsMutableAsync(initializer, seenDefinitions)) {
-      return true;
-    }
+  const value = resolveStableExpression(identifier);
+  // A runtime terminal is still authored evidence of a snapshot; a destructuring refusal is not.
+  const terminal = value.kind === "resolved" ? value.value : undefined;
+  if (terminal !== undefined && terminal !== identifier) {
+    return readsMutableAsync(terminal, seenDefinitions);
   }
-  return false;
+  if (value.kind === "unresolved" && value.reason === "dynamic" && !Node.isBindingElement(value.node)) {
+    return readsMutableAsync(value.node, seenDefinitions);
+  }
+  const lexical = resolveLexicalValueDeclaration(identifier);
+  let definition = lexical.kind === "resolved" ? lexical.value : undefined;
+  if (value.kind === "unresolved" && value.reason === "write" && Node.isVariableDeclaration(value.node)) {
+    // A mutable imported declaration is still evidence of where the snapshot originated.
+    definition = value.node;
+  }
+  if (!Node.isVariableDeclaration(definition) || seenDefinitions.has(definition)) {
+    return false;
+  }
+  seenDefinitions.add(definition);
+  const initializer = definition.getInitializer();
+  return initializer !== undefined && readsMutableAsync(initializer, seenDefinitions);
 }
 
 /** The matcher call sitting on an `expect(<arg>)` chain, and its name — walking through an optional `.not`.

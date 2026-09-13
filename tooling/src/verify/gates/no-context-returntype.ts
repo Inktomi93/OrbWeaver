@@ -26,7 +26,8 @@
 //     probe forces the clause to matter. Documented rather than faked (§4.1's fourth outcome).
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { resolveGlobalMemberOrigin } from "../lib/reference-fact.ts";
+import { bindsProvenNonModuleDeclaration } from "../lib/origin-verdict.ts";
+import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 const UTILITY = "ReturnType";
 const MESSAGE =
@@ -38,7 +39,7 @@ const UNREADABLE =
  *  type parameter — any of them proves the identifier is not the ambient utility, which is the only
  *  identity the law bans. No declaration at all is the unreadable arm, never a pass. */
 function bindsAnyDeclaration(node: Node): boolean {
-  return (node.getSymbol()?.getDeclarations() ?? []).length > 0;
+  return bindsProvenNonModuleDeclaration(node) || resolveModuleMemberOrigin(node).kind === "resolved";
 }
 
 export const gate = defineGate({

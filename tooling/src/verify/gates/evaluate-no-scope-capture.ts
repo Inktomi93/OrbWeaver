@@ -16,8 +16,8 @@
 // read `.evaluate` as a CT-authoring smell in `tests/**` — a different population asking a different
 // question, with no shared computation to merge into. The three predicates below (`isPropertyNamePosition`,
 // `isModuleScopeDeclaration`, `isTypePosition`) are scope-POSITION algebra over a node the shared walk
-// delivered, which §12.3 leaves with the policy; nothing here resolves a binding, parses a comment, or
-// walks the repository.
+// delivered, which §12.3 leaves with the policy. Callable targets and lexical value declarations use the
+// shared reference readers (#2163); scope judgment never follows a captured binding to its initializer.
 //
 // POPULATION PORT: legacy `scanRoot: (p) => p.startsWith("tooling/src/")` → `"@tooling"`, byte-identical
 // (`POPULATION_ROOTS["@tooling"] === ["tooling/src/"]`). Never widened to `packages/`: app code
@@ -42,8 +42,8 @@
 // serialization and ignored; a raw STRING callback cannot close over scope at all; a browser global is the
 // browser's. An unresolved RUNTIME identifier is NOT guessed into a capture finding — it makes the checker
 // inconclusive and therefore raises a TOOL ERROR naming every unresolved binding. That refusal is the
-// module's whole #944 third answer and it is pinned in the family test through `runPolicyPass`, because the
-// proof runtime has no "must refuse" arm (§4.5b).
+// module's whole #944 third answer and it is pinned in the family test through `runPolicyPass`, which also
+// checks the production error envelope (§4.5b).
 //
 // A CALLBACK DECLARED OUTSIDE THE POPULATION IS A REFUSAL, NOT A PASS — and this class did not exist under
 // the legacy runtime. `ctx.report.node` resolves its path through `ctx.relativePath`, which THROWS for a
@@ -67,6 +67,8 @@ import type { Identifier, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { resolveCallableDeclaration } from "../lib/reference-fact-call.ts";
 
 const EVALUATE_METHODS: ReadonlySet<string> = new Set(["evaluate", "evaluateAll"]);
 
@@ -223,30 +225,33 @@ function resolveCallback(arg: TsNode): ResolvedCallback | undefined {
   if (!Node.isIdentifier(arg)) {
     return;
   }
-  const symbol = arg.getSymbol();
-  const target = symbol?.getAliasedSymbol() ?? symbol;
-  const decl = target?.getValueDeclaration();
-  if (decl === undefined) {
+  const fact = resolveCallableDeclaration(arg);
+  if (fact.kind === "unresolved") {
     return;
   }
-  if (Node.isFunctionDeclaration(decl)) {
-    return { fnNode: decl, declNode: decl, sourceFile: decl.getSourceFile() };
-  }
-  if (!Node.isVariableDeclaration(decl)) {
+  const fnNode = fact.value.declaration;
+  if (!(Node.isFunctionDeclaration(fnNode) || Node.isArrowFunction(fnNode) || Node.isFunctionExpression(fnNode))) {
     return;
   }
-  const init = decl.getInitializer();
-  return init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))
-    ? { fnNode: init, declNode: decl, sourceFile: decl.getSourceFile() }
-    : undefined;
+  // Recursive references bind the checker value declaration: a variable for a const arrow, or the
+  // selected overload for a function whose callable reader returns the implementation body.
+  const binding = fnNode.getParentIfKind(SyntaxKind.VariableDeclaration) ?? fnNode;
+  const lexical = resolveLexicalValueDeclaration(binding);
+  const declNode = lexical.kind === "resolved" ? lexical.value : binding;
+  return { fnNode, declNode, sourceFile: fact.value.sourceFile };
 }
 
 function resolvesToValue(arg: TsNode): boolean {
   if (!Node.isIdentifier(arg)) {
     return false;
   }
-  const symbol = arg.getSymbol();
-  return (symbol?.getAliasedSymbol() ?? symbol)?.getValueDeclaration() !== undefined;
+  const callable = resolveCallableDeclaration(arg);
+  if (callable.kind === "unresolved" && (callable.reason === "write" || callable.reason === "cycle" || callable.reason === "ambiguous")) {
+    return false;
+  }
+  const origin = resolveModuleMemberOrigin(arg);
+  const declaration = origin.kind === "resolved" && origin.value.canonical.kind === "project" ? origin.value.canonical.declaration : arg;
+  return resolveLexicalValueDeclaration(declaration).kind === "resolved";
 }
 
 function isTypePosition(id: TsNode, boundary: TsNode): boolean {
@@ -283,11 +288,12 @@ function censusScopeCaptures(callback: ResolvedCallback, indexed: readonly Ident
     if (isPropertyNamePosition(id) || isTypePosition(id, callback.fnNode) || BROWSER_GLOBALS.has(id.getText())) {
       continue;
     }
-    const decl = id.getSymbol()?.getValueDeclaration();
-    if (decl === undefined) {
+    const binding = resolveLexicalValueDeclaration(id);
+    if (binding.kind === "unresolved") {
       unresolved.push(id.getText());
       continue;
     }
+    const decl = binding.value;
     // A named function/const-arrow may legally reference its OWN binding once serialized; a declaration
     // outside the callback's own file, or local to some enclosing function, is not the class.
     if (decl !== callback.declNode && decl.getSourceFile() === callback.sourceFile && isModuleScopeDeclaration(decl)) {

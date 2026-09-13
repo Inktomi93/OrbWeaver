@@ -55,7 +55,7 @@ function resolveReferenceOrigin(node: MorphNode): ReferenceFact<ReferenceOrigin>
 // shared reader instead of copied into each caller.
 //
 // THE SEMANTICS, EXPLICIT — every one of these is a pinned control in
-// `tests/tooling/verify/lib/reference-fact-callable.test.ts`:
+// `tests/tooling/verify/lib/reference-fact-call.test.ts`:
 //   local `function f`            → resolved at the FunctionDeclaration (body absent for `declare function`)
 //   `const g = f` / `import { f as g }` / a re-export rename → resolved at the SAME declaration as `f`
 //   `const h = () => …`           → resolved at the ARROW, never at the binding

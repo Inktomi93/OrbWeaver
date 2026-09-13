@@ -1,5 +1,5 @@
 // Final spelling-independent binding/reference facts for the shared gate runtime.
-import type { Identifier, Node as MorphNode } from "ts-morph";
+import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import type {
   GlobalMemberOrigin,
@@ -282,6 +282,33 @@ function resolveStableExpressionInternal(raw: MorphNode, target: ResolutionState
   return isDynamicTerminal(current)
     ? unresolved("dynamic", current, target, `${current.getKindName()} depends on runtime evaluation`)
     : resolved(current, target, current);
+}
+
+/** Every declaration published under one module export, retaining overloads and merged declarations.
+ *  Re-export aliases name their declaring source; no initializer is followed and no first declaration
+ *  stands in for the set. Consumers decide whether a home requires one declaration or all of them. */
+export function resolveExportedDeclarations(sourceFile: SourceFile, name: string): ReferenceFact<readonly MorphNode[]> {
+  const target = state();
+  const declarations = sourceFile.getExportedDeclarations().get(name) ?? [];
+  if (declarations.length === 0) {
+    return unresolved("missing", sourceFile, target, `module ${sourceFile.getFilePath()} exports no declaration named ${name}`);
+  }
+  appendTrace(target, declarations);
+  return resolved(declarations, target, sourceFile);
+}
+
+/** The checker-selected VALUE declaration of this lexical reference, without following an import target
+ *  or initializer. Scope consumers need the authored binding even when it is mutable, a parameter, or
+ *  part of a merged symbol; stable-value resolution answers a different question. A type-only symbol or
+ *  an import alias with no lexical value declaration refuses explicitly. */
+export function resolveLexicalValueDeclaration(node: MorphNode): ReferenceFact<MorphNode> {
+  const target = state();
+  const declaration = node.getSymbol()?.getValueDeclaration();
+  if (declaration === undefined) {
+    return unresolved("missing", node, target, `no lexical value declaration binds ${node.getText()}`);
+  }
+  appendDeclaration(target, declaration);
+  return resolved(declaration, target, declaration);
 }
 
 /** Resolve stable bindings to their source expression; origin/value readers separately refuse member effects. */

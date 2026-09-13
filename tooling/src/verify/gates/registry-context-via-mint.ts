@@ -37,6 +37,8 @@ import { defineGate } from "../contract/policy.ts";
 import type { LocatedProjectHome, ProjectHomeDeclaration } from "../lib/project-home-origin.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
 import { createReactExportMatcher } from "../lib/react-origin.ts";
+import { referenceResolutionServices, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { resolveTypeIdentityOrigin } from "../lib/type-member-origin.ts";
 import { REACT_LOOKALIKE_HOME, REACT_TYPES_HOME, reactLookalikeProofModule, reactProofModule } from "./_proof/react.ts";
 
 const CREATE_CONTEXT = "createContext";
@@ -72,9 +74,17 @@ function writtenTypeNames(typeNode: TypeNode): readonly MorphNode[] {
 
 /** One declared alias hop: `type SectionRegistry = Registry<Id, Def>` steps to the `Registry` reference. */
 function aliasStep(name: MorphNode): readonly MorphNode[] {
-  const symbol = name.getSymbol();
-  const target = symbol?.getAliasedSymbol() ?? symbol;
-  return (target?.getDeclarations() ?? []).flatMap((declaration) => {
+  const origin = resolveModuleMemberOrigin(name);
+  const lexical = Node.isIdentifier(name) ? referenceResolutionServices.declarationOf(name) : undefined;
+  const type = resolveTypeIdentityOrigin(name);
+  let declarations = type.kind === "resolved" ? type.value.declarations : [];
+  if (lexical?.kind === "resolved") {
+    declarations = [lexical.value];
+  }
+  if (origin.kind === "resolved" && origin.value.canonical.kind === "project") {
+    declarations = [origin.value.canonical.declaration];
+  }
+  return declarations.flatMap((declaration) => {
     if (!Node.isTypeAliasDeclaration(declaration)) {
       return [];
     }

@@ -57,3 +57,23 @@ test("a renamed record or interface takes the denominator to zero and withholds 
   expect(result.toolErrors).toMatchObject([{ policyId: "message-kind-policy-coverage", phase: "receipt", message: expect.stringContaining("zero members") }]);
   expect(result.authority.withheldPolicyIds).toEqual(["message-kind-policy-coverage"]);
 });
+
+test("a type alias does not replace the declared-interface heritage requirement", () => {
+  const result = passOf({
+    [HOME]:
+      "interface Base { readonly prompt: 'conversation' | 'never'; } type Alias = Base; export interface MessageKindPolicy extends Alias {} export const MESSAGE_KIND_POLICY = {};",
+  });
+  expect(result.toolErrors).toMatchObject([
+    { policyId: "message-kind-policy-coverage", message: expect.stringContaining("resolves to no interface declaration") },
+  ]);
+  expect(result.authority.withheldPolicyIds).toEqual(["message-kind-policy-coverage"]);
+});
+
+test("merged interface declarations retain every inherited policy axis", () => {
+  const result = passOf({
+    [HOME]:
+      "interface Base { readonly prompt: 'conversation' | 'never'; } interface Base { readonly wire: 'carry' | 'drop'; } export interface MessageKindPolicy extends Base {} export const MESSAGE_KIND_POLICY = {};",
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings.map((finding) => finding.token).sort()).toEqual(["prompt", "wire"]);
+});
