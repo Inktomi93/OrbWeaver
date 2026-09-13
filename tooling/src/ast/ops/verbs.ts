@@ -10,6 +10,7 @@ import { cmdContractFieldLiveness } from "./fields.ts";
 import { cmdAliases, cmdCycles } from "./graph.ts";
 import { cmdOrphans, cmdTestOnly } from "./orphans.ts";
 import { cmdProdOnly } from "./prodonly.ts";
+import { cmdRegistryCandidates } from "./registry-candidates.ts";
 import { cmdRegKeys } from "./regkeys.ts";
 import { cmdRespell } from "./respell.ts";
 import { cmdRot } from "./rot.ts";
@@ -46,6 +47,7 @@ export const VERBS: Record<string, (project: Project, arg: string, flags: Flags)
   "typeonly-alive": cmdTypeOnly,
   columns: cmdColumns,
   regkeys: cmdRegKeys,
+  "registry-candidates": cmdRegistryCandidates,
   "contract-field-liveness": cmdContractFieldLiveness,
   chains: cmdChains,
   stringy: cmdStringy,
@@ -91,6 +93,7 @@ export const ARGLESS_VERBS = new Set([
   "columns",
   "regkeys",
   "contract-field-liveness",
+  "registry-candidates",
   "chains",
   "stringy",
   "apisurface",

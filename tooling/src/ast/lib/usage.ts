@@ -34,6 +34,7 @@ export const USAGE = [
   "  pnpm ast typeonly-alive server     VALUE exports whose every reference is a TYPE position (runtime-dead)",
   "  pnpm ast columns rpg_games         drizzle columns by consumption: READ+WRITE / WRITE-only / READ-only / NEITHER",
   "  pnpm ast regkeys TEMPLATE_DEFS     registry ROWS whose key is dispatched nowhere (HEURISTIC, informational)",
+  "  pnpm ast registry-candidates       convention-maintained open sets that may need a registry door (INFORMATIONAL)",
   "  pnpm ast contract-field-liveness   contracts FIELDS no producer populates (INFORMATIONAL — the caption class one tier up)",
   "  pnpm ast chains server             WHOLE dead chains: declarations alive only via other DEAD declarations",
   "  pnpm ast stringy kit               type aliases that RESOLVE to bare `string` (no narrowing, no brand)",
