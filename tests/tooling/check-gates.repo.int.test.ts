@@ -1031,23 +1031,21 @@ function writeFixtures(): void {
 // enforcement-registry-parity: its `__g_` arm is retired (the gate-file-vs-registry job is now the loader's
 // fail-closed responsibility); its contract-form doc-reconciliation bite is proven by gate-conformance and by
 // tests/tooling/verify/gates/enforcement-registry-parity.int.test.ts over both contracts.
-// bus-payload-allowlist: scopes to 8 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
-// can't match. STILL UNFIXTURABLE after #948 made the member walk TRANSITIVE over the named event's own
-// type identity, after #1024/#1025 added the open-key-space and imported-zod-schema arms, and after #1047
-// admitted the workloads home + taught the reader the §5.5 mapped-type distribution, and after #1066 made
-// the FIELD walker fail closed on every unmodelled type node: every one of
-// those reaches a carrier ONLY because a REAL bus file `extends`/aliases/imports it, which a throwaway
-// file cannot make it do. Bite proven by gate-conformance's mustFlag (imported-carrier, aliased-arm,
-// unresolved-base, blindness, index-signature, `Record` field, imported zod arm, unresolved-schema,
-// `.loose()`, the three #1047 distribution rows — template-member, unenumerable-constraint, field-position —
-// and the two #1066 field-walker rows: a conditional field type refused by kind, and an inline object inside
-// a TUPLE element read rather than skipped) + the committed pins in tests/tooling/verify/gates/bus-payload-allowlist.test.ts + two
-// D16 real-file backup-pattern proofs (apiKey planted on user-bus settingsChanged → RED → restored;
-// 2026-09-01, an index signature on the real `UserBusEvent.corpusRecomputed` arm AND a relatively-imported
-// notification arm carrying `apiKey` → both RED at their declaring sites → restored). The #1030 F4
-// population widening (rpg + automation homes) carries its own real-file control: a planted
-// `ResolvedCredential` type-import in packages/contracts/src/rpg/bus.ts REDs the paired dep-cruiser
-// `bus-contract-no-credentials` rule at its widened scope → restored.
+// bus-payload-allowlist CONVERTED 2026-09-13 (#1584) and its row is GONE from the set below: it SPLIT into
+// `bus-payload-allowlist` (reviewed-grant) + `bus-payload-allowlist-health` (hard) over one shared
+// `busPayloadFact` provider, and a final policy is partitioned out by the mixed roster, so a row naming
+// either half fails the two-sided arm. Its unfixturability was never about the `__g_` sentinel: the family
+// dispatches on EIGHT exact bus-contract paths and reaches a carrier only because a REAL bus file
+// `extends`/aliases/imports it, which a throwaway file cannot make it do — and a final policy's `mode:
+// "types"` proof rows materialise a whole synthetic contracts tree with its own carriers, which is exactly
+// the substrate the legacy harness could not give it. Its bite is `structure:policy-conformance` running
+// twelve `mustFlag` + nine `mustPass` rows on the reviewed half (imported-carrier, aliased-arm, merged
+// declaration, the zod imported-initializer arm, the two #1047 distribution positions, the #1066 tuple
+// element, and the grant-granularity aggregation row) and eight + six on the hard half (unresolved-base,
+// index-signature, `Record` field, unresolved-schema, `.loose()`, the unenumerable constraint, the #1066
+// conditional field type and the empty-denominator tripwire), plus
+// tests/tooling/verify/gates/bus-payload-family.test.ts, which carries the real-corpus liveness pin and the
+// blindness sweep the conformance substrate structurally cannot reach.
 // knob-wire-coverage (D107): a whole-corpus coverage ratchet over its semantic member sources
 // (EffectiveAppConfig / USER_SETTINGS_SECTIONS / appSettingsSchema / imported Appearance schema /
 // DEFAULT_FORMAT_STRINGS / chatMetadataSchema). Its MISSING arm needs an UNWIRED member added to one of
@@ -1093,9 +1091,17 @@ function writeFixtures(): void {
 // `structure:policy-conformance` running thirteen `mustFlag` rows (including the ORDER, PRESENCE and
 // TARGET clauses of the CT config, and the unresolvable-@import arm #2231 found structurally dead), two
 // `mustRefuse` rows, and tests/tooling/verify/gates/css-home-topology-family.test.ts.
-// devtools-frontend-assets reads the exact generated closure under tooling/src/snap/lib/devtools-frontend.
-// A __g file cannot perturb that manifest/pin/license/resource tuple without mutating the live vendored root;
-// its dedicated fs-backed conformance pin drives the same validator through exact red and green temp roots.
+// devtools-frontend-assets CONVERTED 2026-09-13 (#1584) and its row is GONE from the set below, for the
+// same reason the tokens-contract and config-liveness rows are: a final policy is partitioned out by the
+// mixed roster, so a row naming one fails the two-sided arm. Its unfixturability was never about the `__g_`
+// sentinel either — it reads the exact generated closure under tooling/src/snap/lib/devtools-frontend, which
+// a throwaway source file could never perturb without mutating the live vendored root, and a final policy's
+// resource proofs materialise their own temp repository WITH a planted node_modules, which is exactly the
+// substrate the legacy harness could not give it. Its bite is `structure:policy-conformance` running four
+// `mustFlag` rows (hash drift, the exact inventory, the canonical-path fence and the installed
+// Playwright/Chromium tuple), one `mustPass` and two `mustRefuse` rows, plus
+// tests/tooling/verify/gates/devtools-frontend-assets.int.test.ts, which pins the real-corpus liveness the
+// legacy descriptor held with a `tooling/src/snap/cli.ts` anchor no fixture could satisfy.
 const UNFIXTURABLE_GATES = new Set([
   "baseui-surface-manifest",
   "enforcement-registry-parity",
@@ -1103,7 +1109,6 @@ const UNFIXTURABLE_GATES = new Set([
   "knob-wire-coverage",
   "css-family-ownership",
   "css-selector-has-a-writer",
-  "devtools-frontend-assets",
 ]);
 
 let registry = new Set<string>();

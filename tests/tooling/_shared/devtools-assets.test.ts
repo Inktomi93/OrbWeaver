@@ -1,11 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { startDevToolsAssetServer, verifyDevToolsAssets } from "@orb/tooling/_shared/devtools-assets";
+import type { DevToolsClosureFile, DevToolsClosureInput } from "@orb/tooling/_shared/devtools-assets";
+import { adjudicateDevToolsClosure, readChromiumBrowserVersion, startDevToolsAssetServer, verifyDevToolsAssets } from "@orb/tooling/_shared/devtools-assets";
 import { afterEach } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -168,6 +170,63 @@ test("every real manifest resource is Git-tracked, including resources beneath i
   expect(manifest.resources.map(({ file }) => `${ASSET_ROOT}/${file}`)).toContain(formatterWorker);
   expect(untrackedManifestResources(manifest.resources, plantedMissing)).toContain(ignoredCoverageResource);
   expect(untrackedManifestResources(manifest.resources, tracked)).toEqual([]);
+});
+
+// THE SPLIT'S OWN PIN (#1584, the `devtools-frontend-assets` conversion). `verifyDevToolsAssetsSync` and the
+// final gate policy now reach the SAME verdict through the SAME code — the runtime loads the adjudicator's
+// input off disk, the policy takes it from the `devtools-closure` + `installed-package` ResourceHost doors.
+// Nothing else holds that equivalence: the gate's own conformance rows never touch the runtime path, and this
+// suite never touched the policy path, so a future edit could quietly make one caller stricter than the other.
+// This row drives the adjudicator DIRECTLY over a census assembled the way the resource door assembles one —
+// hashing every regular member from a plain directory walk — and asserts both the clean verdict and the same
+// refusal the runtime raises on the same mutation.
+function walkCensus(root: string, directory = root, into: DevToolsClosureFile[] = []): DevToolsClosureFile[] {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      walkCensus(root, path, into);
+    } else {
+      const body = readFileSync(path);
+      into.push({ file: relative(root, path), bytes: body.byteLength, sha256: sha256(body) });
+    }
+  }
+  return into;
+}
+
+function adjudicationInput(root: string): DevToolsClosureInput {
+  return {
+    pinText: readFileSync(join(root, "pin.json"), "utf8"),
+    manifestText: readFileSync(join(root, "manifest.json"), "utf8"),
+    licensesText: readFileSync(join(root, "licenses.json"), "utf8"),
+    files: walkCensus(root),
+  };
+}
+
+test("the pure adjudicator and the filesystem entry point cannot drift apart", async () => {
+  const { root, asset } = await syntheticRoot();
+  const pin = JSON.parse(await readFile(join(root, "pin.json"), "utf8")) as Record<string, unknown>;
+  const installed = { version: String(pin["playwrightVersion"]), browserVersion: String(pin["browserVersion"]) };
+
+  // Clean: both callers agree, and the adjudicator returns the same parsed pin the runtime publishes.
+  const viaRuntime = verifyDevToolsAssets(root);
+  const viaDoors = adjudicateDevToolsClosure(adjudicationInput(root), installed);
+  expect(viaDoors.pin).toEqual(viaRuntime.pin);
+  expect(viaDoors.manifest).toEqual(viaRuntime.manifest);
+
+  // Broken: the SAME mutation raises the SAME refusal on both sides. Without this half the row would pass
+  // for a split that had made the pure path silently permissive.
+  await writeFile(join(root, asset), "mutated bytes");
+  expect(() => verifyDevToolsAssets(root)).toThrow("hash/size mismatch");
+  expect(() => adjudicateDevToolsClosure(adjudicationInput(root), installed)).toThrow("hash/size mismatch");
+
+  // And the tuple half, which only the policy's doors can get wrong: a drifting installed version refuses
+  // through the adjudicator exactly as it does through `installedPlaywrightTuple()`.
+  const clean = await syntheticRoot();
+  expect(() => adjudicateDevToolsClosure(adjudicationInput(clean.root), { ...installed, version: "0.0.0-planted-drift" })).toThrow(
+    "Playwright/Chromium tuple drift",
+  );
+  expect(readChromiumBrowserVersion('{"browsers":[{"name":"chromium","browserVersion":"1.2.3"}]}')).toBe("1.2.3");
+  expect(() => readChromiumBrowserVersion('{"browsers":[{"name":"firefox","browserVersion":"1.2.3"}]}')).toThrow("no chromium pin");
 });
 
 test("the generated closure is excluded exactly from first-party source analyzers", async () => {
