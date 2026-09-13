@@ -107,13 +107,30 @@
 //     final receipt is the DECLARED move recorded above, not a silent drop: the successor is the
 //     `config:biome-rule-liveness` static stage (#2074). None of them was ever a finding.
 //
-// THE NON-VACUOUS ARM DOES NOT EXIST THROUGH THE SHARED HARNESS, and that is pinned rather than argued.
-// `tests/support/legacy-differential.ts` replays on an IN-MEMORY project and REFUSES a legacy gate that
-// touches disk (#2119) — this one is `existsSync` + `readFileSync` plus arm six's spawn.
-// `tests/tooling/verify/gates/grant-liveness-family.test.ts`'s §4.6 arm drives `filesystemReach` over both
-// frozen blobs with controls in both directions, so a later lane cannot "add the missing replay" by
-// relaxing that scan. A fixture-level replay here needs a REAL-TMPDIR harness (§4.6's own guidance for a
-// filesystem-reading legacy gate); that residual is board row #2319.
+// THE NON-VACUOUS ARM NOW EXISTS, AND IT IS A REAL-TMPDIR FIXTURE REPLAY (#2319, 2026-09-13). The record
+// above stands exactly as written — it is the REAL-TREE drive, category 5 with a zero legacy side, and it
+// still disclaims catch parity. What it could not do is what §4.6 calls the only method that reaches catch
+// parity: replay each legacy `GateExample` file map through the frozen descriptor and the final pair over
+// the SAME BYTES. The shared harness refused, correctly, because it replays IN-MEMORY and this descriptor
+// reads disk (#2119) — so the door §4.6 names for that class was BUILT rather than the refusal relaxed:
+// `tests/support/legacy-differential.ts` `createTmpdirDifferential`, and the table is
+// `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`. All 14 legacy examples, both engines,
+// findings + populations + subjects + tool errors, each row classified with a MATCHED successor:
+//   · 1 IDENTICAL (`mustFlag[0]`, the founding file-exact catch) — catch parity, measured.
+//   · 1 SPLIT — `MSG_NO_ROWS` fires as `biome-grant-liveness-health` on the same fixture (anchor 0 → 1).
+//   · 2 RUNTIME-REFUSAL — MISSING-CONFIG and UNPARSEABLE-CONFIG are population-phase TOOL ERRORS, which is
+//     this header's claim above turned into an executed fact.
+//   · 2 RETIRED-ARM — STALE-EXEMPT (successor is the CENTRAL engine's zero-consumption staleness, a
+//     whole-run fact no fixture can produce) and DEAD-CITE (no successor at all, as recorded above).
+//   · 3 STRONGER-READER — the glob arm was gated behind a real-tree anchor no fixture could clear, so it
+//     was silent under the descriptor and reports here.
+//   · 2 CATEGORY 5, driven with the SHIPPED `biome-grant-liveness:catalog-tmp` row: raw 30 → granted 1 →
+//     effective 29, so "did every hidden site become exactly ONE live, CONSUMED row" is answered per
+//     fixture rather than in prose.
+//   · 3 VACUOUS-BOTH-ZERO, labelled as such — evidence of nothing, and the harness makes them say so.
+// THE IN-MEMORY REFUSAL IS UNCHANGED and still pinned with both controls in
+// `grant-liveness-family.test.ts`; the tmpdir door carries the opposite fence (a replay root inside the
+// running checkout is refused) so a frozen `existsSync` arm can never answer about this repository.
 //
 // COMMENT POSTURE: n/a — the scanned unit is STRICT JSON, which has no comment syntax.
 import type { GatePolicyContext } from "../contract/policy.ts";

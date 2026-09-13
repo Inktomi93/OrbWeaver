@@ -46,16 +46,21 @@
 //   reach it found. A caller whose legacy gate genuinely needs disk owes a real-tmpdir harness, not a
 //   relaxed scan here.
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, join } from "node:path";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, sep } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { Project } from "ts-morph";
 import type { GateDescriptor, GateExample } from "../../tooling/src/verify/contract/gate.ts";
+import type { CoordinatedGateFinding, ReviewedGateGrant } from "../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../tooling/src/verify/contract/policy.ts";
 import { runPass } from "../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../tooling/src/verify/lib/policy-pass.ts";
+import { isPolicySourceCandidate } from "../../tooling/src/verify/lib/policy-source-candidate.ts";
+import { repoGitEnvironment } from "../../tooling/src/verify/lib/repo-paths.ts";
 import { expect } from "./tool-fixtures.ts";
 
 const REQUIRE = createRequire(join(process.cwd(), "package.json"));
@@ -153,8 +158,16 @@ export function legacyScenarios(legacy: GateDescriptor, fallback: string): reado
   return [...legacy.mustFlag, ...legacy.mustPass].map((example) => exampleFiles(example, fallback));
 }
 
-/** Every specifier a frozen module can carry, resolved to an absolute file URL. */
-function resolveSpecifier(specifier: string): string {
+/** Every specifier a frozen module can carry, resolved to an absolute file URL — or `null` for a NODE
+ *  BUILTIN, which is already absolute and must be left exactly as authored. `createRequire.resolve("node:fs")`
+ *  returns the specifier unchanged, so the old unconditional `pathToFileURL` produced `file:///node:fs` and
+ *  the frozen module died at import with "Cannot find module '/node:fs'". Invisible until #2319's real-tmpdir
+ *  door, because every blob the in-memory door replays is a pure AST reader that imports no builtin — which is
+ *  the same shape as the refusal above it: the substrate decided which bug could exist. */
+function resolveSpecifier(specifier: string): string | null {
+  if (specifier.startsWith("node:")) {
+    return null;
+  }
   if (specifier.startsWith("../") || specifier.startsWith("./")) {
     return pathToFileURL(join(process.cwd(), "tooling/src/verify/gates", specifier)).href;
   }
@@ -165,7 +178,40 @@ function resolveSpecifier(specifier: string): string {
 }
 
 const IMPORT_LINE = /^(?<head>(?:import|export)\s.*?\sfrom\s)"(?<specifier>[^"]+)";$/u;
+/** The MULTI-LINE named-import form's two ends. A brace list that biome wrapped is still ONE import, and the
+ *  single-line matcher above saw its opening brace as the first line of the BODY — so everything below it,
+ *  including the `} from "../lib/…"` that carries the specifier, was left unshimmed and the frozen module
+ *  died at import. Found by #2319's first real replay: `tsconfig-entry-liveness` imports seven names from
+ *  `lib/grant-liveness.ts`, which is exactly wide enough for the formatter to wrap it. */
+const IMPORT_BLOCK_OPEN = /^(?:import|export)\s[^"]*\{\s*$/u;
+const IMPORT_BLOCK_CLOSE = /^(?<head>\}\s+from\s)"(?<specifier>[^"]+)";$/u;
 const HEADER_LINE = /^(?:\/\/|\/\*|\s*\*|$)/u;
+
+/** One header line's disposition. `shimmed` is set only when a SPECIFIER was rewritten — a node builtin and
+ *  a brace-list interior are carried verbatim and owe no absolute-URL assertion. */
+interface ShimmedLine {
+  readonly text: string;
+  readonly shimmed: string | null;
+  readonly closesBlock: boolean;
+}
+
+function shimSpecifierLine(line: string, pattern: RegExp): ShimmedLine | null {
+  // Biome's type service drops the `| null` from `RegExp.prototype.exec`'s lib signature when the regex
+  // arrives as a PARAMETER (it does not on a module-const regex, which is why this only appeared once the
+  // matcher became an argument). The null is real and is the ORDINARY case: this runs on every line of the
+  // frozen module and most lines are not imports.
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: `RegExp.exec` returns `RegExpExecArray | null`; the receiver is nullish on every non-matching line.
+  const groups = pattern.exec(line)?.groups;
+  if (groups === undefined) {
+    return null;
+  }
+  const resolved = resolveSpecifier(groups["specifier"] as string);
+  if (resolved === null) {
+    return { text: line, shimmed: null, closesBlock: true };
+  }
+  const text = `${groups["head"] as string}"${resolved}";`;
+  return { text, shimmed: text, closesBlock: true };
+}
 
 /** Rewrite ONLY the header import block, and prove it. See this file's header for the failure it prevents. */
 export function shimHeaderImports(source: string): string {
@@ -173,12 +219,16 @@ export function shimHeaderImports(source: string): string {
   let end = 0;
   const rewritten: string[] = [];
   const imports: string[] = [];
+  let inBlock = false;
   for (const [index, line] of lines.entries()) {
-    const match = IMPORT_LINE.exec(line);
-    if (match?.groups !== undefined) {
-      const shimmed = `${match.groups["head"] as string}"${resolveSpecifier(match.groups["specifier"] as string)}";`;
-      rewritten.push(shimmed);
-      imports.push(shimmed);
+    const shim = shimSpecifierLine(line, inBlock ? IMPORT_BLOCK_CLOSE : IMPORT_LINE);
+    const carried: ShimmedLine | null = shim ?? (inBlock || IMPORT_BLOCK_OPEN.test(line) ? { text: line, shimmed: null, closesBlock: false } : null);
+    if (carried !== null) {
+      rewritten.push(carried.text);
+      if (carried.shimmed !== null) {
+        imports.push(carried.shimmed);
+      }
+      inBlock = !carried.closesBlock;
       end = index + 1;
       continue;
     }
@@ -222,9 +272,23 @@ export function filesystemReach(source: string): readonly string[] {
   return FILESYSTEM_REACH.filter((spelling) => source.includes(spelling));
 }
 
+/** Extract the frozen blob, shim its header imports, write it OUTSIDE `gates/` and import it. Both doors
+ *  share this: the difference between them is the SUBSTRATE the descriptor is then driven over, never how
+ *  it is loaded. */
+async function loadFrozenGate(scratch: string, base: string, legacyPath: string): Promise<{ readonly gate: GateDescriptor; readonly source: string }> {
+  const source = execFileSync("git", ["show", `${base}:${legacyPath}`], { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING });
+  const name = `${base.slice(0, 8)}-${basename(legacyPath)}`;
+  const target = join(scratch, name);
+  writeFileSync(target, shimHeaderImports(source));
+  const module_ = (await import(`${pathToFileURL(target).href}?frozen=${name}`)) as { readonly gate: GateDescriptor };
+  return { gate: module_.gate, source };
+}
+
+const FROZEN_BLOB_CEILING = 8 * 1024 * 1024;
+
 /** The pre-conversion descriptor, extracted at its frozen SHA and shimmed so it runs from `scratch`. */
 export async function frozenLegacyGate(scratch: string, base: string, legacyPath: string): Promise<GateDescriptor> {
-  const source = execFileSync("git", ["show", `${base}:${legacyPath}`], { encoding: "utf8" });
+  const source = execFileSync("git", ["show", `${base}:${legacyPath}`], { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING });
   const reach = filesystemReach(source);
   if (reach.length > 0) {
     throw new Error(
@@ -233,10 +297,392 @@ export async function frozenLegacyGate(scratch: string, base: string, legacyPath
         "Replay it on a real tmpdir instead of relaxing this refusal (tests/support/legacy-differential.ts).",
     );
   }
-  const name = `${base.slice(0, 8)}-${basename(legacyPath)}`;
-  const target = join(scratch, name);
-  writeFileSync(target, shimHeaderImports(source));
-  return ((await import(`${pathToFileURL(target).href}?frozen=${name}`)) as { readonly gate: GateDescriptor }).gate;
+  return (await loadFrozenGate(scratch, base, legacyPath)).gate;
+}
+
+// ── THE REAL-TMPDIR DOOR (#2319) ───────────────────────────────────────────────────────────────────────
+//
+// WHY IT EXISTS. `frozenLegacyGate` above refuses a filesystem-reading descriptor because the in-memory
+// substrate would make its fs arm answer about the RUNNING CHECKOUT rather than about the fixture — a
+// confident, wrong differential. §4.6's own instruction for that class is *"replay a filesystem-reading
+// legacy gate on a REAL TMPDIR, never a virtual root"*, and until this door existed the `grant-liveness`
+// config pair's §4.6 records were category 5 with a zero legacy side (liveness-and-outcome receipts, never
+// catch parity — `tsconfig-entry-liveness.ts`'s header says so, and #2319 is this residual).
+//
+// THE REFUSAL IS PRESERVED, NOT RELAXED. `frozenLegacyGate` still refuses; nothing here loosens
+// `filesystemReach`. What this door adds is the substrate that makes the refusal's own advice reachable —
+// and it carries the OPPOSITE refusal, which is the one that matters once a descriptor is allowed near
+// real disk: `assertReplayRootIsScratch` throws if the root a replay is about to be driven over lies
+// inside the running checkout. A legacy `existsSync` arm pointed at the live tree answers about this
+// repository, which is exactly the wrong-substrate failure #2119 was minted for, one direction over.
+//
+// THE TWO SUBSTRATES IT MIRRORS, deliberately, rather than inventing a third:
+//   · LEGACY — `ops/conformance.ts` `runFsBackedExample`: mkdtemp, `git init`, write the example's file
+//     map, a real-fs `Project` carrying the TS members, then `runPass`.
+//   · FINAL — `ops/policy-conformance.ts` `runResourceExample`: mkdtemp, write, `git init` + `git add
+//     --all` (the tracked-file oracle every `grant-liveness` policy reads through), a real-fs `Project`
+//     plus the authored overlay and its parser seam, then `runPolicyPass`.
+// The ONE difference between them is the git INDEX, and this harness does not assume it is inert: every
+// scenario re-runs the legacy side on an UNINDEXED root and asserts the verdict did not move
+// (`indexInertness` below). Without that control, adopting `git add` for the shared root would be an
+// undeclared substrate port sitting under every number in the table.
+
+/** Every file map the tmpdir door will materialize is an AUTHORED transaction. `ops/resource-reader.ts`'s
+ *  non-authored vocabulary is filtered out of the overlay by `ops/policy-conformance.ts`; no caller here has
+ *  needed such a fixture, so this door REFUSES one rather than carrying a second copy of that filter which
+ *  nothing would ever exercise. */
+const NON_AUTHORED_SEGMENT_RE = /(?:^|\/)(?:node_modules|\.git|dist|\.cache)(?:\/|$)/u;
+
+/** THE ANTI-LIVE-TREE REFUSAL — the #2119 obligation one direction over. Exported so its own controls can
+ *  drive it both ways without materializing anything. */
+export function assertReplayRootIsScratch(root: string): void {
+  const resolved = realpathSync(root);
+  const checkout = realpathSync(process.cwd());
+  if (resolved === checkout || resolved.startsWith(`${checkout}${sep}`)) {
+    throw new Error(
+      `a real-tmpdir replay root must live OUTSIDE the running checkout, and ${resolved} is inside ${checkout} — ` +
+        "a frozen legacy descriptor's existsSync/readdirSync arm driven there answers about THIS repository " +
+        "rather than about the fixture, which is the wrong-substrate differential #2119 refuses in the other " +
+        "direction (tests/support/legacy-differential.ts).",
+    );
+  }
+}
+
+/** One replay's three §4.6 axes plus the two the authority engine added at conversion. `raw` is what the
+ *  policy REPORTED and `findings` is what survived reconciliation; on the legacy side they are the same list
+ *  because a descriptor had no authority engine to survive. */
+export interface TmpdirReplay {
+  /** EFFECTIVE findings — what a run would print. */
+  readonly findings: readonly string[];
+  /** RAW findings — before waivers and reviewed grants. A category-5 delta is visible only here. */
+  readonly raw: readonly string[];
+  /** Grant ids consumed, sorted. Empty on the legacy side by construction. */
+  readonly granted: readonly string[];
+  /** The SOURCE population both runtimes publish (`scanRoot` admissions · `effectiveSourcePaths`). */
+  readonly population: number;
+  /** The SUBJECT set: the legacy `ctx.scan` declaration, or the final `effectiveResourcePaths`. A
+   *  `{ of: "none" }` policy's whole population lives here and nowhere in the number above. */
+  readonly subjects: readonly string[];
+  readonly toolErrors: readonly string[];
+  /** Set when population resolution or the pass itself THREW — a refusal, never a verdict. */
+  readonly thrown: string | undefined;
+}
+
+/** How one example's two sides differ, as a CLOSED vocabulary rather than a prose cell. §4.6's four
+ *  categories plus the two `mechanical-gates-1584.md` was missing, plus the two shapes a conversion of a
+ *  filesystem gate into a resource policy actually produces. `runTmpdirScenarios` asserts each label
+ *  against the numbers, so a mislabelled row reds instead of reading as a record. */
+export type DifferentialClass =
+  /** Both sides report the same non-empty finding set. The only label that claims CATCH PARITY. */
+  | "identical"
+  /** Both sides zero. §4.6 vacuity shape 1 — evidence of nothing, and it must say so. */
+  | "vacuous-both-zero"
+  /** §4.6 category 1: the legacy arm moved to a `-health` sibling, which now reports it. */
+  | "split"
+  /** §4.6 category 2: the legacy arm has no successor here, and the successor proof is named in `why`. */
+  | "retired-arm"
+  /** §4.6 category 4: a stronger reader reaches a verdict the legacy reader could not. */
+  | "stronger-reader"
+  /** §4.6 category 5: a site the legacy exemption table HID is now reported raw and licensed by a grant. */
+  | "exemption-mechanism-move"
+  /** §4.6 category 6: the same catch at a different reported position. Owed a receipt, not a bucket. */
+  | "anchor-move"
+  /** The legacy FINDING became the runtime's own refusal — louder than the finding it replaced. */
+  | "runtime-refusal";
+
+/** A minimal, DECLARED completion of a legacy fixture for the tmpdir door. Same contract as `Repair`. */
+export interface TmpdirScenario {
+  readonly why: string;
+  readonly classification: DifferentialClass;
+  readonly legacy: readonly string[];
+  readonly legacyPopulation: number;
+  readonly legacySubjects: readonly string[];
+  readonly legacyErrors?: readonly string[];
+  /** EFFECTIVE findings on the final side. */
+  readonly final: readonly string[];
+  /** RAW findings, when they differ from `final` — a PORT, declared per fixture with both numbers. */
+  readonly finalRaw?: readonly string[];
+  readonly finalPopulation: number;
+  readonly finalSubjects: readonly string[];
+  readonly finalErrors?: readonly string[];
+  /** The reviewed grants this fixture is driven with. Declaring one is how a category-5 row proves the
+   *  hidden site became exactly ONE live, CONSUMED grant rather than merely a reported one. */
+  readonly grants?: readonly ReviewedGateGrant[];
+  readonly granted?: readonly string[];
+  /** THE SUCCESSOR PROOF, per example — §4.6's *"a retired or merged arm needs a successor proof"* made a
+   *  FIELD instead of prose. A substring that must occur in at least one FINAL finding label or tool error;
+   *  it is what says WHICH final output carries the legacy catch, and it is the check a count comparison
+   *  cannot make (a fixture whose 30 filler globs light up the new glob arm has a large final side and may
+   *  still have dropped the one arm the example was written for). `null` only where the legacy catch has NO
+   *  successor on this substrate, which then owes `retiredWhy`. */
+  readonly successor: string | null;
+  /** Required when `successor` is null and the legacy side caught something: why nothing here carries it. */
+  readonly retiredWhy?: string;
+  /** A refusal the final side THREW, matched by inclusion. */
+  readonly finalThrows?: string;
+}
+
+export interface TmpdirDifferential {
+  readonly legacyReplay: (gate: GateDescriptor, files: Files, shape: Label, options?: { readonly index?: boolean }) => TmpdirReplay;
+  readonly finalReplay: (policies: readonly GatePolicy[], files: Files, shape: Label, grants?: readonly ReviewedGateGrant[]) => TmpdirReplay;
+  readonly runScenarios: (legacy: GateDescriptor, policies: readonly GatePolicy[], fallback: string, scenarios: readonly TmpdirScenario[]) => number;
+}
+
+/** THE CLASSIFICATION IS A CHECKED CLAIM, as a mapped Record over the closed union so a new category is a
+ *  `tsc` error rather than a silently unchecked cell. Only the two labels that LIE are decided
+ *  arithmetically — `identical` (which claims catch parity) and `vacuous-both-zero` (which must confess
+ *  it is evidence of nothing). The rest are carried by the SUCCESSOR field below, deliberately: a count
+ *  test cannot tell a carried arm from a lost one on a fixture whose 30 filler globs light up a newly
+ *  live arm, and filing a differential under a category its own evidence contradicts is exactly how
+ *  `ordinary-visitors-family-1584.md` swept four split arms into one `0 | 0 | 0` cell. */
+const CLASSIFICATION_CLAIMS: Record<DifferentialClass, (before: TmpdirReplay, after: TmpdirReplay) => readonly string[]> = {
+  identical: (before, after) => [
+    ...(before.findings.length > 0 ? [] : ['"identical" claims CATCH PARITY, so the LEGACY side must be non-empty']),
+    ...(after.findings.length === before.findings.length ? [] : ['"identical" requires the same finding COUNT on both sides']),
+  ],
+  "vacuous-both-zero": (before, after) => [
+    ...(before.findings.length === 0 ? [] : ['"vacuous-both-zero" requires the LEGACY side empty']),
+    ...(after.raw.length === 0 ? [] : ['"vacuous-both-zero" requires the FINAL side empty, RAW included']),
+  ],
+  split: () => [],
+  "retired-arm": (before) => (before.findings.length > 0 ? [] : ['"retired-arm" requires the LEGACY side to have caught something']),
+  "stronger-reader": (_before, after) => (after.raw.length > 0 ? [] : ['a "stronger-reader" row must REPORT what the legacy reader could not']),
+  "exemption-mechanism-move": (_before, after) =>
+    after.granted.length > 0 ? [] : ["category 5 is legacy-hidden → final-reported-and-LICENSED, so a grant must be CONSUMED"],
+  "anchor-move": (before, after) =>
+    after.findings.join("\n") === before.findings.join("\n") ? ['"anchor-move" claims the POSITION moved; identical labels mean nothing moved'] : [],
+  "runtime-refusal": (before, after) => [
+    ...(before.findings.length > 0 ? [] : ['"runtime-refusal" replaces a legacy FINDING, so the LEGACY side must be non-empty']),
+    ...(after.thrown !== undefined || after.toolErrors.length > 0
+      ? []
+      : ['"runtime-refusal" requires the final side to REFUSE — a throw or a tool error, never a report']),
+  ],
+};
+
+/** Every check the label and the successor proof together owe, as ONE list so the assertion is
+ *  unconditional and a failure names every broken claim rather than the first. */
+function scenarioViolations(scenario: TmpdirScenario, before: TmpdirReplay, after: TmpdirReplay): readonly string[] {
+  const carriers = [...after.findings, ...after.toolErrors, after.thrown ?? ""].join("\n");
+  return [
+    ...CLASSIFICATION_CLAIMS[scenario.classification](before, after),
+    ...(scenario.successor !== null && !carriers.includes(scenario.successor)
+      ? [`the declared SUCCESSOR ${JSON.stringify(scenario.successor)} appears in no final finding or tool error`]
+      : []),
+    ...(scenario.successor === null && before.findings.length > 0 && scenario.retiredWhy === undefined
+      ? ["the legacy side CAUGHT something and no successor is declared — say WHY nothing here carries it"]
+      : []),
+    ...(scenario.successor === null && before.findings.length === 0 && scenario.retiredWhy !== undefined
+      ? ["`retiredWhy` explains a retired CATCH, and this example's legacy side caught nothing"]
+      : []),
+  ];
+}
+
+function materialize(files: Files): { readonly root: string; readonly project: Project } {
+  for (const path of Object.keys(files)) {
+    if (NON_AUTHORED_SEGMENT_RE.test(path)) {
+      throw new Error(
+        `the real-tmpdir door refuses the non-authored fixture path ${path}: the overlay filter for that class ` +
+          "lives in ops/policy-conformance.ts and nothing here has ever needed it, so this door declines to " +
+          "carry an unexercised copy of it (tests/support/legacy-differential.ts).",
+      );
+    }
+  }
+  const root = mkdtempSync(join(tmpdir(), `orb-legacy-differential-${String(process.pid)}-`));
+  assertReplayRootIsScratch(root);
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  for (const [path, source] of Object.entries(files).toSorted(([left], [right]) => left.localeCompare(right))) {
+    const absolute = join(root, path);
+    mkdirSync(dirname(absolute), { recursive: true });
+    writeFileSync(absolute, source);
+    if (isPolicySourceCandidate(path)) {
+      project.addSourceFileAtPath(absolute);
+    }
+  }
+  return { root, project };
+}
+
+function initRepository(root: string, index: boolean): void {
+  const environment = repoGitEnvironment();
+  const steps = index
+    ? [
+        ["init", "--quiet"],
+        ["add", "--all"],
+      ]
+    : [["init", "--quiet"]];
+  for (const args of steps) {
+    const git = runNicedSync("git", ["-c", "core.hooksPath=/dev/null", ...args], { cwd: root, env: environment });
+    if (git.status !== 0) {
+      throw new Error(`replay Git ${String(args[0])} failed: ${git.stderr.trim()}`);
+    }
+  }
+}
+
+function declaredSubjects(declared: { readonly unit: string; readonly candidates: number; readonly scanned: number } | undefined): readonly string[] {
+  return declared === undefined ? [] : [`${declared.unit}: candidates=${String(declared.candidates)} scanned=${String(declared.scanned)}`];
+}
+
+/** Build the two real-tmpdir replay engines and the scenario runner. Every replay gets its OWN root — a
+ *  legacy `existsSync` oracle and a `git add --all` index are both whole-root state, so reusing one root
+ *  across examples would leak the previous fixture into the next verdict. */
+export function createTmpdirDifferential(classifyToolError: ClassifyToolError): TmpdirDifferential {
+  const legacyReplay = (gate: GateDescriptor, files: Files, shape: Label, options: { readonly index?: boolean } = {}): TmpdirReplay => {
+    const { root, project } = materialize(files);
+    try {
+      initRepository(root, options.index ?? true);
+      const result = runPass([gate], {
+        root,
+        project,
+        scope: { kind: "project" },
+        files: project.getSourceFiles(),
+        checker: () => project.getTypeChecker(),
+      });
+      const findings = sorted(
+        (result.gates[0]?.findings ?? []).map((finding) =>
+          shape({ file: finding.file, line: finding.line, token: finding.token, message: finding.message ?? gate.message, policyId: undefined }),
+        ),
+      );
+      return {
+        findings,
+        raw: findings,
+        granted: [],
+        population: Object.keys(files).filter((path) => gate.scanRoot?.(path) ?? true).length,
+        subjects: declaredSubjects(result.gates[0]?.scan.declared),
+        toolErrors: sorted(result.toolErrors.map((error) => `${error.gate}/${error.phase}`)),
+        thrown: undefined,
+      };
+    } catch (error) {
+      return {
+        findings: [],
+        raw: [],
+        granted: [],
+        population: 0,
+        subjects: [],
+        toolErrors: [],
+        thrown: error instanceof Error ? error.message : String(error),
+      };
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  const finalReplay = (policies: readonly GatePolicy[], files: Files, shape: Label, grants: readonly ReviewedGateGrant[] = []): TmpdirReplay => {
+    const { root, project } = materialize(files);
+    const parser = new Project({ useInMemoryFileSystem: true });
+    try {
+      initRepository(root, true);
+      const result = runPolicyPass({
+        knownPolicies: [...policies],
+        policies: [...policies],
+        root,
+        project,
+        reviewedGrants: [...grants],
+        failOnWarnings: false,
+        resourceOptions: { overlay: { ...files }, parseSource: (path, text) => parser.createSourceFile(`${root}/${path}`, text, { overwrite: true }) },
+      });
+      const messageOf = new Map(policies.map((policy) => [policy.id, policy.message]));
+      const describe = (finding: CoordinatedGateFinding): string =>
+        shape({
+          file: finding.file.startsWith(`${root}/`) ? finding.file.slice(root.length + 1) : finding.file,
+          line: finding.line,
+          token: finding.token,
+          message: finding.message ?? messageOf.get(finding.policyId) ?? "",
+          policyId: finding.policyId,
+        });
+      const subjects = new Set<string>();
+      const population = new Set<string>();
+      for (const owner of result.policies) {
+        for (const path of owner.population.effectiveSourcePaths) {
+          population.add(path);
+        }
+        for (const path of owner.population.effectiveResourcePaths) {
+          subjects.add(path);
+        }
+      }
+      return {
+        findings: sorted(result.authority.effectiveFindings.map(describe)),
+        raw: sorted(
+          [
+            ...result.authority.effectiveFindings,
+            ...result.authority.waivedFindings.map(({ finding }) => finding),
+            ...result.authority.grantedFindings.map(({ finding }) => finding),
+          ].map(describe),
+        ),
+        granted: sorted(result.authority.grantedFindings.map(({ grantId }) => grantId)),
+        population: population.size,
+        subjects: sorted([...subjects]),
+        toolErrors: sorted([
+          ...result.toolErrors.map((error) => classifyToolError(error.policyId, error.phase, error.message)),
+          ...result.factErrors.map((error) => classifyToolError(error.factId, error.phase, error.message)),
+          ...result.authority.toolErrors.map((error) => classifyToolError(error.policyId ?? "authority", "authority", error.message)),
+        ]),
+        thrown: undefined,
+      };
+    } catch (error) {
+      return {
+        findings: [],
+        raw: [],
+        granted: [],
+        population: 0,
+        subjects: [],
+        toolErrors: [],
+        thrown: error instanceof Error ? error.message : String(error),
+      };
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  const runScenarios = (legacy: GateDescriptor, policies: readonly GatePolicy[], fallback: string, scenarios: readonly TmpdirScenario[]): number => {
+    const examples = legacyScenarios(legacy, fallback);
+    expect(scenarios.length, "every legacy example is declared — a dropped row would otherwise be silent").toBe(examples.length);
+    for (const [index, scenario] of scenarios.entries()) {
+      const files = examples[index] as Files;
+      const tag = `#${index} ${scenario.why}`;
+      const before = legacyReplay(legacy, files, label);
+      const after = finalReplay(policies, files, label, scenario.grants);
+      expect(before.thrown, `${tag} — the LEGACY replay must not throw`).toBeUndefined();
+      expect(before.findings, `${tag} — LEGACY findings`).toEqual(sorted(scenario.legacy));
+      expect(before.population, `${tag} — LEGACY population`).toBe(scenario.legacyPopulation);
+      expect(before.subjects, `${tag} — LEGACY subjects`).toEqual(sorted(scenario.legacySubjects));
+      expect(before.toolErrors, `${tag} — LEGACY tool errors`).toEqual(sorted(scenario.legacyErrors ?? []));
+      // THE SUBSTRATE PORT, MEASURED RATHER THAN ASSUMED: the shared root carries a populated git index
+      // because the final side's tracked-file oracle needs one. This is the same legacy replay WITHOUT it.
+      expect(legacyReplay(legacy, files, label, { index: false }).findings, `${tag} — the git INDEX is inert on the legacy side`).toEqual(before.findings);
+      expect(
+        [after.thrown === undefined, (after.thrown ?? "").includes(scenario.finalThrows ?? "")],
+        `${tag} — FINAL refusal (${after.thrown ?? "no throw"})`,
+      ).toEqual([scenario.finalThrows === undefined, true]);
+      expect(after.findings, `${tag} — FINAL effective findings`).toEqual(sorted(scenario.final));
+      expect(after.raw, `${tag} — FINAL raw findings (a PORT is declared with BOTH numbers)`).toEqual(sorted(scenario.finalRaw ?? scenario.final));
+      expect(after.granted, `${tag} — FINAL consumed grants`).toEqual(sorted(scenario.granted ?? []));
+      expect(after.population, `${tag} — FINAL population`).toBe(scenario.finalPopulation);
+      expect(after.subjects, `${tag} — FINAL subjects`).toEqual(sorted(scenario.finalSubjects));
+      expect(after.toolErrors, `${tag} — FINAL tool errors`).toEqual(sorted(scenario.finalErrors ?? []));
+      expect(
+        scenarioViolations(scenario, before, after),
+        `${tag} — the "${scenario.classification}" label and its successor proof must agree with the evidence`,
+      ).toEqual([]);
+    }
+    return scenarios.length;
+  };
+
+  return { legacyReplay, finalReplay, runScenarios };
+}
+
+/** The pre-conversion descriptor for the REAL-TMPDIR door: no in-memory refusal, because the whole point of
+ *  this door is the descriptor that reads disk. It refuses the OPPOSITE mistake instead — a descriptor with
+ *  no filesystem reach at all belongs on `frozenLegacyGate`'s cheaper in-memory substrate, and routing it
+ *  here spends a mkdtemp + `git init` per example to answer the identical question. */
+export async function frozenFilesystemLegacyGate(scratch: string, base: string, legacyPath: string): Promise<GateDescriptor> {
+  const { gate, source } = await loadFrozenGate(scratch, base, legacyPath);
+  const reach = filesystemReach(source);
+  if (reach.length === 0) {
+    throw new Error(
+      `${legacyPath} at ${base} reaches no filesystem spelling, so the real-tmpdir door is the wrong one — ` +
+        "replay it through frozenLegacyGate's in-memory substrate (tests/support/legacy-differential.ts).",
+    );
+  }
+  return gate;
 }
 
 /** Build the two replay engines and the scenario runner over ONE shared virtual workspace. `root` is the
@@ -297,7 +743,7 @@ export function createDifferential(root: string, classifyToolError: ClassifyTool
             file: rel(finding.file),
             line: finding.line,
             token: finding.token,
-            message: finding.message ?? messageOf.get(finding.policyId ?? "") ?? "",
+            message: finding.message ?? messageOf.get(finding.policyId) ?? "",
             policyId: finding.policyId,
           }),
         ),
