@@ -206,11 +206,29 @@ export type PolicyField = keyof typeof POLICY_FIELD_TABLE;
 
 /** The fields a descriptor may OMIT: `workItem` is required exactly when `severity` is `warning` (the union
  *  above), `fix` is owed by the ordinary door and read by a soundness arm rather than by the loader, and
- *  `mustRefuse` is the optional third proof arm (§4.5b). Everything else is required. */
-export const POLICY_OPTIONAL_FIELDS = ["workItem", "fix", "mustRefuse"] as const satisfies readonly PolicyField[];
+ *  `mustRefuse` is the optional third proof arm (§6.3). Everything else is required. The table is exhaustive
+ *  over optional properties of the descriptor type; accepting only valid field names would miss omissions. */
+type OptionalPolicyField = {
+  [Field in keyof GatePolicy]-?: object extends Pick<GatePolicy, Field> ? Field : never;
+}[keyof GatePolicy];
+const POLICY_OPTIONAL_FIELD_TABLE = {
+  workItem: true,
+  fix: true,
+  mustRefuse: true,
+} as const satisfies Record<OptionalPolicyField, true>;
+export const POLICY_OPTIONAL_FIELDS = keysOf(POLICY_OPTIONAL_FIELD_TABLE);
 
-/** The proof arms, in execution order. `mustRefuse` is optional on the descriptor (never empty when present). */
-export const POLICY_PROOF_ARMS = ["mustFlag", "mustPass", "mustRefuse"] as const satisfies readonly PolicyField[];
+/** The proof arrays, in authored execution order, held two-sided against the descriptor's proof-array fields.
+ *  `mustRefuse` is optional on the descriptor (never empty when present). */
+type PolicyProofField = {
+  [Field in keyof GatePolicy]-?: Exclude<GatePolicy[Field], undefined> extends readonly GatePolicyProof[] ? Field : never;
+}[keyof GatePolicy];
+const POLICY_PROOF_ARM_TABLE = {
+  mustFlag: true,
+  mustPass: true,
+  mustRefuse: true,
+} as const satisfies Record<PolicyProofField, true>;
+export const POLICY_PROOF_ARMS = keysOf(POLICY_PROOF_ARM_TABLE);
 export type PolicyProofArm = (typeof POLICY_PROOF_ARMS)[number];
 
 const POLICY_PROOF_KEY_TABLE = {
