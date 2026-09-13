@@ -22,12 +22,29 @@ Numbered references below retain the relevant subject; explicitly legacy rules r
 | Decision | Authoring action |
 | - | - |
 | existing enforcement | Read the live resolver, compiler, native lint or policy owner before adding a detector; §10. |
-| scaffold | `pnpm gate:new <kebab-name>`; inspect the generated source and replace its placeholder predicate and proofs. |
+| scaffold | `pnpm gate:new <kebab-name> --singleton-reason "<reason>"`, or the existing-family form below; replace the placeholder predicate and proofs. |
 | subject | Choose the smallest complete population, analysis tier, shared facts and declared resources; §3. |
 | family | Name the shared `lib/` callable or canonical subject/vocabulary declaration reached from production hooks, or document a valid singleton reason. |
 | authority | Choose exactly one of `hard`, `ordinary`, `reviewed-grant`; §4. Split differing authorities into siblings. |
 | proof | Preserve every old guarantee; declare catch, near-miss and applicable refusal rows, plus family evidence; §5. |
 | landing | Fix introduced violations, reconcile coupled sites and read the coordinated production result; §§2 and 8. |
+
+Choose family input explicitly; the command never waits for interactive input:
+
+```text
+pnpm gate:new <name> --singleton-reason "why no meaningful shared dependency exists"
+pnpm gate:new <name> --family-of <existing-gate-id> --dependency <canonical-lib-path>#<declaration-name>
+```
+
+The singleton's family equals its id and its header records your reason. The shared form derives the family from a
+canonical existing final policy and requires the named `tooling/src/verify/lib/` declaration to be reachable from that
+policy's production hooks. An unused import, proof-only reference, erased type or different same-file declaration does
+not establish that dependency. This checks identity and source reach; semantic fitness still needs review.
+
+A singleton placeholder starts structurally green. A shared-family scaffold is explicitly an unfinished draft: its
+chosen dependency must drive the actual new predicate before Q08 can accept sharing. The generator adds no dummy call,
+unused import or nominal wrapper to disguise that missing implementation. Complete the predicate and its proofs, then
+exercise the family; a clean placeholder conformance result alone is not that evidence.
 
 ## 1. The final contract and reporting
 
@@ -255,23 +272,23 @@ mechanically sealed. The following table distinguishes load/runtime guarantees f
 
 | Mechanism | Current enforcer and limit |
 | - | - |
-| descriptor keys, enums, authority/severity, proof-row shape | `lib/policy-validation.ts` — `assertGatePolicyDescriptor`; exact keys and branded facts, not semantic fitness of the chosen contract. |
-| warning issue liveness | `lib/workitem-liveness.ts` derives warning citations; `lib/board-citations.ts` judges board existence, membership and openness at the coordinated online barrier. Positive-integer schema validation alone does not establish liveness. |
-| branded export, filename/id, duplicate id, singleton identity | `lib/policy-module.ts` assertions through `lib/loader.ts`; a cast or cloned object cannot counterfeit `defineGate` registration. |
-| direct descriptor, private walk and module state | `policy-soundness` delegates to `lib/gate-contract.ts` `inspectGateContract`; its closed walk-method set is not proof against every possible external traversal library. |
-| inert population extension, missing ordinary fix, raw resource result, forbidden I/O and retired grammar | `policy-soundness`; resource calls use canonical `readyResourceValue`, and I/O/grammar checks cover their declared shapes, not every possible wrapper or private permission implementation. |
-| private authority/legacy imports and sibling-gate imports | `policy-legacy-imports`; resolved forbidden homes, not a generic ban on all TypeScript casts. |
-| local binding/origin resolution | `policy-binding-resolution` judges a closed set of type-resolved ts-morph members; `getSymbol()` alone, out-of-vocabulary members and receivers typed `any` are outside that detector. |
-| checkout-writing family fixtures | `policy-fixture-substrate` resolves supported filesystem writes against known repo anchors. A root computed in another file and passed through a parameter remains outside its fence. |
-| syntax-tier type/compiler reads | `gate-modernization` ARM E covers a closed member vocabulary and one named relative-import hop. Namespace/default imports, further hops, unresolved targets and computed subscripts remain limits. |
-| actual shared family | `policy-family-readers` uses `policyProductionDependencies` from `lib/policy-descriptor-read.ts`: each multi-member policy must share a canonical `lib/` declaration with a sibling through possible source reach from `create`, including method-form roots, callbacks, callable helpers and stable derived values. Callable/fact identities and canonical subject/vocabulary data qualify; unused imports, proof-only use and erased type references do not. Declaration identity matters, not sharing a file. This proves source reach, not runtime branch/callback execution or semantic fitness; meaningful dependency and singleton justification remain review-owned. |
-| analysis, execution, declared providers/resources | Validator plus `lib/policy-plan.ts`, `lib/policy-pass.ts` and `lib/policy-pass-context.ts`; capability, readiness, consumption and completion checks do not prove the semantically smallest contract. Runtime sequencing refuses early fact reads through absent/pending provider state; facts become ready before policy evaluation. Review still checks semantic fitness. |
-| catch count and finding identity | `policy-proof-expectations` plus `ops/policy-conformance.ts`; readable rows require cardinality and the applicable discriminator. `countFrom` validates a named module binding, not its runtime cardinality; review must prove that binding actually drives the row’s count. Unreadable source and bounded message expansion retain review limits. |
-| refusal expectation | Validator plus conformance require the distinctive substring and an actual refused pass. `policy-refusal-coverage` recognizes direct nonempty array literals in `facts`/`resources` and checks for a refusal row or recognized family proof; alias/non-literal declarations are outside that recognizer; behavioral adequacy still needs review; not every policy requires this arm. |
-| reviewed-grant witness | Validator requires an authored witness; conformance reruns the production pass; `lib/gate-authority.ts` judges exact single consumption. This does not prove the actual central table. |
-| ordinary waiver spelling | `policy-waiver-spelling` checks readable fix text for the policy's own exact opener; it does not validate every possible fix string or prove the promised position. |
-| ordinary identity proof presence | `policy-waiver-identity` recognizes marker evidence and direct `waivedFindings` access. It does not prove assertion semantics; the zero-effective/one-waived/zero-alarm behavioral control remains required. |
-| coordinates and authority integrity | `lib/policy-pass-context.ts`, `lib/gate-authority.ts` and `lib/ordinary-waiver.ts` own admission, authored slices, metadata and exact consumption. |
+| descriptor keys, enums, authority/severity, proof-row shape | [`lib/policy-validation.ts`](../lib/policy-validation.ts) — `assertGatePolicyDescriptor`; exact keys and branded facts, not semantic fitness of the chosen contract. |
+| warning issue liveness | [`lib/workitem-liveness.ts`](../lib/workitem-liveness.ts) derives warning citations; [`lib/board-citations.ts`](../lib/board-citations.ts) judges board existence, membership and openness at the coordinated online barrier. Positive-integer schema validation alone does not establish liveness. |
+| branded export, filename/id, duplicate id, singleton identity | [`lib/policy-module.ts`](../lib/policy-module.ts) assertions through [`lib/loader.ts`](../lib/loader.ts); a cast or cloned object cannot counterfeit `defineGate` registration. |
+| direct descriptor, private walk and module state | [`policy-soundness`](./policy-soundness.ts) delegates to [`lib/gate-contract.ts`](../lib/gate-contract.ts) `inspectGateContract`; its closed walk-method set is not proof against every possible external traversal library. |
+| inert population extension, missing ordinary fix, raw resource result, forbidden I/O and retired grammar | [`policy-soundness`](./policy-soundness.ts); resource calls use canonical `readyResourceValue`, and I/O/grammar checks cover their declared shapes, not every possible wrapper or private permission implementation. |
+| private authority/legacy imports and sibling-gate imports | [`policy-legacy-imports`](./policy-legacy-imports.ts); resolved forbidden homes, not a generic ban on all TypeScript casts. |
+| local binding/origin resolution | [`policy-binding-resolution`](./policy-binding-resolution.ts) judges a closed set of type-resolved ts-morph members; `getSymbol()` alone, out-of-vocabulary members and receivers typed `any` are outside that detector. |
+| checkout-writing family fixtures | [`policy-fixture-substrate`](./policy-fixture-substrate.ts) resolves supported filesystem writes against known repo anchors. A root computed in another file and passed through a parameter remains outside its fence. |
+| syntax-tier type/compiler reads | [`gate-modernization`](./gate-modernization.ts) ARM E covers a closed member vocabulary and one named relative-import hop. Namespace/default imports, further hops, unresolved targets and computed subscripts remain limits. |
+| actual shared family | [`policy-family-readers`](./policy-family-readers.ts) uses `policyProductionDependencies` from [`lib/policy-descriptor-read.ts`](../lib/policy-descriptor-read.ts): each multi-member policy must share a canonical `lib/` declaration with a sibling through possible source reach from `create`, including method-form roots, callbacks, callable helpers and stable derived values. Callable/fact identities and canonical subject/vocabulary data qualify; unused imports, proof-only use and erased type references do not. Declaration identity matters, not sharing a file. This proves source reach, not runtime branch/callback execution or semantic fitness; meaningful dependency and singleton justification remain review-owned. |
+| analysis, execution, declared providers/resources | Validator plus [`lib/policy-plan.ts`](../lib/policy-plan.ts), [`lib/policy-pass.ts`](../lib/policy-pass.ts) and [`lib/policy-pass-context.ts`](../lib/policy-pass-context.ts); capability, readiness, consumption and completion checks do not prove the semantically smallest contract. Runtime sequencing refuses early fact reads through absent/pending provider state; facts become ready before policy evaluation. Review still checks semantic fitness. |
+| catch count and finding identity | [`policy-proof-expectations`](./policy-proof-expectations.ts) plus [`ops/policy-conformance.ts`](../ops/policy-conformance.ts); readable rows require cardinality and the applicable discriminator. `countFrom` validates a named module binding, not its runtime cardinality; review must prove that binding actually drives the row’s count. Unreadable source and bounded message expansion retain review limits. |
+| refusal expectation | Validator plus conformance require the distinctive substring and an actual refused pass. [`policy-refusal-coverage`](./policy-refusal-coverage.ts) recognizes direct nonempty array literals in `facts`/`resources` and checks for a refusal row or recognized family proof; alias/non-literal declarations are outside that recognizer; behavioral adequacy still needs review; not every policy requires this arm. |
+| reviewed-grant witness | Validator requires an authored witness; conformance reruns the production pass; [`lib/gate-authority.ts`](../lib/gate-authority.ts) judges exact single consumption. This does not prove the actual central table. |
+| ordinary waiver spelling | [`policy-waiver-spelling`](./policy-waiver-spelling.ts) checks readable fix text for the policy's own exact opener; it does not validate every possible fix string or prove the promised position. |
+| ordinary identity proof presence | [`policy-waiver-identity`](./policy-waiver-identity.ts) recognizes marker evidence and direct `waivedFindings` access. It does not prove assertion semantics; the zero-effective/one-waived/zero-alarm behavioral control remains required. |
+| coordinates and authority integrity | [`lib/policy-pass-context.ts`](../lib/policy-pass-context.ts), [`lib/gate-authority.ts`](../lib/gate-authority.ts) and [`lib/ordinary-waiver.ts`](../lib/ordinary-waiver.ts) own admission, authored slices, metadata and exact consumption. |
 | truthful message/header, complete population, narrowing and real-corpus liveness | Standing law §§6–7 and independent review with discriminating controls. Do not claim a corpus-wide mechanical manifest where it has not landed. |
 
 ## 12. Invocation state, caches and world guarantees

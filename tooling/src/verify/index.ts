@@ -192,7 +192,7 @@ export {
   snapFlagsIndexDrift,
   typeConfigsDrift,
 } from "./ops/ledgers-fresh.ts";
-export { runNewGate } from "./ops/new-gate.ts";
+export { NEW_GATE_USAGE, runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";
 export { runPolicyConformance } from "./ops/policy-conformance-stage.ts";
 export type { RatchetClassification, RatchetExclusion } from "./ops/ratchet-gate.ts";
