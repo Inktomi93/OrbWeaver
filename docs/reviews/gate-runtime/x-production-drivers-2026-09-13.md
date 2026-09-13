@@ -213,3 +213,72 @@ beats the deadline preserves its own exit code. The #2225 test retains the regis
 
 No new lifecycle test duplicates the shared helper's existing process-group proof. No runtime source,
 timeout value, broad battery, lifecycle state or real verification artifact contract changed.
+
+## Current integration disposition
+
+The historical initial acceptance and refusal above describe the first attempts. Main `0276b6a57` now includes the complete #2225 and #2238 corrective series, including the separate fixture Git-isolation report. Both final independent reviews below accept the aggregate. Main verification passed as recorded in the integrated receipts below.
+
+# #2238 aggregate final review — 2026-09-13
+
+## Verdict
+
+**ACCEPT** commits `9f4559234`, `30836343f`, and `344d1cf7a` as the complete #2238 repair. I found no correctness defect in the production default-reader seam, isolated Git behavior, fixture construction, or the claimed invalid/healthy outcomes.
+
+## Confirmed findings
+
+1. **Production and the test use the same default binding.** `runAttestAtRoot` creates `defaultResolver` by closing over `repoRoot` and `isolateGitEnvironment`, and the returned operation defaults its second argument to that resolver (`tooling/src/doc-catalog/ops/attest.ts:236-255`). `runAttest` is instantiated once as `runAttestAtRoot(root)` and the CLI's existing one-argument call therefore takes this binding. The invalid/healthy regression calls `runAttestAtRoot(fixtureRoot)([FIXTURE_DOC])` with one argument (`attest.int.test.ts:197-213`); it does not inject or recreate an evidence map.
+
+2. **The controlled invalid and healthy repositories exercise actual Git evidence outcomes.** Both fixtures initialize and commit real repositories, commit the original receipt, then stage changed document bytes (`attest.int.test.ts:128-179`). The invalid twin removes the cited tracked code file from the worktree, so the production evidence reader returns the named resolution error; the test requires exit 1 and byte-identical receipt content. The healthy twin retains the code target, requires exit 0, and verifies the written receipt against the changed document SHA-256 and actual fixture `HEAD` (`:197-213`). This proves both refusal/no-write and successful write rather than an unconditional refusal.
+
+3. **All attestation reads and writes are rooted consistently.** Configuration, tracked documents, `HEAD`, index/worktree comparison, receipts, evidence sources, receipt facts, temporary formatter input, and final receipt writes receive `repoRoot` (`attest.ts:185-225,236-263`; `tree.ts:28-63,101-129,184-228,271-322`). `stableJson` takes the formatter binary from the canonical checkout but sets its working directory and temporary file below the supplied root; that is a tool dependency and does not read or write canonical catalog data. The only root-bound helper left in `tree.ts` is `pathsForLane`; attestation does not call `laneAssignments` or that helper.
+
+4. **The test cannot write the main catalog.** Both outcome calls receive scratch roots, every receipt path is joined below that root, and the formatter temporary file is likewise below the scratch root. The invalid twin asserts exact scratch-receipt preservation. The focused run left the reviewed worktree clean in tracked files. No production receipt or catalog writer was invoked against the main root by this review.
+
+5. **Isolated production Git calls clear all routing variables.** When `repoRoot !== root`, `gitOutput`, `gitBlob`, `localEvidenceLines`, and `trackedDocs` invoke `env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE git ...`; dependent helpers such as `headCommit`, `headAncestors`, and index comparisons flow through those functions (`tree.ts:66-129,145-181,195-228,271-286`). This covers the Git reads reached by `runAttestAtRoot`.
+
+6. **Fixture Git setup is isolated before production code runs.** The single test helper used for fixture init, config, add, commit, and `HEAD` clears `GIT_DIR`, `GIT_WORK_TREE`, and `GIT_INDEX_FILE`, disables hooks with `core.hooksPath=/dev/null`, and disables signing (`attest.int.test.ts:118-125,141-175`). There is no alternate fixture Git command except creation of the owned sentinel index itself.
+
+7. **The sentinel is an owned, meaningful red/green control.** The test creates an empty index belonging to a separate scratch repository, records its bytes, exposes it as inherited `GIT_INDEX_FILE`, constructs a complete attestation fixture, and requires byte equality afterward (`attest.int.test.ts:182-195`). The report records the pre-fix red: fixture `git add` replaced the sentinel with five fixture paths. The corrected helper makes the same operation green. Hooks are controlled structurally on every helper invocation; executing an actual hook is unnecessary and would add side effects.
+
+## Verification
+
+- Independent focused run: `pnpm test:scoped tests/tooling/doc-catalog/ops/attest.int.test.ts` passed 4/4 in 2.01s. Artifact: `reports/runs/test/agent-adee520ef5eeac7f9-944167-2026-09-13T08-43-19-354Z/test-report.json`.
+- Reviewed the prior aggregate floor receipt: 69/69 runtime tests plus 3/3 native type assertions passed. I did not repeat that full directory floor.
+- Reviewed all touched production/test files in full, both lane reports, the three commit diffs, and the root seam review. `git status --short` was clean before and after the focused run.
+
+## Limitations
+
+- The runtime sentinel directly falsifies inherited `GIT_INDEX_FILE`. Clearing `GIT_DIR`, `GIT_WORK_TREE`, and hooks is confirmed from the single helper's command construction and complete call-site census, rather than separate destructive runtime sentinels for each variable.
+- The end-to-end arm uses typed `code` evidence. Other evidence kinds remain owned by the shared evidence-reader tests; this aggregate establishes that the default production binding reaches that reader, not a new end-to-end matrix for every evidence kind.
+
+# #2225 production childExit final review
+
+**Verdict: ACCEPT.** Reviewed aggregate commits `9d1a4b939` and `164aabb42c8884268a184c01144aa1b5f82ed3ef`, the complete changed `run.int.test.ts`, the production `runOneStage` path, the shared process helper and its lifecycle tests, and the corrected report. I did not repeat the 81-test real-run file because the committed final artifact already records 81/81 after the correction and source review found no new uncertainty requiring another minute-long floor.
+
+## Production proof
+
+`runIsolatedStatic` still generates a runner that imports the production parser and `runVerify`, selects `--static`, and roots the verification run in scratch. Its child environment replaces PATH with the fixture bin and redirects the host-wide slot root into scratch. `spawnNiced` receives that complete environment; Node resolves its own `nice` wrapper through the supplied PATH, where the test planted a symlink to the real system program. Stage children inherit the same PATH.
+
+With no `bash` in that bin, the real registry's `lint:hook-syntax` row becomes unresolvable at `runOneStage`. Production settles that command as `{ code: null, transcript: ... }`, classifies it, and writes `childExit: result.code` into the stage row. The test requires run exit 2, the exact one-stage no-verdict console block and artifact list, the command-resolution failure excerpt, `childExit` present as null, and zero for every other stage that actually ran. After planting `bash`, the same production route must return clean, print no no-verdict block, carry an empty artifact list, and record `childExit: 0`. These directions distinguish both constant-zero and constant-null producer substitutions while retaining the published report contract.
+
+## Lifecycle correction
+
+The corrective commit removes the bespoke detached `spawn` and delegates to `spawnNiced`. That shared door creates one detached process group, captures both pipes, rejects on `error`, resolves only on `close` after pipe drainage, arms a load-scaled default deadline, and kills the whole process group on expiry (`tooling/src/_shared/proc.ts:362-399`). The existing focused process tests exercise a parent with a descendant through timeout and require both gone, plus the healthy child that exits before deadline with its own code and stdout (`tests/tooling/_shared/proc.int.test.ts:141-164`). The combined builder artifact records those helper tests together with the run test: 93/93.
+
+The run test's scaled 180-second budget exceeds the helper's scaled 120-second default on the same load policy, so the helper owns timeout and group teardown before the Vitest case expires. A spawn failure rejects rather than leaving an unsettled local promise. A normal close returns the complete stdout/stderr used by the same assertions as before. The correction changes test lifecycle plumbing only; production `runVerify`, registry, no-verdict classification and artifact code are untouched.
+
+## Receipts and limits
+
+- Combined helper plus run artifact: `reports/runs/test/agent-adee520ef5eeac7f9-890858-2026-09-13T08-35-51-359Z/test-report.json`, 93/93 passed.
+- Final complete run-file artifact after the environment type correction: `reports/runs/test/agent-adee520ef5eeac7f9-924864-2026-09-13T08-40-09-808Z/test-report.json`, 81/81 passed.
+- The report discloses one intervening loaded run whose unrelated browser scoped-argv case hit its existing 20-second budget; the immediate final run passed that case. I did not treat that timeout as a verdict on this lane.
+
+The test does not induce a real spawned child with `code: null`; its null arm is the production command-resolution refusal before spawn. Process timeout/group-kill and spawn-error behavior are owned by the shared helper's separate controls. This is the correct separation for the claimed producer: the run arm proves `result.code` reaches the artifact for both unspawned and normally exited registered stages, while the helper corpus proves lifecycle ownership.
+
+No confirmed blocker found.
+
+## Integrated main receipts
+
+At `0276b6a57`, `pnpm test:scoped tests/tooling/doc-catalog` passed 72 runtime tests and 3 native type assertions. Artifact: `reports/runs/test/main-962655-2026-09-13T08-47-42-842Z/test-report.json`. The main population includes three tests beyond the builder worktree; no tests were dropped.
+
+`pnpm test:scoped tests/tooling/verify/ops/run.int.test.ts` passed 81/81. The repaired real producer arm passed in 767ms; artifact `reports/runs/test/main-966834-2026-09-13T08-48-10-638Z/test-report.json`. Both `tooling/tsconfig.json` and `tsconfig.json` passed through the native executor. Scoped Biome and ESLint passed all eight changed TypeScript files across the production-driver and ESLint repair train. No broad program verdict is inferred from these scoped floors.
