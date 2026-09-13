@@ -5,25 +5,23 @@
 // central mirror (server/contracts/kit/client/tooling) — "client" is the born-compliant-era trigger it
 // waited on, long since met. ACTIVE since 2026-07-17.
 //
-// FAMILY: SINGLETON under its own id, and the §8.3 sweep is the reason rather than an absence of looking.
-// The core literals (`"describe"`, `"beforeEach"`, the test-call shape) reach `bus-payload-allowlist`,
-// `knob-wire-coverage` and `ui-primitive-structure`, all of which spell a test name incidentally inside
-// their own proof fixtures, and `test-no-stubs`, which is the real neighbour. No `lib/` reader computes a
-// test-call shape today, so there is nothing to share and nothing to merge into.
+// FAMILY `test-no-stubs` (#2027). The test-call SHAPE is read through `lib/test-call-shape.ts`
+// (`isTestCallShape`, `callChainRoot`), the one home of the modifier vocabulary — shared with `test-no-stubs`,
+// whose recognizer used to be a literal text set and now asks the same reader, so the two policies judge one
+// subject from one declaration. Before #2027 this module was a SINGLETON because no `lib/` reader computed
+// the shape; the other spellers of the core literals (`bus-payload-allowlist`, `knob-wire-coverage`,
+// `ui-primitive-structure`) still only name a test incidentally inside their own proof fixtures.
 //
-// THE `test-no-stubs` OVERLAP, MEASURED IN BOTH DIRECTIONS — deliberately NOT merged (§8.3 asks whether a
-// stronger detector already exists; neither of these dominates the other, so merging would lose a catch):
+// THE `test-no-stubs` OVERLAP — deliberately NOT merged (§8.3 asks whether a stronger detector already
+// exists; neither of these dominates the other, so merging would lose a catch):
 //   · `test-no-stubs` (FINAL, `authority: "hard"`, `population: "@tests"`) enforces this policy's
-//     NO-ASSERTION arm with a stronger per-file cross-file-leak reconciliation.
+//     NO-ASSERTION arm with a stronger per-file cross-file-leak reconciliation, over EVERY test-shaped call
+//     this policy also recognizes; the modifier asymmetry recorded here before #2027 (its literal
+//     `{test, it, test.skip, it.skip}` set) is closed.
 //   · It does NOT resolve assertion HELPERS. `test("x", () => { expectOk(1); })` PASSES here (the helper's
-//     body is followed up to four hops) and would FLAG there.
-//   · Its recognizer is the literal set `{test, it, test.skip, it.skip}` (`gates/test-no-stubs.ts:26`),
-//     while this policy accepts every vitest modifier — `only` / `skip` / `todo` / `concurrent` /
-//     `sequential` / `each` / `for` / `fails` / `runIf` / `skipIf`. A `test.each(…)(…)` stub is invisible
-//     there and caught here.
-// So the right-once answer is to widen `test-no-stubs`' recognizer and retire this arm with a successor
-// proof — that module is outside this lane's fence, the fork is reported to the orchestrator, and the
-// measurement is recorded here so the next reader sees a DECISION rather than an accident.
+//     body is followed up to four hops) and FLAGS there, and its population also admits the `.test-d.ts` /
+//     `.spec.ts` suites this one fences out. That helper hop is the catch a merge would lose, so this arm is
+//     NOT redundant with `test-no-stubs` and must not be retired as if it were.
 //
 // POPULATION PORT: legacy `isTestFile` — `filePath.includes("/tests/") && /\.test\.tsx?$/` over
 // `ctx.project.getSourceFiles()` — becomes `{ in: ["@tests"], named: ["*.test.ts", "*.test.tsx"] }`.
@@ -103,14 +101,13 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { resolveCallableDeclaration } from "../lib/reference-fact-call.ts";
+import { callChainRoot, isTestCallShape } from "../lib/test-call-shape.ts";
 
 const MAX_HELPER_DEPTH = 4;
 const ASSERTION_HELPER_RE = /^(?:expect|assert)[A-Z0-9]/u;
 const EXPECT = "expect";
 const ASYNC = "async";
 
-// Excludes `extend` (test.extend defines a fixture) so a local `it` (async-iterator pattern) isn't mistaken for a test.
-const TEST_MODIFIERS: ReadonlySet<string> = new Set(["only", "skip", "todo", "concurrent", "sequential", "each", "for", "fails", "runIf", "skipIf"]);
 const LIFECYCLE_HOOKS: ReadonlySet<string> = new Set(["beforeEach", "afterEach", "beforeAll", "afterAll"]);
 
 const MESSAGE =
@@ -126,35 +123,8 @@ const EMPTY_HOOK = "this lifecycle hook has an empty body and runs for every tes
 const FIX =
   "add a matcher-chained expect (or await), delete the empty describe/hook, and complete any bare `expect(x)` with a matcher (Spine-Testing.md §5). A deliberate occurrence waives with `@orb-waive audit-client-tests(<position>): <reason + end condition>`, where the position is the reported AUTHORED token: the test callee (`test`/`it`) for the no-assertion arm, the literal keyword `async` for the async-no-await arm, `expect` for a bare expect, `describe` for an empty suite, and the hook's own name for an empty hook.";
 
-interface CallShape {
-  readonly root: string;
-  readonly prop: string | undefined;
-}
-
-function walkCallRoot(expr: MorphNode, prop: string | undefined): CallShape | undefined {
-  if (Node.isIdentifier(expr)) {
-    return { root: expr.getText(), prop };
-  }
-  if (Node.isPropertyAccessExpression(expr)) {
-    return walkCallRoot(expr.getExpression(), expr.getName());
-  }
-  return Node.isCallExpression(expr) ? walkCallRoot(expr.getExpression(), prop) : undefined;
-}
-
-function testCallShape(call: CallExpression): CallShape | undefined {
-  return walkCallRoot(call.getExpression(), undefined);
-}
-
-function isTestCall(call: CallExpression): boolean {
-  const shape = testCallShape(call);
-  if (shape === undefined || (shape.root !== "test" && shape.root !== "it")) {
-    return false;
-  }
-  return shape.prop === undefined || TEST_MODIFIERS.has(shape.prop);
-}
-
 function isDescribeCall(call: CallExpression): boolean {
-  return testCallShape(call)?.root === "describe";
+  return callChainRoot(call)?.getText() === "describe";
 }
 
 /** The plain callee NAME of a call — `beforeEach` for `beforeEach(…)`, `poll` for `expect.poll(…)`. */
@@ -325,7 +295,7 @@ function auditHookCall(ctx: GatePolicyContext, call: CallExpression): void {
 
 export const gate = defineGate({
   id: "audit-client-tests",
-  family: "audit-client-tests",
+  family: "test-no-stubs",
   authority: "ordinary",
   severity: "error",
   population: { in: ["@tests"], named: ["*.test.ts", "*.test.tsx"] },
@@ -372,7 +342,7 @@ export const gate = defineGate({
               state.hookCalls.push(node);
               return;
             }
-            if (isTestCall(node)) {
+            if (isTestCallShape(node)) {
               index.testCalls.push(node);
               state.testCalls.push(node);
             }
@@ -498,6 +468,27 @@ export const gate = defineGate({
       },
       expect: { count: 1, line: 2, token: "test", messageIncludes: "no `expect(...).<matcher>()`" },
       why: "THE SAME-FILE FENCE'S FALSIFIER (§4.1), and it is the row mustFlag[7] canNOT be. Since the shared `resolveCallableDeclaration` landed, `resolveCalleeBody` really does receive the IMPORTED helper's body, and the containment reconciliation is by NUMERIC OFFSET against the TEST file's index — so a body in another file whose range happens to contain the test file's own matcher expect would satisfy a stub that asserts nothing. The offsets here are MEASURED, not hoped for: the helper body spans 42-249 and this file's `expect(1).toBe(1)` spans 173-190. With the fence the first test flags (this row); cut `resolveCalleeBody`'s `sourceFile === call.getSourceFile()` test and the count is 0. mustFlag[7]'s test file carries no matcher expect at all, so the same cut reads CLEAN there — an unenforced FIXTURE, not an unenforced fence",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/support/wide-helper.ts":
+          "export function expectOk(x: number): void {\n" +
+          "  // Padding. This body's OFFSET RANGE has to CONTAIN the matcher expect in the test file below,\n" +
+          "  // or the collision this row exists to prove is not reachable and the row is decoration.\n" +
+          "  void x;\n" +
+          "}\n",
+        "tests/tooling/namespace-helper.test.ts":
+          'import * as h from "../support/wide-helper.ts";\n' +
+          'test("asserts only through the imported helper", () => {\n' +
+          "  h.expectOk(1);\n" +
+          "});\n" +
+          'test("asserts in its own right", () => {\n' +
+          "  expect(1).toBe(1);\n" +
+          "});\n",
+      },
+      expect: { count: 1, line: 2, token: "test", messageIncludes: "no `expect(...).<matcher>()`" },
+      why: "THE NAMESPACE-IMPORT SPELLING OF THE SAME-FILE FENCE (#2036). The conversion's first guard was justified by the claim that a helper could never leave the calling file; `import * as h` REFUTED it — the shared `resolveCallableDeclaration` follows `h.expectOk` to the other file's declaration — and no row used the spelling, so the divergence was unpinned in both directions. The fence is now the #2097 ruling's deliberate `selected-files` boundary (header), and this row states it for the namespace door exactly as mustFlag[8] does for the named one: the helper body spans offsets 42-249 and this file's `expect(1).toBe(1)` spans 169-186, so cutting `resolveCalleeBody`'s source-file test lets the followed body satisfy the stub and the count drops to 0",
     },
   ],
   mustPass: [
