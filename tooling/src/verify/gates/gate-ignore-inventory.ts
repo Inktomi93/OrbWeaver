@@ -1,9 +1,9 @@
 // Gate: gate-ignore-inventory — the hygiene owner of the house's shared per-site suppression marker,
-// `// @orb-gate-ignore <gate-name>[(<position>)]: <reason>` (GATE-AUTHORING.md §4.3/§4.3a/§4.4). FOUR
+// `// @orb-gate-ignore <gate-name>[(<position>)]: <reason>` (GATE-AUTHORING.md §§4.3–4.4). FOUR
 // arms: MALFORMED (no `: <reason>`, or an empty `()` position — it suppresses nothing, so it must not sit
 // there LOOKING like protection) · UNREGISTERED (names no gate file) · STALE (well-formed and registered
 // but suppressed NOTHING this run — a loaded gun: the next violation written there inherits an exemption
-// nobody granted it) · OVER-EXEMPT (§4.3a: one UNPOSITIONED marker absolved MORE THAN ONE guarded thing —
+// nobody granted it) · OVER-EXEMPT (GATE-AUTHORING.md §§4.3–4.4: one UNPOSITIONED marker absolved MORE THAN ONE guarded thing —
 // the `record(chatId: string, sessionId: string)` shape, where a line-scoped marker silently absolves the
 // sibling nobody reasoned about; name the position instead). scanRoot is the workspace's WHOLE
 // marker-bearing surface — `packages/` + `tests/` + `tooling/src/verify/gates/` (since 2026-08-08): the
@@ -154,7 +154,7 @@ export const gate: GateDescriptor = {
           token: m.name,
           // The count is interpolated FIRST and the pointer written LITERALLY last: diagnostic-legibility
           // reads a template's own text, so a pointer hidden behind `${CONST}` is invisible to it.
-          message: `it absolved ${used} guarded things. ${MSG_OVER_EXEMPT} See tooling/src/verify/gates/GATE-AUTHORING.md §4.3a.`,
+          message: `it absolved ${used} guarded things. ${MSG_OVER_EXEMPT} See tooling/src/verify/gates/GATE-AUTHORING.md §§4.3–4.4.`,
         });
       }
     }

@@ -320,7 +320,7 @@ domain-map judgment call is open here.
 | types · schemas · string-union dispatch · house TS style | `Spine-TypeScript-and-Patterns.md` |
 | testing policy (lanes, presence, determinism, factories) | `Spine-Testing.md` |
 | the derived-data cluster boundary (embeddings/search/discovery/memory/stats) | `Knowledge-Cluster.md` |
-| authoring a structural gate | `../../design/gate-runtime-read-first.md` owns the reading order; `../../../tooling/src/verify/ops/new-gate.ts` owns the `pnpm gate:new <name>` scaffold. `../../../tooling/src/verify/gates/GATE-AUTHORING.md` connects the final contract to its enforcers and proof obligations. Its legacy archive and the refuted exemplar report are not final-policy templates. |
+| authoring a structural gate | `../../design/gate-runtime-read-first.md` owns the reading order; `../../../tooling/src/verify/ops/new-gate.ts` owns the noninteractive `pnpm gate:new <name> <explicit family choice>` scaffold; the final guide §0 gives both accepted family forms. `../../../tooling/src/verify/gates/GATE-AUTHORING.md` connects the final contract to its enforcers and proof obligations. Its legacy archive and the refuted exemplar report are not final-policy templates. |
 | authoring a ui-audit detector rule | `../../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
 | the domain map | §6 above |
 | which WORD names which concept (user-facing copy · ids · testids · comments) | [`../../design/vocabulary-map.md`](../../design/vocabulary-map.md) — the one living home; D151 + §3 cite it and never restate it |

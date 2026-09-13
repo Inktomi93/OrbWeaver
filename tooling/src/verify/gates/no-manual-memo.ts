@@ -134,7 +134,7 @@ export const gate: GateDescriptor = {
     }
     // UNCONDITIONAL: this single check covers BOTH staleness modes — the file survived but no longer memoizes,
     // AND the file is gone entirely (never visited, so never in `seen`). Gating a row on its OWN file being
-    // loaded is the anti-pattern that silences mode (B) (GATE-AUTHORING.md §4a).
+    // loaded is the anti-pattern that silences mode (B) (GATE-AUTHORING.md §4.4a).
     for (const rel of Object.keys(EXEMPTIONS)) {
       if (!seen.has(rel)) {
         ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_ROW_PREFIX + rel });

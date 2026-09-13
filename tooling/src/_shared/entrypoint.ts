@@ -1,7 +1,7 @@
 // The DIRECT-INVOCATION refusal (#509). An `ops/*.ts` module is a LIBRARY — the program is `cli.ts <verb>`
 // (docs/architecture/core/Core-Tooling-Law.md §2.5: eleven pnpm rows point at the cli, nothing points into ops/). A
 // module with no main that is RUN loads, executes nothing and exits 0 — a green that never ran a check, and
-// GATE-AUTHORING.md §8.1 prescribed exactly that spelling for months. A bare zero must mean "I could not
+// docs/history/gate-authoring-legacy-2026-09-13.md §8 prescribed exactly that spelling for months. A bare zero must mean "I could not
 // run", never "clean", so a module that finds itself as the process entry REFUSES and names the real door.
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";

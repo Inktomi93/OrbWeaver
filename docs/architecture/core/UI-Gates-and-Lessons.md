@@ -318,7 +318,8 @@ The 2026-06 re-verification write-up is the archaeology record; the standing dec
 
 Use `docs/design/gate-runtime-read-first.md` for the reading order and
 `tooling/src/verify/gates/GATE-AUTHORING.md` for final contract, coupled sites, central authority and proof ownership.
-Scaffold with `pnpm gate:new <name>` and verify the actual generated shape against the standing contract.
+Scaffold with one of the noninteractive family forms in `GATE-AUTHORING.md` §0; bare `pnpm gate:new <name>` refuses.
+Verify the actual generated shape against the standing contract.
 
 The former descriptor checklist (manual registered count, legacy fixture membership and scanRoot/scopeSafety) is
 preserved in the guide's verbatim archive. It is not a final-policy checklist. Keep its guarantees: loader/catalog

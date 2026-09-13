@@ -261,7 +261,7 @@ function judgeMarkers(ctx: GateRunCtx, consumed: ReadonlyMap<string, number>): v
           file,
           line,
           column: 0,
-          message: `it absolved ${uses} Finding literals. ${MSG_OVER_EXEMPT} See tooling/src/verify/gates/GATE-AUTHORING.md §4.3a.`,
+          message: `it absolved ${uses} Finding literals. ${MSG_OVER_EXEMPT} See tooling/src/verify/gates/GATE-AUTHORING.md §§4.3–4.4.`,
         });
       }
     }

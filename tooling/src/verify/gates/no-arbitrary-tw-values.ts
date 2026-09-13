@@ -156,7 +156,7 @@ export const gate: GateDescriptor = {
       why: "scoped-utility value arbitraries — off-token brackets that bypass the design scale",
     },
     {
-      // Mode-(B) proof (GATE-AUTHORING.md §4.3b): a project that loads the real-tree anchor but NONE of
+      // Mode-(B) proof (GATE-AUTHORING.md §4.4a): a project that loads the real-tree anchor but NONE of
       // the ALLOWLIST paths — exactly what a deleted/renamed survivor looks like from this gate's
       // vantage. Before the fix this arm was gated on the row's OWN file being loaded, so a project like
       // this one (which never loads any ALLOWLIST path) silently reported nothing.
