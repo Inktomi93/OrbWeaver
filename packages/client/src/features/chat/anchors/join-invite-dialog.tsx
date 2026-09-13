@@ -12,6 +12,7 @@
 // until spent/expired).
 
 import { Button } from "@orb/ui/button";
+// @orb-waive dialog-via-composite(Dialog): the /join preview-to-confirm landing owns loading, invalid, and ready states rather than a form; ends if a flow composite owns those states.
 import { Dialog, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

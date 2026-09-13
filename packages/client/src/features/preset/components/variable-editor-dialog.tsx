@@ -4,6 +4,7 @@
 
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
+// @orb-waive dialog-via-composite(Dialog): this seven-field form needs a pinned title above its internally-scrolled dynamic body; ends when FormDialog supports that layout.
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";

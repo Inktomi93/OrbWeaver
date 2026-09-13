@@ -5,6 +5,7 @@
 
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
+// @orb-waive dialog-via-composite(Dialog): the shell's generic modal seam renders arbitrary registry-owned bodies and drawer presentation; ends if modal bodies gain a composite-owned species.
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
 import { Icon, X } from "@orb/ui/icons";

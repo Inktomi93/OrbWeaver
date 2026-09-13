@@ -11,6 +11,7 @@
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+// @orb-waive dialog-via-composite(Dialog): this keyset-paged CharacterPicker connects on selection and has no submit; ends if a picker composite accepts the paged library.
 import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
