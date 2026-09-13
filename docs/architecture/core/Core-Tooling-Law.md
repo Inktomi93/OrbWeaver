@@ -195,7 +195,7 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 | a spawner naming an ops FILE | an ops file stops being independently runnable; its spawners must name a VERB through the one cli door |
 | `pnpm-lock.yaml` | the workspace add + each dep addition re-resolve it |
 
-**Population changes require current native evidence.** ESLint covers configured application, tooling, test and Node-launcher surfaces; CPD covers authored package and tooling implementation. Their configs own the selectors, and native observations prove their meaning. A workspace addition does not automatically expand application-specific policy scopes such as `package-layout`. Stryker's native configuration and sandbox behavior must be checked against the changed dependency closure. The archived tool guard is not an active enforcement surface.
+**Population changes require current native evidence.** ESLint covers configured application, tooling, test and Node-launcher surfaces; CPD covers authored package and tooling implementation. Their configs own the selectors, and native observations prove their meaning. A workspace addition does not automatically expand application-specific policy scopes such as `package-layout`. Stryker's native configuration and sandbox behavior must be checked against the changed dependency closure. The Bash tool guard is Claude-only by the later owner ruling; its header in `.claude/hooks/tool-guard.mjs` records the registration boundary and rationale.
 
 ### 3.2 The `harnessGlobs` widening protocol
 
