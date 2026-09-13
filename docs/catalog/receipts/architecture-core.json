@@ -172,12 +172,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "0bc51f1620fa33726e0608d955969fa2bf176d0999e54aea797362a0c3fa84a1",
+      "assignedSha256": "1840437e97f4254ca61c4cfa8172c9c49101f02c5803a7cdc2e09a3c0edb989e",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "a2d9ab61ddb960fc864b00156db1f0af7645a6aff51ec57f002903ec36568b3a",
-      "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
+      "verifiedSha256": "1840437e97f4254ca61c4cfa8172c9c49101f02c5803a7cdc2e09a3c0edb989e",
+      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
       "verifiedAt": "2026-09-13",
       "evidence": [
         "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
@@ -274,7 +274,9 @@
         "docs/architecture/core/Core-Enforcement-Active-Gates.md re-attested at 3700b07c6 by the orchestrator after reading the #1585 diff in full: one new row for the `stale-draft-commit` gate (a once-seeded prop-derived draft compared against the live value and handed to a non-setter call; structural, allowlist born empty, tripwire on lib/edit-session.ts) and the active-gate count 254 → 255.",
         "Re-attested at c92370a92 after the world-program full reads and current delta review: predictive ownership/ambient/library enforcement, membership-owned native parser parity, strict Vitest tags and preserved gate-cutover obligations. Native membership and independent isolated negative controls passed; this is not full program acceptance.",
         "World-program current-delta re-attestation: canonical command migration without compatibility aliases, native dependency-config observation and strict capability tags. Prior full document reads retained; command/caller review and native behavioral receipts support the changed claims. Full composed acceptance remains on #1351.",
-        "delta re-verify 2026-09-11 (#1584 mixed runtime, lane p-mixed-runtime) at 94b1b5199e14af079635c45e1ec6c077a9483ee9: nine final `-health`/fact-health policies that had NO row gained rows beside their siblings (aef57f16d), then the retired `schema-fact-health` row was removed (94b1b5199); the count line 255 → 271 → 270 = 108 status:\"active\" legacy descriptors + 162 canonical defineGate policies; the Layer-3 layout paragraph, the count sentence and the enforcement-registry-parity / gate-modernization rows describe the MIXED loader (both contracts by identity). enforcement-registry-parity — now reading both contracts — reconciles the doc against the loader's roster at 0 findings on this tree (real-tree arm of its int test, and the final mixed pnpm check:structure run); scoped pnpm check:docs green after pnpm format:docs."
+        "delta re-verify 2026-09-11 (#1584 mixed runtime, lane p-mixed-runtime) at 94b1b5199e14af079635c45e1ec6c077a9483ee9: nine final `-health`/fact-health policies that had NO row gained rows beside their siblings (aef57f16d), then the retired `schema-fact-health` row was removed (94b1b5199); the count line 255 → 271 → 270 = 108 status:\"active\" legacy descriptors + 162 canonical defineGate policies; the Layer-3 layout paragraph, the count sentence and the enforcement-registry-parity / gate-modernization rows describe the MIXED loader (both contracts by identity). enforcement-registry-parity — now reading both contracts — reconciles the doc against the loader's roster at 0 findings on this tree (real-tree arm of its int test, and the final mixed pnpm check:structure run); scoped pnpm check:docs green after pnpm format:docs.",
+        "2026-09-13 full textual read by independent Sol/high reviewer of all471 lines/401275 bytes, SHA2561840437e97f4254ca61c4cfa8172c9c49101f02c5803a7cdc2e09a3c0edb989e, at integrated tree c43c80fe8894fb92ba3cabfb97892619c6584612 (same document bytes at cf7ce412c444942b602ec1a200b91383f64ea18d). Current source verification is bounded to Q11 health-row changes; earlier evidence remains dated evidence, not a fresh whole-roster source audit. Whole-file check:docs remains pre-existing red; unrelated formatting was not repaired. Full consolidated barrier remains primary-owned.",
+        "Q11 current claim evidence: immutable284dedcee deriveThemeCss and ledgers-fresh read in full; generator/validator and namespace-health functions read completely at their selected spans. ff25a067f independent theme review read in full, with its scoped/cut results attributed. Primary integrated-main1ef220c20 three-arm whole-stage JSON read in full: same-count1 with theme/census, cut-edge1 without theme and with census, malformed2 without freshness verdict. Canonical validation including required history is retained for this baseline, and scratch roots supply data rather than alternate generator code."
       ],
       "claims": [
         {
@@ -343,7 +345,7 @@
           ]
         }
       ],
-      "summary": "The CSS direct-client-mechanism row describes retired manual counts as history without citing a deleted symbol."
+      "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification."
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",

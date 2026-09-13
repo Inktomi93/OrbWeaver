@@ -362,19 +362,21 @@
     },
     {
       "path": "docs/reviews/gate-runtime/exception-authority-census.md",
-      "assignedSha256": "b6a5bddc070c82e523482a5d3518acd1210827a3625403182596bed17f28c15d",
+      "assignedSha256": "c0e1da2ad0efa2c2a0d9cb8ecba0437fb9830649cd49a1d3031522dab03d3375",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "b6a5bddc070c82e523482a5d3518acd1210827a3625403182596bed17f28c15d",
-      "verifiedCommit": "a182d1fab8172a48cba6f0a79d0e876a41ae21fb",
-      "verifiedAt": "2026-09-12",
+      "verifiedSha256": "c0e1da2ad0efa2c2a0d9cb8ecba0437fb9830649cd49a1d3031522dab03d3375",
+      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
+      "verifiedAt": "2026-09-13",
       "evidence": [
         "docs/reviews/gate-runtime/exception-authority-census.md:1",
         "git log --oneline -5 -- docs/reviews/gate-runtime",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
+        "Q11 current claim evidence: immutable284dedcee deriveThemeCss and ledgers-fresh read in full; generator/validator and namespace-health functions read completely at their selected spans. ff25a067f independent theme review read in full, with its scoped/cut results attributed. Primary integrated-main1ef220c20 three-arm whole-stage JSON read in full: same-count1 with theme/census, cut-edge1 without theme and with census, malformed2 without freshness verdict. Canonical validation including required history is retained for this baseline, and scratch roots supply data rather than alternate generator code."
       ],
-      "summary": "Full-read current authority; lane p-catalog-barrier attestation. the exception/authority migration census: exemption tables, sanctioned homes, waiver grammars classified into reviewed grants, warning debt, hard data, and delete/fix.",
+      "summary": "Dated migration census and subsequent ruled dispositions, including retirement of copied theme parity at284dedcee. Historical populations remain measurements of their named tree, not a fresh current-corpus census.",
       "claims": [
         {
           "claim": "Documents #1584 gate-runtime migration evidence; read in full and adopted as-is by this lane.",
@@ -5981,10 +5983,12 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "bd6d61dfc57bd71d55d6cda107c9aa6fb52769de4922607160672297154efb8a",
-      "verifiedCommit": "d71bd65545a2ff09534eeb6ae8050b41435379d9",
+      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
       "verifiedAt": "2026-09-13",
       "evidence": [
-        "Full document read by docs-preservation lane; committed bytes at d71bd65545a2ff09534eeb6ae8050b41435379d9; #2071. Exact parent spans and preservation comparisons are in docs/reviews/gate-runtime/docs-preservation-map-2071.md. No whole-corpus acceptance or lifecycle closure attested."
+        "Full document read by docs-preservation lane; committed bytes at d71bd65545a2ff09534eeb6ae8050b41435379d9; #2071. Exact parent spans and preservation comparisons are in docs/reviews/gate-runtime/docs-preservation-map-2071.md. No whole-corpus acceptance or lifecycle closure attested.",
+        "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
+        "Independent primary closing review CONFIRMED D1-D7/U conservation, exact thirteen-module table and world-program archive; this refresh discharges the subsequently owed selected catalog/read-cost action only. The map remains the dated repair evidence, not mutable lifecycle authority."
       ],
       "summary": "Bounded #2071 preservation repair map: exact parent coordinates, D1-D7 destinations, explicit U adjudication, inherited independent evidence distinguished from current author reads, and 404 history-bearing paragraph dispositions. Independent closing review remains primary-owned.",
       "claims": [
@@ -5998,6 +6002,40 @@
             {
               "kind": "provenance",
               "target": "git:d71bd65545a2ff09534eeb6ae8050b41435379d9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/theme-freshness-doc-disposition-2026-09-13.md",
+      "assignedSha256": "7390e66e48f1f8254a008f9c50e6c8225e2e36e3199ed4f378214ea566d32b14",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "7390e66e48f1f8254a008f9c50e6c8225e2e36e3199ed4f378214ea566d32b14",
+      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
+        "Q11 current claim evidence: immutable284dedcee deriveThemeCss and ledgers-fresh read in full; generator/validator and namespace-health functions read completely at their selected spans. ff25a067f independent theme review read in full, with its scoped/cut results attributed. Primary integrated-main1ef220c20 three-arm whole-stage JSON read in full: same-count1 with theme/census, cut-edge1 without theme and with census, malformed2 without freshness verdict. Canonical validation including required history is retained for this baseline, and scratch roots supply data rather than alternate generator code."
+      ],
+      "summary": "Dated Q11 coupled-document corrections, accepted canonical-validation boundary, scratch-data limitation and attributed primary whole-stage controls; final integration acceptance remains separate.",
+      "claims": [
+        {
+          "claim": "Q11 retired the copied theme declaration count in favor of canonical complete-byte derivation, with validation retained and evidence boundaries explicit.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#2230"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:1ef220c201621e34ebf8a2b6a4da5a22893d5384"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:cf7ce412c444942b602ec1a200b91383f64ea18d"
             }
           ]
         }
