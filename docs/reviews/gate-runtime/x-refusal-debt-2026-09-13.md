@@ -145,9 +145,10 @@ or not at all) and never restates the id.
 - `freeze-provenance-write-pairing-health` keeps its pin in its own conversion test rather than joining
   that file: it belongs to the `freeze-provenance` family and its `empty` arm REPORTS by design instead of
   refusing (module header, blindness mode B).
-- No `mustRefuse` row was added anywhere. Every refusal in this set is a phase the proof grammar cannot
-  express — a population-phase throw, a receipt-phase zero-member refusal, or an `evaluate` throw — and
-  `toolFailure` precedes any arm verdict.
+- No `mustRefuse` row was added in this batch. These family pins retain dispatched phase, owner,
+  withholding, receipt, and healthy-twin assertions beyond refusal-text matching. `mustRefuse` can express
+  population-, receipt-, and evaluate-phase refusals; the earlier claim that these phases were
+  inexpressible was incorrect. Independent verification: commit `c4eda33bd`, report §B1.
 
 ## LEDGER ROWS (1 row)
 
