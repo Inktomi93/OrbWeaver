@@ -30,6 +30,15 @@ ruling. It stops only for work outside its fence or an unresolved design decisio
 
 ## 2. Select and claim work
 
+**Owner ordering override — 2026-09-13:** complete the remaining legacy conversions before draining the
+refutation queue. Group owners by shared readers and authority, build required admissible capabilities,
+and preserve the full predicates, proof corpus, marker migration and world/config guarantees. Integrate
+conversion batches before independent review and consolidated verification; record every deferred check
+explicitly. This supersedes the pre-landing verification order in §§4–5 for this push, not the acceptance
+requirements. After the last conversion, complete verification and repair its findings before declaring
+the program finished. A converted commit is not a verified completion. Do not dispatch more Claude B
+work; the owner ended that account's work for the night.
+
 The board and refutation ledger determine current work. Re-read the cited source and recent path history before putting
 a row in a batch. Claim every row at dispatch and verify its Lane field. Treat historical refusal, Verify status, and a
 prior audit as claims against an older tree. An already-closed row is a successful re-derivation: report its closing
