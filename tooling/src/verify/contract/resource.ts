@@ -27,6 +27,8 @@ export interface ResourceTreeEntry {
   readonly bytes: number;
   readonly lines: number;
   readonly nulBytes: number;
+  /** One-based raw-byte line for every NUL occurrence. Repeated lines preserve occurrence cardinality. */
+  readonly nulLines: readonly number[];
   readonly origin: "disk" | "overlay";
 }
 

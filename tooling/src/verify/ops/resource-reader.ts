@@ -196,15 +196,27 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
     }
     let newlines = 0;
     let nulBytes = 0;
+    const nulLines: number[] = [];
     for (const byte of content.value) {
+      if (byte === 0) {
+        nulBytes += 1;
+        nulLines.push(newlines + 1);
+      }
       newlines += Number(byte === 10);
-      nulBytes += Number(byte === 0);
     }
-    return Object.freeze({ path, kind: "file", bytes: content.value.length, lines: newlines + 1, nulBytes, origin: overlay.has(path) ? "overlay" : "disk" });
+    return Object.freeze({
+      path,
+      kind: "file",
+      bytes: content.value.length,
+      lines: newlines + 1,
+      nulBytes,
+      nulLines: Object.freeze(nulLines),
+      origin: overlay.has(path) ? "overlay" : "disk",
+    });
   };
   const addDirectory = (entries: Map<string, ResourceTreeEntry>, directory: string, origin: ResourceTreeEntry["origin"]): void => {
     if (!entries.has(directory)) {
-      entries.set(directory, Object.freeze({ path: directory, kind: "directory", bytes: 0, lines: 0, nulBytes: 0, origin }));
+      entries.set(directory, Object.freeze({ path: directory, kind: "directory", bytes: 0, lines: 0, nulBytes: 0, nulLines: Object.freeze([]), origin }));
     }
   };
   const walk = (entries: Map<string, ResourceTreeEntry>, directory: string): void => {
