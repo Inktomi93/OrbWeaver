@@ -10,7 +10,7 @@ The loop: **drive → verify the signal → file → claim → fix → verify at
 verify → done**, with the evidence receipt carried unchanged through the last three. Driving
 craft is the `snap-driving` skill; this one is the control-plane half. Authoritative sources
 that outrank this file: `.claude/rules/orchestration.md` (work control + lifecycle hygiene),
-`scripts/github/work-item.ts` (the enforced transitions), `pnpm work:item --help`.
+`tooling/src/workboard/ops/lifecycle.ts` (the enforced transitions), `pnpm work:item --help`.
 
 Project 1 owns MUTABLE lifecycle; durable results live in the repo and link the issue. Never
 mirror status into prose. **Only the orchestrator/main session mutates Project — a dispatched
@@ -23,7 +23,7 @@ even mid-dogfood when the fix is one obvious line. An issue minted after its own
 retrospective paperwork, not tracking (measured 2026-08-16: #75 created 33s after its fix landed;
 that ordering is the defect this rule exists to kill).
 
-The lifecycle, as the code enforces it (`scripts/github/work-item.ts`):
+The lifecycle, as the code enforces it (`tooling/src/workboard/ops/lifecycle.ts`):
 
 - **Classes:** `work` (buildable outcome) · `bug` (reproducible contract violation) · `decision`
   (owner fork — enters Needs owner) · `program` (one committed future sprint) · `evidence`
@@ -31,9 +31,10 @@ The lifecycle, as the code enforces it (`scripts/github/work-item.ts`):
   — the matching `.github/ISSUE_TEMPLATE/*.yml` is the canonical body.
 - **Statuses:** Triage → Ready → Running → Review → Verify → Done (plus Needs owner, Blocked,
   Parked).
-- **Verbs:** `ready` (requires Kind, Priority, Area, Review ALL set — code-enforced; the CLI
-  help's shorter list omits Kind, the code does not) → `claim <issue> --lane <lane>` (assigns,
-  sets Running) → `review` → `verify <issue> --evidence <receipt>` → `done <issue> --evidence <same-receipt>`. Plus `needs-owner`, `block`/`unblock --by`, `park --wake <condition>`,
+- **Verbs:** `ready` (requires Kind, Priority, Area, Review ALL set — code-enforced) →
+  `claim <issue> --lane <lane>` (assigns, sets Running) → `review` →
+  `verify <issue> --evidence <receipt>` → `done <issue> --evidence <same-receipt>`. Plus
+  `needs-owner`, `block`/`unblock --by`, `park --wake <condition>`,
   `set`, `show`, `list --status`.
 - **The evidence byte-match:** `done` refuses unless the issue's Evidence field equals
   `--evidence` exactly — carry ONE receipt string from verify to done, never re-word it. `done`

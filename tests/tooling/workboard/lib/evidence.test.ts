@@ -16,7 +16,7 @@ test("at or under the column cap the transform is the identity, with nothing to 
 test("over the cap: the field carries head + pointer within the cap, the overflow carries the WHOLE text, deterministically", () => {
   const long = `receipt-${"y".repeat(2000)}`;
   const first = evidenceText(long);
-  expect(first.field.length).toBeLessThanOrEqual(COLUMN_CAP);
+  expect(Buffer.byteLength(first.field, "utf8")).toBeLessThanOrEqual(COLUMN_CAP);
   expect(first.field).toContain("full receipt in issue comment");
   expect(first.field.startsWith("receipt-")).toBe(true);
   expect(first.overflow).toContain(long);
@@ -30,4 +30,25 @@ test("over the cap: the field carries head + pointer within the cap, the overflo
 test("the hard cap refuses as misuse before any write", () => {
   expect(capEvidenceHard("fine")).toBe("fine");
   expect(() => capEvidenceHard("z".repeat(60_001))).toThrow("hard cap is 60000");
+});
+
+// #1920: GitHub accepted 512 é / 256 emoji (1024 UTF-8 bytes), refused one more
+// of either, and refused the original 1026-byte ASCII split on scratch issue #2336.
+test("the column limit counts UTF-8 bytes, preserving complete characters and the full receipt", () => {
+  for (const character of ["x", "é", "界", "🙂"]) {
+    const width = Buffer.byteLength(character, "utf8");
+    const fits = character.repeat(Math.floor(COLUMN_CAP / width));
+    expect(evidenceText(fits)).toEqual({ field: fits, overflow: null });
+    const long = fits + character;
+    const result = evidenceText(long);
+    expect(Buffer.byteLength(result.field, "utf8")).toBeLessThanOrEqual(COLUMN_CAP);
+    expect(result.field).toContain("full receipt in issue comment");
+    expect(result.field.isWellFormed()).toBe(true);
+    expect(result.overflow).toContain(long);
+    const prefix = result.field.slice(0, result.field.indexOf(" … ["));
+    expect(long.startsWith(prefix)).toBe(true);
+    expect(prefix.length).toBeGreaterThan(0);
+    expect(Buffer.byteLength(result.field + character, "utf8")).toBeGreaterThan(COLUMN_CAP);
+    expect(evidenceText(long)).toEqual(result);
+  }
 });

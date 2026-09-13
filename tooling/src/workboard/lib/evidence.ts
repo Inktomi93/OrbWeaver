@@ -1,5 +1,5 @@
 // Evidence policy — PURE (#923 P2, owner-approved 2026-09-01). GitHub's Project text column hard-
-// rejects anything past EVIDENCE_MAX_LENGTH chars (measured live — vocab.ts). The old shape REFUSED an
+// rejects anything past EVIDENCE_MAX_LENGTH UTF-8 bytes (measured live — vocab.ts). The old shape REFUSED an
 // over-cap `--evidence` and pushed the operator through a manual post-a-comment-and-retype loop; now
 // the FIELD carries a deterministic head + pointer and the FULL text lands as an issue comment in the
 // same invocation. The transform is pure and shared by verify/reverify/refute/done, so done's
@@ -34,13 +34,25 @@ export function capEvidenceHard(value: string): string {
 /** The write-time half. The pointer carries a short hash of the FULL text so the field and its comment
  *  are pairable, and the transform is deterministic — verify writes it, done recomputes it and matches. */
 export function evidenceText(evidence: string): EvidenceText {
-  if (evidence.length <= EVIDENCE_MAX_LENGTH) {
+  if (Buffer.byteLength(evidence, "utf8") <= EVIDENCE_MAX_LENGTH) {
     return { field: evidence, overflow: null };
   }
   const digest = createHash("sha256").update(evidence, "utf8").digest("hex").slice(0, POINTER_HASH_LENGTH);
   const pointer = ` … [full receipt in issue comment ${digest}]`;
+  const prefixBudget = EVIDENCE_MAX_LENGTH - Buffer.byteLength(pointer, "utf8");
+  let prefixBytes = 0;
+  let prefixEnd = 0;
+  // Iterate code points so a byte budget never slices a surrogate pair in half.
+  for (const character of evidence) {
+    const width = Buffer.byteLength(character, "utf8");
+    if (prefixBytes + width > prefixBudget) {
+      break;
+    }
+    prefixBytes += width;
+    prefixEnd += character.length;
+  }
   return {
-    field: `${evidence.slice(0, EVIDENCE_MAX_LENGTH - pointer.length)}${pointer}`,
+    field: `${evidence.slice(0, prefixEnd)}${pointer}`,
     overflow: `Full verification receipt (${digest}):\n\n${evidence}`,
   };
 }
