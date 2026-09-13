@@ -41274,9 +41274,9 @@
       "path": "docs/reviews/gate-runtime/x-vendor-hooks-pins-2026-09-13.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 191,
-      "bytes": 17965,
-      "sha256": "9e3e6de1699b7e53751de1d58e28fc4413b8f69d3c7384c24e543bca120621ca",
+      "lines": 276,
+      "bytes": 24623,
+      "sha256": "625b4c04095c1d2583adaea5343f5e68324303a547b1b018289b7e065bc49d66",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -41293,21 +41293,20 @@
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "9e3e6de1699b7e53751de1d58e28fc4413b8f69d3c7384c24e543bca120621ca",
-        "verifiedCommit": "a8c522ee3abbc15efaa97a2195b252765578d17e",
+        "verifiedSha256": "625b4c04095c1d2583adaea5343f5e68324303a547b1b018289b7e065bc49d66",
+        "verifiedCommit": "c383bcda57af71476f46d731a6b90f5e1cca2f57",
         "verifiedAt": "2026-09-13",
-        "summary": "Full two-leg vendor hook proof report with preserved historical evidence, explicit seven-hook correction, independent acceptance, and integrated 26/26 receipt. No new defect ledger rows.",
+        "summary": "Complete three-leg vendor hook report preserves prior proof and adds the sixth JSON consumer refusal pins with independent production-wiring verification.",
         "evidence": [
-          "Root read the complete preserved report and additive integration appendix; independent reviewer prepared the fold and confirmed zero source ledger rows. Scoped check:docs passed. B978 supplies terminal #2310 closure; broader program verification remains owed.",
-          "Catalog identified unsupported status final; normalized to active with an explicit appendix note preserving historical provenance. Root read the corrected metadata and appendix; check:docs passed."
+          "Root read original report and full additive leg3. Independent reviewer removed actual production JSON declaration:8 failed/9 passed, including all new refusal rows and healthy twin; exact restore17/17. Integrated c28441eb4 family17/17 at reports/runs/test/main-542565-2026-09-13T07-18-50-117Z/test-report.json. #2318 closure recorded by Claude B1000. Broader gate-program barrier remains owed."
         ],
         "claims": [
           {
-            "claim": "Full two-leg vendor hook proof report with preserved historical evidence, explicit seven-hook correction, independent acceptance, and integrated 26/26 receipt. No new defect ledger rows.",
+            "claim": "Complete three-leg vendor hook report preserves prior proof and adds the sixth JSON consumer refusal pins with independent production-wiring verification.",
             "evidence": [
               {
                 "kind": "provenance",
-                "target": "git:a8c522ee3abbc15efaa97a2195b252765578d17e"
+                "target": "git:c383bcda57af71476f46d731a6b90f5e1cca2f57"
               },
               {
                 "kind": "issue",
@@ -41356,6 +41355,198 @@
               {
                 "kind": "provenance",
                 "target": "git:12cff683cef15dd11e6ffb170574e8156b1c89a4"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/adj-authority-cohort-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 517,
+      "bytes": 41941,
+      "sha256": "b667cfc722e27d70b81b19b59c29db0ee43af0886997db96ceee58b245b00bab",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/adj-authority-cohort-2026-09-13.md",
+        "assignedSha256": "b667cfc722e27d70b81b19b59c29db0ee43af0886997db96ceee58b245b00bab",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "b667cfc722e27d70b81b19b59c29db0ee43af0886997db96ceee58b245b00bab",
+        "verifiedCommit": "c383bcda57af71476f46d731a6b90f5e1cca2f57",
+        "verifiedAt": "2026-09-13",
+        "summary": "Complete authority/parity adjudication preserves scoped receipts, distinguishes relocated exemptions from migrated authority, and records the separate remaining replay corpus. No full-corpus parity claim.",
+        "evidence": [
+          "Root read the full report, including initially truncated sections recovered separately. Verified current mirror headers and Tier 3 landing receipts; eight shared authority/policy ledger state repairs and four attributed rows folded at27da7c8d1. #2320, #1922, #2147, #2273 and #2319 remaining work is not attested complete."
+        ],
+        "claims": [
+          {
+            "claim": "Complete authority/parity adjudication preserves scoped receipts, distinguishes relocated exemptions from migrated authority, and records the separate remaining replay corpus. No full-corpus parity claim.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:c383bcda57af71476f46d731a6b90f5e1cca2f57"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/adj-policy-cohort-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 434,
+      "bytes": 35099,
+      "sha256": "c46a63e6cd3d34ce9876ca382681a2982b40cbfa6bd737916abf5ca34efd9e7c",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/adj-policy-cohort-2026-09-13.md",
+        "assignedSha256": "c46a63e6cd3d34ce9876ca382681a2982b40cbfa6bd737916abf5ca34efd9e7c",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "c46a63e6cd3d34ce9876ca382681a2982b40cbfa6bd737916abf5ca34efd9e7c",
+        "verifiedCommit": "c383bcda57af71476f46d731a6b90f5e1cca2f57",
+        "verifiedAt": "2026-09-13",
+        "summary": "Complete policy-cohort adjudication preserves closed repairs and bounded remaining warning-debt, driver-proof and owner-decision work.",
+        "evidence": [
+          "Root read the complete report; current parent-SHA headers and named-door accounting corroborate the bounded stale-row repairs. #2070 and #2225 repairs remain separate; #2063 split and #2230 owner fork remain explicit. Full report copied byte-identically and scoped formatter passed."
+        ],
+        "claims": [
+          {
+            "claim": "Complete policy-cohort adjudication preserves closed repairs and bounded remaining warning-debt, driver-proof and owner-decision work.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:c383bcda57af71476f46d731a6b90f5e1cca2f57"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-rail-hit-geometry-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 197,
+      "bytes": 20319,
+      "sha256": "ebb3f315eae1df0becddcfac5df2ea14f0e8dbfaeef379bed80567cc3a5128db",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-rail-hit-geometry-2026-09-13.md",
+        "assignedSha256": "ebb3f315eae1df0becddcfac5df2ea14f0e8dbfaeef379bed80567cc3a5128db",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ebb3f315eae1df0becddcfac5df2ea14f0e8dbfaeef379bed80567cc3a5128db",
+        "verifiedCommit": "c383bcda57af71476f46d731a6b90f5e1cca2f57",
+        "verifiedAt": "2026-09-13",
+        "summary": "Complete ten-route hit-geometry review with corrected Extensions finding and exact repaired-source Settings/Extensions verification. Unrelated withholds and observations remain limited.",
+        "evidence": [
+          "Root read both review documents and full independent repaired-source reports. Original225-candidate run remains dated evidence. Settings four-profile104-candidate control and Extensions first-arrival/name control confirmed bounded repairs; full live reports preserved in issue closure comments. Scoped formatting passed."
+        ],
+        "claims": [
+          {
+            "claim": "Complete ten-route hit-geometry review with corrected Extensions finding and exact repaired-source Settings/Extensions verification. Unrelated withholds and observations remain limited.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:c383bcda57af71476f46d731a6b90f5e1cca2f57"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-rail-followup-disposition-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 63,
+      "bytes": 10945,
+      "sha256": "8f94425ba30cea34cd7850e060ed7524e2ee60a04de9814e3e1b4ff87fd5073e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-rail-followup-disposition-2026-09-13.md",
+        "assignedSha256": "8f94425ba30cea34cd7850e060ed7524e2ee60a04de9814e3e1b4ff87fd5073e",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "8f94425ba30cea34cd7850e060ed7524e2ee60a04de9814e3e1b4ff87fd5073e",
+        "verifiedCommit": "c383bcda57af71476f46d731a6b90f5e1cca2f57",
+        "verifiedAt": "2026-09-13",
+        "summary": "Complete source and issue-search disposition of RAIL follow-ups, with additive repaired-source confirmation for Settings and Extensions.",
+        "evidence": [
+          "Root read complete report and supporting live follow-up reports; preserved initial filing recommendations as historical and appended exact current disposition through primary review. Runtime/performance and color leads remain unadjudicated. Scoped formatting passed."
+        ],
+        "claims": [
+          {
+            "claim": "Complete source and issue-search disposition of RAIL follow-ups, with additive repaired-source confirmation for Settings and Extensions.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:c383bcda57af71476f46d731a6b90f5e1cca2f57"
               },
               {
                 "kind": "issue",
