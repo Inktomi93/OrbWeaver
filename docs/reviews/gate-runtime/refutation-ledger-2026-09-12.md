@@ -1120,6 +1120,12 @@ Independent review refuted the intermediate repair before landing: stop-command 
 | - | - | - | - | - |
 | `tooling/src/verify/ops/board-citations.ts` | A missing or off-board closed-control issue produced one generic crossing, falsely certifying that the board reader had observed CLOSED. | control non-vacuity / false attestation | **CLOSED** — repair `182f7ecbf` (board #2347); independently confirmed exact source/test snapshot | Production controls red 2 failed / 6 passed: `main-3798222-2026-09-13T17-49-13-460Z`; green 8/8: `main-3801327-2026-09-13T17-49-49-715Z`. Require existence, board membership, CLOSED state and the actual openness crossing. Healthy twins restore only the control row. Two-file lint and root/tooling native programs pass. Live board snapshot passed all four controls with actual CLOSED #1, OPEN #13, absent #2348 and declaring #2077. Full barrier and #2156 subject residue remain separate. |
 
+### Ledger orphan-row admission — #2348, 2026-09-13
+
+| module | defect | class | state | receipt |
+| - | - | - | - | - |
+| `lib/gate-program-rollup.ts`; `lib/citation-sources.ts` | An escaped or separatorless orphan defect row is silently excluded while a remaining valid table keeps configured ledger admission successful; rollup and citations agree on the same partial population. | parser blindness / incomplete denominator | **OPEN** (board #2348) | Production readers at `4be9ab21a`: the same two OPEN rows in a valid table yield rows 2 / citations 2; a blank line plus escaped leading pipe on the second row yields 1 / 1, as does a separatorless orphan, with no admission refusal. Both negative cases and the restored same-content control ran together. Six historical instances were restored by `7cd5ea7db`; data restoration did not repair admission. Require shared ledger-specific refusal for unadmitted row content while preserving prose/code and generic GFM semantics; no section/path/state roster. |
+
 ## CLASS ROLLUP
 
 **REBUILT FROM THE BODY, 2026-09-11 (`v-ledger-sweep`, `64dfbf349`). The previous table read
@@ -1164,8 +1170,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 17 | 0 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 340 | 309 | 8 | 1 | 3 | 1 | 0 | 18 |
-| **TOTAL** | 536 | 489 | 13 | 6 | 4 | 1 | 0 | 23 |
+| **other** | 341 | 309 | 9 | 1 | 3 | 1 | 0 | 18 |
+| **TOTAL** | 537 | 489 | 14 | 6 | 4 | 1 | 0 | 23 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 
