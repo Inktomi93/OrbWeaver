@@ -33,9 +33,11 @@
 //      `resolveCallableDeclaration`, which tries the module axis first and falls back to the lexical
 //      binding — so a local overload set resolves to its implementation instead of refusing, and a
 //      reassigned callee refuses instead of resolving. `mustPass[1]` is the module-local arm's pin.
-//      **LANDED 2026-09-13 (5c73621ea) claiming both deltas were "strictly stricter, never more
-//      permissive". THAT DIRECTION CLAIM WAS WRONG and is REFUTED (reviewer `cb-v-callable-reader`,
-//      reproduced here through the production proof runner).** In THIS policy an unresolvable segment IS
+//      **LANDED 2026-09-13 (5c73621ea). Its COMMIT MESSAGE and the lane report's §2.2 claimed both deltas
+//      were "strictly stricter, never more permissive" — this header never carried that sentence, and the
+//      distinction matters because a reader auditing the header alone would find no claim to distrust.
+//      THAT DIRECTION CLAIM WAS WRONG and is REFUTED (reviewer `cb-v-callable-reader`, reproduced here
+//      through the production proof runner).** In THIS policy an unresolvable segment IS
 //      the report verdict (`Segment = undefined` → `startsSafe` false → the junction reads as spliced), so
 //      RESOLVING MORE REPORTS LESS. The OVERLOAD delta is therefore PERMISSIVE — more accurate, because
 //      the finding it drops was a false positive on a factory whose returns genuinely lead with a space,

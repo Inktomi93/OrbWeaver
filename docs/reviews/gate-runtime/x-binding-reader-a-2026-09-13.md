@@ -143,8 +143,11 @@ no `git stash`/`checkout`/`restore` anywhere in this lane.
   now have one, and both discriminate: `mustPass[12]` is the overload fixture (cardinality **0**, and 1
   before the migration), `mustFlag[5]` is the reassigned-callee twin (cardinality **1**, and 0 before).
   Receipt: restore the pre-#2163 two-half `calleeDeclaration` (`cp`-backed, one command per call) and run
-  `verifyPolicyProofs` → **exactly 2 failures, `mustFlag[5]` and `mustPass[12]`**, nothing else in the 18
-  rows moves; restored → 0 failures, `git status --short` empty.
+  `verifyPolicyProofs` → **exactly 2 failures, `mustFlag[5]` (`got 0`) and `mustPass[12]` (`got 1`)**, and
+  nothing else among the **19** rows moves (5 + 12 = 17 before the repair, 6 + 13 = 19 after); restored →
+  0 failures, `git status --short` empty. *(The denominator read "18" until 2026-09-13; corrected by
+  `cb-v-callable-reader`'s confirmation pass. The commit message that carries the same receipt is
+  immutable and still says 18 — this file is the corrected copy.)*
 
 ### 2.3 `plugin-dump-guard` — PRESERVED: the membrane canonical-guard identity
 
