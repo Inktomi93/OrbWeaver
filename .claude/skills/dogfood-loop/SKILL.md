@@ -1,6 +1,6 @@
 ---
 name: dogfood-loop
-description: "The drive→verify→file→fix loop for dogfooding Orbweaver — claim-FIRST work-item lifecycle discipline (the `pnpm work:item` verbs, the review→verify→done evidence byte-match, done posts + closes), the finding ladder (instrument signal → reproduce → root-cause → classify bug/decision/work/accept-as-designed-with-citation → file → fix inline vs dispatch a lane), the brief-the-outcome-not-the-seam rule, explicit retraction norms, PNG-verdict reading with the console-tracer known-fine list, and ruled-decision hygiene (immediate transitions, design docs retire with their program, parked deferrals with wake conditions). Use whenever a session dogfoods the live app, files or triages findings from a drive, decides whether something is a bug / an owner decision / work / as-designed, runs any work:item lifecycle transition, retracts an overturned finding, or converts a finding into an inline fix or a lane brief."
+description: "The drive→verify→file→fix loop for dogfooding Orbweaver — claim-FIRST work-item lifecycle discipline (the `pnpm work:item` verbs, the review→verify→done same-receipt match, done posts + closes), the finding ladder (instrument signal → reproduce → root-cause → classify bug/decision/work/accept-as-designed-with-citation → file → fix inline vs dispatch a lane), the brief-the-outcome-not-the-seam rule, explicit retraction norms, PNG-verdict reading with the console-tracer known-fine list, and ruled-decision hygiene (immediate transitions, design docs retire with their program, parked deferrals with wake conditions). Use whenever a session dogfoods the live app, files or triages findings from a drive, decides whether something is a bug / an owner decision / work / as-designed, runs any work:item lifecycle transition, retracts an overturned finding, or converts a finding into an inline fix or a lane brief."
 ---
 
 # The dogfood loop
@@ -36,10 +36,12 @@ The lifecycle, as the code enforces it (`tooling/src/workboard/ops/lifecycle.ts`
   `verify <issue> --evidence <receipt>` → `done <issue> --evidence <same-receipt>`. Plus
   `needs-owner`, `block`/`unblock --by`, `park --wake <condition>`,
   `set`, `show`, `list --status`.
-- **The evidence byte-match:** `done` refuses unless the issue's Evidence field equals
-  `--evidence` exactly — carry ONE receipt string from verify to done, never re-word it. `done`
-  then posts `Verification evidence: <receipt>` as a comment (idempotent) and closes the issue
-  as completed.
+- **The evidence match:** carry ONE complete `--evidence` receipt unchanged from `verify` to
+  `done`, never re-word it. At or below 1024 UTF-8 bytes the Evidence field is that receipt;
+  above the cap it is a deterministic head + pointer and the full receipt is posted once in a
+  paired issue comment. `done` recomputes the same field, compares it with the stored Evidence
+  after surrounding-whitespace normalization, then idempotently posts
+  `Verification evidence: <derived field>` and closes the issue as completed.
 - **Interrupted transitions are rerun-safe:** Status is written last, so an identical retry after
   an uncertain GitHub response is the recovery — rerun the operator command; never repair fields
   with raw `gh` calls.
