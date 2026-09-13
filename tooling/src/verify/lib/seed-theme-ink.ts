@@ -1,6 +1,20 @@
-// The seed-palette INK-DUTY derivation behind `gates/seed-theme-ink-contrast.ts`. Pure + fsBacked:
-// it resolves every shipped seed palette out of the GENERATED `theme.css` and pairs it with the
-// `text-<token>` / `bg-<token>/<alpha>` census the shared static-class walk already produces.
+// The seed-palette INK-DUTY derivation behind `gates/seed-theme-ink-contrast.ts`. PURE, and it reads
+// NOTHING: every input arrives as a fact — the `product-css` declaration facts its one consumer already
+// declares, and the `text-<token>` / `bg-<token>/<alpha>` candidates the shared static-class walk
+// produces. What is left here is the policy's own ALGORITHM (which grounds an ink rests on, how a
+// self-tint composites, which utility spellings are inks), which §12.3 explicitly permits in `verify/lib`.
+//
+// THE PRIVATE CSS PARSER IS GONE (#2293, §5b.7 / §12.3). This module used to carry `DECLARATION` /
+// `THEME_BLOCK` / `SEED_BLOCK` regexes plus a hand-rolled balanced-brace `blockBody` scan over `theme.css`
+// TEXT — repository CSS reading behind `defineGate`, in a one-importer `lib/` file, answering a question
+// the consumer's own declared `product-css` resource already answers. `CssDeclarationFact` carries the
+// property, the collapsed value and the OWNER (`@theme` as an at-rule prelude, `[data-theme="x"]` as a
+// style-rule selector list), which is the whole input the derivation needed. Three deltas, all in the
+// widening direction and none reachable by the shipped sheet: a final declaration with no `;` before its
+// `}` is now READ (the old regex required the semicolon); every `@theme` block merges rather than only the
+// first; and a declaration nested inside an at-rule WITHIN `@theme` is attributed to that inner at-rule
+// instead of to the theme block. Parity receipt on the real `packages/ui/src/styles/theme.css`: three
+// palettes (hearth/dark, light/light, mocha/dark), 81 `--color-*` each, byte-identical values.
 //
 // WHY theme.css AND NOT the DTCG sources: the light-dark() composition (base $value = the dark arm,
 // themes/light.json = the light arm, everything else a [data-theme] override) is tokens.build.ts's
@@ -14,6 +28,7 @@
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
 import type { Rgb } from "../../_shared/wcag.ts";
 import { contrastRatio } from "../../_shared/wcag.ts";
+import type { CssDeclarationFact } from "../contract/resource-css.ts";
 import type { StaticClassCandidate } from "./static-class-expression.ts";
 
 /** One shipped seed palette: a name, its inherited color-scheme, and its resolved `--color-*` values. */
@@ -36,44 +51,19 @@ export interface InkUse {
 }
 
 const LIGHT_DARK = /^light-dark\(\s*(.+?)\s*,\s*(.+?)\s*\)$/u;
-const DECLARATION = /--color-([a-z0-9-]+)\s*:\s*([^;]+);/giu;
-const THEME_BLOCK = /@theme\s*\{/u;
-const SEED_BLOCK = /\[data-theme="([a-z0-9-]+)"\]\s*\{/giu;
+/** The BASE palette's home: Tailwind's `@theme` block, read off the declaration fact's at-rule owner. */
+const THEME_AT_RULE = /^@theme\b/u;
+/** A shipped seed's home: `[data-theme="x"]`, read off the declaration fact's selector list. Unanchored,
+ *  exactly as the retired text scan was — a seed authored under a compound selector is still that seed. */
+const SEED_SELECTOR = /\[data-theme="([a-z0-9-]+)"\]/u;
+const COLOR_PREFIX = "--color-";
+const COLOR_SCHEME = "color-scheme";
 /** `text-primary`, but never `text-primary-foreground` — a pair ink is judged on its own fill, not here. */
 const TEXT_UTILITY = /^text-([a-z][a-z0-9-]*)$/u;
 const SELF_TINT_UTILITY = /^bg-([a-z][a-z0-9-]*)\/(\d{1,3})$/u;
 /** Tailwind v4's importance marker rides the END of a utility (`text-x!`). */
 const TRAILING_IMPORTANT = /!$/u;
 const WHITESPACE = /\s+/u;
-
-/** The `{ … }` body opened by the brace at `openIdx`, by balanced-brace scan (nested at-rules included). */
-function blockBody(text: string, openIdx: number): string {
-  let depth = 0;
-  for (let i = openIdx; i < text.length; i += 1) {
-    if (text[i] === "{") {
-      depth += 1;
-    } else if (text[i] === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return text.slice(openIdx + 1, i);
-      }
-    }
-  }
-  return "";
-}
-
-function declarationsIn(body: string): Map<string, string> {
-  const out = new Map<string, string>();
-  DECLARATION.lastIndex = 0;
-  for (let m = DECLARATION.exec(body); m !== null; m = DECLARATION.exec(body)) {
-    const name = m[1];
-    const value = m[2];
-    if (name !== undefined && value !== undefined) {
-      out.set(`--color-${name}`, value.trim());
-    }
-  }
-  return out;
-}
 
 /** The arm a palette's own color-scheme selects out of a `light-dark(<light>, <dark>)` value. */
 function polarityArm(value: string, scheme: "light" | "dark"): string {
@@ -84,38 +74,59 @@ function polarityArm(value: string, scheme: "light" | "dark"): string {
   return (scheme === "light" ? m[1] : m[2]) ?? value.trim();
 }
 
+/** One seed under construction: its scheme is a declaration inside the same block and may be authored
+ *  before or after the colours, so both are accumulated and the palette is built at the end. */
+interface SeedDraft {
+  scheme: "light" | "dark";
+  readonly vars: Map<string, string>;
+}
+
 /**
- * Every shipped seed palette, resolved from the generated stylesheet: the `@theme` block is the base
- * (Hearth — `:root { color-scheme: dark }`), and each `[data-theme="…"]` block overrides it, taking its
- * scheme from its own `color-scheme` declaration. A base value that is still `light-dark(…)` collapses
- * to the arm that palette's scheme selects.
+ * Every shipped seed palette, derived from the THEME SHEET'S OWN DECLARATION FACTS: the `@theme` at-rule
+ * carries the base (Hearth — `:root { color-scheme: dark }`), and each `[data-theme="…"]` style rule
+ * overrides it, taking its scheme from its own `color-scheme` declaration. A base value that is still
+ * `light-dark(…)` collapses to the arm that palette's scheme selects.
+ *
+ * The caller passes the declarations of ONE sheet (`facts.declarations.filter(d => d.file === theme)`);
+ * this function never reads a path and never parses text — see the header on the parser it replaced.
  *
  * CUSTOM user themes are deliberately OUT OF SCOPE: they are runtime `<ThemeScope>` values clamped by
  * packages/ui/src/content/theme-scope/clamp.ts and swept by its own suite. This reads what WE ship.
  */
-export function readSeedPalettes(themeCss: string): readonly SeedPalette[] {
-  const themeStart = THEME_BLOCK.exec(themeCss);
-  if (themeStart === null) {
-    return [];
+function absorbSeedDeclaration(seeds: Map<string, SeedDraft>, selectorList: string, property: string, value: string): void {
+  const name = SEED_SELECTOR.exec(selectorList)?.[1];
+  if (name === undefined) {
+    return;
   }
-  const base = declarationsIn(blockBody(themeCss, themeStart.index + themeStart[0].length - 1));
+  const draft = seeds.get(name) ?? { scheme: "dark", vars: new Map<string, string>() };
+  seeds.set(name, draft);
+  if (property === COLOR_SCHEME) {
+    draft.scheme = value.startsWith("light") ? "light" : "dark";
+  } else if (property.startsWith(COLOR_PREFIX)) {
+    draft.vars.set(property, value);
+  }
+}
+
+export function readSeedPalettes(declarations: readonly CssDeclarationFact[]): readonly SeedPalette[] {
+  const base = new Map<string, string>();
+  const seeds = new Map<string, SeedDraft>();
+  for (const { owner, property, value } of declarations) {
+    if (owner.kind === "at-rule") {
+      if (THEME_AT_RULE.test(owner.prelude) && property.startsWith(COLOR_PREFIX)) {
+        base.set(property, value);
+      }
+    } else {
+      absorbSeedDeclaration(seeds, owner.selectorList, property, value);
+    }
+  }
+  // A sheet with no `--color-*` in its `@theme` block resolves ZERO palettes, which is the consumer's
+  // zero-palette blindness tripwire — the same verdict the retired "no `@theme` block at all" arm gave.
   if (base.size === 0) {
     return [];
   }
   const palettes: SeedPalette[] = [{ name: "hearth", scheme: "dark", vars: collapse(base, "dark") }];
-  SEED_BLOCK.lastIndex = 0;
-  for (let m = SEED_BLOCK.exec(themeCss); m !== null; m = SEED_BLOCK.exec(themeCss)) {
-    const name = m[1];
-    if (name === undefined) {
-      continue;
-    }
-    const body = blockBody(themeCss, m.index + m[0].length - 1);
-    const scheme = /color-scheme\s*:\s*light/u.test(body) ? "light" : "dark";
-    const merged = new Map(base);
-    for (const [key, value] of declarationsIn(body)) {
-      merged.set(key, value);
-    }
-    palettes.push({ name, scheme, vars: collapse(merged, scheme) });
+  for (const [name, draft] of seeds) {
+    palettes.push({ name, scheme: draft.scheme, vars: collapse(new Map([...base, ...draft.vars]), draft.scheme) });
   }
   return palettes;
 }
