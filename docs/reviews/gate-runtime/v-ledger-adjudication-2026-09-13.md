@@ -252,3 +252,18 @@ into `:682`, the second false `runner-config-path-liveness` sentence into `:398`
 `anchorable` sites into `:535`, and the two stale baselines are §1b, which is a barrier regen and not a defect.
 
 `ledger rows OWED: 0`
+
+## 9. Commit receipt
+
+This report landed as `a36b8b43c` on branch `agent-a342b79264b6b8b7a`, committed with
+`git -c core.hooksPath=/dev/null` per the #1584 standing exception:
+
+```
+commit a36b8b43cfdaac9684a1a593787cb6fd82239c39
+docs(gates): adjudicate the refutation ledger's 48 unowned OPEN rows against the tree (#2012, #1584)
+ .../v-ledger-adjudication-2026-09-13.md            | 254 +++++++++++++++++++++
+ 1 file changed, 254 insertions(+)
+```
+
+`git status --short` was EMPTY after that commit. This section is the only follow-up commit, because a
+commit cannot contain its own stat.
