@@ -193,8 +193,9 @@ export const gate = defineGate({
       // THE #2302 POSITIONAL RE-POINTING ARM (2026-09-13). `RATIFIED` is keyed by POSITIONAL INDEX
       // (`config[0].ignores[N]`), never by the selector's own value, so an `ignores` entry inserted ABOVE
       // index 5 shifts every key beneath it to a DIFFERENT selector — the keys still resolve, they just name
-      // the wrong thing. This fixture inserts one new zero-member entry at index 0; every one of the eight
-      // RATIFIED rows below it now names the selector that used to sit one position earlier. RED-FIRST
+      // the wrong thing. This fixture inserts one new zero-member entry at index 0; every one of the SEVEN
+      // RATIFIED rows (indices 0, 1, 3, 4, 5, 6, 7 — index 2 and the tail are unratified) below it now names
+      // the selector that used to sit one position earlier. RED-FIRST
       // receipt (docs/reviews/gate-runtime/x-eslint-grant-pin-2026-09-13.md): before this row existed,
       // `verifyPolicyProofs([gate])` returned `[]` for the UNMODIFIED gate — the harness only drives the
       // rows a module declares, so it was structurally blind to this fixture until it was written as a row.
@@ -208,12 +209,16 @@ export const gate = defineGate({
         "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
         "packages/ui/src/live.ts": "export const live = 1;\n",
       },
-      // 15, not 8 or 9: six of the eight RATIFIED keys land on ANOTHER zero-member selector (a dead-selector
-      // MESSAGE plus a STALE MSG_STALE, 2 each = 12), one lands on the now-live `reports/**` selector shifted
-      // into a RATIFIED slot (STALE only, members != 0 = 1), and the two unratified positions this shift
-      // creates — the true `**/dist/**` now sitting at an unratified index, and the tail entry pushed past the
-      // roster — report as ordinary dead selectors (1 each = 2). 12 + 1 + 2 = 15, the exact real-tree count
-      // this row was filed against (#2302).
+      // 15 = 8 dead-selector findings + 7 stale findings, not 8-RATIFIED-keys arithmetic: of the SEVEN
+      // RATIFIED keys, six land on ANOTHER zero-member selector after the shift (each contributes one
+      // dead-selector MESSAGE plus one STALE MSG_STALE — 2 findings each = 12), and one
+      // (`config[0].ignores[3]`, ratified as `**/__g_*`) lands on the now-live shifted-in `reports/**`
+      // selector (members != 0, so only the STALE arm fires = 1). That is 7 stale findings total (6 + 1) and
+      // 6 of the 8 dead-selector findings. The remaining 2 dead-selector findings are the two positions the
+      // shift pushes OUTSIDE the RATIFIED table entirely — the true `**/dist/**` landing in the previously
+      // unratified `ignores[2]` slot, and the tail entry pushed past the roster into `ignores[8]` — each an
+      // ordinary unratified dead selector with no stale twin. 8 dead + 7 stale = 15, the exact real-tree
+      // count this row was filed against (#2302).
       expect: { count: 15, token: "config[0].ignores[1]", messageIncludes: "no longer names the same zero-member selector" },
       why: "an index-0 insert re-points every RATIFIED row beneath it — this is the hazard itself, not a coupled-site symptom of it",
     },
