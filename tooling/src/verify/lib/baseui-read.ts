@@ -11,13 +11,33 @@
 //
 // WHO STILL USES THE FILESYSTEM HALF, after the #1584 conversion of the `baseui-read` family: ONLY
 // `ops/gen/baseui-surface.ts` (the baseline WRITER, a generator rather than a policy) and
-// `lib/css-selector-writers.ts` (read by a gate that has not converted yet). Every CONVERTED `baseui-*`
+// `lib/css-selector-writers.ts` (read by `css-selector-has-a-writer`, which converts with the CSS family
+// because its collector lifecycle is shared with `css-family-ownership`). Every CONVERTED `baseui-*`
 // policy reaches the same data through declared ResourceHost doors — `json:baseui-manifest` for the
-// committed ledger — and narrows it here, through `surfaceManifestFrom`, so the manifest's SHAPE has one
-// home whichever side reads it. That is why this module keeps its fs imports while the gate modules have
-// none: `gate:contract`'s non-negotiables are about what a GATE MODULE does, and a policy that calls
-// `surfaceManifestFrom(readyResourceValue(ctx.resources.json(...)).value)` touches no filesystem at all.
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+// committed ledger, `installed-package:base-ui` for the installed surface — and narrows it here, so each
+// artifact's SHAPE has one home whichever side reads it. That is why this module keeps its fs imports
+// while the gate modules have none: `gate:contract`'s non-negotiables are about what a GATE MODULE does,
+// and a policy that calls `surfaceManifestFrom(readyResourceValue(ctx.resources.json(...)).value)` or
+// `installedSurfaceFrom(declarations.declarationPaths, metadata.version)` touches no filesystem.
+//
+// TWO ACQUISITIONS, ONE DERIVATION. `installedSurfaceOver` / `stateAttributeValuesOver` take a LOADED
+// project and derive everything from it; the two acquisitions differ only in how that project's file set
+// was enumerated — `globbedSurfaceProject` globs the package directory for the fs half,
+// `declaredSurfaceProject` adds exactly the paths the `installed-package` door returned. A second copy of
+// the anatomy walk behind the resource door would be exactly the second home this module exists to
+// prevent, and the two sides would then drift on the next Base UI shape change with nothing to notice.
+// PROVEN rather than asserted: driven over `@base-ui/react@1.7.0`, the two acquisitions produce a
+// byte-identical `InstalledSurface` — 39 components, version 1.7.0, 78,010 JSON bytes on both sides — with
+// two planted controls (an anchorless path set derives NOTHING; dropping one component's `index.d.ts` from
+// the declared set drops exactly that component).
+//
+// THE PATH SET IS THE SAME SET ON BOTH SIDES, and that is a measurement rather than a hope: the fs glob is
+// `${pkgDir}/*/**/*.d.ts` + `${pkgDir}/*/*.d.ts`, i.e. every declaration at least one directory below the
+// package root, and the `installed-package` door's recursive walk returns those PLUS the root-level ones.
+// `nestedDeclarations` re-imposes the glob's own fence, so the admitted sets are equal. Measured
+// 2026-09-13 against `@base-ui/react@1.7.0`: the door returns 790 paths, exactly 2 of them root-level
+// (`global.d.ts`, `index.d.ts`), leaving 788 — the same 788 this header's grant paragraph records.
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExportDeclaration, ExportSpecifier, Identifier, Node, ParameterDeclaration, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
@@ -35,6 +55,7 @@ import type {
   SurfaceManifestRead,
 } from "../contract/baseui.ts";
 import { DISPOSITIONS, EXPORT_KINDS } from "../contract/baseui.ts";
+import { INSTALLED_PACKAGE_DEFINITIONS } from "../contract/resource-installed.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { declarationFile, propsOf, TRUNCATED } from "./baseui-expand.ts";
@@ -67,7 +88,31 @@ export function resetBaseUiSurfaceCache(): void {
   stateAttributesByRoot.clear();
 }
 
-function surfaceProject(pkgDir: string): Project {
+/** The `@base-ui/react` package DIRECTORY, derived from the door's own declaration paths rather than
+ *  guessed from a repo-relative spelling. Under pnpm the door resolves through node and lands on the STORE
+ *  path (`node_modules/.pnpm/@base-ui+react@1.7.0_…/node_modules/@base-ui/react`), never the
+ *  `packages/ui/node_modules/@base-ui/react` symlink an importer sees — so `BASE_UI_PKG_REL` is the fs
+ *  half's spelling and must not be joined onto a door-supplied path.
+ *
+ *  The anchor is the package SPECIFIER from the installed-package contract, so a rename moves one string.
+ *  Fail-closed: a set carrying no such segment means the door handed back declarations from somewhere else
+ *  and the caller reports blindness rather than deriving an empty surface (which reads as "nothing
+ *  changed"). */
+export function installedPackageRootOf(declarationPaths: readonly string[]): string | undefined {
+  const anchor = `/${INSTALLED_PACKAGE_DEFINITIONS["base-ui"].specifier}/`;
+  const inside = declarationPaths.find((path) => path.includes(anchor));
+  return inside === undefined ? undefined : inside.slice(0, inside.lastIndexOf(anchor) + anchor.length - 1);
+}
+
+/** The door's paths, fenced to the fs glob's own set: every declaration at least one directory below the
+ *  package root. See the header — this is what makes the two acquisitions admit the identical set. */
+function nestedDeclarations(pkgDir: string, declarationPaths: readonly string[]): readonly string[] {
+  const prefix = `${pkgDir}/`;
+  return declarationPaths.filter((path) => path.startsWith(prefix) && path.slice(prefix.length).includes("/"));
+}
+
+/** The FS half's project: the package directory IS the whole input, so the directory is the whole key. */
+function globbedSurfaceProject(pkgDir: string): Project {
   const hit = projectByPkgDir.get(pkgDir);
   if (hit !== undefined) {
     return hit;
@@ -75,6 +120,32 @@ function surfaceProject(pkgDir: string): Project {
   const project = new Project({ skipAddingFilesFromTsConfig: true, skipFileDependencyResolution: true });
   project.addSourceFilesAtPaths([`${pkgDir}/*/**/*.d.ts`, `${pkgDir}/*/*.d.ts`]);
   projectByPkgDir.set(pkgDir, project);
+  return project;
+}
+
+/** The DOOR half's project, keyed by the DECLARATION SET rather than by the package directory.
+ *
+ *  THE PACKAGE DIRECTORY IS NOT A SUFFICIENT KEY HERE, and that is a measurement rather than caution: the
+ *  door's input is the path LIST, so two calls naming the same package with different lists are two
+ *  different surfaces. Keyed by directory, the second call silently returns the first call's project — the
+ *  exact "one-slot cache serves example #1's surface to every later example" failure this module's cache
+ *  comment already warns about, one level in, and it is worse here because the fs half's key genuinely IS
+ *  the directory. Caught by `baseui-and-surface-family.repo.int.test.ts`'s drop-one-component control,
+ *  which returned the full surface. A WeakMap on the array identity is the key that cannot be wrong: the
+ *  resource host hands every consumer in one invocation the SAME fact object, so the siblings share a hit,
+ *  and a genuinely different list is a genuinely different key. */
+const projectByDeclarationSet = new WeakMap<readonly string[], Project>();
+
+function declaredSurfaceProject(pkgDir: string, declarationPaths: readonly string[]): Project {
+  const hit = projectByDeclarationSet.get(declarationPaths);
+  if (hit !== undefined) {
+    return hit;
+  }
+  const project = new Project({ skipAddingFilesFromTsConfig: true, skipFileDependencyResolution: true });
+  for (const path of nestedDeclarations(pkgDir, declarationPaths)) {
+    project.addSourceFileAtPath(path);
+  }
+  projectByDeclarationSet.set(declarationPaths, project);
   return project;
 }
 
@@ -100,7 +171,7 @@ function readExport(project: Project, decl: ExportDeclaration, spec: ExportSpeci
 
 function readComponent(project: Project, pkgDir: string, dir: string): InstalledComponent | undefined {
   const componentDir = join(pkgDir, dir);
-  const namespaced = existsSync(join(componentDir, "index.parts.d.ts"));
+  const namespaced = project.getSourceFile(join(componentDir, "index.parts.d.ts")) !== undefined;
   const entry = project.getSourceFile(join(componentDir, namespaced ? "index.parts.d.ts" : "index.d.ts"));
   if (entry === undefined) {
     return;
@@ -118,23 +189,96 @@ function readComponent(project: Project, pkgDir: string, dir: string): Installed
   return { module: `${BASE_UI_MODULE_PREFIX}${dir}`, namespaced, parts: sortKeys(parts) };
 }
 
-/** The namespace/component NAME a module dir publishes (`select` → `Select`), read from its own index. */
-function publishedName(pkgDir: string, dir: string): string | undefined {
-  const index = readFileSync(join(pkgDir, dir, "index.d.ts"), "utf8");
+/** The namespace/component NAME a module dir publishes (`select` → `Select`), read from its own index.
+ *  Read out of the loaded project rather than off disk, so the acquisition that enumerated the paths is the
+ *  only thing that touches a filesystem. */
+function publishedName(project: Project, pkgDir: string, dir: string): string | undefined {
+  const index = project.getSourceFile(join(pkgDir, dir, "index.d.ts"))?.getFullText();
+  if (index === undefined) {
+    return;
+  }
   return NAMESPACE_REEXPORT.exec(index)?.groups?.["ns"] ?? FLAT_REEXPORT.exec(index)?.groups?.["name"];
 }
 
 /** Component module dirs, DERIVED from the entry files rather than listed — so a new module in a version
- *  bump appears on its own, which is the whole point of the tripwire. */
-function componentDirs(pkgDir: string): string[] {
-  return readdirSync(pkgDir, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && !NON_COMPONENT_DIRS.has(d.name) && existsSync(join(pkgDir, d.name, "index.d.ts")))
-    .map((d) => d.name)
-    .sort();
+ *  bump appears on its own, which is the whole point of the tripwire.
+ *
+ *  The DERIVATION IS THE SAME on both acquisitions: a component dir is a direct child of the package root
+ *  publishing an `index.d.ts`. The fs half used to ask `readdirSync` for directories and then `existsSync`
+ *  for the entry; the entry test is what actually decided, so reading the loaded project's own paths admits
+ *  the identical set with no second filesystem question. */
+function componentDirs(project: Project, pkgDir: string): string[] {
+  const prefix = `${pkgDir}/`;
+  const dirs = new Set<string>();
+  for (const sf of project.getSourceFiles()) {
+    const path = sf.getFilePath();
+    if (!path.startsWith(prefix)) {
+      continue;
+    }
+    const [dir, ...rest] = path.slice(prefix.length).split("/");
+    if (dir !== undefined && rest.length === 1 && rest[0] === "index.d.ts" && !NON_COMPONENT_DIRS.has(dir)) {
+      dirs.add(dir);
+    }
+  }
+  return [...dirs].sort();
+}
+
+/** THE ONE anatomy derivation. Both acquisitions land here: the fs half below, and the declared
+ *  `installed-package:base-ui` resource door through `installedSurfaceFrom`. */
+function installedSurfaceOver(project: Project, pkgDir: string, version: string): InstalledSurface {
+  const components: Record<string, InstalledComponent> = {};
+  for (const dir of componentDirs(project, pkgDir)) {
+    const name = publishedName(project, pkgDir, dir);
+    const component = name === undefined ? undefined : readComponent(project, pkgDir, dir);
+    if (name !== undefined && component !== undefined && Object.keys(component.parts).length > 0) {
+      components[name] = component;
+    }
+  }
+  return { version, components: sortKeys(components) };
+}
+
+/** The installed surface from the DECLARED `installed-package` doors — `mode: "ast"` supplies
+ *  `declarationPaths`, `mode: "metadata"` supplies `version`.
+ *
+ *  WHY THE VERSION IS A SECOND ARGUMENT RATHER THAN DERIVED: `mode: "ast"` returns PATHS ONLY
+ *  (`contract/resource-installed.ts#InstalledPackageDeclarations`), and the package manifest is not a
+ *  `.d.ts`, so no declaration path carries the version. A consumer that only compares anatomy — the
+ *  selector-writer family's state-attribute reconciliation — passes `""` and says so; this family's drift
+ *  arm needs the real one and declares the metadata door for it.
+ *
+ *  `undefined` is the §4.6 blindness case: the door resolved declarations that carry no `@base-ui/react`
+ *  package root, so the reader learned nothing and the caller must report RED rather than derive an empty
+ *  surface (which reads as "nothing changed"). A package that is not installed at all never reaches here —
+ *  the door refuses `missing` one phase earlier and every consumer is WITHHELD. */
+export function installedSurfaceFrom(declarationPaths: readonly string[], version: string): InstalledSurface | undefined {
+  const pkgDir = installedPackageRootOf(declarationPaths);
+  if (pkgDir === undefined) {
+    return;
+  }
+  return installedSurfaceOver(declaredSurfaceProject(pkgDir, declarationPaths), pkgDir, version);
+}
+
+/** Installed Base UI state attributes and their statically-declared string/number values, from the DECLARED
+ *  `installed-package {mode: "ast"}` door — the resource-fed twin of `readInstalledStateAttributeValues`.
+ *
+ *  An EMPTY MAP HERE IS NOT THE FS HALF'S EMPTY MAP, and the difference is the whole point of the door: the
+ *  fs function returns one when the package is absent, which is a silent blindness. Reaching this function
+ *  at all means the door already resolved READY, so an empty map means the installed declarations genuinely
+ *  declare no `*State` interface — a real verdict about a real package. The one exception is an anchorless
+ *  path set, which is the same fail-closed case `installedSurfaceFrom` returns `undefined` for; it is
+ *  reported as an empty map here because a state-attribute census has no "I could not read" value in its
+ *  own type, so a consumer that needs to tell the two apart asks `installedSurfaceFrom` first. */
+export function installedStateAttributeValuesFrom(declarationPaths: readonly string[]): ReadonlyMap<string, ReadonlySet<string>> {
+  const pkgDir = installedPackageRootOf(declarationPaths);
+  if (pkgDir === undefined) {
+    return new Map();
+  }
+  return stateAttributeValuesOver(declaredSurfaceProject(pkgDir, declarationPaths));
 }
 
 /** The installed surface, or undefined when the package is not on disk — the §4.6 blindness case every
- *  gate keyed on this must report as RED rather than silently pass. */
+ *  gate keyed on this must report as RED rather than silently pass. THE FS ACQUISITION: it enumerates the
+ *  declaration set with a glob and hands it to the same derivation the resource door uses. */
 export function readInstalledSurface(root: string): InstalledSurface | undefined {
   const hit = surfaceByRoot.get(root);
   if (hit !== undefined) {
@@ -145,16 +289,7 @@ export function readInstalledSurface(root: string): InstalledSurface | undefined
     return;
   }
   const version = String((JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8")) as { version?: string }).version ?? "");
-  const project = surfaceProject(pkgDir);
-  const components: Record<string, InstalledComponent> = {};
-  for (const dir of componentDirs(pkgDir)) {
-    const name = publishedName(pkgDir, dir);
-    const component = name === undefined ? undefined : readComponent(project, pkgDir, dir);
-    if (name !== undefined && component !== undefined && Object.keys(component.parts).length > 0) {
-      components[name] = component;
-    }
-  }
-  const surface: InstalledSurface = { version, components: sortKeys(components) };
+  const surface = installedSurfaceOver(globbedSurfaceProject(pkgDir), pkgDir, version);
   surfaceByRoot.set(root, surface);
   return surface;
 }
@@ -170,14 +305,19 @@ export function readInstalledStateAttributeValues(root: string): ReadonlyMap<str
   if (!existsSync(join(pkgDir, "package.json"))) {
     return new Map();
   }
-  const project = surfaceProject(pkgDir);
+  const values = stateAttributeValuesOver(globbedSurfaceProject(pkgDir));
+  stateAttributesByRoot.set(root, values);
+  return values;
+}
+
+/** THE ONE state-attribute derivation, shared by both acquisitions (see `installedSurfaceOver`). */
+function stateAttributeValuesOver(project: Project): ReadonlyMap<string, ReadonlySet<string>> {
   const mutable = new Map<string, Set<string>>();
   for (const source of project.getSourceFiles()) {
     for (const declaration of source.getInterfaces().filter((candidate) => candidate.getName().endsWith("State"))) {
       recordStateInterface(mutable, declaration);
     }
   }
-  stateAttributesByRoot.set(root, mutable);
   return mutable;
 }
 

@@ -1,6 +1,5 @@
 // Adversarial pins for structural UI/CT gate bypasses. These examples live outside the descriptors so
 // the RED-FIRST proof compiles against the old gate source and fails on behavior, not a new gate API.
-import { gate as derivesGate } from "../../tooling/src/verify/gates/baseui-derives-not-respells.ts";
 import { gate as fabricationGate } from "../../tooling/src/verify/gates/no-test-fabrication.ts";
 import type { GateDescriptor, GateExample } from "../../tooling/src/verify/index.ts";
 import { verifyGateProofs } from "../../tooling/src/verify/index.ts";
@@ -9,11 +8,6 @@ import { expect, test } from "../support/tool-fixtures.ts";
 function failuresFor(gate: GateDescriptor, examples: readonly GateExample[]): ReturnType<typeof verifyGateProofs> {
   return verifyGateProofs([{ ...gate, mustFlag: examples, mustPass: [] }]);
 }
-
-const MANIFEST = {
-  "tooling/src/verify/gates/baseui-surface.manifest.json":
-    '{ "version": "9.9.9", "components": { "Select": { "module": "@base-ui/react/select", "namespaced": true, "parts": { "Root": { "kind": "part", "symbol": "SelectRoot", "from": "./root/SelectRoot.js", "props": ["items"], "handlers": {}, "inherits": [], "disposition": "exposed", "why": "" } } } } }\n',
-} as const;
 
 // baseui-portal-container-seam and surface-a11y-focus migrated off the old `GateDescriptor` +
 // `failuresFor` shape at their #1584 conversion. Every case pinned here is now one of their OWN rows, run
@@ -34,21 +28,13 @@ const MANIFEST = {
 // `tests/tooling/verify/gates/callback-provenance-family.test.ts`, which also carries the §4.5 tool-error
 // refusals and the §4.2 identity arm that a proof row cannot express.
 
-test("a lookalike type identifier is not a Base UI derivation", () => {
-  expect(
-    failuresFor(derivesGate, [
-      {
-        files: {
-          ...MANIFEST,
-          "packages/ui/src/primitives/select/probe.tsx":
-            'import type { SelectRootProps } from "@base-ui/react/select";\nimport { Select as BaseSelect } from "@base-ui/react/select";\ntype NotSelectRootProps = { items?: readonly string[] };\nexport interface SealProps { items?: NotSelectRootProps["items"] }\nexport const Seal = (p: SealProps) => <BaseSelect.Root {...p} />;\n',
-        },
-        expect: { messageIncludes: "SECOND spelling" },
-        why: "identifier identity, not a substring containing the imported type name, establishes derivation",
-      },
-    ]),
-  ).toEqual([]);
-});
+// baseui-derives-not-respells migrated off the old `GateDescriptor` + `failuresFor` shape at its #1584
+// conversion, and it SPLIT: the data-prop arm kept the id and stayed `ordinary`, the handler arm became the
+// `hard` `baseui-derives-not-respells-health`. The case pinned here — a LOOKALIKE type identifier
+// (`NotSelectRootProps`, whose name merely CONTAINS the imported `SelectRootProps`) is not a derivation —
+// is now `baseui-derives-not-respells` mustFlag[1], run through `verifyPolicyProofs` on the static bar.
+// The §4.2 identity arm, the §4.5 refusals and the real-tree marker translation live in
+// `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts`.
 
 // ct-no-oneshot-live-read-assert and ct-story-single-import migrated off the old `GateDescriptor` +
 // `failuresFor` shape at the gate-runtime-standardization.md conversion (#1935). Both are now `defineGate`

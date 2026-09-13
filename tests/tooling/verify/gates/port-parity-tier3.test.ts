@@ -295,10 +295,19 @@ test("the harness REFUSES a frozen legacy gate that reaches the real filesystem,
   for (const spelling of ["node:fs", "node:child_process", "readFileSync", "existsSync", "readdirSync", "process.cwd("]) {
     expect(filesystemReach(`const x = ${spelling};`), `the scan names ${spelling}`).toContain(spelling);
   }
-  // AND END TO END, over REAL repository bytes rather than a hand-made string: `baseui-surface-manifest`
-  // is a live gate whose header says it "reads node_modules and the manifest off real disk", and the
-  // refusal must fire before the module is ever shimmed or imported.
-  await expect(frozenLegacyGate(scratch, "HEAD", "tooling/src/verify/gates/baseui-surface-manifest.ts")).rejects.toThrow(/reaches the real filesystem/u);
+  // AND END TO END, over REAL repository bytes rather than a hand-made string: `no-blanket-suppression`
+  // is a live LEGACY descriptor that imports `existsSync`/`readFileSync` from `node:fs` at its module top
+  // (`:43`), and the refusal must fire before the module is ever shimmed or imported.
+  //
+  // THE CARRIER MOVED, AND IT IS LEGACY BY REQUIREMENT. This end-to-end arm used to name
+  // `baseui-surface-manifest`, which CONVERTED (#1584): a final policy reads its subjects through declared
+  // ResourceHost doors and imports no `node:fs` at all, so it is no longer an example of the thing this
+  // refusal refuses. `no-blanket-suppression` is the deliberate successor rather than the next name to
+  // hand: guide §12.4's first residual rules that its `git grep --cached` staged-blob read serves exactly
+  // one consumer and therefore mints no resource kind, so it stays a legacy `GateDescriptor` — armed and
+  // enforcing — to Phase F. Like every legacy carrier in this tree, the arm retires with the legacy
+  // descriptor contract itself, not with one more re-pointing.
+  await expect(frozenLegacyGate(scratch, "HEAD", "tooling/src/verify/gates/no-blanket-suppression.ts")).rejects.toThrow(/reaches the real filesystem/u);
   // The green twin, same door, same call shape: a pure AST reader is admitted.
   const admitted = await frozenLegacyGate(scratch, TURN_BASE, "tooling/src/verify/gates/turn-identity.ts");
   expect(admitted.name).toBe("turn-identity");

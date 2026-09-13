@@ -30,17 +30,33 @@ import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import { gate as anatomyCompleteness } from "../../../../tooling/src/verify/gates/baseui-anatomy-completeness.ts";
+import { gate as derivesNotRespells } from "../../../../tooling/src/verify/gates/baseui-derives-not-respells.ts";
+import { gate as derivesNotRespellsHealth } from "../../../../tooling/src/verify/gates/baseui-derives-not-respells-health.ts";
 import { gate as portalContainerSeam } from "../../../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
 import { gate as stateDataAttributes } from "../../../../tooling/src/verify/gates/baseui-state-data-attributes.ts";
+import { gate as surfaceManifest } from "../../../../tooling/src/verify/gates/baseui-surface-manifest.ts";
 import { gate as surfaceA11yFocus } from "../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../tooling/src/verify/gates/surface-in-a-container.ts";
 import { gate as surfaceInAContainerHealth } from "../../../../tooling/src/verify/gates/surface-in-a-container-health.ts";
+import { installedPackageRootOf, installedSurfaceFrom } from "../../../../tooling/src/verify/lib/baseui-read.ts";
 import { getProject } from "../../../../tooling/src/verify/lib/harness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const POLICIES = [portalContainerSeam, stateDataAttributes, surfaceA11yFocus, surfaceInAContainer, surfaceInAContainerHealth] as const;
+const POLICIES = [
+  anatomyCompleteness,
+  derivesNotRespells,
+  derivesNotRespellsHealth,
+  portalContainerSeam,
+  stateDataAttributes,
+  surfaceManifest,
+  surfaceA11yFocus,
+  surfaceInAContainer,
+  surfaceInAContainerHealth,
+] as const;
 const POLICY_IDS = new Set(POLICIES.map((policy) => policy.id));
 
 const MANIFEST_REL = "tooling/src/verify/gates/baseui-surface.manifest.json";
@@ -48,6 +64,15 @@ const MANIFEST_REL = "tooling/src/verify/gates/baseui-surface.manifest.json";
 const MANIFEST_JSON =
   '{ "version": "9.9.9", "components": { "Popover": { "module": "@base-ui/react/popover", "namespaced": true, "parts": {' +
   '"Popup": { "kind": "part", "symbol": "PopoverPopup", "from": "./popup/PopoverPopup.js", "props": [], "handlers": {}, "state": ["open", "side"], "inherits": ["BaseUIComponentProps"], "disposition": "exposed", "why": "" }' +
+  "} } } }\n";
+
+/** The same ledger one component over: a `Select` Root whose `items` is a DATA prop (the ordinary arm's
+ *  subject) and whose `onValueChange` is a 2-arity handler (the hard sibling's), plus a non-Root `Value`
+ *  part carrying `placeholder` — the dead position the discrimination control below names. */
+const DERIVES_MANIFEST_JSON =
+  '{ "version": "9.9.9", "components": { "Select": { "module": "@base-ui/react/select", "namespaced": true, "parts": {' +
+  '"Root": { "kind": "part", "symbol": "SelectRoot", "from": "./root/SelectRoot.js", "props": ["items", "onValueChange"], "handlers": { "onValueChange": 2 }, "state": [], "inherits": [], "disposition": "exposed", "why": "" },' +
+  '"Value": { "kind": "part", "symbol": "SelectValue", "from": "./value/SelectValue.js", "props": ["placeholder"], "handlers": {}, "state": [], "inherits": [], "disposition": "exposed", "why": "" }' +
   "} } } }\n";
 
 function pass(policy: GatePolicy, root: string, files: Readonly<Record<string, string>>): PolicyPassResult {
@@ -111,6 +136,17 @@ const IDENTITY_CASES: readonly IdentityCase[] = [
     body: (marker) =>
       `import { Popover as BasePopover } from "@base-ui/react/popover";\nimport { useState } from "react";\nexport function Seal({ side }: { side: string }) {\n  const [open] = useState(false);\n  ${marker}  return <BasePopover.Popup className={open ? "a" : "b"} />;\n}\n`,
     extra: { [MANIFEST_REL]: MANIFEST_JSON },
+  },
+  {
+    policy: derivesNotRespells,
+    path: "packages/ui/src/primitives/select/probe-select.tsx",
+    // The position is the PROP NAME, exactly as the seven live product markers already spell it — which is
+    // why the conversion's marker translation was a pure grammar swap with no anchor move.
+    position: "items",
+    deadPosition: "placeholder",
+    body: (marker) =>
+      `import type { SelectRootProps } from "@base-ui/react/select";\nimport { Select as BaseSelect } from "@base-ui/react/select";\nexport interface SealProps {\n  ${marker}  items?: readonly string[];\n}\nexport const Seal = (p: SealProps) => <BaseSelect.Root {...p} />;\n`,
+    extra: { [MANIFEST_REL]: DERIVES_MANIFEST_JSON },
   },
   {
     policy: surfaceA11yFocus,
@@ -217,10 +253,89 @@ describe("§4.5 — a broken ledger is a REFUSAL, never a finding and never a cl
   });
 });
 
+describe("§4.5 — the baseui-read ledger consumers all refuse, and the phase depends on the KIND", () => {
+  // THE MECHANISM THIS BLOCK EXISTS TO PIN, measured by the conversion differential after a header claimed
+  // otherwise: `resolveResourceDeclarations` acquires and withholds only POPULATED kinds. `json` is one, so
+  // a broken ledger withholds at the POPULATION phase, before `create`. `installed-package` is UNPOPULATED
+  // (`contract/resource-declaration.ts#GATE_RESOURCE_UNPOPULATED_KINDS`), so it is FILTERED OUT of that
+  // resolution entirely and an uninstalled package cannot withhold anybody — it surfaces only when
+  // `evaluate` opens the door and `readyResourceValue` throws. Both are tool errors and neither is a
+  // finding, so the outcome is identical; the PHASE is not, and a policy author who believes the population
+  // phase guards an unpopulated kind has one guard fewer than they think.
+  for (const policy of [anatomyCompleteness, derivesNotRespells, derivesNotRespellsHealth, surfaceManifest]) {
+    test(`${policy.id}: a MISSING ledger withholds the owner — the legacy silent \`return\` is dead`, ({ scratch }) => {
+      const result = pass(policy, scratch, { [SEAL_PATH]: SEAL_SOURCE });
+
+      expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
+      expect(result.toolErrors[0]?.message).toContain("json:baseui-manifest");
+      expect(result.authority.withheldPolicyIds).toContain(policy.id);
+    });
+
+    test(`${policy.id}: an UNPARSEABLE ledger withholds too — missing and malformed stay separate facts`, ({ scratch }) => {
+      const result = pass(policy, scratch, { [MANIFEST_REL]: "{ not json\n", [SEAL_PATH]: SEAL_SOURCE });
+
+      expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
+      expect(result.authority.withheldPolicyIds).toContain(policy.id);
+    });
+  }
+
+  test("baseui-surface-manifest: an UNINSTALLED package is an [evaluate] tool error, NOT a finding", ({ scratch }) => {
+    // The successor proof for the legacy `NO_PACKAGE` finding and its hand-rolled real-tree anchor. The
+    // scratch root has no `node_modules`, so node's resolver cannot find `@base-ui/react` from
+    // `packages/ui/package.json`; the legacy descriptor answered that with a report, this answers it with
+    // "this run is not a verdict".
+    const result = pass(surfaceManifest, scratch, { [MANIFEST_REL]: MANIFEST_JSON });
+
+    expect(result.authority.effectiveFindings).toEqual([]);
+    expect(result.toolErrors.map((error) => error.phase)).toEqual(["evaluate"]);
+    expect(result.toolErrors[0]?.message).toContain("installed-package:base-ui:ast");
+    expect(result.toolErrors[0]?.message).toContain("missing");
+  });
+});
+
+describe("§4.5 — the installed-surface READER's own blindness, which no proof row can reach", () => {
+  // `installedSurfaceFrom` returning `undefined` is `baseui-surface-manifest`'s BLIND arm, and it is
+  // UNFALSIFIABLE from a proof row by construction: `ops/resource-installed.ts` collects declaration paths
+  // by walking DOWN from the directory it just resolved for that package, so every path it returns is under
+  // the package root and a package it cannot resolve comes back `missing` instead. The claim is therefore
+  // pinned one tier down, at the reader, where the input CAN be constructed.
+  test("an anchorless declaration set derives NOTHING rather than an empty surface", () => {
+    expect(installedPackageRootOf(["/tmp/nowhere/x.d.ts"])).toBeUndefined();
+    expect(installedSurfaceFrom(["/tmp/nowhere/x.d.ts"], "9.9.9")).toBeUndefined();
+  });
+
+  test("the derivation is DRIVEN BY the declared paths — dropping one component's entry drops that component", ({ repoRoot }) => {
+    const ast = loadInstalledPackage(repoRoot, { id: "base-ui", mode: "ast" });
+    const metadata = loadInstalledPackage(repoRoot, { id: "base-ui", mode: "metadata" });
+    expect(ast.status).toBe("ready");
+    expect(metadata.status).toBe("ready");
+    if (ast.status !== "ready" || ast.value.mode !== "ast" || metadata.status !== "ready" || metadata.value.mode !== "metadata") {
+      throw new Error("the installed-package doors must be ready on the real tree");
+    }
+    const full = installedSurfaceFrom(ast.value.declarationPaths, metadata.value.version);
+    if (full === undefined) {
+      throw new Error("the installed surface must derive from the real declaration paths");
+    }
+    expect(full.version).toBe(metadata.value.version);
+    expect(Object.hasOwn(full.components, "Select")).toBe(true);
+
+    // THE POSITIVE CONTROL, without which "the paths are the subject" is a sentence rather than a fact: a
+    // reader that ignored its argument and re-globbed the package directory would produce the identical
+    // surface here.
+    const withoutSelect = ast.value.declarationPaths.filter((path) => !path.endsWith("/select/index.d.ts"));
+    const cut = installedSurfaceFrom(withoutSelect, metadata.value.version);
+    if (cut === undefined) {
+      throw new Error("the cut surface must still derive — only `Select` is expected to vanish");
+    }
+    expect(Object.hasOwn(cut.components, "Select")).toBe(false);
+    expect(Object.keys(cut.components)).toHaveLength(Object.keys(full.components).length - 1);
+  });
+});
+
 // ── §4.6 THE REAL-TREE DRIVE ────────────────────────────────────────────────────────────────────────
 
 describe("the real tree — marker translation, and the conversion differential", () => {
-  test("both translated `@surface-focus-elsewhere` markers BIND: 0 effective, 2 waived, 0 alarms", ({ repoRoot }) => {
+  test("every translated marker across BOTH families BINDS: 0 effective, 9 waived, 0 alarms", ({ repoRoot }) => {
     const result = runPolicyPass({
       knownPolicies: [...POLICIES],
       policies: [...POLICIES],
@@ -237,8 +352,32 @@ describe("the real tree — marker translation, and the conversion differential"
     // `new-chat-picker-surface.tsx:133 NewChatPicker` and `corpus-home-surface.tsx:109 CorpusHomeSurface`;
     // after it, the same two sites are waived and nothing else moved.
     expect(result.authority.effectiveFindings).toEqual([]);
-    expect(result.authority.waivedFindings).toHaveLength(2);
+    // 2 + 7: the two `surface-a11y-focus` translations this file was minted for, plus the seven
+    // `baseui-derives-not-respells` markers the #1584 conversion swapped from `@orb-gate-ignore` to
+    // `@orb-waive` (combobox 3 · autocomplete 3 · select 1). `raw 9 = waived 9 = effective 0` is what makes
+    // that swap a MEASUREMENT rather than a hope — a dead marker is silent in both directions and would
+    // simply reappear as an effective finding here.
+    expect(result.authority.waivedFindings).toHaveLength(9);
     expect(result.authority.authorityAlarms.filter((alarm) => POLICY_IDS.has(alarm.policyId))).toEqual([]);
+  });
+
+  test("the seven translated `baseui-derives-not-respells` markers close their arithmetic per file", ({ repoRoot }) => {
+    // The step-6 reconciliation as ARITHMETIC. Legacy `@orb-gate-ignore baseui-derives-not-respells(` count
+    // per file at 1692583d6 was 3/3/1; current `@orb-waive` count is 3/3/1; the retired vocabulary survives
+    // in no product file. Every one was already on the line ABOVE its member, so no trailing-position site
+    // moved and no position changed — the legacy position WAS the prop name at its own offset inside the
+    // member, which is exactly what `locateFinding` requires, so this translation is a pure grammar swap.
+    const sites = {
+      "packages/ui/src/primitives/combobox/combobox.tsx": 3,
+      "packages/ui/src/primitives/autocomplete/autocomplete.tsx": 3,
+      "packages/ui/src/primitives/select/select.tsx": 1,
+    } as const;
+    const counts = (line: string, text: string): number => text.split("\n").filter((row) => row.trimStart().startsWith(line)).length;
+    for (const [rel, expected] of Object.entries(sites)) {
+      const text = readFileSync(join(repoRoot, rel), "utf8");
+      expect(counts("// @orb-waive baseui-derives-not-respells(", text), rel).toBe(expected);
+      expect(counts("// @orb-gate-ignore baseui-derives-not-respells(", text), rel).toBe(0);
+    }
   });
 
   test("the two waivers are the only `@orb-waive` lines naming these policies, and no legacy grammar survives", ({ repoRoot }) => {
