@@ -4,15 +4,15 @@
 // supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { execNicedSync, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import YAML from "yaml";
-import type { Parsed, StageDef, StageResult } from "../../../../tooling/src/verify/index.ts";
+import type { Parsed, StageDef, StageResult, VerifyReport } from "../../../../tooling/src/verify/index.ts";
 import {
   aggregateExit,
   asViolations,
@@ -1491,4 +1491,137 @@ test("printSummary NAMES the no-verdict stages ABOVE the failure count — and d
       printSummary(clean);
     }),
   ).not.toContain("NO VERDICT");
+});
+
+// ── #2225 PART 3: THE REAL RUN DOOR — the PRODUCER of `childExit`, not a hand-built row ──────────────
+//
+// WHAT PART 2 ABOVE STRUCTURALLY CANNOT REACH, and why this arm exists (adjudicated 2026-09-13). Every
+// arm above consumes a `ranStage(...)` literal: the predicate, the list and the renderer are all proven
+// against a `StageResult` THE TEST BUILT. The only production producer of the field is
+// `ops/run.ts:320` (`childExit: result.code`), and nothing reached it — so cutting that one expression
+// left the whole #2225 pair green. That is the false clean this arm closes, and the cut is the receipt:
+// with `:320` stubbed to `childExit: 0` the three arms above stay green and only this one reds.
+//
+// THE DRIVE IS THE REAL `runVerify`, over a scratch root, under a PATH holding exactly one fake `pnpm`
+// (green, and printing the `Checked N files` line `lint:biome`'s output audit demands — without it that
+// stage refuses and every arm below would be measuring the audit instead) plus `nice`, and NO `bash`.
+// `lint:hook-syntax` is the registry's only `bash` argv[0], so a REGISTERED stage — never a planted one —
+// resolves to nothing, `run.ts:272-275` settles it `code: null` WITHOUT spawning, and `:320` is the one
+// line that carries that null into `reports/verify.json` and the NO-VERDICT block. Both directions are
+// asserted in one invocation: the refused stage's `childExit` is null while every stage that RAN carries
+// its real digit, which is what tells the producer apart from a constant of either value.
+//
+// WHY NOT THE `fakeBin` FIXTURE: it PREPENDS its dir to the inherited PATH, and a prepend can never make
+// a system program unresolvable. This is the same mechanism with the PATH stated outright.
+//
+// NOT RE-PROVED HERE: the `--list` refusal (its own arm above, with its planted control) and the exit
+// contract itself — half (a) of #2225, a no-verdict forcing the RUN's exit, was REFUSED and the refusal
+// is recorded at `lib/exit-classifiers.ts:99-101`. This is a VISIBILITY pin.
+
+/** The absolute path of a system program on THIS process's PATH. `nice` must exist inside the isolated
+ *  PATH below — the test and `spawnNicedTranscript` both exec through it — and an absent one would make
+ *  EVERY stage a no-verdict, which is the exact answer the arm is trying to measure. So it refuses. */
+function systemProgram(name: string): string {
+  for (const dir of PHSV_PATH.split(delimiter)) {
+    const candidate = join(dir, name);
+    if (dir.length > 0 && existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  throw new Error(`run.int: no ${name} on PATH — the isolated-PATH run cannot be built, so nothing below is a measurement`);
+}
+
+/** One real `pnpm verify --static` through `runVerify`, rooted at `scratch` and spawned with `isolatedPath`
+ *  as its whole PATH: the stage children inherit it, so what argv[0] resolves to is this test's variable. */
+async function runIsolatedStatic(
+  repoRoot: string,
+  scratch: string,
+  isolatedPath: string,
+): Promise<{ readonly code: number | null; readonly output: string; readonly report: VerifyReport }> {
+  const runner = join(scratch, "phsv-run-verify.ts");
+  writeFileSync(
+    runner,
+    `import { parse } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/run-argv.ts")).href)};
+import { runVerify } from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/ops/run.ts")).href)};
+const parsed = parse(["--static"]);
+if ("error" in parsed) throw new Error(parsed.error);
+process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
+`,
+  );
+  let output = "";
+  const childEnv = Object.fromEntries([
+    // biome-ignore lint/style/noProcessEnv: the runner needs the caller's node environment; PATH and the host-pool root are the only overlays, and the PATH overlay IS the measurement.
+    ...Object.entries(process.env),
+    ["PATH", isolatedPath],
+    ["NO_COLOR", "1"],
+    [HOST_POOL_ROOT_ENV, join(scratch, "verify-slots")],
+  ]);
+  // The host-pool root is redirected into scratch so this run never takes the REAL whole-run slot an
+  // operator's `pnpm check` is queueing for.
+  const child = spawn(systemProgram("nice"), ["-n", "19", process.execPath, runner], {
+    cwd: repoRoot,
+    detached: true,
+    env: childEnv,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  child.stdout.on("data", (chunk: Buffer) => {
+    output += chunk.toString("utf8");
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    output += chunk.toString("utf8");
+  });
+  const code = await new Promise<number | null>((resolve) => child.once("exit", resolve));
+  const report = JSON.parse(readFileSync(join(scratch, "reports", "verify.json"), "utf8")) as VerifyReport;
+  return { code, output, report };
+}
+
+/** The stages that actually RAN — a deferred/skipped row carries no `childExit` by contract, and lumping
+ *  those in would make the "every other stage reported its digit" assertion vacuously true. */
+function ranStages(report: VerifyReport): readonly StageResult[] {
+  return report.stages.filter((s) => s.mode !== "deferred" && s.mode !== "skipped");
+}
+
+test("the REAL run door produces childExit: an unresolvable REGISTERED stage lands null, the NO-VERDICT block names it, and a resolvable one clears it (#2225)", {
+  timeout: scaledBudget(180_000),
+}, async ({ repoRoot, scratch }) => {
+  const binDir = join(scratch, "phsv-bin");
+  mkdirSync(binDir, { recursive: true });
+  // Every `pnpm <script>` stage: instantly green, and carrying biome's summary line so the lint:biome
+  // output audit (#1245) reads an honest measurement instead of refusing — a refusal there would put a
+  // SECOND stage in the no-verdict list and the arms below would stop discriminating.
+  writeFileSync(join(binDir, "pnpm"), '#!/bin/sh\necho "Checked 3 files in 0s."\nexit 0\n', { mode: 0o755 });
+  symlinkSync(systemProgram("nice"), join(binDir, "nice"));
+
+  // ARM 1 — `bash` is on no PATH the child can see, and the workspace-bin rung finds nothing under the
+  // scratch root either, so the registry's lint:hook-syntax row is UNRESOLVABLE at the real door.
+  const refused = await runIsolatedStatic(repoRoot, scratch, binDir);
+  expect(refused.code, `an unresolvable stage is a TOOL ERROR, and the run's exit says so:\n${refused.output}`).toBe(2);
+  expect(refused.output).toContain("[verify] NO VERDICT: 1 stage(s) RAN AND MEASURED NOTHING");
+  expect(refused.output).toContain("‼ lint:hook-syntax — child reported NO exit (killed, timed out, or never spawned)");
+  expect(refused.report.noVerdict, "and the ARTIFACT carries the same list a bot reads").toStrictEqual(["lint:hook-syntax"]);
+
+  // THE PRODUCER, both directions in one run. `childExit` is null for the stage that never spawned and
+  // the CHILD'S OWN DIGIT for every stage that did — a `:320` stubbed to either constant fails one half.
+  const refusedRow = refused.report.stages.find((s) => s.name === "lint:hook-syntax");
+  expect(refusedRow?.mode, "it RAN in the planner's sense — it is not a deferral wearing a refusal's clothes").toBe("full");
+  // The refusal text is NOT on stdout — compact mode prints one glyph line and the transcript goes to the
+  // per-stage log, which is exactly why the excerpt is cut into the artifact: a bot reading only
+  // reports/verify.json still learns WHICH command could not be found.
+  expect(refusedRow?.failureExcerpt, "the refusal names the command it could not find").toContain('its argv[0] "bash" resolves to nothing runnable');
+  expect(Object.is(refusedRow?.childExit, null), `childExit must be null, not absent or 0: ${JSON.stringify(refusedRow)}`).toBe(true);
+  const measured = ranStages(refused.report).filter((s) => s.name !== "lint:hook-syntax");
+  expect(measured.length, "the fake pnpm stages are the control population").toBeGreaterThan(0);
+  expect(
+    measured.map((s) => s.childExit),
+    "every stage whose child DID report an exit carries that digit, not a constant",
+  ).toStrictEqual(measured.map(() => 0));
+
+  // ARM 2 — THE NEGATIVE CONTROL: the same registry, the same door, `bash` now resolvable. Without it
+  // the arm above would pass against a runner that named every stage no-verdict.
+  writeFileSync(join(binDir, "bash"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  const resolvedRun = await runIsolatedStatic(repoRoot, scratch, binDir);
+  expect(resolvedRun.code, `every stage resolved and measured:\n${resolvedRun.output}`).toBe(0);
+  expect(resolvedRun.output, "a run where every stage reported an exit prints NO block at all").not.toContain("NO VERDICT");
+  expect(resolvedRun.report.noVerdict).toStrictEqual([]);
+  expect(resolvedRun.report.stages.find((s) => s.name === "lint:hook-syntax")?.childExit).toBe(0);
 });
