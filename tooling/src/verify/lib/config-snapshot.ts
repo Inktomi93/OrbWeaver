@@ -102,11 +102,15 @@ function parseEslintSnapshot(snapshot: Record<string, unknown>, config: string):
   const trackedFiles = snapshot["trackedFiles"];
   const entries = snapshot["entries"];
   const values = snapshot["selectors"];
+  // `excludedNonFilePaths` is REQUIRED and may be empty: an emitter that omits it is an older or forged
+  // worker whose population claim cannot be read, which is a malformed snapshot, not an absent field.
+  const excludedNonFilePaths = snapshot["excludedNonFilePaths"];
   if (
     !Number.isSafeInteger(trackedFiles) ||
     (trackedFiles as number) <= 0 ||
     !Number.isSafeInteger(entries) ||
     (entries as number) <= 0 ||
+    !isStringArray(excludedNonFilePaths) ||
     !Array.isArray(values)
   ) {
     return;
@@ -120,6 +124,7 @@ function parseEslintSnapshot(snapshot: Record<string, unknown>, config: string):
     runner: "eslint",
     config,
     trackedFiles: trackedFiles as number,
+    excludedNonFilePaths,
     entries: entries as number,
     selectors: selectors as EslintSelectorSnapshot[],
   };
