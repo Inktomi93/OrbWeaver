@@ -42,9 +42,10 @@
 // `execution: "selected-files"`, and that is a CONSEQUENCE of the declared limit below rather than a
 // default. Every one of the five verdicts is decided entirely inside ONE file — the test call, its
 // callback, its assertions, its awaits, its nested tests and its resolvable helpers — so a narrowed request
-// composes exactly. This lane's first draft declared `entire-population` on the belief that a helper could
-// be followed into another file; that belief is false (see below), so the declaration would have been an
-// over-declared contract teaching the next lane to over-declare (§5b.1).
+// composes exactly. The conversion's first draft declared `entire-population` on the belief that a helper
+// could be followed into another file, which the reader of the day could not do; the shared reader CAN,
+// and `selected-files` survives only because the policy now FENCES on the call's own file (below). The
+// two are one decision: widen the fence and this declaration is wrong (§5b.1).
 //
 // NO BOUNDED-SUBTREE WALK. The legacy shape called `forEachDescendant` and `getDescendantsOfKind` on the
 // delivered nodes — private descendant walks the final query boundary forbids even scoped to one node. The
@@ -53,17 +54,28 @@
 // indexing is load-bearing for the same reason it is in `test-no-stubs`: two SourceFiles' local offsets
 // numerically overlap, so a shared list would let file B's `expect` satisfy file A's stub.
 //
-// DECLARED LIMIT, CARRIED FROM LEGACY AND MEASURED RATHER THAN ASSUMED: helper resolution is SAME-FILE
-// ONLY. `resolveCalleeBody` asks the callee identifier for its symbol's declarations, and for an IMPORTED
-// helper those are the `ImportSpecifier` — a declaration with no body — so no cross-file helper has ever
-// been followed, by this implementation or the legacy one (neither calls `getAliasedSymbol`). This lane's
-// first draft shipped an out-of-population REFUSAL arm on the assumption that cross-file resolution worked
-// and only the INDEX was missing; running the probe (§4.5b: run it, do not read the header) showed the
-// branch is unreachable — the import never yields a body, so the recursion never leaves the test's own
-// file. The arm is DELETED rather than documented, and `assertsWithin` now takes ONE file index by
-// construction, which makes the limit a property of the code's shape instead of a paragraph. mustFlag[7]
-// pins it: a test whose only assertion is in an IMPORTED helper is reported. Measured on the real corpus
-// at conversion: zero such tests exist, so the limit costs nothing today (the §4.6 differential is 0/0).
+// DECLARED LIMIT: helper resolution is SAME-FILE ONLY — and since #2163 it is a FENCE, not a reader
+// weakness. THE HISTORY MATTERS, because the same sentence used to mean the opposite thing: the legacy
+// gate and the first converted shape both asked the callee identifier for its symbol's declarations, and
+// for an IMPORTED helper those are the `ImportSpecifier`, a declaration with no body — so no cross-file
+// helper was followed BECAUSE THE READER COULD NOT, not because the policy declined. (That is also why
+// this module's first draft shipped an out-of-population REFUSAL arm and had to delete it: running the
+// probe showed the branch unreachable.)
+//
+// The owner ruling on #2097 replaced that chain with the shared `resolveCallableDeclaration`, which DOES
+// follow an import, an import rename and a re-export rename to the declaring file. The limit is therefore
+// re-stated as a deliberate one and lives in exactly one place — `resolveCalleeBody`'s source-file test —
+// for a reason the reader change makes concrete: a cross-file body would make this verdict depend on a
+// file a `selected-files` request need not contain, so `--changed` and the whole run would disagree.
+// AND THE FENCE OWES A ROW THAT DIES WITHOUT IT (§4.1) — which `mustFlag[7]` is NOT, measured rather
+// than assumed. Cutting the source-file test with only `mustFlag[7]` present reads CLEAN, because that
+// fixture's test file carries no matcher expect for the followed body's OFFSET RANGE to capture: an
+// unenforced FIXTURE, not an unenforced fence. `mustFlag[8]` is the constructed falsifier — a support
+// helper whose body spans offsets 42-249 beside a test file whose own `expect(1).toBe(1)` spans 173-190,
+// so an unfenced cross-file body satisfies a stub that asserts nothing. Cut receipts: fence removed →
+// `mustFlag[7]` green, `mustFlag[8]` RED; restored → both green. Measured on the real corpus at
+// conversion: zero tests assert only through an imported helper, so the limit still costs nothing today
+// (the §4.6 differential is 0/0).
 //
 // POSITIONS — the legacy tokens were SYNTHETIC LABELS (`no-assertion`, `async-no-await`, `bare-expect`,
 // `no-nested-test`, `beforeEach-empty-body`) passed at `offset: 0`. Under the final contract `report.node`
@@ -90,6 +102,7 @@ import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNo
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import { resolveCallableDeclaration } from "../lib/reference-fact-call.ts";
 
 const MAX_HELPER_DEPTH = 4;
 const ASSERTION_HELPER_RE = /^(?:expect|assert)[A-Z0-9]/u;
@@ -197,30 +210,16 @@ function isBareExpectStatement(statement: MorphNode): boolean {
   return Node.isIdentifier(callee) && callee.getText() === EXPECT;
 }
 
-function bodyOfFunctionLike(node: MorphNode | undefined): MorphNode | undefined {
-  if (node === undefined) {
-    return;
-  }
-  return Node.isArrowFunction(node) || Node.isFunctionExpression(node) ? node.getBody() : undefined;
-}
-
-function bodyFromDeclaration(decl: MorphNode): MorphNode | undefined {
-  if (Node.isFunctionDeclaration(decl) || Node.isFunctionExpression(decl) || Node.isArrowFunction(decl)) {
-    return decl.getBody();
-  }
-  return Node.isVariableDeclaration(decl) ? bodyOfFunctionLike(decl.getInitializer()) : undefined;
-}
-
-/** The body of the function an `expect*`/`assert*` helper call resolves to, or undefined. */
+/** The body of the function an `expect*`/`assert*` helper call resolves to, or undefined.
+ *
+ *  THE DECLARED LIMIT LIVES HERE, AND IT IS NOW A FENCE RATHER THAN A READER WEAKNESS. The shared
+ *  callable reader DOES follow an imported helper to its declaring file; this policy deliberately does
+ *  not, because following one would make the verdict depend on a file the `selected-files` request need
+ *  not contain — a scope-shaped false negative under `--changed`. So the resolution is shared and the
+ *  SAME-FILE restriction is this policy's own, stated once, in one place, and killed by `mustFlag[7]`. */
 function resolveCalleeBody(call: CallExpression): MorphNode | undefined {
-  const symbol = calleeNameNode(call).getSymbol();
-  if (symbol === undefined) {
-    return;
-  }
-  return symbol
-    .getDeclarations()
-    .map((declaration) => bodyFromDeclaration(declaration))
-    .find((body) => body !== undefined);
+  const callable = resolveCallableDeclaration(call);
+  return callable.kind === "resolved" && callable.value.sourceFile === call.getSourceFile() ? callable.value.body : undefined;
 }
 
 /** One file's indexed evidence. Every list holds nodes the SHARED walk delivered for THAT file. */
@@ -259,9 +258,9 @@ function within(node: MorphNode, start: number, end: number): boolean {
 }
 
 /** Does `node` contain a matcher-chained expect, directly or through a resolved assertion helper up to
- *  `MAX_HELPER_DEPTH` hops? ONE file index, not a lookup per hop, and that is the DECLARED LIMIT made
- *  structural: `resolveCalleeBody` only ever yields a body declared in the same file (an IMPORTED helper's
- *  symbol declares an `ImportSpecifier`, which has none), so the recursion cannot leave this file. */
+ *  `MAX_HELPER_DEPTH` hops? ONE file index, not a lookup per hop, and the recursion cannot leave this
+ *  file because `resolveCalleeBody` fences on the call's own source file — the single home of the
+ *  declared same-file limit, so cutting it changes the verdict rather than nothing (mustFlag[7]). */
 function assertsWithin(index: FileIndex, node: MorphNode, seen: Set<MorphNode>, depth: number): boolean {
   if (depth > MAX_HELPER_DEPTH || seen.has(node)) {
     return false;
@@ -277,7 +276,7 @@ function assertsWithin(index: FileIndex, node: MorphNode, seen: Set<MorphNode>, 
       return false;
     }
     const body = resolveCalleeBody(call);
-    return body !== undefined && body.getSourceFile() === node.getSourceFile() && assertsWithin(index, body, seen, depth + 1);
+    return body !== undefined && assertsWithin(index, body, seen, depth + 1);
   });
 }
 
@@ -477,7 +476,28 @@ export const gate = defineGate({
           'import { expectOk } from "../support/imported-helper.ts";\ntest("asserts through an IMPORTED helper", () => {\n  expectOk(1);\n});\n',
       },
       expect: { count: 1, line: 2, token: "test", messageIncludes: "no `expect(...).<matcher>()`" },
-      why: "THE DECLARED LIMIT, PINNED — helper resolution is SAME-FILE only, so a test whose only assertion lives in an IMPORTED helper is reported. It is an INVENTED row with a planted-break receipt, and it exists because the limit was MEASURED rather than assumed: an imported identifier's symbol declares an `ImportSpecifier`, which has no body, so `resolveCalleeBody` returns undefined here and returned undefined in the legacy gate too (neither calls `getAliasedSymbol`). The lane's first draft shipped an out-of-population REFUSAL on the opposite belief and the probe showed that branch unreachable. Add the alias hop and this row goes green — which is exactly the successor proof a future widening owes",
+      why: "THE DECLARED LIMIT, PINNED — helper resolution is SAME-FILE only, so a test whose only assertion lives in an IMPORTED helper is reported. It is an INVENTED row with a planted-break receipt, and since #2163 it is a REAL narrowing pin rather than a record of a reader's weakness: the shared `resolveCallableDeclaration` follows the import to `../support/imported-helper.ts` and returns that body, and the ONE thing that keeps this row at one finding is `resolveCalleeBody`'s source-file fence. Cut the fence and this row reads `count: 0` — which is the successor proof a future widening owes, and which the pre-migration symbol chain could not have produced at all",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/support/wide-helper.ts":
+          "export function expectOk(x: number): void {\n" +
+          "  // Padding. This body's OFFSET RANGE has to CONTAIN the matcher expect in the test file below,\n" +
+          "  // or the collision this row exists to prove is not reachable and the row is decoration.\n" +
+          "  void x;\n" +
+          "}\n",
+        "tests/tooling/wide-helper.test.ts":
+          'import { expectOk } from "../support/wide-helper.ts";\n' +
+          'test("asserts only through the imported helper", () => {\n' +
+          "  expectOk(1);\n" +
+          "});\n" +
+          'test("asserts in its own right", () => {\n' +
+          "  expect(1).toBe(1);\n" +
+          "});\n",
+      },
+      expect: { count: 1, line: 2, token: "test", messageIncludes: "no `expect(...).<matcher>()`" },
+      why: "THE SAME-FILE FENCE'S FALSIFIER (§4.1), and it is the row mustFlag[7] canNOT be. Since the shared `resolveCallableDeclaration` landed, `resolveCalleeBody` really does receive the IMPORTED helper's body, and the containment reconciliation is by NUMERIC OFFSET against the TEST file's index — so a body in another file whose range happens to contain the test file's own matcher expect would satisfy a stub that asserts nothing. The offsets here are MEASURED, not hoped for: the helper body spans 42-249 and this file's `expect(1).toBe(1)` spans 173-190. With the fence the first test flags (this row); cut `resolveCalleeBody`'s `sourceFile === call.getSourceFile()` test and the count is 0. mustFlag[7]'s test file carries no matcher expect at all, so the same cut reads CLEAN there — an unenforced FIXTURE, not an unenforced fence",
     },
   ],
   mustPass: [
