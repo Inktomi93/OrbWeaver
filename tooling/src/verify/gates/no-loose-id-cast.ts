@@ -27,12 +27,14 @@ import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE = "a cast bypasses branded-id type safety with `as never` or `as unknown as <canonical brand>` — use the owning mint/parser/cast seam.";
-/** THE ANCHOR for a cast's operand (#2197). A PARENTHESIZED operand's own text starts with `(`, so
+/** THE ANCHOR for a cast's operand (#2197, #2325). A PARENTHESIZED operand's own text starts with `(`, so
  *  `waivableCoordinate` finds no leading paren-free head, returns `undefined`, and the report door refuses
  *  the finding as permanently unwaivable (#2107) — a refusal that withholds the WHOLE policy, not just the
  *  one finding. Unwrapping reaches the expression the reader actually means, whose head is nameable. The
  *  violation, its arm and its severity are unchanged; only the COORDINATE moves. Recursive because `((x))`
- *  is legal.
+ *  is legal. The #2325 extension reaches that same wrapper through exactly one authored cast layer when
+ *  the cast's operand is parenthesized (`("" as const) as unknown`); it does not generally unwrap casts,
+ *  because the ordinary double-cast coordinate is deliberately the full `value as unknown` expression.
  *
  *  DECLARED LIMIT: this does not make every operand nameable, and it must not pretend to. An unwrapped
  *  expression whose own text still begins with `(` — a zero-arg arrow `() => x`, a parenthesized call
@@ -43,6 +45,15 @@ function castAnchor(expression: Node): Node {
   let current = expression;
   while (Node.isParenthesizedExpression(current)) {
     current = current.getExpression();
+  }
+  // Preserve the ordinary double-cast coordinate (`value as unknown`). Descend through an inner cast
+  // only when its OPERAND is parenthesized: that wrapper is what makes the otherwise nameable carrier
+  // start with `(`, while the type assertion itself remains part of the reported authored value.
+  if (Node.isAsExpression(current) && Node.isParenthesizedExpression(current.getExpression())) {
+    current = current.getExpression();
+    while (Node.isParenthesizedExpression(current)) {
+      current = current.getExpression();
+    }
   }
   return current;
 }
@@ -113,6 +124,24 @@ export const gate = defineGate({
       expect: { count: 1, token: "value as unknown" },
       why: 'a double cast into a canonical id brand launders an unchecked value. THE TOKEN IS NOT THE ONE A READER GUESSES (#1968): the report anchors on the OUTER cast\'s operand, which is the whole inner `value as unknown` slice, so `token: "value"` — the position `mustFlag[0]` reports and the one the waiver row waives — is RED here. Naming it settles which position an author must spell on a double cast, and the two rows together prove the anchor differs between the arms',
     },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type UserId = Branded<"UserId">;\n'),
+        "packages/server/src/x.ts": 'import type { UserId } from "../../kit/src/ids/index";\nexport const x = ("" as const) as unknown as UserId;\n',
+      },
+      expect: { count: 1, token: '"" as const' },
+      why: "A parenthesized const assertion is a transparent spelling of the branded double cast. Its coordinate must be the nameable authored const-asserted operand, never the paren-leading inner `as unknown` expression that the report door refuses.",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type UserId = Branded<"UserId">;\n'),
+        "packages/server/src/x.ts": 'import type { UserId } from "../../kit/src/ids/index";\nexport const x = (value as unknown as UserId) satisfies UserId;\n',
+      },
+      expect: { count: 1, token: "value as unknown" },
+      why: "A `satisfies` wrapper around the completed double cast does not change the cast carrier or its established coordinate.",
+    },
   ],
   mustPass: [
     {
@@ -135,6 +164,14 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type UserId = Branded<"UserId">;\n'),
+        "packages/server/src/x.ts": 'import type { UserId } from "../../kit/src/ids/index";\nexport const x = (value as UserId) satisfies UserId;\n',
+      },
+      why: "A `satisfies` wrapper does not turn the deliberately accepted single branded cast into the laundering pair this policy owns.",
+    },
+    {
+      mode: "types",
       files: { "packages/server/src/clean.ts": "export const clean = true;\n", "tests/server/x.test.ts": "export const x = value as never;\n" },
       why: "tests are outside this policy population",
     },
@@ -145,6 +182,23 @@ export const gate = defineGate({
           "// @orb-waive no-loose-id-cast(value): the proof's stand-in reason; ends when this fixture stops flagging.\nexport const x = value as never;\n",
       },
       why: "POSITIONAL IDENTITY: the report anchors on the cast OPERAND and its token is that operand's own text (`value`), so an author waives the operand, never the `as never` clause. The fixture is mustFlag[0] (:44) plus the marker line; the marker suppresses the finding that row proves this fixture produces, and it ends if that row changes",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type UserId = Branded<"UserId">;\n'),
+        "packages/server/src/x.ts":
+          'import type { UserId } from "../../kit/src/ids/index";\n// @orb-waive no-loose-id-cast("" as const): the proof reason; ends when the parenthesized carrier stops flagging.\nexport const x = ("" as const) as unknown as UserId;\n',
+      },
+      why: 'The repaired coordinate is not only syntactically valid: the ordinary waiver engine binds the exact `"" as const` token and suppresses this one parenthesized double-cast finding without changing the established unparenthesized identity.',
+    },
+  ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: { "packages/server/src/x.ts": "declare const value: string;\nexport const x = (() => value) as never;\n" },
+      expect: { messageIncludes: "cannot be named by an @orb-waive marker" },
+      why: "The bounded anchor repair does not pretend every paren-leading operand is nameable. After the authored parentheses are removed, a zero-argument arrow still begins with `(` and the report door must refuse it loudly rather than drop an unwaivable finding.",
     },
   ],
 });
