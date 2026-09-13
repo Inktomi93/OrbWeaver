@@ -18,7 +18,7 @@ Use this order. Dropping to a lower layer requires evidence that every higher on
 2. Use an existing Orb shared reader or fact provider.
 3. Extend an existing shared reader when the new shape is the same semantic question.
 4. Add a first-class `defineFact` provider when several entire-population policies need one derived model.
-5. Use raw ts-morph only inside the shared reader/provider. Gate modules consume dispatcher nodes, `ctx.files`, declared resources, and `ctx.fact(provider)`.
+5. Gate modules may classify and navigate dispatcher-delivered nodes and use `ctx.checker()` under `analysis: "types"`. Reusable semantic identity, binding/origin resolution, population derivation, traversal, and caches belong in canonical shared readers/providers; use an existing owner before adding one.
 
 A gate module never constructs or retrieves a `Project`, performs descendant traversal, resolves its own workspace scope, mutates a node, or keeps a module cache. A fact provider declares its own population and visitor kinds; the runner schedules it in the one physical walk and exposes its completed value after that walk.
 
@@ -33,7 +33,7 @@ A gate module never constructs or retrieves a `Project`, performs descendant tra
 | import/re-export origin | `Symbol#getAliasedSymbol`, `ExportSpecifier`, `getModuleSpecifierSourceFile`, `SourceFile#getExportSymbols` | `reference-fact.ts` | local spelling and exported name are not canonical identity |
 | local aliases and writes | identifier declarations, binding elements, assignment/reference nodes | `reference-fact*.ts` | an alias is safe only until write, cycle, dynamic, or ambiguity |
 | authored literals/objects/tuples | literal nodes, property nodes, spread nodes | `static-authored-value.ts` | runtime `Type` values do not preserve authored order or source anchors |
-| resolved type | `Node#getType`, `Type#getProperty`, `getUnionTypes`, `getIntersectionTypes`, `getLiteralValue` | typed shared fact | `getText()` is presentation, not identity — **and `Node#getType` reaches the Project's checker WITHOUT going through `ctx.checker()`, so it is not fenced by `analysis: "syntax"`** (see the checklist) |
+| resolved type | `Node#getType`, `Type#getProperty`, `getUnionTypes`, `getIntersectionTypes`, `getLiteralValue` | declared type analysis; shared readers for reusable semantics | `getText()` is presentation, not identity; direct node methods bypass the runtime accessor fence but are subject to source policing (see the checklist) |
 | conditional/mapped type result | `Type#getProperty` plus `Symbol#getTypeAtLocation` | typed shared fact | `Type#getAliasSymbol()` may legitimately be absent after resolution |
 | callable shape | `Type#getNonNullableType`, `getCallSignatures`, signature parameters | shared callable/fact reader | optional callable properties have no signatures until non-nullable |
 | exact call target | `TypeChecker#getResolvedSignature`, callee symbol/declaration | shared callable reader | expensive across a broad unfiltered call population |
@@ -141,14 +141,14 @@ Shared whole-population work uses one provider token:
 export const exampleFact = defineFact({
   id: "example-fact",
   population: { in: ["@contracts", "@server"] },
-  analysis: "types",
+  analysis: "syntax",
   resources: [],
   create: (ctx) => {
     const rows: Node[] = [];
     return {
       visitors: [{ kinds: [SyntaxKind.TypeAliasDeclaration], visit: (node) => rows.push(node) }],
       finish: () => {
-        ctx.receipt({ kind: "population", source: "example-fact", members: rows.length });
+        ctx.receipt({ kind: "population", source: "example-fact-sources", members: ctx.files.length });
         return Object.freeze({ rows });
       },
     };
@@ -156,7 +156,9 @@ export const exampleFact = defineFact({
 });
 ```
 
-A consuming policy declares `facts: [exampleFact]` and reads `ctx.fact(exampleFact)` in `evaluate`. Runtime enforcement provides:
+A consuming policy declares `facts: [exampleFact]` and reads `ctx.fact(exampleFact)` in `evaluate`. It must also file at least one semantic `ctx.receipt(...)` for the population it judged. A health consumer judging empty or holed fact data uses `members: 1` as its ready-fact consumption witness, keeping the domain census in the delivered data. The provider receipt is not visible to the consumer and does not satisfy this obligation.
+
+Runtime enforcement provides:
 
 - one provider instance per selected command;
 - provider-owned population and resources planned before execution;
@@ -173,15 +175,15 @@ Shared facts are entire-population machinery. A selected-files policy cannot dec
 
 Current providers/readers:
 
-Six `defineFact` providers ship today. **Check this table before building one** — two rows here said "provider
-conversion pending" for months after the provider landed, and a lane that believes a stale "pending" builds what
-already exists.
+Use this provider-family lookup before adding a provider. It is navigational, not a registration roster; derive the current tokens from `defineFact` construction sites and the registry factory.
 
 | Subject | Use |
 | - | - |
 | bus producers | `lib/bus-fact.ts` `busProducerFact` |
+| bus payload / wire shape | `lib/bus-payload-fact.ts` `busPayloadFact` |
+| CSS hook / source provenance | `lib/css-family-source-provenance.ts` `cssHookProvenanceFact` |
 | bus definitions / belted rosters | `lib/bus-definition-fact.ts` `busDefinitionFact` — cross-checked against the producer roster; the two must AGREE or the run refuses |
-| registry definitions | `lib/registry-fact.ts` `registryDefinitionFacts.<kind>` (one provider PER KIND — a single provider spanning six kinds summed its receipts and withheld five healthy consumers, #1953) |
+| registry definitions | `lib/registry-fact.ts` `registryDefinitionFacts.<kind>` (one token per kind from `REGISTRY_DEFINITION_KINDS`; each kind owns its own population receipt) |
 | schema tables/columns/FKs/indexes/JSON | `lib/schema-fact.ts` `drizzleSchemaFact` |
 | exported tuple vocabularies | `lib/tuple-vocabulary-fact.ts` `tupleVocabularyFact` |
 | JSX/classes/composers | `lib/static-class-facts.ts` `staticClassFact` |
@@ -232,11 +234,11 @@ Before adding or widening a reader:
 - identify the exact semantic identity and every legal spelling;
 - search the shared reader/provider table first;
 - confirm the installed API in `ts-morph.d.ts` rather than inventing a plausible method;
-- decide syntax versus types before requesting the checker — and know that **`analysis` is NOT enforced against you**:
-  the fence at `lib/policy-pass-context.ts:244` throws only from the `ctx.checker()` accessor, so a `node.getType()`
-  or `node.getSymbol()` in your own module reads types under a declared-syntax policy and every gate stays green
-  (proven 2026-09-11; #1958). What `analysis` DOES couple to is the proof `mode`, a load-time tool error on mismatch.
-  Auditing your own declaration means sweeping the module body for type-resolving calls, not trusting the field;
+- decide syntax versus types before requesting the checker:
+  direct ts-morph type/symbol methods bypass the runtime `ctx.checker()` accessor fence. `gate-modernization` ARM E
+  source-enforces its closed compiler-read vocabulary in the gate module and one named relative-import hop.
+  Namespace/default imports, further hops, unresolved targets, and computed subscripts remain review limits,
+  never permission to evade the declaration. Proof `mode` must also match the declared analysis;
 - declare the provider population/resources exactly;
 - plant alias, re-export, namespace, destructuring, computed, wrapper, shadow, write, cycle, dynamic, missing, empty, and ambiguity controls that apply;
 - prove a candidate prefilter cannot exclude a valid subject;
