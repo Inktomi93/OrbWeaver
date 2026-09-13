@@ -1182,12 +1182,12 @@
     },
     {
       "path": "docs/design/gate-runtime-standardization.md",
-      "assignedSha256": "d4599d80e88e020c805a8fc8a294117347f2e70b395b0364a984dccb378230d0",
+      "assignedSha256": "7b14a0b4f2cd6c9d50d3aa8023975cbae6eb64e19ed6f024dafb121eb6ab387e",
       "disposition": "repaired",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "d4599d80e88e020c805a8fc8a294117347f2e70b395b0364a984dccb378230d0",
-      "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
+      "verifiedSha256": "7b14a0b4f2cd6c9d50d3aa8023975cbae6eb64e19ed6f024dafb121eb6ab387e",
+      "verifiedCommit": "5d94ad5b7cecacb468f5c828b9dabcf6ec9189b4",
       "verifiedAt": "2026-09-13",
       "claims": [
         {
@@ -1210,7 +1210,8 @@
       ],
       "summary": "Bounded contradiction repair after full program-document reads and current-diff review. Historical counts and findings require revalidation; the larger #2071 consolidation and gate-program acceptance remain incomplete.",
       "evidence": [
-        "Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion."
+        "Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
+        "2026-09-13 follow-up: independent full runtime-source reads distinguish populated pre-create refusal from unpopulated call-site acquisition, and domain health inside ready values from top-level resource failure. Corrected the conflicting paragraph and example comment; scoped check:docs passed. Removed the load-confounded speed percentage in dd00ebb78. Aggregate ledger freshness and final barrier remain owed; earlier green receipts above describe their earlier trees."
       ]
     },
     {

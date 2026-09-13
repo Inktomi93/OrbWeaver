@@ -1696,8 +1696,8 @@ withholds every consumer before `evaluate`), which makes one reaching a policy a
 ERROR, never a reportable finding and never a silent zero.** So the branch THROWS; it does not `return`.
 
 ```ts
-/** Every resource this policy declares is checked ready by `resolveResourceDeclarations` before `create`
- *  ever runs — a non-ready fact here means the runtime's own guard broke, not a reportable finding. */
+/** Populated declarations are checked before `create`; unpopulated resources acquire at the call.
+ *  Neither path permits a top-level non-ready resource to become a policy finding. */
 readyResourceValue(fact) // lib/resource-declaration.ts — the module that owns the refusal law at :182
 ```
 
@@ -1706,24 +1706,32 @@ must sit directly inside `readyResourceValue(...)` resolved BY IMPORT ORIGIN to 
 function of that name is accused, not acquitted), and binding `ctx.resources` to a name or passing it as an argument is
 the same finding one hop out. Censused at zero on the corpus when the arm landed; the arm holds it there.
 
-**A RESOURCE POLICY CANNOT HAVE A `-health` SIBLING AT ALL, AND THE REASON IS THE PHASE ORDER** (measured
-2026-09-12 by the `f-resource-exemplar` design pass). `resolveRuns` WITHHOLDS any owner that declares a
-resource one phase before `create`, so **no policy can ever observe a broken resource** — the RUNTIME is the
-accuser, and its answer is a tool error (exit 2, "not a verdict"), not a finding. That is the exact opposite
-of a FACT, whose non-ready state IS delivered to its consumer, which is why `bus-fact-health` exists, is
-correct, and must not be "fixed" to throw. **Do not invent a `-health` sibling for a resource policy; there
-is no state for it to report.**
+**TOP-LEVEL RESOURCE FAILURE IS NEVER REPORTABLE POLICY HEALTH.** For populated resource kinds,
+`resolveResourceDeclarations` refuses `missing`, `empty`, `unresolved`, or `malformed` loads—and ready loads
+with no admitted paths or members—during population, before policy `create`. `installed-package`,
+`authored-path`, and `authored-text` are unpopulated kinds and acquire at the call site; a non-ready load
+can therefore reach `readyResourceValue` during `create` or `evaluate`, where it throws. A caught or
+ignored acquisition failure still files an unresolved receipt and leaves the owner incomplete. Authority
+reconciliation withholds that owner rather than publishing its findings.
 
-**A `-health` POLICY IS THE DESIGNATED ACCUSER, SO THE PROTECTIONS THAT GUARD AN ORDINARY CONSUMER MUST NOT APPLY
-TO IT.** Every mechanism in this section — refuse, withhold, throw — exists to stop a policy reporting on evidence it
-could not gather. A `-health` sibling's entire job is to report **exactly that condition**, so applying the same
-protection to it silences the accuser with the thing it accuses. Three measured instances, all one shape:
+A resource-using `-health` sibling is valid when it reports a semantic condition encoded inside a **ready**
+resource value, such as an empty derived census or per-member refusals. It must still wrap every
+ResourceHost door in `readyResourceValue`; it does not inspect or report a top-level non-ready
+`ResourceFact`. `biome-grant-liveness-health` and `tsconfig-entry-liveness-health` are existing examples.
+A fact-health sibling may inspect a domain status delivered inside a ready shared-fact value; that is a
+separate contract. These distinctions follow `lib/resource-declaration.ts`, `lib/resource-policy.ts`, and
+`lib/policy-pass.ts`; the former blanket prohibition on resource health siblings was incorrect.
+
+**A `-health` POLICY REPORTS DOMAIN HEALTH INSIDE DELIVERED EVIDENCE.** A health sibling must receive the
+ready evidence needed to establish the semantic condition it reports. Do not turn that domain condition
+into an acquisition failure or a receipt failure that withholds the accuser. This does not exempt health
+policies from ResourceHost acquisition or receipt requirements. Three measured instances:
 
 1. **A provider must not receipt its own findings** (§12.3 below) — an empty census would become a fact TOOL ERROR
    instead of reaching the `-health` policy whose job is to report it (#1953, #1955).
 2. **A `-health` consumer receipts a CONSTANT `members: 1`, never its census** — otherwise `receiptFailures`'
    `count === 0` turns its own finding into a receipt refusal (#1966, §4.5b).
-3. **A `-health` consumer REPORTS a non-ready fact rather than throwing on it.** `bus-fact-health.ts:24-30` does
+3. **A `-health` consumer REPORTS a non-ready domain status inside a ready shared-fact value.** `bus-fact-health.ts:24-30` does
    exactly this while its siblings `bus-producer-coverage` and `user-bus-deferred-member` throw through
    `recordReadyBusFact` — and that asymmetry is the design, not a defect. **Do not "fix" a `-health` policy to
    throw**; it throws only on a genuinely broken guarantee (an empty effective population), which is a different
