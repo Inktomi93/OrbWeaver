@@ -197,11 +197,13 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   for probe-and-restore**, then verify with `git status` (two lanes, 2026-09-12).
 - **AN OPTIONAL-VALUE FLAG TURNS THE NEXT ARGUMENT INTO A DESTINATION.** `vitest list --filesOnly --json <path>` OVERWRITES `<path>` — it replaced a TRACKED TEST FILE with a JSON array. Always `=`-join
   (`--json=/tmp/.../out.json`). Same class as the `rg -r` hazard below.
-- **The sanctioned `__probe` path is INVISIBLE to biome.** `.gitignore` covers the constitution §4 scratch-probe idiom
-  (`features/__probe/...`) and `biome.json` sets `vcs.useIgnoreFile: true`, so `biome check` on a probe reports
-  "No files were processed in the specified paths" and exits as if nothing was wrong — a false green that reads exactly
-  like a pass. To probe BIOME behaviour, plant at a normal untracked path inside a real source dir and `rm` it; the
-  `__probe` idiom still works for everything that does not honour the ignore file.
+- **Biome 2.5.1 distinguishes IGNORED from CLEAN.** The sanctioned `features/__probe/...` scratch path is
+  invisible through `vcs.useIgnoreFile: true`: bare `biome check <ignored-path>` (also with
+  `--diagnostic-level=error`) checks zero files and exits 1 with "These paths were provided but ignored";
+  `--no-errors-on-unmatched` checks zero and exits 0, which still is not a lint-clean verdict. Biome honours
+  nested ignore files but drops their negations; `files.experimentalScannerIgnores` suppresses nested-ignore
+  discovery. Deliberate probe fences and their source keeper live in
+  `tests/tooling/biome-scripts-probe-scope.int.test.ts`; otherwise probe Biome at a normal untracked source path.
 - **rg flag discipline is a standing hazard:** `-r` + a shorthand cluster (`-rln`) silently REPLACES match
   text. Spell `--files-with-matches` / `-n` out.
 - **Code-PRESENCE claims use `pnpm ast`/ast-grep — grep corroborates, never decides.** A negative claim
