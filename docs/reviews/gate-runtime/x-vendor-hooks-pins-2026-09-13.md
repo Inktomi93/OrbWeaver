@@ -1,6 +1,6 @@
 ---
 kind: review
-status: final
+status: active
 updated: 2026-09-13
 ---
 
@@ -164,8 +164,9 @@ never produces an unreachable-branch slice on this corpus shape — not merely t
 
 ## Integration appendix — current main and count correction (2026-09-13)
 
-This appendix is additive. The 161-line builder report above is preserved byte-for-byte as historical
-branch evidence. Its original sentence at line 108, “All 7 rows (8 with `.shell-wrapper`/`.other-wrapper`
+This appendix is additive. The complete builder report above preserves its historical body. Its frontmatter status was
+normalized from the unsupported `final` to the catalog vocabulary `active` during integration; the
+original bytes remain in commit `725fc340c`. Its original sentence at line 108, “All 7 rows (8 with `.shell-wrapper`/`.other-wrapper`
 counted separately),” is not silently rewritten: the correct production fixture count is **7 hooks**.
 The fixture yields four class hooks (`.shell-wrapper`, `.other-wrapper`, `.tier-wrapper`,
 `.excluded-wrapper`) and three data hooks (`[data-slot=…]`, `[data-mode=…]`, `[data-x]`), matching the seven
