@@ -46,3 +46,22 @@ After the bounded anchor repair:
 
 No whole-tree structure, full verification, catalog, ledger, browser, or runtime suite was run. Runtime
 behavior is unchanged; this repair is confined to one policy's finding coordinate and proof corpus.
+
+## Corrective review leg
+
+Independent review confirmed the original reproduction and its controls, then found that legal
+`(value as unknown) as UserId` and `((value) as unknown) as UserId` spellings passed silently. The first
+repair changed only coordinate selection; the arm still asked whether the raw outer operand was an
+`AsExpression`, so parentheses around the complete inner cast prevented detection before a coordinate was
+needed.
+
+The correction separates the two questions. `unwrapParentheses` supplies the semantic inner expression used
+to recognize `as unknown`. `castAnchor` independently chooses the authored node and token: the first spelling
+reports `value as unknown`, while the nested-value spelling reports `value`. Exact `mustFlag` and ordinary
+waiver rows pin both coordinates. All const, `satisfies`, single-cast, non-brand, population, and unnameable
+refusal rows remain in the same proof corpus.
+
+Red first on the prior implementation: the focused family returned four proof failures — both new
+`mustFlag` rows had zero findings and both exact waiver rows alarmed stale. After the semantic/coordinate
+split, the family passes 1/1; artifact
+`reports/runs/test/codex-planter-residue-804501-2026-09-13T08-18-10-021Z/test-report.json`.

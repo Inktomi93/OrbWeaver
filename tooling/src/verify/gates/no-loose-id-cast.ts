@@ -27,6 +27,17 @@ import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 import { idBrandProofModule } from "./_proof/id-brand.ts";
 
 const MESSAGE = "a cast bypasses branded-id type safety with `as never` or `as unknown as <canonical brand>` — use the owning mint/parser/cast seam.";
+/** Parentheses are transparent to the arm's semantic question. Keep this separate from `castAnchor`:
+ *  detection needs the inner AsExpression, while the authored coordinate deliberately varies with where
+ *  the author put parentheses. */
+function unwrapParentheses(expression: Node): Node {
+  let current = expression;
+  while (Node.isParenthesizedExpression(current)) {
+    current = current.getExpression();
+  }
+  return current;
+}
+
 /** THE ANCHOR for a cast's operand (#2197, #2325). A PARENTHESIZED operand's own text starts with `(`, so
  *  `waivableCoordinate` finds no leading paren-free head, returns `undefined`, and the report door refuses
  *  the finding as permanently unwaivable (#2107) — a refusal that withholds the WHOLE policy, not just the
@@ -42,10 +53,7 @@ const MESSAGE = "a cast bypasses branded-id type safety with `as never` or `as u
  *  That is the correct outcome (a finding nobody can name is the defect #2107 exists to surface), and the
  *  fallback below deliberately hands the raw text back so the door refuses rather than silently dropping it. */
 function castAnchor(expression: Node): Node {
-  let current = expression;
-  while (Node.isParenthesizedExpression(current)) {
-    current = current.getExpression();
-  }
+  let current = unwrapParentheses(expression);
   // Preserve the ordinary double-cast coordinate (`value as unknown`). Descend through an inner cast
   // only when its OPERAND is parenthesized: that wrapper is what makes the otherwise nameable carrier
   // start with `(`, while the type assertion itself remains part of the reported authored value.
@@ -93,7 +101,8 @@ export const gate = defineGate({
             ctx.report.node(anchor, { token, offset: 0 });
             return;
           }
-          const inner = Node.isAsExpression(expression) && expression.getTypeNode()?.isKind(SyntaxKind.UnknownKeyword) === true;
+          const semanticExpression = unwrapParentheses(expression);
+          const inner = Node.isAsExpression(semanticExpression) && semanticExpression.getTypeNode()?.isKind(SyntaxKind.UnknownKeyword) === true;
           const target = node.getTypeNode();
           if (inner && target !== undefined && canonicalIdBrand(ctx.checker().getTypeAtLocation(target), target, ctx.checker()) !== null) {
             ctx.report.node(anchor, { token, offset: 0 });
@@ -132,6 +141,24 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: '"" as const' },
       why: "A parenthesized const assertion is a transparent spelling of the branded double cast. Its coordinate must be the nameable authored const-asserted operand, never the paren-leading inner `as unknown` expression that the report door refuses.",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type UserId = Branded<"UserId">;\n'),
+        "packages/server/src/x.ts": 'import type { UserId } from "../../kit/src/ids/index";\nexport const x = (value as unknown) as UserId;\n',
+      },
+      expect: { count: 1, token: "value as unknown" },
+      why: "Parentheses around the complete inner `as unknown` cast are semantically transparent. Removing them for detection and coordinate selection must retain the established full inner-cast token.",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type UserId = Branded<"UserId">;\n'),
+        "packages/server/src/x.ts": 'import type { UserId } from "../../kit/src/ids/index";\nexport const x = ((value) as unknown) as UserId;\n',
+      },
+      expect: { count: 1, token: "value" },
+      why: "When the inner cast's own operand is parenthesized, the semantic laundering pair still reports and the authored coordinate descends to the nameable value rather than minting a paren-leading token.",
     },
     {
       mode: "types",
@@ -191,6 +218,24 @@ export const gate = defineGate({
           'import type { UserId } from "../../kit/src/ids/index";\n// @orb-waive no-loose-id-cast("" as const): the proof reason; ends when the parenthesized carrier stops flagging.\nexport const x = ("" as const) as unknown as UserId;\n',
       },
       why: 'The repaired coordinate is not only syntactically valid: the ordinary waiver engine binds the exact `"" as const` token and suppresses this one parenthesized double-cast finding without changing the established unparenthesized identity.',
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type UserId = Branded<"UserId">;\n'),
+        "packages/server/src/x.ts":
+          'import type { UserId } from "../../kit/src/ids/index";\n// @orb-waive no-loose-id-cast(value as unknown): the proof reason; ends when the wrapped inner cast stops flagging.\nexport const x = (value as unknown) as UserId;\n',
+      },
+      why: "The full-inner-cast coordinate survives an authored parenthesis around it and binds the same ordinary waiver identity as the unparenthesized spelling.",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idBrandProofModule('export type UserId = Branded<"UserId">;\n'),
+        "packages/server/src/x.ts":
+          'import type { UserId } from "../../kit/src/ids/index";\n// @orb-waive no-loose-id-cast(value): the proof reason; ends when the wrapped value stops flagging.\nexport const x = ((value) as unknown) as UserId;\n',
+      },
+      why: "The nested-parenthesis spelling binds only its exact value coordinate, proving coordinate selection stays distinct from the normalized inner cast used for detection.",
     },
   ],
   mustRefuse: [
