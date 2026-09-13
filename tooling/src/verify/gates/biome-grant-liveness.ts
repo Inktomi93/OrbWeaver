@@ -76,6 +76,45 @@
 // real narrowing and it carries its own `mustPass` row; before that row existed, widening the read killed
 // ZERO proof rows, which is the §4.1 definition of unenforced.
 //
+// §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS CATEGORY 5 WITH A ZERO LEGACY SIDE, SO IT IS
+// A LIVENESS-AND-OUTCOME RECEIPT AND NOT CATCH PARITY. `97e68be91` states no differential and lands none
+// as a test, and §4.6 (#2000) stopped accepting silence; this is the record it owes, all three axes named
+// separately, driven on ONE corpus at `ce8e5174f`.
+//   · FINDINGS. FINAL side through `runPolicyPass` over the real root: raw 1 —
+//     `biome.json:845 docs/catalog/catalog.tmp.*.json` — granted 1 (`biome-grant-liveness:catalog-tmp`,
+//     consumed exactly once), effective 0, owner `success`/`complete`, `authorityAlarms []` measured with a
+//     planted stale grant that DID alarm.
+//     LEGACY side: the frozen descriptor at `c97de9d2f`, header-import-shimmed into a scratch module
+//     OUTSIDE `gates/` and driven through `runPass` over the SAME real root — **0 findings, 0 tool
+//     errors**, declaring 98 candidates / 73 scanned / `{glob: 25, negated: 0, glob-live: 24,
+//     glob-ratified: 1, rule-live: 18, rule-files: 23, rule-dead-file-pairs: 1, rule-mixed-row: 6}`.
+//     THE PLANTED POSITIVE CONTROL: the same frozen source with `EXEMPT` and `RATIFIED_PATTERNS` emptied
+//     (each cut anchor asserted unique in the file) reports **1**, the same subject. So the legacy zero is
+//     the EXEMPTION SUBTRACTION, guide §4.6 **category 5**, and catch parity is not claimed.
+//     ONE-TO-ONE, and the collapse is the interesting half: the legacy carried `catalog.tmp` in TWO tables
+//     — `EXEMPT` for the file-exact arm and `RATIFIED_PATTERNS` for the glob arm, "two different claims
+//     about one grant row", with a standing note to collapse them the day one table could express both.
+//     The conversion IS that day: both became the single central row `catalog-tmp`. 1 hidden site → 1 raw
+//     → 1 grant → 0 effective, which is category 5's own falsifier answered YES.
+//   · POPULATION. `{ of: "none" }` on both sides in effect (the legacy `scanRoot` was `() => false`). The
+//     SUBJECT is the one repo-root `biome.json` both ways: today `json:biome` (`resources: 1,
+//     unresolved: 0`) plus `authored-text#1` (`resources: 1`) for line identity, against `tracked-files`
+//     9,707 (`unresolved: 0`) as the existence oracle the legacy `existsSync` used to be.
+//   · TOOL ERRORS. 0 on the final side. The legacy could emit none: MISSING-CONFIG and UNPARSEABLE-CONFIG
+//     were FINDINGS there and are the runtime's own refusal here (above), which is a strengthening rather
+//     than a lost catch and is pinned in `biome-grant-liveness.int.test.ts`.
+//   · THE FOUR `rule-*` SKIP REASONS IN THE LEGACY DECLARATION ARE ARM SIX, and their absence from the
+//     final receipt is the DECLARED move recorded above, not a silent drop: the successor is the
+//     `config:biome-rule-liveness` static stage (#2074). None of them was ever a finding.
+//
+// THE NON-VACUOUS ARM DOES NOT EXIST THROUGH THE SHARED HARNESS, and that is pinned rather than argued.
+// `tests/support/legacy-differential.ts` replays on an IN-MEMORY project and REFUSES a legacy gate that
+// touches disk (#2119) — this one is `existsSync` + `readFileSync` plus arm six's spawn.
+// `tests/tooling/verify/gates/grant-liveness-family.test.ts`'s §4.6 arm drives `filesystemReach` over both
+// frozen blobs with controls in both directions, so a later lane cannot "add the missing replay" by
+// relaxing that scan. A fixture-level replay here needs a REAL-TMPDIR harness (§4.6's own guidance for a
+// filesystem-reading legacy gate); that residual is board row #2319.
+//
 // COMMENT POSTURE: n/a — the scanned unit is STRICT JSON, which has no comment syntax.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";

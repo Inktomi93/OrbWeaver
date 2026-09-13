@@ -28,6 +28,26 @@
 // at `99b7429e2`) scanned `p.startsWith("packages/client/src") || p.startsWith("packages/ui/src")`, which
 // is exactly `["@client", "@ui"]`; nothing is added and nothing is subtracted.
 //
+// §4.6 DIFFERENTIAL — LANDED AS A COMMITTED TEST 2026-09-13 (#2273):
+// `tests/tooling/verify/gates/no-color-literals-parity.test.ts`. `99b7429e2` stated none and this module
+// is on NO close-by-rule roster, so §4.6 (#2000) left it silent; the replay is the record, and it is the
+// NON-VACUOUS arm rather than a real-corpus count, because the legacy descriptor at `d6f36904f` is a pure
+// AST visitor with ZERO filesystem reach and `tests/support/legacy-differential.ts` therefore accepts it.
+//   · FINDINGS. 5 on the LEGACY side across 4 of the 6 legacy examples, 5 on the FINAL side, same files,
+//     same lines, same tokens, one per offending fragment — so neither of §4.6's vacuity shapes applies.
+//   · POPULATIONS. 1 = 1 on every example. · TOOL ERRORS. Empty on both engines, every example.
+//   · THE ONE CLASSIFIED DIFFERENCE IS A STRENGTHENING NOBODY HAD RECORDED, and it is not the #1991
+//     policy-level-message story: `lib/pass.ts:243`'s NODE report path pushes `{file, line, column, token}`
+//     and structurally DISCARDS a per-finding message, so the legacy module's `MESSAGE_PALETTE` and
+//     `MESSAGE_NON_TOKEN` were UNREACHABLE DEAD TEXT — every finding it ever emitted, whichever arm fired,
+//     carried the gate-level `MESSAGE_HEX`. The three arms are distinct only on this side of the
+//     conversion. The class is EMPTY on today's legacy roster: a two-method census of the 39 surviving
+//     legacy gate modules returns zero, with this frozen blob as the positive control that finds the shape.
+//   · CLOSE-BY-RULE, MEASURED: `tier3-close-by-rule.test.ts` refuses this module on EXACTLY ONE clause —
+//     clause 6's LABEL half, one re-authored `why` on `mustPass[1]`. All twelve legacy fixture payload
+//     literals are carried byte-for-byte and every other clause passes. Do NOT re-author that `why` back
+//     to buy roster membership: the replay is strictly stronger than the row would have been.
+//
 // The cost is accepted: a non-class string that happens to spell `bg-black` or `text-red-500` is a false
 // positive. This policy is ORDINARY precisely so that case has a door — `@orb-waive no-color-literals(<the
 // offending token>): <reason>` — and the position token is the offending class fragment, not the literal.
