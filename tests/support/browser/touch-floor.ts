@@ -2,7 +2,8 @@
 // coarse-pointer control is actually hittable.
 //
 // WHY IT IS NOT A BOUNDING BOX. Our floorless Button sizes (`inline`/`glyph-*`) carry their ≥44px coarse hit
-// area on an OVERFLOWING `::after`, so the visible box and the target are DIFFERENT SHAPES — and when such a
+// area on an OVERFLOWING `::before` (an `::after` until #1843 moved it off the CTA ring's layer — the
+// readers here have always probed BOTH), so the visible box and the target are DIFFERENT SHAPES — and when such a
 // control is repeated in a wrapping run, the pseudo is clipped by the gap it shares with the next cell and
 // the floor silently is not delivered. A `boundingBox()` assertion is blind to exactly that defect (measured
 // 2026-08-07: a 32px icon cell reporting a 37px effective target on a 38px pitch). Only `elementFromPoint`
@@ -20,6 +21,7 @@
 // retune.
 
 import type { Locator, Page } from "@playwright/test";
+import { pseudoHitEnvelope, readPseudoGeometry, walkFrom } from "../iso/hit-extent-walk.ts";
 
 /** One control's effective hit target, in CSS px. */
 export interface HitBox {
@@ -75,56 +77,22 @@ export function touchFloorPx(page: Page): Promise<number> {
 }
 
 /** A control's reachable extent on one axis — walked out from its centre with `elementFromPoint` until the
- *  point stops resolving inside it. The sweep runs inside the page, so it is ONE settled read.
+ *  point stops resolving inside it.
  *
- *  BOX- vs PSEUDO-CARRIED FLOOR (#662, fixed from the prior unconditional `hit.contains(el)`). Ancestor
- *  credit exists for exactly one shape: an overflowing `::after`/`::before` touch-target pseudo (the
- *  `@orb/ui` Button glyph ramp — packages/ui/src/primitives/button/variants.ts `glyphBox`,
- *  `after:content-['']` + `after:absolute`) has no DOM node, so a probed point on its clipped-away edge
- *  falls through to whatever plain box paints there — usually the control's own wrapper — and THAT
- *  fallback IS the control's real extent. A control with no such pseudo carries its floor on its OWN
- *  border box (a real height/min-height, e.g. the CONTROL_SIZE ramp), so walking off that box onto ANY
- *  ancestor is never evidence of ownership — it is the wrapper's padding/gap. Crediting it unconditionally
- *  was the #662 hole: a 413×16 trigger measured 44 by borrowing its `Stack` wrapper's whole extent, and the
- *  sweep was structurally incapable of ever reporting less (cb-rules-spend, 2026-08-24 — PASSED against the
- *  reverted 413×16 source while five sibling pins went red).
+ *  THE RULE ITSELF IS NOT HERE: it is `tests/support/iso/hit-extent-walk.ts`, the one home shared with the
+ *  ui-audit instrument proof (`tests/tooling/ui-audit/ops/walker/hit-extent.int.test.ts`), which used to
+ *  keep a hand-copied second spelling and could therefore agree with a predicate this kit no longer had.
+ *  Read that file for the ownership clauses, the #2300 geometry scoping and the declared limits.
  *
- *  DECLARED LIMIT: this kit has no composite-row mechanism (design-audit's `sharedCompositeOwns` — a
- *  Base UI Slider's real target is the whole `h-control-sm` row, box-carried on an ANCESTOR, not on the
- *  probed element and not via a pseudo). A composite control measured through this kit under-reports to
- *  its own bare box. None of this kit's live CT consumers hit that shape (verified: every `hitExtent`
- *  call site targets a CONTROL_SIZE-height Button, which carries its own floor directly) — a future
- *  composite consumer needs its own box measurement (`boundingBox()` on the row), not this sweep. */
-export function hitExtent(cell: Locator, axis: "x" | "y"): Promise<number> {
-  return cell.evaluate((el: HTMLElement, ax: "x" | "y"): number => {
-    const box = el.getBoundingClientRect();
-    const cx = box.left + box.width / 2;
-    const cy = box.top + box.height / 2;
-    const pseudoCarriesFloor = (): boolean => {
-      const extendsOutward = (style: CSSStyleDeclaration): boolean =>
-        style.content !== "none" && style.content !== "normal" && (style.position === "absolute" || style.position === "fixed");
-      return extendsOutward(getComputedStyle(el, "::after")) || extendsOutward(getComputedStyle(el, "::before"));
-    };
-    const pseudoCarried = pseudoCarriesFloor();
-    const owns = (x: number, y: number): boolean => {
-      const hit = document.elementFromPoint(x, y);
-      if (hit === null) {
-        return false;
-      }
-      if (hit === el || el.contains(hit)) {
-        return true;
-      }
-      return pseudoCarried && hit.contains(el);
-    };
-    const reach = (dx: number, dy: number): number => {
-      let n = 0;
-      while (n < 80 && owns(cx + dx * (n + 1), cy + dy * (n + 1))) {
-        n += 1;
-      }
-      return n;
-    };
-    return ax === "x" ? reach(-1, 0) + reach(1, 0) + 1 : reach(0, -1) + reach(0, 1) + 1;
-  }, axis);
+ *  TWO PAGE ROUND TRIPS, NOT ONE, and the reason is a budget rather than a preference: the geometry read
+ *  and the walk are separate serialisable functions because a single self-contained one carrying the whole
+ *  algorithm scores 79 against the cognitive-complexity budget of 15, and the arithmetic between them is
+ *  worth far more as a NODE-testable pure function than as another thing only a browser can check. The
+ *  window between the two reads is a layout the caller must already have settled — every consumer polls
+ *  (`expect.poll`) precisely because a mid-transition read was never trustworthy in one call either. */
+export async function hitExtent(cell: Locator, axis: "x" | "y"): Promise<number> {
+  const geometry = await cell.evaluate(readPseudoGeometry);
+  return await cell.evaluate(walkFrom, { axis, envelope: pseudoHitEnvelope(geometry) });
 }
 
 /** Every control's effective hit box, in DOM order. */

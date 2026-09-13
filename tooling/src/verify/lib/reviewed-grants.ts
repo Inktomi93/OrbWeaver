@@ -1779,14 +1779,6 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     endsWhen: "the first tests/**/*.cts source lands.",
   },
   {
-    id: "tsconfig-entry-liveness:tests-iso-helpers",
-    policyId: "tsconfig-entry-liveness",
-    subject: "tests/support/iso/**/*",
-    operation: "tsconfig-glob-entry",
-    why: "the explicit ISO-helper root exists before its first helper BY DESIGN; reset.d.ts + platform.d.ts keep the compiler leaf measurable meanwhile (docs/architecture/core/Core-Tooling-Law.md). The entry is authored in three configs — one include and two excludes — and is one permission, which is why the grant subject is the entry rather than a per-config coordinate.",
-    endsWhen: "the first tests/support/iso source lands.",
-  },
-  {
     id: "two-class-role-authority:admin-guard-can-seam",
     policyId: "two-class-role-authority",
     subject: "packages/server/src/domain/admin/guard.ts",

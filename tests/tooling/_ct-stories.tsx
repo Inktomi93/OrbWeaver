@@ -278,7 +278,8 @@ export function WalkerNeighbourButtonsStory(): ReactElement {
 
 /** The BOX-CARRIED regression stage (#662/#665): a plain, undersized, non-pseudo button ALONE in a
  *  padded, STATIC wrapper — deliberately the shape the fix must close. It carries no touch-target
- *  ::after (no `after:` classes) and no min-height/min-width, so its floor is its own 16x16 border box.
+ *  ::before (no `before:`/`after:` classes) and no min-height/min-width, so its floor is its own 16x16
+ *  border box.
  *  Before the fix, `ownsPoint`'s unconditional `hit.contains(el)` (and `sharedCompositeOwns`'s own
  *  static-wrapper credit) walked out to the wrapper at every probe radius and measured 44 regardless —
  *  structurally un-failable. The wrapper is deliberately huge (120px padding) and `position: static`
@@ -298,38 +299,39 @@ export function WalkerBoxCarriedIsolatedControlStory(): ReactElement {
   );
 }
 
-/** The PSEUDO-CARRIED companion (#662/#665): the ancestor-credit clause's MINTED purpose must still
- *  pass after the fix. A glyph-sm Button's visible box is far under the floor (packages/ui/src/primitives
- *  /button/variants.ts glyphBox — `size-glyph-sm`), and the floor is carried entirely by its overflowing
- *  `::after` (`after:size-touch-target`, `after:absolute`) — no DOM node of its own, so the outward probe
- *  legitimately falls through to the wrapper at the pseudo's clipped edge. Isolated (no sibling in the
- *  probe band) and inset from x=0 for the same reasons as the box-carried stage above — this stage is the
- *  one shape that MUST still measure the full floor once ancestor-credit is scoped to pseudo-carried
- *  controls only. */
 /** The #807 stage — the Settings→Plugins capability row, rebuilt from its measured ring.
  *
- *  Live at `--mobile`, the capability control's four-cardinal `elementFromPoint` ring reads
- *  `["self", "other:p.font-sans", "self", "ANCESTOR:div.relative"]`: its own outward pseudo answers SELF
- *  on two sides, and the third belongs to a PARAGRAPH. `sharedCompositeOwns` still handed it the whole
+ *  Live at `--mobile`, the capability control's four-cardinal `elementFromPoint` ring read
+ *  `["self", "other:p.font-sans", "self", "ANCESTOR:div.relative"]`: its own outward pseudo answered SELF
+ *  on two sides, and the third belonged to a PARAGRAPH. `sharedCompositeOwns` still handed it the whole
  *  44x44 (the control is the row's only offered control), so design-audit published a target the row does
- *  not toggle. Both arms are in one mount so the contrast is a single measurement, not two runs:
+ *  not toggle. Every arm is in one mount so the contrast is a single measurement, not three runs:
  *
  *   · ISOLATED — the same glyph with nothing beside it. Its pseudo is the only thing at those pixels, so
  *     it keeps its full extent. Removing the ancestor credit must NOT touch this (it is #662/#665's
  *     surviving half).
- *   · ROW-WRAPPED — the same glyph with a prose column painted over its outward ring, exactly as the
- *     capability row does. Nothing forwards: no label, no toggle. Its extent must now CAP at the pixels
- *     it genuinely owns. */
+ *   · ROW-WRAPPED — the live geometry: a prose column at the row's `+30px`. Since #2300 scoped ancestor
+ *     credit to the pseudo's measured rect, prose OUT THERE contests nothing the glyph ever owned, and
+ *     this arm's extent must EQUAL the isolated one. That equality is the finding, not a weakening: the
+ *     old gap between these two arms was the isolated glyph's fabricated wrapper credit, not the row's
+ *     loss. Keeping the arm keeps the shape the live measurement was taken from.
+ *   · TIGHT-ROW — the same prose moved to `1.3rem`, INSIDE the pseudo's reach at every root scale (the
+ *     glyph box is `1.25rem`, its hit pseudo `1.75rem` at a fine pointer, both centred). This is where
+ *     #807's ruling still bites: the prose answers pixels the pseudo covers, it forwards nothing, and the
+ *     extent must cap below the isolated arm's. Without it #807 has no failing arm left.
+ *
+ *  Every arm pins `intent="ghost"`: the default is `primary`, which stamps `data-cta` and paints the CTA
+ *  gradient ring, and a second pseudo is a second variable in a story about which element owns a pixel. */
 export function WalkerRowWrappedGlyphStory(): ReactElement {
   return (
     <div style={{ padding: 60, width: 460 }}>
       <div style={{ marginBlockEnd: 80, marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid="glyph-alone" size="glyph-sm" />
+        <Button aria-label="Regenerate" data-testid="glyph-alone" intent="ghost" size="glyph-sm" />
       </div>
       {/* The prose is ABSOLUTELY placed at a known offset and raised, so "which element owns x=+22 from
           the control's centre" is a fixed fact of this story rather than a flex-gap accident. */}
-      <div data-testid="capability-row" style={{ display: "flex", position: "relative", width: 360 }}>
-        <Button aria-label="Grant file access" data-testid="glyph-in-row" size="glyph-sm" />
+      <div data-testid="capability-row" style={{ display: "flex", marginBlockEnd: 80, position: "relative", width: 360 }}>
+        <Button aria-label="Grant file access" data-testid="glyph-in-row" intent="ghost" size="glyph-sm" />
         <p
           data-testid="capability-prose"
           style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: 30, margin: 0, position: "absolute", zIndex: 1 }}
@@ -337,15 +339,37 @@ export function WalkerRowWrappedGlyphStory(): ReactElement {
           reads and writes your files
         </p>
       </div>
+      <div data-testid="tight-row" style={{ display: "flex", position: "relative", width: 360 }}>
+        <Button aria-label="Grant network access" data-testid="glyph-in-tight-row" intent="ghost" size="glyph-sm" />
+        <p
+          data-testid="tight-prose"
+          style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: "1.3rem", margin: 0, position: "absolute", zIndex: 1 }}
+        >
+          reaches the network
+        </p>
+      </div>
     </div>
   );
 }
 
+/** The PSEUDO-CARRIED companion (#662/#665): the ancestor-credit clause's MINTED purpose must still
+ *  pass after the fix. A glyph-sm Button's visible box is far under the floor (packages/ui/src/primitives
+ *  /button/variants.ts glyphBox — `size-glyph-sm`), and the floor is carried entirely by its overflowing
+ *  `::before` (`TOUCH_TARGET_PSEUDO` — `before:size-touch-target`, `before:absolute`; it was an `::after`
+ *  until #1843 moved it off the CTA ring's layer) — no DOM node of its own, so where an ancestor clips it
+ *  the box underneath is the only thing that can answer. Isolated (no sibling in the probe band) and inset
+ *  from x=0 for the same reasons as the box-carried stage above — this stage is the one shape that MUST
+ *  still measure the full floor once ancestor credit is scoped to pseudo-carried controls only.
+ *
+ *  THIS DOC BLOCK USED TO SIT ABOVE `WalkerRowWrappedGlyphStory`, two JSDoc comments deep, describing a
+ *  function forty lines away — the re-parenting an insertion anchored on the wrong line produces. */
 export function WalkerPseudoCarriedIsolatedGlyphStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
       <div style={{ marginInlineStart: 48 }}>
-        <Button aria-label="Regenerate" data-testid="pseudo-carried-isolated" size="glyph-sm" />
+        {/* `intent` is pinned: the default is `primary`, which stamps `data-cta` and adds the gradient
+            ring — a second pseudo, and a second variable, in a stage about one pseudo's reach. */}
+        <Button aria-label="Regenerate" data-testid="pseudo-carried-isolated" intent="ghost" size="glyph-sm" />
       </div>
     </div>
   );
