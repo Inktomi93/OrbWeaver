@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-10
+updated: 2026-09-13
 ---
 
 # Unified Verification Design
@@ -18,7 +18,7 @@ updated: 2026-09-10
 ## 1. Why ONE surface
 
 - **The failure this closes:** a bot runs a partial battery, sees green, and misses a class the partial
-  battery never ran (the 2026-06-28 incident — test-FILE type errors rode \~10 commits because pre-commit
+  battery never ran (the 2026-06-28 incident — test-FILE type errors rode ~10 commits because pre-commit
   ran only Biome on staged files; `test:types` fired only at a pre-push that a long no-push session never
   reached — `lefthook.yml`). One entry with named tiers makes "which command do I run" a lookup, not
   folklore.
@@ -27,8 +27,8 @@ updated: 2026-09-10
   red. The old pre-push 4-command pipe is retired (`lefthook.yml`).
 - **A forgotten script is structurally impossible.** Every verification-shaped `package.json` script is
   reachable from the registry or dies to a parity gate (§3.6). No verification surface exists off the ladder.
-- **Truncation-robust output.** A reader who sees only the first \~15 lines (head banner) OR only the last
-  \~15 (tail block) can still read PASS/FAIL and learn that `reports/verify.json` is authoritative. Compact
+- **Truncation-robust output.** A reader who sees only the first ~15 lines (head banner) OR only the last
+  ~15 (tail block) can still read PASS/FAIL and learn that `reports/verify.json` is authoritative. Compact
   console is the default; full stage output goes to `reports/verify/<stage>.log` + the json, never scrolled
   off by a live stream (`--verbose` / a TTY opts into the live stream).
 
@@ -407,7 +407,7 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   measured to be the PRIMARY defect: vitest's default reporter prints nothing while a single file runs, and
   `tests/tooling/ast/cli.repo.int.test.ts` (every row spawns the real `pnpm ast` CLI over the whole ts-morph
   workspace, on 120s/300s budgets) held a healthy battery silent for 7+ minutes with a grandchild burning
-  \~4.5 cores; that run finished naturally 36 minutes later having spent 1,057,996 ms inside that one file.
+  ~4.5 cores; that run finished naturally 36 minutes later having spent 1,057,996 ms inside that one file.
   So the watchdog samples the CPU jiffies of the shard's parent AND every descendant via `/proc` on each
   tick; CPU burned anywhere in the tree counts as activity exactly like output. A shard's process group is
   SIGKILLed only when it has been silent for `ORB_TEST_HANG_TIMEOUT_MS` (default 5 min) **AND** the whole
@@ -452,7 +452,7 @@ that owns every worker cap, #1835), through `lib/stage-budget.ts`:
 - `defaultMinutes` — every stage that does not declare its own.
 - the CT suite — `ceil(ctSuiteWorkerMinutes / ctWorkers × ctCeilingFactor) + ctHostSlotWaitMinutes`, floored
   at the default. `ctSuiteWorkerMinutes` is MEASURED (2026-09-06: 488 files / 5,121 cases; a 25-file
-  systematic sample cost 1,004 worker-seconds ⇒ \~160 worker-minutes for the suite); the host-slot wait is
+  systematic sample cost 1,004 worker-seconds ⇒ ~160 worker-minutes for the suite); the host-slot wait is
   in the sum because a queued CT run spends it inside the stage's own wall clock, and `ct-runner-lock.ts`
   reads that same number for the wait it grants.
 

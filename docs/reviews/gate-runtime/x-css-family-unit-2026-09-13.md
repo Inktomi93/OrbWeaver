@@ -536,3 +536,17 @@ string written into a `.ts` COMMENT keeps the backslash literally, so the file s
 dash belongs — invisible to tsc, biome, eslint and every gate, and wrong only for the human the comment is
 addressed to. Verified prose-only: `git diff -U0` shows no changed line outside a comment or a `why` field,
 `git diff --check` is clean, and the family suite is unchanged at 7 tests.
+
+## Integration provenance (2026-09-13)
+
+The leg-3 repair `0a301b3e3` and leg-4 prose correction `95f4a9723` landed as `dd98eb356` and
+`f56e83d52`; both rebased patches are identical. Independent source review accepted the four behavioral
+repairs and the coupled prose corrections. The integrated three-file floor passed 11/11 at `f56e83d52`:
+`reports/runs/test/main-4128511-2026-09-13T05-44-47-564Z/test-report.json`.
+
+The integrated planter later passed 10/10, including its two-sided legacy exemption check:
+`reports/runs/test/main-4132528-2026-09-13T05-45-37-478Z/test-report.json`. This is an additional runtime
+receipt, not a replacement for the independent CSS family re-verification, which remains pending. The
+unpinned vendor-hook refusals are tracked by #2310. The inherited grant-ordering defect #2306 was verified
+with an intentional row swap that failed exactly its ordering assertion and a byte-exact restoration that
+passed 3/3; its fix is `78ec56ea6`. The BaseUI resource-selection defect #2309 remains open.
