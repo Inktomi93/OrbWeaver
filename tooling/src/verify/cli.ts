@@ -8,7 +8,7 @@
 //   check:show               → cli.ts show [--errors-only|--gate|--file|--limit]
 //   (scoped, from selection) → cli.ts scoped (--scope|--package|--changed)
 //   test:scoped / test:ct  → cli.ts scoped-test <node|ct> [paths…] (the path preflight, #1192)
-//   gate:new                 → cli.ts new-gate <kebab-name>
+//   gate:new                 → cli.ts new-gate <kebab-name> <explicit family choice>
 //   check:policy-conformance → cli.ts policy-conformance  (every final policy's own proofs, #1941)
 //   prose:baseline           → cli.ts baseline prose      (+ the 7 other committed baselines)
 //   check:type-ownership   → cli.ts tests-membership
@@ -37,6 +37,7 @@ import {
   BASELINE_HELP,
   CONFIG_SNAPSHOT_HELP,
   LEDGER_CLAIMS_HELP,
+  NEW_GATE_USAGE,
   parse,
   refuseVerbTail,
   runAssetRefsCoverage,
@@ -94,8 +95,7 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   show: SHOW_HELP,
   scoped: SCOPED_USAGE,
   "scoped-test": SCOPED_TEST_USAGE,
-  "new-gate":
-    "usage: node tooling/src/verify/cli.ts new-gate <kebab-name>\n  Scaffolds a final defineGate policy and its proofs; follow tooling/src/verify/gates/GATE-AUTHORING.md.",
+  "new-gate": NEW_GATE_USAGE,
   "gate-contract": "usage: node tooling/src/verify/cli.ts gate-contract\n  Reports gate modules that bypass the shared ts-morph runtime contract.",
   "policy-conformance":
     "usage: node tooling/src/verify/cli.ts policy-conformance\n  Runs every final defineGate policy's own mustFlag/mustPass rows through the production dispatcher (#1941); a failed proof is exit 2.",

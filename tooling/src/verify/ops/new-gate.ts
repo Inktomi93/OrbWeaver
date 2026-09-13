@@ -9,15 +9,22 @@
 // template was born owing an authority migration — a generator that teaches the shape its own program
 // bans. The template below is a `defineGate` FINAL policy: it loads, validates, and its `mustFlag` /
 // `mustPass` rows pass `pnpm check:policy-conformance` on arrival, so a freshly scaffolded gate is green
-// until the author makes it mean something. Law: docs/design/gate-runtime-standardization.md §2.
+// for an explicit singleton. A shared-family draft still owes actual dependency consumption. Law: docs/design/gate-runtime-standardization.md §2.
 import { existsSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, resolve } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { Node } from "ts-morph";
+import { descriptorValue, finalDescriptorOf, policyProductionDependencies, staticText } from "../lib/policy-descriptor-read.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm gate:new <kebab-name>");
+export const NEW_GATE_USAGE =
+  'usage: pnpm gate:new <kebab-name> (--singleton-reason "<reason>" | --family-of <existing-gate-id> --dependency <canonical-lib-path>#<declaration-name>)\n' +
+  "The verify new-gate verb scaffolds a final defineGate policy; shared-family drafts require actual dependency consumption. Follow tooling/src/verify/gates/GATE-AUTHORING.md.";
+
+refuseDirectInvocation(import.meta.url, NEW_GATE_USAGE);
 
 const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const NAME_TOKEN = "__NAME__";
@@ -28,7 +35,7 @@ const FAMILY_TESTS = "tests/tooling/verify/gates";
 
 const TEMPLATE = `// Gate: __NAME__ — <ONE line: what shape is banned and WHY it is a defect, not a preference>.
 // <the ARMS, one line each> · DECLARED LIMITS: <what this reader cannot see — each one owes a mustPass row>.
-// FAMILY: <the shared lib/ computation or canonical subject (module + declaration) this policy consumes, or "singleton" and why>.
+// FAMILY: __FAMILY_REASON__.
 // POPULATION: <new policy scope, or legacy-minus-final and final-minus-legacy port/correction>.
 // RETIRED MARKERS: <none for a new policy; conversion before/after census and translated final positions>.
 // Replace these placeholders with the smallest complete header; preserve each applicable obligation.
@@ -50,7 +57,7 @@ export const gate = defineGate({
   // The FAMILY string. A policy that shares a lib/ reader with siblings shares their family; a split by
   // AUTHORITY (this policy plus a hard \`-health\` sibling) uses the IDENTICAL family on both halves. A
   // singleton's family equals its id — the loader enforces that, so getting it wrong refuses at load.
-  family: "__NAME__",
+  family: "__FAMILY__",
   // "ordinary" is waivable at the reported position with an \`@orb-waive __NAME__(<pos>)\` marker;
   // "hard" is not; "reviewed-grant" means every exception is a row in the central grant table. There is
   // no fourth option and NO private exemption table — §5 bans one in a final policy outright.
@@ -107,25 +114,103 @@ export const gate = defineGate({
 });
 `;
 
-/** The `gate:new` verb — scaffold the gate file, then print every coupled site that lives outside it. */
+type FamilyChoice = { readonly kind: "singleton"; readonly reason: string } | { readonly kind: "shared"; readonly peer: string; readonly dependency: string };
+
+function familyChoice(argv: readonly string[]): FamilyChoice {
+  const values = new Map<string, string>();
+  for (let index = 0; index < argv.length; index += 2) {
+    const option = argv[index];
+    if (option === undefined || !option.startsWith("--")) {
+      throw new UsageError(`new-gate scaffolds ONE gate per invocation. ${NEW_GATE_USAGE}`);
+    }
+    if (option !== "--singleton-reason" && option !== "--family-of" && option !== "--dependency") {
+      throw new UsageError(`unknown new-gate option ${option}. ${NEW_GATE_USAGE}`);
+    }
+    const value = argv[index + 1];
+    if (value === undefined || value.startsWith("--") || value.trim() === "" || /[\p{Cc}\p{Zl}\p{Zp}]/u.test(value) || values.has(option)) {
+      throw new UsageError(`new-gate requires one nonempty, single-line value for ${option}. ${NEW_GATE_USAGE}`);
+    }
+    values.set(option, value.trim());
+  }
+  const reason = values.get("--singleton-reason");
+  const peer = values.get("--family-of");
+  const dependency = values.get("--dependency");
+  if (reason !== undefined && values.size === 1) {
+    return { kind: "singleton", reason };
+  }
+  if (reason === undefined && peer !== undefined && KEBAB_RE.test(peer) && dependency !== undefined) {
+    return { kind: "shared", peer, dependency };
+  }
+  throw new UsageError(`choose an explicit singleton reason or an existing family and production dependency. ${NEW_GATE_USAGE}`);
+}
+
+/** Selection is by a canonical declaration reached from the peer's production roots, never by a theme
+ *  or common module filename. This records intended sharing; it cannot author the new predicate's use. */
+function sharedFamily(root: string, choice: Extract<FamilyChoice, { kind: "shared" }>): string {
+  const [modulePath, declarationName, extra] = choice.dependency.split("#");
+  if (
+    modulePath === undefined ||
+    declarationName === undefined ||
+    declarationName === "" ||
+    extra !== undefined ||
+    !modulePath.startsWith("tooling/src/verify/lib/") ||
+    !modulePath.endsWith(".ts") ||
+    modulePath.includes("\\") ||
+    relative(resolve(root), resolve(root, modulePath)).replaceAll("\\", "/") !== modulePath
+  ) {
+    throw new UsageError("production dependency must name a canonical tooling/src/verify/lib/*.ts#declaration");
+  }
+  const peerPath = join(root, GATES_DIR, `${choice.peer}.ts`);
+  if (!existsSync(peerPath)) {
+    throw new UsageError(`no existing final gate ${choice.peer} for this production dependency`);
+  }
+  const project = getWorkspace({ root, types: true, globs: [peerPath] });
+  const source = project.getSourceFileOrThrow(peerPath);
+  const descriptor = finalDescriptorOf(source);
+  if (descriptor === undefined || staticText(descriptorValue(descriptor, "id")) !== choice.peer) {
+    throw new UsageError(`${choice.peer} is not a canonical final gate for this production dependency`);
+  }
+  const family = staticText(descriptorValue(descriptor, "family"));
+  if (family === undefined || !KEBAB_RE.test(family)) {
+    throw new UsageError(`cannot resolve family for ${choice.peer}`);
+  }
+  const dependencies = policyProductionDependencies([descriptor]).get(descriptor) ?? new Set();
+  const matches = [...dependencies].filter(
+    (declaration) =>
+      declaration.getSourceFile().getFilePath() === resolve(root, modulePath) && Node.hasName(declaration) && declaration.getName() === declarationName,
+  );
+  if (matches.length !== 1) {
+    throw new UsageError(`${choice.dependency} is not one canonical production dependency of ${choice.peer}`);
+  }
+  return family;
+}
+
+/** The `gate:new` verb — require an evidence-backed family choice before creating the draft. */
 export function runNewGate(root: string, argv: readonly string[]): number {
   const name = argv[0];
-  // ONE kebab name is the whole tail (#1117) — refused BEFORE the scaffold is written, because this verb's
-  // silent-ignore leaves a gate file on disk under a name the operator did not mean to be the only one.
-  const stray = argv[1];
-  if (stray !== undefined) {
-    throw new UsageError(`new-gate scaffolds ONE gate per invocation — got ${JSON.stringify(stray)} as well (usage: pnpm gate:new <kebab-name>)`);
-  }
   if (name === undefined || !KEBAB_RE.test(name)) {
-    throw new UsageError("usage: pnpm gate:new <kebab-name>\nthe gate NAME must equal its filename (loader-enforced) and be kebab-case.");
+    throw new UsageError(NEW_GATE_USAGE);
   }
+  const choice = familyChoice(argv.slice(1));
   const rel = `${GATES_DIR}/${name}.ts`;
   const abs = join(root, rel);
   if (existsSync(abs)) {
     throw new UsageError(`${rel} already exists — pick another name or edit it directly.`);
   }
 
-  writeFileSync(abs, TEMPLATE.replaceAll(NAME_TOKEN, name));
+  const family = choice.kind === "singleton" ? name : sharedFamily(root, choice);
+  const reason =
+    choice.kind === "singleton"
+      ? `singleton — ${choice.reason}`
+      : `${family}, ${choice.dependency}; TODO(scaffold): consume this dependency meaningfully from production hooks`;
+  const emitted = TEMPLATE.replaceAll(NAME_TOKEN, name)
+    .replace('"__FAMILY__"', JSON.stringify(family))
+    .replace("__FAMILY_REASON__", () => reason);
+  writeFileSync(abs, emitted);
+  const readiness =
+    choice.kind === "singleton"
+      ? "     The singleton placeholder is green on arrival; replace its predicate and proofs with the real defect."
+      : "     SHARED DRAFT: Q08 must report missing production sharing until the chosen dependency drives the real predicate.";
 
   process.stdout.write(
     [
@@ -138,8 +223,9 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       "conversion archaeology. The loader registers this policy immediately; the coupled sites are owed in this lane:",
       "",
       `  1. ${rel}`,
-      "     fill every TODO(scaffold). The scaffold is green on arrival; it starts MEANING something when",
-      "     its predicate and its proof rows describe the real defect. Prove it bites:",
+      "     Fill every TODO(scaffold).",
+      readiness,
+      "     Prove actual behavior and family sharing:",
       "",
       "       pnpm test:scoped <the importing family test>",
       "     Coordinate whole-corpus `pnpm check:policy-conformance` at the integration barrier.",

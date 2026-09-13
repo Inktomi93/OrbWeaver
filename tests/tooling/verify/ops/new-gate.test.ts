@@ -11,12 +11,14 @@
 // copied contract would refuse every fixture as unbranded), and runs the emitted proof rows through the
 // REAL conformance driver. Both directions: the legacy vocabulary is gone, AND what replaced it is a
 // policy the contract accepts and whose own rows pass on arrival.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Project } from "ts-morph";
+import { gate as policyFamilyReaders } from "../../../../tooling/src/verify/gates/policy-family-readers.ts";
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
 import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
+import { markdownTables } from "../../../../tooling/src/verify/lib/markdown-tables.ts";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { runNewGate } from "../../../../tooling/src/verify/ops/new-gate.ts";
@@ -26,12 +28,14 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 const GATES_REL = "tooling/src/verify/gates";
 const NAME = "probe-scaffolded-gate";
+const SINGLETON_REASON = "This new predicate has no shared production dependency";
+const SINGLETON_ARGS = ["--singleton-reason", SINGLETON_REASON] as const;
 /** Historical #2102 regression sentinels; the loader below owns complete contract validation. */
 const RETIRED_VOCABULARY = ["ExemptionTable", "GateDescriptor", "scanRoot", "scopeSafety", "docRow", "finalize", "fileLoaded", "REAL_TREE_ANCHOR"] as const;
 
 function scaffold(scratch: string): string {
   mkdirSync(join(scratch, GATES_REL), { recursive: true });
-  expect(runNewGate(scratch, [NAME])).toBe(0);
+  expect(runNewGate(scratch, [NAME, ...SINGLETON_ARGS])).toBe(0);
   return readFileSync(join(scratch, GATES_REL, `${NAME}.ts`), "utf8");
 }
 
@@ -41,7 +45,8 @@ test("the scaffold emits no retired-contract vocabulary", ({ scratch }) => {
   expect(RETIRED_VOCABULARY.filter((spelling) => emitted.includes(spelling))).toEqual([]);
   expect(emitted).toContain("defineGate");
   expect(emitted).toContain(`id: "${NAME}"`);
-  expect(emitted).toContain("module + declaration");
+  expect(emitted).toContain(SINGLETON_REASON);
+  expect(emitted).toContain(`family: "${NAME}"`);
   expect(emitted).toContain("// POPULATION:");
   expect(emitted).toContain("// RETIRED MARKERS:");
   expect(emitted).not.toContain("Header budget is 5 lines");
@@ -117,7 +122,7 @@ test("the emitted final module passes production policy-soundness and its plante
 
 test("scaffold output and CLI help route to the final policy guide", { timeout: scaledBudget(30_000) }, async ({ scratch, runCli }) => {
   mkdirSync(join(scratch, GATES_REL), { recursive: true });
-  const created = await runCli("verify", ["new-gate", NAME], { cwd: scratch });
+  const created = await runCli("verify", ["new-gate", NAME, ...SINGLETON_ARGS], { cwd: scratch });
   const help = await runCli("verify", ["new-gate", "--help"]);
   await expect(created).toExitWith(0);
   await expect(help).toExitWith(0);
@@ -125,4 +130,215 @@ test("scaffold output and CLI help route to the final policy guide", { timeout: 
   expect(created.stdout).toContain("gate-authoring-legacy-2026-09-13.md");
   expect(created.stdout).not.toContain("bump the");
   expect(help.stdout).toContain("final defineGate policy");
+});
+
+// Family choice is explicit before the file is written; malformed input cannot silently mint a policy.
+test.for([
+  [NAME],
+  [NAME, "--singleton-reason", ""],
+  [NAME, "--singleton-reason", "  "],
+  [NAME, "--singleton-reason", "why\nexport const injected = 1"],
+  [NAME, "--singleton-reason", "why\u2028export const injected = 1"],
+  [NAME, "--family", "theme"],
+  [NAME, "--family-of", "peer"],
+  [NAME, "--dependency", "tooling/src/verify/lib/shared.ts#subjects"],
+  [NAME, ...SINGLETON_ARGS, "--family-of", "peer", "--dependency", "tooling/src/verify/lib/shared.ts#subjects"],
+  [NAME, ...SINGLETON_ARGS, ...SINGLETON_ARGS],
+  [NAME, ...SINGLETON_ARGS, "extra"],
+])("invalid family choice %j refuses before writing", (args, { scratch }) => {
+  mkdirSync(join(scratch, GATES_REL), { recursive: true });
+  expect(() => runNewGate(scratch, args)).toThrow();
+  expect(existsSync(join(scratch, GATES_REL, `${NAME}.ts`))).toBe(false);
+});
+
+const SHARED_PATH = "tooling/src/verify/lib/shared.ts";
+const DEPENDENCY = `${SHARED_PATH}#subjects`;
+const SHARED_ARGS = ["--family-of", "peer", "--dependency", DEPENDENCY] as const;
+
+/** Real canonical contract origin and two same-file declarations: a filename-only match must fail. */
+function plantFamily(root: string, repoRoot: string, create: string, prelude = ""): void {
+  for (const path of [GATES_REL, "tooling/src/verify/lib", "tooling/src/verify/contract"]) {
+    mkdirSync(join(root, path), { recursive: true });
+  }
+  writeFileSync(join(root, "tsconfig.json"), '{"compilerOptions":{"module":"NodeNext","moduleResolution":"NodeNext","target":"ESNext"}}');
+  writeFileSync(join(root, "tooling/src/verify/contract/policy.ts"), readFileSync(join(repoRoot, "tooling/src/verify/contract/policy.ts"), "utf8"));
+  writeFileSync(join(root, SHARED_PATH), 'export const subjects = ["__ORB_GATE_PLACEHOLDER__"] as const; export const unrelated = ["other"] as const;');
+  writeFileSync(
+    join(root, GATES_REL, "peer.ts"),
+    `import { defineGate } from "../contract/policy.ts";
+import { subjects as shared } from "../lib/shared.ts";
+${prelude}
+export const gate = defineGate({ id: "peer", family: "probe-family", ${create} });`,
+  );
+}
+
+test.for([
+  "create: () => ({ evaluate: () => shared.length })",
+  "create() { return { evaluate: () => shared.length }; }",
+])("shared choice resolves canonical alias and method roots: %s", (create, { scratch, repoRoot }) => {
+  plantFamily(scratch, repoRoot, create);
+  expect(runNewGate(scratch, [NAME, ...SHARED_ARGS])).toBe(0);
+  const emitted = readFileSync(join(scratch, GATES_REL, `${NAME}.ts`), "utf8");
+  expect(emitted).toContain('family: "probe-family"');
+  expect(emitted).toContain(DEPENDENCY);
+  expect(emitted).not.toContain('from "../lib/shared.ts"');
+});
+
+test.for([
+  ["create: () => ({ evaluate: () => 1 })", ""],
+  ["create: () => ({ evaluate: () => 1 }), mustFlag: [proof]", "const proof = shared.length;"],
+  ["create: () => ({ evaluate: () => (null as unknown as typeof shared) })", ""],
+] as const)("a declared dependency needs production reach: %s", ([create, prelude], { scratch, repoRoot }) => {
+  plantFamily(scratch, repoRoot, create, prelude);
+  expect(() => runNewGate(scratch, [NAME, ...SHARED_ARGS])).toThrow(/production dependency/u);
+  expect(existsSync(join(scratch, GATES_REL, `${NAME}.ts`))).toBe(false);
+});
+
+test("shared choice rejects a different declaration in the same file and accepts the actual subject", ({ scratch, repoRoot }) => {
+  plantFamily(scratch, repoRoot, "create: () => ({ evaluate: () => shared.length })");
+  expect(() => runNewGate(scratch, [NAME, "--family-of", "peer", "--dependency", `${SHARED_PATH}#unrelated`])).toThrow(/production dependency/u);
+  expect(existsSync(join(scratch, GATES_REL, `${NAME}.ts`))).toBe(false);
+  expect(runNewGate(scratch, [NAME, ...SHARED_ARGS])).toBe(0);
+});
+
+test.for([
+  ["missing-peer", DEPENDENCY],
+  ["peer", `${SHARED_PATH}#missingDeclaration`],
+  ["peer", "tooling/src/verify/contract/policy.ts#defineGate"],
+  ["peer", "tooling/src/verify/lib/../lib/shared.ts#subjects"],
+] as const)("shared choice refuses an unestablished selector: %s %s", ([peer, dependency], { scratch, repoRoot }) => {
+  plantFamily(scratch, repoRoot, "create: () => ({ evaluate: () => shared.length })");
+  expect(() => runNewGate(scratch, [NAME, "--family-of", peer, "--dependency", dependency])).toThrow(/production dependency/u);
+  expect(existsSync(join(scratch, GATES_REL, `${NAME}.ts`))).toBe(false);
+});
+
+test("a local defineGate namesake cannot provide family identity", ({ scratch, repoRoot }) => {
+  plantFamily(scratch, repoRoot, "create: () => ({ evaluate: () => shared.length })");
+  const path = join(scratch, GATES_REL, "peer.ts");
+  writeFileSync(
+    path,
+    readFileSync(path, "utf8").replace('import { defineGate } from "../contract/policy.ts";', "function defineGate(value: unknown) { return value; }"),
+  );
+  expect(() => runNewGate(scratch, [NAME, ...SHARED_ARGS])).toThrow("not a canonical final gate");
+  expect(existsSync(join(scratch, GATES_REL, `${NAME}.ts`))).toBe(false);
+});
+
+test("shared draft stays visible to Q08 until actual production consumption is authored", ({ scratch, repoRoot }) => {
+  plantFamily(scratch, repoRoot, "create: () => ({ evaluate: () => shared.length })");
+  expect(runNewGate(scratch, [NAME, ...SHARED_ARGS])).toBe(0);
+  const project = new Project({ tsConfigFilePath: join(scratch, "tsconfig.json") });
+  const source = project.getSourceFileOrThrow(join(scratch, GATES_REL, `${NAME}.ts`));
+  const emitted = source.getFullText();
+  const drive = (): ReturnType<typeof runPolicyPass> => {
+    const result = runPolicyPass({
+      knownPolicies: [policyFamilyReaders],
+      policies: [policyFamilyReaders],
+      root: scratch,
+      project,
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.toolErrors).toEqual([]);
+    expect(result.authority.authorityAlarms).toEqual([]);
+    expect(result.policies.map(({ owner }) => owner)).toEqual([{ status: "success", population: "complete" }]);
+    return result;
+  };
+  const draft = drive();
+  expect(draft.authority.effectiveFindings.some((finding) => finding.file.endsWith(`${NAME}.ts`))).toBe(true);
+  // The canonical vocabulary now drives the predicate itself; no unused import or nominal void-read.
+  source.replaceWithText(
+    `import { subjects } from "../lib/shared.ts";\n${emitted}`.replace(
+      "node.getText() === BANNED_IDENTIFIER",
+      "subjects.some(subject => node.getText() === subject)",
+    ),
+  );
+  expect(drive().authority.effectiveFindings).toEqual([]);
+});
+
+// This authoring surface's enforcer references must be authored links, not an unmaintained list in a test.
+const GUIDE = "tooling/src/verify/gates/GATE-AUTHORING.md";
+const ENFORCER_HEADING = "11. Enforcers and review obligations";
+const KEBAB_CITATION = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$/u;
+// The guide table uses direct, single-line local links. The shared reader owns GFM row boundaries;
+// unsupported citation forms refuse instead of silently disappearing from the pin's population.
+function enforcerCellLinks(cell: string): readonly string[] {
+  const links: string[] = [];
+  const unlinked = cell.replace(/\[([^\]\n]+)\]\(([^\s()]+)\)/gu, (_match, _label: string, target: string) => {
+    if (target.startsWith("#") || target.includes("://")) {
+      throw new Error("enforcer references require direct local links");
+    }
+    links.push(target);
+    return "";
+  });
+  if (unlinked.includes("[") || unlinked.includes("]")) {
+    throw new Error("unsupported enforcer citation");
+  }
+  for (const match of unlinked.matchAll(/`([^`]+)`/gu)) {
+    const token = match[1] ?? "";
+    if (KEBAB_CITATION.test(token)) {
+      throw new Error(`unlinked enforcer: ${token}`);
+    }
+  }
+  return links;
+}
+
+function enforcerLinks(text: string): readonly string[] {
+  const lines = text.split("\n");
+  const start = lines.findIndex((line) => line === `## ${ENFORCER_HEADING}`);
+  if (start < 0) {
+    throw new Error("missing enforcer section");
+  }
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((line) => /^#{1,2} /u.test(line));
+  const section = end < 0 ? rest : rest.slice(0, end);
+  if (section.some((line) => /^\s*(?:```|~~~)/u.test(line))) {
+    throw new Error("enforcer table must not be fenced");
+  }
+  const tables = markdownTables(section);
+  if (tables.length !== 1) {
+    throw new Error("expected one enforcer table");
+  }
+  const rows = tables.flatMap((table) => table.rows);
+  if (rows.length === 0) {
+    throw new Error("empty enforcer table");
+  }
+  const links = rows.flatMap((row) => {
+    const cell = row.cells[1];
+    if (cell === undefined) {
+      throw new Error("missing enforcer cell");
+    }
+    return enforcerCellLinks(cell);
+  });
+  if (links.length === 0) {
+    throw new Error("no enforcer links");
+  }
+  return links;
+}
+
+function missingEnforcers(text: string, guidePath: string): readonly string[] {
+  return enforcerLinks(text).filter((target) => !existsSync(resolve(dirname(guidePath), target.split("#")[0] ?? target)));
+}
+
+test("guide enforcers resolve from authored links, with a planted missing-target control", ({ repoRoot }) => {
+  const path = join(repoRoot, GUIDE);
+  const guide = readFileSync(path, "utf8");
+  const targets = enforcerLinks(guide);
+  expect(targets.length).toBeGreaterThan(0);
+  expect(missingEnforcers(guide, path)).toEqual([]);
+  const target = targets[0];
+  expect(target).toBeDefined();
+  const missing = "./__missing-authoring-enforcer__.ts";
+  const section = guide.indexOf(`## ${ENFORCER_HEADING}`);
+  const broken = guide.slice(0, section) + guide.slice(section).replace(`](${target})`, `](${missing})`);
+  expect(missingEnforcers(broken, path)).toEqual([missing]);
+});
+
+test("enforcer pin rejects a vanished section, table and unlinked module", () => {
+  const linked = `## ${ENFORCER_HEADING}\n\n| Mechanism | Enforcer |\n| - | - |\n| scope | [real-reader](./real-reader.ts) |\n`;
+  expect(enforcerLinks(linked)).toEqual(["./real-reader.ts"]);
+  expect(() => enforcerLinks("# unrelated")).toThrow("missing enforcer section");
+  expect(() => enforcerLinks(`## ${ENFORCER_HEADING}\n\nNo table.`)).toThrow("expected one enforcer table");
+  expect(() => enforcerLinks(linked.replace("[real-reader](./real-reader.ts)", "`missing-reader`"))).toThrow("unlinked enforcer: missing-reader");
 });
