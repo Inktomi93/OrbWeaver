@@ -2,9 +2,8 @@
 // cli.ts is not a missing argv door when a snap arm ENTERS it through that index.ts — it is an engine, and
 // the stub cli.ts the template used to force (ui-audit, motion-audit, cpu-profile) can be deleted. Derived
 // from snap's own import specifiers, never from a row: a dir nothing under snap imports is still RED.
-import type { Finding } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate } from "../../../../tooling/src/verify/gates/tooling-slot-template.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
+import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { ctxFor, withTree } from "../../_support.ts";
 
@@ -21,18 +20,19 @@ const SNAP_ARM_IGNORES = {
   "tooling/src/snap/ops/arms/design.ts": "export const d = 1;\n",
 };
 
-function findings(files: Record<string, string>): readonly Finding[] {
-  let out: readonly Finding[] = [];
+function findings(files: Record<string, string>): ReturnType<typeof runPolicyPass>["authority"]["effectiveFindings"] {
+  let out: ReturnType<typeof runPolicyPass>["authority"]["effectiveFindings"] = [];
   withTree(files, (root) => {
     const { project } = ctxFor(files, root);
-    out =
-      runPass([gate], {
-        root,
-        project,
-        scope: { kind: "project" },
-        files: project.getSourceFiles(),
-        checker: () => project.getTypeChecker(),
-      }).gates[0]?.findings ?? [];
+    out = runPolicyPass({
+      knownPolicies: [gate],
+      policies: [gate],
+      root,
+      project,
+      resourceOptions: { overlay: files },
+      reviewedGrants: [],
+      failOnWarnings: false,
+    }).authority.effectiveFindings;
   });
   return out;
 }
