@@ -12,15 +12,21 @@
 // now carries a `mustFlag` that dies without it, which is what §4.1 asks and what the retirement commit's
 // "costs nothing in instrument health" claim rested on without proving.
 //
-// THE COUNT RATCHETS: FOUR RETIRED, THREE KEPT AND RE-READ. `EXPECTED_RUNTIME_WRITERS.fade = 12` and
-// `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS`' three counts were bare current-population literals §12.5 bans and
-// no row reached them (cut f08: `12 → 13` killed nothing); they are DELETED, and the direct-skin EXEMPTION
-// they wrapped moved to three 1:1 reviewed grants with central liveness
-// (`gates/css-family-direct-client-mechanism.ts`), which restores the staleness half a count was doing.
-// The surviving three seams are DERIVED from the module's own declared vocabularies
-// (`DENSITY_SPACING.size * DENSITY_SELECTORS.size` and its two siblings), so each states a COMPLETENESS
-// property — "every declared seam × every declared selector is written exactly once" — that a legitimate
-// vocabulary change updates on both sides at once. That is not a population count.
+// THE COUNT RATCHETS ARE ALL GONE, AND THE SEAM ARM ASSERTS NO CARDINALITY AT ALL. `EXPECTED_RUNTIME_WRITERS`
+// and `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS` were bare current-population literals §12.5 bans, reached by no
+// row (cut f08: `12 → 13` killed nothing); the direct-skin EXEMPTION they wrapped moved to three 1:1 reviewed
+// grants with central liveness (`gates/css-family-direct-client-mechanism.ts`), which restores the staleness
+// half a count was doing.
+//
+// THIS PARAGRAPH ITSELF CLAIMED A DERIVATION FOR ONE LEG TOO LONG (#2305,
+// `v-css-family-2026-09-13.md` ledger row 4). It said the three surviving seams were derived from declared
+// vocabularies and stated "written exactly once"; only `density` was a genuine
+// `DECLARED_SET.size * DECLARED_SET.size`, while `blur` and `colorization` multiplied a declared set by a
+// LITERAL naming no vocabulary — so a third legitimate `:root` carrier, changing nothing declared anywhere,
+// reddened five rows. The arm now asks PRESENCE: every member of a seam's declared vocabulary must be
+// written AT LEAST ONCE, occurrences are never counted, a second legitimate carrier is silent, and the
+// finding names the member nothing writes (`mustPass[5]` is that carrier; `mustFlag[3]`/`mustFlag[4]` are
+// the missing members).
 //
 // `EXPECTED_DIRECT_THEME_DECLARATIONS` IS READ, NEVER MOVED. Its disposition is owner-pending (#2230); the
 // audit measured it DERIVABLE from `tokens.build.ts#renderThemeCss` and escalated whether a hand-copied

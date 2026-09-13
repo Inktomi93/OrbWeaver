@@ -160,9 +160,6 @@ function reportDensityPlacement(sheet: SheetCensus, inventory: CssFacts, report:
   }
 }
 
-/** THE CLOSED RUNTIME-WRITER SEAMS, as a table rather than a chain: the keys ARE the vocabulary
- *  `EXPECTED_RUNTIME_WRITERS` derives its cardinalities from, so a seam cannot be added to one and
- *  forgotten in the other. */
 /** THE CLOSED RUNTIME-WRITER SEAMS, as MEMBER SETS rather than counts — and the difference is the whole
  *  §12.5 question (#2305, `v-css-family-2026-09-13.md` ledger row 4).
  *
@@ -502,9 +499,19 @@ export function reportCssFamilyHealth({ inventory, report }: CssFamilyInput): nu
   return sheets.length;
 }
 
-/** THE CLOSED RUNTIME-WRITER SEAMS, held at their DERIVED cardinality. Each expectation is the product of
- *  this policy's own declared vocabularies, so the arm states "every declared seam × every declared
- *  selector is written exactly once" — a completeness claim, not the current-population count §12.5 bans. */
+/** THE CLOSED RUNTIME-WRITER SEAMS, held at PRESENCE and at no cardinality whatever.
+ *
+ *  What the loop below actually asks, member by member: every member of a seam's DECLARED vocabulary must be
+ *  covered AT LEAST ONCE, and each uncovered member is its own finding naming that member. Occurrences are
+ *  never counted — `covered` is a `Set` — so a SECOND legitimate carrier writing the same member is silent,
+ *  and the only finding is a member nothing writes.
+ *
+ *  THE "written exactly once" THIS SENTENCE USED TO PROMISE IS EXACTLY THE THING THAT WAS WRONG (#2305,
+ *  `v-css-family-2026-09-13.md` ledger row 4). While the arm held cardinalities, two of the three were
+ *  `DECLARED_SET.size * <literal>` — a current-population count §12.5 bans — and a third legitimate `:root`
+ *  blur carrier, changing no vocabulary anywhere, reddened five rows. Presence has no number for a
+ *  population to drift against, and it says more: the message names WHICH member is missing where a total
+ *  only said that a total moved. */
 function reportClosedSeamDrift(sheets: readonly SheetCensus[], inventory: CssFacts, complete: boolean, report: CssFamilyReport): void {
   if (!complete) {
     return;
@@ -512,7 +519,7 @@ function reportClosedSeamDrift(sheets: readonly SheetCensus[], inventory: CssFac
   const prefixes = themeFamilyPrefixes(sheets.find((sheet) => sheet.rel === THEME)?.directTheme ?? []);
   // A SEAM COUNT IS MEANINGLESS WITHOUT A GENERATED NAMESPACE. `reportGeneratedWriters` only ever counts a
   // declaration inside a minted token family, so a corpus whose `@theme` block resolved nothing counts ZERO
-  // for every seam \u2014 three findings that all say "there is no generated output", which the
+  // for every seam — three findings that all say "there is no generated output", which the
   // `zero-theme-values` arm above already said once and precisely. The fence is the row that dies without
   // it: `mustFlag[1]` (a theme.css with no `@theme` block) reports 2 with it and 5 without.
   if (prefixes.size === 0) {

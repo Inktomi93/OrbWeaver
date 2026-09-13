@@ -43,11 +43,11 @@
 //
 // DECLARED LIMITS, each with its row:
 //   * `hookCoordinate`'s refusal branch is a TYPE OBLIGATION with NO CONSTRUCTIBLE FIXTURE, and the
-//     construction was attempted rather than argued (guide \u00a74.1's fourth outcome). `waivableCoordinate`
+//     construction was attempted rather than argued (guide §4.1's fourth outcome). `waivableCoordinate`
 //     returns the value whole when the grammar can hold it and its leading paren-free run otherwise; every
 //     authored hook slice begins with `.` or `[`, neither of which the grammar excludes, so the run is never
 //     empty and `undefined` is unreachable. MEASURED: a `[data-probe="a(b)"]` fixture written as a
-//     `mustRefuse` row did not refuse \u2014 it reported TWO ordinary findings, coordinate `[data-probe="a`.
+//     `mustRefuse` row did not refuse — it reported TWO ordinary findings, coordinate `[data-probe="a`.
 //     The branch stays because `waivableCoordinate` is typed `string | undefined` and a silent fallback
 //     would mint an unnameable finding; the row was deleted rather than faked.
 //   * The vendor ACQUITTAL is measured at ZERO uses for Base UI on the real tree today (2026-09-13: five
@@ -180,9 +180,9 @@ export const gate = defineGate({
       // THE RECEIPT DENOMINATOR CANNOT BE THIS POLICY'S OWN CENSUS. `receiptFailures` reds on
       // `members === 0`, so receipting the census would turn a corpus this family exists to REPORT on
       // (a five-home identity that resolved no hook, no declaration, no candidate) into a withheld TOOL
-      // ERROR \u2014 the finding never reported at all. The denominator is the SHEET COUNT, which is \u2265 1
+      // ERROR — the finding never reported at all. The denominator is the SHEET COUNT, which is ≥ 1
       // past the resource guard by construction; the census rides the receipt SOURCE string
-      // (\u00a712.3's "-health consumers receipt a CONSTANT", one layer out; refuted-and-repaired on the
+      // (§12.3's "-health consumers receipt a CONSTANT", one layer out; refuted-and-repaired on the
       // sibling CSS train by `v-css-train-3-2026-09-13.md`).
       const inventory = readyResourceValue(ctx.resources.cssInventory("product"));
       ctx.receipt({
@@ -399,7 +399,7 @@ export const gate = defineGate({
       mode: "resource",
       files: { ...CLEAN_PRODUCT_CSS, [SOURCE_ANCHOR]: "export const probe = null;\n", [BASE_UI_MANIFEST_PATH]: EMPTY_BASE_UI_MANIFEST },
       expect: { messageIncludes: "vendor-css-surface" },
-      why: "a corpus with no installed vendor surface REFUSES at the population phase \u2014 the runtime is the accuser (resource-policy-contract.md \u00a74), and the policy owns no not-ready branch that could return a clean zero instead. The committed manifest IS supplied so the refusal names the vendor door rather than the json one",
+      why: "a corpus with no installed vendor surface REFUSES at the population phase — the runtime is the accuser (resource-policy-contract.md §4), and the policy owns no not-ready branch that could return a clean zero instead. The committed manifest IS supplied so the refusal names the vendor door rather than the json one",
     },
   ],
 });

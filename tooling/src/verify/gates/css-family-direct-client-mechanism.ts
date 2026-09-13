@@ -68,9 +68,9 @@ export const gate = defineGate({
       // THE RECEIPT DENOMINATOR CANNOT BE THIS POLICY'S OWN CENSUS. `receiptFailures` reds on
       // `members === 0`, so receipting the census would turn a corpus this family exists to REPORT on
       // (a five-home identity that resolved no hook, no declaration, no candidate) into a withheld TOOL
-      // ERROR \u2014 the finding never reported at all. The denominator is the SHEET COUNT, which is \u2265 1
+      // ERROR — the finding never reported at all. The denominator is the SHEET COUNT, which is ≥ 1
       // past the resource guard by construction; the census rides the receipt SOURCE string
-      // (\u00a712.3's "-health consumers receipt a CONSTANT", one layer out; refuted-and-repaired on the
+      // (§12.3's "-health consumers receipt a CONSTANT", one layer out; refuted-and-repaired on the
       // sibling CSS train by `v-css-train-3-2026-09-13.md`).
       ctx.receipt({
         kind: "population",

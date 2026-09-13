@@ -516,3 +516,23 @@ five-policy structure run above is the verdict I do have.
 
 ledger rows OWED: 0 new. Verifier rows 1, 2, 4 and 5 are CLOSED by this leg; row 3 is answered by a citation
 (the underlying arm is #2297's); row 6 is inherited and untouched.
+
+#### Leg 4 — the prose the leg-3 runtime change left behind
+
+**Two homes were named; FOUR carried the untruth**, and the extra two are the ones a reader is most likely to
+believe. `css-family-policy.ts:163-165` was an ORPHANED duplicate JSDoc block sitting directly above the live
+one (a leg-3 slice that started a line late), still crediting the DELETED `EXPECTED_RUNTIME_WRITERS` with
+deriving cardinalities — re-derived rather than assumed: `pnpm ast refs EXPECTED_RUNTIME_WRITERS` gives *no
+declaration found*, `scanned=7578 status=complete matches=0`, corroborated by a literal grep that finds the
+name only inside comments. `css-family-policy.ts:505-507` promised "written exactly once" while `:521-535`
+asks PRESENCE; that line and the two homes the brief did not name — `css-family-census.ts:28-31`, which
+contradicted the paragraph directly below it, and `css-family-ownership-health.ts:15-23`, the third home the
+verifier's own ledger row 4 listed — now say what the loop does: every declared member covered AT LEAST ONCE,
+occurrences never counted, a second legitimate carrier silent, the finding naming the member nothing writes.
+
+**And 13 literal escape sequences my own leg-1/leg-3 edit scripts wrote into shipped comments are repaired**
+(`\u2014`, `\u00a7`, `\u2265` across four modules, two of them inside proof-row `why` STRINGS). A python
+string written into a `.ts` COMMENT keeps the backslash literally, so the file ships `\u2014` where an em
+dash belongs — invisible to tsc, biome, eslint and every gate, and wrong only for the human the comment is
+addressed to. Verified prose-only: `git diff -U0` shows no changed line outside a comment or a `why` field,
+`git diff --check` is clean, and the family suite is unchanged at 7 tests.

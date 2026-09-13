@@ -77,9 +77,9 @@ export const gate = defineGate({
       // THE RECEIPT DENOMINATOR CANNOT BE THIS POLICY'S OWN CENSUS. `receiptFailures` reds on
       // `members === 0`, so receipting the census would turn a corpus this family exists to REPORT on
       // (a five-home identity that resolved no hook, no declaration, no candidate) into a withheld TOOL
-      // ERROR \u2014 the finding never reported at all. The denominator is the SHEET COUNT, which is \u2265 1
+      // ERROR — the finding never reported at all. The denominator is the SHEET COUNT, which is ≥ 1
       // past the resource guard by construction; the census rides the receipt SOURCE string
-      // (\u00a712.3's "-health consumers receipt a CONSTANT", one layer out; refuted-and-repaired on the
+      // (§12.3's "-health consumers receipt a CONSTANT", one layer out; refuted-and-repaired on the
       // sibling CSS train by `v-css-train-3-2026-09-13.md`).
       ctx.receipt({
         kind: "population",
@@ -431,7 +431,7 @@ export const gate = defineGate({
         "packages/client/src/feature.tsx":
           'import { SCROLL_FADE_X_CLASS } from "../../ui/src/lib/index.ts";\nexport const probe = <div className={SCROLL_FADE_X_CLASS} />;\n',
       },
-      why: "a live client className imported through the UI public barrel proves both producer directions without admitting an inert literal — AND the local fade-stop seam still acquits, which is the half of `EXPECTED_RUNTIME_WRITERS.fade` that survived its count",
+      why: "a live client className imported through the UI public barrel proves both producer directions without admitting an inert literal — AND the local fade-stop seam still acquits, which is the half of the retired `fade` seam expectation that survived its count",
     },
     {
       mode: "resource",
