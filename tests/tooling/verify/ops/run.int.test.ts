@@ -29,12 +29,13 @@ import {
   resolveStageCommand,
   stagesForTier,
   unresolvableCommandTranscript,
+  unrunnableRegistryRows,
   workspaceBinPath,
 } from "../../../../tooling/src/verify/index.ts";
 import { HOST_POOL_ROOT_ENV } from "../../../../tooling/src/verify/lib/host-slots.ts";
 import { workingChangeClassification } from "../../../../tooling/src/verify/lib/selection.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
-import { nonRunningStageResult, planStage, unrunnableRegistryRows } from "../../../../tooling/src/verify/ops/run.ts";
+import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
