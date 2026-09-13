@@ -1,6 +1,15 @@
 // The gate population vocabulary: named roots are the only path-bearing declarations, while composite
 // sets contain roots only so typos and set cycles are impossible at the type layer. The pure resolver is
 // ../lib/population-resolver.ts; descriptors retain the expression itself for explain/report output.
+//
+// THE ROOT LIST'S ENFORCER IS `tests/tooling/verify/contract/population.test.ts` (#2267). This table is
+// hand-typed and tsc cannot read `pnpm-workspace.yaml`, so the workspace comparison sits at rung 4: that
+// test reconciles these roots BOTH WAYS against pnpm's own workspace enumeration
+// (`readPolicyWorkspacePackages`), so a new `packages/foo` that joins no root — and is therefore judged by
+// no policy — reds, and so does a root naming a package that does not exist. The two deliberate
+// asymmetries (`@tests`/`@scripts` are authored trees with no package; the workspace root has no `src/`)
+// live there as data with a `why`, two-sided against staleness. `AUTHORED_MEMBERSHIP` below is the
+// separate, tsc-enforced half — which roots `@authored` MEANS (#1980).
 export const POPULATION_ROOTS = {
   "@client": ["packages/client/src/"],
   "@ui": ["packages/ui/src/"],
