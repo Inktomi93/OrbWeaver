@@ -90,18 +90,15 @@ function readSlot(root: string, id: string): Slot {
  *  one door rather than each caller remembering to return the right code. */
 class DeltaRefusal extends Error {}
 
-/** Every slot id on disk, newest first by directory name (the id embeds an ISO timestamp, so lexical order IS
- *  chronological order for one checkout). `.pruned.jsonl` and any non-slot entry are skipped by the artifact
- *  existence test rather than by a name pattern — a slot IS a directory holding the report. */
+/** Every slot id on disk. `.pruned.jsonl` and any non-slot entry are skipped by the artifact existence test
+ *  rather than by a name pattern — a slot IS a directory holding the report. Directory names also carry a PID,
+ *  so their lexical order is not run chronology; `resolveBefore` orders readable candidates by `startedAt`. */
 function slotIds(root: string): readonly string[] {
   const dir = slotDir(root);
   if (!existsSync(dir)) {
     throw new DeltaRefusal(`no ${reportsRelPath(...SLOT_SEGMENTS)} directory — nothing has published a structure slot in this checkout`);
   }
-  return readdirSync(dir)
-    .filter((id) => existsSync(join(dir, id, STRUCTURE_REPORT_NAME)))
-    .toSorted()
-    .toReversed();
+  return readdirSync(dir).filter((id) => existsSync(join(dir, id, STRUCTURE_REPORT_NAME)));
 }
 
 /** Is this slot usable as one END of a comparison? The list is the header's refusal set, and it is applied to
@@ -145,6 +142,7 @@ function resolveBefore(root: string, requested: string | undefined, after: Slot)
   }
   const afterStart = after.report.run?.startedAt ?? "";
   const checkout = after.report.run?.checkout;
+  const candidates: Slot[] = [];
   for (const id of slotIds(root)) {
     if (id === after.id) {
       continue;
@@ -154,7 +152,14 @@ function resolveBefore(root: string, requested: string | undefined, after: Slot)
     if (run === undefined || run.startedAt >= afterStart || run.checkout !== checkout || unusable(slot) !== null) {
       continue;
     }
-    return slot;
+    candidates.push(slot);
+  }
+  const nearest = candidates.toSorted((left, right) => {
+    const byStart = right.report.run?.startedAt.localeCompare(left.report.run?.startedAt ?? "") ?? 0;
+    return byStart === 0 ? right.id.localeCompare(left.id) : byStart;
+  })[0];
+  if (nearest !== undefined) {
+    return nearest;
   }
   throw new DeltaRefusal(
     `no usable PRIOR slot for checkout "${checkout ?? "?"}" older than ${after.id} — "there is nothing to compare against" is not "nothing changed". Name one with --before.`,
@@ -218,9 +223,8 @@ function line(name: string, before: Counts | null, after: Counts): string {
   return `  ${name}: ${was} → ${now} · ${state}`;
 }
 
-/** REGRESSION, precisely: a final policy's EFFECTIVE count rose, its ALARM count rose, or it went from ok to
- *  red (which catches a withheld owner and a first authority alarm — both flip `ok` without moving the finding
- *  count). A policy that is NEW and already red regresses too: it went from nothing to a red row.
+/** REGRESSION, precisely: a final policy's EFFECTIVE count rose, its ALARM count rose, it became withheld, or
+ *  it went from ok to red. A policy that is NEW and already red regresses too: it went from nothing to a red row.
  *
  *  THE ALARM ARM IS NOT REDUNDANT WITH `ok` (#2223 gap (a)): `before.ok && !after.ok` fires only on the
  *  TRANSITION, and under the mixed runtime most final policies are ALREADY red, so every alarm a lane adds to
@@ -229,7 +233,7 @@ function regressed(before: Counts | null, after: Counts): boolean {
   if (before === null) {
     return !after.ok;
   }
-  return after.effective > before.effective || after.alarms > before.alarms || (before.ok && !after.ok);
+  return after.effective > before.effective || after.alarms > before.alarms || (!before.withheld && after.withheld) || (before.ok && !after.ok);
 }
 
 function toolErrorCount(report: SlotReport): number {
@@ -248,8 +252,8 @@ export const STRUCTURE_DELTA_USAGE =
   "  Diffs two published structure slots PER FINAL POLICY: raw / waived / granted / effective, withheld, owner.\n" +
   "  Defaults: --after is the published reports/check-structure.json; --before is the newest usable slot from\n" +
   "  the same checkout that started earlier. Slot ids are the directory names under reports/runs/structure/.\n" +
-  "  Exit 1 when any final policy's effective count ROSE, its authority ALARMS rose, it went ok → red, or it\n" +
-  "  VANISHED from the final roster. Exit 2 when either end is unreadable, died, is a NON-VERDICT (#2167), was\n" +
+  "  Exit 1 when any final policy's effective count ROSE, its authority ALARMS rose, it became withheld, went\n" +
+  "  ok → red, or VANISHED, or when the run-level tool-error count rose. Exit 2 when either end is unreadable, died, is a NON-VERDICT (#2167), was\n" +
   "  gate-scoped, TRANSPOSED (--before started at or after --after), or when there is no prior slot at all.";
 
 export function runStructureDelta(root: string, argv: readonly string[]): number {
@@ -310,11 +314,32 @@ function compare(root: string, values: { readonly before?: string; readonly afte
   return render(before, after);
 }
 
+function reportRegressions(regressions: readonly string[], beforeToolErrors: number, afterToolErrors: number): boolean {
+  const toolErrorsRegressed = afterToolErrors > beforeToolErrors;
+  if (regressions.length > 0) {
+    process.stdout.write(`\n✗ ${regressions.length} final polic(ies) REGRESSED: ${regressions.join(", ")}\n`);
+  }
+  if (toolErrorsRegressed) {
+    process.stdout.write(`\n✗ run-level tool errors REGRESSED: ${beforeToolErrors} → ${afterToolErrors}\n`);
+  }
+  if (regressions.length === 0 && !toolErrorsRegressed) {
+    return false;
+  }
+  process.stdout.write(
+    "  A policy whose effective count rose, whose AUTHORITY ALARMS rose, that became WITHHELD, went ok → red, or VANISHED,\n" +
+      "  or a run whose tool-error count rose,\n" +
+      "  is a NEW red the mixed-runtime exit code cannot show you (#2110, #2223).\n",
+  );
+  return true;
+}
+
 function render(before: Slot, after: Slot): number {
   const was = finalRows(before.report);
   const now = finalRows(after.report);
   const wasAlarms = alarmsByPolicy(before.report);
   const nowAlarms = alarmsByPolicy(after.report);
+  const beforeToolErrors = toolErrorCount(before.report);
+  const afterToolErrors = toolErrorCount(after.report);
   const changed: string[] = [];
   const regressions: string[] = [];
   for (const [name, row] of [...now].toSorted(([a], [b]) => a.localeCompare(b))) {
@@ -336,27 +361,19 @@ function render(before: Slot, after: Slot): number {
   const removed = [...was.keys()].filter((name) => !now.has(name)).toSorted();
   regressions.push(...removed);
   process.stdout.write(`structure-delta: ${before.id} → ${after.id}\n`);
-  process.stdout.write(`  final policies: ${was.size} → ${now.size} · tool errors: ${toolErrorCount(before.report)} → ${toolErrorCount(after.report)}\n`);
+  process.stdout.write(`  final policies: ${was.size} → ${now.size} · tool errors: ${beforeToolErrors} → ${afterToolErrors}\n`);
   // "?" is the honest value for a PRE-MIXED artifact that has no final ledger at all — never a 0, which would
   // read as "nothing was withheld" about a run that could not answer the question.
   process.stdout.write(`  withheld: ${before.report.run?.final?.withheld ?? "?"} → ${after.report.run?.final?.withheld ?? "?"}\n`);
   if (removed.length > 0) {
     process.stdout.write(`  VANISHED — no longer in the final roster: ${removed.join(", ")}\n`);
   }
-  if (changed.length === 0 && regressions.length === 0) {
+  if (changed.length === 0 && regressions.length === 0 && afterToolErrors <= beforeToolErrors) {
     process.stdout.write("  no per-policy change\n");
     return EXIT.clean;
   }
   if (changed.length > 0) {
     process.stdout.write(`${changed.join("\n")}\n`);
   }
-  if (regressions.length === 0) {
-    return EXIT.clean;
-  }
-  process.stdout.write(`\n✗ ${regressions.length} final polic(ies) REGRESSED: ${regressions.join(", ")}\n`);
-  process.stdout.write(
-    "  A policy whose effective count rose, whose AUTHORITY ALARMS rose, that went ok → red, or that VANISHED from the roster\n" +
-      "  is a NEW red the mixed-runtime exit code cannot show you (#2110, #2223).\n",
-  );
-  return EXIT.violations;
+  return reportRegressions(regressions, beforeToolErrors, afterToolErrors) ? EXIT.violations : EXIT.clean;
 }
