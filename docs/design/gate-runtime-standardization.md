@@ -2055,11 +2055,30 @@ re-derives seven tools again.** Three gitignored directories have now been silen
 | **the gates** | declared populations | no | **verified empirically in the published slot: 0 worktree paths, 0 of 376 violation files** |
 
 The gate row was checked against `reports/check-structure.json` rather than reasoned from the population algebra:
-the gate corpus is NOT inflated by worktrees. Scale, for why this matters at all: 7,571 authored `.ts`/`.tsx`
-against **294,065** inside 39 worktrees and **17,059** under the ST parity rig.
+the gate corpus is NOT inflated by worktrees.
+
+**THE SCALE — AND READ THE UNITS, BECAUSE THE FIRST VERSION OF THIS PARAGRAPH GOT THEM WRONG (corrected
+2026-09-13 by `p-eslint-fence`, which replicated discovery exactly with rules and programs off).** The numbers
+that matter are ESLint's LINTABLE population, not files on disk. Measured on `main`:
+
+| | files | discovery payload |
+| - | -: | -: |
+| unfenced (today) | **15,994** — of which **7,896** are worktree copies and **353** the ST parity rig | **1,782,584 B** |
+| both fences applied | **7,746** — worktree 0, ST rig 1 (its one tracked file) | **446,162 B** |
+
+**The retracted version said "294,065 in 39 worktrees and 17,059 under the ST rig".** Those were `find` counts
+over the DISK, and for the ST rig it failed to exclude that runtime's own `node_modules` — overstating its linted
+population by roughly 48x. An on-disk count is not a lint population: ESLint applies its own default ignores and
+admits only what a config matches. **A smaller true number beats a large wrong one**, and the fix does not change:
+worktrees are still about HALF the entire linted population.
+
 **But COST is not the reason to fence** — fencing the worktrees moved the whole-repo run 246.7 s → 226 s, ~8%,
 because those files match no `files:` surface and no type-aware program ever ran on them. The reason is that the
 stage cannot return a VERDICT: a lane swept mid-run turns an enumerated path into ENOENT and it exits **2**.
+**And the payload row above is load-bearing beyond this table:** 1.78 MB unfenced is over node's 1 MiB default,
+which is what #2211's `maxBuffer` ceiling was raised for, and 446 KB fenced is 2.35x under it. So the fence
+RETIRES that premise, and `eslint.int.test.ts`'s floor arm inverts — it stops pinning *the overflow still happens*
+and starts pinning *the fix still holds*, which reds if a future unfenced tree re-inflates the population.
 
 **A NATIVE-CONFIG EDIT OWES ITS LIVENESS GATE, DRIVEN BEFORE AND AFTER — never reasoned about (paid twice in one
 hour, 2026-09-13, once in each direction).** Every config in the rows above carries a gate that reads it natively,
