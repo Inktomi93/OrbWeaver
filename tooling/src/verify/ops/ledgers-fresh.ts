@@ -30,9 +30,9 @@
 // parity check between two AUTHORED texts and deliberately has no writer — a generator there would let a
 // transcription error overwrite the evidence it got wrong. Each says so at its own function.
 //
-// COST: the manifest half is `git ls-files` (milliseconds); the census half builds the whole-repo ts-morph
-// project and is ~19s measured on this box (2026-08-30, 408 sites). That is the price of the derivation
-// itself, not of this stage — the same project the `structure:full` row in the same tier already builds.
+// COST: the cheap derivations take milliseconds; the caught-failure census builds the whole-repo ts-morph
+// project and was ~19s on this box (2026-08-30, 408 sites). That is the price of the derivation itself,
+// not a current measurement or a claim that the retired test-baseline manifest is still read.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
