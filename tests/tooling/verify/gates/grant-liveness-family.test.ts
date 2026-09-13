@@ -20,11 +20,13 @@
 // retired `tsconfig-entry-liveness`'s recorded conversion refusal; the family is now complete and the
 // `grant-liveness` roster below is its census.
 //
-// THE FAMILY IS NO LONGER ONE AUTHORITY, which is why the second arm below now has two rows. The four
-// policies that converted first are `hard` carrying gate-local `ExemptionTable`s; the two that converted
-// last are `reviewed-grant` carrying central rows, per `exception-authority-census.md:96-100` and §12.5's
-// ban on a gate-owned exemption grammar. That is a MIGRATION boundary (#1922), not an inconsistency — and
-// the grant-identity arm below is the surface the old comment predicted this file would then owe.
+// THE FAMILY IS NO LONGER ONE AUTHORITY, which is why the second arm below now has two rows. The grant-bearing
+// policies are `reviewed-grant` carrying central rows, per `exception-authority-census.md` and §5's ban on a
+// gate-owned exemption table; the `-health` siblings and `runner-config-path-liveness` are `hard`.
+// `eslint-grant-liveness` MIGRATED 2026-09-13 (#1922 / #2147): its positional `RATIFIED` table became seven
+// central rows, and its real-config grant arms live in `eslint-grant-liveness.int.test.ts`.
+// `depcruise-grant-liveness` is still `hard` carrying a gate-local `RATIFIED` table — the remaining MIGRATION
+// boundary (#1922), not an inconsistency.
 //
 // WHY THIS FILE EXISTS (#1932): both converted policies' permanent-pin int tests previously cited
 // `tests/tooling/verify/ops/policy-conformance.test.ts` as the harness that runs their `mustFlag`/`mustPass`
@@ -76,7 +78,7 @@ test("the family is one family, and each member's authority is the one its arms 
     ["biome-grant-liveness", "grant-liveness", "reviewed-grant"],
     ["biome-grant-liveness-health", "grant-liveness", "hard"],
     ["depcruise-grant-liveness", "grant-liveness", "hard"],
-    ["eslint-grant-liveness", "grant-liveness", "hard"],
+    ["eslint-grant-liveness", "grant-liveness", "reviewed-grant"],
     ["runner-config-path-liveness", "grant-liveness", "hard"],
     ["tsconfig-entry-liveness", "grant-liveness", "reviewed-grant"],
     ["tsconfig-entry-liveness-health", "grant-liveness", "hard"],
