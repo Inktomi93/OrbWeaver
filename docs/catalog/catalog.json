@@ -30562,9 +30562,9 @@
       "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1146,
-      "bytes": 467145,
-      "sha256": "ba2560f030a18f4e6945f4186f0265e9114c0125ebba5605eab48d3392a1d433",
+      "lines": 1159,
+      "bytes": 473700,
+      "sha256": "2504a99604f43a51ce080ed99a5a8a65dc1a3d0751045912ac610e96b5a86a8a",
       "frontmatter": {
         "present": true,
         "malformed": false,
