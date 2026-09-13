@@ -200,6 +200,7 @@ export function createStaticClassFactReader(files: readonly SourceFile[]): Stati
       );
       return {
         ...walked,
+        classUnresolved: walked.unresolved,
         carriers,
         tokens,
         styleProperties,

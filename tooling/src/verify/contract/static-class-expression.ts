@@ -98,6 +98,9 @@ export interface StaticJsxStylePropertyFact {
 
 /** Invocation-local facts produced only from nodes delivered by the shared policy walk. */
 export interface StaticClassFactResult extends StaticClassEvaluation {
+  readonly roots: number;
+  /** Class derivation only; `unresolved` also includes supplemental JSX style/object diagnostics. */
+  readonly classUnresolved: readonly StaticClassUnresolved[];
   readonly carriers: readonly StaticClassCarrierFact[];
   readonly tokens: readonly StaticClassTokenFact[];
   readonly styleProperties: readonly StaticJsxStylePropertyFact[];
