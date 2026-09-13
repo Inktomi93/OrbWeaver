@@ -147,7 +147,7 @@ function sourcePath(root: string, sourceFile: SourceFile): string {
   const rel = relative(resolve(root), resolve(sourceFile.getFilePath()));
   const normalized = sep === "/" ? rel : rel.split(sep).join("/");
   if (normalized.length === 0 || isAbsolute(rel) || normalized === ".." || normalized.startsWith("../")) {
-    throw new Error(`source file is outside the policy root: ${sourceFile.getFilePath()}`);
+    throw new Error(`${POLICY_PASS_REFUSALS.sourceOutsidePolicyRoot}: ${sourceFile.getFilePath()}`);
   }
   assertRepoPathIdentity(normalized, "source file path");
   return normalized;

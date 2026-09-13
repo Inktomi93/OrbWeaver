@@ -20,6 +20,13 @@
 // statuses — so a new phase, kind, status or sentence is one row in its own contract home and `tsc` names this
 // module if the mapped record falls behind.
 //
+// COMPLETE OVER THE TABLE IS NOT COMPLETE OVER THE EMITTERS (#2155). This module derives from
+// `POLICY_PASS_REFUSALS`, so a sentence the dispatcher spells by LITERAL instead of composing is invisible here
+// and a `mustRefuse` row naming it reads as authored while holding on every refusal of that shape. Eleven such
+// literals lived in `lib/policy-pass-context.ts`. What closes the loop is not this module but the census in
+// `tests/tooling/verify/lib/policy-refusal-envelope.test.ts`: every `throw new Error(...)` in the dispatcher
+// pair is a composed refusal or a declared invariant, two-sided, with a planted literal as the control.
+//
 // WHAT IT CANNOT SEE, stated: a policy's OWN throw text that happens to be generic in spirit ("something went
 // wrong") is authored and is admitted — the shared-source verdict over a module's refusal sources is the static
 // arm §2.3 of the audit records as deferred, and it is not this module's question.
