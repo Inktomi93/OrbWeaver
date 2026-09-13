@@ -193,3 +193,134 @@ function committedRow(row: MarkdownTableRow, columns: readonly string[], present
     states: Object.fromEntries(present.map((state) => [state, cell(state)])),
   };
 }
+
+/** THE `other`-BIN SUB-TABLE, read back out of the `## CLASS ROLLUP` section (#2224, fifth shape).
+ *
+ *  Below the rollup sits a second table, "free-text class in `other`, as written", that breaks the
+ *  `other` bin down by the verbatim class cell and declares its own **`other` TOTAL**. It is a DERIVED
+ *  claim about the same body the rollup summarises, and NOTHING re-derived it: measured at the 2026-09-12
+ *  barrier it read **176** while `other` was **197**, and on 2026-09-13 it still read 176 while `other` had
+ *  reached **241**. It drifts in exactly the way `classRollupDrift` was built to catch one table over, and
+ *  it sat inside that arm's blind spot the whole time.
+ *
+ *  WHAT IS HELD AND WHAT IS NOT, stated rather than discovered. The TOTAL is two-sided and is held: it must
+ *  equal the rollup's derived `other` row count. The PER-PHRASE rows are NOT re-derived, and that is a real
+ *  limit with a reason — the committed buckets are hand-chosen truncations of the cells (`doc`, `proof`,
+ *  `same`, `judgment`, and an explicit *1-offs* bucket folding every singleton), so no mechanical
+ *  normalisation reproduces them and a derivation that guessed would fire on the one honest row. The
+ *  self-consistency of the table's own arithmetic IS held (its rows must sum to its declared TOTAL), which
+ *  is the half that needs no normalisation at all.
+ *
+ *  IDENTIFIED BY SHAPE, not by its prose heading: a two-column table below the rollup whose second column
+ *  is `rows` and whose last body row's first cell says TOTAL. The rollup table itself has nine columns and
+ *  the cross-cutting table has three, so neither can be mistaken for it. */
+export interface OtherClassCensus {
+  /** The sub-table's bolded `other TOTAL` cell, presentation markers stripped. */
+  readonly declaredTotal: number;
+  /** The sum of the table's own per-phrase row counts — its internal arithmetic. */
+  readonly rowsSummed: number;
+  /** 1-based line of the TOTAL row, so a drift line points at the cell to edit. */
+  readonly line: number;
+}
+
+/** A cell's number with the `**bold**` presentation stripped — the same rule `committedRow` uses. */
+function cellNumber(cell: string): number {
+  return Number(cell.replaceAll("*", "").replaceAll("`", "").trim());
+}
+
+export function committedOtherClassCensus(text: string): OtherClassCensus | undefined {
+  const lines = text.split("\n");
+  const start = lines.findIndex((line) => line.trim() === CLASS_ROLLUP_HEADING);
+  if (start === -1) {
+    return;
+  }
+  const TwoColumns = 2;
+  const table = markdownTables(lines.slice(start), start + 1).find(
+    (candidate) => candidate.columns.length === TwoColumns && candidate.columns[1] === "rows" && totalRowOf(candidate) !== undefined,
+  );
+  const total = table === undefined ? undefined : totalRowOf(table);
+  if (table === undefined || total === undefined) {
+    return;
+  }
+  return {
+    declaredTotal: cellNumber(total.cells[1] ?? ""),
+    rowsSummed: table.rows.filter((row) => row !== total).reduce((sum, row) => sum + cellNumber(row.cells[1] ?? ""), 0),
+    line: total.line,
+  };
+}
+
+/** The table's own TOTAL row — the body row whose FIRST cell names a total. Undefined when it has none,
+ *  which is how the finder above tells this table from any other two-column `rows` table. */
+function totalRowOf(table: MarkdownTable): MarkdownTableRow | undefined {
+  return table.rows.find((row) => (row.cells[0] ?? "").replaceAll("*", "").replaceAll("`", "").trim().toUpperCase().endsWith("TOTAL"));
+}
+
+/** THE `other`-BIN SUB-TABLE versus the bin it claims to break down (#2224, fifth shape).
+ *
+ *  A SECOND DERIVED TABLE THAT NOTHING RE-DERIVED, one row below the one #2207 built this arm for. It reads
+ *  "free-text class in `other`, as written", declares its own **`other` TOTAL**, and that total is a claim
+ *  about the same body: it must equal the rollup's derived `other` count. Measured at the 2026-09-12 barrier
+ *  it read **176** against an `other` of **197**; on 2026-09-13 it still read 176 against **241**. The
+ *  reconciler above was blind to it in exactly the way the whole row describes — correct about the table it
+ *  reads, silent about the one beside it.
+ *
+ *  TWO ARMS, AND THE SECOND IS THE ONE THAT NEEDS NO NORMALISATION. (1) declared TOTAL vs the derived bin.
+ *  (2) the table's own rows must SUM to its declared total — pure internal arithmetic, so a hand edit that
+ *  fixes the total without touching the buckets is still caught. The per-phrase buckets themselves are NOT
+ *  re-derived and the limit is stated at `committedOtherClassCensus`: they are hand-chosen truncations of
+ *  the class cells with an explicit *1-offs* bucket, and a mechanical normalisation that guessed at them
+ *  would fire on the honest rows.
+ *
+ *  AN ABSENT SUB-TABLE IS NOT A FINDING and produces no drift line: the ledger is free not to carry the
+ *  breakdown, and manufacturing a finding out of a table that is not there would fire on every correct
+ *  rollup. The distinction between "nothing to check" and "it checked out" is kept by
+ *  `committedOtherClassCensus` returning `undefined` rather than a zeroed census — a reader asking the
+ *  question gets an answer that cannot be mistaken for a reconciliation.
+ *
+ *  AND THE DRIFT MESSAGE'S SECOND REMEDY IS HONOURED IN CODE, not merely offered (`DATED_HAND_CENSUS`). A
+ *  re-census of ~180 free-text phrases is barrier work, so the message says "re-census, OR mark the table a
+ *  DATED hand census with the date it was taken" — and an instrument that offers a remedy it then refuses
+ *  to accept is lying in the courteous direction. The banner WAIVES the equality arm and NOTHING ELSE: the
+ *  table's own arithmetic still has to hold, and the waiver must carry a DATE, because "this is a snapshot"
+ *  is only a defence when the reader can see how old the snapshot is. */
+export function otherCensusDrift(text: string, derived: ClassRollup, ledgerRel: string): readonly string[] {
+  const derivedOther = derived.rows.find((row) => row.klass === OTHER_CLASS)?.rows ?? 0;
+  const census = committedOtherClassCensus(text);
+  if (census === undefined) {
+    return [];
+  }
+  const drift: string[] = [];
+  if (census.declaredTotal !== derivedOther && !datedHandCensusBanner(text)) {
+    drift.push(
+      `census ${ledgerRel}:${census.line} the \`${OTHER_CLASS}\` sub-table declares ${census.declaredTotal} but the body's \`${OTHER_CLASS}\` bin holds ${derivedOther} — re-census the free-text classes, or write a line under \`${CLASS_ROLLUP_HEADING}\` reading "DATED HAND CENSUS" with the YYYY-MM-DD it was taken (that waives THIS arm only; the sub-table's own rows must still sum to its TOTAL)`,
+    );
+  }
+  if (census.rowsSummed !== census.declaredTotal) {
+    drift.push(
+      `census ${ledgerRel}:${census.line} the \`${OTHER_CLASS}\` sub-table's own rows sum to ${census.rowsSummed} and its TOTAL cell says ${census.declaredTotal} — the table disagrees with itself`,
+    );
+  }
+  return drift;
+}
+
+/** THE SANCTIONED WAIVER for the equality arm above: a line inside the `## CLASS ROLLUP` section declaring
+ *  the sub-table a DATED HAND CENSUS **and carrying the date it was taken**.
+ *
+ *  BOTH HALVES ARE REQUIRED AND THE DATE IS THE LOAD-BEARING ONE. "It is a hand census" alone is a
+ *  permanent excuse — the same shape as a refusal that outlives its blocker. With a date, a reader can
+ *  price the staleness themselves, which is the whole content of the claim. The phrase is matched
+ *  case-insensitively and the date by ISO shape on the SAME line, so a paragraph that merely mentions
+ *  censuses elsewhere in the section cannot waive anything by accident. */
+const DATED_HAND_CENSUS = /^.*\bDATED HAND CENSUS\b.*\b\d{4}-\d{2}-\d{2}\b.*$/imu;
+
+function datedHandCensusBanner(text: string): boolean {
+  const lines = text.split("\n");
+  const start = lines.findIndex((line) => line.trim() === CLASS_ROLLUP_HEADING);
+  if (start === -1) {
+    return false;
+  }
+  // The section ENDS at the next `##`: a banner anywhere else in the document is about something else.
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((line) => line.startsWith("## "));
+  return DATED_HAND_CENSUS.test((end === -1 ? rest : rest.slice(0, end)).join("\n"));
+}

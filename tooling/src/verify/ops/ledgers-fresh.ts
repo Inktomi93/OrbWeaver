@@ -42,7 +42,7 @@ import type { CaughtFailurePopulation, CaughtFailureRow } from "../contract/caug
 import type { LedgerFreshness } from "../contract/scoped.ts";
 import { ledgerSections, readDoc, reportLedgerRows, strayLedgerSections } from "../lib/gate-program-docs.ts";
 import type { ClassRollupRow } from "../lib/gate-program-rollup.ts";
-import { committedClassRollup, deriveClassRollup, STATE_BINS } from "../lib/gate-program-rollup.ts";
+import { committedClassRollup, deriveClassRollup, otherCensusDrift, STATE_BINS } from "../lib/gate-program-rollup.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
 import { READ_FIRST_COST_ROW_IDS, READ_FIRST_REL, readFirstCostRowDrift } from "./gen/read-first-costs.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
@@ -363,6 +363,7 @@ export function classRollupDrift(root: string): LedgerFreshness {
       drift.push(`row ${own.klass}: the rollup carries a class the body no longer names`);
     }
   }
+  drift.push(...otherCensusDrift(text, derived, REFUTATION_LEDGER_REL));
   return { ledger: label, regen: REGEN_CLASS_ROLLUP, derived: derived.total.rows, drift };
 }
 

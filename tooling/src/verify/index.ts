@@ -116,12 +116,23 @@ export {
   UI_SRC,
 } from "./lib/baseui-read.ts";
 export { auditBiomeTranscript, biomeStageAudit, controlProbeCount, parseCheckedFileCount } from "./lib/biome-verdict.ts";
-export { aggregateExit, asViolations, eslintScheme, ownScheme } from "./lib/exit-classifiers.ts";
+export { aggregateExit, asViolations, eslintScheme, noVerdictStages, ownScheme, producedNoVerdict } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
 export { findGateIgnoreMarkers, parseGateIgnoreMarker } from "./lib/gate-ignore.ts";
 export { ledgerSections, reportLedgerRows, strayLedgerSections } from "./lib/gate-program-docs.ts";
+export { committedClassRollup, committedOtherClassCensus, deriveClassRollup, otherCensusDrift } from "./lib/gate-program-rollup.ts";
 export { getProject } from "./lib/harness.ts";
-export { appendHistory, currentSha, previousAtTier, readHistory, slowdownLines, slowdowns } from "./lib/history.ts";
+export {
+  appendHistory,
+  batteryCadenceLines,
+  currentSha,
+  historyAdvisories,
+  lastRanAt,
+  previousAtTier,
+  readHistory,
+  slowdownLines,
+  slowdowns,
+} from "./lib/history.ts";
 export { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome, SCHEMA_BANNED_SHAPES } from "./lib/ledger-banned-shapes.ts";
 export { loadGateCorpus, loadGates, loadMixedGateCorpus } from "./lib/loader.ts";
 export { markdownTables } from "./lib/markdown-tables.ts";

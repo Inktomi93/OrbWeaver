@@ -43,8 +43,8 @@ import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { inheritedRunMarker, mintRunMarker, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
-import { aggregateExit } from "../lib/exit-classifiers.ts";
-import { appendHistory, historyEntry, previousAtTier, readHistory, slowdownLines, slowdowns } from "../lib/history.ts";
+import { aggregateExit, noVerdictStages } from "../lib/exit-classifiers.ts";
+import { historyAdvisories } from "../lib/history.ts";
 import { stagesForTier } from "../lib/registry.ts";
 import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
@@ -317,6 +317,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
     mode: plan.mode,
     ok,
     exitCode,
+    childExit: result.code, // #2225 — the RAW digit, kept; `contract/stage.ts` states why it must survive `classify`.
     durationMs,
     logFile,
     failureExcerpt: ok ? null : failureExcerpt(transcript),
@@ -401,6 +402,7 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
     ok: exitCode === EXIT.clean,
     exitCode,
     failed: results.filter((s) => !s.ok).length,
+    noVerdict: noVerdictStages(results),
     stages: results,
   };
 }
@@ -428,12 +430,9 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
       { alias: INSTRUMENT, target: STAGES_SEGMENT },
     ]);
 
-    // #411: retain, then compare against the previous run AT THE SAME TIER. The advisory prints BEFORE the
-    // summary block so the truncation-robust tail (the verdict + the artifact pointer) stays last.
-    const entry = historyEntry(root, report);
-    const previous = previousAtTier(readHistory(root), report.tier, entry.runId);
-    appendHistory(root, entry);
-    for (const line of slowdownLines(previous, slowdowns(previous, entry))) {
+    // #411 (slowdowns) + #1983 (the --full battery's cadence): retain this run, then print what the history
+    // has to say. BEFORE the summary block, so the truncation-robust tail stays last. `../lib/history.ts`.
+    for (const line of historyAdvisories(root, report)) {
       process.stdout.write(`${line}\n`);
     }
 

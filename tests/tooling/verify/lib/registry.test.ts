@@ -12,6 +12,7 @@
 // rather than a prose table.
 import type { StageDef, Tier } from "../../../../tooling/src/verify/contract/stage.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
+import { WHOLE_COMMAND_PATH_TRIGGERS } from "../../../../tooling/src/verify/lib/registry-triggers.ts";
 import { stageLine } from "../../../../tooling/src/verify/lib/run-render.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -86,14 +87,26 @@ test("structure:policy-conformance runs every final policy's proofs at STATIC, w
   const row = stage("static", "structure:policy-conformance");
   expect(row.argv).toEqual(["pnpm", "check:policy-conformance"]);
   expect(row.group).toBe("structure");
-  expect(row.scopedArgv).toBeUndefined();
   expect(row.classify(0)).toBe(0);
   expect(row.classify(2)).toBe(2);
   expect(row.classify(null)).toBe(2);
-  // the ladder nests: static ⊂ push ⊂ full, and never the scoped inner loop (a policy's fixtures are not a changed file)
+  // WHOLE-ONLY, RE-POINTED BY #2277 AND NOT WEAKENED. This line read `scopedArgv toBeUndefined()` and the
+  // stage was absent from `changed`. The RULING is "a policy's proofs are its own fixtures, not a property
+  // of any changed file, and the roster is the whole corpus" — it survives verbatim, because the stage's
+  // path trigger runs its OWN WHOLE argv or nothing. What changed is WHEN it is asked, never what it reads:
+  // a commit touching a gate module now gets the conformance verdict at `verify --changed` instead of
+  // deferring it to a static run the #1584 hook bypass suppresses. So the assertion moves to the property
+  // the ruling actually states.
+  // THE TRIGGER IS DATA and this file reads data (a Selection needs the ts-morph membership snapshot, which
+  // belongs in the ops suite — `run.int.test.ts` pins the BEHAVIOUR through a real one).
+  const trigger = WHOLE_COMMAND_PATH_TRIGGERS["structure:policy-conformance"]?.paths;
+  expect(row.scopedArgv, "path-triggered, so the scoped tier ASKS it").toBeDefined();
+  expect(trigger?.test("tooling/src/verify/gates/tooling-size.ts"), "a gate module moves the roster").toBe(true);
+  expect(trigger?.test("README.md"), "and nothing else does — an untouched roster is not owed").toBe(false);
+  // the ladder nests: static ⊂ push ⊂ full, and the scoped inner loop now asks it when a gate module moved
   expect(stagesForTier("push").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
   expect(stagesForTier("full").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
-  expect(stagesForTier("changed").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(false);
+  expect(stagesForTier("changed").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
 });
 
 test("mutation:arid is a discoverable manual report-input tool, never an automatic tier", () => {

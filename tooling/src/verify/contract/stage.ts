@@ -90,6 +90,20 @@ export interface StageResult {
   readonly mode: StageMode;
   readonly ok: boolean;
   readonly exitCode: number;
+  /**
+   * THE CHILD'S RAW EXIT, RETAINED (#2225) — `null` when the child was signal-killed, timed out, or was
+   * never spawned at all (an unresolvable `argv[0]`); ABSENT when this stage ran no child (deferred,
+   * skipped, or a `--strict-scope` refusal).
+   *
+   * WHY THE RAW DIGIT SURVIVES THE CLASSIFIER. `exitCode` is `classify(childExit)`, and `classify` is
+   * PER-STAGE DATA — a row may spell any mapping it likes. Every classifier on the tree today maps `null`
+   * to a tool error, but that is a property of four adapters, not of the contract, and a row whose
+   * classifier answered `0` for `null` would launder a KILLED child into a green stage with nothing
+   * structural to stop it. #2220 is what that costs: a stage that never produced a verdict was invisible
+   * to its tier for a day. So the question "did a child actually report an exit" is answerable from the
+   * artifact WITHOUT trusting the mapping that hid it.
+   */
+  readonly childExit?: number | null;
   readonly durationMs: number;
   readonly logFile: string | null;
   /** On failure: a short tail excerpt of the stage's output (the last few non-blank lines) so a bot
@@ -134,5 +148,18 @@ export interface VerifyReport {
   readonly exitCode: number;
   /** The count of stages that failed (violations or tool-error) — the top-of-file verdict at a glance. */
   readonly failed: number;
+  /**
+   * EVERY STAGE THAT RAN AND PRODUCED NO VERDICT, BY NAME (#2225) — the general form of #2220. A stage
+   * whose exit class was 2, or whose child reported no exit at all, MEASURED NOTHING: the tier's claim to
+   * have covered it did not hold. `failed` cannot carry that, because it lumps "nothing was measured" in
+   * with "your code has a lint finding", and a barrier reading only the count cannot tell a broken
+   * instrument from a real red.
+   *
+   * A BARRIER READS THIS LIST BEFORE THE RED COUNT. It is a separate field rather than a filter the reader
+   * is expected to apply, because the filter is exactly what nobody wrote for a day: `lint:hook-syntax`
+   * sat at exit 2 on every static run since the day it landed and no reader of this artifact ever asked.
+   * `[]` is the honest zero — every registered stage that ran came back with a verdict.
+   */
+  readonly noVerdict: readonly string[];
   readonly stages: readonly StageResult[];
 }
