@@ -218,6 +218,14 @@ that shape. **0 findings, 0 off-board ids today**, so it ships green behind a pl
 What resolution CANNOT see — a real id belonging to a different defect — is stated in the module header
 rather than implied.
 
+> **LANDED 2026-09-13 (`c38d396a9`+1, lane `cb-x-barrier-repair`) — THE SENTENCE ABOVE IS FALSE AND IS
+> CORRECTED HERE RATHER THAN REWRITTEN.** #2153's L5/L11 were **NOT** "a number nobody minted": both wrong
+> ids EXISTED (#2114 and #2116 are real board rows; `gh issue view` on each, 2026-09-13). Resolution
+> therefore reports **zero** on the founding defect — proved by planting #2153's exact pair back into the
+> real ledger and running the pre-repair judge: `ledger citations: 362 | crossed: 0`. The claim that
+> resolution "was exactly that shape" was the reasoning that made closing #2156 look defensible; it was
+> wrong. §6.9 below is the arm that actually catches it.
+
 ### 6.4 The exit contract, and the per-class control receipts
 
 | Outcome | Exit |
@@ -225,6 +233,12 @@ rather than implied.
 | every citation resolves and every openness claim holds | **0** |
 | a crossed citation — a CLOSED `workItem`, or an id that names no row — named with class · site · id · state | **1** |
 | the run could not measure: the board read threw, a cited document is not on the tree, the snapshot is empty, or a control did not fire | **2** (always a THROW; `boardCitationsExit` returns 0 or 1 only) |
+
+**LANDED 2026-09-13 (`c38d396a9`+1, lane `cb-x-barrier-repair`) — the table above is INCOMPLETE, not wrong.**
+Exit 1 also names a ledger citation whose target declares a SAME-WAVE, different-row subject, and an id that
+exists but is an item of no project. Exit 2 also covers a truncated or malformed board page, a repeated
+cursor, a duplicated issue number, a wire `state` outside `OPEN`/`CLOSED`, a configured ledger/roster whose
+grammar this run cannot read, and a subject join that matched nothing. §6.9.
 
 The controls run in the SAME invocation as the verdict, one per class, against the REAL snapshot, and a
 control that does not fire throws. Verbatim from the run:
@@ -252,6 +266,13 @@ page (a map with nothing in it answers "unknown" to every citation and reads as 
 on this tree (#2181's work landed while its row sits `Running`), and a citation's claim is about the issue.
 Paging and the empty-page refusal are pinned in `tests/tooling/workboard/ops/project.test.ts` against a fake
 `gh` speaking the real wire protocol: a dropped second page would report every id on it as dangling.
+
+> **LANDED 2026-09-13 (`c38d396a9`+1, lane `cb-x-barrier-repair`) — THAT PIN DID NOT PROVE WHAT THIS
+> PARAGRAPH CLAIMED.** The committed paging arm supplied THREE WELL-FORMED pages and asserted they merge;
+> nothing exercised an incomplete one. Measured against the unmodified reader: `hasNextPage: true` with a
+> null `endCursor` returned the prefix as a complete board, an `endCursor: ""` and a repeated cursor both
+> LOOPED FOREVER (two runs killed at 300 s), and a wire `state` of `"STALE"` landed in the map and satisfied
+> an openness claim. All of it is now validated at the door and pinned; §6.9 carries the receipts.
 
 ### 6.6 Registry decision
 
@@ -423,14 +444,103 @@ docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md:1123 [OPEN] #1990 is C
 - **Resolution cannot see a CROSSED-BUT-REAL id.** #2153's L5 cited #2114 for work #2116 owns; both numbers
   exist, so both resolve. Closing that needs a subject match (does the row's title/body name this defect?),
   which is a text-similarity judgement this lane will not fake with a heuristic. Filed as the gap, not built.
+  **LANDED 2026-09-13 (`c38d396a9`+1, lane `cb-x-barrier-repair`): BUILT, and it needed no text-similarity
+  judgement** — the verifier ingress already writes a machine-readable `**Where:** <wave> L<n> · <path:line>`
+  line into the issue body, so the join is string equality over parsed keys. §6.9.
 - **The advisory census is not adjudicated.** 72 rows are printed with no verdict; nothing yet
   distinguishes "the board row legitimately spans several cells" from "this cell is stale".
+  **LANDED 2026-09-13: still true, and the count is now 81** (the board moved, not the rule).
 - **One ledger is read.** `LEDGERS` is a one-element tuple by design (a glob over `docs/reviews/**` would
   start judging prose); a second document written under the same grammar joins that tuple by hand.
 - **`ledger-closure` reads only tables with a `state` column.** A section that renames the column
   contributes zero citations — visible in the printed per-class denominator, but nothing reds on it.
+  **LANDED 2026-09-13: it reds now.** `assertLedgerSource` runs on the CONFIGURED document and throws
+  (CLI exit 2) when it loses its fence, its post-fence `state` column, or its citations; `assertRosterSource`
+  is the same non-vacuity for each configured roster. §6.9.
 
-## LEDGER ROWS (3 rows)
+### 6.9 THE FOUR REPAIRS (lane `cb-x-barrier-repair`, 2026-09-13, on codex-primary's independent review)
+
+Codex's review REFUTED this document's closure claim with four confirmed fail-closed defects. All four are
+repaired; **the commit that repairs them does NOT close #2156** — see the residue at the end of this section.
+
+**F1 — the barrier validated issue-number EXISTENCE, not #2156's filed citation join.** Repaired by
+`tooling/src/verify/lib/citation-subject.ts`, a deterministic join with no keyword heuristic in it. Both
+sides carry the same authored key: the ledger row's is the leading segment of its `wave`/`lane` column up to
+the first `·`; the board row's is the leading segment of the `**Where:**` line in its BODY, which the
+verifier ingress already writes (61 rows on the board carried it, every one spelling the row label
+`L<digits>`). A key splits into FAMILY + ROW. **Same family, different row is CROSSED (exit 1)**; a different
+family is an ADVISORY census; a cited row that declares nothing is a COUNTED residue.
+*Red-first, against the unmodified judge with #2153's exact pair planted back into the real ledger
+(`:507` → #2116, `:508` → #2114, restored via `cp`/`mv`):* `ledger citations: 362 | crossed: 0`.
+*Green after, same planted ledger:* `crossed: 2`, both named by `path:line` and by the subject each row
+declares. *Live tree, restored:* `matched 54 · crossed 0 · cross-family 4 · unkeyed 1 · undeclared 303`.
+
+**F2 — renaming the production ledger's `state` column erased the whole class and still exited 0.** The
+synthetic control document kept its own header, so every control still fired. Repaired by `assertLedgerSource`
+/ `assertRosterSource`, run in `runBoardCitations` over the CONFIGURED documents and printed as a source
+receipt; the pin at `tests/tooling/verify/ops/board-citations.test.ts` renames `state` on the REAL document's
+bytes and expects the throw, and passes the untouched real documents in the admitting direction.
+`assertSubjectJoinMeasured` is the same principle for the join's own denominator.
+
+**F3 — an incomplete paginated response was accepted as a complete snapshot**, and **F4 — the GraphQL
+payload was CAST rather than validated.** Both repaired at the production door
+(`tooling/src/workboard/ops/project.ts`): the page shape, `hasNextPage`, the `endCursor` relationship, a
+repeated cursor, `number`, `state`, `title`, `body` and Project membership are all checked, and every refusal
+is the caller's exit-2 class. *Red-first, the new pins against the unmodified reader:* **8 failed / 1 passed**,
+and the two pins that are not in that count (`EMPTY-STRING cursor`, `REPEATED cursor`) **HUNG the unmodified
+reader** — two runs killed at 300 s, which is the infinite loop itself.
+
+**The residue, and why #2156 STAYS OPEN.** The join covers the 59 ledger citations whose target declares a
+subject. **303 citations over 133 distinct board rows declare none**, and they are not a backlog to grind
+through: a large part of them are THEMATIC rows one ledger row cannot name — **#2041 is cited by four rows
+across waves 8-10, #1978 by five** — so a mandatory one-subject-per-issue key would be FALSE for them. The
+backfill contract, if it is ever ruled for: append a `**Where:**` line naming the wave label, then the
+`path:line`, to the body of each of the 133 rows — the grammar 61 board rows already carry, spelled
+`**Where:** cb-v-parity-instruments L4 · path:line`. Written by the ORCHESTRATOR via
+`gh issue edit --body-file` (lanes make no `gh` writes);
+~133 board edits plus the expensive half, adjudicating which ledger row each older thematic issue subsumes.
+**Orchestrator ruling 2026-09-13: do NOT backfill.** So this implementation is the **resolution + openness +
+declared-subject** barrier, not #2156's closure, and the residue is a ledger row below.
+
+**The four cross-family citations, listed because a later reader will ask why they are not verdicts** — each
+one is the ledger closing a row by pointing at the earlier board row of the same defect family, which the
+grammar supports:
+
+| ledger row | cites | the cited row declares | why it is not a finding |
+| - | - | - | - |
+| `:521` `cb-v-fix-wave-1 L3` | #2086 | `cb-v-unaudited-finals L10` | the row re-adjudicates #2086's own fix (`FIXED — #2086 … first attempt REFUTED by this wave, then re-fixed`) |
+| `:554` `cb-v-mirror-suppressions L15` | #2103 | `cb-v-authority-census L10` | the cell says "board #2103 re-derived: still true after `aecbc6c6c`" |
+| `:765` `cb-v-wave-8a L3` | #2101 | `cb-v-authority-census L7` | the defect IS "#2101's cardinality ruling names four modules; three are done and this one…" |
+| `:782` `cb-v-wave-8c L5` | #2150 | `cb-v-fix-wave-1 L1` | the defect IS "a NEW instance of #2150's family" |
+
+Plus one `unkeyed`: `:818` `cb-v-wave-9b` cites #2136 (declares `cb-v-mirror-suppressions L10`) — the citing
+row's own label carries no `L<n>`, so neither side can be compared and the grammar says so rather than guessing.
+
+**The real barrier run, verbatim, after the repair (`pnpm check:board-citations`, exit 0):**
+
+```
+  control [policy-workitem] #1 reported CLOSED, so this run can tell a closed row from an open one
+  control [ledger-closure] a planted CLOSED cell tracking OPEN #13 was censused, and a citation of absent #2332 was reported
+  control [roster-reference] a planted citation of absent #2332 was reported
+  control [ledger-subject] #2077 declares `cb-v-unaudited-finals L1`: a row citing it under that subject was SILENT, and a sibling row citing it as `cb-v-unaudited-finals L999999` was reported crossed
+  source [ledger] docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md admitted with 362 state-cell citation(s)
+  source [roster] docs/architecture/core/Core-Enforcement-Active-Gates.md admitted with 292 citation(s)
+  source [roster] docs/architecture/core/Core-Enforcement-Deferred-Dropped.md admitted with 20 citation(s)
+board-citations — 677 citation(s) over 2331 board row(s): policy-workitem 3 · ledger-closure 362 · roster-reference 312 · 0 crossed · 81 advisory disagreement(s) · 5 cell(s) whose verdict claims nothing
+  subject join (class 2) — matched 54 · crossed 0 · cross-family 4 · unkeyed 1 · undeclared 303
+```
+
+**What the repair still does NOT cover, stated rather than implied:** a crossed citation whose target is one
+of the 303 undeclared rows (invisible — the residue above); a crossed citation across two WAVES (advisory by
+measurement, since all four such rows on today's tree are legitimate); a declared key in a spelling other than
+`<family> L<digits>` (counted `unkeyed`, and the join's non-vacuity guard only proves that SOME key still
+parses, not that every spelling does); a row appended under this report's own `## LEDGER ROWS` header, whose
+subject column is spelled `Where` rather than `wave`/`lane` and therefore carries no key at all until the
+integrator normalises it; and the `caught-failure-ownership` population ledger, which this
+commit re-stales by one line in `tooling/src/workboard/ops/project.ts` (a new import above its `markerLine`)
+and which the barrier re-derives on the merged tree.
+
+## LEDGER ROWS (4 rows)
 
 | Family | Where | Defect | Class | State | Receipt |
 | - | - | - | - | - | - |
@@ -438,7 +548,9 @@ docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md:1123 [OPEN] #1990 is C
 | board citations | cb-x-warning-barrier · `docs/architecture/core/Core-Enforcement-Active-Gates.md` (whole roster) | #2156's class 3 as filed — "every roster `#N` must resolve to a CLOSED row" — is REFUTED by the roster's own text: all 292 citations / 149 distinct ids sit in the `Enforces` column and name the issue the gate IMPLEMENTS, 70 point at not-Done rows and 40+ of those are the LIVE epic #1584; the deferred roster's 20 are the #2008/#2217 rows that made those cells correct. Shipping the filed rule would have been ~89 day-one false positives | other (premise refuted) | **CLOSED** — `beea8b1f4` (board #2156; orchestrator-ruled 2026-09-13, resolution-only shipped instead, green with a planted-absent control) | the counts above, re-derived on `ce8e5174f` with `markdownTables` over both rosters; `pnpm check:board-citations` exit 0, `roster-reference 312 · 0 crossed` |
 | board citations | cb-x-warning-barrier · `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` (72 cells, listed in `docs/reviews/gate-runtime/x-warning-barrier-2026-09-13.md` §6.7) | 72 ledger state cells and the board rows they track DISAGREE (a `**CLOSED**` cell tracking an OPEN row, or the reverse). Under the grammar this is not automatically a defect — the `(board #N)` is a tracking pointer and the sha carries the closure — but nothing has adjudicated them, and at least the #2010 / #2115 / #2181 cells read as a board that never caught up | other (ledger/board reconciliation) | **OPEN** (board #2156 — a ledger/board pass; the lane is fenced out of sweeping a shared multi-lane file) | `pnpm check:board-citations` exit 0 prints the census every run: `362 ledger citations · 0 crossed · 72 advisory disagreement(s) · 5 cell(s) whose verdict claims nothing` |
 
-ledger rows OWED: 0 — **and the reconciliation the previous footer owed:** the three rows above are NEW
+\| board citations | cb-x-barrier-repair · `tooling/src/verify/lib/citation-subject.ts` · `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` (303 citations over 133 distinct board rows) | #2156's filed contract — "every `#N` in a ledger state cell resolves to a row whose title or body names the row's module and wave" — is only COVERED for the 59 citations whose cited row declares a `**Where:** <wave> L<n>` subject. The other 303, over 133 distinct rows, declare none, and a mandatory one-subject-per-issue key would be FALSE for the thematic rows among them (#2041 is cited by four ledger rows across waves 8-10, #1978 by five). The barrier therefore ships as resolution + openness + declared-subject and #2156 is NOT closed by it | other (citation) | **OPEN** (board #2156 — the backfill contract and its cost are stated in `docs/reviews/gate-runtime/x-warning-barrier-2026-09-13.md` §6.9; orchestrator ruled 2026-09-13 NOT to backfill) | `pnpm check:board-citations` exit 0 prints the residue every run: `subject join (class 2) — matched 54 · crossed 0 · cross-family 4 · unkeyed 1 · undeclared 303`; red-first with #2153's pair replanted in the real ledger: unmodified judge `crossed: 0`, repaired judge `crossed: 2` |
+
+ledger rows OWED: 0 — **and the reconciliation the previous footer owed:** the four rows above are NEW
 rows for the integrator to APPEND (`## LEDGER ROWS (N rows)` is the append block, and the integrator asserts
 N), while `ledger rows OWED` counts EXISTING cells whose flip this lane owes. This lane flipped no existing
 cell and edited no ledger, so both statements are true at once — the earlier report said `OWED: 0` beside one

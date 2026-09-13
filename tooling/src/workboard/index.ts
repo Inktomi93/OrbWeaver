@@ -1,6 +1,7 @@
 // workboard's programmatic front door (`pnpm work:item`) — the GitHub Project 1 operator path. Project
 // owns mutable lifecycle state (D139); this tool is the ONLY sanctioned writer of it.
 export type {
+  BoardIssueRow,
   CreateCommand,
   Field,
   FileCommand,

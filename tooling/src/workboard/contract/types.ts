@@ -33,6 +33,22 @@ export interface Issue {
   readonly blockers: readonly number[];
 }
 
+/** ONE row of the BULK board snapshot (`fetchIssueStates`, #2156's citation census). Every field is
+ *  RUNTIME-VALIDATED at the network door before it lands here — the GraphQL payload is untrusted input,
+ *  and a cast is not a check: an unvalidated `state` of `"STALE"` made an openness claim read as
+ *  satisfied, because the only rejection was the exact string `"CLOSED"` (codex review F4, 2026-09-13).
+ *
+ *  `title`/`body` carry the SUBJECT the citation contract joins on, and `onBoard` says the issue is an
+ *  item of Project `PROJECT_NUMBER` — a citation names a BOARD row, so an issue on no board is not one. */
+export interface BoardIssueRow {
+  readonly number: number;
+  readonly state: "OPEN" | "CLOSED";
+  readonly title: string;
+  /** `""` when GitHub reports a null body — absent, never a missing measurement. */
+  readonly body: string;
+  readonly onBoard: boolean;
+}
+
 export interface ItemState {
   readonly id: string;
   readonly projectId: string;

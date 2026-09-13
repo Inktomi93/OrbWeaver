@@ -71,15 +71,23 @@ export function dependencyMutation(remove: boolean): string {
   return `mutation WorkItemDependency($issueId: ID!, $blockingIssueId: ID!) { ${mutation}(input: { issueId: $issueId, blockingIssueId: $blockingIssueId }) { issue { id } } }`;
 }
 
-/** EVERY issue's number + state, paged — the BULK door (#2156). The targeted walks above answer one row
- *  richly; a citation census asks about hundreds of numbers at once and would otherwise spend hundreds of
- *  calls (and the reviewer's patience) to learn one enum per row. `states` is deliberately the thinnest
- *  possible selection: no body, no comments, no project items, so a page of 100 is cheap. */
+/** EVERY issue's number, state, SUBJECT and board membership, paged — the BULK door (#2156). The targeted
+ *  walks above answer one row richly; a citation census asks about hundreds of numbers at once and would
+ *  otherwise spend hundreds of calls (and the reviewer's patience) to learn one enum per row.
+ *
+ *  WHY IT IS NOT THE THINNEST SELECTION ANY MORE (codex review F1, 2026-09-13). `number state` alone can
+ *  only answer "does this id resolve"; #2156's filed contract is that the cited row NAMES the ledger row's
+ *  subject, and its founding defect (#2153) crossed two ids that BOTH existed. Answering that needs the
+ *  row's own text, so `title body` come back with it and the join is `lib/citation-subject.ts`. The
+ *  `projectItems` slice answers the other half of "a BOARD row": an issue on no board is not one.
+ *  Measured 2026-09-13: 2328 issues over 24 pages, ~125 KB and ~1 s per page. `first: 10` on projectItems
+ *  is the fence — an issue is on Project 1 or it is not, and a truncated list would silently read
+ *  "off-board", which the snapshot-level membership assertion in `fetchIssueStates` refuses. */
 export const ISSUE_STATES_QUERY = `query WorkItemIssueStates($owner: String!, $repo: String!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
     issues(first: 100, after: $cursor, orderBy: { field: CREATED_AT, direction: ASC }) {
       pageInfo { hasNextPage endCursor }
-      nodes { number state }
+      nodes { number state title body projectItems(first: 10) { nodes { project { number } } } }
     }
   }
 }`;

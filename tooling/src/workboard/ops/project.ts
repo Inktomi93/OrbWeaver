@@ -4,6 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type {
+  BoardIssueRow,
   EncodedWrite,
   Field,
   FieldChange,
@@ -187,41 +188,127 @@ export function mutateDependency(issueId: string, blockingIssueId: string, remov
   graphql(dependencyMutation(remove), { issueId, blockingIssueId });
 }
 
-/** EVERY issue in the repository, number → state, in ONE paged walk (#2156's bulk door).
+/** The wire is UNTRUSTED INPUT. Every reader below names the field it refused, because a board read that
+ *  half-answered is the one failure this whole census cannot survive silently. */
+function wireObject(value: unknown, what: string): Readonly<Record<string, unknown>> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${REPOSITORY} issue-state page: ${what} is not an object — the board read cannot be trusted`);
+  }
+  return value as Readonly<Record<string, unknown>>;
+}
+
+/** One page's validated nodes plus the cursor to follow, or `undefined` when the walk is genuinely over.
+ *  `hasNextPage: true` with no usable `endCursor` is a TRUNCATED read and throws — it must never read as
+ *  "the last page". */
+function issueStatesPage(payload: unknown): { readonly nodes: readonly unknown[]; readonly nextCursor: string | undefined } {
+  const repository = wireObject(payload, "the payload")["repository"];
+  if (repository === null || repository === undefined) {
+    throw new Error(`Could not resolve the issues of ${REPOSITORY}`);
+  }
+  const issues = wireObject(wireObject(repository, "repository")["issues"], "repository.issues");
+  const nodes = issues["nodes"];
+  if (!Array.isArray(nodes)) {
+    throw new Error(`${REPOSITORY} issue-state page: nodes is not a list — the board read cannot be trusted`);
+  }
+  const pageInfo = wireObject(issues["pageInfo"], "repository.issues.pageInfo");
+  const hasNextPage = pageInfo["hasNextPage"];
+  if (typeof hasNextPage !== "boolean") {
+    throw new Error(`${REPOSITORY} issue-state page: pageInfo.hasNextPage is not a boolean — the walk cannot know whether it is complete`);
+  }
+  if (!hasNextPage) {
+    return { nodes, nextCursor: undefined };
+  }
+  const endCursor = pageInfo["endCursor"];
+  if (typeof endCursor !== "string" || endCursor === "") {
+    throw new Error(
+      `${REPOSITORY} issue-state page: pageInfo says hasNextPage but carries no endCursor — the snapshot is TRUNCATED, which would report every id on the missing pages as a dangling citation`,
+    );
+  }
+  return { nodes, nextCursor: endCursor };
+}
+
+/** One validated snapshot row. A cast is not a check: `state` is an exact two-member enum here because the
+ *  citation judge rejects an openness claim on the literal `"CLOSED"` alone, so any third value silently
+ *  SATISFIED the claim. */
+function boardIssueRow(node: unknown, index: number): BoardIssueRow {
+  const raw = wireObject(node, `node ${String(index)}`);
+  const number = raw["number"];
+  if (typeof number !== "number" || !Number.isSafeInteger(number) || number <= 0) {
+    throw new Error(`${REPOSITORY} issue-state page: node ${String(index)} has no positive integer issue number — the board read cannot be trusted`);
+  }
+  const state = raw["state"];
+  if (state !== "OPEN" && state !== "CLOSED") {
+    throw new Error(
+      `${REPOSITORY} issue-state page: #${String(number)} reported state ${JSON.stringify(state)}, which is neither OPEN nor CLOSED — an unrecognised state satisfies an openness claim by accident`,
+    );
+  }
+  const title = raw["title"];
+  if (typeof title !== "string") {
+    throw new Error(`${REPOSITORY} issue-state page: #${String(number)} has no string title — the citation subject join has nothing to read`);
+  }
+  const body = raw["body"];
+  if (body !== null && body !== undefined && typeof body !== "string") {
+    throw new Error(`${REPOSITORY} issue-state page: #${String(number)} has a non-string body — the citation subject join has nothing to read`);
+  }
+  const items = wireObject(raw["projectItems"], `#${String(number)} projectItems`)["nodes"];
+  if (!Array.isArray(items)) {
+    throw new Error(`${REPOSITORY} issue-state page: #${String(number)} projectItems.nodes is not a list — board membership is unmeasured, not absent`);
+  }
+  const onBoard = items.some((item) => wireObject(wireObject(item, `#${String(number)} project item`)["project"], "project")["number"] === PROJECT_NUMBER);
+  return { number, state, title, body: body ?? "", onBoard };
+}
+
+/** EVERY issue in the repository, number → row, in ONE paged walk (#2156's bulk door).
  *
  *  WHY IT IS BULK AND NOT A LOOP OVER `fetchIssueContext`. The board-citation census asks about hundreds of
- *  numbers per run — the refutation ledger alone cites 326 — and the targeted walk pulls a body, 100
- *  comments and every project item per call. This selection is two scalar fields, so the whole repository
+ *  numbers per run — the refutation ledger alone cites 362 — and the targeted walk pulls a body, 100
+ *  comments and every project item per call. This selection is five thin fields, so the whole repository
  *  fits in ~24 pages. It REFUSES an empty first page rather than returning an empty map: a map with nothing
  *  in it answers "OPEN? unknown" for every citation, which reads to a caller exactly like a clean board.
  *
  *  IT ANSWERS THE ISSUE'S OWN FIELD, never the Project `Status`. The two disagree on the live tree (a row
  *  whose work landed can still sit `Running` until a lane transitions it), and a citation's claim is about
- *  the ISSUE. `list`'s Status stays the lifecycle view; this is the state view. */
-export function fetchIssueStates(): ReadonlyMap<number, "OPEN" | "CLOSED"> {
-  const states = new Map<number, "OPEN" | "CLOSED">();
+ *  the ISSUE. `list`'s Status stays the lifecycle view; this is the state view.
+ *
+ *  EVERY PAGE IS VALIDATED AT THIS DOOR, and every refusal is the caller's exit-2 class (codex review F3/F4,
+ *  2026-09-13). The GraphQL payload used to be CAST to its expected type, which is not a check: a wire
+ *  `state` of `"STALE"` landed in the map and satisfied an openness claim, and a page announcing
+ *  `hasNextPage: true` with a null `endCursor` silently TERMINATED the walk — a truncated snapshot then
+ *  reports every id in the missing suffix as a dangling citation (a flood of false exit-1 findings) or,
+ *  when the prefix happens to hold them all, exits 0 while knowing nothing. Both are unmeasurable runs, so
+ *  both throw here rather than becoming a verdict downstream. */
+export function fetchIssueStates(): ReadonlyMap<number, BoardIssueRow> {
+  const rows = new Map<number, BoardIssueRow>();
+  const seenCursors = new Set<string>();
   let cursor: string | undefined;
   do {
     const base = { owner: PROJECT_OWNER, repo: REPO_NAME };
     const variables: GraphqlVariables = cursor === undefined ? base : { ...base, cursor };
-    const page = graphql<{
-      readonly repository?: {
-        readonly issues: {
-          readonly pageInfo: { readonly hasNextPage: boolean; readonly endCursor: string | null };
-          readonly nodes: readonly { readonly number: number; readonly state: "OPEN" | "CLOSED" }[];
-        };
-      } | null;
-    }>(ISSUE_STATES_QUERY, variables).repository?.issues;
-    if (page === undefined) {
-      throw new Error(`Could not resolve the issues of ${REPOSITORY}`);
+    const page = issueStatesPage(graphql<unknown>(ISSUE_STATES_QUERY, variables));
+    for (const [index, node] of page.nodes.entries()) {
+      const row = boardIssueRow(node, index);
+      if (rows.has(row.number)) {
+        throw new Error(
+          `${REPOSITORY} issue-state walk returned #${String(row.number)} TWICE — the pages do not describe one coherent snapshot, so this is a read to distrust, not a board`,
+        );
+      }
+      rows.set(row.number, row);
     }
-    for (const node of page.nodes) {
-      states.set(node.number, node.state);
+    cursor = page.nextCursor;
+    if (cursor !== undefined) {
+      if (seenCursors.has(cursor)) {
+        throw new Error(`${REPOSITORY} issue-state walk was handed the cursor it already followed — a malformed response, not a page`);
+      }
+      seenCursors.add(cursor);
     }
-    cursor = page.pageInfo.hasNextPage && typeof page.pageInfo.endCursor === "string" ? page.pageInfo.endCursor : undefined;
   } while (cursor !== undefined);
-  if (states.size === 0) {
+  if (rows.size === 0) {
     throw new Error(`${REPOSITORY} reported ZERO issues — an empty state map answers every citation "unknown", which is not a verdict`);
   }
-  return states;
+  if (![...rows.values()].some((row) => row.onBoard)) {
+    throw new Error(
+      `${REPOSITORY} reported ${String(rows.size)} issue(s) and NOT ONE is an item of Project ${String(PROJECT_NUMBER)} — the membership selection answered nothing, so every citation would read as off-board`,
+    );
+  }
+  return rows;
 }
