@@ -189,6 +189,52 @@ export const gate = defineGate({
       expect: { count: 2, token: "config[0].ignores[5]", messageIncludes: "no longer names the same zero-member selector" },
       why: "the RATIFIED value and the config's value DISAGREE — the coupled site #2213 left behind, pinned so a future re-point of eslint.config.js cannot strand this row silently again",
     },
+    {
+      // THE #2302 POSITIONAL RE-POINTING ARM (2026-09-13). `RATIFIED` is keyed by POSITIONAL INDEX
+      // (`config[0].ignores[N]`), never by the selector's own value, so an `ignores` entry inserted ABOVE
+      // index 5 shifts every key beneath it to a DIFFERENT selector — the keys still resolve, they just name
+      // the wrong thing. This fixture inserts one new zero-member entry at index 0; every one of the eight
+      // RATIFIED rows below it now names the selector that used to sit one position earlier. RED-FIRST
+      // receipt (docs/reviews/gate-runtime/x-eslint-grant-pin-2026-09-13.md): before this row existed,
+      // `verifyPolicyProofs([gate])` returned `[]` for the UNMODIFIED gate — the harness only drives the
+      // rows a module declares, so it was structurally blind to this fixture until it was written as a row.
+      mode: "resource",
+      files: {
+        [CONFIG_REL]:
+          'export default [{ ignores: ["__probe_index0_insert/**", "**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
+        "reports/README.md": "reports\n",
+        ".gitignore": "node_modules/\ndist/\n",
+        [GATE_FIXTURE_LAW]: "fixture law\n",
+        "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
+        "packages/ui/src/live.ts": "export const live = 1;\n",
+      },
+      // 15, not 8 or 9: six of the eight RATIFIED keys land on ANOTHER zero-member selector (a dead-selector
+      // MESSAGE plus a STALE MSG_STALE, 2 each = 12), one lands on the now-live `reports/**` selector shifted
+      // into a RATIFIED slot (STALE only, members != 0 = 1), and the two unratified positions this shift
+      // creates — the true `**/dist/**` now sitting at an unratified index, and the tail entry pushed past the
+      // roster — report as ordinary dead selectors (1 each = 2). 12 + 1 + 2 = 15, the exact real-tree count
+      // this row was filed against (#2302).
+      expect: { count: 15, token: "config[0].ignores[1]", messageIncludes: "no longer names the same zero-member selector" },
+      why: "an index-0 insert re-points every RATIFIED row beneath it — this is the hazard itself, not a coupled-site symptom of it",
+    },
+    {
+      // THE CONTROL FOR THE CONTROL: an APPEND at the array's END re-points NOTHING, because every existing
+      // RATIFIED index keeps its own value. Only the appended row itself is new and unratified, so it reports
+      // its own ordinary dead-selector finding and nothing else. This discriminates the re-pointing arm above
+      // from "any edit to eslint.config.js finds something" — a mere append is safe by construction.
+      mode: "resource",
+      files: {
+        [CONFIG_REL]:
+          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**", "__probe_append_end/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
+        "reports/README.md": "reports\n",
+        ".gitignore": "node_modules/\ndist/\n",
+        [GATE_FIXTURE_LAW]: "fixture law\n",
+        "tooling/src/_shared/stryker-config.ts": "export const live = 1;\n",
+        "packages/ui/src/live.ts": "export const live = 1;\n",
+      },
+      expect: { count: 1, token: "config[0].ignores[8]", messageIncludes: "ZERO members in its native scope" },
+      why: "an append at the array's end never re-points a RATIFIED key — only the appended row's own dead-selector finding appears",
+    },
   ],
   mustPass: [
     {
