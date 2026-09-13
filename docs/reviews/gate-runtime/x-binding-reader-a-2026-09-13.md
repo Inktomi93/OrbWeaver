@@ -113,7 +113,8 @@ no `git stash`/`checkout`/`restore` anywhere in this lane.
 
 - **Red-first:** the local `lexicalReferenceSymbol(callee)?.getDeclarations()` fallback deleted →
   **mustPass\[1] RED** (the module-local factory idiom `shrink-0${widthClass(true)}` through a same-file
-  `function`). Restored → 0 failures. Wired → 0 failures across 5 `mustFlag` + 12 `mustPass`.
+  `function`). Restored → 0 failures. Wired → 0 failures across 5 `mustFlag` + 12 `mustPass` (**6 + 13**
+  after the 2026-09-13 delta repair below).
 - **Indexed returns are untouched:** only a `FunctionDeclaration` yields a value set, and the shared
   verdict returns the SAME ts-morph node the ReturnStatement ancestor walk indexes, so
   `state.returns.get(declaration)` still hits. The `entire-population` reason and the cross-file return
@@ -124,6 +125,26 @@ no `git stash`/`checkout`/`restore` anywhere in this lane.
   module's own header already celebrates for `resolveStableExpression`'s write refusal (`mustFlag[4]`),
   and both make the policy stricter, never more permissive — the only safe direction for a policy whose
   unresolvable arm is UNSAFE.
+
+  **CORRECTED — LANDED 2026-09-13 (`5c73621ea`), REFUTED the same day by `cb-v-callable-reader` and
+  repaired here.** The direction claim in the paragraph above is WRONG for the overload half, and the
+  mechanism is the one this module's own doc states two lines up: an unresolvable segment IS the report
+  verdict (`Segment = undefined` → `startsSafe` false → the junction reads as spliced), so **resolving
+  MORE makes this policy report LESS**. Measured on the reviewer's fixture and reproduced here inside the
+  production proof runner:
+
+  - the OVERLOAD delta is **PERMISSIVE** — an overloaded module-local `widthClass` returning
+    `" w-avatar-hero"` inside `` `shrink-0${widthClass(true)}` `` gives **1 finding pre-stack, 0 on the
+    stack**. More ACCURATE (the dropped finding was a false positive on a factory whose returns genuinely
+    lead with a space) but permissive, which is a different claim;
+  - only the REASSIGNED-CALLEE delta is **stricter** (0 pre-stack, 1 on the stack).
+
+  Deviation 3 below used the incorrect direction claim as its reason for giving neither delta a row. Both
+  now have one, and both discriminate: `mustPass[12]` is the overload fixture (cardinality **0**, and 1
+  before the migration), `mustFlag[5]` is the reassigned-callee twin (cardinality **1**, and 0 before).
+  Receipt: restore the pre-#2163 two-half `calleeDeclaration` (`cp`-backed, one command per call) and run
+  `verifyPolicyProofs` → **exactly 2 failures, `mustFlag[5]` and `mustPass[12]`**, nothing else in the 18
+  rows moves; restored → 0 failures, `git status --short` empty.
 
 ### 2.3 `plugin-dump-guard` — PRESERVED: the membrane canonical-guard identity
 
@@ -202,6 +223,14 @@ judged GUARDED. That is the liveness half a clean zero cannot give.
    strictly stricter; neither is covered by an existing row, and neither is invented as a row here because
    inventing fixtures for a shape the corpus does not contain would be padding — the reader's own pins
    (`overload set`, `reassigned binding`) hold the semantics at their one home.
+
+   **CORRECTED — LANDED 2026-09-13 (`5c73621ea`), REPAIRED the same day.** Both halves of that sentence
+   were wrong. The overload delta is PERMISSIVE, not stricter (§2.2's correction), and "the corpus does
+   not contain the shape" was never the test — a permissive change in an `ordinary/error` policy whose
+   catch is invisible rendered geometry owes a §4.1 row whatever the corpus holds, and the reader's own
+   pins prove the READER's semantics, not this policy's verdict. Both deltas now carry a row in this
+   module (`mustPass[12]`, `mustFlag[5]`), each proven to discriminate its own delta through
+   `verifyPolicyProofs`. Found by `cb-v-callable-reader`; the row is the reviewer's own counterexample.
 4. **`TS-MORPH-CAPABILITIES.md` limit 2 was edited.** It PRESCRIBED the deleted fallback in so many words
    ("the fallback is the shared `lexicalReferenceSymbol(identifier).getDeclarations()`"), which is now a
    `policy-binding-resolution` finding inside a gate module. Leaving it would have taught the next lane to
@@ -217,6 +246,15 @@ No new instrument defect was MEASURED by this lane. The one candidate — "cutti
 same commit (`mustFlag[8]`), not a standing instrument lie, and the guide already names the class.
 
 ledger rows OWED: 0
+
+**Existing-row update owed at integration (2026-09-13, added with the delta repair):**
+`cb-v-callable-reader`'s LEDGER ROW 2 — *"`class-token-splice` … the OVERLOAD delta is PERMISSIVE …
+neither delta carries a proof row"* — is **FIXED by this branch**, not merely acknowledged: the direction
+claim is corrected in the module header and in §2.2/deviation 3 above, and both deltas now carry a
+discriminating row. Its sibling ROW 1 (the shared reader's module-axis raw accept / write-refusal gap,
+`reference-fact-call.ts:196-206`) stays **OPEN** and is explicitly OUTSIDE this lane's fence — it is
+codex-owned under #2163, and none of the three current adopters reads `body` across a file, so it is
+latent rather than live.
 
 ## Proposed lessons (report text — the orchestrator owns any memory write)
 
