@@ -776,9 +776,14 @@ const ARM3_ALLOW: ExemptionTable = {
   },
   "@orb/ui/MessageMedia": { why: CERD_WHY },
   "@orb/tokens": { why: CERD_WHY },
-  "domain/hub": { why: CERD_WHY },
   // "domain/roster-preset" removed 2026-08-28 (#26) — the domain now EXISTS on the tree, so the phantom
   // resolved and the gate's own stale arm demanded the row's deletion (two-sided exemptions).
+  // "domain/hub" removed 2026-09-13 (#2068) — same shape, opposite cause: the domain is still purged, but
+  // the LAST phantom-shaped mention of it went with the #2068 repairs, so the row stopped matching anything
+  // and the stale arm demanded its deletion. Surfaced at the MERGE SEAM, not in the lane: the lane measured
+  // dangling-refs 30 → 0 on its own tree, and the same gate read 1 on the merged tree, because both corpora
+  // are DERIVED from docs/catalog/catalog.json and that lane's own final commit (the #2071 proposal doc plus
+  // its catalog receipt) changed the corpus membership underneath its earlier measurement.
   "infra/network/hubs/": { why: CERD_WHY },
   "domain/buddy": { why: CERD_WHY },
   "transport/trpc/buddy-bus.ts": { why: CERD_WHY },
