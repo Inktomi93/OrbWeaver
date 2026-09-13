@@ -1071,13 +1071,14 @@ Current adjudication: the second independent lens confirms the two ordinary poli
 | WB-EVIDENCE-1 | workboard help / CLI test | Help and its assertion described the measured UTF-8 byte cap as characters. | other (operator guidance) | **CLOSED** — `197ccce1c` | Independent warm review confirmed; integrated workboard floor 73/73 at main-2510712-2026-09-13T13-16-05-269Z, all eleven native programs and scoped lint/docs passed. |
 | WB-EVIDENCE-2 | orchestrator-runbook | The skill prescribed the superseded #1920 workaround after the byte-budget fix. | other (operator guidance) | **CLOSED** — `197ccce1c` | Dated correction preserves the earlier failure and states the measured split behavior; independent warm review and integrated docs check passed. |
 
-### Replay continuation repairs — #2319 ([`v-2319-continuation-review-2026-09-13.md`](v-2319-continuation-review-2026-09-13.md)); 3 rows
+### Replay continuation repairs — #2319 ([`v-2319-continuation-review-2026-09-13.md`](v-2319-continuation-review-2026-09-13.md)); 4 rows
 
 | id | module | defect | class | state | receipt |
 | - | - | - | - | - | - |
 | V-2319-C1 | registry-definitions-legacy-replay.test.ts | Broad regex accepted any unclassified reason despite the exact-name claim. | other (proof blind spot) | **CLOSED** — `b6d116e6b` | Exact unclassified label asserted; independent warm review confirmed and integrated seven-importer floor passed 50/50 at main-2520958-2026-09-13T13-17-05-683Z. |
 | V-2319-C2 | x-legacy-replay-2026-09-13.md | Recipe required prepend while the working twin also repointed existing imports. | other (stale procedure) | **CLOSED** — `b6d116e6b` | Recipe distinguishes both operations; independent review confirmed report consistency. |
 | V-2319-C3 | modal opener replay | An unresolved dependency impersonated a stronger-reader differential. | other (fixture artifact) | **CLOSED** — `b6d116e6b` | Completed dependency proves zero to zero, preserving old bytes and the original eleven findings; independent review and integrated 50-test importer floor confirmed. |
+| V-2319-S1 | route sibling replay control | Synthetic chat grant copied app-shell rationale despite licensing a different operation. | other (authority metadata) | **CLOSED** — `dc68f3f75` (#2319) | The fixture grant now names its chat-only purpose and end condition without claiming a live permission. Independent immutable review confirmed the exact grant identities and two-door control; integrated seven-importer floor passed 59/59 at main-2726726-2026-09-13T13-56-03-384Z, with lint, docs and all eleven native programs passing. |
 
 ### Replay exact-arm repair — #2338 ([`v-2319-integration-review-2026-09-13.md`](v-2319-integration-review-2026-09-13.md)); 1 row
 
@@ -1129,8 +1130,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 16 | 1 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 328 | 265 | 44 | 1 | 2 | 1 | 0 | 15 |
-| **TOTAL** | 524 | 437 | 57 | 6 | 3 | 1 | 0 | 20 |
+| **other** | 329 | 266 | 44 | 1 | 2 | 1 | 0 | 15 |
+| **TOTAL** | 525 | 438 | 57 | 6 | 3 | 1 | 0 | 20 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 
