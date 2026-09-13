@@ -552,3 +552,125 @@ test("the grant's operation is a CONSTANT, so an ALIASED mint in the granted sub
   expect(aliased.authority.reviewedGrantConsumption).toEqual([{ id: ANCHOR_GRANT.id, count: 1 }]);
   expect(aliased.authority.authorityAlarms).toEqual([]);
 });
+
+// ---------------------------------------------------------------------------------------------------
+// THE §4.5 REFUSAL PINS for the two registry consumers that had none (#2327, the
+// `policy-refusal-coverage` warning debt): `home-tile-registry-completeness` and
+// `modal-body-not-placeholder`. Both derive their whole denominator from a per-kind
+// `registryDefinitionFacts` provider, and until now nothing drove either through the dispatcher — the
+// family's existing pins cover `section-factory-contribution-bundle`, `modal-registry-completeness`,
+// `placeholder-copy-registry` and `config-group-completeness`, and a pin binds to the module it DRIVES.
+//
+// WHERE THE REFUSAL LIVES, and it is not where the resource consumers' is. A registry fact publishes no
+// status union: since #1962 the provider receipts the sources it WALKED and always succeeds, so the
+// blindness door is the CONSUMER's own `members: view.definitions.length` receipt — a receipt-phase tool
+// error ("resolved zero members"), the owner withheld, no finding. That is one status with TWO causes,
+// and this pair pins both because the policy cannot tell them apart and must not try: the registry TYPE
+// renamed out from under the reader, and a corpus that honestly authors no definition. A verdict over
+// zero definitions would be a clean pass over an empty denominator either way.
+// ---------------------------------------------------------------------------------------------------
+
+const TILE_TYPE_HOME = "packages/client/src/state/home-tile-contracts.ts";
+const TILE_TYPE = "export interface HomeTileContribution { readonly id: string }\n";
+const CO_LOCATED_TILE = {
+  "packages/client/src/features/x/lib/x-tile.tsx":
+    'import type { HomeTileContribution } from "../../../state/home-tile-contracts.ts";\nexport const xTile: HomeTileContribution = { id: "x", body: () => null };\n',
+} as const;
+
+test("home-tile-registry-completeness: a RENAMED HomeTileContribution withholds the verdict instead of sweeping an empty corpus", () => {
+  const renamed = passOf(homeTileRegistryCompleteness, {
+    [TILE_TYPE_HOME]: "export interface HomeTileContract { readonly id: string }\n",
+    ...CO_LOCATED_TILE,
+  });
+
+  expect(renamed.factErrors).toEqual([]);
+  expect(renamed.toolErrors).toMatchObject([
+    { policyId: "home-tile-registry-completeness", phase: "receipt", message: expect.stringContaining("resolved zero members") },
+  ]);
+  expect(renamed.authority.withheldPolicyIds).toEqual(["home-tile-registry-completeness"]);
+  expect(renamed.authority.effectiveFindings).toEqual([]);
+});
+
+test("home-tile-registry-completeness: a corpus that authors NO tile refuses on the same door — the second cause of one status", () => {
+  const none = passOf(homeTileRegistryCompleteness, { [TILE_TYPE_HOME]: TILE_TYPE });
+
+  expect(none.toolErrors).toMatchObject([{ policyId: "home-tile-registry-completeness", phase: "receipt" }]);
+  expect(none.authority.withheldPolicyIds).toEqual(["home-tile-registry-completeness"]);
+  expect(none.authority.effectiveFindings).toEqual([]);
+});
+
+test("home-tile-registry-completeness: the healthy twin reaches a verdict and receipts the census it judged", () => {
+  const present = passOf(homeTileRegistryCompleteness, { [TILE_TYPE_HOME]: TILE_TYPE, ...CO_LOCATED_TILE });
+
+  expect(present.toolErrors).toEqual([]);
+  expect(present.authority.withheldPolicyIds).toEqual([]);
+  expect(present.authority.effectiveFindings).toEqual([]);
+  expect(present.policies.map(({ receipts }) => receipts)).toEqual([[{ kind: "population", source: "HomeTileContribution", members: 1, unresolved: 0 }]]);
+});
+
+test("home-tile-registry-completeness: the twin's silence is a READ — the same tile outside a *-tile file accuses", () => {
+  // The control for the control: one definition either way, so the receipt is unchanged and only the
+  // verdict moves. Without it the clean twin above could be green because nothing was ever judged.
+  const stray = passOf(homeTileRegistryCompleteness, {
+    [TILE_TYPE_HOME]: TILE_TYPE,
+    "packages/client/src/features/x/lib/not-a-tile-file.ts":
+      'import type { HomeTileContribution } from "../../../state/home-tile-contracts.ts";\nexport const strayTile: HomeTileContribution = { id: "x", body: () => null };\n',
+  });
+
+  expect(stray.toolErrors).toEqual([]);
+  expect(stray.authority.effectiveFindings).toMatchObject([{ policyId: "home-tile-registry-completeness", token: "strayTile" }]);
+});
+
+const MODAL_TYPE_HOME = "packages/client/src/state/modal-registry.ts";
+const MODAL_TYPE = "export interface ModalDefinition { readonly id: string }\n";
+const MODAL_PLACEHOLDER = {
+  "packages/client/src/features/app-shell/components/section-placeholder.tsx": "export function SectionPlaceholder(): null {\n  return null;\n}\n",
+} as const;
+const REAL_MODAL = {
+  "packages/client/src/features/settings/lib/theme-modal.tsx":
+    'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const themeModal: ModalDefinition = { id: "theme", body: () => null };\n',
+} as const;
+
+test("modal-body-not-placeholder: a RENAMED ModalDefinition withholds instead of finding no placeholder bodies", () => {
+  const renamed = passOf(modalBodyNotPlaceholder, {
+    [MODAL_TYPE_HOME]: "export interface ModalContribution { readonly id: string }\n",
+    ...MODAL_PLACEHOLDER,
+    ...REAL_MODAL,
+  });
+
+  expect(renamed.factErrors).toEqual([]);
+  expect(renamed.toolErrors).toMatchObject([
+    { policyId: "modal-body-not-placeholder", phase: "receipt", message: expect.stringContaining("resolved zero members") },
+  ]);
+  expect(renamed.authority.withheldPolicyIds).toEqual(["modal-body-not-placeholder"]);
+  expect(renamed.authority.effectiveFindings).toEqual([]);
+});
+
+test("modal-body-not-placeholder: a corpus that registers NO modal refuses on the same door", () => {
+  const none = passOf(modalBodyNotPlaceholder, { [MODAL_TYPE_HOME]: MODAL_TYPE, ...MODAL_PLACEHOLDER });
+
+  expect(none.toolErrors).toMatchObject([{ policyId: "modal-body-not-placeholder", phase: "receipt" }]);
+  expect(none.authority.withheldPolicyIds).toEqual(["modal-body-not-placeholder"]);
+  expect(none.authority.effectiveFindings).toEqual([]);
+});
+
+test("modal-body-not-placeholder: the healthy twin reaches a verdict and receipts the census it judged", () => {
+  const present = passOf(modalBodyNotPlaceholder, { [MODAL_TYPE_HOME]: MODAL_TYPE, ...MODAL_PLACEHOLDER, ...REAL_MODAL });
+
+  expect(present.toolErrors).toEqual([]);
+  expect(present.authority.withheldPolicyIds).toEqual([]);
+  expect(present.authority.effectiveFindings).toEqual([]);
+  expect(present.policies.map(({ receipts }) => receipts)).toEqual([[{ kind: "population", source: "ModalDefinition", members: 1, unresolved: 0 }]]);
+});
+
+test("modal-body-not-placeholder: the twin's silence is a READ — the same modal rendering the placeholder accuses", () => {
+  const placeholder = passOf(modalBodyNotPlaceholder, {
+    [MODAL_TYPE_HOME]: MODAL_TYPE,
+    ...MODAL_PLACEHOLDER,
+    "packages/client/src/features/settings/lib/theme-modal.tsx":
+      'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nimport { SectionPlaceholder } from "../../app-shell/components/section-placeholder.tsx";\nexport const themeModal: ModalDefinition = { id: "theme", body: () => <SectionPlaceholder /> };\n',
+  });
+
+  expect(placeholder.toolErrors).toEqual([]);
+  expect(placeholder.authority.effectiveFindings).toMatchObject([{ policyId: "modal-body-not-placeholder", token: "themeModal" }]);
+});
