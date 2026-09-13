@@ -8,7 +8,10 @@ updated: 2026-09-13
 
 Lane `cb-x-grant-proof`. CHECKPOINT: the core landed and the census is complete; adoption beyond the one
 exemplar and the flip to mandatory enforcement are the next owner's, per the 10:05Z owner change that
-consolidates enforcement work on one Codex lane.
+consolidates enforcement work on one Codex lane. **LANDED 2026-09-13 (`b29dc50ab`)** — both did: the flip is
+DONE (the gating constant and its conditional are deleted, the witness rule is unconditional at every loading
+door) and adoption is **45/45 witnessed**. The four sentences this document states in the checkpoint's tense
+are annotated in place below; every measured fact is kept as taken.
 
 ## 1. The defect, measured before anything was built
 
@@ -34,7 +37,9 @@ identity no central row can ever consume and every check stayed green.
 - `REVIEWED_GRANT_WITNESS_REQUIRED: boolean = false` — the gate on the GLOBAL obligation only. Typed
   `boolean` rather than the literal so the guarded call stays live code. **The flip commit DELETES this
   constant and makes the call unconditional**; a `= true` left standing would be the backward-compatibility
-  toggle this program forbids.
+  toggle this program forbids. **LANDED 2026-09-13 (`b29dc50ab`)** — deleted, with its conditional; the call
+  is unconditional. This bullet is the LAST repo-wide occurrence of that identifier and it is HISTORY, not a
+  live contract constant: a grep landing here has found the record of a deleted toggle, never a live gate.
 
 ### Validator rules (`tooling/src/verify/lib/policy-validation.ts#assertProofGrant`), with their exact text
 
@@ -44,6 +49,11 @@ identity no central row can ever consume and every check stayed green.
 | `hard` / `ordinary` policy | `<label>.grant is valid only for a reviewed-grant policy, and descriptor.authority is "<authority>", which has no grant door` |
 | unknown key inside `grant` | `<label>.grant has unknown property "<key>"` (shared `exactKeys`) |
 | blank / control-bearing value | `<label>.grant.<subject\|operation> must be a nonempty control-free string` |
+
+**REPAIRED 2026-09-13 (lane `cb-x-p7-ownprop`, integrator's sha pending)** — every rule in that table fires on
+OWN-PROPERTY PRESENCE, not on a defined value. As shipped in `b29dc50ab` the guard was `proof["grant"] ===
+undefined`, so an own `grant: undefined` on a `mustPass`/`mustRefuse` row was ADMITTED at all five loading
+doors while `grant: {…}` was refused by name. See §9.
 
 `assertProof` now takes a `ProofRowContext { arm, authority }` instead of a positional
 `allowExpectation: boolean` (biome caps functions at four parameters, and two rules now key off the arm).
@@ -248,28 +258,131 @@ signal at all: `css-family-direct-client-mechanism`, `package-layout`, `seed-the
   consumed"; this proves the emitted identity can reach the door.
 - It does not judge whether a grant is a good decision — `why` / `endsWhen` and owner review own that.
 - The GLOBAL obligation is gated OFF. 44 of 45 reviewed-grant policies carry no witness today.
+  **LANDED 2026-09-13 (`b29dc50ab`)** — the obligation is UNCONDITIONAL and adoption is **45 of 45**, every
+  one carrying exactly one witness. Re-derived on this stack through `loadMixedGateCorpus`: 309 modules · 267
+  final · 42 legacy · 0 unregistered; authorities `hard 96 · ordinary 126 · reviewed-grant 45`; 45 witnesses
+  across 45 policies.
 - Not run: `pnpm check:policy-conformance` whole (publishes a pointer; the brief required a GO that the
   checkpoint pre-empted) and `policy-soundness-family.repo.int.test.ts` (no meta-policy vocabulary changed,
-  and it is parser-heavy). Both are owed before the flip.
+  and it is parser-heavy). Both are owed before the flip. **LANDED 2026-09-13 (`b29dc50ab`)** —
+  `pnpm check:policy-conformance` was driven ONCE by the independent P7 security review (lane
+  `cb-sec-p7-review`, its own worktree) and exits **0**: 267 final policies · 3229 proof rows · 30 refusal
+  rows · **45 identity-proof rows** as its own segment · 0 failures · 218 grant rows · 0 invalid.
+  `policy-soundness-family.repo.int.test.ts` remains NOT RUN and stays owed to the orchestrator's train.
 - Owed LAW DELTA, not landed here (the guide is a multi-lane file and law deltas are the orchestrator's):
   `docs/design/gate-runtime-standardization.md` §12.1's hand-restated descriptor block and its "THE FIELD
   VOCABULARY IS DATA" paragraph do not mention `grant` / `POLICY_PROOF_GRANT_KEYS`, and §4 item 3 still
-  says the §4.3 identity arm lives "beside the family" only.
+  says the §4.3 identity arm lives "beside the family" only. **STILL OPEN 2026-09-13** — re-derived on this
+  stack: the guide is unchanged, and the independent P7 review adds that its §4.3 sentence ("a reviewed-grant
+  policy cannot prove grant consumption in a module row at all") is now FALSE law, which a cold conversion
+  lane would read as licence to skip the witness the loader requires. Orchestrator's, WITH integration.
 
-## LEDGER ROWS (2 rows)
+## 9. Own-property correction (cb-x-p7-ownprop)
 
-- **L1 — `bus-payload-allowlist` `mustPass[1]` and `mustPass[8]` are RED under the conformance runner, on
-  `HEAD`, before this lane.** Driven 2026-09-13: `verifyPolicyProofs([gate])` over the module at
-  `bc6036ba1` returns two failures, both `PASS TOOL ERROR [receipt] policy receipt refused: population
-  "bus-payload-allowlist" resolved zero members`. Both fixtures legitimately scan zero bus fields
-  (`mustPass[1]` is the "MessageView is not a bus-union declaration name" row, `mustPass[8]` the "non-bus
-  contract file declares no bus root" row), and the policy receipts `members: fact.fields.length`, which is
-  0 — the dispatcher refuses a receipt that resolved zero members. Confirmed pre-existing by an uncut
-  control against `git show HEAD:` of the module. NOT this lane's, NOT verified against the whole
-  `check:policy-conformance` run (which this lane was not cleared to run); the settling command is
-  `pnpm check:policy-conformance` on main.
-- **L2 — the "48 reviewed-grant policies" figure carried by the #2189 board row and by the P7 brief is a
-  grep artifact; the loader says 45.** Receipts in §7. Any adoption plan priced at 48 is priced at three
-  modules that cannot carry a witness.
+Lane `cb-x-p7-ownprop`, on top of `b29dc50ab`. It repairs L3 of the independent P7 security review (lane
+`cb-sec-p7-review`): the validator held TWO notions of "the author declared this key". `exactKeys`, the Q05
+`mustRefuse` expectation rule, the optional-arm rule and the `workItem` rule all read OWN-PROPERTY PRESENCE;
+five other rules read the VALUE. So an own `grant: undefined` on a `mustPass`/`mustRefuse` row — the arms the
+witness rule exists to refuse — was ADMITTED, while `grant: { subject, operation }` on the same row was
+refused by name. Not reachable from a typed descriptor (`tsconfig.base.json` sets
+`exactOptionalPropertyTypes`), reachable through the `as never` / `as GatePolicy` cast every hand-built
+descriptor and fixture uses. No suppression consequence at any point: an `undefined` witness binds nothing,
+`reviewedGrantWitnessFailure` never counted it, and the corpus carries no such key.
 
-ledger rows OWED: 2
+### 9.1 Lines changed — all in `tooling/src/verify/lib/policy-validation.ts`
+
+Own-key presence is spelled `Object.hasOwn`, which is this file's EXISTING spelling for the notion (`:157`
+links-vs-files, `:178` the Q05 expectation keys, `:367` resource ids, `:483` `workItem`, `:528` the optional
+arm). No new helper, no third spelling.
+
+| site (pre-fix line) | rule | before | after |
+| - | - | - | - |
+| `assertProofGrant` `:202` | the witness's arm + authority gate — the row L3 names | `proof["grant"] === undefined` | `!Object.hasOwn(proof, "grant")` |
+| `assertProof` `:260` | `expect` is mustFlag-only | `proof["expect"] !== undefined` | `Object.hasOwn(proof, "expect")` |
+| `assertProofLinks` `:143` | `links` is resource-mode only | `proof["links"] === undefined` | `!Object.hasOwn(proof, "links")` |
+| `assertExpectation` `:120` `:123` | `count` / `line` are positive integers | `expectation["count"] !== undefined` | `Object.hasOwn(expectation, "count")` |
+| `assertExpectation` `:127` | `token` / `messageIncludes` / `countFrom` are nonblank | `expectation[key] !== undefined` | `Object.hasOwn(expectation, key)` |
+| `assertExpectation` `:133` | `count` and `countFrom` are mutually exclusive (#2001) | both `!== undefined` | both `Object.hasOwn` |
+| `assertGatePolicyDescriptor` `:514` | `fix` is a nonblank string when present | `policy["fix"] !== undefined` | `Object.hasOwn(policy, "fix")` |
+
+Two sites were audited and deliberately LEFT reading the value, each with the reason in a comment: `:254`
+(`mustRefuse` REQUIRES `expect` — an own `expect: undefined` is a missing expectation either way, and the
+value test keeps the message that names the omission) and `assertGatePolicyHooks` / `assertOptionalHook`,
+which judge a `create` RESULT at runtime rather than an authored annotation, and where both readings already
+refuse. `:133` is now unreachable by an undefined `count` because `:120` refuses it first — the change there
+is one spelling for one notion, not a behaviour change, and no control claims otherwise.
+
+### 9.2 Controls — red-first against the unmodified validator, at all FIVE production doors
+
+Driven from the session scratchpad against PRODUCTION functions, one subject per column, with the review's
+witnessless control re-driven in the same invocation to prove nothing regressed.
+
+| door | witnessed (control) | own `grant: undefined` on `mustPass` — BEFORE | the same — AFTER | witnessless, before and after |
+| - | - | - | - | - |
+| `assertGatePolicyDescriptor` | admitted, both | **ADMITTED** | THROWS `mustPass[0].grant is valid only for a mustFlag proof` | THROWS `…carries no grant identity witness…` |
+| `runPolicyPass` | ran, both | **ADMITTED** | THROWS, same text | THROWS, same text |
+| `planPolicyCommand` | `ok:true`, both | **`ok:true`** | `ok:false exit=2`, same text | `ok:false exit=2`, same text |
+| `verifyPolicyProofs` | 1 fixture failure, both | **ADMITTED** | THROWS, same text | THROWS, same text |
+| `loadMixedGateCorpus` | `final=1`, both | **`final=1`** | THROWS naming the module path | THROWS naming the module path |
+
+The witnessed column is identical before and after at every door (its single failure is the stub fixture's
+own `mustFlag` row, which reports nothing — unchanged by this lane). The committed arms are in
+`tests/tooling/verify/lib/policy-loader.test.ts`, two tests, both RED on the unmodified validator (24 passed
+/ 2 failed) and green after:
+
+| arm | expected | pre-fix |
+| - | - | - |
+| own `grant: undefined` on `mustPass` / on `mustRefuse` | refused, forbidden-arm message | ADMITTED |
+| own `grant: undefined` on `mustFlag` of a `hard` / `ordinary` policy | refused, naming the authority | ADMITTED |
+| own `grant: undefined` on `mustFlag` of a reviewed-grant policy | refused `grant must be an object`; NEVER a witness | refused, but by the witness rule |
+| the same beside a REAL witness on another row | refused `mustFlag[1].grant must be an object` | ADMITTED |
+| grant legitimately ABSENT on `mustPass` / `mustRefuse` | admitted | admitted |
+| own `expect: undefined` on `mustPass`; on `mustFlag` | refused mustFlag-only; refused `must be an object` | ADMITTED |
+| own `links: undefined` on a source-mode row | refused resource-mode-only | ADMITTED |
+| own `count` / `line` / `token` / `countFrom` / `messageIncludes` `: undefined` | refused per key by its value rule | ADMITTED |
+| own `fix: undefined` on the descriptor | refused nonblank | ADMITTED |
+| the trunk with those keys absent, and with real values | admitted | admitted |
+
+**An undefined grant is NOT a witness and must never count toward the at-least-one rule.** It never did —
+`reviewedGrantWitnessFailure` filters `proof.grant !== undefined` — and now the row cannot load at all, so
+the two halves of the rule can no longer disagree.
+
+**No real module is affected.** `loadMixedGateCorpus` over this stack, after the fix: 309 modules · 267 final
+· 42 legacy · 0 unregistered; `hard 96 · ordinary 126 · reviewed-grant 45`; 45 witnesses across 45 policies —
+the review's item-1 numbers, unchanged. A repo-wide sweep for an own-undefined spelling of any of these keys
+across `tooling/`, `tests/`, `scripts/` and `packages/*/src` returns only two prose comments and two
+unrelated ternaries (304 files call `defineGate(`, so the sweep had a population).
+
+### 9.3 Scope
+
+Zero bytes in the authority engine: `git diff --stat` restricted to `lib/gate-authority.ts`,
+`lib/gate-authority-validation.ts`, `lib/reviewed-grants.ts`, `lib/policy-pass.ts` and
+`ops/policy-conformance.ts` is EMPTY. The whole commit is two files —
+`tooling/src/verify/lib/policy-validation.ts` (+18/−9 — the 9 deletions are the 8 rewritten rule lines plus
+the JSDoc's old closing line; the 18 insertions are those 8 rules, the widened `assertProofGrant` contract
+comment, and the two deliberate-value notes) and `tests/tooling/verify/lib/policy-loader.test.ts` (+110/−0) —
+plus this document.
+
+Floor: `pnpm test:scoped` over `policy-loader.test.ts`, `ops/policy-conformance.test.ts`,
+`ops/policy-conformance-stage.int.test.ts`, `lib/gate-authority.test.ts`, `lib/policy-pass.test.ts` — **5
+files / 132 tests, exit 0**; `pnpm exec biome check` and `pnpm exec eslint` over the two touched files, exit
+0 each; `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` — 11 discovered, 2 runnable,
+both PASS; `pnpm check:docs` on this file. NOT run and owed to the integrator: the whole
+`check:policy-conformance`, `check:structure`, any planter, `policy-soundness-family.repo.int.test.ts`.
+
+One editorial change beyond the annotations: the LEDGER ROWS section below was a bullet list, and
+`reportLedgerRows` (`tooling/src/verify/lib/gate-program-docs.ts`) reconciles a report against the refutation
+ledger by counting TABLE body rows under that heading — a bullet list counts as zero against a declared 2.
+It is now one table of three rows with a matching declared count, cell text preserved. Adding a SECOND
+`## LEDGER ROWS` heading instead would have been worse: that reader accumulates every matching heading into
+one count and takes `declared` from the last one that spells `(N rows)`.
+
+## LEDGER ROWS (3 rows)
+
+| row | subject | defect | state | receipt |
+| - | - | - | - | - |
+| L1 | `bus-payload-allowlist` `mustPass[1]` and `mustPass[8]` | Both rows are RED under the conformance runner on `HEAD`, before the P7 core lane. Driven 2026-09-13: `verifyPolicyProofs([gate])` over the module at `bc6036ba1` returns two failures, both `PASS TOOL ERROR [receipt] policy receipt refused: population "bus-payload-allowlist" resolved zero members`. Both fixtures legitimately scan zero bus fields (`mustPass[1]` is the "MessageView is not a bus-union declaration name" row, `mustPass[8]` the "non-bus contract file declares no bus root" row) and the policy receipts `members: fact.fields.length`, which is 0 — the dispatcher refuses a receipt that resolved zero members | **SETTLED (`b29dc50ab`)** | Confirmed pre-existing by an uncut control against `git show HEAD:` of the module; independently reproduced by the P7 security review, which replayed both fixture bodies through the shipped detector and got the same two refusals; repaired in `b29dc50ab`, after which the whole `check:policy-conformance` stage exits 0. Those two rows were TOOL-ERRORING on main `b1a23e534`, so this stack repairs a latent red main stage |
+| L2 | the "48 reviewed-grant policies" figure on the #2189 board row and in the P7 brief | A GREP artifact: `grep 'authority: "reviewed-grant"'` returns 48 files, three of which are prose or fixture text inside modules of another authority. The loader says 45, so an adoption plan priced at 48 is priced at three modules that cannot carry a witness | **CONFIRMED** | Receipts in §7; 45 again in the security review's `loadMixedGateCorpus` run and again in this lane's. Correcting the board row's figure is the orchestrator's |
+| L3 | `tooling/src/verify/lib/policy-validation.ts` | The validator held two notions of "declared": `assertProofGrant` gated on `proof["grant"] === undefined`, so an OWN `grant: undefined` on a `mustPass`/`mustRefuse` row was ADMITTED while `grant: {…}` was refused by name — and the same asymmetry sat at FOUR more sites the review's row did not reach (`links` outside resource mode, `expect` outside `mustFlag`, the five expectation value rules, and descriptor `fix`), so the row is a CLASS, not one line. Unreachable from a typed descriptor under `exactOptionalPropertyTypes`; reachable through the `as never` cast fixtures use. No suppression consequence — an undefined witness binds nothing and was never counted as one | **REPAIRED** (lane `cb-x-p7-ownprop`; integrator's sha pending) | §9 above: eight rule sites moved to `Object.hasOwn`, red-first at all five production doors (own `grant: undefined` on `mustPass` was admitted at every one of them before, refused at every one after), two committed arms in `tests/tooling/verify/lib/policy-loader.test.ts` red before and green after, zero engine bytes, and the 309-module corpus loads unchanged at 45/45 witnessed |
+
+ledger rows OWED: 0

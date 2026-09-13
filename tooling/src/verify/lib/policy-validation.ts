@@ -117,20 +117,20 @@ function expectedMode(analysis: GatePolicyAnalysis): GatePolicyProofMode {
 function assertExpectation(value: unknown, label: string): void {
   const expectation = record(value, label);
   exactKeys(expectation, EXPECT_KEYS, label);
-  if (expectation["count"] !== undefined && !(Number.isInteger(expectation["count"]) && (expectation["count"] as number) > 0)) {
+  if (Object.hasOwn(expectation, "count") && !(Number.isInteger(expectation["count"]) && (expectation["count"] as number) > 0)) {
     invalid(`${label}.count must be a positive integer`);
   }
-  if (expectation["line"] !== undefined && !(Number.isInteger(expectation["line"]) && (expectation["line"] as number) > 0)) {
+  if (Object.hasOwn(expectation, "line") && !(Number.isInteger(expectation["line"]) && (expectation["line"] as number) > 0)) {
     invalid(`${label}.line must be a positive integer`);
   }
   for (const key of ["token", "messageIncludes", "countFrom"] as const) {
-    if (expectation[key] !== undefined) {
+    if (Object.hasOwn(expectation, key)) {
       nonBlank(expectation[key], `${label}.${key}`);
     }
   }
   // A row declares its count EITHER as a literal OR as the registry constant that drives it, never both —
   // two answers to one question is the shape where the pair silently disagrees (#2001).
-  if (expectation["count"] !== undefined && expectation["countFrom"] !== undefined) {
+  if (Object.hasOwn(expectation, "count") && Object.hasOwn(expectation, "countFrom")) {
     invalid(`${label} declares both count and countFrom — a row names the literal or the constant driving it, not both`);
   }
 }
@@ -140,7 +140,7 @@ function assertExpectation(value: unknown, label: string): void {
  *  not collide with a declared file — the runtime would then have written one and linked the other, and the
  *  resulting proof would describe whichever won. */
 function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: string, files: Readonly<Record<string, unknown>>): void {
-  if (proof["links"] === undefined) {
+  if (!Object.hasOwn(proof, "links")) {
     return;
   }
   if (proof["mode"] !== "resource") {
@@ -197,9 +197,16 @@ function assertRefusalExpectation(value: unknown, label: string): void {
  *    not grants (`lib/gate-authority.ts#processPolicy` never routes either into `processReviewed`);
  *  - nonblank AUTHORED strings, because the runner mints its grant from THESE and a blank one would be refused
  *    by `isGateAuthorityIdentity` inside the run, turning an authoring mistake into a confusing grant tool error
- *    instead of a load refusal naming the row. */
+ *    instead of a load refusal naming the row.
+ *
+ *  DECLARED MEANS OWN-PROPERTY PRESENT, never "holds a defined value" (#2189 L3, sec-p7 review). Every other
+ *  admission rule in this file already reads presence — `exactKeys`, the mustRefuse expectation rule, the
+ *  optional-arm rule, `workItem` — and an own `grant: undefined` reaching this rule through the `as never` cast
+ *  hand-built descriptors use was silently ADMITTED on the forbidden arms while `grant: {…}` was refused by name.
+ *  It is not a witness either way (`reviewedGrantWitnessFailure` filters on a defined value), so refusing the
+ *  declaration is what makes the two halves of the rule say the same thing. */
 function assertProofGrant(proof: Readonly<Record<string, unknown>>, label: string, authority: GateAuthority, isMustFlagRow: boolean): void {
-  if (proof["grant"] === undefined) {
+  if (!Object.hasOwn(proof, "grant")) {
     return;
   }
   if (!isMustFlagRow) {
@@ -251,13 +258,15 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
   assertProofLinks(proof, label, files);
   assertProofGrant(proof, label, context.authority, context.arm === "mustFlag");
   if (context.arm === "mustRefuse") {
+    // The one REQUIREMENT rule here, so it reads the value rather than the key: an own `expect: undefined` is a
+    // missing expectation whichever way it is spelled, and this message names the omission the author made.
     if (proof["expect"] === undefined) {
       invalid(`${label}.expect.messageIncludes is required for a mustRefuse proof`);
     }
     assertRefusalExpectation(proof["expect"], `${label}.expect`);
     return;
   }
-  if (proof["expect"] !== undefined) {
+  if (Object.hasOwn(proof, "expect")) {
     if (context.arm !== "mustFlag") {
       invalid(`${label}.expect is valid only for mustFlag proofs`);
     }
@@ -511,7 +520,7 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
   assertFacts(policy["facts"], policy["execution"]);
   assertAnalysisResources(policy);
   nonBlank(policy["message"], "descriptor.message");
-  if (policy["fix"] !== undefined) {
+  if (Object.hasOwn(policy, "fix")) {
     nonBlank(policy["fix"], "descriptor.fix");
   }
   if (typeof policy["create"] !== "function") {
