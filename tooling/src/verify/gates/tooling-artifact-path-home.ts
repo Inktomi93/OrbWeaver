@@ -5,7 +5,7 @@
 // second answer to "where do runs live", outside the run-slot layout (#1029/#1164). Comment posture:
 // comment-SAFE (node kinds + a statically-read string).
 //
-// AUTHORITY IS reviewed-grant (guide §12.6, #1950 group 4): the legacy `HOMES` row for artifacts.ts is a
+// AUTHORITY IS reviewed-grant (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4): the legacy `HOMES` row for artifacts.ts is a
 // recurring repository PERMISSION — one exact row, `(artifacts.ts, reports-path-literal)`; the legacy stale
 // sweep is central grant liveness. FAMILY `tooling-artifact` — the shared reader is `lib/artifact-filing.ts`
 // (`reportsPathArgument` + `classifyPathCallee`), shared with `tooling-artifact-run-slot`, the other half of
@@ -125,7 +125,7 @@ export const gate = defineGate({
           'import { resolve } from "node:path";\nconst REPORTS = "reports";\nexport const d = resolve("/root", REPORTS, "snaps");\n',
       },
       expect: { count: 1, token: "REPORTS" },
-      why: "FLAG-MORE (guide §4.1 direction): the literal moved ONE LINE UP into a const is the same respell — the argument is read statically, where the legacy read only a bare StringLiteral argument. The reported position is the const as written in the call",
+      why: "FLAG-MORE (guide §6.1 direction): the literal moved ONE LINE UP into a const is the same respell — the argument is read statically, where the legacy read only a bare StringLiteral argument. The reported position is the const as written in the call",
     },
     {
       mode: "types",

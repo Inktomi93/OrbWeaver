@@ -38,10 +38,10 @@
 // committed ledger was absent or unparseable, which is the fail-open shape §4.6 exists to catch. The ledger is
 // now a DECLARED `json:baseui-manifest` resource, so `resolveResourceDeclarations` throws at the POPULATION
 // phase on missing/empty/unparseable and this policy is WITHHELD — exit 2, "this run is not a verdict", never
-// a green zero (`resource-policy-contract.md` §4). No proof row can express a refusal (guide §4.5b); the pins
-// are `runPolicyPass` drives in `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts`,
-// under "§4.5 — a broken ledger is a REFUSAL, never a finding and never a clean zero": the complete run
-// with its `unresolved: 0` receipt, plus a MISSING, an UNPARSEABLE and an EMPTY ledger, each asserting the
+// green zero (`resource-policy-contract.md` §4). The family `runPolicyPass` drives retain the complete
+// runtime outcome beyond refusal-text matching: missing, unparseable, and empty ledgers each produce a
+// population-phase tool error, leave the owner incomplete with zero effective findings, and withhold this
+// policy; the healthy twin pins the `json:baseui-manifest` receipt with `unresolved: 0` (proof law §6.3).
 // population-phase tool error, the `incomplete` owner and this policy in `withheldPolicyIds`. The path this
 // line carried until 2026-09-13 — `baseui-family.test.ts` — never existed (board #2297).
 //
@@ -51,7 +51,7 @@
 // THE AUTHORITY IS WHY IT CANNOT LIVE HERE, and the receipt is a measured failure rather than a preference —
 // the arm was authored on this policy first, and `check:policy-conformance` refused it with
 // `AUTHORITY ALARM [ordinary-waiver] ordinary finding …baseui-surface.manifest.json:1:1 has no nonempty
-// position token for waiver binding`. That is door-failure class 2 (guide §3): a file-anchored ORDINARY
+// position token for waiver binding`. That is door-failure class 2 (guide §2.1): a file-anchored ORDINARY
 // finding has no authored token at its coordinate, so it has no waiver door at all. `baseui-surface-manifest`
 // is `hard`, has no door by construction, and is the single owner of every "the ledger is wrong" verdict.
 //

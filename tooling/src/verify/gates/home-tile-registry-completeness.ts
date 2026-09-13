@@ -20,7 +20,7 @@
 // origin through `lib/project-home-origin.ts` rather than by spelling, it REPORTS the unreadable case
 // instead of passing it, and its subject is every registry mint rather than the `home-tiles` one. That is
 // a strictly stronger detector over a strictly wider subject through the same door, so carrying the arm
-// here would ship two findings and two waiver positions for one site (guide §8.3 MERGE, §5b.1 smallest
+// here would ship two findings and two waiver positions for one site (guide §8 MERGE rule, §7 item 1 smallest
 // complete contract). The successor proof is a committed `runPolicyPass` pin on the retired fixture in
 // `tests/tooling/verify/gates/registry-family.test.ts`.
 //
@@ -89,7 +89,7 @@ function dormantDoorway(object: ObjectLiteralExpression): ObjectLiteralExpressio
 
 /** Every way one doorway is dishonest, named together. ONE finding per definition, because every arm in
  *  this family anchors on the declared NAME: two findings on one tile would share a carrier AND a position
- *  token, which makes every marker `over-broad` and leaves the tile unwaivable (guide §4.2). */
+ *  token, which makes every marker `over-broad` and leaves the tile unwaivable (guide §6.2). */
 function doorwayFaults(doorway: ObjectLiteralExpression, object: ObjectLiteralExpression): readonly string[] {
   const faults: string[] = [];
   for (const field of DOORWAY_FIELDS) {
@@ -138,7 +138,7 @@ export const gate = defineGate({
       const object = definition.object.value;
       // The authored object is a RESOLUTION — the shared reader follows a cross-module const to its real
       // declaration, which is routinely outside this policy's `@client` population. `ctx.relativePath`
-      // THROWS there and would withhold the whole policy (guide §12.3), so the home is read totally.
+      // THROWS there and would withhold the whole policy (guide §3), so the home is read totally.
       const objectPath = declarationHome(ctx, object.getSourceFile());
       if (!isDefinitionHome(objectPath, DEFINITION_SLOTS.tile)) {
         report(definition, `Definition outside its home: "${name}" resolves to an object literal declared at ${objectPath}.`);
@@ -260,7 +260,7 @@ export const gate = defineGate({
         "packages/ui/src/home-tiles.ts": 'export const uiTile = { id: "x", body: () => null };\n',
       },
       expect: { count: 1, token: "xTile", messageIncludes: "Definition outside its home" },
-      why: "THE HOME READ IS TOTAL, and this row is the one that dies without it: `definition.object` is a RESOLUTION, and the shared authored-value reader follows a cross-module const to a declaration one hop OUTSIDE this policy's `@client` population. `ctx.relativePath` REFUSES any file outside the effective population (lib/policy-pass-context.ts:211-217), so asking it for a foreign object's home THROWS and withholds the WHOLE policy — the failure that left `freeze-provenance-write-pairing` reporting nothing on every real-tree run at 0 conformance failures (guide §12.3). The home is read through `lib/declaration-home.ts`; against a module using `ctx.relativePath` there this row reds as a TOOL ERROR rather than as a missing finding, which is the real-tree failure reproduced inside conformance",
+      why: "THE HOME READ IS TOTAL, and this row is the one that dies without it: `definition.object` is a RESOLUTION, and the shared authored-value reader follows a cross-module const to a declaration one hop OUTSIDE this policy's `@client` population. `ctx.relativePath` REFUSES any file outside the effective population (lib/policy-pass-context.ts:211-217), so asking it for a foreign object's home THROWS and withholds the WHOLE policy — the failure that left `freeze-provenance-write-pairing` reporting nothing on every real-tree run at 0 conformance failures (guide §3). The home is read through `lib/declaration-home.ts`; against a module using `ctx.relativePath` there this row reds as a TOOL ERROR rather than as a missing finding, which is the real-tree failure reproduced inside conformance",
     },
     {
       mode: "types",

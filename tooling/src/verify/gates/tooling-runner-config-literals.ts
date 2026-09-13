@@ -6,7 +6,7 @@
 // (`_shared/ports.ts`), a wall clock is `budget(<base>)` (`_shared/load-budget.ts`) — are judged here over
 // the configs' TEXT. Comment posture: comment-SAFE (a scratch parse; node kinds + numeric literals).
 //
-// ONE HARD RESOURCE POLICY (guide §12.6, #1950 group 4; fork 2 ruled BUILD 2026-09-12): the three files are
+// ONE HARD RESOURCE POLICY (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4; fork 2 ruled BUILD 2026-09-12): the three files are
 // `exact-file` resources — three ids added to `contract/resource-exact.ts` with this policy as their named
 // consumer, a contract edit rather than a reopening (§12.4's own sentence) — and the population is
 // `{ of: "none" }`: the policy admits no source file. The legacy read the same files off disk past a

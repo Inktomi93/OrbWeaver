@@ -47,7 +47,7 @@
 //
 // COMMENT POSTURE: comment-SAFE — portal tags, props members, and JSX attributes are AST nodes.
 //
-// §4.6 DIFFERENTIAL (run 2026-09-13; THIS PARAGRAPH IS THE RECORD — guide §4.6 admits either a committed
+// §6.4 DIFFERENTIAL (run 2026-09-13; THIS PARAGRAPH IS THE RECORD — guide §6.4 admits either a committed
 // test or a statement of what the run FOUND, and this conversion took the second arm. The citation here
 // read `tests/tooling/verify/gates/baseui-family.test.ts` "portal seam: legacy and final agree on the
 // flagged portals" until 2026-09-13; neither the file nor a test of that title has ever existed on the tree,

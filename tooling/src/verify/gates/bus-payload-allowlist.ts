@@ -24,7 +24,7 @@
 // provider byte-identical — so the set of scanned EVENTS is the legacy set exactly; what widened is the set
 // of files a finding may be anchored in, which is the correction the legacy behaviour already required.
 // The provider's population and both consumers' are the SAME expression on purpose: a consumer narrower
-// than its provider is handed nodes it may not NAME, which is the `ctx.relativePath` throw (guide §4.5b).
+// than its provider is handed nodes it may not NAME, which is the `ctx.relativePath` throw (guide §3).
 //
 // AUTHORITY IS `reviewed-grant`, AND THAT IS THE CONVERSION'S REAL WORK. The legacy descriptor was
 // `markerImmune: true` with ONE gate-owned `SANCTIONED_FIELDS` table (`credentialId`, a branded

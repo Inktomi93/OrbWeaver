@@ -30,7 +30,7 @@
 // resource, whose discovered member set is every `*.baseline.json` beside the gate corpus — which includes
 // this gate's own, and which is why the stale-row arm may anchor there.
 //
-// EXEMPTION-MECHANISM MOVE (guide §4.6 category 5): the private two-sided `@over-art-plate-ok` vocabulary is
+// EXEMPTION-MECHANISM MOVE (guide §6.4's EXEMPTION-MECHANISM MOVE classification): the private two-sided `@over-art-plate-ok` vocabulary is
 // RETIRED for `@orb-waive`. The central engine owns malformed / stale / dead-position / over-broad
 // reconciliation for every ordinary policy at once, so the legacy MALFORMED, OVER-EXEMPTING and STALE arms
 // (legacy `mustFlag` E/F and their two `mustPass` twins) are retired WITH A STRONGER SUCCESSOR rather than
@@ -45,7 +45,7 @@
 // the empty grammar". The five surfaces those documents describe as "becoming warning debt" did NOT need
 // to: they were already carried by the ratchet, which this conversion preserves.
 //
-// ANCHOR MOVE (guide §4.6 category 6): a live finding used to report at the DECLARATION's line and carry no
+// ANCHOR MOVE (guide §6.4's ANCHOR MOVE classification): a live finding used to report at the DECLARATION's line and carry no
 // token. It now reports at the SELECTOR SUBJECT that names it, because an ordinary finding's position token
 // must slice the authored text at its reported column — and that is also what makes the two subjects of one
 // rule separately waivable. Every translated marker's binding was verified on the real tree.
@@ -58,7 +58,7 @@
 // Of the two sanctioned successors, WARNING DEBT is the honest one here. The four surfaces are not
 // permanent exemptions — one is a MEASURED contrast failure (`[data-slot="composer"]` 3.30:1) and three are
 // STRUCTURAL findings pending a framebuffer measurement (the per-role `[data-slot="message-bubble"]` rules
-// at `--blur-fill-dense`) — and guide §4.4 is explicit that "debt is never converted into a grant to make a
+// at `--blur-fill-dense`) — and guide §6.2 is explicit that "debt is never converted into a grant to make a
 // run clean". Both standing censuses reached the same answer independently:
 // `exception-authority-census.md:35,73` ("4 rows / 4 burnable findings … four current violations become
 // warning debt") and `ordinary-waiver-source-migration.md:80` ("the four live plate findings become
@@ -74,7 +74,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`)
 // THROW during the POPULATION phase, and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready branch: it reads both declared
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule). This module owns no not-ready branch: it reads both declared
 // resources through `readyResourceValue`, whose throw asserts the runtime's own refusal already held.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";

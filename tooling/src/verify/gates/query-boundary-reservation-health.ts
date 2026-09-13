@@ -1,5 +1,5 @@
 // Policy: query-boundary-reservation-health — the two whole-tree HARD arms of `query-boundary-reservation`
-// (#885), split into their own policy (guide §12.6, #1950) because they need the ENTIRE client population
+// (#885), split into their own policy (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950) because they need the ENTIRE client population
 // where the occurrence arm is per-file, and because nobody may license either verdict:
 //
 //   B) a repeated LITERAL `reserveKey` is RED at every site — two mounts sharing one remembered box is the

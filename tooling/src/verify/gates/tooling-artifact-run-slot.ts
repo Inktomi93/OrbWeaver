@@ -6,7 +6,7 @@
 // class (two side-eye lanes on one checkout both took the default `--out` name and produced a `root.png`
 // neither could claim). Comment posture: comment-SAFE (node kinds only).
 //
-// ONE HARD POLICY (guide §12.6, #1950 group 4): a missing run slot is a DEFECT, not a permission anyone
+// ONE HARD POLICY (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4): a missing run slot is a DEFECT, not a permission anyone
 // reviews, and the subject is a TOOL (cross-file), which is why it is not an arm of the reviewed
 // `tooling-artifact-path-home` — one authority per policy. FAMILY `tooling-artifact` — the shared reader is
 // `lib/artifact-filing.ts` (`classifyFilingCall` over the two located halves of the one home).

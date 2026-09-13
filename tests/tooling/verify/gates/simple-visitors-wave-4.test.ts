@@ -182,7 +182,7 @@ test("the final policies match the frozen legacy policies on every original proo
 // and suppressed nothing; a second marker made it worse). One finding per call site is the only shape the
 // contract permits.
 //
-// What the differential still catches (guide §4.6 — the point is UNINTENDED drift):
+// What the differential still catches (guide §6.4 — the point is UNINTENDED drift):
 //   1. FILE-SET parity — the set of files carrying at least one finding is identical. This is the property
 //      that catches a site silently going quiet, which is the real risk of a cardinality change.
 //   2. Final >= 1 wherever legacy >= 1 — no flagged site is downgraded to clean.

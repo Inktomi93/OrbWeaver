@@ -163,7 +163,7 @@ const FIX =
 
 /** The shared reporter's text bundle. NO `unreadableMessage` case can arise here — a directive either parses
  *  into a rule or falls to `UNNAMED_RULE`, and either way the subject is READ — so the third string states
- *  that plainly rather than pretending to an arm no fixture can reach (guide §4.5b: a limit the runtime
+ *  that plainly rather than pretending to an arm no fixture can reach (guide §6.3: a limit the runtime
  *  cannot express is written down, never faked into a row). */
 const REPORT_TEXT = {
   message: MESSAGE,

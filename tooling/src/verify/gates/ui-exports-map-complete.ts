@@ -31,7 +31,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that is missing/empty/unresolved/
 // malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`) THROW during the
 // POPULATION phase, and the receipt phase withholds every consumer, both before `create`/`evaluate` run
-// (guide §11 ruling 3). So this module owns no not-ready branch: reading through `readyResourceValue`
+// (guide §3's acquisition-refusal rule). So this module owns no not-ready branch: reading through `readyResourceValue`
 // turns a broken resource into a loud tool error. An in-module `if (fact.status !== "ready") return;`
 // would be unreachable code that teaches the next resource conversion to answer a broken resource with a
 // silent return. Consequence for the roster: there is no reportable BLINDNESS arm here — an unreadable
@@ -40,7 +40,7 @@
 // published by FILE) owns no entry (`mustPass[1]`); a module's own subdirectories are internals
 // (`mustPass[2]`); the absent-`exports`-key verdict cannot be told from an authored empty map — that is the
 // provider's normalization above, not this policy's (`mustFlag[5]`). UNFALSIFIABLE fences are named at
-// their function rather than pinned by a row that would not discriminate (guide §4.1's fourth outcome).
+// their function rather than pinned by a row that would not discriminate (guide §6.1's structurally-unfalsifiable classification).
 
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -66,7 +66,7 @@ interface ModuleDir {
 /** The direct child DIRECTORIES of `parent`. Two fences survive, both measured by the §4.1 cut:
  *  `kind === "directory"` is enforced at the FAMILY-CHILD position by `mustPass[1]` (a file inside a family
  *  dir — `styles/globals.css` — must not become a "module" with no front door) and is UNFALSIFIABLE at the
- *  depth-1 position — documented, not faked, and the constructions that were ATTEMPTED (guide §4.1: name
+ *  depth-1 position — documented, not faked, and the constructions that were ATTEMPTED (guide §6.1: name
  *  them) are these. A depth-1 FILE admitted by an unfenced walk yields `top = "x.ts"`, whose `topIndex`
  *  (`packages/ui/src/x.ts/index.ts`) cannot be a tree entry while `packages/ui/src/x.ts` is a file, and
  *  whose `childDirectories` set is empty because no path can start with `packages/ui/src/x.ts/` — so the
@@ -93,7 +93,7 @@ function childDirectories(entries: readonly ResourceTreeEntry[], parent: string)
  *  UNFALSIFIABLE until 2026-09-12 on the argument that it "would matter only for a DIRECTORY named
  *  index.ts" — the construction was never attempted, and every existing row reached this line through a
  *  fixture helper that plants only real files, so the clean cut measured the FIXTURES, not the fence
- *  (guide §4.1). */
+ *  (guide §6.1). */
 function modules(entries: readonly ResourceTreeEntry[]): readonly ModuleDir[] {
   const files = new Set(entries.filter((entry) => entry.kind === "file").map((entry) => entry.path));
   const out: ModuleDir[] = [];

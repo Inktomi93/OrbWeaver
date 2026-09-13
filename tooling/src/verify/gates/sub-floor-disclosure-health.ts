@@ -2,7 +2,7 @@
 // collapsible variants home must still DECLARE both size arms (`text`, the sub-floor opt-out the occurrence
 // policy judges, and `control`, the default #884 C2 inverted to). A home that stops declaring an arm leaves
 // the occurrence policy judging a dead vocabulary; this policy reds it instead of letting that read as clean.
-// Split from the legacy descriptor (guide §12.6, #1950) because this is a whole-tree HARD verdict about ONE
+// Split from the legacy descriptor (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950) because this is a whole-tree HARD verdict about ONE
 // file, while the occurrence arm is a per-file ordinary one — one authority per policy.
 //
 // FAMILY `sub-floor-disclosure` — the shared reader is `lib/collapsible-size-vocabulary.ts` (`SUB_FLOOR_ARM`,

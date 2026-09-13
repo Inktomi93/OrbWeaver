@@ -25,7 +25,7 @@ test("every arm of the refusal-liveness policy proves itself through the product
   expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
-test("the one live conversion refusal names its own module and holds BOTH halves of guide §12.4", () => {
+test("the one live conversion refusal names its own module and holds BOTH halves of guide §4", () => {
   expect(CONVERSION_REFUSAL.gate).toBe("no-blanket-suppression");
   // BOTH conjuncts, which is the #2116 repair: the reopen bar (two or more independent consumers) AND the
   // capability claim (#2013 — the kind this refusal rests on not existing). Holding only the first is what

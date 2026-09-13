@@ -6,7 +6,7 @@
 // NAMED FILES, not a repeated shape: the bridge door, the readiness home, the boot entry, the router and
 // the mounted CT. There is no sibling policy judging that boundary and no `lib/` computation two policies
 // share; the only shared machinery it touches is the runtime's own visitor dispatch. A theme ("client
-// instrumentation") is not a family (guide §3), so it declares itself rather than inventing one.
+// instrumentation") is not a family (guide §2), so it declares itself rather than inventing one.
 //
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
 // `path.startsWith("packages/client/src/") || path === CT` (pre-conversion SHA 250c9eb60); the final
@@ -14,14 +14,14 @@
 // `packages/client/src/`, and the CT is admitted by its exact path rather than by a `tests/` root that
 // would widen the walk to 2,702 files.
 //
-// AUTHORITY `hard`, and it is a claim about the DOOR, not a field (guide §3). Every arm is a
+// AUTHORITY `hard`, and it is a claim about the DOOR, not a field (guide §2). Every arm is a
 // FILE-anchored verdict about a named home — "the bridge door is absent", "main imports the bridge",
 // "the CT owes a marker" — and an ordinary finding's position must be authored text at the finding's exact
 // line and column (`lib/ordinary-waiver.ts` `locateFinding`). A file finding has no such token, so these
 // arms have no ordinary door by construction. The legacy descriptor carried no marker, no exemption table
 // and no baseline, so nothing is lost: hard is what it already was in every operational sense.
 //
-// ANCHOR MOVE, recorded (guide §4.6 category 6). The legacy module reported an ABSENT file AT that file
+// ANCHOR MOVE, recorded (guide §6.4's ANCHOR MOVE classification). The legacy module reported an ABSENT file AT that file
 // (`report(ctx, …, READY)` with `READY` not loaded). The final report sink refuses a finding outside the
 // effective population (`lib/policy-pass-context.ts:314`), so an absence verdict cannot anchor on the thing
 // that is absent. Each verdict now anchors on its own subject WHEN PRESENT and on the shared

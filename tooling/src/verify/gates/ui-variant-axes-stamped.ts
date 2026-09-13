@@ -14,7 +14,7 @@
 // FAMILY `ui-variant-axes-stamped` — the shared reader is `lib/variant-axis-stamp.ts` (`declaredAxes`,
 // `stampDoorRecipeName`, `readStampedAxes`, `stampDoorPresent`, `recipeKey`). Arm A5 of the legacy
 // descriptor — the axis-VOCABULARY blindness tripwire — SPLIT OUT to `ui-variant-axes-stamped-health`
-// (guide §12.6, #1950), because its population differs: the tripwire's subject is EXACTLY the axis home,
+// (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950), because its population differs: the tripwire's subject is EXACTLY the axis home,
 // while the three arms here need the whole `@ui` corpus (consumption lives in a SIBLING file). The ruled
 // row said "hard recipe/duplicate/blindness POLICIES"; A1, A2 and A3 differ on NO axis — same authority,
 // severity, execution and population — so §3's smallest-complete-contract rule and the same lane's §3.3
@@ -22,7 +22,7 @@
 // particular CANNOT live in the `-health` sibling: a duplicate NAME is a cross-file verdict over the whole
 // package, and that sibling's population is one file.
 //
-// A4 — THE STALE-RATCHET ARM — IS DELETED WITH ITS BASELINE (guide §12.5: `*.baseline.json` debt RETIRES,
+// A4 — THE STALE-RATCHET ARM — IS DELETED WITH ITS BASELINE (guide §5: `*.baseline.json` debt RETIRES,
 // it does not convert). `ui-variant-axes-stamped.baseline.json` held 11 rows at mint (`da01f7eb9`, tranche
 // 1 = the seam + four pilots) and was DRAINED TO `{}` by #1097 (`fc5f99e4c`, tranche 2 — all 15
 // stamped-axis recipes reach the seam). It was 3 bytes on conversion day, so ZERO rows were carried:
@@ -63,7 +63,7 @@ const FIX =
   "packages/ui/src/lib/variant-attrs.ts. Keep the `tv({ … })` config an inline object literal; rename one of " +
   "two same-named recipes.";
 
-/** The three arm discriminators. DISJOINT by construction (guide §4: a `${MESSAGE} …` prefix shared by two
+/** The three arm discriminators. DISJOINT by construction (guide §6: a `${MESSAGE} …` prefix shared by two
  *  arms makes neither pinnable), and each is what its `mustFlag` row's `messageIncludes` names. */
 const UNSTAMPED = "A1 unstamped:";
 const UNREADABLE = "A2 unreadable:";
@@ -235,7 +235,7 @@ export const gate = defineGate({
         "packages/ui/src/primitives/thing/variants.ts": "export const thingVariants = tv(SHARED_CONFIG);\n",
       },
       expect: { token: "thingVariants", count: 1, messageIncludes: "A2 unreadable:" },
-      why: "A2 FAIL-CLOSED, the #944 third answer: a `tv()` config this reader cannot resolve — its axes are unknowable, so silence would be a guess. The `messageIncludes` is what makes this row DISCRIMINATE: the arm produces the same finding COUNT as A1 and differs only in message, so a bare `{ count: 1 }` would pass identically whether the arm fires or is unreachable (guide §4.1, #1990). Probed by replacing this branch's report with `throw`: the row FAILS, so the arm is reached",
+      why: "A2 FAIL-CLOSED, the #944 third answer: a `tv()` config this reader cannot resolve — its axes are unknowable, so silence would be a guess. The `messageIncludes` is what makes this row DISCRIMINATE: the arm produces the same finding COUNT as A1 and differs only in message, so a bare `{ count: 1 }` would pass identically whether the arm fires or is unreachable (guide §6.1, #1990). Probed by replacing this branch's report with `throw`: the row FAILS, so the arm is reached",
     },
     {
       mode: "source",

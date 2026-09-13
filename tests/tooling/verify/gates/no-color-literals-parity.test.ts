@@ -14,7 +14,7 @@
 // `docs/reviews/gate-runtime/v-wave-8b-2026-09-13.md:498`). A REPLAY IS STRICTLY STRONGER THAN THE ROSTER
 // ROW WOULD HAVE BEEN, so re-authoring that `why` back to buy membership would be a downgrade; do not.
 //
-// THE LEGACY SIDE IS NONZERO — 5 findings across 4 of its 6 examples — so this is neither of guide §4.6's
+// THE LEGACY SIDE IS NONZERO — 5 findings across 4 of its 6 examples — so this is neither of guide §6.4's
 // two vacuity shapes, and the shared harness ACCEPTS the frozen descriptor: `filesystemReach` on the
 // `d6f36904f` blob is EMPTY (asserted below, with the same reader's planted positive control), so the
 // in-memory replay #2119 requires is faithful here. That is the property the `grant-liveness` pair does

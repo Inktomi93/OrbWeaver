@@ -8,8 +8,9 @@
 //        finding count — plus its discrimination control. These two also stand in for the retired
 //        file-level `ALLOWLIST` and its hand-rolled STALE_ENTRY arm: the exemption is now per-site and its
 //        staleness is the central engine's dead-position alarm.
-//   §4.5 the REFUSAL for the one declared resource. An empty `authored-css` is a population-phase TOOL
-//        ERROR with the owner WITHHELD; `toolFailure` precedes a proof row's arm verdict (guide §4.5b).
+//   §6.3 the REFUSAL for `authored-css`. The family drive pins no effective findings, the named
+//        population-phase tool error, an incomplete owner, and this policy withheld; those runtime-state
+//        assertions are stronger than refusal-text matching alone.
 //   the TWO-GRAMMAR COLLISION, measured. `@orb-waive` and `biome-ignore` both bind ONLY to the comment
 //        immediately above their subject, so a subject line that already spends that slot on a required
 //        suppression cannot also carry a waiver. That is why the reduced-motion floor is a POPULATION

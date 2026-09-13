@@ -11,7 +11,7 @@
 // opposite) and `Meter.getAriaValueText` (same arity, still a hand copy that rots when the signature moves).
 //
 // WHY THE `-health` SUFFIX ON AN ARM THAT IS NOT A LIVENESS TRIPWIRE. It is the corpus convention for the
-// hard half of an authority split (guide §3's capability table: "`-health` sibling — an arm that differs in
+// hard half of an authority split (guide §2's capability table: "`-health` sibling — an arm that differs in
 // authority or severity from the rest of the module, identical `family`"), and
 // `contract-derives-not-respells-health` is the same shape one family over. The suffix names the SPLIT, not
 // the subject; this policy audits no ratchet and no exemption table.
@@ -48,7 +48,7 @@
 // position and assert the finding survives — was authored and RAN, and it fails:
 // `AUTHORITY ALARM [ordinary-waiver] ordinary waiver … targets non-ordinary policy
 // baseui-derives-not-respells-health`. `proofFailure` runs `toolFailure` before the arm verdict and any
-// alarm fails the row, so a hard policy structurally cannot pin its own marker refusal (guide §4.2: never
+// alarm fails the row, so a hard policy structurally cannot pin its own marker refusal (guide §6.2: never
 // copy a negative arm into a gate — the hard/reviewed refusal is one of the central engine's negatives and
 // is owned once by `tests/tooling/verify/lib/ordinary-waiver.test.ts`). The alarm IS the enforcement: under
 // this contract a marker aimed here does not quietly do nothing, it makes the run loud.

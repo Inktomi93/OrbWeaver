@@ -5,7 +5,7 @@
 // exporting the door, the derivation is empty and the recipe policy reports OK over every unstamped recipe
 // on the tree. This policy reds that instead.
 //
-// Split from the legacy descriptor (guide §12.6, #1950). The ruled row says "hard recipe/duplicate/
+// Split from the legacy descriptor (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950). The ruled row says "hard recipe/duplicate/
 // blindness policies"; A1/A2/A3 differ on no axis and stayed together, while THIS arm differs on
 // POPULATION — its subject is exactly one file, and the others need the whole `@ui` corpus — which is the
 // axis §3 says a split is owed on.
@@ -70,7 +70,7 @@ export const gate = defineGate({
       mode: "source",
       files: { [AXIS_HOME_REL]: 'export const AXES = ["variant", "size"] as const;\nexport function variantProps(): string {\n  return "";\n}\n' },
       expect: { count: 1, line: 1, messageIncludes: "Missing: the axis tuple" },
-      why: "arm A5 as carried, half one: the tuple is RENAMED, so the recipe policy's vocabulary derivation is empty and it would credit every unstamped recipe on the tree. Opening the tuple-name fence (accept any array const) turns this row GREEN — a tripwire's fences ACQUIT, so its falsifier is a mustFlag going green, not a mustPass going red (guide §4.1)",
+      why: "arm A5 as carried, half one: the tuple is RENAMED, so the recipe policy's vocabulary derivation is empty and it would credit every unstamped recipe on the tree. Opening the tuple-name fence (accept any array const) turns this row GREEN — a tripwire's fences ACQUIT, so its falsifier is a mustFlag going green, not a mustPass going red (guide §6.1)",
     },
     {
       mode: "source",

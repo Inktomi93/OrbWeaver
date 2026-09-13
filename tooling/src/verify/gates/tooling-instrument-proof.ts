@@ -24,7 +24,7 @@
 //
 // §12.6 SHAPE DEVIATION, reported: the ruled row reads "syntax/resource visitors plus `evaluate`". The
 // ARITY holds (one hard policy) and the resource half is real, but the marker scan is COMMENT POSTURE —
-// comments are trivia, not kind-indexed nodes — and guide §3's own capability table names `visitFile` as
+// comments are trivia, not kind-indexed nodes — and guide §2's own capability table names `visitFile` as
 // the capability for exactly that. So the hooks are visitors + visitFile + evaluate. Nothing else changes.
 //
 // THE FILESYSTEM READ IS NOW A DECLARED DOOR. Arm A was `existsSync(join(ctx.root, "tooling/src", member))`
@@ -37,7 +37,7 @@
 //   they are "I could not judge", with their own message and their own row (`mustFlag[2]`).
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back non-ready makes
 // `resolveResourceDeclarations` (`lib/resource-declaration.ts`) THROW at the POPULATION phase and the owner
-// is withheld before `create` runs (guide §11 ruling 3). This module owns no not-ready branch: it reads the
+// is withheld before `create` runs (guide §3's acquisition-refusal rule). This module owns no not-ready branch: it reads the
 // door through `readyResourceValue`, whose throw asserts that refusal. `authored-path` is an UNPOPULATED
 // DEMAND kind, so its declaration admits no path and the door MUST be called on every run or the receipt
 // phase refuses the unconsumed declaration — which is why the blind-registry arm still demands one selector

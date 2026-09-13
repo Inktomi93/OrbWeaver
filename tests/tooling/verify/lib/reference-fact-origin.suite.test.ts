@@ -435,7 +435,7 @@ test("project-authored ambient declarations do not become trusted global origins
 // and `||` SHORT-CIRCUITS. Every fixture the gate corpus plants — `_proof/node-types.ts`'s `process` subject,
 // both lookalikes — AND the installed `@types/node/process.d.ts` itself have ZERO top-level import/export
 // declarations (the package's imports sit inside `declare module`), so `scriptGlobal` is true for all of them
-// and the AUGMENTATION branch is never evaluated by any proof row. The plant header and guide §4.8b both
+// and the AUGMENTATION branch is never evaluated by any proof row. The plant header and guide §6.5 both
 // claimed the corpus exercised both branches; it did not, and a branch nothing reaches is a branch that can
 // rot silently. This is the only shape that can be admitted by the second branch alone.
 test("a trusted declaration file with a TOP-LEVEL import reaches the global-augmentation branch alone", () => {

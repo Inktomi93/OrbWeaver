@@ -20,7 +20,7 @@
 // PAREN-FREE SLICE, because the central marker grammar's position group is `[^()\r\n]+` and a marker naming
 // the whole candidate parses as malformed. That slice is still an exact slice of the carrier AT THE SAME
 // OFFSET, so the runtime's identity rule holds; only its LENGTH changes, and the whole candidate moves into
-// the message (#2107 arm c, guide §3; `reportAnchored` below). **This paragraph previously said the shape had
+// the message (#2107 arm c, guide §2.1; `reportAnchored` below). **This paragraph previously said the shape had
 // "NO waiver spelling" and told the author to raise it on #1584 — refuted in code by the same commit that
 // wrote it, and corrected here with the `fix` string (refutation-ledger row 530, #2160).** ONE position shape
 // still cannot be waived and stays declared rather than hidden: the `unresolved:*` arm and the
@@ -166,7 +166,7 @@ function runtimeToken(value: RuntimeClassPrefix): AnchoredToken | undefined {
 function reportAnchored(report: GatePolicyContext["report"], anchored: AnchoredToken): void {
   const text = anchored.node.getText();
   if (text.slice(anchored.offset, anchored.offset + anchored.token.length) === anchored.token) {
-    // THE CARRIER / COORDINATE SPLIT (#2107 arm c, guide §3). An arbitrary-variant class carries parentheses
+    // THE CARRIER / COORDINATE SPLIT (#2107 arm c, guide §2.1). An arbitrary-variant class carries parentheses
     // (`[&:where(.x:y)]:dark:bg-card`, `supports-[selector(:has(*))]:dark:…`) and the `@orb-waive` position
     // grammar admits none, so naming the whole candidate made the finding PERMANENTLY UNWAIVABLE while this
     // ordinary policy's `fix` string promised otherwise. The node stays the carrier, the coordinate narrows to

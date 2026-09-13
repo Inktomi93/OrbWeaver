@@ -21,7 +21,7 @@
 // The legacy regex anchored a declaration at `(?:^|[;{])`; the parsed inventory answers the same question
 // structurally, which additionally reaches a declaration nested inside an at-rule block.
 //
-// EXEMPTION-MECHANISM MOVE + PREDICATE CHANGE (guide §4.6 category 5, and both sides are stated because
+// EXEMPTION-MECHANISM MOVE + PREDICATE CHANGE (guide §6.4's EXEMPTION-MECHANISM MOVE classification, and both sides are stated because
 // this is not a 1:1 port). The legacy file-level `ALLOWLIST` (two stylesheets, two collective reasons) hid
 // 19 declaration findings, each carrying EXACTLY ONE raw literal, with 0 unallowlisted offenders — so the
 // legacy gate was silent on the real tree. The arithmetic of the move is 19 = 2 + 17:
@@ -35,7 +35,7 @@
 // row": a marker on a site that goes on-token ALARMS as a dead position, which is what the legacy
 // STALE_ENTRY arm hand-rolled, so the ratchet survives the move rather than being dropped.
 //
-// FINDING GRANULARITY CHANGED (guide §4.6 ANCHOR MOVE): legacy reported once per DECLARATION anchored at
+// FINDING GRANULARITY CHANGED (guide §6.4 ANCHOR MOVE): legacy reported once per DECLARATION anchored at
 // the property name; a final ordinary policy's finding position must be an exact slice of the text at the
 // reported column AND must be individually waivable, so this reports once per raw LITERAL at that literal.
 // The two counts coincide on today's tree because no live declaration carries more than one.
@@ -43,7 +43,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`)
 // THROW during the POPULATION phase, and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready branch: it reads the CSS
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule). This module owns no not-ready branch: it reads the CSS
 // inventory through `readyResourceValue`, whose throw asserts the runtime's own refusal already held.
 import { defineGate } from "../contract/policy.ts";
 import type { CssDeclarationFact } from "../contract/resource-css.ts";

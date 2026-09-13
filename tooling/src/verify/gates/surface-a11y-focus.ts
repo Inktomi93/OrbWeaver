@@ -6,7 +6,7 @@
 // otherwise. The shared reader `lib/surface-composition.ts` (`managesArrivalFocus` + `exportedComponentAnchor`)
 // was built for TWO members: `surface-in-a-container` judges the same population from the other angle and is
 // designed to report the SAME position — one anchor, so one `@orb-waive` line can carry both ids, which is
-// the payoff guide §3 names. That sibling is PARKED rather than converted (owner call pending, 2026-09-13):
+// the payoff guide §2 names. That sibling is PARKED rather than converted (owner call pending, 2026-09-13):
 // its `SHELL_EXEMPT` row encodes `UI-Architecture-and-Layout.md` §4's SHELL-vs-ANCHOR role distinction, and
 // the open question is whether the shell belongs in that policy's POPULATION at all rather than being
 // exempted inside it. The reader therefore carries ONLY what this policy consumes — a dead export held
@@ -35,7 +35,7 @@
 // its own arm: `if (featuresSeen && surfacesSeen === 0) report(FEATURES, BLIND_MESSAGE)` — a hand-rolled
 // guard against `surfaces/` being renamed out from under a directory-name-keyed scan, reported at a DIRECTORY
 // path. Under this contract the same failure is a REFUSAL: the population is declared data, and a declared
-// population that resolves to zero paths refuses the run rather than passing it (guide §12.2, "missing/empty
+// population that resolves to zero paths refuses the run rather than passing it (guide §3, "missing/empty
 // population refusal"). The runtime says "I could not judge" where the gate used to say "the tree is wrong",
 // which is the more honest of the two — and a directory is not a member of any population, so the legacy
 // anchor could not survive regardless. Pinned by the empty-population drive in the family test.
@@ -49,7 +49,7 @@
 // every policy rather than to this one. The mention fence survives too, and by construction: the central
 // grammar requires the comment's own text to OPEN with the marker, so a quotation inside prose is inert.
 //
-// MARKER TRANSLATION (in this commit, per guide §8.6). 2 live marker-form sites, both file-level comment
+// MARKER TRANSLATION (in this commit, per guide §8). 2 live marker-form sites, both file-level comment
 // openers; census and per-file reconciliation in the lane report.
 //   packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx      1 -> 1
 //   packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx     1 -> 1

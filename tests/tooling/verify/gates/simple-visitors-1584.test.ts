@@ -21,7 +21,7 @@
 // a carve-out of the parent's `finalize` hook) so it is proof-only, not differential-replayed, and its
 // parent's own census row is excluded from the parent's replay for the same reason (both below,
 // `isRetiredIntoSiblingExample`); `no-hardcoded-model-prose`'s marker-mechanics legacy row (the bare/stale
-// marker two-sided test) is excluded too — it tested the retired grammar, and guide §4.2 forbids copying a
+// marker two-sided test) is excluded too — it tested the retired grammar, and guide §6.2 forbids copying a
 // negative marker arm into a gate (the central engine's own suppression/staleness proof,
 // `ordinary-waiver.test.ts`, is the successor, run once for every ordinary policy).
 import { execFileSync } from "node:child_process";
@@ -64,7 +64,7 @@ test("the four #1584 conversions pass their production proof runtime", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------
-// ORDINARY MARKER IDENTITY — the two-command dead-position control (guide §4.2), driven ONCE for the
+// ORDINARY MARKER IDENTITY — the two-command dead-position control (guide §6.2), driven ONCE for the
 // family: all four ordinary arms (public-route-body-cap-health is the only HARD member) report a real,
 // paren/newline/solidus-free authored token (a bare declared name, a route method name, an original
 // alias name, or the first STATIC word of a prose unit skipping `${…}` interpolation) — the same
@@ -100,7 +100,7 @@ function legacyFiles(example: GateExample): Readonly<Record<string, string>> {
 // Findings compare by FILE + COUNT, not message text: every converted module intentionally appends a
 // specific WHAT clause (which shape tripped — a Map, an array, a route method, a dead const) onto its
 // legacy message, which the legacy descriptors folded into shared prose or omitted. That is a message
-// improvement the anchor-token design deliberately makes room for (guide §4.6 — "when a conversion's
+// improvement the anchor-token design deliberately makes room for (guide §6.4 — "when a conversion's
 // predicate disagrees with the legacy predicate, the MESSAGE is the thing to fix"), never a narrowed catch;
 // FILE+COUNT parity is what proves no site went quiet or changed cardinality.
 function legacyFindings(gate: GateDescriptor, files: Readonly<Record<string, string>>): readonly string[] {
@@ -141,7 +141,7 @@ async function frozenLegacyGate(path: string, scratch: string): Promise<GateDesc
 //     resolves through the central `@orb-waive` grammar instead), so replaying them verbatim would compare
 //     the OLD suppression mechanism against a policy that no longer implements it. The central engine's own
 //     suppression/staleness proof (`ordinary-waiver.test.ts`) is the successor, run once for every ordinary
-//     policy — guide §4.2 forbids copying a negative marker arm into a gate for the same reason.
+//     policy — guide §6.2 forbids copying a negative marker arm into a gate for the same reason.
 //   - public-route-body-cap's whole-population census row ("fail loud when the canonical route tree yields
 //     no mutating/body-reading population") is now `public-route-body-cap-health`'s founding mustFlag row
 //     (asserted directly in that module's own proofs, run by `verifyPolicyProofs` above) — it is a HARD,

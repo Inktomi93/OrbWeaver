@@ -4,14 +4,14 @@
 // zero-body mutations are controls; the population census (a run whose route/body-reader counts both
 // land at zero is a blindness tripwire on the whole family) is the separate HARD `-health` sibling
 // (`public-route-body-cap-health.ts`, same family) — an absence verdict about the whole population has
-// no node to anchor an ordinary marker on (guide §3's "file-level finding with a synthetic or absent
+// no node to anchor an ordinary marker on (guide §2.1's "file-level finding with a synthetic or absent
 // token" class), and one authority per policy makes the split mandatory rather than stylistic.
 //
 // FAMILY `public-route-body-cap` — the shared reader is `lib/http-route-body.ts`: route-method identity,
 // Hono-request/raw-body shape, same-file const-binding resolution for both the cap-middleware identifier
 // and the raw-body stream identifier, and `findEnclosingRouteArg` — the ancestor-walk that replaces the
 // legacy per-handler `getDescendantsOfKind` subtree sweep with "visit X's own kind everywhere, then climb
-// to the enclosing route argument" (guide §12.3: gate modules cannot call `getDescendantsOfKind`).
+// to the enclosing route argument" (guide §3: gate modules cannot call `getDescendantsOfKind`).
 // POPULATION PORT: byte-identical. Legacy `scanRoot` was `path.includes(HTTP_DIR)`
 // (`packages/server/src/entry/http/`); final population is `{ in: ["@server"], under:
 // ["packages/server/src/entry/http/**"] }`.

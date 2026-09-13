@@ -8,7 +8,7 @@
 //
 // THE PRIVATE `// PROSE-OK: <reason>` MARKER RETIRES INTO THE CENTRAL `@orb-waive` GRAMMAR. Legacy parsed
 // its own two-sided (stale RED, malformed RED) marker in `markerLines`/`reportSeamFile`; the final contract
-// gives ordinary policies that staleness/malformed sweep centrally (guide §3/§4.2), so ARM A now reports
+// gives ordinary policies that staleness/malformed sweep centrally (guide §2/§6.2), so ARM A now reports
 // every live prose unit unconditionally and the central engine owns suppression. DECLARED LIMITS (mustPass
 // rows, unchanged): sub-12-word structural labels; prose assembled through an imported helper (out of
 // structural reach — unchanged); a barrel re-export does NOT make a catalog const alive.
@@ -28,7 +28,7 @@
 // population back to seam+catalog would be the exact `ctx.relativePath` population-fence failure guide
 // §12.3 documents for `freeze-provenance-write-pairing`.
 //
-// THE IDENTIFIER-FREQUENCY AND IMPORT-LIVENESS CENSUSES ARE VISITORS, NOT DESCENDANT WALKS (guide §12.3:
+// THE IDENTIFIER-FREQUENCY AND IMPORT-LIVENESS CENSUSES ARE VISITORS, NOT DESCENDANT WALKS (guide §3:
 // gate modules cannot call `getDescendantsOfKind`). Legacy walked one file's Identifiers per catalog
 // candidate and the whole Project's ImportSpecifiers per candidate name (both re-run per candidate); both
 // are now single population-wide visitors (`SyntaxKind.Identifier`, `SyntaxKind.ImportSpecifier`) collected
@@ -38,7 +38,7 @@
 // mustFlag/mustPass PROSE-DETECTION example (the word-count/lower-run/operator-facing/aggregation shapes)
 // replays byte-identically. The two marker-mechanics rows (bare marker, stale marker) do NOT carry forward —
 // they tested the PRIVATE grammar this conversion retires; the central engine's own suppression/staleness
-// proof (`ordinary-waiver.test.ts`) is the successor, per guide §4.2 ("do not copy a negative arm into a
+// proof (`ordinary-waiver.test.ts`) is the successor, per guide §6.2 ("do not copy a negative arm into a
 // gate"). ARM B's liveness predicate gained real reach (client importers) that the narrow legacy population
 // could never see — a strengthening, not a behavior change on any FIXTURE example.
 //
@@ -201,7 +201,7 @@ function isOperatorFacing(node: Node): boolean {
 const WORD_START_RE = /[A-Za-z][A-Za-z0-9]*/u;
 
 /** The first STATIC word in `text`, skipping any `${…}` interpolation span — guarantees a token free of
- *  parens/newlines (guide §3's marker-grammar hazard) and never inside live-evaluated source. */
+ *  parens/newlines (guide §2.1's marker-grammar hazard) and never inside live-evaluated source. */
 function firstStaticWord(text: string): { readonly token: string; readonly offset: number } | undefined {
   let depth = 0;
   for (let i = 0; i < text.length; i += 1) {

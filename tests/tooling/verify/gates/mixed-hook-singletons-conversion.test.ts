@@ -12,7 +12,7 @@
 // THE REPLAY RUNS ON A REAL TMPDIR, not on a virtual in-memory root, because the legacy
 // `tooling-instrument-proof` answers arm A with `existsSync(join(ctx.root, "tooling/src", member))`. Under
 // a synthetic root every registry row would read DEAD and the differential would report a catch explosion
-// that is an artifact of the harness — the shape guide §4.6 calls a faked nonzero side.
+// that is an artifact of the harness — the shape guide §6.4 calls a faked nonzero side.
 //
 // MEASURED RESULT, 2026-09-12 (the table below is asserted, not narrated): **every one of the 34 legacy
 // examples produces the SAME NUMBER of findings on both sides.** The only differences are ANCHOR MOVES,

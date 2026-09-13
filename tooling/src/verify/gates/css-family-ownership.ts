@@ -27,7 +27,7 @@
 // REFUSAL (`mustRefuse[0]`), which is earlier and louder than a guard that could only stay silent.
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. `resolveResourceDeclarations` withholds this owner before
-// `create` runs (guide §11 ruling 3); the module owns no not-ready branch and reads through
+// `create` runs (guide §3's acquisition-refusal rule); the module owns no not-ready branch and reads through
 // `readyResourceValue`.
 //
 // MARKER CENSUS 0 = 0 = 0 (measured 2026-09-12, N=7,725 tracked files, positive control 1,196 — the §5b
@@ -561,7 +561,7 @@ export const gate = defineGate({
           '[data-density="compact"] { --spacing-row: 0.5rem; }\n',
       },
       why:
-        // THE §4.2 IDENTITY ARM, in its `mustPass`-row shape (guide §4.2 names both homes; `schema-branding.ts:137`
+        // THE §6.2 IDENTITY ARM, in its `mustPass`-row shape (guide §6.2 names both homes; `schema-branding.ts:137`
         // is the precedent). It is SELF-CHECKING: `proofFailure` runs `toolFailure` before the arm verdict and
         // fails on ANY `authorityAlarms`, so a wrong position (`dead-position`), a foreign id (`unknown-policy`),
         // an over-broad match and a fixture that stopped flagging each RED this row. A resource finding's marker

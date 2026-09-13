@@ -2,7 +2,7 @@
 // UI-only `data-slot` directly, each licensed by a reviewed grant rather than by a hardcoded count.
 //
 // FAMILY `css-hook-provenance`, identical to `css-family-ownership`'s and its `-health` sibling's. THE SPLIT
-// IS AUTHORITY (guide §3): its ordinary twin reports a direct skin an AUTHOR fixes by moving the look into
+// IS AUTHORITY (guide §2): its ordinary twin reports a direct skin an AUTHOR fixes by moving the look into
 // the primitive's `tv()` variant, and these three are sites a REVIEWER has ruled legitimate. One authority
 // per policy, so the ruled subset is its own id under the shared family.
 //

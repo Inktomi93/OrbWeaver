@@ -93,7 +93,7 @@ function assertOptionalText(value: unknown, label: string): void {
  *  cannot hold (`no-raw-color-in-css` mustFlag[1] `oklch(0.5 0.2 30)`, ORDINARY · `no-tailwind-dark-variant`
  *  mustFlag[13]/[14], ORDINARY · `rest-transform-grid` mustFlag[4]/[6], hard and therefore latent). Owner
  *  ruling #2107 (2026-09-12) took neither "narrow the anchor" nor "widen the grammar" but the arm the law
- *  already described (guide §3): the value stays the CARRIER and moves into the MESSAGE, while the COORDINATE
+ *  already described (guide §2.1): the value stays the CARRIER and moves into the MESSAGE, while the COORDINATE
  *  narrows to its leading paren-free slice through `waivableCoordinate`. Those three landed FIRST, in this
  *  commit, so the fence goes up on a tree where nothing correct reds.
  *
@@ -110,7 +110,7 @@ function assertWaivablePosition(token: string, label: string): string {
     throw new Error(
       `${label} ${JSON.stringify(token)} cannot be named by an @orb-waive marker: the position grammar admits no parenthesis, CR or LF, ` +
         "so the finding would be permanently unwaivable. Keep the value as the CARRIER and in the MESSAGE, and hand back its leading " +
-        "paren-free slice as the COORDINATE (lib/waivable-coordinate.ts waivableCoordinate; guide §3, #2107).",
+        "paren-free slice as the COORDINATE (lib/waivable-coordinate.ts waivableCoordinate; guide §2.1, #2107).",
     );
   }
   return token;

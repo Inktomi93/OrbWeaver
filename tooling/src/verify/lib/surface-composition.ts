@@ -11,7 +11,7 @@
 // TWO CONSUMERS, AND THE SHARED ANCHOR IS THE POINT. `surface-a11y-focus` and `surface-in-a-container` judge
 // the same population from two angles, and both report the SAME position: `exportedComponentAnchor`'s node.
 // That is deliberate — one `@orb-waive` line per policy id, both bound to one coordinate, is the payoff
-// guide §3 names, and two policies inventing two positions for one file is how neither binds.
+// guide §2.1 names, and two policies inventing two positions for one file is how neither binds.
 //
 // `renderedTagNames` is imported from `./baseui-read.ts` rather than re-spelled: it is the one home for "JSX
 // tag names rendered in a file, both element spellings, each at its first line", and a self-closing-only
@@ -64,7 +64,7 @@ export function managesArrivalFocus(sf: SourceFile): boolean {
  *
  *  WHY THIS NODE. A "this surface manages no focus" verdict is about the FILE, and a file-anchored ORDINARY
  *  finding has no waiver door at all — `locateFinding` requires authored text at the finding's exact
- *  line/column, so it raises a binding failure instead (guide §3, door-failure class 2). The exported
+ *  line/column, so it raises a binding failure instead (guide §2.1's authored-coordinate rule). The exported
  *  component's NAME is authored code, survives comment blanking, is stable across edits to the body, and is
  *  where a reader would look. Returning `undefined` for a surface file that exports no component is a
  *  DECLARED LIMIT rather than a silent pass: there is no position to waive, so there is no honest ordinary

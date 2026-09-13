@@ -7,7 +7,7 @@
 // judges either, and no `lib/` computation is shared with one. The shared readers it consumes —
 // `lib/static-authored-value.ts` (`resolveAuthoredComposite` / `readStaticAuthoredScalar`) and
 // `lib/absent-subject-anchor.ts` (`subjectAnchor`) — are contract primitives eleven and three policies use
-// respectively, exactly as `readyResourceValue` is: a shared primitive groups nothing (guide §3).
+// respectively, exactly as `readyResourceValue` is: a shared primitive groups nothing (guide §2).
 //
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
 // `p === REGISTRY || p.startsWith("tests/tooling/ui-audit/") || p === WALKER_CT` (pre-conversion SHA
@@ -17,9 +17,9 @@
 // registry denominator — a missing registry, a missing proof class, a stale id — and the legacy descriptor
 // carried no marker grammar, no exemption table and no baseline. The registry-anchored arms are file
 // findings with no authored position token, which have no ordinary waiver door at all
-// (`lib/ordinary-waiver.ts` `locateFinding`, guide §3 class 2), so `hard` is the only honest authority.
+// (`lib/ordinary-waiver.ts` `locateFinding`, guide §2.1's authored-coordinate rule), so `hard` is the only honest authority.
 //
-// ANCHOR MOVE, recorded (guide §4.6 category 6). The legacy module reported every registry-level verdict at
+// ANCHOR MOVE, recorded (guide §6.4's ANCHOR MOVE classification). The legacy module reported every registry-level verdict at
 // `REGISTRY:0:0` — including the verdict that the registry is GONE, which the final report sink refuses
 // (`lib/policy-pass-context.ts:314`). Two changes follow: an absence verdict anchors through
 // `subjectAnchor`, and every verdict that HAS an authored node now reports at that node (the registry row's
@@ -476,7 +476,7 @@ export const gate = defineGate({
         [PROOF_FILE]: `${BOUND_HELPER_FIXTURE}${BOTH_PROOFS}`,
       },
       expect: { count: 1, messageIncludes: "unreadable design-audit rule id" },
-      why: "THE #944 THIRD ANSWER, and it is a deliberate catch WIDENING: the legacy reader silently `continue`d past a row whose id it could not read, so a computed id left the denominator without a word. Pinned by `messageIncludes` because the fail-closed arm produces the same COUNT as an ordinary verdict and a bare count row would pass whether it fires or is unreachable (guide §4.1)",
+      why: "THE #944 THIRD ANSWER, and it is a deliberate catch WIDENING: the legacy reader silently `continue`d past a row whose id it could not read, so a computed id left the denominator without a word. Pinned by `messageIncludes` because the fail-closed arm produces the same COUNT as an ordinary verdict and a bare count row would pass whether it fires or is unreachable (guide §6.1)",
     },
     {
       mode: "source",

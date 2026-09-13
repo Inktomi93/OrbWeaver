@@ -47,7 +47,7 @@
 //      .test/.exec/.indexOf` argument carrying `@orb-gate-ignore`, `FABRICATION-OK`, `@swallowed-ok`, … is a
 //      PARSER of a grammar §12.5 retired — the private marker parser a conversion must delete, not carry.
 //      Prose is not a parse: a `why`, a `message` or a `fix` naming the retired spelling is a MENTION (the
-//      guide §7 census rule) and is acquitted. Zero on the tree, one row per opener.
+//      guide §8 census rule) and is acquitted. Zero on the tree, one row per opener.
 //   E7 the `defineGate` argument is not a direct object literal (#2111 A42; §12.1 *"a direct
 //      `defineGate({...})` object literal"*). Before this arm the whole family skipped such a module:
 //      `finalDescriptorOf` returned `undefined` for `defineGate(DESCRIPTOR)` while the loader accepted it
@@ -144,7 +144,7 @@ const RESOURCE_GUARD_HOME = "/tooling/src/verify/lib/resource-declaration.ts";
 const RESOURCE_HOST_MEMBER = "resources";
 
 const MESSAGE =
-  "a final policy module carries something the final contract forbids (gate-runtime-standardization.md §3, §12.3): " +
+  "a final policy module carries something the final contract forbids (gate-runtime-standardization.md §2, §3): " +
   'an inert `ext: ["ts","tsx"]`, a ts-morph walk / gate-owned Project / module state / baseline ledger / legacy ' +
   "field, a `node:fs` import, or an unguarded resource-host read. The `ext` token names E1; a `[code]` suffix names the " +
   "`lib/gate-contract.ts` code; an `import` token names the filesystem door; a `resources` token names E4.";
@@ -157,12 +157,12 @@ const RESOURCE_MESSAGE =
   "code that teaches the next conversion a silent return is the right answer to a broken resource. It is not. Wrap the door call, or — if the host is being " +
   "handed to something else — stop: the closed host may not leave the call site. A shared reader takes the NARROWED VALUE and the caller reads its own door (#2148).";
 const FS_MESSAGE =
-  "a final policy opens an I/O or dynamic-loading door — §12.3 bans every filesystem read and subprocess in a gate module (`fs`, `fs/promises`, " +
+  "a final policy opens an I/O or dynamic-loading door — §3 bans every filesystem read and subprocess in a gate module (`fs`, `fs/promises`, " +
   "`fs-extra`, `child_process`, `_shared/proc.ts`, a value-position `import()`, `require()`, `process.binding()`); declare the read through the closed " +
   "ResourceHost vocabulary (contract/resource-declaration.ts) or STOP the conversion (a read no kind serves is a refusal, not a private door).";
 const GRAMMAR_MESSAGE =
   "a final policy PARSES a retired marker grammar — a regex, a `new RegExp` or a membership test naming a `RETIRED_MARKER_OPENERS` spelling " +
-  "(contract/policy-descriptor-read.ts). §12.5: a gate module receives no marker parser and the one waiver vocabulary is the central `@orb-waive`; " +
+  "(contract/policy-descriptor-read.ts). §5: a gate module receives no marker parser and the one waiver vocabulary is the central `@orb-waive`; " +
   "a private grammar carried across a conversion re-opens the door the conversion closed. A MENTION in prose is not a parse and is not this finding.";
 const FIX =
   "E1: delete the `ext` field. E2: replace the walk with kind-indexed visitors / `ctx.files` / a shared `lib/` reader, move state into " +
@@ -937,8 +937,8 @@ export const gate = defineGate({
       why: "E7 THE BLIND SPOT, CLOSED (#2111 A42): `defineGate(DESCRIPTOR)` is a registration the loader brands and every field arm of this family used to skip — `finalDescriptorOf` read `undefined` and the module was judged by nobody. E2 now runs on the REGISTRATION and its `descriptor-wrapper` code names the non-literal argument; red-first on the pre-fix family: 0 findings",
     },
   ],
-  // A refusal is the CORRECT outcome for an input that breaks a runtime guarantee, and no `mustFlag`/`mustPass`
-  // row can hold one: `toolFailure` runs before the arm verdict, so such a row is neither (guide §4.5b, #1977).
+  // `mustRefuse` is the proof arm for an input whose correct outcome is a refusal (§6.3). This policy's
+  // row names its own `BLINDNESS` text so a generic or unrelated refusal cannot satisfy it.
   mustRefuse: [
     {
       mode: "types",
@@ -1057,7 +1057,7 @@ export const gate = defineGate({
           'const WHY = "the legacy grammar was @orb-gate-ignore and FABRICATION-OK; both are retired";\n',
         ),
       ),
-      why: "E6 NEAR-MISS (guide §7): a retired spelling in PROSE — a `why`, a header, a `fix` — is a MENTION, never a parse; only a regex, a `new RegExp` or a membership test names a grammar",
+      why: "E6 NEAR-MISS (guide §8): a retired spelling in PROSE — a `why`, a header, a `fix` — is a MENTION, never a parse; only a regex, a `new RegExp` or a membership test names a grammar",
     },
     {
       mode: "types",

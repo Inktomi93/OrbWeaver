@@ -8,7 +8,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here (mirrors `server-layout.ts`'s header). A declared resource
 // that comes back missing/empty/unresolved/malformed makes `resolveResourceDeclarations`
 // (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, and the receipt phase withholds
-// every consumer, both before `create`/`evaluate` run (guide §11 ruling 3). This module owns no not-ready
+// every consumer, both before `create`/`evaluate` run (guide §3's acquisition-refusal rule). This module owns no not-ready
 // branch: it reads the package metadata through `readyResourceValue`, whose throw is an assertion that the
 // runtime's own refusal already held.
 import type { GatePolicyContext } from "../contract/policy.ts";

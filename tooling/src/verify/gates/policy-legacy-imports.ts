@@ -18,7 +18,7 @@
 //     two homes for one reader wearing a family's clothes, and thirteen final modules do it at this arm's landing
 //     (lane `p-family-readers` migrates them by module). The predicate is NOT the directory: `gates/_proof/**`
 //     holds shared proof surfaces that register nothing (`persist-partialize-and-total-migrate` imports
-//     `./_proof/zustand.ts` by right, guide §4.8b), so the arm resolves the specifier and asks the loader's own
+//     `./_proof/zustand.ts` by right, guide §6.5), so the arm resolves the specifier and asks the loader's own
 //     question of the TARGET — does it register under either contract (`gateRegistrationOf`)? A module that does
 //     is a gate module wherever it sits; a module that does not is a surface, a reader or a helper.
 //
@@ -132,25 +132,25 @@ const TOOLING_SRC = "/tooling/src/";
 const FORBIDDEN_IMPORT_PREFIXES = ["/tooling/src/verify/ops/"] as const;
 
 const MESSAGE =
-  "a FINAL policy module imports the legacy descriptor contract or the central authority machinery (gate-runtime-standardization.md §12.5, §12.8): " +
+  "a FINAL policy module imports the legacy descriptor contract or the central authority machinery (gate-runtime-standardization.md §5, §9): " +
   "`contract/gate.ts` (ExemptionTable/ExemptionRow/Finding/GateDescriptor), the legacy dispatcher or marker parser, the grant table, the waiver " +
   "engine, the coordinator, the final dispatcher or the loader. A gate module receives neither grant tables nor marker parsers, owns no " +
   "exemption table, and runs no pass of its own; a legacy artifact carried across a conversion is the #1922 migration's work, never a keep. " +
   "The `from` token names the import; the message names the resolved home.";
 const PREFIX_MESSAGE =
   "a FINAL policy module imports an ENTRYPOINT VERB IMPLEMENTATION under `tooling/src/verify/ops/**` " +
-  "(gate-runtime-standardization.md §12.3: a gate is not an entrypoint). `ops/` holds the bodies `cli.ts` dispatches to, one per verb; " +
+  "(gate-runtime-standardization.md §3: a gate is not an entrypoint). `ops/` holds the bodies `cli.ts` dispatches to, one per verb; " +
   "every SHARED reader lives in `lib/`, so no gate has a legitimate door here. A detector that reaches a verb implementation is running " +
   "the tool rather than describing a property of the tree, and it drags that verb's whole surface — a run slot, an artifact writer, an " +
   "exit contract — behind itself. The `from` token names the import; the message names the resolved target and the forbidden directory.";
 const LAUNDERED_MESSAGE =
-  "a FINAL policy module reaches the legacy contract or the central machinery THROUGH A RE-EXPORT SHIM (#2201; gate-runtime-standardization.md §12.5, §12.8). " +
+  "a FINAL policy module reaches the legacy contract or the central machinery THROUGH A RE-EXPORT SHIM (#2201; gate-runtime-standardization.md §5, §9). " +
   "The door itself resolves to an innocent module, but that module re-exports a forbidden home, so this gate receives the forbidden surface one hop removed. " +
   "#2096 took direct gate-to-gate imports to zero; a one-hop `lib/` shim is the path of least resistance that reopens it, and closing this is what makes #2096 " +
   "stay closed. REPAIR EITHER END: if the import is legitimate the SHIM is the defect (a `lib/` reader re-exporting the legacy contract is two homes for one " +
   "vocabulary); if the shim is legitimate this gate must stop reaching through it. The message names both ends of the chain.";
 const SIBLING_MESSAGE =
-  "a FINAL policy module imports ANOTHER GATE MODULE (gate-runtime-standardization.md §12.3, owner ruling #2096): a gate module never imports a gate " +
+  "a FINAL policy module imports ANOTHER GATE MODULE (gate-runtime-standardization.md §3, owner ruling #2096): a gate module never imports a gate " +
   "module. A split family's shared predicate lives in `lib/<family>.ts` and BOTH siblings import it from there; a sibling reading its twin's " +
   "exports is two homes for one reader. The target is judged by REGISTRATION, never by directory — a shared proof surface under `gates/_proof/` " +
   "registers nothing and is not this finding. The `from` token names the import; the message names the target and its contract.";
@@ -574,7 +574,7 @@ export const gate = defineGate({
         ),
         { "tooling/src/verify/gates/_proof/surface.ts": "export const SURFACE = 1;\n" },
       ),
-      why: "ARM B THE SHARED PROOF SURFACE: `gates/_proof/**` holds fixture sources that register nothing (`persist-partialize-and-total-migrate` imports `./_proof/zustand.ts` by right, guide §4.8b; this family imports `./_proof/policy-soundness.ts`). A directory-keyed arm would red every one of them; the registration test acquits them by construction",
+      why: "ARM B THE SHARED PROOF SURFACE: `gates/_proof/**` holds fixture sources that register nothing (`persist-partialize-and-total-migrate` imports `./_proof/zustand.ts` by right, guide §6.5; this family imports `./_proof/policy-soundness.ts`). A directory-keyed arm would red every one of them; the registration test acquits them by construction",
     },
     {
       mode: "types",

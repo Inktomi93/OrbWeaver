@@ -602,7 +602,7 @@ const DISPATCHER_INVARIANTS: readonly string[] = [
   "… must be a nonempty string when present",
   "… must be a nonnegative integer",
   "… must be a positive integer",
-  "… … cannot be named by an @orb-waive marker: the position grammar admits no parenthesis, CR or LF, so the finding would be permanently unwaivable. Keep the value as the CARRIER and in the MESSAGE, and hand back its leading paren-free slice as the COORDINATE (lib/waivable-coordinate.ts waivableCoordinate; guide §3, #2107).",
+  "… … cannot be named by an @orb-waive marker: the position grammar admits no parenthesis, CR or LF, so the finding would be permanently unwaivable. Keep the value as the CARRIER and in the MESSAGE, and hand back its leading paren-free slice as the COORDINATE (lib/waivable-coordinate.ts waivableCoordinate; guide §2.1, #2107).",
   "Invalid population expression: …",
   "Invalid repository path …: expected a repo-relative POSIX file path",
   "Invalid repository path …: invalid path segment",

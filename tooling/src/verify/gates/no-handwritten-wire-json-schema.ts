@@ -8,7 +8,7 @@
 // FAMILY `no-handwritten-wire-json-schema` — a declared SINGLETON. D79's T6 seal is one rule about one wire
 // field; no sibling policy asks what fills it. It consumes `lib/reference-fact.ts` (stable-binding
 // resolution, member-write inspection, static strings) and `lib/property-assignment-name.ts` for both key
-// tests, and sharing readers with three other modules is not a family (guide §3, §5b.4).
+// tests, and sharing readers with three other modules is not a family (guide §2, §7 item 4).
 //
 // POPULATION PORT: byte-identical, legacy at `0d83d99f1^` — that `scanRoot` admitted
 // `packages/{server,contracts,kit}/src` minus every `.test.`/`.test-d.` path (its `scripts/` clause was

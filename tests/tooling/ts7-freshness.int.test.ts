@@ -1,5 +1,5 @@
 // THE FRESHNESS GUARANTEE of `scripts/ts7.cjs`, as a committed regression pin (#2193 — the missing half of
-// gate-runtime-standardization.md §12.7 row 14, "Fresh type verdicts": *warm/changed/restored produce
+// docs/history/gate-runtime-worked-cases-2026-09.md §"Archived world-program guarantee table" row 14, "Fresh type verdicts": *warm/changed/restored produce
 // green/red/green without deleting caches; long and short forced incremental flags cannot bypass the
 // wrapper*).
 //

@@ -33,7 +33,7 @@
 // `token: "missing-closure"` at the pin path when `pin.json` was absent AND a real-tree anchor
 // (`tooling/src/snap/cli.ts`) was present — the anchor existing only to keep a synthetic corpus quiet. Under
 // this contract an absent pin makes the `devtools-closure` fact non-ready, `resolveResourceDeclarations`
-// throws at the POPULATION phase and the owner is withheld before `create` runs (guide §11 ruling 3), so
+// throws at the POPULATION phase and the owner is withheld before `create` runs (guide §3's acquisition-refusal rule), so
 // the run is a TOOL ERROR — "I could not judge" rather than "the tree is wrong". `mustRefuse[0]` is that
 // arm's successor proof, and the anchor guard retires with it because a `mode: "resource"` fixture
 // materialises its own root and can never be a stray mini-project.

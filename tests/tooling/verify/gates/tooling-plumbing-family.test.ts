@@ -1,4 +1,4 @@
-// The standing family floor for the ten-policy split of `tooling-shared-plumbing` (#1950 group 4, guide §12.6):
+// The standing family floor for the ten-policy split of `tooling-shared-plumbing` (#1950 group 4, docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments"):
 //
 //   `tooling-project-home` · `tooling-browser-door` · `tooling-child-process-door` (singletons, reviewed-grant)
 //   `tooling-artifact-path-home` (reviewed-grant) + `tooling-artifact-run-slot` (hard) — family `tooling-artifact`

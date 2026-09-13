@@ -1,4 +1,4 @@
-// The installed-package door — ONE kind, three receipted modes (owner ruling 2026-09-11, guide §11).
+// The installed-package door — ONE kind, three receipted modes (owner ruling 2026-09-11, guide §4).
 //
 // These arms read THE REAL INSTALLED TREE on purpose. Every one of the four ids is reached through a pnpm
 // symlink into the content-addressed store, which is precisely why the authored `ResourceReader` cannot

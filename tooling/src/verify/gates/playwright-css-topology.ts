@@ -45,14 +45,14 @@
 // and a specifier resolving to no sanctioned stylesheet is REPORTED by name. `mustFlag[4]` is the pin.
 //
 // AUTHORITY: `hard`. Every finding is a whole-file verdict about a named topology anchor with NO token, so
-// `locateFinding` could never bind an ordinary position (guide §3, class 2). The legacy engine's bare
+// `locateFinding` could never bind an ordinary position (guide §2.1's authored-coordinate rule). The legacy engine's bare
 // `@orb-gate-ignore playwright-css-topology` door DID exist and does NOT survive the conversion; the marker
 // census that makes that free is 0 live markers (measured 2026-09-12 over 7,725 tracked source files with a
 // 1,196-hit positive control, `css-family-audit-2026-09-12.md`).
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. Every declared `exact-file` id must resolve or the WHOLE fact
 // refuses (`contract/resource-exact.ts`), and a refused declaration makes `resolveResourceDeclarations`
-// THROW at the POPULATION phase, withholding this owner before `create` runs (guide §11 ruling 3). That is
+// THROW at the POPULATION phase, withholding this owner before `create` runs (guide §3's acquisition-refusal rule). That is
 // the honest successor of the legacy `existsSync(MAIN)` early return AND of its "CSS topology anchor
 // missing" arm, both of which answered a gutted tree with a silent clean. This module therefore owns no
 // THE REACHABLE STATUS SET OF EACH DECLARATION IS A PROPERTY OF ITS READER, enumerated FROM the readers

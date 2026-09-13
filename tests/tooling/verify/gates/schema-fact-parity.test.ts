@@ -111,7 +111,7 @@ const PARENTS = (names: readonly string[]): string =>
   `import { sqliteTable as parentTable, text as parentText } from "drizzle-orm/sqlite-core";\n${names
     .map((name) => `export const ${name} = parentTable("${name}", { id: parentText("id").primaryKey() });\n`)
     .join("")}`;
-/** THE UNRESOLVABLE PACKAGE DOOR (guide §4.8b, one layer over). `nullable-column-inequality`'s legacy
+/** THE UNRESOLVABLE PACKAGE DOOR (guide §6.5, one layer over). `nullable-column-inequality`'s legacy
  *  fixtures import their table from `@orb/db`, which resolves to NOTHING in a virtual project with no
  *  `node_modules`; the final's column reader then answers `unresolved` and fails QUIET by its declared
  *  limit. The final policy's OWN rows use the relative path for exactly this reason, so the repair is to

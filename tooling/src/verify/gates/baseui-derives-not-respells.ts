@@ -4,7 +4,7 @@
 // and tsc cannot tell you, because the seal only ever passes the value onward.
 //
 // THIS IS THE ORDINARY HALF OF A SPLIT. The legacy descriptor at 1692583d6 carried TWO arms that differ in
-// AUTHORITY, and the contract allows one authority per policy (guide §12.1), so it splits:
+// AUTHORITY, and the contract allows one authority per policy (guide §5), so it splits:
 //   · ARM B — DATA PROPS, waivable. THIS policy. A non-function member of a `*Props` interface whose name is
 //     a prop of the wrapped component's ROOT — the part a seal spreads its rest props onto — must derive
 //     too, unless the narrowing is DELIBERATE and says so.
@@ -40,7 +40,7 @@
 // same predicate through `repoRelative`. On repo-relative authored paths the two admit the identical set, so
 // the port is byte-identical and both spellings of the fence are gone. Pinned by `mustPass[5]`.
 //
-// THE ORDINARY DOOR WORKS, AND THAT IS A MEASUREMENT RATHER THAN AN ASSUMPTION (guide §3: at a 9/9 base rate
+// THE ORDINARY DOOR WORKS, AND THAT IS A MEASUREMENT RATHER THAN AN ASSUMPTION (guide §2: at a 9/9 base rate
 // a working legacy door is the claim that owes evidence). The legacy position was the PROP NAME and the
 // legacy offset was `member.getText().indexOf(name)` — an authored token at its own offset inside the
 // member, which is exactly what `locateFinding` requires under this contract. So the seven live markers
@@ -63,7 +63,7 @@
 // "§4.5 — the baseui-read ledger consumers all refuse, and the phase depends on the KIND", which drives THIS
 // policy by name. The path this line carried until 2026-09-13 — `baseui-family.test.ts` — never existed.
 //
-// TWO LEGACY ROWS DID NOT SURVIVE, AND NOT CARRYING THEM IS THE RULE RATHER THAN A LOSS (guide §4.2:
+// TWO LEGACY ROWS DID NOT SURVIVE, AND NOT CARRYING THEM IS THE RULE RATHER THAN A LOSS (guide §6.2:
 // "never copy a negative arm into a gate"). Legacy `mustFlag[3]` planted a marker naming a NON-violating
 // position and `mustFlag[4]` planted a MALFORMED one (no `: <reason>`), each asserting the finding survived.
 // Under this contract both are CENTRAL-ENGINE negatives: the waiver engine raises an authority ALARM for a

@@ -5,7 +5,7 @@
 // makes every verdict downstream of it a lie.
 //
 // THERE IS NO `jsonc` SIBLING, AND THERE WILL NOT BE (frozen 2026-09-11, #1930 — reason in
-// `docs/design/gate-runtime-standardization.md` §12.4). Guide §11.4 named one; an earlier draft of this
+// `docs/design/gate-runtime-standardization.md` §4). Guide §4 named one; an earlier draft of this
 // header described it beside `json`. It was never built and is now ruled out: the whole gate corpus contains
 // exactly ONE JSONC parse (`gates/tsconfig-entry-liveness.ts:233`), so the kind would serve one gate, and the
 // `extends`-FOLDING half §11.4 asked for is already owned by the world program's shared compiler reader

@@ -15,7 +15,7 @@
 //   §4.5  the REFUSALS. `baseui-state-data-attributes` declares `json:baseui-manifest`; a missing or
 //         unparseable one is a population-phase TOOL ERROR with the owner WITHHELD — never a finding and
 //         never a clean zero — and `toolFailure` runs before a proof row's arm verdict, so no row can carry
-//         it (guide §4.5b). These pins are also the SUCCESSOR PROOF for the legacy
+//         it (guide §6.3). These pins are also the SUCCESSOR PROOF for the legacy
 //         `if (manifest === undefined) return;` fail-open the conversion deleted, and for the blindness
 //         tripwire `surface-a11y-focus` retired into the empty-population refusal.
 //   §4.6  the MARKER TRANSLATION, on the REAL FILES read off disk. An in-place translation is a claim about

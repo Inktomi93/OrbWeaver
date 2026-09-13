@@ -11,7 +11,7 @@
 //     nowhere. Where a value carries a parenthesis the grammar admits none of, the COORDINATE is its
 //     leading paren-free run and the whole text rides the MESSAGE (#2107 arm c).
 //   * THREE AUTHORITIES, THREE POLICIES. The arms below are grouped by who may absolve them, which is what
-//     guide §3 makes the split criterion: an author re-homes a declaration (ORDINARY), nobody absolves a
+//     guide §2 makes the split criterion: an author re-homes a declaration (ORDINARY), nobody absolves a
 //     blind instrument (HARD), and a reviewer licenses a bounded direct-skin recipe (REVIEWED-GRANT).
 import type { CssFamilyReport } from "../contract/css-family.ts";
 import { AUTHORED_STYLESHEETS, CLIENT_GLOBALS, PRODUCT_STYLESHEETS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";

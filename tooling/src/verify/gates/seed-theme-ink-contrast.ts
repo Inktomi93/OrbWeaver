@@ -72,7 +72,7 @@
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. An unloadable product CSS identity makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create` runs
-// (guide §11 ruling 3), so this module owns no not-ready branch and reads through `readyResourceValue`.
+// (guide §3's acquisition-refusal rule), so this module owns no not-ready branch and reads through `readyResourceValue`.
 // THE REACHABLE STATUS SET IS A PROPERTY OF THE READER, enumerated FROM it (#2314 — this sentence said
 // "BOTH reachable statuses" and there are FOUR). `ops/resource-tree.ts#loadCssFiles` forwards
 // `ops/resource-reader.ts#read`'s status BEFORE it can judge the CSS grammar (`read` →
@@ -301,7 +301,7 @@ export const gate = defineGate({
       };
       const theme = sheets.find((sheet) => sheet.path === THEME);
       // The blindness arms anchor on the THEME SHEET, never on this gate's own source file: a gate module is
-      // in no resource population this policy declares, so `ctx.report.file` would THROW on it (guide §3's
+      // in no resource population this policy declares, so `ctx.report.file` would THROW on it (guide §2.1's
       // absent-verdict rule). The sheet is declared, read and present whenever the resource resolved.
       const anchor = theme?.path ?? sheets[0]?.path ?? THEME;
       // The palettes come from the DECLARATION FACTS of the theme sheet plus the SHARED ANCESTRY readers —

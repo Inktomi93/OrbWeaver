@@ -7,7 +7,7 @@
 // `main-2930600-2026-09-12T13-42-50-932Z`, which carried 650 `__g_`/`__dc_` findings because a planting
 // suite wrote fixtures into the working tree while the run read it. The clean slot
 // `main-3632865-2026-09-12T15-40-44-410Z` carries ZERO, because NO final policy plants, by construction
-// (guide §4.8). A conjunct true of all 246 discriminates nothing. Ruled program shape: every final policy
+// (guide §6.5). A conjunct true of all 246 discriminates nothing. Ruled program shape: every final policy
 // owes one real-corpus liveness pin, these eight first, the rest by family in chunks.
 //
 // So the arms are DATA, declared per policy and run through one shared helper, because an enforcer arm is

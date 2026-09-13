@@ -19,7 +19,7 @@
 // that arm — half the gate's stated subject — while every other check stayed green: the static contract
 // still validates, and a portable token deleted with no ledger row simply stops being reported. That is the
 // §4.6 catch-regression this program exists to prevent, so the capability was BUILT rather than declared
-// lost (guide §3: "a shared-reader gap is BUILD work"). The merge-base document is now read by the
+// lost (guide §2: "a shared-reader gap is BUILD work"). The merge-base document is now read by the
 // PROVIDER — the same shape `tracked-files` already uses for `git ls-files` — and published as
 // `TokenContractResource.removalBaseline`, which the policy hands straight to
 // `validateTokenContractTexts`. The validator's worktree arm is unchanged and still serves
@@ -55,7 +55,7 @@
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. A missing or unreadable bundle member makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create` runs
-// (guide §11 ruling 3), so this module owns no not-ready branch and reads through `readyResourceValue`.
+// (guide §3's acquisition-refusal rule), so this module owns no not-ready branch and reads through `readyResourceValue`.
 // THE REACHABLE STATUS SET IS A PROPERTY OF THE READER, so it is enumerated FROM the reader rather than
 // counted off the rows (#2314 — this sentence said "BOTH reachable statuses" and there are three).
 // `ops/resource-artifact.ts#loadTokenContract` FORWARDS `ops/resource-reader.ts#read`'s status for any

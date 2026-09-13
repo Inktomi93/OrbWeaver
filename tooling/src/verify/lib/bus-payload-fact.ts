@@ -5,7 +5,7 @@
 // over the real corpus as a legacy `visit` hook), and the family SPLITS on authority: the credential-field
 // arm has a reviewed door and the fail-closed arm has none. Two policies calling one reader would walk the
 // corpus twice; a `defineFact` provider is instantiated once and fed in the same physical walk
-// (gate-runtime-standardization.md §12.3).
+// (gate-runtime-standardization.md §3).
 //
 // WHAT THE PROVIDER PUBLISHES, AND WHAT IT DELIBERATELY DOES NOT. It publishes the FIELD census, the
 // fail-closed REFUSALS, the roots it resolved and the roots that contributed nothing — all as fact DATA. Its
@@ -158,7 +158,7 @@ export interface BusShapeRefusal {
   readonly node: MorphNode;
   /** The SHAPE LABEL (`unresolved-base:<Name>`, `unsupported-shape:<Kind>`, `unresolved-schema:<Name>`).
    *  It is a discriminator, never a source coordinate: these strings appear in no source file, so the
-   *  consumer carries them in the MESSAGE and lets the sink derive the position (guide §3 — a legacy
+   *  consumer carries them in the MESSAGE and lets the sink derive the position (guide §2.1 — a legacy
    *  position was a discriminator LABEL, and this contract redefines a position as authored text). */
   readonly token: string;
 }

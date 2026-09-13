@@ -44,7 +44,7 @@ const FIX =
 /** THE FAIL-CLOSED THIRD ANSWER (#944) on the sealed-helper arm, kept textually DISJOINT from `MESSAGE`
  *  rather than built as a `${MESSAGE} …` suffix: the unreadable arm reports the same single finding the
  *  sealed verdict does and differs ONLY in message, so a shared prefix would leave both arms unpinnable in
- *  either direction (guide §4.1). No fragment of either text occurs in the other. */
+ *  either direction (guide §6.1). No fragment of either text occurs in the other. */
 const UNREADABLE =
   "a single-owned helper NAME reached through a door the shared readers cannot place — whether this binds the db kit's own `fetchOwned`/`OwnedTable` CANNOT be established, so a chat-scope seam an unreadable module can walk through is reported rather than admitted. The spelling alone is not the identity.";
 

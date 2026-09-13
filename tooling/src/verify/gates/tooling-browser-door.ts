@@ -5,7 +5,7 @@
 // `<engine>.connect(` or `<engine>.connectOverCDP(` anywhere else under `tooling/src/**` is a second bootstrap
 // or a second `ProbeSession` shape. Comment posture: comment-SAFE (node kinds only).
 //
-// AUTHORITY IS reviewed-grant (guide §12.6, #1950 group 4): the legacy `HOMES` row for browser.ts is a
+// AUTHORITY IS reviewed-grant (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4): the legacy `HOMES` row for browser.ts is a
 // recurring repository PERMISSION — two exact rows now, `(browser.ts, browser-launch)` and
 // `(browser.ts, browser-attach)`, because the home performs two licensed acts and a grant licenses one
 // identity; the legacy stale sweep is central grant liveness. Both arms share one policy because they share

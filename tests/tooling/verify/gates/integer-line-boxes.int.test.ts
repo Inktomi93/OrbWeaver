@@ -12,13 +12,11 @@
 //        `waivedFindings 1`, `authorityAlarms []` — because an over-broad or duplicate marker alarms
 //        WITHOUT changing the finding count. Its discrimination control is here too: the same fixture with
 //        the marker's position flipped must ALARM, or "my arm is green" is not "my arm discriminates".
-//   §4.5 the REFUSALS. Both policies declare `authored-css`; `integer-line-boxes` also declares
-//        `json:tokens` and the parasitic `authored-text`. A missing/empty/unparseable one of those is a
-//        population-phase TOOL ERROR with the owner WITHHELD — never a finding and never a clean zero — and
-//        `toolFailure` runs before a proof row's arm verdict, so no row can carry it (guide §4.5b). These
-//        pins are also the successor proof for the legacy `readTypeScale` branch that returned `undefined`
-//        and silenced the whole gate, and for the two blindness reasons ("tokens.json missing", "zero
-//        stylesheets read") the conversion retired into the runtime.
+//   §6.3 the REFUSALS. Both policies declare `authored-css`; `integer-line-boxes` also declares
+//        `json:tokens` and `authored-text`. The family drive pins the complete runtime outcome for missing,
+//        empty, and unresolved inputs: no effective findings, a named population-phase tool error, an
+//        incomplete owner, and that owner withheld. Its healthy twin pins one unresolved-zero receipt per
+//        declaration. These assertions are stronger than refusal-text matching alone and remain family-owned.
 //   ARM B, both members. The blindness floors fire only on a tree carrying the REAL_TREE_ANCHOR, so no
 //        conformance fixture reaches them — the §4.1 cut of each floor comes back clean for that reason
 //        alone. Driven here with the anchor present, and with it absent as the negative control.
@@ -200,7 +198,7 @@ test("ARM B — rest-transform-grid's own floors behave the same way, and name t
 });
 
 test("§4.6 differential — the converted CSS population is byte-identical to the legacy walk's set, and neither side is zero", ({ repoRoot }) => {
-  // READ THE LEGACY SIDE FIRST (guide §4.6): both sides zero would be evidence of nothing. The LEGACY side
+  // READ THE LEGACY SIDE FIRST (guide §6.4): both sides zero would be evidence of nothing. The LEGACY side
   // is re-derived here from the descriptor's own walk — `readdirSync(recursive)` over `packages/ui/src` and
   // `packages/client/src`, every `.css`, MINUS the generated theme — and compared with the set the declared
   // `authored-css` resource admits after the policy's own theme carve-out. This is the POPULATION third of

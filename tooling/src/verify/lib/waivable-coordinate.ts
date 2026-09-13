@@ -46,7 +46,7 @@ export function isWaivablePosition(position: string): boolean {
   return position.trim() !== "" && POSITION_RE.test(position);
 }
 
-/** THE COORDINATE for a value the grammar cannot hold whole (#2107 arm c, guide §3): the value's own leading
+/** THE COORDINATE for a value the grammar cannot hold whole (#2107 arm c, guide §2.1): the value's own leading
  *  paren-free slice, so `oklch(0.5 0.2 30)` → `oklch` and `[&:where(.x:y)]:dark:bg-card` → `[&:where`. A
  *  value that IS waivable is returned unchanged, which is what keeps the split free for `#ff0000`.
  *

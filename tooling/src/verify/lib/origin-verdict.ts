@@ -37,7 +37,7 @@ function isModuleAliasDeclaration(declaration: MorphNode): boolean {
  *
  *  THE FIX IS AT THE CALLER, NOT HERE, and the direction is why: widening this function ACQUITS, and it
  *  sits under every canonical-origin policy's fail-closed arm, so a blind widening silently narrows a
- *  dozen catches at once (guide §4's sealed-origin polarity rule, one axis over). **A caller asking "is
+ *  dozen catches at once (guide §6's sealed-origin polarity rule, one axis over). **A caller asking "is
  *  this member read taken off X" passes the RECEIVER** — its own subject — the way
  *  `lib/process-member-origin.ts:61` now does. Callers that already pass a `callee` or an
  *  `expression()` are correct by construction. */

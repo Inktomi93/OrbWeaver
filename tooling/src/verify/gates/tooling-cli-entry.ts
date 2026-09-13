@@ -4,7 +4,7 @@
 // own entry exits with whatever node decided, and a crash reads as "violations found". Comment posture:
 // comment-SAFE (node kinds only).
 //
-// ONE HARD POLICY (guide §12.6, #1950 group 4): every finding is an ABSENCE — no call in the cli that
+// ONE HARD POLICY (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4): every finding is an ABSENCE — no call in the cli that
 // provably enters the runner — so there is no node to anchor a waiver on and no ordinary door by
 // construction; the escape is BEING a program that enters the runner, never a suppression. FAMILY
 // `tooling-program-entry`, shared with `tooling-ops-direct-invocation` (whose "a module that IS a program"

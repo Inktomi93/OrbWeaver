@@ -12,7 +12,7 @@
 //
 // WHAT IS HELD AND WHAT IS NOT — stated here rather than discovered by a reader who assumed "declared"
 // means "checked". A refusal's REASONING is prose and stays prose. What becomes data is the one condition
-// `docs/design/gate-runtime-standardization.md` §12.4 states as the REOPEN BAR for the frozen resource
+// `docs/design/gate-runtime-standardization.md` §4 states as the REOPEN BAR for the frozen resource
 // vocabulary — *"the bar is two or more independent consumers, because a capability serving one gate is
 // that gate's private reader wearing a contract's clothes"* (§11.5) — because that bar is a census over the
 // tree, and a census is exactly the kind of claim that goes stale silently. Everything a lane could not

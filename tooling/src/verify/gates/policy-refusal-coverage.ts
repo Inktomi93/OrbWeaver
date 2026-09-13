@@ -144,7 +144,7 @@ const MUST_REFUSE = "mustRefuse";
 
 const MESSAGE =
   "a FINAL policy declares `facts` or `resources` — a verdict resting on a DERIVED population — and pins NO REFUSAL " +
-  "(gate-runtime-standardization.md §4.5/§4.5b). When the supply fails (a fact withholds, a resource is missing, a population admits zero " +
+  "(gate-runtime-standardization.md §6.3). When the supply fails (a fact withholds, a resource is missing, a population admits zero " +
   "paths) the policy reports nothing, and reporting nothing is indistinguishable from a clean tree: a refusal nobody pins is a clean pass " +
   "over an empty denominator (#944). Paid three times — #1977 (the third arm minted because refusals lived only in headers), #2109 item 2 " +
   "(three pins carried as hand-measured prose), and `warning-code-coverage`'s before/after paragraph.";

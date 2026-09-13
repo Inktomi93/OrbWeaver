@@ -45,7 +45,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`)
 // THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §11 ruling 3, `docs/design/resource-policy-contract.md` §4). The registry
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/design/resource-policy-contract.md` §4). The registry
 // is a `ledger` and NOT a `documents` member because it is an IDENTITY: with it absent every judgment
 // here is INVERTED rather than merely uncertain, so it must refuse the whole run
 // (`contract/resource-document.ts`). The core-doc corpus is the other door on purpose — a corpus
@@ -59,7 +59,7 @@
 // for a path the tree just listed, and a symlinked member refuses `authored-tree:docs` one phase EARLIER,
 // at population resolution. The construction attempted was a `links` fixture pointing a core-doc member
 // outside the fixture root; its measured outcome is the population-phase refusal pinned in the family
-// test, which is why this is guide §4.1's fourth outcome rather than a missing row.
+// test, which is why this is guide §6.1's structurally-unfalsifiable classification rather than a missing row.
 import { defineGate } from "../contract/policy.ts";
 import type { MarkdownDocument } from "../contract/resource-document.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
@@ -170,7 +170,7 @@ export const gate = defineGate({
             });
           }
         }
-        // A receipt states what the run MEASURED, never what it FOUND (guide §12.3): the ledger
+        // A receipt states what the run MEASURED, never what it FOUND (guide §3): the ledger
         // documents read and the core docs served. A census can legitimately be zero, and a zero receipt
         // is a REFUSAL (`lib/policy-pass.ts` receiptFailures, `count === 0`) — a ledger with no anchors
         // would turn its own honest verdict into a tool error.

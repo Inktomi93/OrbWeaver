@@ -27,7 +27,7 @@
 // FAMILY: SINGLETON (`bus-channel-primitive`). No sibling policy resolves a CONSTRUCTED class's door
 // identity; `lib/reference-fact-call.ts#resolveCallableOrigin` and `lib/origin-verdict.ts`'s
 // `classifyOriginRefusal`/`referenceNamesExport` are corpus-wide primitives that ~20 policies across four
-// families consume, which is a shared PRIMITIVE and not a shared family computation (guide §3: a theme or a
+// families consume, which is a shared PRIMITIVE and not a shared family computation (guide §2: a theme or a
 // shared topic is not a family).
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `TRANSPORT_SCOPE.test('/' + p)` where
 // `TRANSPORT_SCOPE = /\/packages\/server\/src\/transport\//` (`9808b93c0^:36`); the final population is

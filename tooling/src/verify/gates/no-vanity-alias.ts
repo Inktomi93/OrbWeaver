@@ -18,7 +18,7 @@
 // suffix, not a path prefix) and stays a code-level filter, ported verbatim.
 // LEGACY at 86ce80b6c.
 //
-// THE IDENTIFIER-FREQUENCY CENSUS IS A VISITOR, NOT A DESCENDANT WALK (guide §12.3: gate modules cannot
+// THE IDENTIFIER-FREQUENCY CENSUS IS A VISITOR, NOT A DESCENDANT WALK (guide §3: gate modules cannot
 // call `getDescendantsOfKind`). Rule (a)'s "is the original name otherwise present in this module" test
 // used to walk every Identifier under the SourceFile per import candidate; it is now a single
 // `SyntaxKind.Identifier` visitor accumulating a per-file frequency map once, read by every candidate.

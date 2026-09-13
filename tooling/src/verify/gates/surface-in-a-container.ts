@@ -10,7 +10,7 @@
 // and this policy's own `-health` sibling as the other members. This one and `surface-a11y-focus` report the
 // SAME position deliberately: a surface-level verdict has no natural node, and two policies that agree on one
 // coordinate let ONE `@orb-waive` line carry each by id instead of each inventing a position the other cannot
-// see (guide §3, the `caught-failure.ts` shared-anchor payoff).
+// see (guide §2.1, the `caught-failure.ts` shared-anchor payoff).
 //
 // POPULATION PORT: `@client` under `packages/client/src/features/*/surfaces/**` and
 // `packages/client/src/features/*/anchors/**`, `tsx` only, MINUS the app-shell feature. LEGACY at 854c81c80:
@@ -53,7 +53,7 @@
 //
 // ANCHOR MOVE (§4.6 category 6): legacy reported `{ file: rel, line: 0 }` — a FILE finding with no token,
 // which under this contract has NO WAIVER DOOR at all (`locateFinding` needs authored text at the exact
-// line/column; guide §3 door-failure class 2). The position is now the surface's exported component name.
+// line/column; guide §2.1's authored-coordinate rule). The position is now the surface's exported component name.
 // Zero live markers named this gate in either grammar, so no translation is owed.
 //
 // COMMENT POSTURE: comment-SAFE — structural/container evidence is exact JSX tag identity, and container

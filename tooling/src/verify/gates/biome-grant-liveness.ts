@@ -90,7 +90,7 @@
 //     glob-ratified: 1, rule-live: 18, rule-files: 23, rule-dead-file-pairs: 1, rule-mixed-row: 6}`.
 //     THE PLANTED POSITIVE CONTROL: the same frozen source with `EXEMPT` and `RATIFIED_PATTERNS` emptied
 //     (each cut anchor asserted unique in the file) reports **1**, the same subject. So the legacy zero is
-//     the EXEMPTION SUBTRACTION, guide §4.6 **category 5**, and catch parity is not claimed.
+//     the EXEMPTION SUBTRACTION, guide §6.4's EXEMPTION-MECHANISM MOVE classification, and catch parity is not claimed.
 //     ONE-TO-ONE, and the collapse is the interesting half: the legacy carried `catalog.tmp` in TWO tables
 //     — `EXEMPT` for the file-exact arm and `RATIFIED_PATTERNS` for the glob arm, "two different claims
 //     about one grant row", with a standing note to collapse them the day one table could express both.

@@ -6,7 +6,7 @@
 // scale, anywhere under `tooling/src/**` or `tests/tooling/**`, is a budget written for a quiet box that reads
 // as a false RED on a contended one. Comment posture: comment-SAFE (node kinds + a numeric literal).
 //
-// AUTHORITY IS ordinary (guide §12.6, #1950 group 4) — the ONE ordinary policy of the plumbing split, and
+// AUTHORITY IS ordinary (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4) — the ONE ordinary policy of the plumbing split, and
 // the reason is in the legacy table it retires: `CLOCK_SITES` was declared SHRINK-ONLY ("a new fixed clock
 // is RED, never a new row") and each of its reasons was a PER-SITE argument (the tool guard's `timeout` is
 // its INPUT UNDER TEST; a planted-hang kill whose assertion IS the timeout). That is the shape of a reasoned

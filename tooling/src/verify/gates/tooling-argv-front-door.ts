@@ -7,7 +7,7 @@
 // cannot be driven at its own seam, it silently re-admits flags the front door refused, and two callers of
 // the same helper get different answers. Comment posture: comment-SAFE (node kinds only).
 //
-// AUTHORITY IS reviewed-grant — TWO policies, not the three guide §12.6 first ruled (refuted on the tree and
+// AUTHORITY IS reviewed-grant — TWO policies, not the three docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments" first ruled (refuted on the tree and
 // approved by the orchestrator, 2026-09-12, #1950). The legacy descriptor had ONE predicate (a non-cli
 // `process.argv` read) and one exemption table (`ARGV_ENTRIES`, six rows); an ordinary policy and a
 // reviewed-grant policy over that predicate would both report every non-cli read unless one partitioned by
@@ -21,7 +21,7 @@
 // THE PARTITION DELIBERATELY NOT TAKEN: five of the six entries are module-scope `runTool` PROGRAMS, so
 // "a runTool program is a front door like cli.ts" was derivable and would have emptied the table to one
 // row. It was REFUSED because it NARROWS the catch — a new `runTool` program reading argv would pass
-// unreviewed where today it needs a censused row, which is the catch-regression guide §4.6 exists to find.
+// unreviewed where today it needs a censused row, which is the catch-regression guide §6.4 exists to find.
 // Do not re-propose it.
 //
 // FAMILY `process-member` (with `tooling-argv-front-door-health` and, since #1950 group 4,

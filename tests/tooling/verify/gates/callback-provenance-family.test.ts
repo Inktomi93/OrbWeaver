@@ -2,7 +2,7 @@
 // `detached-work-traced-health` arm the conversion SPLIT out of one of them. They are grouped by the fact
 // that one lane converted them together and by nothing else: three declare a SINGLETON family and the
 // fourth joins `policy-soundness`. The header says so plainly rather than inventing a shared theme, because
-// §5b.4 of docs/design/gate-runtime-standardization.md is explicit that a theme is not a family.
+// §7 item 4 of docs/design/gate-runtime-standardization.md is explicit that a theme is not a family.
 //
 //   diagnostic-legibility          family `policy-soundness`      — every gate-corpus diagnostic STRING
 //                                  reader `lib/policy-descriptor-read.ts`  carries a resolvable pointer.

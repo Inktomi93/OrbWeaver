@@ -14,7 +14,7 @@
 //   1. the three REFUSAL arms the conversion moved out of the policy — a MISSING, an UNPARSEABLE and an
 //      UNREADABLE-SHAPE runner config now refuse the whole run as a population-phase TOOL ERROR
 //      (`resolveResourceDeclarations` throws on a non-ready declared resource), and the proof harness has no
-//      "expect a tool error" arm (guide §4.5b). The fail-LOUD requirement is the runtime's refusal now, so
+//      "expect a tool error" arm (guide §6.3). The fail-LOUD requirement is the runtime's refusal now, so
 //      this is where it is pinned;
 //   2. that the policy RESOLVES AND RUNS at repository scope against the three real configs — the
 //      `depcruise-grant-liveness` / `eslint-grant-liveness` shape. The real-tree VERDICT (zero effective
