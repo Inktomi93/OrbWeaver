@@ -18,6 +18,7 @@ import {
   mentionsWaiverOf,
   messageAlternatives,
   policyIdOfPath,
+  policyProductionDependencies,
   proofRowsOf,
   reportSiteMessage,
   reportSiteOf,
@@ -371,4 +372,98 @@ test("static text never certifies the body of a mutable or reassigned callable",
     { segments: [], complete: false },
     { segments: [], complete: false },
   ]);
+});
+
+function productionDependencies(project: Project): ReadonlySet<Node> {
+  const descriptor = finalDescriptorOf(project.getSourceFileOrThrow("/repo/tooling/src/verify/gates/probe.ts"));
+  if (descriptor === undefined) {
+    throw new Error("production dependency fixture must register a final descriptor");
+  }
+  return policyProductionDependencies([descriptor]).get(descriptor) ?? new Set();
+}
+
+test("production dependencies follow canonical aliases, namespace re-exports, wrappers and recursion to a fixpoint", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/reader.ts": "export function reader() { return 1; } export function other() { return 2; }",
+    "tooling/src/verify/lib/barrel.ts": 'export { reader as renamed } from "./reader.ts";',
+    "tooling/src/verify/lib/wrapper.ts":
+      'import * as shared from "./barrel.ts"; export function first() { return second(); } function second() { return shared.renamed() + first(); }',
+    "tooling/src/verify/gates/probe.ts": `${CANONICAL_HEAD}import { first } from "../lib/wrapper.ts"; const alias = first; export const gate = defineGate({ create: () => ({ evaluate: () => alias() }) });`,
+  });
+  const dependencies = productionDependencies(project);
+  const reader = project.getSourceFileOrThrow("/repo/tooling/src/verify/lib/reader.ts");
+  expect(dependencies.has(reader.getFunctionOrThrow("reader"))).toBe(true);
+  expect(dependencies.has(reader.getFunctionOrThrow("other"))).toBe(false);
+});
+
+test("production dependencies retain canonical subject data through stable derived values", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/subject.ts": 'export const SUBJECTS = ["one", "two"] as const; export const UNUSED = "elsewhere";',
+    "tooling/src/verify/lib/derived.ts": 'import { SUBJECTS as source } from "./subject.ts"; export const selected = source.map(value => value.length);',
+    "tooling/src/verify/gates/probe.ts": `${CANONICAL_HEAD}import { selected } from "../lib/derived.ts"; const local = { selected }; export const gate = defineGate({ create: () => ({ evaluate: () => local.selected }) });`,
+  });
+  const dependencies = productionDependencies(project);
+  const subject = project.getSourceFileOrThrow("/repo/tooling/src/verify/lib/subject.ts");
+  expect(dependencies.has(subject.getVariableDeclarationOrThrow("SUBJECTS"))).toBe(true);
+  expect(dependencies.has(subject.getVariableDeclarationOrThrow("UNUSED"))).toBe(false);
+});
+
+test("production roots exclude unused imports, proof builders, erased types and unreferenced local functions", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/reader.ts": "export function reader() { return 1; }",
+    "tooling/src/verify/gates/probe.ts": `${CANONICAL_HEAD}import { reader } from "../lib/reader.ts";
+      const proof = reader();
+      export const gate = defineGate({ mustFlag: [proof], create: () => {
+        type Reader = typeof reader;
+        const unused = () => reader();
+        function alsoUnused() { return reader(); }
+        return { evaluate: () => ({ reader: 1 } as { reader: typeof reader }) };
+      } });`,
+  });
+  expect(productionDependencies(project).has(project.getSourceFileOrThrow("/repo/tooling/src/verify/lib/reader.ts").getFunctionOrThrow("reader"))).toBe(false);
+});
+
+test("mutable or reassigned imported declarations cannot supply canonical production dependencies", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/reader.ts": "export let reader = () => 1; export function written() { return 2; } written = () => 3; export let SUBJECT = 'one';",
+    "tooling/src/verify/gates/probe.ts": `${CANONICAL_HEAD}import { reader, written, SUBJECT } from "../lib/reader.ts"; export const gate = defineGate({ create: () => ({ evaluate: () => [reader(), written(), SUBJECT] }) });`,
+  });
+  const dependencies = productionDependencies(project);
+  const reader = project.getSourceFileOrThrow("/repo/tooling/src/verify/lib/reader.ts");
+  expect([...dependencies].filter((node) => node.getSourceFile() === reader)).toEqual([]);
+});
+
+test("a shadowed parameter does not acquire the imported reader's identity", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/reader.ts": "export function reader() { return 1; }",
+    "tooling/src/verify/gates/probe.ts": `${CANONICAL_HEAD}import { reader } from "../lib/reader.ts"; export const gate = defineGate({ create: () => ({ evaluate: (reader: () => number) => reader() }) });`,
+  });
+  expect(productionDependencies(project).has(project.getSourceFileOrThrow("/repo/tooling/src/verify/lib/reader.ts").getFunctionOrThrow("reader"))).toBe(false);
+});
+
+test("an imported create function and its parameter defaults are production dependencies", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/reader.ts": "export const SUBJECT = 1; export const create = (context, value = SUBJECT) => ({ evaluate: () => value });",
+    "tooling/src/verify/gates/probe.ts": `${CANONICAL_HEAD}import { create } from "../lib/reader.ts"; export const gate = defineGate({ create });`,
+  });
+  const dependencies = productionDependencies(project);
+  const reader = project.getSourceFileOrThrow("/repo/tooling/src/verify/lib/reader.ts");
+  expect(dependencies.has(initializer(reader, "create"))).toBe(true);
+  expect(dependencies.has(reader.getVariableDeclarationOrThrow("SUBJECT"))).toBe(true);
+});
+
+test("a fresh production census reads overwritten helper source instead of a cached dependency", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/subject.ts": "export const FIRST = 1; export const SECOND = 2;",
+    "tooling/src/verify/lib/reader.ts": 'import { FIRST } from "./subject.ts"; export function reader() { return FIRST; }',
+    "tooling/src/verify/gates/probe.ts": `${CANONICAL_HEAD}import { reader } from "../lib/reader.ts"; export const gate = defineGate({ create: () => ({ evaluate: () => reader() }) });`,
+  });
+  const subject = project.getSourceFileOrThrow("/repo/tooling/src/verify/lib/subject.ts");
+  expect(productionDependencies(project).has(subject.getVariableDeclarationOrThrow("FIRST"))).toBe(true);
+  project
+    .getSourceFileOrThrow("/repo/tooling/src/verify/lib/reader.ts")
+    .replaceWithText('import { SECOND } from "./subject.ts"; export function reader() { return SECOND; }');
+  const dependencies = productionDependencies(project);
+  expect(dependencies.has(subject.getVariableDeclarationOrThrow("FIRST"))).toBe(false);
+  expect(dependencies.has(subject.getVariableDeclarationOrThrow("SECOND"))).toBe(true);
 });
