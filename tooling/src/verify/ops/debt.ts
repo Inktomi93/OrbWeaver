@@ -48,6 +48,7 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { RatchetRow } from "@orb/tooling/_shared/ratchet-rows";
 import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "@orb/tooling/_shared/ratchet-rows";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
+import type { LiveAdmission } from "../contract/debt.ts";
 import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
@@ -143,18 +144,6 @@ export function reconcileLedgers(declared: readonly Ledger[], discovered: readon
 export function readLedgerRows(root: string, ledger: Ledger): readonly RatchetRow[] {
   return [...readRatchetLedger(root, ledger.rel).rows].sort((a, b) => b.count - a.count || a.subject.localeCompare(b.subject));
 }
-
-/** The live half: either the per-gate admissions, or the ONE SENTENCE saying why there are none (#2222).
- *
- *  It used to be `… | null`, and the four causes — no artifact, unparseable, the run DIED, the run is a
- *  NON-VERDICT — collapsed into one bare `null` the printer rendered as a generic disjunction ("missing,
- *  malformed, or from a run that did not finish") that did not even LIST the non-verdict case. A refusal
- *  nobody can act on is the same disease as a zero nobody can trust: the operator could not tell "run
- *  check:structure" from "your last run was the gate self-test's own child". Each arm now carries its own
- *  reason, and the non-verdict arm quotes the run's own words verbatim. */
-export type LiveAdmission =
-  | { readonly ok: true; readonly runId: string; readonly byOwner: ReadonlyMap<string, number> }
-  | { readonly ok: false; readonly why: string };
 
 /** The manifest's own reasons this artifact cannot be read as a live reading, in the order a reader cares
  *  about: DIED, did not reconcile, is not about the real tree. Null when the run may be consumed. Split out

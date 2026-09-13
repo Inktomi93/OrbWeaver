@@ -13,6 +13,7 @@
 //   * THREE AUTHORITIES, THREE POLICIES. The arms below are grouped by who may absolve them, which is what
 //     guide §3 makes the split criterion: an author re-homes a declaration (ORDINARY), nobody absolves a
 //     blind instrument (HARD), and a reviewer licenses a bounded direct-skin recipe (REVIEWED-GRANT).
+import type { CssFamilyReport } from "../contract/css-family.ts";
 import { AUTHORED_STYLESHEETS, CLIENT_GLOBALS, PRODUCT_STYLESHEETS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 import type { CssDeclarationFact, CssFacts, CssSelectorFact } from "../contract/resource-css.ts";
 import type { AuthoredCssFile } from "../contract/resource-tree.ts";
@@ -31,20 +32,6 @@ import {
 } from "./css-family-census.ts";
 import { actualLayerOffsets, hasClientMechanismCarrier, isShellSelector, selectorHookSites } from "./css-family-selector-provenance.ts";
 import { waivableCoordinate } from "./waivable-coordinate.ts";
-
-/** The report sink a policy hands in. Deliberately the narrow shape `ctx.report.file` already has, so a
- *  reader cannot smuggle a node anchor into a CSS verdict. */
-export type CssFamilyReport = (
-  file: string,
-  details: {
-    readonly line: number;
-    readonly column: number;
-    readonly token?: string;
-    readonly subject?: string;
-    readonly operation?: string;
-    readonly message: string;
-  },
-) => void;
 
 export interface CssFamilyInput {
   readonly inventory: CssFacts;

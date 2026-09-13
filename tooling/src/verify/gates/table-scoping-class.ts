@@ -24,8 +24,8 @@ import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ReadySchemaFact, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import type { ScopingClass, TableShape } from "../contract/tenancy-scope.ts";
 import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
-import type { ScopingClass, TableShape } from "../lib/tenancy-scope.ts";
 import { TABLE_SCOPING_ROWS, tableScopingClasses, tableShapeOf } from "../lib/tenancy-scope.ts";
 
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
