@@ -11,34 +11,9 @@
 // publishes exactly the declaration file its `ast` door needs. A row that wants an arm to FIRE overrides one
 // entry; nothing fires from the spread alone. That is what makes `count` exact in the rows that use it.
 import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
-import { EXPECTED_DIRECT_THEME_DECLARATIONS } from "./css-family-census.ts";
-
-/** A generated `@theme` block of exactly `count` direct custom-property declarations, minting the THREE
- *  token families the runtime-writer seams live in (`--color-`, `--blur-`, `--spacing-`). The families
- *  matter as much as the count: `themeFamilyPrefixes` derives the generated namespace from this block, and a
- *  seam declaration outside a minted family is invisible to the arm that counts it. */
-function themeDeclaration(index: number): string {
-  if (index === 0) {
-    return "  --blur-probe-0: 1px;";
-  }
-  return index === 1 ? "  --spacing-probe-1: 1px;" : `  --color-probe-${String(index)}: black;`;
-}
-
-export function themeBlock(count: number): string {
-  return `@theme {\n${Array.from({ length: count }, (_, index) => themeDeclaration(index)).join("\n")}\n}\n`;
-}
-
-/** THE GENERATED-OUTPUT PARITY FIXTURES, DERIVED rather than hand-spelled — and that is a deliberate change
- *  from the legacy `censusControlFiles({ themeDirect: 203 })`.
- *
- *  The legacy fixture spelled `203` as a literal so a manifest bump "could not launder its own proof", which
- *  made ONE number live in THREE places (`css-family-audit-2026-09-12.md` ledger row 13) and left the arm red
- *  for five days across four commits that each paid only one half (#1956). What a §4.1 row owes is that the
- *  arm BITES — a corpus one declaration off must red — and the pair below proves exactly that while the
- *  number keeps its ONE home in `lib/css-family-census.ts`. Whether the constant itself must DERIVE from the
- *  generator is #2230 and is owner-pending; this lane reads it and moves nothing. */
-export const THEME_AT_PARITY = themeBlock(EXPECTED_DIRECT_THEME_DECLARATIONS);
-export const THEME_ONE_SHORT = themeBlock(EXPECTED_DIRECT_THEME_DECLARATIONS - 1);
+/** Minimal namespace evidence for the color, blur and spacing runtime seams. Generator freshness
+ * belongs to baseline theme-css --check; no fixture copies the current generated population. */
+export const THEME_FAMILIES = "@theme {\n  --color-probe: black;\n  --blur-probe: 1px;\n  --spacing-probe: 1px;\n}\n";
 
 /** The five product stylesheets, each legal and silent. A row overrides the one home it is about. */
 export const CLEAN_PRODUCT_CSS: Readonly<Record<string, string>> = {
@@ -131,11 +106,11 @@ export const COLORIZATION_SEAM_COMPLETE =
   "[data-theme-colorization] { --color-border: color-mix(in oklab, black, white); --color-sidebar-border: color-mix(in oklab, black, white); }\n";
 export const CLIENT_SEAMS_COMPLETE = `${BLUR_SEAM_COMPLETE}${COLORIZATION_SEAM_COMPLETE}`;
 
-/** Five homes at generated-output parity WITH every runtime-writer seam complete: the shape in which the
+/** Five nonempty homes WITH every runtime-writer namespace and seam complete: the shape in which the
  *  health policy is silent, so a row that adds one defect measures exactly that defect. */
 export const HEALTHY_HOMES: Readonly<Record<string, string>> = {
   ...CLEAN_PRODUCT_CSS,
-  [THEME]: THEME_AT_PARITY,
+  [THEME]: THEME_FAMILIES,
   [TIERS]: DENSITY_COMPLETE,
   [CLIENT_GLOBALS]: CLIENT_SEAMS_COMPLETE,
 };

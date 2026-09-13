@@ -24,7 +24,6 @@ import {
   CLIENT_COLORIZATION,
   DENSITY_SELECTORS,
   DENSITY_SPACING,
-  EXPECTED_DIRECT_THEME_DECLARATIONS,
   LOCAL_FADE_STOP_RE,
   lineAt,
   MESSAGE,
@@ -47,7 +46,7 @@ interface SheetCensus {
   readonly rel: string;
   readonly file: AuthoredCssFile;
   /** Declarations authored DIRECTLY in the generated `@theme` block — custom properties only, the exact
-   *  predicate the retired hand parser implemented (`^\s*(--[\w-]+)\s*:`). Measured byte-identical at 203. */
+   *  predicate the retired hand parser implemented (`^\s*(--[\w-]+)\s*:`). */
   readonly directTheme: readonly CssDeclarationFact[];
   readonly declarations: number;
 }
@@ -452,14 +451,14 @@ const NO_REPORT: CssFamilyReport = () => {
 const BLIND_SHEET = (rel: string): string =>
   `${rel} produced a ZERO declaration census — every ownership verdict about this home below it is vacuous, which is instrument blindness rather than a clean sheet.`;
 
-/** THE HARD ARMS: verdicts about the INSTRUMENT and about generated-output parity. No author absolves one. */
+/** THE HARD ARMS: verdicts about the INSTRUMENT and runtime seam completeness. No author absolves one. */
 export function reportCssFamilyHealth({ inventory, report }: CssFamilyInput): number {
   const sheets = census(inventory);
   // THE `fullHomeSet` GUARD IS GONE, and its deletion is the conversion's answer to audit cut f04. Under the
   // legacy filesystem walk it existed because a missing sheet read as "not the real tree"; under the closed
   // `product-css` identity a corpus short of a home REFUSES at the population phase, so the guard is
-  // unreachable — cut f20 killed zero rows and no fixture can reach the false arm. The parity arm below
-  // keeps its own `complete` test only because it is ALSO the empty-namespace question.
+  // unreachable — cut f20 killed zero rows and no fixture can reach the false arm. The seam census
+  // retains a completeness check because missing homes cannot establish writer coverage.
   for (const sheet of sheets) {
     if (sheet.declarations === 0) {
       report(sheet.rel, { line: 1, column: 1, message: BLIND_SHEET(sheet.rel) });
@@ -473,13 +472,6 @@ export function reportCssFamilyHealth({ inventory, report }: CssFamilyInput): nu
       column: 1,
       message:
         "the generated @theme block produced ZERO direct declarations — token-family ownership cannot be derived, so every generated-namespace verdict is vacuous.",
-    });
-  }
-  if (complete && theme !== undefined && theme.directTheme.length !== EXPECTED_DIRECT_THEME_DECLARATIONS) {
-    report(THEME, {
-      line: 1,
-      column: 1,
-      message: `the generated @theme block contains ${String(theme.directTheme.length)} direct declarations; the generated-output manifest expects ${String(EXPECTED_DIRECT_THEME_DECLARATIONS)}.`,
     });
   }
   reportClosedSeamDrift(sheets, inventory, complete, report);
@@ -508,15 +500,8 @@ function reportClosedSeamDrift(sheets: readonly SheetCensus[], inventory: CssFac
   // that name the cause. `reportGeneratedWriters` only ever classifies a declaration inside a MINTED token
   // family, so a corpus whose `@theme` block resolved nothing covers no member of any seam — and without
   // this return every declared member of all three becomes its own finding, each of them saying "there is
-  // no generated output" in the voice of a missing seam member, on top of the two arms above that say it
-  // once and precisely. THE INVARIANT is that sentence, not a number: the count on the right-hand side is
-  // the seams' total declared membership, so it moves whenever a vocabulary does.
-  //
-  // Measured at the tip that wrote this comment (cut f23, fence deleted, driven against
-  // `css-family-ownership-health`): `mustFlag[1]` reports 2 with the fence and 14 without — the 12 declared
-  // members (8 density + 2 blur + 2 colorization) plus its own 2. The prose here said "three findings …
-  // 2 with it and 5 without", which was true of the RETIRED per-seam count and was left behind by the
-  // coverage rewrite five lines above (`v-css-unit-2-2026-09-13.md` ledger row 3).
+  // no generated output" in the voice of a missing seam member. The empty-namespace arm above owns
+  // that diagnosis; the resulting finding count derives from the declared member sets, never a census pin.
   if (prefixes.size === 0) {
     return;
   }
