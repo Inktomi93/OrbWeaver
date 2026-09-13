@@ -12,6 +12,7 @@ import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { fileLoaded, repoRel } from "../lib/pass.ts";
 import { HOME_SWEEP_ANCHOR, reportUnresolvedHomes, sanctionedHome } from "../lib/sanctioned-home.ts";
+import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const FEATURES_ROOT = "packages/client/src/features/";
 
@@ -37,28 +38,6 @@ const GATE_SELF = "tooling/src/verify/gates/no-pointer-variants-in-features.ts";
 // The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state, NOT a capability query — never matched.
 const POINTER_VARIANT_RE = /^(?:any-)?pointer-(?:coarse|fine):/u;
 const CAPABILITY_MEDIA_RE = /\[@media\([^)]*(?:any-pointer|pointer|hover)\s*:[^)]*\)\]:/u;
-const WHITESPACE_RE = /\s+/u;
-
-interface BannedToken {
-  readonly token: string;
-  readonly offset: number;
-}
-
-function bannedTokens(nodeText: string): BannedToken[] {
-  // Strip the literal's own quotes/backticks (the node text includes them), same as the width gate.
-  const stripped = nodeText.slice(1, -1);
-  const out: BannedToken[] = [];
-  let cursor = 0;
-  for (const part of stripped.split(WHITESPACE_RE)) {
-    const at = stripped.indexOf(part, cursor);
-    cursor = at + part.length;
-    if (part.length > 0 && (POINTER_VARIANT_RE.test(part) || CAPABILITY_MEDIA_RE.test(part))) {
-      out.push({ token: part, offset: at + 1 });
-    }
-  }
-  return out;
-}
-
 const MESSAGE =
   "pointer/hover CAPABILITY variant in a feature className (`pointer-coarse:`/`pointer-fine:`/`any-pointer-*:` " +
   "or a raw `[@media(pointer|hover:…)]:`) — axis-3 device capability is a container query CANNOT see, so it " +
@@ -101,7 +80,7 @@ export const gate: GateDescriptor = {
     if (sanctionedHome(SANCTIONED_HOMES, repoRel(ctx.root, sf.getFilePath())) !== undefined) {
       return;
     }
-    for (const hit of bannedTokens(node.getText())) {
+    for (const hit of readTailwindClassTokens(node.getText()).filter(({ token }) => POINTER_VARIANT_RE.test(token) || CAPABILITY_MEDIA_RE.test(token))) {
       ctx.report(node, hit); // token-anchored ⇒ honours @orb-gate-ignore
     }
   },

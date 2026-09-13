@@ -44,7 +44,10 @@ export function readTailwindClassToken(token: string, offset = 0): TailwindClass
 
 /** Read all tokens from a string/template literal part, retaining exact authored offsets for reports. */
 export function readTailwindClassTokens(nodeText: string): readonly TailwindClassToken[] {
-  const stripped = nodeText.slice(1, -1);
+  // Template heads/middles close with the two-character substitution opener; tails and
+  // ordinary literals close with one delimiter. Offsets remain relative to the authored node.
+  const closingWidth = nodeText.endsWith("${") ? 2 : 1;
+  const stripped = nodeText.slice(1, -closingWidth);
   const tokens: TailwindClassToken[] = [];
   let cursor = 0;
   for (const token of stripped.split(WHITESPACE_RE)) {
