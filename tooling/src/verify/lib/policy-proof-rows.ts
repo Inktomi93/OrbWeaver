@@ -21,3 +21,11 @@ export function policyProofRows(policy: GatePolicy): readonly PolicyProofRow[] {
 export function policyProofArmCounts(policy: GatePolicy): Readonly<Record<PolicyProofArm, number>> {
   return Object.fromEntries(POLICY_PROOF_ARMS.map((arm) => [arm, policy[arm]?.length ?? 0])) as Record<PolicyProofArm, number>;
 }
+
+/** How many `mustFlag` rows carry a reviewed-grant identity witness (#2189). Counted and printed APART from the
+ *  arm counts for the same reason the arms are printed apart: the identity verdict is a SECOND run over a row
+ *  already counted under `mustFlag`, so folding it into that total lets the whole arm be absent while the summary
+ *  reads unchanged — a zero that cannot be told from "the arm never ran", which is the shape #1977 paid for. */
+export function policyGrantIdentityRowCount(policy: GatePolicy): number {
+  return policy.mustFlag.filter((proof) => proof.grant !== undefined).length;
+}

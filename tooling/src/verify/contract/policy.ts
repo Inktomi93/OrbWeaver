@@ -36,6 +36,28 @@ export interface GatePolicyProofExpectation {
   readonly messageIncludes?: string;
 }
 
+/** THE AUTHORED REVIEWED-GRANT IDENTITY one `mustFlag` row's finding must bind (#2189, the policing audit's P7).
+ *
+ *  A `reviewed-grant` policy's whole exception door is the `(subject, operation)` pair its findings carry: the
+ *  central table (`lib/reviewed-grants.ts`) licenses exactly that pair, and `lib/gate-authority.ts#processReviewed`
+ *  grants nothing else. The engine and the real table are proven centrally, but until this key existed NOTHING
+ *  imposed a per-policy obligation that a given policy's EMITTED identity is bindable at all — a conversion could
+ *  ship an operation no grant row can ever name and every check stayed green (measured on the unmodified tree:
+ *  `verifyPolicyProofs` returns `[]` for a policy whose operation is a typo).
+ *
+ *  WHY AN ANNOTATION AND NOT A FOURTH ARM. The grant verdict is a SECOND verdict over a `mustFlag` row, not a new
+ *  input outcome: the same fixture must first flag with no authority, and then be licensed exactly once WITH it.
+ *  A `mustGrant` arm would duplicate the fixture and widen `POLICY_PROOF_ARMS`, every arm count, the loader
+ *  vocabulary and every proof-row sweep to express a relationship an annotation states directly.
+ *
+ *  THE VALUES ARE AUTHORED, NEVER DERIVED FROM THE FINDING THE RUN JUST PRODUCED — deriving them would make the
+ *  proof tautological, which is why `ops/policy-conformance.ts` builds its grant from THESE strings and why the
+ *  wrong-subject / wrong-operation controls are the load-bearing ones. */
+export interface GatePolicyProofGrant {
+  readonly subject: string;
+  readonly operation: string;
+}
+
 /** Explicit fixture substrate and file map; no population-derived path or live-tree anchor exists. */
 export interface GatePolicyProof {
   readonly mode: GatePolicyProofMode;
@@ -48,6 +70,11 @@ export interface GatePolicyProof {
    *  proof runtime that refused it could only ever demonstrate the arm that already passes. */
   readonly links?: Readonly<Record<string, string>>;
   readonly expect?: GatePolicyProofExpectation;
+  /** The reviewed-grant identity witness. `mustFlag` rows of a `reviewed-grant` policy ONLY; the validator
+   *  refuses it on `mustPass`/`mustRefuse` and on an `ordinary`/`hard` policy, where there is no grant door.
+   *  AT LEAST ONE witness per reviewed-grant policy (extra valid witnesses on other rows stay legal); the global
+   *  obligation is gated by {@link REVIEWED_GRANT_WITNESS_REQUIRED} until the census reaches zero missing. */
+  readonly grant?: GatePolicyProofGrant;
   readonly why: string;
 }
 
@@ -187,9 +214,36 @@ export const POLICY_OPTIONAL_FIELDS = ["workItem", "fix", "mustRefuse"] as const
 export const POLICY_PROOF_ARMS = ["mustFlag", "mustPass", "mustRefuse"] as const satisfies readonly PolicyField[];
 export type PolicyProofArm = (typeof POLICY_PROOF_ARMS)[number];
 
-const POLICY_PROOF_KEY_TABLE = { mode: true, files: true, links: true, expect: true, why: true } as const satisfies Record<keyof GatePolicyProof, true>;
+const POLICY_PROOF_KEY_TABLE = {
+  mode: true,
+  files: true,
+  links: true,
+  expect: true,
+  grant: true,
+  why: true,
+} as const satisfies Record<keyof GatePolicyProof, true>;
 /** The keys of one proof row. */
 export const POLICY_PROOF_KEYS = keysOf(POLICY_PROOF_KEY_TABLE);
+
+const POLICY_PROOF_GRANT_KEY_TABLE = { subject: true, operation: true } as const satisfies Record<keyof GatePolicyProofGrant, true>;
+/** The keys of a reviewed-grant identity witness. */
+export const POLICY_PROOF_GRANT_KEYS = keysOf(POLICY_PROOF_GRANT_KEY_TABLE);
+
+/** THE P7 GLOBAL OBLIGATION'S GATE (#2189) — is "every `reviewed-grant` policy carries at least one witness row"
+ *  enforced at load yet?
+ *
+ *  `false` while the census runs: 45 reviewed-grant policies exist and adoption lands by coherent family, so a
+ *  loader that refused every un-annotated one today would red the whole corpus for work not yet done. The rule
+ *  itself is built and directly callable (`lib/policy-validation.ts#reviewedGrantWitnessFailure`), so both
+ *  positions are pinned rather than one being a promise.
+ *
+ *  THE FLIP COMMIT DELETES THIS CONSTANT and makes the call unconditional. A `= true` left standing here would be
+ *  exactly the backward-compatibility toggle this program forbids: a knob whose other position is dead code.
+ *
+ *  Typed `boolean` rather than left as the literal `false` deliberately: under the literal type `tsc` narrows the
+ *  guarded call to unreachable and the branch stops being compiled as live code, which is a second way for the
+ *  rule to rot while reading as built. */
+export const REVIEWED_GRANT_WITNESS_REQUIRED: boolean = false;
 
 const POLICY_EXPECTATION_KEY_TABLE = {
   count: true,

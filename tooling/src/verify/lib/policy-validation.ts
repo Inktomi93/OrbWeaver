@@ -3,6 +3,7 @@
 import { SyntaxKind } from "ts-morph";
 import type { GateFact, GateFactHooks } from "../contract/fact.ts";
 import { isDefinedGateFact } from "../contract/fact.ts";
+import type { GateAuthority } from "../contract/gate-authority.ts";
 import { GATE_AUTHORITIES, GATE_SEVERITIES } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyHooks, GatePolicyProof, GatePolicyProofMode, PolicyField, PolicyProofArm } from "../contract/policy.ts";
 import {
@@ -13,7 +14,9 @@ import {
   POLICY_HOOK_KEYS,
   POLICY_OPTIONAL_FIELDS,
   POLICY_PROOF_ARMS,
+  POLICY_PROOF_GRANT_KEYS,
   POLICY_PROOF_KEYS,
+  REVIEWED_GRANT_WITNESS_REQUIRED,
 } from "../contract/policy.ts";
 import type { GatePolicyAnalysis } from "../contract/policy-primitives.ts";
 import { GATE_POLICY_ANALYSES } from "../contract/policy-primitives.ts";
@@ -38,6 +41,7 @@ const POLICY_KEYS: ReadonlySet<string> = new Set(POLICY_FIELDS);
 const OPTIONAL_POLICY_KEYS: ReadonlySet<PolicyField> = new Set(POLICY_OPTIONAL_FIELDS);
 const REQUIRED_POLICY_KEYS: readonly PolicyField[] = POLICY_FIELDS.filter((field) => !OPTIONAL_POLICY_KEYS.has(field));
 const PROOF_KEYS: ReadonlySet<string> = new Set(POLICY_PROOF_KEYS);
+const PROOF_GRANT_KEYS: ReadonlySet<string> = new Set(POLICY_PROOF_GRANT_KEYS);
 const EXPECT_KEYS: ReadonlySet<string> = new Set(POLICY_EXPECTATION_KEYS);
 const HOOK_KEYS: ReadonlySet<string> = new Set(POLICY_HOOK_KEYS);
 const VISITOR_KEYS = new Set(["kinds", "visit"]);
@@ -185,7 +189,43 @@ function assertRefusalExpectation(value: unknown, label: string): void {
   }
 }
 
-function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string, allowExpectation: boolean): asserts value is GatePolicyProof {
+/** THE REVIEWED-GRANT IDENTITY WITNESS (#2189, P7). The annotation is only meaningful where all three of its
+ *  premises hold, so each is refused by name rather than being tolerated as a no-op:
+ *
+ *  - a `mustFlag` row, because the witness is a SECOND verdict over a fixture that already produced the finding;
+ *    a `mustPass` row reports nothing to bind and a `mustRefuse` row never reaches the authority coordinator;
+ *  - a `reviewed-grant` policy, because `hard` has no suppression door at all and `ordinary` consumes markers,
+ *    not grants (`lib/gate-authority.ts#processPolicy` never routes either into `processReviewed`);
+ *  - nonblank AUTHORED strings, because the runner mints its grant from THESE and a blank one would be refused
+ *    by `isGateAuthorityIdentity` inside the run, turning an authoring mistake into a confusing grant tool error
+ *    instead of a load refusal naming the row. */
+function assertProofGrant(proof: Readonly<Record<string, unknown>>, label: string, authority: GateAuthority, isMustFlagRow: boolean): void {
+  if (proof["grant"] === undefined) {
+    return;
+  }
+  if (!isMustFlagRow) {
+    invalid(`${label}.grant is valid only for a mustFlag proof — a reviewed-grant identity is a second verdict over a row that already reports a finding`);
+  }
+  if (authority !== "reviewed-grant") {
+    invalid(`${label}.grant is valid only for a reviewed-grant policy, and descriptor.authority is ${JSON.stringify(authority)}, which has no grant door`);
+  }
+  const grant = record(proof["grant"], `${label}.grant`);
+  exactKeys(grant, PROOF_GRANT_KEYS, `${label}.grant`);
+  for (const key of POLICY_PROOF_GRANT_KEYS) {
+    nonBlank(grant[key], `${label}.grant.${key}`);
+  }
+}
+
+/** The descriptor context one row is judged in. It carries the ARM rather than a pair of booleans because two
+ *  rules now key off it (expectation admission and the #2189 grant witness) and a third would otherwise be a
+ *  fourth positional flag; `arm` also replaces the `label.startsWith("mustRefuse")` string test, which was the
+ *  arm identity travelling as prose. */
+interface ProofRowContext {
+  readonly arm: PolicyProofArm;
+  readonly authority: GateAuthority;
+}
+
+function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string, context: ProofRowContext): asserts value is GatePolicyProof {
   const proof = record(value, label);
   exactKeys(proof, PROOF_KEYS, label);
   if (!(GATE_POLICY_PROOF_MODES as readonly unknown[]).includes(proof["mode"])) {
@@ -210,7 +250,8 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
     invalid(`${label}.files may contain only .ts/.tsx source paths in ${String(proof["mode"])} mode`);
   }
   assertProofLinks(proof, label, files);
-  if (label.startsWith("mustRefuse")) {
+  assertProofGrant(proof, label, context.authority, context.arm === "mustFlag");
+  if (context.arm === "mustRefuse") {
     if (proof["expect"] === undefined) {
       invalid(`${label}.expect.messageIncludes is required for a mustRefuse proof`);
     }
@@ -218,20 +259,38 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
     return;
   }
   if (proof["expect"] !== undefined) {
-    if (!allowExpectation) {
+    if (context.arm !== "mustFlag") {
       invalid(`${label}.expect is valid only for mustFlag proofs`);
     }
     assertExpectation(proof["expect"], `${label}.expect`);
   }
 }
 
-function assertProofArm(value: unknown, analysis: GatePolicyAnalysis, label: PolicyProofArm): void {
+function assertProofArm(value: unknown, analysis: GatePolicyAnalysis, label: PolicyProofArm, authority: GateAuthority): void {
   if (!Array.isArray(value) || value.length === 0) {
     invalid(`${label} must contain at least one explicit proof example`);
   }
   for (const [index, proof] of value.entries()) {
-    assertProof(proof, analysis, `${label}[${index}]`, label === "mustFlag");
+    assertProof(proof, analysis, `${label}[${index}]`, { arm: label, authority });
   }
+}
+
+/** THE GLOBAL P7 OBLIGATION (#2189), directly callable so BOTH of its positions are pinnable: a `reviewed-grant`
+ *  policy owes AT LEAST ONE `mustFlag` row carrying a grant identity witness. At-least-one, not exactly-one
+ *  (owner ruling relayed 2026-09-13): a second valid witness on another row proves a second emitted identity and
+ *  is strictly more evidence, so refusing it would price honesty as a defect.
+ *
+ *  `assertGatePolicyDescriptor` calls this only while {@link REVIEWED_GRANT_WITNESS_REQUIRED} is true; the flip
+ *  commit deletes the constant and the guard with it.
+ *  @public consumed by the descriptor assert below and by the gated-on pin in
+ *  `tests/tooling/verify/lib/policy-loader.test.ts`; the corpus flip is the only other future caller. */
+export function reviewedGrantWitnessFailure(policy: GatePolicy): string | null {
+  if (policy.authority !== "reviewed-grant") {
+    return null;
+  }
+  return policy.mustFlag.some((proof) => proof.grant !== undefined)
+    ? null
+    : `descriptor.mustFlag carries no grant identity witness, and ${JSON.stringify(policy.id)} is a reviewed-grant policy — nothing proves its emitted (subject, operation) can bind a central grant row (#2189, gate-runtime-standardization.md §4.3). Add \`grant: { subject, operation }\` to the mustFlag row whose finding carries the identity a grant would name.`;
 }
 
 function isExplicitNone(population: PopulationExpr): boolean {
@@ -477,7 +536,20 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
     if (OPTIONAL_POLICY_KEYS.has(arm) && !Object.hasOwn(policy, arm)) {
       continue;
     }
-    assertProofArm(policy[arm], policy["analysis"] as GatePolicyAnalysis, arm);
+    assertProofArm(policy[arm], policy["analysis"] as GatePolicyAnalysis, arm, policy["authority"] as GateAuthority);
+  }
+  // THE GATED GLOBAL RULE (#2189). Every per-row rule above is live today; only the corpus-wide obligation waits
+  // for the census, and it waits in ONE guard — deleted with its constant at the flip.
+  assertReviewedGrantWitness(value as GatePolicy);
+}
+
+function assertReviewedGrantWitness(policy: GatePolicy): void {
+  if (!REVIEWED_GRANT_WITNESS_REQUIRED) {
+    return;
+  }
+  const witnessFailure = reviewedGrantWitnessFailure(policy);
+  if (witnessFailure !== null) {
+    invalid(witnessFailure);
   }
 }
 
