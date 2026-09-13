@@ -20,7 +20,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
-import { resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
+import { boxWithBeforeFloor, resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
 import { clearNumber, setNumber } from "../../../../support/node/set-number.ts";
 import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories.tsx";
 import {
@@ -566,6 +566,7 @@ test.describe("coarse pointer — the custom-parameter row at the NARROWEST real
     await openAdvanced(deck);
     await expect(deck.getByRole("textbox", { name: "Parameter 1 name" })).toBeVisible();
 
+    const door = page.getByRole("button", { name: "Remove dry_multiplier" });
     const measured = await page.evaluate(() => {
       const probe = document.createElement("div");
       probe.style.width = "var(--spacing-touch-target)";
@@ -573,81 +574,20 @@ test.describe("coarse pointer — the custom-parameter row at the NARROWEST real
       const floor = Number.parseFloat(getComputedStyle(probe).width);
       probe.remove();
 
-      const door = document.querySelector('button[aria-label="Remove dry_multiplier"]');
-      const box = door?.getBoundingClientRect();
-      const after = door === null ? null : getComputedStyle(door, "::after");
-      const row = door?.parentElement?.getBoundingClientRect();
+      const domDoor = document.querySelector('button[aria-label="Remove dry_multiplier"]');
+      const box = domDoor?.getBoundingClientRect();
+      const row = domDoor?.parentElement?.getBoundingClientRect();
       const cells = [...document.querySelectorAll('input[aria-label^="Parameter 1 "]')].map((el) => el.getBoundingClientRect());
       return {
         floor,
-        door: {
-          width: Math.max(box?.width ?? 0, Number.parseFloat(after?.width ?? "0") || 0),
-          height: Math.max(box?.height ?? 0, Number.parseFloat(after?.height ?? "0") || 0),
-        },
         overflow: cells.some((cell) => row !== undefined && cell.right > row.right + 1),
         doorOverflow: (box?.right ?? 0) > (row?.right ?? 0) + 1,
       };
     });
 
     expect(measured.floor, "the touch-target token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
-    await expect
-      .poll(
-        async () =>
-          (
-            await page.evaluate(() => {
-              const probe = document.createElement("div");
-              probe.style.width = "var(--spacing-touch-target)";
-              document.body.append(probe);
-              const floor = Number.parseFloat(getComputedStyle(probe).width);
-              probe.remove();
-
-              const door = document.querySelector('button[aria-label="Remove dry_multiplier"]');
-              const box = door?.getBoundingClientRect();
-              const after = door === null ? null : getComputedStyle(door, "::after");
-              const row = door?.parentElement?.getBoundingClientRect();
-              const cells = [...document.querySelectorAll('input[aria-label^="Parameter 1 "]')].map((el) => el.getBoundingClientRect());
-              return {
-                floor,
-                door: {
-                  width: Math.max(box?.width ?? 0, Number.parseFloat(after?.width ?? "0") || 0),
-                  height: Math.max(box?.height ?? 0, Number.parseFloat(after?.height ?? "0") || 0),
-                },
-                overflow: cells.some((cell) => row !== undefined && cell.right > row.right + 1),
-                doorOverflow: (box?.right ?? 0) > (row?.right ?? 0) + 1,
-              };
-            })
-          ).door.width,
-      )
-      .toBeGreaterThanOrEqual(measured.floor);
-    await expect
-      .poll(
-        async () =>
-          (
-            await page.evaluate(() => {
-              const probe = document.createElement("div");
-              probe.style.width = "var(--spacing-touch-target)";
-              document.body.append(probe);
-              const floor = Number.parseFloat(getComputedStyle(probe).width);
-              probe.remove();
-
-              const door = document.querySelector('button[aria-label="Remove dry_multiplier"]');
-              const box = door?.getBoundingClientRect();
-              const after = door === null ? null : getComputedStyle(door, "::after");
-              const row = door?.parentElement?.getBoundingClientRect();
-              const cells = [...document.querySelectorAll('input[aria-label^="Parameter 1 "]')].map((el) => el.getBoundingClientRect());
-              return {
-                floor,
-                door: {
-                  width: Math.max(box?.width ?? 0, Number.parseFloat(after?.width ?? "0") || 0),
-                  height: Math.max(box?.height ?? 0, Number.parseFloat(after?.height ?? "0") || 0),
-                },
-                overflow: cells.some((cell) => row !== undefined && cell.right > row.right + 1),
-                doorOverflow: (box?.right ?? 0) > (row?.right ?? 0) + 1,
-              };
-            })
-          ).door.height,
-      )
-      .toBeGreaterThanOrEqual(measured.floor);
+    await expect.poll(async () => (await boxWithBeforeFloor(door, measured.floor)).x).toBeGreaterThanOrEqual(measured.floor);
+    await expect.poll(async () => (await boxWithBeforeFloor(door, measured.floor)).y).toBeGreaterThanOrEqual(measured.floor);
     expect(measured.overflow, "a value cell spilling past the row is the squeeze this mount exists to catch").toBe(false);
     expect(measured.doorOverflow, "the remove door must not be pushed out of the row").toBe(false);
   });
@@ -929,8 +869,8 @@ test("CLEAR-THEN-BLANK — emptying the twin returns the knob to inherited (blan
 // The re-check filed "the info buttons are 12×12, coarse pointer included". Half of that is a measurement
 // of the wrong box: the `Field`-hosted hints ride `Button size="inline"`, whose visible box is deliberately
 // text-height (crunch item 10 — a full control box sheared every hinted label row 16px taller than its
-// unhinted neighbour) and whose HIT AREA is a layout-neutral `::after` pinned to `--spacing-touch-target`.
-// Those measure 12x12 with a 44x44 `::after`, and are correct.
+// unhinted neighbour) and whose HIT AREA is a layout-neutral `::before` pinned to `--spacing-touch-target`.
+// Those measure 12x12 with a 44x44 `::before`, and are correct.
 //
 // The other half was real, and had to be isolated by measuring: `KnobRow`'s own hint is a `size="icon"`
 // button (a 48px box at coarse) sitting as a FLEX ITEM in a fixed-width label cell — so the three longest
@@ -950,50 +890,25 @@ test.describe("coarse pointer — every knob explainer clears the touch floor", 
       document.body.append(probe);
       const floor = Number.parseFloat(getComputedStyle(probe).width);
       probe.remove();
-
-      const hits = [...document.querySelectorAll('button[aria-label^="More info about"]')].map((el) => {
-        const box = el.getBoundingClientRect();
-        const after = getComputedStyle(el, "::after");
-        // A `size="inline"` trigger carries its floor in the pseudo; a `size="icon"` one carries it in its
-        // own box. Whichever is larger is the real target.
-        return {
-          label: el.getAttribute("aria-label") ?? "",
-          width: Math.max(box.width, Number.parseFloat(after.width) || 0),
-          height: Math.max(box.height, Number.parseFloat(after.height) || 0),
-        };
-      });
-      return { floor, hits };
+      return { floor };
     });
+    const triggers = page.locator('button[aria-label^="More info about"]');
+    const triggerCount = await triggers.count();
+    const hits = await Promise.all(
+      Array.from({ length: triggerCount }, async (_unused, index) => {
+        const trigger = triggers.nth(index);
+        const hit = await boxWithBeforeFloor(trigger, measured.floor);
+        return {
+          label: (await trigger.getAttribute("aria-label")) ?? "",
+          width: hit.x,
+          height: hit.y,
+        };
+      }),
+    );
 
     expect(measured.floor, "the touch-target token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
-    await expect
-      .poll(
-        async () =>
-          (
-            await page.evaluate(() => {
-              const probe = document.createElement("div");
-              probe.style.width = "var(--spacing-touch-target)";
-              document.body.append(probe);
-              const floor = Number.parseFloat(getComputedStyle(probe).width);
-              probe.remove();
-
-              const hits = [...document.querySelectorAll('button[aria-label^="More info about"]')].map((el) => {
-                const box = el.getBoundingClientRect();
-                const after = getComputedStyle(el, "::after");
-                // A `size="inline"` trigger carries its floor in the pseudo; a `size="icon"` one carries it in its
-                // own box. Whichever is larger is the real target.
-                return {
-                  label: el.getAttribute("aria-label") ?? "",
-                  width: Math.max(box.width, Number.parseFloat(after.width) || 0),
-                  height: Math.max(box.height, Number.parseFloat(after.height) || 0),
-                };
-              });
-              return { floor, hits };
-            })
-          ).hits.length,
-      )
-      .toBeGreaterThan(5);
-    for (const hit of measured.hits) {
+    await expect.poll(async () => await triggers.count()).toBeGreaterThan(5);
+    for (const hit of hits) {
       expect(hit.width, `${hit.label}: hit width`).toBeGreaterThanOrEqual(measured.floor);
       expect(hit.height, `${hit.label}: hit height`).toBeGreaterThanOrEqual(measured.floor);
     }
