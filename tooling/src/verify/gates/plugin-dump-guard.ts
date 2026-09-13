@@ -17,7 +17,10 @@
 //     receiver's TYPE. The legacy check accepted any property named `dump` on anything, so a host-side
 //     `logger.dump(x)` inside the membrane would have been judged as a guest materialization.
 //   * `handleSafeToDump` is the DECLARATION in the membrane's own module, so a same-named import from
-//     somewhere else is not the guard this law means.
+//     somewhere else is not the guard this law means. Since #2163 that declaration comes from the shared
+//     `lib/reference-fact-call.ts#resolveCallableDeclaration` rather than a local
+//     `callee.getSymbol()?.getDeclarations()` walk (owner ruling #2097), and the HOME test is what
+//     refuses the import — see `negatedGuardCall`, which states why that difference is not cosmetic.
 // The ordering/dominance analysis is unchanged: the guard must precede the dump statement in the same
 // helper body, must be negated, must judge the SAME context and handle, and every unsafe path through its
 // consequent must terminate.
@@ -25,6 +28,7 @@ import type { CallExpression, FunctionDeclaration, Node as MorphNode, SourceFile
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";
+import { resolveCallableDeclaration } from "../lib/reference-fact-call.ts";
 import { declaredByPackage, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 import { quickjsLookalikeProof, quickjsProof } from "./_proof/quickjs.ts";
 
@@ -72,7 +76,16 @@ function alwaysExits(node: MorphNode): boolean {
   return alternate !== undefined && alwaysExits(node.getThenStatement()) && alwaysExits(alternate);
 }
 
-/** The guard call inside `if (!<guard>(…)) …`, when that guard is the membrane's own declaration. */
+/** The guard call inside `if (!<guard>(…)) …`, when that guard is the membrane's own declaration.
+ *
+ *  CANONICAL-GUARD IDENTITY IS A DECLARATION QUESTION, and since #2163 the shared reader answers it: the
+ *  callee must denote a `handleSafeToDump` FUNCTION DECLARATION whose home is the membrane file itself.
+ *  Two properties of the shared verdict are load-bearing here and neither is incidental —
+ *    · a BODYLESS declaration still RESOLVES (`declare function handleSafeToDump`, `mustFlag[1]`), because
+ *      this arm asks WHICH function, never what it does; and
+ *    · an IMPORTED same-named guard resolves to its own file, so the home test refuses it (`mustFlag[5]`)
+ *      — where the pre-migration chain refused it only because the local `ImportSpecifier` was not a
+ *      `FunctionDeclaration`, i.e. for a reason that would have evaporated the moment the reader improved. */
 function negatedGuardCall(statement: Statement, membrane: SourceFile): CallExpression | undefined {
   if (!Node.isIfStatement(statement)) {
     return;
@@ -85,13 +98,15 @@ function negatedGuardCall(statement: Statement, membrane: SourceFile): CallExpre
   if (!Node.isCallExpression(call)) {
     return;
   }
-  const callee = call.getExpression();
-  const declarations = Node.isIdentifier(callee) ? (callee.getSymbol()?.getDeclarations() ?? []) : [];
-  const declared = declarations.some(
-    (declaration) =>
-      Node.isFunctionDeclaration(declaration) && declaration.getName() === GUARD && declaration.getSourceFile().compilerNode === membrane.compilerNode,
-  );
-  return declared ? call : undefined;
+  const callable = resolveCallableDeclaration(call);
+  const declaration = callable.kind === "resolved" ? callable.value.declaration : undefined;
+  const isMembraneGuard =
+    callable.kind === "resolved" &&
+    callable.value.sourceFile.compilerNode === membrane.compilerNode &&
+    declaration !== undefined &&
+    Node.isFunctionDeclaration(declaration) &&
+    declaration.getName() === GUARD;
+  return isMembraneGuard ? call : undefined;
 }
 
 /** The statement of `body` that contains `node`. */
@@ -244,7 +259,7 @@ export const gate = defineGate({
           'import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";\nexport function handleSafeToDump(ctx: QuickJSContext, handle: QuickJSHandle): boolean {\n  return ctx !== null && handle.alive;\n}\n',
       },
       expect: { count: 1, token: DUMP },
-      why: "THE COUNTERFACTUAL ON THE GUARD: a same-named function IMPORTED from another module is not the membrane's own iterative walk. The legacy check compared the callee's text and accepted any of them",
+      why: "THE COUNTERFACTUAL ON THE GUARD: a same-named function IMPORTED from another module is not the membrane's own iterative walk. The legacy check compared the callee's text and accepted any of them. Since #2163 this row also pins WHY it is refused: the shared reader FOLLOWS the import to `guards.ts` and returns that real `FunctionDeclaration`, so the refusal is now the HOME test — where the pre-migration chain refused it only because the local declaration was an `ImportSpecifier`, an accident of reader weakness that would have evaporated the moment the reader improved",
     },
     {
       mode: "types",
