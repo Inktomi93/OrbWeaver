@@ -494,7 +494,7 @@ const PLATFORM_MUST_PASS = [
 
 export const gate = defineGate({
   id: "platform-spellings",
-  family: "platform-static-spellings",
+  family: "platform-spellings",
   authority: "ordinary",
   severity: "error",
   population: "@packages",
