@@ -182,7 +182,7 @@ These are not exception rows and must remain enforced as policy/resource facts:
   so the true story is 46 → 46 source and 7 → 19 tests. The `tests` scope grew because one legacy table row
   could cover a whole rule class across every test file, whereas a grant names its subject exactly.
 - `tokens.json`, `0000_baseline.sql` parity, Base UI surface manifest (39 components, 292 parts), prose hash/version manifest (148 slots), devtools asset manifest, and generated flag/parity outputs remain authoritative resource data.
-- CSS `EXPECTED_DIRECT_THEME_DECLARATIONS` is generated-output parity; the five per-file declaration counts and aggregate total are current-population counts and retire.
+- The former `EXPECTED_DIRECT_THEME_DECLARATIONS` represented generated-output parity in this census; the five per-file declaration counts and aggregate total were classified as current-population counts to retire.
   **RETIRED 2026-09-13 (`284dedcee`, #2230 ARM B):** that historical parity classification no longer licenses a copied
   count. The constant and parity fixtures are deleted; `ledgers:fresh` / `baseline theme-css --check` compare complete
   bytes derived by canonical `generateArtifacts`. Namespace health still requires direct custom properties inside
