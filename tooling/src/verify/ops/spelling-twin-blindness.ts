@@ -150,13 +150,23 @@ function legacyBlindArms(gate: GateDescriptor): readonly SpellingTwinArm[] {
   return [...blind].sort();
 }
 
-/** The arms a FINAL policy stops biting under. Two differences from the legacy side, both forced by the
- *  final contract rather than chosen: `mustPass` may not be empty (`lib/policy-validation.ts`), so the
- *  policy's OWN passing rows ride along and only `mustFlag` failures are counted; and the respelled copy
- *  must be re-branded through `defineGate`, because the brand is a WeakSet on object identity and a spread
- *  copy carries none. */
+/** The supporting proof's failure is an instrument failure, regardless of which conformance phase failed. */
+function finalTwinIsBlind(policy: GatePolicy): boolean {
+  const failures = verifyPolicyProofs([policy]);
+  const witnessFailure = failures.find((failure) => failure.arm === "mustFlag" && failure.exampleIndex === 1);
+  if (witnessFailure !== undefined) {
+    throw new Error(`Spelling-twin census: supporting grant witness failed for ${policy.id}: ${witnessFailure.detail}`, { cause: witnessFailure });
+  }
+  return failures.some((failure) => failure.arm === "mustFlag" && failure.exampleIndex === 0);
+}
+
+/** Keep the final descriptor valid: its passing rows and an unchanged authored grant witness ride along,
+ *  and `defineGate` restores the identity-based brand. Only the detection-only twin at mustFlag[0]
+ *  measures spelling blindness; a broken supporting witness refuses the census. Reusing the original
+ *  witness also covers unannotated source rows without inventing an identity for their twins (#2189). */
 function finalBlindArms(policy: GatePolicy, reachable: readonly GatePolicyProof[]): readonly SpellingTwinArm[] {
   const blind = new Set<SpellingTwinArm>();
+  const witness = policy.authority === "reviewed-grant" ? policy.mustFlag.find((proof) => proof.grant !== undefined) : undefined;
   for (const proof of reachable) {
     for (const [arm, twin] of armsOf(spellingTwinsOf(proof.files, finalReportedLines(policy, proof.files)))) {
       if (twin === undefined) {
@@ -164,10 +174,10 @@ function finalBlindArms(policy: GatePolicy, reachable: readonly GatePolicyProof[
       }
       const respelled = defineGate({
         ...policy,
-        mustFlag: [{ mode: proof.mode, files: twin, why: `${arm} twin of: ${proof.why}` }],
+        mustFlag: [{ mode: proof.mode, files: twin, why: `${arm} twin of: ${proof.why}` }, ...(witness === undefined ? [] : [witness])],
         mustPass: policy.mustPass,
       } as GatePolicy);
-      if (verifyPolicyProofs([respelled]).some((failure) => failure.arm === "mustFlag")) {
+      if (finalTwinIsBlind(respelled)) {
         blind.add(arm);
       }
     }

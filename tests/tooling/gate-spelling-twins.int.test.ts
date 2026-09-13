@@ -62,7 +62,7 @@ import { join } from "node:path";
 import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../../tooling/src/verify/contract/gate.ts";
-import type { GatePolicy } from "../../tooling/src/verify/contract/policy.ts";
+import type { GatePolicy, GatePolicyProof } from "../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../tooling/src/verify/contract/policy.ts";
 import type { SpellingBlindSet } from "../../tooling/src/verify/contract/spelling-twin-blindness.ts";
 import { verifyGateProofs } from "../../tooling/src/verify/index.ts";
@@ -161,11 +161,11 @@ test("THE PLANTED CONTROL, LEGACY side: an un-migrated descriptor is detected bl
 });
 
 /** The minimum honest `defineGate` shape for a control: one visitor, one law, both proof arms. */
-function controlPolicy(id: string, kinds: readonly SyntaxKind[], detect: (text: string) => boolean): GatePolicy {
+function controlPolicy(id: string, kinds: readonly SyntaxKind[], detect: (text: string) => boolean, grantProofs?: readonly GatePolicyProof[]): GatePolicy {
   return defineGate({
     id,
     family: id,
-    authority: "ordinary",
+    authority: grantProofs === undefined ? "ordinary" : "reviewed-grant",
     severity: "error",
     population: { in: ["@ui"] },
     analysis: "syntax",
@@ -198,12 +198,12 @@ function controlPolicy(id: string, kinds: readonly SyntaxKind[], detect: (text: 
         ],
         evaluate: () => {
           for (const node of hits) {
-            ctx.report.node(node, {});
+            ctx.report.node(node, grantProofs === undefined ? {} : { subject: ctx.relativePath(node.getSourceFile()), operation: "forbidden-read" });
           }
         },
       };
     },
-    mustFlag: [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "the dotted spelling" }],
+    mustFlag: grantProofs ?? [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "the dotted spelling" }],
     mustPass: [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_PASS }, why: "a member this law does not name" }],
   } as GatePolicy);
 }
@@ -226,4 +226,63 @@ test("THE PLANTED CONTROL, FINAL side: the same blindness is detected on a defin
   const census = spellingTwinCensus({ legacy: [], final: [naive, migrated] }, scratchParser());
   expect(census.blind).toEqual({ "twin-control-final-naive": ["bracket"] });
   expect({ examined: census.examined, skipped: census.skipped }).toEqual({ examined: 2, skipped: [] });
+});
+
+/** The annotated arm respells the witness itself; the unannotated arm has a separate, already-bracketed
+ * witness with no twin. Both must reach detection without borrowing an identity for the respelled row. */
+function reviewedGrantControl(id: string, sourceRow: "annotated" | "unannotated", seesBracket: boolean, operation = "forbidden-read"): GatePolicy {
+  const witness: GatePolicyProof = {
+    mode: "source",
+    files: {
+      "packages/ui/src/witness.ts": sourceRow === "annotated" ? CONTROL_MUST_FLAG : 'export const a = (db: Record<string, unknown>) => db["witness"];\n',
+    },
+    grant: { subject: "packages/ui/src/witness.ts", operation },
+    expect: { count: 1 },
+    why: "an authored exact identity must grant the original finding",
+  };
+  return controlPolicy(
+    id,
+    [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+    (text) => text.endsWith('["witness"]') || text.endsWith(".forbidden") || (seesBracket && text.endsWith('["forbidden"]')),
+    sourceRow === "annotated"
+      ? [witness]
+      : [witness, { mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "a different, unannotated dotted finding" }],
+  );
+}
+
+for (const sourceRow of ["annotated", "unannotated"] as const) {
+  test(`reviewed-grant twins: ${sourceRow} source rows still distinguish blind and clean detectors`, () => {
+    const naive = reviewedGrantControl(`twin-grant-${sourceRow}-naive`, sourceRow, false);
+    const migrated = reviewedGrantControl(`twin-grant-${sourceRow}-migrated`, sourceRow, true);
+    expect(verifyPolicyProofs([naive, migrated])).toEqual([]);
+    const census = spellingTwinCensus({ legacy: [], final: [naive, migrated] }, scratchParser());
+    expect(census).toEqual({ blind: { [naive.id]: ["bracket"] }, examined: 2, skipped: [] });
+  });
+}
+
+for (const phase of ["baseline", "grant"] as const) {
+  test(`reviewed-grant twins: a supporting witness ${phase} failure refuses the census instead of becoming blindness or a clean result`, () => {
+    const base = reviewedGrantControl(`twin-grant-broken-${phase}`, "unannotated", true, phase === "grant" ? "wrong-operation" : "forbidden-read");
+    const broken = defineGate({
+      ...base,
+      mustFlag: base.mustFlag.map((proof, index) => (phase === "baseline" && index === 0 ? { ...proof, expect: { count: 2 } } : proof)),
+    } as GatePolicy);
+    const failures = verifyPolicyProofs([broken]);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({ arm: "mustFlag", exampleIndex: 0 });
+    expect(() => spellingTwinCensus({ legacy: [], final: [broken] }, scratchParser())).toThrow(
+      expect.objectContaining({
+        message: expect.stringContaining("supporting grant witness"),
+        cause: expect.objectContaining({ policyId: broken.id, arm: "mustFlag", exampleIndex: 1, detail: failures[0]?.detail }),
+      }),
+    );
+  });
+}
+
+test("reviewed-grant twins: a missing authored witness remains an invalid descriptor", () => {
+  const missing = controlPolicy("twin-grant-missing-witness", [SyntaxKind.PropertyAccessExpression], (text) => text.endsWith(".forbidden"), [
+    { mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "a finding without an authored grant identity" },
+  ]);
+  expect(() => verifyPolicyProofs([missing])).toThrow("carries no grant identity witness");
+  expect(() => spellingTwinCensus({ legacy: [], final: [missing] }, scratchParser())).toThrow("carries no grant identity witness");
 });
