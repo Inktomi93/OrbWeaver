@@ -23,7 +23,7 @@
       "hookTs7Checkers": 2,
       "ctRunnersHostWide": 2,
       "stageCap": 3,
-      "sessionCpuQuotaPct": 800,
+      "sessionCpuQuotaPct": 1600,
       "sessionMemoryHigh": "48G",
       "wholeVerifyQueue": true
     },
