@@ -431,6 +431,55 @@ gone.** Mutable state has exactly two homes and this file is neither:
 - **#2000 (old-gate vs new-gate parity) does not gate Phase D**: §4.6 no longer lets a differential vanish
   (a committed test or a commit-message statement of what it found), so the backlog is closed, not growing.
 
+### THE WORK ORDER AS OF 2026-09-13 — what must precede what, and WHY (owner: *"work order gets put into one of the three docs, not a handoff"*)
+
+**This is ORDER and REASONS, never a row list.** Board state has two homes and this file is neither; every id below is
+a pointer, and `pnpm work:item overview` is the truth about status. Written in one voice by primary from both
+accounts' sequence facts, because two accounts editing the LAW at session end is the collision we spent the night
+dodging.
+
+1. **A conversion that removes a gate from the legacy set MUST delete its `check-gates.repo.int` ENTRY — not just
+   rewrite the comment — in the SAME commit.** Paid as #2296: a conversion rewrote the comment block to say the row
+   was GONE and left the entry in `UNFIXTURABLE_GATES`, so the two-sided arm read `legacy=false / final=true` and the
+   suite went red on `main`. **The lane could not have caught it** — that suite plants `__g_` fixtures, is not
+   concurrency-safe with itself, is orchestrator-only, and nothing else reads that set. **The entry is the half the
+   arm checks; the comment is not.** So this is the orchestrator's line to verify at every conversion fold.
+
+2. **Every landed conversion gets a fresh-context verifier BEFORE its #1584 landing comment, and REFUTATION IS THE
+   NORM.** Measured 2026-09-13: **four of eight** CSS and Base UI conversions were REFUTED on real catches —
+   `tokens-contract` WITHHOLDS a malformed vault instead of reporting it (it receipts `members: scannedTokens`, which
+   is 0 for an unparseable member, so `receiptFailures` eats the finding the legacy gate reported);
+   `seed-theme-ink-contrast` regresses a live legacy gate; two Base UI headline arms are enforced by nothing,
+   including the version-bump tripwire the module is named after. **A conversion that looks green and has quietly
+   stopped catching something is the failure mode this program exists to prevent**, and only the lens finds it.
+
+3. **The remaining planter-served conversions, in the owner's order** (planter-named gates to the FRONT so the four
+   planting suites can retire): `knob-wire-coverage` → `query-machine-seals` → `no-test-fabrication` (C8, its own
+   lane by ruling) → `no-blanket-suppression` (#2063 rework: arms A+B final, arm C stays legacy and armed).
+   **`knob-wire-coverage` is a LANE, not a row** — 6 arms over one reconcile skeleton, `project.getSourceFiles()` at
+   four sites and 15 `getDescendantsOfKind`, census says SPLIT 2 — and **#2283 is parked on it by construction**: the
+   legacy `ExemptionRow` has exactly one field, `why`, so there is no `workItem` field for that row's deliverable to
+   inhabit until the conversion lands.
+   **Each is preceded by the REWORK of the refuted conversions above, because a refuted exemplar propagates** — that
+   is §5b's whole argument, and it is why B2 precedes D.
+
+4. **The CSS family unit is ONE lane and Base UI precedes it.** `css-selector-has-a-writer` + `css-family-ownership`
+   - the `create()`-state move convert together off one cold read: **TWO** module-global passes, not one
+     (`lib/css-family-source-provenance.ts`'s `hookPass` AND `lib/css-selector-writers.ts:159`'s `writerPass`, one
+     lifecycle wearing two module names), across FOUR importers. It consumes
+     `installedSurfaceFrom(declarationPaths, version)` and `installedStateAttributeValuesFrom(declarationPaths)` from
+     the re-homed `lib/baseui-read.ts` — so the Base UI re-home must land first. The `passIdentity` guard becomes a
+     DELETION once state lives in a closure, not a port.
+
+5. **The instrument-honesty debt that is now load-bearing on a PRODUCT verdict** (#2300, P1): the touch-floor
+   ancestor-credit clause grants credit on EXISTENCE, never geometry — it answers 161px whether the real tap target
+   is 26 or 56, it was green through the whole life of a P1, and **the identical predicate in
+   `ui-audit/ops/walker/hit-extent.ts` ships a `tap-target` product verdict off the same answer.** Fix BOTH homes or
+   they drift.
+
+6. **What is NOT in this list, deliberately:** every open row, every status, every count. Counts rot within a day —
+   read-first §2 carries the dated ones with their commands, and the board carries the rest.
+
 **Owed to the orchestrator at a QUIET barrier — no lane may run these, and never beside a `check:structure`
 (#2069: a planter and a reader on one tree is a NON-VERDICT):** `check-gates.repo.int.test.ts`,
 `gate-ignore-grammar.repo.int.test.ts`, `gate-conformance.repo.int.test.ts`, `gate-spelling-twins.int.test.ts`

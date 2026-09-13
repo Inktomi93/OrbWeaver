@@ -47,7 +47,7 @@ findings were already CLOSED. Do not repeat that.
 | # | Read | Size | Stop rule |
 | -: | - | -: | - |
 | 1 | `gate-runtime-standardization.md` — the LAW | **224 KB** | in full, always |
-| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **91 KB** | in full, always. §2b is where you decide what is next |
+| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **95 KB** | in full, always. §2b is where you decide what is next |
 | 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **452 KB** · 454 defect rows | **the WORK QUEUE — read its OPEN rows only, never front-to-back.** Re-run its counting method first (per-table print, `UNBINNED` reported), then read the rows whose state cell is `OPEN`/`PARTIAL`/`UNADJUDICATED`; a `CLOSED` row is a receipt, not reading. It is appended to by every verifier report (`## LEDGER ROWS (N rows)`) and by every fix lane's commit, so its size and counts on any given day are measured, never quoted (2026-09-12 evening: 165 rows / 20 tables / 44 open; **2026-09-12 20:40Z, after the fold and the first drain: 303 rows / 31 tables / 83 OPEN · 200 CLOSED · 13 FIXED**, of which ~47 open are the policing matrix's migration rows already inside running lanes; the count here is a dated SAMPLE the SIZE column cannot regenerate — the prose is hand-kept and rots between edits, which is #2207's family) |
 | 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | **156 KB** · 4 files | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the ~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
 | 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | **76 KB** · 2 files | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
@@ -134,7 +134,14 @@ errors above were sitting. Reading those documents END TO END is not the same ac
 
 ## 2. What NOT to re-derive, because it is already measured
 
-- **The corpus is 303 modules** (**250 final / 53 legacy**, re-derived 2026-09-13 01:38Z from
+- **The corpus is 305 modules** (**261 final / 44 legacy**, re-derived 2026-09-13 04:05Z from
+  `pnpm check:policy-conformance`: `261 final policies · 3099 proof rows · 16 refusal rows · 0 failure(s) ·
+  216 grant rows · 0 invalid`, and `pnpm gate:contract` is **339 findings across 305 modules**. Legacy went
+  **49 → 44 in one night** across six conversions — `devtools-frontend-assets`, the `bus-payload-allowlist`
+  split, the three `baseui-read` gates with their own split, and the four CSS conversions of the train before
+  them. **The work order for what remains is playbook §2b**, which states what must precede what and why.)
+  The PREVIOUS wording of this bullet follows, kept because it is the third time this cell has gone stale
+  inside the section headed *what NOT to re-derive*: — **The corpus is 303 modules** (**250 final / 53 legacy**, re-derived 2026-09-13 01:38Z from
   `pnpm check:policy-conformance`, which is the roster — this partition is NOT derivable from any document
   and is deliberately outside the generated SIZE column, so re-run the command rather than trusting it) and the roster is a **PAIR**: the active half plus 28
   deferred + 2 prebuilt + 3 dropped. The deferred half is one-sided (#2008). **This bullet read
