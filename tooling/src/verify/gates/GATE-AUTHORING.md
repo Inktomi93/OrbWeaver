@@ -1,677 +1,288 @@
 ---
 kind: law
 status: active
-updated: 2026-09-08
+updated: 2026-09-13
 ---
 
-# Authoring a structural gate
+# Authoring a final structural policy
 
-> **LEGACY UNTIL THE GATE-RUNTIME CUTOVER (owner, 2026-09-11).** This document describes the PRE-cutover
-> descriptor runtime: `scanRoot`, `scopeSafety`, `run`/`begin`/`finalize` hooks, typed `ExemptionRow` tables
-> with stale arms, `check-gates.int` fixtures, the registered-gates count. None of that exists in the final
-> `defineGate` contract, and this file never mentions `defineGate`. **A lane CONVERTING a gate reads, in this
-> order: [`docs/design/gate-runtime-standardization.md`](../../../../docs/design/gate-runtime-standardization.md)
-> in full, [`docs/reviews/gate-runtime/exemplars-2026-09-11.md`](../../../../docs/reviews/gate-runtime/exemplars-2026-09-11.md)
-> ("copy these shapes"), and `tooling/src/verify/contract/policy.ts`. It reads THIS file only to understand
-> what the legacy descriptor it is replacing meant, and never copies a shape or satisfies a coupled-site
-> checklist from it.** This file is rewritten against `defineGate` in the cutover commit (design doc,
-> "Existing machinery we retain"). Until then it remains the law for a gate that is still a legacy descriptor.
+This is the mechanism-first guide for `defineGate`. Start with the
+[reading router](../../../../docs/design/gate-runtime-read-first.md), then the standing contract in
+[gate-runtime-standardization.md](../../../../docs/design/gate-runtime-standardization.md) and the relevant source
+headers. The standing contract governs; this guide connects authoring decisions to their implementation and proof.
 
-> THE law for `tooling/src/verify/gates/**` (legacy descriptors; see the banner above). Read this IN FULL before adding, editing, renaming, or deleting a
-> gate. It is the amnesiac-agent transfer of lessons that were paid for in silent-green gates, dead
-> allowlists, and red conformance runs — every rule below is a defect that already happened.
-> Indexed from `docs/architecture/core/AGENTS.md` §7. Supersedes `UI-Gates-and-Lessons.md` §12 (that
-> section is the short form; where they differ, this doc wins). The gate catalog itself is
-> `docs/architecture/core/Core-Enforcement-Active-Gates.md`.
-> Before using raw ts-morph, read [TS-MORPH-CAPABILITIES.md](TS-MORPH-CAPABILITIES.md); it maps the installed API to the shared readers/providers and records the performance and node-lifecycle traps.
-> Filesystem-backed tooling also reads [NODE-26-FILESYSTEM-CAPABILITIES.md](NODE-26-FILESYSTEM-CAPABILITIES.md) before adding a walker or dependency.
+The [legacy guide](../../../../docs/history/gate-authoring-legacy-2026-09-13.md) is preserved verbatim for remaining
+legacy maintenance and conversion archaeology. Its descriptor fields, private exemptions, fixture ritual and exemplar
+recommendations are not final-policy templates. The [preservation map](../../../../docs/reviews/gate-runtime/authoring-guide-preservation-map-2126.md)
+classifies every original section. The 2026-09-11 exemplar report is refuted history: never copy a module on its authority.
+Numbered references below retain the relevant subject; explicitly legacy rules route to that archive.
 
-## 0. The one-screen version
+## 0. Start from the mechanism
 
-| Step | Do |
+| Decision | Authoring action |
 | - | - |
-| scaffold | `pnpm gate:new <kebab-name>` — writes the gate + prints every coupled site |
-| write | fill the descriptor; ≥1 `mustFlag`, ≥1 `mustPass`, each with a `why` |
-| couple | Core-Enforcement row · the `(N registered gates)` count · `check-gates.int` fixture OR `UNFIXTURABLE_GATES` |
-| exempt | typed `ExemptionRow` (`why` mandatory) + a STALE arm + a real-tree anchor. Never a comment marker without a stale arm |
-| posture | if it matches a literal against FILE TEXT, declare its COMMENT POSTURE in the header and wire it through `comment-spans.ts` (§5) |
-| spell | read every member/import/literal through `lib/symbol-reference.ts` — one syntax is not the class (§5, #1506) |
-| prove | `pnpm check:structure` on a REAL planted violation — conformance passing proves nothing about `scanRoot` |
-| fix | violations found at landing get FIXED in the same lane. Allowlists are for PERMANENT deliberate exemptions only |
+| existing enforcement | Read the live resolver, compiler, native lint or policy owner before adding a detector; §10. |
+| scaffold | `pnpm gate:new <kebab-name>`; inspect the generated source and replace its placeholder predicate and proofs. |
+| subject | Choose the smallest complete population, analysis tier, shared facts and declared resources; §3. |
+| family | Name the shared `lib/` callable or canonical subject/vocabulary declaration reached from production hooks, or document a valid singleton reason. |
+| authority | Choose exactly one of `hard`, `ordinary`, `reviewed-grant`; §4. Split differing authorities into siblings. |
+| proof | Preserve every old guarantee; declare catch, near-miss and applicable refusal rows, plus family evidence; §5. |
+| landing | Fix introduced violations, reconcile coupled sites and read the coordinated production result; §§2 and 8. |
 
-## 1. The descriptor contract
+## 1. The final contract and reporting
 
-`tooling/src/verify/contract/gate.ts` is the whole interface. A gate never walks anything itself: it declares the
-SyntaxKinds it wants and the runner (`pass.ts`) feeds it from ONE shared walk over the shared workspace
-(`tooling/src/_shared/ts-workspace.ts` `harnessGlobs` — `packages/*/src`, `tests/`, `tooling/src/verify/gates/`,
-and `tooling/src/` since the @orb/tooling P1 widening, docs/architecture/core/Core-Tooling-Law\.md §3.2).
+Read [contract/policy.ts](../contract/policy.ts) in full. Its field tables and proof vocabularies are the authoritative
+key sets; consumers derive from them. Export one direct `defineGate({...})` object as `gate`. The loader owns discovery,
+branding, duplicate identity and filename agreement. A malformed module is a tool error, never an inactive policy.
+There is no final `status`, registration-count edit, `scanRoot`, `scopeSafety`, `fsBacked`, `begin`, `run` or `finalize`.
 
-| Field | Required | Meaning / trap |
-| - | - | - |
-| `name` | yes | kebab, MUST equal the filename — loader-enforced, hard error at load |
-| `docRow` | yes | the `Core-Enforcement-Active-Gates.md` citation. `dangling-refs` resolves its `*.md`; `gate-modernization` resolves its `§` anchors |
-| `status` | yes | `active` \| `dormant`. `runPass` filters to `active`; a dormant gate still runs its own conformance proof |
-| `scopeSafety` | yes | `incremental-safe` (per-file verdicts) \| `whole-project`. LOAD-BEARING: a cross-file / registry / coverage gate marked `incremental-safe` FALSE-GREENS on scoped runs |
-| `message` | yes | the reason, written ONCE. Printed as the group header; a `Finding` never repeats it |
-| `fix` | no | how to correct it, printed once under the header |
-| `scanRoot` | no | which files this gate reads AT ALL. See §3 — the #1 silent-green source |
-| `kinds` + `visit` | one of | per-node subscription. `visit` MUST be read-only; accumulate into module state for `finalize` |
-| `visitFile` | one of | per-file hook (line scans, per-file setup) |
-| `run` | one of | whole-project pass over the SAME shared project — never `new Project(` |
-| `fsBacked` | no | true when hooks read the real filesystem. Conformance then materializes examples into a real temp dir instead of an in-memory project |
-| `markerImmune` | no | `pass.ts` offers the gate no suppression on either arm. TWO admitted classes, and only two: (a) a gate that AUDITS an exemption vocabulary — `gate-ignore-inventory`, `finding-overload-provenance`, and since 2026-09-02 `no-blanket-suppression` (#962: the LINTERS' suppression directives are its subject, and its two sanctioned escapes — narrow to a line/range counted by `suppressions`, or move the whole-file decision to a `biome.json` grant stale-armed by `biome-grant-liveness` — are each governed by another gate, so a marker here would be an ungoverned third door; the argument is written in docs/design/962-blanket-suppression-control-plane.md §2.4) — where a marker would absolve the very finding two-sidedness exists to produce; (b) THE D16 WIRE FIREWALL, `bus-payload-allowlist` (owner ruling 2026-09-01, #1048) — a security backstop whose findings are two-sided BY DESIGN and whose exemption door was a REVIEWED table row, not a comment written by the same hand as the violation. **CONVERTED 2026-09-13 (#950): that gate is now a final `defineGate` policy and has no descriptor, so it is no longer an occupant of this flag at all — the old `SANCTIONED_FIELDS` table is gone and its one row is a central reviewed grant, stale-armed by `stale-reviewed-grant` instead of the gate's own hand-rolled sweep. The class (b) argument stands as the RECORD of why the flag was granted; it no longer describes a live descriptor.** Still not a "this gate is important" flag: a third occupant needs the same kind of argument, in writing, or the flag decays into exactly that |
-| `begin` / `finalize` | no | reset accumulators / judge them. Ratchet + stale arms live in `finalize` |
-| `mustFlag` / `mustPass` | yes | ≥1 each. The loader REFUSES an un-proven gate — this is fail-closed, not advisory |
-
-**The loader IS the registry.** `loader.ts` globs `tooling/src/verify/gates/*.ts`, imports each in sorted order,
-and validates the exported `gate`. There is no registration list to edit. Consequences:
-
-- A gate-dir module that exports **no** `gate` (and no branded descriptor under another name) is recorded by
-  the mixed loader as UNREGISTERED — never silently skipped (`lib/loader.ts`, #1584); `check:structure`
-  reconciles the roster and `gate-modernization` arm A REDs the file — a gate file that registers nothing is RED.
-- An INVALID descriptor is a hard load error attributed to its file, aborting the whole run. Never
-  "temporarily" ship a half-descriptor.
-- A duplicate `name` is a hard error.
-
-**Reporting.** `ctx.report` has three shapes and they are NOT equivalent:
-
-| Call | Anchors at | Honors `@orb-gate-ignore` |
-| - | - | - |
-| `report(node)` | the node | YES — the node's leading trivia, BLOCK-scoped (§4.3b) |
-| `report(node, { token, offset })` | the token inside the node | YES — same, plus the `(position)` match |
-| `report(finding)` | whatever the Finding says | YES since #828 — but LINE-ADJACENT only, and never at `line` 0 or 1 |
-
-**Both overloads are suppressible, by DIFFERENT resolvers, and the difference is the whole rule.** The node
-arm walks the reported node's leading comments up to its statement boundary and matches a `(position)`
-against the reported `token`. The Finding arm has no node to read trivia from, so its marker must be the
-comment on the line IMMEDIATELY ABOVE `finding.line` — the same adjacency every other house marker uses
-(`biome-ignore`, `FABRICATION-OK`, `ONESHOT-OK`), because it is the only binding an author can predict
-without knowing the gate's line arithmetic. A finding at `line` 0 (genuinely file-level) or `line` 1 has no
-line above it and is UNSUPPRESSIBLE by construction, which is what keeps a blindness tripwire and a ledger
-verdict permanently loud. **UNTIL 2026-08-30 (#828) the Finding arm honoured nothing at all**, so a
-line-scanner gate had no per-site escape whatever: `test-determinism` was the case that paid for it — a
-test whose SUBJECT is elapsed real time (a CPU-throttle receipt) could only contort, change instrument, or
-be scanRoot-excluded wholesale. RULE, unchanged: node-anchored and suppressible ⇒ the NODE overload;
-reserve the Finding overload for genuinely file-level findings, for line-scanner (`visitFile`) verdicts,
-and for stale/ratchet arms (which anchor on the gate file itself).
-
-**THIS CLAUSE NAMES ITS ENFORCER: `finding-overload-provenance`** (2026-08-08). It was prose-only until
-then, and prose-only cost three closing sweeps: each matched report CALL SITES by regex and each one missed
-members, because the finding record is routinely built two or three functions away from `ctx.report`. The
-gate matches the FINDING LITERAL by SHAPE (`file` + `line` + `column`/`message`) wherever it is built.
-**THE BAN SURVIVES #828; ITS REASON CHANGED** (the house idiom: the ruling survives, its INPUT changed).
-The founding reason was that the marker was INERT there, so a correct marker earned a DOUBLE red — that is
-gone, the Finding arm suppresses now. What remains is that a Finding literal's `line` is arithmetic the GATE
-computed: the author's marker anchors to that arithmetic instead of to the node's own trivia, it gets no
-block scope, and it can name no `(position)` unless the literal happens to carry a `token` — which makes
-§4.3a UNSATISFIABLE on a line with two guarded things, the exact hole the position grammar exists to close.
-The one escape, two-sided: `// @finding-overload-ok: <reason>` at the literal
-for a PERMANENTLY non-suppressible arm (a blindness tripwire, a stale/ratchet arm, a ledger verdict — a
-malformed, stale, or over-exempting marker is itself RED). The gate's OWN shrink-only baseline (52 literals
-across 24 gates at mint) reached its terminal state `{}` 2026-08-23 and the baseline + its generator were
-DELETED per this same §4.8 rule — the gate is born-compliant now, with no budget left to hide behind.
-**A deliberately NON-suppressible node-anchored arm is legitimate and takes the marker, not a conversion** —
-`baseui-derives-not-respells` ARM A ("hard, no exemption") and `schema-banned-shapes` (a ledger verdict's
-only escape is contesting the D-cite) are the worked precedents.
-
-**SCAN HEALTH — `ctx.scan`, and why a ✓ now carries a denominator** (2026-08-13, Codex GA-H-01/GA-H-02).
-The harness tallies, for EVERY gate, from the one walk: how many files the run offered (`candidates`), how
-many this gate's `scanRoot` admitted (`scanned`), how many a hook actually ran on (`visited`). They land on
-each gate's line (`✓ own-tables-only · scanned 915/4796 files`), in `reports/check-structure.json` under
-`gates[].scan`, and in `pnpm check:show`. No gate opts in and no descriptor field changed.
-
-- **`scanned === 0` at real-tree scope is a TOOL ERROR (exit 2), not a pass.** It renders `⚠ <gate> …
-  SCANNED ZERO FILES` and `report.ts` refuses the verdict. Every way of arriving there — a `scanRoot` that
-  stopped matching after a rename, the absolute-vs-repo-relative path bug in §3, a fileset the run never
-  loaded — was previously a SILENT ✓. Judged only at `report.ts`: a scoped run and a conformance
-  mini-project both legitimately hand a gate zero in-scope files (§4.5 — `scope.kind` cannot tell them
-  apart, so the entrypoint has to).
-- **`ctx.scan({ … })` is the opt-in half**, for the two things the harness structurally cannot see. It is a
-  context method, not a descriptor field, so all ~200 existing gates are untouched. Numerics accumulate.
-  - `admitted` — findings a committed RATCHET BUDGET absolved this run, printed as
-    `admitted-by-ratchet: N`. **Declared debt is not absence.** EVERY ledger-carrying gate owes this call,
-    or its population is knowable only by running the generator — and worse, the single-pass's own
-    `N finding(s) admitted by ratchet baselines` line then renders that debt as ZERO.
-    **THIS CLAUSE NAMES ITS ENFORCER: `gate-modernization` ARM D** (2026-08-23, #551). It was prose-only
-    until then, and prose-only cost exactly what it always costs: three of the six ledger-carrying gates
-    (`suppressions`, `no-test-fabrication`, `no-hardcoded-model-prose`) were silent, so the printed total
-    of 216 omitted 523 budgeted findings. ARM D flags any gate module whose string literals include a
-    ratchet-ledger PATH while the module never calls `ctx.scan({ admitted })`, and carries the §4.6
-    blindness tripwire (zero recognised ledger readers on the real tree is RED, not ✓).
-    **The rows themselves are enumerable with `pnpm debt`** (`tooling/src/verify/ops/debt.ts`, #546) — the
-    triage listing behind the count, which reconciles its declared ledger table against every committed
-    `*.baseline.json` on the tree in BOTH directions and refuses to print a listing when they disagree.
-  - `unit`/`candidates`/`scanned`/`skipped` — for a gate whose units are NOT workspace source files
-    (`dangling-refs` reads markdown: `ctx.scan({ unit: "doc", scanned: docs.length })`). Without it such a
-    gate's row reports a file count it never read, and it cannot distinguish itself from a blind gate.
-  - `population` — **the SEMANTIC-MEMBER receipt (#946, 2026-09-01).** See below; it is the one part of
-    scan health that is about the gate's SUBJECT rather than its fileset.
-
-**SEMANTIC-MEMBER POPULATION — files visited is NOT the denominator a COVERAGE gate's verdict rests on**
-(#946, from `docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md`). Twenty-four active
-gates were shown to stay GREEN after supported members move behind an import, a spread, an inherited
-interface, or a builder: the gate still visits its files, still has a subject, still renders a healthy
-`scanned N/M files` — and judges a shrunken set. `admitted` closed this class one level up for ratchet debt;
-this closes it for the population itself.
-
-```ts
-// the smallest optional contract — one field on the declaration a gate already makes
-ctx.scan({ population: [{ source: "SectionDefinition", members: 10, unresolved: 1 }] });
-```
-
-| Field | Means |
+| Fields | Derive them from |
 | - | - |
-| `source` | the stable name a reader DIFFS run over run (`"SectionDefinition"`, `"CHROME_ZONES"`). Declarations accumulate per source, so a gate may declare per discovery site or once in `finalize` |
-| `members` | what the gate RESOLVED and actually judged |
-| `unresolved` | declarations it SAW and could not resolve into members — an authoring shape outside its reader |
+| `id`, `family` | Filename identity; a meaningful shared production dependency or a reasoned singleton whose family equals its id. |
+| `authority`, `severity`, `workItem` | The rule's permitted exception and debt posture. A warning needs a positive live issue; error forbids `workItem`; hard plus warning is invalid. |
+| `population`, `analysis`, `execution` | The actual evidence plane and dependency closure; §3. |
+| `facts`, `resources` | Only capabilities consumed by this policy; explicit `[]` when unused. |
+| `message`, `fix` | The actual population, carrier, predicate and report site. An ordinary fix spells the exact waiver door and reported position. |
+| `create` | One invocation's state and hooks; §12. |
+| `mustFlag`, `mustPass`, optional `mustRefuse` | The distinguishable behaviors, not a minimum row count as a substitute for coverage; §5. |
 
-- **DECLARING IS THE OPT-IN. There is no descriptor flag beside it, deliberately** — a stored "judge me"
-  boolean next to the call that produces the number is two facts that can disagree, the same argument §4's
-  ratchet-class PARTITION makes. A gate that must not be judged simply does not declare.
-- **Both refusals are exit-2, judged ONLY at `ops/structure.ts`** (`lib/population.ts` `populationAlarms`),
-  the same placement and the same reason as the zero-SCAN alarm: a scoped run and a conformance
-  mini-project both legitimately resolve zero members, so `scope.kind` cannot tell them apart.
-  `members === 0` ⇒ the subject derivation came back EMPTY (the §4.6 blindness tripwire, in numbers) —
-  unconditional. `unresolved > 0` **behind a GREEN verdict** ⇒ DENOMINATOR LOSS: a ✓ over a shrunken member
-  set is the audited defect verbatim. A gate that already REPORTED the unreadable declaration (a #944
-  fail-closed arm) rides the ordinary violation exit instead — one cause must not produce both a violation
-  and a "the checker is broken" verdict, and the count still prints on its line as the receipt.
-  Both alarms land in `reports/check-structure.json` `populationAlarms`,
-  on the gate's console line (`SectionDefinition: 10 member(s), 1 UNRESOLVED`), and in `pnpm check:show`.
-- **The corollary for the gate itself: never `continue` past a declaration you cannot read.** Report the
-  finding, or count it `unresolved`, or both. A silent skip is the whole defect — see the six definition
-  gates hardened by #944, whose readers all used to `return` on a non-literal initializer.
-- **A COUNT NEVER PROVES CORRECTNESS.** A confidently wrong number is still wrong: this receipt makes a
-  SHRINKING denominator loud, it says nothing about whether the members it resolved are the right ones.
-  Every gate declaring a population still owes the per-shape planted controls its source law sanctions
-  (imported initializer · tuple/object spread · interface inheritance · builder) — §5, and the
-  permanent runner controls live at `tests/tooling/verify/lib/population.int.test.ts`.
-- **Live occupants** (each with its own imported-definition control): `section-registry-completeness`,
-  `placeholder-copy-registry`, `modal-registry-completeness`, `modal-body-not-placeholder`,
-  `config-group-completeness` (three sources — three accumulators that shrink independently, so three
-  declarations, never one summed number) and `chrome-registry-completeness` (whose ENTRY population sits
-  beside its zone-VOCABULARY count for the same reason).
+Use `ctx.report.node` for a source node and `ctx.report.file` for an admitted file/resource anchor. A node must belong to
+the effective source population; a file anchor must belong to the combined effective population. Node coordinates are
+source-derived. An explicit token and offset are a pair and must name the exact authored slice. A display label is not
+an ordinary waiver position. If omitted, the sink derives a position from the carrier where possible.
 
-**AND THE PHASE MATTERS: a node-anchored report must not happen in `finalize`.** `gate-ignore-inventory`'s
-STALE sweep also runs in `finalize`, and gates finalize in load (filename) order — so a marker consumed
-after the sweep read its count is reported stale by mistake, which is the same author-hostile double-red.
-Reconcile in `run` instead (every gate's `run` precedes every `finalize`, and `run` is still after the whole
-walk, so accumulated state is complete); `no-inline-union-redecl`'s arm B is the worked example, and
-`pass.ts`'s `gateIgnoreSuppressedInFinalize` tripwire REDs the day one slips through.
+An absence finding cannot point to the missing subject. Use the shared `subjectAnchor` with admitted sources, or an
+admitted resource anchor. Never return clean merely because the preferred anchor or token is absent. Do not invent an
+outside-population anchor. The empty-population refusal still applies. The sink and authority contracts own the final
+reporting semantics; legacy `report(node)`/`report(finding)`, line-adjacent ignore resolution and
+`@finding-overload-ok` remain historical mechanisms in the archive's §1.
 
-## 2. The COMPLETE coupled-sites list
+## 2. Coupled authoring and conversion sites
 
-Arming a gate touches these. Miss one and either `enforcement-registry-parity`, `check-gates.int`, or
-nothing-at-all (the worst case) fires.
+A final policy needs its module, declared proofs, applicable family tests and accurate
+[active catalog row](../../../../docs/architecture/core/Core-Enforcement-Active-Gates.md). The loader is the registry;
+do not add a hand-maintained registration list or count. New scripts or tiers are separate registry changes only when
+there is a real new entry point. Final policies do not join the legacy `writeFixtures()`/`UNFIXTURABLE_GATES` ritual.
 
-| # | Site | What |
-| - | - | - |
-| 1 | `tooling/src/verify/gates/<name>.ts` | the descriptor, with `mustFlag` + `mustPass` (each with a `why`) |
-| 2 | `tests/tooling/check-gates.repo.int.test.ts` `writeFixtures()` | a `__g_` fixture: a minimal REAL-tree violation at the gate's anchor path |
-| 2b | `tests/tooling/check-gates.repo.int.test.ts` `UNFIXTURABLE_GATES` | INSTEAD of 2, with a comment stating WHY no fixture can drive it (whole-corpus ratchets, real-manifest parity). Never fake a fixture |
-| 3 | `docs/architecture/core/Core-Enforcement-Active-Gates.md` | the Layer-3 table row (`\| \`name\` \| what it enforces \|\`) |
-| 4 | same doc, the `(N registered gates)` count line | bump it — `enforcement-registry-parity` reds until doc and loader agree |
-| 5 | `package.json` + `tooling/src/verify/lib/registry.ts` | ONLY if the gate gets its OWN script/tier (like `check:orphan-ratchet`). A normal gate rides `structure:full` and needs neither |
-| 6 | `tooling/src/verify/gates/<name>.baseline.json` + a `gen-*-baseline.ts` | ONLY for a ratchet gate. The generator is the single writer; the baseline is committed |
+For a conversion, preserve the old source at its commit, account for every legacy example and arm, port the population
+in both directions, and translate that owner's live markers in the same commit. Classify exemptions before moving them
+into central authority. Retarget coupled tests and remove a legacy fixture or harness only when successor evidence owns
+its guarantee. Search all test assertions of the legacy roster, including ledger equality, rather than only named
+membership matchers. Renames also sweep document citations, literal paths and escaped regex paths; §9.
 
-Sites 3+4 are what a "the gate works, why is check red?" question is 90% of the time.
+`gate-modernization` still audits legacy descriptors and cites this path. Its legacy field and stale-arm advice belongs
+to the archived §§1–4, not to `defineGate`. Keep the original path live: `eslint-grant-liveness` and
+`depcruise-grant-liveness` also use it as reviewed fixture-ignore authority; §6.
 
-## 3. `scanRoot` — path formats and the complex-predicate warning
+## 3. Population, analysis and resources
 
-**The two path forms are different and NOT interchangeable:**
+Read [contract/population.ts](../contract/population.ts) for the named roots, derived sets and algebra. Use named refs,
+composition and supported selectors; do not rebuild a private path predicate. `under` is a glob such as `x/**`.
+`all` and `none` require reasons. Do not assume `@authored` and `@packages` contain every workspace member: use their
+current classifications. A population port records `legacy − final` and `final − legacy` and explains each difference.
+An outside-only fixture can refuse for emptiness; a fence proof also plants an admitted anchor.
 
-| Where | Format | Match with |
-| - | - | - |
-| `scanRoot: (p) => …` | bare repo-relative, NO leading slash | `p.startsWith("packages/client/src/")` |
-| `sf.getFilePath()` inside a hook | absolute `/…/packages/…` | `path.includes("/packages/client/src/")` |
+Choose `syntax` for syntax, `types` when the predicate needs semantic resolution, and `resource` for a resource-only
+policy. `selected-files` is valid only when selected files contain the whole verdict; cross-file relationships need
+`entire-population`. A convenient local green cannot justify a smaller execution scope. Shared providers in `facts`
+are read through `ctx.fact()` only in `evaluate`, after the shared walk. A declaration that is never consumed is not a
+capability reservation. Never acquire a private Project, checker shortcut, recursive walk or filesystem reader.
 
-Using the absolute form in a `scanRoot` makes the gate **never fire and stay GREEN** — a silent
-false-negative, not an error. Synthetic `mustFlag`/`mustPass` examples use VIRTUAL paths, so **conformance
-never catches this class.** Cross-check a sibling gate's path form, then prove the bite on the real tree.
+[contract/resource-declaration.ts](../contract/resource-declaration.ts) owns the closed resource vocabulary; read the
+owning resource contract/header for its exact request, result and refusal behavior. Do not duplicate a count of kinds.
+Source populations and resource facts are different inputs. In particular, an installed-package fact has no authored
+path, while demand facts receive their subject at the call. Declare every read; missing capability is an explicit
+build-or-disposition question under standing law §4, not permission for a local filesystem escape.
 
-Defensive middle ground (used by `density-tier`, `no-hover-display-swap`): `(p) => p.includes("packages/client/src/")`
-makes no assumption about a leading slash at all.
+Read [TS-MORPH-CAPABILITIES.md](TS-MORPH-CAPABILITIES.md) before choosing a raw API, and
+[NODE-26-FILESYSTEM-CAPABILITIES.md](NODE-26-FILESYSTEM-CAPABILITIES.md) before changing a filesystem-owning instrument.
+Final policy authors use the admitted shared surface. World/config ownership and generated TypeScript program selection
+remain in [.claude/rules/gates-and-tooling.md](../../../../.claude/rules/gates-and-tooling.md) and
+[Core-Tooling-Law.md](../../../../docs/architecture/core/Core-Tooling-Law.md); a root-tsconfig check cannot replace them.
 
-**A complex `scanRoot` predicate is a coverage decision, and it is unreviewable by inspection.** ~16 gates
-carry multi-clause predicates (unions of roots, negated segments, regex tests). Every clause is a claim that
-the excluded files cannot violate the rule. Before writing one, run the predicate over the real file list and
-READ what it drops. Two specific rules:
+## 4. Authority, liveness and completeness
 
-- **Scan-and-allowlist beats scanRoot-exclusion for sanctioned homes.** A sanctioned home scoped OUT of
-  `scanRoot` carries its exemption silently through a rename or a move. The same home SCANNED plus a cited
-  allowlist row goes RED at its new path (`macro-resolution-home`, `own-tables-only`, `no-hover-display-swap`
-  are the precedents; `scrubber-home`'s exclusion shape is the anti-pattern). Add a rename tripwire in
-  `finalize` (one finding per allowlist entry point missing from the tree).
-- **A hard-coded FILE path constant dies on rename.** `const FACTORY_FILE = "…/create-x-form.ts"` that the
-  gate DISPATCHES on goes silently green the day that file moves; tsc cannot see it and an import sweep
-  misses it. Prefer deriving the target from a structural fact (an import specifier, a descriptor field, a
-  schema export). When a path constant is unavoidable, pair it with a tripwire that REDS when the path stops
-  resolving. Three gates went dead-green at once on one `index.ts` split; escaped-regex spellings
-  (`chat\/index\.ts`) need sweeping too, not just plain strings.
+[contract/gate-authority.ts](../contract/gate-authority.ts) and standing law §5 own the three doors:
 
-## 4. The exemption grammar (LAW)
-
-An exemption is a promise. This is how the promise is written.
-
-1. **TYPED ROWS, NOT COMMENT MARKERS.** The house shape is `Record<key, ExemptionRow>` from `contract.ts` —
-   `ExemptionRow` makes `why` mandatory at the type level. Widen by intersection
-   (`ExemptionRow & { readonly owners: readonly string[] }`), never by re-declaring a parallel `{…, why}`
-   shape. A `Record<string, string>` "path → reason" table is the legacy spelling; migrate it when you touch
-   the gate.
-2. **THE REASON IS MANDATORY AND CARRIES THE END CONDITION.** An exemption that cannot say what would end it
-   is a permanent one. Write both: why it is granted, and what makes it deletable.
-3. **COMMENT MARKERS, when a table cannot express the site** (`// allow-skip:`, `// terse-ok:`,
-   `// FABRICATION-OK:`, `// @swallowed-ok:`, `// @typeonly-ok:`, `// @server-only:`): the house grammar is
-   `marker:\s*\S` — **the reason after the colon is REQUIRED**, and a bare marker must exempt NOTHING. A
-   bare-marker-exempts rule is a rubber stamp. For the shared `@orb-gate-ignore` vocabulary the **MENTION
-   FENCE** applies (`pass.ts`, docs/history/design/gate-ignore-mention-fence.md, 2026-08-08): **a marker IS a `//`
-   comment whose own text begins with the vocabulary** — the suppressor anchors its parse there (a
-   quotation embedded in a prose comment above a reported node must never absolve it; that was a live
-   bypass) and the inventory counts only comment-OPENER matches, so a grammar quotation in prose/JSDoc
-   (backtick style) or inside a string literal is an inert MENTION everywhere — which is what lets
-   `gate-ignore-inventory` scan the gate corpus itself without the corpus's own documentation self-flagging.
-   3a. **THE MARKER NAMES ITS POSITION whenever ONE LINE can carry two guarded things**
-   (`// @orb-waive <gate-id>(<positionName>): <reason>`). A line-scoped marker OVER-EXEMPTS: the live corpus case
-   is `record(chatId: string, sessionId: string)` — a foreign `sessionId` sitting beside one of OUR
-   `chatId`s, where a line marker would silently absolve both. Two-sidedness then applies to the NAME too: a
-   marker naming a position that is not live is RED, exactly as a stale row is. Paid for by
-   `brand-in-name-position` (2026-08-03), whose own marker vocabulary was then `@foreign-id-ok(<position>)`
-   — **RETIRED and parsed by nothing since that gate's conversion; the live spelling above is the central
-   ordinary-waiver plane's, and a marker in the old spelling suppresses nothing** (#2010, re-censused
-   2026-09-12: 76 live `@orb-waive brand-in-name-position` markers, ZERO live `@foreign-id-ok`). **This clause NAMES ITS ENFORCER for the shared
-   `@orb-gate-ignore` vocabulary: `gate-ignore-inventory`'s OVER-EXEMPT arm** — `pass.ts` counts what each
-   marker suppressed, and an UNPOSITIONED marker that absolved more than one finding is RED (2026-08-03; it
-   was prose-only until the §5 probe planted the counterfactual and watched one marker silently absolve
-   both tokens). Corollary, paid for at the same time: **a marker grammar that names positions requires
-   every gate it governs to EMIT positions.** While `no-loose-id-cast` reported node-anchored with no
-   `token`, §4.3a there was not merely unenforced but UNSATISFIABLE — you cannot ask an author to name a
-   position the report cannot express. A gate whose findings can CO-OCCUR on one line owes a `token`.
-   3a-bis. **THE FINDING ARM BINDS LINE-ADJACENTLY, AND THE AUDITOR IS IMMUNE** (#828). A gate reporting
-   through `ctx.report(finding)` has no node, so its marker is the comment on the line IMMEDIATELY above
-   `finding.line`; a multi-line marker block, or a blank line between marker and violation, UN-marks it and
-   the marker then reds as STALE — two reds, exactly as with every other house marker. Consumption is
-   counted the same way, so `gate-ignore-inventory`'s STALE and OVER-EXEMPT arms cover this arm too. **And a
-   gate that AUDITS an exemption vocabulary sets `markerImmune: true`** (§1): a marker written one line above
-   the report that indicts it would absolve precisely the finding two-sidedness exists to produce, so the
-   suppressor must never reach it. Since 2026-09-01 (#1048) §1 admits ONE further class by owner ruling —
-   the D16 wire firewall `bus-payload-allowlist`, whose exemption door is a reviewed table row rather than
-   a marker. Both classes share the same argument shape: the marker would grant, unreviewed, exactly the
-   thing the gate exists to withhold. Read §1's cell before adding a third; "this gate matters" is not it.
-   3b. **THE RESOLVER THAT READS STACKED MARKERS IS BLOCK-SCOPED.** Markers accumulate for the next guarded
-   node and then CLEAR. A file-scoped reader silently exempts the rest of the file from the first marker
-   onward — the same rubber stamp as a bare marker, just slower to notice.
-4. **EVERY EXEMPTION VOCABULARY IS TWO-SIDED FROM BIRTH.** A row / marker / baseline entry that no longer
-   matches a live violation MUST be RED ("stale entry — delete it"), never silence. One-sided exemptions rot
-   into lies, and a stale marker is a LOADED GUN: the next violation written on that line inherits an
-   exemption nobody granted it. In-tree gold standards: `own-tables-only.ts` (four stale arms),
-   `no-hover-display-swap.ts` (`STALE_ENTRY_MESSAGE_PREFIX`), the retired `monotonic-tests` tooth 3 (the two-sided
-   `allow-skip` marker), `bus-coverage.ts` (`STALE_MESSAGE`), `dialog-via-composite.ts`,
-   `firehose-import-allowlist.ts`.
-   4a. **TWO DISTINCT STALENESS MODES, ONE TEST.** (A) the row's file still exists but no longer violates
-   ("you fixed it, delete the row" — every ratchet's "shrink-only" case). (B) the row's file is GONE
-   (deleted/moved/renamed) — the row now names nothing at all. A gate that only implements (A) is
-   silently blind to (B), because its usual shape is *"for each file the scan VISITED, compare against
-   the table"* — a deleted file is never visited, so its row is never examined and the promise rots
-   forever without a single red to announce it (`ui-size-via-variant` carried `tag-settings-row.tsx` — a
-   file moved away 08-02 — silently for a full day; the same shape hit `dialog-via-composite`,
-   `empty-state-has-action`, `no-arbitrary-tw-values`, `motion-token-purity` at once, 08-03). **The two
-   modes collapse to ONE correct test if you write it right:** track a `seen`/`hit` SET populated only by
-   a live match during the scan, guard the whole stale sweep on a real-tree ANCHOR (rule 5) that is NOT
-   any row's own path, and then report every table key `seen` never claims — never gate a row's
-   staleness on that SAME row's own file being loaded/existing (`fileLoaded(ctx, rel)` /
-   `existsSync(join(root, rel))` keyed on the loop variable is the exact anti-pattern: it reads as a
-   conformance-safety guard but it is IDENTICAL to "only judge a row if its file survived," which
-   silences mode (B) by construction). `own-tables-only.ts`, `no-hover-display-swap.ts`,
-   `no-raw-zustand-persist.ts`, `render-error-via-battery.ts`, `selection-store-via-factory.ts`,
-   `sanctioned-css-homes.ts`, `query-machine-seals.ts`, `wire-schema-vocab-one-home.ts` are gold standards —
-   each either checks `!seen.has(key)` unconditionally or explicitly branches on `sf === undefined` /
-   `!existsSync(...)` as its OWN stale flavour. Every gate carrying a path-keyed exemption owes a
-   `mustFlag` proving mode (B): an example that loads the real-tree anchor but NONE of the table's paths.
-5. **A STALE ARM NEEDS A REAL-TREE ANCHOR, NOT A `scope.kind` CHECK.** `ctx.scope.kind === "project"` is
-   TRUE inside gate-conformance's synthetic mini-projects too, so a scope-guarded stale arm fires there and
-   reds the gate's own self-proof. Guard on a real-tree ANCHOR instead, and keep the gate's examples off the
-   anchor's path. Both shapes are VALID:
-
-   - `fileLoaded(ctx, "packages/db/src/schema/index.ts")` (`pass.ts`) — an anchor file present on every real
-     run and never needed by an example (`own-tables-only`);
-   - `existsSync(join(root, BASELINE_REL))` / a real-manifest guard (`verify-registry-parity`'s `"verify" in
-     scripts` idiom, `density-tier`'s absent-baseline-in-temp-dir behavior) — the ALTERNATE anchor shape,
-     equally sanctioned.
-
-   **THE ANCHOR IS A FILESET QUESTION, NOT A PROJECT-MEMBERSHIP ONE (#505, 2026-08-22).** `fileLoaded`
-   asks whether the path is in **`ctx.files`** — the fileset THIS RUN walked. It used to ask `ctx.project`,
-   and a SCOPED run (`cli.ts scoped`) builds the FULL workspace Project and narrows only the fileset: the
-   anchor answered TRUE on every scoped run, so every anchor-guarded stale sweep judged rows whose files
-   the run never visited and called each of them stale. Measured on `--scope
-   packages/ui/src/primitives/button` (3 files): **six false stale findings** across `no-manual-memo`,
-   `no-floorless-control-in-wrap` and `tooling-front-door` — the last from a gate whose own line read
-   `scanned 0/3 files` — and an issue was filed to DELETE all six live rows. Consequences for an author:
-   `fileLoaded(ctx, ANCHOR)` alone is now correct for both hazards (conformance AND scoped); the
-   belt-and-braces `ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)` spelling ~38 gates carry is
-   still fine; and a bare `ctx.scope.kind === "project"` check alone is still WRONG (it is TRUE inside a
-   conformance mini-project). Pinned by `tests/tooling/verify/ops/scoped.int.test.ts` §4.
-6. **A GATE KEYED ON AN EXACT NAME MUST DETECT ITS OWN BLINDNESS.** If the gate looks up a symbol/file/table
-   BY NAME, add the tripwire: when that name resolves to nothing on the real tree, RED. Otherwise a rename
-   turns the whole gate into a no-op that reports ✓ forever (`firehose-import-allowlist`, `knob-wire-coverage`'s
-   paired-anchor tripwire).
-7. **FIX AT LANDING; DO NOT PARK (owner law).** A new gate's live violations get FIXED in the authoring lane.
-   Allowlist/baseline rows are for genuinely PERMANENT deliberate exemptions — each with a reason and a stale
-   arm — never temporary debt parking. A violation genuinely out of your lane's scope is an escalation with a
-   stated default, not a silent row. A gate that ships with parked violations teaches the tree that red is
-   negotiable.
-8. **A BASELINE RATCHET is the ONE sanctioned handoff shape**, and only when the burn-down is another lane's
-   named work. It is derived by a committed `gen-*-baseline.ts` (the single writer), it only ever SHRINKS,
-   and it is two-sided: a row whose site no longer violates is RED ("regenerate and commit the shrink").
-   Terminal state is `{}` + delete both the baseline and its generator — **and the READER too**: the
-   loader, the suppression branch and the stale-row arms are dead vocabulary the moment the ledger is gone,
-   and a surviving reader implements a ratchet no sanctioned writer can produce (`gate-modernization`'s
-   ledger hit `{}` in its own landing lane, but its reader — loader, suppression branch, two stale arms,
-   one `mustPass` row — survived until 2026-08-23). Live precedents: `density-tier`, `suppressions`; the
-   completed terminal-state walks are `gate-modernization`, `finding-overload-provenance` (2026-08-23),
-   `no-hardcoded-model-prose` (#578, 2026-08-23), and `no-test-fabrication` (#590, 2026-08-23).
-
-**EVERY BASELINE ROW CARRIES A CLASS (#569, 2026-08-23).** A ratchet ledger is not automatically backlog:
-some of what it admits is PERMANENT because a recorded ruling or a documented tool false positive made it so.
-An undifferentiated count reads as "a glut of backlog" (owner), which is how a ruled decision gets
-re-litigated every sweep. The row shape and every reader of it live at ONE home,
-`tooling/src/_shared/ratchet-rows.ts`:
-
-- **The class is a PARTITION, never a stored label.** A row is `3` (a bare count — class DEBT, the default
-  spelling) or `{ "count": 3, "ratified": 3, "why": "…", "cite": ["<repo-relative path>", …] }`. `debt` is
-  the remainder; `classOf` reads back `debt` | `ratified` | `mixed`. A stored class beside a count is two
-  facts that can disagree — a partition cannot.
-- **RATIFIED owes a `why` AND a resolving `cite`, and the promise is two-sided.** `ratchet-row-integrity`
-  REDs a ratified row with no why, and REDs the STALE-WHY case: a cite naming a path that is no longer on
-  the tree. A ratification must not outlive what justified it.
-- **A DERIVED classification beats a declared one.** Where the class can be re-derived from the tree (the
-  `suppressions` rule table), the gate re-derives it every run and REDs a row whose declared partition the
-  tree does not earn — in EITHER direction. Then no hand-edit can mint permanence.
-- **The generator carries the class through a regenerate** (`writeBudgetLedger`): counts are re-derived,
-  rulings ride through. A regenerate that reset the class would erase the classification on its first shrink.
-- **Every consumer splits the number.** `ctx.scan({ admitted, admittedRatified })` (the ratified half is a
-  SUBSET, never a number beside it); the per-gate line and the single-pass footer print
-  `N (D debt · R ratified)`; `pnpm debt` lists burnable rows separately from ruled ones; a gate diagnostic
-  about a ratified row appends `classNote(row)` — the RULING, not remediation advice for a decided question.
-
-**BASELINES LIE WHEN THE MATCHER HAS BLIND SPOTS.** `ui-size-via-variant` declared its debt baseline terminal
-while 14 hits of its own incident class sat invisible — the matcher never stripped Tailwind's `!` important
-modifier (both spellings: `!size-6` AND `size-6!`). When a ratchet reaches zero, RE-DERIVE the matcher's blind
-spots (escape hatches, modifier prefixes, alternate spellings, wrapper expressions) before trusting the zero.
-Probe the engine/tool directly for spelling variants; docs under-report.
-
-## 5. The self-proof: `mustFlag` / `mustPass`
-
-`conformance.ts` runs every example through the SAME dispatcher as the real run. A failure is a TOOL error
-(exit 2), not a violation.
-
-- `files` is either a code string (one virtual file at `at`, or a `scanRoot`-derived default path) or a
-  path→source MAP (a mini-project — required whenever the gate's bite depends on another file).
-- `expect: { count, line, messageIncludes }` — use `count` whenever per-occurrence granularity is the point.
-- `why` is effectively mandatory: it is what a conformance failure prints. "the founding shape — the real
-  defect this gate was minted from" is the useful register.
-- A `mustPass` row is how a DECLARED LIMIT becomes a written baseline instead of an assumption. Write one per
-  known blind spot (`own-tables-only`'s namespace-import row; `no-hover-display-swap`'s `@media (hover:hover)` row).
-
-**A DEFINITION-DISCOVERY GATE OWES ONE ROW PER AUTHORING SHAPE ITS LAW SANCTIONS, AND A FAIL-CLOSED ROW FOR
-THE REST** (#944, 2026-09-01). A gate whose subject is "the definition at the co-located path" has three
-answers available for an initializer it cannot read, and only two of them are legal:
-
-| Shape | The gate's answer |
+| Authority | Meaning |
 | - | - |
-| an object literal, incl. a whole-literal `as`/`satisfies` wrapper, and same-file indirection (`const d = {…}; export const x: T = d;`) | RESOLVE — still co-located, so the law is still establishable (`lib/ast-read.ts` `readObjectLiteral`) |
-| an authoring shape the SOURCE LAW ratifies (the section FACTORY, `make<X>Section(…): SectionDefinition` — §6b/M3, live on four sections) | RESOLVE, with its own planted control (`readReturnedObjectLiteral`) |
-| an IMPORTED identifier, a builder call, anything else | **FAIL CLOSED** — report it. The path check stays green through a re-home, so this finding is the only thing between the move and silence |
-| *silently returning* | **never a valid third arm.** It is the audited escape verbatim |
+| `hard` | No waiver or reviewed-grant suppression. |
+| `ordinary` | Exact `@orb-waive <policy-id>(<position>): <reason>` at the authored report position. |
+| `reviewed-grant` | Exact central `(policy-id, subject, operation)` permission with `why` and `endsWhen`. |
 
-Two traps this cost, both worth copying:
+There is no final gate-local exemption table, custom marker, baseline or path exclusion used as permission. Split
+arms with different authority. A legitimate population boundary is not an exception ledger in disguise. Fix live
+violations at landing; a new allowance cannot park current debt. Follow the standing law's explicit warning transition
+when authorized, retaining the live issue and full population.
 
-- **`getVariableDeclarations()` is not "every definition."** `section-registry-completeness` and
-  `placeholder-copy-registry` read only annotated consts, so the four FACTORY sections
-  (chats/characters/home/config) were outside every arm — a distinctness gate comparing 6 of 10 pairs and
-  reporting a full file count. The shared discovery is now the first-class per-kind `registryDefinitionFacts`
-  (`lib/registry-fact.ts`), one home, so the two subjects cannot drift apart again.
-- **`startsWith("<Type>")` on an annotation also matches `<Type>[]`** — an ARRAY of definitions is an
-  assembler's derivation, not a definition, and a fail-closed arm keyed on the loose prefix would accuse it.
-  Match the head exactly (`=== "X"` or `startsWith("X<")`).
+### 4.3 Position and carrier
 
-**SPELLING BLINDNESS — a detector keyed on ONE syntax is blind to the same semantics in another** (#1506,
-2026-09-05). Three respellings walked past 21 live gates at once, each a SILENT GREEN:
+An ordinary waiver binds the reported source slice and carrier. Legacy discriminator labels do not port by spelling.
+Re-derive the final position and exercise its binding. Identical carrier/position pairs cannot promise independently
+waivable findings. Legacy stacked-block, line-adjacent and optional-position rules remain in archived §4.3; do not
+implement a second resolver in a policy.
 
-| The escape | Why the gate never saw it | Read it with |
-| - | - | - |
-| `db["insert"](schema["chatDigests"])` | an ElementAccessExpression is not a PropertyAccessExpression, so a `getName()` detector is offered no node it recognises | `readMemberAccess` / `readsMemberNamed`, and subscribe to `MEMBER_ACCESS_KINDS`, never `PropertyAccessExpression` alone |
-| `import * as events; events.subscribeAllChatEvents(…)` | a namespace import produces NO ImportSpecifier at all — an import-keyed gate is offered no node WHATSOEVER | `moduleMemberReference` (named import + namespace member are ONE reference), subscribing to `ImportSpecifier` PLUS `MEMBER_ACCESS_KINDS` |
-| `role={ROLE}` · `margin: -8` | neither is a literal NODE (`Identifier`, `PrefixUnaryExpression`), so a literal-kind check answers "not my subject" | `readStringConstant` / `readNumericConstant` — both refuse an unreadable value rather than guessing |
+### 4.4 Two-sided authority
 
-The ONE home for all six readers is `tooling/src/verify/lib/symbol-reference.ts`; they only ever WIDEN
-detection, so migrating a gate onto them cannot turn a live finding into a pass. Every migration owes a
-`mustFlag` row per respelling AND a `mustPass` NEGATIVE control (a namespace member of the WRONG module, a
-genuinely dynamic key), because a widened reader is exactly where a false positive would come from.
+Central reconciliation occurs after all selected owners complete. It judges missing, stale and over-broad permission;
+a grant matching more than one candidate consumes none. Failed or incomplete owners withhold both findings and
+liveness judgments. Partial evidence must not declare an exception live or stale.
 
-**THE AUTHORING CONTROL IS AUTOMATIC: `tests/tooling/gate-spelling-twins.int.test.ts`.** It respells every
-gate's OWN `mustFlag` fixture — focused on the lines that gate actually reported, so a definition-site gate
-is never asked about a spelling its subject cannot take — feeds the twin back through `verifyGateProofs`,
-and compares the blind set against `tests/tooling/gate-spelling-twins.baseline.json`. The ledger is
-SHRINK-ONLY and two-sided (§4.8): **a gate that becomes blind is RED even if it is brand new**, and a row
-whose gate is no longer blind is RED. 83 gates were blind at mint — that population is a named follow-up
-burn-down, and the remedy for a red is never a new row, it is the shared reader. The measurement that set
-the design: respelling fixtures WHOLESALE produced 333 false "expected a finding, got 0" (rewriting a
-`sqliteTable(…)`/zod/`tv()` DEFINITION into bracket form destroys the subject rather than respelling it),
-against 304 for the focused twin — the focus is correctness, not tidiness.
+### 4.4a Legacy liveness modes
 
-**A MARKER-EXEMPT GATE OWES THE SIX-CASE REAL-TREE PROBE.** Copy this shape, do not re-derive it — the
-conformance mini-projects prove the matcher, this proves the EXEMPTION VOCABULARY on the actual tree
-(plant → verdict → remove; verify teardown is clean):
+Existing legacy citations distinguish mode A (the allowlisted file vanished) from mode B (the file remains but its
+exempted construct disappeared). Both cases need successor evidence; deleting a path-only stale sweep does not prove
+mode B. The original algorithm and scope guard live in archived §4.4a. Final policies delegate permission consumption
+and stale judgment to central authority rather than copying either gate-local sweep.
 
-1. violation **without** a marker → RED (the gate bites at all);
-2. marker **with its position name** → GREEN (the promise is honourable);
-3. marker naming a **dead position** → RED (two-sided: a stale exemption is a loaded gun);
-4. **MALFORMED** marker — no name and/or no reason → RED **as its own flavour**, because a marker that
-   exempts nothing must not sit there LOOKING like protection;
-5. the **derivation came back empty** → RED (the §4.6 blindness tripwire);
-6. one `mustPass` row **per declared limit**.
+### 4.5 Complete evidence before a verdict
 
-Where a bare marker could cover two guarded things on one line, case 3 must also prove that ONE bare marker
-across TWO sites reds and names both. Precedents: `brand-in-name-position`, `nullable-column-inequality`,
-and — for the shared `@orb-gate-ignore` marker — `tests/tooling/gate-ignore-grammar.repo.int.test.ts`, which is
-the probe MADE PERMANENT: it plants the six cases as `__g_` fixtures and runs the REAL gate corpus over the
-REAL workspace. **Prefer that shape.** A one-shot manual probe proves the day it ran; a committed one keeps
-proving. It is also the only substrate that can prove a CONSUMPTION verdict at all: conformance runs ONE
-gate standalone (`runGateStandalone`), so no SIBLING gate can ever consume a marker in a mini-project, and
-the stale / over-exempting arms are structurally unobservable there. Since #828 that suite carries a THIRD
-carrier set for the LINE-ADJACENT Finding arm (`test-determinism` under `tests/`), because the two arms are
-different resolvers and a green node-arm case says nothing about the other one; the fast resolver-level pins
-(adjacency, position match, mention fence, `line` 0/1 unsuppressibility, `markerImmune`) are
-`tests/tooling/verify/lib/gate-ignore.test.ts`.
+Do not sweep liveness against a scoped fragment as though it were the whole corpus. Legacy real-anchor guards remain
+explained in archived §4.5; final execution scope, owner completion and withholding carry that obligation. A family
+proof must distinguish complete evidence from a legitimate scoped or fixture absence.
 
-**LITERAL-SHAPE BLINDNESS — the lying-proof class.** A reader that extracts a value via a narrow node check
-(only `StringLiteral`, a bare `Identifier.getText()`) returns undefined on `x as never`, `satisfies`,
-parenthesized, and `NoSubstitutionTemplateLiteral` shapes — and SILENTLY PASSES the violation. Rules:
+### 4.6 Blindness and semantic population
 
-- Read authored values through `tooling/src/verify/lib/ast-read.ts` (`unwrapExpression` / `readStringValue`), never a
-  hand-rolled `Node.isStringLiteral(x) ? … : undefined`.
-- A gate that SUBSCRIBES to the literal node KIND is wrapping-immune; the blindness lives in property/arg
-  reads via narrow type guards.
-- Every fixture must use the EXACT literal shape the reader parses. A probe the gate cannot read is a LYING
-  PROOF.
-- Cover every syntactic FORM of the banned shape (object vs array vs bare list; self-closing vs PAIRED JSX
-  tags — a self-closing-only fixture set once shipped a confident false-positive factory; `.map()` vs
-  `renderItem`; annotated vs inferred).
-- Some gates match COMMENTS too — never spell a gate's trigger literally in prose near its scan root.
-- A gate scanning STRING CONTENT must evaluate the initializer into its ORDERED runtime value first (follow
-  identifier→const, join `+`-concats in order, gap `${…}` interpolations) and tokenize the WHOLE value.
-  `.md` tokens routinely straddle a `+` boundary; `dangling-refs.ts` `evalString` is the precedent.
+File counts do not prove that a reader resolved all semantic members. Use `ctx.receipt` for member/resource counts
+where the verdict depends on them; preserve refusal on empty or unresolved derivation. Never silently skip an unreadable
+declaration. Separate independently shrinking populations rather than summing them. Counts do not prove correctness:
+plant controls for each supported import, spread, inheritance or builder shape and the unresolved branch.
 
-**EVERY LITERAL-MATCHING GATE DECLARES ITS COMMENT POSTURE** (2026-08-17, after the class recurred twice:
-issue #117 read a `#106` issue citation in a comment as a 3-digit hex color; issue #132 read a comment
-EXPLAINING a determinism fix as the banned call). The harness is pure-AST by law, so most gates are
-comment-SAFE for free — but the moment a gate matches a literal or a regex against FILE TEXT
-(`sf.getFullText()`, a `readFileSync` of a source file), comments are in its scan. Pick one of three, and
-write which one in the gate header:
+### 4.8 Single writers and retired budgets
 
-| Posture | What it means | How |
-| - | - | - |
-| comment-SAFE | the gate subscribes to node KINDS and reads authored values through `ast-read.ts` | nothing to do — say so if the gate looks textual |
-| comment-BLIND ⇒ WIRE IT | it matches text, and a comment can change the verdict | route through `tooling/src/verify/lib/comment-spans.ts` (below) |
-| comments-INTENDED | comments ARE the subject: a `// marker:` reader, a citation scanner, `commented-code` | say so in the header — a deliberate refusal is a decision, not an oversight |
+The archive retains the original shrink-only baseline rule, including deleting its reader and generator at terminal
+zero and classifying ratified rows separately from debt. Those procedures do not authorize final-policy ratchets.
+Standing law §5 owns source-derived equality, the named non-derivable exception and central grant migration. Preserve
+both dead-file and dead-construct evidence when retiring a table. A generator must never turn a current violation into
+its own permission; native configuration grants remain hand-authored and liveness-gated by their owning instruments.
 
-`comment-spans.ts` is the ONE home; never hand-roll a `/\/\/[^\n]*/` strip (it also eats everything after a
-`//` inside a STRING — a `https://` URL blanked the rest of its line in `domain-freshness-plane`, hiding a
-`.insert(` behind it). Four doors:
+## 5. Proofs and shared readers
 
-- `blankTsComments(sf)` — the whole file's text with every comment span blanked, LENGTH-PRESERVING, so line
-  numbers and column offsets stay exact. Leading AND trailing trivia (a same-line `code(); // …` is TRAILING
-  and a leading-only sweep never saw it — that was #117's residual hole). Cached per SourceFile.
-- `codeIncludes(sf, needle)` — the presence-check door, already fenced.
-- `codeTextForScan(sf, couldMatch)` — the regex/line-scan door. **The CANDIDATE FENCE is a MEMORY decision,
-  not a micro-optimisation:** blanking materialises every wrapped node for the file, and doing that for a
-  whole tier (~1,900 test files) OOMs the run at a 4GB heap limit. It is SOUND because blanking only ever
-  REMOVES matches, so a file whose RAW text cannot match cannot match blanked either.
-- `blankTsCommentsInText(text)` / `blankCssComments(text)` — for text read off the real filesystem (a CT
-  mirror, a `surfaces/*.tsx`, a stylesheet). The TS one parses into a reused in-memory scratch project;
-  its result is deliberately NOT cached, because `createSourceFile(..., { overwrite: true })` reuses the
-  same SourceFile OBJECT and an identity cache then answers every later call with the FIRST file's text
-  (it did — six conformance rows went green on one blanking).
+Every row has explicit `mode`, `files` and a mechanism-specific `why`. Use `source`, `types` or `resource` for the actual
+substrate. `mustFlag` pins exact `count`, or `countFrom` naming the exact module-scope registry driver that actually
+determines this fixture’s cardinality, and an identity discriminator where required; using both count and identity is the ordinary authoring pattern. `mustPass` has no `expect` object.
+Optional `mustRefuse` is nonempty and requires only `expect.messageIncludes` naming the policy's own refusal, never the
+generic refusal envelope. Iterate rows through the shared `policyProofRows` vocabulary so refusal rows cannot disappear.
 
-**THE PERMISSIVE DIRECTION IS THE DANGEROUS ONE.** A false POSITIVE (a comment naming the banned shape) is
-loud and gets fixed in an hour. A false PASS — a comment SATISFYING a presence check — is a gate that
-reports ✓ forever: a verb "covered" by a `// TODO cover createX(`, a store action "driven" by a parked call
-in its mirror, a rot tripwire "healthy" because a header still lists the arms somebody deleted. When you
-wire a gate, ask which direction its needle points and write the mustFlag row for the permissive half.
+A reviewed-grant policy annotates at least one `mustFlag` with authored `grant: { subject, operation }`. Conformance first
+checks the ungranted catch, then reruns the same fixture with that exact synthetic grant. The rerun must consume exactly
+one, leave zero effective findings and alarms, and complete without errors. Deriving the witness from the just-emitted
+finding is tautological. The actual central grant table and its wrong-identity, duplicate and stale boundaries retain
+family controls.
 
-**THE PROOF IS A ROW, NOT A PROBE RUN.** Each wiring owes a conformance example carrying the COMMENT shape
-(a `mustFlag` when the comment must not exempt, a `mustPass` when it must not accuse) — and it must be a
-row the raw matcher would actually catch, or it is a LYING PROOF that passes for the wrong reason (a CSS
-comment `/* transition: 220ms */` does NOT match `motion-token-purity`'s regex, which anchors the property
-on `^`/`;`/`{`; the row only became real as `/* .b { transition: 220ms … } */`). The receipt that catches
-that: neuter `comment-spans.ts` to raw file text and re-run conformance — every wired gate must go RED.
+Every ordinary policy owes a production-dispatched positive identity test: exactly one raw finding becomes one waived
+finding, zero effective findings and zero authority alarms. Once per family, corrupt the marker position and require
+the dead-position alarm. Central malformed/stale/over-broad marker cases stay in the engine suite. Hard policies have no
+waiver arm. Expected authority alarms belong in importing tests, not catch/pass rows. Warning tests and a real run retain
+both warning severity and the issue identity. Standing law §§6.2–6.3 owns these boundaries.
 
-**A CARRIER FENCE IS A COVERAGE DECISION, NOT A STYLE ONE.** Copying another gate's `className=`/`cn()`
-ancestry fence loses every class string that reaches an element through a VARIABLE. Inherit a fence only when
-the token shape is ambiguous English that sentences can carry (`shadow`, `rounded-lg`); a SELF-IDENTIFYING
-shape (a `group-hover:` variant prefix) scans UNFENCED — strictly wider, no false positives. Probe the fence
-against the real tree before inheriting it, and expect "already migrated" claims to be wrong.
+Retain legacy per-shape proofs, each declared limit and every newly introduced narrowing. A narrowing control must die
+when that fence is cut. A new-property proof needs a planted break. Syntax variants include aliases, imports, computed
+members, destructuring, wrappers, paired/self-closing JSX and the actual runtime string shape where relevant. Use the
+shared symbol/expression readers (`lib/symbol-reference.ts`, `lib/ast-read.ts`) instead of repeating narrow node guards.
+A fixture must resolve its imports and reach the claimed branch; a refusal on a convenient stub proves no identity.
 
-## 6. Harness mechanics
+For text predicates, declare comment posture: AST-safe, comment-blind through the shared `comment-spans` reader, or
+comments-intended because comments are the subject. Never strip comments with a regex that eats strings. Preserve
+coordinates when blanking, use the sound candidate fence before expensive blanking, and do not cache overwritten scratch
+SourceFiles by identity. Exercise both comment-caused accusation and comment-caused false permission. The fixture must
+contain a shape the raw matcher would catch, and removing the comment fence must kill its control. A carrier fence also
+owes evidence: a value passed through a variable remains a carrier; do not inherit a JSX ancestry restriction blindly.
 
-| Thing | Behavior |
+A real-corpus virtual-overlay liveness control and the conversion differential are separate from declared conformance.
+The differential compares old and new findings, populations and tool errors over the same bytes, classifies each change,
+and records per-arm coverage after a split. An empty real-corpus result alone proves no bite. See standing law §6 and the
+[playbook](../../../../docs/design/gate-runtime-orchestrator-playbook.md) for the complete proof ownership and sequence.
+
+## 6. Harness and fixture boundaries
+
+The shared runtime owns discovery, walk dispatch, hook failures, deterministic findings and authority ordering. Policy
+hooks receive only admitted capabilities. Final proof files are isolated: in-memory sources/types and temporary resource
+fixtures; real-corpus controls use virtual overlays. Final policies never plant checkout fixtures. Refer to standing law
+§6.5 and current conformance headers before changing substrate mechanics.
+
+Remaining legacy suites still use reserved `__g_*` and `__dc_*` transient fixtures. Their sanctioned native-tool fixture
+ignores remain deliberate until those suites retire: the ESLint `**/__g_*` grant and dependency-cruiser `(^|/)__g_` grant
+cite this document. These fixture ignores are not product exceptions or permission to add final checkout plants. Legacy
+entrypoint filtering, opt-in fixture visibility, dormant handling and phase ordering remain documented in archived §6;
+retain their guarantees while their legacy owners exist.
+
+## 7. Header and style
+
+Use the smallest complete header: rule and arms/limits; actual family module/declaration or singleton reason; population
+port or intentional correction; retired private-marker census. Standing law §7 owns exemplar fitness. A five-line budget
+is not permission to omit a load-bearing constraint; source headers carry the detailed domain law. The scaffold is a
+starting point and must be checked against these obligations.
+
+Follow house dispatch/type style and native lint. Use a mapped `Record` where a single-arm switch creates an unreachable
+branch; use the appropriate multi-arm form when naming rules require it. Suppress only a genuine native-rule false
+positive at the exact line with its reason. Never run a tree-wide fix-all; the lane rules own permitted scoped formatting.
+
+## 8. Verification and its limits
+
+Use the [playbook's verification section](../../../../docs/design/gate-runtime-orchestrator-playbook.md#6-coordinated-verification-and-serialization)
+and lane-standing facts for command selection and shared-host serialization. Preserve declared conformance, family
+controls, per-policy structure delta, population counts, authority consumption and withholding evidence. Run the affected
+native programs selected by generated world/config intent. Read completed results, including errors and withheld owners;
+a zero exit from an uninvoked library is not evidence. Use the verifier CLI, never execute an `ops/*.ts` library as a command.
+
+Whole-corpus conformance and integrated structure belong to the coordinated quiescent boundary. A scoped green cannot
+close that obligation. Do not launch duplicate heavy suites from a docs lane. Fixture work must clean up exactly its own
+changes; never use stash, checkout/restore or git-revert probes to erase concurrent work.
+
+## 9. Coupled refactors
+
+| Change | Required evidence |
 | - | - |
-| discovery | glob `tooling/src/verify/gates/*.ts`, sorted, sequential import (deterministic per-file error attribution) |
-| dispatch | ONE `forEachDescendant` per file; each node goes only to gates subscribed to its kind AND in `scanRoot` |
-| phases | `begin` (all gates) → per-file `visitFile` + node walk → `run` (all) → `finalize` (all) |
-| isolation | every hook is guarded; a throw becomes a `ToolError` attributed to gate+phase and does NOT abort siblings |
-| ordering | findings canonical-sorted by (file, line, column, token, message) |
-| DORMANT | `status:"dormant"` ⇒ `runPass` skips it, `report.ts` never prints it, `check-gates.int`'s `DORMANT_GATES` must list it. Conformance still runs it as-active. The descriptor's `status` is ground truth; the doc table and the test set are MIRRORS |
-| scan health | every gate's `candidates`/`scanned`/`visited`/`admitted` are tallied from the same walk and printed on its line + written to `gates[].scan`. A gate declares extras via `ctx.scan` (§1) |
-| zero-scan alarm | `scanned === 0` (and nothing declared) at `report.ts` scope ⇒ `⚠ … SCANNED ZERO FILES`, `scanAlarms` in the artifact, exit 2. NOT applied by `scoped.ts` or conformance — their zeros are legitimate |
-| probe artifacts | findings on `__g_*` / `__dc_*` paths are stripped at the real-tree entrypoints (`report.ts`, `scoped.ts`) so a concurrent battery's transient fixtures can't red an independent run. `check-gates.int` opts out with `ORB_GATE_FIXTURES=1`. A gate whose fixture must live at a `__g_` path therefore CANNOT be fixture-driven — mark it `UNFIXTURABLE` |
-| conformance substrate | pure-AST ⇒ ONE reused in-memory Project, each example under its OWN root `/repo-<n>` (#780, §12 — never cache on Project identity); `fsBacked:true` ⇒ a real auto-cleaned temp dir per example |
-| scoped runs | `scoped.ts` runs only `incremental-safe` gates over the changed set — hence the `scopeSafety` trap in §1 |
+| path move or deletion | Sweep literal and escaped paths, populations, anchors and citations; re-prove the affected bite. |
+| declaring module becomes a barrel | Resolve to the declaration; a re-export is not a local variable declaration. |
+| predicate/authoring shape changes | Rewrite the control in the real new shape; preserve all old obligations or classify their successor. |
+| tuple or union widens | Sweep derived types and consumers, including `Extract` branches that can collapse to `never`. |
+| final importer disappears | Check whether a promised shared reader was bypassed before de-exporting it to silence unused-code checks. |
+| export gains a brand | Sweep `typeof` consumers and use the real library type where it represents any member. |
 
-## 7. Size, style, and the house patterns
+## 10. When not to write a gate
 
-- **File header ≤5 lines** for gates (the sanctioned widening of Documentation-Law's ≤3). A gate's header IS
-  its contract: what it enforces, the arms, and the DECLARED LIMITS. Load-bearing warnings may be verbose —
-  the `own-tables-only` / `no-hover-display-swap` headers are the register.
-- **`component-size` counts comment lines.** A gate file near the cap cannot absorb a doc-comment expansion;
-  gate files are exempt from the client cap but the general lesson stands — prose is not free.
-- **Single-arm dispatch: `Record`, not `switch`.** A `switch` over a single-arm union trips biome
-  `noUnnecessaryConditions` on the unreachable `default`, which forces a suppression, which overflows the
-  suppressions baseline. Use a mapped-type `Record<Kind, Handler>` — one entry today, tsc requires the entry
-  for any future arm. (MULTI-arm snake_case unions invert this: a Record object literal trips
-  `useNamingConvention`, so an annotated `switch` is correct there.)
-- **No `biome-ignore` unless it is a genuine false positive**, with a cited reason, IMMEDIATELY above the
-  flagged line. Suppressions are ratcheted tree-wide.
-- **Never `biome check --write` / `format` / any fix-all** while working on gates.
+Never mirror an enabled native lint rule. Generic ecosystem rules remain with their native owner; the retired GritQL
+layer is not an authoring home. Do not ossify an unsettled shape. Prefer a live registry, tuple, schema or resolved owner
+over a copied path list. Every structural review identifies the actual enforcement rung, an unenforced obligation or an
+explicitly unrepresentable check; a one-site hand fix is not class prevention.
 
-## 8. Verification — a green conformance run proves NOTHING about the real tree
+## 11. Enforcers and review obligations
 
-Run all of these before calling a gate done:
+The current source owns each predicate. The dated policing audit is a checklist, not a claim that every surface is
+mechanically sealed. The following table distinguishes load/runtime guarantees from source policing and hand review.
 
-1. `pnpm check:structure` — the live pass (= `node tooling/src/verify/cli.ts structure`). READ the full
-   output, **including your gate's scan denominator** (`scanned N/M files`): a ✓ over a count you did not
-   expect is the §3 scanRoot trap mid-flight, and zero is a refused verdict.
-   **This line used to read `pnpm exec tsx tooling/src/verify/ops/structure.ts`, and that spelling was a
-   LIE for months (#509):** `ops/*.ts` are library modules with no main, so it loaded the module, ran no
-   gate and exited 0 — with pnpm's own `✓ Lockfile passes…` lines printed over the silence. Every ops
-   module now REFUSES direct invocation (exit 2 naming the real door,
-   `tooling/src/_shared/entrypoint.ts`), pinned by `tests/tooling/_shared/entrypoint.int.test.ts`. The
-   general law: a bare zero from an instrument is "I could not run", never "clean".
-2. **Plant a REAL violation of the REAL shape** at a real path, watch it RED, remove it. Not a strawman: the
-   machine proves the gate self-CONSISTENT, it cannot prove the examples are HONEST. A `mustFlag` that bites
-   a toy while the real shape slips through is the failure mode.
-3. `pnpm test:scoped tests/tooling/check-gates.repo.int.test.ts tests/tooling/gate-conformance.repo.int.test.ts`.
-4. `pnpm check:structure` — and re-read it after any allowlist edit (stale arms only fire at project scope).
-5. Never git-revert-probe. Never `git stash` / `git checkout <path>` / `git restore`.
-
-## 9. Renames, deletions, and refactors that KILL gates silently
-
-Every one of these has happened.
-
-| Change | What dies | Sweep |
-| - | - | - |
-| a file rename/move | gates dispatching on a hard-coded path constant; escaped-regex path spellings | grep gates for the old basename AND its `\/`-escaped form; live-probe each |
-| a barrel/front-door split (`index.ts` → re-exports) | `getVariableDeclaration` lookups (a re-export is NOT a declaration) — three gates died at once, one security-relevant | re-point at the DECLARING module; re-prove the bite |
-| a shape refactor (arrow body → discriminated union) | arms keyed on the OLD shape match nothing; dead-green for six stages | the gate edit belongs IN the refactor stage; rewrite the `mustFlag` fixture in the NEW shape or it proves nothing |
-| a union/tuple widening | derived-type consumers (`Extract<>` collapsing to `never`); registry-keyed arms | `pnpm ast` the DERIVED-TYPE consumers, not just the tuple name |
-| deleting the last importer of an export | "de-export to satisfy knip" is usually the WRONG HALF — an unused export beside a "ONE derivation" claim is evidence the other call site still re-spells the rule inline. Wire the re-speller through the export | de-export only when nothing ever claimed an external consumer |
-| branding a re-export | every consumer using `typeof <thatExport>` as an "any X" stand-in breaks | sweep `typeof <Name>` repo-wide BEFORE branding; prefer the library's real type |
-
-## 10. When NOT to write a gate
-
-- **Never mirror an enabled native lint rule.** Biome/ESLint already own it; a mirror gate is pure maintenance.
-  The GritQL layer is RETIRED — do not add a grit plugin, add a Layer-3 gate.
-- **Never gate a shape that is still settling.** A gate OSSIFIES. Document it instead until the shape is law.
-- **Prefer keying off a LIVE single source of truth** (a registry, a closed `as const` tuple, a schema
-  export, the auth matrix) over a path list. The best gate makes a defect class UNREPRESENTABLE rather than
-  catching one instance.
-- **But DO ask for one.** Every audit/review must answer, per structural rule it lands on: already enforced,
-  assumed-but-unenforced, or unenforceable — and what gate makes the whole CLASS unrepresentable? A finding
-  fixed by hand REGRESSES.
-
-## 11. Exemplars — read these before writing anything
-
-| Read | For |
+| Mechanism | Current enforcer and limit |
 | - | - |
-| `gates/own-tables-only.ts` | the maximal shape: a DERIVED ownership map (not hand-written), two arms of differing strictness, three exemption tables + four stale arms, a real-tree anchor guard, and mustPass rows that write down every declared limit |
-| `gates/no-hover-display-swap.ts` | a per-TOKEN literal scanner, the UNFENCED-carrier decision with its measurement, an empty-but-armed allowlist, and mustFlag rows covering every spelling of the banned shape |
-| `gates/diagnostic-legibility.ts` | reading the gate corpus itself from the shared project via `scanRoot`, and resolving a value one level through a same-file const |
-| `gates/dangling-refs.ts` | `fsBacked`, the ordered string evaluator (`evalString`), and SELF-CONTAINED conformance examples (every doc a passing example cites is PLANTED in the same mini-project) |
-| `gates/density-tier.ts` | a baseline ratchet: per-file budget, excess-only reporting, generator as single writer, stale-row arm |
-| `gates/gate-modernization.ts` | the meta-gate — the machine half of this document |
+| descriptor keys, enums, authority/severity, proof-row shape | `lib/policy-validation.ts` — `assertGatePolicyDescriptor`; exact keys and branded facts, not semantic fitness of the chosen contract. |
+| warning issue liveness | `lib/workitem-liveness.ts` derives warning citations; `lib/board-citations.ts` judges board existence, membership and openness at the coordinated online barrier. Positive-integer schema validation alone does not establish liveness. |
+| branded export, filename/id, duplicate id, singleton identity | `lib/policy-module.ts` assertions through `lib/loader.ts`; a cast or cloned object cannot counterfeit `defineGate` registration. |
+| direct descriptor, private walk and module state | `policy-soundness` delegates to `lib/gate-contract.ts` `inspectGateContract`; its closed walk-method set is not proof against every possible external traversal library. |
+| inert population extension, missing ordinary fix, raw resource result, forbidden I/O and retired grammar | `policy-soundness`; resource calls use canonical `readyResourceValue`, and I/O/grammar checks cover their declared shapes, not every possible wrapper or private permission implementation. |
+| private authority/legacy imports and sibling-gate imports | `policy-legacy-imports`; resolved forbidden homes, not a generic ban on all TypeScript casts. |
+| local binding/origin resolution | `policy-binding-resolution` judges a closed set of type-resolved ts-morph members; `getSymbol()` alone, out-of-vocabulary members and receivers typed `any` are outside that detector. |
+| checkout-writing family fixtures | `policy-fixture-substrate` resolves supported filesystem writes against known repo anchors. A root computed in another file and passed through a parameter remains outside its fence. |
+| syntax-tier type/compiler reads | `gate-modernization` ARM E covers a closed member vocabulary and one named relative-import hop. Namespace/default imports, further hops, unresolved targets and computed subscripts remain limits. |
+| actual shared family | `policy-family-readers` uses `policyProductionDependencies` from `lib/policy-descriptor-read.ts`: each multi-member policy must share a canonical `lib/` declaration with a sibling through possible source reach from `create`, including method-form roots, callbacks, callable helpers and stable derived values. Callable/fact identities and canonical subject/vocabulary data qualify; unused imports, proof-only use and erased type references do not. Declaration identity matters, not sharing a file. This proves source reach, not runtime branch/callback execution or semantic fitness; meaningful dependency and singleton justification remain review-owned. |
+| analysis, execution, declared providers/resources | Validator plus `lib/policy-plan.ts`, `lib/policy-pass.ts` and `lib/policy-pass-context.ts`; capability, readiness, consumption and completion checks do not prove the semantically smallest contract. Runtime sequencing refuses early fact reads through absent/pending provider state; facts become ready before policy evaluation. Review still checks semantic fitness. |
+| catch count and finding identity | `policy-proof-expectations` plus `ops/policy-conformance.ts`; readable rows require cardinality and the applicable discriminator. `countFrom` validates a named module binding, not its runtime cardinality; review must prove that binding actually drives the row’s count. Unreadable source and bounded message expansion retain review limits. |
+| refusal expectation | Validator plus conformance require the distinctive substring and an actual refused pass. `policy-refusal-coverage` recognizes direct nonempty array literals in `facts`/`resources` and checks for a refusal row or recognized family proof; alias/non-literal declarations are outside that recognizer; behavioral adequacy still needs review; not every policy requires this arm. |
+| reviewed-grant witness | Validator requires an authored witness; conformance reruns the production pass; `lib/gate-authority.ts` judges exact single consumption. This does not prove the actual central table. |
+| ordinary waiver spelling | `policy-waiver-spelling` checks readable fix text for the policy's own exact opener; it does not validate every possible fix string or prove the promised position. |
+| ordinary identity proof presence | `policy-waiver-identity` recognizes marker evidence and direct `waivedFindings` access. It does not prove assertion semantics; the zero-effective/one-waived/zero-alarm behavioral control remains required. |
+| coordinates and authority integrity | `lib/policy-pass-context.ts`, `lib/gate-authority.ts` and `lib/ordinary-waiver.ts` own admission, authored slices, metadata and exact consumption. |
+| truthful message/header, complete population, narrowing and real-corpus liveness | Standing law §§6–7 and independent review with discriminating controls. Do not claim a corpus-wide mechanical manifest where it has not landed. |
 
-## 12. Caching — a gate MUST NOT cache on Project identity (added 2026-08-28, #780)
+## 12. Invocation state, caches and world guarantees
 
-**The rule.** A gate may memoize a whole-corpus derivation for the duration of ONE PASS. It may not key that
-memo on the ts-morph `Project` — no `WeakMap<Project, …>`, no "same project, so same answer". The sanctioned
-shape is a value derived in `begin`, whose lifetime is exactly the pass and which therefore has no
-invalidation problem at all:
+Allocate mutable state inside `create`; it lasts one invocation. Shared readers/providers own shared derivation. Never
+cache policy answers on Project identity or import another gate for its state. A reused Project can serve multiple
+fixtures or passes. The legacy archive's §12 preserves the paid-for substrate rules: unique virtual roots on reuse,
+no recreation of stale virtual paths, and comparison of actual findings across substrates with corruption controls,
+rather than comparison of pass/fail alone. Preserve those controls when changing their runtime owner.
 
-```ts
-// the vocabulary for THIS pass, re-derived in `begin`; lifetime = the pass, never a Project
-let passVocabulary: ReadonlySet<string> = new Set<string>();
-// a sibling-gate reader rides the pass value, and derives directly when this gate did not run in the
-// caller's pass (conformance runs ONE gate standalone)
-const vocabulary = passVocabulary.size > 0 ? passVocabulary : derive(sf.getProject().getSourceFiles());
-```
-
-**Why it is a rule and not a preference.** A Project-keyed memo is correct only for as long as the
-CONFORMANCE SUBSTRATE happens to throw the key away between examples — i.e. its correctness depends on how
-often something unrelated to the gate is discarded. `ops/conformance.ts` now reuses ONE in-memory Project
-across every pure-AST example (~105ms/example of lib.d.ts parsing, ~1500 examples, 27.6s → 7.9s on the
-bite-proof), so such a memo silently serves a PREVIOUS example's derivation. That is not a red conformance
-run — the gate keeps passing its own proofs while judging the wrong facts. `detached-work-traced` held
-exactly this memo and three of its own rows changed verdict (#751).
-
-**The substrate's other half, which is NOT optional.** Each example lands under its own virtual root
-(`/repo-<n>`), because re-creating a file at a virtual path that already existed makes ts-morph's language
-service serve the PREVIOUS document's snapshot: a re-created `SourceFile` restarts its script version, so
-`Identifier.getDefinitionNodes()` returns nothing, or definitions at stale positions. Every gate resolving a
-declaration through the language service then changes verdict silently. If you are optimising the substrate,
-that invariant — never re-create a virtual path on a reused Project — is the load-bearing one; do not
-"simplify" it away.
-
-**The enforcer.** `tests/tooling/verify/ops/conformance.int.test.ts` runs every in-memory example
-on BOTH substrates and compares FINDINGS, not pass/fail (a contaminated run satisfies mustFlag/mustPass by
-accident — that is how this class hid). It carries a planted positive control for each corruption class, so
-a pin that stopped biting is itself visible.
+Likewise, do not collapse native worlds/configs into a synthetic root program or generate permission from violations.
+The [world/config law](../../../../.claude/rules/gates-and-tooling.md) distinguishes generated TypeScript intent from
+hand-authored, liveness-gated native configuration. This guide changes the authoring route; it retires none of those
+world, config, fixture-isolation or conservation guarantees.
