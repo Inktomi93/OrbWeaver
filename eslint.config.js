@@ -350,6 +350,46 @@ export default tseslint.config(
       // `.stryker-tmp/**` above carries the same missing prefix; it is root-only on today's tree, so it has
       // no nested instance to control in either direction and is deliberately left alone.
       "**/.cache/**",
+      // Agent worktrees (#2281). `.gitignore` has carried `.claude/worktrees/` all along and it protects
+      // NOTHING here — flat config reads no VCS ignore file at all, which is why biome (fenced twice over:
+      // `vcs.useIgnoreFile: true` PLUS an explicit `"!.claude"`) never showed the symptom and this went
+      // unnoticed in the sibling tool. Discovery is `eslint.lintFiles(["."])` (ops/eslint-discovery.ts:49),
+      // ESLint's own walk of the repo root, so every live lane was WALKED: 42 worktrees carrying 316,809
+      // `.ts`/`.tsx` on disk against 7,574 authored (2026-09-13). Almost none of that is lintable — a
+      // flat-config `files:` glob is anchored at the config DIRECTORY, so
+      // `.claude/worktrees/<id>/tooling/src/x.ts` matches no surface at all — but the default-linted
+      // extensions still land: of the 15,994 files ESLint ADMITTED on main, **7,896 were other lanes'
+      // worktrees**, about half the population, every one of them a file no rule could usefully judge.
+      // THE REASON IS CORRECTNESS, NOT COST, and the distinction was paid for: the cost claim was measured
+      // and REFUTED (246.7 s unfenced vs 226 s fenced, ~8% — these files were only ever enumerated, never
+      // type-checked; #2281 carries the retraction). What the fence removes is the stage's inability to
+      // return a VERDICT — a lane swept mid-run, which is routine, turns an enumerated path into ENOENT and
+      // the stage exits 2, the tool-error class, never a verdict (reproduced live on
+      // `agent-afe8e5ce74da79230`). That is exactly the concurrent-lifecycle phantom `**/__g_*` above was
+      // reasoned through for, never carried across to the larger, more frequently mutated case.
+      // `**/`-PREFIXED per the #2213 note above: a worktree CONTAINS a `.claude/` of its own, so unlike
+      // `.stryker-tmp/**` a nested instance is structurally possible and root anchoring would miss it.
+      "**/.claude/worktrees/**",
+      // The SillyTavern parity rig's captured runtime (#2282) — vendored third-party source the repository
+      // deliberately does not track (`.gitignore:121`) — and the THIRD instance of this class, after
+      // `playwright/.cache` (#2213) and the worktrees above. Unlike those two, these files DO get rules,
+      // because they sit under `scripts/`, a real lint surface. COUNT THE ADMITTED POPULATION, NOT THE DISK:
+      // 17,053 `.js`/`.ts` live under it, but ~16.7k of those are the runtime's OWN `node_modules` and were
+      // already fenced — ESLint admitted **353** of them (measured on main, 2026-09-13). Those 353 were the
+      // entire content of this stage's exit 1: four `Unused eslint-disable directive` errors — SillyTavern's own
+      // directives, written for SillyTavern's config, reported unused under ours. There is nothing to fix in
+      // them; the defect is that we lint them at all.
+      // ROOT-ANCHORED, NOT `**/`-prefixed, and the asymmetry with the row above is deliberate: this is one
+      // repo-relative path with exactly one home, `.gitignore` anchors its own row the same way (leading
+      // `/`), and the only structurally possible nesting is inside a worktree — which the row above already
+      // covers. SCOPED TO `sillytavern-runtime/` ALONE, because the rig's own 9 tracked files sit at the
+      // directory's top level and are not ours to fence: `write-v2-png.cjs` is the one ESLint actually admits
+      // today (its `.ts` siblings match no `files:` surface at all — as does every other `.ts` under
+      // `scripts/`; that gap is real and is not this fence's business), and the broader spelling
+      // `scripts/probes/st-goldens/**` would have swallowed it. The three sibling generated dirs
+      // (`fixtures/`, `output/`, `orbweaver-output/`) hold ZERO lintable files (measured 2026-09-13), so a
+      // selector naming them would be precisely the dead grant `eslint-grant-liveness` exists to refuse.
+      "scripts/probes/st-goldens/sillytavern-runtime/**",
       "**/*.gen.ts",
       "packages/ui/src/tokens/index.ts",
       "packages/ui/src/styles/theme.css",

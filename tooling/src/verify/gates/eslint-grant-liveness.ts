@@ -50,6 +50,24 @@ const RATIFIED: ExemptionTable<RatifiedRow> = {
     why: "local tools write derived, refetchable cache artifacts outside the tracked corpus, at the root and at every nesting depth. Delete this row when the cache root changes or the repository starts tracking authored files there.",
     cite: ".gitignore",
   },
+  // THE TABLE IS KEYED BY POSITION, so these two were APPENDED (#2281/#2282, 2026-09-13) — every key above
+  // is index 5 or lower and neither identity below existed before. An ignore inserted ABOVE index 5 would
+  // silently RE-POINT every row beneath it: the keys would still resolve, just to different selectors, and
+  // `sameValue` is the only thing that would catch it. Both rows below were ADDED BECAUSE THIS GATE CAUGHT
+  // THEM: the two ignores landed alone first and the policy redded 2 (`config[0].ignores[6]`,
+  // `config[0].ignores[7]`), which is the measurement, not the pattern — #2282's own row body predicted its
+  // selector might be member-LIVE because the rig has 9 tracked files, and it is not: those 9 sit at the
+  // rig's top level, while the ignore names only `sillytavern-runtime/**` beneath them.
+  "config[0].ignores[6]": {
+    value: "**/.claude/worktrees/**",
+    why: "agent worktrees are transient checkouts the repository never tracks, and ESLint cannot see .gitignore (flat config reads no VCS ignore file), so this selector is the only fence. Delete this row when worktrees stop living inside the repository or the harness stops creating them under .claude/.",
+    cite: ".gitignore",
+  },
+  "config[0].ignores[7]": {
+    value: "scripts/probes/st-goldens/sillytavern-runtime/**",
+    why: "the st-parity rig's captured SillyTavern runtime is vendored third-party source the repository deliberately does not track; its own 9 files sit ABOVE this path, stay tracked, and stay outside the fence. Delete this row when the rig stops materialising a runtime under scripts/probes/ or the repository starts tracking it.",
+    cite: ".gitignore",
+  },
 };
 
 const MESSAGE =
@@ -122,7 +140,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**"] }, { files: ["packages/ui/src/gone.ts"] }];\n',
+          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/ui/src/gone.ts"] }];\n',
         "reports/README.md": "reports\n",
         ".gitignore": "node_modules/\ndist/\n",
         [GATE_FIXTURE_LAW]: "fixture law\n",
@@ -135,7 +153,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**"] }, { files: ["packages/client/src/**/*.ts"], ignores: ["**/*.test.ts"] }];\n',
+          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/client/src/**/*.ts"], ignores: ["**/*.test.ts"] }];\n',
         "reports/README.md": "reports\n",
         ".gitignore": "node_modules/\ndist/\n",
         [GATE_FIXTURE_LAW]: "fixture law\n",
@@ -156,7 +174,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", ".cache/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
+          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", ".cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
         "reports/README.md": "reports\n",
         ".gitignore": "node_modules/\ndist/\n",
         [GATE_FIXTURE_LAW]: "fixture law\n",
@@ -177,7 +195,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         [CONFIG_REL]:
-          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
+          'export default [{ ignores: ["**/node_modules/**", "**/dist/**", "reports/**", "**/__g_*", ".stryker-tmp/**", "**/.cache/**", "**/.claude/worktrees/**", "scripts/probes/st-goldens/sillytavern-runtime/**"] }, { files: ["packages/ui/src/live.ts"] }];\n',
         "reports/README.md": "reports\n",
         ".gitignore": "node_modules/\ndist/\n",
         [GATE_FIXTURE_LAW]: "fixture law\n",
