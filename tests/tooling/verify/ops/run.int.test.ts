@@ -800,8 +800,8 @@ test("#2277 — a path-triggered stage runs its WHOLE argv or nothing: the no-ho
 test("#2277 — the DECLINED rows keep deferring: no path set over-approximates their inputs", () => {
   // THE HALF THAT KEEPS THE MECHANISM HONEST. A trigger's untriggered arm is `skip-empty`, which the
   // summary renders as "skipped (no files in scope)" — an affirmative claim that the stage was NOT OWED.
-  // For these, no pattern can support that claim (a `.test-d.ts` asserts against arbitrary source types;
-  // knip is reachability over the whole import graph; e2e is cross-cutting by nature), so they carry NO
+  // For these, no pattern can support that claim (knip is reachability over the whole import graph and
+  // e2e is cross-cutting by nature), so they carry NO
   // trigger and keep deferring with the notice that names where they do run. `registry-triggers.ts` states
   // each reason beside its `null`, and this arm is what stops one being "fixed" into a false clean.
   for (const name of ["deps:knip", "browser:e2e-smoke", "browser:e2e"]) {
