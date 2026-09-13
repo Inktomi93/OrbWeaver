@@ -1126,6 +1126,12 @@ Independent review refuted the intermediate repair before landing: stop-command 
 | - | - | - | - | - |
 | `lib/gate-program-rollup.ts`; `lib/citation-sources.ts` | An escaped or separatorless orphan defect row is silently excluded while a remaining valid table keeps configured ledger admission successful; rollup and citations agree on the same partial population. | parser blindness / incomplete denominator | **OPEN** (board #2348) | Production readers at `4be9ab21a`: the same two OPEN rows in a valid table yield rows 2 / citations 2; a blank line plus escaped leading pipe on the second row yields 1 / 1, as does a separatorless orphan, with no admission refusal. Both negative cases and the restored same-content control ran together. Six historical instances were restored by `7cd5ea7db`; data restoration did not repair admission. Require shared ledger-specific refusal for unadmitted row content while preserving prose/code and generic GFM semantics; no section/path/state roster. |
 
+### Q02 independent closing review — expanding phantom generic, 2026-09-13
+
+| module | wave · `path:line` | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| `lib/type-member-origin.ts` | Q02 independent review of `763c38c98` · `candidateScopes` | Changed recursive instantiation removes value eligibility filtering, so `Nested<ExemptionRow>` with only `next: Nested<T[]>` treats an erased generic argument as unresolved canonical data and withholds the policy. The type parameter never occupies a data position. | false refusal / phantom type provenance | **OPEN — blocks Q02 integration** (existing reader repair #2320) | Independent production dispatch: phantom producer gives zero findings, evaluate tool error and incomplete/withheld owner; adding `value: T` yields exactly one finding and complete owner. The committed 144/144 tests and selected real-corpus 11-findings/309-path run both pass, so neither covers this defect. Reproducer SHA-256 `55dbb828a335e0fff47e232aa90238f6ae4ba4de914d6453f2cf8362ea054a01`. Repair must preserve actual data containment and genuine opaque refusals, with permanent unit and dispatched controls; no arbitrary traversal cap. |
+
 ## CLASS ROLLUP
 
 **REBUILT FROM THE BODY, 2026-09-11 (`v-ledger-sweep`, `64dfbf349`). The previous table read
@@ -1170,8 +1176,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 17 | 0 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 341 | 309 | 9 | 1 | 3 | 1 | 0 | 18 |
-| **TOTAL** | 537 | 489 | 14 | 6 | 4 | 1 | 0 | 23 |
+| **other** | 342 | 309 | 10 | 1 | 3 | 1 | 0 | 18 |
+| **TOTAL** | 538 | 489 | 15 | 6 | 4 | 1 | 0 | 23 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 
