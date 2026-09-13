@@ -526,7 +526,11 @@ building; an undated one reads as current.
    after it** (`pnpm exec node tooling/src/verify/cli.ts baseline read-first-costs`, then `ledgers:fresh` real exit):
    the read-first table prices the ledger it lives beside, a ledger append is the commonest edit in this program, and
    one append reddened `ledgers:fresh` on the row that prices it; three cells were stale at the next regen, not the
-   two a row had named. And land the report the section cites in the SAME commit — a section citing a file that
+   two a row had named. **AND THE REGEN RUNS ON THE EXACT SET THAT COMMITS TOGETHER, ON A CHECKOUT CARRYING NOTHING ELSE
+   PRICED** (paid 2026-09-13, #2150 second instance): `b10adef04` committed a SIZE cell of 85 KB for a playbook whose
+   committed bytes were still 84 KB, because the regen ran beside an UNCOMMITTED playbook edit that landed one commit
+   later — a derived-artifact check is only ever true of the tree it ran on (the merge-voids-the-check rule one artifact
+   down), so the barrier runs `ledgers:fresh` on the committed tree, never on report. And land the report the section cites in the SAME commit — a section citing a file that
    exists only in a worktree sends every reader to nothing.
 5. Post the receipt on #1584 (`gh issue comment --body-file`); rows: `review` + `verify --evidence` (< ~700 chars).
 6. Dispatch one Opus verifier over the wave's merged commits (claims, exact fixtures to re-drive, census, the Sonnet
