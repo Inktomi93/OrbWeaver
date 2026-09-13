@@ -311,9 +311,21 @@ export function makeFactContext(input: CapabilityContextInput): FactContextRunti
  *  file plus the reader that answers it. A containment REQUIREMENT in the other direction was considered and
  *  refused: `fact.population ⊆ policy.population` is false for all four live consumers and would make a
  *  shared primitive index unshareable. */
-function factWideningDiagnosis(policy: GatePolicy): (repoRelativePath: string) => string {
+/** THE THREE DOORS THAT REFUSE AN OUT-OF-POPULATION PATH, spelled as the author would type them.
+ *
+ *  #2250 (cb-v-wave-6): the #1976 diagnosis closed with a HARD-CODED *"never with ctx.relativePath"* and
+ *  `factWidening(...)` appended it verbatim to the `sourceFile` and `report.file` refusals too — so a policy
+ *  that called `ctx.sourceFile(path)` was told not to use a function it never called, which is §5b criterion 2
+ *  (the message is TRUE of what the code does) failing on a REMEDY. The remedy half of the sentence is the
+ *  part an author acts on, so it names the door that actually threw. The `relativePath` wording is unchanged
+ *  by construction — that arm passes its own name — which keeps the measured before/after pair quoted in
+ *  `warning-code-coverage.ts:167-170` intact. */
+const POPULATION_DOOR = { relativePath: "ctx.relativePath", sourceFile: "ctx.sourceFile", reportFile: "ctx.report.file" } as const;
+type PolicyPopulationDoor = (typeof POPULATION_DOOR)[keyof typeof POPULATION_DOOR];
+
+function factWideningDiagnosis(policy: GatePolicy): (repoRelativePath: string, door: PolicyPopulationDoor) => string {
   const providers = policy.facts;
-  return (repoRelativePath) => {
+  return (repoRelativePath, door) => {
     if (providers.length === 0 || repoRelativePath.startsWith("/") || repoRelativePath.includes("\\")) {
       return "";
     }
@@ -321,7 +333,7 @@ function factWideningDiagnosis(policy: GatePolicy): (repoRelativePath: string) =
     return admitting.length === 0
       ? ""
       : `; it IS inside the population of this policy's declared fact ${admitting.join(", ")}, which is wider than the policy's own. ` +
-          "A declaration reached through a shared provider is named with `declarationHome(ctx, file)` (lib/declaration-home.ts), never with ctx.relativePath.";
+          `A declaration reached through a shared provider is named with \`declarationHome(ctx, file)\` (lib/declaration-home.ts), never with ${door}.`;
   };
 }
 
@@ -344,14 +356,14 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const relativePath = (candidate: SourceFile): string => {
     const home = declarationHome(capability.context, candidate);
     if (!deliveredPaths.has(home)) {
-      throw new Error(`source file is outside the effective population: ${candidate.getFilePath()}${factWidening(home)}`);
+      throw new Error(`source file is outside the effective population: ${candidate.getFilePath()}${factWidening(home, POPULATION_DOOR.relativePath)}`);
     }
     return capability.context.relativePath(candidate);
   };
   const sourceFile = (path: string): SourceFile => {
     assertRepoPathIdentity(path, "sourceFile path");
     if (!deliveredPaths.has(path)) {
-      throw new Error(`sourceFile path is absent or outside the effective population: ${path}${factWidening(path)}`);
+      throw new Error(`sourceFile path is absent or outside the effective population: ${path}${factWidening(path, POPULATION_DOOR.sourceFile)}`);
     }
     return capability.context.sourceFile(path);
   };
@@ -393,7 +405,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const reportFile = (path: string, rawDetails?: GatePolicyFileFindingDetails): void => {
     assertRepoPathIdentity(path, "finding file");
     if (!effectivePaths.has(path)) {
-      throw new Error(`finding file is outside the effective population: ${path}${factWidening(path)}`);
+      throw new Error(`finding file is outside the effective population: ${path}${factWidening(path, POPULATION_DOOR.reportFile)}`);
     }
     const details = rawDetails ?? {};
     exactKeys(details, FILE_DETAIL_KEYS, "file finding");

@@ -365,7 +365,17 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   (§3.7b). `pnpm test` still COMPOSES both halves as the explicit product-test command and the manual
   `tests:product-composite` registry row; it is not a separate commit ritual, so no tier runs it and
   nothing double-runs.
-  Scoped execution uses Vitest's configured projects without a copied project roster. Git-derived changes
+  Scoped execution uses Vitest's configured projects without a copied project roster, and since #2232 the
+  node arm chooses its CONFIG MODE from what the runner said it would select, never from a filename:
+  a selection carrying no `types-*` project runs `--runtime-only` (the thin runtime config, which omits the
+  typecheck projects BEFORE any `--project` filter applies); a selection that is entirely `types-*` passes
+  those project names and no `--runtime-only`, the two being mutually exclusive by construction; a MIXED
+  selection narrows neither, because the caller named both halves. `--related` is runtime-only whatever the
+  attribution says — its operands are source files, and the type-assertion door is `pnpm test:types`.
+  Before it, every scoped node run carried the typecheck projects, so a parse error anywhere in the
+  `tsconfig.json` or `tsconfig.tests-dom.json` program exited the run 1 with every named test green
+  (measured: a `.test-d.ts` claim reddened by a planted parse error in the BROWSER program, which its own
+  file is not in). Git-derived changes
   use native `--changed`; explicit test paths pass native collection preflight; explicit source or mixed
   inputs use native `related`. Folder inputs expand to current authored files from Git's tracked and
   exclude-standard untracked views, omitting deleted files; a package request selects its test mirror.
@@ -468,9 +478,9 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   `@orb/db/schema` generates, statement-set equal after whitespace/semicolon normalization
   (order-insensitive — FK order is proven applicable elsewhere). Pre-launch, schema changes SQUASH into that
   baseline and `freshDb` PUSHES schema-derived DDL, so every per-table `.int` test passes while the
-  committed file rots: TWICE a bump shipped without a regen and sat \~10 hours until `verify --push` caught
+  committed file rots: TWICE a bump shipped without a regen and sat ~10 hours until `verify --push` caught
   it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
-  (\~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
+  (~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
   `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` calls (one home, two callers).
 - **`ledgers:fresh`** (`static`/`push`/`full`, #817 — `tooling/src/verify/ops/ledgers-fresh.ts`) — every
   committed SINGLE-WRITER output vs a fresh derivation of itself, the oldest being
@@ -495,7 +505,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   sibling above: `structure:db-baseline` compares the schema to the baseline's CONTENT, this one validates
   the `migrations/meta` CHAIN (every `_journal.json` entry has its snapshot; no two snapshots claim the
   same parent — the forked-chain collision two concurrently-generated migrations produce, probe-verified
-  to exit 1). Against today's single squashed baseline it is a near-no-op (\~1s) and that is the POINT
+  to exit 1). Against today's single squashed baseline it is a near-no-op (~1s) and that is the POINT
   (owner ruling): the guardrail is built BEFORE the need, so the first post-launch incremental migration
   lands into an armed one rather than minting it under pressure. Whole-only (one migrations dir). The
   post-baseline procedure it guards is `Tier-1-DB.md` §"When we migrate for real".

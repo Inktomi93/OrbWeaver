@@ -56,6 +56,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "orphan-ratchet": "own",
   "boot-chunk": NO_TAIL,
   "ledgers-fresh": NO_TAIL,
+  "ledger-claims": "own",
   debt: "own",
   "ratchet-gate": NO_TAIL,
   "config-snapshot": "own",

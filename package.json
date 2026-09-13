@@ -49,6 +49,7 @@
     "check:orphan-ratchet": "node tooling/src/verify/cli.ts orphan-ratchet",
     "check:boot-chunk": "node tooling/src/verify/cli.ts boot-chunk",
     "check:ledgers-fresh": "node tooling/src/verify/cli.ts ledgers-fresh",
+    "check:ledger-claims": "node tooling/src/verify/cli.ts ledger-claims",
     "check:biome-rule-liveness": "node tooling/src/verify/cli.ts biome-rule-liveness",
     "check:respell": "node tooling/src/ast/cli.ts respell",
     "check:swallowed": "node tooling/src/ast/cli.ts swallowed",

@@ -175,9 +175,22 @@ function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | und
 // this arm exists so that it STAYS zero rather than because anything is broken today (#1958).
 // SCOPE: the FINAL contract only. A legacy descriptor has no `analysis` field, so it makes no such claim and
 // there is nothing to contradict (mustPass row).
-// IDENTITY, not text: the reads are matched as CALL EXPRESSIONS through a member access, so a `getType` in
-// a comment, a message string or a proof fixture cannot trip it — which matters here because this module's
-// own `mustFlag` row contains the literal string it hunts.
+// IDENTITY, not text: the reads are matched as MEMBER POSITIONS — a property access, a static element
+// access, or a destructuring binding element — so a `getType` in a comment, a message string or a proof
+// fixture cannot trip it, which matters here because this module's own `mustFlag` row contains the literal
+// string it hunts.
+//
+// THE SPELLING WIDENING (#2249, cb-v-wave-6). The arm shipped matching ONE spelling: a CallExpression whose
+// callee is a PropertyAccessExpression. A verifier drove nine spellings through this descriptor's own `run`
+// and measured FIVE escapes, none of them a declared limit — `ctx.node["getType"]()`, `ctx.node?.["getType"]()`,
+// `const { getType } = ctx.node; getType()`, `ctx.node.getType.bind(ctx.node)`, and a read one import hop away
+// in a `lib/` helper. The first pair is the #2202 shape one module over (an element access with a static
+// string argument is the same member position as the dot). The fix drops the CALL requirement — a member
+// POSITION naming a tuple member is the read, called or not, which is what makes `.bind` and a bare handoff
+// nameable without resolving what the receiver is — and follows ONE import hop for a relatively-imported
+// declaration this module actually references (§5b item 7's *"none smuggled into a `lib/` helper that only
+// this module calls"* is exactly this route). The declared limits are the two `mustPass` rows below:
+// namespace/default imports, and a second hop out of the hopped module.
 /** THE CLOSED TUPLE of members that reach the compiler (#1958). `getType`/`getSymbol` were the founding
  *  two and the arm was shown to catch only those; a `getContextualType()` — or any of the ten below — walked
  *  straight past an arm written to police exactly this claim. Each member has its OWN mustFlag row: a tuple
@@ -222,17 +235,108 @@ function analysisText(obj: Node): string | undefined {
   return TsNode.isStringLiteral(n) || TsNode.isNoSubstitutionTemplateLiteral(n) ? n.getLiteralText() : undefined;
 }
 
-/** Does this subtree call a type-reading ts-morph member? A local `getChildren` recursion on purpose: the
+/** The MEMBER NAME this node names, whatever the spelling — the one place the arm decides what counts as a
+ *  member position. Three spellings reach the same member and only the first was matched before #2249:
+ *  `a.getType` (optional-chained or not), `a["getType"]` / `a?.["getType"]` (static string subscript only —
+ *  a computed subscript names no member this arm can read), and `const { getType } = a` (the destructure,
+ *  which is how a policy gets a short local name; the alias form keeps the PROPERTY name, not the local). */
+function memberName(node: Node): string | undefined {
+  if (TsNode.isPropertyAccessExpression(node)) {
+    return node.getName();
+  }
+  if (TsNode.isBindingElement(node)) {
+    return (node.getPropertyNameNode() ?? node.getNameNode()).getText();
+  }
+  const subscript = TsNode.isElementAccessExpression(node) ? node.getArgumentExpression() : undefined;
+  const argument = subscript === undefined ? undefined : unwrap(subscript);
+  return argument !== undefined && (TsNode.isStringLiteral(argument) || TsNode.isNoSubstitutionTemplateLiteral(argument))
+    ? argument.getLiteralText()
+    : undefined;
+}
+
+/** Does this subtree reach a type-reading ts-morph member? A local `getChildren` recursion on purpose: the
  *  descendant helpers are the banned direct-walk vocabulary (`lib/gate-contract.ts`), and this module must
- *  not add a call site to a list it exists to police. */
+ *  not add a call site to a list it exists to police.
+ *
+ *  THE CALL IS NOT THE READ, THE MEMBER POSITION IS (#2249). `ctx.node.getType.bind(ctx.node)` hands the
+ *  compiler door to somebody else and never appears as a call with that callee; the same is true of any
+ *  handoff. Matching the position rather than the invocation makes every handoff nameable without this arm
+ *  having to resolve what the receiver is — which it must not do, since that is a type read of its own. */
 function readsTypes(node: Node): boolean {
-  if (TsNode.isCallExpression(node)) {
-    const callee = node.getExpression();
-    if (TsNode.isPropertyAccessExpression(callee) && TYPE_READ_METHODS.has(callee.getName())) {
-      return true;
-    }
+  const member = memberName(node);
+  if (member !== undefined && TYPE_READ_METHODS.has(member)) {
+    return true;
   }
   return node.getChildren().some(readsTypes);
+}
+
+/** Every identifier TEXT the module uses outside its own import declarations — the "does this module
+ *  actually reference the thing it imported" test behind the hop below. An unused import reads nothing, and
+ *  accusing a policy over a helper it never calls would be the arm inventing a violation. */
+function referencedNames(node: Node, out: Set<string>): void {
+  if (TsNode.isImportDeclaration(node)) {
+    return;
+  }
+  if (TsNode.isIdentifier(node)) {
+    out.add(node.getText());
+  }
+  for (const child of node.getChildren()) {
+    referencedNames(child, out);
+  }
+}
+
+/** A module-scope declaration of `name` in `sf`, by SYNTAX — no checker, no `getExportedDeclarations`
+ *  (which resolves aliases through the compiler and would make this arm a type reader itself). */
+function moduleScopeDeclaration(sf: SourceFile, name: string): Node | undefined {
+  return sf.getFunction(name) ?? sf.getVariableDeclaration(name) ?? sf.getClass(name);
+}
+
+/** Does a declaration in the HOPPED module reach a type read — following bare-identifier calls to other
+ *  module-scope declarations of that SAME file, so a two-line helper chain inside one `lib/` module cannot
+ *  hide the read. The recursion never leaves the hopped file: a second import hop is the declared limit. */
+function hoppedDeclarationReadsTypes(sf: SourceFile, name: string, seen: Set<string>): boolean {
+  if (seen.has(name)) {
+    return false;
+  }
+  seen.add(name);
+  const declaration = moduleScopeDeclaration(sf, name);
+  if (declaration === undefined) {
+    return false;
+  }
+  if (readsTypes(declaration)) {
+    return true;
+  }
+  const used = new Set<string>();
+  referencedNames(declaration, used);
+  return [...used].some((local) => local !== name && hoppedDeclarationReadsTypes(sf, local, seen));
+}
+
+/** ONE IMPORT HOP (#2249): every NAMED import from a RELATIVE specifier whose local name this module
+ *  actually references, resolved to the imported module's own declaration of that name.
+ *
+ *  DECLARED LIMITS, each with its own `mustPass` row: a namespace (`import * as x`) or default import names
+ *  no member at this boundary and is not followed; a specifier this run's project did not load is skipped
+ *  (the read is unobservable, not absolved); and the walk stops at the hopped module — a helper that itself
+ *  imports the reader from a THIRD module is two hops and out of reach. */
+function importHopReadsTypes(sf: SourceFile): boolean {
+  const used = new Set<string>();
+  referencedNames(sf, used);
+  for (const declaration of sf.getImportDeclarations()) {
+    if (!declaration.getModuleSpecifierValue().startsWith(".")) {
+      continue;
+    }
+    const target = declaration.getModuleSpecifierSourceFile();
+    if (target === undefined || target === sf) {
+      continue;
+    }
+    for (const specifier of declaration.getNamedImports()) {
+      const local = (specifier.getAliasNode() ?? specifier.getNameNode()).getText();
+      if (used.has(local) && hoppedDeclarationReadsTypes(target, specifier.getName(), new Set())) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /** ARM E for one FINAL module. One finding per module, anchored on the descriptor with the `analysis` token:
@@ -245,7 +349,7 @@ function readsTypes(node: Node): boolean {
  *  scanning only the literal left the one-line extraction (`function isX(node) { return node.getType()… }`)
  *  as a free evasion of an arm whose entire subject is that claim. */
 function armSyntaxAnalysis(obj: Node | undefined, sf: SourceFile, ctx: GateRunCtx): void {
-  if (obj === undefined || analysisText(obj) !== SYNTAX_ANALYSIS || !readsTypes(sf)) {
+  if (obj === undefined || analysisText(obj) !== SYNTAX_ANALYSIS || !(readsTypes(sf) || importHopReadsTypes(sf))) {
     return;
   }
   ctx.report(obj, { token: ANALYSIS_PROP, offset: 0 });
@@ -723,6 +827,67 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node["getType"]()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E SPELLING — the ELEMENT-ACCESS callee (#2249). Measured CLEAN on the unmodified module while the dotted twin flagged, which is the #2202 shape one module over: a static string subscript is the SAME member position as the dot, and an arm that matched only `PropertyAccessExpression` handed every syntax policy a one-character escape from its own declaration",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node?.["getType"]()'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E SPELLING — the OPTIONAL-CHAINED element access (#2249). Its own row because #2202's whole lesson is that the optional chain mints a second node shape: the dotted arm already survived `?.` and the subscript arm had to be shown to as well",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => { const { getType } = ctx.node; return getType(); }'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E SPELLING — the DESTRUCTURE (#2249), the shape a policy reaches for when it wants a short local name. The binding element IS the member position; resolving the bare identifier callee back to its binding would have been a second answer to a question the position already answers",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => { const { getType: read } = ctx.node; return read(); }'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E SPELLING — the RENAMED destructure (#2249): the PROPERTY name is the member, never the local. Without this row the arm could have been written against the binding's own name and read clean on every alias, which is the rename-shaped blind spot the tuple's own narrow-back control was minted for",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.hand(ctx.node.getType.bind(ctx.node))'),
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E SPELLING — the HANDOFF (#2249): `.bind` passes the compiler door to somebody else and never appears as a call whose callee is the member. This row is why the arm matches a member POSITION rather than an invocation — the CALL is not the read",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/lib/__probe-shared.ts": "export function typeOf(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\n",
+        "tooling/src/verify/gates/__probe.ts":
+          'import { defineGate } from "../contract/policy.ts";\nimport { typeOf } from "../lib/__probe-shared.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: (ctx) => typeOf(ctx.node), mustFlag: [1], mustPass: [1] });\n',
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E IMPORT HOP (#2249) — the byte-identical helper INLINE flags (the SUBTREE row above) and one import hop away read CLEAN, so the arm's own widening stopped exactly at the module boundary. §5b item 7 already names this route (*none smuggled into a `lib/` helper that only this module calls*); the hop is the fix, and this row is what dies without it",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/lib/__probe-shared.ts":
+          "function inner(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\nexport function outer(node: { getType: () => unknown }): unknown {\n  return inner(node);\n}\n",
+        "tooling/src/verify/gates/__probe.ts":
+          'import { defineGate } from "../contract/policy.ts";\nimport { outer } from "../lib/__probe-shared.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: (ctx) => outer(ctx.node), mustFlag: [1], mustPass: [1] });\n',
+      },
+      expect: { count: 1, token: ANALYSIS_PROP },
+      why: "ARM E IMPORT HOP, IN-FILE CHAIN (#2249) — an INVENTED property, so it carries its planted-break receipt (§4.7): with the in-file recursion cut, this row goes green while the direct-helper row above stays red. Without it the hop would stop at the exported declaration's own body, and a two-line indirection inside the SAME lib module would defeat the whole fix — which is precisely how the real corpus is written (`deriveRootSpanOpeners` reaches `getType` three local calls down)",
+    },
+    {
+      files: {
         "tooling/src/verify/gates/__probe.ts":
           'export const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [{ files: "x" }], mustPass: [] };\n',
       },
@@ -794,6 +959,42 @@ export const gate: GateDescriptor = {
         "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node.getText()'),
       },
       why: 'ARM E — `analysis: "syntax"` with no type read is the ordinary, correct shape; the arm must not fire on the mere presence of the declaration (the near-miss that separates "declares syntax" from "declares syntax and reads types")',
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/lib/__probe-shared.ts": "export function typeOf(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\n",
+        "tooling/src/verify/gates/__probe.ts":
+          'import { defineGate } from "../contract/policy.ts";\nimport { typeOf } from "../lib/__probe-shared.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: () => 1, mustFlag: [1], mustPass: [1] });\n',
+      },
+      why: "ARM E HOP NARROWING (#2249) — the hop follows only an imported name the module REFERENCES, and this fixture imports the type-reading `typeOf` and never calls it: an unused import reads nothing, so accusing it would be the arm inventing a violation. IT DIED UNDER ITS OWN CUT, and only after the fixture was REPAIRED — the first draft imported a `SAFE` sibling from the same module and cut CLEAN, because the hop resolves the IMPORTED NAME and so never reached `typeOf` in either direction. An unenforced FIXTURE, not an unenforced fence; the discriminating import is the type-reading one",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/lib/__probe-deep.ts": "export function deep(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\n",
+        "tooling/src/verify/lib/__probe-shared.ts":
+          'import { deep } from "./__probe-deep.ts";\nexport function outer(node: { getType: () => unknown }): unknown {\n  return deep(node);\n}\n',
+        "tooling/src/verify/gates/__probe.ts":
+          'import { defineGate } from "../contract/policy.ts";\nimport { outer } from "../lib/__probe-shared.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: (ctx) => outer(ctx.node), mustFlag: [1], mustPass: [1] });\n',
+      },
+      why: "ARM E DECLARED LIMIT (#2249) — ONE hop, and this row is the limit stated as a RUN rather than as prose: a helper that imports the reader from a THIRD module is two hops and the arm does not follow it. The in-file chain IS followed (its own `mustFlag` above), so the boundary is the FILE, not the call depth; widening past it would make every `lib/` importer's transitive closure this arm's subject",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/lib/__probe-shared.ts": "export function typeOf(node: { getType: () => unknown }): unknown {\n  return node.getType();\n}\n",
+        "tooling/src/verify/gates/__probe.ts":
+          'import { defineGate } from "../contract/policy.ts";\nimport * as shared from "../lib/__probe-shared.ts";\nexport const gate = defineGate({ id: "__probe", message: "m", analysis: "syntax", create: (ctx) => shared.typeOf(ctx.node), mustFlag: [1], mustPass: [1] });\n',
+      },
+      why: "ARM E DECLARED LIMIT (#2249) — a NAMESPACE import names no member at the import boundary, so the hop has nothing to resolve and does not guess. Recorded as a run row rather than a sentence because a limit nobody ran is the shape §4.1 calls a fail-open wearing a limit's clothes; the corpus spells its lib imports named, and a namespace spelling would be visible in review",
+    },
+    {
+      files: {
+        "tooling/src/verify/contract/policy.ts": POLICY_STUB,
+        "tooling/src/verify/gates/__probe.ts": finalProbe('analysis: "syntax", create: (ctx) => ctx.node[ctx.key]()'),
+      },
+      why: "ARM E DECLARED LIMIT (#2249) — a COMPUTED subscript names no member this arm can read. The static-string test is what keeps the element-access arm an IDENTITY test rather than a guess; resolving the key would be a type read inside the gate that polices type reads",
     },
     {
       files: {

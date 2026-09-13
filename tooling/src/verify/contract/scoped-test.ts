@@ -10,8 +10,14 @@ export type ScopedTestRunner = (typeof SCOPED_TEST_RUNNERS)[number];
 
 /** What a runner's LIST/collection pass answered: the test files it would actually open, repo-relative
  *  posix — or the reason it could not answer, which is never silently treated as "collected nothing"
- *  (a blind zero here would rebuild the exact defect this door exists to refuse). */
-export type ScopedTestCollection = { readonly files: readonly string[] } | { readonly error: string };
+ *  (a blind zero here would rebuild the exact defect this door exists to refuse).
+ *
+ *  `projects` is the NATIVE project names the same listing attributed those files to (vitest's
+ *  `--filesOnly --json` emits `projectName` per row; playwright's suite tree has no equivalent, so the CT
+ *  arm leaves it empty). It is what decides the node arm's RUNTIME-ONLY door (#2232, ops/scoped-test.ts):
+ *  membership is READ from the runner, never guessed from a filename, so a directory operand holding a
+ *  `.test-d.ts` is classified by the same authority that would run it. */
+export type ScopedTestCollection = { readonly files: readonly string[]; readonly projects: readonly string[] } | { readonly error: string };
 
 /** ONE INVOCATION'S CT LEASE (#1581): where it builds, and how it gives the worktree back. `release` is
  *  idempotent — the runner calls it from a `finally`, so a refused preflight frees the tree too. */
