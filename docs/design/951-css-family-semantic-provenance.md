@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-12
+updated: 2026-09-13
 ---
 
 # CSS family ownership — declaration-level provenance wall
@@ -150,13 +150,14 @@ the sheet carried when the ratchet retired, so a later reader can date a delta; 
 whatever `check:structure` prints on the gate's own scan line, which is the denominator the gate always
 meant to use.
 
-**WHAT SURVIVED THE RETIREMENT, and it is not an endorsement.**
-`EXPECTED_DIRECT_THEME_DECLARATIONS = 203` stays, because the same ruling classes it as *generated-output
-parity* rather than a current-population count. On the tree it is still a hand-copied literal compared
-against a parsed count — the same SHAPE as the three ratchets `css-var-defined` retired the same day,
-under a different word. Whether it must be DERIVED from the generator's input (tokens.json → the emitted
-`@theme` block) to earn the name is an open ruling, escalated 2026-09-12 and deliberately not decided by
-the lane that wrote this section. Its survival here records the ruling's boundary, not agreement with it.
+**Historical boundary, superseded 2026-09-13 (`284dedcee`, #2230 ARM B).** The 2026-09-12 retirement left
+`EXPECTED_DIRECT_THEME_DECLARATIONS = 203` in place under the earlier generated-output-parity classification,
+while escalating whether a copied count earned that description. ARM B resolved that question by deleting the
+constant and parity fixtures. `ledgers:fresh` and `baseline theme-css --check` now compare the complete CSS bytes
+with canonical `generateArtifacts`; 203 is only the dated observed count. The health policy keeps its separate
+nonempty direct-custom-property namespace check. This correction does not change the historical mint deltas below.
+See [the dated disposition](../reviews/gate-runtime/theme-freshness-doc-disposition-2026-09-13.md) for validation
+requirements, the scratch-root limitation, and the primary-owned whole-stage proof.
 
 **Two transcription corrections, stated because a moved comment is where a silent edit hides.** A
 continuation line beginning "+8 on the sheet total above" was re-joined to the bullet it belongs to (the
@@ -233,6 +234,6 @@ reader could not check.
 
 - +13 (2026-09-07, #1868 + #1869): 8 theme (the four pointer-conditional field tokens, base + fine arm each) and 4 shell (the four-edge device insets, then #1869's bottom pay/refund pair), 1 ui globals (#1869's drawer clearance). ui globals and tiers are NET ZERO — each briefly carried an `@media (any-pointer: coarse)` block while the floor was being built in CSS, and both were deleted when the token layer took the capability; that is the shape §4b axis 3 asks for and the reason the two CSS homes do not appear in this delta at all. Each half is annotated at its own sheet above.
 
-### `EXPECTED_DIRECT_THEME_DECLARATIONS` — 203 (SURVIVES this retirement — see the note above)
+### `EXPECTED_DIRECT_THEME_DECLARATIONS` — historical 203 (retired 2026-09-13; mint delta preserved)
 
 - +4 (2026-09-07, #1868): the four field tokens' BASE declarations. Their `pointer: fine` arms live in a generated @media block, which is a themeRule and not a direct @theme declaration — hence +4 here against +8 on the sheet total above.
