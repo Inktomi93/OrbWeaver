@@ -8,7 +8,6 @@
 import type { JsxAttribute } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { firstAnchor } from "../lib/caught-failure.ts";
 import { readStaticAuthoredScalar } from "../lib/static-authored-value.ts";
 
 const WIDGET_ROLES: ReadonlySet<string> = new Set([
@@ -77,7 +76,7 @@ export const gate = defineGate({
       ],
       evaluate: () => {
         for (const [attr] of roles) {
-          ctx.report.node(attr, { ...firstAnchor(attr, ["role"]), message: MESSAGE });
+          ctx.report.node(attr.getNameNode(), { token: "role", offset: 0, message: MESSAGE });
         }
       },
     };
