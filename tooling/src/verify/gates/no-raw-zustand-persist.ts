@@ -75,7 +75,7 @@ const MESSAGE =
  *  The old text said "the middleware" only, which was already wrong for arm B and became a lie the moment
  *  arm C could reach this message at all. */
 const UNREADABLE =
-  "this expression is spelled like zustand's persistence api — the `persist` middleware, a store api's destructive reset, or the durable-local registry's own registered `reset` — but the shared readers cannot place its binding, so which of them it is CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
+  "this expression is spelled like zustand's persistence api — the `persist` middleware, a store api's destructive reset, or the durable-local registry's own registered `reset` — but the shared readers cannot place its binding, so which of them it is CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   'use createEntityDraftStore / createPersistedStore instead of a bare persist(); drop a store through the durable-local door (`resetWithoutPersisting`), which blindfolds the storage first. There is no inline waiver for this policy: a genuinely new sanctioned home needs an exact reviewed-grant row in `tooling/src/verify/lib/reviewed-grants.ts` — `{ id: "no-raw-zustand-persist:<short-kebab-subject>", policyId: "no-raw-zustand-persist", subject: <the reported file path>, operation: "zustand-persist-mint" | "destructive-store-reset" | "unblindfolded-registered-reset", why, endsWhen }` — with the `operation` taken from the finding, not guessed.';
 
@@ -476,6 +476,17 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "CANNOT be established" },
       why: "THE FAIL-CLOSED THIRD ANSWER (#944) on ARM A, reached by no row before #2014: the callee's leaf name admits it to the candidate set, `readPackageExportOrigin` cannot place a binding off an OPAQUE receiver, and case (b) REPORTS the spelling rather than passing it. The `messageIncludes` is the whole pin — the unreadable arm reports ONE finding, the same as the ordinary verdict, so a bare `{ count: 1 }` row would pass unchanged if the arm were failed open or became unreachable",
     },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        ...REGISTRY_PROOF,
+        "packages/client/src/features/x/opaque-reset.ts":
+          "declare function opaque(): any;\nexport function wipe(): void {\n  const store = opaque();\n  store.setState(store.getInitialState(), true);\n}\n",
+      },
+      expect: { count: 1, token: GET_INITIAL_STATE, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (#944) on ARM B (#2072 L1), the last of the three arms without it: the #837 destructive-reset SHAPE on an OPAQUE receiver, whose store api `classifyPackageMemberOrigin` cannot place. ARM B reports it on the unreadable text; hardcode `unreadable: false` in `destructiveCandidate` and the same one finding carries the ordinary `MESSAGE` instead — a bare `{ count: 1 }` stays green through that cut, which is the hole #2050 closed one arm over, so the `messageIncludes` is the pin",
+    },
   ],
   mustPass: [
     {
@@ -557,6 +568,23 @@ export const gate = defineGate({
           'import { create } from "store-lookalike";\nconst store = create<{ a: number }>(() => ({ a: 1 }));\nexport function wipe(): void {\n  store.setState(store.getInitialState(), true);\n}\n',
       },
       why: "ARM B's IDENTITY FENCE, the twin of the arm-A lookalike row above and the one axis no row covered: the shape is byte-for-byte the #837 destructive reset, and ONLY `classifyPackageMemberOrigin(callee, [ZUSTAND])` separates it from the real one. Another store library's `setState` does not write through a zustand `persist` patch, so it is not this defect — cut the origin test and this row flags",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        "packages/client/src/state/durable-local.ts": `${REGISTRY_PROOF["packages/client/src/state/durable-local.ts"]}function reset(): void {}\nexport function forget(): void {\n  reset();\n}\n`,
+      },
+      why: "ARM C's ACQUITTAL HALF of the unreadable answer (#2072 L2): inside the registry file, an unblindfolded `reset()` whose callee is a LOCAL function is a PROVEN non-module binding, not a registered store's drop. `resolveTypeMemberOrigin` refuses (a bare identifier names no member) and `classifyOriginRefusal` answers `other` — cut that `=== \"other\" ? null :` acquittal and this call is reported on the unreadable text, the over-report fail-closure must not become",
+    },
+    {
+      mode: "types",
+      files: {
+        ...zustandProof(),
+        "packages/client/src/state/thing.ts": "export interface Thing {\n  readonly reset: () => void;\n}\n",
+        "packages/client/src/state/durable-local.ts": `import type { Thing } from "./thing.ts";\n${REGISTRY_PROOF["packages/client/src/state/durable-local.ts"]}export function drop(thing: Thing): void {\n  thing.reset();\n}\n`,
+      },
+      why: "ARM C's DECLARED-BY-FILE FENCE (#2072 L3): inside the registry file, an unblindfolded `reset()` on a member the checker PLACES in ANOTHER file is not the registry's own `RegisteredStore.reset`, whose file-private declaration is what makes this file the whole reachable surface. The origin resolves, so only `declaredByFile(origin.value.declarations, reset.source)` separates it from the ARM C red above — cut that guard and this call flags",
     },
   ],
 });
