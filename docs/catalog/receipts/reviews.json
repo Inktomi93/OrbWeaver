@@ -5017,6 +5017,56 @@
         }
       ],
       "summary": "Preserved wave-12a report and its eight follow-up rows. Historical verdicts and counts retain their stated base; #2302, #2303 and #2304 track the follow-ups and current resolution requires separate integration evidence."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-policing-additions-2026-09-13.md",
+      "assignedSha256": "b1b7972a4aaf5c8e797f71eb5ab7fe7379fc7e3af3eb9c3b29a9505ea563ee4a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "b1b7972a4aaf5c8e797f71eb5ab7fe7379fc7e3af3eb9c3b29a9505ea563ee4a",
+      "verifiedCommit": "5253c7299ff46586671f923b995f45e0626fe7ac",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full report read by codex-primary; historical builder runs remain attributed to their author and checkout. Integration append records source review and pending runtime scope."
+      ],
+      "claims": [
+        {
+          "claim": "Records three policing repairs, two later census repair legs, and the independent integration review with final binary-expression boundaries. Current-main runtime verification is explicitly owed.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Records three policing repairs, two later census repair legs, and the independent integration review with final binary-expression boundaries. Current-main runtime verification is explicitly owed."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-test-population-2026-09-13.md",
+      "assignedSha256": "905f073184f5155e2f3ef1a7ba48ee79cc0ff4bb7db441401fc3a4282c4712f0",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "905f073184f5155e2f3ef1a7ba48ee79cc0ff4bb7db441401fc3a4282c4712f0",
+      "verifiedCommit": "5253c7299ff46586671f923b995f45e0626fe7ac",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full report read by codex-primary; historical builder runs remain attributed to their author and checkout. Integration append records source review and pending runtime scope."
+      ],
+      "claims": [
+        {
+          "claim": "Records the mirror class, workspace population and explicit Biome probe fences, including reported planted controls and two unresolved follow-up defects. Current-main runtime verification is explicitly owed.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Records the mirror class, workspace population and explicit Biome probe fences, including reported planted controls and two unresolved follow-up defects. Current-main runtime verification is explicitly owed."
     }
   ]
 }
