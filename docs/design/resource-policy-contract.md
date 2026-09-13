@@ -1,14 +1,14 @@
 ---
 kind: design
 status: active
-updated: 2026-09-12
+updated: 2026-09-13
 ---
 
 # The resource-policy contract — what a closed-ResourceHost policy OWES (#2011, guide §3's resource plane)
 
 The one written answer to the question the gate-runtime program (#1584) had answered in pieces and never
-synthesized: **given that the runtime refuses a non-ready declared resource one phase before a policy runs,
-what does a resource policy owe?** The pieces are on the tree (`lib/resource-declaration.ts`,
+synthesized: **given that the runtime refuses a non-ready populated-kind declaration before policy creation, while
+demand-owned and installed-package declarations acquire through bound policy doors, what does a resource policy owe?** The pieces are on the tree (`lib/resource-declaration.ts`,
 `lib/resource-policy.ts`, `lib/policy-pass.ts`, guide §11 ruling 3 and §12.3); this document is the synthesis,
 the alternatives it rejected, and the measured proof rules a conversion lane copies. It binds every
 `analysis: "resource"` policy. Where it disagrees with a module, the module is wrong; where it disagrees with
@@ -21,31 +21,36 @@ Lessons consulted from the shared memory store before designing: `gate-migration
 
 ## 1. The answer in one paragraph
 
-A resource policy owes **seven things**, and none of them is a not-ready branch. It (1) declares every resource
-it reads and reads every resource it declares; (2) narrows each fact through the ONE shared reader
-`readyResourceValue`, whose throw is an assertion that the runtime's own population-phase refusal held; (3)
-anchors every finding inside its own resource population; (4) declares the resource-plane contract shape
-(`population: { of: "none", why }`, `analysis: "resource"`, `execution: "entire-population"`, `facts: []`
-unless it consumes a provider); (5) carries `mode: "resource"` proof rows that each supply EVERY declared
-resource, isolate ONE arm, name an exact `count`, and use only discriminators that survive the transplant
-test; (6) pins the refusals a proof row cannot express through `runPolicyPass` in its family test — one pin
-per declared resource per non-ready status, plus the complete-run receipt pair; and (7) records in its header
-the family, the population port with the legacy SHA, where the refusal lives (not here), and every declared
-limit with the row that holds it. **A broken resource is a TOOL ERROR, never a finding and never a silent
-zero — and the designated accuser for it is the runtime, not a sibling policy.**
+A resource policy owes **seven things**, and none permits domain logic to consume a non-ready value. It (1)
+declares every resource it reads and reads every resource it declares; (2) narrows each acquired fact through
+the ONE shared reader `readyResourceValue` — populated kinds are acquired before policy creation, while
+demand-owned and installed-package kinds acquire at their bound door; (3) anchors every finding inside its
+effective source/resource population; (4) declares the truthful resource-plane shape: `analysis: "resource"`,
+a source-free or hybrid population, and an execution mode matching whether selected source members compose;
+(5) carries `mode: "resource"` proof rows that satisfy every declaration used by the fixture, isolate ONE arm,
+name an exact `count`, and use only discriminators that survive the transplant test; (6) uses the optional
+`mustRefuse` proof arm when the proof grammar can express the bad state and retains `runPolicyPass` family pins
+for runtime states it cannot; and (7) records in its header the family, the population port with the legacy
+SHA, where each refusal lives, and every declared limit with the row that holds it.
+
+A broken populated resource is a population tool error that withholds its owner before `create`. A broken
+demand-owned or installed-package fact is receipted at its door and must be narrowed immediately, refusing in
+the phase where it is read. Neither path may become a finding or a silent zero. A semantic health sibling may
+judge a **ready but degenerate** resource value; if its own declared resource is non-ready, it is withheld too.
 
 ## 2. The runtime facts the contract rests on (receipts)
 
 | Fact | Where |
 | - | - |
 | `ResourceLoad<T>` is a discriminated union: `value` exists only on `ready`; the other four arms carry `reason` | `tooling/src/verify/contract/resource.ts:2-5` |
-| Population resolution acquires every declared (populated-kind) resource and THROWS on any non-ready status, on an empty fact, and on a cross-root path | `tooling/src/verify/lib/resource-declaration.ts:193-213` |
+| Population resolution pre-acquires every declared **populated-kind** resource and throws on any non-ready status, empty fact, or cross-root path; demand-owned and installed-package declarations are partitioned out | `tooling/src/verify/lib/resource-declaration.ts:190-211` |
 | That throw is caught PER OWNER: the run is marked `incomplete` at phase `population`, the owner is withheld, every other policy in the invocation continues | `tooling/src/verify/lib/policy-pass.ts:405-421` (`resolveRuns`) |
-| The binding fence: an UNDECLARED door read throws; a fact whose paths leave the effective population throws; one `kind: "resource"` receipt per source, `unresolved: 1` on a non-ready fact | `tooling/src/verify/lib/resource-policy.ts:19-46` |
+| The binding fence: an undeclared door read throws; populated paths must remain inside the effective resource population; demand and installed-package doors enforce their kind-specific inputs; each consumed populated/installed resource source produces one per-owner receipt, including cache hits; demand acquisitions produce individually sequenced receipts. Non-ready pre-create declaration resolution produces no policy receipt | `tooling/src/verify/lib/resource-policy.ts` (`accept`, `acceptDemand`, `fencedText`, `fencedExactFiles`) |
 | An UNCONSUMED declaration is a receipt-phase refusal | `tooling/src/verify/lib/policy-pass.ts:736-743` |
-| `readyResourceValue` — the one narrowing, beside the refusal it asserts | `tooling/src/verify/lib/resource-declaration.ts:21-35` |
+| `readyResourceValue` — the one narrowing after acquisition; acquisition timing differs by kind | `tooling/src/verify/lib/resource-declaration.ts:21-35` |
 | A finding anchored outside the resource population is an `[evaluate]` tool error (`finding file is outside the effective population`) — measured by cutting `ui-exports-map-complete`'s A2 `continue` | `tooling/src/verify/lib/policy-pass.ts` report sink; cut receipt in §7 |
-| A demand kind (`authored-path`, `authored-text`) and `installed-package` contribute no path and are partitioned out of the empty-fact refusal BY NAME | `tooling/src/verify/lib/resource-declaration.ts:187-195` |
+| A resource policy may be hybrid: `resolvePopulation()` independently resolves source and resource populations and combines them; resource analysis does not imply `population: { of: "none" }` | `tooling/src/verify/lib/policy-pass.ts:307-341`; `lib/policy-validation.ts:320-335` |
+| Demand kinds (`authored-path`, `authored-text`) and `installed-package` contribute no population path and acquire through their bound doors | `tooling/src/verify/lib/resource-declaration.ts:187-195` |
 
 **Measured refusal wording (2026-09-12, this worktree at `831576613`, driven through `runPolicyPass`):**
 
@@ -96,9 +101,10 @@ RED, and the one that is prose-only is called out as the gap.
    into `tsconfigRosterPaths` + `tsconfigRosterFrom` and `acquiredConfigText` to match. The retired carve is
    pinned as a `mustFlag` on the bytes it used to admit, so the removal is an assertion rather than an absence. **This clause is no longer prose-only**; the earlier text here ("no `policy-soundness`
    meta-policy reads `ctx.resources`") described the tree before that arm landed. §5 alt C remains the
-   stronger ladder tier and remains a recorded fork. The guard is unreachable
-   (fact 2 above), so `if (fact.status !== "ready") return;` is dead code that teaches a silent clean; `throw`
-   re-spelled per module is one-home rot. **Every resource policy reads through the helper today, and NO
+   stronger ladder tier and remains a recorded fork. For populated kinds a non-ready guard is unreachable
+   after run resolution. Demand-owned and installed-package reads can receive a non-ready value and therefore
+   narrow directly at the call site; returning from that reachable branch is a forbidden silent-clean path.
+   In both cases the policy must use the shared helper rather than re-spell a `throw` per module. **Every resource policy reads through the helper today, and NO
    resource policy carries an executable not-ready branch** — closed by `0fab76771` (four sites) and
    `2bacd5ef9` (five); `depcruise-grant-liveness` was already loud.
 
@@ -110,37 +116,56 @@ RED, and the one that is prose-only is called out as the gap.
    merge; the derivation does not. **A census-shaped sentence in a doc lanes copy names its derivation, not
    its result** — the direction of this claim only ever strengthens as the corpus converts, and quoting the
    number is how a reader concludes the opposite.
-3. **Anchor inside your own resource population.** Enforcer: RUNTIME (`[evaluate]` tool error). This is why a
+3. **Anchor inside your effective source/resource population.** Enforcer: RUNTIME (`[evaluate]` tool error). This is why a
    missing-TIER finding reports at the server manifest (declared, read, inside the population) and not at the
    gate's own source file as the legacy descriptor did.
-4. **Declare the resource-plane shape.** `population: { of: "none", why }` · `analysis: "resource"` ·
-   `execution: "entire-population"` (a whole-tree/whole-manifest verdict cannot compose over a subset) ·
-   `facts: []` unless a provider is consumed · `resources: [...]` with the SMALLEST CLOSED ids that keep every
-   arm honest. Enforcer: `lib/policy-validation.ts` for the shape; `gate:contract` for legacy fields; the
-   population port line (obligation 7) for the id choice. Worked case: `ui-exports-map-complete` declares
-   `authored-tree:packages`, not `ui-source`, because the real manifest exports
-   `"./token-contract": "./token-contract.ts"` — a file at `packages/ui/`, outside `src` — and the dead-target arm
-   would false-RED it under `ui-source`. There is no `ui-package` id and the vocabulary is frozen (guide §12.4).
-5. **Proof rows supply EVERY declared resource and isolate ONE arm.** Enforcer: `structure:policy-conformance`
+4. **Declare the truthful resource-plane shape.** `analysis: "resource"` is fixed. A source-free resource
+   policy uses `population: { of: "none", why }`; a hybrid declares its actual source population as well as
+   resources. `execution: "entire-population"` is required for an indivisible whole-population answer;
+   `selected-files` is valid when selected source members compose. Enforcer: `lib/policy-validation.ts` for
+   the legal shape and `gate:contract` for legacy fields. The resource ids remain the SMALLEST CLOSED ids that
+   keep every arm honest.
+
+   **Selection keeps applicability separate from available inputs.** For a narrowed request, applicability is
+   computed from the raw intersection with the owner's own declared source and populated-resource paths. A
+   consumed fact's declared paths can touch the owner, but do not enter the entire-population completeness
+   denominator because fact runs resolve their complete population independently. Thus `entire-population`
+   deferral remains based on whether the request covers the owner's whole declared population; completing a
+   running owner's inputs must not turn a partial request into a runnable whole-population verdict.
+
+   Once an owner is runnable, every declared resource remains available. If the request touched a declared
+   resource or consumed-fact path, every declared source subject is reselected; if it touched source paths
+   only, a `selected-files` owner visits exactly that source subset. Resource and fact identities can therefore
+   select what must be judged without becoming source visitor inputs. The planner filters deleted request
+   identities through its current-path inventory; the dispatcher resolves declarations from its live Project
+   and ResourceHost. Both call the same `resolveEffectivePopulation` calculation and the dispatcher refuses a
+   supplied plan whose population disagrees. This preserves §3.4's whole-population deferral while preventing
+   a resource-only change from producing a successful clean over zero source subjects.
+5. **Proof rows satisfy EVERY declaration used by the fixture and isolate ONE arm.** Enforcer: `structure:policy-conformance`
    for execution; the `count: 99` plant for exactness (a row whose count is not exact dies when planted). Rules
    measured on this family: a row missing a declared resource is a `[population]` tool error, not a finding (so
    `depcruise-grant-liveness` spreads `PACKAGE_FIXTURE_FILES` into every row); a `messageIncludes` is
    admissible only if TRANSPLANTING it onto every sibling row reds that row; two rows sharing one report call
    cannot be message-discriminated and must either be one row or split the message (§7, `mustFlag[3]`/`[4]`).
-6. **Pin the refusals in the family test.** There is NO "must refuse" arm (guide §4.5b); `toolFailure` runs
-   before the arm verdict. So the family test drives `runPolicyPass` with the SAME overlay minus one resource
-   and asserts: `toolErrors[0].phase === "population"`, the message names `<kind>:<id> is <status>`, the owner is
-   `incomplete`, the policy is in `withheldPolicyIds`, and `effectiveFindings` is empty. One pin per declared
-   resource per reachable status (`missing` for both kinds; `empty` for a tree; `unresolved` for a malformed or
-   contract-violating manifest), plus the complete run asserting the receipt pair with `unresolved: 0`, plus any
-   READY-degenerate value as the FINDING it produces. The `scratch` fixture is a real `mkdtemp` directory, so an
-   `empty` tree is reachable by `mkdirSync` beside the overlay.
+6. **Prove every reachable acquisition refusal at the narrowest truthful tier.** For EACH declared resource,
+   derive the non-ready statuses its actual reader can emit and pin EACH reachable status; do not copy a
+   generic status roster or infer coverage from another kind. Also pin the complete run's resource-receipt
+   pairing with `unresolved: 0`. `mustRefuse` is the optional third proof arm (`contract/policy.ts`;
+   `policy-validation.ts`): use it when resource fixture data can express the bad acquisition state, where it
+   asserts refusal text and forbids findings. Keep family `runPolicyPass` pins for planner/dispatcher selection,
+   receipt pairing, filesystem states, or other conditions outside the proof grammar. The optional arm changes
+   the proof carrier, not the coverage owed.
+
+   A `missing`, `empty`, `unresolved`, or other non-ready acquisition status is a refusal or population tool
+   error, never a finding or silent zero. That does not classify domain-invalid content inside a **ready**
+   resource: a policy may legitimately report such semantic invalidity as a finding when that is the verdict it
+   owns. The provider/reader decides whether bytes are non-ready; the policy judges the ready value it receives.
 7. **The §5b.5 header.** FAMILY (the shared `lib/` reader by module + function, or `singleton` with its reason)
    · POPULATION PORT (the legacy SHA, the read it replaced, byte-identical or each intentional delta) · WHERE
    THE REFUSAL LIVES (the runtime, with the pin that proves it) · DECLARED LIMITS, each naming the row that
    holds it · UNFALSIFIABLE fences documented rather than faked (guide §4.1's fourth outcome).
 
-## 4. Where the refusal lives — and why a resource `-health` sibling is structurally impossible today
+## 4. Where the refusal lives — and what resource health may accuse
 
 The fact-provider accuser pattern works because a provider's non-ready state is DELIVERED to its consumers: a
 provider must not receipt its own census (guide §12.3), so `bus-fact-health` receives `status !== "ready"` and
@@ -148,17 +173,16 @@ reports it as ONE finding instead of crashing every bus policy. That asymmetry i
 by this contract — `bus-fact-health` is `analysis: "types"`, `facts: [busProducerFact]`, `resources: []`; it is
 not a resource policy, and the `2bacd5ef9` lane was right to leave its branch alone.
 
-A RESOURCE's non-ready state is not delivered to anyone. `resolveRuns` acquires every declared resource per
-owner at the population phase and withholds the owner on the first non-ready fact — so a would-be accuser that
-declared the same resource would be withheld by the same throw, one phase before its `create`. **Nothing a
-policy can write observes a broken resource.** The runtime is the accuser: exit 2, "this run is not a verdict",
-the `N tool error(s)` tail of `check:structure`, and the per-owner `WITHHELD` line. That is louder than a finding
-and honest in a way a finding is not (a finding says "the tree is wrong"; a tool error says "I could not judge").
+The runtime separates readiness from semantic health. A non-ready **populated** declaration is recorded as a
+population tool error and withholds each owner before `create`. A non-ready **demand-owned or
+installed-package** value is delivered only by its bound acquisition door; the caller must immediately apply
+`readyResourceValue`, which refuses before domain logic consumes it.
 
-If a future policy genuinely needs to report a broken resource as a PRODUCT finding (a malformed committed
-JSON ledger, say), that is a contract change — a declaration-level tolerance that delivers the union to that
-one owner — and it is a guide §12.4-class reopening with a two-consumer bar, not a lane's call. None of the ten
-resource policies needs it: every one of their subjects is a file another tool already refuses to load.
+A **ready** resource may still be semantically degenerate. A resource `-health` sibling may validly flag that
+state, provided it uses the same declaration/binding contract and anchors inside its effective population.
+It cannot convert provider failure into a product finding: if its populated resource is non-ready, the runtime
+withholds that sibling too; if a later-acquired value is non-ready, reader-side narrowing refuses. The health
+policy owns semantic judgments over ready values, not a second provider-failure channel.
 
 ## 5. Alternatives weighed and rejected
 
@@ -168,7 +192,7 @@ resource policies needs it: every one of their subjects is a file another tool a
 | **B** — in-module `throw` re-spelled per policy | REJECTED | Same semantics as the helper with 16 copies of the refusal law; the first copy someone writes as `return` is the defect back. One home, beside the refusal it asserts |
 | **C** — compile-time narrowing: type `ctx.resources` as a READY-ONLY host (`ResourceFact<T>` → `T`), throw inside `bindPolicyResources` | REJECTED for THIS lane; RECORDED as fork 1 | The strongest ladder tier (§2.2) and it makes the silent return unrepresentable. Cost: `contract/policy.ts` (`GatePolicyContext.resources`), a mapped host type, the binding, all ten modules, the conformance runner's types — a contract edit mid-program with five lanes live, against a shape guide §12.3 RULED on 2026-09-12. The union on the policy-visible surface is dead information for policies, but the same `ResourceHost` type is what `resolveResourceDeclarations` reads. Default: keep the ruled helper; land a `policy-soundness` arm that REDs a `ctx.resources.<door>(…)` result not passed straight to `readyResourceValue` (lint-tier, cheap, catches the return shape and the re-spelled throw) |
 | **D** — declare `ui-source` instead of `packages` for `ui-exports-map-complete` (§5b.1 smallest contract) | REJECTED with receipt | `"./token-contract": "./token-contract.ts"` lives outside `src`; the A3 arm would false-RED the real manifest. `packages` is the smallest CLOSED id (frozen vocabulary). The header records this so the next reader does not "fix" it |
-| **E** — a `mustFlag` row for a refusal | REJECTED (guide §4.5b) | `toolFailure` precedes the arm verdict; a refusal is neither `mustFlag` nor `mustPass`. Refusals are `runPolicyPass` pins |
+| **E** — a `mustFlag` row for a refusal | REJECTED | A refusal is neither `mustFlag` nor `mustPass`. Use optional `mustRefuse` when the proof grammar can express the bad state; retain `runPolicyPass` pins for states it cannot |
 | **F** — repair one incumbent and declare the plane covered | REJECTED (owner framing correction 2026-09-12) | The deliverable is fixing refuted modules, not filling a cell. Both incumbents are repaired to the same bar; the one with the weaker pin set (`ui-exports-map-complete`, no §4.5 pin) gets the fuller pin set |
 
 ## 6. Coupled-site inventory for this lane
