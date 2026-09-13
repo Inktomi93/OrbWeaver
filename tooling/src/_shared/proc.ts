@@ -105,7 +105,27 @@ function capturedStdio(): ["ignore", "pipe", "pipe"] {
 
 /** Capturing stderr means a caller that does NOT inspect `.stderr` would otherwise see only node's bare
  *  "Command failed: …". Fold the captured diagnostic into the message (the error object — and its
- *  `.stderr`/`.stdout` — is rethrown unchanged, so translating callers still see the raw text). */
+ *  `.stderr`/`.stdout` — is rethrown unchanged, so translating callers still see the raw text).
+ *
+ *  IT APPENDS ONLY WHERE NODE HAS NOT (#2272). Node's own `checkExecSyncError` already builds
+ *  `Command failed: <argv>\n<stderr>` for any COMPLETED non-zero exit — Buffer stderr included — so an
+ *  unconditional append DOUBLED the diagnosis on every ordinary failure in the repo. Measured, occurrences
+ *  of the child's stderr text in the thrown message:
+ *
+ *    shape                                  helper deleted   unconditional append   this
+ *    execNicedSync,       plain exit 2            1                   2               1
+ *    execNicedSyncBuffer, plain exit 2            1                   2               1
+ *    execNicedSync,       ENOBUFS kill            0                   1               1
+ *
+ *  THE LAST ROW IS WHY THE HELPER EXISTS AT ALL and why the guard is a containment test rather than a
+ *  deletion. On an ENOBUFS kill node throws a DIFFERENT error — the child was TERMINATED at the ceiling
+ *  rather than completing — whose message carries the argv and nothing else, and this append is the entire
+ *  repair. That is the #2211/#2212 incident shape (the buffer ceiling that made the whole-repo lint tier
+ *  unobtainable and whose diagnosis was unreadable until this function existed).
+ *
+ *  THE GUARD IS `includes`, NOT A SHAPE MATCH ON NODE'S TEMPLATE. Matching `Command failed:` would key on
+ *  a private message format; asking whether the DIAGNOSIS IS ALREADY IN THE MESSAGE is the property the
+ *  caller cares about, and it stays correct if node reformats. */
 function withCapturedStderr(error: unknown): never {
   const stderr = typeof error === "object" && error !== null ? (error as { readonly stderr?: unknown }).stderr : undefined;
   let text = "";
@@ -114,7 +134,7 @@ function withCapturedStderr(error: unknown): never {
   } else if (Buffer.isBuffer(stderr)) {
     text = stderr.toString("utf8").trim();
   }
-  if (error instanceof Error && text !== "") {
+  if (error instanceof Error && text !== "" && !error.message.includes(text)) {
     error.message = `${error.message}\n${text}`;
   }
   throw error;

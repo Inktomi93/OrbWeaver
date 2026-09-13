@@ -106,14 +106,20 @@ export function ledgerSections(text: string): readonly LedgerSection[] {
 /** A ledger-row table by SCHEMA: it names both a `defect` and a `state`. Schema-keyed and not first-column
  *  keyed, which is #2075's lesson — the in-fence tables use SIX different schemas (`module` and `subject`
  *  first cells, four different trailing-cell counts) and all six carry this pair, while NO table outside the
- *  fence does (measured 2026-09-12 over all 30 tables in the ledger: 25 in-fence ledger-shaped, 0 out). */
+ *  fence does (measured 2026-09-12 over all 30 tables in the ledger: 25 in-fence ledger-shaped, 0 out).
+ *
+ *  THE MATCH IS CASE-FOLDED (#2224). A header spelled `| Defect | State |` is the SAME schema — markdown
+ *  gives a header row no canonical case and these documents are hand-edited all day — and an exact-case
+ *  `Set.has` bound NOTHING against one, so a whole ledger-shaped section could sit outside the fence and
+ *  read as prose. Planted and measured 2026-09-12: silent. Case is presentation; the schema is the fact. */
 function isLedgerRowTable(table: MarkdownTable): boolean {
-  const columns = new Set(table.columns);
+  const columns = new Set(table.columns.map((column) => column.toLowerCase()));
   return columns.has("defect") && columns.has("state");
 }
 
 export interface StrayLedgerSection {
-  /** The `###` heading text, without the marker. */
+  /** The heading text, without its `#` marker — or the enclosing `##`'s own text when the rows sit under
+   *  that `##` with no subheading of their own at all (#2224's headingless shape). */
   readonly heading: string;
   /** 1-based line of the heading. */
   readonly line: number;
@@ -133,11 +139,36 @@ export interface StrayLedgerSection {
  *  `grep -c` finds those rows, which is the false-clean shape: the instrument stopped early and said
  *  nothing about what it stopped short of.
  *
- *  So the fence now REPORTS what it excludes. A `###` section outside the fence carrying a ledger-shaped
- *  table is a stray; the consumer names the heading, its line, the `##` it landed under, and the fence it
- *  belongs in. The predicate keys on the table's SCHEMA rather than on the heading's wording, so it also
- *  catches a section whose heading cites no report at all (`### p-suite-honesty` is a real cite-less
- *  section, so a cite-keyed predicate would have a live blind spot). */
+ *  So the fence now REPORTS what it excludes. A section outside the fence carrying a ledger-shaped table is
+ *  a stray; the consumer names the heading, its line, the `##` it landed under, and the fence it belongs
+ *  in. The predicate keys on the table's SCHEMA rather than on the heading's wording, so it also catches a
+ *  section whose heading cites no report at all (`### p-suite-honesty` is a real cite-less section, so a
+ *  cite-keyed predicate would have a live blind spot).
+ *
+ *  AND IT NOW READS EVERY CONTAINER A ROW CAN LAND IN (#2224). The first cut opened a candidate only on a
+ *  literal `### ` OUTSIDE the fence, which left FOUR sibling shapes silent — each planted below the rollup
+ *  and each producing no finding at all:
+ *
+ *    1. a bare `## ` section       — `## ` only reset `enclosing` and never opened a candidate;
+ *    2. a table with NO heading    — rows appended directly under a `##`, so no candidate was ever open;
+ *    3. a `#### ` heading          — `"#### x".startsWith("### ")` is FALSE (the fourth `#` is not a space);
+ *    4. a `| State |` header       — the case-sensitive schema match above.
+ *
+ *  Shapes 1-3 are one defect: the scanner modelled the CONTAINER as "an h3", and the container is
+ *  "whatever heading most recently opened, including the `##` itself". So a `##` now opens a candidate
+ *  enclosing ITSELF — which closes the headingless shape for free, because those rows are inside the `##`'s
+ *  own body — and any `#{2,4}` opens one. That is the same generalisation #2166 asked for and stopped one
+ *  depth short of: an instrument that can only see the shape that already bit it is not a fence, it is a
+ *  memory of one incident.
+ *
+ *  ALL FOUR ARE LATENT ON TODAY'S TREE (measured 2026-09-13 on `refutation-ledger-2026-09-12.md`: below
+ *  `## CLASS ROLLUP` there are 4 `##` and 1 `###` heading and THREE tables, none ledger-shaped) — so this
+ *  widening lands no new finding, and its proof is the planted controls in its family test, never the zero. */
+/** An ATX heading of depth 2-4 — the containers a ledger section can land in. Depth 1 is the document
+ *  title and depth 5+ has never carried a table here; both would widen the scan without widening what it
+ *  can catch. The capture is the marker so the depth is readable at the call site. */
+const CONTAINER_HEADING = /^(#{2,4}) (.*)$/;
+
 export function strayLedgerSections(text: string): readonly StrayLedgerSection[] {
   const lines = text.split("\n");
   const strays: StrayLedgerSection[] = [];
@@ -161,21 +192,30 @@ export function strayLedgerSections(text: string): readonly StrayLedgerSection[]
     current = undefined;
   };
   for (const [index, line] of lines.entries()) {
-    if (line.startsWith("## ")) {
-      flush();
-      enclosing = line.trim();
-      inLedger = line.trim() === LEDGER_FENCE;
-      continue;
-    }
-    if (line.startsWith("#")) {
-      flush();
-      if (line.startsWith("### ") && !inLedger) {
-        current = { heading: line.slice(H3_MARKER_LENGTH).trim(), line: index + 1, enclosing, body: [] };
+    const container = CONTAINER_HEADING.exec(line);
+    if (container === null) {
+      // A heading this scan does not model (h1, h5+) still ENDS the open candidate — a table after it is
+      // not in the section above it — but opens nothing.
+      if (line.startsWith("#")) {
+        flush();
+        continue;
+      }
+      if (current !== undefined) {
+        current.body.push(line);
       }
       continue;
     }
-    if (current !== undefined) {
-      current.body.push(line);
+    flush();
+    const heading = (container[2] ?? "").trim();
+    if (container[1] === "##") {
+      enclosing = line.trim();
+      inLedger = line.trim() === LEDGER_FENCE;
+    }
+    if (!inLedger) {
+      // A `##` encloses ITSELF: rows appended under it with no subheading are inside its body, which is
+      // the headingless shape. Every other depth carries the `##` it landed under, which is what the
+      // drift line tells the author to move the section out of.
+      current = { heading, line: index + 1, enclosing, body: [] };
     }
   }
   flush();

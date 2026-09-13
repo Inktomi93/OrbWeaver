@@ -4685,7 +4685,7 @@
     {
       "siteId": "tooling/src/_shared/proc.ts::error::2",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 200,
+      "line": 220,
       "column": 16,
       "grammar": "empty",
       "position": "error",
@@ -4693,12 +4693,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.",
-      "markerLine": 197
+      "markerLine": 217
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::settle::1",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 293,
+      "line": 313,
       "column": 7,
       "grammar": "promise",
       "position": "settle",
@@ -4706,7 +4706,7 @@
       "snippet": "settle(code).catch((error: unknown) => {",
       "verdict": "deliberate-absorb",
       "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error.",
-      "markerLine": 292
+      "markerLine": 312
     },
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::cleanupError::1",

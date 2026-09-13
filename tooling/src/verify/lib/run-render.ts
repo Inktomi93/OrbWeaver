@@ -1,14 +1,19 @@
 // `verify`'s CONSOLE presentation — the TRUNCATION-ROBUST output contract: a reader who sees only the
 // first ~15 lines (the head banner) OR only the last ~15 lines (the tail block) can determine PASS/FAIL
 // and that reports/verify.json is authoritative. Split out of ops/run.ts at the @orb/tooling P6 move (size
-// cap §4.3); every byte of the rendered output is unchanged.
+// cap §4.3). The NO-VERDICT block (#2225) is the one addition since that move: a stage that RAN and
+// measured nothing is NAMED above the verdict line, because the failure count alone cannot tell a
+// broken instrument from a real red.
 import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { StageResult, Tier, VerifyReport } from "../contract/stage.ts";
 import { RUNNABLE_VERIFY_TIERS } from "../contract/stage.ts";
+import { producedNoVerdict } from "./exit-classifiers.ts";
 import { manualStages, stagesForTier } from "./registry.ts";
 
 const NAME_PAD = 20; // stage-name column width in `verify --list`.
+/** The tool-error glyph, shared by `stageMark` and the NO-VERDICT block so one class reads one way. */
+const NO_VERDICT_MARK = "\u203c";
 
 function stageMark(r: StageResult): string {
   if (r.mode === "deferred") {
@@ -20,7 +25,7 @@ function stageMark(r: StageResult): string {
   if (r.ok) {
     return "✓";
   }
-  return r.exitCode === EXIT.toolError ? "‼" : "✗";
+  return r.exitCode === EXIT.toolError ? NO_VERDICT_MARK : "✗";
 }
 
 export function stageLine(r: StageResult): string {
@@ -92,6 +97,36 @@ function printNotices(report: VerifyReport): void {
   }
 }
 
+/** THE NO-VERDICT BLOCK — every stage that RAN and measured nothing, named, ABOVE the red count (#2225).
+ *
+ *  #2220 is what its absence costs: `lint:hook-syntax` exited 2 on every static run for a day, the
+ *  aggregate exit was 2 the whole time, and the CAUSE was found by opening a per-stage log — because the
+ *  only number the summary offered was "N stage(s) failed", which lumps "nothing was measured" together
+ *  with "your code has a lint finding". A reader who meets the count first goes hunting for a violation
+ *  that does not exist.
+ *
+ *  IT PRINTS BEFORE THE VERDICT LINE, INSIDE THE TRUNCATION-ROBUST TAIL, and it prints even when the run
+ *  is otherwise green — a green verdict over an unmeasured stage is exactly the claim that did not hold.
+ *  `failuresWorstFirst` already sorts these to the top of the FAIL list; that is the ORDER of a list the
+ *  reader still has to interpret, and this is the list itself. */
+function printNoVerdict(report: VerifyReport): void {
+  const unmeasured = report.stages.filter(producedNoVerdict);
+  if (unmeasured.length === 0) {
+    return;
+  }
+  process.stdout.write(`[verify] NO VERDICT: ${unmeasured.length} stage(s) RAN AND MEASURED NOTHING — this run does not cover them:\n`);
+  for (const stage of unmeasured) {
+    // The child's raw exit is named beside the class: "killed / never spawned" and "the tool exited 2" are
+    // different repairs, and the artifact keeps both (`StageResult.childExit`).
+    const child =
+      stage.childExit === null ? "child reported NO exit (killed, timed out, or never spawned)" : `child exit ${String(stage.childExit ?? "unrecorded")}`;
+    process.stdout.write(`  ${NO_VERDICT_MARK} ${stage.name} — ${child} \u00b7 ${stage.logFile ?? "(no log — did not run)"}\n`);
+  }
+  process.stdout.write(
+    "[verify] A stage that produced no verdict makes the tier's coverage a claim that did not hold — read these BEFORE the failure count.\n",
+  );
+}
+
 /** The TAIL block — the load-bearing truncation-robust output. A reader who sees ONLY the last ~15 lines
  *  MUST be able to determine PASS/FAIL, which stages failed, and that reports/verify.json is authoritative.
  *  The verdict + pointer print on BOTH pass and fail; on fail, every failing stage names its log inline. */
@@ -103,6 +138,7 @@ export function printSummary(report: VerifyReport): void {
   const failed = failuresWorstFirst(report.stages);
   printNotices(report);
   process.stdout.write("\n════════════════════════════════════════════════════════════════════\n");
+  printNoVerdict(report);
   if (report.ok) {
     process.stdout.write("[verify] VERDICT: PASS (exit 0) — all stages clean\n");
   } else {

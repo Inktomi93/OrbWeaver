@@ -18,6 +18,7 @@ import type { CaughtFailurePopulation, CaughtFailureRow } from "@orb/tooling/ver
 import {
   censusDrift,
   classRollupDrift,
+  committedOtherClassCensus,
   deferredRosterDrift,
   deriveReadFirstCosts,
   deriveSnapFlagsIndexMarkdown,
@@ -817,4 +818,254 @@ test("#2207 — a rollup MISSING a state COLUMN is a schema defect, not a cell m
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// ─── #2224: THE RECONCILER'S FOUR SIBLING BLIND SPOTS, AND THE FIFTH TABLE ───────────────────────────
+//
+// #2166 taught the fence to REPORT what it excludes, and the arms above prove it on the shape that bit:
+// a `### ` section appended below `## CLASS ROLLUP`. Measured 2026-09-12 by `cb-v-instruments-2`, FOUR
+// sibling shapes were still silent — each planted, each producing no finding at all — because the scanner
+// modelled the CONTAINER as "an h3 with a lowercase-exact schema" rather than "any heading, any case":
+//
+//   1. a bare `## ` section      — `## ` reset `enclosing` and never opened a candidate
+//   2. a table with NO heading   — rows appended straight under a `##`, so nothing was ever open
+//   3. a `#### ` heading         — `"#### x".startsWith("### ")` is FALSE
+//   4. `| Defect | State |`      — the schema match was case-sensitive, so a capitalised header bound nothing
+//
+// ALL FOUR ARE LATENT ON THE COMMITTED LEDGER (measured 2026-09-13: below the rollup there are 4 `##` and
+// 1 `###` heading and three tables, none ledger-shaped), so the committed-file green above is NOT evidence
+// that the widening works — which is exactly why each shape is planted here. A fence proved only by the
+// absence of findings is a fence proved by nothing.
+
+/** One synthetic ledger whose rows sit below the rollup in whatever container `below` spells. The in-fence
+ *  section is identical in every variant, so the ONLY difference between a run that finds a stray and one
+ *  that does not is the container the author used. */
+function strayShapeLedger(below: readonly string[]): string {
+  return [
+    "## THE LEDGER",
+    "",
+    "### in-fence (`v-stray-2026-09-12.md`)",
+    "",
+    "| module | defect | class | state | receipt |",
+    "| - | - | - | - | - |",
+    "| `a` | x | c | **OPEN** | r |",
+    "",
+    "## CLASS ROLLUP",
+    "",
+    ...below,
+    "",
+  ].join("\n");
+}
+
+const LEDGER_ROWS_BLOCK = ["| module | defect | class | state | receipt |", "| - | - | - | - | - |", "| `c` | z | c | **OPEN** | r |"];
+
+test("#2224 — a stray section is caught under a bare `##`, under NO heading, and under a `####`", () => {
+  // SHAPE 1 — a bare `## ` container. The author opened a new top-level section and pasted the rows in.
+  const bare = strayLedgerSections(strayShapeLedger(["## cb-v-stray-two", "", ...LEDGER_ROWS_BLOCK]));
+  expect(bare.map((stray) => stray.heading)).toStrictEqual(["cb-v-stray-two"]);
+  expect(bare[0]?.rows).toBe(1);
+
+  // SHAPE 2 — NO heading at all: the rows land directly in `## CLASS ROLLUP`'s own body. The container is
+  // the `##` itself, which is why a `##` now encloses itself rather than only naming what sits under it.
+  const headingless = strayLedgerSections(strayShapeLedger(LEDGER_ROWS_BLOCK));
+  expect(headingless.map((stray) => stray.heading)).toStrictEqual(["CLASS ROLLUP"]);
+  expect(headingless[0]?.enclosing).toBe("## CLASS ROLLUP");
+
+  // SHAPE 3 — a `#### ` subheading. One extra `#` and the old `startsWith("### ")` was false.
+  const deep = strayLedgerSections(strayShapeLedger(["#### cb-v-stray-four", "", ...LEDGER_ROWS_BLOCK]));
+  expect(deep.map((stray) => stray.heading)).toStrictEqual(["cb-v-stray-four"]);
+  expect(deep[0]?.enclosing, "it still names the `##` the author must move the section out of").toBe("## CLASS ROLLUP");
+});
+
+test("#2224 — a CAPITALISED `| Defect | State |` header is the same schema, and binds", () => {
+  const shouty = strayLedgerSections(
+    strayShapeLedger(["### cb-v-stray-caps", "", "| Module | Defect | Class | State | Receipt |", "| - | - | - | - | - |", "| `c` | z | c | **OPEN** | r |"]),
+  );
+  expect(shouty.map((stray) => stray.heading)).toStrictEqual(["cb-v-stray-caps"]);
+});
+
+test("#2224 NEGATIVE CONTROL — the widening does NOT make every heading below the rollup a stray", () => {
+  // Without this, all four arms above would pass against a scanner that reported every `##` it met. The
+  // rollup's own tables carry `state` WITHOUT `defect`, a two-column census carries neither, and a prose
+  // section carries no table at all; all three must stay silent, or the refusal fires on every correct
+  // ledger and the instrument is worse than the blindness it replaced.
+  const clean = strayShapeLedger([
+    "| class | modules affected | state |",
+    "| - | - | - |",
+    "| §4.1 | 3 | open |",
+    "",
+    "## THE FIVE HIGHEST-VALUE OPEN DEFECTS",
+    "",
+    "Ranked by blast radius. No table here at all.",
+    "",
+    "#### a sub-point",
+    "",
+    "| free-text class in `other`, as written | rows |",
+    "| - | -: |",
+    "| instrument | 11 |",
+  ]);
+  expect(strayLedgerSections(clean)).toStrictEqual([]);
+});
+
+// ─── #2224 fifth shape: the `other`-bin sub-table below the rollup ───────────────────────────────────
+//
+// The rollup's `other` row is broken down by a SECOND table (*"free-text class in `other`, as written"*)
+// which declares its own **`other` TOTAL** — and nothing re-derived that either. Measured at the
+// 2026-09-12 barrier: 176 against an `other` of 197. Re-measured 2026-09-13 on the committed file: still
+// 176, `other` now 241. Two tables, one body, one reconciler, and the reconciler could see one of them.
+//
+// THE TWO SIDES COUNT THE SAME QUANTITY, and that was CHECKED rather than assumed (2026-09-13, after the
+// ledger's owner read them as "per-MODULE classes vs per-ROW bin membership" — an equality arm over two
+// different quantities would fire on a correctly-maintained ledger forever, which is a lying instrument in
+// the other direction). Three receipts, all from the committed file:
+//   · the sub-table's own column header is `| free-text class in \`other\`, as written | rows |` — the
+//     second column is literally `rows`, and its last row is labelled `**\`other\` TOTAL**`;
+//   · the prose under it says the breakdown "counts what those CELLS actually say, binned by the cell's
+//     first named phrase" — the cells being the CLASS cells of the body's rows, i.e. per-ROW membership of
+//     the same `other` bin `deriveClassRollup` tallies;
+//   · its rows sum EXACTLY to 176 (16+14+11+11+11+7+4+3+3+3+2×10+73), a partition of a row count.
+// The PER-MODULE table is the NEXT section — `### The cross-cutting classes, counted PER MODULE rather
+// than per row`, header `| class | modules affected | state |` — three columns with no `rows` column, so
+// `committedOtherClassCensus`'s shape predicate (exactly two columns, second named `rows`, carrying a
+// TOTAL row) cannot reach it. Same quantity; the ledger is genuinely stale.
+//
+// THE PER-PHRASE BUCKETS ARE NOT RE-DERIVED and that limit is deliberate (stated at
+// `committedOtherClassCensus`): the committed buckets are hand-chosen truncations of the class cells with
+// an explicit *1-offs* bucket folding every singleton, so no mechanical normalisation reproduces them. The
+// TOTAL is two-sided and the table's own arithmetic is self-checking; both are held exactly.
+
+/** Every rollup class at zero except `other` — the shape `classRollupDrift` needs so the census arms are
+ *  the only thing that can speak. */
+function zeroRollupExceptOther(otherRows: number): readonly string[] {
+  const classes = ["§4.1", "§4.2", "§4.5", "§4.6", "§5b.1", "§5b.2", "§5b.3", "§5b.5", "§5b.7", "§12.3", "roster"];
+  return [
+    ...classes.map((klass) => `| **${klass}** | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |`),
+    `| **other** | ${String(otherRows)} | 0 | ${String(otherRows)} | 0 | 0 | 0 | 0 | 0 |`,
+    `| **TOTAL** | **${String(otherRows)}** | **0** | **${String(otherRows)}** | **0** | **0** | **0** | **0** | **0** |`,
+  ];
+}
+
+/** A ledger with `otherRows` free-text body rows, the matching rollup, and an `other` sub-table declaring
+ *  `breakdown.total` over `breakdown.rows`. Pass `undefined` for a rollup that carries no sub-table. */
+function otherCensusLedger(
+  otherRows: number,
+  breakdown: { readonly rows: readonly (readonly [string, number])[]; readonly total: number } | undefined,
+): string {
+  return [
+    "## THE LEDGER",
+    "",
+    "### in-fence (`v-stray-2026-09-12.md`)",
+    "",
+    "| module | defect | class | state | receipt |",
+    "| - | - | - | - | - |",
+    ...Array.from({ length: otherRows }, (_unused, index) => `| \`m${String(index)}\` | x | free text | OPEN | r |`),
+    "",
+    "## CLASS ROLLUP",
+    "",
+    "| class | rows | CLOSED | OPEN | SUPERSEDED | DISSOLVED | UNADJUDICATED | N/A | FIXED |",
+    "| - | -: | -: | -: | -: | -: | -: | -: | -: |",
+    ...zeroRollupExceptOther(otherRows),
+    "",
+    ...(breakdown === undefined
+      ? []
+      : [
+          "| free-text class in `other`, as written | rows |",
+          "| - | -: |",
+          ...breakdown.rows.map(([phrase, count]) => `| ${phrase} | ${String(count)} |`),
+          `| **\`other\` TOTAL** | **${String(breakdown.total)}** |`,
+        ]),
+    "",
+  ].join("\n");
+}
+
+/** `classRollupDrift` over a synthetic ledger in its own temp root. */
+function censusDriftOf(text: string): readonly string[] {
+  const root = rollupRoot(text);
+  try {
+    return classRollupDrift(root).drift;
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test("#2224 — the `other` sub-table is READ, and its TOTAL is held against the bin it breaks down", () => {
+  // GREEN FIRST. Three free-text rows, an `other` bin of 3, a sub-table summing to 3 and declaring 3.
+  // Without this arm the two reds below would pass against a reconciler that reported drift on everything.
+  const agreeing = otherCensusLedger(3, {
+    rows: [
+      ["instrument", 2],
+      ["doc", 1],
+    ],
+    total: 3,
+  });
+  expect(committedOtherClassCensus(agreeing)?.declaredTotal).toBe(3);
+  expect(censusDriftOf(agreeing)).toStrictEqual([]);
+
+  // RED (a) — THE LIVE SHAPE, reduced: the body grew and the sub-table did not.
+  const stale = otherCensusLedger(5, {
+    rows: [
+      ["instrument", 2],
+      ["doc", 1],
+    ],
+    total: 3,
+  });
+  expect(censusDriftOf(stale).join("\n")).toContain("the `other` sub-table declares 3 but the body's `other` bin holds 5");
+
+  // RED (b) — the table disagrees with ITSELF: rows summing to 3 under a TOTAL cell reading 5. This arm
+  // needs no re-derivation of the phrase buckets at all, which is why it can be held exactly.
+  const selfInconsistent = otherCensusLedger(5, {
+    rows: [
+      ["instrument", 2],
+      ["doc", 1],
+    ],
+    total: 5,
+  });
+  expect(censusDriftOf(selfInconsistent).join("\n")).toContain("own rows sum to 3 and its TOTAL cell says 5");
+});
+
+test("#2224 — the DATED HAND CENSUS banner waives the equality arm, and ONLY that arm", () => {
+  // THE INSTRUMENT'S OWN SECOND REMEDY, HONOURED IN CODE. The drift message offers "re-census, OR mark the
+  // table a DATED hand census with the date it was taken" — a re-census of ~180 free-text phrases is
+  // barrier work, and an instrument that offers a remedy it then refuses to accept is lying in the
+  // courteous direction.
+  const stale = otherCensusLedger(5, {
+    rows: [
+      ["instrument", 2],
+      ["doc", 1],
+    ],
+    total: 3,
+  });
+  expect(censusDriftOf(stale).join("\n"), "control: without the banner the equality arm fires").toContain("but the body's `other` bin holds 5");
+
+  const bannered = stale.replace("## CLASS ROLLUP", "## CLASS ROLLUP\n\n**DATED HAND CENSUS, taken 2026-09-12 — re-census owed at a quiet barrier.**");
+  expect(censusDriftOf(bannered), "the banner waives it").toStrictEqual([]);
+
+  // …AND ONLY THAT ARM. A banner is a statement about the table's AGE, never a licence for the table to
+  // disagree with itself — so the internal-sum arm still binds under it. Without this the waiver would be
+  // a blanket suppression wearing a date.
+  const banneredAndBroken = otherCensusLedger(5, {
+    rows: [
+      ["instrument", 2],
+      ["doc", 1],
+    ],
+    total: 5,
+  }).replace("## CLASS ROLLUP", "## CLASS ROLLUP\n\n**DATED HAND CENSUS, taken 2026-09-12.**");
+  expect(censusDriftOf(banneredAndBroken).join("\n")).toContain("own rows sum to 3 and its TOTAL cell says 5");
+
+  // THE DATE IS THE LOAD-BEARING HALF. "It is a hand census" with no date is a permanent excuse — the
+  // refusal-that-outlives-its-blocker shape — so an undated banner waives nothing.
+  const undated = stale.replace("## CLASS ROLLUP", "## CLASS ROLLUP\n\n**This is a dated hand census.**");
+  expect(censusDriftOf(undated).join("\n"), "no date, no waiver").toContain("but the body's `other` bin holds 5");
+
+  // AND IT IS SCOPED TO THE ROLLUP SECTION: a banner further down the document is about something else.
+  const elsewhere = `${stale}\n## SOMETHING ELSE\n\n**DATED HAND CENSUS 2026-09-12**\n`;
+  expect(censusDriftOf(elsewhere).join("\n"), "a banner outside the section waives nothing").toContain("but the body's `other` bin holds 5");
+});
+
+test("#2224 — a rollup with NO `other` sub-table is not a finding, and the absence is a real answer", () => {
+  // The ledger is free not to carry the breakdown. `undefined` is the honest answer — distinct from a
+  // census that reconciled — and it must not manufacture drift out of a table that is not there.
+  const none = otherCensusLedger(1, undefined);
+  expect(committedOtherClassCensus(none)).toBeUndefined();
+  expect(censusDriftOf(none)).toStrictEqual([]);
 });

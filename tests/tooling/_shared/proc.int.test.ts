@@ -170,17 +170,19 @@ test("spawnNiced: a child that beats its timeout keeps its own exit code (#1508 
 // clothes. Three shapes, `withCapturedStderr` live vs. deleted, counting how many times the child's own
 // stderr text appears in the THROWN MESSAGE:
 //
-//   shape                                  helper deleted   helper live
-//   execNicedSync,       plain exit 2            1               2
-//   execNicedSyncBuffer, plain exit 2            1               2
-//   execNicedSync,       ENOBUFS kill            0               1
+//   shape                                  helper deleted   unconditional append   TODAY (#2272)
+//   execNicedSync,       plain exit 2            1                   2                   1
+//   execNicedSyncBuffer, plain exit 2            1                   2                   1
+//   execNicedSync,       ENOBUFS kill            0                   1                   1
 //
 // So on an ordinary non-zero exit node's own `checkExecSyncError` already builds
-// `Command failed: <argv>\n<stderr>` — for a Buffer stderr too — and the helper's append DUPLICATES it.
-// On an **ENOBUFS kill** node throws a different error whose message carries no stderr at all, and the
+// `Command failed: <argv>\n<stderr>` — for a Buffer stderr too — and the UNCONDITIONAL append duplicated
+// it. On an **ENOBUFS kill** node throws a different error whose message carries no stderr at all, and the
 // helper is the only reason the diagnosis is in the text. That kill is exactly the #2211/#2212 incident
 // shape (the ceiling that made the whole-repo lint tier unobtainable), so the helper is right to exist and
-// its general application is redundant. Both halves are pinned below, each labelled for what it is.
+// its GENERAL application was the redundancy. **The third column is the fix (#2272, 2026-09-13):** the
+// helper appends only where node has not, so every shape now carries the reason exactly once. Both halves
+// are pinned below, each labelled for what it is.
 //
 // WHY THE MESSAGE AND NOT `err.stderr`: node populates the PROPERTY in every shape (`execFileSync`'s
 // default stdio is `['pipe','pipe','pipe']`; only an explicit `stdio: "inherit"` nulls it). What an
@@ -273,10 +275,11 @@ test("#2197 FENCE (not a defect proof) — a plain non-zero exit carries its std
 
   expect(message).toContain(DIAGNOSIS);
   expect(message).toContain("Command failed");
-  // AT LEAST once, deliberately not EXACTLY once: the helper currently doubles it and that duplication is
-  // an accident of two appenders, not a contract. Pinning the 2 would make a future de-duplication look
-  // like a regression; pinning >=1 keeps the property and leaves the accident free to be fixed.
-  expect(occurrences(message, DIAGNOSIS)).toBeGreaterThanOrEqual(1);
+  // WAS `>= 1`, NOW EXACTLY 1 (#2272). The loose bound was chosen deliberately while the helper appended
+  // unconditionally and therefore DOUBLED this — pinning the 2 would have made the de-duplication read as
+  // a regression. The de-duplication has landed (`withCapturedStderr` appends only where node has not), so
+  // the honest bound is the one the property always wanted: the reason appears ONCE.
+  expect(occurrences(message, DIAGNOSIS), "node built this text itself; the helper must not append a second copy").toBe(1);
 });
 
 test("#2197 FENCE — the BUFFER door carries the same property; a Buffer stderr is not the quiet one", () => {
@@ -298,4 +301,51 @@ test("#2197 NEGATIVE CONTROL — a child that fails SILENTLY gets no appended no
   // stdout is NOT the diagnosis channel: a door that swept it in would make every gate verdict's report
   // body part of its own error text. (The marker is absent from the argv by construction — see above.)
   expect(message).not.toContain(ON_STDOUT);
+});
+
+// ── #2272: ONE DIAGNOSIS, ONE COPY — and the helper still repairs the shape node cannot ────────────────
+//
+// TWO APPENDERS ON ONE MESSAGE. Node's `checkExecSyncError` composes `Command failed: <argv>\n<stderr>`
+// for every COMPLETED non-zero exit; `withCapturedStderr` appended the same text again, so every
+// `execNicedSync` failure in the repo printed its reason twice. Cosmetic, and filed anyway, because a
+// duplicated diagnosis is how a reader learns to skim the one place the diagnosis lives.
+//
+// THE FIX IS NARROW BY CONSTRUCTION — append only when the message does not already carry the text — and
+// the arms below are its two directions. The de-duplication must NOT cost the ENOBUFS repair, which is the
+// only shape the helper was ever load-bearing on, so that arm is re-asserted here against the SAME
+// predicate rather than left to the section above.
+
+test("#2272 — the ordinary non-zero exit carries its stderr EXACTLY ONCE, through BOTH sync doors", () => {
+  // The string door and the RAW BYTES door are separate `execFileSync` calls with separate stdio shapes,
+  // and node's own append works on a Buffer stderr too — so the duplication existed on both and the
+  // de-duplication has to be proved on both. One arm here would leave the twin free to drift back.
+  expect(
+    occurrences(
+      messageOf(() => execNicedSync(process.execPath, ["-e", FAILING_CHILD])),
+      DIAGNOSIS,
+    ),
+  ).toBe(1);
+  expect(
+    occurrences(
+      messageOf(() => execNicedSyncBuffer(process.execPath, ["-e", FAILING_CHILD])),
+      DIAGNOSIS,
+    ),
+  ).toBe(1);
+});
+
+test("#2272 CONTROL — the de-duplication does NOT cost the ENOBUFS repair: still exactly one, where node gives zero", () => {
+  // THE DIRECTION THAT MAKES THE ARM ABOVE MEAN SOMETHING. A "fix" that simply deleted the append would
+  // also satisfy `toBe(1)` on a completed exit — and would take this shape from 1 back to 0, silently
+  // restoring the #2211 incident in which the ceiling kill's diagnosis was unreadable. The child is
+  // TERMINATED at a 1KiB ceiling, node throws an ENOBUFS error whose message carries the argv and nothing
+  // else, and the helper is the entire reason the reason is in the text.
+  let thrown: unknown;
+  try {
+    execNicedSync(process.execPath, ["-e", LOUD_FAILING_CHILD], { maxBuffer: TINY_CEILING });
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect((thrown as { code?: string }).code, "the tiny ceiling must KILL rather than truncate").toBe("ENOBUFS");
+  expect(occurrences(String((thrown as Error).message), DIAGNOSIS), "node appended nothing here — the helper is the whole repair").toBe(1);
 });

@@ -20,9 +20,11 @@ import {
   failReason,
   failuresWorstFirst,
   noticesIn,
+  noVerdictStages,
   ownScheme,
   parse,
   printSummary,
+  producedNoVerdict,
   REGISTRY,
   readCompilerPrograms,
   resolveSelection,
@@ -267,7 +269,7 @@ function captureStdout(emit: () => void): string {
 
 test("printSummary renders a notice in the TAIL block while the verdict stays PASS", () => {
   const noticed: StageResult = { ...failedStage("structure:db-baseline", 0), ok: true, notices: ["THE NEXT RESPAWN WILL DROP THE DEV DB"] };
-  const report = { tier: "static", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [noticed] } as const;
+  const report = { tier: "static", scope: "whole", ok: true, exitCode: 0, failed: 0, noVerdict: [], stages: [noticed] } as const;
   const out = captureStdout(() => {
     printSummary(report);
   });
@@ -310,7 +312,7 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
   // …and a stage with NO precondition gets no notice, so the line above is conditional, not unconditional.
   expect(nonRunningStageResult(stage("types:native"), { mode: "deferred", runsAt: "verify --static" }).notices).toEqual([]);
 
-  const report = { tier: "push", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [skipped] } as const;
+  const report = { tier: "push", scope: "whole", ok: true, exitCode: 0, failed: 0, noVerdict: [], stages: [skipped] } as const;
   const out = captureStdout(() => {
     printSummary(report);
   });
@@ -328,7 +330,15 @@ test("a tier-precondition SKIP carries its reason to the tail and to verify.json
 });
 
 test("printSummary prints NO notices block when no stage declared one", () => {
-  const report = { tier: "static", scope: "whole", ok: true, exitCode: 0, failed: 0, stages: [{ ...failedStage("lint:biome", 0), ok: true }] } as const;
+  const report = {
+    tier: "static",
+    scope: "whole",
+    ok: true,
+    exitCode: 0,
+    failed: 0,
+    noVerdict: [],
+    stages: [{ ...failedStage("lint:biome", 0), ok: true }],
+  } as const;
   const out = captureStdout(() => {
     printSummary(report);
   });
@@ -732,30 +742,67 @@ test("types:native per --package runs every imported consumer exactly once", { t
   }
 });
 
-test("types:testd + types:ownership + browser:e2e* are whole-only (no scopedArgv) — deferred at a scoped tier", () => {
-  for (const name of [
-    "types:testd",
-    // The whole-tree ownership reconciliation: checks every authored root, ambient, and imported closure
-    // across every type program — no honest scoped form (§3.4).
-    "types:ownership",
-    // tests-execution-membership's #22 sibling: same whole-tree-reconciliation shape (unions every
-    // runner's --list view), no honest scoped form.
-    "tests:execution-membership",
-    // The whole schema module vs the ONE committed baseline — no partial-file form exists.
-    "structure:db-baseline",
-    // The whole schema module vs the ONE asset-ref registry — a partial schema would call every
-    // unwalked asset-FK column unclassified.
-    "structure:asset-refs",
-    // The ONE migrations dir's journal/snapshot chain — likewise no partial-file form.
-    "structure:drizzle-kit",
-    // #1941: a policy's proofs are its own fixtures, not a property of any changed file; the roster is the corpus.
-    "structure:policy-conformance",
-    // browser:ct is NOT here since 2026-07-17 — it gained a scopedArgv (the CT view mirror-mapping). The
-    // e2e suites stay whole-only (cross-cutting by nature).
-    "browser:e2e-smoke",
-    "browser:e2e",
-  ]) {
-    expect(stage(name).scopedArgv).toBeUndefined();
+// ── #2277 RE-POINTED THIS PIN, AND THE RULING IT GUARDS SURVIVES INTACT ─────────────────────────────
+//
+// WHAT IT ASSERTED, AND WHY THAT SPELLING IS NOW WRONG. Until #2277 this test read
+// `expect(stage(name).scopedArgv).toBeUndefined()` for nine stages, under the title "whole-only (no
+// scopedArgv)". The RULING behind it — stated in each row's own registry header — is that these stages
+// have **no honest SCOPED form**: "a census derived from a scoped fileset is a census of a different
+// tree"; "a coverage verdict derived from a partial schema would call every unwalked column
+// unclassified"; "a policy's proofs are its own fixtures, not a property of any changed file".
+// `scopedArgv === undefined` was the PROXY for that ruling, not the ruling.
+//
+// #2277 gives six of them a PATH TRIGGER (../../../../tooling/src/verify/lib/registry-triggers.ts): at a
+// scoped tier they now run their OWN WHOLE `argv` when the selection touches the paths that can change
+// their verdict, and `skip-empty` when it does not. The trigger changes WHEN a stage runs and never WHAT
+// it reads — so the ruling is untouched and the proxy is obsolete.
+//
+// SO THE PIN IS STRONGER NOW, NOT WEAKER: instead of "there is no scopedArgv" it asserts THE THING THE
+// RULING ACTUALLY SAYS — a triggered run is BYTE-FOR-BYTE the whole-scope argv, never a narrowed fileset.
+// A future edit that hands one of these a partial file list reds here, which the old spelling could not
+// have caught (it would have gone green the moment `scopedArgv` became undefined again).
+
+test("#2277 — a path-triggered stage runs its WHOLE argv or nothing: the no-honest-scoped-form ruling, pinned directly", {
+  timeout: AFFECTED_PLAN_TIMEOUT,
+}, () => {
+  // Each pair is [stage, a path that MUST trigger it] — taken from the trigger table's stated subject.
+  for (const [name, triggering] of [
+    // The whole-tree ownership reconciliation over every type program.
+    ["types:ownership", "packages/kit/src/ids/index.ts"],
+    // tests-execution-membership's #22 sibling: unions every runner's --list view.
+    ["tests:execution-membership", "tests/tooling/verify/ops/run.int.test.ts"],
+    // The whole schema module vs the ONE committed baseline.
+    ["structure:db-baseline", "packages/db/src/schema/index.ts"],
+    // The whole schema module vs the ONE asset-ref registry.
+    ["structure:asset-refs", "packages/db/src/schema/index.ts"],
+    // The ONE migrations dir's journal/snapshot chain.
+    ["structure:drizzle-kit", "packages/db/src/migrations/0000_baseline.sql"],
+    // #1941: the roster is the corpus, and the gate modules are what move it.
+    ["structure:policy-conformance", "tooling/src/verify/gates/tooling-size.ts"],
+    // The PreToolUse Bash guard's own glob — the #2220 stage, and the tightest trigger in the table.
+    ["lint:hook-syntax", ".claude/hooks/tool-guard.mjs"],
+    // agent-sync's six coordinates. #2266 sat red on main through several folds for want of this row.
+    ["structure:agent-config", ".claude/agents/executor.md"],
+  ] as const) {
+    const row = stage(name);
+    const hit = resolveSelection({ kind: "file", paths: [triggering] });
+    expect(row.scopedArgv?.(hit), `${name}: a triggered run is the WHOLE command, never a narrowed fileset`).toEqual(row.argv);
+    // AND THE NEGATIVE DIRECTION, without which the arm above would pass against a trigger that matched
+    // everything — which is the shape that would quietly put all eight on every scoped run.
+    const miss = resolveSelection({ kind: "file", paths: ["README.md"] });
+    expect(row.scopedArgv?.(miss), `${name}: an untouched subject is not owed`).toBe("skip-empty");
+  }
+});
+
+test("#2277 — the DECLINED rows keep deferring: no path set over-approximates their inputs", () => {
+  // THE HALF THAT KEEPS THE MECHANISM HONEST. A trigger's untriggered arm is `skip-empty`, which the
+  // summary renders as "skipped (no files in scope)" — an affirmative claim that the stage was NOT OWED.
+  // For these, no pattern can support that claim (a `.test-d.ts` asserts against arbitrary source types;
+  // knip is reachability over the whole import graph; e2e is cross-cutting by nature), so they carry NO
+  // trigger and keep deferring with the notice that names where they do run. `registry-triggers.ts` states
+  // each reason beside its `null`, and this arm is what stops one being "fixed" into a false clean.
+  for (const name of ["types:testd", "config:biome-rule-liveness", "ledgers:fresh", "deps:knip", "browser:e2e-smoke", "browser:e2e"]) {
+    expect(stage(name).scopedArgv, `${name} must stay deferred, not skipped`).toBeUndefined();
   }
 });
 
@@ -1328,4 +1375,105 @@ test("the summary prints TOOL ERRORS first and leaves report.stages in registry 
   // AND THE RECORD IS UNTOUCHED. The artifact is read by other instruments and by later runs; a reporter
   // may reorder what it PRINTS and must never reorder what it RECORDS.
   expect(stages.map((s) => s.name)).toStrictEqual(["lint:biome", "lint:eslint", "lint:hook-syntax", "types:native"]);
+});
+
+// ── #2225 PART 2: THE NO-VERDICT LIST — the half the `--list` refusal did not close ──────────────────
+//
+// WHAT WAS ALREADY THERE and is NOT re-proved here: `--list` refuses an unrunnable registry row (above),
+// and `failuresWorstFirst` sorts tool-errors to the top of the FAIL block (above). Both are real and both
+// are about a run's PRESENTATION ORDER or a registry's STATIC readability.
+//
+// WHAT WAS MISSING, and is the row's own general form — "a tier's own summary must NAME every stage whose
+// exit class was 2 or whose `code` is null, and A BARRIER READS THAT LIST BEFORE THE RED COUNT". Before
+// this pair, `VerifyReport` carried exactly one number for that question: `failed`, documented as
+// "violations or tool-error". LUMPED. A bot reading reports/verify.json could not distinguish "a checker
+// broke and nothing was measured" from "your code has a lint finding" without re-deriving the exit
+// contract itself — which is precisely the re-derivation nobody performed for the day `lint:hook-syntax`
+// sat at exit 2 (#2220).
+//
+// AND THE RAW CHILD EXIT NOW SURVIVES THE CLASSIFIER. `StageDef.classify` is per-stage DATA; the three
+// adapters on the tree all map `null` to 2, but that is a property of three functions, not of the
+// contract. The arms below include the LAUNDERING case — a row whose classifier answered CLEAN for a
+// killed child — because that is the only shape that tells the disjunction apart from a bare
+// `exitCode === 2` filter, and a pin that cannot tell them apart is not pinning the disjunction.
+//
+// WHAT THIS PAIR DELIBERATELY DOES NOT DO: it does not make a no-verdict stage force the RUN's exit to 2.
+// That was proposed and REFUSED (orchestrator ruling, 2026-09-13) — the 0/1/2/3 exit contract is repo-wide
+// law and overriding a row's own classifier is an owner-scale change. #2225 asks for VISIBILITY. So the
+// verdict LINE below still says PASS on the laundered arm, and the NO-VERDICT block above it is the whole
+// repair. If that ever changes, this comment is the record of why it was not done here.
+
+/** A stage row as the RUNNER now shapes it: the classified exit AND the child's raw digit. */
+function ranStage(name: string, exitCode: number, childExit: number | null): StageResult {
+  return { ...failedStage(name, exitCode), mode: "full", ok: exitCode === 0, childExit };
+}
+
+test("producedNoVerdict: exit-2 OR a null child exit — and a LAUNDERING classifier cannot hide either (#2225)", () => {
+  // POSITIVE (a) — the #2220 shape exactly: the tool errored, so nothing was measured.
+  expect(producedNoVerdict(ranStage("lint:hook-syntax", 2, null))).toBe(true);
+  // POSITIVE (a') — a completed child whose own scheme says TOOL ERROR (eslint's 2). Still no verdict.
+  expect(producedNoVerdict(ranStage("lint:eslint", 2, 2))).toBe(true);
+  // POSITIVE (b) — THE ARM A BARE `exitCode === 2` FILTER CANNOT REACH. A row whose classifier answered
+  // CLEAN for a child that reported no exit at all: the stage looks green, the run looks green, and
+  // nothing was measured. This is why the predicate is a disjunction over two independent facts.
+  expect(producedNoVerdict(ranStage("lint:laundered", 0, null)), "a killed child laundered to 0 is STILL no verdict").toBe(true);
+
+  // NEGATIVE — a stage that RAN and MEASURED. A real red is not a broken instrument and must not be
+  // named beside one; without these arms the predicate would pass while flagging every failure.
+  expect(producedNoVerdict(ranStage("lint:biome", 1, 1)), "a measured violation IS a verdict").toBe(false);
+  expect(producedNoVerdict(ranStage("types:native", 0, 0)), "a measured clean IS a verdict").toBe(false);
+  // NEGATIVE — a DECLARED non-run. A deferred/skipped stage did not run; it carries `runsAt` naming where
+  // it does. Calling those "measured nothing" would bury the real ones under every scoped run's deferrals.
+  const deferred = nonRunningStageResult(stage("types:native"), { mode: "deferred", runsAt: "verify --static" });
+  expect(producedNoVerdict(deferred), "a deferred stage is an honest non-run, not a no-verdict").toBe(false);
+  const skipped = nonRunningStageResult(stage("lint:eslint"), { mode: "skipped", runsAt: null });
+  expect(producedNoVerdict(skipped)).toBe(false);
+});
+
+test("noVerdictStages names them in REGISTRY order, and `[]` is the honest zero (#2225)", () => {
+  const stages = [ranStage("lint:biome", 1, 1), ranStage("lint:hook-syntax", 2, null), ranStage("types:native", 0, 0), ranStage("lint:laundered", 0, null)];
+  expect(noVerdictStages(stages)).toStrictEqual(["lint:hook-syntax", "lint:laundered"]);
+  // THE ZERO IS ONLY EVIDENCE BECAUSE THE NON-ZERO ABOVE IS REACHABLE from the same reader — a clean-zero
+  // from an unprobed predicate is the exact shape this row exists to end.
+  expect(noVerdictStages([ranStage("lint:biome", 1, 1), ranStage("types:native", 0, 0)])).toStrictEqual([]);
+});
+
+test("printSummary NAMES the no-verdict stages ABOVE the failure count — and does it on a GREEN run too (#2225)", () => {
+  const stages = [ranStage("lint:biome", 1, 1), ranStage("lint:hook-syntax", 2, null)];
+  const report = { tier: "static", scope: "whole", ok: false, exitCode: 2, failed: 2, noVerdict: noVerdictStages(stages), stages } as const;
+  const out = captureStdout(() => {
+    printSummary(report);
+  });
+
+  expect(out).toContain("NO VERDICT: 1 stage(s) RAN AND MEASURED NOTHING");
+  expect(out, "the child's raw state is named, because 'killed' and 'exited 2' are different repairs").toContain(
+    "child reported NO exit (killed, timed out, or never spawned)",
+  );
+  // THE ORDERING IS THE ROW'S OWN WORDS — "a barrier reads that list BEFORE the red count". A reader who
+  // meets "2 stage(s) failed" first goes hunting for a lint finding that does not exist.
+  expect(out.indexOf("NO VERDICT:")).toBeLessThan(out.indexOf("stage(s) failed:"));
+  expect(out.indexOf("NO VERDICT:"), "and it is INSIDE the truncation-robust tail fence, not lost up-page").toBeGreaterThan(out.indexOf("════"));
+
+  // THE GREEN ARM, and it is the load-bearing one. With the exit-forcing rule refused, a laundering
+  // classifier leaves the run reading PASS — so the NAMING is the only thing standing between a reader and
+  // a tier that covered nothing. If this block were printed only on failure, that reader would get PASS
+  // and silence, which is #2220 with extra steps.
+  const laundered = [ranStage("types:native", 0, 0), ranStage("lint:laundered", 0, null)];
+  const green = { tier: "static", scope: "whole", ok: true, exitCode: 0, failed: 0, noVerdict: noVerdictStages(laundered), stages: laundered } as const;
+  const greenOut = captureStdout(() => {
+    printSummary(green);
+  });
+  expect(greenOut).toContain("VERDICT: PASS");
+  expect(greenOut, "a PASS over an unmeasured stage still NAMES it").toContain("NO VERDICT: 1 stage(s)");
+  expect(greenOut).toContain("lint:laundered");
+
+  // NEGATIVE CONTROL — no block at all when every stage that ran produced a verdict. Without this the
+  // arms above would pass against a renderer that printed the header unconditionally.
+  const measured = [ranStage("lint:biome", 1, 1), ranStage("types:native", 0, 0)];
+  const clean = { tier: "static", scope: "whole", ok: false, exitCode: 1, failed: 1, noVerdict: [], stages: measured } as const;
+  expect(
+    captureStdout(() => {
+      printSummary(clean);
+    }),
+  ).not.toContain("NO VERDICT");
 });

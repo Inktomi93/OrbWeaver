@@ -129,3 +129,70 @@ export function slowdownLines(previous: RunHistoryEntry | undefined, advisories:
     "[verify] history → reports/verify-history.jsonl (tooling/src/verify/contract/history.ts, #411)",
   ];
 }
+
+// ── #1983 PART 2: THE INSTRUMENT BATTERY'S CADENCE, MADE VISIBLE ──────────────────────────────────────
+//
+// THE DEFECT. A `tests/tooling/**` suite can sit RED on main for DAYS with no signal, and it happened FOUR
+// times in one five-day window: `registry-family.test.ts` (5 days), `gate-ignore-grammar.repo.int.test.ts`
+// (5 days), `gate-conformance.repo.int.test.ts` and `gate-spelling-twins.int.test.ts`. The mechanism is not
+// a bad test — every one of them fired LOUD the moment its premise moved. It is that `tests/tooling/**` is
+// `--full`-only (#1842, owner's word, unchanged) and NOTHING RUNS `--full` ON A CADENCE, so the observation
+// channel was the break, not the instrument.
+//
+// PART 2 WAS RULED, NOT INVENTED HERE (claude-b, 2026-09-12): the battery runs ONCE PER MERGE TRAIN at the
+// quiescent barrier — not on `push`, not nightly — capping unobserved red at one train. That ruling is
+// recorded in the orchestrator playbook's owed-at-barrier list, and until now it lived ONLY there. A law
+// that lives only in prose is a wish (constitution §2.3): nothing on the machine could say how long it had
+// actually been, which is the same blindness one layer up.
+//
+// SO THE CADENCE BECOMES A READING. `reports/verify-history.jsonl` already records every verify-family run
+// with its sha and its per-stage modes, so "when did the battery last RUN on this checkout" is answerable
+// from a store that already exists — no new artifact, no clock, no schedule. Every WHOLE-TREE run prints it.
+//
+// WHAT THE LINE CLAIMS, EXACTLY — and it is narrower than "the battery is green". History records a stage's
+// MODE and DURATION, never its exit, so this says LAST RAN and never "last passed"; and the window is the
+// retained MAX_ENTRIES of a gitignored per-checkout file, so "not within the retained window" is the honest
+// phrasing for an absent answer rather than "never". Both limits are in the rendered text, not just here:
+// a cadence advisory that overstated itself would be the false clean this row is about.
+
+/** The stage whose cadence this advisory reports — the `--full`-only instrument battery (#1842). */
+const BATTERY_STAGE = "tests:tooling";
+
+/** The most recent retained run in which `stage` actually RAN (a deferred/skipped row records 0ms and is
+ *  not a run of it). Exported for the unit arm — the whole comparison is pure. */
+export function lastRanAt(history: readonly RunHistoryEntry[], stage: string): RunHistoryEntry | undefined {
+  return [...history].reverse().find((entry) => entry.stages.some((s) => s.name === stage && RAN_MODES.has(s.mode)));
+}
+
+/** The cadence advisory for the instrument battery, as rendered lines. EMPTY on a scoped run: `--changed`
+ *  defers half the tier by design and a cadence claim there would be about the wrong question. */
+export function batteryCadenceLines(history: readonly RunHistoryEntry[], report: VerifyReport): readonly string[] {
+  if (report.scope !== "whole") {
+    return [];
+  }
+  const ran = report.stages.some((s) => s.name === BATTERY_STAGE && RAN_MODES.has(s.mode));
+  if (ran) {
+    return [`[verify] ${BATTERY_STAGE}: RAN in this run — the merge train's instrument battery is covered by this verdict (#1983).`];
+  }
+  const last = lastRanAt(history, BATTERY_STAGE);
+  const since =
+    last === undefined
+      ? "NOT WITHIN THE RETAINED HISTORY WINDOW on this checkout"
+      : `last RAN at ${last.sha} (${last.at}, tier ${last.tier}) — ${String(history.length - history.indexOf(last) - 1)} verify run(s) ago`;
+  return [
+    `[verify] ${BATTERY_STAGE} did NOT run here (it is --full-only, #1842): ${since}.`,
+    "[verify]   A tests/tooling/** red is invisible until it does — four sat unobserved for five days (#1983). It is OWED ONCE PER MERGE TRAIN at the quiescent barrier.",
+    "[verify]   This line reports when the battery last RAN, never that it passed — history records a stage's mode, not its exit.",
+  ];
+}
+
+/** THE HISTORY LEG OF A RUN, in one door: record this run, then return every advisory line the summary
+ *  prints above its tail block. It lives here rather than in `ops/run.ts` for the reason the row shape does
+ *  — the ledger owns reading and writing itself — and it keeps the runner's body at one call. */
+export function historyAdvisories(root: string, report: VerifyReport): readonly string[] {
+  const entry = historyEntry(root, report);
+  const history = readHistory(root);
+  const previous = previousAtTier(history, report.tier, entry.runId);
+  appendHistory(root, entry);
+  return [...batteryCadenceLines(history, report), ...slowdownLines(previous, slowdowns(previous, entry))];
+}

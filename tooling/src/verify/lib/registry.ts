@@ -7,6 +7,7 @@ import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
 import { eslintScopedArgv, tscScopedArgv, vitestScopedArgv } from "./registry-argv.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
+import { applyPathTriggers } from "./registry-triggers.ts";
 import { ctSuiteHangCeilingMs } from "./stage-budget.ts";
 
 // ── the registry ──────────────────────────────────────────────────────────────────────────────────────
@@ -21,7 +22,6 @@ import { ctSuiteHangCeilingMs } from "./stage-budget.ts";
 // EXACTLY run.ts's stages, in order, so `pnpm check` (= `verify --static`) stays byte-compatible.
 
 const STATIC: readonly Tier[] = ["static", "push", "full"];
-const DOC_CATALOG_PATH_RE = /^(?:docs\/.*\.md|docs\/catalog\/.*|tooling\/src\/doc-catalog\/.*)$/u;
 
 /** The rows a TIER can actually run. The manual-only tail lives in ./registry-manual.ts and is
  *  concatenated below, in place — the registry ORDER is the `verify --list` order. */
@@ -297,9 +297,9 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "check:doc-catalog"],
     classify: ownScheme,
-    // One edited document can invalidate its content-hash receipt or the corpus ratchet; the catalog is
-    // whole-project by nature, but a changed-scope run can skip when the selection has no docs path.
-    scopedArgv: (sel) => (sel.paths.some((path) => DOC_CATALOG_PATH_RE.test(path)) ? ["pnpm", "check:doc-catalog"] : "skip-empty"),
+    // Whole-project by nature, and PATH-TRIGGERED: its `scopedArgv` is attached from the one trigger table
+    // (../lib/registry-triggers.ts), which is where its `DOC_CATALOG_PATH_RE` moved when #2277 generalised
+    // this mechanism to every stage that runs its whole command or not at all.
   },
 
   // ── tests stage-group (§3.7: the eight lanes as ONE concept with tier + scope) ──
@@ -458,7 +458,13 @@ const GATING_STAGES: readonly StageDef[] = [
   },
 ];
 
-export const REGISTRY: readonly StageDef[] = [...GATING_STAGES, ...MANUAL_ONLY_STAGES];
+// PATH TRIGGERS ARE APPLIED HERE, ONCE (#2277, ./registry-triggers.ts). A row that runs its WHOLE command
+// or not at all gets the `changed` tier plus a `scopedArgv` keyed to the paths that can change its verdict,
+// so `pnpm verify --changed` asks it instead of deferring it unconditionally — which is how `check:agents`
+// stayed red through several folds. The trigger changes WHEN a stage runs and never WHAT it reads, so every
+// row's recorded "no scoped derivation" reason survives intact; the table states that and the bar a regex
+// must clear to be in it.
+export const REGISTRY: readonly StageDef[] = [...applyPathTriggers(GATING_STAGES), ...MANUAL_ONLY_STAGES];
 
 /** The stages that run at a given tier, in registry order. `manual` stages are never included in a run —
  *  they surface only in `verify --list`. */
