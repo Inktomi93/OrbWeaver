@@ -1,4 +1,4 @@
-import { parseCssStylesheet, quotedStatementArgument } from "../../../../tooling/src/verify/lib/css-rules.ts";
+import { atRulesContaining, parseCssStylesheet, quotedStatementArgument, rulesContaining } from "../../../../tooling/src/verify/lib/css-rules.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("nested rules and direct at-rule declarations retain source order and ownership", () => {
@@ -13,6 +13,31 @@ test("nested rules and direct at-rule declarations retain source order and owner
     offset: 0,
     declarations: [expect.objectContaining({ prop: "--seed", value: "var(--base)", line: 2, column: 3, offset: 17, valueOffset: 25 })],
   });
+});
+
+/** THE ANCESTRY PAIR, held in ONE invocation because half of it is what shipped before (#2293 leg 2).
+ *  `atRulesContaining` existed; `rulesContaining` did not, and `CssRule` published no `end` — so
+ *  "which SELECTOR encloses this offset" was unanswerable and a declaration written
+ *  `[data-theme="dusk"] { @media (…) { --color-z: … } }` looked, to every consumer, like it belonged to
+ *  nothing but the `@media`. That is exactly how the seed-palette reader lost a conditional token when it
+ *  folded onto the shared facts. Both directions are asserted: the INNER declaration's chain names the
+ *  outer selector AND the at-rule, and an offset OUTSIDE the block names neither. */
+test("ancestry is askable in both halves — a nested declaration names its enclosing selector and at-rule", () => {
+  const text = '[data-theme="dusk"] {\n  color-scheme: light;\n  @media (prefers-contrast: more) {\n    --color-z: red;\n  }\n}\n.after { color: blue; }\n';
+  const parsed = parseCssStylesheet(text);
+  const nested = parsed.atRules[0]?.declarations[0];
+  const after = parsed.rules.find((rule) => rule.selectorList === ".after")?.declarations[0];
+
+  expect(nested?.prop).toBe("--color-z");
+  expect(after?.prop).toBe("color");
+  // The INNER declaration: owned by the `@media`, ENCLOSED by the seed selector. Before `rulesContaining`
+  // the second half of this line could not be written at all.
+  expect(rulesContaining(parsed.rules, nested?.offset ?? -1).map((rule) => rule.selectorList)).toEqual(['[data-theme="dusk"]']);
+  expect(atRulesContaining(parsed.atRules, nested?.offset ?? -1).map((atRule) => atRule.prelude)).toEqual(["@media (prefers-contrast: more)"]);
+  // The NEGATIVE control, so containment is a measurement and not a constant: a declaration after the
+  // block is inside its OWN rule and inside no at-rule.
+  expect(rulesContaining(parsed.rules, after?.offset ?? -1).map((rule) => rule.selectorList)).toEqual([".after"]);
+  expect(atRulesContaining(parsed.atRules, after?.offset ?? -1)).toEqual([]);
 });
 
 /** THE STATEMENT AT-RULE FACT, with its controls in BOTH directions in one invocation (#2183). The fact

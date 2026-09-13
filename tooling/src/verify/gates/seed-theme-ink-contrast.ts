@@ -15,10 +15,12 @@
 // `lib/seed-theme-ink.ts` is this policy's own ALGORITHM (one importer) — a private helper, not a family,
 // and since #2293 it reads NOTHING: its `DECLARATION`/`THEME_BLOCK`/`SEED_BLOCK` regexes and its
 // hand-rolled balanced-brace scan over `theme.css` TEXT are DELETED, and `readSeedPalettes` now takes the
-// `product-css` declaration FACTS this policy already declares. What survives there is judgment the
-// resource cannot make (which grounds an ink rests on, the self-tint composite, the ink utility grammar),
+// `product-css` declaration FACTS this policy already declares plus the sheet itself, for the shared
+// ANCESTRY readers. What survives there is judgment the resource cannot make (which grounds an ink rests
+// on, the self-tint composite, the ink utility grammar, which nested declarations are part of a palette),
 // which §12.3 permits in `verify/lib`; what left was repository CSS reading behind `defineGate`, which it
-// does not.
+// does not. The NESTING adjudication that fold owed — a conditional at-rule is an ARM, a nested plain
+// selector is not the palette — is stated in that module's header and pinned per case in the family test.
 //
 // A DECLARED HYBRID (§12.4: "a hybrid's dual role is explicit and receipted"):
 //   RESOURCE half — `product-css`, for `theme.css`. There is no `theme-css` `exact-file` id and the kind
@@ -292,9 +294,18 @@ export const gate = defineGate({
       // in no resource population this policy declares, so `ctx.report.file` would THROW on it (guide §3's
       // absent-verdict rule). The sheet is declared, read and present whenever the resource resolved.
       const anchor = theme?.path ?? sheets[0]?.path ?? THEME;
-      // The palettes come from the DECLARATION FACTS of the theme sheet — the resource this policy already
-      // declares — never from a private parse of its text (#2293, §5b.7).
-      const palettes = theme === undefined ? [] : readSeedPalettes(css.declarations.filter((declaration) => declaration.file === theme.path));
+      // The palettes come from the DECLARATION FACTS of the theme sheet plus the SHARED ANCESTRY readers —
+      // the resource this policy already declares — never from a private parse of its text (#2293, §5b.7).
+      // The sheet itself is handed in for the ancestry half (`rulesContaining`/`atRulesContaining`), which
+      // is the same shape `motion-token-purity` and `rest-transform-grid` use for their own ancestry
+      // questions; a declaration's `owner` alone names only its INNERMOST block.
+      const palettes =
+        theme === undefined
+          ? []
+          : readSeedPalettes(
+              theme,
+              css.declarations.filter((declaration) => declaration.file === theme.path),
+            );
       if (palettes.length === 0) {
         reportBlind(report, anchor, "zero-palettes", "resolved zero seed palettes from theme.css");
         return;

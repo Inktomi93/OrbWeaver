@@ -2,13 +2,88 @@ import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as seedThemeInkContrast } from "../../../../tooling/src/verify/gates/seed-theme-ink-contrast.ts";
+import { collectCssFacts } from "../../../../tooling/src/verify/lib/css-resource-facts.ts";
+import { parseCssStylesheet } from "../../../../tooling/src/verify/lib/css-rules.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
+import { readSeedPalettes } from "../../../../tooling/src/verify/lib/seed-theme-ink.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("seed-theme-ink-contrast keeps its three-arm proofs", () => {
   expect(verifyPolicyProofs([seedThemeInkContrast])).toEqual([]);
+});
+
+/** THE NESTING ADJUDICATION (#2293 leg 2) — three cases, three verdicts, decided rather than inherited.
+ *
+ *  The fold onto the shared declaration facts replaced a balanced-body TEXT scan, and the shared reader
+ *  assigns a declaration to its INNERMOST block. So a `--color-*` nested one level down inside `@theme` or
+ *  inside a seed vanished from the palette: measured against the frozen pre-fold reader, case (a) lost
+ *  `--color-y` and case (b) lost `--color-z`. Restoring the old behaviour wholesale was the WRONG repair —
+ *  it also counted case (c), a declaration on a DESCENDANT element that never was the seed's palette.
+ *
+ *  The adjudication, held here because it is a claim about CSS semantics and no proof row can see a
+ *  palette:
+ *    (a)+(b) a conditional at-rule is an ARM of its palette — `<palette> @ <prelude>` — so BOTH the
+ *            unconditional and the conditional value are judged, and the arm inherits the palette's
+ *            polarity unless it declares its own;
+ *    (c)     a nested PLAIN SELECTOR is NOT the palette, deliberately — the twin below is what makes that
+ *            exclusion an assertion rather than an accident.
+ *  A control with no nesting pins that the ordinary sheet is untouched. */
+function palettesOf(text: string): readonly { readonly name: string; readonly scheme: string; readonly vars: readonly string[] }[] {
+  const path = "packages/ui/src/styles/theme.css";
+  const parsed = parseCssStylesheet(text);
+  const file = { path, text, rules: parsed.rules, atRules: parsed.atRules, statements: parsed.statements };
+  const facts = collectCssFacts([file]);
+  return readSeedPalettes(
+    file,
+    facts.declarations.filter((declaration) => declaration.file === path),
+  ).map((palette) => ({ name: palette.name, scheme: palette.scheme, vars: [...palette.vars.keys()].toSorted() }));
+}
+
+const BASE = "@theme {\n  --color-x: oklch(0.5 0.1 50);\n";
+
+test("a conditional at-rule inside @theme is an ARM of the base palette, not a lost declaration", () => {
+  const palettes = palettesOf(`${BASE}  @supports (color: oklch(0 0 0)) {\n    --color-y: oklch(0.6 0.1 50);\n  }\n}\n`);
+
+  expect(palettes).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+    { name: "hearth @ @supports (color: oklch(0 0 0))", scheme: "dark", vars: ["--color-x", "--color-y"] },
+  ]);
+});
+
+test("a conditional at-rule inside a SEED is an arm of that seed, and INHERITS its polarity", () => {
+  const palettes = palettesOf(
+    `${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n  @media (prefers-contrast: more) {\n    --color-z: oklch(0.7 0.1 50);\n  }\n}\n`,
+  );
+
+  // `scheme: "light"` is the load-bearing cell: the arm takes the SEED's polarity, not the base's, so a
+  // `light-dark()` value inside it collapses to the arm a reader on that seed actually sees.
+  expect(palettes).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+    { name: "dusk", scheme: "light", vars: ["--color-x"] },
+    { name: "dusk @ @media (prefers-contrast: more)", scheme: "light", vars: ["--color-x", "--color-z"] },
+  ]);
+});
+
+test("a nested PLAIN SELECTOR inside a seed is EXCLUDED on purpose — the twin of the two arms above", () => {
+  const palettes = palettesOf(`${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n  & .x {\n    --color-w: oklch(0.8 0.1 50);\n  }\n}\n`);
+
+  // NO third palette and NO `--color-w` anywhere: its subject is a descendant element, so a `text-<token>`
+  // resting on the seed never resolves against it. The retired text scan counted it; that was the defect.
+  expect(palettes).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+    { name: "dusk", scheme: "light", vars: ["--color-x"] },
+  ]);
+});
+
+test("an ordinary flat sheet is untouched by the ancestry read — the control", () => {
+  const palettes = palettesOf(`${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n  --color-x: oklch(0.9 0.1 50);\n}\n`);
+
+  expect(palettes).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+    { name: "dusk", scheme: "light", vars: ["--color-x"] },
+  ]);
 });
 
 /** THE §4.3 GRANT-IDENTITY ARM, which a proof row cannot express: `runPolicyPass` inside a module's own rows
