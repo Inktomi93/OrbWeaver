@@ -39,7 +39,11 @@
 // now a DECLARED `json:baseui-manifest` resource, so `resolveResourceDeclarations` throws at the POPULATION
 // phase on missing/empty/unparseable and this policy is WITHHELD — exit 2, "this run is not a verdict", never
 // a green zero (`resource-policy-contract.md` §4). No proof row can express a refusal (guide §4.5b); the pins
-// are `runPolicyPass` drives in `tests/tooling/verify/gates/baseui-family.test.ts`.
+// are `runPolicyPass` drives in `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts`,
+// under "§4.5 — a broken ledger is a REFUSAL, never a finding and never a clean zero": the complete run
+// with its `unresolved: 0` receipt, plus a MISSING, an UNPARSEABLE and an EMPTY ledger, each asserting the
+// population-phase tool error, the `incomplete` owner and this policy in `withheldPolicyIds`. The path this
+// line carried until 2026-09-13 — `baseui-family.test.ts` — never existed (board #2297).
 //
 // A ready-but-DEGENERATE ledger (valid JSON, wrong shape) is the other half and it is a FINDING rather than a
 // refusal — the artifact is wrong, not the reader. `baseui-surface-manifest` OWNS that finding, exactly as it

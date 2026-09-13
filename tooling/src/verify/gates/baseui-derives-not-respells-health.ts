@@ -19,8 +19,10 @@
 // AUTHORITY — `hard`, and this is the recorded ruling of the legacy module preserved through the
 // conversion, not a new call. The legacy source enforced it by reporting through the explicit-`Finding`
 // overload, because `hasGateIgnore` only read leading comments off a NODE, so a Finding-overload arm could
-// not be marker-suppressed at all; it took nine lines of comment plus a `@finding-overload-ok` marker to
-// say so. Its stated reason stands: *"an `onValueChange` that silently drops Base UI's `eventDetails`
+// not be marker-suppressed at all; it took nine lines of comment plus a `finding-overload-ok` marker to
+// say so (spelled with an `@` prefix, deliberately not written literally here — this module is INSIDE the
+// corpus `finding-overload-provenance` scans, so the literal opener in prose is a MALFORMED-marker finding
+// against that live legacy gate; `finding-overload-provenance.ts:9-10` does the same thing to itself). Its stated reason stands: *"an `onValueChange` that silently drops Base UI's `eventDetails`
 // deletes capability from every caller with no type error anywhere; there is no site-local reason that
 // makes that correct, so there must be no site-local escape."* `authority: "hard"` is that guarantee in the
 // field a reader looks at, and it also RESTORES a real node anchor — the legacy overload had to hand-build

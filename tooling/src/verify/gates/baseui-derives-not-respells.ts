@@ -12,7 +12,10 @@
 // The split is what the CONTRACT forces, but it is also the honest shape: the legacy module enforced ARM A's
 // unwaivability by calling the explicit-`Finding` report overload, because `hasGateIgnore` only read leading
 // comments off a NODE — a mechanism that is invisible at the declaration and that its own source had to
-// explain in nine lines of comment plus a `@finding-overload-ok` marker. `authority: "hard"` is the same
+// explain in nine lines of comment plus a `finding-overload-ok` marker (spelled with an `@` prefix,
+// deliberately not written literally here — this module is INSIDE the corpus `finding-overload-provenance`
+// scans, so the literal opener in prose is a MALFORMED-marker finding against that live legacy gate;
+// `finding-overload-provenance.ts:9-10` does the same thing to itself). `authority: "hard"` is the same
 // guarantee stated in the field the reader looks at, and the overload and its marker are gone.
 //
 // WHY ROOT-ONLY, measured rather than assumed: widening this arm to every rendered part took the population
@@ -55,7 +58,10 @@
 // === undefined) return;` — a SILENT PASS whenever the committed ledger was absent or unparseable. The
 // ledger is now a DECLARED `json:baseui-manifest` resource, so `resolveResourceDeclarations` throws at the
 // POPULATION phase and this policy is WITHHELD — exit 2, never a green zero. A ready-but-degenerate ledger
-// is `baseui-surface-manifest`'s finding, not this one. Pins: `tests/tooling/verify/gates/baseui-family.test.ts`.
+// is `baseui-surface-manifest`'s finding, not this one. Pins: the three reachable ledger statuses (missing ·
+// unparseable · empty) in `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts`, under
+// "§4.5 — the baseui-read ledger consumers all refuse, and the phase depends on the KIND", which drives THIS
+// policy by name. The path this line carried until 2026-09-13 — `baseui-family.test.ts` — never existed.
 //
 // TWO LEGACY ROWS DID NOT SURVIVE, AND NOT CARRYING THEM IS THE RULE RATHER THAN A LOSS (guide §4.2:
 // "never copy a negative arm into a gate"). Legacy `mustFlag[3]` planted a marker naming a NON-violating

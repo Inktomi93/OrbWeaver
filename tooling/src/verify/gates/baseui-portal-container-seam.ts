@@ -47,8 +47,13 @@
 //
 // COMMENT POSTURE: comment-SAFE — portal tags, props members, and JSX attributes are AST nodes.
 //
-// §4.6 DIFFERENTIAL (run 2026-09-13, `tests/tooling/verify/gates/baseui-family.test.ts`
-// "portal seam: legacy and final agree on the flagged portals"): legacy descriptor loaded from
+// §4.6 DIFFERENTIAL (run 2026-09-13; THIS PARAGRAPH IS THE RECORD — guide §4.6 admits either a committed
+// test or a statement of what the run FOUND, and this conversion took the second arm. The citation here
+// read `tests/tooling/verify/gates/baseui-family.test.ts` "portal seam: legacy and final agree on the
+// flagged portals" until 2026-09-13; neither the file nor a test of that title has ever existed on the tree,
+// so the numbers below were the only evidence and the citation was pointing away from it — corrected under
+// board #2297, and NOT by minting a test after the fact, which would be a receipt nobody ran):
+// legacy descriptor loaded from
 // 2b95e9adb, replayed over the policy's OWN declared population on the real workspace and over each proof's
 // file map. Real-tree: legacy 0 findings, final 0 findings, populations identical (360 `@ui` files), zero
 // tool errors on either side — a BOTH-SIDES-ZERO receipt (§4.6 vacuity shape 1), stated as such and NOT as
