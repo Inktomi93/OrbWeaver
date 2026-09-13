@@ -92,7 +92,16 @@ export function ExtensionsSwitcherSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Container className="min-h-0 outline-none" data-testid={testId("extensionsSwitcher")} ref={surfaceRef} tabIndex={-1}>
+    // The arrival target names the pane it moved focus into. A child row's name cannot name this node for
+    // assistive technology; the Presets list uses the same named-region convention for the same hook.
+    <Container
+      aria-label="Extension pages"
+      className="min-h-0 outline-none"
+      data-testid={testId("extensionsSwitcher")}
+      ref={surfaceRef}
+      role="region"
+      tabIndex={-1}
+    >
       <LibrarySurfaceShell errorLabel="your extension pages" loadingLabel="Loading extension pages…">
         <ExtensionsPageList />
       </LibrarySurfaceShell>

@@ -109,6 +109,25 @@ const ALL_OFF: Readonly<Record<string, unknown>> = {
 };
 
 test.describe("the page switcher", () => {
+  test("arrival focus lands on the named Extensions list region", async ({ mount, page }) => {
+    await routeTrpc(page, TWO_PAGES);
+    // A section switch starts with focus on the rail control that activated it. Keep that precondition
+    // outside the CT mount root so mounting the destination cannot erase it back to <body> first.
+    await page.evaluate(() => {
+      const origin = document.createElement("button");
+      origin.dataset.focusOrigin = "extensions";
+      document.body.append(origin);
+      origin.focus();
+    });
+    await expect(page.locator('[data-focus-origin="extensions"]')).toBeFocused();
+    const section = await mount(<ExtensionsSwitcherStory />);
+
+    const destination = page.getByRole("region", { name: "Extension pages" });
+    await expect(destination).toBeFocused();
+    await expect(destination).toHaveAccessibleName("Extension pages");
+    await expect(section.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
+  });
+
   test("a registered `page` surface becomes a PLUGIN-LABELLED row (one per page, across plugins)", async ({ mount, page }) => {
     await routeTrpc(page, TWO_PAGES);
     await mount(<ExtensionsSwitcherStory />);
