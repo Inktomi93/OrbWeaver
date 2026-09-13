@@ -1,171 +1,151 @@
-// Gate: assets-single-writer (Core-Enforcement-Deferred-Dropped.md "assets-single-writer" row —
-// "only domain/assets writes the assets table + storeBlob (the one CAS coherence site)"; ledger D21
-// context) — the invariant is CAS WRITE coherence, not read scoping. `storeBlob` (domain/assets/
-// persistence/queries.ts) is the one writer of the blob↔row pair; every insert/update/delete on the
-// `assets` table outside domain/assets/** is a bypass of that coherence primitive.
-//
-// A table-symbol IMPORT seal (the `vector-scope-derived` shape, read+write) was considered and
-// REJECTED 2026-07-17 — a 9-domain sweep found standing avatar-resolution `.leftJoin(assets, …)`
-// reads in imagery/chat/discovery/search/character/persona (avatarAssetId → assets.id joins) that are
-// FK-derived and sanctioned (D18/D20 ownership-derives-through-FK). Sealing reads would fight the
-// architecture. So this gate has two WRITE-only arms:
-//   1. `storeBlob` imported/called only from domain/assets/**.
-//   2. a raw `.insert(assets)` / `.update(assets)` / `.delete(assets)` write outside domain/assets/**.
-//
-// TWO-SIDED (gate-hub #10): the sanctioned zone ratchets DOWN — if `domain/assets/**` neither declares nor
-// calls `storeBlob` and writes no `assets` row, the seal is over NOTHING: the CAS coherence primitive moved
-// (or died) and the zone is now a blanket write permission for whatever lives there. The arm self-guards on
-// a REAL-TREE ANCHOR (gate-hub #11): the assets schema file, which a conformance mini-project only carries
-// when an example materializes it deliberately.
-import type { Node, SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { fileLoaded } from "../lib/pass.ts";
+// Policy: assets-single-writer (D21) — every storeBlob use and every raw assets-table write is an
+// explicit, reviewed site. The shared origin reader proves storeBlob's canonical declaration; the shared
+// Drizzle call and schema readers prove the write method and table identity. One candidate per file keeps
+// grant granularity exact. Central grant liveness replaces the legacy directory stale sweep.
+import type { Node as MorphNode } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { defineGate } from "../contract/policy.ts";
+import type { SchemaQuery } from "../contract/schema-fact.ts";
+import { recordReadySchemaFact } from "../contract/schema-fact.ts";
+import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
+import { readMemberReference } from "../lib/reference-fact.ts";
+import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
+import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import type { SealedHome } from "../lib/sealed-origin.ts";
+import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
-const SERVER_SRC = /\/packages\/server\/src\//u;
-const SANCTIONED = /\/packages\/server\/src\/domain\/assets\//u;
+const STORE_BLOB_HOME: SealedHome = {
+  pathInfix: "/packages/server/src/domain/assets/persistence/queries.ts",
+  exportedNames: new Set(["storeBlob"]),
+};
+const OPERATION = "asset-write-site";
 const WRITE_METHODS = new Set(["insert", "update", "delete"]);
-const STORE_BLOB = "storeBlob";
+const MESSAGE =
+  "an assets-table write or storeBlob use exists outside the reviewed CAS-coherence sites; every asset write must remain explicit and singular (D21).";
+const FIX = "route the write through the existing domain/assets storeBlob seam, then review the exact calling module if it is a legitimate CAS-coherence site.";
 
-const GATE_SELF = "tooling/src/verify/gates/assets-single-writer.ts";
-/** Real-tree anchor (gate-hub #11): the assets schema — the table whose write coherence this gate seals. */
-const ANCHOR = "packages/db/src/schema/assets.ts";
-const STALE_MESSAGE =
-  "stale SANCTIONED zone — `domain/assets/**` neither declares nor calls `storeBlob` and writes no `assets` " +
-  "row any more, so the seal covers NOTHING: the CAS coherence primitive moved or died, and the zone now " +
-  "reads as a blanket write permission for whatever lives there (ratchet down). Re-point the zone at the " +
-  "real writer's home in tooling/src/verify/gates/assets-single-writer.ts";
-
-// A single combined group message: the two arms (a bare storeBlob import, a raw table write) both bypass
-// the same CAS+row coherence primitive — the node overload (§1, GATE-AUTHORING.md) carries no per-finding
-// message, so the `token` (either "storeBlob" or the `.insert/.update/.delete(assets)` label) is what
-// distinguishes an occurrence; see mustFlag below.
-const GROUP_MESSAGE =
-  "storeBlob bypassed outside domain/assets — it is the one writer of the blob↔row pair (the CAS coherence " +
-  "primitive); every asset write goes through it, whether by importing storeBlob directly or by a raw " +
-  'insert/update/delete on the `assets` table (Core-Enforcement-Deferred-Dropped.md "assets-single-writer").';
-
-function reportAt(ctx: GateRunCtx, node: Node, token: string): void {
-  ctx.report(node, { token, offset: 0 });
-}
-
-/** Is this ImportSpecifier `storeBlob` imported from its persistence home (server/kit-reachable path)? */
-function storeBlobImport(node: Node): boolean {
-  if (!node.isKind(SyntaxKind.ImportSpecifier)) {
-    return false;
+function storeBlobReference(node: MorphNode): MorphNode | undefined {
+  if (Node.isImportSpecifier(node)) {
+    return node.getName() === "storeBlob" && sealedOriginReports(readSealedOrigin(node, STORE_BLOB_HOME), node) ? node : undefined;
   }
-  if (node.getName() !== STORE_BLOB) {
-    return false;
-  }
-  // storeBlob has exactly one definition site (domain/assets/persistence/queries.ts), reached via a
-  // relative import — the name alone disambiguates it from any other symbol.
-  return node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration) !== undefined;
-}
-
-/** Is this CallExpression a `.insert/.update/.delete(assets)` write? */
-function assetsWrite(node: Node): string {
-  if (!node.isKind(SyntaxKind.CallExpression)) {
-    return "";
+  if (!Node.isCallExpression(node)) {
+    return;
   }
   const callee = node.getExpression();
-  if (!callee.isKind(SyntaxKind.PropertyAccessExpression)) {
-    return "";
+  const member = readMemberReference(callee);
+  if (member.kind !== "resolved" || member.value.name !== "storeBlob") {
+    return;
   }
-  if (!WRITE_METHODS.has(callee.getName())) {
-    return "";
-  }
-  const [firstArg] = node.getArguments();
-  const isAssetsArg = firstArg !== undefined && firstArg.isKind(SyntaxKind.Identifier) && firstArg.getText() === "assets";
-  return isAssetsArg ? `.${callee.getName()}(assets)` : "";
+  return sealedOriginReports(readSealedOrigin(callee, STORE_BLOB_HOME), callee) ? callee : undefined;
 }
 
-/** Does this file still carry the CAS write primitive — declaring `storeBlob`, importing it, or writing the
- *  `assets` table? (The sanctioned zone's own home DECLARES it, which is neither an import nor a call.) */
-function carriesAssetWrite(sf: SourceFile): boolean {
-  if (sf.getFunction(STORE_BLOB) !== undefined || sf.getVariableDeclaration(STORE_BLOB) !== undefined) {
-    return true;
+function assetWriteCandidate(node: import("ts-morph").CallExpression, schema: SchemaQuery): { readonly node: MorphNode; readonly token: string } | undefined {
+  const call = readDrizzleClientCall(node);
+  if (call.kind === "foreign" || call.method === null || !WRITE_METHODS.has(call.method)) {
+    return;
   }
-  return sf.getDescendants().some((n) => storeBlobImport(n) || assetsWrite(n) !== "");
+  const tableNode = node.getArguments()[0];
+  if (tableNode === undefined) {
+    return;
+  }
+  const table = schema.table(tableNode);
+  return table.kind === "resolved" && table.value.sqlName === "assets" ? { node: call.nameNode ?? node, token: call.method } : undefined;
 }
 
-export const gate: GateDescriptor = {
-  name: "assets-single-writer",
-  docRow: 'Core-Enforcement-Deferred-Dropped.md "assets-single-writer" row (D21 context)',
-  status: "active",
-  scopeSafety: "incremental-safe",
-  message: GROUP_MESSAGE,
-  fix: "route the write through domain/assets' storeBlob (the one CAS+row coherence primitive) instead of importing storeBlob or inserting/updating/deleting the assets table directly.",
-  scanRoot: (p) => SERVER_SRC.test(`/${p}`),
-  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression],
-  visit: (node, sf, ctx) => {
-    const path = sf.getFilePath();
-    if (SANCTIONED.test(path)) {
-      return;
-    }
-    if (storeBlobImport(node)) {
-      reportAt(ctx, node, "storeBlob");
-      return;
-    }
-    const write = assetsWrite(node);
-    if (write !== "") {
-      reportAt(ctx, node, write);
-    }
-  },
-  // The sanctioned zone is skipped by `visit`, so the stale arm reads it off the shared project directly.
-  finalize: (ctx) => {
-    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
-      return;
-    }
-    const covers = ctx.project
-      .getSourceFiles()
-      .filter((sf) => SANCTIONED.test(sf.getFilePath()))
-      .some((sf) => carriesAssetWrite(sf));
-    if (!covers) {
-      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_MESSAGE });
-    }
+export const gate = defineGate({
+  id: "assets-single-writer",
+  family: "assets-single-writer",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: { in: ["@server", "@db"], under: ["packages/server/src/**", "packages/db/src/schema/**"] },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [drizzleSchemaFact],
+  resources: [],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => {
+    const candidates = new Map<string, ReviewedGrantCandidate>();
+    const calls: import("ts-morph").CallExpression[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression],
+          visit: (node, sourceFile) => {
+            const path = ctx.relativePath(sourceFile);
+            const storeBlob = storeBlobReference(node);
+            if (storeBlob !== undefined) {
+              if (!candidates.has(path)) {
+                candidates.set(path, { node: storeBlob, subject: path, operation: OPERATION, token: "storeBlob", offset: 0 });
+              }
+              return;
+            }
+            if (Node.isCallExpression(node)) {
+              calls.push(node);
+            }
+          },
+        },
+      ],
+      evaluate: () => {
+        const schema = ctx.fact(drizzleSchemaFact).schema();
+        recordReadySchemaFact(ctx, schema);
+        for (const node of calls) {
+          const path = ctx.relativePath(node.getSourceFile());
+          const candidate = assetWriteCandidate(node, ctx.fact(drizzleSchemaFact));
+          if (candidate !== undefined && !candidates.has(path)) {
+            candidates.set(path, { node: candidate.node, subject: path, operation: OPERATION, token: candidate.token, offset: 0 });
+          }
+        }
+        reportReviewedGrantCandidates(ctx.report, [...candidates.values()], { message: MESSAGE, fix: FIX, unreadableMessage: MESSAGE });
+      },
+    };
   },
   mustFlag: [
     {
-      files: 'import { storeBlob } from "../assets/persistence/queries.ts";\nexport const s = storeBlob;\n',
-      at: "packages/server/src/domain/hub/x.ts",
-      expect: { token: "storeBlob" },
-      why: "storeBlob imported outside domain/assets — the one CAS coherence writer, dodged",
-    },
-    {
-      files: 'import { assets } from "@orb/db";\nexport const w = (db: { insert: (t: unknown) => void }) => db.insert(assets);\n',
-      at: "packages/server/src/domain/hub/y.ts",
-      expect: { token: ".insert(assets)" },
-      why: "a raw `.insert(assets)` write outside domain/assets — bypasses the CAS+row coherence primitive",
-    },
-    {
+      mode: "types",
+      grant: { subject: "packages/server/src/domain/hub/x.ts", operation: OPERATION },
       files: {
-        [ANCHOR]: 'export const assets = sqliteTable("assets", {});\n',
-        "packages/server/src/domain/assets/persistence/queries.ts": "export const listAssets = null;\n",
+        "packages/server/src/domain/assets/persistence/queries.ts": "export async function storeBlob(): Promise<void> {}\n",
+        "packages/server/src/domain/hub/x.ts": 'import { storeBlob } from "../assets/persistence/queries.ts";\nstoreBlob();\n',
+        "packages/db/src/schema/assets.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const assets = sqliteTable("assets", { id: text("id") });\n',
       },
-      expect: { count: 1, messageIncludes: "stale SANCTIONED zone" },
-      why: "THE STALE ARM: the anchor (the assets schema) is loaded and the sanctioned zone exists but no longer carries the CAS write primitive at all — the seal covers nothing and ratchets down instead of standing as a blanket write permission",
+      expect: { count: 1, token: "storeBlob" },
+      why: "a canonical storeBlob import and call in an unreviewed module bypasses the exact CAS site roster",
+    },
+    {
+      mode: "types",
+      grant: { subject: "packages/server/src/domain/hub/y.ts", operation: OPERATION },
+      files: {
+        "packages/db/src/schema/assets.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const assets = sqliteTable("assets", { id: text("id") });\n',
+        "packages/server/src/domain/hub/y.ts":
+          'import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";\nimport { assets } from "../../../../db/src/schema/assets.ts";\ndeclare const db: BaseSQLiteDatabase<"async", unknown>;\ndb.insert(assets);\n',
+      },
+      expect: { count: 1, token: "insert" },
+      why: "a canonical Drizzle insert targeting the resolved assets table is a governed write even under an aliasable table import",
     },
   ],
   mustPass: [
     {
-      files:
-        'import { assets } from "@orb/db";\nexport async function storeBlob(db: { insert: (t: unknown) => { values: (v: unknown) => Promise<unknown> } }) {\n  return db.insert(assets).values({});\n}\n',
-      at: "packages/server/src/domain/assets/persistence/queries.ts",
-      why: "the sanctioned writer itself — storeBlob's own `.insert(assets)` inside domain/assets, passes",
-    },
-    {
-      files:
-        'import { characters, assets } from "@orb/db";\nexport const withAvatar = (db: { select: () => { from: (t: unknown) => { leftJoin: (t: unknown, c: unknown) => unknown } } }) =>\n  db.select().from(characters).leftJoin(assets, characters.avatarAssetId === assets.id);\n',
-      at: "packages/server/src/domain/character/persistence/queries.ts",
-      why: "a FK-derived avatar-resolution `.leftJoin(assets, eq(x.avatarAssetId, assets.id))` read outside domain/assets — reads are sanctioned (D18/D20), only writes are sealed; with no anchor in this project the stale arm stays silent (THE ANCHOR GUARD)",
-    },
-    {
+      mode: "types",
       files: {
-        [ANCHOR]: 'export const assets = sqliteTable("assets", {});\n',
-        "packages/server/src/domain/assets/persistence/queries.ts":
-          'import { assets } from "@orb/db";\nexport async function storeBlob(db: { insert: (t: unknown) => { values: (v: unknown) => Promise<unknown> } }) {\n  return db.insert(assets).values({});\n}\n',
+        "packages/db/src/schema/assets.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const assets = sqliteTable("assets", { id: text("id") });\n',
+        "packages/server/src/domain/character/read.ts": 'import { assets } from "../../../../db/src/schema/assets.ts";\nexport const table = assets;\n',
       },
-      why: "the zone STILL EARNED, judged against the real-tree anchor: the sanctioned home declares storeBlob and writes the table, so the seal is over something real and neither arm fires",
+      why: "an assets-table read is outside the write-only subject",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/other.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const other = sqliteTable("other", { id: text("id") });\n',
+        "packages/server/src/domain/hub/y.ts":
+          'import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";\nimport { other } from "../../../../db/src/schema/other.ts";\ndeclare const db: BaseSQLiteDatabase<"async", unknown>;\ndb.insert(other);\n',
+      },
+      why: "a Drizzle write to another resolved table is outside this policy's subject",
     },
   ],
-};
+});

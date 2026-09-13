@@ -3,368 +3,64 @@
 // ever invokes (wired into the contract with zero behavioral coverage). Enumerates every exported
 // `*Service` interface's members per `domain/<d>/contract/service.ts` and requires a boundary-anchored
 // service call `<service>.<verb>(` or its `create<Verb>(` factory call in domain tests. COMMENT POSTURE:
-// comment-SAFE — AST CallExpressions only. DEFERRED is a ratchet (bus-coverage.ts precedent).
+// comment-SAFE — AST CallExpressions only. A tracked gap is an exact central reviewed grant whose
+// zero/multiple-consumption alarms replace the legacy gate-local DEFERRED ratchet.
 // MEMBERS ARE RESOLVED, NOT LOCAL (#943): the verb set is the interface TYPE's properties, so the five verbs
 // `WorkloadService extends WorkloadScheduleService` inherits from an imported base are obligations too — a
 // local-`getMembers()` reader lost them while the workspace scan stayed healthy. Each verb keeps its
 // DECLARING interface for the diagnostic, the scan line prints local/inherited/total, and an `extends`
 // clause that resolves to nothing (or a member with no declaration) is a loud refusal, never a smaller set.
-import type { CallExpression, InterfaceDeclaration, Project, SourceFile, Type } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
-import { unwrapExpression } from "../lib/ast-read.ts";
-import { fileLoaded } from "../lib/pass.ts";
+import { defineGate } from "../contract/policy.ts";
+import { contractVerbPresenceFact } from "../lib/contract-verb-presence-fact.ts";
 
-const SERVICE_CONTRACT_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\/service\.ts$/u;
-const DOMAIN_TEST_RE = /\/tests\/server\/domain\/(?<domain>[^/]+)\//u;
-const SERVICE_FACTORY_RE = /^create[A-Z].*Service$/u;
-const SERVICE_CONTRACT_SUFFIX_RE = /\/contract\/service\.ts$/u;
-
-// Verbs DECLARED on a *Service interface with zero test invocation anywhere — the W1i backlog. A new
-// uncovered verb NOT on this list is RED.
-//
-// TWO-SIDED (GATE-AUTHORING.md §4.4/§4.8 — the header always claimed the bus-coverage ratchet precedent;
-// this is the arm that makes it true): a row that suppressed nothing this run is RED, because a burn-down
-// list that keeps rows after their tests land stops being a burn-down and starts being a permanent grant.
-// Both ways it can go stale: the verb got its test, or the verb (or its whole domain contract) is gone.
-// The arm self-guards on a REAL-TREE ANCHOR (GATE-AUTHORING.md §4.5): the server entrypoint.
-const DEFERRED: ExemptionTable = {
-  "chat.getRoomOverridesForChat": {
-    why: "burn-down W1i (test-support-dry-punchlist.md) — ends when a behavioral test invokes it at tests/server/domain/chat/",
-  },
-  "discovery.themes": { why: "burn-down W1i (test-support-dry-punchlist.md) — ends when a behavioral test invokes it at tests/server/domain/discovery/" },
-};
-
-const GATE_SELF = "tooling/src/verify/gates/contract-verb-presence.ts";
-/** Real-tree anchor (GATE-AUTHORING.md §4.5): the server package entrypoint. */
-const ANCHOR = "packages/server/src/index.ts";
-const STALE_PREFIX =
-  "stale DEFERRED row — it suppressed nothing this run: the verb is either covered by a test now or no " +
-  "longer declared on its *Service interface. A burn-down row that outlives its gap is a permanent grant " +
-  "(ratchet down): ";
-
-/** The DEFERRED keys that actually suppressed a RED this run — the stale arm's truth set. */
-const seenDeferred = new Set<string>();
+const OPERATION = "missing-contract-test";
 
 const MESSAGE = (verb: string, declaredIn: string): string =>
   `${verb} (declared on ${declaredIn}) — the *Service interface declares this verb but no test in its domain tree invokes ` +
   "it as a service method or through its `create<Verb>(` factory (core/Spine-Testing.md §5; " +
   "test-support-dry-punchlist.md W1i). Add a behavioral test at tests/server/domain/ or, for a tracked " +
-  "gap, a DEFERRED entry in contract-verb-presence.ts.";
+  "gap, a reviewed grant.";
 
-/** `create` + PascalCase(verb) — the codebase's verb-factory name (verb-naming gate enforces it). */
-function factoryName(verb: string): string {
-  return `create${verb.charAt(0).toUpperCase()}${verb.slice(1)}`;
-}
-
-/** A verb is COVERED by an AST CallExpression through a service receiver, a binding destructured from a
- *  `create*` service bundle, or its exact `create<Verb>` factory. A same-named helper/declaration/comment is
- *  not evidence that the service boundary ran. */
-function calledName(node: CallExpression): string | undefined {
-  const expression = node.getExpression();
-  if (Node.isIdentifier(expression)) {
-    return expression.getText();
-  }
-  if (Node.isPropertyAccessExpression(expression)) {
-    return expression.getName();
-  }
-  const argument = Node.isElementAccessExpression(expression) ? expression.getArgumentExpression() : undefined;
-  return argument !== undefined && Node.isStringLiteral(argument) ? argument.getLiteralText() : undefined;
-}
-
-/** A bare identifier is a service invocation only when it was destructured from a runtime service factory.
- *  This is the bundle shape used by domain integration tests (`const { listChats } = createRead(...)`). */
-function isFactoryBoundVerb(call: CallExpression, verb: string): boolean {
-  if (!Node.isIdentifier(call.getExpression())) {
-    return false;
-  }
-  return call
-    .getSourceFile()
-    .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
-    .some((declaration) => {
-      const name = declaration.getNameNode();
-      const initializer = declaration.getInitializer();
-      const factoryCall = initializer === undefined ? undefined : unwrapExpression(initializer);
-      if (!(Node.isObjectBindingPattern(name) && factoryCall !== undefined && Node.isCallExpression(factoryCall))) {
-        return false;
-      }
-      const factory = calledName(factoryCall);
-      return factory?.startsWith("create") === true && name.getElements().some((element) => element.getName() === verb);
-    });
-}
-
-function isServiceFactoryCall(call: CallExpression): boolean {
-  const name = calledName(call);
-  return name !== undefined && SERVICE_FACTORY_RE.test(name);
-}
-
-function typeComesFromService(type: Type, service: InterfaceDeclaration): boolean {
-  const declarations = [type.getAliasSymbol(), type.getSymbol()].flatMap((symbol) => symbol?.getDeclarations() ?? []);
-  if (declarations.includes(service)) {
-    return true;
-  }
-  return [...type.getUnionTypes(), ...type.getIntersectionTypes()].some((member) => typeComesFromService(member, service));
-}
-
-function typeVerbComesFromDomain(type: Type, service: InterfaceDeclaration, verb: string): boolean {
-  const domainRoot = service.getSourceFile().getFilePath().replace(SERVICE_CONTRACT_SUFFIX_RE, "/");
-  const property = type.getProperty(verb);
-  if (
-    property?.getDeclarations().some((declaration) => {
-      const path = declaration.getSourceFile().getFilePath();
-      return path.startsWith(domainRoot) && (path.includes("/verbs/") || path.endsWith("/service.ts"));
-    }) === true
-  ) {
-    return true;
-  }
-  return [...type.getUnionTypes(), ...type.getIntersectionTypes()].some((member) => typeVerbComesFromDomain(member, service, verb));
-}
-
-function isDomainVerbBundleFactory(call: CallExpression, service: InterfaceDeclaration, verb: string): boolean {
-  const name = calledName(call);
-  if (name?.startsWith("create") !== true || call.getType().getProperty(verb) === undefined) {
-    return false;
-  }
-  const callee = unwrapExpression(call.getExpression());
-  const symbol = callee.getSymbol();
-  const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
-  const domainRoot = service.getSourceFile().getFilePath().replace(SERVICE_CONTRACT_SUFFIX_RE, "/");
-  return declarations.some((declaration) => {
-    const path = declaration.getSourceFile().getFilePath();
-    return path.startsWith(domainRoot) && (path.includes("/verbs/") || path.endsWith("/service.ts"));
-  });
-}
-
-function isAssembledServiceExpression(node: Node, service: InterfaceDeclaration, verb: string, seen = new Set<string>()): boolean {
-  const expression = unwrapExpression(node);
-  if (typeComesFromService(expression.getType(), service) || typeVerbComesFromDomain(expression.getType(), service, verb)) {
-    return true;
-  }
-  if (Node.isCallExpression(expression)) {
-    if (isServiceFactoryCall(expression) || isDomainVerbBundleFactory(expression, service, verb)) {
-      return true;
-    }
-    const helperName = calledName(expression);
-    if (helperName === undefined) {
-      return false;
-    }
-    const helper = expression.getSourceFile().getFunction(helperName);
-    return (
-      helper?.getDescendantsOfKind(SyntaxKind.ReturnStatement).some((statement) => {
-        const returned = statement.getExpression();
-        return returned !== undefined && isAssembledServiceExpression(returned, service, verb, seen);
-      }) === true
-    );
-  }
-  if (!Node.isIdentifier(expression)) {
-    return false;
-  }
-  const name = expression.getText();
-  const key = `${expression.getSourceFile().getFilePath()}:${name}`;
-  if (seen.has(key)) {
-    return false;
-  }
-  seen.add(key);
-  const declaration = expression
-    .getSourceFile()
-    .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
-    .find((candidate) => candidate.getName() === name);
-  const initializer = declaration?.getInitializer();
-  return initializer !== undefined && isAssembledServiceExpression(initializer, service, verb, seen);
-}
-
-function isAssembledServiceCall(call: CallExpression, service: InterfaceDeclaration, verb: string): boolean {
-  const expression = unwrapExpression(call.getExpression());
-  if (Node.isPropertyAccessExpression(expression) || Node.isElementAccessExpression(expression)) {
-    return isAssembledServiceExpression(expression.getExpression(), service, verb);
-  }
-  return false;
-}
-
-/** Every call in a domain's test corpus, collected ONCE. `isCovered` runs per VERB, so sweeping the corpus
- *  inside it re-walked every test file once per verb of that domain — the corpus is the same for all of
- *  them (docs/reviews/research/2026-08-31-gate-pass-unified-walk.md §2). */
-function corpusCalls(files: readonly SourceFile[]): readonly CallExpression[] {
-  return files.flatMap((sf) => sf.getDescendantsOfKind(SyntaxKind.CallExpression));
-}
-
-function isCovered(calls: readonly CallExpression[], service: InterfaceDeclaration, verb: string): boolean {
-  const factory = factoryName(verb);
-  return calls.some((call) => {
-    const name = calledName(call);
-    if (name === factory) {
-      return true;
-    }
-    return name === verb && (isAssembledServiceCall(call, service, verb) || isFactoryBoundVerb(call, verb));
-  });
-}
-
-/** A member declaration is verb-shaped when it is a `MethodSignature`, or a `PropertySignature` whose type
- *  is a function type (`readonly send: (params) => Promise<…>`, the codebase's idiom). */
-function isVerbDeclaration(declaration: Node): boolean {
-  if (Node.isMethodSignature(declaration)) {
-    return true;
-  }
-  if (!Node.isPropertySignature(declaration)) {
-    return false;
-  }
-  const typeNode = declaration.getTypeNode();
-  return typeNode !== undefined && Node.isFunctionTypeNode(typeNode);
-}
-
-/** The interface a resolved member was DECLARED on — the provenance the diagnostic names, so an inherited
- *  verb points at the base contract that owns it instead of at the interface that merely composes it. */
-function declaringInterfaceName(declaration: Node, fallback: string): string {
-  const parent = declaration.getParent();
-  return parent !== undefined && Node.isInterfaceDeclaration(parent) ? parent.getName() : fallback;
-}
-
-/** Every `extends` clause of a service interface must RESOLVE. A base whose expression binds no interface
- *  declaration would silently contribute zero members — the exact shrunken-denominator failure this gate was
- *  repaired for (#943) — so it is a tool error instead. */
-function assertHeritageResolves(iface: InterfaceDeclaration): void {
-  for (const clause of iface.getExtends()) {
-    const symbol = clause.getExpression().getSymbol();
-    const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
-    if (!declarations.some((declaration) => Node.isInterfaceDeclaration(declaration))) {
-      throw new Error(
-        `contract-verb-presence: ${iface.getName()} in ${iface.getSourceFile().getFilePath()} extends "${clause.getText()}", which resolves to no interface declaration — its inherited verbs cannot be enumerated`,
-      );
-    }
-  }
-}
-
-/** One resolved verb: its name, the interface whose obligations it joins, and where it was DECLARED. */
-interface ResolvedVerb {
-  readonly service: InterfaceDeclaration;
-  readonly verb: string;
-  readonly declaredIn: string;
-  readonly inherited: boolean;
-}
-
-/** Every verb a `*Service` interface EXPOSES — the resolved type's properties, not the local declaration
- *  list, so an inherited base's verbs stay obligations (#943). A property that resolves to no declaration at
- *  all is unsupported composition, and refuses loudly rather than quietly leaving the denominator. */
-function resolvedVerbs(iface: InterfaceDeclaration): ResolvedVerb[] {
-  assertHeritageResolves(iface);
-  const verbs: ResolvedVerb[] = [];
-  for (const property of iface.getType().getProperties()) {
-    const declarations = property.getDeclarations();
-    if (declarations.length === 0) {
-      throw new Error(
-        `contract-verb-presence: member "${property.getName()}" of ${iface.getName()} (${iface.getSourceFile().getFilePath()}) resolves to no declaration — its verb shape cannot be established`,
-      );
-    }
-    const declaration = declarations[0];
-    if (declaration === undefined || !isVerbDeclaration(declaration)) {
-      continue;
-    }
-    const declaredIn = declaringInterfaceName(declaration, iface.getName());
-    verbs.push({ service: iface, verb: property.getName(), declaredIn, inherited: declaredIn !== iface.getName() });
-  }
-  return verbs;
-}
-
-/** Every verb exposed by the domain's `*Service` interfaces (name ends exactly in `Service` — excludes
- *  `*ServiceDeps`, which is a DI bundle, not the verb surface). */
-function serviceVerbs(contract: SourceFile): ResolvedVerb[] {
-  const verbs: ResolvedVerb[] = [];
-  for (const iface of contract.getInterfaces()) {
-    if (iface.isExported() && iface.getName().endsWith("Service")) {
-      verbs.push(...resolvedVerbs(iface));
-    }
-  }
-  return verbs;
-}
-
-/** Every test file under `tests/server/domain/<domain>/`. */
-function domainTestFiles(domain: string, files: readonly SourceFile[]): SourceFile[] {
-  return files.filter((sf) => DOMAIN_TEST_RE.exec(sf.getFilePath())?.groups?.["domain"] === domain);
-}
-
-/** The verb population this run judged — printed on the gate's scan line so an inherited base that stopped
- *  resolving shows as a smaller TOTAL instead of a clean ✓ (#943). */
-interface VerbPopulation {
-  readonly violations: readonly Violation[];
-  readonly services: number;
-  readonly local: number;
-  readonly inherited: number;
-}
-
-/** The whole-tree reconciliation shared by the legacy Check and the single-pass `run` descriptor: each
- *  domain's *Service verbs vs its test-tree invocation corpus. */
-function reconcileContractVerbPresence(project: Project): VerbPopulation {
-  const files = project.getSourceFiles();
-  const violations: Violation[] = [];
-  const services = new Set<string>();
-  let local = 0;
-  let inherited = 0;
-  for (const contract of files) {
-    const match = SERVICE_CONTRACT_RE.exec(contract.getFilePath());
-    const domain = match?.groups?.["domain"];
-    if (domain === undefined) {
-      continue;
-    }
-    const corpus = corpusCalls(domainTestFiles(domain, files));
-    const file = `packages/server/src/domain/${domain}/contract/service.ts`;
-    for (const { service, verb, declaredIn, inherited: isInherited } of serviceVerbs(contract)) {
-      services.add(`${domain}.${service.getName()}`);
-      if (isInherited) {
-        inherited += 1;
-      } else {
-        local += 1;
-      }
-      const key = `${domain}.${verb}`;
-      if (isCovered(corpus, service, verb)) {
-        continue;
-      }
-      if (key in DEFERRED) {
-        seenDeferred.add(key);
-        continue;
-      }
-      violations.push({ file, line: 1, message: MESSAGE(key, declaredIn) });
-    }
-  }
-  return { violations, services: services.size, local, inherited };
-}
-
-export const gate: GateDescriptor = {
-  name: "contract-verb-presence",
-  docRow: "core/Spine-Testing.md §5",
-  status: "active",
-  scopeSafety: "whole-project",
+export const gate = defineGate({
+  id: "contract-verb-presence",
+  family: "contract-verb-presence",
+  authority: "reviewed-grant",
+  severity: "error",
+  population: {
+    in: ["@server", "@tests"],
+    under: ["packages/server/src/domain/**", "tests/server/domain/**"],
+  },
+  analysis: "types",
+  execution: "entire-population",
+  facts: [contractVerbPresenceFact],
+  resources: [],
   message:
-    "a *Service interface declares a verb that no test in its domain tree invokes — a wired-but-never-run verb (add a behavioral test at tests/server/domain/, or a tracked DEFERRED entry in contract-verb-presence.ts). core/Spine-Testing.md §5.",
-  fix: "add a behavioral test that invokes the verb (or its create<Verb>( factory) under tests/server/domain/<domain>/, or add a cited DEFERRED entry.",
-  run: (ctx: GateRunCtx) => {
-    seenDeferred.clear();
-    const population = reconcileContractVerbPresence(ctx.project);
-    const total = population.local + population.inherited;
-    ctx.scan({
-      unit: `service verb [interfaces=${population.services} local=${population.local} inherited=${population.inherited} total=${total}]`,
-      candidates: total,
-      scanned: total,
-    });
-    for (const v of population.violations) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
-    if (!fileLoaded(ctx, ANCHOR)) {
-      return; // synthetic tree — the ratchet is a whole-tree claim
-    }
-    for (const key of Object.keys(DEFERRED)) {
-      if (!seenDeferred.has(key)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_PREFIX}"${key}" — delete the row in tooling/src/verify/gates/contract-verb-presence.ts`,
+    "a *Service interface declares a verb that no test in its domain tree invokes — a wired-but-never-run verb (add a behavioral test at tests/server/domain/, or an exact central reviewed grant keyed on this verb and missing-contract-test operation). core/Spine-Testing.md §5.",
+  fix: "add a behavioral test that invokes the verb (or its create<Verb>( factory) under tests/server/domain/<domain>/, or add a cited row to tooling/src/verify/lib/reviewed-grants.ts keyed on this policy, verb subject, and missing-contract-test operation.",
+  create: (ctx) => ({
+    evaluate: () => {
+      const population = ctx.fact(contractVerbPresenceFact);
+      const members = population.local + population.inherited;
+      ctx.receipt({
+        kind: "population",
+        source: `service-verbs[interfaces=${population.services};local=${population.local};inherited=${population.inherited}]`,
+        members: members > 0 ? members : population.sources,
+      });
+      for (const candidate of population.candidates) {
+        ctx.report.node(candidate.node, {
+          subject: candidate.subject,
+          operation: OPERATION,
+          token: candidate.verb,
+          offset: Math.max(candidate.node.getText().indexOf(candidate.verb), 0),
+          message: MESSAGE(candidate.subject, candidate.declaredIn),
         });
       }
-    }
-  },
+    },
+  }),
   mustFlag: [
     {
+      mode: "types",
+      grant: { subject: "hub.uncoveredVerb", operation: OPERATION },
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  uncoveredVerb(): void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "export const q = 'nothing';\n",
@@ -375,6 +71,8 @@ export const gate: GateDescriptor = {
     {
       // THE #943 SPLIT: the verb lives on an IMPORTED base interface the service extends. Only the local
       // verb is exercised, and the inherited one must still be an obligation.
+      mode: "types",
+      grant: { subject: "hub.inherited", operation: OPERATION },
       files: {
         "packages/server/src/domain/hub/contract/verbs.ts": "export interface HubVerbService {\n  inherited(): void;\n}\n",
         "packages/server/src/domain/hub/contract/service.ts":
@@ -386,6 +84,8 @@ export const gate: GateDescriptor = {
     },
     {
       // a longer identifier ending in the verb name (rebuild vs build) is NOT boundary-anchored coverage.
+      mode: "types",
+      grant: { subject: "hub.build", operation: OPERATION },
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly build: () => void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "await rebuild({ id: 1 });\n",
@@ -396,6 +96,8 @@ export const gate: GateDescriptor = {
     {
       // COMMENT POSTURE (issue #117/#132) in the PERMISSIVE direction — the one that silently disarms the
       // gate: a verb NAMED in a test comment is not an invocation.
+      mode: "types",
+      grant: { subject: "hub.parkedVerb", operation: OPERATION },
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly parkedVerb: () => void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "// TODO cover parkedVerb() — createParkedVerb( needs a fixture first.\nexport const q = 1;\n",
@@ -405,6 +107,8 @@ export const gate: GateDescriptor = {
     },
     {
       // MethodSignature members (not just readonly-arrow properties) are enumerated as verbs.
+      mode: "types",
+      grant: { subject: "hub.save", operation: OPERATION },
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  save(): void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "export const q = 'nothing';\n",
@@ -413,6 +117,8 @@ export const gate: GateDescriptor = {
       why: "a MethodSignature member is enumerated as a verb too — flags when uncovered",
     },
     {
+      mode: "types",
+      grant: { subject: "hub.save", operation: OPERATION },
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly save: () => void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "function save() {}\nsave();\n",
@@ -421,6 +127,8 @@ export const gate: GateDescriptor = {
       why: "a same-named bare helper call is not evidence that the HubService method ran",
     },
     {
+      mode: "types",
+      grant: { subject: "hub.save", operation: OPERATION },
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly save: () => void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "logger.save();\n",
@@ -428,19 +136,10 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "hub.save" },
       why: "a same-named method on an unrelated receiver is not evidence that the assembled HubService ran",
     },
-    {
-      files: {
-        [ANCHOR]: "export const server = 1;\n",
-        "packages/server/src/domain/discovery/contract/service.ts": "export interface DiscoveryService {\n  readonly themes: () => void;\n}\n",
-        "packages/server/src/domain/chat/contract/service.ts": "export interface ChatService {\n  readonly getRoomOverridesForChat: () => void;\n}\n",
-        "tests/server/domain/chat/x.test.ts": "const service = createChatService(ctx);\nawait service.getRoomOverridesForChat({ id: 1 });\n",
-      },
-      expect: { count: 1, messageIncludes: "stale DEFERRED row" },
-      why: "THE RATCHET'S OTHER SIDE: the anchor is loaded; discovery.themes is still uncovered and keeps its row, but chat.getRoomOverridesForChat now HAS its test — the burn-down row suppressed nothing and must be pruned, exactly as the header's bus-coverage precedent promised",
-    },
   ],
   mustPass: [
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  coveredVerb(): void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "const service = createHubService(ctx);\nexport const q = service.coveredVerb();\n",
@@ -448,6 +147,7 @@ export const gate: GateDescriptor = {
       why: "the verb is invoked on a service assembled by its domain factory — covered, passes",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/hub/contract/verbs.ts": "export interface HubVerbService {\n  inherited(): void;\n}\n",
         "packages/server/src/domain/hub/contract/service.ts":
@@ -457,6 +157,7 @@ export const gate: GateDescriptor = {
       why: "the SPLIT's green half: both the local and the imported-base verb are exercised through the assembled service — resolving inherited members widens the obligation set without widening the accusation (the live workloads shape, whose five schedule verbs all have behavioral tests)",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/hub/contract/verbs.ts": "export interface HubBundle {\n  readonly notAVerb: string;\n}\n",
         "packages/server/src/domain/hub/contract/service.ts":
@@ -466,6 +167,7 @@ export const gate: GateDescriptor = {
       why: "an inherited member that is NOT verb-shaped (a plain data property) is not an obligation — the resolved-member widening keeps the function-type test, so a DI/data base contributes nothing to the denominator",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  coveredVerb(): void;\n}\n",
         "tests/server/domain/hub/x.test.ts":
@@ -474,6 +176,7 @@ export const gate: GateDescriptor = {
       why: "a service carried as a typed property on a fixture preserves the exact contract-interface identity — the dominant real test shape",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  coveredVerb(): void;\n}\n",
         "packages/server/src/domain/hub/verbs/reads.ts": "export function createHubReads() { return { coveredVerb: (): void => undefined }; }\n",
@@ -483,6 +186,7 @@ export const gate: GateDescriptor = {
       why: "a verb invoked through a concrete bundle factory declared in the owning domain's verbs tree is covered — the grouped ChatService test shape",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  coveredVerb(): void;\n}\n",
         "packages/server/src/domain/hub/verbs/reads.ts": "export function createHubReads() { return { coveredVerb: (): void => undefined }; }\n",
@@ -492,6 +196,7 @@ export const gate: GateDescriptor = {
       why: "a verb bundle carried on a fixture retains the owning factory's property-declaration identity — the nested Chat turn harness shape",
     },
     {
+      mode: "types",
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  save(): void;\n}\n",
         "tests/server/domain/hub/x.test.ts": "const svc = createHubService(ctx);\nconst alias = svc;\nalias.save();\n",
@@ -500,6 +205,7 @@ export const gate: GateDescriptor = {
     },
     {
       // covered only by its create<Verb>( factory (the alias-invoked closure shape).
+      mode: "types",
       files: {
         "packages/server/src/domain/hub/contract/service.ts": "export interface HubService {\n  readonly build: () => void;\n}\n",
         "tests/server/domain/hub/build.int.test.ts": "const run = createBuild({ db });\nawait run();\n",
@@ -507,22 +213,8 @@ export const gate: GateDescriptor = {
       why: "a verb covered only by its create<Verb>( factory (alias-invoked) is covered — passes",
     },
     {
-      // a DEFERRED entry (discovery.themes) suppresses its RED — the tracked W1i backlog.
-      files: {
-        "packages/server/src/domain/discovery/contract/service.ts": "export interface DiscoveryService {\n  readonly themes: () => void;\n}\n",
-      },
-      why: "a DEFERRED verb (discovery.themes) is a tracked gap — suppressed, passes; with no anchor in this project the ratchet's stale arm stays silent (THE ANCHOR GUARD)",
-    },
-    {
-      files: {
-        [ANCHOR]: "export const server = 1;\n",
-        "packages/server/src/domain/discovery/contract/service.ts": "export interface DiscoveryService {\n  readonly themes: () => void;\n}\n",
-        "packages/server/src/domain/chat/contract/service.ts": "export interface ChatService {\n  readonly getRoomOverridesForChat: () => void;\n}\n",
-      },
-      why: "both burn-down rows STILL EARNED, judged against the real-tree anchor: each verb is declared and still uncovered, so the rows suppress real REDs and neither arm fires",
-    },
-    {
       // *ServiceDeps (a DI bundle) + non-Service interfaces are not the verb surface.
+      mode: "types",
       files: {
         "packages/server/src/domain/hub/contract/service.ts":
           "export interface HubServiceDeps {\n  readonly build: () => void;\n}\nexport interface HubContext {\n  readonly wipe: () => void;\n}\n",
@@ -530,4 +222,4 @@ export const gate: GateDescriptor = {
       why: "*ServiceDeps and non-Service interfaces are ignored — only the verb surface counts, passes",
     },
   ],
-};
+});
