@@ -272,7 +272,7 @@ block <issue…> --by <blocker> | unblock <issue…> --by <blocker> | park <issu
 verify <issue…> --evidence <receipt> | reverify <issue…> --evidence <replacement-receipt> | done <issue…> --evidence <same-receipt> [--force-close --reason <text>]
 refute <issue…> --evidence <refutation-receipt> [--dod '<cmd>'] — Verify only; returns the row to Ready with Evidence replaced (outcome stands, rework is claimable)
 dod <issue…> [--cmd '<command>'] — mint or re-mint a row's Definition of Done (red-first; set DoD is refused); bare form adopts the body's block
---evidence over ${EVIDENCE_MAX_LENGTH} chars auto-splits: the full receipt lands as an issue comment and the Evidence column gets a head + pointer (same transform on verify and done, so the same-receipt rule holds)
+--evidence over ${EVIDENCE_MAX_LENGTH} UTF-8 bytes auto-splits: the full receipt lands as an issue comment and the Evidence column gets a head + pointer (same transform on verify and done, so the same-receipt rule holds)
 
 Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Kind, Priority, Area, and Review before Ready. Decisions enter Needs owner. Interrupted transitions are safe to rerun — including a composite verb, which resumes at the row's current status. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.`);
 }

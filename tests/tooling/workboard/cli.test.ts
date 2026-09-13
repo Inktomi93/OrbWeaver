@@ -389,7 +389,7 @@ defineTest("help prints the complete Project operator path", () => {
   expect(result.stdout).toContain("Triage → Ready → Running → Review → Verify → Done");
   expect(result.stdout).toContain("Interrupted transitions are safe to rerun");
   expect(result.stdout).toContain(".github/ISSUE_TEMPLATE/*.yml");
-  expect(result.stdout).toContain("--evidence over 1024 chars auto-splits");
+  expect(result.stdout).toContain("--evidence over 1024 UTF-8 bytes auto-splits");
 });
 
 defineTest("list returns a stable filtered Project snapshot without mutation", () => {
