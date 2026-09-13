@@ -385,6 +385,107 @@ function reportStaleOwnershipRows(ctx: GatePolicyContext, state: JudgeState, anc
   }
 }
 
+/** Complete proof data for the reverse-liveness arms. Membership comes from the private ruling tables so
+ *  adding a ruling cannot leave this corpus silently stale. The synthetic producer is kept distinct from
+ *  every ruled schema/domain/file subject, and every generated table binding is collision-free with the
+ *  per-table overrides. */
+function completeOwnershipProofFiles(): Readonly<Record<string, string>> {
+  const files: Record<string, string> = {};
+  const schemaModules: string[] = [];
+  const addFile = (path: string, source: string): void => {
+    if (path in files) {
+      throw new Error(`own-tables-only proof construction produced a duplicate path: ${path}`);
+    }
+    files[path] = source;
+  };
+  const usedTableIdents = new Set(Object.keys(TABLE_OWNERS));
+  const usedDomains = new Set([...Object.keys(SCHEMA_OWNERS), ...Object.keys(BULK_READERS)]);
+  for (const row of [...Object.values(SCHEMA_OWNERS), ...Object.values(TABLE_OWNERS)]) {
+    for (const owner of row.owners) {
+      usedDomains.add(owner);
+    }
+  }
+  for (const file of Object.keys(FILE_ALLOWLIST)) {
+    const domain = domainOf(file);
+    if (domain !== undefined) {
+      usedDomains.add(domain);
+    }
+  }
+
+  let producerDomain = "own-tables-proof";
+  for (let suffix = 2; usedDomains.has(producerDomain); suffix += 1) {
+    producerDomain = `own-tables-proof-${suffix}`;
+  }
+  usedDomains.add(producerDomain);
+
+  const unusedTableIdent = (preferred: string): string => {
+    let candidate = preferred;
+    for (let suffix = 2; usedTableIdents.has(candidate); suffix += 1) {
+      candidate = `${preferred}${suffix}`;
+    }
+    usedTableIdents.add(candidate);
+    return candidate;
+  };
+  const fixtureTableIdent = (subject: string): string => {
+    const suffix = subject
+      .split(/[^A-Za-z0-9]+/u)
+      .filter((part) => part.length > 0)
+      .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+      .join("");
+    return unusedTableIdent(`ownTablesProof${suffix}`);
+  };
+  const tableDeclaration = (ident: string, sqlName: string): string => `export const ${ident} = sqliteTable("${sqlName}", { id: text("id").primaryKey() });\n`;
+
+  let ordinal = 0;
+  for (const schemaName of Object.keys(SCHEMA_OWNERS)) {
+    ordinal += 1;
+    const ident = fixtureTableIdent(schemaName);
+    addFile(
+      `packages/db/src/schema/${schemaName}.ts`,
+      'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' + tableDeclaration(ident, `own_tables_proof_${ordinal}`),
+    );
+    schemaModules.push(schemaName);
+  }
+
+  const producerTables = Object.keys(TABLE_OWNERS).map((table) => {
+    ordinal += 1;
+    return tableDeclaration(table, `own_tables_proof_${ordinal}`);
+  });
+  const foreignTable = unusedTableIdent("ownTablesProofForeign");
+  ordinal += 1;
+  producerTables.push(tableDeclaration(foreignTable, `own_tables_proof_${ordinal}`));
+  addFile(`packages/db/src/schema/${producerDomain}.ts`, 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' + producerTables.join(""));
+  schemaModules.push(producerDomain);
+
+  const ownerDomains = new Set([...Object.values(SCHEMA_OWNERS), ...Object.values(TABLE_OWNERS)].flatMap(({ owners }) => owners));
+  ownerDomains.add(producerDomain);
+  for (const owner of ownerDomains) {
+    addFile(`packages/server/src/domain/${owner}/verbs/own-tables-proof-anchor.ts`, "export const ownTablesProofAnchor = true;\n");
+  }
+  for (const domain of Object.keys(BULK_READERS)) {
+    addFile(
+      `packages/server/src/domain/${domain}/verbs/own-tables-proof-read.ts`,
+      `import { ${foreignTable} } from "@orb/db";\nexport const ownTablesProofRead = ${foreignTable};\n`,
+    );
+  }
+  for (const file of Object.keys(FILE_ALLOWLIST)) {
+    addFile(file, `import { ${foreignTable} } from "@orb/db";\nexport const ownTablesProofRead = ${foreignTable};\n`);
+  }
+  addFile(SCHEMA_BARREL, schemaModules.map((schemaName) => `export * from "./${schemaName}.ts";\n`).join(""));
+  return files;
+}
+
+const COMPLETE_OWNERSHIP_PROOF_FILES = completeOwnershipProofFiles();
+const STALE_FILE_PROOFS = Object.keys(FILE_ALLOWLIST).map((file) => ({
+  mode: "types" as const,
+  files: { ...COMPLETE_OWNERSHIP_PROOF_FILES, [file]: "export const ownTablesProofQuiet = true;\n" },
+  expect: {
+    count: 1,
+    messageIncludes: `FILE_ALLOWLIST row for a file with NO foreign table import left (ratchet down) — delete it in own-tables-only.ts: "${file}"`,
+  },
+  why: `THE FILE_ALLOWLIST REVERSE RATCHET (#2343): the exact file remains present while only its foreign-table read is removed. Every schema/table/bulk/file companion and the canonical schema barrel remain unchanged, so the one expected finding can only name this stale exact-file permission: "${file}"`,
+}));
+
 export const gate = defineGate({
   id: "own-tables-only",
   family: "drizzle-schema",
@@ -501,6 +602,7 @@ export const gate = defineGate({
       expect: { count: 1, token: "characters" },
       why: "a FEATURE-ROOT slot (workload-contributions.ts), not a verb — the scan is `domain/**`, so the root slots and named subsystems are covered too",
     },
+    ...STALE_FILE_PROOFS,
   ],
   mustPass: [
     {
@@ -587,6 +689,11 @@ export const gate = defineGate({
           'import { users } from "@orb/db";\nexport async function f(db: { update: (t: unknown) => Promise<void> }): Promise<void> {\n  await db.update(users);\n}\n',
       },
       why: "the double-owned identity root (SCHEMA_OWNERS `users` → sessions + admin): admin's user-management verbs legitimately WRITE it, so neither arm may bite",
+    },
+    {
+      mode: "types",
+      files: COMPLETE_OWNERSHIP_PROOF_FILES,
+      why: "THE COMPLETE OWNERSHIP-RULING TWIN (#2343): every SCHEMA_OWNERS and TABLE_OWNERS subject exists, every owner has a domain anchor, every BULK_READERS and FILE_ALLOWLIST subject performs a foreign read, and the canonical schema barrel is acquired through the production drizzleSchemaFact. All permissions are live, so the policy must reach a complete clean verdict",
     },
   ],
 });

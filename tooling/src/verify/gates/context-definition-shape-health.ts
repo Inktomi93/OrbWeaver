@@ -33,7 +33,10 @@
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { DEFINE_CONTEXT_REGION, REGION_ATTR, REGISTRY_CONTRACTS_RE } from "../lib/context-definition-shape.ts";
+import { DEFINE_CONTEXT_REGION, REGISTRY_CONTRACTS_RE } from "../lib/context-definition-shape.ts";
+
+/** Health-only probe identity: only this policy counts its single writer, so it stays with its one reader. */
+const REGION_ATTR = "data-context-bracket";
 
 interface CountedSite {
   readonly path: string;

@@ -90,7 +90,7 @@ const FIX =
 const BLIND =
   "owner-scoped-upserts derived ZERO ownerId-class tables from the schema — the gate has gone blind (the " +
   "schema shape or the class registry moved, and a gate that matches nothing reports ✓ forever). Re-derive " +
-  "it in tooling/src/verify/gates/table-scoping-class.ts (`ownerScopedTableIdents`)";
+  "it in tooling/src/verify/lib/tenancy-scope.ts (`ownerScopedTableIdents`)";
 
 /** A candidate the WALK records without judging — resolving its target needs the (a)-class/denominator sets,
  *  which are not ready until `evaluate`. Pure-AST fields only. */
