@@ -14,6 +14,8 @@
 // file names exactly ONE, the attribution is exact and that module MUST be discharged. Specifiers, never the
 // module graph — the arm it judges walks the graph, so an opinion that walked it too would agree by
 // construction. Restore the pre-#2274 reader and the NOT-DEAD assertion is the one that reds.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
@@ -126,6 +128,38 @@ test(
   },
   CONFORMANCE_TIMEOUT_MS,
 );
+
+test("policy-proof-expectations reads the actual package vocabulary and refuses an opaque effect on its source", ({ repoRoot }) => {
+  const policyPath = "tooling/src/verify/gates/test-layout.ts";
+  const vocabularyPath = "tooling/src/_shared/project-worlds.ts";
+  const files = {
+    [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
+    [policyPath]: readFileSync(join(repoRoot, policyPath), "utf8"),
+    [vocabularyPath]: readFileSync(join(repoRoot, vocabularyPath), "utf8"),
+    "tooling/src/_shared/test-kinds.ts": readFileSync(join(repoRoot, "tooling/src/_shared/test-kinds.ts"), "utf8"),
+  };
+  const assertComplete = (result: ReturnType<typeof runPolicyPass>): void => {
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.toolErrors).toEqual([]);
+    expect(result.authority.authorityAlarms).toEqual([]);
+    expect(result.policies.map(({ owner }) => owner)).toEqual([{ status: "success", population: "complete" }]);
+  };
+  const clean = passOf(policyProofExpectations, files);
+  assertComplete(clean);
+  expect(clean.authority.effectiveFindings).toEqual([]);
+
+  const changedVocabulary = files[vocabularyPath].replace(
+    "export const PACKAGE_WORLDS:",
+    "declare function opaque(value: unknown): void;\nopaque(PACKAGE_WORLD_DEFINITIONS);\nexport const PACKAGE_WORLDS:",
+  );
+  expect(changedVocabulary).not.toBe(files[vocabularyPath]);
+  const affected = passOf(policyProofExpectations, { ...files, [vocabularyPath]: changedVocabulary });
+  assertComplete(affected);
+  expect(affected.authority.effectiveFindings).toHaveLength(1);
+  expect(affected.authority.effectiveFindings[0]).toMatchObject({ file: policyPath, token: "messageIncludes" });
+  expect(affected.authority.effectiveFindings[0]?.message).toContain("not statically readable");
+});
 
 // ---------------------------------------------------------------------------------------------------
 // THE FIXTURE-SPECIFIER RESOLUTION CONTROL (the ordinary-visitors precedent): a relative import that resolves

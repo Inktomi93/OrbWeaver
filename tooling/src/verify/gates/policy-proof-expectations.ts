@@ -13,7 +13,7 @@
 //     named driver must resolve at module scope in this very module (the same question `verifyPolicyProofs`
 //     asks at runtime, through the shared `declaresModuleName`), and — tighter than the ruling, because the
 //     alternative is a row asserting nothing — the row must still carry `token`/`line`/`messageIncludes`.
-//   M a `messageIncludes` that cannot discriminate — the substring sits inside the static text of the
+//   M a present `messageIncludes` that is not statically readable, or one that cannot discriminate — the substring sits inside the static text of the
 //     module's ONLY message source (a tautology: it matches every finding the policy can emit), or inside the
 //     static text of TWO OR MORE sources (wave-1 D3: `ui-exports-map-complete`'s `"not"` lives in both the
 //     wrong-target and the dead-target message). §4.1: "Before reaching for `messageIncludes`, check that the
@@ -28,7 +28,8 @@
 // `lib/reviewed-grant-findings.ts:57`, read from); and every STRING-typed argument of a call that receives
 // the context or its sink (`lib/tenancy-scope.ts:97` reports a message it was handed positionally). A
 // source this reader cannot read makes the module UNJUDGED on arm M — a declared limit, never a guess, and
-// exactly the conservative direction: an unreadable module produces no finding here, ever.
+// exactly the conservative direction for discrimination. A present unreadable expectation is separately
+// reported: an unknown substring cannot silently acquire the optional field's absence semantics.
 //
 // A conditional message is TWO SOURCES, one per branch (#2055) — the census reads through
 // `messageAlternatives`, never through the folded `staticSegments` union. One `ctx.report` spelled
@@ -50,8 +51,8 @@
 // method, `JSON.stringify`, a value formatter — still reads as an UNREADABLE source and makes the module
 // UNJUDGED, which is the refusal, never a guess (§12.3).
 //
-// Warning, not error: 60 rows across 20 modules carry no `count` at mint (#1968 owns the burn-down), and the
-// finding is the row, so each repair is local. Hard: a proof row cannot waive the check on its own honesty.
+// Hard/error since #2025: a proof row cannot waive the check on its own honesty. Historical warning debt
+// at mint does not authorize downgrading the current contract.
 //
 // FAMILY `policy-soundness` — the shared reader is `lib/policy-descriptor-read.ts` (`proofRowsOf`,
 // `filesContentsOf`, `discriminationOf` and the `staticSegments` machinery). `discriminationOf` is the one
@@ -103,6 +104,9 @@ const TAUTOLOGY_MESSAGE =
 const SHARED_MESSAGE =
   "`messageIncludes` is contained in the static text of MORE THAN ONE of this module's message sources, so it cannot tell the arm the " +
   'row is about from its sibling (the `"not"`-matches-both-arms shape). Pick a substring only the intended message carries.';
+const UNREADABLE_INCLUDES_MESSAGE =
+  "`expect.messageIncludes` is present but not statically readable — the source reader cannot check this discriminator. " +
+  "Use an exact static string or the shared reader's supported immutable derivation (gate-runtime-standardization.md §6.1).";
 const COUNT_FROM_UNRESOLVED_MESSAGE =
   "`expect.countFrom` names a driver this module declares NOWHERE at module scope — the declared exemption names nothing, so the row is " +
   "back to asserting only `at least one finding` while wearing an exemption's clothes. Name the module-level constant (or import) whose " +
@@ -238,9 +242,13 @@ function judgeRow(ctx: GatePolicyContext, row: ObjectLiteralExpression, census: 
   } else if (expectation === undefined || expectation.getProperty("count") === undefined) {
     ctx.report.node(row, { message: NO_COUNT_MESSAGE });
   }
-  const includes = expectation === undefined ? undefined : descriptorProperty(expectation, "messageIncludes");
+  const includes = expectation?.getProperty("messageIncludes");
   const substring = expectation === undefined ? undefined : staticText(descriptorValue(expectation, "messageIncludes"));
-  if (includes === undefined || substring === undefined) {
+  if (includes === undefined) {
+    return;
+  }
+  if (substring === undefined) {
+    ctx.report.node(includes, { message: UNREADABLE_INCLUDES_MESSAGE });
     return;
   }
   const verdict = discriminationOf(substring, census.sources, census.unreadable);
@@ -355,6 +363,23 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      files: familyFixture(TWO_SOURCE_MODULE('{ count: 1, get messageIncludes() { return "not"; } }')),
+      expect: { count: 1, token: "get", messageIncludes: "not statically readable" },
+      why: "An accessor is a present expectation property whose value requires execution; it must not be mistaken for an absent optional discriminator.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        TWO_SOURCE_MODULE("{ count: 1, messageIncludes: unknownText() }").replace(
+          "import { defineGate }",
+          "declare function unknownText(): string;\nimport { defineGate }",
+        ),
+      ),
+      expect: { count: 1, token: "messageIncludes", messageIncludes: "not statically readable" },
+      why: "A present unreadable discriminator must be reported; silently returning would make an expectation the source reader cannot check look clean.",
+    },
+    {
+      mode: "types",
       files: familyFixture(REGISTRY_DRIVEN_MODULE('{ countFrom, token: "x" }', 'const countFrom = "MISSING_DRIVER";\n')),
       expect: { count: 1, token: "countFrom", messageIncludes: "declares NOWHERE at module scope" },
       why: "A shorthand countFrom has exactly the same driver obligation as a property assignment; ignoring its anchor previously skipped the entire check.",
@@ -452,6 +477,19 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        ...familyFixture(
+          TWO_SOURCE_MODULE('{ count: 1, messageIncludes: WORDS.join(",") }')
+            .replace("import { defineGate }", 'import { WORDS } from "../lib/probe-words.ts";\nimport { defineGate }')
+            .replace("arm A: the entry is not registered.", "arm A: alpha,beta"),
+        ),
+        "tooling/src/verify/lib/probe-words.ts":
+          'const DEFINITION = { alpha: "first", beta: "second" };\nexport const WORDS = Object.freeze(Object.keys(DEFINITION));\n',
+      },
+      why: "A canonical imported frozen key sequence derives a readable discriminator without copying vocabulary; cutting the derived-text reader makes this valid row unreadable and red.",
+    },
     {
       mode: "types",
       files: familyFixture(REGISTRY_DRIVEN_MODULE('{ countFrom, token: "x" }', `${DRIVER}const countFrom = "PORTABLE_CANON_TABLES";\n`)),
