@@ -4,7 +4,7 @@
 // marker parser and stale-marker state from the legacy descriptor are deleted.
 //
 // POPULATION PORT: the legacy descriptor had no scanRoot and was dispatched over the harness workspace.
-// @authored narrows only the deliberately excluded showcase package; that package has no React API subject.
+// Include @showcase explicitly because the predecessor harness admitted that workspace too.
 import type { ClassDeclaration, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
@@ -43,8 +43,10 @@ function isErrorBoundary(node: ClassDeclaration): boolean {
 }
 
 function reactMemberCandidate(node: MorphNode): boolean {
-  const text = node.getText();
-  return text.includes("cloneElement") || text.includes("createRef") || text.includes("Children");
+  if (referenceNamesExport(node, "cloneElement") || referenceNamesExport(node, "createRef")) {
+    return true;
+  }
+  return (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) && referenceNamesExport(node.getExpression(), "Children");
 }
 
 function judgeReactMember(node: MorphNode): { readonly banned: boolean; readonly token?: string; readonly unreadable?: boolean } {
@@ -105,7 +107,7 @@ export const gate = defineGate({
   family: "react-origin",
   authority: "ordinary",
   severity: "error",
-  population: "@authored",
+  population: ["@authored", "@showcase"],
   analysis: "types",
   execution: "selected-files",
   facts: [],
@@ -155,6 +157,15 @@ export const gate = defineGate({
     ],
   }),
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        [REACT_TYPES_HOME]: reactProofModule(),
+        "packages/showcase-plugins/src/index.ts": 'import { cloneElement } from "react"; export const copy = cloneElement;',
+      },
+      expect: { count: 1 },
+      why: "showcase remains in the predecessor harness population even when its current source is clean",
+    },
     {
       mode: "types",
       files: {
@@ -229,6 +240,13 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/near-names.ts": "export const x = [Missing.ChildrenWidget, Missing.cloneElementFactory, Missing.createReference];",
+      },
+      why: "unresolved near-name members are not candidates for a banned React export",
+    },
     {
       mode: "types",
       files: {

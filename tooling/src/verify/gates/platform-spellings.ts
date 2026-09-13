@@ -14,7 +14,7 @@
 // identity, with no arbitrary hop cap.
 //
 // POPULATION PORT: the legacy packages/ predicate maps to @packages across the six product roots. The final
-// composite excludes the one-file showcase package added later; it contains no platform-spelling subject.
+// population also includes @showcase explicitly, retaining that independently registered workspace.
 // Authority is the central ordinary positional waiver. Findings name exact authored positions: Promise for
 // sleep/deferred, the array expression for spread-sort, and the declared escape function name.
 //
@@ -242,6 +242,12 @@ function proof(row: PlatformProofInput): GatePolicyProof {
 }
 
 const PLATFORM_MUST_FLAG = [
+  {
+    files: "export function escapeRegExp(value: string): string { return value; }",
+    at: "packages/showcase-plugins/src/index.ts",
+    expect: { count: 1 },
+    why: "showcase retains the predecessor packages population; a clean current file does not exempt future re-mints",
+  },
   {
     files: "export const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));\n",
     at: "packages/server/src/domain/probe-sleep/expr.ts",
@@ -497,7 +503,7 @@ export const gate = defineGate({
   family: "platform-spellings",
   authority: "ordinary",
   severity: "error",
-  population: "@packages",
+  population: ["@packages", "@showcase"],
   analysis: "types",
   execution: "selected-files",
   facts: [],
