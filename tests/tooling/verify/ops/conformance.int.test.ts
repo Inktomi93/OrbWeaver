@@ -193,6 +193,29 @@ test("both legacy substrates refuse a malformed destination key before any write
   });
 });
 
+test("both legacy substrates refuse a .git control destination in any case before any write (#2333)", async ({ scratch }) => {
+  // The legacy fs door runs `git init` BEFORE its writes and no git afterward, so a planted `.git/config` is
+  // inert there today (measured by cb-v-2333). The refusal keeps every fixture door on one destination
+  // contract, so a later git step on this door cannot reopen the final runner's command-execution vector.
+  const owned = join(scratch, "tmp");
+  mkdirSync(owned);
+  await withProcessEnv("TMPDIR", owned, () => {
+    for (const key of [".git/config", ".GIT/config", "packages/x/.Git/HEAD"]) {
+      for (const fsBacked of [true, false]) {
+        let refusal: unknown;
+        try {
+          verifyGateProofs([destinationGate(key, fsBacked)]);
+        } catch (error) {
+          refusal = error;
+        }
+        expect(readdirSync(owned), `${key} fsBacked=${String(fsBacked)}`).toEqual([]);
+        expect(String(refusal), `${key} fsBacked=${String(fsBacked)}`).toMatch(/example destination names a \.git control segment/u);
+      }
+    }
+    return Promise.resolve();
+  });
+});
+
 // ── #780: the in-memory substrate equivalence sweep ────────────────────────────────────────────────────
 
 const ROOT = join(import.meta.dirname, "..", "..", "..", "..");

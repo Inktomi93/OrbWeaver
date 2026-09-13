@@ -69,6 +69,22 @@ export function repoGitEnvironment(): NodeJS.ProcessEnv {
   return Object.fromEntries(Object.entries(inheritedProcessEnv()).filter(([name]) => !name.startsWith("GIT_")));
 }
 
+/** The git posture for a proof FIXTURE repository, whose files were just written by the proof (#2333).
+ *  `core.hooksPath=/dev/null` disables hooks; `core.fsmonitor=false` beats any repository-level fsmonitor
+ *  command, because command-line config outranks repository config. The fixture grammar already refuses a
+ *  `.git` destination (`lib/policy-validation.ts#namesGitControlSegment`), which is the load-bearing defense:
+ *  this posture covers only the runner's own `init`/`add`, and the resource readers' later git reads in the
+ *  same root do not use it. Measured 2026-09-13: with the grammar clause cut, a planted `.git/config` fsmonitor
+ *  still ran during the proof pass with this posture in place. Each half is pinned against a live payload in
+ *  `tests/tooling/verify/lib/repo-paths.test.ts`. */
+export const FIXTURE_GIT_CONFIG_ARGS: readonly string[] = ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false"];
+
+/** `repoGitEnvironment` plus host-config isolation: the operator's global and system git config can also
+ *  name commands (fsmonitor, filter drivers), and a fixture repository has no business reading either. */
+export function fixtureGitEnvironment(): NodeJS.ProcessEnv {
+  return Object.fromEntries([...Object.entries(repoGitEnvironment()), ["GIT_CONFIG_GLOBAL", "/dev/null"], ["GIT_CONFIG_NOSYSTEM", "1"]]);
+}
+
 /** The authoritative git-changed classification: staged + unstaged vs HEAD, with rename identity. */
 export function gitChangedPathClassification(root: string = ROOT): ChangedPathClassification {
   const result = runNicedSync("git", [...GIT_READ_PREFIX, "diff", "--name-status", "-z", "--find-renames", "HEAD"], { cwd: root, env: repoGitEnvironment() });

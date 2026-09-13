@@ -20,6 +20,7 @@ import type { PassResult } from "../contract/pass.ts";
 import type { ConformanceFailure } from "../contract/scoped.ts";
 import { runPass } from "../lib/pass.ts";
 import { assertPolicyRepoPath } from "../lib/policy-repo-inventory.ts";
+import { namesGitControlSegment } from "../lib/policy-validation.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/gate-conformance.repo.int.test.ts");
 
@@ -55,6 +56,9 @@ function exampleFiles(ex: GateExample, gate: GateDescriptor): Record<string, str
 function assertExampleDestinations(files: Readonly<Record<string, string>>): void {
   for (const key of Object.keys(files)) {
     assertPolicyRepoPath(key, "example destination");
+    if (namesGitControlSegment(key)) {
+      throw new Error(`example destination names a .git control segment: ${key}`);
+    }
   }
 }
 

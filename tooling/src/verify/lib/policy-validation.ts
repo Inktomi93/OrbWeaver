@@ -98,6 +98,24 @@ export function assertRepoPathIdentity(value: unknown, label = "path"): asserts 
   }
 }
 
+/** A proof FIXTURE destination that names git's control directory (#2333). Both fixture runners create a
+ *  real repository in the fixture root, and the resource runner runs `git add --all` after writing the
+ *  fixture, so a `.git/config` destination is repository configuration git obeys, including
+ *  `core.fsmonitor`, which it executes. Case-insensitive because `.GIT` is the same directory on a
+ *  case-insensitive filesystem. This is a fixture-destination rule only: repo-path identity in general
+ *  (`assertRepoPathIdentity`) keeps admitting the segment for its other callers. */
+export function namesGitControlSegment(path: string): boolean {
+  return path.split("/").some((segment) => segment.toLowerCase() === ".git");
+}
+
+/** A declared proof destination: a repo-path identity that also names no `.git` control segment. */
+function assertFixtureDestination(path: string, label: string): void {
+  assertRepoPathIdentity(path, label);
+  if (namesGitControlSegment(path)) {
+    invalid(`${label} names a .git control segment: ${path}`);
+  }
+}
+
 export function normalizePathSet(values: readonly string[], label: string): readonly string[] {
   if (!Array.isArray(values)) {
     invalid(`${label} must be an array`);
@@ -157,7 +175,7 @@ function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: strin
     invalid(`${label}.links must be a nonempty path-to-target map when present`);
   }
   for (const [path, target] of entries) {
-    assertRepoPathIdentity(path, `${label}.links path`);
+    assertFixtureDestination(path, `${label}.links path`);
     nonBlank(target, `${label}.links target`);
     if (Object.hasOwn(files, path)) {
       invalid(`${label}.links path is also a declared file: ${path}`);
@@ -258,7 +276,7 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
     invalid(`${label}.files must be a nonempty explicit path-to-content map`);
   }
   for (const [path, content] of entries) {
-    assertRepoPathIdentity(path, `${label}.files path`);
+    assertFixtureDestination(path, `${label}.files path`);
     if (typeof content !== "string") {
       invalid(`${label}.files content must be a string`);
     }

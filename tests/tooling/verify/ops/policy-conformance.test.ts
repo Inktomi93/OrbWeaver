@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
@@ -650,6 +650,44 @@ test("a link nested under an earlier link cannot write outside the fixture root,
   // The escape assertion comes FIRST: against the pre-fix runner it names the symlink created in OUTER.
   expect(readdirSync(outer)).toEqual([]);
   expect(String(refusal)).toMatch(/links path escape is an ancestor of declared destination escape\/planted\.ts/u);
+  expect(readdirSync(tmpdir()).filter((name) => name.startsWith(POLICY_CONFORMANCE_TEMP_PREFIX))).toEqual(rootsBefore);
+});
+
+/** A payload that only creates `sentinel`. Valid git config names it, so a refused run is never a config
+ *  parse failure wearing a refusal's clothes. */
+function sentinelPayload(scratch: string, name: string): { readonly config: string; readonly sentinel: string } {
+  const sentinel = join(scratch, `sentinel-${name}`);
+  const script = join(scratch, `payload-${name}.sh`);
+  writeFileSync(script, `#!/bin/sh\ntouch '${sentinel}'\nexit 1\n`);
+  chmodSync(script, 0o755);
+  return { config: `[core]\n\tfsmonitor = ${script}\n`, sentinel };
+}
+
+test("a .git/config fixture cannot run a command during the runner's git add — refused before any temp root exists (#2333)", ({ scratch }) => {
+  const { config, sentinel } = sentinelPayload(scratch, "resource-runner");
+  const rootsBefore = readdirSync(tmpdir()).filter((name) => name.startsWith(POLICY_CONFORMANCE_TEMP_PREFIX));
+  const planted = defineGate({
+    ...nativeResourcePolicy(),
+    id: "git-config-destination",
+    family: "git-config-destination",
+    mustPass: [
+      {
+        mode: "resource",
+        files: { "vitest.config.ts": 'export default { test: { include: ["allowed"] } };', "selector.js": "", ".git/config": config },
+        why: "repository config written before `git init` survives the reinitialize and names fsmonitor for `git add --all`",
+      },
+    ],
+  } as GatePolicy);
+
+  let refusal: unknown;
+  try {
+    verifyPolicyProofs([planted]);
+  } catch (error) {
+    refusal = error;
+  }
+  // The execution assertion comes FIRST: against the pre-fix runner it is the sentinel the payload created.
+  expect(existsSync(sentinel)).toBe(false);
+  expect(String(refusal)).toMatch(/files path names a \.git control segment: \.git\/config/u);
   expect(readdirSync(tmpdir()).filter((name) => name.startsWith(POLICY_CONFORMANCE_TEMP_PREFIX))).toEqual(rootsBefore);
 });
 

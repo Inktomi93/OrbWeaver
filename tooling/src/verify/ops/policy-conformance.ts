@@ -19,7 +19,7 @@ import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyProofRows } from "../lib/policy-proof-rows.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
 import { assertGatePolicyDescriptor } from "../lib/policy-validation.ts";
-import { ROOT, repoGitEnvironment } from "../lib/repo-paths.ts";
+import { FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment, ROOT } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/ops/policy-conformance.test.ts");
 
@@ -180,12 +180,12 @@ function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<Exam
       symlinkSync(target, absolute);
     }
     // Resource proofs own their index, including native config and tracked-file consumers.
-    const env = repoGitEnvironment();
+    const env = fixtureGitEnvironment();
     for (const args of [
       ["init", "--quiet"],
       ["add", "--all"],
     ]) {
-      const git = runNicedSync("git", ["-c", "core.hooksPath=/dev/null", ...args], { cwd: root, env });
+      const git = runNicedSync("git", [...FIXTURE_GIT_CONFIG_ARGS, ...args], { cwd: root, env });
       if (git.status !== 0) {
         throw new Error(`proof Git ${args[0]} failed: ${git.stderr.trim()}`);
       }
