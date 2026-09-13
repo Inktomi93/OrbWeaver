@@ -355,9 +355,10 @@ Every dispatched worktree lane obeys these or its work gets refused at the merge
    exception, and record the reason plus the checks executed or still owed.
 4. **Merging main into your branch:** merge normally through the configured hooks and commit any
    conflict resolution without bypass by default; main integration remains the orchestrator's operation.
-5. **Recreated a worktree manually?** `git worktree add` does NOT fire the install hook — run
-   `pnpm worktree:bootstrap` (install + the agent-memory link) or every gate lies and the lane boots
-   with an empty memory index.
+5. **Recreated a worktree manually?** `git worktree add` invokes Git's `post-checkout` hook, not
+   Claude's `WorktreeCreate` event. The configured Lefthook `bootstrap-deps` command installs missing
+   dependencies when its hook is available; it does not create the agent-memory links (#1267).
+   Run `pnpm worktree:bootstrap` to complete provisioning even when dependencies are already present.
 6. **Rendered proof from a worktree:** `:5173` serves MAIN, never your tree — use
    `snap --isolated --ref <your-sha>` or screenshot from the CT browser.
 7. **Scratch files are lane-unique** (prefix with your lane's short name); a shared name has landed one

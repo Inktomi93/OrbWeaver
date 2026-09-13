@@ -180,8 +180,9 @@ it into the linked Project issue — no lane touches `work:item`.
   2026-09-05, #1627: dropping `selectInboxSince`'s predicate left the sweep fully green).
 - **Worktree lifecycle rides the CUSTOM hook pair** (`WorktreeCreate`/`WorktreeRemove`):
   `isolation: "worktree"` dispatches get a WORKING tree for free — never add "run pnpm install" to those
-  briefs. A MANUAL `git worktree add` bypasses the hook and MUST run `pnpm worktree:bootstrap` (§L.5) or
-  every gate lies and the lane boots with an empty memory index.
+  briefs. A manual `git worktree add` invokes Git's `post-checkout` hook, not Claude's `WorktreeCreate`
+  event. Lefthook's `bootstrap-deps` installs missing dependencies when its hook is available, but does
+  not create agent-memory links. Run `pnpm worktree:bootstrap` to complete provisioning (§L.5, #1267).
 - **Teardown does NOT fire on agent completion** — worktrees accumulate; sweep by hand at end of session,
   never `rm -rf` a hook-created tree (it strands registered metadata), and never tear down a lane you
   might resume (a SendMessage resurrection lands in a deleted cwd). **A worktree dir with no `.git`
