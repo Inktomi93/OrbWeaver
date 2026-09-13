@@ -18,9 +18,13 @@
 //
 // IDENTITY, NOT SPELLING: the factory is the EXPORTED DECLARATION in its own home, resolved through the
 // shared project-home reader, so `createPersistedStore` imported under an alias is the same call and a
-// same-named local function is not. The legacy check compared the callee's text. The home itself is bound
-// through `ctx.files` and receipted: if either door moves or stops exporting its factory, the receipt
-// REFUSES the run rather than reporting a silent zero.
+// same-named local function is not. The legacy check compared the callee's text. Each home is bound
+// through `ctx.files` and receipted ON ITS OWN, one `population` receipt per door with the door's path as its
+// `source` (#2029): a door that MOVES (its file absent → `members 0`) or STOPS EXPORTING its factory
+// (present → `unresolved 1`) refuses the run by itself. One SUMMED receipt could not say this — an absent
+// persist home beside a present draft home summed to `members 1 / unresolved 0`, a clean receipt over a
+// policy that could no longer prove a single `createPersistedStore` mint — so the old sentence claiming a
+// refusal was false for exactly the one-door move, and the family test pins that shape now.
 //
 // THE DOOR READING IS FAIL-CLOSED, AND THAT IS A THIRD ARM RATHER THAN AN ATTRIBUTION (#2022).
 // `classifyProjectHomeOrigin` answers three ways and the door read is the ACCUSING direction — a `home`
@@ -53,7 +57,7 @@
 // legacy example loads it. Its successor proof is therefore CONSTRUCTED, not replayed. Two classified
 // differences, both invisible to a replay and both measured:
 //   1. ANCHOR MOVE. Legacy gated staleness on the PERSIST DOOR; this policy gates on `main.tsx` (the
-//      mode-(B) note above). So a doors-only fileset fires all 14 rows in legacy and none here. With each
+//      mode-(B) note above). So a doors-only fileset fires every registry row in legacy and none here. With each
 //      engine's own anchor present the two verdicts are identical, including the one-name-persisted arm.
 //   2. IDENTITY, NOT TEXT. Replaying the legacy rows over a fileset WITHOUT the factory home makes this
 //      policy REFUSE (`persisted-store-registry/receipt`) where legacy reported — the designed answer, not
@@ -71,7 +75,6 @@ const PERSISTED_STORE_HOME = { path: "packages/client/src/state/create-persisted
 const ENTITY_DRAFT_HOME = { path: "packages/client/src/state/create-entity-draft-store.ts", names: ["createEntityDraftStore"] } as const;
 /** The real-tree anchor for the stale arm — never a factory home (see the header's mode-(B) note). */
 const STALE_ARM_ANCHOR = "packages/client/src/main.tsx";
-const FACTORY_POPULATION = "persist store factories";
 
 /** One device-local ruling. Deliberately NOT the legacy `ExemptionTable`: that type conflates allowlists,
  *  sanctioned homes and deferred debt, and these rows are none of those — they are the §12.1 decision that
@@ -307,12 +310,9 @@ export const gate = defineGate({
         },
       ],
       evaluate: (): void => {
-        ctx.receipt({
-          kind: "population",
-          source: FACTORY_POPULATION,
-          members: persistedHome.members + draftHome.members,
-          unresolved: persistedHome.unresolved + draftHome.unresolved,
-        });
+        // ONE RECEIPT PER DOOR, never a sum: a sum lets the present door's member hide the absent one's zero.
+        ctx.receipt({ kind: "population", source: PERSISTED_STORE_HOME.path, members: persistedHome.members, unresolved: persistedHome.unresolved });
+        ctx.receipt({ kind: "population", source: ENTITY_DRAFT_HOME.path, members: draftHome.members, unresolved: draftHome.unresolved });
         // The stale arm is a WHOLE-TREE claim. Without the anchor a fixture (or any partial fileset) would
         // report every registry row as stale — the misfire §4.5 warns about.
         if (!ctx.files.map(ctx.relativePath).includes(STALE_ARM_ANCHOR)) {
@@ -397,6 +397,22 @@ export const gate = defineGate({
         "persist door reads `shell`, finds it registered and reports NOTHING, and attributing it to the draft door finds no " +
         "options bag and reports the store-NAME message instead — each mis-attribution kills the row, which is what makes it a " +
         "proof of the third arm rather than of any finding at all",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string, initial: () => unknown): unknown;\n",
+        "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
+        "packages/client/src/state/x.ts":
+          'import { createPersistedStore } from "./create-persisted-store.ts";\ndeclare const storeName: string;\nexport const s = createPersistedStore(storeName, () => ({}));\n',
+      },
+      expect: { count: 1, messageIncludes: "store NAME cannot be read statically" },
+      why:
+        "THE UNREADABLE-NAME ARM (#2026), reachable and pinned by no row before this one: the door is PROVEN (the persist " +
+        "home resolves), but the store name is a `string`-typed binding with no static value, so the registry cannot judge " +
+        "it and the call is reported rather than admitted. The count alone cannot pin it — this arm emits ONE finding exactly " +
+        "like the unregistered-name arm — so `messageIncludes` names text only `UNREADABLE_NAME` carries; silence the branch " +
+        "(or fold it into `MESSAGE`) and this row reds",
     },
   ],
   mustPass: [

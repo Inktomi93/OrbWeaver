@@ -166,7 +166,41 @@ test("persisted-store-registry REFUSES when a persist factory home no longer exp
   });
 
   expect(renamed.toolErrors).toMatchObject([{ policyId: "persisted-store-registry", phase: "receipt" }]);
-  expect(renamed.policies[0]?.receipts).toMatchObject([{ kind: "population", source: "persist store factories", members: 1, unresolved: 1 }]);
+  expect(renamed.policies[0]?.receipts).toEqual([
+    { kind: "population", source: "packages/client/src/state/create-entity-draft-store.ts", members: 1, unresolved: 0 },
+    { kind: "population", source: "packages/client/src/state/create-persisted-store.ts", members: 0, unresolved: 1 },
+  ]);
+});
+
+// #2029 — the header used to promise that a MOVED door refuses, while the two doors shared ONE summed receipt:
+// an absent persist home (`members 0 / unresolved 0`) beside a present draft home (`members 1`) summed to a
+// clean `members 1`, so the run passed with no provable `createPersistedStore` mint. Each door is now its own
+// receipt; this is the shape the sum could not see, in both directions.
+test("persisted-store-registry REFUSES when exactly ONE factory door is absent from the fileset", () => {
+  const draftOnly = passOf(persistedStoreRegistry, {
+    "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
+  });
+  const persistOnly = passOf(persistedStoreRegistry, {
+    "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string, initial: () => unknown): unknown;\n",
+  });
+
+  expect(draftOnly.toolErrors).toMatchObject([{ policyId: "persisted-store-registry", phase: "receipt" }]);
+  expect(draftOnly.authority.withheldPolicyIds).toEqual(["persisted-store-registry"]);
+  expect(persistOnly.toolErrors).toMatchObject([{ policyId: "persisted-store-registry", phase: "receipt" }]);
+  expect(persistOnly.authority.withheldPolicyIds).toEqual(["persisted-store-registry"]);
+});
+
+test("persisted-store-registry does NOT refuse when both doors are present and exporting — the control for the arm above", () => {
+  const both = passOf(persistedStoreRegistry, {
+    "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string, initial: () => unknown): unknown;\n",
+    "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
+  });
+
+  expect(both.toolErrors).toEqual([]);
+  expect(both.policies[0]?.receipts).toEqual([
+    { kind: "population", source: "packages/client/src/state/create-entity-draft-store.ts", members: 1, unresolved: 0 },
+    { kind: "population", source: "packages/client/src/state/create-persisted-store.ts", members: 1, unresolved: 0 },
+  ]);
 });
 
 test("registry-assembly-at-door-only REFUSES when the registry home no longer exports both factories", () => {
