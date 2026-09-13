@@ -672,7 +672,17 @@ test.describe("final policy planner", () => {
       }),
     });
     const gates = [
-      policy("z-policy", { family: "shared", analysis: "resource", population: { of: "none", why: "resource-only" } }),
+      defineGate({
+        ...policy("z-policy", { family: "shared", analysis: "resource", population: { of: "none", why: "resource-only" } }),
+        mustRefuse: [
+          {
+            mode: "resource",
+            files: { "tooling/package.json": "{}\n" },
+            expect: { messageIncludes: "fixture refusal" },
+            why: "unsupported input must refuse",
+          },
+        ],
+      }),
       policy("a-policy", { family: "shared", severity: "warning", execution: "entire-population", facts: [rosterFact] }),
     ];
     const list = planPolicyCommand({ request: { mode: "list", json: true }, corpus: { gates, families: ["shared"] } });
@@ -680,8 +690,14 @@ test.describe("final policy planner", () => {
       ok: true,
       plan: {
         policies: [
-          { id: "a-policy", workItem: 1584, facts: ["roster-fact"], resources: [] },
-          { id: "z-policy", workItem: null, facts: [], resources: [{ kind: "package-metadata", id: "tooling" }] },
+          { id: "a-policy", workItem: 1584, facts: ["roster-fact"], resources: [], proofCounts: { mustFlag: 1, mustPass: 1, mustRefuse: 0 } },
+          {
+            id: "z-policy",
+            workItem: null,
+            facts: [],
+            resources: [{ kind: "package-metadata", id: "tooling" }],
+            proofCounts: { mustFlag: 1, mustPass: 1, mustRefuse: 1 },
+          },
         ],
         families: ["shared"],
       },
@@ -694,7 +710,15 @@ test.describe("final policy planner", () => {
     });
     expect(explain).toMatchObject({
       ok: true,
-      plan: { policies: [{ id: "z-policy", resources: [{ kind: "package-metadata", id: "tooling" }], proofCounts: { mustFlag: 1, mustPass: 1 } }] },
+      plan: {
+        policies: [
+          {
+            id: "z-policy",
+            resources: [{ kind: "package-metadata", id: "tooling" }],
+            proofCounts: { mustFlag: 1, mustPass: 1, mustRefuse: 1 },
+          },
+        ],
+      },
     });
   });
 

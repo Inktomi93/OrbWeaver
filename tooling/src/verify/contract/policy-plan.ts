@@ -2,7 +2,7 @@
 // the CLI composition root supplies the reviewed scope manifest and ResourceHost-derived path manifests.
 import type { Project } from "ts-morph";
 import type { GateAuthority, GateSeverity } from "./gate-authority.ts";
-import type { GatePolicyExecution } from "./policy.ts";
+import type { GatePolicyExecution, PolicyProofArm } from "./policy.ts";
 import type { PolicyOwnerPlanMode, PolicyPassInput, PolicyPassResult, PolicyPopulationReceipt } from "./policy-pass.ts";
 import type { GatePolicyAnalysis } from "./policy-primitives.ts";
 import type { PolicyProgramMembership, PolicyScopeRequest, PolicyScopeResolution, PolicySemanticPath } from "./policy-scope.ts";
@@ -50,7 +50,7 @@ export interface PolicyRosterEntry {
   readonly resources: readonly GateResourceRequest[];
   readonly message: string;
   readonly fix: string | null;
-  readonly proofCounts: { readonly mustFlag: number; readonly mustPass: number };
+  readonly proofCounts: Readonly<Record<PolicyProofArm, number>>;
 }
 
 export interface PlannedPolicy {

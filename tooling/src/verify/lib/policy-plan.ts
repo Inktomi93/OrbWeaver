@@ -21,6 +21,7 @@ import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { parsePolicyCommand } from "./policy-command.ts";
 import { resolveEffectivePopulation } from "./policy-effective-population.ts";
 import { runPolicyPass } from "./policy-pass.ts";
+import { policyProofArmCounts } from "./policy-proof-rows.ts";
 import { resolvePolicyScope } from "./policy-scope.ts";
 import { refuseSelection } from "./policy-selection.ts";
 import { isPolicySourceCandidate, policySourceCandidates } from "./policy-source-candidate.ts";
@@ -50,7 +51,7 @@ function rosterEntry(policy: GatePolicy): PolicyRosterEntry {
     resources: canonicalResourceDeclarations(policy.resources),
     message: policy.message,
     fix: policy.fix ?? null,
-    proofCounts: { mustFlag: policy.mustFlag.length, mustPass: policy.mustPass.length },
+    proofCounts: policyProofArmCounts(policy),
   };
 }
 
