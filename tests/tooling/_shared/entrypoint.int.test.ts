@@ -1,6 +1,6 @@
 // The DIRECT-INVOCATION refusal (tooling/src/_shared/entrypoint.ts) — the permanent pin for a lying
 // instrument (#509). `tooling/src/verify/ops/*.ts` are LIBRARY modules with no main: running one loaded it,
-// executed nothing and exited 0. GATE-AUTHORING.md §8.1 prescribed exactly that as "the live pass" for
+// executed nothing and exited 0. docs/history/gate-authoring-legacy-2026-09-13.md §8 prescribed exactly that as "the live pass" for
 // months, so a lane following the doc's letter got a green that never ran a gate — and the doc's literal
 // spelling (`pnpm exec tsx …/ops/structure.ts`) was worse still: pnpm printed its own lockfile ✓ lines over
 // the silence. A bare zero must mean "I could not run", never "clean".

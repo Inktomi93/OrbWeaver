@@ -1,5 +1,5 @@
 // Policy: tooling-ops-direct-invocation (#509/#527) — an `ops/**` module is a LIBRARY, and a library RUN as
-// a program loads, executes nothing and exits 0: a bare zero that reads as "clean" (GATE-AUTHORING.md §8.1
+// a program loads, executes nothing and exits 0: a bare zero that reads as "clean" (docs/history/gate-authoring-legacy-2026-09-13.md §8
 // prescribed exactly that spelling for months, and pnpm printed its own ✓ lines over the silence). Every
 // tooling/src/<tool>/ops/** module must call the refusal at MODULE SCOPE, or BE a program (a module-scope
 // call to the one entry runner — stack.sh's node halves). Posture: comment-SAFE (statement nodes only).

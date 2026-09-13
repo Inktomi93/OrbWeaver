@@ -388,7 +388,7 @@ export const gate: GateDescriptor = {
       why: "important + a variant chain (focus:!h-9) — Tailwind puts `!` on the utility, so stripping happens AFTER the `:` split",
     },
     {
-      // Mode-(B) proof (GATE-AUTHORING.md §4.3b): a project that loads the real-tree anchor but NONE of
+      // Mode-(B) proof (GATE-AUTHORING.md §4.4a): a project that loads the real-tree anchor but NONE of
       // the ALLOWLIST paths — exactly what a deleted/renamed survivor looks like from this gate's vantage.
       // Before the fix the stale arm was gated on the row's OWN file being loaded, so a project like this
       // one (which never loads any exempted path) silently reported nothing — `tag-settings-row.tsx`

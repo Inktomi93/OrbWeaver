@@ -1,4 +1,4 @@
-// `pnpm gate:new <kebab-name>` — scaffolds a structural gate with EVERY coupled site stubbed, then prints
+// `pnpm gate:new <kebab-name> (--singleton-reason "<reason>" | --family-of <existing-gate-id> --dependency <canonical-lib-path>#<declaration-name>)` — scaffolds a structural gate with EVERY coupled site stubbed, then prints
 // the ones that live outside the gate file. The template is the law executable: the shape is COPIED
 // instead of remembered, which is exactly why it must emit the CURRENT contract.
 //
