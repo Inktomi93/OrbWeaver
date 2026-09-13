@@ -336,6 +336,26 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import * as schema from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(schema.characters).values(row).onConflictDoUpdate({ target: schema.characters.id, setWhere: eq(schema.characters.ownerId, ownerId), set: { name: row.name } });\n}\n',
+      },
+      why: "THE DOTTED NAMESPACE ACQUITTAL (#2341): a namespace-spelled owner-scoped table remains safe when `setWhere` predicates on that same qualified table receiver. `predicatesTableColumn` must compare the full `schema.characters` receiver text; reducing it to Identifier-only falsely accuses this correctly belted upsert",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import * as schema from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(schema["characters"]).values(row).onConflictDoUpdate({ target: schema["characters"].id, setWhere: eq(schema["characters"]["ownerId"], ownerId), set: { name: row.name } });\n}\n',
+      },
+      why: 'THE BRACKETED NAMESPACE ACQUITTAL (#2341): `schema["characters"]` is the same admitted table and its bracketed owner-column read is the same guard. This independently pins both element-access member reads and the qualified receiver comparison instead of borrowing the dotted row\'s coverage',
+    },
+    {
+      mode: "types",
+      files: {
         "packages/db/src/schema/plugin.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
