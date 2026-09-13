@@ -11,8 +11,9 @@ updated: 2026-09-13
 > convention, one exit contract, one summary artifact, generalized over a self-describing stage registry.
 > AGENTS.md §4 states the doctrine ("iterate on `--changed`, claim done only after `pnpm check`, pre-push is
 > `--push`, the works is `--full`"); this doc is its as-built spec. The CODE is truth on any conflict:
-> `tooling/src/verify/{run,registry,selection,tests-type-membership,tests-execution-membership}.ts`,
-> `tooling/src/verify/{report,scoped}.ts`, `tooling/src/verify/gates/verify-registry-parity.ts`, `lefthook.yml`,
+> `tooling/src/verify/ops/{run,scoped,tests-type-membership,tests-execution-membership}.ts`,
+> `tooling/src/verify/lib/{registry,selection,run-render}.ts`,
+> `tooling/src/verify/gates/verify-registry-parity.ts`, `lefthook.yml`,
 > `.github/workflows/ci.yml`.
 
 ## 1. Why ONE surface
@@ -191,7 +192,7 @@ never shells out to git.
 ```
 reports/
   runs/<instrument>/<runId>/…      ← every byte a run writes, and the ONLY place it writes
-  runs/<instrument>/<runId>/.inflight   the marker: dropped at open, deleted at publish
+  runs/<instrument>/<runId>/.inflight   the marker: dropped at open, deleted at successful finish
   verify.json          → symlink into runs/verify/<runId>/verify.json
   verify/              → symlink into runs/verify/<runId>/stages/   (per-stage `<stage>.log`)
   check-structure.json → symlink into runs/structure/<runId>/check-structure.json
@@ -311,7 +312,7 @@ resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads 
   story; the CT harness/config; a shared ui GROUP CORE like `charts/chart/**` or `markdown/**` internals):
   any changed path matching a trigger escalates to running that trigger's mirror DIR(s), a superset of the
   individual mirrors. This is UNDER-selecting by design — honest ONLY because a scoped green is NEVER the
-  coverage verdict (§3.7): a whole run remains the coverage verdict. The sweep table lives in `selection.ts`
+  coverage verdict (§3.7): a whole run remains the coverage verdict. The sweep table lives in `lib/ct-view.ts`
   (`CT_SWEEP_TRIGGERS`), each row carrying its incident class. No CT-relevant change ⇒ the stage no-ops.
 - **`scopedArgv` returns the concrete scoped argv, OR a sentinel:**
   - `"whole-only"` ⇒ **DEFER** at a scoped tier (a cross-file reconciliation — registry/coverage/parity/
@@ -337,7 +338,7 @@ Two live parity gates keep the registry and the scripts honest, both directions:
 
 - **`verify-registry-parity`** (`tooling/src/verify/gates/verify-registry-parity.ts`, docRow cites §3.6):
   - Arm 1 — every `package.json` script matching the verification shape
-    (`check*`/`test*`/`lint*`/`typecheck*`/`depcruise*`/`e2e*`/`cpd*`/`format*`) must be a registry stage's
+    (`check*`/`test*`/`lint*`/`typecheck*`/`depcruise*`/`e2e*`/`cpd*`/`format*`/`knip*`) must be a registry stage's
     `pnpm <script>` argv, OR on the small `NON_STAGE_ALLOWLIST` (the verify host + its check alias, the
     WRITERS `lint:fix`/`format`/`format:docs`, the depcruise mermaid ARTIFACT generators, `cpd:report`,
     the `check:show` inspector, `depcruise:affected`). A forgotten script is RED.
@@ -464,7 +465,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 - **`tests:execution-membership`** (#22 — `tooling/src/verify/ops/tests-execution-membership.ts`)
   — `types:ownership`'s EXECUTION-lane sibling: THREE directions of "a test file is run by SOME
   runner, a runner glob matches SOME file, and no file is run by MORE than one runner". Asks each runner its
-  own `--list` view (`vitest list --filesOnly --json` for all six node projects — each entry carries a
+  own `--list` view (`vitest list --filesOnly --json` for all seven configured Vitest projects — each entry carries a
   `projectName`, which direction 3 reads; `playwright test --list --reporter=json` for `playwright.config.ts`
   — run with `E2E_LIVE=1` so `@live`-tagged specs, structurally matched but grep-skipped at routine run time,
   still count — and `playwright-ct.config.ts`), never re-parses glob strings (drift-proof). A `tests/**`
@@ -472,9 +473,10 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   (the marinara silent-no-op disease — its server `pnpm test` globs matched nothing, direction 1); a file
   claimed by TWO OR MORE runtime views REDs naming every colliding view (direction 3, #1096) — one-lane-ness
   used to be an unverified construction property of the include/exclude sets (read by hand off `vitest
-  list --json`'s per-entry `projectName`), now a checked invariant. Direction 3's runtime-view set is every
-  vitest project EXCEPT `types` (typecheck-only, `test.include: []` — no runtime pass, so it cannot be a
-  second EXECUTOR of anything) plus the two playwright configs, each counted separately.
+  list --json`'s per-entry `projectName`), now a checked invariant. Direction 3's runtime-view set is the five
+  Vitest runtime projects plus the two Playwright configs, each counted separately. The
+  `types-node`/`types-browser` projects are typecheck-only (`test.include: []`), so neither is a runtime
+  executor.
 - **`structure:db-baseline`** (`tooling/src/verify/ops/db-baseline-parity.ts`) — the
   committed squashed migration (`packages/db/src/migrations/0000_baseline.sql`) vs what the live
   `@orb/db/schema` generates, statement-set equal after whitespace/semicolon normalization
