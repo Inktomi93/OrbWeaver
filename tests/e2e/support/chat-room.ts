@@ -20,6 +20,7 @@
 import type { MessageId } from "@orb/kit/ids";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { HOST_BAND, openContextSections } from "../../support/node/open-context-sections.ts";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
 // Chat CTA. Each row exposes a `aria-label="Chat with <name>"` button — visually hover-revealed on fine
@@ -338,9 +339,16 @@ export async function openContextTab(page: Page, label: string): Promise<void> {
  *  former Group tab is a host+group-gated SECTION ("Group behavior") inside the ONE "This chat" tab
  *  (chats-section.tsx `settings` → settings-context-tab.tsx — the §8.1 permission-omit moved from tab to
  *  section granularity). Gates on the section's real h3, so a caller acting on its controls can't race the
- *  suspended group-config read. */
+ *  suspended group-config read.
+ *
+ *  AND THE TAB IS AN INDEX OF DISCLOSURES (#830, `195085e2c`) — a closed Base UI panel is REMOVED from the
+ *  DOM, not merely hidden, so the section's heading does not exist until its band is pressed. Group behavior
+ *  lives inside the host-ops band, which is the one section that defaults CLOSED while its own children stay
+ *  open, so ONE press reaches it. Skipping that walk is what made this helper's heading gate fail with
+ *  `element(s) not found` in four specs (#1851); the walker itself is the CT side's, shared. */
 export async function openGroupBehaviorSection(page: Page): Promise<void> {
   await openContextTab(page, "This chat");
+  await openContextSections(page, HOST_BAND, "Group behavior");
   await expect(page.getByRole("heading", { name: "Group behavior" })).toBeVisible({ timeout: 15_000 });
   // The section body suspends on `chat.getGroupConfig` behind a skeleton, so the HEADING lands before any
   // control exists. Gate on the reply-mode toggle — the first control of the resolved form — or a caller
