@@ -6,7 +6,7 @@ updated: 2026-09-13
 
 # World/type/config preservation: independent source audit
 
-## Verdict and boundary
+## Original audit verdict and boundary
 
 **One confirmed P2 defect: concrete compiler programs disappear from discovery when another config extends them.** Current checkout exposure is latent: all three extended configs are explicitly empty templates, and all 11 concrete programs remain discovered. A scratch native compiler reproduction confirms the defect; a green run over today's discovered roster cannot prove discovery completeness.
 
@@ -95,12 +95,34 @@ Read-only lookup in `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` 
 
 ## LEDGER ROWS (1 row)
 
-Proposal only; primary owns recording, issue creation/claim, and lifecycle transitions.
+Primary filed and claimed [#2335](https://github.com/Inktomi93/orbweaver/issues/2335) after independently re-deriving W1 on `7fe37462f`. Primary owns shared-ledger recording and lifecycle transitions. The original audit observations above remain historical evidence.
 
-| Subject | Source/receipt | Defect | Proposed classification | Repair batch |
-| - | - | - | - | - |
-| Compiler-program discovery W1 | `policy-program-membership.ts:248-269`; native scratch parent TS2322 while discovered child passes | An `extends` edge removes a concrete parent from discovery and explicit native execution | P2; new on this bounded lookup; latent in current config population | Shared reader plus permanent discovery, executor, and routing controls described above |
+| module | wave/path | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| `compiler-program-discovery` | W1 · `tooling/src/verify/lib/policy-program-membership.ts` | An `extends` edge removes a concrete parent from discovery and explicit native execution | reader population omission · P2 | #2335; independently reviewed repair; integration verification owed | Native scratch parent TS2322 while discovered child passes; permanent reader, executor, and routing controls below |
 
-## Delivery and remaining verification
+## Original audit delivery and remaining verification
 
 Only this report is authorized for commit. Dependency installation used `pnpm install --frozen-lockfile --ignore-scripts`; no lockfile changes. Verification consists of the scratch discovery/native compiler probes, independent 14-config exposure census, scoped documentation formatting check, and diff whitespace check. No existing behavioral suite was rerun. The #1584 standing scoped-commit exception applies; consolidated verification and catalog reconciliation remain primary-owned. Find the exact delivery commit with `git log -1 -- docs/reviews/gate-runtime/v-world-type-config-preservation-2026-09-13.md`, then inspect `git show --stat <sha>`; the final handoff supplies the immutable commit receipt.
+
+## #2335 repair follow-up
+
+Primary authorized implementation after the audit. Report checkpoint `79757db67` was rebased onto local main `7fe37462f` as `a21006556`; no conflicts. Source ownership is limited to shared compiler discovery and coupled membership/typecheck/routing tests. No held-materializer or main-ledger edits.
+
+The repair removes inheritance as a population exclusion and still validates local inheritance before filtering explicit templates. Native config parsing, reference traversal, containment, and malformed-input refusal remain in their existing homes. No executor exception, roster, or routing workaround.
+
+Red-first: the unchanged reader failed both `files`/`include` cases, the shared-root/different-options case, and the native CLI case. The CLI failure was expected exit 1 but actual exit 0 with only `PASS tsconfig.child.json`. Receipt: `reports/runs/test/orbweaver-2258916-2026-09-13T12-32-34-746Z/test-report.json`. The same run’s routing failure was a missing scratch package, not a valid defect receipt; its corrected rerun is recorded separately.
+
+The corrected routing red is `reports/runs/test/orbweaver-2264483-2026-09-13T12-33-43-204Z/test-report.json`: `typecheck affected plan for parent.ts found no native compiler closure`. The preceding routing rerun also refused an incorrectly ignored dependency symlink; its fixture ignore was corrected before this valid red. Neither setup failure is counted as proof of W1.
+
+Green: `pnpm test:scoped tests/tooling/verify/lib/policy-program-membership.test.ts tests/tooling/verify/lib/program-routing.test.ts tests/tooling/verify/lib/program-routing.int.test.ts tests/tooling/verify/ops/typecheck.int.test.ts --maxWorkers=1` passed 36/36 across four files. Read the JSON artifact at `reports/runs/test/orbweaver-2266712-2026-09-13T12-34-14-841Z/test-report.json`: membership 17, routing 7, routing CLI 3, native typecheck 9. This includes the parent-only native TS2322 under both discovered and explicit CLI selection, passing child, and retained template/reference/malformed/overlay controls.
+
+Affected-mode planning over the four changed TypeScript files selected exactly `tooling/tsconfig.json` and `tsconfig.json`. Production `reportLedgerRows` reads the canonical table above as `{"rows":1,"declared":1}`.
+
+Scoped native verification passed: `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` reported 11 discovered, two runnable, both PASS, concurrency one. Scoped ESLint over the same four changed TypeScript files exited zero; scoped Biome checked all four successfully. Whole-program ownership/parity and the consolidated integration barrier remain primary-owned and are not claimed by these scoped results.
+
+Independent `verifier` (`gpt-5.6-sol`, medium, fresh context) returned CONFIRMED after full changed-source/test reads and load-bearing caller inspection. Its separate OS-temp reader/executor probes preserved concrete/shared-root programs and explicit-parent selection, retained abstract templates and reference containers, and refused missing local inheritance. It independently re-derived the current 11-program roster and read the 36/36 artifact. No implementation change was requested. Its first probe had a top-level-await invocation error; the corrected probe completed, and that setup error is not a verification result.
+
+Required gate-program reads: read-first and standardization were fully read during the audit and verified unchanged through reconciliation; the current 152-line orchestrator playbook was subsequently read in full on primary instruction. All three remain unchanged through observed main `1ef220c20`. No new conversion was adopted.
+
+The reviewer also completed the three required gate-program documents in full, plus the archived world-program contract, and reaffirmed CONFIRMED. The shared ledger had no matching #2335 row at this lane’s read; primary owns recording it. Scoped docs/whitespace checks passed. Commit uses the standing #1584 exception; no push, all-program integration proof and catalog reconciliation remain owed.

@@ -1,5 +1,5 @@
 // Typecheck routing is derived from native compiler roots; intent only selects a primary among real roots.
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execNicedSync } from "@orb/tooling/_shared/proc";
 import { planTypecheckPrograms } from "@orb/tooling/verify";
@@ -9,6 +9,38 @@ import { scaledBudget } from "../../_load-budget.ts";
 function present(path: string): { readonly path: string; readonly status: "present"; readonly previousPath: null } {
   return { path, status: "present" as const, previousPath: null };
 }
+
+test("affected routing retains concrete parents for exclusive roots, shared roots and inherited config edits", { timeout: scaledBudget(30_000) }, ({
+  scratch,
+  repoRoot,
+}) => {
+  execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: scratch });
+  mkdirSync(join(scratch, "scripts"));
+  symlinkSync(join(repoRoot, "scripts/ts7.cjs"), join(scratch, "scripts/ts7.cjs"), "file");
+  symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
+  for (const [path, text] of Object.entries({
+    ".gitignore": "node_modules\nscripts/ts7.cjs\n",
+    "package.json": JSON.stringify({ type: "module" }),
+    "tsconfig.json": JSON.stringify({ compilerOptions: { types: [], strictNullChecks: true }, files: ["parent.ts", "shared.ts"] }),
+    "tsconfig.child.json": JSON.stringify({ extends: "./tsconfig.json", compilerOptions: { strictNullChecks: false }, files: ["child.ts", "shared.ts"] }),
+    "parent.ts": "export {};",
+    "child.ts": "export {};",
+    "shared.ts": "export {};",
+  })) {
+    writeFileSync(join(scratch, path), text);
+  }
+  const plan = planTypecheckPrograms(
+    scratch,
+    [present("parent.ts"), present("shared.ts"), present("tsconfig.json"), present("tsconfig.child.json")],
+    "affected",
+  );
+  expect(plan.subjects.map(({ path, selectedPrograms }) => ({ path, selectedPrograms }))).toEqual([
+    { path: "parent.ts", selectedPrograms: ["tsconfig.json"] },
+    { path: "shared.ts", selectedPrograms: ["tsconfig.child.json", "tsconfig.json"] },
+    { path: "tsconfig.json", selectedPrograms: ["tsconfig.child.json", "tsconfig.json"] },
+    { path: "tsconfig.child.json", selectedPrograms: ["tsconfig.child.json"] },
+  ]);
+});
 
 test("primary routing follows native roots for DOM runtime/type tests, Node tests, helpers, tooling and package source", ({ repoRoot }) => {
   const cases: readonly (readonly [string, string])[] = [
