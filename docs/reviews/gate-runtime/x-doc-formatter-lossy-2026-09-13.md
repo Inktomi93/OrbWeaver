@@ -87,3 +87,24 @@ aggregate evidence. The formatter reports two existing refusals: the deliberatel
   tests plus 1 `types-node` assertion.
 
 No catalog, aggregate ledger, or lifecycle state is changed by this lane.
+
+## Corrective review leg
+
+Independent review found that the first repair receipt overstated the detector's precision. The source shape
+is ambiguous: intentional contiguous `` `left`${VALUE}`right` `` fragments parse exactly like a malformed
+single-delimited outer span. The formatter cannot infer author intent from those bytes, so it conservatively
+refuses both and directs both authors to one content-preserving longer-delimiter span. The added control pins
+that refusal, the canonical remedy, and the existing acceptance of whitespace-separated inline-code spans.
+
+The first census also misclassified `docs/design/state-paint-census.md`: its source locator saw a literal
+backslash beside the span's legitimate closing delimiter. The original single-delimited code span already
+rendered the intended lone backslash; the longer-delimited replacement rendered backtick + backslash +
+backtick. This leg restores the original bytes and reclassifies that candidate as retained. The corrected
+post-repair census is **eleven repaired documents**, zero nested-template candidates, and **26** retained
+escaped-backtick carrier files. This correction supersedes the first leg's twelve-repair / 25-retained
+counts without rewriting that historical receipt.
+
+The same review found that the side-eye repair weakened exact operational spellings. The Claude source now
+preserves `styleAndLayoutStart > 0`, `blockingDuration > 50ms`, `compositorClean:false`, `0s`, and
+`transition-duration` as code values with valid delimiters and spacing; `agents:sync` regenerated the Codex
+mirror from that corrected source.

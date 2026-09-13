@@ -392,11 +392,11 @@ The stack must be up — if `pnpm snap /` reports a nav error, run `pnpm stack s
   switch, a slow open, jank that repeats (`--perf-cycles`), or the flame graph for who burns the frame
   (`--cpu-profile`).
 - **`pnpm snap <route> --motion [sel]`** + **`__orb.motion()` / `__orb.animations()`** (via
-  `snap --eval`) — the SMOOTHNESS receipts for "buttery": LoAF (styleAndLayoutStart > 0, blockingDuration
-  > 50ms), CLS, compositorClean false animations, and Percent-Dropped-Frames (CDP trace, 4× throttle).
+  `snap --eval`) — the SMOOTHNESS receipts for "buttery": LoAF (`styleAndLayoutStart > 0`,
+  `blockingDuration > 50ms`), CLS, `compositorClean:false` animations, and Percent-Dropped-Frames (CDP trace, 4× throttle).
   > When a surface animates/slides/scrolls, read these — DON'T eyeball 60fps. **The desync trap (learned
   > live):** a slide desynced from the layout it displaces (e.g. a panel gliding while the grid track it
-  > vacated snaps to 0s) produces NO LoAF — `__orb.motion()` misses it. So ALSO check transition-duration
+  > vacated snaps to `0s`) produces NO LoAF — `__orb.motion()` misses it. So ALSO check `transition-duration`
   > PARITY between the moving element and the container/track it reflows, and watch the CONTENT. Full
   > protocol + the effect-axes to verify (grain/glow-elevation/shadow-glow/spotlight/aura) in §4/§11 of the skill.
 - **`window.__orb`** — the in-page introspection handle (full API in §11 of the design-review skill).

@@ -32,7 +32,7 @@ walker sites scan stylesheet TEXT for the literal `:hover` and therefore cannot 
 
 Plus the shared escaped-selector bug (#24): `HOVER_PSEUDO_RE = /:hover(?![-\w])/gi`
 (hover-walker.ts:42) matches the `:hover` INSIDE a Tailwind escaped class name
-(`.dark\:hover\:bg-neutral-700:hover` — the following `` `\` `` is not in `[-\w]`), and the strip mangles
+(`.dark\:hover\:bg-neutral-700:hover` — the following `\` is not in `[-\w]`), and the strip mangles
 the selector into one `querySelectorAll` throws on. Measured on the isolated stage (`config`):
 25 unparseable → `noHoverPaintUnproven=58`, exit 2. The same unescaped-vs-escaped confusion sits in
 every `indexOf(":hover")` in that file (lines 53/152/156) and in census-decor's `/:hover/i`.
