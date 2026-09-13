@@ -25,20 +25,38 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/client/src/features/x/x.tsx": 'export const x = <div className="pointer-coarse:hidden" />;' },
       expect: { token: "pointer-coarse:hidden" },
-      why: "pointer capability variant outside shell",
+      why: "LEGACY mustFlag[0], ordinary outside arm: pointer capability variant outside shell",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/client/src/features/persona/components/x.tsx": 'export const G = <div className="pointer-fine:group-hover:pointer-events-auto" />;\n',
+      },
+      expect: { count: 1, token: "pointer-fine:group-hover:pointer-events-auto" },
+      why: "LEGACY mustFlag[1], ordinary outside arm: stacked pointer-fine variant",
     },
     {
       mode: "source",
       files: { "packages/client/src/features/x/x.ts": 'export const x = "[@media(hover:hover)]:block";' },
       expect: { token: "[@media" },
-      why: "arbitrary capability media variant in any static feature string",
+      why: "LEGACY mustFlag[2], ordinary outside arm: arbitrary capability media variant; coordinate narrows to the exact paren-free authored prefix required by the final waiver grammar",
     },
   ],
   mustPass: [
     {
       mode: "source",
-      files: { "packages/client/src/features/x/x.tsx": 'export const x = <div className="hover:block pointer-events-none" />;' },
-      why: "interaction state and pointer-events utility are not capability queries",
+      files: { "packages/client/src/features/chat/components/x.tsx": 'export const G = <div className="hover:bg-accent @md:flex-row" />;\n' },
+      why: "LEGACY mustPass[1], ordinary outside arm: hover state and a container query are not capability queries",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/features/rpg/components/x.tsx": 'export const G = <div className="min-w-touch-target min-h-touch-target" />;\n' },
+      why: "LEGACY mustPass[0], ordinary outside arm: pointer-conditional tokens remain legal",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/features/rpg/components/x.tsx": 'export const G = <div className="pointer-events-none pointer-events-auto" />;\n' },
+      why: "LEGACY mustPass[2], ordinary outside arm: pointer-events utilities are not capability variants",
     },
     {
       mode: "source",

@@ -41,10 +41,20 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
-      files: { "packages/client/src/features/app-shell/x.tsx": 'export const x = <div className="pointer-coarse:hidden" />;' },
+      files: {
+        "packages/client/src/features/app-shell/x.tsx":
+          'export const x = <><div className="pointer-coarse:hidden" /><div className="pointer-fine:block" /></>;',
+      },
       expect: { count: 1, messageIncludes: "line(s)" },
       grant: { subject: HOME, operation: OPERATION },
-      why: "one live shell emits one grant candidate while folding its raw sites",
+      why: "LEGACY mustPass[3] plus the N-hit prospective control: the live shell emits one grant candidate while folding every capability site",
+    },
+    {
+      mode: "source",
+      files: { "packages/client/src/features/app-shell/x.ts": "export const clean = true;" },
+      expect: { count: 1, messageIncludes: "line(s)" },
+      grant: { subject: HOME, operation: OPERATION },
+      why: "the zero-hit prospective control: a live shell earns exactly one candidate before any raw capability spelling exists",
     },
   ],
   mustPass: [{ mode: "source", files: { "packages/client/src/features/x/x.ts": "export const x = 1;" }, why: "no reviewed shell home is present" }],

@@ -23,6 +23,20 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
+      files: { "packages/ui/src/primitives/tooltip/variants.ts": 'export const overlay = { arrow: "size-row rotate-45 border border-border bg-popover" };\n' },
+      expect: { count: 1, token: "rotate-45 border border-border bg-popover" },
+      why: "LEGACY mustFlag[0], ordinary outside arm: the OVERLAY_ARROW signature",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/ui/src/primitives/toast/variants.ts": 'export const toast = { root: "rounded-control focus-visible:ring-2 focus-visible:ring-ring" };\n',
+      },
+      expect: { count: 1, token: "focus-visible:ring-" },
+      why: "LEGACY mustFlag[1], ordinary outside arm: the partial focus-ring signature",
+    },
+    {
+      mode: "source",
       files: { "packages/ui/src/primitives/x.ts": 'export const x = "bg-backdrop";' },
       expect: { token: "bg-backdrop" },
       why: "ordinary string carriers are scanned",
@@ -31,14 +45,14 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/ui/src/primitives/x.ts": "declare const y: string; export const x = `focus-visible:ring-2 ${y}`;" },
       expect: { token: "focus-visible:ring-" },
-      why: "static template spans are scanned",
+      why: "LEGACY mustFlag[2], ordinary outside arm: static template spans are scanned",
     },
   ],
   mustPass: [
     {
       mode: "source",
       files: { "packages/ui/src/primitives/x.ts": "declare const SCRIM: string; export const x = `${SCRIM}`;" },
-      why: "composition does not re-spell the signature",
+      why: "LEGACY mustPass[0], ordinary outside arm: composition does not re-spell the signature",
     },
     {
       mode: "source",

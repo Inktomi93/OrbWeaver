@@ -47,7 +47,17 @@ export const gate = defineGate({
         "packages/ui/src/tokens/tokens.json": `{"z":{${Z_TOKEN_NAMES.map((name) => `"${name}":{}`).join(",")}}}`,
       },
       expect: { messageIncludes: "packages/ui/src/markdown/" },
-      why: "a missing reviewed home is a hard finding",
+      why: "LEGACY mustFlag[5], hard home-health arm: the markdown reviewed home is missing",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/src/layout/x.ts": "export const l = 1;",
+        "packages/ui/src/markdown/x.ts": "export const m = 1;",
+        "packages/ui/src/tokens/tokens.json": '{"z":{"base":{},"raised":{},"overlay":{},"modal":{},"popover":{},"toast":{}}}',
+      },
+      expect: { count: 1, messageIncludes: "z-index vocabulary drift" },
+      why: "LEGACY mustFlag[4], hard vocabulary arm: deleting one governed token fails set equality",
     },
   ],
   mustPass: [
@@ -58,7 +68,7 @@ export const gate = defineGate({
         "packages/ui/src/markdown/x.ts": "export const m = 1;",
         "packages/ui/src/tokens/tokens.json": `{"z":{${Z_TOKEN_NAMES.map((name) => `"${name}":{}`).join(",")}}}`,
       },
-      why: "both homes and the governed vocabulary are healthy",
+      why: "LEGACY mustPass[4], hard half: both homes and the governed vocabulary are healthy",
     },
   ],
 });

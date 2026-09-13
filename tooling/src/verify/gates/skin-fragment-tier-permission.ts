@@ -41,10 +41,17 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
-      files: { "packages/ui/src/lib/x.ts": 'export const x = "bg-backdrop";' },
+      files: { "packages/ui/src/lib/x.ts": 'export const x = "bg-backdrop"; export const y = "focus-visible:ring-2";' },
       expect: { count: 1, messageIncludes: "line(s)" },
       grant: { subject: HOME, operation: OPERATION },
-      why: "one live home emits one grant candidate while folding its raw sites",
+      why: "LEGACY mustPass[1] plus the N-hit prospective control: the definition home emits one grant candidate while folding every raw signature site",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/src/lib/x.ts": "export const clean = true;" },
+      expect: { count: 1, messageIncludes: "line(s)" },
+      grant: { subject: HOME, operation: OPERATION },
+      why: "LEGACY mustPass[2] reviewed half and the zero-hit prospective control: a live canonical home earns exactly one candidate before any raw spelling exists",
     },
   ],
   mustPass: [{ mode: "source", files: { "packages/ui/src/primitives/x.ts": "export const x = 1;" }, why: "no reviewed home is present" }],
