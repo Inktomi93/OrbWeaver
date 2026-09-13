@@ -94,7 +94,8 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   show: SHOW_HELP,
   scoped: SCOPED_USAGE,
   "scoped-test": SCOPED_TEST_USAGE,
-  "new-gate": "usage: node tooling/src/verify/cli.ts new-gate <kebab-name>\n  Scaffolds a gate descriptor + its conformance proofs (GATE-AUTHORING.md).",
+  "new-gate":
+    "usage: node tooling/src/verify/cli.ts new-gate <kebab-name>\n  Scaffolds a final defineGate policy and its proofs; follow tooling/src/verify/gates/GATE-AUTHORING.md.",
   "gate-contract": "usage: node tooling/src/verify/cli.ts gate-contract\n  Reports gate modules that bypass the shared ts-morph runtime contract.",
   "policy-conformance":
     "usage: node tooling/src/verify/cli.ts policy-conformance\n  Runs every final defineGate policy's own mustFlag/mustPass rows through the production dispatcher (#1941); a failed proof is exit 2.",

@@ -28,8 +28,10 @@ const FAMILY_TESTS = "tests/tooling/verify/gates";
 
 const TEMPLATE = `// Gate: __NAME__ — <ONE line: what shape is banned and WHY it is a defect, not a preference>.
 // <the ARMS, one line each> · DECLARED LIMITS: <what this reader cannot see — each one owes a mustPass row>.
-// FAMILY: <the shared lib/ reader (module + function) this policy belongs to, or "singleton" and why>.
-// Header budget is 5 lines; delete this line and the three above once real.
+// FAMILY: <the shared lib/ computation or canonical subject (module + declaration) this policy consumes, or "singleton" and why>.
+// POPULATION: <new policy scope, or legacy-minus-final and final-minus-legacy port/correction>.
+// RETIRED MARKERS: <none for a new policy; conversion before/after census and translated final positions>.
+// Replace these placeholders with the smallest complete header; preserve each applicable obligation.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
@@ -131,15 +133,16 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       `wrote ${rel}`,
       "",
       `READ ${LAW} IN FULL before filling it in — it is the \`defineGate\` contract, and`,
-      "`tooling/src/verify/gates/GATE-AUTHORING.md` is the LEGACY descriptor guide: read it only to",
-      "understand a descriptor you are REPLACING, never to copy a shape into this file. The gate is ACTIVE",
-      "from this moment — the loader IS the registry — so the coupled sites below are owed in THIS lane:",
+      "`tooling/src/verify/gates/GATE-AUTHORING.md` is the final policy guide. Its linked archive",
+      "(`docs/history/gate-authoring-legacy-2026-09-13.md`) is only for remaining legacy maintenance and",
+      "conversion archaeology. The loader registers this policy immediately; the coupled sites are owed in this lane:",
       "",
       `  1. ${rel}`,
       "     fill every TODO(scaffold). The scaffold is green on arrival; it starts MEANING something when",
       "     its predicate and its proof rows describe the real defect. Prove it bites:",
       "",
-      "       pnpm check:policy-conformance            # runs this policy's mustFlag/mustPass rows",
+      "       pnpm test:scoped <the importing family test>",
+      "     Coordinate whole-corpus `pnpm check:policy-conformance` at the integration barrier.",
       "",
       `  2. ${FAMILY_TESTS}/<family>.test.ts`,
       "     the committed receipt — import this module and assert `verifyPolicyProofs([gate])` equals `[]`.",
@@ -151,11 +154,9 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       "",
       `       | \`${name}\` | <what it enforces, incl. the arms + declared limits> |`,
       "",
-      `  4. ${ENFORCEMENT_DOC}`,
-      '     bump the "(N registered gates)" count line. Do NOT hand-compute it: `enforcement-registry-parity`',
-      "     holds the literal two-sided against the discovered roster and NAMES the right number when it reds.",
+      "     The loader supplies registration identity; do not add a registration list or hand-maintained count.",
       "",
-      "  5. FIX the live violations it finds, in THIS lane. There is no private exemption table in a final",
+      "  4. FIX the live violations it finds, in THIS lane. There is no private exemption table in a final",
       "     policy (§5): a permanent, reasoned exception is a row in the central reviewed-grant table with",
       '     its `why` AND its `endsWhen`, and `authority: "reviewed-grant"` on this policy. Never debt parking.',
       "",
