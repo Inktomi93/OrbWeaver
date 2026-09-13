@@ -43,7 +43,7 @@
 // {assembly-access,turn-access}.ts` — and ZERO in `entry/` or `transport/`; the DOMAIN pass-through clause
 // matches 11 files, of which 9 already carry mirror tests, so no finding disappears anywhere else.** The
 // exemption is BY SHAPE rather than a path allowlist, so there is no row to rot and a seam that grows a
-// guard, a second statement or a computed argument is demanded again the day it does — `mustFlag[16]` is
+// guard, a second statement or a computed argument is demanded again the day it does — `mustFlag[17]` is
 // that row, and both clauses are §4.1-cut to `mustPass[15]`.
 //
 // The ledger, its `writeBaseline` single writer, the `baseline test-presence` verb and the `pnpm debt` row
@@ -51,7 +51,7 @@
 // stale/shrink sweep reporting at the gate's own source file — retires WITH it rather than becoming a
 // `-health` sibling: it existed only to keep the ledger honest.
 //
-// POPULATION PORT — legacy at 90bbeb04f (the parent of this conversion), a `GateDescriptor` with
+// POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), a `GateDescriptor` with
 // `scopeSafety: "whole-project"` and `fsBacked: true`. The legacy corpus was `project.getSourceFiles()`
 // routed by `sf.getFilePath().split("/packages/server/src/")` and `.split("/packages/contracts/src/")`,
 // i.e. the harness globs ∩ those two roots; the final expression is `population: ["@server", "@contracts"]`
@@ -96,7 +96,18 @@
 // roots (`mustPass[4]`, `[5]`), the error-declaration-only `contract/` file (`mustPass[6]`), the D58 stub
 // runner (`mustPass[2]`), the tier pass-through / DI-bundle / router-shell / curried-factory / `.d.ts`
 // shapes (`mustPass[8]`-`[12]`), the comment-posture false positive (`mustPass[3]`), and the DOMAIN
-// pass-through seam (`mustPass[15]`, with `mustFlag[16]` holding its permissive edge).
+// pass-through seam (`mustPass[15]`, with `mustFlag[17]` holding its permissive edge).
+//
+// FOUR NARROWINGS WENT UNHELD UNTIL 2026-09-12 AND NOW CARRY ROWS (#2131/#2132, cut one at a time and
+// measured): the feature-root DEPTH test (`mustFlag[18]`), `isDeferredStubRunner`'s `!ctx.env` clause
+// (`mustFlag[19]`), `isErrorDeclarationOnly`'s `extends *Error` test (`mustFlag[20]`) and
+// `exportedCallables`' exported-CLASS arm (`mustFlag[21]`). Three were simply unpinned; the fourth fact is
+// the trap the WIDENING above created, and it is why every one of those rows carries a body the
+// pass-through predicate REJECTS: the exemption acquits any one-expression forwarder, so a fixture written
+// to exercise some OTHER fence goes silent for the wrong reason and the cut it was meant to hold comes back
+// clean. `mustPass[4]`/`[5]` were exactly that — their `why` named the wiring-root fence while
+// `isPassThroughWiring` was doing the acquitting — so both bodies grew a second statement, which puts the
+// claim back under the fence it names.
 import type { Expression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { TestFamily } from "../../_shared/test-kinds.ts";
@@ -696,6 +707,44 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
       why: "THE PERMISSIVE EDGE of the DOMAIN pass-through exemption, the twin of `mustFlag[14]` one arm over: a `substrate/` seam whose one-expression body still DECIDES is not a forwarder — a conditional is neither a plumbing atom nor a wiring call — so it stays demanded. Without this row the exemption `mustPass[15]` relies on could widen into 'any substrate file with a short body' and no declared row would notice",
     },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/tag/registry/service.ts":
+          "export function createRegistryService(ctx: { db: number }) {\n  const db = ctx.db;\n  return { db, ready: db > 0 };\n}\n",
+        "tests/server/domain/tag/registry/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
+      why: "THE `isFeatureRoot` DEPTH NARROWING (#2131), the row `mustPass[4]`'s `why` used to claim: the SAME basename one level below the feature root is NOT the composition root the template gives zero logic to, so it is demanded. Cutting the depth test makes every `service.ts`/`context.ts` in the domain tree exempt at any nesting and this row goes silent — the direction is FEWER findings, which is why only a `mustFlag` can hold it",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/workloads/runners/half-filled.ts":
+          "export const run = (ctx: { env: { x: number } }) => {\n  const n = ctx.env.x;\n  return { deferred: true, n };\n};\n",
+        "tests/server/domain/workloads/runners/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "workloads runner with real logic has no test" },
+      why: "THE `!ctx.env` HALF of the D58 stub exemption (#2131): a runner that still returns `deferred: true` but has begun touching its injected env is a runner being FILLED IN, and the exemption ends the moment real behaviour arrives — `mustFlag[6]` only ever proved the other half (no `deferred: true` at all), so cutting `&& !text.includes(ENV_CALL)` came back clean. Two statements, so the pass-through widening cannot acquit it instead",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/tag/contract/holder.ts": "export class TagHolder extends DomainBase {\n  read(): number {\n    return 1;\n  }\n}\n",
+        "tests/server/domain/tag/contract/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
+      why: "THE `extends *Error` TEST inside `isErrorDeclarationOnly` (#2131): the exemption is for a file whose only assertion would be `instanceof`, which is true of an error family and of NOTHING else. A `contract/` class extending an ordinary base carries methods and is demanded; cutting the suffix test exempts every class-only contract file and this row goes silent",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/server/src/domain/tag/substrate/engine.ts": "export class TagEngine {\n  run(rows: number[]): number {\n    return rows.length;\n  }\n}\n",
+        "tests/server/domain/tag/substrate/other.test.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "domain file with runtime logic has no test" },
+      why: "THE EXPORTED-CLASS ARM of `exportedCallables` (#2131): a class is runtime logic, and dropping it from the callable list would make a class-only subsystem invisible to BOTH demand arms rather than exempt by a stated shape. This row is outside `contract/`, so `isErrorDeclarationOnly` cannot be what acquits it under the cut — the class arm is the only fence in play",
+    },
   ],
   mustPass: [
     {
@@ -738,18 +787,20 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "packages/server/src/domain/tag/service.ts": "export function createTagService(ctx: { db: number }) {\n  return { db: ctx.db };\n}\n",
+        "packages/server/src/domain/tag/service.ts":
+          "export function createTagService(ctx: { db: number }) {\n  const db = ctx.db;\n  return { db, ready: db > 0 };\n}\n",
         "tests/server/domain/tag/other.test.ts": "export {};\n",
       },
-      why: "DECLARED LIMIT of the #767 arm: a feature-root `service.ts` is the composition root the template gives ZERO logic (Core-0 §4) — it only assembles verb factories, each of which carries its own demanded test, so a test here would assert the wiring twice. THE `isFeatureRoot` NARROWING: nesting the same file one level deeper reds it",
+      why: "DECLARED LIMIT of the #767 arm: a feature-root `service.ts` is the composition root the template gives ZERO logic (Core-0 §4) — it only assembles verb factories, each of which carries its own demanded test, so a test here would assert the wiring twice. THE WIRING-ROOT EXEMPTION is what this row holds: deleting the `isFeatureRoot(rel) && WIRING_ROOT_FILES.has(base)` branch reds it. The body is deliberately TWO statements so `isPassThroughWiring` cannot acquit it — with the original one-expression body the measured cut came back CLEAN and this `why` was claiming a fence that was not deciding (#2132). Its two halves are held from the other side, by `mustFlag[10]` (the NAME) and `mustFlag[18]` (the DEPTH)",
     },
     {
       mode: "resource",
       files: {
-        "packages/server/src/domain/stats/context.ts": "export function createStatsContext(db: number, now: () => number) {\n  return { db, now };\n}\n",
+        "packages/server/src/domain/stats/context.ts":
+          "export function createStatsContext(db: number, now: () => number) {\n  const clock = now;\n  return { db, now: clock };\n}\n",
         "tests/server/domain/stats/other.test.ts": "export {};\n",
       },
-      why: "DECLARED LIMIT: `context.ts` is the DI bundle Spine-Testing §5 names exempt by nature — its builder returns its own arguments, which is the tautology test the presence rule exists to avoid",
+      why: "DECLARED LIMIT: `context.ts` is the DI bundle Spine-Testing §5 names exempt by nature — its builder returns its own arguments, which is the tautology test the presence rule exists to avoid. Same repair as `mustPass[4]` (#2132): the body is TWO statements, so the wiring-root exemption is the only thing acquitting it and deleting that branch reds this row; the one-expression original was acquitted by `isPassThroughWiring` instead and held nothing",
     },
     {
       mode: "resource",

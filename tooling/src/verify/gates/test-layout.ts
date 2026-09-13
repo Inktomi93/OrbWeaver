@@ -18,7 +18,7 @@
 // suffixes, the exemption classes and the §4.7 tooling arm are policy classifiers, which
 // `docs/reviews/gate-runtime/resource-gate-access-patterns.md:107` reserves for the gate.
 //
-// POPULATION PORT — legacy at 90bbeb04f (the parent of this conversion), where the module was a
+// POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), where the module was a
 // `GateDescriptor` with `scopeSafety: "whole-project"` and `fsBacked: true`. The legacy corpus was the
 // LITERAL predicate `readdirSync(join(root, "tests"), { recursive: true, withFileTypes: true })` filtered to
 // `entry.isFile()`, and its three source questions were `existsSync` on
@@ -55,8 +55,19 @@
 // in `tests/tooling/verify/gates/mirror-index-family.test.ts`, because no proof row can express a refusal
 // (guide §4.5b).
 //
-// DECLARED LIMITS: none beyond the exemption classes themselves, each of which carries the row that holds
-// it — `mustPass[0]` (e2e home), `[5]` (suite kind), `[7]` (flat tooling tier), and the §4.1 cut rows.
+// DECLARED LIMITS: the exemption classes themselves, each of which carries the row that holds it —
+// `mustPass[0]` (e2e home), `[5]` (suite kind), `[7]` (flat tooling tier), and the §4.1 cut rows — plus ONE
+// clause that no fixture can make decisive:
+//
+// `MIRROR_MIN_SEGS` IS MUTUALLY REDUNDANT WITH THE `sourceDirectories` FENCE, AND THE LIMIT IS DECLARED
+// RATHER THAN FAKED (#2134, §4.1's fourth outcome; measured 2026-09-12 — cut alone: every row green · cut
+// with the dir fence: `mustPass[7]` and `[10]` both red). It CANNOT be the deciding fence on any tree a
+// fixture can build: a flat `tests/tooling/<x>` member's `segs[1]` is a FILE basename, `sourceDirectories`
+// holds DIRECTORY paths, and the §4.7 arm only judges a member whose basename classifies as a registered
+// test kind — so the dir fence would have to match a `tooling/src/` directory literally named `<x>.test.ts`.
+// The clause is kept rather than deleted because it is an ARITY guard, not an exemption row that can rot:
+// without it that impossible tree builds the mirror question `tooling/src//<base>.ts` (the empty `sub`
+// segment), which is what the joint cut prints. `mustPass[10]` carries the joint-cut receipt.
 import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";
 import type { TestFilenameClassification } from "../../_shared/test-kinds.ts";
 import { classifyTestFilename, looksLikeTestFilename, TEST_KIND_SUFFIXES } from "../../_shared/test-kinds.ts";
@@ -404,7 +415,7 @@ export const gate = defineGate({
         "tooling/src/snapx/cli.ts": "export {};\n",
         "tests/tooling/snapx/cli.test.ts": "export const x = 1;\n",
       },
-      why: "a FLAT tests/tooling file (root-config / research-zone subject) — the exempt non-mirror tier, passes: the §4.7 arm needs `tooling/<dir>/<file>` before it judges anything",
+      why: "a FLAT tests/tooling file (root-config / research-zone subject) — the exempt non-mirror tier, passes. WHAT HOLDS IT IS THE PAIR, not `MIRROR_MIN_SEGS` alone (#2134, measured): cutting the arity test alone leaves this row GREEN, because a flat member's `segs[1]` is a FILE basename and `sourceDirectories` holds directory paths, so the dir fence acquits it anyway. The JOINT cut reds this row and `mustPass[7]` together, and the finding it then produces — `no source for tooling/src//flat-config.ts` — is the malformed mirror question the arity test exists to prevent",
     },
     {
       mode: "resource",
