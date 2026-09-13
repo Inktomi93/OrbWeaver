@@ -5,13 +5,13 @@ import { Node } from "ts-morph";
 import { customPropertyDefinitions, customPropertyReferences } from "./css-resource-facts.ts";
 import { parseCssStylesheet } from "./css-rules.ts";
 import { walkStaticClassExpressions } from "./static-class-expression.ts";
+import type { VendorContract } from "./vendor-css-contract.ts";
+import { readVendorCssContract } from "./vendor-css-contract.ts";
 
 const CUSTOM_PROPERTY = "--[a-zA-Z_][a-zA-Z0-9_-]*";
 const CUSTOM_PROPERTY_NAME_RE = new RegExp(`^${CUSTOM_PROPERTY}$`, "u");
 const VAR_START_RE = new RegExp(`var\\(\\s*(${CUSTOM_PROPERTY})`, "gu");
 const ARBITRARY_VAR_RE = new RegExp(`(?:^|[^a-zA-Z0-9_-])[-a-zA-Z0-9_[\\].:/]+-\\((${CUSTOM_PROPERTY})\\)`, "gu");
-const VENDOR_TABLE_RE = new RegExp(`^\\|\\s*\`(${CUSTOM_PROPERTY})\``, "gmu");
-const VENDOR_TYPE_RE = new RegExp(`=\\s*"(${CUSTOM_PROPERTY})"`, "gu");
 const DYNAMIC_CUSTOM_PROPERTY_TAIL_RE = /(?:var\(\s*|[-a-zA-Z0-9_[\].:/]+-\()--[a-zA-Z0-9_-]*$/u;
 
 export interface CssVariableSite {
@@ -33,14 +33,6 @@ export interface CssVariableInventory {
   readonly references: readonly CssVariableSite[];
   readonly unsupported: readonly CssVariableSite[];
   readonly classRoots: number;
-}
-
-export interface VendorContract {
-  readonly mirrorFiles: number;
-  readonly documented: ReadonlySet<string>;
-  readonly declared: ReadonlySet<string>;
-  readonly version: string | undefined;
-  readonly mirrorVersion: string | undefined;
 }
 
 function repoRel(root: string, path: string): string {
@@ -329,30 +321,14 @@ function jsonVersion(path: string): string | undefined {
 export function readVendorContract(root: string): VendorContract {
   const mirrorRoot = join(root, "docs/vendor/base-ui");
   const mirrorFiles = walkFiles(mirrorRoot, (path) => path.endsWith(".md"));
-  const documented = new Set<string>();
-  for (const path of mirrorFiles) {
-    for (const match of readFileSync(path, "utf8").matchAll(VENDOR_TABLE_RE)) {
-      if (match[1] !== undefined) {
-        documented.add(match[1]);
-      }
-    }
-  }
   const packageRoot = join(root, "packages/ui/node_modules/@base-ui/react");
   const declarations = walkFiles(packageRoot, (path) => /CssVars\.d\.ts$/u.test(path), new Set(["docs"]));
-  const declared = new Set<string>();
-  for (const path of declarations) {
-    for (const match of readFileSync(path, "utf8").matchAll(VENDOR_TYPE_RE)) {
-      if (match[1] !== undefined) {
-        declared.add(match[1]);
-      }
-    }
-  }
+  const version = jsonVersion(join(packageRoot, "package.json"));
   const index = existsSync(join(mirrorRoot, "INDEX.md")) ? readFileSync(join(mirrorRoot, "INDEX.md"), "utf8") : "";
-  return {
-    mirrorFiles: mirrorFiles.length,
-    documented,
-    declared,
-    version: jsonVersion(join(packageRoot, "package.json")),
-    mirrorVersion: /Base UI docs mirror — v(?<version>\d+\.\d+\.\d+)/u.exec(index)?.groups?.["version"],
-  };
+  return readVendorCssContract({
+    mirrorDocuments: mirrorFiles.map((path) => ({ path: repoRel(root, path), text: readFileSync(path, "utf8") })),
+    mirrorIndexText: index,
+    declarationFiles: declarations.map((path) => ({ path, text: readFileSync(path, "utf8") })),
+    ...(version === undefined ? {} : { packageVersion: version }),
+  });
 }
