@@ -358,7 +358,7 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   on the shared profile's worker cap: `verify --full` on 2026-09-06 reported `[tool-error] TIMED OUT` on a
   QUIET box for a stage that was still working, which under the exit contract means the run is not a
   verdict. The CT suite is `browser:ct` again, with a ceiling DERIVED from `tooling/concurrency-profile.json`
-  (§3.7b). `pnpm test` still COMPOSES both halves as the explicit product-test command and the manual
+  (§3.7b). `pnpm test` still COMPOSES both halves as the explicit product-test command and the
   `tests:product-composite` registry row; the registry owns its exclusion from runnable tiers so nothing
   double-runs.
   Scoped execution uses Vitest's configured projects without a copied project roster, and since #2232 the
@@ -496,10 +496,10 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   was an unscheduled orchestrator barrier ritual — three re-lines in one night (2026-08-30: the #799 merge
   shifted `plugin-frame.ts` +5 and re-staled the census twenty minutes after the first regen). It runs the
   SAME derivations the regenerators run (one home each; GATE-AUTHORING §4.8's single-writer door keeps the
-  WRITE) and writes nothing, printing the exact differing rows (`line 111 → 106`) and the regen command last,
-  so the fix survives into `failureExcerpt`. Consequence for a lane: a newly TRACKED spec now needs a manifest
-  regen before its commit (`git add` it first — the derivation reads `git ls-files`). Cost: the manifest half
-  is milliseconds; the census half builds the whole-repo ts-morph project, measured 19.7s wall on the
+  WRITE) and writes nothing, printing the exact differing rows (`line 111 → 106`) and the repair action last,
+  so the fix survives into `failureExcerpt`. Generated outputs name their baseline writer; authored parity
+  rows name the hand correction instead. The cheap derivations are milliseconds; the caught-failure census
+  builds the whole-repo ts-morph project, measured 19.7s wall on the
   reference box — the shared project build means that cost is not unique to this derivation. WHOLE-ONLY BY
   ABSENCE: no `scopedArgv`, so a scoped tier
   DEFERS it — a census derived from a scoped fileset is a census of a different tree and would call every row
