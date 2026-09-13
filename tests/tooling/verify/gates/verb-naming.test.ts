@@ -1,92 +1,118 @@
-import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
-import process from "node:process";
-import { pathToFileURL } from "node:url";
-import { Project } from "ts-morph";
-import type { GateDescriptor, GateExample } from "../../../../tooling/src/verify/contract/gate.ts";
+// Replay the frozen server hooks without concealing the original barrel-only population refusal.
+import type { GateDescriptor } from "../../../../tooling/src/verify/contract/gate.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
+import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as typesInContract } from "../../../../tooling/src/verify/gates/types-in-contract.ts";
 import { gate as verbNaming } from "../../../../tooling/src/verify/gates/verb-naming.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import type { Files } from "../../../support/legacy-differential.ts";
+import { createDifferential, frozenLegacyGate, legacyScenarios, sorted } from "../../../support/legacy-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const ROOT = "/server-file-hooks";
 const BASE = "e656ce65d4a01510dae7d7c42fd25d825738caa6";
 const PATHS = ["tooling/src/verify/gates/types-in-contract.ts", "tooling/src/verify/gates/verb-naming.ts"] as const;
 const VERB = "packages/server/src/domain/chat/verbs/start-chat.ts";
-
-function projectOf(files: Readonly<Record<string, string>>): Project {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, source] of Object.entries(files)) {
-    project.createSourceFile(`${ROOT}/${path}`, source);
-  }
-  return project;
+const BARREL = "packages/server/src/domain/chat/verbs/index.ts";
+const differential = createDifferential("/server-file-hooks", (owner, phase, message) => {
+  throw new Error(`${owner}/${phase}: ${message}`);
+});
+function assertComplete(result: PolicyPassResult, policy: GatePolicy, paths: readonly string[]): void {
+  expect(result.policies.map(({ id }) => id)).toEqual([policy.id]);
+  expect(result.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
+  expect(result.policies[0]?.population).toEqual({
+    declaredSourcePaths: sorted(paths),
+    effectiveSourcePaths: sorted(paths),
+    declaredResourcePaths: [],
+    effectiveResourcePaths: [],
+    requestedPaths: null,
+  });
+  expect(result.facts).toEqual([]);
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.waiverCarrierRefusals).toEqual([]);
+  expect(result.authority.toolErrors).toEqual([]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.authority.grantedFindings).toEqual([]);
+  expect(result.authority.reviewedGrantConsumption).toEqual([]);
+  expect(result.authority.waivedFindings).toEqual([]);
+  expect(result.authority.ordinaryConsumption).toEqual([]);
+  expect(result.policies[0]?.findings).toHaveLength(result.authority.effectiveFindings.length);
+  expect(result.authority.verdict).toEqual({
+    errors: result.authority.effectiveFindings.length,
+    warnings: 0,
+    blocking: result.authority.effectiveFindings.length,
+    failOnWarnings: false,
+  });
 }
 
-function finalVerdict(policy: GatePolicy, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
-  const project = projectOf(files);
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
-}
-
-function legacyFiles(example: GateExample): Readonly<Record<string, string>> {
-  return typeof example.files === "string" ? { [example.at ?? VERB]: example.files } : example.files;
-}
-
-function withNeutralCarveControl(policy: GatePolicy, files: Readonly<Record<string, string>>): Readonly<Record<string, string>> {
-  return policy.id === "verb-naming" && Object.keys(files).every((path) => path.endsWith("/verbs/index.ts"))
-    ? { ...files, [VERB]: "export const createStartChat = () => undefined;\n" }
-    : files;
-}
-
-function findingIdentities(findings: readonly { readonly file: string; readonly message?: string }[], fallback: string): readonly string[] {
-  return findings.map((finding) => `${finding.file}:${finding.message ?? fallback}`).toSorted();
-}
-
-async function frozenLegacyGate(path: (typeof PATHS)[number], scratch: string): Promise<GateDescriptor> {
-  const source = execFileSync("git", ["show", `${BASE}:${path}`], { encoding: "utf8" });
-  const target = join(scratch, basename(path));
-  const gateContract = pathToFileURL(join(process.cwd(), "tooling/src/verify/contract/gate.ts")).href;
-  const astRead = pathToFileURL(join(process.cwd(), "tooling/src/verify/lib/ast-read.ts")).href;
-  writeFileSync(
-    target,
-    source
-      .replace('from "../contract/gate.ts"', `from ${JSON.stringify(gateContract)}`)
-      .replace('from "../lib/ast-read.ts"', `from ${JSON.stringify(astRead)}`),
-  );
-  return ((await import(`${pathToFileURL(target).href}?frozen=${basename(path)}`)) as { readonly gate: GateDescriptor }).gate;
+function findings(result: PolicyPassResult, fallback: string): readonly string[] {
+  return sorted(result.authority.effectiveFindings.map((finding) => `${finding.file}:${finding.message ?? fallback}`));
 }
 
 test("the converted server file-hook policies pass the final production proof runtime", () => {
   expect(verifyPolicyProofs([typesInContract, verbNaming])).toEqual([]);
 });
 
-test("the final policies match frozen legacy findings on every original proof corpus without tool errors", async ({ scratch }) => {
+function assertOriginalRow(legacy: GateDescriptor, policy: GatePolicy, index: number, files: Files): void {
+  const admitted = sorted(Object.keys(files).filter((file) => legacy.scanRoot?.(file) ?? true));
+  const before = differential.legacyReplay(legacy, files, ({ file, message }) => `${file}:${message}`);
+  expect(before.toolErrors).toEqual([]);
+  expect(before.population).toBe(admitted.length);
+  expect(before.findings).toHaveLength(index < legacy.mustFlag.length ? 1 : 0);
+  const assertBarrelOriginal = (): void => {
+    // Legacy base === "index" already acquitted this row. The carve moved to population algebra.
+    expect(admitted).toEqual([BARREL]);
+    const refused = differential.finalPass([policy], files);
+    expect(refused.policies).toHaveLength(1);
+    expect(refused.policies[0]).toMatchObject({
+      id: policy.id,
+      owner: { status: "incomplete", population: "incomplete", reason: expect.stringContaining("expression admitted zero paths") },
+      population: { declaredSourcePaths: [], effectiveSourcePaths: [], declaredResourcePaths: [], effectiveResourcePaths: [], requestedPaths: null },
+      findings: [],
+    });
+    expect(refused.facts).toEqual([]);
+    expect(refused.factErrors).toEqual([]);
+    expect(refused.toolErrors).toEqual([{ policyId: policy.id, phase: "population", message: expect.stringContaining("expression admitted zero paths") }]);
+    expect(refused.authority.withheldPolicyIds).toEqual([policy.id]);
+    expect(refused.authority.toolErrors).toEqual([
+      { kind: "owner-incomplete", policyId: policy.id, message: expect.stringContaining("expression admitted zero paths") },
+    ]);
+    expect(refused.authority.effectiveFindings).toEqual([]);
+    expect(refused.authority.waivedFindings).toEqual([]);
+    expect(refused.authority.grantedFindings).toEqual([]);
+    expect(refused.authority.authorityAlarms).toEqual([]);
+    // Finding counts stay zero; the owner and tool-error receipts above establish refusal.
+    expect(refused.authority.verdict).toEqual({ errors: 0, warnings: 0, blocking: 0, failOnWarnings: false });
+    const twin = { ...files, [VERB]: "export const createStartChat = () => undefined;\n" };
+    expect(differential.legacyReplay(legacy, twin, ({ file, message }) => `${file}:${message}`)).toEqual({ ...before, population: 2 });
+    const after = differential.finalPass([policy], twin);
+    assertComplete(after, policy, [VERB]);
+    expect(findings(after, policy.message)).toEqual(before.findings);
+  };
+  const assertAdmittedOriginal = (): void => {
+    const after = differential.finalPass([policy], files);
+    assertComplete(after, policy, admitted);
+    expect(findings(after, policy.message)).toEqual(before.findings);
+    // Both legacy hooks reported line zero; the final hooks anchor the same catch on line one.
+    expect(after.authority.effectiveFindings.map(({ line }) => line)).toEqual(index < legacy.mustFlag.length ? [1] : []);
+  };
+  (policy.id === "verb-naming" && Object.keys(files).every((file) => file === BARREL) ? assertBarrelOriginal : assertAdmittedOriginal)();
+}
+
+test("every original server-hook row retains its findings and classified population before neutral completion", async ({ scratch }) => {
+  let replayed = 0;
   for (const [path, policy] of [
     [PATHS[0], typesInContract],
     [PATHS[1], verbNaming],
   ] as const) {
-    const legacy = await frozenLegacyGate(path, scratch);
-    for (const example of [...legacy.mustFlag, ...legacy.mustPass]) {
-      const files = withNeutralCarveControl(policy, legacyFiles(example));
-      const project = projectOf(files);
-      const old = runPass([legacy], {
-        root: ROOT,
-        project,
-        scope: { kind: "project" },
-        files: project.getSourceFiles(),
-        checker: () => project.getTypeChecker(),
-      });
-      const current = finalVerdict(policy, files);
-      expect(old.toolErrors, `${policy.id}: legacy ${example.why}`).toEqual([]);
-      expect(current.toolErrors, `${policy.id}: final ${example.why}`).toEqual([]);
-      expect(findingIdentities(current.authority.effectiveFindings, policy.message), `${policy.id}: ${example.why}`).toEqual(
-        findingIdentities(old.gates[0]?.findings ?? [], legacy.message),
-      );
+    const legacy = await frozenLegacyGate(scratch, BASE, path);
+    for (const [index, files] of legacyScenarios(legacy, VERB).entries()) {
+      assertOriginalRow(legacy, policy, index, files);
+      replayed += 1;
     }
   }
+  expect(replayed).toBe(9);
 });
 
 test.each([
@@ -100,8 +126,20 @@ test.each([
     "function buildStartChat() { return () => undefined; }\nexport const createStartChat = buildStartChat;\n",
     0,
   ],
-] as const)("verb naming preserves %s", (_label, source, findings) => {
-  const result = finalVerdict(verbNaming, { [VERB]: source });
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings).toHaveLength(findings);
+] as const)("verb naming preserves %s", (_label, source, expectedFindings) => {
+  const result = differential.finalPass([verbNaming], { [VERB]: source });
+  assertComplete(result, verbNaming, [VERB]);
+  expect(result.authority.effectiveFindings).toHaveLength(expectedFindings);
+});
+
+test("the service-contract population keeps the positive service file and rejects its ordinary-module twin", async ({ scratch }) => {
+  const legacy = await frozenLegacyGate(scratch, BASE, PATHS[0]);
+  const inside = "packages/server/src/domain/hub/contract/service.ts";
+  const outside = "packages/server/src/domain/hub/service.ts";
+  const files = { [inside]: "export const noInterface = 1;\n", [outside]: "export const noInterface = 1;\n" };
+  const before = differential.legacyReplay(legacy, files, ({ file, message }) => `${file}:${message}`);
+  expect(before).toEqual({ findings: [`${inside}:${typesInContract.message}`], population: 1, toolErrors: [] });
+  const after = differential.finalPass([typesInContract], files);
+  assertComplete(after, typesInContract, [inside]);
+  expect(findings(after, typesInContract.message)).toEqual(before.findings);
 });

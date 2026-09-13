@@ -109,6 +109,8 @@ export function sorted(values: readonly string[]): readonly string[] {
  *  `ops/policy-conformance.ts` uses, and for the same reason: a fresh `Project` per scenario re-parses the
  *  default lib files on every `getTypeChecker()`, which is most of a differential's wall clock. */
 export interface Differential {
+  /** Complete production result for assertions the compact replay summary cannot express. */
+  readonly finalPass: (policies: readonly GatePolicy[], files: Files) => ReturnType<typeof runPolicyPass>;
   readonly legacyReplay: (gate: GateDescriptor, files: Files, shape: Label) => Replay;
   readonly finalReplay: (policies: readonly GatePolicy[], files: Files, shape: Label) => Replay;
   readonly runScenarios: (legacy: GateDescriptor, policies: readonly GatePolicy[], fallback: string, scenarios: readonly Scenario[]) => number;
@@ -1178,9 +1180,13 @@ export function createDifferential(root: string, classifyToolError: ClassifyTool
     };
   };
 
-  const finalReplay = (policies: readonly GatePolicy[], files: Files, shape: Label): Replay => {
+  const finalPass = (policies: readonly GatePolicy[], files: Files): ReturnType<typeof runPolicyPass> => {
     const project = projectOf(files);
-    const result = runPolicyPass({ knownPolicies: policies, policies: [...policies], root, project, reviewedGrants: [], failOnWarnings: false });
+    return runPolicyPass({ knownPolicies: policies, policies: [...policies], root, project, reviewedGrants: [], failOnWarnings: false });
+  };
+
+  const finalReplay = (policies: readonly GatePolicy[], files: Files, shape: Label): Replay => {
+    const result = finalPass(policies, files);
     const messageOf = new Map(policies.map((policy) => [policy.id, policy.message]));
     const population = new Set<string>();
     for (const owner of result.policies) {
@@ -1238,5 +1244,5 @@ export function createDifferential(root: string, classifyToolError: ClassifyTool
     return scenarios.length;
   };
 
-  return { legacyReplay, finalReplay, runScenarios };
+  return { legacyReplay, finalReplay, finalPass, runScenarios };
 }
