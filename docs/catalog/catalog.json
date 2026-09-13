@@ -41557,6 +41557,54 @@
         ]
       },
       "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/adj-ledger-reconcile-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 433,
+      "bytes": 31438,
+      "sha256": "357530339d5f18d62f64e6482f0726045ac40e9bb5a3ce2a4382b29be7ffe673",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/adj-ledger-reconcile-2026-09-13.md",
+        "assignedSha256": "357530339d5f18d62f64e6482f0726045ac40e9bb5a3ce2a4382b29be7ffe673",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "357530339d5f18d62f64e6482f0726045ac40e9bb5a3ce2a4382b29be7ffe673",
+        "verifiedCommit": "50d59861c57feff37bfa15f5de69a5a65726f807",
+        "verifiedAt": "2026-09-13",
+        "summary": "Complete fourteen-issue reconciliation report with independent acceptance of twenty state changes and explicit rejection of the unmet #2302 scoped-proof closure.",
+        "evidence": [
+          "Root read the full report in three bounded reads, independent current-source review and every proposed state change. Twenty exact state-only replacements verified; two source finding rows preserved. The copied report retains its rejected proposal as history and adds root adjudication. One nested-template delimiter corrected without changing expression. Scoped formatting passed. Aggregate rollup and program-wide barrier remain owed."
+        ],
+        "claims": [
+          {
+            "claim": "Complete fourteen-issue reconciliation report with independent acceptance of twenty state changes and explicit rejection of the unmet #2302 scoped-proof closure.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:50d59861c57feff37bfa15f5de69a5a65726f807"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
     }
   ]
 }
