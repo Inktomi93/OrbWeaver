@@ -105,6 +105,7 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
       fact("token-contract", [TOKEN_CONTRACT_PATHS.base], {
         texts: { base: "", light: "", mocha: "", resolver: "", removed: "", formatSchema: "", resolverSchema: "" },
         paths: [TOKEN_CONTRACT_PATHS.base],
+        removalBaseline: { status: "empty", reason: "fixture host" },
       }),
     devtoolsClosure: () =>
       fact("devtools-closure", [`${DEVTOOLS_CLOSURE_ROOT}/pin.json`], {

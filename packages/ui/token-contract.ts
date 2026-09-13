@@ -700,6 +700,8 @@ function validateRemovedLedger(
   return { paths, targets };
 }
 
+/** Read the merge-base vault out of a real worktree. The one caller is {@link readTokenRemovalBaseline}, which
+ *  is how a rootless caller (the gate-runtime ResourceHost provider) obtains the same document as DATA. */
 function previousTokenDocument(repoRoot: string, baseRef: string, diagnostics: TokenContractDiagnostic[]): unknown | null {
   if (!existsSync(join(repoRoot, ".git"))) {
     diagnostics.push(diagnostic("/removed", "removed.baseline", `cannot inspect token history: ${repoRoot} is not a Git worktree`));
@@ -727,9 +729,29 @@ function previousTokenDocument(repoRoot: string, baseRef: string, diagnostics: T
   }
 }
 
+/** THE REMOVAL RATCHET'S OTHER SIDE, as DATA rather than as a repository (#2183).
+ *
+ *  `previousTokenDocument` shells `git merge-base` + `git show` from a repo root, which is exactly the read a
+ *  gate-runtime POLICY cannot make: a final `defineGate` policy receives no root, no filesystem and no
+ *  subprocess (`gate-runtime-standardization.md` §12.3), so `tokens-contract`'s conversion would have SILENTLY
+ *  DROPPED the removal ratchet — half its stated subject — while every other check stayed green. Accepting the
+ *  merge-base document as a value lets a caller that CAN read git (the ResourceHost provider, the same shape
+ *  `tracked-files` already uses) hand it in.
+ *
+ *  UNAVAILABLE IS A DIAGNOSTIC, NOT A SKIP. A caller that could not read the history says so and the validator
+ *  emits `removed.baseline`, which is what the worktree arm already does — the two paths cannot diverge into
+ *  "no history" meaning a clean vault on one of them. */
+export type TokenRemovalBaseline =
+  | { readonly status: "ready"; readonly mergeBase: string; readonly document: unknown }
+  /** The repository has NO HISTORY at all — a fresh `git init` with no commit, which is exactly what a
+   *  conformance fixture root is. There is nothing a removal could have been removed FROM, so the ratchet is
+   *  VACUOUS rather than blind and emits no diagnostic. Distinguishing this from `unavailable` is what lets
+   *  a proof fixture be clean while a real worktree whose history read FAILED still says so out loud. */
+  | { readonly status: "empty"; readonly reason: string }
+  | { readonly status: "unavailable"; readonly reason: string };
+
 interface RemovedDiffContext {
-  readonly repoRoot: string;
-  readonly baseRef: string;
+  readonly baseline: TokenRemovalBaseline;
   readonly currentPaths: ReadonlySet<string>;
   readonly currentTargets: ReadonlySet<string>;
   readonly ledger: RemovedLedger;
@@ -737,11 +759,15 @@ interface RemovedDiffContext {
 }
 
 function validateRemovedDiff(context: RemovedDiffContext): void {
-  const { repoRoot, baseRef, currentPaths, currentTargets, ledger, diagnostics } = context;
-  const previous = previousTokenDocument(repoRoot, baseRef, diagnostics);
-  if (previous === null) {
+  const { baseline, currentPaths, currentTargets, ledger, diagnostics } = context;
+  if (baseline.status === "empty") {
     return;
   }
+  if (baseline.status !== "ready") {
+    diagnostics.push(diagnostic("/removed", "removed.baseline", baseline.reason));
+    return;
+  }
+  const previous = baseline.document;
   for (const path of tokenPathsFromLegacy(previous)) {
     if (!(currentPaths.has(path) || ledger.paths.has(path))) {
       diagnostics.push(diagnostic("/removed", "removed.unrecorded", `portable token ${path} was removed without a ledger row`));
@@ -754,7 +780,47 @@ function validateRemovedDiff(context: RemovedDiffContext): void {
   }
 }
 
-export function validateTokenContractTexts(texts: TokenContractTexts, repoRoot?: string, baseRef = TOKEN_REMOVAL_BASE_REF): TokenContractResult {
+/** The merge-base vault, read out of a real worktree, as the DATA {@link validateTokenContractTexts} takes.
+ *  Exported so a caller with a repo root but no business calling the validator — the gate-runtime
+ *  ResourceHost provider — can acquire the ratchet's other side once and hand it in. */
+export function readTokenRemovalBaseline(repoRoot: string, baseRef = TOKEN_REMOVAL_BASE_REF): TokenRemovalBaseline {
+  if (!existsSync(join(repoRoot, ".git"))) {
+    return { status: "empty", reason: `${repoRoot} is not a Git worktree, so there is no token history to ratchet against` };
+  }
+  try {
+    execFileSync("git", ["rev-parse", "--verify", "--quiet", "HEAD"], { cwd: repoRoot, encoding: "utf8", stdio: "pipe" });
+  } catch {
+    // NO COMMIT AT ALL. A repository with no history has nothing a token could have been removed FROM, so
+    // this is VACUOUS rather than blind — and it is exactly what a `mode: "resource"` conformance root is
+    // (`ops/policy-conformance.ts` `git init`s and `git add`s the fixture, and never commits). Reporting a
+    // `removed.baseline` diagnostic here would put one finding on every proof row of every consumer and
+    // make a clean corpus unprovable; reporting nothing on a REAL worktree whose history read FAILED is the
+    // silent skip this whole reader exists to end. The two are different conditions and answer differently.
+    return { status: "empty", reason: `${repoRoot} has no commits, so there is no token history to ratchet against` };
+  }
+  // `previousTokenDocument` pushes exactly one diagnostic on every path that returns null, which is why the
+  // reason is read off it rather than re-spelled here — one wording, and it stays the wording the worktree
+  // arm has always emitted.
+  // `previousTokenDocument` pushes exactly one diagnostic on every path that returns null; the reason is
+  // JOINED off the collected list rather than indexed out of it so the wording stays the one the worktree
+  // arm has always emitted without either an index guard tsc demands or a fallback biome calls unreachable.
+  const diagnostics: TokenContractDiagnostic[] = [];
+  const document = previousTokenDocument(repoRoot, baseRef, diagnostics);
+  if (document === null) {
+    return { status: "unavailable", reason: diagnostics.map(({ message }) => message).join("; ") };
+  }
+  return { status: "ready", mergeBase: baseRef, document };
+}
+
+/** `baseline` is EITHER a repo root (the worktree caller: `validateTokenContract`, the build) OR the
+ *  already-read merge-base document (the rootless caller: the gate policy, through its declared resource).
+ *  Both arms reach the same `validateRemovedDiff`; omitting it is what SKIPS the ratchet, and only the two
+ *  callers that genuinely have no history — a conformance fixture and a non-worktree consumer — do that. */
+export function validateTokenContractTexts(
+  texts: TokenContractTexts,
+  baseline?: string | TokenRemovalBaseline,
+  baseRef = TOKEN_REMOVAL_BASE_REF,
+): TokenContractResult {
   const diagnostics: TokenContractDiagnostic[] = [];
   const formatHash = sha256(texts.formatSchema);
   const resolverHash = sha256(texts.resolverSchema);
@@ -823,8 +889,9 @@ export function validateTokenContractTexts(texts: TokenContractTexts, repoRoot?:
   const cssTargets = validateOutputTargets(baseTokens, lightTokens, cssValues, diagnostics);
   const themes = isObject(resolver) ? validateResolverSubset(resolver, diagnostics) : [];
   const ledger = validateRemovedLedger(removed, basePaths, cssTargets, diagnostics);
-  if (repoRoot !== undefined) {
-    validateRemovedDiff({ repoRoot, baseRef, currentPaths: basePaths, currentTargets: cssTargets, ledger, diagnostics });
+  if (baseline !== undefined) {
+    const resolved = typeof baseline === "string" ? readTokenRemovalBaseline(baseline, baseRef) : baseline;
+    validateRemovedDiff({ baseline: resolved, currentPaths: basePaths, currentTargets: cssTargets, ledger, diagnostics });
   }
   return {
     diagnostics,

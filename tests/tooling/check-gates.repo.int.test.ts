@@ -1069,8 +1069,12 @@ function writeFixtures(): void {
 // policy is partitioned out by the mixed roster, and leaving its name here would fail the two-sided arm that
 // refuses a row naming a converted policy. Its bite is `structure:policy-conformance` running its own rows,
 // plus tests/tooling/verify/gates/{grant-liveness-family.test.ts,runner-config-path-liveness.int.test.ts}.
-// tokens-contract reads seven exact canonical JSON/schema paths. A throwaway `__g_` file cannot perturb
-// them without mutating the live vault; its invalid-unit mustFlag and full-corpus mustPass are fs-backed.
+// tokens-contract CONVERTED 2026-09-13 (#2183) and its row is GONE from the set below: a final policy is
+// partitioned out by the mixed roster, so a row naming one fails the two-sided arm. It still reads the seven
+// exact canonical JSON/schema paths, which a throwaway `__g_` file could never perturb without mutating the
+// live vault; its bite is `structure:policy-conformance` running its own three arms plus
+// tests/tooling/verify/gates/token-contract-family.test.ts, which pins the Git removal ratchet the legacy
+// descriptor gated on a real-tree anchor no fixture could ever satisfy.
 // css-family-ownership reads the five exact sanctioned product stylesheets and derives live TS/TSX hook
 // ownership from the whole source graph. A `__g_` stylesheet is deliberately outside that closed set, while
 // mutating a canonical home would race every CSS/CT consumer. Its mustFlag/mustPass rows prove each wall,
@@ -1094,7 +1098,6 @@ const UNFIXTURABLE_GATES = new Set([
   "enforcement-registry-parity",
   "bus-payload-allowlist",
   "knob-wire-coverage",
-  "tokens-contract",
   "css-family-ownership",
   "css-selector-has-a-writer",
   "devtools-frontend-assets",

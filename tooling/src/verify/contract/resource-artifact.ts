@@ -12,7 +12,7 @@
 // `tooling/src/_shared/devtools-assets.ts:123,260`). These doors own LOADING, identity, refusal and the
 // receipt — which is why each publishes the count the validator would otherwise have to be trusted about:
 // seven token texts, and the exact file/byte census of the closure.
-import type { TokenContractTexts } from "@orb/ui/token-contract";
+import type { TokenContractTexts, TokenRemovalBaseline } from "@orb/ui/token-contract";
 
 /** The canonical token bundle, by the same field names the validator takes. Keeping the SHAPE aligned with
  *  `TokenContractTexts` is what lets the consuming gate hand this straight to `validateTokenContractTexts`
@@ -31,6 +31,14 @@ export interface TokenContractResource {
   readonly texts: TokenContractTexts;
   /** Repo-relative, sorted — the bundle's exact identity, so a finding can name the member it came from. */
   readonly paths: readonly string[];
+  /** THE REMOVAL RATCHET'S OTHER SIDE (#2183) — the merge-base copy of the vault, read by the PROVIDER
+   *  because a policy has no root and cannot shell git (§12.3), the same shape `tracked-files` already uses
+   *  for `git ls-files`. Without it `tokens-contract`'s conversion would have silently dropped half its
+   *  stated subject: the static contract would still validate and a token removed with no ledger row would
+   *  stop being reported, with every other check green. An UNAVAILABLE baseline is carried as data and the
+   *  validator turns it into a `removed.baseline` DIAGNOSTIC — never a skip, so a fixture with no history
+   *  and a repository with unreadable history answer the same way. */
+  readonly removalBaseline: TokenRemovalBaseline;
 }
 
 /** The committed DevTools frontend closure root. Every member is owned, regular and hashed. */
