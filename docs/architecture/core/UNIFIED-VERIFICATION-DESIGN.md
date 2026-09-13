@@ -366,16 +366,25 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   `tests:product-composite` registry row; it is not a separate commit ritual, so no tier runs it and
   nothing double-runs.
   Scoped execution uses Vitest's configured projects without a copied project roster, and since #2232 the
-  node arm chooses its CONFIG MODE from what the runner said it would select, never from a filename:
-  a selection carrying no `types-*` project runs `--runtime-only` (the thin runtime config, which omits the
-  typecheck projects BEFORE any `--project` filter applies); a selection that is entirely `types-*` passes
-  those project names and no `--runtime-only`, the two being mutually exclusive by construction; a MIXED
-  selection narrows neither, because the caller named both halves. `--related` is runtime-only whatever the
-  attribution says — its operands are source files, and the type-assertion door is `pnpm test:types`.
-  Before it, every scoped node run carried the typecheck projects, so a parse error anywhere in the
-  `tsconfig.json` or `tsconfig.tests-dom.json` program exited the run 1 with every named test green
-  (measured: a `.test-d.ts` claim reddened by a planted parse error in the BROWSER program, which its own
-  file is not in). Git-derived changes
+  node arm chooses its CONFIG MODE from what the runner said it would SELECT — vitest's own per-file
+  `projectName` attribution, never a filename, so a directory operand holding a `.test-d.ts` is classified
+  by the authority that would run it. A caller's own `--project` is authoritative and the door adds nothing;
+  `--related` is `--runtime-only` (source operands; the type-assertion door is `pnpm test:types`); an
+  attribution with no `types-*` — including the empty one a bare `--grep` produces — is `--runtime-only`
+  (the thin runtime config omits the typecheck projects BEFORE any `--project` filter applies, which is why
+  `--project=!types-*` is not the same thing: vitest unions a negative selector with the positives and
+  widens the run); anything else narrows to the UNION of the attributed projects.
+  **WHAT THIS DOES NOT FIX, measured rather than assumed (#2232, cb-v-verify-lib-4).** A typecheck project
+  with ZERO matched files is instantiated and never runs tsc, so an UNCLAIMED one can never reach a verdict
+  and excluding it changes none. The founding symptom — `pnpm test:scoped <a directory holding a
+  .test-d.ts>` exiting 1 on a parse error in a file the caller never named, with every named test green —
+  comes from the typecheck project the caller DID claim, whose whole tsconfig program joins the run:
+  driven on `tests/tooling/doc-catalog`, a plant in `tsconfig.json` is exit 1 both before and after, and a
+  plant in `tsconfig.tests-dom.json` is exit 0 both before and after. No arrangement of `--project` reaches
+  it, since dropping the claimed project would drop a type test the caller named. Its real lever is
+  `typecheck.ignoreSourceErrors` on the two typecheck projects — source typechecking is `types:native`'s
+  stage, not the assertion lane's — and that is an open decision, not something this door does.
+  Git-derived changes
   use native `--changed`; explicit test paths pass native collection preflight; explicit source or mixed
   inputs use native `related`. Folder inputs expand to current authored files from Git's tracked and
   exclude-standard untracked views, omitting deleted files; a package request selects its test mirror.

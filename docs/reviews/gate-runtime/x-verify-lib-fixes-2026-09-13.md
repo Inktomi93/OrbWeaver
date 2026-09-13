@@ -150,7 +150,7 @@ runtime-only unconditionally (source operands; the type-assertion door is `pnpm 
 orchestrator ruled this arm explicitly.
 
 Pins: `tests/tooling/verify/ops/scoped-test.test.ts` (new, 6 rows, both directions including the
-never-both-flags row). The pre-existing `scoped-test.int.test.ts` (11 rows over the real CLI) stays green.
+never-both-flags row). The pre-existing `scoped-test.int.test.ts` (10 rows over the real CLI) stays green.
 Doc: one sentence in `UNIFIED-VERIFICATION-DESIGN.md` §"tests".
 
 `check:docs` on that doc is **RED AT HEAD TOO** — control run with `git show HEAD:` restored in place:
@@ -290,6 +290,21 @@ Not run, deliberately: `pnpm verify` / `check:structure` / any `.repo.int` plant
    grep and every other text tool, while rendering as a plain space. It cost two probe cycles here; the
    record fence is a plain ASCII token on its own line instead.
 
+## Receipt corrections (cb-v-verify-lib-4, 2026-09-13)
+
+Three counts in the text above were wrong when written and are corrected in place; the fourth is a
+deviation this report CLAIMED it had avoided and had not.
+
+1. `scoped-test.int.test.ts` is **10** rows, not 11.
+2. `gate-modernization.test.ts` is **3** tests, not "4 passed" — the 4 came from a run that also carried a
+   scratch probe file, and the probe's row was counted as the suite's.
+3. **THE FORMATTER CHURN DID SHIP.** The #2232 section says the five untouched-context `\~`→`~`
+   conversions were reverted. Two were; **three landed in `509d1d56a`** against that statement. The claim
+   was written from the intent, not from the diff — which is the same failure the report's own §2249
+   corrects in a proof row's `why`, one file over. The honest form: a formatter run on a shared doc converts
+   untouched context into owned diff, this lane caught most of it and shipped some of it, and the receipt
+   for "I reverted it" is `git diff`, never the memory of having done it.
+
 ## #2268 — a VOCABULARY set wearing an exemption name (appended leg)
 
 `b5490a02a` correctly deleted `list-row-adoption`'s genuinely empty `ALLOWLIST` and its vacuous stale arm.
@@ -327,7 +342,7 @@ ASSERTION is about the split-family shape and is unaffected. `gate-spelling-twin
 RECORDS and were deliberately not rewritten.
 
 Floors: corpus drive 303 modules 2 → 1 · `verifyGateProofs(list-row-adoption)` 2+4 rows, 0 failures ·
-`verifyGateProofs(gate-modernization)` 48 rows, 0 failures · `gate-modernization.test.ts` 4 passed ·
+`verifyGateProofs(gate-modernization)` 48 rows, 0 failures · `gate-modernization.test.ts` 3 tests passed ·
 `gate:contract` corpus total unchanged at 383 · biome + eslint exit 0 (the first eslint pass caught two
 `tsdoc-escape-greater-than` errors in my new JSDoc; fixed with the unicode arrow) · typecheck PASS both
 programs. **OWED at the barrier, not run here:** `gate-spelling-twins.int` — an orchestrator-only planter;

@@ -50,6 +50,29 @@ const REPOSITORY_GROUP_ORDER = 1;
 // Vitest forces incremental flags; this wrapper enforces the repository's cold semantic-check policy.
 const TYPECHECKER = "scripts/ts7.cjs";
 
+/** THE TYPECHECK PROJECTS ASSERT; THEY DO NOT OWN SOURCE ERRORS (#2232, ruled 2026-09-13).
+ *
+ *  Vitest's default is `ignoreSourceErrors: false`, so a typecheck project reports EVERY diagnostic in its
+ *  tsconfig program as a run failure — including one in a file no `.test-d.ts` imports and no caller named.
+ *  These two projects exist for one job: run the `.test-d.ts` ASSERTIONS (`expectTypeOf`, `assertType`).
+ *  Source typechecking is a different tier with its own stage — `types:native`, the one discovered-program
+ *  executor (`pnpm typecheck`) — so a source error reported here is the SAME defect counted twice, and the
+ *  second count arrives wearing the exit code of whatever scoped run happened to select a type test.
+ *
+ *  THE MEASURED SYMPTOM this closes (#2229, re-derived by cb-v-verify-lib-4): `pnpm test:scoped
+ *  tests/tooling/doc-catalog` — a directory operand holding `contract/types.test-d.ts` beside nine runtime
+ *  files — exited 1 with all 70 of its tests GREEN, on a parse error planted in an unrelated file of
+ *  `tsconfig.json`'s program. It is NOT a project-selection defect and no `--project` arrangement reaches
+ *  it: a typecheck project with zero matched files is instantiated and never runs tsc, so the project that
+ *  reds is always one the caller genuinely CLAIMED, and dropping it would drop a type test they named
+ *  (`ops/scoped-test.ts#nodeConfigModeArgs` carries that measurement).
+ *
+ *  NOTHING IS LOST ACROSS THE TIERS, and that is the condition this flag ships under: the same planted
+ *  error still reds `pnpm typecheck --config tsconfig.json`. What stops here is the DOUBLE report, never
+ *  the report. The assertions themselves are untouched — a failing `expectTypeOf` in a `.test-d.ts` is a
+ *  TEST failure, not a source error, and still reds. */
+const IGNORE_SOURCE_ERRORS = true;
+
 const TYPECHECK_PROJECTS = [
   {
     extends: true,
@@ -64,6 +87,7 @@ const TYPECHECK_PROJECTS = [
         exclude: BROWSER_TYPES,
         tsconfig: "tsconfig.json",
         checker: TYPECHECKER,
+        ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
       },
     },
   },
@@ -79,6 +103,7 @@ const TYPECHECK_PROJECTS = [
         include: BROWSER_TYPES,
         tsconfig: "tsconfig.tests-dom.json",
         checker: TYPECHECKER,
+        ignoreSourceErrors: IGNORE_SOURCE_ERRORS,
       },
     },
   },
