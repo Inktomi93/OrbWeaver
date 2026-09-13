@@ -1,12 +1,8 @@
 // Closed, JSON-ready resource requests. Descriptors name facts; only ResourceHost owns their paths.
 //
-// THIS SET IS FROZEN (2026-09-11, #1930). Eighteen kinds, closed. The per-member provenance — which ruling
-// authorized each one, what a new kind costs across the four mandatory policing surfaces, the two reads
-// deliberately NOT minted (a staged-blob/git-index read; `jsonc`), and the ONE condition that reopens the
-// set — is `docs/design/gate-runtime-standardization.md` §12.4. A read no kind here serves does NOT get a
-// nineteenth arm: it STOPS that conversion, which leaves the gate legacy and armed, and that refusal is a
-// SUCCESS. Reopening is a ruling, never a lane's call; the bar is two or more independent consumers, because
-// a capability serving one gate is that gate's private reader wearing a contract's clothes (§11.5).
+// New kinds require an orchestrator ruling and independent consumers; lanes cannot invent private-reader kinds.
+// Missing capabilities follow the convert-or-delete rule in `docs/design/gate-runtime-standardization.md` §12.4:
+// ask with the exact read and continue independent work, preserving the existing guarantee until disposition.
 //
 // TWO INDEPENDENT PROPERTIES, each with its own predicate, because conflating them is wrong in both
 // directions and the wrong answer is silent.
