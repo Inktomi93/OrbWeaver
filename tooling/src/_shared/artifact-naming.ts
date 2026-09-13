@@ -4,9 +4,14 @@
 // called. Keeping it beside the slot machinery meant one module answering two unrelated questions, and the
 // cap is what made that legible.
 //
-// IMPORTERS KEEP THEIR SPELLING. `./artifacts.ts` re-exports all four names, exactly as it already does for
-// `PrunedRun` from ./run-retention.ts: that module is the artifact DOOR every instrument imports, and moving
-// a helper out from behind it must not become a twelve-file import sweep in an unrelated lane.
+// IMPORTERS NAME THIS MODULE DIRECTLY, and that is not a preference — it is forced (#2258). The intent when
+// this split landed was for `./artifacts.ts` to re-export all four names so importers kept their spelling,
+// citing its `PrunedRun` re-export from ./run-retention.ts as the precedent. **That analogy is false and the
+// re-export never existed.** `PrunedRun` survives only because it is a TYPE, and biome allows a type-only
+// re-export; these four are VALUES, and a value re-export from a module outside `tooling/src/*/index.ts` is
+// `lint/performance/noBarrelFile` — RED. Proven by planting exactly that line in ./artifacts.ts:
+// `artifacts.ts:428:1 lint/performance/noBarrelFile`, one error, then removed. So the import sweep the old
+// header said must not happen is precisely what had to happen, and every consumer imports this path.
 import { basename, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 

@@ -383,7 +383,7 @@ function finishSlot(root: string, slot: RunSlot, selection: PolicySelector, run:
     publishRunSlot(root, slot, [{ alias: STRUCTURE_REPORT_NAME, target: STRUCTURE_REPORT_NAME }]);
     return;
   }
-  closeRunSlot(root, slot);
+  closeRunSlot(slot);
 }
 
 /** The legacy side's exit under the unchanged contract: a broken run outranks a verdict, a verdict outranks clean. */

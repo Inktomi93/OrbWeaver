@@ -248,9 +248,33 @@ export interface RunAlias {
  *
  *  Two callers by design: a NON-VERDICT run and a GATE-SCOPED run. Both are complete; neither may become
  *  `latest`. The empty `.published` manifest is the honest record — the retention reader asks "does any
- *  pointer still resolve here?" and an empty list is the correct NO. */
-export function closeRunSlot(root: string, slot: RunSlot): void {
-  publishRunSlot(root, slot, []);
+ *  pointer still resolve here?" and an empty list is the correct NO.
+ *
+ *  IT DOES NOT PRUNE (#2262). This used to be `publishRunSlot(root, slot, [])`, and the honest name was the
+ *  whole point — a bare `publishRunSlot(…, [])` on a non-publishing path reads as a mistake and gets "tidied"
+ *  back into the bug this closed. But the delegation carried a SIDE EFFECT: publishing ends in `pruneRuns`,
+ *  so a run that merely closed retired other runs' evidence. Its two callers are exactly the ones with no
+ *  standing to do that — a GATE-SCOPED run publishes no pointer and is the #1584 per-conversion floor, cheap
+ *  and constant, so it added nothing to the ring while evicting from it. Closing and publishing share the
+ *  unlink; deleting evidence is a publisher's act. It therefore no longer needs `root` at all — the
+ *  parameter went with the prune, because a signature that still asked for the checkout would imply this
+ *  verb still reaches outside its own slot. */
+export function closeRunSlot(slot: RunSlot): void {
+  finishSlot(slot, []);
+}
+
+/** What CLOSING and PUBLISHING genuinely share: drop the in-flight marker ("no process is writing here",
+ *  and not optional — `abandonedRuns` reads a surviving marker as a run that DIED), and record the aliases
+ *  this slot published. An EMPTY list is the honest record for a run that deliberately published nothing:
+ *  the retention reader asks "does any pointer still resolve here?" and an empty list is the correct NO. */
+function finishSlot(slot: RunSlot, published: readonly string[]): void {
+  // @orb-waive caught-failure-ownership(catch): the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition "this slot is no longer in flight" holds either way. Ends if publishing twice must become an error.
+  try {
+    unlinkSync(join(slot.dir, INFLIGHT_MARKER));
+  } catch {
+    /* already gone — publishing twice is not an error */
+  }
+  writeFileSync(join(slot.dir, PUBLISHED_MANIFEST), `${JSON.stringify(published, null, 2)}\n`);
 }
 
 /** Finish the run: publish every `latest` alias atomically, drop the in-flight marker, and prune the ring.
@@ -258,12 +282,6 @@ export function closeRunSlot(root: string, slot: RunSlot): void {
  *  read without knowing whose run wrote it. A run that finishes and publishes NOTHING calls `closeRunSlot`
  *  instead: dropping the marker is what says "no process is writing here", and it is not optional. */
 export function publishRunSlot(root: string, slot: RunSlot, aliases: readonly RunAlias[]): readonly string[] {
-  // @orb-waive caught-failure-ownership(catch): the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition "this slot is no longer in flight" holds either way. Ends if publishing twice must become an error.
-  try {
-    unlinkSync(join(slot.dir, INFLIGHT_MARKER));
-  } catch {
-    /* already gone — publishing twice is not an error */
-  }
   const published: string[] = [];
   for (const { alias, target } of aliases) {
     // An artifact the run never wrote is NOT published: a dangling pointer reads as "missing" to every
@@ -287,7 +305,9 @@ export function publishRunSlot(root: string, slot: RunSlot, aliases: readonly Ru
     publishSymlink(absAlias, target === "." ? rel : join(rel, target));
     published.push(alias);
   }
-  writeFileSync(join(slot.dir, PUBLISHED_MANIFEST), `${JSON.stringify(published, null, 2)}\n`);
+  finishSlot(slot, published);
+  // THE PUBLISHER-ONLY HALF (#2262): retention runs here and NOT in `closeRunSlot`. A run that publishes a
+  // `latest` pointer is speaking for the instrument, and that is what gives it standing to retire older runs.
   pruneRuns(root, slot);
   return published;
 }
