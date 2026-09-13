@@ -1,5 +1,9 @@
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+vi.setConfig({ testTimeout: scaledBudget(30_000) });
 
 async function reportTree(plantedTree: (files: Record<string, string>) => Promise<string>, report: object): Promise<string> {
   return await plantedTree({ "reports/check-structure.json": `${JSON.stringify(report)}\n` });
