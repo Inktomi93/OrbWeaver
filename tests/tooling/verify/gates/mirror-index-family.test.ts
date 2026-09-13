@@ -40,10 +40,13 @@ import { gate as testPresenceClient } from "../../../../tooling/src/verify/gates
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [testLayout, testPresence, testPresenceClient] as const;
 
-test("the mirror-index family keeps its two-sided proofs", () => {
+// This one assertion serially drives three policies' complete proof sets, including each resource row's
+// isolated filesystem, Git index and parser setup. It measured 2.8s alone and 8.5s under load (#2308).
+test("the mirror-index family keeps its two-sided proofs", { timeout: scaledBudget(15_000) }, () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 
