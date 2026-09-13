@@ -57,8 +57,13 @@
 //
 // RECORDED NON-ARMS, so nobody re-adds them: a declared-but-unread `facts:` entry is already REFUSED by the
 // dispatcher (`lib/policy-pass.ts:703` "declared facts were not consumed" withholds the consumer), and
-// `analysis: "syntax"` beside a `node.getType()` call is already `gate-modernization` ARM E (#1958); that arm
-// joins this family when the legacy meta-gate retires. §5b criteria 2 and 5 and the §4.1 narrowing cut are
+// `analysis: "syntax"` beside a compiler read is already `gate-modernization` ARM E (#1958); that arm joins
+// this family when the legacy meta-gate retires. What ARM E COVERS, so this refusal is not read as more
+// (#2004 — the arm once judged only the descriptor literal while the corpus reads types in module helpers):
+// the WHOLE MODULE body plus ONE named relative-import hop (and that module's in-file call chain), over a
+// closed member vocabulary in dotted, optional, string-subscript, destructured and `.bind` positions. NOT
+// followed, by that module's declared limits (`gate-modernization.ts` `importHopReadsTypes`): a namespace or
+// default import, a non-relative or unloaded specifier, a second hop, and a computed subscript. §5b criteria 2 and 5 and the §4.1 narrowing cut are
 // judgment or mutation and stay with the reading lanes (family record:
 // docs/reviews/gate-runtime/policy-soundness-family-1584.md).
 //
