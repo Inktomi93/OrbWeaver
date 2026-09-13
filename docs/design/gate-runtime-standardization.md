@@ -2098,9 +2098,30 @@ and the discriminator between a safe edit and a breaking one is **POPULATION vs 
   absolute path, so the native observation is unchanged: `runner-config-path-liveness` stayed EXIT 0 (it reads
   `static-config:ct` and `static-config:playwright`), with its `.int` 4/4 and `config-snapshot.int` 24/24.
 
-**AND THE `RATIFIED` TABLES ARE KEYED BY POSITIONAL INDEX** (`config[0].ignores[5]`). Every key today is index 5
-or lower, so APPENDING is safe — **an entry inserted ABOVE silently re-points every row beneath it**, and they
-still resolve, just to the wrong selectors. That is the #2213 coupled-site trap one turn further on.
+**AND THE `RATIFIED` TABLES ARE KEYED BY POSITIONAL INDEX** (`config[0].ignores[5]`), so **an entry inserted ABOVE
+an existing key silently re-points every row beneath it** — they still resolve, just to the wrong selectors. That
+is the #2213 coupled-site trap one turn further on.
+
+**BUT "APPEND IT" IS WRONG, AND THIS PARAGRAPH SAID SO UNTIL 2026-09-13 — the correct placement is IMMEDIATELY
+AFTER THE LAST RATIFIED INDEX, never at the array's end** (measured by `p-eslint-fence`, which was briefed with the
+wrong advice and caught it while building). Two facts make the end of the array the more expensive choice:
+the `ignores` array carries **unratified live entries after the last ratified one** (`**/*.gen.ts` and two token
+paths sit past index 5 today), so a true append lands at index 9 or 10; and **the proof fixtures spell the ignores
+array as a PREFIX**, so a row at index 9 forces every fixture to also carry 6, 7 and 8 — which are zero-member in a
+fixture repo and each report as a DEAD SELECTOR. Land new fences at the first indices after the last ratified key
+and let the unratified live entries shift down; nothing references them by position.
+
+**AND THE FIXTURES ARE IN THE GATE MODULE, NOT IN THE FAMILY TEST.** `grant-liveness-family.test.ts` drives
+`verifyPolicyProofs` and needed no edit at all; the four `mustFlag`/`mustPass` fixtures that hand-spell the array
+live in `gates/eslint-grant-liveness.ts` itself. A brief that sends a lane to the family test for this sends it to
+the wrong file.
+
+**AND `ESLint.isPathIgnored` ANSWERS "WOULD ESLINT LINT THIS", NOT "DOES AN IGNORES GLOB MATCH IT"** — so a file
+matching no `files:` surface reads IGNORED whether or not any fence exists. **Every `.ts` under `scripts/` is in
+that state today**, which makes a `.ts` control there UNFAILABLE: green before the fix, after the fix, and under a
+deliberately over-broad fence. An ignore-fence control must use a default-linted extension (`.js`/`.cjs`/`.mjs`).
+The same measurement exposed a real coverage hole that is NOT a fence question: `scripts/dev/**` and
+`scripts/probes/**` TypeScript is in no lint surface at all.
 
 **The rule that binds every row above** (#1351's own words): *"Preserve and adapt native-config liveness checks when
 selectors move behind imports or generated layers. A static reader that cannot follow the new form must REFUSE or be
