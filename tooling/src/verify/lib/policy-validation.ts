@@ -138,7 +138,12 @@ function assertExpectation(value: unknown, label: string): void {
 /** A link is only expressible on a real filesystem, so it is `resource` mode only; its PATH is a repo
  *  identity while its TARGET is left free, because an escaping target is the thing under test. A link may
  *  not collide with a declared file — the runtime would then have written one and linked the other, and the
- *  resulting proof would describe whichever won. */
+ *  resulting proof would describe whichever won.
+ *
+ *  Nor may a link be an ANCESTOR of another declared destination (#2333). A free target means a link can
+ *  point outside the fixture root, and `ops/policy-conformance.ts` creates each later destination by
+ *  resolving its parent directories on disk — so `links: { a: "/outside", "a/b": "x" }` would create
+ *  `/outside/b`. Lexical grammar alone cannot see that; the segment relation between declared keys can. */
 function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: string, files: Readonly<Record<string, unknown>>): void {
   if (!Object.hasOwn(proof, "links")) {
     return;
@@ -156,6 +161,12 @@ function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: strin
     nonBlank(target, `${label}.links target`);
     if (Object.hasOwn(files, path)) {
       invalid(`${label}.links path is also a declared file: ${path}`);
+    }
+  }
+  for (const destination of [...Object.keys(files), ...Object.keys(links)]) {
+    const ancestor = Object.keys(links).find((path) => destination.startsWith(`${path}/`));
+    if (ancestor !== undefined) {
+      invalid(`${label}.links path ${ancestor} is an ancestor of declared destination ${destination}`);
     }
   }
 }

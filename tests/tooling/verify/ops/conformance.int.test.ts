@@ -53,8 +53,10 @@
 // final count shares the sweep's proof selector: this detects skipped execution, not selector omissions. That
 // property holds identically at 749 legacy examples, at 2,400 mixed ones, and on the day the legacy
 // roster empties.
+import { mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
+import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { GateDescriptor, GateExample, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
@@ -130,6 +132,65 @@ test("a gate that DOES flag still bites in the fs-backed substrate — the resol
   };
 
   expect(verifyGateProofs([biting])).toEqual([]);
+});
+
+// ── #2333: fixture destinations stay under the owned root ──────────────────────────────────────────────
+
+/** Each spelling the repo-relative grammar refuses; the first two are real escapes from a `join(root, key)`. */
+const MALFORMED_DESTINATIONS: readonly string[] = [
+  "../escaped.ts",
+  "packages/../../escaped.ts",
+  "/absolute.ts",
+  "C:/drive.ts",
+  "packages\\..\\..\\escaped.ts",
+  "./dot.ts",
+  "packages//empty.ts",
+  "packages/trailing/",
+];
+
+function destinationGate(key: string, fsBacked: boolean): GateDescriptor {
+  return {
+    name: "probe-destination-grammar",
+    docRow: "GATE-AUTHORING.md §6",
+    status: "active",
+    scopeSafety: "whole-project",
+    ...(fsBacked ? { fsBacked: true } : {}),
+    message: "unreachable — this descriptor never reports (tests/tooling/verify/ops/conformance.int.test.ts).",
+    run: (): void => undefined,
+    mustFlag: [],
+    mustPass: [{ files: { [key]: "export const escaped = 1;\n" }, why: "a destination key outside the repo-relative grammar" }],
+  };
+}
+
+test("both legacy substrates refuse a malformed destination key before any write, and healthy keys still land (#2333)", async ({ scratch }) => {
+  // TMPDIR points the fs-backed mkdtemp into a reviewer-owned directory, so `../escaped.ts` from that root
+  // would land HERE, where the assertion below can see it.
+  const owned = join(scratch, "tmp");
+  mkdirSync(owned);
+  await withProcessEnv("TMPDIR", owned, () => {
+    for (const key of MALFORMED_DESTINATIONS) {
+      for (const fsBacked of [true, false]) {
+        let refusal: unknown;
+        try {
+          verifyGateProofs([destinationGate(key, fsBacked)]);
+        } catch (error) {
+          refusal = error;
+        }
+        // The escape assertion comes FIRST: against the pre-fix runner it names the escaped file in OWNED.
+        expect(readdirSync(owned), `${key} fsBacked=${String(fsBacked)}`).toEqual([]);
+        expect(String(refusal), `${key} fsBacked=${String(fsBacked)}`).toMatch(
+          /example destination (?:must be a repo-relative POSIX path|has an invalid path segment)/u,
+        );
+      }
+    }
+    // CONTROL: an installed-package file and a nested authored file are valid destinations on both substrates.
+    const healthy = { "node_modules/pkg/index.ts": "export const pkg = 1;\n", "packages/server/src/domain/probe/x.ts": "export const x = 1;\n" };
+    for (const fsBacked of [true, false]) {
+      expect(verifyGateProofs([{ ...destinationGate("unused.ts", fsBacked), mustPass: [{ files: healthy, why: "valid destinations" }] }])).toEqual([]);
+    }
+    expect(readdirSync(owned)).toEqual([]);
+    return Promise.resolve();
+  });
 });
 
 // ── #780: the in-memory substrate equivalence sweep ────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ import type { Finding, GateDescriptor, GateExample } from "../contract/gate.ts";
 import type { PassResult } from "../contract/pass.ts";
 import type { ConformanceFailure } from "../contract/scoped.ts";
 import { runPass } from "../lib/pass.ts";
+import { assertPolicyRepoPath } from "../lib/policy-repo-inventory.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/gate-conformance.repo.int.test.ts");
 
@@ -44,6 +45,17 @@ function defaultPathFor(gate: GateDescriptor): string {
 /** The example's (repo-relative path → source) map, resolving the single-snippet form to its `at`. */
 function exampleFiles(ex: GateExample, gate: GateDescriptor): Record<string, string> {
   return typeof ex.files === "string" ? { [ex.at ?? defaultPathFor(gate)]: ex.files } : { ...ex.files };
+}
+
+/** Every example destination is a repo-relative POSIX path in the shared inventory grammar (#2333), checked
+ *  before either substrate creates a root or removes the previous example. Both doors compose the key onto a
+ *  root — `join(root, key)` on disk, `${root}/${key}` in memory — so a `..` segment would write outside the
+ *  temp root (surviving its reap) or outside this example's virtual root. `node_modules/...` stays valid:
+ *  installed-package fixtures plant real package files. */
+function assertExampleDestinations(files: Readonly<Record<string, string>>): void {
+  for (const key of Object.keys(files)) {
+    assertPolicyRepoPath(key, "example destination");
+  }
 }
 
 /** Monotonic per PROCESS, never reset. It is what guarantees the invariant below — that no virtual path is
@@ -72,6 +84,7 @@ let exampleSeq = 0;
  *  The files of the previous example are still REMOVED: a gate is entitled to see exactly its own example's
  *  file set (`ctx.project.getSourceFiles()` is how whole-project gates read the corpus). */
 export function loadInMemoryExample(project: Project, files: Readonly<Record<string, string>>): string {
+  assertExampleDestinations(files);
   for (const previous of project.getSourceFiles()) {
     project.removeSourceFile(previous);
   }
@@ -116,12 +129,14 @@ const TS_SOURCE_RE = /\.tsx?$/u;
  *  find them again is the resolve-twice. Verified identical project file sets across both doors, including
  *  the non-TS files the filter must exclude. */
 function runFsBackedExample(gate: GateDescriptor, ex: GateExample): PassResult {
+  const files = exampleFiles(ex, gate);
+  assertExampleDestinations(files);
   const root = mkdtempSync(join(tmpdir(), "orb-conformance-"));
   try {
     // Compiler membership uses the same authored Git inventory in fixtures and real runs.
     execNicedSync("git", ["init", "--quiet", "--template=", "--initial-branch=main"], { cwd: root });
     const project = new Project({ skipAddingFilesFromTsConfig: true });
-    for (const [rel, text] of Object.entries(exampleFiles(ex, gate))) {
+    for (const [rel, text] of Object.entries(files)) {
       const abs = join(root, rel);
       mkdirSync(dirname(abs), { recursive: true });
       writeFileSync(abs, text);
