@@ -43,14 +43,23 @@
 // the two `EXEMPT` tables' STALE and DEAD-CITE arms have NO fixture-level successor and say so (4 rows
 // `retired-arm` — the DEAD-CITE half confirms `biome-grant-liveness.ts`'s own header, which states that
 // a grant whose cited decision moved is caught by nothing); the glob arm is strictly STRONGER, because
-// the legacy pattern half was gated behind a real-tree anchor no fixture could clear (7 rows); and the
-// two exemption-HONOURED examples are genuine category 5, driven with the SHIPPED reviewed-grant rows so
-// the falsifier "did every hidden site become exactly ONE live, CONSUMED row" is answered per fixture
-// rather than in prose (3 rows).
+// the legacy pattern half was gated behind a real-tree anchor no fixture could clear (5 rows, corrected
+// 2026-09-13 from "7 rows"); and the THREE exemption-HONOURED examples are genuine category 5, driven with
+// the SHIPPED reviewed-grant rows so the falsifier "did every hidden site become exactly ONE live,
+// CONSUMED row" is answered per fixture rather than in prose (3 rows, corrected 2026-09-13 from "two
+// exemption-HONOURED examples").
+//
+// THE TALLY IS DERIVED, NEVER HAND-KEPT — the two numbers above were wrong from the first landing until
+// 2026-09-13, and both independent reviews re-derived the same census the table itself states:
+//   rg --only-matching 'classification: "([a-z-]+)"' --replace '$1' <this file> | sort | uniq -c
+// 5 stronger-reader · 4 vacuous-both-zero · 4 retired-arm · 3 split · 3 runtime-refusal · 3 identical ·
+// 3 exemption-mechanism-move = 25, against the runner's own 14 + 11 assertion on the live example count.
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, parse } from "node:path";
 import process from "node:process";
+import { exportProcessEnv, processEnvValue } from "../../../../tooling/src/_shared/process-env.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as biomeGrantLiveness } from "../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
 import { gate as biomeGrantLivenessHealth } from "../../../../tooling/src/verify/gates/biome-grant-liveness-health.ts";
@@ -61,8 +70,10 @@ import type { TmpdirScenario } from "../../../support/legacy-differential.ts";
 import {
   assertReplayRootIsScratch,
   createTmpdirDifferential,
+  frozenClosureOf,
   frozenFilesystemLegacyGate,
   label,
+  shimHeaderImports,
   stagedReplayTarget,
 } from "../../../support/legacy-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -636,4 +647,143 @@ test("§4.6 — the frozen loader binds the anti-live-tree guard BEFORE its stag
   expect(existsSync(join(process.cwd(), stagedEntry)), "no frozen module was planted in the checkout by any arm of this suite").toBe(false);
   // The clean control: the same loader, the sanctioned scratch root, still loads.
   await expect(frozenFilesystemLegacyGate(scratch, LEGACY_BASE, BIOME_LEGACY)).resolves.toBeDefined();
+});
+
+// ── THE SHIM'S HEADER/BODY BOUNDARY (LD-2319-8) ───────────────────────────────────────────────────────
+//
+// The independent security review of `6144f3183` found the wrapped-import opener matching far more than a
+// wrapped import — `export const gate: GateDescriptor = {` among them — which put the scanner in block mode
+// for the REST of the module. Two consequences, both silent: the body byte-identity assertion went VACUOUS
+// (everything was "header", so it compared "" to ""), and a column-0 `} from "…";` in the swallowed region
+// — INCLUDING one inside an authored FIXTURE TEMPLATE LITERAL — was rewritten to an absolute URL. Both
+// engines then judge the same corrupted fixture and agree on a WRONG number, which is the one failure a
+// count comparison structurally cannot see, and which this module's header claims the shim prevents.
+//
+// The control below is NON-VACUOUS by construction: it asserts the fixture line is byte-identical AND that
+// the real header import was rewritten, so it cannot pass by the shim doing nothing.
+const FIXTURE_SPECIFIER = '} from "../lib/authored-fixture-only.ts";';
+/** A frozen module shaped like the ones that bite: a real header import, then a `{`-terminated body opener,
+ *  then an authored fixture string whose OWN source contains a column-0 wrapped-import closing line. */
+const FIXTURE_CARRYING_MODULE = [
+  "// a frozen gate module",
+  'import { runPass } from "../lib/pass.ts";',
+  "",
+  "export const gate: GateDescriptor = {",
+  "  id: 'x',",
+  "  examples: [",
+  "    `import {",
+  "  alpha,",
+  FIXTURE_SPECIFIER,
+  "`,",
+  "  ],",
+  "};",
+].join("\n");
+
+test("§4.6 — the header shim rewrites the header and leaves an authored FIXTURE specifier byte-identical", () => {
+  const resolved = "file:///resolved/lib/pass.ts";
+  const shimmed = shimHeaderImports(FIXTURE_CARRYING_MODULE, () => resolved);
+  const bodyStart = FIXTURE_CARRYING_MODULE.indexOf("\nexport const gate");
+  expect(shimmed, "the REAL header import is rewritten — without this the control could pass by doing nothing").toContain(`from "${resolved}";`);
+  expect(shimmed.slice(shimmed.indexOf("\nexport const gate")), "everything from the body opener down is byte-identical").toBe(
+    FIXTURE_CARRYING_MODULE.slice(bodyStart),
+  );
+  expect(shimmed, "the specifier inside the authored FIXTURE STRING is untouched").toContain(FIXTURE_SPECIFIER);
+  expect(shimmed.split(resolved).length - 1, "exactly ONE specifier was rewritten — the header's").toBe(1);
+});
+
+test("§4.6 — the header scan REFUSES a wrapped import it cannot close instead of swallowing the module", () => {
+  const unterminated = ["import {", "  alpha,", "", "export const gate = {};"].join("\n");
+  expect(() => shimHeaderImports(unterminated, () => "file:///x"), "a blank line is not a brace-list member").toThrow(
+    "neither a brace-list member nor its closing",
+  );
+  const runaway = ["import {", "  alpha,", "  beta,"].join("\n");
+  expect(() => shimHeaderImports(runaway, () => "file:///x"), "a block that reaches EOF").toThrow("without its closing");
+});
+
+// ── THE ARMS THE INDEPENDENT REVIEW DROVE AND THIS SUITE LACKED ───────────────────────────────────────
+// Persisted as committed controls so they are pinned rather than re-derived: the symlink planted at the
+// loader's EXACT staged filename driven through the MUTATOR (the only path on which `writeFileSync` would
+// actually have followed a link), and the non-authored fixture-key fence, which had no control at all.
+const VICTIM_BYTES = "victim-bytes-must-not-change";
+
+test("§4.6 — a symlink planted at the loader's own staged filename is REFUSED by the mutator", async ({ scratch }) => {
+  const staging = join(scratch, "loader-staging");
+  const outside = join(scratch, "outside-the-staging-root");
+  mkdirSync(staging);
+  mkdirSync(outside);
+  const victim = join(outside, "victim.ts");
+  writeFileSync(victim, VICTIM_BYTES);
+  symlinkSync(victim, join(staging, `${LEGACY_BASE.slice(0, 8)}--${BIOME_LEGACY.split("/").join("__")}`));
+  await expect(
+    frozenFilesystemLegacyGate(staging, LEGACY_BASE, BIOME_LEGACY),
+    "the frozen entry would be written THROUGH the link — the one place writeFileSync follows one",
+  ).rejects.toThrow("the staging path crosses the symlink");
+  expect(readFileSync(victim, "utf8"), "the victim's bytes are untouched").toBe(VICTIM_BYTES);
+});
+
+test("§4.6 — the tmpdir door REFUSES a non-authored fixture key, before any root exists", async ({ scratch }) => {
+  const differential = createTmpdirDifferential(toolErrorCode);
+  const legacy = await frozenFilesystemLegacyGate(scratch, LEGACY_BASE, BIOME_LEGACY);
+  const liveRoots = (): readonly string[] => readdirSync(tmpdir()).filter((entry) => entry.startsWith(`orb-legacy-differential-${String(process.pid)}-`));
+  for (const key of ["node_modules/x.ts", ".git/config", "dist/x.ts", ".cache/x.ts"]) {
+    expect(() => differential.legacyReplay(legacy, { [key]: "export const x = 1;" }, label), `${key} — the LEGACY leg`).toThrow(
+      "refuses the non-authored fixture path",
+    );
+    expect(() => differential.finalReplay([biomeGrantLiveness], { [key]: "export const x = 1;" }, label), `${key} — the FINAL leg`).toThrow(
+      "refuses the non-authored fixture path",
+    );
+  }
+  // The semantic fence and the containment grammar are SEPARATE refusals: neither implies the other.
+  expect(() => stagedReplayTarget(scratch, "node_modules/x.ts"), "the grammar admits it — only the door's semantic fence refuses").not.toThrow();
+  expect(liveRoots(), "the non-authored refusal also precedes the mkdtemp").toEqual([]);
+});
+
+test("§4.6 — the replay-root guard NAMES a non-directory root instead of falling through to ENOTDIR", ({ scratch }) => {
+  const regularFile = join(scratch, "not-a-directory");
+  writeFileSync(regularFile, "");
+  const dangling = join(scratch, "dangling-link");
+  symlinkSync(join(scratch, "no-such-target"), dangling);
+  expect(() => {
+    assertReplayRootIsScratch(regularFile);
+  }, "a regular file OUTSIDE the checkout used to pass this guard and refuse later as a bare ENOTDIR").toThrow("must be a DIRECTORY");
+  expect(() => {
+    assertReplayRootIsScratch(dangling);
+  }, "a dangling symlink root").toThrow("does not resolve at all");
+  expect(() => {
+    assertReplayRootIsScratch(join(scratch, "no-such-root"));
+  }, "an absent root").toThrow("does not resolve at all");
+  expect(() => {
+    assertReplayRootIsScratch(join(process.cwd(), "package.json"));
+  }, "IDENTITY answers before KIND — a file INSIDE the checkout still refuses with the live-tree sentence").toThrow("must live OUTSIDE the running checkout");
+  expect(readdirSync(scratch).toSorted(), "the guard writes nothing").toEqual(["dangling-link", "not-a-directory"]);
+});
+
+test("§4.6 — a poisoned GIT_DIR in the parent environment does not steer the frozen read", ({ scratch }) => {
+  // LD-2319-9. The frozen blob is WRITTEN into scratch and `import()`ed, so the object store it resolves
+  // against is the store whose code executes. A run inside a git HOOK is the case: git exports `GIT_DIR`
+  // and `GIT_INDEX_FILE` to hooks, and `tests/tooling/**` runs on the `--full` tier.
+  const foreign = join(scratch, "foreign-repository");
+  const pinned = join(scratch, "pinned");
+  mkdirSync(foreign);
+  mkdirSync(pinned);
+  execFileSync("git", ["init", "--quiet", foreign]);
+  const restore = processEnvValue("GIT_DIR");
+  exportProcessEnv("GIT_DIR", join(foreign, ".git"));
+  try {
+    // THE POSITIVE CONTROL — the poison is real: an UNPINNED read of the same ref fails under it.
+    expect(
+      () => execFileSync("git", ["show", `${LEGACY_BASE}:${BIOME_LEGACY}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }),
+      "an unpinned `git show`",
+    ).toThrow();
+    const closure = frozenClosureOf(pinned, LEGACY_BASE, BIOME_LEGACY);
+    expect(closure.extracted[0], "the PINNED read resolves against THIS repository under the same poison").toBe(BIOME_LEGACY);
+    expect(closure.extracted.length, "and the whole closure comes back").toBeGreaterThan(1);
+  } finally {
+    if (restore === undefined) {
+      // biome-ignore lint/style/noProcessEnv: REMOVING the ambient variable this control poisoned IS the cleanup, and `exportProcessEnv` (the sanctioned writer, used above) can set a key but not delete one. A leaked GIT_DIR would follow this pooled worker into the next test file.
+      Reflect.deleteProperty(process.env, "GIT_DIR");
+    } else {
+      exportProcessEnv("GIT_DIR", restore);
+    }
+  }
 });
