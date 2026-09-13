@@ -117,6 +117,28 @@ test("RENDER FIDELITY: the well-formed corpus shapes are accepted, so the refusa
   expect(bytes).toContain("RULED-OUT \\| DERIVED"); // the pipe escape inside a table cell IS required
 });
 
+test("SOURCE FIDELITY: a template literal nested inside single-backtick code delimiters is REFUSED", ({ scratch }) => {
+  const body = `${FRONTMATTER}The guard is \`startsWith(\`prefix ${"${EXEMPT_DIR}"}/\`)\`, not a prefix guess.\n`;
+
+  const { bytes, outcome } = format(scratch, "nested-backtick.md", body);
+
+  expect(outcome.dirty).toStrictEqual([]);
+  expect(bytes).toBe(body);
+  expect(outcome.refused.map((r) => r.file)).toStrictEqual([join(scratch, "nested-backtick.md")]);
+  const reason = outcome.refused[0]?.reason ?? "";
+  expect(reason).toContain("line 6");
+  expect(reason).toContain("longer backtick delimiter");
+});
+
+test("SOURCE FIDELITY: longer delimiters carry a template literal, and ordinary adjacent code spans remain valid", ({ scratch }) => {
+  const body = `${FRONTMATTER}The guard is \`\`startsWith(\`prefix ${"${EXEMPT_DIR}"}/\`)\`\`, beside \`left\` and \`right\`.\n`;
+
+  const { bytes, outcome } = format(scratch, "nested-backtick-ok.md", body);
+
+  expect(outcome.refused).toStrictEqual([]);
+  expect(bytes).toBe(body);
+});
+
 test("FROZEN ARCHAEOLOGY: a doc in EITHER history tree is never written and never judged", () => {
   // TWO controls, one per tree, because the defect WAS that one tree was covered and its twin was not:
   // `docs/history/**` fell outside the living trees by omission, while `docs/architecture/history/**`

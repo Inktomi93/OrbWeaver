@@ -462,6 +462,55 @@ function orphanBacktickLines(tree: MarkdownNode, source: string): readonly numbe
 }
 
 /**
+ * A JavaScript template literal cannot sit inside a single-backtick Markdown code span: its two inner
+ * backticks close and reopen the Markdown span. Remark then sees two valid `inlineCode` nodes separated
+ * by template content, so both the serialized bytes and the re-parsed tree are stable while the author's
+ * intended outer span never exists. Detect that exact source shape from the adjacent parsed nodes. The
+ * no-whitespace boundary is load-bearing: ordinary prose between two code spans remains valid.
+ */
+function ambiguousTemplateLiteralRefusal(tree: MarkdownNode, source: string): string | null {
+  const lines = new Set<number>();
+  const isSingleDelimitedCode = (node: MarkdownNode): boolean => {
+    if (node.type !== "inlineCode") {
+      return false;
+    }
+    const start = node.position?.start?.offset;
+    const end = node.position?.end?.offset;
+    if (start === undefined || end === undefined) {
+      return false;
+    }
+    return /^`[^`\n]+`$/u.test(source.slice(start, end));
+  };
+  const ambiguousLine = (left: MarkdownNode | undefined, middle: MarkdownNode | undefined, right: MarkdownNode | undefined): number | undefined => {
+    if (left === undefined || middle === undefined || right === undefined || !isSingleDelimitedCode(left) || !isSingleDelimitedCode(right)) {
+      return;
+    }
+    const value = middle.type === "text" && typeof middle.value === "string" ? middle.value : "";
+    const boundedByContent = value.length > 0 && !/^\s|\s$/u.test(value);
+    return boundedByContent && /\$\{[^}\n]+\}/u.test(value) ? (left.position?.start?.line ?? 0) : undefined;
+  };
+  const walk = (node: MarkdownNode): void => {
+    const children = node.children ?? [];
+    for (let index = 0; index + 2 < children.length; index += 1) {
+      const line = ambiguousLine(children[index], children[index + 1], children[index + 2]);
+      if (line !== undefined) {
+        lines.add(line);
+      }
+    }
+    for (const child of children) {
+      walk(child);
+    }
+  };
+  walk(tree);
+  return lines.size === 0
+    ? null
+    : [
+        "single-backtick code delimiters contain a JavaScript template literal, so the inner backticks terminate the Markdown span (#2067)",
+        ...[...lines].toSorted((a, b) => a - b).map((line) => `    line ${String(line)}: wrap the whole expression in a longer backtick delimiter`),
+      ].join("\n");
+}
+
+/**
  * THE ESCAPE-DELTA REFUSAL (#2235). The formatter's worst failure mode is not a refusal it gets wrong —
  * it is a WRITE that looks like a cosmetic pass and is a silent content loss, because every later run
  * then launders the loss into "stable".
@@ -546,6 +595,10 @@ export function formatTargets(explicit: readonly string[]): readonly string[] {
  *  EXPORTED so a test can hold the fidelity laws without going through the filesystem. */
 export function formatMarkdown(input: string): { readonly output: string; readonly refusal: string | null } {
   const parsed = processor.parse(input);
+  const ambiguousTemplate = ambiguousTemplateLiteralRefusal(parsed, input);
+  if (ambiguousTemplate !== null) {
+    return { output: input, refusal: ambiguousTemplate };
+  }
   // Order matters: the overflow census is a SPECIFIC diagnosis of a defect the generic re-parse guard
   // would also catch, but would report only as "the tree moved". Name the cause when we know it.
   const overflow = overflowRefusal(parsed);
