@@ -283,3 +283,187 @@ exactly the two edits this lane owns — five changed lines against main.
 | 1 | `tooling/src/verify/gates/policy-refusal-coverage.ts` (recognizer) + `tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts:350` | dead arm / green-for-the-wrong-reason | The family-test half required a first POSITIONAL argument the dispatcher never had, so no real pin could be recognised; its `mustPass` was green over an invented signature, and the family test's one-sided second opinion held trivially because nothing could discharge. Two dead branches (`_proof` id fence, alias-to-non-array hop) were unfalsifiable by any row. | Red-first at `80b0693cb`: invented shape 60 → 59, production shape 60 → 60; after 60 → 17 (43 discharged, 0 added). Both dead branches cut in both directions with no row and no tree change. | **OPEN** (fixed at `1e2b60fae`; row for the record) |
 | 2 | `docs/reviews/gate-runtime/policing-surface-audit-2026-09-12.md` §RECOMMENDED ADDITIONS #5 | census reading | The ordering census counts SPLIT FAMILIES under an intersection reading. Enforced literally it accuses eight `policy-soundness` members for one sibling's different shared module. The enforceable reading is per member. | 250 policies / 154 families / 47 multi-member; 9 families under intersection, 11 members under the member reading, both measured on `3b68aa44e`. | **OPEN** (implemented per member at `8d22e8e20`; the audit's number is not wrong, it answers a different question) |
 | 3 | `tooling/src/verify/contract/policy-pass.ts` header + `tooling/src/verify/lib/policy-pass-context.ts` | header claim outran the file | The contract named `policy-pass-context.ts` as an emitter composing from `POLICY_PASS_REFUSALS` while that file held zero references; eleven sentences were literals and one had no key. The envelope was complete over the TABLE and blind to the EMITTERS. | `grep -c POLICY_PASS_REFUSALS` = 0 before, 11 after; five of eight reachable doors pinned before, seven of seven after; 32 invariants censused two-sided with a planted control. | **OPEN** (fixed at `9568d86f1`; row for the record) |
+
+---
+
+## LEG 2 — the #2155 census reworked after the integration review (`20b2c4190`)
+
+Integration review of `58dbab613` accepted #2274 and #2187 and requested changes on the #2155 completeness
+census only. Not rebased — primary owns integration; this is one new commit on top.
+
+### Red-first: all three findings reproduced on the UNMODIFIED test
+
+`cp`-backed probes (`cp f f.bak` … `cp f.bak f`), one command per call, tree verified clean after each.
+
+| # | Probe | Old census | Reading |
+| -: | - | - | - |
+| A | `${POLICY_PASS_REFUSALS.factAbsent}: ${provider.id} and some new sentence nobody listed` planted in `policy-pass-context.ts` | **GREEN (7/7)** | it measured "MENTIONS the table", not "is COMPOSED from it" |
+| B | `failures.push("a generic refusal nobody listed")` planted ahead of `policy-pass.ts:739` | **GREEN (7/7)** | every receipt refusal is ASSEMBLED by `push` and thrown joined at `:689`/`:764`; a throw-only reader cannot see it |
+| C | contract header names 5 emitters, `DISPATCHER_MODULES` scanned 2 | — | `resource-declaration`, `resource-policy`, `population-resolver` unmeasured under a completeness claim |
+
+Both probes re-planted against the FIXED census: **each REDS**, naming its own sentence in the diff
+(`"…: … and some new sentence nobody listed"` and `"a generic refusal nobody listed"`).
+
+### The fragment classification
+
+An argument is COMPOSED only when it reads at least one `POLICY_PASS_REFUSALS.<key>` slot **and** every static
+fragment is declared. Interpolation slots are runtime data and are never fragments.
+
+| Class | Members (measured across all five emitters, held two-sided) |
+| - | - |
+| joiners | `" "` · `": "` · `" is "` |
+| subject labels | `"policy "` · `"fact "` · `"non-resource policy "` · `"resource-only policy "` · `"resource-only fact "` · `"resource "` · `"resource request "` · `"resource request exact-file:"` · `"authored text "` · `"syntax owner "` |
+| unit suffix | `" candidate(s)"` |
+| REFUSED by the two-sided pin | `", "` — the review's example. Every comma-joined list here is `…join(", ")`, a SLOT, never authored static text; a declared fragment nothing uses is a widened door |
+| slots (never fragments) | `${provider.id}`, `${failures.join("; ")}`, `${JSON.stringify(receipt.source)}`, `${label}`, … |
+
+Anything else in static position is a new SENTENCE, and a new sentence belongs in the table.
+
+### Emitter sites, including the indirect construction
+
+A site is a `new Error(...)` argument **or** a `<sink>.push(...)` argument whose receiver is an identifier that
+appears inside some `new Error(...)` argument in the same file — the rule follows the JOIN rather than a
+hardcoded `failures`. Control (d) pins the other side: a `paths.push(...)` no refusal reads is **not** a site,
+so the rule does not sweep every `.push` in the file.
+
+### Emitter coverage is derived, and two-sided
+
+`contract/policy-pass.ts#POLICY_REFUSAL_EMITTERS` is now the ONE home (the header cites it instead of listing
+five names in prose). The pin derives the same set from the tree — a `lib/*.ts` module composing a refusal from
+the table — and requires **equality**, so a new emitter that never joins the roster reds, and so does a roster
+entry that stopped composing. It also asserts the NEGATIVE the old list only assumed: `policy-refusal-envelope.ts`
+references the table (it is built from it) and has **zero** refusal sites, so "references the table" is not the
+predicate. **The tree CONFIRMS the contract's five-module claim** — no narrowing was owed.
+`DISPATCHER_INVARIANTS` grew 32 → 35 with population-resolver's three caller errors.
+
+### Floor (scoped, per the brief — no `check:structure`, no whole-tree lint)
+
+| Check | Result |
+| - | - |
+| `pnpm test:scoped` × 8 (policy-refusal-envelope · policy-pass · policy-pass-context · policy-pass-readers.suite · policy-loader · population-resolver · resource-declaration · resource-policy) | **153 passed** |
+| both probes re-planted against the fixed census | **each REDS**, own sentence named |
+| `pnpm check:policy-conformance` | exit 0 — 262 policies · 3110 rows · 0 failures (the new contract export does not disturb the loader) |
+| `pnpm exec biome check` / `pnpm exec eslint` (2 files) | exit 0 / exit 0 |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | PASS / PASS |
+
+### Proposed lesson
+
+**A completeness census is an instrument, and `includes()` is not a classifier.** "Every throw is composed"
+was implemented as "every throw mentions the table somewhere", which credits a composed member with an
+arbitrary sentence stapled to it. A completeness claim over authored text has to be decided per FRAGMENT, over
+every construction site the value can reach (assembled-then-joined counts), across exactly the modules its
+own claim names — and each of those three is a separate false clean with its own control.
+
+ledger rows OWED: 1 (row 4 below)
+
+## LEDGER ROWS (1 row)
+
+| # | Module / site | Class | What is wrong | Evidence | State |
+| -: | - | - | - | - | - |
+| 4 | `tests/tooling/verify/lib/policy-refusal-envelope.test.ts` (the #2155 completeness census, as landed at `9568d86f1`) | false clean in an instrument | Three ways at once: it credited a whole `new Error` argument for CONTAINING `POLICY_PASS_REFUSALS.` (a composed member plus an appended sentence passed); it read only `throw new Error(...)` while every receipt refusal is assembled by `failures.push(...)` and thrown joined; and its module list (2) was narrower than the contract header's claim (5), leaving three emitters unmeasured under a completeness sentence. | Planted on the unmodified test: appended-suffix template GREEN 7/7; `failures.push("a generic refusal nobody listed")` GREEN 7/7. Both RED after the rewrite. Roster now derived + two-sided; invariants 32 → 35. | **OPEN** (fixed at `20b2c4190`; row for the record) |
+
+---
+
+## LEG 3 — two more bounded false cleans in the census (`6e759cbe0`)
+
+Independent review of `20b2c4190` reproduced two gaps in-memory; both were re-reproduced here against the
+UNMODIFIED census on the REAL emitters before any fix. Not rebased — primary owns integration.
+
+### Red-first
+
+| Gap | Probe (cp-backed on a real emitter, restored, tree clean) | Old census | Fixed census |
+| - | - | - | - |
+| **1** | `const LEG3_SUFFIX = " and an authored sentence"` + `` `${POLICY_PASS_REFUSALS.factAbsent}${LEG3_SUFFIX}` `` in `policy-pass-context.ts` | **GREEN 7/7** | **REDS**, naming `"… and an authored sentence"` |
+| **2** | `const out = failures; if (…never…) { out.push("generic refusal"); }` in `policy-pass.ts` (runtime-inert, so only the census can see it) | **GREEN 7/7** | **REDS**, naming `"generic refusal"` |
+
+The first attempt at probe 2 pushed unconditionally and was caught by the RUNTIME driver pin instead of the
+census — a probe that changes observable behaviour proves the wrong thing. Re-planted behind an impossible
+condition so the census was the only instrument that could see it.
+
+### GAP 1 — the three-way slot verdict
+
+A slot is resolved before it is classified: same-file `const` only, literals, `+` concatenations,
+conditionals, one hop through another const (`RESOLVE_HOPS = 2`). Then:
+
+| Verdict | When | Effect |
+| - | - | - |
+| RUNTIME slot | no string literal anywhere in the subtree — a parameter, an import, a call result, a property access | no fragment, no red (a verdict, not a refusal) |
+| authored TEXT | resolves exactly | fragments, judged against the declared set |
+| `<UNREADABLE …>` | text present, shape not exactly resolvable | a fragment nothing declares → the census reds LOUDLY |
+
+A conditional decomposes branch by branch rather than being all-or-nothing, which is how
+`value?.status === "failed" ? value.message : POLICY_PASS_REFUSALS.factFailedUnknown` reads as one slot plus
+one member.
+
+### GAP 2 — alias hop AND a bounded prohibition, and why both
+
+Chose **(a) + a bounded (b)**. The alias hop follows `const out = failures` because that is a rename this
+reader can prove. It cannot follow the accumulator into a helper, and a census that quietly gave up there
+would be the same false clean one level out — so handing a sink to a call is BANNED in an emitter module and
+reported by `escapedSinks`, asserted empty on the tree with a planted `collect(failures)` control. Method
+calls ON the sink (`failures.join("; ")`) are untouched.
+
+**Accumulators are keyed on the JOIN**, not on "every identifier a message mentions". That leg-2 set also
+holds `run`, `path`, `value` — measured: a prohibition over it flagged **115** ordinary calls. An array whose
+elements are rendered into a refusal is the precise tell, and it keeps every one of leg 2's eleven pushed
+sentences in scope (the accumulator in `receiptFailures` is a different symbol from the one `evaluateRuns`
+throws, so the rule stays name-keyed after the alias hop — a purely symbol-scoped rule would have dropped
+them).
+
+### Three things the new reader found on the live tree
+
+1. **A TWELFTH uncovered sentence.** `policy-pass.ts:703` reached a refusal with `"unknown fact failure"`
+   through a const conditional — invisible to both earlier censuses. Now `POLICY_PASS_REFUSALS.factFailedUnknown`,
+   composed.
+2. **`", "` IS an authored fragment after all.** Leg 2's comment ("a SLOT expression, never authored static
+   text") was WRONG because the census stopped at the call. Reading a call's DIRECT literal arguments makes
+   the separator visible; `", "` and `"; "` are both declared and the comment records its own correction.
+3. **`"members"`/`"resources"`** reach a message through the same const-conditional shape and are declared
+   for the same reason.
+
+Bounded deliberately: only DIRECT string-literal arguments of a call are harvested. Recursing into an
+arbitrary argument reaches a predicate's own strings (`ids.find((id) => …"exact-file"…)`) and made one live
+site unreadable for a reason that had nothing to do with its message — caught by the two-sided pin in the
+same run.
+
+### Floor (scoped, per the brief — no policy-conformance, no whole-tree anything)
+
+| Check | Result |
+| - | - |
+| `pnpm test:scoped` × 8 (the leg-2 set) | **154 passed** |
+| both probes re-planted against the fixed census | **each REDS**, own text named |
+| `pnpm exec biome check` / `pnpm exec eslint` (3 files) | exit 0 / exit 0 |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | PASS / PASS |
+
+### Proposed lesson
+
+**Every "the reader stops here" boundary is a false clean waiting to be planted.** Three legs, five gaps, and
+each one was the census stopping one construct short of where authored text actually enters: a substring
+instead of a fragment, a throw instead of the array it joins, two modules instead of five, an identifier
+instead of the const behind it, a name instead of its alias. The durable form is not "check harder" — it is
+that **the census must name the constructs it does NOT resolve** (`<UNREADABLE …>`) so the boundary reds
+instead of passing, and that every widening owes a planted control in both directions.
+
+ledger rows OWED: 1 (row 5 below)
+
+## LEDGER ROWS (1 row)
+
+| # | Module / site | Class | What is wrong | Evidence | State |
+| -: | - | - | - | - | - |
+| 5 | `tests/tooling/verify/lib/policy-refusal-envelope.test.ts` (the census as landed at `20b2c4190`) | false clean in an instrument | Two more: an authored sentence held in a same-file `const` read as a runtime slot and passed the fragment rule, and a push through a `const` alias of the accumulator was not a site at all. Both are ordinary ways to put text into a refusal. | Planted on the unmodified census: const-suffix GREEN 7/7, alias-push GREEN 7/7; both RED after the fix. The new reader also surfaced a TWELFTH uncovered sentence (`"unknown fact failure"`, `policy-pass.ts:703`) and corrected leg 2's claim that `", "` was not an authored fragment. | **OPEN** (fixed at `6e759cbe0`; row for the record) |
+
+## Primary integration — integrated provenance and binary-expression correction
+
+The implementation described above was rebased and integrated on `main` through `b718a0835`. The branch SHAs in the historical narrative remain valid provenance; their integrated equivalents are:
+
+| Report SHA | Integrated SHA | Subject |
+| - | - | - |
+| `1e2b60fae` | `fc2b82d53` | #2274 production-dispatch recognizer |
+| `8d22e8e20` | `6eadf5d3a` | #2187 member-level shared-reader policy |
+| `9568d86f1` | `ce429f3c4` | #2155 refusal table and initial census |
+| `20b2c4190` | `a3c932ac0` | #2155 fragment/site/emitter completeness repair |
+| `6e759cbe0` | `a59dec108` | #2155 const-slot and aliased-sink repair |
+
+Two root follow-ups corrected the binary-expression boundary in the census. Original commit `bf695aa2e`, rebased/integrated as `e9952b18c`, stopped treating every binary expression as string concatenation: `+` composes adjacent fragments; `||`, `&&`, and `??` preserve value-producing alternatives; equality/comparison/arithmetic results remain runtime slots. Original commit `0c2b7a49f`, rebased/integrated as `b718a0835`, replaced the broad remainder with a closed boolean/numeric operator set. Assignment, comma, and any other unmodelled binary expression carrying authored text now produce `<UNREADABLE …>` and fail closed; text-free unmodelled expressions remain runtime slots. Permanent controls cover equality and inequality as runtime values, all three value-selecting operators, and text-bearing assignment/comma expressions.
+
+This append records code provenance, not an integrated verification receipt. The commit messages report focused `policy-refusal-envelope.test.ts` 9/9 and scoped Biome (plus scoped ESLint for `e9952b18c`) on the authors' trees. A current-main independent run of the focused envelope suite and inspection of its completed result remain owed before the five ledger rows are marked verified closed.
