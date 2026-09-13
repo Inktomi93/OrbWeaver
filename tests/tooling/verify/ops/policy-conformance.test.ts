@@ -620,6 +620,39 @@ test("a proof can express a SYMLINK, and the identity door judges its containmen
   expect(verifyPolicyProofs([escapingSelectorPolicy()])).toEqual([]);
 });
 
+test("a link nested under an earlier link cannot write outside the fixture root, and nothing is materialized (#2333)", ({ scratch }) => {
+  // The reviewer-owned OUTER directory is the escape target: an absolute link TARGET is legal and stays so.
+  const outer = join(scratch, "outer");
+  mkdirSync(outer);
+  const rootsBefore = readdirSync(tmpdir()).filter((name) => name.startsWith(POLICY_CONFORMANCE_TEMP_PREFIX));
+  const nested = defineGate({
+    ...escapingSelectorPolicy(),
+    id: "nested-link-destination",
+    family: "nested-link-destination",
+    mustPass: [
+      {
+        mode: "resource",
+        files: { "vitest.config.ts": "export default {};\n", "target.ts": "export const t = 1;\n" },
+        // Links are created in sorted order, so `escape` exists as a symlink to OUTER before `escape/planted.ts`
+        // is created through it.
+        links: { escape: outer, "escape/planted.ts": "target.ts" },
+        why: "a destination under an earlier link resolves through that link",
+      },
+    ],
+  } as GatePolicy);
+
+  let refusal: unknown;
+  try {
+    verifyPolicyProofs([nested]);
+  } catch (error) {
+    refusal = error;
+  }
+  // The escape assertion comes FIRST: against the pre-fix runner it names the symlink created in OUTER.
+  expect(readdirSync(outer)).toEqual([]);
+  expect(String(refusal)).toMatch(/links path escape is an ancestor of declared destination escape\/planted\.ts/u);
+  expect(readdirSync(tmpdir()).filter((name) => name.startsWith(POLICY_CONFORMANCE_TEMP_PREFIX))).toEqual(rootsBefore);
+});
+
 for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"] as const) {
   test(`resource proofs ignore ambient ${key} without changing the caller index`, async ({ scratch }) => {
     writeFileSync(join(scratch, "outside.txt"), "outside");

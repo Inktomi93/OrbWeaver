@@ -207,6 +207,21 @@ test("a proof `links` map is resource-mode only and cannot collide with a declar
   expect(() => assertGatePolicyDescriptor(linked({ "/absolute.ts": ".." }))).toThrow(/repo-relative/i);
 });
 
+test("a proof link may not be an ANCESTOR of another declared destination, which would be written THROUGH it (#2333)", () => {
+  const linked = (files: Record<string, string>, links: Record<string, string>): unknown =>
+    resourcePolicy({ mustPass: [{ mode: "resource", files: { "biome.json": "{}", ...files }, links, why: "w" }] });
+  // A link's TARGET stays free (an escaping target is a legitimate subject), so the only way a later
+  // destination leaves the fixture root is by resolving through an earlier link used as a parent directory.
+  expect(() => assertGatePolicyDescriptor(linked({}, { escape: "/outside", "escape/planted.ts": "target.ts" }))).toThrow(
+    /links path escape is an ancestor of declared destination escape\/planted\.ts/i,
+  );
+  expect(() => assertGatePolicyDescriptor(linked({ "escape/planted.ts": "x" }, { escape: "/outside" }))).toThrow(
+    /links path escape is an ancestor of declared destination escape\/planted\.ts/i,
+  );
+  // NEAR MISS: a shared string prefix is not a shared path segment; `escaped/x.ts` is a sibling of `escape`.
+  expect(() => assertGatePolicyDescriptor(linked({ "escaped/x.ts": "x" }, { escape: "/outside", "escapee.ts": "/outside" }))).not.toThrow();
+});
+
 test("refuses an absent or empty corpus", async ({ scratch }) => {
   await expect(loadPolicyCorpus(join(scratch, "absent"))).rejects.toThrow(/zero|empty|no gate/i);
   const empty = join(scratch, "empty");
