@@ -46,12 +46,12 @@ Classification of one module `rel`, in this order, by exact contract identity:
    visit/visitFile/run hook, ≥1 mustFlag + ≥1 mustPass); names unique across the legacy set. A legacy module
    genuinely missing `name` still refuses loudly with the path and the reason — that door is unchanged.
 3. `mod.gate` is **not branded** and fails legacy validation → **tool error**: the loader throws
-   `gate module <rel>: exports a \`gate\` that is neither branded by defineGate nor a valid legacy descriptor: <legacy reason>`.
+   ``gate module <rel>: exports a `gate` that is neither branded by defineGate nor a valid legacy descriptor: <legacy reason>``.
    The message ADDS a hint when the object carries the final contract's required keys (`id`, `family`, `authority`,
-   `create\`): "it has the final contract's shape but was not created through defineGate (a spread, clone or copy
+   `create`): "it has the final contract's shape but was not created through defineGate (a spread, clone or copy
    loses the brand)". The hint is text in the refusal; it is never a dispatch decision.
 4. `mod.gate === undefined` but the module exports a branded value under another name → **tool error**
-   (`exactly one defineGate descriptor named \`gate\`\`, the existing final-loader rule).
+   (`` exactly one defineGate descriptor named `gate` ``, the existing final-loader rule).
 5. `mod.gate === undefined` and no branded export → **unregistered** (recorded on the roster as today; the run
    manifest reconciles it into `incompleteReasons` and exit 2 — the #410 control stays green).
 6. An import-time throw (syntax error, missing dependency) stays FATAL, attributed to the path in sorted order
@@ -107,7 +107,7 @@ final  = corpus.final.length === 0 ? null :
   dispatchers bracket their own `beginReferencePass`/`endReferencePass`; they run sequentially. Measured in §8.
 - **Grants.** The door passes `reviewedGrantsFor(corpus.final)` — the brief's spelling, and the only one that keeps a
   PARTIAL roster honest: with the whole table, every planted tree and every future scoped policy selection drowns in
-  `invalid-grant` errors for rows naming policies it never loaded (measured while writing the mixed test: \~100 per
+  `invalid-grant` errors for rows naming policies it never loaded (measured while writing the mixed test: ~100 per
   planted run). The silence that filter would otherwise buy — a row naming a legacy gate or a deleted policy vanishing —
   is closed where it is a WHOLE-corpus fact: the conformance stage validates `REVIEWED_GRANTS` against the whole final
   roster on every check (`validateReviewedGrants`, `lib/gate-authority-validation.ts:55-76`: unknown policy, wrong
@@ -159,7 +159,7 @@ type StructureGateRow =
 
 - `Violation` (`contract/harness.ts`) widens by optional `column`, `token`, `severity` — additive; legacy rows keep
   `{file,line,message}`.
-- Population is carried as COUNTS: 163 policies × \~7,300 paths as lists would make the artifact unreadable and
+- Population is carried as COUNTS: 163 policies × ~7,300 paths as lists would make the artifact unreadable and
   `check:show` unusable; the per-policy receipts (semantic members) stay whole.
 - `run` (`contract/run-manifest.ts`) gains `legacy: { registered, active, ran }` and `final: { registered, ran, withheld }`;
   the totals `registered/active/ran` become the sums, so `show`'s `ran/active` reading is unchanged.
@@ -196,7 +196,7 @@ Exit: the same `max` composition. The scoped door writes no artifact today and s
 
 ## 4. Whole-corpus conformance stage (deliverable 3, #1941)
 
-- verb `policy-conformance` on the ONE front door (`contract/verbs.ts` → `cli.ts` VERB\_HELP/dispatch → `lib/verb-tail.ts`
+- verb `policy-conformance` on the ONE front door (`contract/verbs.ts` → `cli.ts` VERB_HELP/dispatch → `lib/verb-tail.ts`
   `none`); op `ops/policy-conformance-stage.ts#runPolicyConformance(root)`; script `check:policy-conformance`; registry
   row `structure:policy-conformance` in `group: "structure"`, `tiers: STATIC`, `classify: ownScheme`, whole-only.
 - It loads the mixed corpus and runs `verifyPolicyProofs(corpus.final)`. Zero final policies is exit 2 (a bare zero is
@@ -402,12 +402,12 @@ foundation those rows will be strengthened on; it is not their strength.
 - Fork B arm 1 (WIDEN), both required receipts: the mustPass row (a canonical `defineGate` module with a planted
   policy.ts stub is silent — 18/18 proof rows) AND the planted break on a REAL legacy module: `gates/test-layout.ts`
   copied to `.p-mixed-runtime.bak`, `export const gate` renamed, the gate driven over the real gates dir → 5 findings,
-  the new one `test-layout.ts:1 … exports no \`gate\` descriptor object and no canonical \`defineGate\` policy`;
+  the new one ``test-layout.ts:1 … exports no `gate` descriptor object and no canonical `defineGate` policy``;
   restored → 4 (the pre-existing arm-B rows: no-raw-spacing-in-features, no-raw-typography-in-features,
   serde-core-seal, vector-scope-derived — the baseline's "4 other", outside this lane's fence: each carries its stale
   arm in its `-health`sibling module, which arm B cannot see from the sibling's file). Arm A on the real gates dir:
-  173 → 4 (163 final modules + 6`gates/\_proof/\` surfaces stop reading as unregistered).
-- `check-gates.repo.int.test.ts`: 10/10 in 451 s (two mixed passes). BLIND\_RE had spelled `!` while the renderer
+  173 → 4 (163 final modules + 6 `gates/_proof/` surfaces stop reading as unregistered).
+- `check-gates.repo.int.test.ts`: 10/10 in 451 s (two mixed passes). BLIND_RE had spelled `!` while the renderer
   has printed `⚠` since 68c8f42d6 — the zero-scan arm was an unfailable empty set; repaired, and it now also covers a
   final owner failure/withhold. Seven UNFIXTURABLE rows named converted policies (eslint-grant-liveness,
   depcruise-grant-liveness, warning-code-coverage, verify-registry-parity, bus-producer-coverage,

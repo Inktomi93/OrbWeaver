@@ -27,7 +27,7 @@ The brief's regex `\b(roster|cast|crew|party)\b` is **under-inclusive** — `\b�
 | matching LINES in that set | **4 782** | |
 | lines whose only match is a FALSE STEM | **91** (1.9%) | `broadcast` 43 · `third-party` 19 · `casting` 11 · `forecast` 8 · `upCast` 6 · `podcast` 1 · plus `screw`/`sarcastic` which `-i crew`/`-i cast` also catch |
 
-So false stems are noise, not the story: \~98% of hits are real. Per-stem file counts:
+So false stems are noise, not the story: ~98% of hits are real. Per-stem file counts:
 roster 432 · cast 455 (441 after stem-exclusion) · party 122 (113) · crew 19.
 
 Positive controls used for every negative claim below: `ast-grep run -p '<Ident>' -l ts packages --inspect summary` at `scannedFileCount=2459, skippedFileCount=0`, paired with a literal `rg`.
@@ -52,7 +52,7 @@ So the file whose name and header say "roster" exports five `Cast`-named symbols
 **(b) `roster` IS user-facing.** Three live accessible names:
 
 - `packages/client/src/features/rpg/components/rpg-scene-cast.tsx:259`
-  `aria-label={`Promote ${actor.name} to the roster`}`
+  ``aria-label={`Promote ${actor.name} to the roster`}``
 - `packages/client/src/features/rpg/components/rpg-character-detail.tsx:348`
   `aria-label="Back to the roster"` (also `:286`)
 - pinned by `tests/client/features/rpg/lib/rpg-context-section.ct.tsx:781,1512,1562`
@@ -286,7 +286,7 @@ unless noted.
 
 | # | word, as the USER sees it | means | where | sites |
 | - | - | - | - | - |
-| **1** | **Cast** (Members tab kicker) | the characters seated in THIS room | `members-panel.tsx:310`, `chat-cast-bar.tsx:100`, `castSectionVisible` | \~40 |
+| **1** | **Cast** (Members tab kicker) | the characters seated in THIS room | `members-panel.tsx:310`, `chat-cast-bar.tsx:100`, `castSectionVisible` | ~40 |
 | **2** | **Add cast… / Saved casts / New cast / Casts** | a saved TEMPLATE of characters + knobs + rules | `committed-members-tab.tsx:141`, `saved-casts-modal.tsx:18-19`, `cast-collection.tsx:29`, `cast-group.tsx:21` | 308 `cast*` idents in `features/roster-preset` alone |
 | **3** | **your cast / Meet the cast** | your whole character LIBRARY | `characters-section.tsx:56,137`, `character-library-welcome.tsx:166,167,277` | 5 copy sites |
 | **4** | **the roster** (RPG panel) | = #1, different word | `rpg-scene-cast.tsx:259`, `rpg-character-detail.tsx:348,286` | 3 a11y names |
@@ -302,7 +302,7 @@ unless noted.
 | 13 | `roster` = generic "a list" | regex attachments / rooms / characters / refinery sessions / personas / plugins | see N5 | 6 features |
 | 14 | `ChatRoster` = one role | the asking viewer's `ParticipantRole` — not a list | `contracts/src/identity/index.ts:73` | 12 |
 | 15 | `roster` = plugin API | the room's CHARACTER seats, humans excluded | `contracts/src/plugin/host-v1.ts:212` | public API |
-| 16 | `party` = the saved template | server JSDoc / db comments for concept #2 | `roster-preset/contract/service.ts:112-126`, `db/schema/roster-preset.ts:1,8,21` | \~15 prose |
+| 16 | `party` = the saved template | server JSDoc / db comments for concept #2 | `roster-preset/contract/service.ts:112-126`, `db/schema/roster-preset.ts:1,8,21` | ~15 prose |
 | 17 | `crew` = dead | comments + one seeded greeting | `character/seeder/cards.ts:565` | 31 lines, 1 live string |
 
 **Five distinct user-facing meanings across three words; twelve distinct code meanings.**
@@ -315,7 +315,7 @@ unless noted.
 | **M2** | The same set is "**Cast**" in Members and "**the roster**" in the RPG panel | **the user** — two panels of one room, two nouns | `members-panel.tsx:310` vs `rpg-scene-cast.tsx:259` |
 | **M3** | "**your cast**" = the library, but "**this room's cast**" = the seats, and "**a cast**" = a template | **the user** — three referents in one app, none disambiguated in copy | `characters-section.tsx:56` · `cast-picker.tsx:334` · `cast-group.tsx:26` |
 | **M4** | rpg `cast` **excludes** roster identities; D137 `cast` **includes** them plus personas | **a cold agent** — the words are exact opposites on the same plane, and only a comment fences them | `rpg/actor.ts:52,130` vs `producers.ts:51` + `persistence/cast.ts:18-20` |
-| **M5** | `castId` (347 sites) is a type cast, not the concept | **a cold agent** — any `rg cast` sweep is \~2:1 noise; the census that produced this brief did not mention it | `kit/src/ids/index.ts:272` |
+| **M5** | `castId` (347 sites) is a type cast, not the concept | **a cold agent** — any `rg cast` sweep is ~2:1 noise; the census that produced this brief did not mention it | `kit/src/ids/index.ts:272` |
 | **M6** | One artifact, four registry names: dir `roster-preset` · router `rosterPreset` · group id `"cast"` · modal id `"savedCasts"` | **a cold agent** — no single grep finds the feature | `cast-collection.tsx:15`, `config-group-ids.ts:34`, `modal-slot-ids.ts:54`, `routers/roster-preset.ts:12` |
 | **M7** | Server tier says **party** and **cast** for the same artifact, in the same files, 20 lines apart | **a cold agent** writing copy or a test | `contracts/src/roster-preset/index.ts:39` vs `:59`; `db/schema/roster-preset.ts:2` vs `:8` |
 | **M8** | `ChatRoster` is a single role field, not a roster | **a cold agent** reading `can()`'s inputs | `contracts/src/identity/index.ts:73` |
@@ -336,14 +336,14 @@ No recommendation is made here beyond naming the collisions precisely. Prices, s
   `features/roster-preset` and the two registry literals `"cast"` / `"savedCasts"`. **Large**: it is a
   branded-id (`RosterPresetId`, `ID_PREFIX.roster_preset`), a router key, a db table family, a bus
   member and two registry string keys, so it is not an LS-only rename.
-- **M1/M2/M3 — the copy-only half.** \~14 rendered strings/aria-labels total: `members-panel.tsx:286,310,314`
+- **M1/M2/M3 — the copy-only half.** ~14 rendered strings/aria-labels total: `members-panel.tsx:286,310,314`
   · `chat-cast-bar.tsx:100` · `committed-members-tab.tsx:141` · `saved-casts-modal.tsx:18,19` ·
-  `cast-collection.tsx:26,29,35` · `cast-group.tsx:21,26` · `cast-picker.tsx` (\~12 strings incl.
+  `cast-collection.tsx:26,29,35` · `cast-group.tsx:21,26` · `cast-picker.tsx` (~12 strings incl.
   `"Save current cast"`, `"New cast name"`, `"Name this cast…"`, `"No saved casts yet"`,
   `"Delete this cast?"`) · `cast-member-surface.tsx:139,142` · `characters-section.tsx:56,137` ·
   `character-library-welcome.tsx:166,167,277` · `new-chat-picker-surface.tsx:215` ·
   `rpg-scene-cast.tsx:259` · `rpg-character-detail.tsx:348`. **Every one has a CT or e2e assertion**
-  (\~30 selector sites in `tests/client/features/roster-preset/components/cast-picker.ct.tsx`,
+  (~30 selector sites in `tests/client/features/roster-preset/components/cast-picker.ct.tsx`,
   `.../cast-member-surface.ct.tsx:52`, `tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx:39,65`,
   `tests/client/features/rpg/lib/rpg-context-section.ct.tsx:781,1512,1562`,
   `tests/e2e/support/chat-room.ts:292` `const CAST_BAR = '[aria-label="Cast"]'`). Copy-only, **but

@@ -201,7 +201,7 @@ the roster rows are mechanism-shaped and every symbol they name resolves
 why both exist."*
 
 **Measured.** Cut, in a patched sibling scratch module, anchor asserted to occur EXACTLY ONCE, DIRECTION
-open (`entry.path.startsWith(\`${EXEMPT\_DIR}/\`)`→`entry.path.startsWith(\`${EXEMPT\_DIR}\`)\`, so the
+open (``entry.path.startsWith(`${EXEMPT_DIR}/`)`` → ``entry.path.startsWith(`${EXEMPT_DIR}`)``), so the
 fence ACQUITS more and the policy flags LESS):
 
 ```

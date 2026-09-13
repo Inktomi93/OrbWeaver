@@ -148,7 +148,7 @@ include-line provides on the SAVE side is visual-only on the APPLY side. And "3"
 nothing on the surface says the first badge counts members.
 
 **Fix.** `clarify: the two badges in CastRow — receipt: an --aria capture in which every row control's
-name carries the counts.` Either label the badges (`aria-label={`${cast.memberCount} members`}`) or fold
+name carries the counts.` Either label the badges (``aria-label={`${cast.memberCount} members`}``) or fold
 both counts into the row buttons' names ("Start a chat with Spire Trio — 3 members, 2 rules"). Same for
 the editor's bare `0.5`.
 
@@ -262,10 +262,10 @@ learns what a cast is.
 
 | Element | Problem | Exact fix |
 | - | - | - |
-| `CastRow` member badge (`<Badge>` with `{cast.memberCount}`) | renders as a bare digit with no accessible name; SR reads "3" | `aria-label={`${cast.memberCount} members`}` — or fold the counts into the row buttons' names |
+| `CastRow` member badge (`<Badge>` with `{cast.memberCount}`) | renders as a bare digit with no accessible name; SR reads "3" | ``aria-label={`${cast.memberCount} members`}`` — or fold the counts into the row buttons' names |
 | `CastRow` rules badge (`{n} rule(s)`) | visual-only; never announced at any tab stop | append to each row button's `aria-label`: `Start a chat with ${cast.name} — ${cast.memberCount} members, ${cast.rules.length} rules` |
 | Editor "MEMBERS" / "RULES" (`<Text as="span" voice="kicker">`) | no heading semantics; the editor has one heading total | `<Heading level={3}>` (or `Section kicker`, which renders one) so heading navigation works |
-| Editor talkativeness `0.5` (`SPAN`, no label) | unlabelled numeric datum | `aria-label={`${member.name} talks at level ${Math.round(t\*100)} of 100`}` — matching the room's own wording |
+| Editor talkativeness `0.5` (`SPAN`, no label) | unlabelled numeric datum | ``aria-label={`${member.name} talks at level ${Math.round(t * 100)} of 100`}`` — matching the room's own wording |
 | `SaveCurrentCast` disabled button | disabled with no announced reason while `capturedRules === null` | render a live reason (`aria-describedby` on the button) instead of a silent `disabled` |
 | The include-line | not associated with the control it describes | `aria-describedby` from the Save button to `[data-slot=cast-rules-include]` |
 
@@ -443,5 +443,5 @@ Close is last in the picker's tab order though visually first; a room started fr
 **Cluster E — stumbled-on, not B10 (P3-5, P3-6, and the CLS note).** The B2 rule-preset picker popover
 reopens on step 2 (the previously configured preset's knob form) instead of the catalogue — measured
 twice, and it caused an accidental duplicate mint when a host tried to add a *different* rule. Separately,
-the "This chat" pane accumulates a non-virtualized CLS of \~0.302 across a rules-editing session (the
+the "This chat" pane accumulates a non-virtualized CLS of ~0.302 across a rules-editing session (the
 picker itself measures 0). Both belong to whoever owns B2's surface.

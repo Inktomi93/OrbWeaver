@@ -17,7 +17,7 @@ walker sites scan stylesheet TEXT for the literal `:hover` and therefore cannot 
 
 1. `tooling/src/ui-audit/ops/hover-walker.ts:53` — the `hover-contrast` prefilter. Verified live:
    14 files under `packages/{ui,client}/src` carry `data-(highlighted|pressed|selected|current|active)`
-   paint variants, including `packages/ui/src/lib/popup-surface.ts:22` (ITEM\_ROW:
+   paint variants, including `packages/ui/src/lib/popup-surface.ts:22` (ITEM_ROW:
    `data-highlighted:bg-accent data-highlighted:text-accent-foreground`) and
    `packages/ui/src/primitives/menu/variants.ts:34` (itemBase, the same full fg+bg pair). Those texts
    publish `excluded:{noHoverPaint}` — a measurement-shaped claim that is FALSE.
@@ -32,7 +32,7 @@ walker sites scan stylesheet TEXT for the literal `:hover` and therefore cannot 
 
 Plus the shared escaped-selector bug (#24): `HOVER_PSEUDO_RE = /:hover(?![-\w])/gi`
 (hover-walker.ts:42) matches the `:hover` INSIDE a Tailwind escaped class name
-(`.dark\:hover\:bg-neutral-700:hover` — the following `\` is not in `[-\w]`), and the strip mangles
+(`.dark\:hover\:bg-neutral-700:hover` — the following `` `\` `` is not in `[-\w]`), and the strip mangles
 the selector into one `querySelectorAll` throws on. Measured on the isolated stage (`config`):
 25 unparseable → `noHoverPaintUnproven=58`, exit 2. The same unescaped-vs-escaped confusion sits in
 every `indexOf(":hover")` in that file (lines 53/152/156) and in census-decor's `/:hover/i`.
@@ -168,7 +168,7 @@ mid-animation attributes whose presence accompanies a structural change or a tra
 
 - `tooling/src/ui-audit/ops/walker/state-paint.ts` — NEW segment.
 - `tooling/src/ui-audit/ops/walker.ts` — additive import + two composition inserts (segment order:
-  after RESOLVE, before CENSUS\_DECOR/CENSUS\_GLOW).
+  after RESOLVE, before CENSUS_DECOR/CENSUS_GLOW).
 - `tooling/src/ui-audit/ops/hover-walker.ts` — escape fix via shared predicate; attr pairs; glow
   pairs; readAttr; counters. Selector machinery moves OUT (450-cap headroom).
 - `tooling/src/ui-audit/ops/hover.ts` — compose the segment; drive attr groups (evaluate, validated);
@@ -244,7 +244,7 @@ escape fix should collapse `noHoverPaintUnproven=58`.
   propose an exemption MECHANISM (never a name list). Checked at live acceptance.
 - **Stated limit — pseudo-element backdrops**: Base UI's reference idiom paints item hover via
   `::before`; `resolveBackdrop` cannot read a pseudo background (resolve.ts:201). Our own usage
-  paints on the element (verified: ITEM\_ROW/itemBase set `bg-accent` directly); pseudo-painted
+  paints on the element (verified: ITEM_ROW/itemBase set `bg-accent` directly); pseudo-painted
   pairs are withheld by name, so the limit is visible in every run that hits it.
 - **Stated limit — coarse pointers**: the `no-hover-media` early return now also withholds the
   attribute census (named in the hover.ts header); media-aware collection is the future unlock.

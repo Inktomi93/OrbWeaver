@@ -101,7 +101,7 @@ When the owner feels it, the right-once shape is: extend `CollectionContribution
 view-projected context arm carrying a header COMPONENT (not a title string), and (b) an optional
 per-collection panel-default hint; then convert `presetsSection` into a preset collection and delete the
 standalone section in the same commit (no half-migration — AGENTS §4 banned escape hatches). That is a
-real \~day of work across the seam + presets, not one array member — and stating that honestly now is worth
+real ~day of work across the seam + presets, not one array member — and stating that honestly now is worth
 more than either premature arm.
 
 ---
@@ -198,13 +198,13 @@ shipped — the server side is DONE. The only gap is a client affordance to reac
   is standard interchange, not an orb invention.
 - **THE GAP — no client affordance.** The character kebab has ONE "Export card" link with no `?format`, so it
   always hits the PNG default: `packages/client/src/features/character/components/character-card.tsx:187-190`
-  (`href={`${EXPORT\_CHARACTER\_PATH}${character.id}`}`, `EXPORT_CHARACTER_PATH` at `:25`). JSON is reachable only
+  (``href={`${EXPORT_CHARACTER_PATH}${character.id}`}``, `EXPORT_CHARACTER_PATH` at `:25`). JSON is reachable only
   by hand-typing the query.
 
 ### Options
 
 1. **Build the client affordance on the existing json arm.** Replace the single "Export card" link with a
-   two-item submenu (PNG / JSON) hitting `?format=json` for the JSON arm. The server is done; this is \~10 lines.
+   two-item submenu (PNG / JSON) hitting `?format=json` for the JSON arm. The server is done; this is ~10 lines.
 2. **Separate export door.** Rejected — duplicates the built, correct door.
 3. **Skip.** Leave JSON as an API-only capability (power users hit the URL).
 

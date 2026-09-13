@@ -132,7 +132,7 @@ is warned in the field rather than blocked mid-edit or rejected at the server. T
 ## 3. The `wiFormat` / `{{entry}}` contrast — when & why it became a block
 
 Commit **`5d71e287e`** `feat(preset,contracts): PRESET-1 server seams …` (**2026-08-01 14:36:42 -0600**,
-\~24 min after S1b) introduced `FORMAT_STRING_CARRIER_TOKENS`. The commit message records the ruling:
+~24 min after S1b) introduced `FORMAT_STRING_CARRIER_TOKENS`. The commit message records the ruling:
 
 > "OWNER GUARD (2026-08-02): `promptConfigWriteSchema` refuses a format string that dropped its CARRIER
 > token (`wiFormat` without `{{entry}}`) — at the WRITE boundary only, so a preset already carrying a
@@ -142,7 +142,7 @@ The reasoning in code (`packages/contracts/src/preset/index.ts:716-730`):
 
 > "CARRIER tokens … A carrier format string WRAPS content, so a non-empty value that drops its token
 > renders the wrapper with the content GONE … That write is REFUSED with a message naming the token —
-> never accepted and quietly ignored. … **DELIBERATELY DISTINCT from PROSE-1's \`requiredMacros** …
+> never accepted and quietly ignored. … **DELIBERATELY DISTINCT from PROSE-1's `requiredMacros`** …
 > Those are voice guidance whose absence weakens prose (the identity macros in the impersonate nudge);
 > **these are carriers whose absence DELETES content.**"
 

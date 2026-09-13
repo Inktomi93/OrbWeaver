@@ -146,7 +146,8 @@ and `git status --short` is EMPTY with zero `cbvmw` files left in `gates/` or `l
 - **The 2 `line`-pinned rows red under a line shift:** patching the report to
   `ctx.report.file(CLIENT_MANIFEST, { line: 2, … })` reds BOTH `surface-in-a-container-health` rows
   (`mustFlag[0]`, `mustFlag[1]`: *"expected one effective finding matching line=1"*). Row `[1]`'s separate
-  prefix-fence claim also holds: relaxing `startsWith(\`${EXEMPT_DIR}/\`)`to`startsWith(EXEMPT_DIR)`kills`mustFlag\[1]`**and only**`mustFlag\[1]\`.
+  prefix-fence claim also holds: relaxing ``startsWith(`${EXEMPT_DIR}/`)`` to `startsWith(EXEMPT_DIR)` kills
+  `mustFlag[1]` **and only** `mustFlag[1]`.
 - **The 14 deletions were rows whose count/token alone still discriminates.** Every one of the 8 modules has
   exactly ONE report site and one message shape, so the deleted substring was a constant (checked per module,
   including the three composed builders: `unslotted(tool, site)`, `missing(rel)` — single-branch templates).
