@@ -132,14 +132,20 @@ const CREDIT_DOCUMENT = `<!doctype html>
  *  function is enough — and no sibling-segment identifier is touched, because the envelope arithmetic
  *  reaches none of them (`isVisible`/`isDevChrome`/`isVisuallyHidden`/`INTERACTIVE_SELECTOR` are only
  *  reached from `ownsPoint`'s other clauses). Importing the REAL string is the point: a drift in the
- *  walker's arithmetic reds here rather than being described as impossible in a comment. */
+ *  walker's arithmetic reds here rather than being described as impossible in a comment.
+ *
+ *  THE COORDINATES CROSS THE WIRE RAW (Leg 3). This emitted `Math.round(n * 100) / 100`, which made the
+ *  arm's claim of EXACT equality false by up to half a centipixel in each direction: a one-sided
+ *  `+ 0.001` planted in either home's `pseudoHitRect` left the comparison GREEN (measured — see the
+ *  report's Leg 3 note). `String(double)` round-trips a JS number exactly, so the raw value is what is
+ *  printed and what is compared; rounding survives only in the failure MESSAGE, where a human reads it. */
 const ENVELOPE_AGREEMENT_EVAL = `(() => {
   const walkerEnvelope = (() => {
 ${WALKER_HIT_EXTENT}
     return pseudoHitEnvelope;
   })();
   const kitEnvelope = ${PSEUDO_ENVELOPE_SOURCE};
-  const say = (rect) => rect === null ? "null" : [rect.left, rect.top, rect.right, rect.bottom].map((n) => Math.round(n * 100) / 100).join(",");
+  const say = (rect) => rect === null ? "null" : [rect.left, rect.top, rect.right, rect.bottom].join(",");
   const out = [];
   for (const el of document.querySelectorAll("[data-slot]")) {
     out.push(el.dataset.slot + " walker=" + say(walkerEnvelope(el)) + " kit=" + say(kitEnvelope(el)));
@@ -238,6 +244,32 @@ function walkedExtents(stdout: string, slots: readonly string[]): Readonly<Recor
 
 const CREDIT_SLOTS = ["credit-capped", "credit-clipped", "credit-unreachable", "credit-selfreporting"] as const;
 
+/** One home's envelope for one element, as the RAW numbers it printed — `null` for a refusal, otherwise
+ *  four finite coordinates. Nothing is rounded on the way in: the whole point of the arm is that a
+ *  sub-centipixel disagreement between the two homes is a real disagreement, and a rounded read is how a
+ *  coordinate-space mistake passes for agreement. A malformed or non-finite field fails LOUDLY here rather
+ *  than comparing equal to another malformed one — `NaN === NaN` is false but `"NaN" === "NaN"` is not. */
+function envelopeFields(printed: string | undefined, label: string): readonly number[] | null {
+  expect(printed, `${label}: no envelope printed`).toBeTypeOf("string");
+  if (printed === "null") {
+    return null;
+  }
+  const fields = String(printed)
+    .split(",")
+    .map((field) => Number(field));
+  expect(fields.length, `${label}: an envelope is four coordinates, got ${String(printed)}`).toBe(4);
+  for (const field of fields) {
+    expect(Number.isFinite(field), `${label}: a non-finite coordinate in ${String(printed)}`).toBe(true);
+  }
+  return fields;
+}
+
+/** The human-readable form of an envelope — rounded, because a failure message is for a reader. This is
+ *  the ONLY place rounding is allowed to touch these numbers. */
+function describeEnvelope(rect: readonly number[] | null): string {
+  return rect === null ? "null" : `[${rect.map((field) => Math.round(field * 100) / 100).join(", ")}]`;
+}
+
 test("#2300 — ancestor credit, on a DOM where credit is the only thing that can answer: the WALKER's verdicts", async ({ runCli, scratch }) => {
   const file = join(scratch, "credit-discriminating.html");
   await writeFile(file, CREDIT_DOCUMENT);
@@ -287,14 +319,25 @@ test("#2300 — the same DOM through the KIT's walk: the numbers, and the envelo
   // — a rung-quantised ring against a 1px walk, "the numbers differ by design" since #1678 — but the
   // #2300 RULE is the credit envelope, and that must be one answer. Both are computed here from the two
   // homes' REAL sources, on the same elements, in the same page.
+  //
+  // THE COMPARISON IS ON RAW COORDINATES (Leg 3). It used to be on values the page had already rounded to
+  // two decimals, so "exact" was a claim the arm could not make: a one-sided sub-centipixel drift — the
+  // shape a coordinate-space or unit mistake actually produces — passed. The values are now parsed
+  // unrounded and compared FIELD BY FIELD, every field required finite, and rounding appears only in the
+  // message a human reads on failure.
   for (const slot of CREDIT_SLOTS) {
-    // The rect alphabet only — digits, dot, comma, minus — or the literal `null`. A `[^ |]+` tail captured
-    // the closing quote of snap's JSON-encoded eval line and the next line's `URL` on the LAST slot, which
-    // reads exactly like a disagreement.
-    const rect = "(null|[-0-9.,]+)";
+    // The rect alphabet — digits, dot, comma, minus, and an exponent — or the literal `null`. A `[^ |]+`
+    // tail once captured the closing quote of snap's JSON-encoded eval line and the next line's `URL` on
+    // the LAST slot, which reads exactly like a disagreement.
+    const rect = "(null|[-0-9.,eE+]+)";
     const line: RegExpExecArray | null = new RegExp(`${slot} walker=${rect} kit=${rect}`, "u").exec(run.stdout);
     expect(line?.[1], `no envelope pair for ${slot} in:\n${run.stdout}`).toBeTypeOf("string");
-    expect(line?.[1], `${slot}: the walker and the kit must compute the SAME credit envelope`).toBe(line?.[2]);
+    const walkerRect = envelopeFields(line?.[1], `${slot} walker`);
+    const kitRect = envelopeFields(line?.[2], `${slot} kit`);
+    expect(
+      walkerRect,
+      `${slot}: the walker and the kit must compute the SAME credit envelope — walker ${describeEnvelope(walkerRect)} vs kit ${describeEnvelope(kitRect)} (raw: ${String(line?.[1])} vs ${String(line?.[2])})`,
+    ).toEqual(kitRect);
   }
   // …and the pin is not vacuous: at least one of them is a real rect and one is a refusal, so a pair of
   // functions that both answered `null` everywhere could not satisfy this.
