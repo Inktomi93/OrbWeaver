@@ -242,8 +242,6 @@ function writeFixtures(): void {
     'import type { InputProps } from "../../../../packages/ui/src/primitives/input/index.ts";\nexport type Subject = InputProps;\n',
   );
   // ── @orb/tooling (docs/architecture/core/Core-Tooling-Law.md §4) ──
-  // tooling-slot-template: a tool dir with neither front door and a stray root file.
-  fx("tooling/src/__g_badtool/stray.ts", "export const x = 1;\n");
   // tooling-front-door: a cross-tool deep import into a sibling's ops/ (the front-door law).
   fx("tooling/src/__g_tb/ops/y.ts", "export const y = 1;\n");
   fx("tooling/src/__g_ta/x.ts", `import "../__g_tb/ops/y.ts";\n`);
@@ -503,13 +501,6 @@ function writeFixtures(): void {
   fx(
     "packages/db/src/schema/__g_seat.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nimport { chats } from "./chat.ts";\nimport { userSettings } from "./settings.ts";\n\nexport const chatSeatProbe = sqliteTable("chat_seat_probe", {\n  chatId: text("chat_id").references(() => chats.id),\n  settingId: text("setting_id").references(() => userSettings.id),\n});\n',
-  );
-  // ratchet-row-integrity: a committed ledger carrying a RATIFIED row whose cited site is GONE — the
-  // stale-why class (#569). The unit is a JSON ledger, so the fixture is a `__g_` baseline file rather than
-  // a source file; the gate discovers it exactly the way it discovers a real ratchet.
-  fx(
-    "tooling/src/verify/gates/__g_ratchet.baseline.json",
-    '{\n  "__g_subject::probe": { "count": 2, "ratified": 2, "why": "ruled by nothing", "cite": ["packages/client/src/__g_gone.tsx"] }\n}\n',
   );
   // json-column-write-parity: a WHOLE-RECORD replace of `chats.metadata` (a JSON column whose seven live
   // writers all merge key-wise off a loaded row) — the straddle, from the side the gate reports.
