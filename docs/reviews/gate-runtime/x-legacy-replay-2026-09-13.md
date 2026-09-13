@@ -375,7 +375,119 @@ rg --files-with-matches "createDifferential|createTmpdirDifferential|frozenLegac
 
 The family grouping joins the third and fourth by gate id against each module's declared `family:`.
 
-## LEDGER ROWS (4 rows)
+## 7. Boundary repair — the shared write site (cb-x-replay-boundary)
+
+**Lane:** `cb-x-replay-boundary`, same worktree, on top of `57349c1dc`. **Numbered 7 rather than the
+briefed 6 because §6 is taken** (the §3 derivation, cited by name from §3a); renumbering §6 would break
+that reference.
+
+**Outcome:** the two shared WRITE boundaries codex's security review of `df2cda4c8` held the commit for
+are CLOSED, and the frozen-closure extraction that arm (a) added at `57349c1dc` is folded into the same
+guarded path. `tests/support/legacy-differential.ts` now has exactly ONE `writeFileSync` and ONE
+`mkdirSync`, both inside `writeStagedReplayFile`.
+
+### 7.1 The two mechanisms
+
+**F1 — a fixture key escaped the owned root.** `materialize` read every key through
+`NON_AUTHORED_SEGMENT_RE` and nothing else; that expression rejects `node_modules`/`.git`/`dist`/`.cache`
+and admits `../escaped.txt`. Repair: **every key is judged before the root exists** — the strict
+repo-relative POSIX grammar is IMPORTED (`lib/policy-repo-inventory.ts#assertPolicyRepoPath`, the rule the
+final runtime already applies to every policy scope path) rather than re-spelled as a fourth copy, and the
+non-authored refusal survives beside it as the separate SEMANTIC fence it always was. Then every write
+resolves through `stagedReplayTarget`, and a throw anywhere between the `mkdtemp` and the last write reaps
+its own root (the callers' `finally` cannot: it only exists once `materialize` has RETURNED a root).
+
+**F2 — the loader's staging write was unguarded.** `assertReplayRootIsScratch` had exactly one caller,
+inside `materialize`, on a root that function had just created itself; the door that takes a staging
+directory from a CALLER never called it. Repair: the guard binds at the top of `loadFrozenGate` (before
+`git show`, before the first byte), and again inside `stagedReplayTarget`, which is what every staged
+write goes through — plus a containment check on the entry module immediately before `import()`, the one
+call that hands frozen bytes to the runtime.
+
+**Containment is two independent tests, deliberately.** The grammar is a claim about a STRING; the second
+is a claim about the COMPUTED TARGET (`containedIn(canonicalRoot, resolved)`), and each existing path
+segment is `lstat`ed so a SYMLINK is resolved and re-contained before it is crossed — `writeFileSync`
+follows a link and `mkdirSync` materializes a subtree behind one, so a lexical check alone is not
+containment. This is the same two-test argument `ops/resource-path.ts` makes for the read side.
+
+| Site | Name | Callers routed through it |
+| - | - | - |
+| pure resolver (exported, no I/O) | `stagedReplayTarget(root, relativePath)` | `writeStagedReplayFile`; `extractFrozenClosure` (target computed BEFORE the cycle map records it); the controls' red side |
+| THE ONE WRITE SITE | `writeStagedReplayFile(root, relativePath, contents)` | `materialize` (every fixture key) · `extractFrozenClosure` (every frozen blob in the closure) |
+| anti-live-tree refusal | `assertReplayRootIsScratch(root)` | `stagedReplayTarget` (so: every write) · `loadFrozenGate` head · `materialize` |
+
+### 7.2 Red-first, and why no arm can perform the write it refuses
+
+The pre-fix primitives were reproduced **in a throwaway parent this lane owned**, never against the
+repository: with `df2cda4c8`/`57349c1dc`'s `materialize` key handling, `../sentinel.txt` was admitted by
+the non-authored filter, resolved outside the owned root, OVERWROTE the sentinel with `escape-control`, and
+the sentinel SURVIVED `rmSync(root)`; with `57349c1dc`'s `extractFrozenClosure`, the frozen entry module
+was written into an arbitrary caller-supplied root with no guard between the blob read and the write.
+
+Every committed control's red side is unwriteable by construction, which is the condition the review set:
+
+- the traversal / grammar / symlink arms drive the **pure** resolver, which creates nothing (asserted:
+  `readdirSync(root)` is `[]` after eleven refusals);
+- the two-leg fixture-key arm drives the real `legacyReplay` and `finalReplay`, whose refusal precedes
+  their own `mkdtemp`;
+- the loader-binding arm hands the MUTATOR a root inside the checkout that is a regular FILE
+  (`package.json`) and a symlink to one, so a regression that dropped the guard fails with `ENOTDIR`
+  instead of planting a frozen module in the tree.
+
+**Planted breaks, both restored via `cp`/`mv` (`git status --short` clean after each):**
+
+1. `assertStagedRelativePath` neutered → `staged write target REFUSES every escaping path` and
+   `BOTH tmpdir replay legs refuse…` go RED, **and the second mechanism still refused the write** —
+   `the replay harness refuses to write "../escaped.txt": it resolves to /tmp/orb-tool-…/escaped.txt,
+   OUTSIDE the staging root`. Defense in depth, measured rather than asserted.
+2. `assertReplayRootIsScratch` neutered → the loader-binding arm goes RED with
+   `expected … 'must live OUTSIDE the running checkout' but got 'ENOTDIR: not a directory, lstat
+   '<checkout>/package.json/c97de9d2--tooling__src__verify__gates__biome-grant-liveness.ts''`. That
+   message is the proof of BOTH halves: the arm reaches the mutator's real staging write, and the write it
+   would have performed cannot land.
+
+**Nothing survived.** `find /tmp -maxdepth 1` after the controls and both probes:
+`orb-legacy-differential-*` **0**, `orb-replay-boundary-sentinel-*` **0**, `escaped.txt` **0**, and no
+`staging` / `linked-staging` / `link-into-checkout` / `c97de9d2--*` anywhere under `/tmp` (**0**). No
+`c97de9d2--*` or `planted.ts` in either checkout. (78 stale `orb-tool-*` scratch dirs predate this lane —
+oldest 2026-08-31 — and two are another suite's `bin/gh` fixture; none is a replay root.)
+
+### 7.3 The arm (a) fold — the frozen closure now writes through the guard
+
+`extractFrozenClosure` keeps its design (flat `${base}--${path with / → __}` names, so no extracted name
+carries a separator and no nested directory is created; the cycle map records the target BEFORE recursing;
+only `./` and `../` specifiers are era-matched, everything else keeps today's resolution so `ts-morph`
+stays ONE instance). What changed is that its target is now `stagedReplayTarget(scratch, name)` and its
+write is `writeStagedReplayFile` — so the flat-name containment property is CHECKED rather than merely
+true, and the `git show` output, which is written as a file the harness then imports, lands only at a path
+the guard has cleared. Both committed closure controls stay green: `placeholder-copy-registry@f5b222e10`'s
+`../lib/section-defs.ts` (present at that SHA, absent today) in `closure.extracted` with `depth > 0`, and
+the loud `does not exist at that SHA either` refusal.
+
+### 7.4 Floor executed (boundary repair)
+
+| Check | Command | Result |
+| - | - | - |
+| the seven suites importing the shared harness | `pnpm test:scoped` on `grant-liveness-legacy-replay` · `policy-soundness-legacy-replay` · `registry-definitions-legacy-replay` · `grant-liveness-family` · `no-color-literals-parity` · `port-parity-tier3` · `schema-fact-parity` | **7 files / 35 tests passed** |
+| families 1+2 through the guarded write path | same run | family 1 **8 tests** (4 table/refusal + 4 new containment controls), family 2 **3 tests**, family-3 pre-check **4 tests**; the pre-existing set is **31 → 35**, the delta being exactly this lane's four controls. Every declared number is unchanged, and these tables assert exact finding lists, populations, subjects and tool errors, so green IS unchanged |
+| biome | `pnpm exec biome check <2 files> --diagnostic-level=error` | clean (one scoped `--write` for formatting; `noShadow` on a `relative` import avoided by spelling containment as the module's existing `${root}${sep}` prefix test) |
+| eslint | `pnpm exec eslint <2 files>` | exit 0 |
+| types | `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | `PASS tooling/tsconfig.json` · `PASS tsconfig.json` (2 runnable of 11 discovered) |
+| docs | `pnpm check:docs docs/reviews/gate-runtime/x-legacy-replay-2026-09-13.md` | exit 0 |
+
+### 7.5 The §3a band's error class has a THIRD direction
+
+§5b.6 recorded the band over-counting (family 2: ten dispatched, one real — `POPULATION PORT` matches
+`POPULATION PORT: NONE`), and §5c recorded it under-counting (family 3: nine members, eight listed,
+because a replay-harness file NAMING a module demotes it). `LD-2319-5` adds a third, orthogonal to both:
+a row can be CORRECTLY counted, a genuine port, and still have been **unreplayable** — before the closure
+fix a frozen descriptor whose `lib/` dependency had since been deleted or renamed failed at
+`Cannot find module`, and which modules those were was decided by unrelated post-conversion churn, so the
+reachable backlog shrank every time the program consolidated a reader. The first two directions are census
+errors about MEMBERSHIP; this one is about REACHABILITY, it was invisible to any header grep, and it is the
+only one of the three that is now CLOSED rather than mitigated.
+
+## LEDGER ROWS (7 rows)
 
 | id | class | module | what | state |
 | - | - | - | - | - |
@@ -383,13 +495,19 @@ The family grouping joins the third and fourth by gate id against each module's 
 | `LD-2319-2` | instrument-blind | `tests/support/legacy-differential.ts` | `shimHeaderImports` treated a MULTI-LINE named import's opening brace as the first BODY line, so the `} from "…"` carrying the specifier was never shimmed and the frozen module failed to resolve. Any wrapped import block (7+ names) hits it. | **FIXED** in `df2cda4c8`; `IMPORT_BLOCK_OPEN`/`IMPORT_BLOCK_CLOSE` |
 | `LD-2319-3` | drifted-count | `tooling/src/verify/gates/diagnostic-legibility.ts:31` | The header reads *"CONVERSION rather than a module born final; **the other eight** have no legacy population and say so."* The tree says **NINE**: the `policy-soundness` family has ten members and nine are born final (`rg 'family: "policy-soundness"'` → 10 files; the `git log -S` receipt in §5b.1). A tenth member joined after the sentence was written. | **OPEN** — one-line header fix, deliberately NOT taken by this lane (orchestrator ruling 2026-09-13: the row is the deliverable, the fix is a routed follow-up) |
 | `LD-2319-4` | census-blind | this report §3 | The replay-owed census keys on the `POPULATION PORT` header spelling, which MATCHES a module whose line reads *"POPULATION PORT: NONE — BORN FINAL"*. So "199 ports" counts born-final modules as replay-owed. Measured in family 2: 10 → 1, a 90% over-count in one family. | **OPEN, MITIGATED** — every family report now opens with the `git log -S "gate: GateDescriptor"` pre-check + positive control (§5b.1), and §5b.6 states the band is an upper bound. A full re-derivation of §3 with the pre-check is owed once the families drain. |
+| `LD-2319-5` | instrument-blind | `tests/support/legacy-differential.ts` | `resolveSpecifier` sent a frozen module's RELATIVE imports to TODAY's tree, so a descriptor whose `lib/` dependency was later deleted or renamed could not be LOADED AT ALL — and it failed as `Cannot find module`, which reads as a broken test rather than as a missing capability. WHICH modules were replayable was therefore decided by an accident of which `lib/` refactors happened AFTER each conversion, and the backlog shrank silently every time the program consolidated a reader. Measured on `placeholder-copy-registry` at `f5b222e10`, whose `../lib/section-defs.ts` exists at that SHA and is gone today. | **FIXED** in `57349c1dc`; `extractFrozenClosure` fetches the whole relative-import closure at the SAME frozen SHA, memoised so a cycle or diamond terminates, and refuses loudly when a dep is absent at the SHA too. Receipts: the `section-defs` row asserted in `closure.extracted` with `depth > 0`, and the `does not exist at that SHA either` refusal, both in `registry-definitions-legacy-replay.test.ts`. Its writes were folded into the guarded write site by `cb-x-replay-boundary` (below) |
+| `LD-2319-6` | boundary-open | `tests/support/legacy-differential.ts` `materialize` | A fixture KEY is an unvalidated path. `materialize` filtered keys for four non-authored segment names and nothing else, so `{ "../escaped.txt": … }` — a syntactically valid `GateExample` map, and `Files` refines nothing — normalized to a SIBLING of the mkdtemp root and was written there, outside everything the `finally` reaps. The ResourceHost's own refusal fires later, on the overlay, after the bytes have landed. Measured in a throwaway parent before the repair: the escaping key OVERWROTE a sentinel with `escape-control` and the sentinel SURVIVED removal of the root. Found by codex's security review of `df2cda4c8` (F1, HIGH host-integrity). | **OPEN** — repaired by `cb-x-replay-boundary` on branch `wt/agent-a2913d5f5cb4656c2`: every key is judged by the imported strict repo-relative POSIX grammar (`lib/policy-repo-inventory.ts#assertPolicyRepoPath`) BEFORE the mkdtemp, every write resolves through `stagedReplayTarget`, and a partial materialize reaps its own root. Pinned by four controls in `grant-liveness-legacy-replay.test.ts`. Integrator flips this row with the landing sha |
+| `LD-2319-7` | boundary-open | `tests/support/legacy-differential.ts` `loadFrozenGate` | The frozen loader wrote the extracted module into whatever staging directory a CALLER handed it, and `assertReplayRootIsScratch` — the door's own advertised anti-live-tree refusal — was bound to nothing: it had exactly one caller, inside `materialize`, on a root that function had just made itself. `frozenFilesystemLegacyGate(process.cwd(), …)` would have written a frozen `.ts` module into the CHECKOUT; a `scratch` symlink resolving into the checkout does the same. Only every current caller's choice to pass Vitest's `scratch` kept the tree clean. Found by codex's security review of `df2cda4c8` (F2, MEDIUM host-integrity). | **OPEN** — repaired by `cb-x-replay-boundary`: the guard is bound at the top of `loadFrozenGate` (before `git show`, before the first byte) AND inside `stagedReplayTarget`, which every staged write and the pre-`import()` containment check go through. Pinned by a mutator arm whose red side is structurally unwriteable (a root that is a regular FILE ⇒ ENOTDIR, measured). Integrator flips this row with the landing sha |
 
-**ledger rows OWED: 0.** Rows 1-2 are this lane's own instrument, found and fixed with executed receipts.
-Row 3 is a drifted count this lane MEASURED and is routed rather than fixed, per the orchestrator's
-ruling. Row 4 is this report's own census, mitigated in the same commit that found it. Two findings are
-reported and NOT claimed because they belong to other owners: the `gate-modernization` red on
-`vector-scope-derived.ts:42` (§5) and `diagnostic-legibility`'s 92 real-tree findings (§5b.5), neither of
-which touches a file this lane wrote.
+**ledger rows OWED: 0.** Rows 1-2 and 5 are this instrument's own defects, found and fixed with executed
+receipts. Row 3 is a drifted count this lane MEASURED and is routed rather than fixed, per the
+orchestrator's ruling. Row 4 is this report's own census, mitigated in the same commit that found it.
+**Rows 6-7 are written OPEN on purpose**: both are repaired and pinned on this branch, but the fixing sha
+is the INTEGRATOR's to name, so the state cell says who repaired it and what the pins are rather than
+claiming a closure the row cannot yet cite (`closure SHA ≠ fix`). Two findings are reported and NOT
+claimed because they belong to other owners: the `gate-modernization` red on `vector-scope-derived.ts:42`
+(§5) and `diagnostic-legibility`'s 92 real-tree findings (§5b.5), neither of which touches a file this
+lane wrote.
 
 ## Proposed lessons (report text — the orchestrator owns the memory write)
 

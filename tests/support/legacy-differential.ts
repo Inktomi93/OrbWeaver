@@ -45,8 +45,15 @@
 //   confident, wrong differential. `frozenLegacyGate` scans the extracted source and throws, naming the
 //   reach it found. A caller whose legacy gate genuinely needs disk owes a real-tmpdir harness, not a
 //   relaxed scan here.
+//
+// · ONE GUARDED WRITE SITE, AND NOTHING WRITES AROUND IT. Both doors put bytes on disk — the tmpdir door
+//   materializes a fixture map, the loader extracts a frozen closure — and both go through
+//   `stagedReplayTarget`: the caller's staging root is refused if it lies inside the checkout, every path
+//   is judged by the runtime's own strict repo-relative POSIX grammar, and the resolved target is contained
+//   after symlink resolution. See the CONTAINMENT band below for the two boundaries this closed and the
+//   measured escape behind each.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, sep } from "node:path";
@@ -59,6 +66,7 @@ import type { CoordinatedGateFinding, ReviewedGateGrant } from "../../tooling/sr
 import type { GatePolicy } from "../../tooling/src/verify/contract/policy.ts";
 import { runPass } from "../../tooling/src/verify/lib/pass.ts";
 import { runPolicyPass } from "../../tooling/src/verify/lib/policy-pass.ts";
+import { assertPolicyRepoPath } from "../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { isPolicySourceCandidate } from "../../tooling/src/verify/lib/policy-source-candidate.ts";
 import { repoGitEnvironment } from "../../tooling/src/verify/lib/repo-paths.ts";
 import { expect } from "./tool-fixtures.ts";
@@ -289,6 +297,149 @@ export function filesystemReach(source: string): readonly string[] {
 
 const FROZEN_BLOB_CEILING = 8 * 1024 * 1024;
 
+// ── CONTAINMENT: THE ONE WRITE SITE ────────────────────────────────────────────────────────────────────
+//
+// EVERY byte this module puts on disk goes through `stagedReplayTarget` — the real-tmpdir door's
+// materialized fixture files AND the loader's extracted frozen closure. There is no other `writeFileSync`
+// here, and adding one is the defect this band exists to prevent.
+//
+// THE TWO BOUNDARIES IT CLOSES (codex's security review of `df2cda4c8`) are the SAME defect twice: a write
+// that happened before the guard meant to fence it.
+//
+//  · A FIXTURE KEY IS A PATH, AND `Files` REFINES NOTHING. `materialize` filtered keys for the four
+//    non-authored segment names and for nothing else, so `{ "../escaped.txt": … }` — a syntactically valid
+//    `GateExample` map — normalized to a SIBLING of the mkdtemp root and was written there. The `finally`
+//    that reaps the root cannot reach outside it, and the ResourceHost's own refusal fires later, on the
+//    overlay, after the bytes have landed. Measured before the repair: the escaped write OVERWROTE a
+//    sentinel and survived the reap. Keys are repository-authored data rather than remote input, so this is
+//    host integrity — but the door's own comment advertises an auto-cleaned tmpdir, and a future authored
+//    key would have falsified that quietly.
+//  · A CALLER-SUPPLIED STAGING ROOT IS A PATH TOO. `loadFrozenGate` wrote the frozen module into whatever
+//    directory it was handed and then imported it, and `assertReplayRootIsScratch` — this door's own
+//    advertised anti-live-tree refusal — was bound to nothing: it had exactly one caller, inside
+//    `materialize`, AFTER that function had made its own root. `frozenFilesystemLegacyGate(process.cwd(), …)`
+//    would therefore have written a `.ts` file into the CHECKOUT. Only every current caller's choice to pass
+//    Vitest's `scratch` kept the tree clean, and "the callers happen to be careful" is not a boundary.
+//
+// THE GRAMMAR IS IMPORTED, NEVER RE-SPELLED. `assertPolicyRepoPath` (`lib/policy-repo-inventory.ts`) is the
+// rule the final runtime already applies to every policy scope path: nonempty, control-free, no absolute /
+// drive-letter / backslash syntax, no trailing slash, and no empty, `.` or `..` segment. A fourth hand-rolled
+// path grammar — in the one module that writes files, no less — is exactly the drift one-home exists to stop.
+//
+// AND THE RESOLVED TARGET IS CONTAINED, not merely the lexical one. `writeFileSync` FOLLOWS a symlink and
+// `mkdirSync` will happily materialize a subtree behind one, so every segment that already exists is checked
+// and its realpath must still be inside the realpath'd root. That is the same two-test argument
+// `ops/resource-path.ts` makes for the READ side, in the same order and for the same reason.
+
+/** Containment between two ABSOLUTE, already-canonical paths — the root itself, or a descendant of it. The
+ *  `${root}${sep}` prefix is what keeps `/repo-other` from reading as inside `/repo`; it is the same test
+ *  `assertReplayRootIsScratch` below applies to the checkout, deliberately spelled once. */
+function containedIn(root: string, target: string): boolean {
+  return target === root || target.startsWith(`${root}${sep}`);
+}
+
+/** THE ANTI-LIVE-TREE REFUSAL — the #2119 obligation one direction over: a real-tmpdir replay driven over
+ *  the live checkout answers about THIS repository rather than about the fixture. It lives HERE, above the
+ *  write site, because that is now what binds it: every staged write and the frozen `import()` go through
+ *  `stagedReplayTarget`, which calls this first. Exported so its own controls can drive it both ways
+ *  without materializing anything. */
+export function assertReplayRootIsScratch(root: string): void {
+  const resolved = realpathSync(root);
+  const checkout = realpathSync(process.cwd());
+  if (containedIn(checkout, resolved)) {
+    throw new Error(
+      `a real-tmpdir replay root must live OUTSIDE the running checkout, and ${resolved} is inside ${checkout} — ` +
+        "a frozen legacy descriptor's existsSync/readdirSync arm driven there answers about THIS repository " +
+        "rather than about the fixture, which is the wrong-substrate differential #2119 refuses in the other " +
+        "direction (tests/support/legacy-differential.ts).",
+    );
+  }
+}
+
+/** The strict repo-relative POSIX grammar, IMPORTED rather than re-spelled, wrapped in this door's own
+ *  sentence so the refusal says what the grammar is protecting. */
+function assertStagedRelativePath(role: string, relativePath: string): void {
+  try {
+    assertPolicyRepoPath(relativePath, `${role} ${JSON.stringify(relativePath)}`);
+  } catch (error) {
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)} — every path this harness writes is resolved under ` +
+        "a scratch root, so an absolute key or one carrying a `..` segment would land OUTSIDE the root the replay " +
+        "reaps and would outlive the run (tests/support/legacy-differential.ts).",
+      { cause: error },
+    );
+  }
+}
+
+/** One already-existing path segment's canonical identity. A segment that does not exist yet is carried
+ *  lexically — it will be created inside a parent this walk has already contained. One that exists and is a
+ *  SYMLINK is resolved and re-contained, because that is the escape a lexical check structurally cannot see. */
+function containedSegment(canonicalRoot: string, target: string, relativePath: string): string {
+  let link: ReturnType<typeof lstatSync>;
+  try {
+    link = lstatSync(target);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return target;
+    }
+    throw error;
+  }
+  if (!link.isSymbolicLink()) {
+    return target;
+  }
+  let canonical: string;
+  try {
+    canonical = realpathSync(target);
+  } catch (error) {
+    throw new Error(
+      `the replay harness refuses to write ${JSON.stringify(relativePath)} through the DANGLING symlink ${target}: ` +
+        "its target cannot be resolved, so containment cannot be decided and the write would create the link's " +
+        "target wherever it points (tests/support/legacy-differential.ts).",
+      { cause: error },
+    );
+  }
+  if (!containedIn(canonicalRoot, canonical)) {
+    throw new Error(
+      `the replay harness refuses to write ${JSON.stringify(relativePath)}: the staging path crosses the symlink ` +
+        `${target}, which resolves to ${canonical} — OUTSIDE the staging root ${canonicalRoot}. writeFileSync ` +
+        "follows a link, so a lexical containment check alone would have written outside the root " +
+        "(tests/support/legacy-differential.ts).",
+    );
+  }
+  return canonical;
+}
+
+/** Resolve one staged write's absolute target, or THROW. PURE — it creates nothing, which is exactly what
+ *  lets a control drive the red side of this boundary without performing the unsafe write it refuses. */
+export function stagedReplayTarget(root: string, relativePath: string): string {
+  assertReplayRootIsScratch(root);
+  assertStagedRelativePath("the replay harness's staged write path", relativePath);
+  const canonicalRoot = realpathSync(root);
+  let current = canonicalRoot;
+  for (const segment of relativePath.split("/")) {
+    current = containedSegment(canonicalRoot, join(current, segment), relativePath);
+  }
+  // THE SECOND, INDEPENDENT TEST — and it is not redundant with the grammar above. A grammar is a claim
+  // about a STRING; this is a claim about the COMPUTED TARGET, and the two fail differently. Without it the
+  // whole boundary would rest on one refusal, which is how F1 happened: the non-authored filter was the only
+  // thing reading the key, and it was never a containment check.
+  if (!containedIn(canonicalRoot, current)) {
+    throw new Error(
+      `the replay harness refuses to write ${JSON.stringify(relativePath)}: it resolves to ${current}, OUTSIDE the ` +
+        `staging root ${canonicalRoot} (tests/support/legacy-differential.ts).`,
+    );
+  }
+  return current;
+}
+
+/** THE ONE WRITE SITE. Guard, grammar and containment all resolve first; only then do bytes move. */
+function writeStagedReplayFile(root: string, relativePath: string, contents: string): string {
+  const target = stagedReplayTarget(root, relativePath);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, contents);
+  return target;
+}
+
 /** Read one repo-relative path AT a frozen SHA, or `null` when the blob does not exist there. */
 function frozenBlob(base: string, repoPath: string): string | null {
   try {
@@ -349,13 +500,18 @@ function extractFrozenClosure(scratch: string, base: string, entryPath: string):
           "churn. Check the conversion commit's parent (tests/support/legacy-differential.ts).",
       );
     }
-    const target = join(scratch, scratchNameFor(repoPath));
+    // THE TARGET IS RESOLVED THROUGH THE GUARDED WRITE SITE BEFORE THE MAP RECORDS IT: the recursion below
+    // hands this path out as an import URL, so a target that is not yet known to be contained must never
+    // become a cycle's answer. `stagedReplayTarget` creates nothing, so resolving early costs nothing.
+    const name = scratchNameFor(repoPath);
+    const target = stagedReplayTarget(scratch, name);
     // RECORDED BEFORE RECURSING — a cycle re-entering this path must find the target, not recurse forever.
     written.set(repoPath, target);
     extracted.push(repoPath);
     depth = Math.max(depth, hop);
-    writeFileSync(
-      target,
+    writeStagedReplayFile(
+      scratch,
+      name,
       shimHeaderImports(source, (specifier) =>
         resolveWith(specifier, (relative) => pathToFileURL(extract(normalizeRepoPath(repoPath, relative), hop + 1, repoPath)).href),
       ),
@@ -380,8 +536,20 @@ async function loadFrozenGate(
   base: string,
   legacyPath: string,
 ): Promise<{ readonly gate: GateDescriptor; readonly source: string; readonly closure: FrozenClosure }> {
+  // THE GUARD IS BOUND AHEAD OF THE FIRST BYTE, not only inside the per-file write below: this is the door
+  // that takes a staging directory from a CALLER, and a caller that hands it the checkout must be refused
+  // before `git show` has produced anything to write.
+  assertReplayRootIsScratch(scratch);
   const source = execFileSync("git", ["show", `${base}:${legacyPath}`], { encoding: "utf8", maxBuffer: FROZEN_BLOB_CEILING });
   const { entryFile, closure } = extractFrozenClosure(scratch, base, legacyPath);
+  // THE IMPORT IS THE MOMENT FROZEN CODE RUNS, so the last thing established before it is WHERE that code
+  // came from. `stagedReplayTarget` already contained every extracted file; this re-states the invariant at
+  // the one call that hands bytes to the runtime, where a future edit is most likely to break it.
+  if (!containedIn(realpathSync(scratch), entryFile)) {
+    throw new Error(
+      `the frozen entry module ${entryFile} resolved OUTSIDE the staging root ${scratch} and will not be imported (tests/support/legacy-differential.ts).`,
+    );
+  }
   const name = basename(entryFile);
   const module_ = (await import(`${pathToFileURL(entryFile).href}?frozen=${name}`)) as { readonly gate: GateDescriptor };
   return { gate: module_.gate, source, closure };
@@ -438,21 +606,6 @@ export async function frozenLegacyGate(scratch: string, base: string, legacyPath
  *  needed such a fixture, so this door REFUSES one rather than carrying a second copy of that filter which
  *  nothing would ever exercise. */
 const NON_AUTHORED_SEGMENT_RE = /(?:^|\/)(?:node_modules|\.git|dist|\.cache)(?:\/|$)/u;
-
-/** THE ANTI-LIVE-TREE REFUSAL — the #2119 obligation one direction over. Exported so its own controls can
- *  drive it both ways without materializing anything. */
-export function assertReplayRootIsScratch(root: string): void {
-  const resolved = realpathSync(root);
-  const checkout = realpathSync(process.cwd());
-  if (resolved === checkout || resolved.startsWith(`${checkout}${sep}`)) {
-    throw new Error(
-      `a real-tmpdir replay root must live OUTSIDE the running checkout, and ${resolved} is inside ${checkout} — ` +
-        "a frozen legacy descriptor's existsSync/readdirSync arm driven there answers about THIS repository " +
-        "rather than about the fixture, which is the wrong-substrate differential #2119 refuses in the other " +
-        "direction (tests/support/legacy-differential.ts).",
-    );
-  }
-}
 
 /** One replay's three §4.6 axes plus the two the authority engine added at conversion. `raw` is what the
  *  policy REPORTED and `findings` is what survived reconciliation; on the legacy side they are the same list
@@ -612,7 +765,14 @@ export function inMemorySide(replay: Replay): DifferentialSide {
 }
 
 function materialize(files: Files): { readonly root: string; readonly project: Project } {
+  // EVERY KEY IS JUDGED BEFORE THE ROOT EXISTS. A refusal must leave nothing behind, and the cheapest way to
+  // own that is to have created nothing yet: the whole map is validated, then one mkdtemp, then the writes.
+  // The two refusals are separate on purpose — CONTAINMENT (the grammar) and the door's SEMANTIC fence (the
+  // non-authored vocabulary, which `ops/policy-conformance.ts` filters out of the overlay). Neither implies
+  // the other: `../escaped.txt` carries no non-authored segment, and `node_modules/x.ts` is perfectly
+  // contained.
   for (const path of Object.keys(files)) {
+    assertStagedRelativePath("the real-tmpdir door's fixture key", path);
     if (NON_AUTHORED_SEGMENT_RE.test(path)) {
       throw new Error(
         `the real-tmpdir door refuses the non-authored fixture path ${path}: the overlay filter for that class ` +
@@ -622,17 +782,23 @@ function materialize(files: Files): { readonly root: string; readonly project: P
     }
   }
   const root = mkdtempSync(join(tmpdir(), `orb-legacy-differential-${String(process.pid)}-`));
-  assertReplayRootIsScratch(root);
-  const project = new Project({ skipAddingFilesFromTsConfig: true });
-  for (const [path, source] of Object.entries(files).toSorted(([left], [right]) => left.localeCompare(right))) {
-    const absolute = join(root, path);
-    mkdirSync(dirname(absolute), { recursive: true });
-    writeFileSync(absolute, source);
-    if (isPolicySourceCandidate(path)) {
-      project.addSourceFileAtPath(absolute);
+  try {
+    assertReplayRootIsScratch(root);
+    const project = new Project({ skipAddingFilesFromTsConfig: true });
+    for (const [path, source] of Object.entries(files).toSorted(([left], [right]) => left.localeCompare(right))) {
+      const absolute = writeStagedReplayFile(root, path, source);
+      if (isPolicySourceCandidate(path)) {
+        project.addSourceFileAtPath(absolute);
+      }
     }
+    return { root, project };
+  } catch (error) {
+    // A PARTIAL MATERIALIZE IS REAPED HERE. The callers' `finally` can only run once this function has
+    // RETURNED a root, so a throw between the mkdtemp and the last write would otherwise leak the whole
+    // partial tree — which is the same "the cleanup cannot reach it" shape as the escape above.
+    rmSync(root, { recursive: true, force: true });
+    throw error;
   }
-  return { root, project };
 }
 
 function initRepository(root: string, index: boolean): void {

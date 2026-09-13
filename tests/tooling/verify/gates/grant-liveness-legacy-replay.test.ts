@@ -47,7 +47,9 @@
 // two exemption-HONOURED examples are genuine category 5, driven with the SHIPPED reviewed-grant rows so
 // the falsifier "did every hidden site become exactly ONE live, CONSUMED row" is answered per fixture
 // rather than in prose (3 rows).
-import { join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, parse } from "node:path";
 import process from "node:process";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as biomeGrantLiveness } from "../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
@@ -56,7 +58,13 @@ import { gate as tsconfigEntryLiveness } from "../../../../tooling/src/verify/ga
 import { gate as tsconfigEntryLivenessHealth } from "../../../../tooling/src/verify/gates/tsconfig-entry-liveness-health.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import type { TmpdirScenario } from "../../../support/legacy-differential.ts";
-import { assertReplayRootIsScratch, createTmpdirDifferential, frozenFilesystemLegacyGate } from "../../../support/legacy-differential.ts";
+import {
+  assertReplayRootIsScratch,
+  createTmpdirDifferential,
+  frozenFilesystemLegacyGate,
+  label,
+  stagedReplayTarget,
+} from "../../../support/legacy-differential.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -519,5 +527,113 @@ test("§4.6 — a replay root inside the running checkout is REFUSED, and a tmpd
 test("§4.6 — the tmpdir door REFUSES a legacy descriptor that reads no filesystem", async ({ scratch }) => {
   await expect(frozenFilesystemLegacyGate(scratch, PURE_BASE, PURE_LEGACY)).rejects.toThrow("the real-tmpdir door is the wrong one");
   // The other direction: the two blobs this file DOES replay are exactly the ones that reach disk.
+  await expect(frozenFilesystemLegacyGate(scratch, LEGACY_BASE, BIOME_LEGACY)).resolves.toBeDefined();
+});
+
+// ── CONTAINMENT — THE SHARED WRITE SITE, BOTH BOUNDARIES (cb-x-replay-boundary) ────────────────────────
+//
+// Codex's security review of `df2cda4c8` found two shared WRITE boundaries open, and both are the same
+// shape: bytes landed before the guard that was supposed to fence them. A fixture KEY carrying `../`
+// escaped the mkdtemp root that the `finally` reaps, and the frozen loader wrote into whatever staging
+// directory a caller handed it — including the checkout — because the door's own anti-live-tree refusal
+// had exactly one caller and it was somewhere else. Measured before the repair, in a throwaway parent:
+// the escaping key OVERWROTE a sentinel and the sentinel survived the root's removal.
+//
+// EVERY RED SIDE HERE IS UNWRITEABLE BY CONSTRUCTION, which is the condition the review set. The traversal
+// arms drive the PURE resolver, or a door whose refusal precedes its own `mkdtemp`. The two live-tree arms
+// hand the MUTATOR a root inside the checkout that is a regular FILE (and a symlink to one), so a
+// regression that dropped the guard fails with ENOTDIR instead of planting a frozen module in the tree:
+// this suite can never become the incident it is pinning.
+const SENTINEL_BYTES = "sentinel-must-not-change";
+/** Each escaping key with the clause of the IMPORTED grammar (`lib/policy-repo-inventory.ts`) it trips. */
+const ESCAPING_KEYS: readonly (readonly [string, string, string])[] = [
+  ["../escaped.txt", "has an invalid path segment", "a bare traversal"],
+  ["a/../../escaped.txt", "has an invalid path segment", "a traversal hidden mid-path"],
+  ["/etc/passwd", "must be a repo-relative POSIX path", "an absolute key"],
+  ["C:/windows/x.ts", "must be a repo-relative POSIX path", "a drive-letter key"],
+  ["..\\escaped.txt", "must be a repo-relative POSIX path", "the backslash spelling"],
+  ["", "must be a repo-relative POSIX path", "an empty key"],
+  ["a//b.ts", "has an invalid path segment", "an empty segment"],
+  ["./a.ts", "has an invalid path segment", "a leading dot segment"],
+  ["a/./b.ts", "has an invalid path segment", "a dot segment mid-path"],
+  ["control\u0001char.ts", "must be a repo-relative POSIX path", "an ASCII control character"],
+  ["trailing/", "must be a repo-relative POSIX path", "a trailing slash"],
+];
+
+test("§4.6 — the staged write target REFUSES every escaping path, and creates nothing refusing it", ({ scratch }) => {
+  const root = join(scratch, "staging");
+  mkdirSync(root);
+  expect(stagedReplayTarget(root, "a/b/c.ts"), "the PLANTED POSITIVE CONTROL — an ordinary key resolves INSIDE the root").toBe(
+    join(realpathSync(root), "a/b/c.ts"),
+  );
+  for (const [key, clause, why] of ESCAPING_KEYS) {
+    expect(() => stagedReplayTarget(root, key), `${why} — ${JSON.stringify(key)}`).toThrow(clause);
+    expect(() => stagedReplayTarget(root, key), `${why} — the refusal says what containment it protects`).toThrow("would land OUTSIDE the root");
+  }
+  expect(readdirSync(root), "the resolver is PURE — nothing was created while refusing, which is why it can carry the red side").toEqual([]);
+});
+
+test("§4.6 — a staged path that crosses a symlink OUT of the staging root is REFUSED", ({ scratch }) => {
+  const root = join(scratch, "linked-staging");
+  const sibling = join(scratch, "outside-the-root");
+  mkdirSync(root);
+  mkdirSync(sibling);
+  mkdirSync(join(root, "real"));
+  symlinkSync(process.cwd(), join(root, "to-checkout"));
+  symlinkSync(parse(root).root, join(root, "to-filesystem-root"));
+  symlinkSync(sibling, join(root, "to-sibling"));
+  symlinkSync(join(root, "real"), join(root, "to-inside"));
+  for (const link of ["to-checkout", "to-filesystem-root", "to-sibling"]) {
+    expect(() => stagedReplayTarget(root, `${link}/planted.ts`), `${link} — writeFileSync FOLLOWS a link, so lexical containment is not enough`).toThrow(
+      "OUTSIDE the staging root",
+    );
+  }
+  expect(stagedReplayTarget(root, "to-inside/planted.ts"), "the positive control — a link that stays INSIDE resolves through").toBe(
+    join(realpathSync(root), "real/planted.ts"),
+  );
+  expect(existsSync(join(process.cwd(), "planted.ts")), "the checkout-link refusal planted nothing in the tree").toBe(false);
+});
+
+test("§4.6 — BOTH tmpdir replay legs refuse an escaping fixture key before a root exists", async ({ scratch }) => {
+  const differential = createTmpdirDifferential(toolErrorCode);
+  const legacy = await frozenFilesystemLegacyGate(scratch, LEGACY_BASE, BIOME_LEGACY);
+  // THE SENTINEL, in the one place a `materialize` traversal can actually reach. Its root is the door's OWN
+  // mkdtemp under `tmpdir()`, so `../<name>` resolves to a sibling THERE — this is that exact path, created
+  // by this test, uniquely named by pid, and asserted byte-identical afterwards.
+  const sentinelName = `orb-replay-boundary-sentinel-${String(process.pid)}.txt`;
+  const sentinel = join(tmpdir(), sentinelName);
+  const liveRoots = (): readonly string[] => readdirSync(tmpdir()).filter((entry) => entry.startsWith(`orb-legacy-differential-${String(process.pid)}-`));
+  writeFileSync(sentinel, SENTINEL_BYTES);
+  try {
+    expect(liveRoots(), "no replay root of this process is live before the control").toEqual([]);
+    const escaping = { [`../${sentinelName}`]: "escape-control" };
+    expect(() => differential.legacyReplay(legacy, escaping, label), "the LEGACY leg").toThrow("would land OUTSIDE the root");
+    expect(() => differential.finalReplay([biomeGrantLiveness], escaping, label), "the FINAL leg").toThrow("would land OUTSIDE the root");
+    expect(readFileSync(sentinel, "utf8"), "both legs refused BEFORE the sentinel could be overwritten").toBe(SENTINEL_BYTES);
+    expect(liveRoots(), "the key is judged before `mkdtemp`, so no root was created — nothing to leak, nothing to reap").toEqual([]);
+  } finally {
+    rmSync(sentinel, { force: true });
+  }
+});
+
+test("§4.6 — the frozen loader binds the anti-live-tree guard BEFORE its staging write", async ({ scratch }) => {
+  const fileInsideCheckout = join(process.cwd(), "package.json");
+  const linkIntoCheckout = join(scratch, "link-into-checkout");
+  symlinkSync(fileInsideCheckout, linkIntoCheckout);
+  await expect(
+    frozenFilesystemLegacyGate(fileInsideCheckout, LEGACY_BASE, BIOME_LEGACY),
+    "a staging root inside the checkout — an unguarded loader would have written a frozen `.ts` module into the tree",
+  ).rejects.toThrow("must live OUTSIDE the running checkout");
+  await expect(
+    frozenFilesystemLegacyGate(linkIntoCheckout, LEGACY_BASE, BIOME_LEGACY),
+    "a staging root that reaches the checkout THROUGH A SYMLINK",
+  ).rejects.toThrow("must live OUTSIDE the running checkout");
+  // The checkout ROOT itself is the one arm that cannot be driven through the mutator without performing
+  // the unsafe write, so it is driven through the pure resolver — at the exact staged name the loader
+  // computes for this blob, which is what makes it the same write rather than a lookalike.
+  const stagedEntry = `${LEGACY_BASE.slice(0, 8)}--${BIOME_LEGACY.split("/").join("__")}`;
+  expect(() => stagedReplayTarget(process.cwd(), stagedEntry), "the checkout root").toThrow("must live OUTSIDE the running checkout");
+  expect(existsSync(join(process.cwd(), stagedEntry)), "no frozen module was planted in the checkout by any arm of this suite").toBe(false);
+  // The clean control: the same loader, the sanctioned scratch root, still loads.
   await expect(frozenFilesystemLegacyGate(scratch, LEGACY_BASE, BIOME_LEGACY)).resolves.toBeDefined();
 });
