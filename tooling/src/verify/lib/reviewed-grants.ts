@@ -709,6 +709,85 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     endsWhen: "the drill factory models bulk selection and this store migrates onto it.",
   },
   {
+    id: "seed-theme-ink-contrast:meter-track-1",
+    policyId: "seed-theme-ink-contrast",
+    subject: "packages/ui/src/charts/meter/variants.ts",
+    operation: "ink:track-1",
+    why: "`RING_STROKE` feeds `currentColor` to the RingGauge arc stroke on aria-hidden decorative geometry (its own header, #697) — WCAG 1.4.11's 3:1 applies, not 4.5:1 text, and palette-contrast.suite.test.ts already enforces that floor per seed.",
+    endsWhen:
+      "this kit typesets with a track token — the ink then stops being decorative geometry, the class is judged at 4.5:1, and this row licenses a finding whose reason no longer holds. A track slot that stops being painted at all consumes the row zero times and reds STALE.",
+  },
+  {
+    id: "seed-theme-ink-contrast:meter-track-2",
+    policyId: "seed-theme-ink-contrast",
+    subject: "packages/ui/src/charts/meter/variants.ts",
+    operation: "ink:track-2",
+    why: "`RING_STROKE` feeds `currentColor` to the RingGauge arc stroke on aria-hidden decorative geometry (its own header, #697) — WCAG 1.4.11's 3:1 applies, not 4.5:1 text, and palette-contrast.suite.test.ts already enforces that floor per seed.",
+    endsWhen:
+      "this kit typesets with a track token — the ink then stops being decorative geometry, the class is judged at 4.5:1, and this row licenses a finding whose reason no longer holds. A track slot that stops being painted at all consumes the row zero times and reds STALE.",
+  },
+  {
+    id: "seed-theme-ink-contrast:meter-track-3",
+    policyId: "seed-theme-ink-contrast",
+    subject: "packages/ui/src/charts/meter/variants.ts",
+    operation: "ink:track-3",
+    why: "`RING_STROKE` feeds `currentColor` to the RingGauge arc stroke on aria-hidden decorative geometry (its own header, #697) — WCAG 1.4.11's 3:1 applies, not 4.5:1 text, and palette-contrast.suite.test.ts already enforces that floor per seed.",
+    endsWhen:
+      "this kit typesets with a track token — the ink then stops being decorative geometry, the class is judged at 4.5:1, and this row licenses a finding whose reason no longer holds. A track slot that stops being painted at all consumes the row zero times and reds STALE.",
+  },
+  {
+    id: "seed-theme-ink-contrast:meter-track-4",
+    policyId: "seed-theme-ink-contrast",
+    subject: "packages/ui/src/charts/meter/variants.ts",
+    operation: "ink:track-4",
+    why: "`RING_STROKE` feeds `currentColor` to the RingGauge arc stroke on aria-hidden decorative geometry (its own header, #697) — WCAG 1.4.11's 3:1 applies, not 4.5:1 text, and palette-contrast.suite.test.ts already enforces that floor per seed.",
+    endsWhen:
+      "this kit typesets with a track token — the ink then stops being decorative geometry, the class is judged at 4.5:1, and this row licenses a finding whose reason no longer holds. A track slot that stops being painted at all consumes the row zero times and reds STALE.",
+  },
+  {
+    id: "seed-theme-ink-contrast:meter-track-5",
+    policyId: "seed-theme-ink-contrast",
+    subject: "packages/ui/src/charts/meter/variants.ts",
+    operation: "ink:track-5",
+    why: "`RING_STROKE` feeds `currentColor` to the RingGauge arc stroke on aria-hidden decorative geometry (its own header, #697) — WCAG 1.4.11's 3:1 applies, not 4.5:1 text, and palette-contrast.suite.test.ts already enforces that floor per seed.",
+    endsWhen:
+      "this kit typesets with a track token — the ink then stops being decorative geometry, the class is judged at 4.5:1, and this row licenses a finding whose reason no longer holds. A track slot that stops being painted at all consumes the row zero times and reds STALE.",
+  },
+  {
+    id: "seed-theme-ink-contrast:meter-track-6",
+    policyId: "seed-theme-ink-contrast",
+    subject: "packages/ui/src/charts/meter/variants.ts",
+    operation: "ink:track-6",
+    why: "`RING_STROKE` feeds `currentColor` to the RingGauge arc stroke on aria-hidden decorative geometry (its own header, #697) — WCAG 1.4.11's 3:1 applies, not 4.5:1 text, and palette-contrast.suite.test.ts already enforces that floor per seed.",
+    endsWhen:
+      "this kit typesets with a track token — the ink then stops being decorative geometry, the class is judged at 4.5:1, and this row licenses a finding whose reason no longer holds. A track slot that stops being painted at all consumes the row zero times and reds STALE.",
+  },
+  {
+    id: "seed-theme-ink-contrast:meter-border",
+    policyId: "seed-theme-ink-contrast",
+    subject: "packages/ui/src/charts/meter/variants.ts",
+    operation: "ink:border",
+    why: "the gauge RAIL stroke (`track: text-border`, three species) — `--color-border` is a translucent LINE token that has no opaque colour to judge as text at all, and the rail is aria-hidden geometry under WCAG 1.4.11.",
+    endsWhen: "a `track` slot typesets, or border stops being the rail's colour; either way this identity stops being reported and the row reds STALE.",
+  },
+  {
+    id: "seed-theme-ink-contrast:meter-muted",
+    policyId: "seed-theme-ink-contrast",
+    subject: "packages/ui/src/charts/meter/variants.ts",
+    operation: "ink:muted",
+    why: "the UNFILLED segment (`filled:false -> segment: text-muted`) — a SURFACE token deliberately one ramp step from the panel, which is the whole point of an empty segment (its own header, #685/#693) and is 1.4.11 geometry, not text.",
+    endsWhen: "a segment carries a label; the ink is then text duty, judged at 4.5:1, and this row licenses a finding whose reason no longer holds.",
+  },
+  {
+    id: "seed-theme-ink-contrast:switch-readonly-glyph",
+    policyId: "seed-theme-ink-contrast",
+    subject: "packages/ui/src/primitives/switch/variants.ts",
+    operation: "ink:background",
+    why: "`readOnlyIcon` is the readonly LOCK GLYPH painted ON the switch thumb: `text-background` inverts against the thumb's own `bg-foreground` fill, measuring ~13:1 on the surface it actually sits on. An INVERTED pair ink — the `-foreground` suffix rule cannot see it because the inversion runs the other way (the INK is `background`) — and a glyph, judged at 1.4.11's 3:1.",
+    endsWhen:
+      "this slot paints a text run, or the thumb stops declaring its own fill; the grounds table then judges it correctly and the row is no longer needed.",
+  },
+  {
     id: "single-stream-transport:chat-impersonate-stream",
     policyId: "single-stream-transport",
     subject: "packages/server/src/transport/trpc/routers/chat.ts",

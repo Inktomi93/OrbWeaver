@@ -337,10 +337,13 @@ function writeFixtures(): void {
       "  return draft.length + (setDraft ? 0 : 1) + (commit ? 0 : 1);\n" +
       "}\n",
   );
-  // seed-theme-ink-contrast: a SURFACE token painted as TEXT. `--color-card` as ink on the `--color-card`
-  // ground is 1.00:1 by construction in every seed, so this is a real-shape violation of the ink-duty rule
-  // (the founding defect's own class: a token whose role is a background doing text duty).
-  fx("packages/client/src/features/__g_gink/lib/ink.tsx", 'export const Ink = <span className="text-card">x</span>;\n');
+  // seed-theme-ink-contrast: NO fixture. It CONVERTED 2026-09-13 (#2182) into a final `reviewed-grant`
+  // policy on `product-css` + the `@client`/`@ui` class walk, so the mixed roster partitions it out and a
+  // `__g_` carrier planted for it would be a working-tree fixture no legacy owner reads. The shape this
+  // fixture planted — a SURFACE token painted as TEXT, `--color-card` as ink on the `--color-card` ground at
+  // 1.00:1 by construction — is `mustFlag[2]`'s subject in the module's own rows, and the nine
+  // decorative-stroke exemptions that used to live in its `ExemptionTable` are now reviewed grants whose
+  // consumption is held two-sided in tests/tooling/verify/gates/seed-theme-ink-family.test.ts.
   // section-registry-completeness: a non-auth feature front-door import in a route file that isn't
   // app-root (the anti-god-map arm 3b). `#features/chat` is a real specifier the gate matches by AST.
   fx("packages/client/src/routes/__g_g1route.tsx", 'import { X } from "#features/chat";\nexport const G = X;\n');
