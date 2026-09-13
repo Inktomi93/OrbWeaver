@@ -56,7 +56,7 @@ async function seedEnabledRule(
 async function corruptActions(fixture: Awaited<ReturnType<typeof ruleFixture>>, ruleId: AutomationRuleId): Promise<void> {
   await fixture.db
     .update(automationRules)
-    // FABRICATION-OK: the A5 CORRUPT-BLOB state is by definition a value no schema admits — a typed factory
+    // @orb-waive no-test-fabrication(never): the A5 CORRUPT-BLOB state is by definition a value no schema admits — a typed factory Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // could not produce it, and it is exactly the invalid input the disable-on-corrupt path exists to answer.
     .set({ actions: [{ not: "an arm" }] as never })
     .where(eq(automationRules.id, ruleId));

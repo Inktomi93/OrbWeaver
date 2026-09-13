@@ -65,7 +65,7 @@ function captureChannel(page: Page, tag: string): string[] {
 /** Reads the snapshot the STORY published — never a re-import, which would resolve a second module
  *  instance whose ring is always empty (the MotionShiftFlaggerStory law). */
 function readMotion(page: Page): Promise<MotionRead> {
-  // FABRICATION-OK: the probe slot MotionFrameReflowStory writes; declared and read in this spec alone.
+  // @orb-waive no-test-fabrication(unknown): the probe slot MotionFrameReflowStory writes; declared and read in this spec alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return page.evaluate(() => (globalThis as unknown as { __motionRead: () => MotionRead }).__motionRead());
 }
 

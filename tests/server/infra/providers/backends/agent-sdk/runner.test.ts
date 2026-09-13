@@ -817,7 +817,7 @@ describe("createAgentSdkBackend", () => {
     });
     expect(backend.runChatTurn).toBeDefined();
     const run = backend.runChatTurn as ChatTurn;
-    // FABRICATION-OK: deliberate wrong-api-shape probe of the fail-closed path.
+    // @orb-waive no-test-fabrication(unknown): deliberate wrong-api-shape probe of the fail-closed path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const wrongApi = { api: "chat-completions" } as unknown as ChatRequest;
     await expect(run(wrongApi)).rejects.toBeInstanceOf(ProviderError);
   });

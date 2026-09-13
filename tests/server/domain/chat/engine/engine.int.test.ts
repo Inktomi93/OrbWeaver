@@ -571,7 +571,7 @@ describe("createTurnEngine — happy path", () => {
     expect(captured).not.toBeNull();
     // TS's control-flow narrowing can't see the closure mutation above (`captured = req`), so it narrows
     // `captured` to `null` here regardless of the runtime value the assertion above proved non-null.
-    // FABRICATION-OK: narrowing-limitation cast, not a fabricated shape — see above.
+    // @orb-waive no-test-fabrication(unknown): narrowing-limitation cast, not a fabricated shape — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     expect((captured as unknown as TurnRequest).ownerConsented).toBe(true);
   });
 });
@@ -1495,7 +1495,7 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
     });
     // The abort path reaches only `onTurnAborted` (the `fireOrderRpg`/`gatherSpyRpg` precedent in
     // tests/server/domain/chat/verbs/turn.int.test.ts).
-    // FABRICATION-OK: instrumentation double — see above.
+    // @orb-waive no-test-fabrication(unknown): instrumentation double — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       onTurnAborted: async () => {
         await Promise.resolve();
@@ -1624,7 +1624,7 @@ describe("createTurnEngine — #1461: a failing post-turn hook is LOGGED, never 
 
   test("a REJECTING rpg turn-abort clear warns with the chat + turn ids", async () => {
     const chatId = await seedChat(db, "rpg-abort-hook-warn");
-    // FABRICATION-OK: instrumentation double — the abort path reaches only `onTurnAborted` (the I-7
+    // @orb-waive no-test-fabrication(unknown): instrumentation double — the abort path reaches only `onTurnAborted` (the I-7 Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // abort-trace pin above establishes that).
     const rpg = {
       onTurnAborted: () => Promise.reject(new Error("staging clear failed")),
@@ -1652,7 +1652,7 @@ describe("createTurnEngine — #1461: a failing post-turn hook is LOGGED, never 
     const cleared = new Promise<void>((resolve) => {
       clearDone = resolve;
     });
-    // FABRICATION-OK: instrumentation double — see above.
+    // @orb-waive no-test-fabrication(unknown): instrumentation double — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       onTurnAborted: async () => {
         await Promise.resolve();
@@ -2127,7 +2127,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
    *  exactly `capability.tools` present + not `silencesProse`. */
   const toolConnection = (): ReturnType<typeof testConnection> => {
     const base = testConnection();
-    // FABRICATION-OK: `ModelCapability.tools` is a wide resolved cell, the gate reads two fields, TEST_CAPABILITY is built the same way
+    // @orb-waive no-test-fabrication(typeof base.capability): `ModelCapability.tools` is a wide resolved cell, the gate reads two fields, TEST_CAPABILITY is built the same way Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return { ...base, capability: { ...base.capability, tools: { silencesProse: false } } as typeof base.capability };
   };
 
@@ -2188,7 +2188,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
   test("the state writes SURVIVE — pass 1's tool calls reach the rpg flush, alongside pass 2's prose", async () => {
     const chatId = await seedChat(db, "recover-carries-calls");
     const seen: unknown[] = [];
-    // FABRICATION-OK: a completed turn reaches only the two turn hooks (the `fireOrderRpg` precedent above); the assertion is on what `onTurnCompleted` is HANDED
+    // @orb-waive no-test-fabrication(unknown): a completed turn reaches only the two turn hooks (the `fireOrderRpg` precedent above); the assertion is on what `onTurnCompleted` is HANDED Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       // Rest-typed: the hook takes five positional arguments and only the LAST is under test here.
       onTurnCompleted: (...hookArgs: readonly unknown[]): Promise<void> => {

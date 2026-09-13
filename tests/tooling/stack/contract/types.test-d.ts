@@ -13,7 +13,7 @@ test("StackVerb derives from the tuple — one axis, no re-spell", () => {
 });
 
 test("a failed parse cannot be read as an invocation", () => {
-  // FABRICATION-OK: a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property.
+  // @orb-waive no-test-fabrication(StackParse): a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const parsed = {} as StackParse;
   // @ts-expect-error — `invocation` exists only on the ok:true arm; the shell must narrow first.
   void parsed.invocation;

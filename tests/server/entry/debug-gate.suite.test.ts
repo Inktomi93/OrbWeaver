@@ -224,14 +224,15 @@ function gateApp(opts: GateAppOptions): GateApp {
     c.set("sessionId", sessionId);
     await next();
   });
-  // FABRICATION-OK: not a fabricated VALUE — this is the exact `plain` widening `entry/app.ts` performs on
   // the real app (Hono's env generic is invariant, so the registrars take the same instance type-only
   // widened). Reproducing the production wiring is this suite's whole premise.
-  registerDebugRoutes(app as unknown as Hono, {
+  // @orb-waive no-test-fabrication(unknown): not a fabricated VALUE — this is the exact `plain` widening `entry/app.ts` performs. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const widenedApp = app as unknown as Hono;
+  registerDebugRoutes(widenedApp, {
     // The db must be PRESENT so `/db/*` + `/config/*` actually REGISTER — an unregistered route 404s, which
     // would forge a passing gate — but UNUSABLE, so a request that reaches a handler throws instead of
     // quietly returning an empty page. A typed factory would defeat the point: this must not answer a query.
-    // FABRICATION-OK: a deliberately unusable db is the assertion — see above.
+    // @orb-waive no-test-fabrication(unknown): a deliberately unusable db is the assertion — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     db: {} as unknown as Db,
     auth: {
       expectedToken: opts.expectedToken,

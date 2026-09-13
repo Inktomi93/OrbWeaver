@@ -78,7 +78,7 @@ function spyBackend(key: ProviderBackend["key"], calls: string[]): ProviderBacke
 // etc.) — these tests exercise ONLY the firewall/dispatch routing, which reads `api`+`credential.source`
 // (+`model`), never the arm-specific fields a real per-arm factory would add.
 function chatReq(over: Partial<ChatRequest>): ChatRequest {
-  // FABRICATION-OK: partial-arm request (see above).
+  // @orb-waive no-test-fabrication(ChatRequest): partial-arm request (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     api: "chat-completions",
     credential: makeOpenRouterCredential(),

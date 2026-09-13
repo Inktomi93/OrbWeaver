@@ -28,7 +28,7 @@ import type { SearchDiscoveryComposeDeps } from "../../../../packages/server/src
 import { buildSearchDiscovery } from "../../../../packages/server/src/entry/compose/search-discovery.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
-// FABRICATION-OK: never dereferenced — every op this pin drives is stubbed or spied before it can reach db.
+// @orb-waive no-test-fabrication(unknown): never dereferenced — every op this pin drives is stubbed or spied before it can reach db. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
 type Handler = (event: DomainEvent) => void | Promise<void>;
@@ -47,7 +47,7 @@ function capturingBus(): { readonly bus: DomainEventBus; readonly handlers: Hand
 }
 
 function build(corpusAutoindex: boolean, bus: DomainEventBus): ReturnType<typeof buildSearchDiscovery> {
-  // FABRICATION-OK: structural stand-ins for the cluster's sibling front doors — the seam stores them.
+  // @orb-waive no-test-fabrication(unknown): structural stand-ins for the cluster's sibling front doors — the seam stores them. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     db: NO_DB,
     now: () => 1000,
@@ -106,7 +106,7 @@ describe("buildSearchDiscovery — the indexer's bus routing table (a closed swi
     const onCharacter = vi.spyOn(built.indexer, "onCharacterUpdated").mockResolvedValue(undefined);
     const onAsset = vi.spyOn(built.indexer, "onAssetCreated").mockResolvedValue(undefined);
 
-    // FABRICATION-OK: a deliberate minimal event value for a routing assertion — the payload is the domain's.
+    // @orb-waive no-test-fabrication(DomainEvent): a deliberate minimal event value for a routing assertion — the payload is the domain's. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     await route({ type: "character.updated" } as DomainEvent);
 
     expect(onCharacter).toHaveBeenCalledTimes(1);
@@ -118,7 +118,7 @@ describe("buildSearchDiscovery — the indexer's bus routing table (a closed swi
     const onCharacter = vi.spyOn(built.indexer, "onCharacterUpdated").mockResolvedValue(undefined);
     const onAsset = vi.spyOn(built.indexer, "onAssetCreated").mockResolvedValue(undefined);
 
-    // FABRICATION-OK: a deliberate minimal event value for a routing assertion — the payload is the domain's.
+    // @orb-waive no-test-fabrication(DomainEvent): a deliberate minimal event value for a routing assertion — the payload is the domain's. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     await route({ type: "asset.created" } as DomainEvent);
 
     expect(onAsset).toHaveBeenCalledTimes(1);
@@ -130,9 +130,9 @@ describe("buildSearchDiscovery — the indexer's bus routing table (a closed swi
     const onCharacter = vi.spyOn(built.indexer, "onCharacterUpdated").mockResolvedValue(undefined);
     const onAsset = vi.spyOn(built.indexer, "onAssetCreated").mockResolvedValue(undefined);
 
-    // FABRICATION-OK: deliberate minimal event values for a routing assertion — the payloads are the domain's.
+    // @orb-waive no-test-fabrication(DomainEvent): deliberate minimal event values for a routing assertion — the payloads are the domain's. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     await route({ type: "persona.updated" } as DomainEvent);
-    // FABRICATION-OK: same.
+    // @orb-waive no-test-fabrication(DomainEvent): same. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     await route({ type: "world-info.updated" } as DomainEvent);
 
     expect(onCharacter).not.toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe("buildSearchDiscovery — the indexer's bus routing table (a closed swi
   test("an UNKNOWN event member REFUSES loudly (the assertNever belt is reachable, not decorative)", () => {
     const { route } = indexerRoute();
 
-    // FABRICATION-OK: an off-union value is the whole point — this drives the `assertNeverEvent` default.
+    // @orb-waive no-test-fabrication(unknown): an off-union value is the whole point — this drives the `assertNeverEvent` default. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     expect(() => route({ type: "brand.new.event" } as unknown as DomainEvent)).toThrow(/unhandled domain event/u);
   });
 });
@@ -150,7 +150,7 @@ describe("buildSearchDiscovery — the indexer's bus routing table (a closed swi
 describe("buildSearchDiscovery — the embed-model-change reindex is a BOX-WIDE, owner-less system trigger", () => {
   test("enqueues exactly two BULK sweeps — the vector index and the databank chunk re-embed", async () => {
     const built = build(true, capturingBus().bus);
-    // FABRICATION-OK: the enqueue RESULT is never read by this seam — only the arguments are asserted.
+    // @orb-waive no-test-fabrication(Awaited<ReturnType<typeof built.workloads.start>>): the enqueue RESULT is never read by this seam — only the arguments are asserted. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const started = { id: "wl_1" } as Awaited<ReturnType<typeof built.workloads.start>>;
     const start = vi.spyOn(built.workloads, "start").mockResolvedValue(started);
 

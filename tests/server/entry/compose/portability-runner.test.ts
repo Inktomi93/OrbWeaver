@@ -43,13 +43,13 @@ import { expect, test } from "../../../support/fixtures.ts";
 const OWNER = castId<UserId>("usr_runner_owner");
 const OTHER = castId<UserId>("usr_runner_other");
 
-// FABRICATION-OK: never dereferenced — nothing this pin drives reaches a query.
+// @orb-waive no-test-fabrication(unknown): never dereferenced — nothing this pin drives reaches a query. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
 let stagedRoot: string;
 
 function build(overrides: Partial<PortabilityRunnerComposeDeps> = {}): ReturnType<typeof buildPortabilityRunner> {
-  // FABRICATION-OK: inert structural stand-ins for the nine domain contexts/front doors this seam threads.
+  // @orb-waive no-test-fabrication(unknown): inert structural stand-ins for the nine domain contexts/front doors this seam threads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     db: NO_DB,
     now: () => 1000,
@@ -145,7 +145,7 @@ describe("buildPortabilityRunner — quiet mode wraps the bulk runs without swal
     const characterId = castId<CharacterId>("chr_aria");
     const { importWorkloads } = build({
       importStagingDir: stagedRoot,
-      // FABRICATION-OK: only the four ops `buildOwnerImport` reads off `deps.character` matter here — the
+      // @orb-waive no-test-fabrication(unknown): only the four ops `buildOwnerImport` reads off `deps.character` matter here — the Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       // rest of the real `CharacterService` surface is never touched by a staged card import.
       character: {
         listEmbeddableCharacterIds: vi.fn(),

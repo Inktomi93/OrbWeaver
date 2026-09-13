@@ -91,7 +91,7 @@ function principal(userId: UserId): Principal {
 function makeDeps(overrides?: Partial<Parameters<typeof createRead>[1]>): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews,
-    // FABRICATION-OK: minimal ResolvedConnection double — the read paths under test only touch `model`.
+    // @orb-waive no-test-fabrication(unknown): minimal ResolvedConnection double — the read paths under test only touch `model`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     resolveConnection: () => Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
     checkSendAvailability: () => Promise.resolve({ available: true }),
     resolveForeignInputs: () =>
@@ -216,7 +216,7 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     const character = await seedCharacter(db, host, "rx-label-gm-char");
     await seedParticipant(db, { chatId, key: "rxlg_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "rxlg_c", characterId: character });
-    // FABRICATION-OK: minimal ChatRpgOps stub — the read path reaches only these three ops.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the read path reaches only these three ops. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       resolvePresetOverride: () => Promise.resolve(castId<PresetId>("preset_gm_voice_rx")),
       resolveUserMacros: () => Promise.resolve([]),
@@ -1573,7 +1573,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       [nikoId]: { name: "Niko", description: "A wary scout.", regexScripts: [] },
     };
     const ctx = makeChatContext(db, {
-      // FABRICATION-OK: minimal CharacterCard doubles — assembly reads name + description off these.
+      // @orb-waive no-test-fabrication(unknown): minimal CharacterCard doubles — assembly reads name + description off these. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       getCard: ({ characterId }) => Promise.resolve((cards[characterId] ?? null) as unknown as CharacterCard),
     });
 
@@ -1616,7 +1616,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       [kaiId]: { name: "Kai", description: "Kai is a wandering bard.", regexScripts: [] },
     };
     const ctx = makeChatContext(db, {
-      // FABRICATION-OK: minimal CharacterCard doubles — assembly reads name + description off these.
+      // @orb-waive no-test-fabrication(unknown): minimal CharacterCard doubles — assembly reads name + description off these. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       getCard: ({ characterId }) => Promise.resolve((cards[characterId] ?? null) as unknown as CharacterCard),
     });
     const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
@@ -1649,7 +1649,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       [kaiId]: { name: "Kai", description: "Kai is a wandering bard.", regexScripts: [] },
     };
     const ctx = makeChatContext(db, {
-      // FABRICATION-OK: minimal CharacterCard doubles — assembly reads name + description off these.
+      // @orb-waive no-test-fabrication(unknown): minimal CharacterCard doubles — assembly reads name + description off these. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       getCard: ({ characterId }) => Promise.resolve((cards[characterId] ?? null) as unknown as CharacterCard),
     });
     const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
@@ -1742,7 +1742,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // `resolvePresetOverride`. `null` here is the honest arm for THIS game: no `gmPresetId`, so the preview
     // falls to the host's own default preset exactly as its turn would. The redirect's own coverage is the two
     // tests below.
-    // FABRICATION-OK: minimal ChatRpgOps stub — the preview path reaches only these three ops.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the preview path reaches only these three ops. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       gatherTurnContext,
       resolveUserMacros: () => Promise.resolve([]),
@@ -1813,7 +1813,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // The three rpg ops this path reaches. `resolvePresetOverride` is the redirect under test; the gather
     // resolves its teach through the SAME `resolveProseText` the real reminder uses, so what is asserted is the
     // THREADING, never a re-implementation of the reminder.
-    // FABRICATION-OK: minimal ChatRpgOps stub — the preview path reaches only the three ops below.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the preview path reaches only the three ops below. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       resolvePresetOverride: () => Promise.resolve(gmPresetId),
       resolveUserMacros: () => Promise.resolve([]),
@@ -1859,7 +1859,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const candidateId = castId<PresetId>("preset_candidate");
 
     const seen: (PresetId | undefined)[] = [];
-    // FABRICATION-OK: minimal ChatRpgOps stub — only the redirect + the macro-declaration read are reached.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — only the redirect + the macro-declaration read are reached. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       resolvePresetOverride: () => Promise.resolve(castId<PresetId>("preset_gm_voice")),
       resolveUserMacros: () => Promise.resolve([]),
@@ -2506,7 +2506,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const host = await seedUser(db, castId<Handle>("host"));
       const chatId = await seedRoom("wire_bad_freeze", host);
       const m = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "x" });
-      const garbage = { roll: 9 } as never; // FABRICATION-OK: deliberate invalid-input probe of the parse seam.
+      // @orb-waive no-test-fabrication(never): deliberate invalid-input probe of the parse seam. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      const garbage = { roll: 9 } as never;
       await db
         .update(messageVariants)
         .set({ macroFreezes: garbage })
@@ -2524,7 +2525,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const m = await seedMessage(db, chatId, 1, { role: "assistant", content: "x" });
       // A garbage blob is exactly what the read seam exists to bound: `$type<>` is a compile-time claim, and
       // the bytes at rest are untyped JSON that a prior schema version (or a hand edit) can have written.
-      const garbage = { static: 42 } as never; // FABRICATION-OK: deliberate invalid-input probe of the parse seam.
+      // @orb-waive no-test-fabrication(never): deliberate invalid-input probe of the parse seam. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      const garbage = { static: 42 } as never;
       await db
         .update(messageVariants)
         .set({ promptSnapshot: garbage })
@@ -2817,7 +2819,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   /** A `ctx.rpg` that contributes ONLY the M2 wire knob — a game chat whose `cardKeepLastX: 0` stubs every
    *  STORED card on the wire (rpg's own shipped default). */
   function cardWindowRpg(cardKeepLastX: number): NonNullable<ChatContext["rpg"]> {
-    // FABRICATION-OK: the preview path reaches exactly these three rpg ops (`resolvePresetOverride`,
+    // @orb-waive no-test-fabrication(unknown): the preview path reaches exactly these three rpg ops (`resolvePresetOverride`, Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // `resolveUserMacros`, `gatherTurnContext`); a full ChatRpgOps double would assert ~20 ops no preview calls.
     return {
       resolvePresetOverride: () => Promise.resolve(null),
@@ -2984,7 +2986,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
   /** Deception-active: the injected op returns true for every chat. read.ts calls ONLY this member of
    *  `ChatRpgOps` on the non-host read path. */
   function deceptionCtx(): ChatContext {
-    // FABRICATION-OK: minimal ChatRpgOps stub — only `resolveReasoningHostOnly` is reached by these reads.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — only `resolveReasoningHostOnly` is reached by these reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ChatContext["rpg"]>;
     return makeChatContext(db, { rpg });
   }
@@ -3095,7 +3097,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
 
     // Deception-active: the injected op returns true for this chat (the game's `deception||omniscience`). A
     // minimal ChatRpgOps stub — read.ts calls ONLY `resolveReasoningHostOnly` on the non-host replay path.
-    // FABRICATION-OK: minimal ChatRpgOps stub — only `resolveReasoningHostOnly` is reached by these reads.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — only `resolveReasoningHostOnly` is reached by these reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const deceptionRpg = { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ChatContext["rpg"]>;
     const ctx = makeChatContext(db, { rpg: deceptionRpg });
     const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });

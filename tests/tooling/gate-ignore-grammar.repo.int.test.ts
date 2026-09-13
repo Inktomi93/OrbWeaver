@@ -17,16 +17,14 @@
 // wide-scanRoot gate DOES see the gate corpus, so a marker in a gate file is live vocabulary) — plus the
 // MENTION FENCE both ways: a quoted marker in prose neither suppresses (the closed bypass) nor gets
 // inventoried (what made the corpus scannable).
-// The FINDING-ARM side (#828, 2026-08-30) probes the same vocabulary against a gate that reports through
-// `ctx.report(finding)` and therefore has NO node to read leading trivia from — carrier
-// `no-test-fabrication`, whose scanRoot is `tests/`. That arm binds LINE-ADJACENTLY, which is a different
-// resolver from the node arm's block-scoped walk, so its consumption verdicts (suppressed / stale /
-// malformed / mention) need their own real-tree cases; the fast unit-level resolver pins live in
-// tests/tooling/verify/lib/gate-ignore.test.ts.
+// The former Finding-overload arm used `no-test-fabrication` to prove line-adjacent legacy markers. That
+// policy now reports exact AST nodes through the central `@orb-waive` engine, whose ordinary-waiver tests
+// own the successor proof. Keeping its legacy fixtures here would only exercise a policy this loader no
+// longer loads, so the arm retires with the policy's conversion.
 //
-// ── ALL THREE CARRIERS RE-POINTED 2026-09-11 (#1974) ──────────────────────────────────────────────────
-// A CARRIER IS A PERISHABLE CHOICE, AND THIS SUITE IS THE PROOF. #1974 was filed against the Finding arm
-// alone (`test-determinism`, FINAL at `7be684811`); the measured tree said all three were dead —
+// ── CARRIERS RE-POINTED 2026-09-11 (#1974) ────────────────────────────────────────────────────────────
+// A CARRIER IS A PERISHABLE CHOICE, AND THIS SUITE IS THE PROOF. #1974 was filed against the retired
+// Finding arm (`test-determinism`, FINAL at `7be684811`); the measured tree said all three were dead —
 // `no-color-literals` and `no-raw-intl-time` had converted too, and the suite stood at 19 failed / 3
 // passed on `b4714536d`, unnoticed because `tests/tooling/**` is `--full`-only (#1842).
 //
@@ -38,19 +36,13 @@
 // rather than retired — arm 2, retirement with the legacy engine at Phase F, transplants this corpus into
 // `ordinary-waiver.test.ts`.
 //
-// WHY THESE TWO, AND WHAT RETIRES THEM. `pnpm gate:contract` is the authority on legacy-ness, never this
+// WHY THIS CARRIER, AND WHAT RETIRES IT. `pnpm gate:contract` is the authority on legacy-ness, never this
 // comment; re-derive before trusting a word of it.
 //   · `query-machine-seals` (node arm + scripts arm) — legacy, not `markerImmune`, node-anchored with a
 //     carried token, `scanRoot: () => true` (so it sees BOTH `DIR` and `SCRIPTS_DIR`), and it reports two
 //     DISTINCT tokens from ONE ImportDeclaration, which is the §4.3a shape nothing else live still has.
 //     `uncovered-gate-conversion-census.md:121` classifies it `X` (gate-owned vocabulary — central seam
 //     grants must land first), so it converts late.
-//   · `no-test-fabrication` (Finding arm) — legacy, not `markerImmune`, a pure Finding-arm reporter
-//     (`ctx.report(finding)` with a plain literal, `no-test-fabrication.ts:198-205`) which is the exact
-//     property that arm probes, and `scanRoot: p.startsWith("tests/")` admits `TESTS_DIR`.
-//     `uncovered-gate-conversion-census.md:200` classifies it `X` too (its gate-local `FABRICATION-OK:`
-//     grammar needs a central home first).
-//
 // THE TRIPWIRE: the first test below asserts every carrier is still in the LEGACY roster and says what to
 // do when it is not. That is the whole lesson of #1974 — a green run is not evidence a carrier is live,
 // and a red one must name the reason instead of spraying twenty assertion failures.
@@ -89,9 +81,8 @@ const SCRIPTS_DIR = "tooling/src/verify/gates/__g_gi";
  *  2026-08-08 extension). One carrier, two dirs: the arm is about the DIRECTORY, not about a second gate. */
 const SCRIPTS_CARRIER = CARRIER;
 const SCRIPTS_VIOLATION = VIOLATION;
-/** A registered LEGACY gate that cannot possibly consume anything in the gate corpus — its scanRoot is
- *  `tests/`. The STALE arm needs a well-formed, REGISTERED marker that suppresses nothing. */
-const ELSEWHERE_CARRIER = "no-test-fabrication";
+/** A registered LEGACY gate with no violation in the stale fixture. */
+const ELSEWHERE_CARRIER = CARRIER;
 
 /** case → the fixture source planted at `${DIR}/__g_<case>.ts`. */
 const CASES: Readonly<Record<string, string>> = {
@@ -136,33 +127,6 @@ const SCRIPTS_CASES: Readonly<Record<string, string>> = {
   corpusMention: `// the grammar is \`// @orb-gate-ignore ${SCRIPTS_CARRIER}(${SCRIPTS_VIOLATION}): <reason>\` — a quotation\n${ONE}`,
 };
 
-/** The FINDING-ARM fixture dir (#828): under `tests/`, which is `no-test-fabrication`'s scanRoot. */
-const TESTS_DIR = "tests/tooling/__g_gi";
-/** The Finding-arm carrier: a `visitFile` line scanner with no node, reporting file+line+column-0. Its
- *  choice is PINNED in the header — re-point it only after re-deriving `gate:contract`, never by filename. */
-const TESTS_CARRIER = "no-test-fabrication";
-
-/** The fabrication the Finding-arm fixtures carry: an `X as unknown as Y` double-cast, which the carrier
- *  reports with token `double-cast`. Spelled literally rather than assembled — unlike the previous
- *  ambient-clock carrier, this one reads the AST (`AsExpression` nodes), so the same spelling inside THIS
- *  file's fixture strings is a StringLiteral and can never make the probe file its own violation. */
-const FABRICATION = "{} as unknown as { a: number }";
-
-/** case → the fixture planted at `${TESTS_DIR}/__g_<case>.ts`. The violation is that double-cast; the
- *  marker (when present) sits on the line IMMEDIATELY above it. */
-const TESTS_CASES: Readonly<Record<string, string>> = {
-  // the Finding-arm carrier bites at all — a violation with NO marker.
-  findingUnmarked: `export const f0 = ${FABRICATION};\n`,
-  // the #828 fix: a well-formed marker one line above a Finding-arm violation suppresses it.
-  findingMarked: `// @orb-gate-ignore no-test-fabrication: probe — a deliberate invalid-input shape\nexport const f1 = ${FABRICATION};\n`,
-  // LINE-ADJACENCY: one line too far suppresses nothing AND the marker reds as stale (two-sided).
-  findingFar: `// @orb-gate-ignore no-test-fabrication: probe — one line too far to bind\n\nexport const f2 = ${FABRICATION};\n`,
-  // MALFORMED in the Finding arm: bare, no `: <reason>` — shields nothing, and reds as its own flavour.
-  findingBare: `// @orb-gate-ignore no-test-fabrication\nexport const f3 = ${FABRICATION};\n`,
-  // MENTION FENCE holds on the Finding arm too: a quoted marker in prose is not a marker.
-  findingMention: `// the grammar is \`// @orb-gate-ignore no-test-fabrication: <reason>\` — a quotation\nexport const f4 = ${FABRICATION};\n`,
-};
-
 /** THE CLEANUP ROOTS ARE DERIVED FROM THE PLANT DIRS, never hand-listed (#2200). They were
  *  `["packages", "tests", "scripts"]` while `SCRIPTS_DIR` planted into **`tooling/`** — a root the list
  *  never named, because the gate corpus used to live under `scripts/` and the rename never reached this
@@ -170,7 +134,7 @@ const TESTS_CASES: Readonly<Record<string, string>> = {
  *  and `.gitignore:109` (an any-depth `__g_` glob) made them invisible to `git status` and to every census that reads
  *  `git ls-files` — they simply sat in the gate corpus for whoever ran next. Deriving the roots means a
  *  fourth plant dir joins the sweep by construction instead of by somebody remembering. */
-const PLANT_DIRS = [DIR, SCRIPTS_DIR, TESTS_DIR] as const;
+const PLANT_DIRS = [DIR, SCRIPTS_DIR] as const;
 const CLEAN_ROOTS = [...new Set(PLANT_DIRS.map((dir) => dir.split("/")[0] as string))];
 
 /** Fixture paths still on disk under the plant roots. The cleanup's own verdict, asked separately so a
@@ -194,11 +158,6 @@ function plant(): void {
   }
   for (const [name, src] of Object.entries(SCRIPTS_CASES)) {
     const abs = join(ROOT, SCRIPTS_DIR, `__g_${name}.ts`);
-    mkdirSync(dirname(abs), { recursive: true });
-    writeFileSync(abs, src);
-  }
-  for (const [name, src] of Object.entries(TESTS_CASES)) {
-    const abs = join(ROOT, TESTS_DIR, `__g_${name}.ts`);
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, src);
   }
@@ -267,18 +226,6 @@ function sMessages(kase: keyof typeof SCRIPTS_CASES): string {
     .join("\n");
 }
 
-/** The FINDING-arm mirrors, over `${TESTS_DIR}/__g_<case>.ts`. */
-function fFindings(gate: string, kase: keyof typeof TESTS_CASES): readonly Finding[] {
-  const file = `${TESTS_DIR}/__g_${kase}.ts`;
-  return (pass.gates.find((g) => g.name === gate)?.findings ?? []).filter((f) => f.file === file);
-}
-
-function fMessages(kase: keyof typeof TESTS_CASES): string {
-  return fFindings(INVENTORY, kase)
-    .map((f) => f.message ?? "")
-    .join("\n");
-}
-
 // THE CARRIER TRIPWIRE (#1974). Every carrier below is a LEGACY gate BY REQUIREMENT — the engine under
 // test reaches legacy owners only — so every one of them is perishable: a #1584 conversion silently
 // removes it from this roster, and the arms that ASSERT A SUPPRESSION then pass vacuously while the arms
@@ -321,7 +268,7 @@ test("cleanup is TOTAL — no planted fixture survives the pass, on the green pa
 test("the probe ran at all — every carrier gate is still LEGACY and the corpus loaded", () => {
   expect(pass.toolErrors).toEqual([]);
   const legacy = pass.gates.map((g) => g.name);
-  for (const carrier of [CARRIER, SCRIPTS_CARRIER, ELSEWHERE_CARRIER, INVENTORY]) {
+  for (const carrier of [CARRIER, SCRIPTS_CARRIER, INVENTORY]) {
     expect(
       legacy,
       `carrier \`${carrier}\` is no longer in the LEGACY roster — it converted to \`defineGate\` (#1584). Marker routing is fenced, so every arm riding it now measures nothing. Re-point that arm at a legacy gate with the same reporting shape (see this file's header), or retire the suite if the legacy roster is empty.`,
@@ -421,37 +368,6 @@ test("scripts — gate prose QUOTING the grammar is a MENTION: silent to the inv
 test("the LIVE corpus carries no malformed / unregistered / stale / over-exempting marker", () => {
   // Covers the gate corpus too since the scanRoot extension: the 12 live doc-prose grammar quotations
   // (the false positives that blocked the naive extension) must stay silent under the mention fence.
-  const live = (pass.gates.find((g) => g.name === INVENTORY)?.findings ?? []).filter(
-    (f) => !(f.file.startsWith(DIR) || f.file.startsWith(SCRIPTS_DIR) || f.file.startsWith(TESTS_DIR)),
-  );
+  const live = (pass.gates.find((g) => g.name === INVENTORY)?.findings ?? []).filter((f) => !(f.file.startsWith(DIR) || f.file.startsWith(SCRIPTS_DIR)));
   expect(live).toEqual([]);
-});
-
-// ---- the FINDING ARM (#828): a `visitFile` line scanner has no node, so the marker binds LINE-ADJACENTLY.
-// Before #828 every one of these cases behaved identically — the marker was inert by construction and the
-// carrier gate had no per-site escape at all.
-
-test("finding arm — the carrier bites, and an unmarked Finding-overload violation is RED", () => {
-  expect(fFindings(TESTS_CARRIER, "findingUnmarked").map((f) => f.line)).toEqual([1]);
-  expect(fFindings(INVENTORY, "findingUnmarked")).toEqual([]);
-});
-
-test("finding arm — a well-formed marker one line above SUPPRESSES, and is not itself flagged", () => {
-  expect(fFindings(TESTS_CARRIER, "findingMarked")).toEqual([]);
-  expect(fFindings(INVENTORY, "findingMarked")).toEqual([]);
-});
-
-test("finding arm — LINE-ADJACENCY is two-sided: one line too far reds the violation AND the marker", () => {
-  expect(fFindings(TESTS_CARRIER, "findingFar").map((f) => f.line)).toEqual([3]);
-  expect(fMessages("findingFar")).toContain("STALE");
-});
-
-test("finding arm — a BARE marker is MALFORMED and shields nothing", () => {
-  expect(fFindings(TESTS_CARRIER, "findingBare").map((f) => f.line)).toEqual([2]);
-  expect(fMessages("findingBare")).toContain("MALFORMED");
-});
-
-test("finding arm — the MENTION FENCE holds: a quoted marker is no shield and no inventory entry", () => {
-  expect(fFindings(TESTS_CARRIER, "findingMention").map((f) => f.line)).toEqual([2]);
-  expect(fFindings(INVENTORY, "findingMention")).toEqual([]);
 });

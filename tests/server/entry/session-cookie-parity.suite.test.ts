@@ -103,7 +103,7 @@ async function viaSeam(cookieLines: readonly string[]): Promise<string | null> {
 
 // The logout route never dereferences `db` (only `registerLoginRoute` builds a limiter, and this probe
 // supplies no `authenticate` so that route is not registered).
-// FABRICATION-OK: never-dereferenced registration-only stand-in.
+// @orb-waive no-test-fabrication(unknown): never-dereferenced registration-only stand-in. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
 /** W7a — the logout route evicts the ended session's live sockets; this probe drives no socket at all. */
@@ -158,11 +158,11 @@ const PEER_ENV = {
 /** Build `AppDeps` with the ports this probe never touches stubbed — the middleware chain it DOES drive
  *  (security headers → auth → observability → healthz) needs only the seam + the settings read. */
 function appDeps(): AppDeps {
-  // FABRICATION-OK: the ports whose routes this probe never drives (covered by their own slice tests).
+  // @orb-waive no-test-fabrication(never): the ports whose routes this probe never drives (covered by their own slice tests). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const untouched = {} as never;
   // Only the settings slice is read here (the CSP + auth-meta live reads); the other domain services are
   // deliberately absent — their routes are covered by their own slice tests.
-  // FABRICATION-OK: settings-only slice of the 17-service bundle.
+  // @orb-waive no-test-fabrication(unknown): settings-only slice of the 17-service bundle. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const services = { settings: { getEffectiveConfig: (): EffectiveAppConfig => layer({}) } } as unknown as AppDeps["services"];
   return {
     now: (): number => FROZEN_NOW,

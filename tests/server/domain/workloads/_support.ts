@@ -47,7 +47,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
   const contributions: readonly AnyWorkloadContribution[] = [
     // Only the contribution's params schema is read from this stub frame (see above).
     ...createEmbeddingsWorkloadContributions({
-      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       embeddings: { embedCorpus: stub({ embedded: 3, skipped: 1 }), embedAssets: stub({ embedded: 2, skipped: 0 }) } as never,
       // The terminal `corpusRecomputed` fan — discarded here; its behavior is pinned at the owning domain's
       // own contribution mirror, this frame only needs the params schemas.
@@ -56,7 +56,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
     }),
     // Only the contribution's params schema is read from this stub frame (see above).
     ...createDiscoveryWorkloadContributions({
-      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       discovery: {
         computeThemes: stub({ digestsAssigned: 10, clustersWritten: 5 }),
         distillCharacters: stub({ scanned: 8, distilled: 8 }),
@@ -69,20 +69,23 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       emitUserEvent: () => undefined,
       listCorpusOwners: () => Promise.resolve([]),
     }),
-    // FABRICATION-OK: only the contribution's params schema is read from this Db stub frame (see above).
-    ...createStatsWorkloadContributions({ db: {} as Db, now: () => T0 }),
+    ...createStatsWorkloadContributions({
+      // @orb-waive no-test-fabrication(Db): only the contribution's params schema is read from this Db stub frame (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      db: {} as Db,
+      now: () => T0,
+    }),
     // Only the contribution's params schema is read from this stub frame (see above).
     ...createConnectionWorkloadContributions({
-      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       connection: { refreshCatalog: stub({ models: [] }), refreshAgentSdkCatalog: stub({ models: [] }) } as never,
     }),
     // Only the contribution's params schema is read from this stub frame (see above).
     ...createAssetsWorkloadContributions({
-      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+      // @orb-waive no-test-fabrication(Db): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       db: {} as Db,
-      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       cas: {} as never,
-      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       assets: { backfillAvatars: stub({ scanned: 0, linked: 0 }), collectGarbage: stub({ scanned: 0, reclaimed: 0 }), fsck: stub({}) } as never,
     }),
     ...createChatWorkloadContributions({
@@ -95,7 +98,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
     }),
     // Only the contribution's params schema is read from this stub frame (see above).
     ...createDatabankWorkloadContributions({
-      // FABRICATION-OK: stub frame — only the contribution's params schema is read here (see above).
+      // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       databankIngest: { ingestDocument: stub({}), reindex: stub({}) } as never,
       purgeDocumentVectors: stub(undefined),
     }),

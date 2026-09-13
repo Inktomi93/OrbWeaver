@@ -35,7 +35,7 @@ function build(): {
   readonly contributions: ReturnType<typeof createAssetsWorkloadContributions>;
 } {
   // A recording slice of the three verbs the contributions call — the projections are what is under test,
-  // FABRICATION-OK: a full AssetsService factory would state far more than these three bodies touch.
+  // @orb-waive no-test-fabrication(unknown): a full AssetsService factory would state far more than these three bodies touch. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const assets: AssetsWorkloadDeps["assets"] = {
     backfillAvatars: vi.fn(async ({ cards }) => ({ scanned: cards.length, linked: cards.length })),
     collectGarbage: vi.fn(async () => ({ scanned: 10, reclaimed: 4 })),

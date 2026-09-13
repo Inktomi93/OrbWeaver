@@ -15,7 +15,7 @@ import { ruleFixture } from "../_support.ts";
 describe("resolveTrigger", () => {
   test("a non-taxonomy event (no FACT_SHAPE entry) resolves to null — the watcher skips it", async () => {
     const { ctx } = await ruleFixture();
-    // FABRICATION-OK: deliberate invalid-input probe — a bus event shape outside the taxonomy FACT_SHAPE maps.
+    // @orb-waive no-test-fabrication(unknown): deliberate invalid-input probe — a bus event shape outside the taxonomy FACT_SHAPE maps. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const result = await resolveTrigger(ctx.ops, { type: "delta" } as unknown as ChatBusEvent);
     expect(result).toBeNull();
   });

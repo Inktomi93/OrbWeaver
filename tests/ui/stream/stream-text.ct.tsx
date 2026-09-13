@@ -79,7 +79,7 @@ async function observeWindow(): Promise<void> {
 /** Count every `requestAnimationFrame` the page asks for from here on. */
 async function countFrameRequests(page: Page): Promise<void> {
   await page.evaluate(() => {
-    // FABRICATION-OK: in-page globalThis scaffolding — a counter this file writes and reads, not a fabricated view type.
+    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding — a counter this file writes and reads, not a fabricated view type. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const store = globalThis as unknown as { __orbRafCalls?: number };
     store.__orbRafCalls = 0;
     const native = globalThis.requestAnimationFrame.bind(globalThis);
@@ -91,7 +91,7 @@ async function countFrameRequests(page: Page): Promise<void> {
 }
 
 async function readFrameRequests(page: Page): Promise<number> {
-  // FABRICATION-OK: in-page globalThis scaffolding (the counter installed above).
+  // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (the counter installed above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return await page.evaluate(() => (globalThis as unknown as { __orbRafCalls?: number }).__orbRafCalls ?? 0);
 }
 
@@ -137,7 +137,7 @@ test("a second stream is paced from the beginning, not from where the last one e
   // The defect is a FIRST PAINT, so it is recorded rather than polled for: every rendered length from the
   // restart onward lands in a trace that is READ once the second stream has fully settled.
   await page.evaluate(() => {
-    // FABRICATION-OK: in-page globalThis scaffolding — the trace array this test writes and reads back.
+    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding — the trace array this test writes and reads back. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const store = globalThis as unknown as { __orbRevealTrace?: number[] };
     store.__orbRevealTrace = [];
     new MutationObserver(() => {
@@ -148,7 +148,7 @@ test("a second stream is paced from the beginning, not from where the last one e
   await component.update(<StreamText text={SECOND_TEXT} status="streaming" cps={1} />);
   await expect(component).toHaveText(SECOND_TEXT);
 
-  // FABRICATION-OK: in-page globalThis scaffolding (the trace installed above).
+  // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (the trace installed above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const trace = await page.evaluate(() => (globalThis as unknown as { __orbRevealTrace?: number[] }).__orbRevealTrace ?? []);
   // POSITIVE CONTROL: an observer that recorded nothing would make every claim below vacuously true.
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the second stream is asserted fully rendered above, so the trace is a CLOSED history — a later sample could only append.

@@ -21,7 +21,7 @@ const EMBED_MODEL = "qwen/qwen3-vl-embedding";
 const GEN_MODEL = "openrouter/image-gen";
 // ResolvedCredential is brand-sealed (contracts/credentials) — only the domain credentials/substrate/mint
 // factory constructs one; a test needs a plain equivalent shape.
-// FABRICATION-OK: server-can't-mint — see above.
+// @orb-waive no-test-fabrication(unknown): server-can't-mint — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const CRED = {
   source: "openrouter",
   apiKey: "sk-or-secret",
@@ -48,7 +48,7 @@ interface Captured {
 
 function imageEmbedClient(response: unknown): { client: EmbedClient; captured: Captured } {
   const captured: Captured = { body: undefined };
-  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `embeddings.generate`.
+  // @orb-waive no-test-fabrication(unknown): hand-built fake vendor SDK client — the runner only calls `embeddings.generate`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const client = {
     embeddings: {
       generate: (req: { requestBody: Record<string, unknown> }): Promise<unknown> => {
@@ -62,7 +62,7 @@ function imageEmbedClient(response: unknown): { client: EmbedClient; captured: C
 
 function genClient(response: unknown): { client: GenClient; captured: Captured } {
   const captured: Captured = { body: undefined };
-  // FABRICATION-OK: hand-built fake vendor SDK client — the runner only calls `chat.send`.
+  // @orb-waive no-test-fabrication(unknown): hand-built fake vendor SDK client — the runner only calls `chat.send`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const client = {
     chat: {
       send: (req: { chatRequest: Record<string, unknown> }): Promise<unknown> => {
@@ -265,7 +265,7 @@ const OK_RESPONSE = {
   usage: { promptTokens: 1, completionTokens: 0, totalTokens: 1, cost: 0.04 },
 };
 
-// FABRICATION-OK: minimal ModelCapability double — the runner reads only `capability.input.imageEdit`.
+// @orb-waive no-test-fabrication(unknown): minimal ModelCapability double — the runner reads only `capability.input.imageEdit`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const EDIT_CAPABLE = { input: { vision: true, imageEdit: true } } as unknown as ImageGenerateRequest["capability"];
 
 function genReq(over: Partial<ImageGenerateRequest> = {}): ImageGenerateRequest {

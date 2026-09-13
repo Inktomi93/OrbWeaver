@@ -117,7 +117,7 @@ describe("workload-schedule-scheduler — a failing tick is isolated", () => {
   test("a throwing tick never escapes the driver (the next tick retries)", async () => {
     // A db whose first query throws — the only shape that reaches the driver's own catch, since the
     // front door is called directly rather than through an injected op.
-    // FABRICATION-OK: the tick dereferences nothing else before the throw.
+    // @orb-waive no-test-fabrication(unknown): the tick dereferences nothing else before the throw. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const exploding = {
       select: (): never => {
         throw new Error("db exploded");

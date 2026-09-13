@@ -36,11 +36,11 @@ function pageOwner(page: Page): { readonly contexts: readonly { readonly pages: 
 }
 
 async function installed(cdp = new FakeCdp(), bodyReadTimeoutMs?: number): Promise<{ readonly cdp: FakeCdp; readonly page: Page }> {
-  // FABRICATION-OK: Page has no public constructor; browser-network uses this value only as the WeakMap key
+  // @orb-waive no-test-fabrication(Page): Page has no public constructor; browser-network uses this value only as the WeakMap key Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // for the controller installed below. Ends when that controller seam accepts an opaque identity or this uses a real page.
   const page = {} as Page;
   await wirePageNetwork(
-    // FABRICATION-OK: CDPSession has no public constructor; FakeCdp implements the exact on/send event boundary
+    // @orb-waive no-test-fabrication(unknown): CDPSession has no public constructor; FakeCdp implements the exact on/send event boundary Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // exercised here. Ends when wirePageNetwork accepts that structural boundary or this suite uses a real CDP session.
     cdp as unknown as CDPSession,
     page,

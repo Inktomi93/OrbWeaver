@@ -92,7 +92,7 @@ function interleaveAfterSnapshots(mutate: () => Promise<void>): LibSqlWrap {
           };
         }
         if (prop === "batch") {
-          // FABRICATION-OK: this proxy deliberately narrows libSQL's overloaded execute method to the
+          // @orb-waive no-test-fabrication(unknown): this proxy deliberately narrows libSQL's overloaded execute method to the Ends when this deliberate test boundary can be expressed without a fabricated typed value.
           // single statement shape exercised by the interleaved batch fault injector.
           const execute = (statement: unknown): Promise<unknown> => (target.execute as unknown as (stmt: unknown) => Promise<unknown>).call(target, statement);
           return (statements: readonly unknown[]): Promise<unknown[]> => runInterleavedBatch(execute, statements, once);

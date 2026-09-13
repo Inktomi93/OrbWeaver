@@ -27,7 +27,7 @@ const CHOICES_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
 
 /** The unit tier has no database; only the ATTRIBUTION contributor reads one, and no test here collects
  *  it (its behavior is `teaching-contribution.int.test.ts`'s). The `workloads/_support.ts` spelling. */
-// FABRICATION-OK: a deliberately INERT Db stand-in — nothing here may touch a database, and any collect that did would throw loudly on it.
+// @orb-waive no-test-fabrication(Db): a deliberately INERT Db stand-in — nothing here may touch a database, and any collect that did would throw loudly on it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const UNIT_DB = {} as Db;
 
 /** Every knob at its SHIPPED default (plane on, react tool off), overridable per test. */

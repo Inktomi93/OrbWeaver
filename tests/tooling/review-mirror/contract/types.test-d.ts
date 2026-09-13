@@ -8,7 +8,7 @@ test("pending-guard classification is one closed vocabulary", () => {
 });
 
 test("review evidence is a readonly snapshot", () => {
-  // FABRICATION-OK: type-only probe; this file is typechecked and the fabricated value is never executed.
+  // @orb-waive no-test-fabrication(ReviewMirrorEvidence): type-only probe; this file is typechecked and the fabricated value is never executed. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const evidence = {} as ReviewMirrorEvidence;
   // @ts-expect-error — a source commit in evidence cannot be rewritten after generation.
   evidence.sourceCommit = "new";

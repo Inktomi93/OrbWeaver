@@ -47,7 +47,7 @@ test("a knob absent at EVERY rung is OMITTED from the result (never emitted as u
 
 test("a full UserIntent-shaped preset (a superset) folds by its sampling fields, ignoring the rest", () => {
   // The server passes a preset's whole `params` verbatim; the resolver reads only the three sampling knobs.
-  // FABRICATION-OK: deliberate superset-shaped probe — the resolver must tolerate a WIDER shape than UserIntent and ignore unknown sibling keys.
+  // @orb-waive no-test-fabrication(never): deliberate superset-shaped probe — the resolver must tolerate a WIDER shape than UserIntent and ignore unknown sibling keys. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const presetLike = { temperature: 0.6, topK: 40, seed: 7, compaction: { mode: "managed" } } as never;
   expect(resolveSideGenSampling({ maxOutputTokens: 1024 }, presetLike)).toEqual({ temperature: 0.6, maxOutputTokens: 1024 });
 });

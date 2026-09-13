@@ -135,7 +135,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       characterId: charA,
     });
     const ctx = makeChatContext(db, {
-      // FABRICATION-OK: minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/regexScripts.
+      // @orb-waive no-test-fabrication(never): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/regexScripts. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       getCard: () => Promise.resolve({ name: "Aria", avatarAssetId: null, regexScripts: [] } as never),
     });
     const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
@@ -153,7 +153,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
 describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () => {
   /** A minimal live card (the assemble RESOLVE + the purify name read; regexScripts ride the character tier). */
   const card = (name: string, regexScripts: RegexScriptRow[] = []): CharacterCard =>
-    // FABRICATION-OK: minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/description/regexScripts.
+    // @orb-waive no-test-fabrication(unknown): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/description/regexScripts. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({ name, description: "", avatarAssetId: null, regexScripts }) as unknown as CharacterCard;
 
   /** A ChatContext whose regex resolver returns the per-test `globalScripts` as the GLOBAL slice. */
@@ -1298,7 +1298,7 @@ describe("edit verbs — the §3.6 caller-role RETURN belt", () => {
 
   /** A deception-active chat ctx: the injected rpg op says the reasoning channel is host-only here. */
   function deceptionCtx(): ReturnType<typeof makeChatContext> {
-    // FABRICATION-OK: minimal ChatRpgOps stub — the edit return belt reaches only `resolveReasoningHostOnly`.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the edit return belt reaches only `resolveReasoningHostOnly`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ReturnType<typeof makeChatContext>["rpg"]>;
     return makeChatContext(db, { rpg });
   }

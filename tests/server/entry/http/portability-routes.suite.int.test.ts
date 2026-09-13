@@ -52,7 +52,7 @@ function captureExport(deps: ExportDeps): Map<string, Handler> {
       return app;
     },
   };
-  // FABRICATION-OK: narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value.
+  // @orb-waive no-test-fabrication(unknown): narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerExport(app as unknown as Parameters<typeof registerExport>[0], deps);
   return routes;
 }
@@ -65,7 +65,7 @@ function captureImport(deps: ImportBundleDeps): Map<string, Handler> {
       return app;
     },
   };
-  // FABRICATION-OK: narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value.
+  // @orb-waive no-test-fabrication(unknown): narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerImportBundle(app as unknown as Parameters<typeof registerImportBundle>[0], deps);
   return routes;
 }

@@ -1833,7 +1833,7 @@ describe("cross-tenant IDOR sweep — the completeness guard (grows with the rou
     // tRPC v11 has no public procedure-enumeration API — reading `_def.procedures` (the flat
     // path→procedure record) is the sanctioned introspection seam for a router-completeness gate.
     const all = Object.keys(
-      // FABRICATION-OK: the tRPC `_def.procedures` introspection seam (no public enumeration API in v11).
+      // @orb-waive no-test-fabrication(unknown): the tRPC `_def.procedures` introspection seam (no public enumeration API in v11). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       (appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures,
     ).sort();
     const covered = new Set([...PROBES.map((p) => p.path), ...Object.keys(EXEMPT)]);
@@ -2160,7 +2160,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       name: MARK.theme,
       // The ThemeOverride read seam parses leniently (per-field `.catch` → defaults) and the ownership
       // probe never inspects the palette, only the owner.
-      // FABRICATION-OK: minimal override blob (see the note above) — the read seam degrades it to defaults.
+      // @orb-waive no-test-fabrication(never): minimal override blob (see the note above) — the read seam degrades it to defaults. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       override: {} as never,
       createdAt: 1,
       updatedAt: 1,

@@ -18,7 +18,7 @@ import { expectTypeOf, test } from "vitest";
 
 type ProbeClient = Parameters<typeof probeOpenRouterCredential>[0];
 
-// FABRICATION-OK: hand-built fake vendor SDK client — the probe only calls `credits.getCredits`, and
+// @orb-waive no-test-fabrication(unknown): hand-built fake vendor SDK client — the probe only calls `credits.getCredits`, and Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 // nothing below executes (these are type-position assertions).
 const client = { credits: { getCredits: (): Promise<never> => Promise.reject(new Error("never runs")) } } as unknown as ProbeClient;
 const clock = (): number => 0;
@@ -41,7 +41,7 @@ test("the probe's scrub set is REQUIRED and BRANDED — a two-argument call does
 });
 
 test("the credential mint is the admissible producer", () => {
-  // FABRICATION-OK: server-can't-mint — ResolvedCredential is brand-sealed; only domain
+  // @orb-waive no-test-fabrication(unknown): server-can't-mint — ResolvedCredential is brand-sealed; only domain Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // credentials/substrate/mint constructs one, and infra must not import a domain.
   const credential = { source: "openrouter", apiKey: "sk-test-not-a-real-key", credentialId: null } as unknown as ResolvedCredential;
   expectTypeOf(providerCredentialSecretValues(credential)).toEqualTypeOf<ProviderScrubSet>();

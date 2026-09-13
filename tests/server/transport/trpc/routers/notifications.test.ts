@@ -127,7 +127,7 @@ describe("the inbox CRUD trio on a deployment that cannot seat a second human (#
 
   test("dismiss reaches the verb with the caller's principal AND the asked id — the pairing IS the belt", async () => {
     const notificationId = castId<NotificationId>("notification_own");
-    // FABRICATION-OK: the router is a thin pass-through; the returned view is never read by this assertion.
+    // @orb-waive no-test-fabrication(never): the router is a thin pass-through; the returned view is never read by this assertion. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const dismiss = vi.fn<NotificationsService["dismiss"]>(() => Promise.resolve({} as never));
     const ctx = makeContext({ ...notCapable, services: { notifications: { dismiss } } });
 

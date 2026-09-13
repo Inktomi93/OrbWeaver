@@ -875,7 +875,7 @@ test("the dispatcher handles EVERY action type (no unhandled-arm throw — the s
     automationActionSchema.options.map(async (option) => {
       const type = (option as { shape: { type: { value: string } } }).shape.type.value;
       try {
-        // FABRICATION-OK: a deliberately field-less action — the probe only tests the discriminant ROUTES to a case (not `default: never`); the arm may refuse/crash on the missing fields.
+        // @orb-waive no-test-fabrication(unknown): a deliberately field-less action — the probe only tests the discriminant ROUTES to a case (not `default: never`); the arm may refuse/crash on the missing fields. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         await dispatch({ type } as unknown as AutomationAction, frame);
         return false;
       } catch (err) {

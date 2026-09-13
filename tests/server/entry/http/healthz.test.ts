@@ -30,7 +30,7 @@ function healthzHandler(deps: HealthzDeps): Handler {
       return app;
     },
   };
-  // FABRICATION-OK: minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here.
+  // @orb-waive no-test-fabrication(unknown): minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerHealthz(app as unknown as Parameters<typeof registerHealthz>[0], deps);
   const handler = routes.get("GET /healthz");
   if (handler === undefined) {

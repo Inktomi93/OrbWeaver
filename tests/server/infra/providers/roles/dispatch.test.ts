@@ -135,7 +135,7 @@ describe("runRole — the provider-call seam opens a provider.<role> span", () =
     };
     const role = createEmbedRole({ backends: new Map<BackendKey, ProviderBackend>([["vllm", backend]]) });
     // The same minimal in-shape request the embed role's own firewall matrix builds.
-    // FABRICATION-OK: a minimal in-shape EmbedRequest — this test is about the span, not the wire payload.
+    // @orb-waive no-test-fabrication(EmbedRequest): a minimal in-shape EmbedRequest — this test is about the span, not the wire payload. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const req = { credential: makeResolvedCredential("vllm"), model: "m", input: "x" } as EmbedRequest;
 
     await withRequestSpan(PROVIDER_SPAN_REQUEST_ID, "test-root", {}, () => role(req));

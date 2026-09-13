@@ -251,7 +251,7 @@ test("a CUSTOM schema the build has never seen renders designed widgets — the 
 async function traceHeroValues(page: Page): Promise<void> {
   await page.evaluate(() => {
     const seen: string[] = [];
-    // FABRICATION-OK: a page-scratch global, not a domain shape — the two evaluate calls need a shared handle and typeof globalThis has no slot for one.
+    // @orb-waive no-test-fabrication(unknown): a page-scratch global, not a domain shape — the two evaluate calls need a shared handle and typeof globalThis has no slot for one. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     (globalThis as unknown as { __heroTrace: string[] }).__heroTrace = seen;
     const read = (): void => {
       const node = document.querySelector('[data-testid="refinery-hero-value"]');
@@ -266,7 +266,7 @@ async function traceHeroValues(page: Page): Promise<void> {
 }
 
 function heroTrace(page: Page): Promise<string[]> {
-  // FABRICATION-OK: reads back the page-scratch global installed above — same reason.
+  // @orb-waive no-test-fabrication(unknown): reads back the page-scratch global installed above — same reason. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return page.evaluate(() => (globalThis as unknown as { __heroTrace: string[] }).__heroTrace);
 }
 

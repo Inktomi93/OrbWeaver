@@ -99,19 +99,19 @@ function fakeSeam(principal: Principal | null, onResolve?: () => void): AuthSeam
  *  deliberate: a route that reaches one throws loudly instead of a stub answering for a domain this slice
  *  does not own. */
 function testServices(extra: Record<string, unknown> = {}): AppDeps["services"] {
-  // FABRICATION-OK: the app tests exercise only the settings read plus whatever slice a test injects; the other 16 domain services are deliberately absent (their routes are covered by slice tests).
+  // @orb-waive no-test-fabrication(unknown): the app tests exercise only the settings read plus whatever slice a test injects; the other 16 domain services are deliberately absent (their routes are covered by slice tests). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { settings: { getEffectiveConfig: (): EffectiveAppConfig => layer({}) }, ...extra } as unknown as AppDeps["services"];
 }
 
 /** Build `AppDeps` with inert fakes; overrides patch in the per-test seam / getters. The unhit ports are
  *  typed stubs (the routes that would touch them are covered by their own slice tests). */
 function deps(overrides: Partial<AppDeps>): AppDeps {
-  // FABRICATION-OK: the unhit-port stub the header above describes — routes that reach it throw loudly.
+  // @orb-waive no-test-fabrication(never): the unhit-port stub the header above describes — routes that reach it throw loudly. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const stub = {} as never;
   const services = testServices();
   return {
     now: (): number => FROZEN_NOW,
-    // FABRICATION-OK: `db` is never touched on this app-assembly slice — routes are covered by slice tests.
+    // @orb-waive no-test-fabrication(unknown): `db` is never touched on this app-assembly slice — routes are covered by slice tests. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     db: {} as unknown as Db,
     oidcProviderName: "your identity provider",
     seam: fakeSeam(null),

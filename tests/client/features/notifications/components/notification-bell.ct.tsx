@@ -67,7 +67,7 @@ function consentRow(pendingCount: number, overrides: Record<string, unknown> = {
 /** One inbox row as a `notifications` FRAME on the socket — the InboxView rides verbatim under `event`, and
  *  `seq` is the durable cursor that used to be the tracked envelope id (SSE-1 §3.2/§3.3). */
 function arrivalFrame(row: Record<string, unknown>): StreamFrame {
-  // FABRICATION-OK: this CT stubs the NETWORK, so its rows are deliberately authored as the raw JSON wire object (`inviteRow`, which the `notifications.list` stub serves verbatim too) rather than as a typed InboxView — what the browser parses off the wire IS the fixture.
+  // @orb-waive no-test-fabrication(unknown): this CT stubs the NETWORK, so its rows are deliberately authored as the raw JSON wire object (`inviteRow`, which the `notifications.list` stub serves verbatim too) rather than as a typed InboxView — what the browser parses off the wire IS the fixture. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { channel: "notifications", seq: row["seq"], event: row } as unknown as StreamFrame;
 }
 

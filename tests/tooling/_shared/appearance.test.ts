@@ -132,7 +132,7 @@ test("unknown keys and schema-healed values refuse instead of pretending the req
 // shape a CLI turns into an ARG ERROR, so the throwing `.parse` was one un-guarded caller away from
 // putting a raw ZodError out of a probe's mouth. `safeParse` makes that structurally impossible.
 test("the exported validator RETURNS its refusal for a non-object, rather than throwing a ZodError", () => {
-  // FABRICATION-OK: a deliberate invalid-input probe — the NON-object is the thing under test (the exported validator must return its refusal, not throw)
+  // @orb-waive no-test-fabrication(unknown): a deliberate invalid-input probe — the NON-object is the thing under test (the exported validator must return its refusal, not throw) Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const notAnObject = 7 as unknown as Parameters<typeof validateAppearancePatch>[0];
 
   expect(() => validateAppearancePatch(notAnObject, "--appearance")).not.toThrow();
@@ -204,7 +204,7 @@ test("no appearance flag = the account's real state (the shim is not installed a
 
 test("a failed real-response fallback rejects the appearance shim instead of reporting a usable route", async () => {
   let handler: ((route: Route) => Promise<void>) | undefined;
-  // FABRICATION-OK: Playwright's `BrowserContext` is a third-party interface with dozens of members and no
+  // @orb-waive no-test-fabrication(unknown): Playwright's `BrowserContext` is a third-party interface with dozens of members and no Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // public constructor, so a shim test can only supply the ONE door the code under test opens
   // (`context.route`). Ends the day installSettingsShim's signature narrows to that structural surface.
   const context = {
@@ -217,7 +217,7 @@ test("a failed real-response fallback rejects the appearance shim instead of rep
   await installSettingsShim(context, { appearance: { reducedMotion: false }, theme: null });
 
   const fallbackFailure = new Error("planted fallback failure");
-  // FABRICATION-OK: same third-party-edge reason as the BrowserContext double above — `Route` is a Playwright
+  // @orb-waive no-test-fabrication(unknown): same third-party-edge reason as the BrowserContext double above — `Route` is a Playwright Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // interface with no constructor; this supplies only request/fetch/fallback, the members the fallback path
   // under test actually calls.
   const route = {

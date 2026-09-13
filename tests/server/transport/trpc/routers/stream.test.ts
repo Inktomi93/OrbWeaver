@@ -223,7 +223,7 @@ describe("the staged fold leaves no dual transport", () => {
           automation: { resolveStreamAuthority: () => Promise.resolve("member") },
           // The workloads room's gate is the throw-or-not verdict of `get`; no field of the row is ever read
           // (sources/workloads.test.ts).
-          // FABRICATION-OK: an id-only WorkloadRowAnyKind double; the room reads no other field.
+          // @orb-waive no-test-fabrication(unknown): an id-only WorkloadRowAnyKind double; the room reads no other field. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
           workloads: { get: ({ id }) => Promise.resolve({ id } as unknown as WorkloadRowAnyKind) },
         },
       }),

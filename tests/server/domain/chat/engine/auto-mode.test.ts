@@ -20,14 +20,14 @@ const sp = (k: string): SpeakerCandidate => ({ ref: charRef(k), name: k });
 let mintCounter = 0;
 function committed(): TurnOutcome {
   mintCounter += 1;
-  // FABRICATION-OK: minimal MessageView double — runAutoMode's max-turns loop only reads `messages[].id` off outcomes.
+  // @orb-waive no-test-fabrication(unknown): minimal MessageView double — runAutoMode's max-turns loop only reads `messages[].id` off outcomes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const view = { id: castId<MessageId>(`message_${mintCounter}`) } as unknown as MessageView;
   return { messages: [view], aborted: false, abortReason: undefined };
 }
 
 function viewDouble(): MessageView {
   mintCounter += 1;
-  // FABRICATION-OK: the loop only ever reads these views back out of `result.messages`.
+  // @orb-waive no-test-fabrication(unknown): the loop only ever reads these views back out of `result.messages`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { id: castId<MessageId>(`message_${mintCounter}`) } as unknown as MessageView;
 }
 

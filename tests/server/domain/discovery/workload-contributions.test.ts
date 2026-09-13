@@ -28,7 +28,7 @@ type Contributions = ReturnType<typeof createDiscoveryWorkloadContributions>;
 function fakeDiscovery(planes: PlaneOverrides = {}): Discovery {
   const { distill = {}, themes = {}, cooccurrence = {}, embeddingPlane = {} } = planes;
   // The contributions read ONLY the counts fields off each verb's stats — a full DiscoveryService factory
-  // FABRICATION-OK: would state far more than these five run bodies touch.
+  // @orb-waive no-test-fabrication(unknown): would state far more than these five run bodies touch. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     // `digestsRead`/`soloDigestsRead` are the pass's REFUSAL signals (issue #166, widened by #558) — the
     // contribution branches on them, so the fake has to carry them or every test here silently exercises the

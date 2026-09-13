@@ -62,7 +62,7 @@ function progressEvent(workloadId: WorkloadId, pct: number, at: number): Workloa
 /** The owner-scoped read the room gates on. The real verb returns the row or throws the leak-free NOT_FOUND;
  *  the room only cares WHICH of those happens — it never reads a field of the row, so a full row would
  *  assert nothing and would have to be maintained against a shape this test never exercises. */
-// FABRICATION-OK: an id-only WorkloadRowAnyKind double; the gate's whole surface is throw-or-not.
+// @orb-waive no-test-fabrication(unknown): an id-only WorkloadRowAnyKind double; the gate's whole surface is throw-or-not. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const visible: WorkloadService["get"] = ({ id }) => Promise.resolve({ id } as unknown as WorkloadRowAnyKind);
 
 function ctxWith(get: WorkloadService["get"], userId: UserId = OWNER): Context {

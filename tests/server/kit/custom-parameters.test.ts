@@ -35,7 +35,7 @@ describe("deepMergeRequestBody — prototype-pollution defense (PD-101 Layer 2)"
 
   test("a forbidden key survives neither side even when the OTHER side is clean", () => {
     // Forbidden on base only.
-    // FABRICATION-OK: `__proto__` in an object-literal position sets the prototype, not a data key — the cast smuggles it in as a plain property for THIS probe.
+    // @orb-waive no-test-fabrication(Record<string, unknown>): `__proto__` in an object-literal position sets the prototype, not a data key — the cast smuggles it in as a plain property for THIS probe. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     expect(deepMergeRequestBody({ __proto__: { x: 1 } } as Record<string, unknown>, { a: 1 })).toEqual({ a: 1 });
     // Forbidden on patch only.
     expect(deepMergeRequestBody({ a: 1 }, { constructor: { x: 1 } })).toEqual({ a: 1 });

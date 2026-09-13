@@ -39,7 +39,7 @@ function fakeClient(): { client: VllmEngineClient; calls: PostCall[] } {
         // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
         relevance_score: index, // ascending by index → reverse of request order after sort
       }));
-      // FABRICATION-OK: T is enginePost's caller-resolved generic, so no concrete factory can name it here.
+      // @orb-waive no-test-fabrication(T): T is enginePost's caller-resolved generic, so no concrete factory can name it here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       // biome-ignore lint/style/useNamingConvention: vLLM wire response shape (snake_case).
       return Promise.resolve({ model: "served", results, usage: { total_tokens: 9 } } as T);
     },

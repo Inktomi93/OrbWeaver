@@ -45,7 +45,7 @@ function isInvalidated(queryClient: QueryClient, queryKey: readonly unknown[]): 
  *  ONE home for the seed (the `as never` payload is irrelevant to this seam — only key MATCHING is). */
 function seedReads(queryClient: QueryClient, keys: Iterable<readonly unknown[]>): void {
   for (const key of keys) {
-    // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
+    // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     queryClient.setQueryData([...key], [] as never);
   }
 }
@@ -205,7 +205,7 @@ function eventOf(type: ChatBusEvent["type"]): ChatBusEvent {
   // rather than assert — the failure mode this note exists to stop a future editor from re-introducing.
   // Deliberate minimal-shape probe — only `type`/`chatId`/`entity` are read by the filter dispatch under
   // test; the other 20+ per-member fields are the `.test-d` contract's job, not this seam's.
-  // FABRICATION-OK: minimal-shape probe (see above).
+  // @orb-waive no-test-fabrication(unknown): minimal-shape probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { type, chatId: CHAT_ID, entity: "character" } as unknown as ChatBusEvent;
 }
 
@@ -420,7 +420,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
 function userEventOf(type: UserBusEvent["type"]): UserBusEvent {
   // Deliberate minimal-shape probe — mirrors `eventOf` above; only `type`/`chatId` are read by the
   // filter dispatch under test.
-  // FABRICATION-OK: minimal-shape probe (see above).
+  // @orb-waive no-test-fabrication(unknown): minimal-shape probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { type, chatId: CHAT_ID } as unknown as UserBusEvent;
 }
 
@@ -460,7 +460,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         pluginSurfaceState: trpc.plugin.getSurfaceState.queryKey({ pluginId: PLUGIN_ID, surfaceId: "panel" }),
       };
       for (const key of Object.values(keys)) {
-        // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
+        // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         queryClient.setQueryData([...key], [] as never);
       }
 
@@ -485,7 +485,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
     // turn takes, so if the stats row rode only the lifecycle branch the dashboard would still never move.
     const stats = trpc.stats.overview.queryKey();
     for (const key of [chatList, character, chatGet, stats]) {
-      // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
+      // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       queryClient.setQueryData([...key], [] as never);
     }
 
@@ -531,7 +531,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       trpc.sessions.me.queryKey(),
     ];
     for (const key of roots) {
-      // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
+      // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       queryClient.setQueryData([...key], [] as never);
     }
 
@@ -604,7 +604,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
       // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry (the chat/
       // user belt idiom — the read types are heterogeneous objects, so the sanctioned `[] as never` seed).
       for (const key of Object.values(keys)) {
-        // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
+        // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         queryClient.setQueryData([...key], [] as never);
       }
 
@@ -626,7 +626,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
       trpc.rpg.listTurnToolCalls.queryKey({ chatId: CHAT_ID }),
     ];
     for (const key of keys) {
-      // FABRICATION-OK: cache-presence seed; the test asserts isInvalidated only, never the data bytes.
+      // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       queryClient.setQueryData([...key], [] as never);
     }
 
@@ -706,7 +706,7 @@ describe("invalidation — the wave collapse (what a wave SPENDS)", () => {
     const personaKey = trpc.persona.list.queryKey();
     for (const key of [listTagsKey, personaKey]) {
       // Seeding an empty cache entry so invalidation STATE is observable.
-      // FABRICATION-OK: cache seed; the test asserts isInvalidated only, never the data bytes
+      // @orb-waive no-test-fabrication(never): cache seed; the test asserts isInvalidated only, never the data bytes Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       queryClient.setQueryData([...key], [] as never);
     }
 

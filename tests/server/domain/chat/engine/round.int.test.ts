@@ -385,7 +385,7 @@ describe("driveRound — narrator round (one turn for every character, group-cha
 describe("driveRound — locked yields the round (a human send interleaved — §6)", () => {
   test("a mid-round locked refusal returns the committed-so-far without throwing", async () => {
     let calls = 0;
-    // FABRICATION-OK: minimal MessageView stand-in — driveRound only threads `.id` through from the outcome.
+    // @orb-waive no-test-fabrication(unknown): minimal MessageView stand-in — driveRound only threads `.id` through from the outcome. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const view = { id: castId<MessageId>("message_x") } as unknown as MessageView;
     const fakeEngine: Pick<TurnEngine, "runTurn"> = {
       runTurn: (): Promise<TurnOutcome> => {
@@ -415,7 +415,7 @@ describe("driveRound — locked yields the round (a human send interleaved — �
 });
 
 describe("driveRound — an engine turn that RETURNS aborted stops the round + propagates the whole truth", () => {
-  // FABRICATION-OK: minimal MessageView stand-in — driveRound only threads `.id` through from the outcome.
+  // @orb-waive no-test-fabrication(unknown): minimal MessageView stand-in — driveRound only threads `.id` through from the outcome. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const abortedView = { id: castId<MessageId>("message_ab") } as unknown as MessageView;
 
   test("single-speaker: an aborted engine outcome propagates aborted:true + reason", async () => {
@@ -438,7 +438,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
 
   test("mid-round multi-speaker: speaker 1 commits, speaker 2 aborts → round carries BOTH the committed row AND aborted:true", async () => {
     let calls = 0;
-    // FABRICATION-OK: minimal MessageView stand-in — driveRound only threads `.id` through from the outcome.
+    // @orb-waive no-test-fabrication(unknown): minimal MessageView stand-in — driveRound only threads `.id` through from the outcome. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const committedView = { id: castId<MessageId>("message_1") } as unknown as MessageView;
     const fakeEngine: Pick<TurnEngine, "runTurn"> = {
       runTurn: (): Promise<TurnOutcome> => {

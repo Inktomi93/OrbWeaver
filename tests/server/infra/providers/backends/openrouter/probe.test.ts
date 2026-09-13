@@ -17,7 +17,7 @@ type ProbeClient = Parameters<typeof probeOpenRouterCredential>[0];
 function scrubSetFor(apiKey: string): ProviderScrubSet {
   // ResolvedCredential is brand-sealed (contracts/credentials) — only domain credentials/substrate/mint
   // constructs one, and infra tests must not import a domain.
-  // FABRICATION-OK: server-can't-mint — see above.
+  // @orb-waive no-test-fabrication(unknown): server-can't-mint — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return providerCredentialSecretValues({ source: "openrouter", apiKey, credentialId: null } as unknown as ResolvedCredential);
 }
 
@@ -28,7 +28,7 @@ const UNREFLECTED_SECRETS = scrubSetFor("or-probe-key-never-reflected-9f2c");
 
 describe("probeOpenRouterCredential", () => {
   test("a successful credits read → ok, stamped with the injected clock", async () => {
-    // FABRICATION-OK: hand-built fake vendor SDK client — the probe only calls `credits.getCredits`.
+    // @orb-waive no-test-fabrication(unknown): hand-built fake vendor SDK client — the probe only calls `credits.getCredits`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const client = {
       credits: { getCredits: (): Promise<unknown> => Promise.resolve({ data: {} }) },
     } as unknown as ProbeClient;
@@ -39,7 +39,7 @@ describe("probeOpenRouterCredential", () => {
   });
 
   test("a 401-class error → revoked (with a sanitized reason)", async () => {
-    // FABRICATION-OK: hand-built fake vendor SDK client — the probe only calls `credits.getCredits`.
+    // @orb-waive no-test-fabrication(unknown): hand-built fake vendor SDK client — the probe only calls `credits.getCredits`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const client = {
       credits: {
         getCredits: (): Promise<unknown> => Promise.reject(new Error("401 invalid api key")),
@@ -51,7 +51,7 @@ describe("probeOpenRouterCredential", () => {
   });
 
   test("any other error → unreachable", async () => {
-    // FABRICATION-OK: hand-built fake vendor SDK client — the probe only calls `credits.getCredits`.
+    // @orb-waive no-test-fabrication(unknown): hand-built fake vendor SDK client — the probe only calls `credits.getCredits`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const client = {
       credits: { getCredits: (): Promise<unknown> => Promise.reject(new Error("ECONNRESET")) },
     } as unknown as ProbeClient;

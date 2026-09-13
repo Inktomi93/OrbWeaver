@@ -152,16 +152,16 @@ test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({
   // no app type; each cast is the monkeypatch scaffolding itself, not a fabricated domain value (nothing
   // here is asserted as a contract shape).
   await page.evaluate(() => {
-    // FABRICATION-OK: in-page globalThis scaffolding (see above).
+    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     (globalThis as unknown as { __behavior: string | null }).__behavior = null;
-    // FABRICATION-OK: in-page Element.prototype scaffolding (see above).
+    // @orb-waive no-test-fabrication(unknown): in-page Element.prototype scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const proto = Element.prototype as unknown as {
       scrollTo: (options?: ScrollToOptions) => void;
     };
     const original = proto.scrollTo;
     proto.scrollTo = (options?: ScrollToOptions): void => {
       if (options !== undefined) {
-        // FABRICATION-OK: in-page globalThis scaffolding (see above).
+        // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         (globalThis as unknown as { __behavior: string | null }).__behavior = options.behavior ?? null;
       }
       original.call(proto, options);
@@ -174,7 +174,7 @@ test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({
     </div>,
   );
 
-  // FABRICATION-OK: in-page globalThis scaffolding (see the mount-time instrumentation above).
+  // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see the mount-time instrumentation above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __behavior: string | null }).__behavior)).toBe("auto");
 });
 
@@ -307,13 +307,13 @@ test("the copy affordance writes the visible lines to the clipboard", async ({ m
   // In-page instrumentation below — `globalThis` in the mounted browser context carries no app type;
   // each cast is the monkeypatch scaffolding itself, not a fabricated domain value.
   await page.evaluate(() => {
-    // FABRICATION-OK: in-page globalThis scaffolding (see above).
+    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     (globalThis as unknown as { __copied: string | null }).__copied = null;
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: {
         writeText: (text: string): Promise<void> => {
-          // FABRICATION-OK: in-page globalThis scaffolding (see above).
+          // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
           (globalThis as unknown as { __copied: string | null }).__copied = text;
           return Promise.resolve();
         },
@@ -324,7 +324,7 @@ test("the copy affordance writes the visible lines to the clipboard", async ({ m
   const component = await mount(<LogViewer lines={["alpha", "beta"]} />);
   await component.getByRole("button", { name: "Copy log" }).click();
 
-  // FABRICATION-OK: in-page globalThis scaffolding (see above).
+  // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __copied: string | null }).__copied)).toBe("alpha\nbeta");
 });
 

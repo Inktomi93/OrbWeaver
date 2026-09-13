@@ -114,7 +114,7 @@ test("#1571 (train-78, injected-op-caller-param): createDeleteSnapshot retracts 
   const stranger = await seedUser(db, { handle: castId<Handle>("ops-stranger5") });
   const characterId = await seedCard(db, owner.id, "ops_snap");
   const snapshotId = castId<CharacterSnapshotId>("character_snapshot_ops_snap");
-  // FABRICATION-OK: the verb under test deletes BY ID + OWNER and never reads the snapshot content — the row's
+  // @orb-waive no-test-fabrication(unknown): the verb under test deletes BY ID + OWNER and never reads the snapshot content — the row's Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // presence is the subject, so a two-field stub is the honest fixture (a full card would assert nothing more).
   const content = { name: "Aria", description: "keeps the ledger" } as unknown as CharacterCard;
   await db.insert(characterSnapshots).values({ id: snapshotId, characterId, content, label: "auto: before refinery apply" });

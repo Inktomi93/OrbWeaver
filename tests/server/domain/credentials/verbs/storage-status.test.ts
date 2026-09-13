@@ -36,7 +36,8 @@ function ctxWithBox(enabled: boolean): CredentialContext {
       throw new Error("storageStatus must not decrypt");
     },
   };
-  return { box } as unknown as CredentialContext; // FABRICATION-OK: the verb's whole surface IS `ctx.box.enabled`.
+  // @orb-waive no-test-fabrication(unknown): the verb's whole surface IS `ctx.box.enabled`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  return { box } as unknown as CredentialContext;
 }
 
 describe("credentials/storageStatus", () => {

@@ -272,7 +272,7 @@ const rejectNonRetryable = (): Promise<never> => Promise.reject(new ProviderErro
 /** OpenRouter: the SDK client's `chat.send` / `beta.responses.send` reject non-retryably; captureWire fires
  *  before `.send` and records the body reparsed through the SDK's `$outboundSchema` (the TRUE snake_case wire). */
 const openRouterSurface: SurfaceFactory = (sink) => {
-  // FABRICATION-OK: only chat.send/beta.responses.send are reached (reject AFTER capture); the real backend builds the wire.
+  // @orb-waive no-test-fabrication(unknown): only chat.send/beta.responses.send are reached (reject AFTER capture); the real backend builds the wire. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const fakeOrClient = {
     chat: { send: rejectNonRetryable },
     beta: { responses: { send: rejectNonRetryable } },
@@ -314,7 +314,7 @@ const agentSdkSurface: SurfaceFactory = (sink) => {
   });
   const backend = createAgentSdkBackend({
     now: () => 1000,
-    // FABRICATION-OK: the agent-sdk query seam; captureWire fires BEFORE query, so an empty-iterable fake suffices.
+    // @orb-waive no-test-fabrication(unknown): the agent-sdk query seam; captureWire fires BEFORE query, so an empty-iterable fake suffices. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     query: fakeQuery as unknown as NonNullable<Parameters<typeof createAgentSdkBackend>[0]["query"]>,
     refreshHostSubToken: () => Promise.resolve(false),
     captureWire: (entry) => {
@@ -326,7 +326,7 @@ const agentSdkSurface: SurfaceFactory = (sink) => {
 
 /** A `custom_openai` {@link ResolvedCredential} double — only the fields the custom-byo runner reads. */
 function customOpenAiCredential(): ResolvedCredential {
-  // FABRICATION-OK: the runner reads only source/baseUrl/includeBody/excludeBody from this credential double.
+  // @orb-waive no-test-fabrication(unknown): the runner reads only source/baseUrl/includeBody/excludeBody from this credential double. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     source: "custom_openai",
     baseUrl: "http://127.0.0.1:0",
@@ -358,7 +358,7 @@ function wireTurnRequest(opts: {
   readonly responseFormat?: ResponseFormat;
   readonly agentTerminalTools?: TurnRequest["agentTerminalTools"];
 }): TurnRequest {
-  // FABRICATION-OK: minimal AssembledPrompt — the bridge reads only prompt.static + prompt.dynamic.
+  // @orb-waive no-test-fabrication(unknown): minimal AssembledPrompt — the bridge reads only prompt.static + prompt.dynamic. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const prompt = { static: "You are a test.", dynamic: "" } as unknown as AssembledPrompt;
   return {
     connection: opts.connection,

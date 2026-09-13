@@ -56,7 +56,8 @@ describe("parse-on-read corruption belt", () => {
     // Poison the steeringNote past its max (a string longer than 500 chars).
     await db
       .update(rpgGames)
-      .set({ config: { statProfile: liteConfig().statProfile, lite: { steeringNote: "x".repeat(600) } } as never }) // FABRICATION-OK: invalid-input probe — poisons the config blob past its schema to prove parse-on-read throws
+      // @orb-waive no-test-fabrication(never): invalid-input probe — poisons the config blob past its schema to prove parse-on-read throws Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      .set({ config: { statProfile: liteConfig().statProfile, lite: { steeringNote: "x".repeat(600) } } as never })
       .where(eq(rpgGames.id, id));
     await expect(findGameById(db, id)).rejects.toThrow(CORRUPT_RE);
   });
@@ -69,7 +70,8 @@ describe("parse-on-read corruption belt", () => {
     await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
     await db
       .update(rpgGames)
-      .set({ config: { ...liteConfig(), extractionMode: "a-mode-that-no-longer-exists" } as never }) // FABRICATION-OK: retired-value probe — a blob written before the mode was deleted
+      // @orb-waive no-test-fabrication(never): retired-value probe — a blob written before the mode was deleted Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      .set({ config: { ...liteConfig(), extractionMode: "a-mode-that-no-longer-exists" } as never })
       .where(eq(rpgGames.id, id));
 
     expect((await findGameById(db, id))?.config.extractionMode).toBe("folded");

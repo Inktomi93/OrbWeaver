@@ -121,13 +121,13 @@ test("probeContext and probeSession preserve the complete shared projection, liv
   const closeContext = vi.fn(async () => undefined);
   const closeBrowser = vi.fn(async () => undefined);
   const cleanup = vi.fn(async () => undefined);
-  // FABRICATION-OK: Browser has no public constructor; probeSession reads only close on this focused
+  // @orb-waive no-test-fabrication(unknown): Browser has no public constructor; probeSession reads only close on this focused Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // projection/cleanup path. Ends when probeSession accepts a structural close handle or this uses a real browser.
   const browser = { close: closeBrowser } as unknown as Browser;
-  // FABRICATION-OK: BrowserContext has no public constructor; closeProbeSession reads only close on this
+  // @orb-waive no-test-fabrication(unknown): BrowserContext has no public constructor; closeProbeSession reads only close on this Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // focused projection/cleanup path. Ends when ProbeContext accepts a structural close handle or this uses a real context.
   const contextHandle = { close: closeContext } as unknown as BrowserContext;
-  // FABRICATION-OK: Page has no public constructor and this projection test compares only handle identity;
+  // @orb-waive no-test-fabrication(Page): Page has no public constructor and this projection test compares only handle identity; Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // no Page member is read. Ends when the projection contract accepts an opaque page identity or this uses a real page.
   const page = {} as Page;
   const environmentContract = resolveBrowserEnvironmentContract(opts, null);

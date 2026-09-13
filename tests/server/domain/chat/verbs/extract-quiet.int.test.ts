@@ -37,7 +37,7 @@ function fakeSummarize(
 
 /** A getCard fake that names the roster's primary character. */
 function fakeGetCard(name: string): () => Promise<CharacterCard> {
-  // FABRICATION-OK: minimal CharacterCard double — the shaper reads only the card's name.
+  // @orb-waive no-test-fabrication(unknown): minimal CharacterCard double — the shaper reads only the card's name. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return (): Promise<CharacterCard> => Promise.resolve({ name, avatarAssetId: null } as unknown as CharacterCard);
 }
 

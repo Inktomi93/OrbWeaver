@@ -88,7 +88,7 @@ function fakeConfig(): OidcConfig {
       end_session_endpoint: END_SESSION,
     }),
   };
-  // FABRICATION-OK: openid-client's Configuration has no test constructor and only `serverMetadata()` is exercised here.
+  // @orb-waive no-test-fabrication(unknown): openid-client's Configuration has no test constructor and only `serverMetadata()` is exercised here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return stub as unknown as OidcConfig;
 }
 

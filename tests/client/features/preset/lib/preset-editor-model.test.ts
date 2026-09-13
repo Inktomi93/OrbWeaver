@@ -234,7 +234,7 @@ test("validatePresetProse is blind to a RETIRED slot id left in a stored blob �
   // The same key class `proseOverridesSchema`'s preprocess strips (§4.4 rung 5). Indexing `PROSE_SLOTS` with
   // it would throw inside a form validator, i.e. brick the editor on a blob it was supposed to tolerate.
   const server = parsePromptConfig(DEFAULT_PROMPT_CONFIG);
-  // FABRICATION-OK: a RETIRED slot id is by construction absent from `ProseSlotId`, so the input this guards against is unspellable in the type — the cast IS the probe, and no typed factory can produce it.
+  // @orb-waive no-test-fabrication(PromptConfig): a RETIRED slot id is by construction absent from `ProseSlotId`, so the input this guards against is unspellable in the type — the cast IS the probe, and no typed factory can produce it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const stale = { ...seedConfig(server), prose: { "retired.slot.id": { text: "y".repeat(PROSE_MAX_CHARS + 1), baseVersion: 1 } } } as PromptConfig;
   expect(validatePresetProse(stale)).toBeUndefined();
 });

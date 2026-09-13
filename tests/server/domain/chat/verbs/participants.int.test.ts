@@ -110,7 +110,7 @@ function runMetadataWriter(kind: MetadataWriter, participants: ReturnType<typeof
  *  `greetings[0]` for the F6 in-window join greeting — a double that omits it is a lying double, so the
  *  default is the honest "card with no greetings" (`[]`), never absent. */
 const card = (name: string, greetings: readonly string[] = []): CharacterCard =>
-  // FABRICATION-OK: minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/avatarAssetId/greetings.
+  // @orb-waive no-test-fabrication(unknown): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/avatarAssetId/greetings. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   ({ name, avatarAssetId: null, greetings: greetings.map((text) => ({ text })) }) as unknown as CharacterCard;
 
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
@@ -306,7 +306,7 @@ describe("setRoomOverrides — the four-field allowlist", () => {
       .setRoomOverrides({
         principal: principal(host),
         chatId,
-        // FABRICATION-OK: the invalid-input probe THIS test asserts is default-denied (a stray field).
+        // @orb-waive no-test-fabrication(unknown): the invalid-input probe THIS test asserts is default-denied (a stray field). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         overrides: { scenario: "ok", evil: "system prompt" } as unknown as RoomOverrides,
       })
       .catch((e: unknown) => e);
@@ -371,7 +371,7 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
     const participants = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await participants
-      // FABRICATION-OK: a malformed (non-TypeID) hidden id is exactly the invalid input the verb must reject.
+      // @orb-waive no-test-fabrication(unknown): a malformed (non-TypeID) hidden id is exactly the invalid input the verb must reject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       .setChatDocumentVisibility({ principal: principal(host), chatId, visibility: { hidden: ["not-a-document-id"] } as unknown as { hidden: DocumentId[] } })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -1318,7 +1318,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     const bothLoaded = new Promise<void>((resolve) => {
       release = resolve;
     });
-    // FABRICATION-OK: minimal RPG handoff fixture — only handoffRekeyActors is reached by this retry barrier.
+    // @orb-waive no-test-fabrication(unknown): minimal RPG handoff fixture — only handoffRekeyActors is reached by this retry barrier. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       handoffRekeyActors: async (): Promise<void> => {
         arrivals += 1;
@@ -1489,7 +1489,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const asked: { chatId: ChatId; newHostUserId: string; copyGmPreset: boolean; cardCopies: number }[] = [];
     // The returned statement stands in for the rpg write (chat commits it blind); `chats.title` is the observable.
-    // FABRICATION-OK: minimal ChatRpgOps stub — the accept reaches ONLY `handoffHealStatements`.
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the accept reaches ONLY `handoffHealStatements`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       handoffHealStatements: (args: { chatId: ChatId; newHostUserId: UserId; copyGmPreset: boolean; cardCopies: readonly unknown[] }): Promise<unknown[]> => {
         asked.push({ chatId: args.chatId, newHostUserId: args.newHostUserId, copyGmPreset: args.copyGmPreset, cardCopies: args.cardCopies.length });

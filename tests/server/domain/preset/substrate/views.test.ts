@@ -83,7 +83,7 @@ describe("toPresetDetail (lenient parse seam)", () => {
     });
 
     test("a blob the schema rejects reports schema-rejected", () => {
-      // FABRICATION-OK: deliberate corrupt-blob probe — `sections` must be an array, so the WHOLE blob
+      // @orb-waive no-test-fabrication(unknown): deliberate corrupt-blob probe — `sections` must be an array, so the WHOLE blob Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       // fails and the value degrades to DEFAULT (unlike the bounded `params` case below).
       const broken = { ...DEFAULT_PROMPT_CONFIG, sections: "not an array" } as unknown as PromptConfig;
       expect(toPresetDetail(row({ config: broken })).configUnreadable).toBe("schema-rejected");
@@ -99,7 +99,7 @@ describe("toPresetDetail (lenient parse seam)", () => {
   });
 
   test("a garbage params blob is bounded to {} while sections survive (the .catch({}) bound)", () => {
-    // FABRICATION-OK: deliberate corrupt-params probe of the lenient parse-seam bound.
+    // @orb-waive no-test-fabrication(unknown): deliberate corrupt-params probe of the lenient parse-seam bound. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const corruptParams = {
       ...DEFAULT_PROMPT_CONFIG,
       params: { quality: "definitely-not-a-quality" },

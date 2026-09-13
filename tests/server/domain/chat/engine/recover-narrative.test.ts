@@ -51,7 +51,7 @@ const RECOVERY_ASK = resolveProseText("chat.recovery.narrativeContinuation", {})
 
 /** A canon row double — the pipeline reads only these fields off one (see pipeline's header). */
 function userRow(content: string): MessageView {
-  // FABRICATION-OK: the slim-double judgment `pipeline.test.ts` records for its own canon rows — a full
+  // @orb-waive no-test-fabrication(unknown): the slim-double judgment `pipeline.test.ts` records for its own canon rows — a full Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // `MessageView` carries a dozen read-model fields no code on this path reads.
   return {
     id: "message_fixture_1",

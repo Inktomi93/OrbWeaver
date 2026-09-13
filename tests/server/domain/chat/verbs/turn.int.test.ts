@@ -67,7 +67,7 @@ import {
 
 // A minimal `getCard` stub double — only `name`/`description` are load-bearing to this mirror's
 // assertions (speaker-name/prompt resolution); the rest of the full card schema is never read here.
-// FABRICATION-OK: see above.
+// @orb-waive no-test-fabrication(unknown): see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 function principal(userId: UserId): Principal {
@@ -1946,7 +1946,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
  *  answers `cancelled` for how many of that caller's rounds it "signalled".
  *  FABRICATION-OK: the abort path reaches only this op (the `macroDeclaringRpg` precedent). */
 function stateRoundCancellingRpg(record: { chatId: ChatId; userId: UserId }[], cancelled: number): NonNullable<ChatContext["rpg"]> {
-  // FABRICATION-OK: minimal ChatRpgOps stub — `abort` touches nothing else.
+  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — `abort` touches nothing else. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -2850,7 +2850,7 @@ function gameMoodDef(): UserMacroSpec {
  *  turn everywhere BUT the macro-declaration op, which is exactly the seam under test).
  *  FABRICATION-OK: the turn path reaches only these ops. */
 function macroDeclaringRpg(defs: readonly UserMacroSpec[]): NonNullable<ChatContext["rpg"]> {
-  // FABRICATION-OK: minimal ChatRpgOps stub — the turn path reaches only these ops (the `foldedRpg` precedent).
+  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `foldedRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve(defs),
@@ -2952,7 +2952,7 @@ const RPG_TOOLS = [{ name: "update_scene", description: "the scene", parameters:
 // axis under test are set.
 const TOOLS_CONNECTION: ResolvedConnection = {
   ...testConnection("vllm"),
-  // FABRICATION-OK: see above.
+  // @orb-waive no-test-fabrication(unknown): see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   capability: { ...TEST_CAPABILITY, tools: { parallel: true } } as unknown as ModelCapability,
 };
 
@@ -2960,7 +2960,7 @@ const TOOLS_CONNECTION: ResolvedConnection = {
  *  was handed back. FABRICATION-OK: the turn path reaches only these ops. */
 function foldedRpg(): { flushes: (readonly { name: string; arguments: string }[] | null)[]; rpg: NonNullable<ChatContext["rpg"]> } {
   const flushes: (readonly { name: string; arguments: string }[] | null)[] = [];
-  // FABRICATION-OK: the turn path reaches only these ops.
+  // @orb-waive no-test-fabrication(unknown): the turn path reaches only these ops. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -3269,7 +3269,7 @@ test("M2: a GAME turn's explicit cardKeepLastX:0 still stubs every stored card (
 
 /** A minimal `ctx.rpg` that stamps the shared timeline when the post-turn flush fires. */
 function fireOrderRpg(timeline: string[]): NonNullable<ChatContext["rpg"]> {
-  // FABRICATION-OK: minimal ChatRpgOps stub — the turn path reaches only these ops (the `foldedRpg` precedent).
+  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `foldedRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -3340,7 +3340,7 @@ test("the post-turn rpg round opens its OWN request trace (it outlives the reque
   const rounded = new Promise<void>((resolve) => {
     roundDone = resolve;
   });
-  // FABRICATION-OK: minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent).
+  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -3397,7 +3397,7 @@ test("the send-path rpg user-commit opens its OWN request trace (it outlives the
   const committed = new Promise<void>((resolve) => {
     commitDone = resolve;
   });
-  // FABRICATION-OK: minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent).
+  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -3436,7 +3436,7 @@ test("the send-path rpg user-commit opens its OWN request trace (it outlives the
 /** A minimal `ctx.rpg` recording the `regenSlotMessageId` each gather args object was handed. */
 function gatherSpyRpg(): { slots: (MessageId | undefined)[]; rpg: NonNullable<ChatContext["rpg"]> } {
   const slots: (MessageId | undefined)[] = [];
-  // FABRICATION-OK: the turn path reaches only these ops (the `foldedRpg` stub above's precedent).
+  // @orb-waive no-test-fabrication(unknown): the turn path reaches only these ops (the `foldedRpg` stub above's precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),

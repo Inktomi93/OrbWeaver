@@ -124,7 +124,7 @@ async function seedScene(
     const id = chars[shortName];
     const displayName = characterNames[i];
     if (id !== undefined && displayName !== undefined) {
-      // FABRICATION-OK: the builder reads only kind/displayName; a full 20+-field ParticipantView would be noise.
+      // @orb-waive no-test-fabrication(unknown): the builder reads only kind/displayName; a full 20+-field ParticipantView would be noise. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       participants.set(id, { kind: "character", displayName } as unknown as ParticipantView);
     }
   });
@@ -140,7 +140,7 @@ async function seedScene(
   // The SERVER minimal AssembleContext (FABRICATION-OK double — `renderHistoryMacros`/`charForSpeaker` read
   // only these fields): the character names (roster order), the current speaker, and the anchor as `pinnedPersona`.
   const primary = { name: characterNames[0] ?? "Character" };
-  // FABRICATION-OK: `renderHistoryMacros`/`charForSpeaker` read ONLY these fields; a full 30+-field AssembleContext would be noise.
+  // @orb-waive no-test-fabrication(unknown): `renderHistoryMacros`/`charForSpeaker` read ONLY these fields; a full 30+-field AssembleContext would be noise. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const serverCtx = {
     character: primary,
     characters: characterNames.map((name) => ({ name })),

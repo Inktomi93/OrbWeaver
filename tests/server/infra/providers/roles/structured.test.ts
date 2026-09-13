@@ -15,7 +15,7 @@ runEmbedShapedRoleTests({
   // A minimal request stub — the dispatcher reads only `credential.source`; the schema/sampling shape is
   // irrelevant to the source-routing this suite asserts.
   makeReq: (credential: ResolvedCredential): StructuredRequest =>
-    // FABRICATION-OK: minimal request stub (see above).
+    // @orb-waive no-test-fabrication(unknown): minimal request stub (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({
       credential,
       model: "m",

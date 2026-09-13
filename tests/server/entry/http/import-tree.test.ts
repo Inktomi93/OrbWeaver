@@ -113,7 +113,7 @@ function chain(): Handler[] {
       return app;
     },
   };
-  // FABRICATION-OK: narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value.
+  // @orb-waive no-test-fabrication(unknown): narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerImportTree(app as unknown as Parameters<typeof registerImportTree>[0], deps());
   const c = routes.get(TREE_ROUTE);
   if (c === undefined) {
@@ -170,7 +170,7 @@ describe("registerImportTree — belt chain + guard", () => {
 
   test("anonymous → 401, never reaches next", async () => {
     let nexted = false;
-    // FABRICATION-OK: narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx.
+    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const guard = chain()[0] as unknown as GuardMw;
     const res = await guard(guardCtx(null), () => {
       nexted = true;
@@ -181,7 +181,7 @@ describe("registerImportTree — belt chain + guard", () => {
   });
 
   test("cookie session WITHOUT the CSRF header → 403", async () => {
-    // FABRICATION-OK: narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx.
+    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const guard = chain()[0] as unknown as GuardMw;
     const res = await guard(guardCtx(COOKIE_OWNER), () => Promise.resolve());
     expect(res instanceof Response ? res.status : null).toBe(403);
@@ -190,7 +190,7 @@ describe("registerImportTree — belt chain + guard", () => {
   // #300 — the loopback owner FALLBACK arm is ambient-credential too; this CORS-simple multipart route must
   // require the CSRF header for it (OWNER is via:"fallback"), else a loopback web origin drives an owner import.
   test("fallback session WITHOUT the CSRF header → 403 (#300)", async () => {
-    // FABRICATION-OK: narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx.
+    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const guard = chain()[0] as unknown as GuardMw;
     const res = await guard(guardCtx(OWNER), () => Promise.resolve());
     expect(res instanceof Response ? res.status : null).toBe(403);

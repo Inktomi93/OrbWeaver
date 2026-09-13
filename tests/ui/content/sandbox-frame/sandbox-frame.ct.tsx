@@ -49,7 +49,7 @@ test("a <script> inside the untrusted html does not reach the parent (sandboxed,
   const payload = ["<scr", "ipt>window.parent.__pwned=1</scr", "ipt>"].join("");
   await mount(<SandboxFrame html={`<p>hi</p>${payload}`} title="c" />);
   // scripts are disabled by the empty sandbox → the injected script can never run in the parent realm.
-  // FABRICATION-OK: probing an untyped injection target on globalThis — not a fabricated domain value.
+  // @orb-waive no-test-fabrication(unknown): probing an untyped injection target on globalThis — not a fabricated domain value. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __pwned?: number }).__pwned)).toBeUndefined();
 });
 

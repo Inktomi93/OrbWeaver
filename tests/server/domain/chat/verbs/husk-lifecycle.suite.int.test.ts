@@ -204,7 +204,7 @@ describe("claim — the one-way, idempotent stamp", () => {
   test("startChat mints a HUSK (started_at NULL) and the room is not in the list until something claims it", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
-    // FABRICATION-OK: startChat reads exactly one card field on this path (`greetings[0]`, absent here) — a full CharacterCard literal is twenty nulls of noise around it.
+    // @orb-waive no-test-fabrication(never): startChat reads exactly one card field on this path (`greetings[0]`, absent here) — a full CharacterCard literal is twenty nulls of noise around it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve({ name: "Aria", greetings: [] } as never) });
     const { startChat } = createStartChat(ctx, startDeps(ctx));
 
@@ -261,7 +261,7 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     const aria = await seedCharacter(db, host, "aria");
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
-      // FABRICATION-OK: startChat reads only `greetings[0].text` off the card on this path.
+      // @orb-waive no-test-fabrication(never): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hello there friend." }] } as never),
       applyStatsDelta: (_b, _d, delta) => {
         deltas.push(delta as StatsDelta);
@@ -288,7 +288,7 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     const aria = await seedCharacter(db, host, "aria");
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
-      // FABRICATION-OK: startChat reads only `greetings[0].text` off the card on this path.
+      // @orb-waive no-test-fabrication(never): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hi." }] } as never),
       applyStatsDelta: (_b, _d, delta) => {
         deltas.push(delta as StatsDelta);

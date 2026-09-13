@@ -67,7 +67,7 @@ function uploadChains(deps: UploadDeps): Map<string, Handler[]> {
       return app;
     },
   };
-  // FABRICATION-OK: minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here.
+  // @orb-waive no-test-fabrication(unknown): minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerUpload(app as unknown as Parameters<typeof registerUpload>[0], deps);
   return routes;
 }
@@ -109,7 +109,7 @@ function guardCtx(principal: Principal | null, headers?: Record<string, string>)
 async function runGuard(deps: UploadDeps, key: string, ctx: GuardCtx): Promise<{ readonly status: number | null; readonly nexted: boolean }> {
   let nexted = false;
   // Narrowing the real Hono `Handler` (chain[0]) to the minimal middleware call-shape to run it on a stub ctx.
-  // FABRICATION-OK: not a fabricated domain value — GuardMw is a test-local function type.
+  // @orb-waive no-test-fabrication(unknown): not a fabricated domain value — GuardMw is a test-local function type. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const guard = chainFor(deps, key)[0] as unknown as GuardMw;
   const res = await guard(ctx, (): Promise<void> => {
     nexted = true;

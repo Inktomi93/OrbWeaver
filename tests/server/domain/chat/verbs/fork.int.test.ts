@@ -62,7 +62,7 @@ function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId:
       return null;
     }
     // The D64 resolver reads only null-vs-resolved; `characterParticipantView` reads only name/avatarAssetId.
-    // FABRICATION-OK: minimal `CharacterCard` double (scenario.ts precedent).
+    // @orb-waive no-test-fabrication(unknown): minimal `CharacterCard` double (scenario.ts precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return { name: row.name, avatarAssetId: null } as unknown as CharacterCard;
   };
 }
@@ -844,7 +844,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       // The blob as the engine writes it: the hidden truth rides `dynamic` (the wire projection is verbatim) and
       // the pre-join canon rides `static` (the assembled history the fit-pass kept). Only the blob's PRESENCE
       // in the copy is under test — the copy path reads no field of it.
-      // FABRICATION-OK: an AssembledPrompt stand-in whose fields the copy path never reads.
+      // @orb-waive no-test-fabrication(never): an AssembledPrompt stand-in whose fields the copy path never reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const snapshot = {
         static: "PRE-JOIN CANON: the vault code is 4417.",
         dynamic: `He smiles. ${lie} "Nothing," he says.`,
@@ -877,7 +877,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
       await seedParticipant(db, { chatId, key: "c", characterId: charA });
       const m = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "He shrugs." });
-      // FABRICATION-OK: only the blob's PRESENCE is under test; `trace` is never read by the copy path.
+      // @orb-waive no-test-fabrication(never): only the blob's PRESENCE is under test; `trace` is never read by the copy path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const snapshot = { static: "s", dynamic: `d ${lie}`, afterHistory: [], sendHistory: true, trace: {} } as never;
       await db
         .update(messageVariants)
@@ -924,7 +924,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       const spill = "I'll say the study, but he is really in the crypt.";
       /** Deception-active source: the injected op says the reasoning channel is host-only for this chat. */
       function deceptionRpg(): NonNullable<ChatContext["rpg"]> {
-        // FABRICATION-OK: minimal ChatRpgOps stub — forkChat reaches only resolveReasoningHostOnly here (forkGame is never called: the source carries no game pointer).
+        // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — forkChat reaches only resolveReasoningHostOnly here (forkGame is never called: the source carries no game pointer). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         return { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ChatContext["rpg"]>;
       }
 
@@ -1013,7 +1013,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await db
         .update(messageVariants)
         .set({
-          // FABRICATION-OK: an `AssembledPrompt` stand-in — the copy path reads no field of it, only its presence.
+          // @orb-waive no-test-fabrication(never): an `AssembledPrompt` stand-in — the copy path reads no field of it, only its presence. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
           promptSnapshot: { static: "PRE-JOIN CANON", dynamic: "d", afterHistory: [], sendHistory: true, trace: {} } as never,
           // The host-gated wire trio's other two members: the initiator's per-send knobs (note the
           // `advanced.claudeEnv` escape hatch + the free-text compaction instructions) and the draw record.
@@ -1126,7 +1126,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
      *  the only OTHER op `forkChat` reaches. Cast — the verb touches just these two ops. */
     function captureRpg(over: { throwOnFork?: boolean } = {}): { calls: ForkGameArgs[]; rpg: NonNullable<ChatContext["rpg"]> } {
       const calls: ForkGameArgs[] = [];
-      // FABRICATION-OK: minimal ChatRpgOps stub — forkChat reaches only resolveReasoningHostOnly + forkGame.
+      // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — forkChat reaches only resolveReasoningHostOnly + forkGame. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const rpg = {
         resolveReasoningHostOnly: () => Promise.resolve(false),
         forkGame: (args: ForkGameArgs) => {

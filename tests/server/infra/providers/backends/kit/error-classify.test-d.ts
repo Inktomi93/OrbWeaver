@@ -40,7 +40,7 @@ test("a hand-built array cannot stand in for a scrub set (no silent un-scrub)", 
 });
 
 test("the credential mint is the other producer, and the brand still flows into plain-array consumers", () => {
-  // FABRICATION-OK: server-can't-mint — ResolvedCredential is brand-sealed; only domain
+  // @orb-waive no-test-fabrication(unknown): server-can't-mint — ResolvedCredential is brand-sealed; only domain Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // credentials/substrate/mint constructs one, and infra must not import a domain.
   const credential = { source: "openrouter", apiKey: "sk-test-not-a-real-key", credentialId: null } as unknown as ResolvedCredential;
   expectTypeOf(providerCredentialSecretValues(credential)).toEqualTypeOf<ProviderScrubSet>();

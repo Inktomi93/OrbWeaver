@@ -110,7 +110,7 @@ test("an unreadable row is skipped, not healed — it is #471's refusal to fix, 
     userId: u,
     // A negative schemaVersion + no per-field .catch on the top-level shape degrades the WHOLE parse.
     schemaVersion: 9,
-    // FABRICATION-OK: a deliberately UNREADABLE blob — this arm proves the heal SKIPS a row the read seam cannot parse
+    // @orb-waive no-test-fabrication(unknown): a deliberately UNREADABLE blob — this arm proves the heal SKIPS a row the read seam cannot parse Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     config: { schemaVersion: -5 } as unknown as typeof DEFAULT_USER_SETTINGS,
     updatedAt: AT,
   });

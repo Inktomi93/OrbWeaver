@@ -1381,7 +1381,7 @@ describe("chat.startChat — CREATION-INTENT inputs only (R2)", () => {
   });
 
   test("a well-formed creation body still passes the boundary and reaches the verb", async () => {
-    // FABRICATION-OK: partial StartChatResult stub — this test asserts the boundary→verb CALL shape only; the response is never read.
+    // @orb-waive no-test-fabrication(unknown): partial StartChatResult stub — this test asserts the boundary→verb CALL shape only; the response is never read. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const startChat = vi.fn<ChatService["startChat"]>(async () => ({ chat: { id: CHAT } }) as unknown as Awaited<ReturnType<ChatService["startChat"]>>);
     const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { startChat } } });
 

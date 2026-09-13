@@ -18,7 +18,7 @@ const sig = (): AbortSignal => new AbortController().signal;
 function build(connection: Partial<ConnectionWorkloadDeps["connection"]> = {}): ReturnType<typeof createConnectionWorkloadContributions>[0] {
   const [contribution] = createConnectionWorkloadContributions({
     // The fan-out reads ONLY `.models.length` off each catalog snapshot — the per-model entry shape never
-    // FABRICATION-OK: enters the contribution, so a full snapshot factory would state more than is tested.
+    // @orb-waive no-test-fabrication(unknown): enters the contribution, so a full snapshot factory would state more than is tested. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     connection: {
       refreshCatalog: vi.fn(async () => ({ models: Array.from({ length: 99 }, () => ({})) })),
       refreshAgentSdkCatalog: vi.fn(async () => ({ models: [{}, {}, {}] })),
@@ -37,7 +37,7 @@ describe("refresh-model-catalog contribution", () => {
   test("a failed lane reports null and does NOT discard the other lane's refresh (null ≠ 0)", async () => {
     // A deliberately REJECTING lane: the failure path is exactly what is under test.
     const contribution = build({
-      // FABRICATION-OK: a deliberately REJECTING lane — the failure path is exactly what is under test.
+      // @orb-waive no-test-fabrication(unknown): a deliberately REJECTING lane — the failure path is exactly what is under test. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       refreshAgentSdkCatalog: vi.fn(() =>
         Promise.reject(new Error("daemon down")),
       ) as unknown as ConnectionWorkloadDeps["connection"]["refreshAgentSdkCatalog"],
@@ -50,9 +50,9 @@ describe("refresh-model-catalog contribution", () => {
     const reject = (): Promise<never> => Promise.reject(new Error("offline"));
     // Two deliberately REJECTING lanes: the both-failed path is exactly what is under test.
     const contribution = build({
-      // FABRICATION-OK: two deliberately REJECTING lanes — the both-failed path is exactly under test.
+      // @orb-waive no-test-fabrication(unknown): two deliberately REJECTING lanes — the both-failed path is exactly under test. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       refreshCatalog: reject as unknown as ConnectionWorkloadDeps["connection"]["refreshCatalog"],
-      // FABRICATION-OK: see above.
+      // @orb-waive no-test-fabrication(unknown): see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       refreshAgentSdkCatalog: reject as unknown as ConnectionWorkloadDeps["connection"]["refreshAgentSdkCatalog"],
     });
     await expect(contribution.run(ctx, {}, vi.fn(), sig())).rejects.toThrow("offline");

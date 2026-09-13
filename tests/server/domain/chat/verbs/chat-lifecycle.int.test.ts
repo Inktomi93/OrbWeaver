@@ -443,7 +443,7 @@ describe("setUserMacroValues — the per-chat user-macro picks flush (WAVE MU, m
     const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     // A number leaf is not a valid pick (string | boolean | string[]) — the verb's schema.parse throws.
-    // FABRICATION-OK: a DELIBERATE invalid-input probe — no factory produces an intentionally malformed bag.
+    // @orb-waive no-test-fabrication(unknown): a DELIBERATE invalid-input probe — no factory produces an intentionally malformed bag. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bad = { mood: { tone: 42 } } as unknown as Parameters<typeof life.setUserMacroValues>[0]["values"];
     await expect(life.setUserMacroValues({ principal: principal(member), chatId, values: bad })).rejects.toThrow();
     // Nothing persisted.
@@ -600,7 +600,7 @@ describe("getUserMacroPicks — the picks pane read (#24, member)", () => {
       makeChatContext(db, {
         resolvePromptUserMacros: () => Promise.resolve(defs),
         // A minimal rpg op set: the pane read reaches ONLY the declaration op.
-        // FABRICATION-OK: the conditional stub exposes only resolveUserMacros, the sole operation reached here.
+        // @orb-waive no-test-fabrication(unknown): the conditional stub exposes only resolveUserMacros, the sole operation reached here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         ...(gameDefs === undefined ? {} : { rpg: { resolveUserMacros: () => Promise.resolve(gameDefs) } as unknown as NonNullable<ChatContext["rpg"]> }),
       }),
       lifecycleDeps(),

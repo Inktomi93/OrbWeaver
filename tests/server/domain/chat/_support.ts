@@ -572,7 +572,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
 /** The minimal `ModelCapability` shape the chat engine/verb int-tests inject — reasoning off, an 8k output
  *  ceiling, a 200k window. Byte-identical across the engine/service/turn/round/solo/pipeline suites (W1d hoist).
  *  FABRICATION-OK: only the fields the belts read are populated; the fake role never validates the full shape. */
-// FABRICATION-OK: partial ModelCapability — only the belt-read fields are set (see above).
+// @orb-waive no-test-fabrication(unknown): partial ModelCapability — only the belt-read fields are set (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 export const TEST_CAPABILITY = {
   reasoning: { mode: "none", enabled: false },
   sampling: {},
@@ -586,7 +586,7 @@ export function testConnection(source = "vllm", api: ResolvedConnection["api"] =
   return {
     api,
     model: castId<ModelId>("test-model"),
-    // FABRICATION-OK: minimal ResolvedCredential double — only `.source` is read (§9 consent belt).
+    // @orb-waive no-test-fabrication(unknown): minimal ResolvedCredential double — only `.source` is read (§9 consent belt). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     credential: { source, credentialId: null } as unknown as ResolvedCredential,
     capability: TEST_CAPABILITY,
   };

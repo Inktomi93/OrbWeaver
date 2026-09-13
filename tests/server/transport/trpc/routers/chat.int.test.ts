@@ -27,7 +27,7 @@ function ownedCard(rosterDb: Db): (params: { readonly ownerId: UserId; readonly 
     // `greetings` is carried because it is ALWAYS present on a real card (`greetingsColumnSchema` catches to
     // `[]`) and `addCharacterToChat` reads `greetings[0]` for the F6 in-window join greeting; `[]` here means
     // "this card has no greeting to seed", which is what these two removal tests want.
-    // FABRICATION-OK: minimal CharacterCard double — the roster read needs name + avatarAssetId + greetings.
+    // @orb-waive no-test-fabrication(unknown): minimal CharacterCard double — the roster read needs name + avatarAssetId + greetings. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return row !== undefined && row.ownerId === ownerId ? ({ name: row.name, avatarAssetId: null, greetings: [] } as unknown as CharacterCard) : null;
   };
 }

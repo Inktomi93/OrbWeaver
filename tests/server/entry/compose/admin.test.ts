@@ -37,7 +37,7 @@ const TARGET = castId<UserId>("usr_target");
 const SESSION = castId<SessionId>("ses_1");
 const CHARACTER = castId<CharacterId>("chr_1");
 
-// FABRICATION-OK: never dereferenced — this seam only threads `db` into the service factories it builds.
+// @orb-waive no-test-fabrication(unknown): never dereferenced — this seam only threads `db` into the service factories it builds. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
 const VIEW: SessionView = { id: SESSION, createdAt: 1, lastSeenAt: 2, expiresAt: 3, revokedAt: null, userAgent: "curl" };
@@ -85,7 +85,7 @@ function build(f: Fakes, withEngine = true): ReturnType<typeof buildAdmin> {
   const noopStop = (): void => undefined;
   const start = (): (() => void) => noopStop;
   const engine = withEngine ? { start, status: f.status, deployment: f.deployment, restart: f.restart } : null;
-  // FABRICATION-OK: inert structural stand-ins for the vLLM/export/CAS ports — only the ops the pins
+  // @orb-waive no-test-fabrication(unknown): inert structural stand-ins for the vLLM/export/CAS ports — only the ops the pins Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // below drive are ever called, and `db` is never dereferenced.
   const deps = {
     db: NO_DB,

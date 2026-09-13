@@ -156,7 +156,7 @@ function captureClsLines(page: Page): string[] {
 /** Reads the snapshot the STORY published (see its effect) — never a re-import, which would resolve a
  *  second module instance whose totals are always zero. */
 function readMotion(page: Page): Promise<MotionRead> {
-  // FABRICATION-OK: the probe slot the story writes; declared and read in this spec alone.
+  // @orb-waive no-test-fabrication(unknown): the probe slot the story writes; declared and read in this spec alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return page.evaluate(() => (globalThis as unknown as { __motionRead: () => MotionRead }).__motionRead());
 }
 

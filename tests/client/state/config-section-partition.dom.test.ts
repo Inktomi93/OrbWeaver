@@ -78,7 +78,7 @@ const NO_CITES: Parameters<typeof assertSettingsKeyPartition>[2] = [];
 function defaults(namespaces: Record<string, Record<string, unknown>>): Defaults {
   // These arms are about namespace SHAPE, and a whole real blob would drown the arm under test; the real
   // shape is asserted by the live-door test below.
-  // FABRICATION-OK: a deliberately PARTIAL UserSettings fixture.
+  // @orb-waive no-test-fabrication(unknown): a deliberately PARTIAL UserSettings fixture. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return namespaces as unknown as Defaults;
 }
 

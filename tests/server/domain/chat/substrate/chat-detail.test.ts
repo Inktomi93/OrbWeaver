@@ -19,7 +19,7 @@ const strangerId = castId<UserId>("user_stranger");
 // `role` (the projected bit); the other ~16 ParticipantView fields are irrelevant to what these tests pin,
 // and a full factory would hide that the host flag depends on exactly those two.
 function participant(userId: UserId, role: string): ParticipantView {
-  // FABRICATION-OK: viewer-resolution probe reading userId + role only (see above).
+  // @orb-waive no-test-fabrication(unknown): viewer-resolution probe reading userId + role only (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { userId, role } as unknown as ParticipantView;
 }
 
