@@ -26,8 +26,8 @@
 // over already-read bytes, and `verifyDevToolsAssetsSync` keeps its signature and delegates to it before
 // reading the member bodies the static server needs. So the two callers reach the same verdict through the
 // same code — the one thing §12.7 requires of a replaced implementation — and the runtime path keeps its
-// independent regression proof at tests/tooling/_shared/devtools-assets.test.ts (8 rows: hash drift, tuple
-// drift, a missing notice, an unexpected member, a symlink, and the served closure itself).
+// independent regression proof at tests/tooling/_shared/devtools-assets.test.ts (hash drift, tuple drift,
+// a missing notice, an unexpected member, a symlink, and the served closure itself).
 //
 // THE MISSING-PIN ARM IS NOW A REFUSAL, NOT A FINDING, AND THAT IS LOUDER. The legacy descriptor reported
 // `token: "missing-closure"` at the pin path when `pin.json` was absent AND a real-tree anchor
@@ -78,8 +78,14 @@ const BROWSER_VERSION = "149.0.7827.55";
  *  silently re-point its own `messageIncludes`. */
 interface ClosureFixtureBreak {
   readonly assetBody?: string;
+  readonly decodedBytes?: number;
+  readonly duplicateUrl?: boolean;
   readonly extraMember?: boolean;
   readonly escapingMember?: boolean;
+  readonly licenseFamily?: string;
+  readonly manifestSha256?: string;
+  readonly mismatchedAssetFile?: boolean;
+  readonly noticeSource?: string;
   readonly playwrightVersion?: string;
   readonly dropPin?: boolean;
   readonly dropInstalledCore?: boolean;
@@ -100,18 +106,18 @@ function canonical(value: unknown): string {
  *  them exactly as it finds the real ones. */
 function fixtureFiles(broken: ClosureFixtureBreak): Readonly<Record<string, string>> {
   const assetRel = `assets/serve_rev/@${REVISION}/inspector.html`;
+  const manifestFile = broken.mismatchedAssetFile === true ? `assets/serve_rev/@${REVISION}/other.html` : assetRel;
+  const resource = {
+    url: `/serve_rev/@${REVISION}/inspector.html`,
+    file: manifestFile,
+    bytes: ASSET_BODY.length,
+    sha256: sha256(ASSET_BODY),
+    mimeType: "text/html",
+    licenseFamily: broken.licenseFamily ?? "devtools-frontend",
+  };
   const manifest = {
     schemaVersion: 1,
-    resources: [
-      {
-        url: `/serve_rev/@${REVISION}/inspector.html`,
-        file: assetRel,
-        bytes: ASSET_BODY.length,
-        sha256: sha256(ASSET_BODY),
-        mimeType: "text/html",
-        licenseFamily: "devtools-frontend",
-      },
-    ],
+    resources: broken.duplicateUrl === true ? [resource, { ...resource, file: `assets/serve_rev/@${REVISION}/duplicate.html` }] : [resource],
   };
   const manifestText = canonical(manifest);
   const pin = canonical({
@@ -121,9 +127,9 @@ function fixtureFiles(broken: ClosureFixtureBreak): Readonly<Record<string, stri
     chromiumRevision: "3188f8a607ae7e067593be8aab7f02d2451fec07",
     devtoolsFrontendRevision: REVISION,
     protocolVersion: "1.3",
-    resourceCount: 1,
-    decodedBytes: ASSET_BODY.length,
-    manifestSha256: sha256(manifestText),
+    resourceCount: manifest.resources.length,
+    decodedBytes: broken.decodedBytes ?? ASSET_BODY.length * manifest.resources.length,
+    manifestSha256: broken.manifestSha256 ?? sha256(manifestText),
   });
   const licenses = canonical({
     schemaVersion: 1,
@@ -137,7 +143,7 @@ function fixtureFiles(broken: ClosureFixtureBreak): Readonly<Record<string, stri
             // canonical-relative fence is the FIRST thing that can refuse — an escaping ASSET path is caught
             // one clause earlier by the `assets${url}` correspondence test and would pin that instead.
             file: broken.escapingMember === true ? `../escape/${NOTICE_REL}` : NOTICE_REL,
-            source: `https://chromium.googlesource.com/devtools/devtools-frontend/+/${REVISION}/LICENSE`,
+            source: broken.noticeSource ?? `https://chromium.googlesource.com/devtools/devtools-frontend/+/${REVISION}/LICENSE`,
             bytes: NOTICE_BODY.length,
             sha256: sha256(NOTICE_BODY),
           },
@@ -234,6 +240,42 @@ export const gate = defineGate({
       files: fixtureFiles({ playwrightVersion: "0.0.0-planted-drift" }),
       expect: { count: 1, token: "asset-contract", messageIncludes: "Playwright/Chromium tuple drift" },
       why: "THE INSTALLED-TUPLE ARM: the pin is held against the package the repository actually installed, read through the two `installed-package` doors minted for this gate. Without this row both declarations could be acquired and their VALUES ignored, and the gate would pass on a closure built for a different browser",
+    },
+    {
+      mode: "resource",
+      files: fixtureFiles({ manifestSha256: sha256("planted wrong manifest") }),
+      expect: { count: 1, token: "asset-contract", messageIncludes: "manifest checksum does not match the tuple pin" },
+      why: "the manifest bytes differ from the checksum ratified in the tuple pin; acquiring both documents is not proof that the adjudicator compares them",
+    },
+    {
+      mode: "resource",
+      files: fixtureFiles({ decodedBytes: ASSET_BODY.length + 1 }),
+      expect: { count: 1, token: "asset-contract", messageIncludes: "decoded-byte total drift" },
+      why: "the per-resource rows agree but their total differs from the tuple pin, so a truncated or expanded generated closure cannot pass on internally consistent member hashes alone",
+    },
+    {
+      mode: "resource",
+      files: fixtureFiles({ noticeSource: "https://chromium.googlesource.com/devtools/devtools-frontend/+/wrong-revision/LICENSE" }),
+      expect: { count: 1, token: "asset-contract", messageIncludes: "license source is not revision-pinned" },
+      why: "the notice names a different upstream revision from the closure pin; a valid local notice hash does not establish provenance for the shipped revision",
+    },
+    {
+      mode: "resource",
+      files: fixtureFiles({ mismatchedAssetFile: true }),
+      expect: { count: 1, token: "asset-contract", messageIncludes: "non-canonical or duplicate DevTools resource" },
+      why: "the manifest file path is not the canonical `assets${url}` image of its served URL, so the reviewed file and the served route could diverge",
+    },
+    {
+      mode: "resource",
+      files: fixtureFiles({ duplicateUrl: true }),
+      expect: { count: 1, token: "asset-contract", messageIncludes: "non-canonical or duplicate DevTools resource" },
+      why: "two manifest rows claim the same served URL; the second row must not silently replace the first in the runtime's URL map",
+    },
+    {
+      mode: "resource",
+      files: fixtureFiles({ licenseFamily: "absent-family" }),
+      expect: { count: 1, token: "asset-contract", messageIncludes: "absent or mismatched license family" },
+      why: "an asset names no declared license family, so complete notice files alone cannot make its own provenance known",
     },
   ],
   mustPass: [
