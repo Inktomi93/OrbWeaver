@@ -195,7 +195,7 @@ COMPLETES (a refusal is not a reproduction — it is a classified delta).
 | - | - | - |
 | surface-manifest **7/9** | **7/9** | REPRODUCES — deltas: legacy `mustFlag[4]` (NO_PACKAGE) is now an `[evaluate]` tool error; legacy `mustPass[2]` (no ledger at all) is a `[population]` refusal. Exactly the two the commit classified. |
 | anatomy **6/7** | **6/7** | REPRODUCES — delta: legacy `mustPass[3]` (no ledger) is a `[population]` refusal. |
-| derives **12/12 across the two siblings** | **12/12** | REPRODUCES, and the arm ownership matches the commit exactly: legacy `mustFlag[0,1]` → `-health`, `[2,3,4]` → ordinary. |
+| derives **12/12 across the two siblings** | **11/12 raw; 12/12 after marker translation** | CORRECTED by `v-baseui-final-2026-09-13.md`: legacy `mustPass[1]` uses the retired `@orb-gate-ignore` opener; translating only that opener to `@orb-waive` makes the ordinary policy silent. Arm ownership matches: legacy `mustFlag[0,1]` → `-health`, `[2,3,4]` → ordinary. |
 
 **But the surface-manifest number is only reachable after ONE forced port of the legacy file map, and the
 commit does not say so.** Raw, the answer is **0/9**: legacy `INSTALLED_ONE_PART` plants
@@ -263,7 +263,7 @@ is over-broad. The orchestrator owns the ruling.
 | - | - | - | - | - | - |
 | `seed-theme-ink-contrast` | x-baseui-rework · `tooling/src/verify/gates/seed-theme-ink-contrast.ts:35,52` | The #2293(a) class AGAIN, a third landing: header prose spells the retired marker opener WITH its `@` inside the corpus the live legacy `finding-overload-provenance` gate scans, so both lines are MALFORMED-marker findings against it. Landed by `2dabae9ce` (the seed-theme conversion), not by the baseui train. Fix is one word per line, exactly as `finding-overload-provenance.ts:9-10` does to itself | retired-opener in prose / live legacy finding | **OPEN** | `pnpm check:structure --check finding-overload-provenance` at `3e03de744`: 5 findings, two of them these; after this lane's fix of the baseui pair, 3 findings and these two remain. `git log -1 -S'finding-overload-ok' -- <path>` → `2dabae9ce`. OUT OF THIS LANE'S FENCE |
 | `baseui-portal-container-seam` | x-baseui-rework · `baseui-portal-container-seam.ts:50` | The §4.6 differential citation named a test TITLE as well as a file, and BOTH are phantoms: no test titled "portal seam: legacy and final agree on the flagged portals" has ever existed, and `grep -rn 'portal seam' tests/` returns zero. This is one class worse than the four citations #2297 already carries — a reader chasing it concludes the differential is pinned by a suite when the paragraph's own numbers are the only evidence. REPAIRED here by labelling the paragraph as the record (guide §4.6's second admissible arm); a test was deliberately NOT minted after the fact | header / dangling citation, phantom TITLE | **FIXED** (`e299ff5f9`) | `/usr/bin/grep -rn 'portal seam\|portalContainerSeam' tests/` → 3 hits, all the family test's import/registration/identity-case lines, none a test title |
-| `baseui-surface-manifest` | x-baseui-rework · `17297f298` commit message, §4.6 paragraph | The "surface-manifest 7/9 reproduce" differential is CORRECT but its SUBSTRATE is undeclared: replayed on the legacy file maps as authored, the answer is **0/9**, because legacy `INSTALLED_ONE_PART` plants `{ "version": "9.9.9" }` with no `name` and the newly-declared `installed-package:base-ui:metadata` door refuses a manifest missing either half. 7/9 requires one forced port to every legacy fixture. Guide §4.6 already rules that a differential is a claim about the population/substrate as much as about findings; a replay that silently ports its fixtures owes the port | differential method / undeclared substrate port | **OPEN** (documented in this report §6; no code change owed) | re-run both ways in this lane: RAW `0/9` (eight rows `[evaluate] … metadata … has no name/version pair`, one `[population] … json:baseui-manifest is missing`); PORTED `7/9` with exactly the two deltas the commit classified. Anatomy `6/7` and derives `12/12` need no port and reproduce as claimed |
+| `baseui-surface-manifest` | x-baseui-rework · `17297f298` commit message, §4.6 paragraph | The "surface-manifest 7/9 reproduce" differential is CORRECT but its SUBSTRATE is undeclared: replayed on the legacy file maps as authored, the answer is **0/9**, because legacy `INSTALLED_ONE_PART` plants `{ "version": "9.9.9" }` with no `name` and the newly-declared `installed-package:base-ui:metadata` door refuses a manifest missing either half. 7/9 requires one forced port to every legacy fixture. Guide §4.6 already rules that a differential is a claim about the population/substrate as much as about findings; a replay that silently ports its fixtures owes the port | differential method / undeclared substrate port | **OPEN** (documented in this report §6; no code change owed) | re-run both ways in this lane: RAW `0/9` (eight rows `[evaluate] … metadata … has no name/version pair`, one `[population] … json:baseui-manifest is missing`); PORTED `7/9` with exactly the two deltas the commit classified. Anatomy `6/7` needs no port. CORRECTION from the final verifier: derives is `11/12` raw and `12/12` only after translating the retired marker opener in `mustPass[1]` |
 
 ledger rows OWED: 3
 
@@ -318,7 +318,7 @@ that dies if the guard is failed shut.
 | `pnpm check:structure --check baseui-surface-manifest --check baseui-anatomy-completeness` | exit 0, clean, before AND after |
 | `pnpm check:structure --check baseui-derives-not-respells --check …-health --check baseui-state-data-attributes --check baseui-portal-container-seam` | exit 0, `raw 7 = waived 7 + granted 0 + effective 0`, 0 alarms, 0 tool errors, 0 withheld |
 | `pnpm check:structure --check finding-overload-provenance` | 5 findings → **3** (the two derives rows gone) |
-| §4.6 fixture-level replays re-run | surface-manifest 7/9 (0/9 raw) · anatomy 6/7 · derives 12/12 |
+| §4.6 fixture-level replays re-run | surface-manifest 7/9 (0/9 raw) · anatomy 6/7 · derives 12/12 after marker translation (11/12 raw; final verifier correction) |
 | `pnpm exec biome check <7 touched files> --diagnostic-level=error` | `Checked 7 files. No fixes applied.` |
 | `pnpm exec eslint <7 touched files>` | exit 0 |
 | `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | `PASS` / `PASS`, exit 0 |
@@ -353,3 +353,22 @@ The branch differential above still means 7/9 after its explicit metadata fixtur
 legacy fixtures. The resource-only changed-path execution defect is separately tracked as #2309;
 \#2297 final acceptance awaits that repair and an independent verifier. The later CSS integration also
 removes the seed header-marker pair; the selected production receipt is recorded in the CSS repair report.
+
+## Final verifier correction and current contract (2026-09-13)
+
+The independent final verifier re-ran the derives corpus through production dispatch and refuted this
+report's original unqualified 12/12 claim. The corrected entries above state both results: 11/12 as authored,
+12/12 after translating only the retired opener in legacy `mustPass[1]` from `@orb-gate-ignore` to
+`@orb-waive`. The raw ordinary policy reports one finding; the health sibling is silent. No implementation
+change or additional legacy fixture alteration is implied. The full independent receipt is
+`v-baseui-final-2026-09-13.md` claim 9. This correction also supersedes the immutable conversion commit's
+unqualified replay statement.
+
+The final verifier confirmed all four code repairs and #2309's population reselection on three seals,
+including source-only exactness and resource-only complete reselection with healthy controls. Its base
+`99acf985d` predates `c8fccfa7c`, which already revised `resource-policy-contract.md` §3.4: indivisible
+answers require whole-population execution; composable selected-source answers may use `selected-files`
+with complete declared resource reads. Thus §7 above records the earlier contract conflict, not the
+current contract. No execution-mode flip is appropriate: the final verifier measured that such a flip
+would defer the resource-change request instead of re-judging its dependent source members. The module
+explanations and whole-program verification remain separately reviewable integration work.
