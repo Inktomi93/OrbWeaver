@@ -104,11 +104,21 @@ export const SELECTOR_FIXTURE: Readonly<Record<string, string>> = {
 /** Every resource identity the ownership policies declare, all inert. */
 export const OWNERSHIP_FIXTURE: Readonly<Record<string, string>> = { ...CLEAN_PRODUCT_CSS, ...INERT_SOURCE };
 
-/** THE COMPLETE RUNTIME-WRITER SEAMS, at the cardinality the DECLARED vocabularies require: density is
- *  `DENSITY_SPACING.size * DENSITY_SELECTORS.size` = 8, reduced-transparency is `CLIENT_BLUR_FILL.size * 2`
- *  = 4, colorization is `CLIENT_COLORIZATION.size * 2` = 4. A health row that wants ONE seam incomplete
- *  overrides ONE of these; every other row spreads them so the completeness arm is silent and whatever else
- *  the row exercises is the only thing its count can be about. */
+/** THE COMPLETE RUNTIME-WRITER SEAMS: every DECLARED MEMBER of each seam written AT LEAST ONCE, which is all
+ *  the health arm asks. No cardinality is promised here or asserted there — a seam is complete when its
+ *  vocabulary is covered, and an additional legitimate carrier changes nothing.
+ *
+ *  MEASURED, as these constants are committed (#2305): density covers its 8 members —
+ *  `DENSITY_SELECTORS` × `DENSITY_SPACING` — with TWO arms, and `BLUR_SEAM_COMPLETE` and
+ *  `COLORIZATION_SEAM_COMPLETE` each cover their 2 members with ONE carrier writing 2 declarations. Twelve
+ *  declared members in all, across the three seams.
+ *
+ *  THIS COMMENT PROMISED `CLIENT_BLUR_FILL.size * 2` = 4 FOR ONE LEG TOO LONG, over constants the same
+ *  commit had shrunk to 2 — a retired expression, in the retired shape, contradicted by the
+ *  `ONE CARRIER EACH` note five lines below it (`v-css-unit-2-2026-09-13.md` ledger row 4).
+ *
+ *  A health row that wants ONE seam incomplete overrides ONE of these; every other row spreads them so the
+ *  coverage arm is silent and whatever else the row exercises is the only thing its count can be about. */
 const DENSITY_ARM = (selector: string): string =>
   `${selector} { --spacing-field: 0.25rem; --spacing-row: 0.375rem; --spacing-block: 0.5rem; --spacing-section: 1rem; }\n`;
 export const DENSITY_COMPLETE = `[data-surface-tier="base"] { color: red; }\n${DENSITY_ARM('[data-density="comfortable"]')}${DENSITY_ARM('[data-density="compact"]')}`;

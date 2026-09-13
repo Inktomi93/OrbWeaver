@@ -24,9 +24,13 @@
 // `DECLARED_SET.size * DECLARED_SET.size`, while `blur` and `colorization` multiplied a declared set by a
 // LITERAL naming no vocabulary — so a third legitimate `:root` carrier, changing nothing declared anywhere,
 // reddened five rows. The arm now asks PRESENCE: every member of a seam's declared vocabulary must be
-// written AT LEAST ONCE, occurrences are never counted, a second legitimate carrier is silent, and the
-// finding names the member nothing writes (`mustPass[5]` is that carrier; `mustFlag[3]`/`mustFlag[4]` are
-// the missing members).
+// written AT LEAST ONCE, occurrences are never counted, ADDITIONAL legitimate carriers are silent, and the
+// finding names the member nothing writes. `mustPass[5]` is the carrier row and it carries THREE `:root`
+// blur carriers deliberately — six declarations, against the retired `CLIENT_BLUR_FILL.size * 2` = four — so
+// that it discriminates rather than merely illustrating; at two carriers it sat exactly ON the retired
+// expectation and proved nothing. `mustFlag[3]`, `mustFlag[4]` and `mustFlag[5]` are the missing members of
+// the three seams, one row each, because a sweep that pins two of three vocabularies and generalises is a
+// sample rather than a measurement.
 //
 // `EXPECTED_DIRECT_THEME_DECLARATIONS` IS READ, NEVER MOVED. Its disposition is owner-pending (#2230); the
 // audit measured it DERIVABLE from `tokens.build.ts#renderThemeCss` and escalated whether a hand-copied
@@ -41,7 +45,14 @@
 import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 import { defineGate } from "../contract/policy.ts";
 import { reportCssFamilyHealth } from "../lib/css-family-policy.ts";
-import { CLIENT_SEAMS_COMPLETE, COLORIZATION_SEAM_COMPLETE, HEALTHY_HOMES, THEME_AT_PARITY, THEME_ONE_SHORT } from "../lib/css-family-proof-fixtures.ts";
+import {
+  BLUR_SEAM_COMPLETE,
+  CLIENT_SEAMS_COMPLETE,
+  COLORIZATION_SEAM_COMPLETE,
+  HEALTHY_HOMES,
+  THEME_AT_PARITY,
+  THEME_ONE_SHORT,
+} from "../lib/css-family-proof-fixtures.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const MESSAGE =
@@ -108,6 +119,27 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "runtime writer seam blur never writes --blur-fill-dense" },
       why: "the reduced-transparency seam is incomplete on its own axis while density is whole — two seams, two independent verdicts, and the arm names the MEMBER rather than a total, which is what makes a per-member message the discriminator",
     },
+    {
+      mode: "resource",
+      files: {
+        ...HEALTHY_HOMES,
+        [CLIENT_GLOBALS]: `${BLUR_SEAM_COMPLETE}[data-theme-colorization] { --color-border: color-mix(in oklab, black, white); }\n`,
+      },
+      expect: { count: 1, messageIncludes: "runtime writer seam colorization never writes --color-sidebar-border" },
+      why:
+        "THE THIRD SEAM'S MEMBER SET, and it had NO ROW AT ALL until #2305 " +
+        "(`v-css-unit-2-2026-09-13.md` ledger row 1). Density is held by `mustFlag[3]` and blur by " +
+        "`mustFlag[4]`; colorization was held by nothing, so EMPTYING its declared vocabulary — silently " +
+        "disabling that seam's entire catch — was invisible to every declared row: cut b06 killed ZERO rows " +
+        "before this one existed and kills exactly THIS ONE now, while a BOGUS EXTRA member (cut b07) reds " +
+        "ELEVEN — five mustFlag by one finding each and all six mustPass — which is how we know the arm ran " +
+        "all along. The blur seam measures identically (b04: 1 row, b05: 11), which is what makes the pair a " +
+        "measurement rather than a coincidence. " +
+        "That is the §4.1 class the whole leg existed to close, one seam short of closed: a sweep that cuts " +
+        "two of three member sets and generalises is a sample, not a measurement. Here the carrier writes " +
+        "`--color-border` and not `--color-sidebar-border`, so exactly one declared member is uncovered and " +
+        "the arm names it",
+    },
   ],
   mustPass: [
     {
@@ -137,15 +169,30 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
-      files: { ...HEALTHY_HOMES, [CLIENT_GLOBALS]: `${CLIENT_SEAMS_COMPLETE}:root { --blur-fill-chrome: 2px; --blur-fill-dense: 2px; }\n` },
+      files: {
+        ...HEALTHY_HOMES,
+        [CLIENT_GLOBALS]:
+          `${CLIENT_SEAMS_COMPLETE}:root { --blur-fill-chrome: 2px; --blur-fill-dense: 2px; }\n` +
+          ":root { --blur-fill-chrome: 3px; --blur-fill-dense: 3px; }\n",
+      },
       why:
-        "THE COUNT-RATCHET DISCRIMINATOR (#2305, `v-css-family-2026-09-13.md` ledger row 4), committed as a " +
-        "row because it is the exact planted control that refuted the first leg's claim: a THIRD legitimate " +
-        "`:root` blur carrier, changing NO vocabulary anywhere. Under the retired " +
-        "`CLIENT_BLUR_FILL.size * 2` cardinality this reddened FIVE rows with `matched 6 … requires exactly " +
-        "4`; under COVERAGE it is silent, because every declared member is still written and nothing counts " +
-        "occurrences. A `SET.size * <literal>` expectation is a current-population count however it is " +
-        "spelled, and this row is what stops one coming back",
+        "THE COUNT-RATCHET DISCRIMINATOR, and its ARITHMETIC IS THE POINT (#2305, " +
+        "`v-css-unit-2-2026-09-13.md` ledger row 2). `CLIENT_BLUR_FILL.size` is 2, so the retired " +
+        "expectation was `size * 2` = FOUR DECLARATIONS, and the retired arm was " +
+        "`if (actual !== expected) report(…)`. `BLUR_SEAM_COMPLETE` ships ONE carrier writing 2 " +
+        "declarations, so this row must reach THREE carriers / SIX declarations to sit on the wrong side of " +
+        "that comparison — TWO carriers is exactly 4 and `4 !== 4` is false, which is why the earlier " +
+        "version of this row was SILENT under the very ratchet its `why` said it stopped. MEASURED, by " +
+        "re-introducing that arm beside the coverage loop in a scratch copy: this row reds with `matched 6 " +
+        "… requires exactly 4` while every other mustPass reds with `matched 2` (the healthy fixtures ship " +
+        "one carrier), so at two carriers this would be the ONE row the returning ratchet left silent. " +
+        "(The transplanted " +
+        "control had reddened five rows only because `BLUR_SEAM_COMPLETE` then carried two carriers; the " +
+        "same commit shrank it to one and took the discrimination with it.) At six declarations the retired " +
+        "arm reports `matched 6 … requires exactly 4`, and under COVERAGE this row is SILENT because every " +
+        "declared member is still written and occurrences are never counted. A `SET.size * <literal>` " +
+        "expectation is a current-population count however it is spelled, and THIS shape is what stops one " +
+        "coming back",
     },
   ],
   mustRefuse: [

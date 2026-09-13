@@ -504,11 +504,19 @@ function reportClosedSeamDrift(sheets: readonly SheetCensus[], inventory: CssFac
     return;
   }
   const prefixes = themeFamilyPrefixes(sheets.find((sheet) => sheet.rel === THEME)?.directTheme ?? []);
-  // A SEAM COUNT IS MEANINGLESS WITHOUT A GENERATED NAMESPACE. `reportGeneratedWriters` only ever counts a
-  // declaration inside a minted token family, so a corpus whose `@theme` block resolved nothing counts ZERO
-  // for every seam — three findings that all say "there is no generated output", which the
-  // `zero-theme-values` arm above already said once and precisely. The fence is the row that dies without
-  // it: `mustFlag[1]` (a theme.css with no `@theme` block) reports 2 with it and 5 without.
+  // SEAM COVERAGE IS UNASKABLE WITHOUT A GENERATED NAMESPACE, and the fence keeps the verdict to the arms
+  // that name the cause. `reportGeneratedWriters` only ever classifies a declaration inside a MINTED token
+  // family, so a corpus whose `@theme` block resolved nothing covers no member of any seam — and without
+  // this return every declared member of all three becomes its own finding, each of them saying "there is
+  // no generated output" in the voice of a missing seam member, on top of the two arms above that say it
+  // once and precisely. THE INVARIANT is that sentence, not a number: the count on the right-hand side is
+  // the seams' total declared membership, so it moves whenever a vocabulary does.
+  //
+  // Measured at the tip that wrote this comment (cut f23, fence deleted, driven against
+  // `css-family-ownership-health`): `mustFlag[1]` reports 2 with the fence and 14 without — the 12 declared
+  // members (8 density + 2 blur + 2 colorization) plus its own 2. The prose here said "three findings …
+  // 2 with it and 5 without", which was true of the RETIRED per-seam count and was left behind by the
+  // coverage rewrite five lines above (`v-css-unit-2-2026-09-13.md` ledger row 3).
   if (prefixes.size === 0) {
     return;
   }

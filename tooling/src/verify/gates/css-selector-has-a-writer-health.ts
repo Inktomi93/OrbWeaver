@@ -26,14 +26,29 @@
 // difference zero in both directions), so the retirement removes no live catch. The receipt for the
 // successor is `baseui-surface-manifest`'s own row, not this module's.
 //
-// AND THE SUCCESSOR'S PROOF IS NOT YET AS STRONG AS ITS CODE — cite #2297, do not claim closure
-// (`v-css-family-2026-09-13.md` ledger row 3, #2305). The `state` term IS proven: cutting
-// `|${part.state.join(",")}` out of `identity()` reds `baseui-surface-manifest:mustFlag[2]` alone. But that
-// gate's VANISHED-PART and VANISHED-COMPONENT directions — the direct analogue of the `baseUiManifestOnly`
-// arm retired here — are themselves measured unenforced by any proof row under OPEN #2297. So the mechanism
-// is strictly stronger (per part, state-carrying, two-sided, green on the real tree) while the evidence for
-// that one direction is, today, no stronger than the arm it replaced. Nothing is lost and nothing is
-// double-counted; the row that closes it is #2297's, not this module's.
+// THE SUCCESSOR IS PROVEN IN BOTH DIRECTIONS, and the sentence that said otherwise was BORN STALE — a
+// correction worth keeping because of how it happened (`v-css-unit-2-2026-09-13.md` ledger row 5, #2305).
+// The retirement above leans on `baseui-surface-manifest`, and each term it leans on is pinned:
+//   * the `state` term — cutting `|${part.state.join(",")}` out of `identity()` reds
+//     `baseui-surface-manifest:mustFlag[2]` alone;
+//   * the VANISHED-PART direction — its `mustFlag[3]`, `count: 2`, "`Select.Separator` vanished from the
+//     installed package";
+//   * the VANISHED-COMPONENT direction — its `mustFlag[4]`, `count: 1`, "component `Dialog` vanished from
+//     the installed package".
+// Those last two are the direct analogue of the `baseUiManifestOnly` arm retired here, and they landed in
+// `dea1061df` EIGHTEEN MINUTES before the commit that wrote "measured unenforced by any proof row" — an
+// ancestor of it, so the claim was false on the tree it shipped on. Read-first §0 ruling 3 is the rule it
+// broke: a recorded refusal is a snapshot, not a standing verdict, and it is re-derived before it is
+// inherited. #2297 stays OPEN for its OTHER rows and is cited for those, never for these three.
+//
+// #2309 DOES NOT REACH THIS CITATION, and the check is one read rather than an assumption: it is a
+// CHANGED-MODE SELECTION defect — a selected-files resource policy whose per-file visitors receive zero
+// source files when only a declared resource changed. `baseui-surface-manifest` declares
+// `population: { of: "none" }` and `execution: "entire-population"` and subscribes no visitor, so it has no
+// source population to under-select and defers whole under a narrowed request. The arms above cannot go
+// stale-clean by that mechanism — which held BEFORE #2309 was repaired (`x-resource-selection-2026-09-13.md`,
+// the `policy-effective-population` seam) and holds after it, because the reason is the declared population,
+// not the planner.
 //
 // AUTHORITY: `hard`. No marker door, and the legacy bare `@orb-gate-ignore` door had none in use — marker
 // census 0 = 0 = 0, measured 2026-09-12 over 7,725 tracked files with a 1,196-hit positive control.

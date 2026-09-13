@@ -537,6 +537,113 @@ dash belongs — invisible to tsc, biome, eslint and every gate, and wrong only 
 addressed to. Verified prose-only: `git diff -U0` shows no changed line outside a comment or a `why` field,
 `git diff --check` is clean, and the family suite is unchanged at 7 tests.
 
+## LEG 5 (#2305 residue) — the five points the re-lens verifier refuted
+
+The re-lens verifier (`v-css-unit-2-2026-09-13.md`) CONFIRMED both conversions and refuted five residue
+points. All five are closed below; every number here is measured on this branch, not predicted.
+
+### 1. The colorization member set had no proof row — now `mustFlag[5]`, and the cut pair proves it
+
+Density was held by `mustFlag[3]` and blur by `mustFlag[4]`; colorization was held by NOTHING, so emptying
+its declared vocabulary — silently disabling that seam's whole catch — was invisible to every declared row.
+The new row's fixture writes `--color-border` and not `--color-sidebar-border`, so exactly one declared
+member is uncovered and the finding names it (`expect: { count: 1, messageIncludes: "runtime writer seam
+colorization never writes --color-sidebar-border" }`).
+
+The seam × cut matrix, one child per cut, restored after each (`git status --short` clean between children):
+
+| cut | mutation | rows that die |
+| - | - | - |
+| b04 | `CLIENT_BLUR_FILL` emptied | 1 — `css-family-ownership-health:mustFlag[4]`, "expected at least one effective finding but got 0" |
+| b05 | bogus `--blur-fill-bogus` member added | 11 — five `mustFlag` (+1 finding each) and all six `mustPass` |
+| b06 | `CLIENT_COLORIZATION` emptied | 1 — `css-family-ownership-health:mustFlag[5]`, the NEW row (ZERO before it existed) |
+| b07 | bogus `--color-bogus` member added | 11 — five `mustFlag` (+1 finding each) and all six `mustPass` |
+
+The two seams now measure IDENTICALLY (1 / 11), which is what makes the pair a measurement rather than a
+coincidence — and b06's 0 → 1 is the whole point of the row.
+
+### 2. The "third blur carrier" row was a SECOND carrier and INERT — the arithmetic is now the row
+
+`CLIENT_BLUR_FILL.size` is 2, so the retired expectation was `size * 2` = FOUR DECLARATIONS and the retired
+arm was `if (actual !== expected) report(…)`. `BLUR_SEAM_COMPLETE` ships ONE carrier writing 2 declarations,
+so the committed "+1 carrier" row reached exactly 4 — `4 !== 4` is false, and the row was SILENT under the
+very ratchet its `why` said it stopped. (The brief's "+1" arithmetic was wrong and the orchestrator confirmed
+the correction: *"your arithmetic is right and my '+1' was wrong … Use THREE carriers / six declarations"*.
+The transplanted control had reddened five rows only because `BLUR_SEAM_COMPLETE` then carried TWO carriers;
+the same commit shrank it to one and took the discrimination with it.)
+
+`mustPass[5]` now carries THREE `:root` blur carriers — six declarations. **The corruption control, run:**
+re-introducing the retired `CLIENT_BLUR_FILL.size * 2` declaration count beside the coverage loop (a
+scratch-copy cut, restored) reds `mustPass[5]` with `runtime writer seam blur matched 6 declarations; the
+closed seam requires exactly 4`, while every OTHER `mustPass` reds with `matched 2` (the healthy fixtures
+ship one carrier). At two carriers this row would have been the ONE row the returning ratchet left silent —
+i.e. the only row that cannot detect its return. At six it is on the wrong side of the comparison by
+construction, and under COVERAGE it is silent because every declared member is still written.
+
+### 3. `css-family-policy.ts` — the fence comment's counts were the coverage rewrite's casualties
+
+The comment inside `reportClosedSeamDrift` still said "three findings … 2 with it and 5 without", true of
+the RETIRED per-seam count. It now states the INVARIANT ("seam coverage is unaskable without a generated
+namespace; the fence keeps the verdict to the arms that name the cause") and notes that the right-hand
+number is the seams' total declared membership, so it moves whenever a vocabulary does. **Measured (cut f23,
+fence deleted): `mustFlag[1]` reports 2 with the fence and 14 without** — the 12 declared members
+(8 density + 2 blur + 2 colorization) plus its own 2.
+
+### 4. `css-family-proof-fixtures.ts:107-121` — the JSDoc promised a cardinality the constants had dropped
+
+It still promised `CLIENT_BLUR_FILL.size * 2` = 4 over constants the same commit had shrunk to ONE carrier,
+contradicted by the `ONE CARRIER EACH` note five lines below it. Rewritten to the PRESENCE semantics plus the
+measured shape: density covers its 8 members with two arms; blur and colorization each cover their 2 members
+with one carrier writing 2 declarations; twelve declared members across the three seams — the same 12 the
+f23 measurement above independently produced.
+
+### 5. `css-selector-has-a-writer-health.ts` — the #2297 sentence outran the tree, and #2309 does not reach it
+
+The retirement sentence claimed the successor's VANISHED-PART and VANISHED-COMPONENT directions were
+"measured unenforced by any proof row under OPEN #2297". Both were already pinned. Re-derived on this tree:
+
+- `baseui-surface-manifest.ts:345` — `mustFlag[2]`, `count: 1`, the `state` term (its own `why` names it as
+  the row that dies when `part.state` is cut from `identity()`);
+- `:351` — `mustFlag[3]`, `count: 2`, "`Select.Separator` vanished from the installed package";
+- `:357` — `mustFlag[4]`, `count: 1`, "component `Dialog` vanished from the installed package".
+
+They landed in `dea1061df` (2026-09-12 23:09:23 -0600); the commit that wrote "measured unenforced" is
+`dd98eb356` (23:27:43 -0600) — **eighteen minutes later, and `dea1061df` is its ancestor**
+(`git merge-base --is-ancestor` exits 0), so the claim was false on the tree it shipped on. The rule it broke
+is read-first §0 ruling 3: a recorded refusal is a snapshot, not a standing verdict, and it is re-derived
+before it is inherited. #2297 stays OPEN for its other rows and is cited for those only.
+
+**#2309 does not reach this citation**, and the check is a read rather than an assumption: #2309 is a
+CHANGED-MODE SELECTION defect (a selected-files resource policy whose per-file visitors receive zero source
+files when only a declared resource changed). `baseui-surface-manifest` declares
+`population: { of: "none" }` (`:276`) and `execution: "entire-population"` (`:279`) and subscribes no
+visitor, so it has no source population to under-select and defers whole under a narrowed request. The three
+arms above cannot go stale-clean by that mechanism. That held before #2309 was repaired and holds after it —
+the repair (`x-resource-selection-2026-09-13.md`, the `policy-effective-population` seam) landed on main
+during this leg and arrived here in the pre-commit fast-forward; the reason the arms are out of reach is the
+DECLARED POPULATION, not the planner, so the repair changes neither the statement nor its receipt.
+
+### Leg-5 floor (scoped; no CT, no `pnpm check`, no policy-conformance, no whole-tree parser run)
+
+- `pnpm test:scoped` on the three suites — **3 files / 11 tests passed**, including "the css-hook-provenance
+  family keeps every declared proof arm" (which runs every `mustFlag`/`mustPass`/`mustRefuse` row of all five
+  policies).
+- `pnpm check:structure --family css-hook-provenance` — **exit 0**, `5 ran · raw 3 = waived 0 + granted 3 +
+  effective 0 (0 error, 0 warning) · 0 alarm(s) · 0 tool error(s) · 0 withheld`.
+- Six cut children (b04, b05, b06, b07, f23, the retired-ratchet corruption control), each applied to a
+  `.cbxcfu-bak`-backed copy and restored, with `git status --short` verified between children.
+- `pnpm exec biome check <5 files> --diagnostic-level=error` exit 0 · `pnpm exec eslint <5 files>` exit 0
+  (it caught a REAL defect first: a tsdoc code span I had split across two comment lines in the fixtures
+  JSDoc — `tsdoc-code-span-missing-delimiter` ×2 — fixed by joining it) ·
+  `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` exit 0, `2 runnable, both PASS`.
+
+**Every floor above was then RE-RUN after the pre-commit fast-forward onto main (`1b80182a7` → `06ebd7298`,
+10 commits, no conflict), because that ff changed `css-hook-provenance-family.test.ts` by +147 lines and
+landed the `policy-effective-population` seam under my policies.** Post-ff: the three suites pass **3 files /
+17 tests** (the family test now carries 13), `--family css-hook-provenance` is again exit 0 with
+`raw 3 = granted 3 + effective 0 · 0 withheld`, and biome / eslint / typecheck are all exit 0. The pre-ff
+numbers are kept above only to date the cut matrix, which was measured before the ff.
+
 ## Integration provenance (2026-09-13)
 
 The leg-3 repair `0a301b3e3` and leg-4 prose correction `95f4a9723` landed as `dd98eb356` and
