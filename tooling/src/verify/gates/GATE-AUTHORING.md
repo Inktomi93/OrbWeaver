@@ -231,6 +231,22 @@ port or intentional correction; retired private-marker census. Standing law §7 
 is not permission to omit a load-bearing constraint; source headers carry the detailed domain law. The scaffold is a
 starting point and must be checked against these obligations.
 
+A comment that asserts a GUARANTEE is a claim, wherever it sits: a header, a JSDoc block or an ordinary line comment
+beside the code. It owes a row or family control that fails when the stated property is removed, or it states plainly
+that nothing enforces the property. A comment that is right about what the code does can still be wrong about what is
+guaranteed, and the next editor treats it as a verified invariant. Choose the cheapest owner that can reach the
+property: a declared row for a fixture-expressible verdict — including a reviewed-grant consumption claim, which a
+`mustFlag` row proves by carrying a `grant: { subject, operation }` witness that conformance re-runs with that exact
+synthetic grant (§5) — and an importing family test driving `runPolicyPass` only when the claim concerns the actual
+central grant table, its wrong-identity, duplicate or stale boundaries, or anything else a single synthetic grant cannot
+express (#1997).
+
+A comment may quote a count of a set only when something derives that count at read time, or when the comment carries
+the command that re-derives it and the date it was taken. Otherwise it names the deriving reader, registry or pin and
+leaves the number out. A two-sided ratchet polices the set, not a prose count of it, so a literal describing a machine's
+answer rots whenever that answer changes (#2179). A dated one-time measurement is legitimate when it says it is a
+snapshot, with its date and method.
+
 Follow house dispatch/type style and native lint. Use a mapped `Record` where a single-arm switch creates an unreachable
 branch; use the appropriate multi-arm form when naming rules require it. Suppress only a genuine native-rule false
 positive at the exact line with its reason. Never run a tree-wide fix-all; the lane rules own permitted scoped formatting.
