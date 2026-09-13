@@ -128,10 +128,11 @@ export function createTupleVocabularyFacts(): {
  *  phase later, for that consumer only. That per-consumer door is the blindness tripwire, not this receipt.
  *
  *  THE `indexed === 0` REFUSAL ABOVE SURVIVES DELIBERATELY and is a narrower claim than the retired receipt:
- *  not "this vocabulary is empty" but "this collector indexed nothing at all across @client + @server +
- *  @contracts", which no real or fixture corpus carrying a single exported variable can produce, and which
- *  would otherwise answer `absent` for every name and read as a unanimous, confident nothing. It blocks no
- *  consumer arm — an absent-vocabulary fixture needs only one unrelated exported variable to index. */
+ *  not "this vocabulary is empty" but "this collector indexed nothing at all across `@client` +
+ *  `@server` + `@contracts`", which no real or fixture corpus carrying a single exported variable can
+ *  produce, and which would otherwise answer `absent` for every name and read as a unanimous, confident
+ *  nothing. It blocks no consumer arm — an absent-vocabulary fixture needs only one unrelated exported
+ *  variable to index. */
 export const tupleVocabularyFact = defineFact({
   id: "tuple-vocabularies",
   population: { in: ["@client", "@server", "@contracts"] },

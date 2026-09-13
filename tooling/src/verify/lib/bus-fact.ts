@@ -59,12 +59,13 @@ const CHAT_BUS = { path: "packages/contracts/src/chat/bus.ts", exportName: "Chat
 /** The provider receipt states the denominator this collector actually MEASURED — the authored sources it
  *  walked — and nothing about what the census FOUND.
  *
- *  WHY NOT THE CENSUS COUNTS: it was `members: <declared members>` plus `unresolved: <unresolved
- *  identities>` until 2026-09-11, and `factReceiptFailures` (`lib/policy-pass.ts`) refuses any fact receipt
- *  with `members === 0` or `unresolved > 0` and withholds EVERY consumer before `evaluate`. Both of those
- *  numbers are this fact's own MODELLED VALUE (`BusFact.status` / `BusFact.unresolved`), and both already
- *  have designated fail-closed owners: `bus-fact-health` (hard/error, no waiver door) REPORTS every
- *  missing/empty/dynamic/ambiguous/unsupported identity — its header calls that "fail hard here" — and
+ *  WHY NOT THE CENSUS COUNTS: it was `members: <declared members>` plus
+ *  `unresolved: <unresolved identities>` until 2026-09-11, and `factReceiptFailures` (`lib/policy-pass.ts`)
+ *  refuses any fact receipt with `members === 0` or `unresolved > 0` and withholds EVERY consumer before
+ *  `evaluate`. Both of those numbers are this fact's own MODELLED VALUE (`BusFact.status` /
+ *  `BusFact.unresolved`), and both already have designated fail-closed owners: `bus-fact-health`
+ *  (hard/error, no waiver door) REPORTS every missing/empty/dynamic/ambiguous/unsupported identity — its
+ *  header calls that "fail hard here" — and
  *  `recordReadyBusFact` throws for every ordinary consumer of a non-ready census. Filing them as receipt
  *  refusals made one cause produce both a violation and a "the checker is broken" verdict, and the tool
  *  error WON: `bus-fact-health` mustFlag[0] — the empty-corpus blind-instrument arm — could never reach
