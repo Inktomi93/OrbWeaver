@@ -16,7 +16,7 @@ export const gate = defineGate({
   create: (ctx) => ({
     evaluate: () => {
       const facts = readUiTierFacts(ctx);
-      const anchor = facts.files[0];
+      const anchor = ctx.files[0];
       if (anchor !== undefined && liveHomeFiles(facts, HOME).length === 0) {
         ctx.report.node(anchor, { message: `missing reviewed skin-fragment home: ${HOME}` });
       }
