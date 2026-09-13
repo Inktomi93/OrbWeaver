@@ -36,11 +36,17 @@ export interface ContextualMemberOrigin {
   readonly declarations: readonly Node[];
 }
 
-/** The declaration home of a node's TYPE: the alias symbol when the checker kept one, else the symbol. */
+/** A type declaration identity. Resolved-Type readers use the alias symbol when the checker kept one,
+ *  otherwise the type's symbol. The value-type query may retain an authored alias identity only when that
+ *  reference's resolved type occupies the declared data graph: root/union/intersection types, element/index
+ *  types and named data properties. This proves typed containment, not present runtime data or how it is used.
+ *  Callable parameters/results and erased reference occurrences do not establish containment, including a
+ *  supplied argument erased by a recursively expanding generic. */
 export interface TypeIdentityOrigin {
   readonly name: string;
   readonly node: Node;
-  /** True when the name came from an alias symbol (`GatedStoreHook<T>`) rather than a structural symbol. */
+  /** Resolved-Type readers: the name came from the type's alias symbol (`GatedStoreHook<T>`).
+   *  Value-type query's authored provenance: the resolved symbol declares a type alias. */
   readonly aliased: boolean;
   readonly declarations: readonly Node[];
 }

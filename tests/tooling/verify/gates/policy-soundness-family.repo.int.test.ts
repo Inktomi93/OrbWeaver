@@ -17,7 +17,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
-import { Node, Project, SyntaxKind } from "ts-morph";
+import { Node, Project, SyntaxKind, Type } from "ts-morph";
+import { vi } from "vitest";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { finalProbeModule, ORDINARY_TRUNK, POLICY_CONTRACT_PATH, POLICY_CONTRACT_STUB } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
@@ -57,6 +58,17 @@ const FORBIDDEN_HOME_IMPORT_RE =
  *  the sibling REGISTERS is read off its text with the registration shapes below. */
 const SIBLING_IMPORT_RE = /^(?:import|export) (?:type )?\{[^}]*\} from "\.\/([^/"]+)\.ts";$/gmu;
 const REGISTERS_RE = /^export const gate(?::| =)/mu;
+/** ARM D (#2320, the RECEIPT arm): a single-line import of a `../lib/<name>.ts` binding whose target declares
+ *  that very binding as an `ExemptionTable`/`ExemptionRow`-typed const. TEXT on both ends on purpose — the arm
+ *  resolves the binding's declaration through the checker and follows re-export chains, so an opinion that
+ *  resolved anything would agree with it by construction. It therefore sees only the ONE-HOP, ANNOTATED,
+ *  named-import shape measured at landing. It does NOT recognize local/nested type aliases; the independent
+ *  paired dispatch control below holds those forms. The live equality deliberately fails on an accusation
+ *  outside this narrow opinion so new corpus cases require source classification, not a copied expected count.
+ *  The binding LIST is read whole — the live `contract-derives-not-respells` door carries the table beside four
+ *  other names, and a single-binding regex called that module clean while the arm accused it. */
+const LIB_IMPORT_RE = /^import \{ ([^}]*) \} from "\.\.\/lib\/([a-z0-9-]+)\.ts";$/gmu;
+const EXEMPTION_CONST_RE = (binding: string): RegExp => new RegExp(`^export const ${binding}: Exemption(?:Table|Row)`, "mu");
 /** The PIN half of that opinion (#2274), also text: the family-test tree, the dispatcher's name, and the gate
  *  modules a test file imports. Deliberately a regex over the specifier rather than the module graph — the arm
  *  it judges walks the graph, so an opinion that walked it too would agree with the reader by construction. */
@@ -96,6 +108,41 @@ const PER_ROW_TIMEOUT_MS = scaledBudget(120_000);
  *  flake, not a verdict. */
 const REAL_CORPUS_TIMEOUT_MS = scaledBudget(600_000);
 
+/** Test-only fail-fast tripwire for any expanding generic. A removed production recurrence boundary must
+ *  fail an assertion rather than exhaust the test worker. This budget is not a production hop limit. */
+function withRecursiveTypeTripwire<T>(run: () => T): T {
+  const originalProperties = Type.prototype.getProperties;
+  const originalIntersections = Type.prototype.getIntersectionTypes;
+  const expansions = new Map<object, Set<object>>();
+  const record = (type: Type): void => {
+    const alias = type.getAliasSymbol();
+    const target = alias !== undefined && type.getAliasTypeArguments().length > 0 ? alias.compilerSymbol : undefined;
+    if (target === undefined) {
+      return;
+    }
+    const instances = expansions.get(target) ?? new Set<object>();
+    instances.add(type.compilerType);
+    expansions.set(target, instances);
+    if (instances.size > 64) {
+      throw new Error("TEST TRIPWIRE: expanding generic data graph crossed its recurrence boundary");
+    }
+  };
+  const propertySpy = vi.spyOn(Type.prototype, "getProperties").mockImplementation(function (this: Type) {
+    record(this);
+    return originalProperties.call(this);
+  });
+  const intersectionSpy = vi.spyOn(Type.prototype, "getIntersectionTypes").mockImplementation(function (this: Type) {
+    record(this);
+    return originalIntersections.call(this);
+  });
+  try {
+    return run();
+  } finally {
+    intersectionSpy.mockRestore();
+    propertySpy.mockRestore();
+  }
+}
+
 const ROOT = "/policy-soundness-family";
 const GATES_DIR = "tooling/src/verify/gates/";
 /** The guide's own honest shape test for "converted" (§2): a bare `defineGate` grep overcounts by the
@@ -119,10 +166,226 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
 test(
   "the policy-soundness family keeps its founding, near-miss, scope and declared-limit fixtures",
   () => {
-    expect(verifyPolicyProofs(FAMILY)).toEqual([]);
+    expect(withRecursiveTypeTripwire(() => verifyPolicyProofs(FAMILY))).toEqual([]);
   },
   CONFORMANCE_TIMEOUT_MS,
 );
+
+test("policy-legacy-imports holds canonical type aliases through the production pass independently of the text opinion", () => {
+  const subject = "tooling/src/verify/gates/alias-consumer.ts";
+  const producer = "tooling/src/verify/lib/alias-producer.ts";
+  const drive = (rowHome: string): ReturnType<typeof runPolicyPass> =>
+    passOf(policyLegacyImports, {
+      [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
+      [subject]: finalProbeModule(ORDINARY_TRUNK, 'import { ROWS } from "../lib/alias-producer.ts";\n'),
+      [producer]: [
+        `import type { ExemptionRow as Base } from "${rowHome}";`,
+        "type Row = Base & { readonly plane: string };",
+        "type Rows = Readonly<Record<string, Row>>;",
+        'export const ROWS: Rows = { a: { why: "w", plane: "types" } };',
+      ].join("\n"),
+      "tooling/src/verify/contract/gate.ts": "export interface ExemptionRow { readonly why: string }\n",
+      "tooling/src/verify/contract/other.ts": "export interface ExemptionRow { readonly why: string }\n",
+    });
+  const canonical = drive("../contract/gate.ts");
+  const unrelated = drive("../contract/other.ts");
+  for (const result of [canonical, unrelated]) {
+    expect(result.factErrors).toEqual([]);
+    expect(result.toolErrors).toEqual([]);
+    expect(result.authority.toolErrors).toEqual([]);
+    expect(result.authority.authorityAlarms).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    expect(result.policies.map(({ owner }) => owner)).toEqual([{ status: "success", population: "complete" }]);
+  }
+  expect(canonical.authority.effectiveFindings).toHaveLength(1);
+  expect(canonical.authority.effectiveFindings[0]).toMatchObject({ file: subject, token: '"../lib/alias-producer.ts"' });
+  expect(canonical.authority.effectiveFindings[0]?.message).toContain("contained canonical identity: ExemptionRow");
+  expect(unrelated.authority.effectiveFindings).toEqual([]);
+});
+
+test.each([
+  ["Readonly<{ child: Readonly<{ row: ExemptionRow }> }>", '{ child: { row: { why: "w" } } }', 1],
+  ["Box<Box<ExemptionRow>>", '{ value: { value: { why: "w" } } }', 1],
+  ['Record<"first", ExemptionRow>', '{ first: { why: "w" } }', 1],
+  ["{ first: ExemptionRow }", '{ first: { why: "w" } }', 1],
+  ["Readonly<{ first: ExemptionRow }>", '{ first: { why: "w" } }', 1],
+  ["Partial<{ first: ExemptionRow }>", "{}", 1],
+  ["Readonly<Vocabulary>", '{ first: { why: "w" } }', 1],
+  ["Readonly<Partial<{ nested: { rows: readonly ExemptionRow[] } }>>", "{}", 1],
+  ["Cycle", "{}", 1],
+  ["Left", "{}", 1],
+  ["Readonly<{ row: { why: string } }>", '{ row: { why: "w" } }', 0],
+  ["{ read: (row: ExemptionRow) => ExemptionRow }", "{ read: (row) => row }", 0],
+  ["{ read(row: ExemptionRow): ExemptionRow }", "{ read: (row) => row }", 0],
+  ["{ key: keyof ExemptionTable; erased: Phantom<ExemptionRow>; opaque: unknown }", '{ key: "k", erased: "s", opaque: undefined }', 0],
+  ["keyof ExemptionTable", '"subject"', 0],
+  ["Phantom<ExemptionTable>", '"subject"', 0],
+  ["Reader<ExemptionRow>", "(row) => row", 0],
+  ['ExemptionRow["why"]', '"subject"', 0],
+  ["Identity<ExemptionRow>", '{ why: "w" }', 1],
+  ["ExemptionTable[string]", '{ why: "w" }', 1],
+  ["ReturnType<() => ExemptionRow>", '{ why: "w" }', 1],
+  ["ExemptionRow extends object ? ExemptionRow : string", '{ why: "w" }', 1],
+  ["ExemptionRow extends object ? string : ExemptionRow", '"subject"', 0],
+])("policy-legacy-imports judges declared data containment for %s", (annotation, value, expected) => {
+  const subject = "tooling/src/verify/gates/value-consumer.ts";
+  const result = passOf(policyLegacyImports, {
+    [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
+    [subject]: finalProbeModule(ORDINARY_TRUNK, 'import { VALUE } from "../lib/value-producer.ts";\n'),
+    "tooling/src/verify/contract/gate.ts":
+      "export interface ExemptionRow { why: string }\nexport type ExemptionTable = Readonly<Record<string, ExemptionRow>>;",
+    "tooling/src/verify/lib/value-producer.ts": [
+      'import type { ExemptionRow, ExemptionTable } from "../contract/gate.ts";',
+      "type Phantom<T> = string;",
+      "type Reader<T> = (row: T) => T;",
+      "type Identity<T> = T;",
+      "type Box<T> = { value: T };",
+      "interface Vocabulary { readonly first: ExemptionRow }",
+      "interface Cycle { row?: ExemptionRow; next?: Cycle }",
+      "type Left = { right?: Right }; type Right = { left?: Left; row: ExemptionRow };",
+      `export const VALUE: ${annotation} = ${value};`,
+    ].join("\n"),
+  });
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.toolErrors).toEqual([]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.policies.map(({ owner }) => owner)).toEqual([{ status: "success", population: "complete" }]);
+  expect(result.authority.effectiveFindings).toHaveLength(expected);
+  for (const finding of result.authority.effectiveFindings) {
+    expect(finding.message).toContain("typed to carry canonical exemption data");
+    expect(finding.message).toContain("not present runtime rows or suppression use");
+  }
+  const expectedPositions = expected > 0 ? [{ file: subject, token: '"../lib/value-producer.ts"', canonicalRow: true }] : [];
+  expect(
+    result.authority.effectiveFindings.map(({ file, token, message }) => ({
+      file,
+      token,
+      canonicalRow: message?.includes("contained canonical identity: ExemptionRow") === true,
+    })),
+  ).toEqual(expectedPositions);
+});
+
+test.each([
+  ["{ next: Nested<T[]> }", []],
+  ["{ value: T; next: Nested<T[]> }", [{ file: "tooling/src/verify/gates/value-consumer.ts", token: '"../lib/value-producer.ts"', canonicalRow: true }]],
+] as const)("policy-legacy-imports judges actual data evidence before an expanding recursive edge in %s", (body, expectedFindings) => {
+  const subject = "tooling/src/verify/gates/value-consumer.ts";
+  const result = withRecursiveTypeTripwire(() =>
+    passOf(policyLegacyImports, {
+      [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
+      [subject]: finalProbeModule(ORDINARY_TRUNK, 'import { VALUE } from "../lib/value-producer.ts";\n'),
+      "tooling/src/verify/contract/gate.ts": "export interface ExemptionRow { why: string }",
+      "tooling/src/verify/lib/value-producer.ts": `import type { ExemptionRow } from "../contract/gate.ts";\ntype Nested<T> = ${body};\nexport declare const VALUE: Nested<ExemptionRow>;`,
+    }),
+  );
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.toolErrors).toEqual([]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.policies.map(({ owner }) => owner)).toEqual([{ status: "success", population: "complete" }]);
+  expect(
+    result.authority.effectiveFindings.map(({ file, token, message }) => ({
+      file,
+      token,
+      canonicalRow: message?.includes("contained canonical identity: ExemptionRow") === true,
+    })),
+  ).toEqual(expectedFindings);
+});
+
+test.each([
+  ["type N<T, D> = { value: D; next: N<D, T[]> };", "N<ExemptionRow, string>", { finding: true, refusal: false }],
+  ["type N<A, B, C> = { value: C; next: N<C, A, B[]> };", "N<ExemptionRow, string, number>", { finding: true, refusal: false }],
+  ["type A<T, U> = { b: B<T, U> }; type B<T, U> = { value: U; a: A<U, T[]> };", "A<ExemptionRow, string>", { finding: true, refusal: false }],
+  ["type N<T> = { value: T extends readonly unknown[] ? T[number] : never; next: N<T[]> };", "N<ExemptionRow>", { finding: true, refusal: false }],
+  ["type N<T, D> = { value: D; next: N<D, T> };", "N<ExemptionRow, string>", { finding: true, refusal: false }],
+  ["type N<T, D> = { value: Readonly<D>; next: N<D, T[]> };", "N<ExemptionRow, { x: 1 }>", { finding: true, refusal: false }],
+  [
+    "type N<T, D> = { value: Readonly<D>; next: N<D, T> };",
+    "N<ExemptionRow, string>",
+    { finding: false, refusal: true, message: "member provenance does not establish the containing value's type identity" },
+  ],
+  ["type N<A, B, C> = { value: A; next: N<{ k: B }, { k: C }, { k: A }> };", "N<string, number, ExemptionRow>", { finding: true, refusal: false }],
+  [
+    "type N<A, B, C, D> = { value: A; next: N<{ k: B }, { k: C }, { k: D }, { k: A }> };",
+    "N<string, number, boolean, ExemptionRow>",
+    { finding: true, refusal: false },
+  ],
+  [
+    "type N<A, B, C> = { value: A; next: N<Readonly<{ k: B }>, Readonly<{ k: C }>, Readonly<{ k: A }>> };",
+    "N<string, number, ExemptionRow>",
+    { finding: true, refusal: false },
+  ],
+  [
+    "type Box<T> = { k: T }; type N<A, B, C> = { value: A; next: N<Box<Box<B>>, Box<Box<C>>, Box<Box<A>>> };",
+    "N<string, number, ExemptionRow>",
+    { finding: true, refusal: false },
+  ],
+  [
+    'type Wrap<T> = { item: { k: T } }; type N<A, B, C> = { value: A; next: N<Wrap<B>["item"], Wrap<C>["item"], Wrap<A>["item"]> };',
+    "N<string, number, ExemptionRow>",
+    { finding: true, refusal: false },
+  ],
+  [
+    "type Box<T> = { k: T }; type N<A, B, C> = { value: A; next: Box<N<Box<B>, Box<C>, Box<A>>> };",
+    "N<string, number, ExemptionRow>",
+    { finding: true, refusal: false },
+  ],
+  [
+    "type N<A, B, C> = { value: A; next: Readonly<{ inner: N<Readonly<{ k: B }>, Readonly<{ k: C }>, Readonly<{ k: A }>> }> };",
+    "N<string, number, ExemptionRow>",
+    { finding: true, refusal: false },
+  ],
+  [
+    "type Box<T> = { k: T }; type N<A, B, C> = { value: string; next: Box<N<Box<B>, Box<C>, Box<A>>> };",
+    "N<string, number, ExemptionRow>",
+    { finding: false, refusal: false },
+  ],
+  ["type N<T, D> = { value: D } & { next: N<D, T[]> };", "N<ExemptionRow, string>", { finding: true, refusal: false }],
+  ["type N<T, D> = { value: string } & { next: N<D, T[]> };", "N<ExemptionRow, number>", { finding: false, refusal: false }],
+  ["type N<A, B, C> = { value: string; next: N<{ k: B }, { k: C }, { k: A }> };", "N<string, number, ExemptionRow>", { finding: false, refusal: false }],
+  ["type B<T> = { value: T; next: B<T[]> }; type N<T> = { nested: B<T>; next: N<T[]> };", "N<ExemptionRow>", { finding: true, refusal: false }],
+  ["type B<T> = { next: B<T[]> }; type N<T> = { nested: B<T>; next: N<T[]> };", "N<ExemptionRow>", { finding: false, refusal: false }],
+  ["type B<T> = { next: B<T[]> }; type N<T> = { next: N<T[]>; nested: B<T> };", "N<ExemptionRow>", { finding: false, refusal: false }],
+  ["type Box<T> = { k: T }; type N<T> = { next: Box<Box<N<T[]>>> };", "N<ExemptionRow>", { finding: false, refusal: false }],
+  ["type N<T = ExemptionRow> = { next: N<T[]> };", "N", { finding: false, refusal: false }],
+  ["type N<T> = { next: N<T[]> }; type Alias = N<ExemptionRow>;", "Alias", { finding: false, refusal: false }],
+  [
+    "type Later<T extends unknown[]> = T extends [unknown, unknown, unknown] ? ExemptionRow : string; type N<T extends unknown[]> = { value: Later<T>; next: N<[unknown, ...T]> };",
+    "N<[]>",
+    { finding: false, refusal: true, message: "recursively transported data candidate" },
+  ],
+  [
+    "type N<T extends unknown[]> = { value: ExemptionRow extends T[number] ? string : string; next: N<[unknown, ...T]> };",
+    "N<[]>",
+    { finding: false, refusal: false },
+  ],
+] as const)("policy-legacy-imports follows parameter recurrence in %s", (prelude, annotation, expected) => {
+  const result = withRecursiveTypeTripwire(() =>
+    passOf(policyLegacyImports, {
+      [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
+      "tooling/src/verify/gates/value-consumer.ts": finalProbeModule(ORDINARY_TRUNK, 'import { VALUE } from "../lib/value-producer.ts";\n'),
+      "tooling/src/verify/contract/gate.ts": "export interface ExemptionRow { why: string }",
+      "tooling/src/verify/lib/value-producer.ts": `import type { ExemptionRow } from "../contract/gate.ts";\n${prelude}\nexport declare const VALUE: ${annotation};`,
+    }),
+  );
+  expect({ finding: result.authority.effectiveFindings.length > 0, refusal: result.toolErrors.length > 0 }).toEqual({
+    finding: expected.finding,
+    refusal: expected.refusal,
+  });
+  expect(result.factErrors).toEqual([]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(
+    result.toolErrors.map(({ policyId, phase, message }) => ({
+      policyId,
+      phase,
+      expectedRefusal: expected.refusal && "message" in expected && message.includes(expected.message),
+    })),
+  ).toEqual(expected.refusal ? [{ policyId: policyLegacyImports.id, phase: "evaluate", expectedRefusal: true }] : []);
+  expect(result.authority.withheldPolicyIds).toEqual(expected.refusal ? [policyLegacyImports.id] : []);
+});
 
 test("policy-proof-expectations reads the actual package vocabulary and refuses an opaque effect on its source", ({ repoRoot }) => {
   const policyPath = "tooling/src/verify/gates/test-layout.ts";
@@ -687,12 +950,27 @@ test(
       [...text.matchAll(SIBLING_IMPORT_RE)].some((match) =>
         REGISTERS_RE.test(project.getSourceFile(`${repoRoot}/${GATES_DIR}${match[1]}.ts`)?.getFullText() ?? ""),
       );
+    // ARM D's half of the opinion (#2320): a `../lib/` binding whose target declares it as an exemption-typed
+    // const. Two-sided with the arms above — a relocation that lands and is never accused fails HERE.
+    const receivesExemptionTable = (text: string): boolean =>
+      [...text.matchAll(LIB_IMPORT_RE)].some(([, bindings, module]) => {
+        const source = project.getSourceFile(`${repoRoot}/tooling/src/verify/lib/${module}.ts`)?.getFullText() ?? "";
+        return (bindings ?? "").split(",").some((binding) => EXEMPTION_CONST_RE(binding.trim().replace(/^type /u, "")).test(source));
+      });
     const importOpinion = finals
-      .filter((sourceFile) => FORBIDDEN_HOME_IMPORT_RE.test(sourceFile.getFullText()) || importsSiblingGate(sourceFile.getFullText()))
+      .filter(
+        (sourceFile) =>
+          FORBIDDEN_HOME_IMPORT_RE.test(sourceFile.getFullText()) ||
+          importsSiblingGate(sourceFile.getFullText()) ||
+          receivesExemptionTable(sourceFile.getFullText()),
+      )
       .map(relative)
       .toSorted();
     expect(accusedBy(policyLegacyImports.id)).toEqual(importOpinion);
     expect(importOpinion.length).toBeGreaterThan(0);
+    // And the RECEIPT half is non-empty on today's tree, so the clause above is a measurement rather than a
+    // disjunct that never fires: the relocated tables of #2320 are live until the #1922 migration lands.
+    expect(finals.filter((sourceFile) => receivesExemptionTable(sourceFile.getFullText())).length).toBeGreaterThan(0);
     // The resolution arm is two-sided by CONTAINMENT, not equality: every module the unambiguous spellings name must
     // be accused (the arm is not blind), and every accused module must carry some member's spelling (the arm is not
     // inventing) — `getDeclarations` alone cannot be judged by text, which is the whole reason the arm reads types.
