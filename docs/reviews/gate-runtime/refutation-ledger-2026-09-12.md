@@ -1124,7 +1124,7 @@ Independent review refuted the intermediate repair before landing: stop-command 
 
 | module | defect | class | state | receipt |
 | - | - | - | - | - |
-| `lib/gate-program-rollup.ts`; `lib/citation-sources.ts` | An escaped or separatorless orphan defect row is silently excluded while a remaining valid table keeps configured ledger admission successful; rollup and citations agree on the same partial population. | parser blindness / incomplete denominator | **OPEN** (board #2348) | Production readers at `4be9ab21a`: the same two OPEN rows in a valid table yield rows 2 / citations 2; a blank line plus escaped leading pipe on the second row yields 1 / 1, as does a separatorless orphan, with no admission refusal. Both negative cases and the restored same-content control ran together. Six historical instances were restored by `7cd5ea7db`; data restoration did not repair admission. Require shared ledger-specific refusal for unadmitted row content while preserving prose/code and generic GFM semantics; no section/path/state roster. |
+| `lib/gate-program-rollup.ts`; `lib/citation-sources.ts` | An escaped or separatorless orphan defect row is silently excluded while a remaining valid table keeps configured ledger admission successful; rollup and citations agree on the same partial population. | parser blindness / incomplete denominator | **CLOSED** — `c220a8b29` (board #2348); independent correction review confirmed all four production readers refuse orphan and partially decoded tables, including adjacent escaped/compact/missing-leading-pipe rows; 55/55 owning tests pass, live census 80 tables / 538 rows reconciles | Production readers at `4be9ab21a`: the same two OPEN rows in a valid table yield rows 2 / citations 2; a blank line plus escaped leading pipe on the second row yields 1 / 1, as does a separatorless orphan, with no admission refusal. Both negative cases and the restored same-content control ran together. Six historical instances were restored by `7cd5ea7db`; data restoration did not repair admission. Require shared ledger-specific refusal for unadmitted row content while preserving prose/code and generic GFM semantics; no section/path/state roster. |
 
 ### Q02 independent closing review — expanding phantom generic, 2026-09-13
 
@@ -1152,7 +1152,7 @@ column, which is what the repaired method does.
 **Current counting method.** Use `deriveClassRollup` in
 `tooling/src/verify/lib/gate-program-rollup.ts`, the same production reader used by
 `classRollupDrift` in `tooling/src/verify/ops/ledgers-fresh.ts`. It reads tables between
-`## THE LEDGER` and `## CLASS ROLLUP` through the shared Markdown table reader, splits only unescaped
+`## THE LEDGER` and its next top-level h2 through shared Markdown admission, splits only unescaped
 pipes, locates each table's `state` column by name, and bins its first bolded word (otherwise its first
 word). The supported states are defined by `STATE_BINS`; unknown states and tables without a state
 column are reported, never silently dropped. Class selection follows the reader's ordered named-class
@@ -1176,8 +1176,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 17 | 0 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 342 | 309 | 10 | 1 | 3 | 1 | 0 | 18 |
-| **TOTAL** | 538 | 489 | 15 | 6 | 4 | 1 | 0 | 23 |
+| **other** | 342 | 310 | 9 | 1 | 3 | 1 | 0 | 18 |
+| **TOTAL** | 538 | 490 | 14 | 6 | 4 | 1 | 0 | 23 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 
