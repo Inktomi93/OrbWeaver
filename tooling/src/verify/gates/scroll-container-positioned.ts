@@ -50,18 +50,12 @@
 // POPULATION PORT: byte-identical. The legacy `scanRoot` was
 // `p.includes("packages/client/src/") || p.includes("packages/ui/src/")`; `["@client", "@ui"]` resolves to
 // exactly `packages/client/src/` + `packages/ui/src/` (`contract/population.ts`).
-// FAMILY: singleton `scroll-container-positioned` — this policy owns its own class-token classifier
-// (`splitVariants`/`terminalUtility`/`unpositionedScrollToken`) and shares no `lib/` reader with a sibling
-// today. That is a DECLARED singleton, not a happy one: `no-hover-display-swap` carries a byte-similar
-// `splitVariants`, and `no-off-token-radius-shadow`/`ui-size-via-variant` carry near-twins over their own
-// utility vocabularies — four independent consumers of one "split a class-string literal into whitespace
-// tokens, strip the variant chain and the `!` modifier, match the terminal EXACTLY" computation. That is a
-// real shared-`lib/` reader candidate (§12.4's two-or-more-consumers reopening condition), deliberately NOT
-// built here: it is a change to shared `lib/` across four final modules and belongs to its own lane, not to a
-// conversion running beside three siblings. Recorded so the next reader does not mistake the duplication for
-// an oversight.
+// FAMILY: `tailwind-class-token`, shared reader `lib/tailwind-class-token.ts`. The reader owns whitespace
+// offsets, bracket-aware variant splitting and both important-modifier spellings. This policy keeps the
+// vertical-scroll/containing-block vocabularies and its one-finding-per-literal verdict.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const MESSAGE =
   "vertical scroll container with NO positioning class in the same class string — it establishes no " +
@@ -88,70 +82,22 @@ const VERTICAL_SCROLL_UTILITIES: ReadonlySet<string> = new Set(["overflow-auto",
  *  absence of one and is deliberately NOT here. */
 const POSITION_UTILITIES: ReadonlySet<string> = new Set(["relative", "absolute", "fixed", "sticky"]);
 
-const WHITESPACE_RE = /\s+/u;
-/** Tailwind v4's IMPORTANT modifier in both registered spellings — it changes PRECEDENCE, not the property
- *  (the `ui-size-via-variant` blind-spot precedent: the matcher that skipped `!` under-reported by 14). */
-const IMPORTANT_RE = /^!|!$/gu;
-
-/** Split a class token into `[…variants, utility]` on TOP-LEVEL colons only — a colon inside an arbitrary
- *  variant's brackets/parens (`[@media(hover:hover)]:relative`) belongs to that variant. */
-function splitVariants(token: string): string[] {
-  const out: string[] = [];
-  let depth = 0;
-  let start = 0;
-  for (let i = 0; i < token.length; i += 1) {
-    const ch = token[i];
-    if (ch === "[" || ch === "(") {
-      depth += 1;
-    } else if (ch === "]" || ch === ")") {
-      depth -= 1;
-    } else if (ch === ":" && depth === 0) {
-      out.push(token.slice(start, i));
-      start = i + 1;
-    }
-  }
-  out.push(token.slice(start));
-  return out;
-}
-
-/** The utility a class token resolves to, variants and `!` stripped. */
-function terminalUtility(token: string): string {
-  const segments = splitVariants(token);
-  return (segments.at(-1) ?? token).replace(IMPORTANT_RE, "");
-}
-
-/** Strip a literal's delimiters: StringLiteral is `"text"`, NoSubstitutionTemplateLiteral is \`text\`,
- *  TemplateHead is \`text$\{, TemplateMiddle is \}text$\{, TemplateTail is \}text\` — one char
- *  off each end in every case. */
-function stripDelimiters(text: string): string {
-  return text.slice(1, -1);
-}
-
 /** The first vertical-scroll token in this literal that the literal does NOT balance with a positioning
  *  token, plus its 0-based offset into the enclosing NODE's text. ONE finding per literal: the fix is a
  *  single class, so N scroll tokens in one string are one defect, not N — which is also what makes the
  *  site waivable, since two findings sharing a carrier AND a token are unsuppressible by any marker. */
 function unpositionedScrollToken(nodeText: string): { readonly token: string; readonly offset: number } | undefined {
-  const stripped = stripDelimiters(nodeText);
-  const parts: { readonly part: string; readonly at: number }[] = [];
-  let cursor = 0;
-  for (const part of stripped.split(WHITESPACE_RE)) {
-    const at = stripped.indexOf(part, cursor);
-    cursor = at + part.length;
-    if (part.length > 0) {
-      parts.push({ part, at });
-    }
-  }
-  const scroller = parts.find((p) => VERTICAL_SCROLL_UTILITIES.has(terminalUtility(p.part)));
-  if (scroller === undefined || parts.some((p) => POSITION_UTILITIES.has(terminalUtility(p.part)))) {
+  const parts = readTailwindClassTokens(nodeText);
+  const scroller = parts.find((part) => VERTICAL_SCROLL_UTILITIES.has(part.utility));
+  if (scroller === undefined || parts.some((part) => POSITION_UTILITIES.has(part.utility))) {
     return;
   }
-  return { token: scroller.part, offset: scroller.at + 1 };
+  return { token: scroller.token, offset: scroller.offset };
 }
 
 export const gate = defineGate({
   id: "scroll-container-positioned",
-  family: "scroll-container-positioned",
+  family: "tailwind-class-token",
   authority: "ordinary",
   severity: "error",
   population: ["@client", "@ui"],

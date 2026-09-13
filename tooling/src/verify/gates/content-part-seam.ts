@@ -12,17 +12,11 @@
 // declaration moves out of `packages/contracts/src/chat/`, the receipt goes to zero members and the run
 // REFUSES rather than rendering a clean pass over a rule that has quietly stopped having a subject.
 //
-// VISITOR SPACE MATCHES THE SUBJECT'S SPACE: `ChatContentPart` is `export type` — a TYPE-ONLY symbol that
-// can never appear at a value position, so a `PropertyAccessExpression`/`ElementAccessExpression` candidate
-// (the shape a VALUE-subject sibling gate like `no-direct-users-read`/`scrubber-home` visits) is not merely
-// unproven here, it is STRUCTURALLY UNREACHABLE — no member arm was ever fired by a `mustFlag` row, because
-// no real occurrence of it can exist. That member visitor is REMOVED rather than carried; a gate that visits
-// a node kind its own subject cannot occupy is a false claim of coverage, and the shared reader behind it
-// (`readMemberReference`) is a VALUE-space reader that could never have resolved a type declaration anyway.
-// The real gap left by removing it — a namespace-qualified TYPE reference (`chat.ChatContentPart`, a
-// `QualifiedName` in type position) — is the one this policy's own `mustPass` row records as a DECLARED
-// LIMIT: no shared reader in `lib/` normalizes a type-position `QualifiedName` today, so closing it needs
-// that reader built first, not a fixture pretending a type occupies a value node.
+// VISITOR SPACE MATCHES THE SUBJECT'S SPACE: `ChatContentPart` is `export type` — a TYPE-ONLY symbol, so
+// direct imports arrive as `ImportSpecifier` and namespace-qualified references arrive as `QualifiedName`.
+// The shared origin reader normalizes both value-member and type-qualified paths; this policy visits only
+// the two node kinds its own type subject can occupy. `PropertyAccessExpression`/`ElementAccessExpression`
+// remain structurally unreachable here and are not claimed as coverage.
 //
 // AUTHORITY IS reviewed-grant. The seam members are not per-occurrence mistakes; each is a recurring
 // repository PERMISSION with its own reason, so each is one exact `(subject, operation)` row in the central
@@ -67,12 +61,11 @@ const FIX =
   "keep `content: string` upstream; ChatContentPart is produced ONCE at the request seam's CONVERT step (domain/chat/substrate/wire-history.ts) and consumed only by the sealed runner tier.";
 
 /** THE CANDIDATE PREFILTER: an `ImportSpecifier`'s `getName()` is the ORIGINAL exported name even under an
- *  alias, and a namespace member is spelled with the exported name too, so gating on the sealed NAME loses
+ *  alias, and a namespace-qualified type's right side is the exported name. Gating on the sealed NAME loses
  *  only a re-export under a DIFFERENT name — a declared limit with its own row, and one the legacy reader
- *  carried as well. `ChatContentPart` is type-only, so the candidate space is ImportSpecifier alone; every
- *  candidate still pays full origin resolution. */
+ *  carried as well. Every candidate still pays full origin resolution. */
 function candidate(node: MorphNode): MorphNode | undefined {
-  return Node.isImportSpecifier(node) && node.getName() === SYMBOL ? node : undefined;
+  return (Node.isImportSpecifier(node) && node.getName() === SYMBOL) || (Node.isQualifiedName(node) && node.getRight().getText() === SYMBOL) ? node : undefined;
 }
 
 export const gate = defineGate({
@@ -92,7 +85,7 @@ export const gate = defineGate({
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.ImportSpecifier],
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.QualifiedName],
           visit: (node, sourceFile: SourceFile) => {
             const anchor = candidate(node);
             if (anchor === undefined) {
@@ -175,8 +168,6 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "FAIL-CLOSED — a `ChatContentPart` door that resolves to nothing is reported; a seam an unreadable module can walk through is not one",
     },
-  ],
-  mustPass: [
     {
       mode: "types",
       files: {
@@ -184,8 +175,11 @@ export const gate = defineGate({
         "packages/server/src/domain/chat/verbs/ns.ts":
           'import type * as chat from "../../../../../contracts/src/chat/bus.ts";\nexport type T = chat.ChatContentPart;\n',
       },
-      why: "DECLARED LIMIT, written down rather than assumed: `ChatContentPart` is a TYPE-only symbol, so its namespace spelling is a `QualifiedName` in type position — not a `PropertyAccessExpression` — and no shared reader normalizes that node today. The legacy import-keyed detector was blind to it too, so this is a written baseline plus a runtime follow-up, not a regression",
+      expect: { count: 1, messageIncludes: "ns.ts" },
+      why: "A namespace-qualified TYPE reference resolves through the shared origin reader to the same canonical ChatContentPart declaration",
     },
+  ],
+  mustPass: [
     {
       mode: "types",
       files: {

@@ -196,6 +196,17 @@ export const gate = defineGate({
       files: {
         ...REACT_PROOF,
         ...REGISTRY_PROOF,
+        "packages/client/src/state/namespace-registry-context.ts":
+          'import { createContext } from "react";\nimport type * as registry from "../lib/registry.ts";\nexport const C = createContext<registry.Registry<string, number> | null>(null);\n',
+      },
+      expect: { count: 1 },
+      why: "THE NAMESPACE-QUALIFIED TYPE spelling: `registry.Registry` resolves through the shared module-origin reader to the same canonical registry vocabulary",
+    },
+    {
+      mode: "types",
+      files: {
+        ...REACT_PROOF,
+        ...REGISTRY_PROOF,
         "packages/client/src/state/g2-registry-context.ts":
           'import { createContext } from "react";\nimport type { Registry } from "../lib/registry.ts";\ntype SectionRegistry = Registry<string, number>;\nexport const C = createContext<SectionRegistry | null>(null);\n',
       },

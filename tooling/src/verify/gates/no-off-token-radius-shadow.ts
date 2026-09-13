@@ -8,16 +8,14 @@
 // PORT — it had been EMPTY since the DC8 overlay-primitive retrofit wave paid down its last survivor —
 // so there is nothing for the central `ordinary` marker/grant reconciliation to inherit. A future
 // legitimate off-token site is suppressed with `@orb-waive no-off-token-radius-shadow(<position>):
-// <reason>` at the exact offending token, not a re-grown file table. FAMILY: singleton — this policy
-// owns its own local class-token classifier (`isBannedScale`/`bannedTokens`); it shares no `lib/`
-// reader with any sibling gate today. `no-hover-display-swap` and `ui-size-via-variant` repeat the same
-// "split a class-string node into whitespace tokens, strip the variant chain, classify the terminal
-// segment" SHAPE with their own regex vocabularies — a real MERGE candidate for a future lane, not
-// forced here (each classifies a disjoint token vocabulary and `ui-size-via-variant` is blocked on the
-// `packages/**` fence — see this lane's report).
+// <reason>` at the exact offending token, not a re-grown file table. FAMILY: `tailwind-class-token`, shared
+// reader `lib/tailwind-class-token.ts`. The reader owns whitespace offsets and bracket-aware terminal
+// parsing; this policy deliberately classifies the authored terminal before important normalization to
+// preserve its existing vocabulary, and keeps its carrier fence and per-token reports.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const MESSAGE =
   "off-token default-scale radius/shadow utility (design-enforcement.md §3, DC8) — resolves against " +
@@ -37,12 +35,10 @@ const FIX =
 
 const RADIUS_SCALE_RE = /^rounded-(?:sm|md|lg|xl|2xl|3xl|4xl)$/u;
 const SHADOW_SCALE_RE = /^shadow(?:-(?:sm|md|lg|xl|2xl|3xl|inner))?$/u;
-const WHITESPACE_RE = /\s+/u;
 
 /** Is this whitespace-split class token a banned off-token radius/shadow default-scale utility
  *  (terminal segment after stripping variant modifiers)? */
-function isBannedScale(token: string): boolean {
-  const terminal = token.split(":").at(-1) ?? token;
+function isBannedScale(terminal: string): boolean {
   return RADIUS_SCALE_RE.test(terminal) || SHADOW_SCALE_RE.test(terminal);
 }
 
@@ -57,26 +53,13 @@ interface BannedToken {
 /** Strip a template-literal part's delimiters: TemplateHead is \`text$\{, TemplateMiddle is
  *  \}text$\{, TemplateTail is \}text\`, NoSubstitutionTemplateLiteral is \`text\` — one
  *  backtick-or-brace char off each end in every case. */
-function stripTemplateDelimiters(text: string): string {
-  return text.slice(1, -1);
-}
-
 /** Every banned class token in a class-string-carrier node's text, with its offset into `node.getText()`.
  *  Splits on whitespace and tracks the running position so each token's column is exact. The leading `+1`
  *  accounts for the stripped delimiter (backtick / quote / `}` — always one char). */
 function bannedTokens(nodeText: string): BannedToken[] {
-  const stripped = stripTemplateDelimiters(nodeText);
-  const out: BannedToken[] = [];
-  const parts = stripped.split(WHITESPACE_RE);
-  let cursor = 0;
-  for (const part of parts) {
-    const at = stripped.indexOf(part, cursor);
-    cursor = at + part.length;
-    if (part.length > 0 && isBannedScale(part)) {
-      out.push({ token: part, offset: at + 1 });
-    }
-  }
-  return out;
+  return readTailwindClassTokens(nodeText)
+    .filter((part) => isBannedScale(part.terminal))
+    .map(({ token, offset }) => ({ token, offset }));
 }
 
 const CLASS_STRING_CALLEES: ReadonlySet<string> = new Set(["cn", "clsx", "cva", "tv"]);
@@ -102,7 +85,7 @@ function isClassStringSite(node: Node): boolean {
 
 export const gate = defineGate({
   id: "no-off-token-radius-shadow",
-  family: "no-off-token-radius-shadow",
+  family: "tailwind-class-token",
   authority: "ordinary",
   severity: "error",
   population: ["@client", "@ui"],

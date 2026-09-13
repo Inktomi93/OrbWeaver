@@ -12,9 +12,12 @@
 // module-level `seenAllowlistEntries` accumulator and the real-tree anchor that existed only to keep the
 // vacuous arm off conformance's synthetic projects. A genuine future exemption is a central reviewed
 // grant, never a resurrected gate-local table.
+// BINDING RESOLUTION (#2163): a `renderItem={renderRow}` alias resolves through the shared
+// `resolveStableExpression` reader, then this policy retains its same-file callback fence.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
+import { resolveStableExpression } from "../lib/reference-fact.ts";
 
 const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
 
@@ -109,14 +112,12 @@ function resolveRenderCallback(expr: Node): Node | undefined {
   if (!Node.isIdentifier(expr)) {
     return;
   }
-  const arrowDef = expr
-    .getDefinitionNodes()
-    .filter(Node.isVariableDeclaration)
-    .map((def) => def.getInitializer())
-    .filter((init) => init !== undefined)
-    .map(unwrapParens)
-    .find(Node.isArrowFunction);
-  return arrowDef;
+  const resolved = resolveStableExpression(expr);
+  if (resolved.kind === "unresolved" || resolved.value.getSourceFile() !== expr.getSourceFile()) {
+    return;
+  }
+  const callback = unwrapParens(resolved.value);
+  return Node.isArrowFunction(callback) ? callback : undefined;
 }
 
 /** Every `renderItem={…}`/`renderRow={…}` JSX attribute's value expression in the file. */

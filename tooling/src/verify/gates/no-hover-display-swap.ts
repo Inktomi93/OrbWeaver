@@ -35,15 +35,12 @@
 // PORT — it had been EMPTY since the gate's own landing commit migrated every live instance onto the
 // reserved-box posture. A future legitimate hover-keyed display swap is suppressed with `@orb-waive
 // no-hover-display-swap(<position>): <reason>` at the exact offending token, not a re-grown file table.
-// FAMILY: singleton — this policy owns its own local variant/token classifier
-// (`isHoverVariant`/`splitVariants`/`isHoverDisplaySwap`); it shares no `lib/` reader with any sibling
-// gate today. `no-off-token-radius-shadow` and `ui-size-via-variant` repeat the same "split a
-// class-string node into whitespace tokens, strip the variant chain, classify the terminal segment"
-// SHAPE with their own regex vocabularies — a real MERGE candidate for a future lane, not forced here
-// (each classifies a disjoint token vocabulary and `ui-size-via-variant` is blocked on the `packages/**`
-// fence — see this lane's report).
+// FAMILY: `tailwind-class-token`, shared reader `lib/tailwind-class-token.ts`. The reader owns whitespace
+// offsets, bracket-aware variant splitting and both important-modifier spellings. This policy keeps the
+// hover-selector/display vocabularies, its unfenced carrier decision and per-token reports.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const MESSAGE =
   "hover-keyed DISPLAY utility — a hit-test oscillator. A display swap driven by hover removes a box from " +
@@ -93,12 +90,6 @@ const HOVER_VARIANT_RE = /^(?:not-)?(?:group-|peer-)?hover(?:\/[A-Za-z0-9_-]+)?$
 // An ARBITRARY variant that hand-writes the pseudo-class (`[&:hover]:hidden`, `[@media(hover:hover)]` is
 // NOT this — it has no `&`). Keyed on the selector form so the bracket escape hatch is closed too.
 const ARBITRARY_HOVER_VARIANT_RE = /^\[&[^\]]*:hover[^\]]*\]$/u;
-const WHITESPACE_RE = /\s+/u;
-// The Tailwind IMPORTANT modifier in BOTH spellings the v4 engine registers (`!hidden` + `hidden!`) — it
-// changes PRECEDENCE, not the property, so stripping it is required (the `ui-size-via-variant` precedent:
-// the `!` form is the worse one, it wins by force).
-const IMPORTANT_RE = /^!|!$/gu;
-
 function isHoverVariant(variant: string): boolean {
   return HOVER_VARIANT_RE.test(variant) || ARBITRARY_HOVER_VARIANT_RE.test(variant);
 }
@@ -106,34 +97,13 @@ function isHoverVariant(variant: string): boolean {
 /** Split a class token into `[…variants, utility]` on TOP-LEVEL colons only — a colon inside an arbitrary
  *  variant's brackets/parens (`[&:hover]:hidden`, `[@media(hover:hover)]:flex`) belongs to that variant, and
  *  a naive `token.split(":")` shreds it into segments that match nothing. */
-function splitVariants(token: string): string[] {
-  const out: string[] = [];
-  let depth = 0;
-  let start = 0;
-  for (let i = 0; i < token.length; i += 1) {
-    const ch = token[i];
-    if (ch === "[" || ch === "(") {
-      depth += 1;
-    } else if (ch === "]" || ch === ")") {
-      depth -= 1;
-    } else if (ch === ":" && depth === 0) {
-      out.push(token.slice(start, i));
-      start = i + 1;
-    }
-  }
-  out.push(token.slice(start));
-  return out;
-}
-
 /** Is this whitespace-split class token a hover-keyed display swap — a `display` utility whose variant
  *  chain contains a hover key? */
-function isHoverDisplaySwap(token: string): boolean {
-  const segments = splitVariants(token);
-  const terminal = (segments.at(-1) ?? token).replace(IMPORTANT_RE, "");
-  if (!DISPLAY_UTILITIES.has(terminal)) {
+function isHoverDisplaySwap(token: ReturnType<typeof readTailwindClassTokens>[number]): boolean {
+  if (!DISPLAY_UTILITIES.has(token.utility)) {
     return false;
   }
-  return segments.slice(0, -1).some(isHoverVariant);
+  return token.variants.some(isHoverVariant);
 }
 
 /** A single offending token + its 0-based char offset into the ENCLOSING NODE's text (one past the leading
@@ -147,27 +117,15 @@ interface SwapToken {
 /** Strip a template-literal part's delimiters: TemplateHead is \`text$\{, TemplateMiddle is
  *  \}text$\{, TemplateTail is \}text\`, NoSubstitutionTemplateLiteral is \`text\` — one
  *  backtick-or-brace char off each end in every case (StringLiteral: one quote). */
-function stripDelimiters(text: string): string {
-  return text.slice(1, -1);
-}
-
 function swapTokens(nodeText: string): SwapToken[] {
-  const stripped = stripDelimiters(nodeText);
-  const out: SwapToken[] = [];
-  let cursor = 0;
-  for (const part of stripped.split(WHITESPACE_RE)) {
-    const at = stripped.indexOf(part, cursor);
-    cursor = at + part.length;
-    if (part.length > 0 && isHoverDisplaySwap(part)) {
-      out.push({ token: part, offset: at + 1 });
-    }
-  }
-  return out;
+  return readTailwindClassTokens(nodeText)
+    .filter(isHoverDisplaySwap)
+    .map(({ token, offset }) => ({ token, offset }));
 }
 
 export const gate = defineGate({
   id: "no-hover-display-swap",
-  family: "no-hover-display-swap",
+  family: "tailwind-class-token",
   authority: "ordinary",
   severity: "error",
   population: ["@client", "@ui"],

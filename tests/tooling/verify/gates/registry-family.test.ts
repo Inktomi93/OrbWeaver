@@ -255,6 +255,7 @@ test.each([
 test("the same corpus with every vocabulary resolving accuses the parallel map — the control", () => {
   const result = passOf(noParallelSectionMap, { ...PARALLEL_MAP_PRELUDE, "packages/client/src/state/config-group-ids.ts": CONFIG_GROUP_TUPLE });
 
+  expect(result.facts).toMatchObject([{ id: "tuple-vocabularies", status: "success" }]);
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.withheldPolicyIds).toEqual([]);
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "no-parallel-section-map", token: "personas" }]);

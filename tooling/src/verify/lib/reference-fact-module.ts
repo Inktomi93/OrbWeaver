@@ -1,79 +1,27 @@
 // Module-origin traversal for reference-fact.ts, separated from static expression/value resolution.
 import type { BindingElement, ExportSpecifier, ImportClause, ImportSpecifier, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type {
-  ModuleMemberOrigin,
-  ReferenceFact,
-  ReferenceResolutionServices,
-  ReferenceUnresolvedReason,
-  ResolvedReferenceFact,
-  UnresolvedReferenceFact,
-} from "../contract/reference-fact.ts";
+import type { ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices, ResolvedReferenceFact } from "../contract/reference-fact.ts";
+import { bindingElementName } from "./reference-fact-binding-name.ts";
+import { overloadHome } from "./reference-fact-overload.ts";
+import type { ModuleState } from "./reference-fact-state.ts";
+import {
+  appendTrace,
+  cloneModuleState,
+  declarationOf,
+  enterDeclaration,
+  enterSymbol,
+  inspectStableBinding,
+  mergeUnresolved,
+  moduleState,
+  resolved,
+  unresolved,
+} from "./reference-fact-state.ts";
 
-interface ModuleState {
-  readonly declarations: MorphNode[];
-  readonly visited: Set<object>;
-  readonly services: ReferenceResolutionServices;
-}
 type NamespaceBinding =
   | { readonly kind: "project"; readonly moduleSpecifier: string; readonly declaration: MorphNode; readonly sourceFile: SourceFile }
   | { readonly kind: "external"; readonly moduleSpecifier: string; readonly declaration: MorphNode };
 type CanonicalModuleTarget = ModuleMemberOrigin["canonical"];
-const state = (services: ReferenceResolutionServices): ModuleState => ({ declarations: [], visited: new Set<object>(), services });
-const cloneState = (input: ModuleState): ModuleState => ({ ...input, declarations: [...input.declarations], visited: new Set(input.visited) });
-function appendDeclaration(target: ModuleState, declaration: MorphNode): void {
-  if (!target.declarations.some((existing) => existing.compilerNode === declaration.compilerNode)) {
-    target.declarations.push(declaration);
-  }
-}
-function appendTrace(target: ModuleState, declarations: readonly MorphNode[]): void {
-  for (const declaration of declarations) {
-    appendDeclaration(target, declaration);
-  }
-}
-function enterDeclaration(target: ModuleState, declaration: MorphNode): boolean {
-  const identity: object = declaration.compilerNode;
-  if (target.visited.has(identity)) {
-    return false;
-  }
-  target.visited.add(identity);
-  appendDeclaration(target, declaration);
-  return true;
-}
-function enterSymbol(target: ModuleState, symbol: MorphSymbol): boolean {
-  const identity: object = symbol.compilerSymbol;
-  if (target.visited.has(identity)) {
-    return false;
-  }
-  target.visited.add(identity);
-  return true;
-}
-function resolved<T>(value: T, target: ModuleState, origin: MorphNode): ResolvedReferenceFact<T> {
-  return { kind: "resolved", value, trace: { declarations: [...target.declarations], origin } };
-}
-function unresolved(reason: ReferenceUnresolvedReason, node: MorphNode, target: ModuleState, detail: string): UnresolvedReferenceFact {
-  return { kind: "unresolved", reason, detail, node, trace: { declarations: [...target.declarations], origin: node } };
-}
-function mergeUnresolved(fact: UnresolvedReferenceFact, target: ModuleState): UnresolvedReferenceFact {
-  appendTrace(target, fact.trace.declarations);
-  return unresolved(fact.reason, fact.node, target, fact.detail);
-}
-function inspectStableBinding(declaration: MorphNode, target: ModuleState, services: ReferenceResolutionServices): UnresolvedReferenceFact | undefined {
-  if (!enterDeclaration(target, declaration)) {
-    return unresolved("cycle", declaration, target, `binding cycle at ${declaration.getText()}`);
-  }
-  const fact = services.inspectStableBinding(declaration);
-  appendTrace(target, fact.trace.declarations);
-  return fact.kind === "unresolved" ? mergeUnresolved(fact, target) : undefined;
-}
-function declarationOf(identifier: import("ts-morph").Identifier, target: ModuleState, services: ReferenceResolutionServices): ReferenceFact<MorphNode> {
-  const fact = services.declarationOf(identifier);
-  if (fact.kind === "unresolved") {
-    return mergeUnresolved(fact, target);
-  }
-  return resolved(fact.value, target, fact.value);
-}
-
 function importDeclarationOf(node: MorphNode): import("ts-morph").ImportDeclaration | undefined {
   return node.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
 }
@@ -87,62 +35,6 @@ const projectTarget = (declaration: MorphNode, exportedName: string): CanonicalM
   exportedName,
   declaration,
 });
-
-/** The ONE declaration kind a MODULE EXPORT symbol may legitimately carry more than once and still name one
- *  home: a function-overload set — signatures plus at most one implementation, or an ambient
- *  `declare function` set in a `.d.ts`.
- *
- *  It is deliberately not the whole TypeScript overload vocabulary. A `MethodDeclaration`/`MethodSignature`/
- *  call-signature overload set belongs to a symbol reached off a TYPE (`type-member-origin.ts`), which this
- *  axis cannot produce: every symbol that reaches here comes from `SourceFile#getExportSymbols()` or an
- *  export specifier's aliased symbol, so its declarations are module-level. Admitting kinds this reader
- *  cannot be handed would be an arm no proof row could ever turn red.
- *
- *  Everything else that yields several declarations for one exported name — an `interface`+`const` merge, a
- *  `function`+`namespace` merge, a two-file ambient module merge, an `export *` fan-in — is genuinely more
- *  than one declaration or has no unique home, and stays `ambiguous`. */
-const OVERLOAD_DECLARATION_KINDS: ReadonlySet<SyntaxKind> = new Set<SyntaxKind>([SyntaxKind.FunctionDeclaration]);
-
-/** The one declaration of an overload set that carries a body. Two bodies is not an overload set at all
- *  (it is a duplicate implementation), so the home stays unproven. */
-function isOverloadImplementation(declaration: MorphNode): boolean {
-  return Node.isFunctionDeclaration(declaration) && declaration.getBody() !== undefined;
-}
-
-/** ONE identity home for several declarations of one symbol, or `undefined` when they are genuinely
- *  different declarations.
- *
- *  WHY THIS EXISTS: a declaration COUNT is not an identity question. `useState`, drizzle-orm's `inArray`,
- *  `@trpc/server`'s `TRPCError` and our own `defineBusChannel` each have N declarations that are ONE symbol
- *  in ONE file (overload signatures plus an implementation, or an ambient `declare` set in a `.d.ts`), so the
- *  home is unique even though the count is not — and refusing them as `ambiguous` cost three policy families a
- *  loud "unreadable" where the precise verdict existed, and closed the `.publish` door for every bus channel
- *  on the tree (bus-pair-1584.md §1). The set is admitted only when every declaration is the same overloadable
- *  KIND, in the same SOURCE FILE, with at most one implementation body; the home is the implementation when
- *  there is one, otherwise the first signature. Two files, a value/type merge, and an `export *` fan-in all
- *  fail at least one of those and keep the refusal.
- *
- *  EXPORTED for the LEXICAL axis too (`reference-fact-call.ts#resolveCallableDeclaration`, #2097): a
- *  module-LOCAL overloaded function has exactly the same shape and exactly the same one home, and giving
- *  the two axes two answers to one question is what the shared-reader migration exists to stop.
- *
- *  This is the MODULE-EXPORT axis only. A member resolved off a RECEIVER'S TYPE (`type-member-origin.ts`,
- *  `drizzle-client-call.ts`) deliberately keeps asking every declaration of the property symbol, because that
- *  reader's question is "is EVERY declaration of this member declared by that home" — a set-membership test
- *  that an overload set answers correctly as-is. */
-export function overloadHome(declarations: readonly MorphNode[]): MorphNode | undefined {
-  const first = declarations[0];
-  if (first === undefined || declarations.length < 2 || !OVERLOAD_DECLARATION_KINDS.has(first.getKind())) {
-    return;
-  }
-  const kind = first.getKind();
-  const sourceFile = first.getSourceFile().compilerNode;
-  if (!declarations.every((declaration) => declaration.getKind() === kind && declaration.getSourceFile().compilerNode === sourceFile)) {
-    return;
-  }
-  const implementations = declarations.filter(isOverloadImplementation);
-  return implementations.length > 1 ? undefined : (implementations[0] ?? first);
-}
 
 const externalTarget = (declaration: MorphNode, moduleSpecifier: string, exportedName: string): CanonicalModuleTarget => ({
   kind: "external-door",
@@ -198,7 +90,7 @@ function republishedTarget(
   target: ModuleState,
 ): ReferenceFact<CanonicalModuleTarget> {
   if (Node.isNamespaceImport(binding)) {
-    const namespace = namespaceImportBinding(binding, target, target.services);
+    const namespace = namespaceImportBinding(binding, target);
     if (namespace.kind === "unresolved") {
       return namespace;
     }
@@ -206,7 +98,7 @@ function republishedTarget(
       ? resolved(externalTarget(binding, namespace.value.moduleSpecifier, exportName), target, binding)
       : resolved(projectTarget(namespace.value.sourceFile, exportName), target, namespace.value.sourceFile);
   }
-  const refusal = inspectStableBinding(binding, target, target.services);
+  const refusal = inspectStableBinding(binding, target);
   if (refusal !== undefined) {
     return refusal;
   }
@@ -370,12 +262,8 @@ function moduleOriginFromDoor(
   return resolved(originFromTarget(moduleSpecifier, exportedName, terminal.value), target, terminal.value.declaration);
 }
 
-function namespaceImportBinding(
-  declaration: import("ts-morph").NamespaceImport,
-  target: ModuleState,
-  services: ReferenceResolutionServices,
-): ReferenceFact<NamespaceBinding> {
-  const refusal = inspectStableBinding(declaration, target, services);
+function namespaceImportBinding(declaration: import("ts-morph").NamespaceImport, target: ModuleState): ReferenceFact<NamespaceBinding> {
+  const refusal = inspectStableBinding(declaration, target);
   if (refusal !== undefined) {
     return refusal;
   }
@@ -398,16 +286,16 @@ function namespaceBindingInternal(node: MorphNode, target: ModuleState, services
   if (!Node.isIdentifier(current)) {
     return unresolved("unsupported", current, target, `${current.getKindName()} is not a namespace binding`);
   }
-  const declarationFact = declarationOf(current, target, services);
+  const declarationFact = declarationOf(current, target);
   if (declarationFact.kind === "unresolved") {
     return declarationFact;
   }
   const declaration = declarationFact.value;
   if (Node.isNamespaceImport(declaration)) {
-    return namespaceImportBinding(declaration, target, services);
+    return namespaceImportBinding(declaration, target);
   }
   if (Node.isVariableDeclaration(declaration)) {
-    const refusal = inspectStableBinding(declaration, target, services);
+    const refusal = inspectStableBinding(declaration, target);
     if (refusal !== undefined) {
       return refusal;
     }
@@ -437,27 +325,6 @@ function appendMemberPath(fact: ResolvedReferenceFact<ModuleMemberOrigin>, name:
   return { kind: "resolved", value: { ...fact.value, memberPath: [...fact.value.memberPath, name] }, trace: fact.trace };
 }
 
-function bindingElementName(binding: BindingElement, target: ModuleState, services: ReferenceResolutionServices): ReferenceFact<string> {
-  if (binding.getDotDotDotToken() !== undefined) {
-    return unresolved("dynamic", binding, target, "a rest binding does not name one property");
-  }
-  const property = binding.getPropertyNameNode() ?? binding.getNameNode();
-  if (Node.isIdentifier(property)) {
-    return resolved(property.getText(), target, property);
-  }
-  if (Node.isStringLiteral(property) || Node.isNoSubstitutionTemplateLiteral(property)) {
-    return resolved(property.getLiteralText(), target, property);
-  }
-  if (Node.isNumericLiteral(property)) {
-    return resolved(String(property.getLiteralValue()), target, property);
-  }
-  if (Node.isComputedPropertyName(property)) {
-    const computed = services.readComputedName(property.getExpression());
-    return computed.kind === "unresolved" ? mergeUnresolved(computed, target) : resolved(computed.value, target, computed.trace.origin);
-  }
-  return unresolved("unsupported", property, target, `${property.getKindName()} does not name one destructured property`);
-}
-
 function moduleOriginFromBinding(binding: BindingElement, target: ModuleState, services: ReferenceResolutionServices): ReferenceFact<ModuleMemberOrigin> {
   const pattern = binding.getParent();
   const variable = binding.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
@@ -467,7 +334,7 @@ function moduleOriginFromBinding(binding: BindingElement, target: ModuleState, s
   if (binding.getInitializer() !== undefined) {
     return unresolved("dynamic", binding, target, "a destructuring default chooses its origin at runtime");
   }
-  const refusal = inspectStableBinding(binding, target, services);
+  const refusal = inspectStableBinding(binding, target);
   if (refusal !== undefined) {
     return refusal;
   }
@@ -479,7 +346,7 @@ function moduleOriginFromBinding(binding: BindingElement, target: ModuleState, s
   if (receiver === undefined) {
     return unresolved("missing", variable, target, "destructuring declaration has no receiver initializer");
   }
-  const namespaceState = cloneState(target);
+  const namespaceState = cloneModuleState(target);
   const namespace = namespaceBindingInternal(receiver, namespaceState, services);
   if (namespace.kind === "resolved") {
     return originFromNamespace(namespace.value, name.value, namespaceState);
@@ -497,7 +364,7 @@ function moduleOriginFromMember(node: MorphNode, target: ModuleState, services: 
     return mergeUnresolved(read, target);
   }
   appendTrace(target, read.trace.declarations);
-  const namespaceState = cloneState(target);
+  const namespaceState = cloneModuleState(target);
   const namespace = namespaceBindingInternal(read.value.receiver, namespaceState, services);
   if (namespace.kind === "resolved") {
     return originFromNamespace(namespace.value, read.value.name, namespaceState);
@@ -514,24 +381,24 @@ function moduleOriginFromIdentifier(
   target: ModuleState,
   services: ReferenceResolutionServices,
 ): ReferenceFact<ModuleMemberOrigin> {
-  const declarationFact = declarationOf(identifier, target, services);
+  const declarationFact = declarationOf(identifier, target);
   if (declarationFact.kind === "unresolved") {
     return declarationFact;
   }
   const declaration = declarationFact.value;
   if (Node.isImportSpecifier(declaration)) {
-    const refusal = inspectStableBinding(declaration, target, services);
+    const refusal = inspectStableBinding(declaration, target);
     return refusal ?? moduleOriginFromDoor(declaration, declaration.getName(), target);
   }
   if (Node.isImportClause(declaration)) {
-    const refusal = inspectStableBinding(declaration, target, services);
+    const refusal = inspectStableBinding(declaration, target);
     return refusal ?? moduleOriginFromDoor(declaration, "default", target);
   }
   if (Node.isBindingElement(declaration)) {
     return moduleOriginFromBinding(declaration, target, services);
   }
   if (Node.isVariableDeclaration(declaration)) {
-    const refusal = inspectStableBinding(declaration, target, services);
+    const refusal = inspectStableBinding(declaration, target);
     if (refusal !== undefined) {
       return refusal;
     }
@@ -548,14 +415,14 @@ function moduleOriginFromIdentifier(
 
 function resolveInternal(node: MorphNode, target: ModuleState, services: ReferenceResolutionServices): ReferenceFact<ModuleMemberOrigin> {
   const current = services.unwrapExpression(node);
-  if (Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current)) {
+  if (Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current) || Node.isQualifiedName(current)) {
     return moduleOriginFromMember(current, target, services);
   }
   if (Node.isIdentifier(current)) {
     return moduleOriginFromIdentifier(current, target, services);
   }
   if (Node.isImportSpecifier(current)) {
-    const refusal = inspectStableBinding(current, target, services);
+    const refusal = inspectStableBinding(current, target);
     return refusal ?? moduleOriginFromDoor(current, current.getName(), target);
   }
   if (Node.isBindingElement(current)) {
@@ -566,5 +433,5 @@ function resolveInternal(node: MorphNode, target: ModuleState, services: Referen
 
 /** Internal engine; reference-fact.ts owns the one-argument public API and injects its shared readers. */
 export function resolveModuleMemberOriginWith(node: MorphNode, services: ReferenceResolutionServices): ReferenceFact<ModuleMemberOrigin> {
-  return resolveInternal(node, state(services), services);
+  return resolveInternal(node, moduleState(services), services);
 }

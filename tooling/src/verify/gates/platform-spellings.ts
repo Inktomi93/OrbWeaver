@@ -71,6 +71,9 @@
 //   precedent (a test may plant an old spelling DELIBERATELY as a fixture) and §8's own §4.1, which
 //   explicitly sanctions "a tests/** scope decision." This exclusion is deliberate-and-precedented.
 //
+// BINDING RESOLUTION (#2163): the deferred-capture and syntactic array arms read lexical declarations
+// through shared `resolveLexicalValueDeclaration`; this policy retains the ancestor and same-file tests.
+//
 // SUPPRESSION: every finding is NODE-anchored and carries its ARM as its token, so
 //   `// @orb-gate-ignore platform-spellings(sleep|deferred|spread-sort|escape-mint): <reason>` works AND names
 //   its position (§4.3a — one line can carry a sleep and a spread-sort). Until 2026-08-07 this gate reported
@@ -81,6 +84,7 @@ import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
+import { resolveLexicalValueDeclaration } from "../lib/reference-fact.ts";
 
 const PROMISE = "Promise";
 /** Both spellings of the ambient timer — a `globalThis.` qualifier does not make a sleep something else. */
@@ -245,8 +249,8 @@ function isDeferredCapture(node: Node): boolean {
     if (!lhs.isKind(SyntaxKind.Identifier)) {
       return true; // `ref.current = resolve` / `obj.slot = resolve` — a property target is always outside
     }
-    const decl = lhs.getSymbol()?.getDeclarations()[0];
-    return decl === undefined || !decl.getAncestors().includes(executor);
+    const declaration = resolveLexicalValueDeclaration(lhs);
+    return declaration.kind === "unresolved" || !declaration.value.getAncestors().includes(executor);
   });
 }
 
@@ -327,10 +331,11 @@ function provablyArray(node: Node, hops: number): boolean {
  *  array proof off it (annotation, initializer, or the destructured-prop TypeLiteral member). A cross-file
  *  declaration is UNRESOLVED in the pure-AST harness (see the header), so it answers "not proven". */
 function identifierProvablyArray(node: Node, hops: number): boolean {
-  const decl = node.getSymbol()?.getDeclarations()[0];
-  if (decl === undefined || decl.getSourceFile() !== node.getSourceFile()) {
+  const declaration = resolveLexicalValueDeclaration(node);
+  if (declaration.kind === "unresolved" || declaration.value.getSourceFile() !== node.getSourceFile()) {
     return false;
   }
+  const decl = declaration.value;
   if (decl.isKind(SyntaxKind.VariableDeclaration)) {
     const init = decl.getInitializer();
     return isArrayTypeNode(decl.getTypeNode()) || (init !== undefined && provablyArray(init, hops + 1));

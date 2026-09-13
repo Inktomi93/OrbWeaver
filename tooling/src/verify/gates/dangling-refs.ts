@@ -40,11 +40,14 @@
 // A markdown link (arm 2) resolves relative to its OWN file first (standard markdown), then the bare roots.
 // Self-hosts via its own ts-morph Project (fsBacked) for arms 1/2 — never imports report.ts, so no import
 // cycle. Arms 3/4 read `ctx.root`'s real fs and the SHARED `ctx.project` (no second project).
+// BINDING RESOLUTION (#2163): gate-string const aliases resolve through `lib/reference-fact.ts`
+// `resolveStableExpression`; this module owns only ordered string composition and its GAP policy.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
+import { resolveStableExpression } from "../lib/reference-fact.ts";
 
 const GATES_DIR_REL = "tooling/src/verify/gates";
 const TS_EXT_RE = /\.ts$/u;
@@ -88,13 +91,8 @@ function evalIdentifier(n: Node, seen: Set<Node>): string {
   if (!Node.isIdentifier(n)) {
     return GAP;
   }
-  for (const def of n.getDefinitionNodes()) {
-    const init = Node.isVariableDeclaration(def) ? def.getInitializer() : undefined;
-    if (init !== undefined) {
-      return evalString(init, seen);
-    }
-  }
-  return GAP;
+  const resolved = resolveStableExpression(n);
+  return resolved.kind === "resolved" && resolved.value !== n ? evalString(resolved.value, seen) : GAP;
 }
 
 /** Evaluate a docRow/message/fix initializer into its ORDERED runtime string — literals, `+`-concats (in

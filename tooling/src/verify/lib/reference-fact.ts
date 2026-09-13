@@ -12,8 +12,9 @@ import type {
   UnresolvedReferenceFact,
 } from "../contract/reference-fact.ts";
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
+import { readMemberReferenceWith } from "./reference-fact-member.ts";
 import { resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
-import { isReferenceWriteTarget, lexicalReferenceSymbol, reassignedReferenceSymbols, writtenReferenceSymbols } from "./reference-fact-writes.ts";
+import { lexicalReferenceSymbol, reassignedReferenceSymbols, writtenReferenceSymbols } from "./reference-fact-writes.ts";
 
 interface ResolutionState {
   readonly declarations: MorphNode[];
@@ -380,29 +381,8 @@ function computedName(node: MorphNode, target: ResolutionState): ReferenceFact<s
   return unresolved("dynamic", node, target, `computed key ${node.getText()} does not resolve to one static property name`);
 }
 
-/** Normalize dotted, optional, and computed-literal property reads into one fact. */
 export function readMemberReference(node: MorphNode): ReferenceFact<MemberReference> {
-  const access = unwrapExpression(node);
-  const target = state();
-  if ((Node.isPropertyAccessExpression(access) || Node.isElementAccessExpression(access)) && isReferenceWriteTarget(access)) {
-    return unresolved("write", access, target, `member ${access.getText()} is an assignment, update, or delete target`);
-  }
-  if (Node.isPropertyAccessExpression(access)) {
-    const nameNode = access.getNameNode();
-    return resolved({ name: access.getName(), receiver: access.getExpression(), nameNode, access }, target, nameNode);
-  }
-  if (!Node.isElementAccessExpression(access)) {
-    return unresolved("unsupported", access, target, `${access.getKindName()} is not a member access`);
-  }
-  const argument = access.getArgumentExpression();
-  if (argument === undefined) {
-    return unresolved("missing", access, target, "element access has no key expression");
-  }
-  const name = computedName(argument, target);
-  if (name.kind === "unresolved") {
-    return name;
-  }
-  return resolved({ name: name.value, receiver: access.getExpression(), nameNode: argument, access }, target, name.trace.origin);
+  return readMemberReferenceWith(node, { unwrapExpression, readComputedName: (member) => computedName(member, state()) });
 }
 
 function declarationOf(identifier: Identifier): ReferenceFact<MorphNode> {

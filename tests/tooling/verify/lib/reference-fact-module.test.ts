@@ -1,4 +1,4 @@
-import { Project } from "ts-morph";
+import { Project, SyntaxKind } from "ts-morph";
 import { resolveModuleMemberOrigin } from "../../../../tooling/src/verify/lib/reference-fact.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -9,6 +9,23 @@ function origin(barrel: string): ReturnType<typeof resolveModuleMemberOrigin> {
   const source = project.createSourceFile("/repo/use.ts", 'import { publicName } from "./barrel"; export const value = publicName;');
   return resolveModuleMemberOrigin(source.getVariableDeclarationOrThrow("value").getInitializerOrThrow());
 }
+
+test("a namespace-qualified type reference resolves through the same module-origin reader as a value member", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile("/repo/chat.ts", "export type ChatContentPart = { readonly type: string };\n");
+  const source = project.createSourceFile("/repo/use.ts", 'import type * as chat from "./chat.ts";\nexport type Content = chat.ChatContentPart;\n');
+  const qualified = source.getFirstDescendantByKindOrThrow(SyntaxKind.QualifiedName);
+
+  expect(resolveModuleMemberOrigin(qualified)).toMatchObject({
+    kind: "resolved",
+    value: {
+      moduleSpecifier: "./chat.ts",
+      exportedName: "ChatContentPart",
+      memberPath: [],
+      canonical: { kind: "project", exportedName: "ChatContentPart" },
+    },
+  });
+});
 
 test("an unrelated same-named leaf export cannot validate a local import/export alias", () => {
   const explicit = origin('export { record as publicName } from "./leaf";');

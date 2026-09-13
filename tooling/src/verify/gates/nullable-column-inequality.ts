@@ -334,7 +334,7 @@ export const gate = defineGate({
           'import { notInArray } from "drizzle-orm";\nimport { characters } from "../../../../../db/src/schema/x";\nexport const p = notInArray(characters.avatarAssetId, ["a"]);\n',
       },
       expect: { count: 1, token: "characters.avatarAssetId" },
-      why: "THE OVERLOAD DOOR, planted so a virtual proof can reach it: the real `drizzle-orm` declares `notInArray` THREE times, and the live site read as CLEAN with a stale-looking waiver while the shared reader refused a multiply-declared symbol. It is now a plain IDENTITY row — `overloadHome` resolves a same-file overload set to its one declaring module, so this row is answered by the canonical origin and the gate-local trace-declaration fallback it used to need is deleted",
+      why: "THE OVERLOAD DOOR, planted so a virtual proof can reach it: the real `drizzle-orm` declares `notInArray` THREE times, and the live site read as CLEAN with a stale-looking waiver while the shared reader refused a multiply-declared symbol. It is now a plain IDENTITY row — `reference-fact-overload.ts#overloadHome` resolves a same-file overload set to its one declaring module, so this row is answered by the canonical origin and the gate-local trace-declaration fallback it used to need is deleted",
     },
     {
       mode: "types",

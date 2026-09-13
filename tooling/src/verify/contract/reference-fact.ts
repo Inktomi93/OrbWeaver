@@ -28,7 +28,8 @@ export interface UnresolvedReferenceFact {
 /** A positive value with its proof, or one precise refusal. Absence is never a reader verdict. */
 export type ReferenceFact<T> = ResolvedReferenceFact<T> | UnresolvedReferenceFact;
 
-/** One property read, normalized across dotted, optional, and computed-literal spellings. */
+/** One property or qualified type read, normalized across dotted, optional, computed-literal, and
+ *  namespace-qualified type spellings. */
 export interface MemberReference {
   readonly name: string;
   readonly receiver: Node;
