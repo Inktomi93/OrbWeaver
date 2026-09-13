@@ -13,8 +13,8 @@ export type GateFactPhase = (typeof GATE_FACT_PHASES)[number];
 
 /** THE DISPATCHER'S REFUSAL VOCABULARY — every fixed sentence the final runtime says when it REFUSES an owner
  *  (a receipt that resolved nothing, a fact read too early, a finding outside the population, a resource that
- *  came back broken), as ONE data home (#2111). The emitters in `lib/policy-pass.ts`, `lib/policy-pass-context.ts`,
- *  `lib/resource-declaration.ts`, `lib/resource-policy.ts` and `lib/population-resolver.ts` compose their messages
+ *  came back broken), as ONE data home (#2111). The emitters — named as DATA in `POLICY_REFUSAL_EMITTERS` below,
+ *  never again as a prose list nobody could hold (#2155) — compose their messages
  *  from these, and `lib/policy-refusal-envelope.ts` reads the same constants to refuse a `mustRefuse` row whose
  *  `messageIncludes` is nothing but one of them — a row naming `"resolved zero members"` holds on EVERY receipt
  *  refusal of every policy and discriminates nothing (§4.5b). The policy-AUTHORED slots (a receipt source, a fact
@@ -28,6 +28,20 @@ export type GateFactPhase = (typeof GATE_FACT_PHASES)[number];
  *  held by a census rather than by this sentence: `tests/tooling/verify/lib/policy-refusal-envelope.test.ts`
  *  requires every `throw new Error(...)` in that pair to be composed from this table or one of its declared
  *  INVARIANT refusals, two-sided, with a planted literal as the control. Add a sentence here, compose it there. */
+/** THE MODULES THAT EMIT THOSE SENTENCES, as data rather than as the prose list this comment used to carry.
+ *  `tests/tooling/verify/lib/policy-refusal-envelope.test.ts` holds this roster TWO-SIDED against the tree — a
+ *  `lib/` module that composes a refusal without joining the roster reds, and a roster entry that stopped
+ *  composing reds — and runs its fragment census over exactly these files. `lib/policy-refusal-envelope.ts` is
+ *  NOT here on purpose: it READS the table to build the envelope and raises nothing, which the same pin
+ *  asserts rather than assumes. */
+export const POLICY_REFUSAL_EMITTERS = Object.freeze([
+  "tooling/src/verify/lib/policy-pass.ts",
+  "tooling/src/verify/lib/policy-pass-context.ts",
+  "tooling/src/verify/lib/population-resolver.ts",
+  "tooling/src/verify/lib/resource-declaration.ts",
+  "tooling/src/verify/lib/resource-policy.ts",
+] as const);
+
 export const POLICY_PASS_REFUSALS = Object.freeze({
   populationUnresolved: "population has not resolved",
   emptyIntersection: "requested selection has an empty policy intersection",

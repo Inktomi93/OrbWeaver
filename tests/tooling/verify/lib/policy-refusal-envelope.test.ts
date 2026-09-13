@@ -2,6 +2,12 @@
 // the dispatcher compose their refusals from, and these pins hold that two-sided — every member is text a real
 // refusal carries (driven through `verifyPolicyProofs`), and the containment predicate refuses a generic needle
 // while admitting an authored one. The per-member VALIDATOR arm lives in `policy-loader.test.ts`.
+//
+// AND (#2155) the completeness the envelope cannot have on its own: the EMITTER census at the bottom of this
+// file. Its claim is exactly what it measures — over the five modules `POLICY_REFUSAL_EMITTERS` names, every
+// message a refusal RAISES (thrown, or pushed into the array a throw joins) is composed from the table FRAGMENT
+// by fragment, or is one of the declared caller-error invariants. Three false cleans in its first version, all
+// three now permanent controls; the block comment above the census states each with its measurement.
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind, Node as TsNode } from "ts-morph";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
@@ -9,7 +15,7 @@ import { GATE_AUTHORITY_ALARM_KINDS, GATE_AUTHORITY_TOOL_ERROR_KINDS } from "../
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POLICY_REFUSAL_PREFIXES } from "../../../../tooling/src/verify/contract/policy-conformance.ts";
-import { GATE_FACT_PHASES, POLICY_PASS_REFUSALS, POLICY_PHASES } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import { GATE_FACT_PHASES, POLICY_PASS_REFUSALS, POLICY_PHASES, POLICY_REFUSAL_EMITTERS } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { genericRefusalTextContaining, refusalEnvelope } from "../../../../tooling/src/verify/lib/policy-refusal-envelope.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -232,55 +238,159 @@ test("the context-door sentences the envelope carries are the text the LIVE cont
   }
 });
 
-// ═══ THE ENVELOPE IS COMPLETE OVER THE DISPATCHER, NOT ONLY OVER THE CONSTANTS (#2155, forge recommendation
-// #4) ═══
+// ═══ THE ENVELOPE IS COMPLETE OVER THE EMITTERS, NOT ONLY OVER THE CONSTANTS (#2155, forge recommendation #4;
+// REWRITTEN AT THE INTEGRATION REVIEW, and the rewrite is the lesson) ═══
 //
-// The envelope derives from `POLICY_PASS_REFUSALS`, so it is complete over the TABLE by construction. That
-// says nothing about the two modules that actually throw: a sentence spelled by literal beside the table is
-// invisible to the envelope, and a `mustRefuse` row naming it would be admitted as "authored" while holding on
-// every refusal of that shape. Eleven such literals sat in `policy-pass-context.ts` while the contract header
-// already claimed it composed from the table (#2155 item 2). This census closes the loop the other way: EVERY
-// `throw new Error(...)` in the dispatcher pair is either COMPOSED from the table — and therefore in the
-// envelope — or one of the invariant refusals declared below, and the declaration is held two-sided so a
-// deleted throw reds as loudly as a new one.
-const DISPATCHER_MODULES = ["tooling/src/verify/lib/policy-pass.ts", "tooling/src/verify/lib/policy-pass-context.ts"] as const;
-/** The literal parts of a throw argument, `…` where an interpolation was. A template's authored slots are the
- *  policy's own text and are never part of the generic sentence. */
-function staticText(argument: Node): string | undefined {
-  // ONE TAIL RETURN, the pass.ts idiom: biome's `noUselessUndefined` deletes a trailing `return undefined;`
-  // as a safe fix and tsc's `noImplicitReturns` then reds the fall-through (`.claude/rules/gates-and-tooling.md`).
-  let text: string | undefined;
-  if (TsNode.isStringLiteral(argument) || TsNode.isNoSubstitutionTemplateLiteral(argument)) {
-    text = argument.getLiteralText();
-  } else if (TsNode.isTemplateExpression(argument)) {
-    text = [argument.getHead().getLiteralText(), ...argument.getTemplateSpans().map((span) => span.getLiteral().getLiteralText())].join("…");
-  } else if (TsNode.isBinaryExpression(argument)) {
-    const left = staticText(argument.getLeft());
-    const right = staticText(argument.getRight());
-    text = left === undefined || right === undefined ? undefined : `${left}${right}`;
-  }
-  return text;
+// The envelope derives from `POLICY_PASS_REFUSALS`, so it is complete over the TABLE by construction. That says
+// nothing about the modules that actually raise: a sentence spelled by literal beside the table is invisible to
+// the envelope, and a `mustRefuse` row naming it would be admitted as "authored" while holding on every refusal
+// of that shape. Eleven such literals sat in `policy-pass-context.ts` while the contract header already claimed
+// it composed from the table.
+//
+// THE FIRST VERSION OF THIS CENSUS WAS ITSELF A FALSE CLEAN, in three ways, and each is now a fence with a
+// permanent control below (all three measured on the unmodified test before the rewrite):
+//
+//   1. IT CREDITED A WHOLE ARGUMENT for MENTIONING the table. `argument.getText().includes("POLICY_PASS_REFUSALS.")`
+//      says "this throw mentions the table somewhere", not "this throw is composed FROM the table". A template
+//      reading one member and appending an unlisted generic sentence passed as composed. MEASURED: planting
+//      `${POLICY_PASS_REFUSALS.factAbsent}: ${provider.id} and some new sentence nobody listed` in
+//      `policy-pass-context.ts` left the census GREEN. The predicate is now per FRAGMENT: an argument is composed
+//      only when it reads at least one table member AND every static fragment of it is a declared composition
+//      fragment (`COMPOSITION_FRAGMENTS`), which is the closed set of joiners and subject labels the emitters
+//      actually use. Authored interpolation slots (`${provider.id}`, `${failures.join("; ")}`) are runtime data
+//      and are not fragments.
+//   2. IT ONLY READ `throw new Error(...)`. Every receipt refusal in `lib/policy-pass.ts` is ASSEMBLED first —
+//      `failures.push(<sentence>)` at `:647-671` and `:736-750` — and thrown as one joined string at `:689`/`:764`.
+//      MEASURED: planting `failures.push("a generic refusal nobody listed")` ahead of the composed push at `:739`
+//      left the census GREEN. An emitter site is now a `new Error(...)` argument OR a `<sink>.push(...)` argument
+//      where `<sink>` is an identifier that appears inside some `new Error(...)` argument in the same file — the
+//      indirect construction, reached by the join rather than by a name this test hardcodes.
+//   3. ITS MODULE LIST WAS NARROWER THAN THE CONTRACT'S CLAIM. The contract named five emitters; this census
+//      scanned two, so `resource-declaration`, `resource-policy` and `population-resolver` were unmeasured while
+//      the header said "every throw in the dispatcher pair". The list is now DATA
+//      (`contract/policy-pass.ts#POLICY_REFUSAL_EMITTERS`) read by both, and the roster is held TWO-SIDED against
+//      the tree below, including the negative: `policy-refusal-envelope.ts` reads the table and raises nothing,
+//      so it must NOT be a member.
+//
+// WHAT IS DELIBERATELY OUT OF SCOPE, unchanged: caller and programmer errors (`DISPATCHER_INVARIANTS`). They are
+// not owner refusals — the conformance runner never reaches an owner — so putting them in the envelope would
+// refuse `mustRefuse` rows for text the runtime cannot show a policy author. They are DECLARED and held
+// two-sided instead, which is the same completeness with an honest vocabulary.
+const DISPATCHER_MODULES = POLICY_REFUSAL_EMITTERS;
+
+/** One message expression, split into what the author WROTE (`statics`), what the runtime fills in (`slots`),
+ *  and the two woven back together in ORDER (`text`, the census key: authored text with `…` at every slot).
+ *  `text` is built during the same walk rather than re-derived from the two lists — the lists lose the
+ *  interleaving, and a re-derivation that guesses it drops the right-hand side of a `+` concatenation. */
+interface Fragments {
+  readonly statics: readonly string[];
+  readonly slots: readonly string[];
+  readonly text: string;
 }
 
-/** The static text of every `new Error(...)` in `sourceFile` whose argument does NOT read the refusal table. */
-function unaccountedThrows(sourceFile: SourceFile): readonly string[] {
-  return sourceFile
+const joinFragments = (left: Fragments, right: Fragments): Fragments => ({
+  statics: [...left.statics, ...right.statics],
+  slots: [...left.slots, ...right.slots],
+  text: `${left.text}${right.text}`,
+});
+
+/** Split a message expression into its authored fragments. A template's head/middle/tail are STATIC; every
+ *  interpolation is a SLOT; a `+` concatenation is both sides in order; anything else is one opaque slot. */
+function fragmentsOf(argument: Node): Fragments {
+  let fragments: Fragments;
+  if (TsNode.isStringLiteral(argument) || TsNode.isNoSubstitutionTemplateLiteral(argument)) {
+    const literal = argument.getLiteralText();
+    fragments = { statics: [literal], slots: [], text: literal };
+  } else if (TsNode.isTemplateExpression(argument)) {
+    const head = argument.getHead().getLiteralText();
+    fragments = argument.getTemplateSpans().reduce<Fragments>(
+      (accumulated, span) =>
+        joinFragments(accumulated, {
+          statics: [span.getLiteral().getLiteralText()],
+          slots: [span.getExpression().getText()],
+          text: `…${span.getLiteral().getLiteralText()}`,
+        }),
+      { statics: [head], slots: [], text: head },
+    );
+  } else if (TsNode.isBinaryExpression(argument)) {
+    fragments = joinFragments(fragmentsOf(argument.getLeft()), fragmentsOf(argument.getRight()));
+  } else {
+    fragments = { statics: [], slots: [argument.getText()], text: "…" };
+  }
+  return fragments;
+}
+
+const TABLE = "POLICY_PASS_REFUSALS.";
+/** THE CLOSED SET OF COMPOSITION FRAGMENTS — every piece of static text a COMPOSED refusal is allowed to carry
+ *  beside its table member, measured across all five emitters and held two-sided below. Two kinds, and nothing
+ *  else: JOINERS (punctuation between a member and a slot) and SUBJECT LABELS (the noun naming what the refusal
+ *  is about, which the table's sentences deliberately do not carry). A fragment outside this set is a new
+ *  SENTENCE, and a new sentence belongs in the table. */
+const COMPOSITION_FRAGMENTS: readonly string[] = [
+  " ",
+  // NO `", "`: the review's example listed it, and the two-sided pin below refused it — every comma-joined list
+  // in these emitters is `…join(", ")`, which is a SLOT expression, never authored static text. A declared
+  // fragment nothing uses is a widened door, so it is not declared.
+  ": ",
+  " candidate(s)",
+  " is ",
+  "authored text ",
+  "fact ",
+  "non-resource policy ",
+  "policy ",
+  "resource ",
+  "resource request ",
+  "resource request exact-file:",
+  "resource-only fact ",
+  "resource-only policy ",
+  "syntax owner ",
+];
+
+/** Every message expression a module RAISES: a `new Error(...)` argument, and — the indirect half — a
+ *  `<sink>.push(...)` argument whose receiver is an identifier some `new Error(...)` argument in the same file
+ *  reads. That is how `policy-pass.ts` builds a receipt refusal: push the sentences, join them into one throw. */
+function refusalSites(sourceFile: SourceFile): readonly Node[] {
+  const thrown = sourceFile
     .getDescendantsOfKind(SyntaxKind.NewExpression)
     .filter((expression) => expression.getExpression().getText() === "Error")
     .flatMap((expression) => {
       const argument = expression.getArguments()[0];
-      if (argument === undefined || argument.getText().includes("POLICY_PASS_REFUSALS.")) {
-        return [];
-      }
-      return [staticText(argument) ?? `<UNREADABLE ${argument.getKindName()}>`];
+      return argument === undefined ? [] : [argument];
     });
+  const sinks = new Set(thrown.flatMap((argument) => argument.getDescendantsOfKind(SyntaxKind.Identifier).map((identifier) => identifier.getText())));
+  const pushed = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).flatMap((call) => {
+    const callee = call.getExpression();
+    if (!(TsNode.isPropertyAccessExpression(callee) && callee.getName() === "push" && sinks.has(callee.getExpression().getText()))) {
+      return [];
+    }
+    const argument = call.getArguments()[0];
+    return argument === undefined ? [] : [argument];
+  });
+  return [...thrown, ...pushed];
+}
+
+/** Is this message COMPOSED from the table? It must read a member AND carry no static text outside the declared
+ *  composition fragments — the two halves the first version of this census collapsed into a substring match. */
+function isComposed(argument: Node): boolean {
+  const { statics, slots } = fragmentsOf(argument);
+  const readsMember = slots.some((slot) => slot.startsWith(TABLE));
+  const foreign = statics.filter((fragment) => fragment !== "" && !COMPOSITION_FRAGMENTS.includes(fragment));
+  return readsMember && foreign.length === 0;
+}
+
+/** The census key of every refusal site in `sourceFile` that is NOT composed from the table. */
+function unaccountedRefusals(sourceFile: SourceFile): readonly string[] {
+  return refusalSites(sourceFile)
+    .filter((argument) => !isComposed(argument))
+    .map((argument) => fragmentsOf(argument).text);
 }
 
 /** THE INVARIANT REFUSALS: caller and programmer errors — a malformed invocation, an owner plan that disagrees
- *  with the dispatcher, a receipt with no discriminant, a path the workspace resolved twice. They are NOT owner
- *  refusals and deliberately NOT table members: no `mustRefuse` row can ever see one (the conformance runner
- *  would not have got as far as an owner), and putting them in the envelope would refuse rows for text the
- *  runtime never shows a policy author. Declared here, held two-sided by the test below. */
+ *  with the dispatcher, a receipt with no discriminant, a population expression that does not parse, a path the
+ *  workspace resolved twice. They are NOT owner refusals and deliberately NOT table members: no `mustRefuse` row
+ *  can ever see one (the conformance runner would not have got as far as an owner), and putting them in the
+ *  envelope would refuse rows for text the runtime never shows a policy author. Declared here, held two-sided by
+ *  the test below, over all five emitters. */
 const DISPATCHER_INVARIANTS: readonly string[] = [
   "… cannot author …",
   "… must be a nonempty string",
@@ -288,6 +398,9 @@ const DISPATCHER_INVARIANTS: readonly string[] = [
   "… must be a nonnegative integer",
   "… must be a positive integer",
   "… … cannot be named by an @orb-waive marker: the position grammar admits no parenthesis, CR or LF, so the finding would be permanently unwaivable. Keep the value as the CARRIER and in the MESSAGE, and hand back its leading paren-free slice as the COORDINATE (lib/waivable-coordinate.ts waivableCoordinate; guide §3, #2107).",
+  "Invalid population expression: …",
+  "Invalid repository path …: expected a repo-relative POSIX file path",
+  "Invalid repository path …: invalid path segment",
   "fact collector has no finish hook",
   "loaded policies import different fact descriptors with id …",
   "node finding cannot derive a nonempty authored position token from …",
@@ -316,15 +429,51 @@ const DISPATCHER_INVARIANTS: readonly string[] = [
   "workspace contains duplicate source path …",
 ];
 
-test("every throw in the dispatcher pair is a COMPOSED refusal or a declared invariant — the envelope's completeness over the emitters", ({ repoRoot }) => {
+const sorted = (values: readonly string[]): readonly string[] => [...values].toSorted((left, right) => left.localeCompare(right));
+
+test("the refusal EMITTER roster is data, held two-sided against the tree (#2155)", ({ repoRoot }) => {
+  // THE ROSTER'S OTHER SIDE. `POLICY_REFUSAL_EMITTERS` is the contract's own list; this derives the same set
+  // from the tree — a `lib/` module composing a refusal from the table — and requires equality. A new emitter
+  // that never joins the roster reds here, and so does a roster entry that stopped composing. Before this pin
+  // the contract claimed five modules while the census below read two, and nothing held the pair together.
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  project.addSourceFilesAtPaths(`${repoRoot}/tooling/src/verify/lib/*.ts`);
+  const derived = project
+    .getSourceFiles()
+    .filter((sourceFile) => refusalSites(sourceFile).some((argument) => fragmentsOf(argument).slots.some((slot) => slot.startsWith(TABLE))))
+    .map((sourceFile) => sourceFile.getFilePath().slice(`${repoRoot}/`.length));
+  expect(sorted(derived)).toEqual(sorted(DISPATCHER_MODULES));
+
+  // AND THE NEGATIVE THE ROSTER ASSERTS RATHER THAN ASSUMES: the envelope module READS the table (it is built
+  // from it) and raises nothing, so "references the table" is not the predicate and it is not an emitter.
+  const envelope = project.getSourceFileOrThrow(`${repoRoot}/tooling/src/verify/lib/policy-refusal-envelope.ts`);
+  expect(envelope.getFullText()).toContain(TABLE);
+  expect(refusalSites(envelope)).toEqual([]);
+  expect(DISPATCHER_MODULES).not.toContain("tooling/src/verify/lib/policy-refusal-envelope.ts");
+});
+
+test("every refusal the emitters raise is COMPOSED from the table or a declared invariant — per FRAGMENT, and including the pushed sentences", ({
+  repoRoot,
+}) => {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   const modules = DISPATCHER_MODULES.map((path) => project.addSourceFileAtPath(`${repoRoot}/${path}`));
-  const unaccounted = modules.flatMap((sourceFile) => unaccountedThrows(sourceFile)).toSorted((left, right) => left.localeCompare(right));
+  const unaccounted = modules.flatMap((sourceFile) => unaccountedRefusals(sourceFile));
   // TWO-SIDED: a new literal refusal appears here, and a declared invariant that no longer exists disappears.
-  expect(unaccounted).toEqual([...DISPATCHER_INVARIANTS].toSorted((left, right) => left.localeCompare(right)));
-  expect(unaccounted).not.toContain("<UNREADABLE Identifier>");
+  expect(sorted(unaccounted)).toEqual(sorted(DISPATCHER_INVARIANTS));
 
-  // And every sentence the pair DOES compose from is an envelope member — the derivation, checked from the
+  // THE COMPOSITION FRAGMENTS ARE TWO-SIDED TOO — a declared joiner or subject label no emitter uses any more is
+  // a widened door nobody is holding, and it would silently admit the next appended sentence that happens to
+  // match it.
+  const used = new Set(
+    modules.flatMap((sourceFile) =>
+      refusalSites(sourceFile)
+        .filter((argument) => isComposed(argument))
+        .flatMap((argument) => fragmentsOf(argument).statics.filter((fragment) => fragment !== "")),
+    ),
+  );
+  expect(sorted([...used])).toEqual(sorted(COMPOSITION_FRAGMENTS));
+
+  // And every sentence the emitters DO compose from is an envelope member — the derivation, checked from the
   // emitter side rather than from the table side.
   const composedKeys = modules.flatMap((sourceFile) =>
     sourceFile
@@ -338,13 +487,47 @@ test("every throw in the dispatcher pair is a COMPOSED refusal or a declared inv
     expect(sentence, key).toBeDefined();
     expect(refusalEnvelope(), key).toContain(sentence);
   }
+});
 
-  // THE PLANTED DRIFT CONTROL, in the same invocation: a module that spells a refusal by literal instead of
-  // composing it is UNACCOUNTED, which is exactly the state `policy-pass-context.ts` was in before #2155. A
-  // census that could not name this would be measuring nothing.
-  const planted = project.createSourceFile(
-    "/planted/drift.ts",
-    "export function refuse(path: string): never {\n  throw new Error(`finding file is outside the effective population: ${path}`);\n}\n",
+test("the census PLANTED CONTROLS: an appended sentence and an indirect pushed literal are both unaccounted (#2155 review)", () => {
+  // THE TWO FALSE CLEANS THE FIRST CENSUS SHIPPED, now permanent rows. Each of these passed the substring
+  // predicate on the real tree; each must be UNACCOUNTED under the fragment predicate, or the fence is gone.
+  const project = new Project({ useInMemoryFileSystem: true });
+
+  // (a) A composed member with an unlisted sentence appended — the shape planted in `policy-pass-context.ts`.
+  const appended = project.createSourceFile(
+    "/planted/appended.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\nexport function refuse(id: string): never {\n' +
+      "  throw new Error(`${POLICY_PASS_REFUSALS.factAbsent}: ${id} and some new sentence nobody listed`);\n}\n",
   );
-  expect(unaccountedThrows(planted)).toEqual(["finding file is outside the effective population: …"]);
+  expect(unaccountedRefusals(appended)).toEqual(["…: … and some new sentence nobody listed"]);
+
+  // (b) The SAME shape minus the appended sentence stays composed — the control's control, so (a) is not passing
+  // because the fragment reader simply refuses everything.
+  const clean = project.createSourceFile(
+    "/planted/clean.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\nexport function refuse(id: string): never {\n' +
+      "  throw new Error(`${POLICY_PASS_REFUSALS.factAbsent}: ${id}`);\n}\n",
+  );
+  expect(unaccountedRefusals(clean)).toEqual([]);
+
+  // (c) A generic sentence PUSHED into the array a composed throw joins — invisible to any `throw`-only reader.
+  const pushed = project.createSourceFile(
+    "/planted/pushed.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\nexport function refuse(empty: boolean): void {\n' +
+      '  const failures: string[] = [];\n  if (empty) {\n    failures.push("a generic refusal nobody listed");\n  }\n' +
+      "  failures.push(POLICY_PASS_REFUSALS.factsNoReceipt);\n  if (failures.length > 0) {\n" +
+      '    throw new Error(`${POLICY_PASS_REFUSALS.policyReceiptRefused}: ${failures.join("; ")}`);\n  }\n}\n',
+  );
+  expect(unaccountedRefusals(pushed)).toEqual(["a generic refusal nobody listed"]);
+
+  // (d) A push onto an array NO refusal reads is not an emitter site — the rule follows the join, and does not
+  // sweep every `.push` in the file.
+  const unrelated = project.createSourceFile(
+    "/planted/unrelated.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\nexport function collect(): readonly string[] {\n' +
+      '  const paths: string[] = [];\n  paths.push("packages/client/src/a.ts");\n' +
+      "  if (paths.length === 0) {\n    throw new Error(POLICY_PASS_REFUSALS.factsNoReceipt);\n  }\n  return paths;\n}\n",
+  );
+  expect(unaccountedRefusals(unrelated)).toEqual([]);
 });
