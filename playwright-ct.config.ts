@@ -45,7 +45,14 @@ const BASE_ACTION_TIMEOUT_MS = 15_000;
 const CT_ESBUILD_TARGET = "es2024";
 const CLIENT_PACKAGE_ROOT = path.resolve(import.meta.dirname, "packages/client");
 const CT_TEST_MATCH = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "component").map(({ suffix }) => `**/*${suffix}`);
-const CLIENT_GLOBALS_CSS = path.resolve(CLIENT_PACKAGE_ROOT, "src/styles/globals.css");
+// SPELLED WHOLE, DELIBERATELY (#2183). `playwright-css-topology` proves that the source-extension transform
+// targets CLIENT GLOBALS by finding that exact repo-relative path in this file's text — it has no compiler
+// program for a root config and cannot evaluate `path.resolve`. Composed from `CLIENT_PACKAGE_ROOT` the path
+// appeared here in two halves and the gate's fourth clause fired against a config that was CORRECT: a live
+// `hard` red on `main`, invisible under the standing whole-tree red because the legacy fence fused its four
+// clauses into one sentence (found 2026-09-13 by the conversion that split them; the same class as #2106).
+// `path.resolve` folds this identically to the composed form.
+const CLIENT_GLOBALS_CSS = path.resolve(import.meta.dirname, "packages/client/src/styles/globals.css");
 const CT_CSS_EXTENSION = path.resolve(import.meta.dirname, "playwright/index.css");
 type CtViteConfig = Exclude<NonNullable<NonNullable<PlaywrightTestConfig["use"]>["ctViteConfig"]>, () => Promise<unknown>>;
 type CtVitePlugin = Extract<Awaited<NonNullable<CtViteConfig["plugins"]>[number]>, { readonly name?: string }>;

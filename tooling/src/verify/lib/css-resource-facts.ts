@@ -7,6 +7,7 @@ import type {
   CssSelectorFact,
   CssSelectorHookFact,
   CssSourcePosition,
+  CssStatementAtRuleFact,
 } from "../contract/resource-css.ts";
 import type { AuthoredCssFile } from "../contract/resource-tree.ts";
 import { blankCssComments } from "./comment-spans.ts";
@@ -197,12 +198,21 @@ function declarationFacts(file: AuthoredCssFile): readonly CssDeclarationFact[] 
   return [...styleDeclarations, ...atRuleDeclarations].toSorted((left, right) => left.offset - right.offset);
 }
 
+function statementFacts(file: AuthoredCssFile): readonly CssStatementAtRuleFact[] {
+  return file.statements.map((statement) => ({
+    ...position(file.text, file.path, statement.offset),
+    name: statement.name,
+    prelude: statement.prelude,
+  }));
+}
+
 /** Flatten one loaded CSS corpus without re-reading paths or deciding policy. */
 export function collectCssFacts(files: readonly AuthoredCssFile[]): CssFacts {
   const parsedDeclarations = files.flatMap(declarationFacts);
   const selectorRows = files.map((file) => ({ file, selectors: selectorFacts(file) }));
   const selectors = selectorRows.flatMap((row) => row.selectors);
   const selectorHookFacts = selectorRows.flatMap((row) => row.selectors.flatMap((selector) => hookFacts(selector, row.file.text)));
+  const statements = files.flatMap(statementFacts);
   const definitions = files.flatMap(customPropertyDefinitions);
   const references = files.flatMap(customPropertyReferences);
   return {
@@ -210,6 +220,7 @@ export function collectCssFacts(files: readonly AuthoredCssFile[]): CssFacts {
     declarations: parsedDeclarations,
     selectors,
     selectorHooks: selectorHookFacts,
+    statements,
     customPropertyDefinitions: definitions,
     customPropertyReferences: references,
     population: {
@@ -218,6 +229,7 @@ export function collectCssFacts(files: readonly AuthoredCssFile[]): CssFacts {
       declarations: parsedDeclarations.length,
       selectors: selectors.length,
       selectorHooks: selectorHookFacts.length,
+      statements: statements.length,
       customPropertyDefinitions: definitions.length,
       customPropertyReferences: references.length,
     },

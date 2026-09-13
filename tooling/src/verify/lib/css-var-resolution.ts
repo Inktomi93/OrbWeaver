@@ -148,7 +148,7 @@ function cssInventory(
     files += 1;
     const text = readFileSync(abs, "utf8");
     const parsed = parseCssStylesheet(text);
-    const file = { path: rel, text, rules: parsed.rules, atRules: parsed.atRules };
+    const file = { path: rel, text, rules: parsed.rules, atRules: parsed.atRules, statements: parsed.statements };
     for (const definition of customPropertyDefinitions(file)) {
       definitions.add(definition.name);
     }

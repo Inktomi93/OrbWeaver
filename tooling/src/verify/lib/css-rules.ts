@@ -42,6 +42,32 @@ export interface CssRule {
 export interface ParsedCssStylesheet {
   readonly rules: readonly CssRule[];
   readonly atRules: readonly CssAtRule[];
+  readonly statements: readonly CssStatementAtRule[];
+}
+
+/** ONE STATEMENT at-rule — `@import "x";`, `@source "y";`, `@charset "utf-8";`, `@layer a, b;`.
+ *
+ *  WHY IT EXISTS AS A SEPARATE FACT. `CssAtRule` is pushed only from `closeFrame`, which fires on `}`, so a
+ *  BLOCKLESS at-rule produced no parser fact at all and `CssFacts` structurally could not answer "what does
+ *  this sheet import" (measured 2026-09-12, `css-family-audit-2026-09-12.md` §(d): a five-line sheet with
+ *  two `@import`s and one `@source` parsed to `statement at-rules seen = 0` while the `@media` control was
+ *  seen). Every consumer that wanted the answer owned a private `@import` regex over blanked text, which is
+ *  the forbidden-machinery shape §12.3 bans.
+ *
+ *  THE PRELUDE SPELLING MATCHES {@link CssAtRule.prelude} ON PURPOSE: the WHOLE collapsed at-rule text, the
+ *  at-keyword included and the terminating `;` excluded, so one word means one thing across both facts. The
+ *  at-keyword is ALSO published as {@link name} (lowercased, no `@`) because that is the join every consumer
+ *  makes, and re-deriving it per consumer is how a dispatch goes case-sensitive by accident. */
+export interface CssStatementAtRule {
+  /** The at-keyword, lowercased and WITHOUT the `@` — `import`, `source`, `charset`, `layer`. CSS at-keywords
+   *  are ASCII case-insensitive, so the fact publishes the folded spelling and a consumer compares literals. */
+  readonly name: string;
+  /** The whole collapsed statement text without its `;` — `@import "./theme.css" layer(base)`. */
+  readonly prelude: string;
+  /** 1-based line of the `@`. */
+  readonly line: number;
+  /** Zero-based offset of the `@` in the raw stylesheet. */
+  readonly offset: number;
 }
 
 export interface CssAtRule {
@@ -190,6 +216,7 @@ export function parseCssStylesheet(rawText: string): ParsedCssStylesheet {
   const scan: Scan = { text, lines: lineIndex(text) };
   const rules: CssRule[] = [];
   const atRules: CssAtRule[] = [];
+  const statements: CssStatementAtRule[] = [];
   const stack: Frame[] = [];
   let preludeStart = 0;
   for (let i = 0; i < text.length; i += 1) {
@@ -201,13 +228,48 @@ export function parseCssStylesheet(rawText: string): ParsedCssStylesheet {
       closeFrame(scan, stack.pop(), i, { rules, atRules });
       preludeStart = i + 1;
     } else if (ch === ";") {
+      pushStatement(statements, scan, preludeStart, i);
       preludeStart = i + 1;
     }
   }
   return {
     rules: rules.toSorted((left, right) => left.braceStart - right.braceStart),
     atRules: atRules.toSorted((left, right) => left.offset - right.offset),
+    statements,
   };
+}
+
+const AT_KEYWORD = /^@(?<name>[a-zA-Z-][a-zA-Z0-9-]*)/u;
+
+/** A `;`-terminated span whose first non-whitespace character is `@`. Comments were blanked before the scan,
+ *  so an `@import` inside a comment reaches here as spaces and is refused by the same test that refuses a
+ *  declaration — no separate comment fence, and no way for the two to disagree. A span that begins with `@`
+ *  but carries no legal at-keyword (`@ import`, `@"x"`) is refused rather than published under an empty
+ *  name: an at-rule the parser cannot name is not a fact about the sheet. */
+function pushStatement(out: CssStatementAtRule[], scan: Scan, start: number, end: number): void {
+  const raw = scan.text.slice(start, end);
+  const leading = raw.length - raw.trimStart().length;
+  const trimmed = raw.trim();
+  const keyword = AT_KEYWORD.exec(trimmed)?.groups?.["name"];
+  if (keyword === undefined) {
+    return;
+  }
+  const offset = start + leading;
+  out.push({ name: keyword.toLowerCase(), prelude: collapse(trimmed), line: scan.lines[offset] ?? 1, offset });
+}
+
+/** The first quoted argument of a statement at-rule — the specifier of `@import "x"`, the root of
+ *  `@source "y"`, the encoding of `@charset "z"` — or undefined when the statement carries none
+ *  (`@layer a, b`, `@import url(x)`).
+ *
+ *  IT LIVES HERE, NOT IN A CONSUMER. Reading a quoted token out of an at-rule prelude is CSS grammar, and a
+ *  consumer that spells its own `/@import\s+["']…/` has re-minted the private reader this fact exists to
+ *  delete. Quotes are unescaped inside the run because a CSS string escape cannot appear in any specifier
+ *  this repo authors, and the parser's own scanner does not distinguish an escaped quote from the end of the
+ *  run either (`ops/resource-tree.ts#quoteProblem` REFUSES such a sheet before it is ever parsed). */
+export function quotedStatementArgument(statement: CssStatementAtRule): string | undefined {
+  const groups = /'(?<single>[^']*)'|"(?<double>[^"]*)"/u.exec(statement.prelude)?.groups;
+  return groups?.["single"] ?? groups?.["double"];
 }
 
 /** The at-rule ANCESTORS of one offset, outermost first — the ancestry a declaration's own `owner` cannot
