@@ -176,10 +176,11 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "928890463972e1db899e1eb6e6564cc4e93c927cda490ad5a194324ef5beaaa6",
-      "verifiedCommit": "94b1b5199e14af079635c45e1ec6c077a9483ee9",
-      "verifiedAt": "2026-09-11",
+      "verifiedSha256": "a2d9ab61ddb960fc864b00156db1f0af7645a6aff51ec57f002903ec36568b3a",
+      "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
+      "verifiedAt": "2026-09-13",
       "evidence": [
+        "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
         "Full document read by the registration lane; changed rows reviewed against source by the orchestrator. Browser-contract real-tree fixture red/clean, 15 behavioral tests and independent semantic review; hook/router/config snapshot 137 behavioral tests and security approval. Full legacy structure still refuses the separate mixed-descriptor cutover.",
         "Current document read/reviewed in the forms integration and independent re-review; final path/contract changes attested at b849e7addf23ed408e2825d90904ad07557feb41. Native, behavioral, body-identity and gate receipts retained in task forms-world-checkpoint artifacts.",
         "Full document read by component-owner doc lane and current ownership edits reviewed at 370243fe7a30d10328d9ba98d766731688fe074f; current source/test pointers resolve. Component CT11/11, policy12/12 and20gate controls pass. Whole gate-runtime cutover remains separate; this is not a composed enforcement-green claim.",
@@ -277,6 +278,19 @@
       ],
       "claims": [
         {
+          "claim": "The CSS direct-client-mechanism row describes retired manual counts as history without citing a deleted symbol.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:037356d747e8923cce87707a9da3d19c530253c4"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        },
+        {
           "claim": "The agent bridge gate prevents the dev graph from re-entering production and prevents debug readiness from forking the production signal.",
           "evidence": [
             {
@@ -329,7 +343,7 @@
           ]
         }
       ],
-      "summary": "Current source owners, exact tRPC type connection and test-presence protections match the independently verified integration."
+      "summary": "The CSS direct-client-mechanism row describes retired manual counts as history without citing a deleted symbol."
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -400,10 +414,11 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "3fe6dbda4329d8f5920efc88a6b0501c40769b15b03f3db23b3db65fa45c5d0f",
-      "verifiedCommit": "0f28e6b15f375cdec237acf22bb0149991f2f636",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "cdd6826a66d53621fbed42c306e31b503ddb6427d74f68076d18a45ce677bf33",
+      "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
+      "verifiedAt": "2026-09-13",
       "evidence": [
+        "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
         "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current source retains tests/support/browser/ct-data-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
         "bounded post-174cc2961 delta: 1731d657f repointed D108 from the retired rpg-bus-coverage gate to the live generic bus-producer-coverage policy; docs/reviews/gate-runtime/bus-pair-1584.md and checkpoint-2026-09-05.md record the reviewed consolidation; #1584 remains the live gate-runtime program",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
@@ -451,6 +466,19 @@
       ],
       "claims": [
         {
+          "claim": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:037356d747e8923cce87707a9da3d19c530253c4"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        },
+        {
           "claim": "D129 is live.",
           "evidence": [
             {
@@ -473,7 +501,7 @@
           ]
         }
       ],
-      "summary": "Canonical D-ledger re-read through D144; D71 carries the total accepted-base foreground contract plus its framebuffer-safe derivation target; frozen assigned hash retained and current verified blob updated."
+      "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims."
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -1289,10 +1317,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "87f5d76ae246decc5d6d5f120ae7722bf4f3962596ac1e09b844ef104d580570",
-      "verifiedCommit": "a0b97f68c46fcf4057e814c0fc7b6040f2ec6d22",
-      "verifiedAt": "2026-09-10",
+      "verifiedSha256": "6443561d6aaca22b231c90e76222e965a2e0fe414cf19a85fa40945ec7ea8e79",
+      "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
+      "verifiedAt": "2026-09-13",
       "evidence": [
+        "Full document read by the reconciliation lane; independent review accepted ee165b3a7, 8f765deda and final11a359f84 cleanup. Root checked final scope changes against registry/ledgers-fresh source; document formatting passed. Prior evidence below remains historical and is not a new whole-runtime certification.",
         "Main/world integration re-attestation: preserve the reviewed shared compiler, routing and native-tool contracts while adopting cd86c7189 commit-hook guidance and atomic document/receipt/catalog staging. Candidate input closure is tracked separately in #1912; this receipt does not claim program completion.",
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "Full document read and current delta checked against 659d2456c7de1d9e4b5bf3b20db4a63848f99392; native behavioral receipts retained under this task prerequisite-checkpoint. Scoped Markdown check passed.",
@@ -1325,6 +1354,19 @@
       ],
       "claims": [
         {
+          "claim": "Current tier membership is owned by the executable registry; this document retains purpose, execution semantics and historical measurements without a copied current stage roster.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:037356d747e8923cce87707a9da3d19c530253c4"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        },
+        {
           "claim": "Native scoped subjects, supervisor exit semantics, browser-test type consumers and the retired browser-drive shard match the reviewed implementation.",
           "evidence": [
             {
@@ -1338,7 +1380,7 @@
           ]
         }
       ],
-      "summary": "Native scoped subjects, supervisor exit semantics, browser-test type consumers and the retired browser-drive shard match the reviewed implementation. Retains the incoming commit-hook and atomic documentation-staging policy."
+      "summary": "Current tier membership is owned by the executable registry; this document retains purpose, execution semantics and historical measurements without a copied current stage roster."
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",

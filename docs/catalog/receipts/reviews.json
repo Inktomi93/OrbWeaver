@@ -5130,6 +5130,64 @@
         }
       ],
       "summary": "Records two positional regression proofs, corrected seven-key accounting, independent source review and integrated 7-test floor."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-css-family-unit-2026-09-13.md",
+      "assignedSha256": "5a7d689a80399580c1763c42030959d2b0b950e5cbf921fc7523318fa108064e",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "evidence": [
+        "Root read the full538-line builder report before appending integration provenance. Repairs dd98eb356/f56e83d52 independently source-accepted; integrated11/11: reports/runs/test/main-4128511-2026-09-13T05-44-47-564Z/test-report.json. Main planter10/10 and #2306 control1failed2passed/restored3passed are separate receipts, not CSS-wave closure."
+      ],
+      "claims": [
+        {
+          "claim": "Preserves the complete CSS-family builder report and integrated11/11 receipt; final re-review, #2297 and #2309/#2310 remain explicitly outstanding.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:037356d747e8923cce87707a9da3d19c530253c4"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "verifiedSha256": "5a7d689a80399580c1763c42030959d2b0b950e5cbf921fc7523318fa108064e",
+      "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
+      "verifiedAt": "2026-09-13",
+      "summary": "Preserves the complete CSS-family builder report and integrated11/11 receipt; final re-review, #2297 and #2309/#2310 remain explicitly outstanding."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-css-family-2026-09-13.md",
+      "assignedSha256": "a25cbccce19fa291cd4d24d747497167a3fc242f1111b6dd3c2cd2fff9750259",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "evidence": [
+        "Reconciliation lane read the full original41,750-byte report; root reviewed the forward mapping and corrected measured SHA, construction-counter description and sort-control outcome. Original report content preserved with repository formatting normalized. Four repaired rows await final B re-lens; #2297 successor proof dependency stays open; #2306 closed independently."
+      ],
+      "claims": [
+        {
+          "claim": "Preserves the full independent CSS verifier report measured at3c685ce6a, with six original rows and a dated integration appendix that leaves unresolved dependencies open.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:037356d747e8923cce87707a9da3d19c530253c4"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "verifiedSha256": "a25cbccce19fa291cd4d24d747497167a3fc242f1111b6dd3c2cd2fff9750259",
+      "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
+      "verifiedAt": "2026-09-13",
+      "summary": "Preserves the full independent CSS verifier report measured at3c685ce6a, with six original rows and a dated integration appendix that leaves unresolved dependencies open."
     }
   ]
 }
