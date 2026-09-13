@@ -22,3 +22,11 @@ test("literal token offsets retain repeated-token positions in the enclosing nod
     { token: "rounded-lg", offset: 14 },
   ]);
 });
+
+test("template heads, middles and tails preserve complete tokens beside substitutions", () => {
+  expect(readTailwindClassTokens("`md:flex-row${")).toMatchObject([{ token: "md:flex-row", offset: 1 }]);
+  expect(readTailwindClassTokens("} pointer-coarse:hidden${")).toMatchObject([{ token: "pointer-coarse:hidden", offset: 2 }]);
+  expect(readTailwindClassTokens("} lg:hidden`")).toMatchObject([{ token: "lg:hidden", offset: 2 }]);
+  expect(readTailwindClassTokens("`${")).toEqual([]);
+  expect(readTailwindClassTokens('"md:flex-row"')).toMatchObject([{ token: "md:flex-row", offset: 1 }]);
+});
