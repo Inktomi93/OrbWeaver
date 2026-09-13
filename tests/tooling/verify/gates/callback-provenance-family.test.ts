@@ -12,19 +12,12 @@
 //   detached-work-traced           family `detached-work-traced`  — fire-and-forget whose failure is
 //   detached-work-traced-health    reader `lib/detached-work.ts`    invisible, plus its blindness tripwire.
 //
-// WHAT THIS FILE CARRIES, AND WHY IT IS NOT A SECOND CONFORMANCE RUNNER. Every declared `mustFlag`/
-// `mustPass` row of all five already executes on the static bar (`structure:policy-conformance`). What a
-// row structurally CANNOT express, and therefore lives here:
-//   §4.2  the ordinary identity TRIPLE — `effectiveFindings []`, `waivedFindings 1`, `authorityAlarms []`.
-//         A `mustPass` row is green both when the marker suppressed the finding and when the fixture never
-//         produced one, and it asserts nothing about alarms.
-//   §4.5  the REFUSAL pins. `toolFailure` runs before the arm verdict, so an arm whose correct outcome is a
-//         refusal is neither `mustFlag` nor `mustPass` (§4.5b). Three of the four policies carry a
-//         fail-closed third answer and it is only reachable here.
-//   §4.8  the fixture-specifier resolution control: a proof row's relative import that resolves to NOTHING
-//         makes every identity row pass by fail-closure while conformance stays green.
-//
-// §4.3 (reviewed grants) applies to none of the five: all declare `facts: []` and `resources: []`.
+// Proof ownership: docs/design/gate-runtime-standardization.md §§6.2, 6.3, 6.5, 6.6.
+// Ordinary identity controls assert waiver consumption and alarms, which a clean mustPass alone cannot
+// establish. The import-resolution control prevents a missing fixture dependency from impersonating a
+// tested identity branch. Refusal controls here inspect the production error envelope; declared
+// mustRefuse rows can also express refusal verdicts and match the policy's own diagnostic.
+// Reviewed-grant witnesses do not apply: these policies have ordinary or hard authority.
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -64,7 +57,7 @@ test("the five converted policies pass their production proof runtime", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------
-// THE FIXTURE-SPECIFIER RESOLUTION CONTROL (§4.8). `evaluate-no-scope-capture`'s ARM-B row is a
+// THE FIXTURE-SPECIFIER RESOLUTION CONTROL (§6.5). `evaluate-no-scope-capture`'s ARM-B row is a
 // CROSS-MODULE import, so a dangling specifier there would make it pass by fail-closure — the resolver
 // returns no symbol, the callback never resolves, and the row's single finding would have to come from
 // somewhere else entirely.
@@ -100,7 +93,7 @@ test("every relative import in every proof of these five resolves inside the pro
 });
 
 // ---------------------------------------------------------------------------------------------------
-// ORDINARY MARKER IDENTITY (§4.2), one POSITIVE arm per ordinary policy: the correct
+// ORDINARY MARKER IDENTITY (§6.2), one POSITIVE arm per ordinary policy: the correct
 // `@orb-waive <id>(<position>)` at the position the policy reports suppresses its ONE finding, consumes
 // exactly one waiver, and raises no authority alarm. `detached-work-traced-health` is `hard` and has no
 // arm here by construction. Assertions are written out in each test rather than behind a shared helper —
@@ -217,10 +210,9 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for all fou
 });
 
 // ---------------------------------------------------------------------------------------------------
-// §4.5 — THE REFUSALS. `toolFailure` runs BEFORE the arm verdict and fails on a non-success owner status,
-// so an arm whose CORRECT outcome is a refusal is neither `mustFlag` nor `mustPass` (§4.5b). These are the
-// only home for the three fail-closed third answers this lane's policies carry, and each one names the
-// evidence it could not gather rather than rendering a clean verdict over it.
+// REFUSAL ENVELOPE CONTROLS (§6.3). These assertions pin policy identity, evaluation phase, and
+// diagnostic text through runPolicyPass. A declared mustRefuse row owns the refusal verdict; these
+// controls additionally inspect the production error shape.
 //
 // The first two MOVED here from `tests/tooling/gate-conformance.repo.int.test.ts`, which drove them
 // through the LEGACY dispatcher's `runPass`; that harness cannot run a `defineGate` policy at all. Same

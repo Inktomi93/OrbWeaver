@@ -9,9 +9,10 @@
 // ZERO — no `@orb-gate-ignore` for either id exists anywhere on the tree, so nothing was translated and
 // nothing could be dropped.
 //
+// Proof ownership: docs/design/gate-runtime-standardization.md §6.2.
 // WHAT THIS FILE ADDS OVER THE CONFORMANCE STAGE. `pnpm check:policy-conformance` already runs every
 // declared row on the static tier, so the first test is the wave's bite receipt and nothing more. The
-// §4.2 arms below exist because a `mustPass` row asserts neither `waivedFindings === 1` nor, separately,
+// §6.2 arms below exist because a `mustPass` row asserts neither `waivedFindings === 1` nor, separately,
 // that the suppression came from THIS policy's own position: a row that stopped flagging for an unrelated
 // reason would pass it. The triple — zero effective, exactly one waived, zero authority alarms — is the arm.
 import { Project } from "ts-morph";
@@ -53,7 +54,7 @@ test(
 );
 
 // ---------------------------------------------------------------------------------------------------
-// §4.2 ORDINARY MARKER IDENTITY, one positive arm per policy. Both report a token the author can read off
+// §6.2 ORDINARY MARKER IDENTITY, one positive arm per policy. Both report a token the author can read off
 // the source: `scroll-container-positioned` the whitespace-split CLASS TOKEN, `class-token-splice` the
 // INTERPOLATED EXPRESSION at the offending junction. Neither position is guessable from the message,
 // which is why each policy's `fix` spells it out.
