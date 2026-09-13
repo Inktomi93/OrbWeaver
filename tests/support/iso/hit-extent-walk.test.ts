@@ -57,10 +57,14 @@ const CTA_RING: PseudoStyleFacts = {
   bottom: "0px",
 };
 
-/** A 25x25 control at (120,120) with no border — the glyph-sm box every capture above was taken from. */
+/** A 25x25 control at (120,120) with no border — the glyph-sm box every capture above was taken from.
+ *  `layoutWidth`/`layoutHeight` MATCH the border rect, i.e. no ancestor is transforming it; the
+ *  scaled-ancestor arm below is the case where they do not. */
 function geometry(before: PseudoStyleFacts, after: PseudoStyleFacts): HitGeometry {
   return {
     border: { left: 120, top: 120, right: 145, bottom: 145 },
+    layoutWidth: 25,
+    layoutHeight: 25,
     ownPosition: "relative",
     borderLeftWidth: "0px",
     borderTopWidth: "0px",
@@ -94,7 +98,26 @@ describe("pseudoHitRect", () => {
     expect(pseudoHitRect(collided, geometry(ABSENT, collided))).toBeNull();
   });
 
+  test("refuses a control under a SCALED ancestor instead of over-crediting it (#2300 ledger row 4)", () => {
+    // THE MIX THAT OVER-CREDITED (cb-v-hit-geometry, 2026-09-13). `border` is post-transform, the resolved
+    // insets are local px. A 0.5-scaled ancestor halves the border rect (25px box → 12.5px on screen at
+    // 120,120) while `left: 12.5px` / `right: -42.5px` stay local, so the old arithmetic answered
+    // {111.25, 111.25, 153.75, 153.75} — a band running ~14px PAST the pseudo's real reach of
+    // {112.5, 112.5, 140, 140}. The layout box is transform-free, so its disagreement with the border rect
+    // is the tell, and the answer is a refusal (under-report), never a guessed conversion.
+    const scaled: HitGeometry = { ...geometry(HIT_BEFORE, ABSENT), border: { left: 120, top: 120, right: 132.5, bottom: 132.5 } };
+    const overCredited = { left: 111.25, top: 111.25, right: 153.75, bottom: 153.75 };
+    // The OLD answer, reconstructed exactly: with the layout box lying about the scale, nothing refuses.
+    expect(pseudoHitRect(HIT_BEFORE, { ...scaled, layoutWidth: 12.5, layoutHeight: 12.5 }), "the over-credit this arm exists to stop").toEqual(overCredited);
+    // The NEW answer: the real layout box (25px, untransformed) disagrees with the 12.5px border rect.
+    expect(pseudoHitRect(HIT_BEFORE, scaled)).toBeNull();
+    // …and "no offset box to ask" (an SVG host) is CANNOT-TELL, which lands on the same refusal.
+    expect(pseudoHitRect(HIT_BEFORE, { ...geometry(HIT_BEFORE, ABSENT), layoutWidth: -1, layoutHeight: -1 })).toBeNull();
+  });
+
   test("refuses what it cannot state: an `auto` inset, a static host, a rotation, a hidden pseudo", () => {
+    expect(pseudoHitRect({ ...HIT_BEFORE, visibility: "collapse" }, geometry(HIT_BEFORE, ABSENT)), "collapse is hidden by another spelling").toBeNull();
+    expect(pseudoHitRect({ ...HIT_BEFORE, display: "contents" }, geometry(HIT_BEFORE, ABSENT)), "a box-less pseudo paints nothing to tap").toBeNull();
     expect(pseudoHitRect({ ...HIT_BEFORE, left: "auto", right: "auto" }, geometry(HIT_BEFORE, ABSENT)), "an unresolvable inset").toBeNull();
     expect(pseudoHitRect(HIT_BEFORE, { ...geometry(HIT_BEFORE, ABSENT), ownPosition: "static" }), "the containing block is some ancestor").toBeNull();
     expect(pseudoHitRect({ ...HIT_BEFORE, rotate: "45deg" }, geometry(HIT_BEFORE, ABSENT)), "a rotated rect is not four numbers").toBeNull();

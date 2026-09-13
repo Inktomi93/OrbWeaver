@@ -40,9 +40,19 @@
 // element's border box, and the credit reaches exactly that far and no further. The same clauses are
 // mirrored — deliberately, with the reason recorded in both headers — in the product walker
 // (`tooling/src/ui-audit/ops/walker/hit-extent.ts`), which is a raw-JS template-literal segment ABOVE the
-// test tree in the layer cake and so can neither import this nor be imported by it. The two are pinned
-// EQUAL on shared fixtures by the instrument proof named above; that pin is the only thing keeping them
-// from drifting apart again.
+// test tree in the layer cake and so can neither import this nor be imported by it.
+//
+// WHAT ACTUALLY PINS THE TWO SPELLINGS (rewritten 2026-09-13; cb-v-hit-geometry REFUTED what stood here).
+// This header used to say the two were "pinned EQUAL … the only thing keeping them from drifting apart",
+// and three probes with two planted controls showed otherwise: disabling THIS file's ancestor credit, and
+// reverting or de-fencing the walker's, each left the instrument proof 10/10 GREEN — its fixture's hit
+// pseudos self-report, so clause 2 never ran on it. The proof now carries `CREDIT_DOCUMENT`, four stages
+// where ancestor credit is the only thing that CAN answer at the probed points, and an ENVELOPE arm that
+// evaluates both homes' real sources on the same elements in the same page and requires exact equality.
+// Disabling the credit here now reds the clipped stage (60 → 30, measured); changing either home's
+// arithmetic reds the envelope arm. The published EXTENTS are deliberately NOT compared across homes — a
+// rung-quantised ring against a 1px walk, "the numbers differ by design" since #1678 — so each home's
+// numbers are pinned to its own measured values.
 
 /** The resolved-style reader — `CSSStyleDeclaration` satisfies it structurally. */
 interface HitStyle {
@@ -70,6 +80,10 @@ interface HitNode {
 /** The measured element — `HTMLElement`/`SVGElement` satisfy it. */
 interface HitElement extends HitNode {
   getBoundingClientRect: () => HitRect & { readonly width: number; readonly height: number };
+  /** OPTIONAL because an `SVGElement` does not have one — `HTMLElement`'s required `number` satisfies it,
+   *  and its absence is what makes the transform check answer "cannot tell" rather than "no transform". */
+  readonly offsetWidth?: number;
+  readonly offsetHeight?: number;
   readonly ownerDocument: {
     elementFromPoint: (x: number, y: number) => HitNode | null;
     readonly defaultView: {
@@ -97,9 +111,17 @@ export interface PseudoStyleFacts {
   readonly scale: string;
 }
 
-/** Everything the envelope arithmetic needs about one control, read in a single page round trip. */
+/** Everything the envelope arithmetic needs about one control, read in a single page round trip.
+ *
+ *  `layoutWidth`/`layoutHeight` are `offsetWidth`/`offsetHeight` — the element's LAYOUT box, which no
+ *  ancestor transform touches — and they are here for exactly one job: comparing them against `border`
+ *  (which IS post-transform) is how this data says "somebody up the tree is scaling me". See
+ *  {@link pseudoHitRect}'s transform refusal. `-1` means the reader could not ask (an `SVGElement` has no
+ *  offset box), which is treated as "cannot tell" and therefore as a refusal. */
 export interface HitGeometry {
   readonly border: HitRect;
+  readonly layoutWidth: number;
+  readonly layoutHeight: number;
   readonly ownPosition: string;
   readonly borderLeftWidth: string;
   readonly borderTopWidth: string;
@@ -141,6 +163,8 @@ export const readPseudoGeometry = (el: HitElement): HitGeometry => {
   };
   return {
     border: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
+    layoutWidth: typeof el.offsetWidth === "number" ? el.offsetWidth : -1,
+    layoutHeight: typeof el.offsetHeight === "number" ? el.offsetHeight : -1,
     ownPosition: own.getPropertyValue("position"),
     borderLeftWidth: own.getPropertyValue("border-left-width"),
     borderTopWidth: own.getPropertyValue("border-top-width"),
@@ -173,6 +197,32 @@ export const readPseudoGeometry = (el: HitElement): HitGeometry => {
  * name. Every hit-area pseudo on this tree qualifies (`TOUCH_TARGET_PSEUDO`, Button's `glyphBox` and
  * `inline` arms all set `relative`).
  */
+/** Can this pseudo carry a tap target AT ALL, and can this element's geometry be STATED — the two refusal
+ *  sets, split out of {@link pseudoHitRect} because that function is serialised into a page (so every
+ *  helper it uses must join {@link HIT_EXTENT_WALK_SOURCE}) and one function holding both sets plus the
+ *  arithmetic scores past the cognitive-complexity budget. The clauses themselves are documented on
+ *  {@link pseudoHitRect}. */
+export const pseudoIsEligible = (facts: PseudoStyleFacts, geometry: HitGeometry): boolean => {
+  const reachable =
+    facts.content !== "none" &&
+    facts.content !== "normal" &&
+    facts.position === "absolute" &&
+    facts.pointerEvents !== "none" &&
+    facts.visibility !== "hidden" &&
+    facts.visibility !== "collapse" &&
+    facts.display !== "none" &&
+    facts.display !== "contents" &&
+    facts.rotate === "none" &&
+    facts.scale === "none" &&
+    geometry.ownPosition !== "static";
+  const untransformed =
+    geometry.layoutWidth >= 0 &&
+    geometry.layoutHeight >= 0 &&
+    Math.abs(geometry.border.right - geometry.border.left - geometry.layoutWidth) <= 0.5 &&
+    Math.abs(geometry.border.bottom - geometry.border.top - geometry.layoutHeight) <= 0.5;
+  return reachable && untransformed;
+};
+
 export const pseudoHitRect = (facts: PseudoStyleFacts, geometry: HitGeometry): HitRect | null => {
   // A pure translation matrix, the only `transform` this arithmetic can state; anything else — a
   // rotation, a scale, a skew — makes the rect something four numbers cannot describe, and an unstatable
@@ -181,17 +231,7 @@ export const pseudoHitRect = (facts: PseudoStyleFacts, geometry: HitGeometry): H
   // reads perfectly, typechecks, and throws `ReferenceError` in the browser (measured 2026-09-13 — the
   // instrument proof's eval arm caught it in one run).
   const pureTranslatePrefix = "matrix(1, 0, 0, 1, ";
-  const eligible =
-    facts.content !== "none" &&
-    facts.content !== "normal" &&
-    facts.position === "absolute" &&
-    facts.pointerEvents !== "none" &&
-    facts.visibility !== "hidden" &&
-    facts.display !== "none" &&
-    facts.rotate === "none" &&
-    facts.scale === "none" &&
-    geometry.ownPosition !== "static";
-  if (!eligible) {
+  if (!pseudoIsEligible(facts, geometry)) {
     return null;
   }
   const translatable = facts.transform === "none" || facts.transform.startsWith(pureTranslatePrefix);
@@ -309,9 +349,26 @@ export const walkFrom = (el: HitElement, arg: { readonly axis: "x" | "y"; readon
  *  it cannot drift from them. For the consumer that must ship the rule INTO a page as text: the ui-audit
  *  instrument proof runs it through `snap --eval` so the kit's walk and the product walker judge the same
  *  DOM in the same run. */
+/** JUST THE CREDIT ENVELOPE as ONE in-page expression, `(el) => HitRect | null`, composed the same way.
+ *  The #2300 rule is the envelope, and the envelope is the ONE thing the two homes must answer IDENTICALLY
+ *  — their published extents cannot be compared directly (a rung-quantised ring against a 1px walk, "the
+ *  numbers differ by design" since #1678), so this is what "pinned equal" is allowed to mean. The
+ *  instrument proof evaluates this beside the walker's own `pseudoHitEnvelope` on the same elements in the
+ *  same page and requires exact equality. */
+export const PSEUDO_ENVELOPE_SOURCE: string = [
+  "((el) => {",
+  `  const pseudoIsEligible = ${pseudoIsEligible.toString()};`,
+  `  const pseudoHitRect = ${pseudoHitRect.toString()};`,
+  `  const pseudoHitEnvelope = ${pseudoHitEnvelope.toString()};`,
+  `  const readPseudoGeometry = ${readPseudoGeometry.toString()};`,
+  "  return pseudoHitEnvelope(readPseudoGeometry(el));",
+  "})",
+].join("\n");
+
 export const HIT_EXTENT_WALK_SOURCE: string = [
   "((el, axis) => {",
   `  const readPseudoGeometry = ${readPseudoGeometry.toString()};`,
+  `  const pseudoIsEligible = ${pseudoIsEligible.toString()};`,
   `  const pseudoHitRect = ${pseudoHitRect.toString()};`,
   `  const pseudoHitEnvelope = ${pseudoHitEnvelope.toString()};`,
   `  const walkFrom = ${walkFrom.toString()};`,
