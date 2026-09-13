@@ -27,24 +27,22 @@
 // was needed. Verified by a planted two-sided probe in this directory before the move: the key-shaped
 // declaration errored on `automation_rules`, the record-array shape did not, in one invocation.
 //
-// CENSUS, RE-DERIVED 2026-09-12 AT THE MOVE — and the old one was STALE. The paragraph above claimed
-// "87 tables — 23 ownerId · 19 membership · 16 junction · 24 parent · 5 global", dated 2026-08-08. The true
-// figures today are **97 tables — 27 ownerId · 26 parent · 21 membership · 17 junction · 6 global**, and the
-// registry matches the live schema EXACTLY: 97 `sqliteTable` declarations across 30 files in
-// `packages/db/src/schema/**`, symmetric difference ZERO in both directions. The registry was right the
-// whole time; only its prose count rotted, because the two-sided ratchet polices the SET and nothing
-// policed the sentence describing it. That is why the pin in
-// `tests/tooling/verify/gates/tenancy-scope-family.test.ts` asserts DERIVED-equals-DECLARED rather than a
-// literal count — pinning 97 would make adding a table a red proof.
-//
-// AND THIS NUMBER HAS NOW ROTTED TWICE. The 2026-08-08 sentence described itself as a repair: "refinery R0
-// — which also corrected a two-row drift the previous census missed". So the count drifted, was corrected,
-// and has drifted again by ten. Twice is not an accident; it is a maintenance model that does not work,
-// and the root cause is structural rather than anybody's carelessness: the two-sided ratchet polices the
-// SET, and NOTHING polices a hand-written prose count OF that set. A number describing something a machine
-// already knows exactly will rot on a schedule set by how often the machine's answer changes. That is why
-// this paragraph now carries its METHOD and DATE rather than only its value — a reader who needs the
-// number runs the derivation, and a reader who needs to trust it can see when and how it was taken.
+// THE CENSUS IS NOT WRITTEN HERE, ON PURPOSE (#2179). The paragraph above quotes a count dated 2026-08-08
+// ("87 tables — 23 ownerId · 19 membership · 16 junction · 24 parent · 5 global"), which had already been a
+// repair of an earlier drift, and which a 2026-09-12 re-derivation found ten tables stale — while the
+// REGISTRY matched the live schema exactly the whole time. The two-sided ratchet polices the SET; nothing
+// polices a hand-written count OF that set, so any number written here rots on the schedule of schema
+// change. The authoritative answers are therefore the ones a machine computes, never a sentence:
+//   · total and per-class split — `TABLE_SCOPING_ROWS` below, grouped by `scope`
+//     (re-derive from the repo root: `node -e 'import("./tooling/src/verify/lib/tenancy-scope.ts").then((m) =>
+//     console.log(m.TABLE_SCOPING_ROWS.length, Object.entries(Object.groupBy(m.TABLE_SCOPING_ROWS,
+//     (row) => row.scope)).map(([scope, rows]) => scope + "=" + rows.length)))'`);
+//   · registry = schema, both directions — `table-scoping-class`'s UNCLASSIFIED/STALE arms over the real
+//     `drizzleSchemaFact` on every structure run, pinned in both directions by the RATCHET SIDE tests in
+//     `tests/tooling/verify/gates/tenancy-scope-family.test.ts`, which assert relative to the row array
+//     rather than a literal (pinning a count would make adding a table a red proof).
+// Re-derived 2026-09-13 with the command above: the registry and `sqliteTable(` declarations under
+// `packages/db/src/schema/**` agree in size — a dated observation, not a figure to maintain.
 //
 // THE FAMILY'S POPULATION PORT IS DERIVED ONCE HERE (§5b.5), so the three call-shape members cite one
 // measurement instead of copying it three times — the `DRIZZLE_SCHEMA_POPULATION` precedent, which this

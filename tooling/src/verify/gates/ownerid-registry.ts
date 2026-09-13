@@ -129,7 +129,7 @@ export const gate = defineGate({
         }
       }
       // The stale arm needs the WHOLE production schema, recognised by its barrel. Without it a fixture (or
-      // any partial fileset) would report all 27 rows as stale — the misfire §4.5 warns about.
+      // any partial fileset) would report every classified row as stale — the misfire §4.5 warns about.
       const paths = ctx.files.map(ctx.relativePath);
       if (!paths.includes(SCHEMA_BARREL)) {
         return;
