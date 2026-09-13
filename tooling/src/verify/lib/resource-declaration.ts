@@ -19,15 +19,16 @@ import { VENDOR_MIRROR_ROOT } from "../contract/resource-vendor.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { assertGateResourceDeclarations, assertRepoPathIdentity } from "./policy-validation.ts";
 
-/** Narrow a DECLARED resource fact to its value. A policy that declares a resource never observes a
- *  non-ready one: `resolveResourceDeclarations` below throws on every non-ready declaration and on an
- *  empty fact during the POPULATION phase, and the receipt phase withholds every consumer — both before
- *  `create`/`evaluate` run at all (guide §11 ruling 3). So this is an ASSERTION about the runtime, not a
- *  withhold a policy owns: an in-module `if (fact.status !== "ready") return;` is unreachable code that
- *  also teaches the next author that a silent return is the right answer to a broken resource. It is not.
- *  The narrowing is unavoidable — `ResourceFact<T>` is a discriminated union and `.value` lives only on
- *  the ready arm — so it lives HERE, beside the refusal it is asserting, rather than being re-spelled in
- *  each resource policy. */
+/** Narrow a DECLARED resource fact to its value. Population resolution acquires every populated kind and
+ *  withholds its owner before `create` when that fact is non-ready or empty. The unpopulated kinds are acquired
+ *  later through their bound doors: `authored-path` and `authored-text` take a subject at the call, while
+ *  `installed-package` is fully declared but contributes no authored path. Their non-ready arms can therefore
+ *  reach this helper in the phase that performs the read, where the throw is the live refusal rather than an
+ *  assertion about pre-create resolution.
+ *
+ *  No policy owns a silent withhold: `if (fact.status !== "ready") return;` turns either invariant into a clean
+ *  verdict. The narrowing is unavoidable — `ResourceFact<T>` is a discriminated union and `.value` lives only
+ *  on the ready arm — so it lives HERE, beside both refusal paths, rather than being re-spelled in each policy. */
 export function readyResourceValue<T>(fact: ResourceFact<T>): T {
   if (fact.status !== "ready") {
     throw new Error(`resource ${fact.receipt.source} ${POLICY_PASS_REFUSALS.resourceCameBack} ${fact.status}: ${fact.reason}`);
