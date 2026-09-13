@@ -1317,10 +1317,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "6443561d6aaca22b231c90e76222e965a2e0fe414cf19a85fa40945ec7ea8e79",
-      "verifiedCommit": "037356d747e8923cce87707a9da3d19c530253c4",
+      "verifiedSha256": "6c24b828b05a8018153db5589d5ef8fcf74d7dc45449e5f859d72b756eacdc6d",
+      "verifiedCommit": "9c451ed6f2263970e0541f50e7e67888b63801fa",
       "verifiedAt": "2026-09-13",
       "evidence": [
+        "Full document read by root and independent operations reviewer for #2323. Corrected current operational pointers, successful finish semantics, CT owner, parity prefix, Vitest project names, and affected native compiler routing through 9c451ed6f. Scoped docs check and source review pass. Historical timings and whole-runtime behavior were not replayed; prior evidence remains dated provenance.",
         "Full document read by the reconciliation lane; independent review accepted ee165b3a7, 8f765deda and final11a359f84 cleanup. Root checked final scope changes against registry/ledgers-fresh source; document formatting passed. Prior evidence below remains historical and is not a new whole-runtime certification.",
         "Main/world integration re-attestation: preserve the reviewed shared compiler, routing and native-tool contracts while adopting cd86c7189 commit-hook guidance and atomic document/receipt/catalog staging. Candidate input closure is tracked separately in #1912; this receipt does not claim program completion.",
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
@@ -1376,6 +1377,23 @@
             {
               "kind": "provenance",
               "target": "git:659d2456c7de1d9e4b5bf3b20db4a63848f99392"
+            }
+          ]
+        },
+        {
+          "claim": "Scoped typechecking selects affected native compiler programs through their import closures; source diagnostics remain owned by native typechecking and Vitest type assertions suppress unrelated source diagnostics.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/lib/program-routing.ts:1"
+            },
+            {
+              "kind": "code",
+              "target": "vitest.config.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
             }
           ]
         }
