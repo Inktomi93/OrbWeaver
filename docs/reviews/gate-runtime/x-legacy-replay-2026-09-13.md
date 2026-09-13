@@ -364,6 +364,115 @@ and where a moved arm has no legacy coverage the row says so per example rather 
 combined. The RUN itself is not the expensive half (all in-memory; families 1 and 2 replayed 31 examples
 in ~1.5s of engine time); the per-row declaration is.
 
+## 5d. FAMILY 3 — the TWIN RECIPE, and `modal-body-not-placeholder` driven end to end
+
+`tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts`, on the repaired harness
+(`6144f3183` · `7d2d2c502` · `7c928eb38`). The harness is FROZEN to this lane; every row uses its doors.
+
+### 5d.1 The pre-check receipt, restated because every family report owes it
+
+```
+git log --oneline -S "gate: GateDescriptor" -- <the nine registry-definitions paths>   # 8 commits
+git log --oneline -S "gate: GateDescriptor" -- diagnostic-legibility.ts biome-grant-liveness.ts  # 4 — the control
+```
+
+**Nine of nine are real conversions, zero refusals** — the opposite of family 2. Every frozen blob is a
+pure AST reader (zero filesystem-reach spellings), so the whole family routes to the IN-MEMORY door.
+
+### 5d.2 WHY EVERY ROW NEEDS A TWIN — the blocker, measured before any table was written
+
+Every FINAL policy here declares a SEMANTIC population; its legacy descriptor declared none and matched by
+AST SHAPE. So a legacy example annotates `: ModalDefinition` and never DECLARES that type, the member
+denominator resolves to zero, and `receiptFailures` WITHHOLDS the owner before it judges anything.
+
+**A naive table would have read `legacy N → final 0` on every `mustFlag` row and could have been filed as
+N retired arms.** It is not — the final side never ran. Every row keeps the withheld receipt for the
+ORIGINAL bytes, asserted by the NAMED denominator, and the six modules with no table yet keep it too:
+
+| Module | Withheld by |
+| - | - |
+| `modal-registry-completeness` | `ModalDefinition` |
+| `placeholder-copy-registry` | `SectionDefinition` |
+| `chrome-registry-completeness` | `ChromeEntry` |
+| `section-factory-contribution-bundle` | `ContributorRegistry`, `SectionDefinition factory` |
+| `home-tile-registry-completeness` | `HomeTileContribution` |
+| `no-parallel-section-map` | `CHROME_ZONES`, `CONFIG_GROUP_IDS`, `MODAL_SLOT_IDS` |
+
+### 5d.3 THE TWIN RECIPE, and the two things that had to be measured to get it right
+
+The final reader admits a definition only through a RESOLVED target (`lib/registry-fact.ts` `factsFor`),
+and `isExportedType` requires an EXPORTED interface/type alias named by the kind's `TYPE_NAMES` entry.
+
+1. **A GLOBAL (unexported, script-file) declaration does NOT work.** Probed first because it is the
+   minimal addition and touches no subject byte: `isExportedType` rejects it, the target stays unresolved,
+   the population is still zero. **Refuted, not assumed.** So the target must be a MODULE and the subject
+   must IMPORT it — the twin necessarily PREPENDS, which is exactly why the inertness control compares the
+   legacy verdict UNLINED.
+2. **The target ALONE is not enough, and the failure is silent.** With only `ModalDefinition` supplied the
+   population resolved and the policy ran — and reported NOTHING, because `isCanonicalPlaceholder` resolves
+   the JSX tag through `notePlaceholderImport` and the placeholder set was empty. **That zero would have
+   read as a lost catch.** The fix is not invention: **the twin's content is read off the FINAL policy's
+   own `mustFlag` fixture**, which is the authoritative statement of what its reader needs — here the
+   `ModalDefinition` target AND the canonical `SectionPlaceholder`.
+
+**This is the family's reusable recipe**, and it is why the remaining eight are left undeclared rather than
+extrapolated: each needs its own prerequisite read off its own final fixture, and point 2 is the proof that
+guessing the pattern produces a silent wrong number.
+
+### 5d.4 `modal-body-not-placeholder` — all 6 legacy examples, legacy on original bytes vs final on twin
+
+Legacy population is **1 on every row** (the planted subject only) — the self-scanning immunity receipt.
+Tool errors: 0 on the legacy side throughout; 0 on the final TWIN side throughout; and exactly one
+withheld receipt on the final ORIGINAL side throughout, which is the point of the twin.
+
+| # | Legacy example | Legacy | Final on twin | Pop L → twin | Class | Successor |
+| -: | - | -: | -: | - | - | - |
+| 0 | `mustFlag[0]` function body rendering `<SectionPlaceholder>` | 1 @ `theme-modal.tsx:1` token `"themeModal"` | 1 @ `:3` token `themeModal` | 1 → 3 | **anchor-move** | `themeModal` |
+| 1 | `mustFlag[1]` the #944 control — body in an IMPORTED object | 1 @ `x-modal.tsx:2`, whole reason in the token | 1 @ `:4` token `xModal` | 1 → 4 | **anchor-move** | `xModal` |
+| 2 | `mustPass[0]` DECLARED-PLANNED (object literal, not a function) | 0 | 0 | 1 → 3 | vacuous-both-zero | — |
+| 3 | `mustPass[1]` a REAL body, no placeholder | 0 | 0 | 1 → 3 | vacuous-both-zero | — |
+| 4 | `mustPass[2]` SAME-FILE indirection | 0 | 0 | 1 → 3 | vacuous-both-zero | — |
+| 5 | `mustPass[3]` a whole-literal `satisfies` wrapper | 0 | 0 | 1 → 3 | vacuous-both-zero | — |
+
+**Both catches are CARRIED.** The classification is `anchor-move` and the receipt distinguishes its two
+components honestly: **the LINE delta (1 → 3, 2 → 4) is the twin's own two-line prepend and is NOT a
+conversion anchor move**; the TOKEN change is. The legacy descriptor synthesised a quoted `"themeModal"`
+and packed row 1's entire explanation into the token; the final policy anchors on the bare identifier and
+puts the reason in the message.
+
+**Two controls per row, both asserted:** the twin is INERT on the legacy side (unlined), and the twin
+ALONE reports nothing — here STRONGER than "no findings", because without the subject it cannot resolve a
+population at all, so it refuses. A twin that could report on its own would be manufacturing the catch.
+
+### 5d.5 Floor executed (family 3, this chunk)
+
+| Check | Result |
+| - | - |
+| `pnpm test:scoped` the new test | **4 passed** |
+| all SEVEN suites importing the harness | **7 files / 41 tests passed** — the other six unchanged |
+| `pnpm check:structure --check <policy>`, **ONE AT A TIME**, seven runs | all exit 0, real tree unchanged: `modal-body-not-placeholder` (ModalDefinition 11) · `modal-registry-completeness` (11) · `placeholder-copy-registry` (SectionDefinition 10) · `chrome-registry-completeness` (CHROME_ZONES 4, ChromeEntry 7) · `section-factory-contribution-bundle` (ContributorRegistry 1, factory 4) · `home-tile-registry-completeness` (7) · `no-parallel-section-map` (CHROME_ZONES 4, CONFIG_GROUP_IDS 13, MODAL_SLOT_IDS 11, SECTION_IDS 10) |
+| `pnpm exec biome check` · `pnpm exec eslint` | clean · exit 0 |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | PASS both |
+
+**Three planted controls, all RED and restored (`cp`/`mv`, one command per call):**
+
+1. **Twin-prerequisite control** — renamed the twin's `SectionPlaceholder` to `NotThePlaceholder`, leaving
+   the target intact. RED: row 0's final side went to `[]`. This is the control that matters most here: it
+   proves the table measures the CATCH and not merely a resolved population.
+2. **Successor control** — row 1's `successor` → `"a-successor-nothing-carries"`, numbers untouched. RED:
+   `the declared SUCCESSOR … appears in no final finding or tool error`.
+3. **Withheld-denominator control** — `placeholder-copy-registry`'s declared population → `ModalDefinition`.
+   RED: `expected [… SectionDefinition] to deeply equal [… ModalDefinition]`. The withheld arm names the
+   right denominator or it fails.
+
+### 5d.6 A THIRD direction for §3a's error class
+
+§5b.6 recorded two: family 2 over-counted by nine (born-final modules matching the census key), family 3
+under-counted by one (`modal-body-not-placeholder` excluded because a harness-importing file names it).
+**The third is that "replayable" is not "table-able."** All nine of this family load and replay, and none
+of them could be tabled without first constructing a twin per module from that module's own final fixture.
+A backlog count built on "does the frozen descriptor load" would still overstate the work that is done.
+
 ## 6. Reproducing the §3 derivation
 
 ```
