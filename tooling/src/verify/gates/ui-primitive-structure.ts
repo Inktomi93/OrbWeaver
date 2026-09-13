@@ -7,11 +7,12 @@
 // format-only `/^oklch\(/` passes. Every other string scans, interpolated titles included.
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { CallExpression, SourceFile, Node as TsMorphNode, VariableDeclaration } from "ts-morph";
+import type { SourceFile, Node as TsMorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { CheckContext, Violation } from "../contract/harness.ts";
 import { blankTsComments } from "../lib/comment-spans.ts";
+import { testNarrationSpans } from "../lib/test-narration.ts";
 
 /** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
  *  node carries its own position, and `token` folds the per-occurrence detail the gate's static `message`
@@ -222,64 +223,8 @@ const COLOR_LITERAL_TEST_EXEMPT = new Set(["theme-scope.ct.tsx", "color-field.ct
 // looser regex: a string literal sitting in a test's own NARRATION — the title argument of a test-like
 // call, or `expect()`'s message argument — is prose, never a style value. Everything else still scans,
 // including a bare `const c = "#abc"` and a color in a toHaveCSS/style argument.
-const NARRATION_CALLEES = new Set(["test", "it", "describe", "suite", "bench"]);
-const EXPECT_CALLEE = "expect";
-
-/** The ROOT identifier of a (possibly chained) callee — `test.describe.serial` → `test`, `expect.soft` →
- *  `expect`. Modifier chains are how both runners spell every variant, so keying on the root covers
- *  `.skip`/`.only`/`.each`/`.step`/`.poll` without enumerating them. */
-function rootCalleeName(call: CallExpression): string | undefined {
-  let expr: Node = call.getExpression();
-  while (Node.isPropertyAccessExpression(expr)) {
-    expr = expr.getExpression();
-  }
-  return Node.isIdentifier(expr) ? expr.getText() : undefined;
-}
-
-/** Which argument of this call (if any) is authored PROSE about the test itself. */
-function narrationArgIndex(call: CallExpression): number | undefined {
-  const root = rootCalleeName(call);
-  if (root === EXPECT_CALLEE) {
-    return 1; // expect(actual, "message") — the soft-assert message both runners take.
-  }
-  return root !== undefined && NARRATION_CALLEES.has(root) ? 0 : undefined;
-}
-
-/** THE INTERPOLATED TITLE (the third form of the #507 FP class, found 2026-08-24 by a lane whose
- *  parameterized rows spell a backticked title carrying an interpolation — a `for` over two polarity arms, the
- *  house idiom for a two-arm rendered pin). This function used to carry a DECLARED LIMIT saying a
- *  TemplateExpression keeps scanning "because blanking its span would blank the interpolation too, and an
- *  interpolation is CODE: hiding it is the permissive direction this gate must never take".
- *
- *  THAT RULING SURVIVES — ITS INPUT CHANGED. The concern was never "templates are suspicious", it was
- *  "never blank code", and a template's PROSE and its CODE are separate nodes: the head/middle/tail
- *  literal chunks are the authored text, the substitutions are expressions. Blanking exactly the chunks
- *  keeps every interpolated value scanned (a color literal smuggled through a substitution still REDS — the mustFlag
- *  row pins it), while a `#nnn` citation in a parameterized title stops reading as a 3-digit hex. Without
- *  it the only way past this gate is rewording the title, which is precisely what #507 was minted to stop
- *  two lanes doing. */
-function narrationSpans(sf: SourceFile): { readonly pos: number; readonly end: number }[] {
-  const out: { readonly pos: number; readonly end: number }[] = [];
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const index = narrationArgIndex(call);
-    const arg = index === undefined ? undefined : call.getArguments()[index];
-    if (arg === undefined) {
-      continue;
-    }
-    if (Node.isStringLiteral(arg) || Node.isNoSubstitutionTemplateLiteral(arg)) {
-      out.push({ pos: arg.getStart(), end: arg.getEnd() });
-      continue;
-    }
-    if (Node.isTemplateExpression(arg)) {
-      const head = arg.getHead();
-      out.push({ pos: head.getStart(), end: head.getEnd() });
-      for (const span of arg.getTemplateSpans()) {
-        const literal = span.getLiteral();
-        out.push({ pos: literal.getStart(), end: literal.getEnd() });
-      }
-    }
-  }
-  return out;
+function narrationSpans(sf: SourceFile): readonly { readonly pos: number; readonly end: number }[] {
+  return sf.getDescendantsOfKind(SyntaxKind.CallExpression).flatMap(testNarrationSpans);
 }
 
 /** The text clause 5 and its stale arm BOTH judge: comments blanked (issue #117) then narration blanked
@@ -287,7 +232,7 @@ function narrationSpans(sf: SourceFile): { readonly pos: number; readonly end: n
 function colorScanText(sf: SourceFile): string {
   let text = blankTsComments(sf);
   // Descending, so an earlier blank can never move a later span's offsets.
-  for (const span of narrationSpans(sf).sort((a, b) => b.pos - a.pos)) {
+  for (const span of [...narrationSpans(sf)].sort((a, b) => b.pos - a.pos)) {
     const blanked = text.slice(span.pos, span.end).replace(/[^\n]/gu, " ");
     text = text.slice(0, span.pos) + blanked + text.slice(span.end);
   }
