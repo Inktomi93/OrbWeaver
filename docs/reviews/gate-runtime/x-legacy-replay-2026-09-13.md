@@ -465,6 +465,80 @@ population at all, so it refuses. A twin that could report on its own would be m
    RED: `expected [… SectionDefinition] to deeply equal [… ModalDefinition]`. The withheld arm names the
    right denominator or it fails.
 
+### 5d.3b THE RECIPE AS A SPEC — everything a fresh lane needs to take the remaining modules
+
+Follow this in order. Steps 2 and 3 are the two that were paid for.
+
+1. **Pre-check the module.** `git log --oneline -S "gate: GateDescriptor" -- <path>` with a
+   known-conversion positive control in the same shape. Zero + a firing control = born final = nothing to
+   replay, and the refusal IS the deliverable. Non-zero = the conversion commit; its parent is the base.
+2. **Route by the BLOB, never by the family.** `filesystemReach` on the frozen source: zero spellings →
+   the in-memory `createDifferential`; non-zero → `createTmpdirDifferential`. The wrong-door refusals say
+   so out loud if you misroute.
+3. **READ THE FINAL POLICY'S OWN `mustFlag[0]` FIXTURE AND LIFT ITS PREREQUISITES.** This is the step that
+   cannot be skipped or pattern-matched. That fixture is the authoritative statement of what the final
+   reader needs. **Do not copy another module's twin** — measured: `modal-body-not-placeholder` needs the
+   `ModalDefinition` target AND the canonical `SectionPlaceholder`, while `modal-registry-completeness` and
+   `placeholder-copy-registry` need the target ALONE. Same family, different prerequisites.
+4. **Build the twin as `add` + `prepend`.**
+   - The registry type must be an EXPORTED interface/type alias (`isExportedType`). **A global unexported
+     script-file declaration is REFUTED** — the target stays unresolved and the population is still zero.
+   - **ONE shared target per example, never one per directory.** Two declarations of the same registry type
+     make `targetFact` AMBIGUOUS, which is unresolved, which is a zero population again. Place the target at
+     one path and compute each subject's specifier with `posix.relative(posix.dirname(subject), target)`,
+     prefixing `./` when it does not already start with `.`.
+   - The target being a MODULE forces the subject to IMPORT it, so the twin PREPENDS. That shifts lines.
+5. **Assert five things per row**: the legacy verdict on the ORIGINAL bytes; the WITHHELD receipt on those
+   same bytes by NAMED denominator (this is what stops a `legacy N → final 0` row being mis-filed as a
+   retired arm); INERTNESS, compared UNLINED; TWIN-ALONE (the prerequisites without the subject — expect a
+   population refusal, which is stronger than "no findings"); and the final verdict on the twin.
+6. **Declare the prepend's LINE DELTA as a twin artefact.** It is not a conversion anchor move. Only a
+   token/file/anchor change that survives the line shift is.
+7. **A SPLIT module's per-example COVERAGE STATEMENT** must say, per example and in the test rather than in
+   prose: whether the carved arm is EXERCISED by that legacy example at all; if it is not, that the row is
+   ZERO-COVERAGE for the moved arm and therefore proves nothing about it; and then construct the successor
+   proof from the arm's own trigger conditions instead of replaying. §4.6's warning is that a split's
+   differential is weakest exactly where it feels strongest, because the carved arms are the ones nobody
+   wrote proof rows for.
+8. **Three planted controls, `cp`/`mv`, one command per call**: break a twin prerequisite (proves the table
+   measures the CATCH, not merely a resolved population), a successor-only mutation, and a
+   withheld-denominator mutation.
+
+**The two awkward ones, with what is already known.** `no-parallel-section-map` carries THREE denominators
+(`CHROME_ZONES`, `CONFIG_GROUP_IDS`, `MODAL_SLOT_IDS`, and the real tree also resolves `SECTION_IDS`) — its
+twin must satisfy all of them or the owner stays withheld, and they are const-array registries rather than
+interface targets, so step 4's `isExportedType` shape does NOT apply to them; read its own fixture.
+`section-factory-contribution-bundle` carries `ContributorRegistry` plus `SectionDefinition factory`, and
+the factory shape is admitted through `noteVariable`'s ARROW/FUNCTION-EXPRESSION branch on the RETURN type
+node (`candidate.shape === "factory"`, which `factsFor` allows only for `kind === "section"`) — a `const`
+annotation will not produce a factory candidate.
+
+### 5d.4b SUB-CHUNK 2 — MEASURED, NOT CLASSIFIED: `modal-registry-completeness` and `placeholder-copy-registry`
+
+Both twins are the target ALONE, read off each module's own final `mustFlag[0]` fixture (step 3), with one
+shared target and computed specifiers (step 4). **Every row's legacy side runs, every twin is INERT, every
+twin-alone refuses, and the withheld receipt holds on the original bytes for all 21 rows.** The population
+column is the self-scanning immunity receipt throughout (legacy 1–2, the planted subjects only).
+
+`modal-registry-completeness` (13 rows): `mustFlag[0..5]` and `[7]` — **legacy 1 → final 1 on the twin,
+every one**, the token moving from the legacy descriptor's packed synthetic string to the bare identifier.
+`mustPass[0]`, `[1]`, `[3]`, `[4]` — 0 → 0.
+
+`placeholder-copy-registry` (8 rows): `mustFlag[0..2]` and `[4]` — **legacy 1 → final 1**, same token shift.
+`mustPass[0..2]` — 0 → 0.
+
+**THREE ROWS ARE NOT CLASSIFIED, DELIBERATELY, AND THEY ARE THE REASON THIS SUB-CHUNK IS A MEASUREMENT AND
+NOT A TABLE.** Filing them would be exactly the mis-classification this whole exercise exists to prevent.
+
+| Row | Measured | Why it is not classified |
+| - | - | - |
+| `modal-registry-completeness` `mustFlag[6]` — the anti-god-map arm | legacy 1; final **still WITHHELD** (`ModalDefinition` zero members) even with the twin | Its fixture is a single route file that declares NO modal definition, so no minimal twin can resolve the population without ADDING a definition — at which point it is no longer this example. Either a declared limit or a genuine retired arm; the successor proof needs a fixture carrying a live definition BESIDE the god-map prop, which is a constructed row, not a replay. |
+| `modal-registry-completeness` `mustPass[2]` — a `surface` modal WITH an `openModal('x')` opener | legacy **0** (passes); final on twin **1**: *"Unreachable surface modal 'x': a `surface` modal with a real body has no explicit openModal("x") call site"* | The legacy fixture DOES carry `opener.tsx` with that call. So either (a) the twin's prepend perturbs opener recognition — an artefact — or (b) the final policy's opener grammar is NARROWER than the legacy descriptor's, which is a live false positive on a shipped policy. **I have not distinguished them.** The discriminating measurement is one probe: drop the prepend from `opener.tsx` alone and re-run. **On the REAL tree the policy reports 0 effective findings over 11 `ModalDefinition` members**, so if it is (b) it is fixture-shaped and not currently firing on the corpus — but that is a reason to adjudicate it, not to assume it away. |
+| `placeholder-copy-registry` `mustFlag[3]` — the #944 unreadable-definition control | legacy 1; final on twin **0, with NO tool error** — the policy ran and stayed silent | Most likely a genuine STRONGER-READER: the final reader follows a cross-module const to its real declaration, so an in-population sibling definition RESOLVES where the legacy descriptor called it "not an object literal declared in this file". The final policy's own unreadable arm is pinned with an object one hop OUTSIDE `@client` for exactly that reason. **Likely correct-by-design, but "likely" is not a classification** — it needs the out-of-population successor stated and proven. |
+
+**No rows were committed for these two modules.** The measurement above is durable; the classifications are
+the next lane's first task, and the three rows above are the whole of what is open.
+
 ### 5d.6 A THIRD direction for §3a's error class
 
 §5b.6 recorded two: family 2 over-counted by nine (born-final modules matching the census key), family 3
