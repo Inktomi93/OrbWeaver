@@ -1,6 +1,9 @@
 // Closed syntax/text carriers admitted to final ordinary-waiver reconciliation.
 import type { SourceFile } from "ts-morph";
 
+/** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `OrdinaryWaiverResourceFormat` union
+ *  (line 5) — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would
+ *  invite the re-spell `no-inline-union-redecl` exists to stop. */
 export const ORDINARY_WAIVER_RESOURCE_FORMATS = ["css", "markdown", "jsonc", "json", "sql"] as const;
 export type OrdinaryWaiverResourceFormat = (typeof ORDINARY_WAIVER_RESOURCE_FORMATS)[number];
 

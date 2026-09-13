@@ -25,7 +25,9 @@ export type PopulationRoot = keyof typeof POPULATION_ROOTS;
 /** One root's membership of `@authored`, with the reason an excluded root is excluded.
  *
  *  A `false` row MUST carry its `why`: an omission with no stated reason is indistinguishable from the
- *  omission this shape exists to make impossible. */
+ *  omission this shape exists to make impossible.
+ *  @public knip type-face false positive — the `satisfies Readonly<Record<PopulationRoot, AuthoredMembership>>` contract of the classification table below —
+ *  what makes a missing `why` a compile error — never named at a call site. */
 export type AuthoredMembership = { readonly authored: true } | { readonly authored: false; readonly why: string };
 
 /** WHICH ROOTS `@authored` MEANS — the CLASSIFICATION, from which the set below is derived (#1980).

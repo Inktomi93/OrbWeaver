@@ -3,6 +3,8 @@
 import type { ts } from "ts-morph";
 
 export const POLICY_SCOPE_KINDS = ["whole", "changed", "file", "folder", "package", "project"] as const;
+/** @public knip type-face false positive — a structural field (`kind`) of the exported `PolicyScopeResolution` shape (line 121),
+ *  never referenced by its own name at any call site. */
 export type PolicyScopeKind = (typeof POLICY_SCOPE_KINDS)[number];
 
 export type PolicyScopeRequest =
@@ -14,6 +16,8 @@ export type PolicyScopeRequest =
   | { readonly kind: "project"; readonly config: string };
 
 export const POLICY_SEMANTIC_PATH_STATUSES = ["present", "added", "modified", "renamed-existing", "deleted"] as const;
+/** @public knip type-face false positive — a structural field (`status`) of the exported `PolicySemanticPath` shape (line 21),
+ *  never referenced by its own name at any call site. */
 export type PolicySemanticPathStatus = (typeof POLICY_SEMANTIC_PATH_STATUSES)[number];
 
 export interface PolicySemanticPath {
@@ -68,7 +72,12 @@ export interface CompilerSourceOverlay {
   readonly deletedPaths: readonly string[];
 }
 
+/** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `PolicyPathOwnershipReason` union
+ *  (line 74) — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would
+ *  invite the re-spell `no-inline-union-redecl` exists to stop. */
 export const POLICY_PATH_OWNERSHIP_REASONS = ["compiler-membership", "outside-compiler-programs", "deleted-conservative-all-programs"] as const;
+/** @public knip type-face false positive — a structural field (`reason`) of the exported `PolicyPathOwnership` shape (line 79),
+ *  never referenced by its own name at any call site. */
 export type PolicyPathOwnershipReason = (typeof POLICY_PATH_OWNERSHIP_REASONS)[number];
 
 export interface PolicyPathOwnership {

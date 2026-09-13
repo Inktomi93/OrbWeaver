@@ -43,6 +43,8 @@ export interface OrdinaryWaiverMatchResult {
   readonly bindingFailures: readonly OrdinaryWaiverBindingFailure[];
 }
 
+/** @public knip type-face false positive — a structural field (`reconcile`) of the exported `OrdinaryWaiverEngine` shape (line
+ *  55), never referenced by its own name at any call site. */
 export interface OrdinaryWaiverReconciliationInput {
   readonly completedPolicyIds: readonly string[];
   readonly match: OrdinaryWaiverMatchResult;
@@ -55,4 +57,7 @@ export interface OrdinaryWaiverEngine {
   readonly reconcile: (input: OrdinaryWaiverReconciliationInput) => readonly OrdinaryAuthorityAlarm[];
 }
 
+/** @public knip type-face false positive — the declared signature of the engine's factory door, `lib/ordinary-waiver.ts#createOrdinaryWaiverEngine`.
+ *  That implementation is a function DECLARATION and states the same shape structurally rather than by annotation, so the
+ *  alias is the contract's readable spelling of the door rather than a name any call site writes. */
 export type CreateOrdinaryWaiverEngine = (input: OrdinaryWaiverEngineInput) => OrdinaryWaiverEngine;

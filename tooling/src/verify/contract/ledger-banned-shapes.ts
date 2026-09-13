@@ -12,7 +12,9 @@ export interface LedgerColumnBan {
   readonly cite: string;
 }
 
-/** A FAMILY of column names on a named table (`chats.*presetId*`), with the label the finding prints. */
+/** A FAMILY of column names on a named table (`chats.*presetId*`), with the label the finding prints.
+ *  @public knip type-face false positive — an arm of the exported `SchemaBannedShape` union (line 56), reached by narrowing on
+ *  its discriminant and never named at a call site. */
 export interface LedgerColumnPatternBan {
   readonly kind: "column-pattern";
   readonly table: string;
@@ -21,7 +23,9 @@ export interface LedgerColumnPatternBan {
   readonly cite: string;
 }
 
-/** A whole table the ledger refused. */
+/** A whole table the ledger refused.
+ *  @public knip type-face false positive — an arm of the exported `SchemaBannedShape` union (line 54), reached by narrowing on
+ *  its discriminant and never named at a call site. */
 export interface LedgerTableBan {
   readonly kind: "table";
   readonly table: string;
@@ -29,7 +33,9 @@ export interface LedgerTableBan {
 }
 
 /** A member that must not appear on a named exported interface. `home` is the declaration's ONE home: a
- *  name-keyed ban whose subject stops resolving there is a silent no-op, so the policy REDs on it. */
+ *  name-keyed ban whose subject stops resolving there is a silent no-op, so the policy REDs on it.
+ *  @public knip type-face false positive — an arm of the exported `ContractBannedShape` union (line 53), reached by narrowing on
+ *  its discriminant and never named at a call site. */
 export interface LedgerInterfaceFieldBan {
   readonly kind: "interface-field";
   readonly typeName: string;
@@ -38,7 +44,9 @@ export interface LedgerInterfaceFieldBan {
   readonly cite: string;
 }
 
-/** A key that must not appear in a named exported Zod object schema's shape. */
+/** A key that must not appear in a named exported Zod object schema's shape.
+ *  @public knip type-face false positive — an arm of the exported `ContractBannedShape` union (line 51), reached by narrowing on
+ *  its discriminant and never named at a call site. */
 export interface LedgerSchemaFieldBan {
   readonly kind: "schema-field";
   readonly schemaVar: string;

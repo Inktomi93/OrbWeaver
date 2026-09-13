@@ -43,6 +43,8 @@ export interface CssCustomPropertyReferenceFact extends CssSourcePosition {
   readonly fallback: boolean;
 }
 
+/** @public knip type-face false positive — a structural field (`population`) of the exported `CssFacts` shape (line 64), never
+ *  referenced by its own name at any call site. */
 export interface CssFactPopulation {
   readonly files: number;
   readonly rules: number;
