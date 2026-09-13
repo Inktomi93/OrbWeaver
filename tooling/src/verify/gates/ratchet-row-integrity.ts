@@ -57,7 +57,10 @@ export const gate = defineGate({
   family: "ratchet-row-integrity",
   authority: "hard",
   severity: "error",
-  population: { of: "none", why: "the discovered ratchet ledger and tracked path index are resource facts; no compiler source is read" },
+  population: {
+    of: "none",
+    why: "discovered ratchet ledgers and repository-contained authored citation identities are resource facts; no compiler source is read",
+  },
   analysis: "resource",
   execution: "entire-population",
   facts: [],
@@ -106,7 +109,7 @@ export const gate = defineGate({
           '{\n  "subject::a": { "count": 2, "ratified": 2, "why": "ruled", "cite": ["packages/client/src/gone.tsx"] }\n}\n',
       },
       expect: { count: 1, messageIncludes: "STALE WHY" },
-      why: "the founding shape — a ratified row citing a path absent from the tracked tree",
+      why: "the founding shape — a ratified row citing a path absent from the repository",
     },
     {
       mode: "resource",
@@ -145,7 +148,7 @@ export const gate = defineGate({
         "tooling/src/verify/gates/__probe.baseline.json":
           '{\n  "subject::a": { "count": 2, "ratified": 2, "why": "ruled in #568", "cite": ["tooling/src/verify/gates/__probe.baseline.json"] }\n}\n',
       },
-      why: "a ratified row whose why is written and whose cited tracked file exists",
+      why: "a ratified row whose why is written and whose repository-relative cited file exists",
     },
     {
       mode: "resource",
