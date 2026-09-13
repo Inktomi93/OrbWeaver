@@ -128,7 +128,7 @@ export const buttonVariants = tv({
       // The box is a POINTER-INDEPENDENT display size (`--spacing-glyph-*`, the avatar/checkbox/slider-thumb
       // family): it never narrows, because it is already below every control step. Which means it is below the
       // tap floor at three of its four steps, so EVERY arm carries the `inline` arm's hit-area pseudo — a
-      // square `size-touch-target` ::after, centered and absolutely positioned, so the visible glyph box is
+      // square `size-touch-target` ::before, centered and absolutely positioned, so the visible glyph box is
       // unchanged while the real hit target is the pointer-conditional touch token. Before this arm those 13
       // sites had NO hit area at all beyond their 16–24px box.
       //

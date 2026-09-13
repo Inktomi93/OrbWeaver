@@ -29,6 +29,35 @@ export interface HitBox {
   readonly y: number;
 }
 
+/** A Button `inline`/`glyph-*` hit pseudo's resolved box. This intentionally names `::before`: #1843
+ * moved the hit surface there so `::after` can remain the CTA paint layer. An unresolved dimension is an
+ * absent measurement, so this refuses instead of turning `auto` into a zero-sized target. */
+export function beforeHitBox(control: Locator): Promise<HitBox> {
+  return control.evaluate((el: HTMLElement): HitBox => {
+    const before = globalThis.getComputedStyle(el, "::before");
+    const box = { x: Number.parseFloat(before.width), y: Number.parseFloat(before.height) };
+    if (!(Number.isFinite(box.x) && Number.isFinite(box.y))) {
+      throw new Error(`beforeHitBox: ::before did not resolve finite dimensions (width=${before.width}, height=${before.height})`);
+    }
+    return box;
+  });
+}
+
+/** The effective box for Button arms that may carry their floor either in their own border box or in
+ * `::before`. A box that already clears the floor needs no pseudo; a smaller box must have a measurable
+ * pseudo and therefore inherits {@link beforeHitBox}'s refusal. */
+export async function boxWithBeforeFloor(control: Locator, floor: number): Promise<HitBox> {
+  const border = await control.boundingBox();
+  if (border === null) {
+    throw new Error("boxWithBeforeFloor: the control has no rendered box");
+  }
+  if (border.width >= floor && border.height >= floor) {
+    return { x: border.width, y: border.height };
+  }
+  const before = await beforeHitBox(control);
+  return { x: Math.max(border.width, before.x), y: Math.max(border.height, before.y) };
+}
+
 /**
  * One `--spacing-*` custom property resolved to REAL px by the browser, at the document root.
  *

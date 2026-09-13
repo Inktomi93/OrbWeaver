@@ -16,6 +16,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { beforeHitBox, touchFloorPx } from "../../support/browser/touch-floor.ts";
 import type { TrpcRecorder } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../features/config/_ct-stories.tsx";
@@ -346,18 +347,13 @@ test.describe("coarse pointer", () => {
     await expect(row.locator(ACTIONS)).toBeHidden();
     // …while the stripe (state, not a control) still paints: a phone reader keeps the modified fact.
     await expect(row.locator(RAIL)).toHaveCount(1);
-    // The `i`'s hit area is its LAYOUT-NEUTRAL `::after` (Button's `inline` arm: `h-touch-target`,
-    // `min-w-touch-target`, centred on the box), never the button box itself — measuring the box would
-    // read the ~16px glyph and call a compliant control a P1. Read the pseudo's own computed size, and
-    // confirm the centre offsets still hit the trigger rather than a wrapper.
+    // The `i`'s hit area is its LAYOUT-NEUTRAL `::before` (Button's `inline` arm), never the button box
+    // itself. The shared reader refuses an unresolved pseudo instead of letting a NaN comparison masquerade
+    // as geometry; the live pointer-conditional token is the floor.
     const trigger = row.locator('[data-slot="hint-trigger"]');
-    const readHit = async (): Promise<readonly [number, number]> =>
-      await trigger.evaluate((el: HTMLElement): readonly [number, number] => {
-        const after = getComputedStyle(el, "::after");
-        return [Math.round(Number.parseFloat(after.width)), Math.round(Number.parseFloat(after.height))];
-      });
-    await expect.poll(async () => (await readHit())[0]).toBeGreaterThanOrEqual(44);
-    await expect.poll(async () => (await readHit())[1]).toBeGreaterThanOrEqual(44);
+    const floor = await touchFloorPx(page);
+    await expect.poll(async () => (await beforeHitBox(trigger)).x).toBeGreaterThanOrEqual(floor);
+    await expect.poll(async () => (await beforeHitBox(trigger)).y).toBeGreaterThanOrEqual(floor);
     // …and the hit box is genuinely the trigger's, not a wrapper's: probe 18px ABOVE the glyph's centre,
     // which is inside the 44px pseudo but outside the ~16px button box.
     await expect
