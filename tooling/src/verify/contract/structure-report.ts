@@ -69,6 +69,8 @@ export interface FinalPolicyRow {
   readonly timing: PolicyTiming;
 }
 
+/** @public knip type-face false positive — a structural field (`gates`) of the exported `StructureReport` shape (line 97), never
+ *  referenced by its own name at any call site. */
 export type StructureGateRow = LegacyGateRow | FinalPolicyRow;
 
 /** One shared fact provider's outcome, population as counts. */

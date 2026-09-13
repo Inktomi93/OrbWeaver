@@ -24,14 +24,23 @@
 // `unresolved` count: no consumer expresses its dependency through one, and a provider that receipts what
 // it FOUND preempts its own accuser (§12.3).
 
+/** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `AuthoredPathSelectorForm` union
+ *  (line 28) — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would
+ *  invite the re-spell `no-inline-union-redecl` exists to stop. */
 export const AUTHORED_PATH_SELECTOR_FORMS = ["repo-relative", "absolute"] as const;
 export type AuthoredPathSelectorForm = (typeof AUTHORED_PATH_SELECTOR_FORMS)[number];
 
 /** `outside` covers both halves of containment: a selector that escapes lexically, and one that escapes
  *  only through a symlink target. A policy cannot tell them apart and must not — both mean the same thing,
  *  that an existing path outside the checkout satisfied a selector, and the reason string never echoes the
- *  resolved external target. */
+ *  resolved external target.
+ *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `AuthoredPathStatus` union (line 38)
+ *  — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the
+ *  re-spell `no-inline-union-redecl` exists to stop. */
 export const AUTHORED_PATH_STATUSES = ["file", "directory", "absent", "outside", "unresolved"] as const;
+/** @public knip type-face false positive — the importable union spelling of the `AUTHORED_PATH_STATUSES` vocabulary — one home
+ *  for the axis (Spine-TypeScript-and-Patterns.md §5.5), which consumers reach through the literal today rather than by naming
+ *  the alias. */
 export type AuthoredPathStatus = (typeof AUTHORED_PATH_STATUSES)[number];
 
 export type AuthoredPathIdentity = {

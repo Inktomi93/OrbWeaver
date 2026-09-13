@@ -31,8 +31,14 @@
  *  MISSING CAPABILITY had nothing that could red when the capability shipped. That is #2013 verbatim —
  *  `runner-config-path-liveness` refused citing a missing `authored-path` door, the door was SPECIFIED BY
  *  that refusal and shipped, and the module sat legacy and refusing because nothing re-opens a refusal when
- *  its blocker lands. `missing-kind` is that half. */
+ *  its blocker lands. `missing-kind` is that half.
+ *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `ConversionRefusalBlockerKind` union
+ *  (line 39) — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would
+ *  invite the re-spell `no-inline-union-redecl` exists to stop. */
 export const CONVERSION_REFUSAL_BLOCKER_KINDS = ["sole-consumer", "missing-kind"] as const;
+/** @public knip type-face false positive — the importable union spelling of the `CONVERSION_REFUSAL_BLOCKER_KINDS` vocabulary —
+ *  one home for the axis (Spine-TypeScript-and-Patterns.md §5.5), which consumers reach through the literal today rather than by
+ *  naming the alias. */
 export type ConversionRefusalBlockerKind = (typeof CONVERSION_REFUSAL_BLOCKER_KINDS)[number];
 
 /** §12.4's reopen bar as a checkable claim: within `under`, exactly the modules in `consumers` perform the
@@ -43,7 +49,9 @@ export type ConversionRefusalBlockerKind = (typeof CONVERSION_REFUSAL_BLOCKER_KI
  *  narrating the census, and a raw-text census therefore scores a module's own prose (and any doc comment
  *  citing it) as a consumer. The header-span half of the same lesson was paid on 2026-09-12 (#2047), where
  *  a whole-file grep scored three genuinely-missing FAMILY lines as PRESENT because the modules' own proof
- *  rows quoted the field names. */
+ *  rows quoted the field names.
+ *  @public knip type-face false positive — an arm of the exported `ConversionRefusalBlocker` union (line 86), reached by
+ *  narrowing on its discriminant and never named at a call site. */
 export interface SoleConsumerBlocker {
   readonly kind: "sole-consumer";
   /** The read this refusal turns on, in one sentence — what a capability would have to serve. */
@@ -71,7 +79,9 @@ export interface SoleConsumerBlocker {
  *  The name is the refusal's OWN proposal, not a guess about a future author's spelling: §11.5 says a kind
  *  serving one gate is that gate's private reader wearing a contract's clothes, so a refusal on this
  *  ground has already decided what the kind would be called if it were ever minted. Declaring that name is
- *  what makes the claim falsifiable. */
+ *  what makes the claim falsifiable.
+ *  @public knip type-face false positive — an arm of the exported `ConversionRefusalBlocker` union (line 84), reached by
+ *  narrowing on its discriminant and never named at a call site. */
 export interface MissingKindBlocker {
   readonly kind: "missing-kind";
   readonly why: string;
@@ -79,6 +89,8 @@ export interface MissingKindBlocker {
   readonly wouldBeKind: string;
 }
 
+/** @public knip type-face false positive — a structural field (`blockers`) of the exported `ConversionRefusal` shape (line 97),
+ *  never referenced by its own name at any call site. */
 export type ConversionRefusalBlocker = SoleConsumerBlocker | MissingKindBlocker;
 
 export interface ConversionRefusal {

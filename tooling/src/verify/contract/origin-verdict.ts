@@ -22,7 +22,9 @@
  *  Fail-closed is `unreadable` — only a proven foreign binding earns silence. */
 export type OriginRefusalVerdict = "other" | "unreadable";
 
-/** One identity reader's full verdict: its own HIT arm plus the shared refusal pair. */
+/** One identity reader's full verdict: its own HIT arm plus the shared refusal pair.
+ *  @public knip type-face false positive — the generic behind every named verdict alias in this file (`BroadcastChannelVerdict`,
+ *  `ProcessMemberVerdict`, and their siblings): consumers import the alias, never the generic it is an instantiation of. */
 export type OriginVerdict<Hit extends string> = Hit | OriginRefusalVerdict;
 
 /** Does this `new` construct the browser's `BroadcastChannel` global? `lib/broadcast-channel-origin.ts`. */

@@ -27,7 +27,10 @@ export type ReportSiteMessage =
   | { readonly kind: "override"; readonly texts: readonly StaticSegments[] }
   | { readonly kind: "unreadable" };
 
-/** What a `messageIncludes` substring can tell apart, given a module's message sources. */
+/** What a `messageIncludes` substring can tell apart, given a module's message sources.
+ *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `Discrimination` union (line 32) —
+ *  the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the
+ *  re-spell `no-inline-union-redecl` exists to stop. */
 export const DISCRIMINATIONS = ["discriminates", "tautology", "shared", "unjudged"] as const;
 export type Discrimination = (typeof DISCRIMINATIONS)[number];
 
@@ -55,6 +58,9 @@ export const RETIRED_MARKER_OPENERS = [
   "ONESHOT-OK",
   "PROSE-OK",
 ] as const;
+/** @public knip type-face false positive — the importable union spelling of the `RETIRED_MARKER_OPENERS` vocabulary — one home
+ *  for the axis (Spine-TypeScript-and-Patterns.md §5.5), which consumers reach through the literal today rather than by naming
+ *  the alias. */
 export type RetiredMarkerOpener = (typeof RETIRED_MARKER_OPENERS)[number];
 
 /** How a final module registers under the contract, as the family reader sees it: the callee resolved by import

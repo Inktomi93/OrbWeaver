@@ -51,7 +51,9 @@ export interface MarkdownDocument {
 }
 
 /** `listed` means the committed catalog names this exact path; `unlisted` means it does not. Neither is a
- *  verdict — the catalog gate owns whether an unlisted document is a defect. */
+ *  verdict — the catalog gate owns whether an unlisted document is a defect.
+ *  @public knip type-face false positive — a structural field (`catalog`) of the exported `DocumentFacts` shape (line 58), never
+ *  referenced by its own name at any call site. */
 export type DocumentCatalogStatus = "listed" | "unlisted";
 
 export interface DocumentFacts extends MarkdownDocument {
@@ -100,6 +102,8 @@ export const LEDGER_DEFINITIONS = {
 } as const;
 
 export type LedgerId = keyof typeof LEDGER_DEFINITIONS;
+/** @public knip type-face false positive — the derived NATURE axis of `LEDGER_DEFINITIONS`, the importable spelling beside `LedgerId`; every reader
+ *  reaches a ledger's nature through the definition map's own inferred type rather than by naming this alias. */
 export type LedgerNature = (typeof LEDGER_DEFINITIONS)[LedgerId]["nature"];
 
 export interface LedgerJsonDocument {
