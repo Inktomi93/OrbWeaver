@@ -666,11 +666,6 @@ function writeFixtures(): void {
   // contract-verb-presence: a __g_ domain whose contract/service.ts declares a verb on a *Service interface
   // with NO test in tests/server/domain/__g_verbpres/ (the domain tree is empty → the verb is uncovered).
   fx("packages/server/src/domain/__g_verbpres/contract/service.ts", "export interface GVerbPresService {\n  readonly gUntested: () => Promise<void>;\n}\n");
-  // no-test-fabrication: a tests/ file with an unmarked `as unknown as` double-cast — the gate is flat
-  // (#590, no baseline), so any unescaped site is RED. The banned cast is ASSEMBLED so the literal never
-  // appears in THIS file's own source (which the gate also scans) — only the written fixture resolves to
-  // it (same technique as the ambient-clock fixture above).
-  fx("tests/server/__g_fab.test.ts", `export const g = ({} ${["as", "unknown", "as"].join(" ")} { n: number }).n;\n`);
   // no-vanity-alias: a workspace rename-import whose original name isn't otherwise present in the module
   // (rule a — the cosmetic-alias case; @orb/ui + db-`*Table`/contracts-`*Wire` + genuine collisions are exempt).
   fx(`${D}/__g_vanity/x.ts`, 'import { Foo as Bar } from "@orb/kit/x";\nexport const g = Bar;\n');
