@@ -74,3 +74,14 @@ runs declared conformance. Header completeness, mechanical family-choice behavio
 runtime legacy-template negative require their own source/test disposition. The scaffold’s printed legacy-only
 route and CLI descriptor wording also require the separately owned source correction. This documentation change does not claim
 those controls were implemented or run.
+
+## Q08 integration truth update — 2026-09-13
+
+The guide’s initial review described the pre-Q08 shared-import predicate. That verdict remains dated evidence;
+main `735a86d0c` now supplies canonical declaration reach from production `create` roots, including method forms,
+callbacks, callable helpers and stable derived values. The guide and standing contract now name that guarantee and
+admit canonical subject/vocabulary data without requiring a wrapper function. Unused imports, proof-only references
+and erased types do not establish sharing. Semantic fitness, runtime branch/callback execution and singleton reasons
+remain outside the mechanical verdict. This update is prose-only against the pinned integrated source; it does not
+claim that this isolated docs branch already contains the Q08 source or reran its tests. Final merged read-cost
+reconciliation remains the coordinator’s follow-up after integration.

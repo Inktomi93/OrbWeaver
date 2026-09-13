@@ -24,7 +24,7 @@ Numbered references below retain the relevant subject; explicitly legacy rules r
 | existing enforcement | Read the live resolver, compiler, native lint or policy owner before adding a detector; §10. |
 | scaffold | `pnpm gate:new <kebab-name>`; inspect the generated source and replace its placeholder predicate and proofs. |
 | subject | Choose the smallest complete population, analysis tier, shared facts and declared resources; §3. |
-| family | Name the shared `lib/` module and function actually consumed by siblings, or document a valid singleton reason. |
+| family | Name the shared `lib/` callable or canonical subject/vocabulary declaration reached from production hooks, or document a valid singleton reason. |
 | authority | Choose exactly one of `hard`, `ordinary`, `reviewed-grant`; §4. Split differing authorities into siblings. |
 | proof | Preserve every old guarantee; declare catch, near-miss and applicable refusal rows, plus family evidence; §5. |
 | landing | Fix introduced violations, reconcile coupled sites and read the coordinated production result; §§2 and 8. |
@@ -38,7 +38,7 @@ There is no final `status`, registration-count edit, `scanRoot`, `scopeSafety`, 
 
 | Fields | Derive them from |
 | - | - |
-| `id`, `family` | Filename identity; a real shared reader or a reasoned singleton whose family equals its id. |
+| `id`, `family` | Filename identity; a meaningful shared production dependency or a reasoned singleton whose family equals its id. |
 | `authority`, `severity`, `workItem` | The rule's permitted exception and debt posture. A warning needs a positive live issue; error forbids `workItem`; hard plus warning is invalid. |
 | `population`, `analysis`, `execution` | The actual evidence plane and dependency closure; §3. |
 | `facts`, `resources` | Only capabilities consumed by this policy; explicit `[]` when unused. |
@@ -209,7 +209,7 @@ retain their guarantees while their legacy owners exist.
 
 ## 7. Header and style
 
-Use the smallest complete header: rule and arms/limits; actual family module/function or singleton reason; population
+Use the smallest complete header: rule and arms/limits; actual family module/declaration or singleton reason; population
 port or intentional correction; retired private-marker census. Standing law §7 owns exemplar fitness. A five-line budget
 is not permission to omit a load-bearing constraint; source headers carry the detailed domain law. The scaffold is a
 starting point and must be checked against these obligations.
@@ -264,7 +264,7 @@ mechanically sealed. The following table distinguishes load/runtime guarantees f
 | local binding/origin resolution | `policy-binding-resolution` judges a closed set of type-resolved ts-morph members; `getSymbol()` alone, out-of-vocabulary members and receivers typed `any` are outside that detector. |
 | checkout-writing family fixtures | `policy-fixture-substrate` resolves supported filesystem writes against known repo anchors. A root computed in another file and passed through a parameter remains outside its fence. |
 | syntax-tier type/compiler reads | `gate-modernization` ARM E covers a closed member vocabulary and one named relative-import hop. Namespace/default imports, further hops, unresolved targets and computed subscripts remain limits. |
-| actual shared family | `policy-family-readers` checks each multi-member policy imports a resolved `lib/` module shared by a sibling. Reader function, real shared computation and singleton reason remain hand review. |
+| actual shared family | `policy-family-readers` uses `policyProductionDependencies` from `lib/policy-descriptor-read.ts`: each multi-member policy must share a canonical `lib/` declaration with a sibling through possible source reach from `create`, including method-form roots, callbacks, callable helpers and stable derived values. Callable/fact identities and canonical subject/vocabulary data qualify; unused imports, proof-only use and erased type references do not. Declaration identity matters, not sharing a file. This proves source reach, not runtime branch/callback execution or semantic fitness; meaningful dependency and singleton justification remain review-owned. |
 | analysis, execution, declared providers/resources | Validator plus `lib/policy-plan.ts`, `lib/policy-pass.ts` and `lib/policy-pass-context.ts`; capability, readiness, consumption and completion checks do not prove the semantically smallest contract. Runtime sequencing refuses early fact reads through absent/pending provider state; facts become ready before policy evaluation. Review still checks semantic fitness. |
 | catch count and finding identity | `policy-proof-expectations` plus `ops/policy-conformance.ts`; readable rows require cardinality and the applicable discriminator. `countFrom` validates a named module binding, not its runtime cardinality; review must prove that binding actually drives the row’s count. Unreadable source and bounded message expansion retain review limits. |
 | refusal expectation | Validator plus conformance require the distinctive substring and an actual refused pass. `policy-refusal-coverage` recognizes direct nonempty array literals in `facts`/`resources` and checks for a refusal row or recognized family proof; alias/non-literal declarations are outside that recognizer; behavioral adequacy still needs review; not every policy requires this arm. |
