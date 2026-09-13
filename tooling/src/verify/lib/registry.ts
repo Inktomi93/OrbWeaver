@@ -87,8 +87,8 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: STATIC,
     argv: ["pnpm", "test:types"],
     classify: asViolations,
-    // vitest typecheck is one STAGE (`pnpm test:types` runs both `types-node` and `types-browser` — the
-    // DOM-less/DOM-having split #1313 gave the `.test-d.ts` lane) — whole-only, deferred at a scoped tier.
+    // Vitest typecheck has no sound narrowed derivation. The changed-tier trigger decorator runs this
+    // stage's whole argv whenever a changed selection owes it.
   },
   {
     name: "types:ownership",
@@ -209,9 +209,8 @@ const GATING_STAGES: readonly StageDef[] = [
     // node run and regeneration was an unscheduled barrier ritual (#817; three re-lines in one night). It
     // USES the tool-error code: a derivation that comes back EMPTY is blindness, not a clean ledger.
     classify: ownScheme,
-    // WHOLE-TREE by nature — a census derived from a scoped fileset is a census of a different tree, and
-    // would report every row it did not walk as stale. NO `scopedArgv` ⇒ deferred at a scoped tier, and the
-    // absence IS the guard (planStage in ops/run.ts).
+    // A census derived from a narrowed fileset describes a different tree. The changed-tier trigger
+    // decorator therefore runs this stage's whole argv whenever a changed selection owes it.
   },
 
   {
@@ -227,8 +226,8 @@ const GATING_STAGES: readonly StageDef[] = [
     // trust (truncated, non-lint, unparseable, zero files processed) THROWS ⇒ exit 2, because each of them
     // produces an empty diagnostic list that is byte-identical to "every grant is dead".
     classify: ownScheme,
-    // WHOLE-TREE by nature — the subject is the CONFIG's grant table, not any changed file, and a scoped
-    // fileset would report every grant it did not probe as dead. NO `scopedArgv` ⇒ deferred when scoped.
+    // The subject is the config's complete grant table, so there is no sound narrowed derivation. The
+    // changed-tier trigger decorator runs this stage's whole argv whenever a changed selection owes it.
   },
 
   // ── imports stage-group ──
