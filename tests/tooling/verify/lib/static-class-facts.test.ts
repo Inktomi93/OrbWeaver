@@ -295,6 +295,8 @@ test("a frontend corpus with NO class token is DELIVERED — the provider receip
   expect(result.factErrors).toEqual([]);
   expect(result.toolErrors).toEqual([]);
   expect(captured?.tokens).toEqual([]);
+  expect(captured?.roots).toBe(0);
+  expect(captured?.classUnresolved).toEqual([]);
   expect(result.facts[0]).toMatchObject({
     id: "static-class",
     status: "success",
@@ -335,6 +337,41 @@ test("UNREADABLE authored syntax is DELIVERED as corpus data, never receipted as
   expect(captured?.tokens.map((token) => token.value)).not.toContain("probe:stale");
   // One walked source, and ZERO declared instrument failures even though the corpus holds one unreadable
   // expression — the receipt normalizes an omitted `unresolved` to 0, which is exactly the claim being made.
+  expect(result.facts[0]?.receipts).toEqual([{ kind: "population", source: "static-class-sources", members: 1, unresolved: 0 }]);
+});
+
+test("delivers class diagnostics separately while retaining supplemental JSX diagnostics", () => {
+  let captured: StaticClassFactResult | undefined;
+  const gate = deliveryProbe((facts) => {
+    captured = facts;
+  });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: ROOT,
+    project: projectOf({
+      "packages/client/src/x.tsx": `
+        let classValue = "probe:old";
+        classValue = "probe:new";
+        let styleValue = { color: "red" };
+        styleValue = { color: "blue" };
+        declare const runtimeStyle: unknown;
+        export const A = <div className={classValue} style={styleValue} />;
+        export const B = <div style={runtimeStyle} />;
+      `,
+    }),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+
+  expect(result.factErrors).toEqual([]);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(captured?.roots).toBeGreaterThan(0);
+  expect(captured?.unresolved.map(({ node }) => node.getText())).toEqual(['classValue = "probe:old"', 'styleValue = { color: "red" }']);
+  expect(captured?.opaque.map(({ node }) => node.getText())).toEqual(["runtimeStyle: unknown"]);
+  expect(captured?.classUnresolved.map(({ node }) => node.getText())).toEqual(['classValue = "probe:old"']);
+  expect(captured?.classUnresolved[0]).toBe(captured?.unresolved[0]);
   expect(result.facts[0]?.receipts).toEqual([{ kind: "population", source: "static-class-sources", members: 1, unresolved: 0 }]);
 });
 
