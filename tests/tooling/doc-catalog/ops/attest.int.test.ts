@@ -21,6 +21,7 @@ import { join } from "node:path";
 import { REPO_ROOT } from "../../../../tooling/src/_shared/artifacts.ts";
 import { EXIT } from "../../../../tooling/src/_shared/exit-contract.ts";
 import { installOutputSink } from "../../../../tooling/src/_shared/log.ts";
+import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { AttestEvidenceResolver, LaneConfig, Receipt } from "../../../../tooling/src/doc-catalog/index.ts";
 import { documents, loadReceipts, resolveEvidenceErrors, runAttest, runAttestAtRoot } from "../../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -115,7 +116,13 @@ function sha256(value: string): string {
 }
 
 function git(cwd: string, args: readonly string[]): string {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  // Hook-launched suites inherit the candidate index. Fixture setup must address only its scratch repo
+  // and must not recursively invoke the repository's hooks while making fixture commits.
+  return execFileSync(
+    "env",
+    ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", ...args],
+    { cwd, encoding: "utf8" },
+  ).trim();
 }
 
 function isolatedAttestationRoot(scratch: string, brokenEvidence: boolean): { readonly root: string; readonly originalReceipt: string } {
@@ -171,6 +178,21 @@ function isolatedAttestationRoot(scratch: string, brokenEvidence: boolean): { re
   }
   return { root: fixtureRoot, originalReceipt };
 }
+
+test("fixture Git setup cannot consume an inherited candidate index", async ({ scratch }) => {
+  const sentinelRoot = join(scratch, "sentinel-repository");
+  mkdirSync(sentinelRoot);
+  git(sentinelRoot, ["init", "-q"]);
+  const sentinelIndex = join(scratch, "caller-candidate.index");
+  execFileSync("env", ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", `GIT_INDEX_FILE=${sentinelIndex}`, "git", "read-tree", "--empty"], {
+    cwd: sentinelRoot,
+  });
+  const before = readFileSync(sentinelIndex);
+
+  await withProcessEnv("GIT_INDEX_FILE", sentinelIndex, () => Promise.resolve(isolatedAttestationRoot(join(scratch, "under-hook"), false)));
+
+  expect(readFileSync(sentinelIndex)).toEqual(before);
+});
 
 test("production's DEFAULT resolver binding refuses invalid evidence without writing and writes the healthy twin", ({ scratch }) => {
   const broken = isolatedAttestationRoot(scratch, true);
