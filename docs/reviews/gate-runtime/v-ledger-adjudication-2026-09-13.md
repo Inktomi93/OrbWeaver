@@ -56,36 +56,98 @@ table's own prose was written about, one iteration on.
 
 ## 2. Selection
 
-**Start set:** every row whose state cell bins to OPEN, FIXED or UNADJUDICATED — 101 rows, listed by ledger
-line number below.
+**RECONCILED 2026-09-13** after codex's mechanical recount of the first draft. Three of its five count
+findings were correct and one surfaced a genuinely MISSING row; the corrections are recorded here rather
+than silently applied, because a count nobody can re-derive is what this whole file exists to stop. What was
+wrong: the exclusion table held 28 ids and said 29 (a `595`–`607` RANGE was counted as one row in one place
+and thirteen in another); §3.1 held 22 rows under a heading that also said 22 but summed to 48 against a
+49-row denominator; and **`:820` was adjudicated in my notes and never written into a table at all** — the
+one real gap, found by the count, not by a read.
 
-**EXCLUDED — 29 rows with a live owner.** Listed so root can see they were seen, not skipped by accident.
+Every set below is now printed from a LIST, and the three sets are asserted disjoint and exhaustive by
+`comm`, not by arithmetic I typed.
+
+### 2a. The three sets, explicit
+
+**START SET — 101 ids** (every row whose state cell bins to OPEN, FIXED or UNADJUDICATED at `b1a23e534`;
+76 + 24 + 1):
+
+```
+193 214 248 263 387 395 396 398 401 422 423 424 425 426 428 429 430 431 432 433 448 449 465 522 531
+532 533 534 535 572 573 574 575 576 579 595 596 597 598 599 600 601 602 603 604 605 606 607 621 622
+623 624 625 631 632 633 642 653 655 656 657 659 667 679 680 681 682 688 689 690 691 692 693 694 695
+696 697 698 699 700 704 711 770 782 794 818 820 854 857 859 860 917 933 934 936 1010 1011 1012 1033
+1046 1047
+```
+
+**EXCLUDED SET — 28 ids**, no ranges:
+
+```
+395 396 448 572 573 574 575 576 579 595 596 597 598 599 600 601 602 603 604 605 606 607 622 623 624
+699 782 818
+```
+
+**EXAMINED SET — 73 ids** (the set difference, computed not typed):
+
+```
+193 214 248 263 387 398 401 422 423 424 425 426 428 429 430 431 432 433 449 465 522 531 532 533 534
+535 621 625 631 632 633 642 653 655 656 657 659 667 679 680 681 682 688 689 690 691 692 693 694 695
+696 697 698 700 704 711 770 794 820 854 857 859 860 917 933 934 936 1010 1011 1012 1033 1046 1047
+```
+
+**The assertion, from the lists:**
+
+```
+start=101  excluded=28  examined=73          101 = 28 + 73
+comm -13 start excluded   → empty   (no excluded id is outside the start set)
+comm -12 examined excluded → empty   (the two sets are disjoint)
+```
+
+The EXAMINED set splits once more, and this is the split the first draft blurred:
+
+| subset | size | ids |
+| - | -: | - |
+| **FIXED** — state read, not re-driven (§5) | **24** | `422 423 424 425 426 428 429 430 431 432 433 465 522 854 857 859 860 933 934 936 1010 1011 1012 1046` |
+| **ADJUDICABLE** — OPEN ∪ UNADJUDICATED, each given a disposition in §3 | **49** | `193 214 248 263 387 398 401 449 531 532 533 534 535 621 625 631 632 633 642 653 655 656 657 659 667 679 680 681 682 688 689 690 691 692 693 694 695 696 697 698 700 704 711 770 794 820 917 1033 1047` |
+
+`73 = 24 + 49`. **The §3 manifest carries all 49**, and the first draft carried 48 — `:820` is the row it
+dropped, restored in §3.1 below.
+
+### 2b. The excluded rows and their owners — 28, one line each
 
 | ledger line(s) | subject | owner / reason |
 | - | - | - |
 | `:395` | `eslint-grant-liveness` · `depcruise-grant-liveness` · `runner-config-path-liveness` gate-owned `ExemptionTable`s | authority-reach / grant-table reach (#1922/#2320) |
 | `:396` | the "TEN final modules carry a legacy `ExemptionTable`" census correction | same — typed exemption identity (#2320) |
 | `:448` | `over-art-plate-arm` `workItem` points at a CLOSED issue | board-citations barrier (#2070) |
-| `:572` `:573` `:574` `:575` `:576` `:579` | six modules importing `ExemptionTable`/`ExemptionRow`/`Finding` from `contract/gate.ts` | `p-authority-migration` (#2147), grant-table reach |
-| `:595`–`:607` (13 rows) | `Symbol#getDeclarations()` / `getDefinitionNodes()` chains in 13 gates | shared-binding migration, `p-binding-readers` (#2097/#2163) |
-| `:622` `:623` `:624` | `own-tables-only` `FILE_ALLOWLIST` · `verify-registry-parity` `NON_STAGE_ALLOWLIST` · `vector-scope-derived` `IMPORT_SANCTIONED` | grant-table reach judgment (ARM B vocabulary vs a fence list) |
+| `:572` `:573` `:574` `:575` `:576` `:579` (6) | six modules importing `ExemptionTable`/`ExemptionRow`/`Finding` from `contract/gate.ts` | `p-authority-migration` (#2147), grant-table reach |
+| `:595` `:596` `:597` `:598` `:599` `:600` `:601` `:602` `:603` `:604` `:605` `:606` `:607` (13) | `Symbol#getDeclarations()` / `getDefinitionNodes()` chains in 13 gates | shared-binding migration, `p-binding-readers` (#2097/#2163) |
+| `:622` `:623` `:624` (3) | `own-tables-only` `FILE_ALLOWLIST` · `verify-registry-parity` `NON_STAGE_ALLOWLIST` · `vector-scope-derived` `IMPORT_SANCTIONED` | grant-table reach judgment (ARM B vocabulary vs a fence list) |
 | `:699` | `EXPECTED_DIRECT_THEME_DECLARATIONS = 203` is DERIVABLE | theme.css freshness, owner-pending (#2230) |
 | `:782` | the LAW-doc half of #2071 never executed | #2071 docs consolidation |
 | `:818` | the mirror family's disk-planted `empty` pin has no same-substrate green twin | fixture isolation / substrate (#2279) |
 
-`:193` is in the excluded CLASS (grant-table reach) but I adjudicated it anyway because the answer fell out of
-a receipt I already had; it is reported below and root may treat it as advisory.
+**`:193` IS IN THE EXAMINED SET, NOT THE EXCLUDED ONE.** It belongs to the excluded CLASS (grant-table
+reach), but I adjudicated it, so counting it as excluded would double-count. It sits in §3.1 flagged
+ADVISORY: root may hand it to #1922's owner rather than acting on it here. The first draft listed it in both
+places, which is where the 28-versus-29 discrepancy came from.
 
-**SURVIVORS EXAMINED: 48 of 48.** Every OPEN and the single UNADJUDICATED row outside the owned scopes was
-read on my tree. **NOT individually adjudicated: the 24 `FIXED` rows** — see §5, which answers the class
-question they actually pose instead of pretending to 24 drives.
+**ADJUDICABLE ROWS EXAMINED: 49 of 49.** Every OPEN and the single UNADJUDICATED row outside the owned
+scopes was read on my tree. **NOT individually re-driven: the 24 `FIXED` rows** — §5 says per row whether I
+verified it against the tree or only read its cell.
 
-## 3. CLOSED MANIFEST — 48 rows
+## 3. CLOSED MANIFEST — 49 rows
 
 Identity is the ledger LINE NUMBER at `b1a23e534` plus the section name, because most rows have no stable
 anchor. `path:line` was re-located by SYMBOL, never by the ledger's recorded line.
 
+**Table sizes, which now sum:** §3.1 = 22 · §3.2 = 1 · §3.3 = 25 · §3.4 = 1 → **49**.
+
 ### 3.1 STALE-CLOSED — 22 rows the tree already closes
+
+(`:655` left this table in the 2026-09-13 reconciliation — its residue is owned in §3.3. `:820` joined it,
+restored from the gap the recount found. Net 22, unchanged by coincidence, which is exactly why the
+membership list in §2a and not the heading number is the thing to read.)
 
 | ledger line · section | current predicate (what must be true for the defect to be live) | evidence | proposed |
 | - | - | - | - |
@@ -100,7 +162,6 @@ anchor. `path:line` was re-located by SYMBOL, never by the ledger's recorded lin
 | `:632` cb-v-ledger-reconcile L2 | `zod-error-issues-home` declares `UNREADABLE` and passes it as `unreadableMessage`, but no `candidates.push` sets `unreadable` | `zod-error-issues-home.ts:157` is `unreadable: verdict === "unreadable"` inside the single `candidates.push` at `:153`, and `:222` is a committed row whose `why` names the arm ("THE FAIL-CLOSED THIRD ANSWER (§5b.1, #2194)"). Closed at `1d97b71df`, reviewed at `cce850dc1` | **CLOSED** — `1d97b71df` (#2194) |
 | `:633` cb-v-ledger-reconcile L3 | ledger rows for `cb-v-authority-census` L7 and L10 still read OPEN for work `b5490a02a` shipped | both rows are CLOSED on my tree: `:484` (`css-length-tokens`) **CLOSED at `e7e3f083b`**; `:487` (`test-presence-client` `CLIENT_EXCLUDE_FILES`) **CLOSED — `b5490a02a` (#2103)** | **CLOSED** — the two named rows now carry their receipts |
 | `:642` cb-v-policing-audit | the law delta would land `policy-soundness (E1–E7 …)` while E5 belongs to `policy-legacy-imports` | landed WITH the correction: `Core-Enforcement-Active-Gates.md:340` reads *"this policy IS the `policy-soundness` family's arm E5, homed here rather than inside `policy-soundness`"*, and guide `:1123` reads *"E5's import member is the one that lives in `policy-legacy-imports`, corrected by the fresh verifier against the audit's own §8 text"* | **CLOSED** — the delta landed with the E5 correction the row demanded |
-| `:655` cb-v-additions-wave `:7` | `predicatesTableColumn`'s receiver-by-TEXT acquittal is enforced by no committed row | `owner-scoped-writes.ts:326-328` is the exact missing row — a `mustPass` with `import * as schema from "@orb/db"` and a correctly-scoped namespace write, `why: "THE ACQUITTAL'S OWN ROW (#2214), and the DIRECTION is the point"`. Closing sha `eb51d4313` | **CLOSED** — `eb51d4313` (#2214). RESIDUAL, one line: `owner-scoped-upserts.ts:122` calls the same reader and carries no equivalent row of its own |
 | `:657` cb-v-additions-wave `:9` | the cleanup test's second assertion compares `CLEAN_ROOTS` to a re-evaluation of its own defining expression | gone. `tests/tooling/gate-ignore-grammar.repo.int.test.ts:300-301` records the removal verbatim (*"the first version of this arm compared `CLEAN_ROOTS` to `PLANT_DIRS.map(first segment)` — which is the LINE THAT DEFINES `CLEAN_ROOTS`"*); the replacement is a real reachability arm at `:308` plus `toContain("tooling")` at `:318`. Closing sha `eb51d4313` (#2215) | **CLOSED** — `eb51d4313` (#2215) |
 | `:659` cb-v-additions-wave `:11` | four baselined specs with no `deletions` entry keep `monotonic-tests` RED at 4 on every structure run | the gate and its manifest are DELETED WHOLE: `tooling/src/verify/gates/monotonic-tests.ts` absent, `docs/test-baseline/` absent. Closing sha `3f4bf19ef` (*"retire monotonic-tests whole — the gate, its manifest, and the instruction to regenerate it (#2217)"*) | **CLOSED** — `3f4bf19ef` (#2217); the gate no longer exists |
 | `:667` cb-v-instruments-2 V3 | the `‼ THIS RUN IS NOT A VERDICT` banner is written BELOW both rosters while its comment claims otherwise | `tooling/src/verify/lib/structure-console.ts:47-56`: `structureConsole` emits `[banner, renderPass, renderPolicyPass, banner, completeness, timing]` — the banner prints at BOTH ends, and `:26-36` states the rationale for both placements. Last touch `05b3619c8` (#2222 lineage) | **CLOSED** — `05b3619c8`; banner at head AND tail, header states both |
@@ -111,6 +172,7 @@ anchor. `path:line` was re-located by SYMBOL, never by the ledger's recorded lin
 | `:698` cb-v-css-audit #11 | seven hand-spelled count ratchets (`EXPECTED_RUNTIME_WRITERS` 4 keys incl. `fade: 12`, `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS` 3 keys) survive in `lib/css-family-census.ts` | both constants are GONE. `lib/css-family-census.ts:52` *"`EXPECTED_RUNTIME_WRITERS` IS GONE (#2305)"*; `:29` *"EVERY COUNT RATCHET IS RETIRED (audit ledger row 11 + #2305, §12.5 "no count ratchet"), and NO CARDINALITY SURVIVES IN ANY FORM"*; the `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS` exemption moved to three 1:1 reviewed grants in `gates/css-family-direct-client-mechanism.ts` | **CLOSED** — `dd98eb356`/`f56e83d52` (#2305) |
 | `:700` cb-v-css-audit #13 | `EXPECTED_DIRECT_THEME_DECLARATIONS` is spelled in THREE places (`css-family-ownership.ts:174,438` + `lib/css-family-census.ts:79`) | one home. The constant is declared once (`lib/css-family-census.ts:82`) and does not appear in `css-family-ownership.ts` at all; `css-family-ownership-health.ts:36-38`: *"What this conversion DOES close is the coupled site (audit ledger row 13): the two fixture spellings now DERIVE from the constant, so the number has one home"* | **CLOSED** — `dd98eb356`; no longer blocked on row 12 |
 | `:704` cb-v-css-audit #17 | both Base UI reconciliation arms (`baseUiManifestOnly`, `baseUiInstalledOnly`) are unenforced in `css-selector-has-a-writer` | RETIRED with a named, stronger successor and a stated receipt: `css-selector-has-a-writer-health.ts:11-42` — the arms move to `baseui-surface-manifest#identity()`, whose `mustFlag[2]` (the `state` term), `mustFlag[3]` (vanished part, `count: 2`) and `mustFlag[4]` (vanished component, `count: 1`) landed at `dea1061df`; `lib/css-selector-writer-policy.ts` no longer exists | **CLOSED BY RETIREMENT** — `dd98eb356`/`7bf03e12f`, successor pinned at `dea1061df` |
+| `:820` cb-v-wave-9b | `test-presence-client.ts:382`'s `subjects = demanded.length > 0 ? demanded.toSorted() : [lowestTest ?? STORE_STORIES]` still branches on a `lowestTest` that an earlier refusal makes unreachable | the fallback is GONE. `tooling/src/verify/gates/test-presence-client.ts:390-391` records the removal in place — *"THE LOWEST MEMBER IS TAKEN AS A SLICE, NOT AS A DEFAULTED ELEMENT (#2280). A `lowestTest ?? STORE_STORIES` fallback stood here and was UNREACHABLE by the guarantee its own comment asserted"* — and `:399-400` is the replacement explicit-membership test. Closing sha `183e49714` | **CLOSED** — `183e49714` (#2280) |
 
 ### 3.2 MISFILED — 1 row whose predicate was never true
 
@@ -119,6 +181,8 @@ anchor. `path:line` was re-located by SYMBOL, never by the ledger's recorded lin
 | `:770` cb-v-wave-8a L10 | The row's finding is *"Nothing under `tests/` exercises `runCommandWithBudget`'s error path"* with the receipt *"`/usr/bin/grep -arln 'runCommandWithBudget' tests/` returns nothing"*. Both halves are false **at the row's own measurement sha**: `git show 50e31c534:tests/tooling/_load-budget.ts` contains `runCommandWithBudget` **3 times**, and the error-path pin — `tests/tooling/load-budget.int.test.ts` *"a fatal child exit is preserved instead of returning its partial report"*, driving `process.stderr.write('fatal'); process.exit(2)` against `FATAL_EXIT_RE = /exit 2.*fatal/su` — has existed since **`53d4482b1`, 2026-08-25**, which `git merge-base --is-ancestor 53d4482b1 50e31c534` confirms is an ancestor of the measurement sha | **MISFILED** — the negative claim was false at its own sha `50e31c534`; the pin has existed since `53d4482b1` (2026-08-25). Row `:1033` already records this; close `:770` and keep `:1033` as the receipt |
 
 ### 3.3 RESIDUAL — 25 rows still live
+
+(24 in the first draft, plus `:655` whose upserts half stays owned here.)
 
 | ledger line · section | what remains, re-derived at `b1a23e534` |
 | - | - |
@@ -131,6 +195,7 @@ anchor. `path:line` was re-located by SYMBOL, never by the ledger's recorded lin
 | `:621` cb-forge-policing-audit | LIVE. `gate-modernization.ts:112` still declares a local `registrationOf`, called at `:145`. Retires with the meta-gate at cutover, as the row says |
 | `:625` cb-forge-policing-audit | LIVE. `tooling/src/verify/ops/debt.ts:53-54` still imports `BASELINE_REL` from the two legacy gates `density-tier` and `duplicate-action-doors` |
 | `:653` cb-v-additions-wave `:5` | THE CLASS IS LIVE, THE ROW'S RECEIPT IS DEAD. `ledgers:fresh` is still RED on `caught-failure-ownership/population.json`, but not for the reason recorded: the row's symmetric-difference-of-two (`::error::2` 234/231, `::settle::1` 382/381, 598 rows) does not reproduce. Today it is **10 differences over 595 → 596 sites** at entirely different coordinates (§1b). Re-receipt the row and keep it open until the barrier regen |
+| `:655` cb-v-additions-wave `:7` | **SPLIT — one half closed, the residue stays OWNED HERE and is not folded into a combined close.** CLOSED HALF: the row's stated defect (`predicatesTableColumn`'s receiver-by-TEXT acquittal is enforced by no committed row) is answered for `owner-scoped-writes` — `owner-scoped-writes.ts:326-328` is a `mustPass` with `import * as schema from "@orb/db"` and a correctly-scoped namespace write, `why: "THE ACQUITTAL'S OWN ROW (#2214), and the DIRECTION is the point"`, landed at `eb51d4313`. **OPEN HALF, which keeps this row OPEN:** `owner-scoped-upserts.ts:122` calls the SAME shared reader (`predicatesTableColumn`, `lib/tenancy-read.ts:120`) and carries no equivalent row of its own, and `owner-scoped-reads` does not call it at all. A `#2214` grep across the three modules returns ONE hit, in `writes`. Narrow the row's predicate to the upserts consumer rather than closing it — a shared reader pinned in one of two consumers is exactly the shape the original row objected to |
 | `:656` cb-v-additions-wave `:8` (informational) | Unchanged; recorded so a later lane does not read a clean single cut on `receiverConstituents` as an unenforced fence. No action |
 | `:680` cb-v-migrations-wave LOW-4 | **CONFIRMED BY DRIVE.** `pnpm check:structure --check policy-legacy-imports` at `b1a23e534`: `raw 5 = effective 5`, population 309 source, 0 tool errors — and **all five findings are ARM A** (`"../contract/gate.ts"` in `depcruise-grant-liveness:30`, `domain-freshness-plane:70`, `eslint-grant-liveness:15`, `lifecycle-portability:54`, `runner-config-path-liveness:78`). **ARM B's live class is EMPTY.** The `why` strings at `policy-legacy-imports.ts:474` and `:480` still advertise the three dissolved examples, and `gate-runtime-standardization.md:1664` still says *"Both are RED on the tree by design (the migration rows)"* |
 | `:681` cb-v-migrations-wave LOW-1 | LIVE. `REGION_ATTR` (`lib/context-definition-shape.ts:22`) still has exactly ONE reader — `gates/context-definition-shape-health.ts` — against the module's own stated two-reader criterion |
@@ -160,13 +225,19 @@ collects ZERO tests"*. **DRIVEN** `pnpm test:scoped tests/tooling/verify/ops/esl
 These are not rows; they are measurements that reprice several rows and the `## CLASS ROLLUP`'s cross-cutting
 table at once.
 
-- **The §5b.3 warning-debt class (#1978) is at ZERO on the final corpus.** `pnpm check:structure --check
-  policy-waiver-spelling` at `b1a23e534`: `✓ policy-waiver-spelling · final hard/error · population 309
-  source`, `raw 0 = effective 0`, **exit 0**, 5.4 s of evaluation. The rollup's cross-cutting row still reads
-  *"OPEN as WARNING DEBT … Confirmed still open on a sample: `fk-ondelete-stated`, `empty-state-has-action`,
-  `bounded-list-limit`, `no-raw-container-widths`"* — that sample is clean now. **LIMIT:** the policy judges
-  FINAL policies only, so the 44 legacy modules are outside its population, and I could not plant a positive
-  control read-only; the receipt is "it scanned 309 files for 5.4 s and found nothing", not a planted zero.
+- **The §5b.3 warning-debt class (#1978) reports zero on the final corpus — THIS IS A LEAD, NOT CLOSURE.**
+  `pnpm check:structure --check policy-waiver-spelling` at `b1a23e534`: `✓ policy-waiver-spelling · final
+  hard/error · population 309 source`, `raw 0 = effective 0`, exit 0, 5.4 s. **I RAN NO POSITIVE CONTROL,
+  planted or otherwise**, and the standing rule is explicit that a bare zero is "I could not measure", never
+  "it isn't there" — planting was outside my read-only fence, so I did not clear it with the orchestrator and
+  did not do it. Two further limits: the policy's population is FINAL policies only, so the 44 legacy modules
+  are outside it entirely; and the ledger's own cross-cutting note warns that this class must NOT be
+  hand-censused (a `@orb-waive` grep calls 45 of 48 non-compliant modules compliant), which is an argument
+  against my corroborating grep too. **What would settle it:** one planted control — a scratch final policy
+  whose `fix` names no `@orb-waive` spelling — red-first in the same invocation. Until someone runs that, the
+  rollup's cross-cutting §5b.3 row should be NARROWED with this receipt attached, not flipped. The four
+  sample modules it names (`fk-ondelete-stated`, `empty-state-has-action`, `bounded-list-limit`,
+  `no-raw-container-widths`) are unaccused by this run, which is the part of the lead worth acting on.
 - **The legacy-`ExemptionTable`-in-a-final-module census is FOUR, not seven, eight or ten.** Two methods:
   `ast-grep --lang ts --pattern 'const $N: ExemptionTable = $V'` over `tooling/src/verify/gates`, and a literal
   `: ExemptionTable` sweep intersected with a `defineGate(` test — 22 declaring modules, **4 FINAL**:
@@ -181,33 +252,36 @@ table at once.
 - **`policy-legacy-imports` ARM B's live class is EMPTY** (0 of 5 findings). Any brief pricing ARM B work off
   §12.3's *"both are RED on the tree by design"* is pricing a dead class.
 
-## 5. The 24 `FIXED` rows — the class question, not 24 drives
+## 5. The 24 `FIXED` rows — read, not re-driven, and NOT normalized to CLOSED
 
-I did not adjudicate these individually, and I want to be explicit about why rather than let the gap read as
-coverage. The question they pose is a GRAMMAR question the ledger can answer once:
+**Codex's instruction 4 is right and the first draft was wrong to propose a mechanical rewrite.** Several
+of these cells expressly say FINAL REVIEW PENDING; flipping them to CLOSED would launder an unfinished
+review into a receipt, which is the exact move this ledger exists to catch. **No FIXED row changes state in
+my proposal.** Each keeps its own cell until its own claim is verified by whoever owns it.
 
-**`FIXED` is not in the ledger's own state vocabulary.** `## How to read a state` defines CLOSED, OPEN,
-SUPERSEDED, DISSOLVED and UNADJUDICATED. `FIXED` arrived with the instrument-honesty sections, is a
-seventh bin in `STATE_BINS`, and every one of the 24 cells means *"the lane that found it fixed it in its own
-commit"* — which the ledger's own maintenance rule 1 calls **the STRONGEST form of the requirement**, not a
-weaker one. Read literally, the 24 inflate the apparent backlog by 24 against a reader who scans
-`CLOSED` vs everything-else.
+What I owe instead is honesty about my own coverage, per row. I read all 24 state cells out of the ledger
+body; I verified only three against the tree, and each of those incidentally while adjudicating a
+neighbouring row. The column below says which.
 
-Two things follow, and both are root's call:
+| ledger line | subject | my coverage | why it must not be auto-flipped |
+| - | - | - | - |
+| `:422` `:423` `:424` `:425` `:426` `:428` `:429` `:430` `:431` `:432` `:433` | the eleven `p-suite-honesty` instrument repairs | **READ ONLY** — cell read, tree not re-driven | plain `**FIXED**` cells; a flip is plausible but is the OWNER's verification, not mine |
+| `:465` | `commented-code` (#2086, `27df4238a`) | **READ ONLY** | plain `**FIXED**` |
+| `:522` | `commented-code` (cb-v-fix-wave-1, re-fixed after a refutation) | **READ ONLY** | plain `**FIXED**`; note this row and `:465` are the same subject across two waves — a flip must not double-count |
+| `:854` `:859` | `playwright-css-topology` narrowing · `sanctioned-css-homes` header honesty | **VERIFIED, PARTIAL** — I read the current source while adjudicating `:704`/`:695`; the filed clauses match their receipts | cells read **FIXED — FILED CLAUSE VERIFIED; #2294 RESIDUE OPEN**. A CLOSED flip would drop the named residue; these want CLOSED **plus a separate residual row**, never a bare flip |
+| `:857` `:860` | `product-css` `malformed` pin · the `#2183`/`#2182` drifted comment | **READ ONLY** | same **#2294 RESIDUE OPEN** qualifier as above |
+| `:933` `:934` `:936` | `biome.edit.jsonc` · biome nested-ignore scope · `POPULATION_ROOTS` | **READ ONLY** | `**FIXED — #2299**` / `**FIXED — #2267**`; their section header says two residuals were tracked as #2307/#2308, so the section is not wholly closed |
+| `:1010` `:1011` `:1012` | the three `#2309` resource-selection defects | **READ ONLY** | cells read **FIXED — INTEGRATED; FINAL REVIEW PENDING (#2309)**, and the section header adds *"BaseUI final review remains outstanding"*. **This is a Verify-column state, not a ledger state** — flipping it to CLOSED asserts a review that has not happened |
+| `:1046` | the `_load-budget` `#2197` comment (`f946a501e`) | **VERIFIED** — read while adjudicating `:770`/`:1033`; the comment is rewritten to the measured effects and the `stdio` triple is preserved | plain `**FIXED**`, and its own section header still says *"#2197 remains OPEN pending a revision/load-bearing quiet planter receipt"* |
 
-1. **A `FIXED` row is a CLOSED row whose closer is the finding lane.** The natural repair is a mechanical
-   rewrite of the 24 cells to the ledger's CLOSED grammar — a bolded CLOSED, an em dash, the closing sha in a
-   code span, then the board id in parentheses — using the sha each cell already names, leaving
-   the bin vocabulary at six. Four of the 24 (`:854` `:857` `:859` `:860`) already carry a *"FILED CLAUSE
-   VERIFIED; #2294 RESIDUE OPEN"* qualifier — those want `CLOSED` + a separate residual row, not a bare flip.
-   Three (`:1010` `:1011` `:1012`) read *"FIXED — INTEGRATED; FINAL REVIEW PENDING (#2309)"*, which is a
-   Verify-column state, not a ledger state.
-2. **Until then, no aggregate should quote OPEN alone.** The honest headline at `b1a23e534` is
-   **76 OPEN + 1 UNADJUDICATED live · 24 FIXED-not-yet-spelled-CLOSED · 406 CLOSED**.
+**Coverage summary: 3 verified (`:854` `:859` `:1046`, all partial/incidental), 21 read-only.**
 
-I spot-verified three of the 24 incidentally while adjudicating their neighbours and found no cell overstating
-its fix: `:1046` (`_load-budget` comment rewritten, `f946a501e`), and the `:854`/`:859` clauses, whose current
-source matches their receipts.
+The grammar observation from the first draft still stands and is worth recording WITHOUT acting on it:
+`FIXED` is not in the ledger's `## How to read a state` vocabulary (which defines CLOSED, OPEN, SUPERSEDED,
+DISSOLVED, UNADJUDICATED), yet it is a seventh bin in `STATE_BINS` and 24 rows sit in it. That is a
+vocabulary question for the ledger's owner to settle deliberately — not a rewrite a verifier performs in
+passing. Until it is settled, **no aggregate should quote OPEN alone**: the honest headline at `b1a23e534`
+is 76 OPEN + 1 UNADJUDICATED live, 24 FIXED-with-their-own-qualifiers, 406 CLOSED.
 
 ## 6. Family / evidence-plane grouping, for chunking
 
@@ -226,10 +300,15 @@ Guide §3's planes, applied to the **25 RESIDUAL** rows only. Root can route eac
 
 ## 7. What I did NOT examine, and why
 
-- **29 EXCLUDED rows** — listed in §2 with their owner. I produced receipts that reprice four of them (`:395`
-  `:396` `:572`–`:579`) and hand those to their owners in §4 rather than adjudicating.
-- **The 24 `FIXED` rows individually** — §5 answers the class question instead; 24 per-row drives would have
-  cost the survivor set.
+- **28 EXCLUDED rows** — every id listed in §2b with its owner. I produced receipts that reprice eight of
+  them (`:395` `:396` and the six `:572`–`:579` ids) and hand those to their owners in §4 rather than
+  adjudicating.
+- **21 of the 24 `FIXED` rows were READ, not re-driven**, and 3 were verified only incidentally and only in
+  part (`:854` `:859` `:1046`). §5 gives the per-row coverage. **None is proposed for a state change** — the
+  first draft's mechanical CLOSED rewrite is withdrawn.
+- **A planted positive control for `policy-waiver-spelling`** — the §5b.3 zero is a LEAD without it (§4).
+  Planting was outside my read-only fence and I did not clear it, so the control is owed by whoever acts on
+  the lead.
 - **406 CLOSED, 6 SUPERSEDED, 3 DISSOLVED rows** — out of the brief's start set by construction.
 - **`pnpm check:structure` whole, `check:policy-conformance` whole, any planting suite, any planted control** —
   fenced. Four bounded `--check <policy>` drives were run one at a time (`no-inline-types`,
@@ -237,13 +316,66 @@ Guide §3's planes, applied to the **25 RESIDUAL** rows only. Root can route eac
 - **`:690`'s "18 findings" cardinality** — not re-measured; the module is byte-identical so the row stands
   regardless, but the number is dated.
 
-## 8. Proposed state-cell text — the integrator applies these, I did not
+## 8. The rollup PROJECTION, derived per transition and conserved
 
-23 CLOSED (§3.1 + §3.4), 1 MISFILED (§3.2), 25 re-receipted RESIDUAL (§3.3). The `proposed` column of each
-§3.1 table row is the paste-ready cell; §3.3's rows keep `**OPEN**` and want their RECEIPT column refreshed
-with the re-derivation quoted there. If all 23 land, the rollup at the next barrier moves from
-**406 CLOSED / 76 OPEN / 1 UNADJUDICATED** to **429 CLOSED / 53 OPEN / 0 UNADJUDICATED** — rebuild it with
-`deriveClassRollup`, never by arithmetic on this paragraph.
+**The first draft's `429 CLOSED / 53 OPEN / 0 UNADJUDICATED` did not conserve 516 and codex was right to
+refuse it.** It never stated a destination for the MISFILED row, it omitted `:820` entirely, and it printed
+three columns of a seven-column identity. Two errors happened to cancel in the CLOSED column, which is the
+most dangerous way for a wrong number to look right — recorded here so nobody re-derives it by trusting the
+first draft's total.
+
+**Every transition, one row per adjudication class. Nothing else moves.**
+
+| transition | rows | ids |
+| - | -: | - |
+| OPEN → CLOSED | **22** | `193 387 401 531 532 533 631 632 633 642 657 659 667 679 695 696 697 698 700 704 711 820` |
+| UNADJUDICATED → CLOSED | **1** | `248` |
+| OPEN → DISSOLVED | **1** | `770` |
+| OPEN → OPEN (receipt refreshed, no state change) | **25** | the §3.3 table, `:655` included |
+| FIXED → FIXED (§5, no flip) | **24** | the FIXED list in §2a |
+| excluded, untouched | **28** | the §2b list |
+
+`22 + 1 + 1 + 25 = 49` adjudicable · `+ 24` FIXED `= 73` examined · `+ 28` excluded `= 101`. The start set
+is fully accounted for.
+
+**MISFILED's destination, stated rather than assumed.** `MISFILED` is my word, not a ledger bin. The
+vocabulary's closest member is **DISSOLVED** — *"the row was never a real defect, or its cell was measured
+under a rule that has since been corrected"* — which is exactly `:770` (its negative claim was false at its
+own measurement sha). If the integrator disagrees and prefers CLOSED, the arithmetic below shifts one row
+from DISSOLVED to CLOSED and still conserves; I am naming the ambiguity rather than forcing it.
+
+**The projection, column by column, as `original + Σin − Σout`:**
+
+```
+CLOSED         406 + 23 (22 OPEN→CLOSED, 1 UNADJ→CLOSED) − 0  = 429
+OPEN            76 +  0 − 23 (22 →CLOSED, 1 →DISSOLVED)       =  53
+SUPERSEDED       6 +  0 − 0                                    =   6
+DISSOLVED        3 +  1 (770) − 0                              =   4
+UNADJUDICATED    1 +  0 − 1 (248)                              =   0
+FIXED           24 +  0 − 0                                    =  24
+N/A              0 +  0 − 0                                    =   0
+                                                        TOTAL   = 516   ✓
+```
+
+Cross-check on the OPEN column from the other direction: 76 OPEN at the start = 28 excluded (untouched) +
+25 residual (unchanged) + 22 closing + 1 dissolving = 76. ✓ And the 53 that survive = 28 excluded + 25
+residual. ✓
+
+**The alternative arm, if `:770` is ruled CLOSED rather than DISSOLVED:** CLOSED 430 · OPEN 53 · DISSOLVED 3
+· everything else unchanged · total 516. ✓ Both arms conserve; the difference is one row's destination and
+the integrator owns it.
+
+**Do not compute the next rollup from this paragraph.** It is a projection of what the flips would do, not a
+measurement. Rebuild with `deriveClassRollup` on the tree after the flips land — that is what
+`pnpm check:ledgers-fresh` compares against, and the whole reason this section exists in arithmetic form is
+so a mismatch is visible instead of plausible.
+
+### 8b. The paste-ready cells
+
+The `proposed` column of each §3.1 row (and §3.4's prose) is the paste-ready state cell. §3.3's 25 rows keep
+`**OPEN**` and want only their RECEIPT column refreshed with the re-derivation quoted there — `:655`
+additionally wants its PREDICATE narrowed to the `owner-scoped-upserts` consumer. The 24 FIXED rows get no
+edit at all.
 
 ## LEDGER ROWS (0 rows)
 
@@ -265,5 +397,8 @@ docs(gates): adjudicate the refutation ledger's 48 unowned OPEN rows against the
  1 file changed, 254 insertions(+)
 ```
 
-`git status --short` was EMPTY after that commit. This section is the only follow-up commit, because a
-commit cannot contain its own stat.
+`git status --short` was EMPTY after that commit. Two follow-ups exist: `02fa987cc` added this section
+(a commit cannot contain its own stat), and a third commit carries the 2026-09-13 RECONCILIATION — the
+explicit disjoint sets in §2a, the restored `:820` row, `:655`'s split, the withdrawn FIXED normalization
+in §5, the §5b.3 downgrade to a lead in §4, and the conserved projection in §8. Its sha and stat are in
+the lane report rather than here, for the same reason.
