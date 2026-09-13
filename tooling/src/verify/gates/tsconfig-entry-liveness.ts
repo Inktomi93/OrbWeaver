@@ -81,13 +81,32 @@
 //     `tests/support/iso` source landed and its glob went live — the two-sided ratchet working, named
 //     path-by-path rather than absorbed into a count.
 //
-// THE NON-VACUOUS ARM DOES NOT EXIST THROUGH THE SHARED HARNESS, and that is pinned rather than argued.
-// `tests/support/legacy-differential.ts` replays on an IN-MEMORY project and REFUSES a legacy gate that
-// touches disk (#2119) — this one is `readdirSync` + `existsSync` + `readFileSync`, which is exactly what
-// the conversion retired. `tests/tooling/verify/gates/grant-liveness-family.test.ts`'s §4.6 arm drives
-// `filesystemReach` over both frozen blobs with controls in both directions, so a later lane cannot
-// "add the missing replay" by relaxing that scan. A fixture-level replay here needs a REAL-TMPDIR harness
-// (§4.6's own guidance for a filesystem-reading legacy gate); that residual is board row #2319.
+// THE NON-VACUOUS ARM NOW EXISTS, AND IT IS A REAL-TMPDIR FIXTURE REPLAY (#2319, 2026-09-13). The record
+// above stands exactly as written — it is the REAL-TREE drive, category 5 with a zero legacy side, and it
+// still disclaims catch parity. What it could not do is §4.6's only method that reaches catch parity:
+// replay each legacy `GateExample` file map through the frozen descriptor and the final pair over the SAME
+// BYTES. The shared harness refused, correctly, because it replays IN-MEMORY and this descriptor reads
+// disk (#2119) — so the door §4.6 names for that class was BUILT rather than the refusal relaxed:
+// `tests/support/legacy-differential.ts` `createTmpdirDifferential`, and the table is
+// `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`. All 11 legacy examples, both engines,
+// findings + populations + subjects + tool errors, each row classified with a MATCHED successor:
+//   · 2 IDENTICAL (`mustFlag[0]`/`[1]`, the founding file-exact catch WITH its line identity) — catch
+//     parity, measured, and it is the arm the `readCompilerConfigEntries` port was riskiest for.
+//   · 2 SPLIT — UNPARSEABLE and NO-ROWS both fire as `tsconfig-entry-liveness-health` on the same
+//     fixtures. UNPARSEABLE also MOVED ITS ANCHOR (line 0 file-level → line 1 with the config as its
+//     token), which is §4.6 category 6 and is recorded rather than bucketed.
+//   · 1 RUNTIME-REFUSAL — legacy MISSING-CONFIG, whose premise died with the derived roster, is answered
+//     by the EMPTY-ROSTER throw as this header's `-health` sibling predicts.
+//   · 2 RETIRED-ARM — STALE-EXEMPT (successor is central zero-consumption staleness, a whole-run fact) and
+//     DEAD-CITE (no successor at all — the same gap `biome-grant-liveness.ts`'s header records).
+//   · 2 STRONGER-READER — the glob half and the `${configDir}` TEMPLATE arm were legacy DECLARED SKIPS at
+//     fixture scope and report here.
+//   · 1 CATEGORY 5, driven with the SHIPPED `tsconfig-entry-liveness:st-goldens-runtime` row: raw 30 →
+//     granted 1 → effective 29, the falsifier answered per fixture.
+//   · 1 VACUOUS-BOTH-ZERO, labelled as such.
+// THE IN-MEMORY REFUSAL IS UNCHANGED and still pinned with both controls in
+// `grant-liveness-family.test.ts`; the tmpdir door carries the opposite fence (a replay root inside the
+// running checkout is refused) so a frozen `readdirSync` arm can never walk this repository.
 //
 // COMMENT POSTURE: comment-SAFE — a tsconfig is JSONC and the reader parses it as such, so a comment is
 // structurally out of the scanned unit rather than being stripped by this module.
