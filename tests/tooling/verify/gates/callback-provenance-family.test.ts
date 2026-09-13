@@ -296,3 +296,32 @@ test("audit-client-tests: an IMPORTED assertion helper is not followed — the d
   expect(result.policies[0]?.findings).toHaveLength(1);
   expect(result.policies[0]?.findings[0]?.token).toBe("test");
 });
+
+test("evaluate-no-scope-capture: a recursive const arrow keeps its self-binding distinct from an outer capture", () => {
+  const result = passOf(evaluateNoScopeCapture, {
+    "tooling/src/snap/ops/recursive.ts":
+      "let LIMIT = 1; LIMIT = 2; const recur = (n: number): number => n > LIMIT ? recur(n - 1) : n; declare const page: { evaluate(fn: unknown): void }; page.evaluate(recur);",
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings.map((finding) => finding.token)).toEqual(["LIMIT"]);
+});
+
+test("evaluate-no-scope-capture: an imported value inside the body remains lexical unreadable evidence", () => {
+  const result = passOf(evaluateNoScopeCapture, {
+    "tooling/src/snap/ops/value.ts": "export const VALUE = 1;",
+    "tooling/src/snap/ops/use-value.ts": 'import { VALUE } from "./value.ts"; declare const page: { evaluate(fn: unknown): void }; page.evaluate(() => VALUE);',
+  });
+  expect(result.toolErrors).toEqual([
+    expect.objectContaining({ policyId: "evaluate-no-scope-capture", phase: "evaluate", message: expect.stringContaining("runtime identifiers=[VALUE]") }),
+  ]);
+  expect(result.authority.withheldPolicyIds).toEqual(["evaluate-no-scope-capture"]);
+});
+
+test("evaluate-no-scope-capture: an overloaded recursive function retains its checker self-binding", () => {
+  const result = passOf(evaluateNoScopeCapture, {
+    "tooling/src/snap/ops/overload.ts":
+      "const LIMIT = 1; function recur(n: number): number; function recur(n: number): number { return n > LIMIT ? recur(n - 1) : n; } declare const page: { evaluate(fn: unknown): void }; page.evaluate(recur);",
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings.map((finding) => finding.token)).toEqual(["LIMIT"]);
+});

@@ -674,3 +674,49 @@ test("modal-body-not-placeholder: the twin's silence is a READ — the same moda
   expect(placeholder.toolErrors).toEqual([]);
   expect(placeholder.authority.effectiveFindings).toMatchObject([{ policyId: "modal-body-not-placeholder", token: "themeModal" }]);
 });
+
+test("a mutable alias does not prove that a warning reached the warnings accumulator", () => {
+  const result = warningPassOf({
+    [PROVIDER_HOME]: PROVIDER_TUPLE,
+    [CHAT_HOME]: CHAT_TUPLE,
+    [CHAT_EMIT]: CHAT_PUSH,
+    [PROVIDER_EMIT]: 'declare const warnings: unknown[]; let sink = warnings; sink = []; sink.push({ code: "provider_ok", message: "elsewhere" });',
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "warning-code-coverage", token: '"provider_ok"' }]);
+});
+
+test("a member named warnings is not the local warnings accumulator through an alias", () => {
+  const result = warningPassOf({
+    [PROVIDER_HOME]: PROVIDER_TUPLE,
+    [CHAT_HOME]: CHAT_TUPLE,
+    [CHAT_EMIT]: CHAT_PUSH,
+    [PROVIDER_EMIT]: 'declare const bag: { warnings: unknown[] }; const sink = bag.warnings; sink.push({ code: "provider_ok", message: "elsewhere" });',
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "warning-code-coverage", token: '"provider_ok"' }]);
+});
+
+test("a local warnings binding keeps its identity when its initializer is runtime data", () => {
+  const result = warningPassOf({
+    [PROVIDER_HOME]: PROVIDER_TUPLE,
+    [CHAT_HOME]: CHAT_TUPLE,
+    [CHAT_EMIT]: CHAT_PUSH,
+    [PROVIDER_EMIT]:
+      'declare function acquire(): unknown[]; const warnings = acquire(); const sink = warnings; sink.push({ code: "provider_ok", message: "emitted" });',
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+});
+
+test("an imported export-name alias does not invent a local warnings accumulator", () => {
+  const result = warningPassOf({
+    [PROVIDER_HOME]: PROVIDER_TUPLE,
+    [CHAT_HOME]: CHAT_TUPLE,
+    [CHAT_EMIT]: CHAT_PUSH,
+    "packages/server/src/infra/providers/foreign.ts": "export const warnings: unknown[] = [];",
+    [PROVIDER_EMIT]: 'import { warnings as sink } from "./foreign.ts"; sink.push({ code: "provider_ok", message: "elsewhere" });',
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "warning-code-coverage", token: '"provider_ok"' }]);
+});

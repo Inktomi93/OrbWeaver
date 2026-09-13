@@ -58,6 +58,8 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { DEFINE_CONTEXT_REGION, REGISTRY_CONTRACTS_RE } from "../lib/context-definition-shape.ts";
+import { referenceResolutionServices, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
+import { resolveTypeIdentityOrigin } from "../lib/type-member-origin.ts";
 
 export const FEATURES_RE = /\/packages\/client\/src\/features\//u;
 export const APP_SHELL_RE = /\/packages\/client\/src\/features\/app-shell\//u;
@@ -122,14 +124,25 @@ function isStrictProjectionArg(typeArg: TypeNode): boolean {
   if (typeArg.getKind() === SyntaxKind.VoidKeyword) {
     return true;
   }
-  let strict = false;
-  if (Node.isTypeReference(typeArg) && typeArg.getTypeArguments().length === 0) {
-    const nameNode = typeArg.getTypeName();
-    if (Node.isIdentifier(nameNode)) {
-      strict = nameNode.getDefinitionNodes().some((def) => REGISTRY_CONTRACTS_RE.test(def.getSourceFile().getFilePath()));
-    }
+  if (!Node.isTypeReference(typeArg) || typeArg.getTypeArguments().length > 0) {
+    return false;
   }
-  return strict;
+  const nameNode = typeArg.getTypeName();
+  if (!Node.isIdentifier(nameNode)) {
+    return false;
+  }
+  const origin = resolveModuleMemberOrigin(nameNode);
+  const lexical = referenceResolutionServices.declarationOf(nameNode);
+  if ((origin.kind === "unresolved" && origin.reason === "ambiguous") || (lexical.kind === "unresolved" && lexical.reason === "ambiguous")) {
+    // Declaration merging retains the published type; it is not an unreadable projection.
+    const type = resolveTypeIdentityOrigin(typeArg);
+    return type.kind === "resolved" && type.value.declarations.some((home) => REGISTRY_CONTRACTS_RE.test(home.getSourceFile().getFilePath()));
+  }
+  let declaration = lexical.kind === "resolved" ? lexical.value : undefined;
+  if (origin.kind === "resolved" && origin.value.canonical.kind === "project") {
+    declaration = origin.value.canonical.declaration;
+  }
+  return declaration !== undefined && REGISTRY_CONTRACTS_RE.test(declaration.getSourceFile().getFilePath());
 }
 
 /** The `kind: "tabs"` + `useResolved` pair that only `defineContextTabs` may mint — anchored on
@@ -359,7 +372,7 @@ export const gate = defineGate({
           '  tabs: [{ id: "a", label: "A", body: () => null }],\n' +
           "});\n",
       },
-      why: "THE PUBLICATION HALF of O5 strict: an `S` that is an identifier RESOLVING to a registry-contracts export, imported by a specifier that reaches a real file in this row's own map. Drop the `getDefinitionNodes()` home test and this row still passes — but drop the requirement that the home BE registry-contracts and mustFlag[2]'s second finding disappears, which is the direction that matters",
+      why: "THE PUBLICATION HALF of O5 strict: an `S` that is an identifier RESOLVING to a registry-contracts export, imported by a specifier that reaches a real file in this row's own map. Drop the shared declaration-origin home test and this row still passes — but drop the requirement that the home BE registry-contracts and mustFlag[2]'s second finding disappears, which is the direction that matters",
     },
     {
       mode: "types",

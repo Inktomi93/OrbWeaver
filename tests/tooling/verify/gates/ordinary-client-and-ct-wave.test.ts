@@ -301,3 +301,14 @@ test("#620: the reported POSITION is a paren-free authored token, which the lega
     expect(token).not.toMatch(/[()]/u);
   }
 });
+
+test("context projections retain published primitive aliases and merged interfaces through imports", () => {
+  const result = passOf(contextDefinitionShape, {
+    "packages/client/src/lib/registry-contracts.ts":
+      "export type Published = string; export interface Merged { a: string } export interface Merged { b: string }",
+    "packages/client/src/features/x/projection.ts":
+      'import type { Published, Merged } from "../../lib/registry-contracts.ts"; declare function defineContextTabs<S>(spec: unknown): unknown; defineContextTabs<Published>({ tabs: [1] }); defineContextTabs<Merged>({ tabs: [1] });',
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+});
