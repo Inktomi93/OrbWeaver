@@ -6184,34 +6184,39 @@
     },
     {
       "path": "docs/reviews/gate-runtime/v-2319-continuation-review-2026-09-13.md",
-      "assignedSha256": "a9853d047d6d958fbe24b995215e11d1b5712bab529b23724edb0a74f55fcfe7",
+      "assignedSha256": "f7657f1682ee3733b3b50245c6ddc83c5946b8011fedba53eb9d003a0dcb6a9b",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "a9853d047d6d958fbe24b995215e11d1b5712bab529b23724edb0a74f55fcfe7",
-      "verifiedCommit": "f902e79ef4a0cca0f80134994b2eca833524c22b",
+      "verifiedSha256": "f7657f1682ee3733b3b50245c6ddc83c5946b8011fedba53eb9d003a0dcb6a9b",
+      "verifiedCommit": "dc68f3f753337d9c156180e39057e0c0f396b1f5",
       "verifiedAt": "2026-09-13",
       "evidence": [
-        "Full immutable report read through 282249728 plus exact 282249728..628765a41 frontmatter-only comparison by Codex docs_consolidation_receipt for #2049. Only status changed from invalid `confirmed` to allowed `active`; the report body preserves its original C1-C3 refutations, their source-verified repairs, and the later R-2319-1 supersession. Its no-runtime language is retained: author and primary logs corroborate the source review but are not recast as this reviewer’s execution.",
-        "Current-main verification supplied by Codex-primary: the seven importing suites passed 7 files / 50 tests in report main-2520958-2026-09-13T13-17-05-683Z; lint and docs passed; all eleven native policies passed after Q08. These are primary-run receipts, separate from the report author's source-only review and bounded to cf1b426a4505d796dd8e9c80960f2d6b40a28888.",
-        "2026-09-13: Full continuation report read at integrated f902e79ef4a0cca0f80134994b2eca833524c22b, including the no-parallel/factory follow-up integrated by 97f8db3d3 from 8b4682e87. Retain original C1-C3 refutations, repaired-source findings and R-2319-1 supersession. The new section reviews all 21 no-parallel and 15 factory examples; it attributes 17/17 focused, 7 files / 54 tests importer, discriminating prerequisite/arm cuts and lint/typecheck results to primary-run logs read by that reviewer. This receipt refresh reads the report and ancestry, not those logs or runtime commands, and does not independently certify their execution. The two remaining split modules and whole-program acceptance remain outside the report verdict; prior receipts remain dated to their original trees."
+        "2026-09-13 independent receipt review: full current 278-line continuation report read by Codex proof_count_review. The current bytes are SHA-256 f7657f1682ee3733b3b50245c6ddc83c5946b8011fedba53eb9d003a0dcb6a9b, git blob 87cf209e3a10743836d54510fa0543f539d32cb9, introduced by integrated commit dc68f3f753337d9c156180e39057e0c0f396b1f5 and unchanged at the review tip. The integrated blob differs from author checkpoint 8ed186e4d only in frontmatter status, confirmed to active; the review body is preserved.",
+        "The report retains the original C1-C3 refutations, their repaired-source findings, the R-2319-1 supersession, the independently source-reviewed 21-row no-parallel and 15-row factory checkpoint, and the later 30-row config plus 16-row section review. Independent source review of 8b4682e87..8ed186e4d confirmed the final two tables and controls. The predecessor 8b4682e87 was already integrated as 97f8db3d3; root integrated only 8ed186e4d as dc68f3f75, whose stable patch ID exactly matches the author delta at 99ff328367bef96d16574abc0169f6fe22cae208. The reviewer did not execute runtime commands.",
+        "Separate current-main execution supplied by Codex-primary after integration: seven importing suites passed 7 files / 59 tests in reports/runs/test/main-2726726-2026-09-13T13-56-03-384Z/test-report.json (SHA-256 c5ed84969c46fe884f4e212a91e8d6b40ab2a428bed226fea2258c354c07f8be; success true, 7/7 suites and 59/59 tests). Terminal job 71515 exited 0. Scoped Biome on the replay test, scoped ESLint on the replay test, documentation format for both reports and all eleven native TypeScript configurations passed. These root-run receipts are not recast as the report reviewer's execution.",
+        "The verdict remains source-review bounded. It does not independently certify the current runtime commands, shared replay-harness repairs before ade6f50ed, ledger states outside #2319, whole-corpus or real-tree health, product behavior, or completion of #2319."
       ],
       "claims": [
         {
-          "claim": "At current main, this report preserves the original C1-C3 refutations and their source-verified repairs, then explicitly supersedes the earlier checkpoint acceptance for R-2319-1; it does not claim that its reviewer executed runtime tests or that #2319 is complete.",
+          "claim": "At integrated commit dc68f3f75, this report preserves C1-C3 and R-2319-1 review history and source-verifies the completed nine-parent 133-row replay, while explicitly separating parent-run runtime corroboration and declining any whole-#2319 completion claim.",
           "evidence": [
             {
               "kind": "test",
-              "target": "tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts:236"
+              "target": "tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts:1640"
             },
             {
               "kind": "provenance",
-              "target": "git:45d520e738691c162ac3468ee2f0a82d4d243140"
+              "target": "git:dc68f3f753337d9c156180e39057e0c0f396b1f5"
+            },
+            {
+              "kind": "issue",
+              "target": "#2319"
             }
           ]
         }
       ],
-      "summary": "Independent continuation review preserving C1-C3 refutations and repairs, R-2319-1 correction, and subsequent no-parallel/factory source review. Primary-run logs are corroboration; independent runtime execution, the two remaining split modules and whole-program acceptance are not claimed."
+      "summary": "Independent continuation source review preserving C1-C3 repairs and the R-2319-1 correction, then confirming the 133-row nine-parent replay through the config and section split checkpoint. Current root-run 59/59 importer evidence is attributed separately; independent runtime execution, broader harness history, whole-corpus health and #2319 completion are not claimed."
     },
     {
       "path": "docs/reviews/gate-runtime/v-2319-integration-review-2026-09-13.md",
@@ -6328,6 +6333,42 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-legacy-replay-2026-09-13.md",
+      "assignedSha256": "3a1605f1c9a23fc56da76fc9dcfa3c332b621c942308ead2699115b327e95bf1",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "3a1605f1c9a23fc56da76fc9dcfa3c332b621c942308ead2699115b327e95bf1",
+      "verifiedCommit": "dc68f3f753337d9c156180e39057e0c0f396b1f5",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "2026-09-13 independent receipt review: full current 1,134-line report read by Codex proof_count_review. The current bytes are SHA-256 3a1605f1c9a23fc56da76fc9dcfa3c332b621c942308ead2699115b327e95bf1, git blob dd277cfa67f47586ba2c008c16a39c35c0f3df81, introduced by integrated commit dc68f3f753337d9c156180e39057e0c0f396b1f5 and unchanged at the review tip. Historical measurements, author-run receipts, corrected findings, OPEN/MITIGATED rows and pending-integrator wording remain dated report content; this catalog receipt does not promote them to current ledger state or independently reproduced execution.",
+        "Independent source review covered the immutable author delta 8b4682e87daf53971b54e3a47543fc7e9134c55a..8ed186e4df2be0ab307a80e8dfe2f410575e289f and its complete config/section replay additions. The author delta and integrated dc68f3f75 have the same stable patch ID, 99ff328367bef96d16574abc0169f6fe22cae208. The predecessor 8b4682e87 was already integrated as 97f8db3d3 before root integrated only 8ed186e4d as dc68f3f75. Source review confirmed the 30 config plus 16 section rows bring the nine parent tables to 133, with exact classification, prerequisite, wrong-arm and fixture-grant controls; no runtime command was executed by that reviewer.",
+        "Separate current-main execution supplied by Codex-primary after integration: seven importing suites passed 7 files / 59 tests in reports/runs/test/main-2726726-2026-09-13T13-56-03-384Z/test-report.json (SHA-256 c5ed84969c46fe884f4e212a91e8d6b40ab2a428bed226fea2258c354c07f8be; success true, 7/7 suites and 59/59 tests). Terminal job 71515 exited 0. Scoped Biome on the replay test, scoped ESLint on the replay test, documentation format for both reports and all eleven native TypeScript configurations passed. These are root-run integration receipts, separate from the report author's historical runs and the independent source review.",
+        "Scope remains bounded to the replay harness history and the nine-parent registry-definitions replay account. The report explicitly does not close #2319, certify the gate program, re-derive its dated whole-corpus backlog, or establish current truth for ledger rows whose prose says pending the integrator's SHA."
+      ],
+      "claims": [
+        {
+          "claim": "At integrated commit dc68f3f75, section 10 records a complete 133-row replay for the nine assigned frozen parent descriptors, including 30 config and 16 section rows plus bounded constructed evidence for their split siblings; this is scoped replay preservation, not completion of #2319 or the gate program.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/gates/registry-definitions-legacy-replay.test.ts:1640"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:dc68f3f753337d9c156180e39057e0c0f396b1f5"
+            },
+            {
+              "kind": "issue",
+              "target": "#2319"
+            }
+          ]
+        }
+      ],
+      "summary": "Cumulative #2319 legacy-replay report, accepted as a dated record through the integrated 133-row registry-definitions checkpoint. Historical census, findings and run claims retain their own dates and limits; current root execution proves only the seven-importer 59/59 integration floor, and whole-issue or gate-program completion is not claimed."
     }
   ]
 }
