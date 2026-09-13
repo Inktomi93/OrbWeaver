@@ -61,7 +61,14 @@ export const gate = defineGate({
   authority: "hard",
   severity: "error",
   population: "@server",
-  analysis: "syntax",
+  // `types`, NOT `syntax` (#2256, corrected 2026-09-13). This policy derives its subject through
+  // `lib/detached-work.ts#deriveRootSpanOpeners`, which reaches `staticStringValue` —
+  // `node.getType().getLiteralValue()` plus `value.getSymbol()`. Asking a node for its TYPE is the checker,
+  // so the old `syntax` declaration was false about the plane this verdict rests on. `analysis` is data the
+  // runtime dispatches on and it fixes the proof MODE every row carries
+  // (`lib/policy-validation.ts#expectedMode`), so the four proof rows below moved from `mode: "source"` to
+  // `mode: "types"` in the same commit and were re-run.
+  analysis: "types",
   // The verdict is a claim about the WHOLE derivation source; a subset that happens to exclude the tracing
   // module would otherwise report blindness on every scoped run.
   execution: "entire-population",
@@ -84,7 +91,7 @@ export const gate = defineGate({
   }),
   mustFlag: [
     {
-      mode: "source",
+      mode: "types",
       files: {
         [TRACING_MODULE]: "export function withRequestSpan(id: string, fn: () => Promise<void>): Promise<void> {\n  return t.startActiveSpan(id, {}, fn);\n}\n",
       },
@@ -92,7 +99,7 @@ export const gate = defineGate({
       why: 'A4 — the tracing module dropped `root: true`, so the derived vocabulary is EMPTY and the occurrence policy would report ✓ forever on a tree it can no longer read. This is the legacy `mustFlag[8]` arm, minus the real-tree anchor probe the final `execution: "entire-population"` replaces; the finding now lands ON the derivation source rather than on the gate module\'s own path',
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         [TRACING_MODULE]:
           "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
@@ -104,7 +111,7 @@ export const gate = defineGate({
   ],
   mustPass: [
     {
-      mode: "source",
+      mode: "types",
       files: {
         [TRACING_MODULE]:
           "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
@@ -113,7 +120,7 @@ export const gate = defineGate({
       why: "the healthy tree: one exported function opening a detached root, so the vocabulary is non-empty and the tripwire is silent",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         [TRACING_MODULE]:
           "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +

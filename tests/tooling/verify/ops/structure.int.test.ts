@@ -41,6 +41,21 @@ const READINESS_BUDGET_MS = scaledBudget(30_000);
 const SUBPROCESS_CLEANUP_BUDGET_MS = scaledBudget(5000);
 const TIMEOUT_CHILD_BUDGET_MS = scaledBudget(10_000);
 const OOM_CHILD_BUDGET_MS = scaledBudget(60_000);
+/** EVERY CASE HERE SPAWNS A REAL CLI CHILD, so no case may run under vitest's DEFAULT 5s (#2289). The two
+ *  arms that already carried budgets did so because their children are deliberately slow; the rest were
+ *  left on the default and measured ~1-3s SOLO, which reads as headroom right up until contention — the
+ *  `kill -9` arm below took 3.0s alone and TIMED OUT AT 5068ms inside a six-file batch, reported as a test
+ *  failure rather than as the load kill it was. A planted-root CLI boot is node startup plus a one-gate
+ *  corpus, so the base is an order of magnitude over the measurement and the load factor carries the rest:
+ *  this is a HANG failsafe, never a duration assertion, and nothing in the file asserts on elapsed time.
+ *
+ *  IT MUST ALSO OUTLAST THE INNER BUDGETS. `waitUntil` polls for READINESS_BUDGET_MS and throws a message
+ *  that NAMES what it waited for; a vitest timeout shorter than that would preempt the legible error with
+ *  an opaque one, which is the same class of defect as the kill this file exists to make readable. */
+const CLI_CASE_BUDGET_MS = scaledBudget(30_000);
+/** The SIGKILL arm's own ceiling: two `waitUntil` polls (readiness, then the killed child's exit) plus the
+ *  two `runCli` children around them, so its failsafe sits strictly above every budget nested inside it. */
+const KILL_CASE_BUDGET_MS = READINESS_BUDGET_MS * 2 + SUBPROCESS_CLEANUP_BUDGET_MS + CLI_CASE_BUDGET_MS;
 const HEAP_OOM_RE = /FATAL ERROR:.*heap out of memory/isu;
 
 function isRealHeapOom(result: { readonly code: number | null; readonly stderr: string; readonly timedOut: boolean }): boolean {
@@ -102,7 +117,7 @@ function publishedRunId(root: string): string {
 
 // ── the POSITIVE control: a healthy planted corpus reconciles and IS a verdict ──────────────────────
 
-test("a complete run stamps its identity, reconciles ran===active, and exits clean", async ({ plantedTree, runCli }) => {
+test("a complete run stamps its identity, reconciles ran===active, and exits clean", { timeout: CLI_CASE_BUDGET_MS }, async ({ plantedTree, runCli }) => {
   const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: OK_GATE });
   const res = await runCli("verify", ["structure"], { cwd: root });
   expect(res.code).toBe(0);
@@ -114,7 +129,7 @@ test("a complete run stamps its identity, reconciles ran===active, and exits cle
   expect(publishedRunId(root)).toBe(run.runId);
 });
 
-test("`show` reads a complete artifact (the negative control for the refusal below)", async ({ plantedTree, runCli }) => {
+test("`show` reads a complete artifact (the negative control for the refusal below)", { timeout: CLI_CASE_BUDGET_MS }, async ({ plantedTree, runCli }) => {
   const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: OK_GATE });
   expect((await runCli("verify", ["structure"], { cwd: root })).code).toBe(0);
   const shown = await runCli("verify", ["show"], { cwd: root });
@@ -145,7 +160,7 @@ interface TimingView {
   readonly gates: readonly { readonly name: string; readonly timing: { readonly totalMs: number; readonly phaseMs: Record<string, number> } }[];
 }
 
-test("the artifact carries per-gate wall-clock, and the summary line names the slowest", async ({ plantedTree, runCli }) => {
+test("the artifact carries per-gate wall-clock, and the summary line names the slowest", { timeout: CLI_CASE_BUDGET_MS }, async ({ plantedTree, runCli }) => {
   const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-ok.ts`]: OK_GATE, [`${GATE_DIR}/planted-hog.ts`]: HOG_GATE });
   const res = await runCli("verify", ["structure"], { cwd: root });
   expect(res.code).toBe(0);
@@ -190,7 +205,10 @@ test("the artifact carries per-gate wall-clock, and the summary line names the s
 
 // ── control 1: a corpus file that registers NOTHING makes the run SHORT, not clean ──────────────────
 
-test("a corpus file exporting no descriptor is a SHORT run — exit 2, never a shorter clean report", async ({ plantedTree, runCli }) => {
+test("a corpus file exporting no descriptor is a SHORT run — exit 2, never a shorter clean report", { timeout: CLI_CASE_BUDGET_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
   const root = await plantedTree({
     ...SCANNED,
     [`${GATE_DIR}/planted-ok.ts`]: OK_GATE,
@@ -211,7 +229,10 @@ test("a corpus file exporting no descriptor is a SHORT run — exit 2, never a s
 
 // ── control 2: a gate that THROWS AT LOAD leaves the in-flight stub, not a stale verdict ────────────
 
-test("a gate that throws at LOAD exits 2 and leaves an artifact that says it is not a verdict", async ({ plantedTree, runCli }) => {
+test("a gate that throws at LOAD exits 2 and leaves an artifact that says it is not a verdict", { timeout: CLI_CASE_BUDGET_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
   const root = await plantedTree({
     ...SCANNED,
     [`${GATE_DIR}/planted-ok.ts`]: OK_GATE,
@@ -226,9 +247,52 @@ test("a gate that throws at LOAD exits 2 and leaves an artifact that says it is 
   expect(shown.stdout).toContain("NOT a verdict");
 });
 
+// ── control 2b: a gate that throws at RUN publishes a COMPLETE artifact, and its row must say so ────
+
+/** THE COMPLEMENT OF CONTROL 2, AND THE ONE THE ARTIFACT ACTUALLY LIES IN (#2285). A LOAD throw kills the run
+ *  before any report exists, so the reader gets the in-flight stub and a loud refusal. A RUN-PHASE throw does
+ *  the opposite: `lib/pass.ts#guard` isolates it into `toolErrors`, every sibling gate finishes, the run
+ *  COMPLETES and PUBLISHES — so `reports/check-structure.json` is a normal, readable, pointer-resolved
+ *  artifact, and the only place it can tell a reader that one gate could not answer is that gate's own row.
+ *
+ *  Before this pin `ops/structure.ts#toLegacyRows` recomputed the row as `violations.length === 0`, so the
+ *  broken gate published `ok: true` with an empty violations list — indistinguishable from a gate that ran
+ *  clean, in the file the doctrine tells every downstream reader to consult INSTEAD of re-running. The two
+ *  assertions below are the halves that must not disagree: the row is NOT ok, and the tool error names the
+ *  same gate. Asserting the sibling stays `ok: true` is what stops the pin passing on a runtime that simply
+ *  reds everything. */
+test("a gate that throws at RUN publishes an artifact whose row reads ok:false, not a clean zero", { timeout: CLI_CASE_BUDGET_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
+  const root = await plantedTree({
+    ...SCANNED,
+    [`${GATE_DIR}/planted-ok.ts`]: OK_GATE,
+    [`${GATE_DIR}/planted-run-throw.ts`]: OK_GATE.replace(
+      "visitFile: () => undefined,",
+      '  run: () => {\n    throw new Error("planted run-phase failure");\n  },',
+    ).replace('"planted-ok"', '"planted-run-throw"'),
+  });
+  const res = await runCli("verify", ["structure"], { cwd: root });
+  expect(res.code).toBe(2);
+  const report = runArtifact<{ ok: boolean; gates: readonly { name: string; ok: boolean; violations: readonly unknown[] }[] }>(root);
+  const broken = report.gates.find((g) => g.name === "planted-run-throw");
+  // The run COMPLETED and PUBLISHED — this is a readable artifact, which is exactly why its row must be honest.
+  expect(manifest(root).complete).toBe(true);
+  expect(publishedRunId(root)).toBe(manifest(root).runId);
+  expect(broken).toBeDefined();
+  expect(broken?.violations).toEqual([]);
+  // THE PIN: zero findings AND a broken phase is not `ok`. Recomputing from the violations list says otherwise.
+  expect(broken?.ok).toBe(false);
+  // The positive control in the other direction: a gate that really did run clean still reads ok in the same
+  // artifact, so a runtime that reddened every row could not satisfy this case.
+  expect(report.gates.find((g) => g.name === "planted-ok")?.ok).toBe(true);
+  expect(report.ok).toBe(false);
+});
+
 // ── control 3: SIGKILL mid-run (the wall-clock/`kill -9` class) ─────────────────────────────────────
 
-test("a run KILLED mid-pass leaves the in-flight stub, and `show` refuses it", async ({ plantedTree, repoRoot, runCli }) => {
+test("a run KILLED mid-pass leaves the in-flight stub, and `show` refuses it", { timeout: KILL_CASE_BUDGET_MS }, async ({ plantedTree, repoRoot, runCli }) => {
   const readyFile = "planted-hang-ready";
   const root = await plantedTree({
     ...SCANNED,

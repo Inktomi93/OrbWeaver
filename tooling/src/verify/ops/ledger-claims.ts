@@ -200,8 +200,51 @@ export function judgeLedgerClaims(commits: readonly ClaimCommit[], rows: Readonl
   return commits.flatMap((commit, index) => [...falseFlipFindings(commit), ...owedFindings(commit, rows, commits.length - index - 1)]);
 }
 
-function gitLog(root: string, since: string, until: string): { readonly stdout: string } | { readonly error: string } {
-  const res = runNicedSync("git", ["-C", root, "log", `--format=${RECORD_SEP}%n%H%n%B%n${PATH_SEP}`, "--name-only", `${since}..${until}`], { cwd: root });
+/** THE CAPTURE CEILING FOR THE RANGE READ (#2284). node's `spawnSync` default is ~1 MiB and it does NOT
+ *  truncate at it — it KILLS the child with `ENOBUFS` — and this verb's whole subject is a git log carrying
+ *  every commit MESSAGE and every changed PATH over an operator-chosen range, which is the payload shape most
+ *  likely to outgrow a default nobody chose. Bracketed on the real repository 2026-09-13 by the lane that
+ *  filed the row: 1,023,170 bytes came back judged, 1,457,840 bytes came back `status: null` — and the barrier
+ *  use this verb exists for (a whole merge train, HEAD~300 in the measurement) is on the far side of that
+ *  line. 256 MiB is ~180× the observed HEAD~300 read: this is a ceiling that keeps a runaway from eating the
+ *  box, not a size anyone should approach, and the refusal below NAMES it so the next reader who does
+ *  approach it is told which number stopped them rather than being told git failed. */
+const BYTES_PER_KIB = 1024;
+const KIB_PER_MIB = 1024;
+const GIT_LOG_BUFFER_MIB = 256;
+const GIT_LOG_MAX_BUFFER_BYTES = GIT_LOG_BUFFER_MIB * KIB_PER_MIB * BYTES_PER_KIB;
+const ENOBUFS = "ENOBUFS";
+
+/** THE RANGE READ, with its ceiling as a defaulted PARAMETER — the `ops/eslint.ts#readDiscoveredPopulation`
+ *  shape, for its reason: a ceiling nobody can plant is a ceiling whose refusal nobody can prove, and 256 MiB
+ *  of real log is not a fixture anyone will ever build. The pin passes a tiny one over a planted repository
+ *  and reads the refusal; production passes nothing. */
+export function readClaimRange(
+  root: string,
+  since: string,
+  until: string,
+  maxBuffer: number = GIT_LOG_MAX_BUFFER_BYTES,
+): { readonly stdout: string } | { readonly error: string } {
+  const res = runNicedSync("git", ["-C", root, "log", `--format=${RECORD_SEP}%n%H%n%B%n${PATH_SEP}`, "--name-only", `${since}..${until}`], {
+    cwd: root,
+    maxBuffer,
+  });
+  // THE CEILING IS OURS, SO THE REFUSAL MUST SAY SO. A `status: null` with `ENOBUFS` is this process killing
+  // the child for producing more than WE agreed to capture; reporting it as "git log failed" is the
+  // instrument blaming its subject for its own limit, and it read exactly like a broken repository.
+  if (res.errorCode === ENOBUFS) {
+    return {
+      error:
+        // The ceiling IN FORCE, never the module constant: they differ whenever a caller passes one, and a
+        // refusal that quotes a number the run did not use is the same class of lie as blaming git.
+        `the git log for ${since}..${until} exceeded this verb's ${String(maxBuffer)}-byte stdout ceiling ` +
+        "(GIT_LOG_MAX_BUFFER_BYTES in tooling/src/verify/ops/ledger-claims.ts), so the child was KILLED with ENOBUFS rather " +
+        "than truncated and NO range was read. git did not fail. Narrow the range, or raise the ceiling.",
+    };
+  }
+  if (res.errorCode !== undefined) {
+    return { error: `git log ${since}..${until} could not be spawned (${res.errorCode}) — this run read no range and is not a verdict.\n${res.stderr}` };
+  }
   if (res.status !== 0) {
     return { error: `git log ${since}..${until} failed (status ${String(res.status)})\n${res.stderr}` };
   }
@@ -244,7 +287,7 @@ export function runLedgerClaims(root: string, argv: readonly string[]): number {
     process.stderr.write(`TOOL ERROR ${REFUTATION_LEDGER_REL} parsed to ZERO rows — every OWED id would read as missing; this run is not a verdict.\n`);
     return EXIT.toolError;
   }
-  const log = gitLog(root, since, until);
+  const log = readClaimRange(root, since, until);
   if ("error" in log) {
     process.stderr.write(`TOOL ERROR ${log.error}\n`);
     return EXIT.toolError;

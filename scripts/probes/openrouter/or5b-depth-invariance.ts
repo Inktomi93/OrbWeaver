@@ -21,7 +21,7 @@
 //
 // Evidence: cached_tokens (the read that must survive) AND cache_write_tokens (the waste the fix removes).
 
-import { type ArmRowBase, OR_MODEL, type OrRequestMessage, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
+import { type ArmRowBase, OR_MODEL, type OrRequestMessage, filler, jsonl, orCall, printTable, readEnvKey, rowText } from "./_kit.ts";
 
 export const id = "or5b";
 export const title = "the cache breakpoint is invariant across a within-turn tool exchange (the §5 fix)";
@@ -149,10 +149,12 @@ export async function run() {
     nonce,
     at: new Date().toISOString(),
     primeWrote: prime.cacheWriteTokens,
-    staleLandsOn: stale["breakpointRole"],
+    // See the sibling note in or5-breakpoint-offsets.ts: both of these are interpolated below, and an
+    // index-signature read is `unknown` (#2290).
+    staleLandsOn: rowText(stale, "breakpointRole"),
     staleWrote: stale.cacheWriteTokens,
     staleCached: stale.cachedTokens,
-    fixedLandsOn: fixed["breakpointRole"],
+    fixedLandsOn: rowText(fixed, "breakpointRole"),
     fixedWrote: fixed.cacheWriteTokens,
     fixedCached: fixed.cachedTokens,
     secondDepthWrote: second.cacheWriteTokens,

@@ -178,7 +178,14 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   population: "@client",
-  analysis: "syntax",
+  // `types`, NOT `syntax` (#2256, corrected 2026-09-13) — the same correction as its sibling
+  // `contract-banned-shapes`, for the same reason and the same reader. This policy imports
+  // `resolveStableExpression` from `lib/reference-fact.ts`, whose `resolveStableExpressionInternal` ->
+  // `importedTarget` path calls `lexicalReferenceSymbol(current)?.getAliasedSymbol()`; following a const
+  // binding through an import door is a CHECKER answer, not a syntactic one. `analysis` is data the runtime
+  // dispatches on and it fixes the proof MODE (`lib/policy-validation.ts#expectedMode`), so every proof row
+  // below moved from `mode: "source"` to `mode: "types"` in the same commit and was re-run.
+  analysis: "types",
   execution: "selected-files",
   facts: [],
   resources: [],
@@ -239,7 +246,7 @@ export const gate = defineGate({
   },
   mustFlag: [
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/character/surfaces/character-library-surface.tsx":
           "export const q = (trpc) =>\n  trpc.character.list.infiniteQueryOptions(\n    { limit: 30 },\n    { maxPages: 5, getNextPageParam: (p) => p.nextCursor, getPreviousPageParam: () => undefined },\n  );\n",
@@ -248,7 +255,7 @@ export const gate = defineGate({
       why: "THE FOUNDING DEFECT VERBATIM (owner dogfood 2026-08-13 P1): `maxPages: 5` × 30 rows with an inert `getPreviousPageParam` — rows vanished off the top of the owner's library. The token pins the waiver position; the `messageIncludes` pins which arm bit, now that the arm no longer rides the token",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/databank/surfaces/databank-library-surface.tsx":
           "export const q = (trpc) =>\n  trpc.databank.list.infiniteQueryOptions({ limit: 30 }, { maxPages: 5, getNextPageParam: (p) => p.nextCursor });\n",
@@ -257,7 +264,7 @@ export const gate = defineGate({
       why: "an ABSENT `getPreviousPageParam` is the same unrecoverable state as an inert one — the databank spelling",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/character/hooks/use-indirect.ts":
           "const options = { maxPages: 5, getNextPageParam: (p) => p.nextCursor };\nexport const q = (trpc) => trpc.character.list.infiniteQueryOptions({ limit: 30 }, options);\n",
@@ -266,7 +273,7 @@ export const gate = defineGate({
       why: "A CONST HOP still configures the infinite query; one identifier hop cannot hide an unrecoverable cache window. Carried from the legacy rows, and now served by the SHARED stable-binding reader rather than a gate-local `getDefinitionNodes` walk",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/character/hooks/imported-options.ts":
           'import { paged } from "./paged-options.ts";\nexport const q = (trpc) => trpc.character.list.infiniteQueryOptions({ limit: 30 }, paged);\n',
@@ -276,7 +283,7 @@ export const gate = defineGate({
       why: "THE CONVERSION'S ONE DELIBERATE CATCH WIDENING (§4.6, classified as a stronger reader): the legacy walk filtered definitions to `decl.getSourceFile() === value.getSourceFile()`, so an options const imported from a sibling module hid the cap. The shared reader follows the import door, and the tree's zero-`maxPages` corpus makes the widening free",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/chat/hooks/use-chat-list-collection.ts":
           "const rows = items.filter((r) => r.name.includes(query));\nexport const q = (trpc) =>\n  trpc.chat.list.infiniteQueryOptions(\n    { limit: 50 },\n    { maxPages: 5, getNextPageParam: (p) => p.nextCursor, getPreviousPageParam: (p) => p.prevCursor },\n  );\n",
@@ -285,7 +292,7 @@ export const gate = defineGate({
       why: "ARM B ALONE — the rewind is recoverable, but a client-side `.filter` over a WINDOWED collection searches 250 rows and calls it the library. One finding, and the message names the single arm",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/chat/hooks/both-arms.ts":
           "const rows = items.filter((r) => r.starred);\nexport const q = (trpc) =>\n  trpc.chat.list.infiniteQueryOptions({ limit: 50 }, { maxPages: 5, getNextPageParam: (p) => p.nextCursor });\n",
@@ -294,7 +301,7 @@ export const gate = defineGate({
       why: "BOTH ARMS ON ONE PROPERTY — the case the legacy descriptor reported TWICE. It is ONE finding now, because two findings sharing a carrier AND a token are unwaivable by every marker (§4.2); the arms ride the message, and this row is the successor proof for the retired two-token vocabulary",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/character/hooks/block-rewind.ts":
           "export const q = (trpc) =>\n  trpc.character.list.infiniteQueryOptions(\n    { limit: 30 },\n    {\n      maxPages: 5,\n      getNextPageParam: (p) => p.nextCursor,\n      getPreviousPageParam: (p) => {\n        return undefined;\n      },\n    },\n  );\n",
@@ -305,7 +312,7 @@ export const gate = defineGate({
   ],
   mustPass: [
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/character/surfaces/character-library-surface.tsx":
           "const rows = items.filter((r) => r.starred);\nexport const q = (trpc) =>\n  trpc.character.list.infiniteQueryOptions(\n    { limit: 30, search: term, sort },\n    { initialCursor: null, getNextPageParam: (p) => p.nextCursor, getPreviousPageParam: () => undefined },\n  );\n",
@@ -313,7 +320,7 @@ export const gate = defineGate({
       why: "THE FIX AS IT STANDS ON THE TREE — no `maxPages` at all, so the inert `getPreviousPageParam` is harmless (nothing evicts) and the lens is a wire param. The policy judges the CAP, never the rewind on its own",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/chat/hooks/use-plain-window.ts":
           "export const q = (trpc) =>\n  trpc.chat.list.infiniteQueryOptions({ limit: 50 }, { maxPages: 5, getNextPageParam: (p) => p.nextCursor, getPreviousPageParam: (p) => p.prevCursor });\n",
@@ -321,7 +328,7 @@ export const gate = defineGate({
       why: "THE REWIND NARROWING, pinned: a cap WITH a real rewind and no client-side lens is a legitimate memory window — every evicted page can be fetched back, which is the whole invariant. Cutting `neverRewinds` open (returning true unconditionally) turns this red",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/chat/hooks/reshape-only.ts":
           "const labels = items.map((r) => r.name);\nexport const q = (trpc) =>\n  trpc.chat.list.infiniteQueryOptions({ limit: 50 }, { maxPages: 5, getNextPageParam: (p) => p.nextCursor, getPreviousPageParam: (p) => p.prevCursor });\n",
@@ -329,14 +336,14 @@ export const gate = defineGate({
       why: "THE LENS-SET NARROWING, pinned: `.map` RESHAPES, it does not SELECT, so it sees every page it is given and a window costs it nothing. Cutting `LENS_METHODS` membership (treating every method call as a lens) turns this red",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/character/hooks/use-one.ts": "export const q = (trpc) => trpc.character.get.queryOptions({ id }, { maxPages: 5 });\n",
       },
       why: 'THE FACTORY-NAME NARROWING, pinned, and a DECLARED LIMIT besides: a non-infinite query has no pages to window, so a `maxPages` left behind by a migration off `infiniteQueryOptions` is inert and is not this policy\'s offense. Cutting the `callee.getName() === "infiniteQueryOptions"` test (admitting every member call) turns this red — measured 2026-09-12. THE CAP IS WHAT MAKES THE ROW DISCRIMINATE (#2087): without it the fixture produced no subject under the cut either, and the row was green for a reason unrelated to the factory name while its `why` claimed otherwise',
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/character/hooks/bare-call.ts":
           "declare function infiniteQueryOptions(input: unknown, options: unknown): unknown;\nexport const q = infiniteQueryOptions({ limit: 30 }, { maxPages: 5 });\n",
@@ -344,7 +351,7 @@ export const gate = defineGate({
       why: "THE RECEIVER NARROWING, pinned: the subject is the tRPC proxy's member call `trpc.<router>.<proc>.infiniteQueryOptions(...)`, never a bare same-named local function. Cutting `Node.isPropertyAccessExpression(callee)` (admitting a bare identifier callee) turns this red",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/character/hooks/spread-options.ts":
           "const base = { maxPages: 5 };\nexport const q = (trpc) => trpc.character.list.infiniteQueryOptions({ limit: 30 }, { ...base, getNextPageParam: (p) => p.nextCursor });\n",
@@ -352,7 +359,7 @@ export const gate = defineGate({
       why: "DECLARED LIMIT: a cap reached through a SPREAD is invisible — the options literal carries no `maxPages` property assignment of its own, and the reader names properties rather than evaluating the object. Recorded rather than pinned as a fence, because no cut makes this row red: the spread simply produces no subject",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         // The IN-POPULATION ANCHOR: without it `@client` admits zero paths and the row returns a
         // `[population]` TOOL ERROR rather than a pass.
@@ -363,7 +370,7 @@ export const gate = defineGate({
       why: "THE POPULATION FENCE, pinned: mustFlag[1]'s exact shape under `@server` is not admitted. Widening `population` to `@authored` turns this red — the only row that dies without the fence",
     },
     {
-      mode: "source",
+      mode: "types",
       files: {
         "packages/client/src/features/character/hooks/waived.ts":
           "export const q = (trpc) =>\n  trpc.character.list.infiniteQueryOptions(\n    { limit: 30 },\n    // @orb-waive windowed-infinite-query(maxPages): the proof stand-in reason; ends when this fixture stops flagging.\n    { maxPages: 5, getNextPageParam: (p) => p.nextCursor },\n  );\n",

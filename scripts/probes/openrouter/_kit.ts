@@ -117,6 +117,17 @@ export interface ArmRowBase extends UsageSummary {
   readonly [k: string]: unknown;
 }
 
+/** READ AN ARM-ROW EXTRA BACK AS THE STRING ITS WRITER PUT THERE. The index signature above is what lets
+ *  each probe stamp its own per-arm fields, and the price is that every read comes back `unknown` — which
+ *  a template literal must not interpolate, because `unknown` is exactly where an accidental object turns
+ *  into `[object Object]` in a findings line nobody re-reads. The two OR-5 probes write
+ *  `breakpointRole: history[i]?.role ?? null`, so `string | null` is the real domain and this narrowing
+ *  loses nothing; a non-string reads as `null` rather than as a lie about the arm. */
+export function rowText(row: ArmRowBase, key: string): string | null {
+  const value = row[key];
+  return typeof value === "string" ? value : null;
+}
+
 /** Anthropic-family model: these probes are about Anthropic cache/thinking semantics as seen THROUGH the
  *  OpenAI-compat shim, so a non-Anthropic model answers a different question. */
 export const OR_MODEL = process.env["OR_MODEL"] ?? "anthropic/claude-sonnet-5";
