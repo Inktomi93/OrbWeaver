@@ -1,5 +1,5 @@
 // Policy: db-structure-producer-home — a schema module is named for the domain that produces its rows.
-// The six live non-domain producers are permanent semantic permissions, represented as exact reviewed
+// Deliberate non-domain producers carry semantic permissions, represented as exact reviewed
 // grants keyed on the schema module and producer-home operation. Authored resource trees provide both
 // sides of the existence comparison; no filesystem or compiler-project walk is exposed to the policy.
 import { defineGate } from "../contract/policy.ts";

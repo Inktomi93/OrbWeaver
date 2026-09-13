@@ -1,4 +1,4 @@
-// Warning successor for the one tracked open-JSON parity debt. The hard sibling owns all other subjects.
+// Warning successor for the tracked open-JSON parity debt. The reviewed-grant error sibling owns other subjects.
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { isOpenJsonDeferred } from "../lib/open-json-authority.ts";
@@ -59,7 +59,7 @@ export const gate = defineGate({
         "packages/server/src/domain/widget/read.ts":
           "export async function read(db) { return db.all(sql`select json_extract(w.residue, '$.missing') from widgets w`); }\n",
       },
-      why: "an untracked parity violation belongs to the hard sibling and is not downgraded by this warning policy",
+      why: "an untracked parity violation belongs to the error sibling and is not downgraded by this warning policy",
     },
   ],
 });
