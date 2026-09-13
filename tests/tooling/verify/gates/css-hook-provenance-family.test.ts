@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Project } from "ts-morph";
@@ -10,10 +10,15 @@ import { gate as familyOwnership } from "../../../../tooling/src/verify/gates/cs
 import { gate as familyOwnershipHealth } from "../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as selectorWriter } from "../../../../tooling/src/verify/gates/css-selector-has-a-writer.ts";
 import { gate as selectorWriterHealth } from "../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
+import { installedPackageRootOf } from "../../../../tooling/src/verify/lib/baseui-read.ts";
+import { BASE_UI_MANIFEST_PATH, EMPTY_BASE_UI_MANIFEST, SELECTOR_FIXTURE } from "../../../../tooling/src/verify/lib/css-family-proof-fixtures.ts";
 import { cssHookProvenanceFact } from "../../../../tooling/src/verify/lib/css-family-source-provenance.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { ROOT } from "../../../../tooling/src/verify/lib/repo-paths.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
+import { waivableCoordinate } from "../../../../tooling/src/verify/lib/waivable-coordinate.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** The five `mode: "resource"` policies each materialise a temp repository per row. Measured well over
@@ -154,4 +159,111 @@ test("the css-hook-provenance fact has exactly THREE consumers, declared and cal
 test("neither -health sibling declares the fact", () => {
   expect(familyOwnershipHealth.facts).toEqual([]);
   expect(selectorWriterHealth.facts).toEqual([]);
+});
+
+// ── §4.5 — vendorCensus's designed refusal, and its type-obligation invariants (#2310) ─────────────────
+//
+// `css-selector-has-a-writer.ts#vendorCensus` carries FOUR in-module throws across itself and its own
+// `hookCoordinate` (the twin of `css-family-policy.ts#selectorCoordinate`); none had a pin before this file.
+// One is REACHABLE from a constructible input — a committed `baseui-manifest` that is valid JSON but fails
+// `surfaceManifestFrom`'s schema — and gets the ordinary §4.5 shape below: a planted red input and its
+// healthy twin. The other three are TYPE OBLIGATIONS with NO CONSTRUCTIBLE FIXTURE (guide §4.1's fourth
+// outcome), each pinned as an INVARIANT DECLARATION against the real loader/predicate instead of a fake
+// refusal row:
+//   * the mode-mismatch branch (`installed.mode !== "ast"`) — `loadInstalledPackage`
+//     (`ops/resource-installed.ts#astFacts`) always returns the mode it was asked for, and
+//     `resource-declaration.ts#resourceRequestIdentity` keys the resource-host cache by the WHOLE identity
+//     including mode, so two different modes of the same package can never answer each other's slot;
+//   * the anchorless-surface branch (`surface === undefined`) — `base-ui`'s `INSTALLED_PACKAGE_DEFINITIONS`
+//     entry carries no `via`/`directoryAnchor` indirection, so `astFacts`' `collectDeclarations` walk starts
+//     at the resolved package directory itself and every returned path is that directory joined with a
+//     child segment — which means every path already contains the `/@base-ui/react/` anchor
+//     `installedPackageRootOf` searches for, by construction, whenever the door answers `ready`;
+//   * `hookCoordinate`'s own refusal (`waivableCoordinate` returning `undefined`) — every `SelectorHookIdentity.authored`
+//     slice begins with `.` or `[` (neither excluded by the `@orb-waive` position grammar), so the leading
+//     paren-free run is never empty and never whitespace-only, which are the only two ways
+//     `waivableCoordinate` returns `undefined`. This is the SAME measurement `css-selector-has-a-writer.ts`'s
+//     own header already states MEASURED (a `[data-probe="a(b)"]` fixture written as a `mustRefuse` row did
+//     not refuse); this pin is that measurement, committed rather than left in a comment.
+
+/** Materialize a `mode: "resource"` fixture to REAL disk (installed-package/vendor-css-surface bypass the
+ *  authored `ResourceReader` and read the filesystem directly, per `ops/resource-installed.ts`'s and
+ *  `ops/resource-vendor.ts`'s own headers) and build the AUTHORED overlay from everything else, mirroring
+ *  `ops/policy-conformance.ts#runResourceExample` minus the git init this family's resources never need
+ *  (`product-css`/`vendor-css-surface`/`json` read fixed paths directly, never a git-derived population). */
+const NON_AUTHORED_SEGMENT_RE = /(?:^|\/)(?:node_modules|\.git|dist|\.cache)(?:\/|$)/u;
+
+function passResource(policy: GatePolicy, root: string, files: Readonly<Record<string, string>>): PolicyPassResult {
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  for (const [path, content] of Object.entries(files)) {
+    const absolute = join(root, path);
+    mkdirSync(dirname(absolute), { recursive: true });
+    writeFileSync(absolute, content);
+    if (path.endsWith(".ts") || path.endsWith(".tsx")) {
+      project.addSourceFileAtPath(absolute);
+    }
+  }
+  const overlay = Object.fromEntries(Object.entries(files).filter(([path]) => !NON_AUTHORED_SEGMENT_RE.test(path)));
+  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root, project, resourceOptions: { overlay }, reviewedGrants: [], failOnWarnings: false });
+}
+
+/** The shape a designed refusal shares (`baseui-and-surface-family.repo.int.test.ts:206-213`'s house
+ *  idiom): a single object so a refusal that drifted on ONE axis — a finding leaking through, an owner
+ *  completing anyway — fails with the whole picture in the diff. */
+function refusalShape(result: PolicyPassResult): Record<string, unknown> {
+  return {
+    phases: result.toolErrors.map((error) => error.phase),
+    messages: result.toolErrors.map((error) => error.message),
+    ownerStatuses: result.policies.map((owner) => owner.owner.status),
+    findings: result.authority.effectiveFindings.length,
+  };
+}
+
+test("a committed Base UI manifest that is valid JSON but fails the surface schema REFUSES at evaluate, never a finding and never a clean zero", ({
+  scratch,
+}) => {
+  const result = passResource(selectorWriter, scratch, { ...SELECTOR_FIXTURE, [BASE_UI_MANIFEST_PATH]: '{ "components": {} }\n' });
+
+  expect(refusalShape(result)).toMatchObject({
+    phases: ["evaluate"],
+    messages: ["the committed Base UI surface manifest is unreadable: the manifest has no string `version`"],
+    ownerStatuses: ["incomplete"],
+    findings: 0,
+  });
+  expect(result.factErrors).toEqual([]);
+  // The authority layer restates the SAME evaluate-phase refusal as an `owner-incomplete` tool error rather
+  // than a second, unrelated one — this is the pass's own accounting of the refusal above, not a fresh kind.
+  expect(result.authority.toolErrors).toMatchObject([{ kind: "owner-incomplete", policyId: selectorWriter.id }]);
+});
+
+test("the healthy twin — the same fixture with a schema-valid empty manifest — judges cleanly, no refusal", ({ scratch }) => {
+  const result = passResource(selectorWriter, scratch, { ...SELECTOR_FIXTURE, [BASE_UI_MANIFEST_PATH]: EMPTY_BASE_UI_MANIFEST });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies.map((owner) => owner.owner.status)).toEqual(["success"]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+});
+
+test("INVARIANT: the installed-package door never answers a mode it was not asked for, so vendorCensus's mode-mismatch throw is unreachable through it", () => {
+  const value = loadInstalledPackage(ROOT, { id: "base-ui", mode: "ast" });
+
+  expect(value.status).toBe("ready");
+  expect(value.status === "ready" ? value.value.mode : undefined).toBe("ast");
+});
+
+test("INVARIANT: every declaration path the ast door returns for base-ui carries the package anchor, so vendorCensus's anchorless-surface throw is unreachable through it", () => {
+  const value = loadInstalledPackage(ROOT, { id: "base-ui", mode: "ast" });
+  const declarationPaths = value.status === "ready" && value.value.mode === "ast" ? value.value.declarationPaths : [];
+
+  expect(declarationPaths.length).toBeGreaterThan(0);
+  expect(installedPackageRootOf(declarationPaths)).toBeDefined();
+});
+
+test("INVARIANT: every authored selector-hook slice yields a defined waivable coordinate, so hookCoordinate's refusal — selectorCoordinate's twin — is unreachable for real hook text", () => {
+  // The exact case `css-selector-has-a-writer.ts`'s header records as MEASURED-but-unpinned: a hook carrying
+  // a parenthesis still yields its leading paren-free run, because that run always starts with the `.` or
+  // `[` every authored class/attribute slice opens with.
+  for (const authored of ['[data-probe="a(b)"]', ".a(b)", "[data-x]", ".shell-wrapper", '[data-mode="a()b"]']) {
+    expect(waivableCoordinate(authored)).toBeDefined();
+  }
 });
