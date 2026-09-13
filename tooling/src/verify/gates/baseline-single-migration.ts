@@ -1,14 +1,24 @@
-// Gate: baseline-single-migration — pre-launch schema changes SQUASH into a regenerated
-// 0000_baseline, never accrete as incremental 0001+ migrations. Checks migrations/ contains ONLY
-// 0000_baseline.sql and meta/_journal.json has exactly one entry (idx 0, tag "0000_baseline").
-// LAUNCH-DAY ESCAPE: flip LAUNCHED to true to retire this deliberately (incremental migrations
-// become correct post-launch — this is the gate's own designed sunset switch, not a workaround).
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import type { GateDescriptor } from "../contract/gate.ts";
-import type { Violation } from "../contract/harness.ts";
+// Policy: baseline-single-migration — before launch, schema changes squash into the single regenerated
+// `0000_baseline.sql`; incremental SQL files and multi-entry/wrong-tag journals are forbidden. The three
+// filesystem reads from the legacy descriptor now arrive through the closed `db-migration` authored tree,
+// `db-baseline-sql` exact file, and strict `migration-journal` JSON resources. A missing directory, baseline,
+// or journal therefore refuses during population acquisition instead of reading an absent checkout as clean.
+//
+// FAMILY `baseline-single-migration` is a singleton: it owns one launch-phase database migration invariant.
+// `hard`/`error` preserves the legacy descriptor's unconditional blocking authority. `LAUNCHED` remains the
+// explicit sunset signal; turning it true is the instruction to retire this policy and its resource contract
+// ids in the same change, because incremental migrations become correct only after that boundary.
+//
+// POPULATION PORT: the legacy descriptor had no `scanRoot`; every harness candidate was dispatched although
+// its `run` read none of them. The final policy admits no compiler source and declares the three resources it
+// actually reads. The four legacy proof rows are retained below; the missing-baseline case is now a refusal,
+// matching the exact-file door's fail-closed contract rather than fabricating a partial resource population.
+import { defineGate } from "../contract/policy.ts";
+import type { JsonValue } from "../contract/resource-json.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
 
-// Widened to `boolean` so flipping to `true` doesn't trip an "always-falsy condition" lint.
+// Widened to `boolean` so the launch transition remains an intentional authored edit rather than an
+// always-falsy branch. When it flips, delete this policy in the same change.
 const LAUNCHED: boolean = false;
 
 const MIGRATIONS_REL = "packages/db/src/migrations";
@@ -20,107 +30,105 @@ const EXTRA_SQL_MESSAGE =
   "an incremental migration file was found — pre-launch schema changes SQUASH into a regenerated " +
   "0000_baseline, never an incremental 0001+ migration (wipe packages/db/src/migrations and rerun " +
   "`pnpm --filter @orb/db db:generate`); Core-Laws-and-Precedents.md (db-baseline-squash)";
-
-const MISSING_BASELINE_MESSAGE =
-  "packages/db/src/migrations is missing 0000_baseline.sql — run `pnpm --filter @orb/db db:generate` " +
-  "from a clean migrations/ dir; Core-Laws-and-Precedents.md (db-baseline-squash)";
-
 const JOURNAL_SHAPE_MESSAGE =
   "meta/_journal.json must have EXACTLY one entry (idx 0, tag 0000_baseline) pre-launch — a second " +
   "journal entry means an incremental migration was generated instead of a squashed baseline; " +
   "Core-Laws-and-Precedents.md (db-baseline-squash)";
+const MESSAGE =
+  "pre-launch schema changes must SQUASH into the regenerated 0000_baseline, never accrete as an incremental " +
+  "0001+ migration — an extra migration file or a second/wrong journal entry is RED; a missing required " +
+  "migration resource refuses the pass. Core-Laws-and-Precedents.md (db-baseline-squash).";
+const FIX =
+  "wipe packages/db/src/migrations and rerun `pnpm --filter @orb/db db:generate` from a clean dir — the entire pre-launch schema is one regenerated baseline.";
 
-interface JournalEntry {
-  readonly idx?: number;
-  readonly tag?: string;
+function isSingleBaselineJournal(value: JsonValue): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const entries = value["entries"];
+  const entry = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined;
+  return typeof entry === "object" && entry !== null && !Array.isArray(entry) && entry["idx"] === 0 && entry["tag"] === BASELINE_TAG;
 }
 
-interface Journal {
-  readonly entries?: readonly JournalEntry[];
-}
-
-function checkSqlFiles(migrationsDir: string): Violation[] {
-  const sqlFiles = readdirSync(migrationsDir).filter((f) => SQL_EXT_RE.test(f));
-  if (!sqlFiles.includes(BASELINE_SQL)) {
-    return [{ file: `${MIGRATIONS_REL}/${BASELINE_SQL}`, line: 0, message: MISSING_BASELINE_MESSAGE }];
-  }
-  return sqlFiles.filter((f) => f !== BASELINE_SQL).map((f) => ({ file: `${MIGRATIONS_REL}/${f}`, line: 0, message: EXTRA_SQL_MESSAGE }));
-}
-
-function checkJournal(migrationsDir: string): Violation[] {
-  const journalRel = `${MIGRATIONS_REL}/meta/_journal.json`;
-  const journalPath = join(migrationsDir, "meta", "_journal.json");
-  if (!existsSync(journalPath)) {
-    return [{ file: journalRel, line: 0, message: JOURNAL_SHAPE_MESSAGE }];
-  }
-  const journal = JSON.parse(readFileSync(journalPath, "utf-8")) as Journal;
-  const entries = journal.entries ?? [];
-  const isSingleBaseline = entries.length === 1 && entries[0]?.idx === 0 && entries[0].tag === BASELINE_TAG;
-  if (isSingleBaseline) {
-    return [];
-  }
-  return [{ file: journalRel, line: 0, message: JOURNAL_SHAPE_MESSAGE }];
-}
-
-function scanBaselineSingleMigration(root: string): Violation[] {
-  if (LAUNCHED) {
-    return [];
-  }
-  const migrationsDir = join(root, MIGRATIONS_REL);
-  if (!existsSync(migrationsDir)) {
-    return [];
-  }
-  return [...checkSqlFiles(migrationsDir), ...checkJournal(migrationsDir)];
-}
-
-export const gate: GateDescriptor = {
-  name: "baseline-single-migration",
-  docRow: "Core-Laws-and-Precedents.md (db-baseline-squash)",
-  status: "active",
-  scopeSafety: "whole-project",
-  fsBacked: true,
-  message:
-    "pre-launch schema changes must SQUASH into the regenerated 0000_baseline, never accrete as an incremental 0001+ migration — an extra migration file / a second journal entry / a missing baseline is RED (wipe migrations/ and rerun db:generate). Core-Laws-and-Precedents.md (db-baseline-squash).",
-  fix: "wipe packages/db/src/migrations and rerun `pnpm --filter @orb/db db:generate` from a clean dir — the entire pre-launch schema is one regenerated baseline.",
-  run: (ctx) => {
-    for (const v of scanBaselineSingleMigration(ctx.root)) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
-    }
+export const gate = defineGate({
+  id: "baseline-single-migration",
+  family: "baseline-single-migration",
+  authority: "hard",
+  severity: "error",
+  population: {
+    of: "none",
+    why: "the migration tree, exact baseline SQL, and strict journal JSON are closed ResourceHost facts; this policy reads no compiler source",
   },
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [
+    { kind: "authored-tree", id: "db-migration" },
+    { kind: "exact-file", id: "db-baseline-sql" },
+    { kind: "json", id: "migration-journal" },
+  ],
+  message: MESSAGE,
+  fix: FIX,
+  create: (ctx) => ({
+    evaluate: () => {
+      if (LAUNCHED) {
+        return;
+      }
+      const entries = readyResourceValue(ctx.resources.authoredTree("db-migration"));
+      for (const entry of entries.filter((candidate) => candidate.kind === "file" && SQL_EXT_RE.test(candidate.path))) {
+        if (entry.path !== `${MIGRATIONS_REL}/${BASELINE_SQL}`) {
+          ctx.report.file(entry.path, { line: 1, column: 1, message: EXTRA_SQL_MESSAGE, fix: FIX });
+        }
+      }
+      // Accessing the exact file is deliberate even though the tree also lists it: this is the closed
+      // missing-baseline refusal. A directory listing is not evidence that the required file was acquired.
+      readyResourceValue(ctx.resources.exactFiles(["db-baseline-sql"]));
+      const journal = readyResourceValue(ctx.resources.json("migration-journal"));
+      if (!isSingleBaselineJournal(journal.value)) {
+        ctx.report.file(journal.path, { line: 1, column: 1, message: JOURNAL_SHAPE_MESSAGE, fix: FIX });
+      }
+    },
+  }),
   mustFlag: [
     {
+      mode: "resource",
       files: {
         "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
         "packages/db/src/migrations/0001_extra.sql": "-- incremental\n",
         "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }] }\n',
       },
-      expect: { messageIncludes: "incremental migration" },
-      why: "an incremental 0001 migration alongside the baseline — pre-launch changes must squash (db-baseline-squash)",
+      expect: { count: 1, messageIncludes: "incremental migration" },
+      why: "an incremental 0001 migration alongside the baseline — pre-launch changes must squash",
     },
     {
-      files: {
-        "packages/db/src/migrations/0001_stray.sql": "-- stray\n",
-        "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0001_stray" }] }\n',
-      },
-      expect: { messageIncludes: "missing 0000_baseline.sql" },
-      why: "migrations/ has a .sql but no 0000_baseline.sql — the MISSING_BASELINE arm (distinct message)",
-    },
-    {
+      mode: "resource",
       files: {
         "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
         "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }, { "idx": 1, "tag": "0001_extra" }] }\n',
       },
-      expect: { messageIncludes: "EXACTLY one entry" },
-      why: "a second _journal.json entry (idx 1) — the JOURNAL_SHAPE arm (distinct message + code path)",
+      expect: { count: 1, messageIncludes: "EXACTLY one entry" },
+      why: "a second journal entry exercises the journal-shape arm independently of SQL discovery",
     },
   ],
   mustPass: [
     {
+      mode: "resource",
       files: {
         "packages/db/src/migrations/0000_baseline.sql": "-- baseline\n",
         "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0000_baseline" }] }\n',
       },
-      why: "exactly the 0000_baseline + a single-entry journal — the sanctioned pre-launch shape, passes",
+      why: "exactly the baseline SQL and a single matching journal entry — the sanctioned pre-launch shape",
     },
   ],
-};
+  mustRefuse: [
+    {
+      mode: "resource",
+      files: {
+        "packages/db/src/migrations/0001_stray.sql": "-- stray\n",
+        "packages/db/src/migrations/meta/_journal.json": '{ "entries": [{ "idx": 0, "tag": "0001_stray" }] }\n',
+      },
+      expect: { messageIncludes: "exact-file:db-baseline-sql is missing" },
+      why: "the required baseline is absent — the exact-file acquisition refuses before a partial tree can be judged clean",
+    },
+  ],
+});
