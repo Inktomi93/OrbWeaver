@@ -27,9 +27,10 @@
 // was needed. Verified by a planted two-sided probe in this directory before the move: the key-shaped
 // declaration errored on `automation_rules`, the record-array shape did not, in one invocation.
 //
-// THE CENSUS IS NOT WRITTEN HERE, ON PURPOSE (#2179). The paragraph above quotes a count dated 2026-08-08
-// ("87 tables — 23 ownerId · 19 membership · 16 junction · 24 parent · 5 global"), which had already been a
-// repair of an earlier drift, and which a 2026-09-12 re-derivation found ten tables stale — while the
+// THE CENSUS IS NOT WRITTEN HERE, ON PURPOSE (#2179). Until 2026-09-13 this header carried a census dated
+// 2026-08-08 ("87 tables — 23 ownerId · 19 membership · 16 junction · 24 parent · 5 global" — the same 87 the
+// verbatim paragraph above cites as "87 SQL-name keys"), which had already been a repair of an earlier
+// drift, and which a 2026-09-12 re-derivation found ten tables stale — while the
 // REGISTRY matched the live schema exactly the whole time. The two-sided ratchet polices the SET; nothing
 // polices a hand-written count OF that set, so any number written here rots on the schedule of schema
 // change. The authoritative answers are therefore the ones a machine computes, never a sentence:
