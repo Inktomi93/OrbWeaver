@@ -37,15 +37,25 @@ import { CorpusFieldsSearchStory, CorpusListSurfaceNavStory, CorpusSearchToDossi
 /**
  * THE CORPUS SECTION'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
  *
- * `CorpusListSurfaceNavStory` mounts the section the way the shell does: the omnibox's typeahead, the
- * facet/catalog lenses the LIST pane resolves its chips from, and the CONTENT pane's home dossier beside
- * it. None of that is any ONE test's subject here (the subject is what a search RESULT ROW says), but
- * `routeTrpc` answers an unlisted procedure `null`, which is not a view — so six pipelines ran INERT
- * across all fifteen mounts.
+ * The mounts here ask for the section the way the shell does: the omnibox's typeahead and the
+ * facet/catalog lenses the LIST pane resolves its chips from (`CorpusListSurfaceNavStory`), plus — in
+ * `CorpusSearchToDossierStory`, which mounts `CorpusContent` beside the list — the CONTENT pane's home
+ * dossier, which is what that region draws while nothing is selected. None of that is any ONE test's
+ * subject here (the subject is what a search RESULT ROW says), but `routeTrpc` answers an unlisted
+ * procedure `null`, which is not a view — so those pipelines ran INERT across every mount.
  *
  * Every value is the honest UN-DISTILLED default the corpus-list/-home CTs already use for the same reads:
  * an empty catalog, no facets, no families, no gems, a zero-coverage home. A test that needs one of them
  * populated lists the key AFTER the spread and wins (the suggestion test's `search.suggest` does).
+ *
+ * THE LAST FOUR ARE A CASCADE, AND THEY ARE WHY THIS BLOCK WAS STILL SHORT (#2226). They are the home
+ * dossier's BELOW-FOLD, NON-SUSPENDING reads (`CorpusHomeBody`), so they cannot be requested at all until
+ * the four suspending reads above stop answering `null` and the body renders — which made whether this
+ * file tripped the CT unfed-read ratchet depend on the box: on a quiet scoped run the click navigated away
+ * before they landed and the census saw nothing, while the whole-tree `browser:ct` run reported all four
+ * (`reports/.../browser-ct.log`, 4 violations). Fed here with the same `[]` the whole-app census mount uses
+ * (`tests/client/routes/app-root.ct.tsx`), and pinned by the ambient-feed test at the bottom of this file
+ * so the observation no longer depends on load.
  */
 const CORPUS_AMBIENT_ROUTES: TrpcRoutes = {
   // The omnibox typeahead. `[]` is a real (empty) list, where null skipped the suggestion resolve entirely.
@@ -68,6 +78,13 @@ const CORPUS_AMBIENT_ROUTES: TrpcRoutes = {
   },
   "discovery.visualArchetypes": [],
   "discovery.forgottenGems": [],
+  // The below-fold cascade (see the header): the readiness rail's queue read and the three inventory
+  // blocks the overview draws under it. `[]` is the honest pre-analysis answer for each — no runs, no
+  // keywords, no never-played cards, no routing rows.
+  "workloads.list": [],
+  "discovery.topKeywords": [],
+  "discovery.unusedCharacters": [],
+  "discovery.modelRouting": [],
 };
 
 /** The line the row used to carry for its room: the literal word "Chat" plus a 6-character id slice. */
@@ -612,4 +629,22 @@ test("a FAILED name map says the rows are showing ids, and its Retry re-reads th
   // The row is named now, and the notice about the missing half is gone with the cause.
   await expect(results.getByText("The Crimson Court")).toBeVisible();
   await expect(results.getByText("Couldn't load your card names — these rows show ids.")).toHaveCount(0);
+});
+
+// ── THE AMBIENT FEED IS ITSELF PINNED (#2226) ────────────────────────────────────────────────────────
+// The unfed-read census is a RUNTIME observation, so it can only see a pipeline the mount actually reached
+// — and the CONTENT pane's home dossier reaches its below-fold reads only AFTER its suspending reads
+// settle. Every other test here navigates away from that state (or never mounts CONTENT at all), which is
+// how four inert pipelines survived in a file whose scoped run reports a clean census. This test is the
+// one that stands still: it mounts the CONTENT-bearing story, barriers on the dossier's SETTLED rendered
+// arm (a zero-coverage library renders the invitation to add a card — the phase the ambient `discovery.home`
+// declares), and then asserts the recorder saw nothing it did not answer.
+test("#2226 the ambient fixture FEEDS every pipeline the mounted section requests", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, CORPUS_AMBIENT_ROUTES);
+  const component = await mount(<CorpusSearchToDossierStory />);
+
+  // The settled arm of the home dossier: the body rendered, so its four non-suspending reads have fired.
+  await expect(component.getByText("Nothing in your library yet")).toBeVisible();
+  // …and every one of them was answered with a view rather than `null`.
+  await expect.poll(() => trpc.unstubbed(), { intervals: [20, 50, 100, 250] }).toEqual([]);
 });

@@ -35,6 +35,7 @@ import { rpgGames } from "@orb/db";
 import type { ChatId, Handle, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -81,6 +82,21 @@ const BENIGN_SCRIPT = (): RegexScriptRow =>
  *  50ms interrupt if it is present. Enough that a broken/unwired watchdog blows well past the vitest timeout. */
 const REDOS_INPUT = `${"a".repeat(40)}!`;
 
+/** THE TRIPWIRE'S QUIET-BOX BASE, load-scaled (#2192). The number is unchanged — what changed is that it is
+ *  no longer FLAT: this arm builds the REAL composition root and seeds through the real regex + chat verbs,
+ *  and it was measured at 7,634 ms of its own 10,000 ms ceiling under lane load, i.e. one contended run away
+ *  from a red that would have been about the BOX, not about the watchdog. `budget()` stretches it by the
+ *  box's contention and leaves it BYTE-IDENTICAL on a quiet one (`_shared/load-budget.ts`, the one policy —
+ *  the `tests/server` spelling is the bare `budget`, as `infra/plugin-host/sandbox.test.ts` uses it). The
+ *  tripwire survives: an UNWIRED watchdog hangs the catastrophic backtrack for MINUTES, which no factor of
+ *  10 s reaches, and the elapsed ceiling below is the second, tighter refutation. */
+const REDOS_TRIPWIRE_BASE_MS = 10_000;
+/** The sub-second elapsed ceiling (#831), likewise scaled and for the same reason: it is a WALL CLOCK over a
+ *  call that does real db work under whatever else the box is running. The watchdog throws at ~52 ms, so even
+ *  at the factor cap this stays three orders of magnitude under the "it just finished in time" reading it
+ *  exists to refute. */
+const REDOS_ELAPSED_BASE_MS = 1000;
+
 interface SeededEditTarget {
   readonly host: UserId;
   readonly chatId: ChatId;
@@ -116,7 +132,10 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
 
   // The scoped 10s timeout is the HARD tripwire: an unwired watchdog hangs the catastrophic backtrack
   // over REDOS_INPUT for minutes → the run dies red (see the file header for the standalone timing evidence).
-  test("the ReDoS pattern is interrupted by the composed watchdog: content UNCHANGED", { timeout: 10_000 }, async ({ db, services }) => {
+  test("the ReDoS pattern is interrupted by the composed watchdog: content UNCHANGED", { timeout: budget(REDOS_TRIPWIRE_BASE_MS) }, async ({
+    db,
+    services,
+  }) => {
     const { chatId, messageId, principal } = await seedEditTarget(db, services, [REDOS_SCRIPT()], "orig");
 
     // @orb-waive test-determinism(process.hrtime): the SUBJECT is elapsed real time — proving the watchdog actually FIRED (well under a second) rather than the call merely completing under vitest's outer timeout (#831)
@@ -128,7 +147,8 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
       content: REDOS_INPUT,
     });
     // @orb-waive test-determinism(process.hrtime): the SUBJECT is elapsed real time — reading the same monotonic start above; no frozen clock can measure a real wall-clock race (#831)
-    const [seconds] = process.hrtime(started);
+    const [seconds, nanos] = process.hrtime(started);
+    const elapsedMs = seconds * 1000 + nanos / 1_000_000;
 
     // The per-script catch skipped the timed-out rule → the edited content survives verbatim (the replace
     // never landed; `SHOULD_NOT_APPLY` is nowhere). If the guard were unwired this call would hang.
@@ -137,7 +157,7 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
     // The watchdog throws at ~52ms (REGEX_APPLY_TIMEOUT_MS); a native unguarded replace over the same input
     // never completes. 1s is generous slack over CI/host jitter while still refuting "it just finished in
     // time" — an unwired guard hangs for MINUTES, not fractions of a second.
-    expect(seconds).toBeLessThan(1);
+    expect(elapsedMs).toBeLessThan(budget(REDOS_ELAPSED_BASE_MS));
   });
 
   test("REVERSE pin: a benign runOnEdit USER_INPUT script DOES apply through the same composed path (seam is live)", async ({ db, services }) => {
