@@ -141,6 +141,60 @@ test("a selector LIST is decided per complex selector, not per list", () => {
   ]);
 });
 
+/** A SELECTOR LIST RESOLVES TO A SET OF ROOTS (#2293 leg 4). Leg 3's own pin used one root plus its
+ *  descendant, so it could not see that `seedRootsOf` returned after the FIRST match: a list naming two
+ *  shipped seeds updated one and silently dropped the other — a real palette judged against a value it
+ *  does not have. The four shapes below are the whole rule, and (c) is what keeps the fix from becoming
+ *  "file into every seed the list mentions". */
+const TWO_SEEDS = `${BASE}}\n[data-theme="light"] {\n  color-scheme: light;\n}\n[data-theme="mocha"] {\n  color-scheme: dark;\n}\n`;
+
+const LIGHT = { name: "light", scheme: "light", vars: ["--color-x"] };
+const MOCHA = { name: "mocha", scheme: "dark", vars: ["--color-x"] };
+const HEARTH_ONLY = { name: "hearth", scheme: "dark", vars: ["--color-x"] };
+
+test("a list naming TWO distinct seeds files into BOTH palettes", () => {
+  expect(palettesOf(`${TWO_SEEDS}[data-theme="light"], [data-theme="mocha"] {\n  --color-q: oklch(0.4 0.1 50);\n}\n`)).toEqual([
+    HEARTH_ONLY,
+    { name: "light", scheme: "light", vars: ["--color-q", "--color-x"] },
+    { name: "mocha", scheme: "dark", vars: ["--color-q", "--color-x"] },
+  ]);
+});
+
+test("a conditional arm under TWO roots forks PER ROOT, each with its own inherited polarity", () => {
+  const palettes = palettesOf(
+    `${TWO_SEEDS}[data-theme="light"], [data-theme="mocha"] {\n  @media (prefers-contrast: more) {\n    --color-r: oklch(0.3 0.1 50);\n  }\n}\n`,
+  );
+
+  // The polarity cells are the claim: one `@media` block, two arms, `light` and `dark` — a single shared
+  // arm would collapse both seeds onto whichever scheme was read first.
+  expect(palettes).toEqual([
+    HEARTH_ONLY,
+    LIGHT,
+    MOCHA,
+    { name: "light @ @media (prefers-contrast: more)", scheme: "light", vars: ["--color-r", "--color-x"] },
+    { name: "mocha @ @media (prefers-contrast: more)", scheme: "dark", vars: ["--color-r", "--color-x"] },
+  ]);
+});
+
+test("a list mixing a valid root with another seed's DESCENDANT gives the value to the root only", () => {
+  // `[data-theme="mocha"] .x` styles a descendant, so mocha must NOT gain it — the fix is "every root the
+  // list SUBJECTS name", never "every seed the list mentions".
+  expect(palettesOf(`${TWO_SEEDS}[data-theme="light"], [data-theme="mocha"] .x {\n  --color-d: oklch(0.2 0.1 50);\n}\n`)).toEqual([
+    HEARTH_ONLY,
+    { name: "light", scheme: "light", vars: ["--color-d", "--color-x"] },
+    MOCHA,
+  ]);
+});
+
+test("a DUPLICATE root in one list files exactly once", () => {
+  // Two complex selectors, one seed. The palette carries the value once and no census double-counts it.
+  expect(palettesOf(`${TWO_SEEDS}[data-theme="light"], [data-theme="light"].x {\n  --color-u: oklch(0.1 0.1 50);\n}\n`)).toEqual([
+    HEARTH_ONLY,
+    { name: "light", scheme: "light", vars: ["--color-u", "--color-x"] },
+    MOCHA,
+  ]);
+});
+
 test("an ordinary flat sheet is untouched by the ancestry read — the control", () => {
   const palettes = palettesOf(`${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n  --color-x: oklch(0.9 0.1 50);\n}\n`);
 
