@@ -1,5 +1,25 @@
-// The probe-kit artifact NAMING contract (tooling/src/_shared/artifacts.ts). Home per Spine-Testing §2:
-// a test of a scripts/ tool lives in tests/tooling/.
+// The probe-kit artifact NAMING contract (tooling/src/_shared/artifact-naming.ts). Home per Spine-Testing §2:
+// a test of a scripts/ tool lives in tests/tooling/, mirroring its subject's path.
+//
+// RENAMED FROM `artifacts.test.ts` (#2260). The naming contract moved to its own module when
+// `_shared/artifacts.ts` crossed the line cap (#2242), and the header here kept naming the OLD subject while
+// every import already pointed at the new one — so the file claimed to mirror a module it no longer tests.
+// Six of the seven cases below are `artifact-naming`'s; the seventh is snap's `variantOut`, kept here
+// deliberately because it is the SAME `--out` value seen from the matrix arm and splitting it would put two
+// halves of one contract in two files. `_shared/artifacts.ts`'s own run-slot behaviour is the sibling
+// `artifacts.int.test.ts`, which spawns real children and is a different kind of test.
+//
+// WHY NO GATE CAUGHT THE DRIFT, and it is NOT "tooling is unpoliced" — that was the hypothesis and the tree
+// refutes it. `test-layout` covers this file: its §4.7 arm is `tests/tooling/<dir>/<path>.<kind>` ↔
+// `tooling/src/<dir>/<path>.ts` (only FLAT `tests/tooling` files are exempt, and `_shared/` is a dir). The
+// gate was green on the old name for the most uncomfortable possible reason — `tooling/src/_shared/artifacts.ts`
+// still EXISTS, so the mirror resolved perfectly while the file tested a different module entirely.
+//
+// THE DURABLE GAP is therefore narrower and worse than a missing population: a mirror gate proves the test's
+// NAME resolves to a real source file; it cannot prove that file is the test's SUBJECT. Any test re-pointed
+// at a new module keeps passing as long as something still occupies its old name — which is exactly what a
+// decomposition does. Closing that means comparing a test's IMPORTS against its mirror target, which is a new
+// gate capability, not a rule tweak.
 //
 // THE DEFECT THIS PINS (2026-08-17, issue #148 item 2): `snap --out /abs/path/sf-fixed.png` wrote
 // `reports/snaps/abs/path/sf-fixed.png.png` — joined under the reports dir AND re-suffixed — and still

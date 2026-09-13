@@ -251,7 +251,7 @@ test("#2221 — a run that finishes WITHOUT publishing leaves no in-flight marke
   // the guard's own precondition: opening a slot DOES arm the marker, so its absence below is a removal
   expect(existsSync(join(slot.dir, ".inflight"))).toBe(true);
 
-  A.closeRunSlot(root, slot);
+  A.closeRunSlot(slot);
 
   expect(existsSync(join(slot.dir, ".inflight"))).toBe(false);
   // and nothing was published — closing is the FINISH half alone, never a pointer
@@ -502,4 +502,73 @@ test("past the age floor the count cap applies, and the pruned run is RECORDED r
     .map((line) => JSON.parse(line) as { readonly runId: string; readonly prunedAt: string });
   expect(ledger.map((row) => row.runId)).toEqual(["ancient-00"]);
   expect(Number.isFinite(Date.parse(ledger[0]?.prunedAt ?? ""))).toBe(true);
+});
+
+// ── #2262: CLOSING IS NOT PUBLISHING, AND IT IS NOT PRUNING EITHER ────────────────────────────────────
+//
+// THE DEFECT. `closeRunSlot` was `publishRunSlot(root, slot, [])`. The honest NAME was the point of #2221
+// — a bare `publishRunSlot(…, [])` on a non-publishing path reads as a mistake and gets "tidied" back into
+// the bug — and that ruling stands. What the delegation carried with it was a SIDE EFFECT: publishing ends
+// with `pruneRuns`, so every run that merely CLOSED pruned the evidence ring too.
+//
+// WHY THAT IS A DEFECT AND NOT MERELY UNTIDY. `closeRunSlot`'s two callers are precisely the runs with no
+// standing to delete anybody's evidence: a GATE-SCOPED run (#1964) and a NON-VERDICT run (#2167). The
+// gate-scoped one is the #1584 per-conversion floor — cheap, narrow and run constantly — and it publishes
+// no pointer, so it adds nothing to the ring while evicting from it. `pruneRuns` spares the in-flight, the
+// just-finished and any slot a pointer resolves into; an older WHOLE-CORPUS verdict that no longer holds
+// `latest` is none of those, so a burst of `--check <id>` floors can retire exactly the evidence #1341
+// exists to keep.
+//
+// THE CONTRACT: closing and publishing share the UNLINK (and the honest empty `.published` manifest) and
+// do not share the PRUNE. Deleting evidence is a publisher's act.
+
+const CLOSE_INSTRUMENT = "closeprobe";
+
+test("a CLOSED run drops its marker and prunes NOTHING — only a publisher may retire evidence (#2262)", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  const A = await import("@orb/tooling/_shared/artifacts");
+  const base = join(root, "reports", "runs", CLOSE_INSTRUMENT);
+  // One slot past any age floor the ring will ever carry: under the count cap it is the row a PUBLISH
+  // deletes, which is what makes it the discriminating subject here rather than a decoration.
+  plantSlot(root, CLOSE_INSTRUMENT, "ancient-00", new Date(Date.UTC(2026, 0, 1, 0, 0, 0)));
+  for (let i = 0; i < RING_CAP_PLANTS; i += 1) {
+    plantSlot(root, CLOSE_INSTRUMENT, `fresh-${String(i).padStart(2, "0")}`);
+  }
+
+  const closing = plantedRunSlot(root, CLOSE_INSTRUMENT, "closer-00");
+  writeFileSync(
+    join(closing.dir, ".inflight"),
+    JSON.stringify({ runId: "closer-00", pid: process.pid, checkout: "planted", startedAt: "2026-09-01T00:00:00.000Z" }),
+  );
+  A.closeRunSlot(closing);
+
+  // THE HALF #2221 WON, still true: the marker is gone, so `abandonedRuns` cannot report this finished run
+  // as one that DIED.
+  expect(existsSync(join(closing.dir, ".inflight"))).toBe(false);
+  expect(A.abandonedRuns(root, CLOSE_INSTRUMENT)).toEqual([]);
+
+  // THE #2262 HALF: the aged slot a publisher would have retired is untouched, and nothing was recorded as
+  // pruned — a run that declines to speak for the corpus does not get to decide what evidence survives.
+  expect(existsSync(join(base, "ancient-00"))).toBe(true);
+  expect(A.prunedRuns(root, CLOSE_INSTRUMENT)).toEqual([]);
+  expect(readdirSync(base).sort()).toEqual(
+    ["ancient-00", "closer-00", ...Array.from({ length: RING_CAP_PLANTS }, (_, i) => `fresh-${String(i).padStart(2, "0")}`)].sort(),
+  );
+});
+
+test("POSITIVE CONTROL: the same ring, the same aged slot, a PUBLISH — and it is retired and recorded (#2262)", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  const A = await import("@orb/tooling/_shared/artifacts");
+  const base = join(root, "reports", "runs", CLOSE_INSTRUMENT);
+  plantSlot(root, CLOSE_INSTRUMENT, "ancient-00", new Date(Date.UTC(2026, 0, 1, 0, 0, 0)));
+  for (let i = 0; i < RING_CAP_PLANTS; i += 1) {
+    plantSlot(root, CLOSE_INSTRUMENT, `fresh-${String(i).padStart(2, "0")}`);
+  }
+
+  A.publishRunSlot(root, plantedRunSlot(root, CLOSE_INSTRUMENT, "publisher-00"), []);
+
+  // Without this arm the case above would pass just as well on a ring that prunes nothing EVER — which is
+  // a different bug wearing the same green. The prune still works; it is now a publisher's act alone.
+  expect(existsSync(join(base, "ancient-00"))).toBe(false);
+  expect(A.prunedRuns(root, CLOSE_INSTRUMENT).map((r) => r.runId)).toEqual(["ancient-00"]);
 });
