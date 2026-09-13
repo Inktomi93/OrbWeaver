@@ -167,6 +167,22 @@ population axis is carried by the SUBJECT column: the legacy `ctx.scan` declarat
 | 9 | glob + `configDir` declared skips | 0 | 3 / 3 | `candidates=3 scanned=0` → `tsconfig.json` | stronger-reader | both globs live; the template reports as IRREDUCIBLE |
 | 10 | exemption HONOURED | 0 | **29 / 30** | `candidates=30 scanned=1` → 2 paths | **exemption-mechanism-move** | PORT DECLARED: raw 30 → grant `tsconfig-entry-liveness:st-goldens-runtime` ×1 → effective 29 |
 
+### 4b-bis. The classification tally, DERIVED not hand-kept
+
+```
+rg --only-matching 'classification: "([a-z-]+)"' --replace '$1' \
+   tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts | sort | uniq -c
+```
+
+**5 stronger-reader · 4 vacuous-both-zero · 4 retired-arm · 3 split · 3 runtime-refusal · 3 identical ·
+3 exemption-mechanism-move = 25.** Stated as the COMMAND rather than as a number, because a hand-kept
+census beside an executable table is the thing that rots: the test module's own header prose says
+*"(7 rows)"* for stronger-reader and *"two exemption-HONOURED examples … (3 rows)"* for category 5, both
+of which the derivation above refutes (5 and 3-from-3). Independently confirmed by codex's review of
+`df2cda4c8` and re-derived here from the executable rows rather than copied. **The header correction is
+routed to codex on integration and is deliberately NOT taken in this lane's commits**, which do not touch
+that file — two edits to one header across two accounts is the conflict the routing rule exists to avoid.
+
 ### 4c. What the table settles
 
 - **Catch parity is REAL and now proven** for the founding file-exact arm of both gates (3 `identical`
@@ -307,6 +323,46 @@ legacy population exists to port, because this module was BORN FINAL."* Family 2
 over-count in this family alone. The §3a family table is therefore a DISPATCH plan, never a work estimate,
 and every family's report now opens with the `git log -S` pre-check above. The whole §3 band should be
 re-derived with that pre-check once the families drain; the real backlog is likely well under 130.
+
+## 5c. FAMILY 3 — `registry-definitions`, the PRE-CHECK only (no replay yet)
+
+Run before any replay, per the standard established in §5b.1. **The corrected count is 9 members and
+NINE of nine are real conversions — zero refusals.** This family is the opposite of family 2.
+
+**Membership is 9, not the 8 in §3a.** `rg 'family: "registry-definitions"'` returns nine files;
+`modal-body-not-placeholder` is absent from §3a only because a replay-harness file NAMES it, which §3
+already flags as the weakest evidence rung. The dispatch count was low by one for that reason, in the
+opposite direction from family 2's over-count by nine — **the §3a numbers err both ways.**
+
+| Module | Conversion | Legacy base | Legacy examples (approx) | Filesystem reach → door |
+| - | - | - | -: | - |
+| `chrome-registry-completeness` | `f16cde889` | `577d03d63` | ~15 | NONE → in-memory |
+| `config-group-completeness` | `58370d705` **(SPLIT)** | `dd862e988` | ~30 | NONE → in-memory |
+| `home-tile-registry-completeness` | `2241d52b8` | `614b2cb55` | ~9 | NONE → in-memory |
+| `modal-body-not-placeholder` | `577d03d63` | `f5b222e10` | ~6 | NONE → in-memory |
+| `modal-registry-completeness` | `577d03d63` | `f5b222e10` | ~13 | NONE → in-memory |
+| `no-parallel-section-map` | `2241d52b8` | `614b2cb55` | ~21 | NONE → in-memory |
+| `placeholder-copy-registry` | `577d03d63` | `f5b222e10` | ~8 | NONE → in-memory |
+| `section-factory-contribution-bundle` | `ef18f3a14` | `f16cde889` | ~15 | NONE → in-memory |
+| `section-registry-completeness` | `dd862e988` **(SPLIT)** | `e18bce01e` | ~16 | NONE → in-memory |
+
+Every member held `gate: GateDescriptor` at its base (8 of 9 back to `68c8f42d6`, the 2026-08-21 tooling
+move; `config-group-completeness` was minted legacy at `0040bebae`). Every frozen blob has ZERO
+filesystem-reach spellings, so **the whole family routes to the in-memory door** — the tmpdir door built
+for family 1 is not used here, and its wrong-door refusal would say so.
+
+**THE RISK THIS FAMILY CARRIES, named before the work starts.** Two of the six conversion commits are
+SPLITS by their own subject lines (`58370d705` "split config-group-completeness", `dd862e988` "split
+section-registry-completeness"), and `577d03d63` converted three modules at once. §4.6 is explicit that a
+split's differential is **weakest exactly where it feels strongest**, because the arms carved into a
+sibling are the awkward ones nobody wrote proof rows for — so a clean replay over the parent's examples
+can exercise the moved arm ZERO times and come back green whatever the split did to it. The successor
+field this lane added is the mechanism for catching that: a split row must MATCH its sibling's output,
+and where a moved arm has no legacy coverage the row says so per example rather than in prose.
+
+**Scale:** ~133 legacy examples across 9 modules and 6 distinct base SHAs — more than families 1 and 2
+combined. The RUN itself is not the expensive half (all in-memory; families 1 and 2 replayed 31 examples
+in ~1.5s of engine time); the per-row declaration is.
 
 ## 6. Reproducing the §3 derivation
 
