@@ -23,6 +23,21 @@
 // failure.issues` was invisible while any project object with an `error.issues` shape matched. The subject
 // is now the `issues` property DECLARED BY THE INSTALLED ZOD PACKAGE, read off the receiver's type, so every
 // binding of a real `ZodError` is judged and nothing else is.
+//
+// THREE ANSWERS, AND THE THIRD IS FAIL-CLOSED (§5b.1, #2194 — the #1990 dead-arm shape, fixed). An `issues`
+// read whose ORIGIN the shared readers place in zod is a finding; one they place anywhere else is out of
+// subject; one they cannot place AT ALL — an opaque receiver resolves no property symbol — is REPORTED under
+// its own `UNREADABLE` text, because the spelling alone is not the identity and a read that cannot be
+// established must not pass silently. Until #2194 the constant below was declared and handed to the shared
+// reporter while NO candidate ever carried `unreadable: true`: the message was unreachable by any row and by
+// any tree, i.e. advertised prose over unreached code. `classifyIssuesRead` is the reachable arm and
+// `mustFlag[4]`'s `messageIncludes` is the only row that can tell it apart from the ordinary verdict — both
+// arms emit exactly ONE finding, so a bare `{ count: 1 }` would pass whether the arm fires or is dead.
+//
+// DECLARED LIMIT, unchanged by that repair: a destructure with no VariableDeclaration initializer (a
+// PARAMETER pattern, `function f({ issues })`) is not a candidate at all — there is no receiver expression
+// to take a type from, so the policy has no identity question to answer and never had. It is the binding's
+// annotated type that would have to be read, which is a different reader and a different arm.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -55,31 +70,50 @@ const MODEL_FACING_JOIN =
   '  return parsed.error.issues.map((issue) => issue.path.join(".") + ": " + issue.message).join("; ");\n' +
   "}\n";
 
-/** Is this property symbol the `issues` member declared by the installed zod package? */
-function isZodIssuesProperty(node: MorphNode): boolean {
-  const origin = resolveTypeMemberOrigin(node);
-  return origin.kind === "resolved" && declaredByPackage(origin.value.declarations, ZOD_PACKAGE);
+/** The three answers about one `issues`-SPELLED read: zod's own member · a proven different home · a home
+ *  the readers could not place. `null` is "not even a candidate" — the spelling prefilter said no. */
+type IssuesVerdict = "zod" | "other" | "unreadable";
+
+/** Resolve declarations to a verdict: zod's, someone else's, or unplaceable. */
+function homeVerdict(declarations: readonly MorphNode[]): IssuesVerdict {
+  if (declarations.length === 0) {
+    return "unreadable";
+  }
+  return declaredByPackage(declarations, ZOD_PACKAGE) ? "zod" : "other";
 }
 
-/** `parsed.error.issues`, `failure["issues"]`, `err?.issues` — one member read of a real ZodError. */
-function isIssuesMemberRead(node: MorphNode): boolean {
+/** `parsed.error.issues`, `failure["issues"]`, `err?.issues` — one member read spelled `issues`. */
+function classifyIssuesMemberRead(node: MorphNode): IssuesVerdict | null {
   const member = readMemberReference(node);
-  return member.kind === "resolved" && member.value.name === ISSUES && isZodIssuesProperty(node);
+  if (member.kind !== "resolved" || member.value.name !== ISSUES) {
+    return null;
+  }
+  const origin = resolveTypeMemberOrigin(node);
+  return origin.kind === "resolved" ? homeVerdict(origin.value.declarations) : "unreadable";
 }
 
 /** `const { issues } = result.error` — the binding-pattern spelling of the same read. */
-function isIssuesDestructure(node: MorphNode): boolean {
+function classifyIssuesDestructure(node: MorphNode): IssuesVerdict | null {
   if (!Node.isBindingElement(node)) {
-    return false;
+    return null;
   }
   const property = node.getPropertyNameNode()?.getText() ?? node.getName();
   if (property !== ISSUES) {
-    return false;
+    return null;
   }
+  // No initializer ⇒ no receiver expression ⇒ not a candidate (the declared limit in the header), never an
+  // unreadable finding: this arm has no identity question to answer for a parameter pattern.
   const initializer = node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-  const symbol = initializer?.getType().getNonNullableType().getProperty(ISSUES);
-  const declarations = symbol?.getDeclarations() ?? [];
-  return declarations.length > 0 && declaredByPackage(declarations, ZOD_PACKAGE);
+  if (initializer === undefined) {
+    return null;
+  }
+  const symbol = initializer.getType().getNonNullableType().getProperty(ISSUES);
+  return homeVerdict(symbol?.getDeclarations() ?? []);
+}
+
+/** One node, one answer, both spellings. */
+function classifyIssuesRead(node: MorphNode): IssuesVerdict | null {
+  return classifyIssuesMemberRead(node) ?? classifyIssuesDestructure(node);
 }
 
 export const gate = defineGate({
@@ -103,14 +137,15 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression, SyntaxKind.BindingElement],
           visit: (node, sourceFile): void => {
-            const reads = isIssuesMemberRead(node) || isIssuesDestructure(node);
-            if (!reads) {
+            const verdict = classifyIssuesRead(node);
+            if (verdict === null || verdict === "other") {
               return;
             }
             candidates.push({
               node,
               subject: ctx.relativePath(sourceFile),
               operation: OPERATION,
+              unreadable: verdict === "unreadable",
               token: ISSUES,
               offset: Math.max(node.getText().lastIndexOf(ISSUES), 0),
             });
@@ -165,6 +200,17 @@ export const gate = defineGate({
       },
       expect: { count: 1 },
       why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a sanctioned model-facing join reds like any other read and is licensed by its exact grant row, so a SECOND read in that file — or a new join beside it — is a finding until someone reviews it",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/zod/index.d.ts":
+          "export interface ZodError {\n  readonly issues: readonly { readonly path: readonly string[]; readonly message: string }[];\n}\n",
+        "packages/contracts/src/opaque.ts":
+          'declare function parseSomehow(): any;\nexport function refuse(): string {\n  return parseSomehow().error.issues.map((issue: { message: string }) => issue.message).join("; ");\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "CANNOT be established" },
+      why: "THE FAIL-CLOSED THIRD ANSWER (§5b.1, #2194), reached by no row and by no tree before it: an OPAQUE receiver resolves NO property symbol, so `resolveTypeMemberOrigin` refuses and the read is REPORTED under the UNREADABLE text rather than passed. The `messageIncludes` is the whole row — the unreadable arm emits exactly ONE finding, the same as the ordinary verdict, so a bare `count: 1` would pass whether the arm fires or is unreachable, which is precisely how the declared message sat dead here",
     },
   ],
   mustPass: [
