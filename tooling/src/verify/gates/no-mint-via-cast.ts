@@ -11,6 +11,24 @@
 // languages, scanned 2589 ts + 806 tsx), 5 resolved, 15 refusing as case (a), 0 unreadable — the flip
 // costs zero live findings, which is why it is a fix and not a burn-down.
 //
+// THE RESULT-METHOD WALK, AND THE MINT IT DELIBERATELY DOES NOT FLAG (#2042). The row that opened this
+// asked for `randomBytes` in `MODULE_GENERATORS` so the session-token mint would be caught. BOTH HALVES OF
+// THAT WERE WRONG AND THE MEASUREMENT SAYS SO. (1) `castId<T extends string>(raw: string)` cannot take a
+// `Buffer`, so a `randomBytes` row would be unreachable on any type-correct tree. (2) The real site —
+// `packages/server/src/domain/sessions/tokens/tokens.ts` `mintSessionToken`, `castId<SessionToken>(
+// randomBytes(32).toString("base64url"))` — is CORRECT and must stay silent: entropy is not an id mint,
+// and this policy's own prescribed remedies (`mintTypeId`/`newId`) both produce a UUIDv7 carrying a
+// millisecond timestamp and ~74 random bits, so "fixing" a 256-bit opaque bearer secret to obey the ban
+// would WEAKEN it. The `crypto.getRandomValues(…).toString()` mustPass row is that refusal, stated
+// positively and cut-proved. WHAT WAS ACTUALLY BLIND was the position, not the vocabulary: the reader asked
+// only the argument call's OWN callee, so a method on a mint's RESULT evaded the policy's EXISTING
+// vocabulary — measured at tip, `castId(crypto.randomUUID().replace("-", "").slice(0, 12))` produced ZERO
+// findings from a `hard` ban. Closing it makes the policy flag MORE and changes no live verdict: the only
+// `castId(<call>)` site on the tree whose argument has a call RECEIVER is the session mint, whose receiver
+// (`randomBytes`) is not in the vocabulary, so the walk answers `false` and hands the verdict back
+// unchanged. The BRACKET spelling (`gen()["slice"](…)`) is not a hole and needs no arm — measured, its
+// direct callee binds nothing, so the fail-closed third answer already reports it.
+//
 // FAMILY (`id-brand-flow`): shared readers, no private door. The cast SEAM is `lib/id-brand.ts`
 // (`createKitIdCallMatcher`, shared with `no-fake-disabled-id`); the argument's callee identity is
 // `lib/reference-fact-call.ts` (`resolveCallableOrigin`, shared with `no-raw-id`'s Zod door); the refusal is
@@ -28,7 +46,7 @@
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import type { ModuleMemberOrigin } from "../contract/reference-fact.ts";
+import type { ModuleMemberOrigin, ReferenceOrigin } from "../contract/reference-fact.ts";
 import { createKitIdCallMatcher, ID_BRAND_HOME } from "../lib/id-brand.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { resolveCallableOrigin } from "../lib/reference-fact-call.ts";
@@ -52,23 +70,72 @@ function moduleName(target: ModuleMemberOrigin): string {
   return target.canonical.kind === "external-door" ? target.canonical.moduleSpecifier : target.moduleSpecifier;
 }
 
+/** PURE: is this resolved callee one of the library mints {@link MODULE_GENERATORS} names, or the ambient
+ *  `crypto.randomUUID`? The vocabulary and the two global clauses live HERE and nowhere else, so the direct
+ *  argument position and the receiver walk can never drift into disagreeing about what a generator is. */
+function isGenerator(target: ReferenceOrigin): boolean {
+  if (target.kind === "global") {
+    return target.globalName === "crypto" && target.memberPath.join(".") === "randomUUID";
+  }
+  return target.memberPath.length === 0 && MODULE_GENERATORS[moduleName(target)]?.has(target.exportedName) === true;
+}
+
+/** The RECEIVER a method call hangs off, when that receiver is itself a call — `gen().slice(…)`'s `gen()`.
+ *  `undefined` ends the walk, which is what makes the walk total on any expression shape.
+ *
+ *  THE `isCallExpression` TEST IS A TYPE OBLIGATION, NOT AN UNPINNED FENCE (guide §4.1's unreachable-clause
+ *  class): `resolveCallableOrigin` takes a `CallExpression`, so cutting the test does not widen the policy,
+ *  it fails to compile. No row is owed for it and none is written. */
+function receiverCall(call: CallExpression): CallExpression | undefined {
+  const callee = call.getExpression();
+  const receiver = Node.isPropertyAccessExpression(callee) ? callee.getExpression() : undefined;
+  return receiver !== undefined && Node.isCallExpression(receiver) ? receiver : undefined;
+}
+
+/** THE RESULT-METHOD WALK (#2042). `castId(gen().slice(0, 8))` is the same offence as `castId(gen())` — the
+ *  brand still comes into existence from a fresh library mint — but the DIRECT reader answers about
+ *  `String#slice`, which is a real declaration and therefore a different identity. So the generator question
+ *  is asked again of each receiver call up the chain.
+ *
+ *  IT RETURNS A BOOLEAN, AND THAT IS THE CONTAINMENT. A receiver the shared readers cannot place is simply
+ *  `false` here — the walk can only ever ADD a generator verdict, never manufacture an accusation out of an
+ *  unreadable node. The fail-closed third answer stays exactly where it was, keyed on the DIRECT position's
+ *  own refusal, so this widening cannot enlarge the unreadable arm's population. */
+function launderedThroughResult(call: CallExpression): boolean {
+  for (let receiver = receiverCall(call); receiver !== undefined; receiver = receiverCall(receiver)) {
+    const origin = resolveCallableOrigin(receiver);
+    if (origin.kind !== "unresolved" && isGenerator(origin.value.target)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** The three answers a cast argument can give. `other` is the ONLY silence: the argument is not a call at
  *  all, or its callee provably binds a declaration that is not a module import (a string method, a request
- *  accessor, an injected op) and is therefore a different identity. */
+ *  accessor, an injected op) and no generator is laundered through its receiver chain.
+ *
+ *  THE GENERATOR QUESTION IS ASKED BEFORE THE REFUSAL, deliberately, and the ORDER IS THE WHOLE FENCE
+ *  (#2042, cut-measured 2026-09-12: moving the refusal ahead of the walk kills BOTH hop `mustFlag` rows).
+ *  `classifyOriginRefusal` answers an unresolved callee with EITHER `other` — case (a), a provable
+ *  non-module declaration — or `unreadable`, and every laundering chain arrives here unresolved at its
+ *  DIRECT position because the direct callee is the method, not the mint. So asking the refusal first does
+ *  not merely re-message the finding: it returns `other` for the case-(a) chains and silences them outright,
+ *  which is the blindness this walk exists to end. Ask what the subject IS before recording what could not
+ *  be read about it. */
 function argumentVerdict(cast: CallExpression): "generator" | "other" | "unreadable" {
   const node = cast.getArguments()[0];
   if (node === undefined || !Node.isCallExpression(node)) {
     return "other";
   }
   const origin = resolveCallableOrigin(node);
-  if (origin.kind === "unresolved") {
-    return classifyOriginRefusal(origin.reason, node.getExpression());
+  if (origin.kind !== "unresolved" && isGenerator(origin.value.target)) {
+    return "generator";
   }
-  const target = origin.value.target;
-  if (target.kind === "global") {
-    return target.globalName === "crypto" && target.memberPath.join(".") === "randomUUID" ? "generator" : "other";
+  if (launderedThroughResult(node)) {
+    return "generator";
   }
-  return target.memberPath.length === 0 && MODULE_GENERATORS[moduleName(target)]?.has(target.exportedName) === true ? "generator" : "other";
+  return origin.kind === "unresolved" ? classifyOriginRefusal(origin.reason, node.getExpression()) : "other";
 }
 
 export const gate = defineGate({
@@ -151,6 +218,26 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "CANNOT be established" },
       why: "THE FAIL-CLOSED THIRD ANSWER (#944), and until #2041 this policy FAILED OPEN here: the argument is a call off an OPAQUE `any`-typed receiver, so its callee binds no declaration at all and `classifyOriginRefusal` answers case (b). A HARD ban that acquits a subject it cannot read is the fail-open shape, so it is now REPORTED. The `messageIncludes` is the whole row — the unreadable arm emits the SAME single finding the generator verdict does and differs only in message, so a bare `{ count: 1 }` would pass unchanged if the arm were failed open again",
     },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/server/src/x.ts":
+          'import { randomUUID } from "node:crypto";\nimport { castId } from "../../kit/src/ids/index";\nexport const x = castId(randomUUID().replace("-", ""));\n',
+      },
+      expect: { count: 1, token: "castId", messageIncludes: "castId wraps a fresh-id generator" },
+      why: "THE RESULT-METHOD HOP (#2042), MODULE ARM. A method call on a generator's RESULT was the laundering spelling this policy could not see: `argumentVerdict` asks only the argument call's OWN callee, which here is `String#replace` — a real declaration, so the pre-hop verdict was case (a) `other` and a HARD ban said nothing about a fresh uuid being branded. The gap was not hypothetical and was not new: the `crypto.getRandomValues` mustPass row's own `why` already recorded that a draft wrapping the call in `.toString()` \"passed for a reason unrelated to this fence\". THE VOCABULARY IS UNCHANGED — only the POSITION the policy is willing to look at moved, which is why the cut direction is FLAGS MORE. THE `messageIncludes` IS LOAD-BEARING AND WAS PAID FOR: a first draft used an UNTYPED generator (`nanoid()`, no @types in the proof workspace, so its result is `any`), which made the method callee bind nothing and the row PASSED AT TIP through the fail-closed UNREADABLE arm — a bare `{ count: 1, token }` cannot tell the hop from the third answer, because both emit exactly one finding on the same node",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/server/src/x.ts":
+          'import { castId } from "../../kit/src/ids/index";\nexport const x = castId(crypto.randomUUID().replace("-", "").slice(0, 12));\n',
+      },
+      expect: { count: 1, token: "castId", messageIncludes: "castId wraps a fresh-id generator" },
+      why: "THE HOP IS A WALK, NOT ONE STEP, and this row is what dies if it is cut back to a single step: the generator sits TWO receivers deep behind `.replace(…).slice(…)`, which is the realistic short-id laundering rather than a contrived depth. It also carries the walk over the GLOBAL arm (`crypto.randomUUID`), whose one-step twin reaches the same predicate through the DIRECT position — so the walk and the global generator test are falsified together here and separately above. Same `messageIncludes` reason as the row above",
+    },
   ],
   mustPass: [
     {
@@ -210,6 +297,25 @@ export const gate = defineGate({
           'import { nanoid } from "nanoid";\nimport { castId } from "../../packages/kit/src/ids/index";\nexport const x = castId(nanoid());\n',
       },
       why: "tests are outside this production mint policy",
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/server/src/x.ts":
+          'import { castId } from "../../kit/src/ids/index";\nexport const x = castId(crypto.getRandomValues(new Uint8Array(32)).toString());\n',
+      },
+      why: 'ENTROPY IS NOT AN ID MINT, AND NOW THROUGH THE WALK (#2042) — this is the shape of the SESSION-TOKEN MINT, `packages/server/src/domain/sessions/tokens/tokens.ts` `mintSessionToken`, which brands `randomBytes(32).toString("base64url")` and MUST stay silent. `randomBytes`/`getRandomValues` are CSPRNG BYTE SOURCES — raw bytes, no identity semantics, no uniqueness contract, no format — whereas every member of `MODULE_GENERATORS` returns a finished IDENTIFIER this codebase has a canonical mint for. A session token is not an id at all: it is a 256-bit opaque BEARER SECRET, looked up by peppered HMAC digest, and `castId` sits inside that one function precisely so no other module can conjure one. THIS ROW EXISTS TO STOP A FUTURE LANE \'FIXING\' THAT SITE: the two remedies this policy\'s own message prescribes both mint a TypeID — a UUIDv7 carrying an embedded millisecond timestamp and roughly 74 random bits — so obeying the ban there would trade an opaque 256-bit secret for a timestamped, materially lower-entropy one, and a gate whose remedy WEAKENS the thing it polices is worse than no gate. That is why the vocabulary is NOT widened to `randomBytes` and why this is a `mustPass` rather than a waiver on correct code. IT IS THE GLOBAL ARM\'S MEMBER CLAUSE THROUGH THE WALK (`memberPath === "randomUUID"`), the `.toString()` draft the sibling `getRandomValues` row above records as having "passed for a reason unrelated to this fence" — before the walk it did; now it reaches the fence and is pinned there. THE FIXTURE IS THE AMBIENT GLOBAL, NOT `node:crypto`, AND THAT IS A MEASURED WORKSPACE LIMIT, NOT A WEAKER CLAIM: the isolated proof workspace cannot type an `@types/node` RETURN value, so `randomBytes(32).toString(…)` binds no method declaration there and the row would go red through the UNREADABLE arm for a reason that has nothing to do with this fence (measured 2026-09-12; `crypto.getRandomValues` returns a `Uint8Array` from TypeScript\'s OWN lib, which does resolve). The live site is unaffected either way, because the walk answers `false` at `randomBytes` and hands the verdict back unchanged',
+    },
+    {
+      mode: "types",
+      files: {
+        [ID_BRAND_HOME]: idCastProofModule(),
+        "packages/server/src/slug.ts": 'export function makeSlug(): string { return "s"; }\n',
+        "packages/server/src/x.ts":
+          'import { castId } from "../../kit/src/ids/index";\nimport { makeSlug } from "./slug";\nexport const x = castId(makeSlug().toUpperCase());\n',
+      },
+      why: "§4.1 NARROWING (THE VOCABULARY, THROUGH THE WALK): the receiver walk asks the SAME `isGenerator` question the direct position asks, so a project function called through a result method is not the offence. Replace the walk's vocabulary test with `true` and this row reddens while every hop `mustFlag` row stays green — which is the whole claim, since a walk that flagged any call-on-a-call would ban `castId(row.load().trim())` across the tree. IT IS THE MODULE HALF OF `isGenerator`, AND ITS TWIN ABOVE IS THE GLOBAL HALF — cut-measured 2026-09-12, the two are NOT redundant: opening the global member clause (`memberPath === \"randomUUID\"` → any `crypto` member) reddens the session-mint row and the direct `getRandomValues` row and leaves THIS one green, while cutting the walk's vocabulary test reddens both of these and leaves the direct row green",
     },
   ],
 });
