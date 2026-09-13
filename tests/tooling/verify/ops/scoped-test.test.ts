@@ -1,32 +1,6 @@
-// THE #2232 PIN — the scoped node door's CONFIG MODE, all four arms, both directions.
-//
-// `pnpm test:scoped` passed no config-mode flag to `scripts/vitest-supervised.mjs`, so it took the ROOT
-// vitest config and carried BOTH `types-*` typecheck projects whether the caller had claimed a type test or
-// not. The cost is not the ts7 pass — a typecheck project with ZERO matched files is instantiated and never
-// runs the checker — it is that an unclaimed project's WHOLE PROGRAM joins the run's verdict, so a parse
-// error in a file the caller never named exits the run 1 with every named test green.
-//
-// THE DRIVEN RECEIPT, and it is the DIRECTORY case because that is the arm every lane's floor goes through.
-// `tests/tooling/doc-catalog` is MIXED — nine runtime files beside `contract/types.test-d.ts` — so the
-// runner attributes it to `tooling` + `types-node` and it claims NOTHING in the browser world. With a
-// planted parse error at `tests/support/browser/<scratch>.ts` (inside `tsconfig.tests-dom.json`'s program
-// and EXCLUDED from `tsconfig.json`'s, so the two programs are discriminating):
-//
-//   pre-rework  `pnpm test:scoped tests/tooling/doc-catalog`  → EXIT 1, all 70 tests green, the sole
-//               failure `tests/support/browser/<scratch>.ts:2:1` — a red verdict from a program the
-//               caller's files are not even in.
-//   post-rework same command                                  → EXIT 0. The run shards `tooling` +
-//               `types-node`; `types-browser` is never selected and the plant cannot reach the verdict.
-//   plant removed                                             → EXIT 0 either way (the negative control).
-//
-// THE FIRST DRAFT OF THIS FIX WAS REFUTED (cb-v-verify-lib-4) and the two failures are pinned below. It
-// emitted NOTHING for a MIXED selection, which left both typecheck projects riding on every directory
-// operand — the founding case untouched — and it injected `--runtime-only` on the operand-less arm, which
-// killed `test:scoped --project=types-node -t x` with `No projects matched the filter "types-node"`.
-//
-// WHAT THIS DOOR DOES NOT FIX, pinned as prose because it is a real remaining limit: a typecheck project the
-// caller DID claim brings its whole program, so a parse error in `tsconfig.json` still reds a directory
-// operand holding a `.test-d.ts`. That is vitest's `ignoreSourceErrors` default, one lever over.
+// Scoped node runs select the projects Vitest attributes to the caller's test files.
+// Typecheck projects use `ignoreSourceErrors` so they judge `.test-d.ts` assertions only.
+// The native typecheck stage owns source diagnostics across every discovered compiler program.
 import { hasCallerProjectFilter, nodeConfigModeArgs } from "../../../../tooling/src/verify/ops/scoped-test.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
