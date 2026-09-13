@@ -53,3 +53,11 @@ Databank's `flat-type-hierarchy` P3 and other non-target appearance-rule rows we
 ## Integration ownership
 
 The source and issue-search evidence above predates filing #2321, which now owns the confirmed Extensions focus-target defect. #2317 owns the Settings target repair. The Characters screenshot is attached to existing #1191 in issue comment `5651853416`. No new product defect is inferred from the unadjudicated runtime or color observations.
+
+## Repaired-source disposition
+
+The filing recommendations above describe the original review state. #2317 and #2321 now carry the
+complete independent repaired-source reports in their closure comments. Settings' four appearance arms
+meet the live touch floor; Extensions' first-arrival target is the named region `Extension pages`, with
+the child row preserved. See `v-rail-hit-geometry-2026-09-13.md` §Repaired-source verification for exact
+commits, passing runs and control receipts. The remaining observations retain their stated limits.

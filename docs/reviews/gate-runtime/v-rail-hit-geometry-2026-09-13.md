@@ -174,3 +174,24 @@ Root read the complete independent review. The confirmed Settings target defect 
 ## Follow-up correction and ownership
 
 The reviewer corrected the original Extensions retraction after tracing the actual focus owner; root independently confirmed the source and the Presets precedent. That product accessibility defect is now #2321. Settings #2317 is repaired in `b5b93c151` with a compact-density hit-test regression and passing client/root native checks; independent live remeasurement remains owed. The broader observation dispositions are preserved in `v-rail-followup-disposition-2026-09-13.md`. The earlier report version remains in `aec0ffb55` as explicit provenance for the overturned judgment.
+
+## Repaired-source verification
+
+The original observations above apply to rendered ref `06ebd729859f55e90afbf5591f6fcbc3ec260909`.
+Settings is repaired at `b5b93c15186a4ecb22694602016189b7e7147bd9`: independent mobile remeasurement
+found 44×44 in defaults and 55×55 in compact, maximal and reading. All 104 tap candidates were judged;
+only the four planted 20×20 controls failed. The button owned its hit box and still opened the five-option
+Suggestions menu. The corrected consumer CT passed 15/15, with the new geometry case failing when the
+production size was removed. Full independent report is preserved in the #2317 closure comment; live
+receipts include `reports/runs/snap/main-520041-2026-09-13T07-14-37-364Z/run.json`.
+
+Extensions is repaired at `3376679076d76246794b21290be74a3f4e7aacbe`: first arrival from the focused Home
+rail control moved focus to `region "Extension pages"`, while `button "Card Atlas"` retained its separate
+name. A planted unnamed focus wrapper still triggered `aria-name`. Cold BODY-focus and a previously
+mounted-section bounce were explicitly excluded from arrival proof because the hook governs first mount
+and deliberately preserves cold-load navigation order. Full independent report is preserved in the #2321
+closure comment; passing arrival and control receipts are
+`reports/runs/snap/main-556871-2026-09-13T07-21-15-131Z/run.json` and
+`reports/runs/snap/main-561870-2026-09-13T07-22-29-332Z/run.json`. The component suite passed 16/16 and
+native client/root programs passed. These bounded repairs do not adjudicate the unrelated observations
+or expand this report into whole-program acceptance.
