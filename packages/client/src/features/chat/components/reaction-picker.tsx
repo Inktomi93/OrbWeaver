@@ -34,6 +34,7 @@ import type { MessageReactionGroup, ReactionEmoji } from "@orb/contracts/chat";
 import { REACTION_EMOJIS } from "@orb/contracts/chat";
 import type { ChatId, ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
+// @orb-waive dialog-via-composite(Dialog): this one-press emoji grid is a picker whose coarse trigger has no anchor box; ends if a picker composite supports both row doors.
 import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";

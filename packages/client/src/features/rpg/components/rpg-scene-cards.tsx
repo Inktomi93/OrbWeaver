@@ -6,6 +6,7 @@
 // DIRECTLY (lockdown §12 — the transcript surface shares this exact cache key, so this is a cache read).
 
 import type { ChatId } from "@orb/kit/ids";
+// @orb-waive dialog-via-composite(Dialog): the archived ImmersiveCard opens as a read-only lightbox viewer; ends if a content-viewer dialog composite owns it.
 import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { ImmersiveCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";

@@ -5,6 +5,7 @@
 // the picker's own grammar); the switch is read at pick time, so it sits ABOVE the list.
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+// @orb-waive dialog-via-composite(Dialog): selecting a CharacterPicker row performs creation and dismisses, with no submit or bound fields; ends if a picker composite owns this flow.
 import { Dialog, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";

@@ -7,6 +7,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
+// @orb-waive dialog-via-composite(Dialog): this character-gallery picker owns its root and selection surface; ends if a gallery-dialog composite owns that species.
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, ImagePlus, Images, Trash2 } from "@orb/ui/icons";
