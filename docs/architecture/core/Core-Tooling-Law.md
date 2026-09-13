@@ -6,7 +6,7 @@ updated: 2026-09-13
 
 # `@orb/tooling` — tooling-tree law
 
-> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `../../design/gate-runtime-read-first.md`; `../../../tooling/src/verify/gates/GATE-AUTHORING.md` describes legacy descriptors only. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../../scripts/README.md`.
+> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `../../design/gate-runtime-read-first.md`; `../../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide and links the verbatim legacy archive. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../../scripts/README.md`.
 
 ## 1. Standing rulings (owner — do not relitigate)
 
@@ -210,7 +210,7 @@ Worked precedents for step 3: `no-raw-clock` was FENCED with a `mustPass` row (t
 
 ## 4. Enforcement
 
-The live roster derives from the loader. Final policies follow `../../design/gate-runtime-standardization.md`; legacy descriptor maintenance uses `GATE-AUTHORING.md`. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
+The live roster derives from the loader. Final policies follow `../../design/gate-runtime-standardization.md` and the final `../../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
 
 ### 4.1 `tooling-slot-template`
 

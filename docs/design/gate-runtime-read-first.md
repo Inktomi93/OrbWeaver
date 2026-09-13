@@ -31,6 +31,7 @@ row counts, or roster counts.
 
 | Question | Read |
 | - | - |
+| final policy authoring and current enforcers | `tooling/src/verify/gates/GATE-AUTHORING.md`; use its verbatim archive only for legacy meaning |
 | resource capability or fixture substrate | `docs/reviews/gate-runtime/resource-gate-access-patterns.md`, then current contract headers |
 | per-gate blocker, family, population, authority | `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md`, then current source |
 | exemption, baseline, table, or marker disposition | `docs/reviews/gate-runtime/exception-authority-census.md` and `docs/reviews/gate-runtime/ordinary-waiver-source-migration.md` |

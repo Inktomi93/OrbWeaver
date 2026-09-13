@@ -21,8 +21,8 @@ lookalike is a tool error; every module is classified exactly once. Final polici
 
 Every Orb-specific policy converges on the final ts-morph runtime. Native Biome, ESLint, and community rules retain
 generic ecosystem lint. Legacy retirement follows conversion of the last owner and its successor evidence; zero legacy
-descriptors is an end-state cleanup condition, not a prerequisite for useful conversions. `GATE-AUTHORING.md` describes
-the legacy descriptor and is not conversion authority.
+descriptors is an end-state cleanup condition, not a prerequisite for useful conversions. [GATE-AUTHORING.md](../../tooling/src/verify/gates/GATE-AUTHORING.md) is the final authoring guide, subordinate to this
+contract. Its verbatim legacy archive explains the removed descriptor and is not a final-policy template.
 
 Mutable row state belongs on GitHub Project 1. Conversion landings are comments on #1584; defects, prerequisites, and
 owner decisions receive rows. Runtime rosters and proof counts come from `pnpm check:policy-conformance`; descriptor

@@ -117,9 +117,10 @@ specs, drafted ledger entries and owner-facing copy land under `docs/…` and yo
   spelling off existing code. A pure model helper tests happen to exercise is NOT a seam.
 - **A dynamic seam ships with its lens** — a string-keyed lookup, registry entry, devtools label or test
   title ships with the literal sweep that finds it; an LS-only rename is half a rename.
-- **Gate-touching work reads `tooling/src/verify/gates/GATE-AUTHORING.md` first** (descriptor contract,
-  coupled sites, exemption grammar, conformance mechanics, and the marker-gate rules: a marker NAMES ITS
-  POSITION, the stacked-marker resolver is BLOCK-scoped, the six-case real-tree probe ships with it).
+- **Gate-touching work follows `docs/design/gate-runtime-read-first.md`**, then the final authoring guide
+  `tooling/src/verify/gates/GATE-AUTHORING.md` for contract, authority, coupled sites and proof ownership.
+  Legacy block/line marker resolution and checkout probes belong to its verbatim archive; final policies
+  prove exact source positions through central authority and use isolated fixtures/virtual overlays.
 - **Gates land on a FIXED tree (owner law):** fix the live violations your new gate finds, in the same
   lane. Allowlists are for PERMANENT deliberate exemptions with a reason string and a stale-arm, never
   debt parking; out-of-scope violations are a SendMessage fork, not a silent allowlist row.

@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: draft
-updated: 2026-08-14
+updated: 2026-09-13
 ---
 
 # Entity→room member-freshness bridge — design + build plan
@@ -348,8 +348,10 @@ Prose-only boundaries are wishes (constitution §2.3); the lane is enforced at t
    requires the junction, the junction trips SEATED-red, clearing SEATED-red requires the `bridge` lane,
    and the `bridge` lane requires the resolver + client rows via tier 2.
 
-Gate work follows `tooling/src/verify/gates/GATE-AUTHORING.md` (two-sided receipts; the six-case probe shape where
-markers apply; conformance rows retargeted when any exemption row moves).
+Current final-policy work follows `tooling/src/verify/gates/GATE-AUTHORING.md`: declared proofs, family
+controls, central authority and virtual overlays own the evidence. The legacy authoring obligations—
+two-sided receipts, six-case marker probes and conformance-row retargeting—remain documented in
+`docs/history/gate-authoring-legacy-2026-09-13.md`; those mechanics are not a final-policy template.
 
 ## 8. Non-goals + candidate rows deliberately not in this wave
 
