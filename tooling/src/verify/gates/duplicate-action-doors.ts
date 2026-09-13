@@ -16,6 +16,20 @@
 // lens, which compares the PAYLOADS the doors this gate counts pass. Two spellings of "what is a door"
 // would let the census and the lens disagree; there is one.
 //
+// THE RULING IS A NAMED DOOR SET, NOT A CARDINALITY (#2101, 2026-09-12). Until now a baseline row was a
+// per-pair COUNT budget, which §12.5 names as the tell that a row's subject is wrong: "two doors are allowed
+// here" cannot say WHICH two, so a THIRD door was absolved by arithmetic whenever an old one left, the arm
+// that did fire could only accuse the whole list, and a ruled door that MOVED kept the count at 2 and
+// reported nothing. Every live row already named its doors in `cite` (#568/#569 wrote them there, and
+// `ratchet-row-integrity` reds a ratified row whose cited path stops resolving), so the SET was always the
+// ruling and the number was a shadow of it. The judge now reads the set: a live door the ruling does not
+// name is a finding AT THAT FILE, and a named door that is no longer live is the stale arm. `count` and
+// `ratified` stay as the shared ledger's accounting (`_shared/ratchet-rows.ts` — the admitted/ratified split
+// every consumer prints) and decide nothing; a row whose count disagrees with its named set is itself RED,
+// so the two can never tell different stories. MIN_DOORS is not a budget: it is the class definition (one
+// door is not a duplication). The pair key is unchanged, because the `ast subset-callers` lens joins on its
+// procedure tail (`ast/ops/subset-callers.ts`).
+//
 // DECLARED BLIND SPOTS, both stated in #252 and both owned by the RUNTIME half (design-audit's
 // same-role-and-name lens): a registry-rendered action is ONE call site behind N rendered slots (this is
 // exactly how the founding "new chat" complaint escapes tier 1 — its three doors all call one shared state
@@ -24,7 +38,7 @@ import { join } from "node:path";
 import type { Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { RatchetAdmission, RatchetRow } from "../../_shared/ratchet-rows.ts";
-import { classNote, readBudgetRows, writeBudgetLedger } from "../../_shared/ratchet-rows.ts";
+import { citePath, classNote, readBudgetRows, writeBudgetLedger } from "../../_shared/ratchet-rows.ts";
 import { DOORS_BASELINE_REL, mutationProcedures } from "../../_shared/trpc-doors.ts";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { readStringValue } from "../lib/ast-read.ts";
@@ -68,13 +82,16 @@ const MESSAGE =
   "class). See docs/architecture/core/client-architecture-lockdown.md §13.";
 const FIX =
   "Give the section ONE component that owns the verb and let the other affordances reach it (a shared hook, a " +
-  "state action, or the existing door). If the second door is ruled UX, add a row to EXEMPT_PROCEDURES in " +
-  "tooling/src/verify/gates/duplicate-action-doors.ts carrying the ruling that granted it.";
+  "state action, or the existing door). If the new door is ruled UX, NAME IT: add its repo-relative path to the " +
+  "pair's `cite` list in tooling/src/verify/gates/duplicate-action-doors.baseline.json with the ruling in `why` " +
+  "(the ruled set is the cites, never a number). If the whole procedure's multi-door shape is architecture, add " +
+  "a row to EXEMPT_PROCEDURES in tooling/src/verify/gates/duplicate-action-doors.ts instead.";
 const STALE_EXEMPT_PREFIX =
   "stale EXEMPT_PROCEDURES row — the procedure no longer has two doors anywhere, so the exemption grants nothing while reading as live law. Delete it: ";
 const STALE_BASELINE_PREFIX =
-  "stale baseline row — this pair now has FEWER doors than the committed budget (or none at all). Regenerate and " +
-  "commit the shrink (`node tooling/src/verify/cli.ts baseline duplicate-action-doors`): ";
+  "stale baseline row — the ruling names a door the tree no longer has there. Re-cite the door that replaced " +
+  "it, or drop the row (`node tooling/src/verify/cli.ts baseline duplicate-action-doors` re-derives the counts; " +
+  "the CITES are the ruling and are hand-edited): ";
 const BLIND_SECTIONS =
   "BLINDNESS TRIPWIRE — zero rail-section definitions were derived from the tree, so every call site would fall " +
   "back to its feature directory and the gate would silently stop judging planes. Re-point SECTION_FILE_RE in " +
@@ -196,8 +213,8 @@ export function baselineRows(project: Project, root: string): Readonly<Record<st
 }
 
 /** The committed ledger, read through the ONE row reader (`_shared/ratchet-rows.ts`) so this gate sees each
- *  pair's DEBT-vs-RATIFIED class, not just its count. All six live rows are RATIFIED (#568/#569): ruled
- *  cross-plane affordances, whose reasoning is recorded at both call sites the row cites. */
+ *  pair's DEBT-vs-RATIFIED class and the doors its `cite` list names. All six live rows are RATIFIED
+ *  (#568/#569): ruled same-plane affordance pairs, each citing exactly the two files that are its doors. */
 function readBaseline(root: string): ReadonlyMap<string, RatchetRow> {
   return readBudgetRows(root, BASELINE_REL);
 }
@@ -219,49 +236,127 @@ function judgeBlindness(ctx: GateRunCtx, planes: ReadonlyMap<string, string>): v
   }
 }
 
-/** The RATCHET's growth arm. Returns the count of pairs a committed budget absolved (declared debt). */
+/** THE RULED UNIT IS THE DOOR, AND IT IS NAMED (#2101, §12.5: a per-row `count` is the TELL that a row's
+ *  subject is wrong, never the fix). A budget of 2 says "this pair may have two doors" and cannot say WHICH
+ *  two, so it absolved a THIRD door by arithmetic, accused an innocent file when it did fire, and rotted the
+ *  day a ruled door moved. Every live row already names its doors in `cite` — `ratchet-row-integrity` keeps
+ *  each of those paths resolving — so the ruling is read as the SET it always was. The `count`/`ratified`
+ *  numbers stay: they are the shared ledger's ACCOUNTING (the admitted/ratified split every consumer prints,
+ *  `_shared/ratchet-rows.ts`), and after this they decide nothing. */
+function ruledDoors(row: RatchetRow | undefined): ReadonlySet<string> {
+  return new Set((row?.cite ?? []).map(citePath).filter((path) => path !== ""));
+}
+
+/** What one plane/procedure pair is, judged against its ruling. `unruled-pair` is the shape with NO ruling
+ *  at all: nothing there identifies a new door, so the class is the pair itself — which is why that arm
+ *  keeps the whole-list diagnostic and the `new-doors` arm does not need it. */
+export type PairVerdict =
+  | { readonly kind: "below-floor" }
+  | { readonly kind: "admitted" }
+  | { readonly kind: "unruled-pair"; readonly doors: readonly string[] }
+  | { readonly kind: "new-doors"; readonly doors: readonly string[] };
+
+/** The growth decision, pure and total. `live` is the pair's door set from the census; `row` is its ruling. */
+export function judgePair(live: ReadonlySet<string>, row: RatchetRow | undefined): PairVerdict {
+  if (live.size < MIN_DOORS) {
+    return { kind: "below-floor" };
+  }
+  const ruled = ruledDoors(row);
+  if (ruled.size === 0) {
+    return { kind: "unruled-pair", doors: [...live].sort() };
+  }
+  const doors = [...live].filter((door) => !ruled.has(door)).sort();
+  return doors.length === 0 ? { kind: "admitted" } : { kind: "new-doors", doors };
+}
+
+/** The shrink decision, pure: a RULED door that is no longer a live door of its pair. This is the liveness a
+ *  count could never express — `live < count` knew that something left and never which, and a ruled door
+ *  REPLACED by a different file kept the count at 2 and reported nothing at all. */
+export function staleRuledDoors(live: ReadonlySet<string>, row: RatchetRow): readonly string[] {
+  return [...ruledDoors(row)].filter((door) => !live.has(door)).sort();
+}
+
+/** A row whose accounting disagrees with the door set it names. The numbers no longer decide anything, so
+ *  they must not be allowed to drift into a second, contradicting story about the same ruling. */
+export function countDisagreement(row: RatchetRow): string | null {
+  const named = ruledDoors(row).size;
+  return named === 0 || named === row.count ? null : `count ${row.count} vs ${named} named door(s)`;
+}
+
+/** Report ONE non-admitting verdict. The two shapes differ in what they can honestly say:
+ *
+ *  `unruled-pair` — NOTHING here identifies a new door, because no ruling names any of them. So the
+ *  diagnostic names them ALL and anchors on the first; naming one arbitrarily would point a reader at an
+ *  innocent file (measured: the planted third `chat.forkChat` door made the old count arm accuse
+ *  `message-actions-row.tsx`, the door that was there first). The reader diffs the list against their change.
+ *
+ *  `new-doors` — a ruled pair CAN say which door is new, so each one is its own finding AT ITS OWN FILE.
+ *  That precision is the whole point of #2101: it is what a cardinality budget structurally could not give. */
+function reportVerdict(ctx: GateRunCtx, key: string, verdict: PairVerdict, row: RatchetRow | undefined): void {
+  if (verdict.kind === "unruled-pair") {
+    ctx.report({
+      file: verdict.doors[0] ?? GATE_SELF,
+      line: 1,
+      column: 0,
+      token: key,
+      message: `${MESSAGE} (${key}: ${verdict.doors.length} doors, none of them ruled; doors: ${verdict.doors.join(", ")}) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts`,
+    });
+    return;
+  }
+  if (verdict.kind !== "new-doors") {
+    return;
+  }
+  for (const door of verdict.doors) {
+    // A RATIFIED row's diagnostic cites its RULING instead of remediation advice (#569): the reader is being
+    // told a door landed on a pair somebody already decided, not that the pair is a defect.
+    ctx.report({
+      file: door,
+      line: 1,
+      column: 0,
+      token: key,
+      message: `${MESSAGE} (${key}: this door is not one the ruling names) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts${row === undefined ? "" : classNote(row)}`,
+    });
+  }
+}
+
+/** The RATCHET's growth arm. Returns the count of pairs a committed ruling absolved. */
 function judgeGrowth(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<string>>, baseline: ReadonlyMap<string, RatchetRow>): RatchetAdmission {
   let admitted = 0;
   let ratified = 0;
   for (const [key, files] of census) {
     const row = baseline.get(key);
-    const budget = row?.count ?? MIN_DOORS - 1;
-    if (files.size <= budget) {
-      const counts = files.size >= MIN_DOORS ? 1 : 0;
-      admitted += counts;
+    const verdict = judgePair(files, row);
+    if (verdict.kind === "admitted") {
+      admitted += 1;
       // The unit here is the PAIR, not the door, so a row carrying any ratified portion admits as ratified —
       // a pair is ruled or it is not (a per-door partition would be a number this census cannot earn).
-      ratified += row !== undefined && row.ratified > 0 ? counts : 0;
+      ratified += row !== undefined && row.ratified > 0 ? 1 : 0;
       continue;
     }
-    // A COUNT budget cannot say WHICH door is the new one, so the diagnostic names them ALL and anchors on
-    // the first — naming one arbitrarily would point a reader at an innocent file (measured: the planted
-    // third `chat.forkChat` door made the arm accuse `message-actions-row.tsx`, the door that was there
-    // first). The reader diffs the list against their own change.
-    const doors = [...files].sort();
-    ctx.report({
-      file: doors[0] ?? GATE_SELF,
-      line: 1,
-      column: 0,
-      token: key,
-      // A RATIFIED row's diagnostic cites its RULING instead of remediation advice (#569): the reader is
-      // being told a THIRD door landed on a pair somebody already decided, not that the pair is a defect.
-      message: `${MESSAGE} (${key}: ${files.size} doors, budget ${budget}; doors: ${doors.join(", ")}) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts${row === undefined ? "" : classNote(row)}`,
-    });
+    reportVerdict(ctx, key, verdict, row);
   }
   return { admitted, ratified };
 }
 
-/** The RATCHET's shrink-only arm (§4.8): a budget the tree no longer earns is RED, never silence. */
+/** The RATCHET's shrink-only arm (§4.8): a ruling the tree no longer earns is RED, never silence. */
 function judgeShrink(ctx: GateRunCtx, census: ReadonlyMap<string, ReadonlySet<string>>, baseline: ReadonlyMap<string, RatchetRow>): void {
   for (const [key, row] of baseline) {
-    const live = census.get(key)?.size ?? 0;
-    if (live < row.count) {
+    const live = census.get(key) ?? new Set<string>();
+    for (const door of staleRuledDoors(live, row)) {
       ctx.report({
         file: GATE_SELF,
         line: 1,
         column: 0,
-        message: `${STALE_BASELINE_PREFIX}${key} (budget ${row.count}, live ${live}) — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts${classNote(row)}`,
+        message: `${STALE_BASELINE_PREFIX}${key} names \`${door}\`, which is no longer a door on that plane — the table lives in tooling/src/verify/gates/duplicate-action-doors.ts${classNote(row)}`,
+      });
+    }
+    const disagreement = countDisagreement(row);
+    if (disagreement !== null) {
+      ctx.report({
+        file: GATE_SELF,
+        line: 1,
+        column: 0,
+        message: `${STALE_BASELINE_PREFIX}${key} (${disagreement}) — the ruled doors are the row's \`cite\` list and the numbers beside them are only the shared ledger's accounting, so a disagreement is two stories about one ruling`,
       });
     }
   }
