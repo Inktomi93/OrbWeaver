@@ -142,8 +142,12 @@ function calleeName(call: CallExpression): string | undefined {
   return Node.isPropertyAccessExpression(expr) ? expr.getName() : undefined;
 }
 
+/** The authored name the report anchors on. A tagged-table callee (a Vitest `each` table template) anchors on its
+ *  TAG, never the whole template: a multi-line table would otherwise put a newline in the token, the waiver sink
+ *  would refuse it, and the whole policy would be withheld (verifier RV-1). */
 function calleeNameNode(call: CallExpression): MorphNode {
-  const expr = call.getExpression();
+  const callee = call.getExpression();
+  const expr = Node.isTaggedTemplateExpression(callee) ? callee.getTag() : callee;
   return Node.isPropertyAccessExpression(expr) ? expr.getNameNode() : expr;
 }
 
@@ -495,6 +499,14 @@ export const gate = defineGate({
       },
       expect: { count: 1, line: 2, token: "test", messageIncludes: "no `expect(...).<matcher>()`" },
       why: "THE NAMESPACE-IMPORT SPELLING OF THE SAME-FILE FENCE (#2036). The conversion's first guard was justified by the claim that a helper could never leave the calling file; `import * as h` REFUTED it — the shared `resolveCallableDeclaration` follows `h.expectOk` to the other file's declaration — and no row used the spelling, so the divergence was unpinned in both directions. The fence is a narrowing kept by the #2163 migration lane (`ddf1adf53`) for the `selected-files` reason in the header — no ruling decides it, and #2036's arm 1 vs arm 2 stays UNADJUDICATED — and this row states it for the namespace door exactly as mustFlag[8] does for the named one: the helper body spans offsets 42-243 and this file's `expect(1).toBe(1)` spans 169-186, so cutting `resolveCalleeBody`'s source-file test lets the followed body satisfy the stub and the count drops to 0",
+    },
+    {
+      mode: "types",
+      files: {
+        "tests/tooling/table.test.ts": 'test.each`\n  a | b\n  1 | 2\n`("stub", () => {\n  const x = 1;\n  void x;\n});\n',
+      },
+      expect: { count: 1, line: 1, token: "each", messageIncludes: "no `expect(...).<matcher>()`" },
+      why: "A MULTI-LINE TAGGED TABLE (verifier RV-1): since the shared shape reads tagged tables, a stub in Vitest's idiomatic multi-line table form reaches this arm. Anchored on the whole callee, its token would span the template's newlines, the waiver sink would refuse it as a tool error and WITHHOLD the whole policy — so this row would read zero findings. Anchoring on the tag's member name keeps it one reported, waivable finding",
     },
   ],
   mustPass: [

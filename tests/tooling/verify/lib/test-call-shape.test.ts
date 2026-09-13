@@ -94,6 +94,18 @@ test("a non-modifier member, another root, or a non-identifier root is NOT a tes
   ]);
 });
 
+test("DECLARED LIMITS of a by-NAME root: an aliased import is not a shape, and a same-named local `test` is one", () => {
+  expect(
+    verdicts(
+      'import { test as t } from "vitest";\nt("aliased", () => {});\nfunction test(name: string, body: () => void): void {\n  body();\n}\ntest("local", () => {});',
+    ),
+  ).toEqual([
+    ['t("aliased", () => {})', false],
+    ["body()", false],
+    ['test("local", () => {})', true],
+  ]);
+});
+
 test("callChainRoot returns the identifier the callee chain bottoms out in, or undefined off a non-identifier root", () => {
   const roots = callsOf("test.concurrent.each([1])('a', () => {});\ndescribe.skip('b', () => {});\n(factory())('c');").map(
     (call) => callChainRoot(call)?.getText() ?? null,

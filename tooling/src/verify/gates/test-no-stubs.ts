@@ -28,7 +28,7 @@
 // modifier chain spelled off the bare `test`/`it` NAME; the reader's by-name limits (element-access,
 // parenthesized, qualified or aliased roots) are declared and run in its mirror test. It used to be the literal
 // text set `{test, it, test.skip, it.skip}`, which left every other modifier form unjudged here. (Through the
-// same reader `audit-client-tests` now REPORTS a tagged-table stub, on the token ``test.each`a | b` ``; for a
+// same reader `audit-client-tests` now REPORTS a tagged-table stub, anchored on the tag's member (`each`); for a
 // call-returning stub it reports the token `test.each([1])`, which the waiver sink refuses, so that policy
 // WITHHOLDS — a pre-existing tool error recorded outside this module, measured 2026-09-13.)
 // Every MODIFIER form must carry a callback to count, while the bare root keeps its legacy unconditional
