@@ -67,8 +67,22 @@
 // `pnpm check:structure-delta` (#2110) prints `waived` before → after per policy — so waiving instead of fixing
 // MOVES A NUMBER the barrier already reads. The door is open during the drain; it is not unobserved.
 //
-// WHAT SATISFIES THE RULE, and why the test half is recognised the way it is. `mustRefuse` is read off the
-// descriptor literal. The family-test half is a `runPolicyPass({ policies: […] , … })` call inside a `test(…)`
+// WHAT SATISFIES THE RULE, and why the test half is recognised the way it is. `mustRefuse` is read through
+// the shared shallow array reader, including stable const/import aliases and array spreads. A present
+// unreadable dependency or refusal array is reported separately; neither a missing field nor a known
+// empty array is an unreadable value. Empty spreads contribute zero. Element expressions stay opaque:
+// a known element beside an unknown spread proves nonempty on successful construction, while an
+// unknown-only spread remains unreadable. Exact cardinality is not claimed.
+// This policy asks whether dependencies/rows exist, not whether their values are valid or their proofs
+// adequate. The validator and conformance runner own those questions.
+//
+// #2342: presence needs a stronger use query than binding identity. Every reached array alias
+// may feed a canonical descriptor value, another const alias, or an array spread copy. Opaque calls,
+// callbacks, storage, returns and writes refuse. Imported references are followed in the loaded Project;
+// unobserved external consumers and host mutation are outside this source proof. Unrelated authored-value
+// readers keep their existing weaker effect model. No invocation-scoped use result survives a source edit.
+//
+// The family-test half is a `runPolicyPass({ policies: […] , … })` call inside a `test(…)`
 // whose DRIVEN SET resolves to an import of the policy module itself — the import is the binding between pin and
 // subject, so a test that imports six policies and drives one covers only the one it drove. The dispatcher call
 // is recognised by NAME rather than by import origin, deliberately and by this family's own precedent: proof
@@ -122,10 +136,11 @@
 // module reads "not final" and the corpus reports ✓ forever. It self-anchors on its OWN path and THROWS instead.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { GatePolicyContext } from "../contract/policy.ts";
+import type { GatePolicy, GatePolicyContext, PolicyProofArm } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import {
   bindsParameter,
+  descriptorArrayPresence,
   descriptorProperty,
   descriptorValue,
   finalDescriptorOf,
@@ -145,8 +160,9 @@ const DISPATCHER = "runPolicyPass";
  *  deliberately NOT read: it is the roster authority reconciliation needs, and a policy listed there but not
  *  selected is never RUN — crediting it would be the coverage-by-coincidence the `mustFlag` rows below forbid. */
 const DRIVEN_FIELD = "policies";
-const DERIVED_FIELDS = ["facts", "resources"] as const;
-const MUST_REFUSE = "mustRefuse";
+const DERIVED_FIELDS = ["facts", "resources"] as const satisfies readonly (keyof GatePolicy)[];
+const MUST_REFUSE = "mustRefuse" satisfies PolicyProofArm;
+const ARRAY_FIELDS = [...DERIVED_FIELDS, MUST_REFUSE] as const satisfies readonly (keyof GatePolicy)[];
 
 const MESSAGE =
   "a FINAL policy declares `facts` or `resources` — a verdict resting on a DERIVED population — and pins NO REFUSAL " +
@@ -155,6 +171,8 @@ const MESSAGE =
   "over an empty denominator (#944). Paid three times — #1977 (the third arm minted because refusals lived only in headers), #2109 item 2 " +
   "(three pins carried as hand-measured prose), and `warning-code-coverage`'s before/after paragraph.";
 const FIX =
+  "For a declaration reported as not statically readable, expose an authored array through stable aliases/spreads and remove opaque uses of its identity; " +
+  "a family pin cannot make an unknown-only declaration readable. " +
   "Add a `mustRefuse` row (§4.5b: never empty; each row's `expect` is `messageIncludes` ONLY) naming the refusal text this policy's failure " +
   "mode produces — a withheld fact, an unresolved resource, a population that admits zero paths. OR, where the refusal is something a row " +
   "cannot express (an owner STATUS, an empty finding set, the phase it refused in), drive the policy through `runPolicyPass` in a family " +
@@ -173,21 +191,6 @@ const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the descriptor reader ` +
   "(lib/policy-descriptor-read.ts finalDescriptorOf) is dead, so every module would read out of scope and this policy would report ✓ over " +
   "the whole corpus forever. Refusing the run.";
-
-/** Does the descriptor declare a NON-EMPTY `facts` or `resources` array? An explicit `[]` is the corpus-computed
- *  shape and is not asked for a refusal pin; an ABSENT field is a validator error elsewhere, never this one. */
-function isNonEmptyArray(value: MorphNode | undefined): boolean {
-  return value !== undefined && Node.isArrayLiteralExpression(value) && value.getElements().length > 0;
-}
-
-function derivesPopulation(descriptor: ObjectLiteralExpression): boolean {
-  return DERIVED_FIELDS.some((field) => isNonEmptyArray(descriptorValue(descriptor, field)));
-}
-
-/** A non-empty `mustRefuse` array on the descriptor literal. */
-function hasRefusalRow(descriptor: ObjectLiteralExpression): boolean {
-  return isNonEmptyArray(descriptorValue(descriptor, MUST_REFUSE));
-}
 
 /** The policy id an expression NAMES, or undefined: the reference resolved to a module export whose canonical
  *  home is a gate module. Resolved through the shared origin reader rather than by re-walking the file's import
@@ -367,8 +370,42 @@ function recordPin(drive: Drive, index: CallIndex, pinned: Set<string>): void {
   }
 }
 
+function judgeDeclaration(
+  ctx: GatePolicyContext,
+  descriptor: ObjectLiteralExpression,
+  arrays: ReturnType<typeof descriptorArrayPresence>,
+  pinned: ReadonlySet<string>,
+): void {
+  const values = arrays.get(descriptor);
+  const unreadable = ARRAY_FIELDS.filter((field) => values?.get(field)?.kind === "unresolved");
+  for (const field of unreadable) {
+    const property = descriptor.getProperty(field);
+    const anchor = property !== undefined && !Node.isSpreadAssignment(property) ? property.getNameNode() : descriptor;
+    ctx.report.node(anchor, { message: `${field} declaration is not statically readable; its dependency/refusal presence cannot be established.` });
+  }
+  if (unreadable.length > 0) {
+    return;
+  }
+  const nonempty = (field: string): boolean => {
+    const value = values?.get(field);
+    return value?.kind === "resolved" && value.value === "nonempty";
+  };
+  const derived = DERIVED_FIELDS.filter(nonempty);
+  if (derived.length === 0) {
+    return;
+  }
+  if (!(nonempty(MUST_REFUSE) || pinned.has(policyIdOfPath(ctx.relativePath(descriptor.getSourceFile()))))) {
+    // The position is the declaration that ACTUALLY created the obligation — the first `facts`/`resources`
+    // that is NON-EMPTY, never merely the first one declared. Measured here: every policy carries `facts: []`
+    // explicitly (the contract requires it), so "first declared" pointed at `facts` on a module whose
+    // obligation came from `resources`, and sent the reader to a line with nothing wrong on it.
+    const owed = derived.map((field) => descriptorProperty(descriptor, field)).find((property) => property !== undefined);
+    ctx.report.node(owed ?? descriptor, { token: owed?.getName() ?? MUST_REFUSE, offset: 0 });
+  }
+}
+
 function judgeCorpus(ctx: GatePolicyContext, pinned: ReadonlySet<string>): void {
-  let scanned = 0;
+  const descriptors: ObjectLiteralExpression[] = [];
   for (const sourceFile of ctx.files) {
     const path = ctx.relativePath(sourceFile);
     if (!path.startsWith(GATES_DIR)) {
@@ -381,27 +418,18 @@ function judgeCorpus(ctx: GatePolicyContext, pinned: ReadonlySet<string>): void 
       }
       continue;
     }
-    scanned += 1;
-    if (!derivesPopulation(descriptor)) {
-      continue;
-    }
-    if (!(hasRefusalRow(descriptor) || pinned.has(policyIdOfPath(path)))) {
-      // The position is the declaration that ACTUALLY created the obligation — the first `facts`/`resources`
-      // that is NON-EMPTY, never merely the first one declared. Measured here: every policy carries `facts: []`
-      // explicitly (the contract requires it), so "first declared" pointed at `facts` on a module whose
-      // obligation came from `resources`, and sent the reader to a line with nothing wrong on it.
-      const owed = DERIVED_FIELDS.filter((field) => isNonEmptyArray(descriptorValue(descriptor, field)))
-        .map((field) => descriptorProperty(descriptor, field))
-        .find((property) => property !== undefined);
-      ctx.report.node(owed ?? descriptor, { token: owed?.getName() ?? MUST_REFUSE, offset: 0 });
-    }
+    descriptors.push(descriptor);
+  }
+  const arrays = descriptorArrayPresence(descriptors, ARRAY_FIELDS);
+  for (const descriptor of descriptors) {
+    judgeDeclaration(ctx, descriptor, arrays, pinned);
   }
   // THE RECEIPT COUNTS EVERY FINAL MODULE THE WALK READ, not the derived subset — measured here: a receipt whose
   // population is the SUBSET refuses at zero members, and "zero policies derive a population" is a legitimate
   // corpus state (it is what every `mustPass` fixture of this policy looks like). A receipt that cannot be
   // satisfied by a correct tree is the population-fence trap one level up: it proves the walk was BLIND, and
   // blindness is about what was scanned, not about what was found.
-  ctx.receipt({ kind: "population", source: "final policy modules", members: scanned });
+  ctx.receipt({ kind: "population", source: "final policy modules", members: descriptors.length });
 }
 
 /** A family test at a real family-test path, importing the probe module and driving it through the dispatcher. */
@@ -529,6 +557,42 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      files: familyFixture(`declare function inputs(): readonly unknown[];\n${DERIVING("", 'resources: [{ kind: "tracked-files" }, ...inputs()],')}`),
+      expect: { count: 1, token: "resources" },
+      why: "#2342: an authored element proves nonempty on successful construction even beside an unknown spread. This claims presence, never the spread's contents or cardinality.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(`declare function inputs(): readonly unknown[];\n${DERIVING("", "resources: [...inputs()],")}`),
+      expect: { count: 1, token: "resources", messageIncludes: "not statically readable" },
+      why: "#2342: an unknown-only spread proves neither empty nor nonempty; it must remain an unreadable declaration.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(`const INPUTS = [{ kind: "tracked-files" }];\n${DERIVING("", "resources: INPUTS,")}`),
+      expect: { count: 1, token: "resources" },
+      why: "#2342: moving a nonempty dependency array behind a const preserves its refusal obligation; syntax-only selection previously omitted it.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(`const EMPTY = [];\n${DERIVING("mustRefuse: [...EMPTY],")}`),
+      expect: { count: 1, token: "resources" },
+      why: "#2342: an empty spread contributes no refusal row. Counting one syntax element previously credited an empty arm.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(`const INPUTS = [];\ndeclare function opaque(value: unknown): void;\nopaque(INPUTS);\n${DERIVING("", "resources: INPUTS,")}`),
+      expect: { count: 1, token: "resources", messageIncludes: "not statically readable" },
+      why: "#2342: an opaque consumer can change an empty array; binding stability does not prove cardinality and the declaration must remain visible.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(`declare function rows(): readonly unknown[];\n${DERIVING("mustRefuse: rows(),")}`),
+      expect: { count: 1, token: "mustRefuse", messageIncludes: "not statically readable" },
+      why: "#2342: a present unreadable refusal array is neither absent nor a proven row. The diagnostic names the unreadable declaration.",
+    },
+    {
+      mode: "types",
       files: familyFixture(DERIVING("")),
       expect: { count: 1, token: "resources" },
       why: "THE FOUNDING SHAPE and the live class (≤92 modules at mint): a policy declaring a RESOURCE — a denominator it does not compute — with neither a `mustRefuse` row nor a family-test pin. The position is the `resources` declaration, because that line is what created the obligation",
@@ -577,6 +641,25 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: familyFixture(`declare function inputs(): readonly unknown[];\n${DERIVING("", 'resources: [...inputs(), { kind: "tracked-files" }],')}`, {
+        [PIN_TEST_PATH]: PIN_TEST(DRIVEN),
+      }),
+      why: "#2342: an actual family pin satisfies a proven nonempty dependency declaration without needing an exact element count for its unknown spread.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(`const EMPTY = [];\n${DERIVING("", "resources: [...EMPTY],")}`),
+      why: "#2342: a readable empty spread declares no dependency and creates no refusal obligation.",
+    },
+    {
+      mode: "types",
+      files: familyFixture(
+        `const ROWS = [{ mode: "source", files: { "packages/client/src/c.ts": "z" }, expect: { messageIncludes: "probe dependency missing" }, why: "refusal" }];\n${DERIVING("mustRefuse: ROWS,")}`,
+      ),
+      why: "#2342: a stable nonempty refusal array earns the same credit as the direct form. Its row behavior remains the conformance runner's responsibility.",
+    },
     {
       mode: "types",
       files: familyFixture(

@@ -51,6 +51,7 @@ import type { Discrimination, FinalRegistration, ProofRows, ReportSiteMessage, S
 import { isCanonicalDefineGate, resolveCallableMember } from "./gate-contract-origin.ts";
 import { resolveModuleMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
 import { resolveCallableDeclaration } from "./reference-fact-call.ts";
+import { readAuthoredArrayPresence } from "./static-authored-value.ts";
 import { staticDerivedText } from "./static-derived-text.ts";
 
 const REPORT_SINK = "report";
@@ -303,6 +304,42 @@ export function stableTerminal(expression: MorphNode): MorphNode | undefined {
 export function objectLiteralOf(expression: MorphNode | undefined): ObjectLiteralExpression | undefined {
   const terminal = expression === undefined ? undefined : stableTerminal(expression);
   return terminal !== undefined && Node.isObjectLiteralExpression(terminal) ? terminal : undefined;
+}
+
+type ArrayPresence = ReturnType<typeof readAuthoredArrayPresence>;
+
+/** Array fields selected by one policy's semantic query. Only canonical final descriptor values are
+ *  accepted consumption endpoints; an identically named field on an arbitrary object is not one.
+ *  Undefined means absent. Present unreadable values retain their refusal rather than becoming empty. */
+export function descriptorArrayPresence(
+  descriptors: readonly ObjectLiteralExpression[],
+  fields: readonly string[],
+): ReadonlyMap<ObjectLiteralExpression, ReadonlyMap<string, ArrayPresence | undefined>> {
+  const canonical = descriptors.filter((descriptor) => finalDescriptorOf(descriptor.getSourceFile()) === descriptor);
+  const accepted = new Set(canonical.flatMap((descriptor) => fields.flatMap((field) => descriptorValue(descriptor, field) ?? [])));
+  const result = new Map<ObjectLiteralExpression, ReadonlyMap<string, ArrayPresence | undefined>>();
+  for (const descriptor of canonical) {
+    const values = new Map<string, ArrayPresence | undefined>();
+    for (const field of fields) {
+      const property = descriptor.getProperty(field);
+      const value = descriptorValue(descriptor, field);
+      let read: ArrayPresence | undefined;
+      if (value !== undefined) {
+        read = readAuthoredArrayPresence(value, accepted);
+      } else if (property !== undefined) {
+        read = {
+          kind: "unresolved",
+          reason: "unsupported",
+          node: property,
+          detail: "array declaration is not a readable data property",
+          trace: { declarations: [], origin: property },
+        };
+      }
+      values.set(field, read);
+    }
+    result.set(descriptor, values);
+  }
+  return result;
 }
 
 function nonEmpty(segments: readonly string[]): readonly string[] {
