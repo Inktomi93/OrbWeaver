@@ -39,12 +39,19 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A missing/empty declared tree makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create`
 // runs (guide §11 ruling 3), so this module owns no not-ready branch and reads through
-// `readyResourceValue`. Both reachable statuses are pinned, in DIFFERENT HOMES, and the split is
-// structural rather than a gap (corrected #2294 — this sentence used to claim both were rows): `missing`
-// is `mustRefuse[0]`; `empty` CANNOT be a row, because a proof row's substrate is a `files` MAP and a map
-// has no way to spell a directory that exists with no members. Its pin is therefore a `runPolicyPass` arm
-// over a real `mkdtemp` root (`css-home-topology-family.test.ts:103-115`, with `:17-23` stating the same
-// reason from the test side), which is where the receipt pair lives too.
+// `readyResourceValue`. THE REACHABLE STATUS SET IS A PROPERTY OF THE READER, enumerated FROM it: this
+// sentence said "BOTH reachable statuses" through #2294, which repaired its OTHER half (both-are-rows)
+// and left the completeness claim standing — there are THREE, because
+// `ops/resource-reader.ts#tree` returns `ready | missing | empty | unresolved` and answers `unresolved`
+// for ANY throw inside the walk (#2314). Each has its pin, and TWO of the three cannot be rows at all,
+// which is the structural half rather than a gap:
+//   missing     `mustRefuse[0]` — no `packages` tree.
+//   empty       a `runPolicyPass` arm over a real `mkdtemp` root
+//               (`css-home-topology-family.test.ts`, with its own `:17-23` stating why): a proof row's
+//               substrate is a `files` MAP and a map cannot spell a directory that exists with no members.
+//   unresolved  the same file's symlink arm — the authored walk throws on a symbolic link, and a `files`
+//               map cannot spell one of those either. Beside a healthy twin on the same substrate.
+// The receipt pair lives in that same family test.
 //
 // DECLARED LIMITS: the closed list itself is the rule, not a fence, so every arm is carried by a row whose
 // count the §4.1 cut moves. No arm of this policy is unfalsifiable.

@@ -17,17 +17,37 @@
 // review). Reading only the owner NARROWED the reader: a `--color-*` nested one level inside `@theme` or
 // inside a seed belongs to the inner block, so it silently left the palette. The live `theme.css` has no
 // such nesting, which is exactly why a real-sheet parity twin could not see it — a parity receipt over a
-// subject that never exercises the changed code path is not a measurement of the change. The four deltas,
-// each measured against the frozen pre-fold reader and each pinned in
-// tests/tooling/verify/gates/seed-theme-ink-family.test.ts:
-//   WIDER   a final declaration with no `;` before its `}` is now READ (the old regex required it);
-//   WIDER   every `@theme` block merges rather than only the first;
-//   CHANGED a `--color-*` under a nested CONDITIONAL at-rule becomes its own ARM (`<palette> @ <prelude>`)
-//           instead of being merged last-wins into the palette — both arms are judged, where the old scan
-//           REPLACED the unconditional value and hid the base arm;
+// subject that never exercises the changed code path is not a measurement of the change.
+//
+// THE REPLACEMENT SENTENCE CLAIMED FOUR DELTAS, "each pinned", AND THAT WAS FALSE IN BOTH HALVES (#2315,
+// caught by the next verifier: there are more classes than four, and two of the four it listed had no
+// test). So the set is ENUMERATED FROM A DRIVEN DIFFERENTIAL rather than from memory — the frozen
+// pre-fold TEXT reader (`680d66e7c^`) against the tip reader over identical bytes. The differences below
+// each carry a pin in tests/tooling/verify/gates/seed-theme-ink-family.test.ts.
+// Frozen → tip:
+//   WIDER    a final declaration with no `;` before its `}` is READ (`hearth{x}` → `hearth{x,last}`) — the
+//            old `DECLARATION` regex required the semicolon.
+//   WIDER    every `@theme` block merges, not only the first (`hearth{x}` → `hearth{x,second}`) — the old
+//            `THEME_BLOCK.exec` took one match.
+//   WIDER    a COMPOUND-ROOT subject is a ROOT (`dusk{x}` → `dusk{x,f}` for `[data-theme="x"].foo`) — the
+//            old `SEED_BLOCK` regex demanded the attribute immediately before the `{`.
+//   FIXED    `html[data-theme="x"]` minted a SECOND `dusk` palette at the BASE polarity
+//            (`dusk/light{x}` + `dusk/dark{x,h}`); tip merges it into one `dusk/light{x,h}`.
+//   FIXED    a multi-root list minted a DUPLICATE palette and skipped a seed (`dusk{x}` + `ember{x}` +
+//            `ember{x,m}`); tip files each seed once.
+//   CHANGED  a `--color-*` under a nested CONDITIONAL at-rule becomes its own ARM (`<palette> @ <prelude>`)
+//            instead of being merged last-wins — both arms are judged, where the old scan REPLACED the
+//            unconditional value and hid the base arm. TWO classes: under `@theme`, and under a seed.
+//   CHANGED  `.card &` becomes an ARM for the same reason — the subject is still the seed, under an
+//            ancestor condition (old: merged into the palette).
 //   NARROWER a `--color-*` whose SUBJECT is a descendant or sibling is EXCLUDED — the seed's own text
-//           never resolves against it, and the old scan counting it was a defect of the balanced-body
-//           read rather than a capability.
+//            never resolves against it, and the old scan counting it was a defect of the balanced-body
+//            read rather than a capability.
+//   NARROWER a seed nested INSIDE a seed is dropped; the balanced-body scan filed one declaration into
+//            BOTH palettes.
+// And ONE shape is deliberately NOT a delta, listed so the set is closed: the FLATTENED descendant
+// (`[data-theme="x"] .a`) reads the same on both sides — the frozen regex never matched it either, so the
+// fold's brief regression there (#2293 leg 3) was a defect against the frozen reader, not a delta of it.
 //
 // AND THE SUBJECT RULE IS DECIDED PER COMPLEX SELECTOR, OFF THE SUBJECT COMPOUND (#2293 leg 3). Leg 2
 // built the descendant exclusion only for the NESTED spelling: the flattened `[data-theme="x"] .a` (and

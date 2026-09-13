@@ -55,12 +55,23 @@
 // THROW at the POPULATION phase, withholding this owner before `create` runs (guide §11 ruling 3). That is
 // the honest successor of the legacy `existsSync(MAIN)` early return AND of its "CSS topology anchor
 // missing" arm, both of which answered a gutted tree with a silent clean. This module therefore owns no
-// not-ready branch and reads through `readyResourceValue`. `mustRefuse` pins THREE shapes — a vanished
-// `exact-file` anchor, and BOTH reachable statuses of `product-css`: `missing` (a product stylesheet gone)
-// and `malformed` (one the shared parser refuses before parsing, #2294; a half-read sheet would otherwise
-// feed the graph walk a truncated statement set and the arm would report an incomplete graph about a sheet
-// nobody could read). The receipt set is pinned in
-// tests/tooling/verify/gates/css-home-topology-family.test.ts, which a row cannot express.
+// THE REACHABLE STATUS SET OF EACH DECLARATION IS A PROPERTY OF ITS READER, enumerated FROM the readers
+// (#2314 — this sentence said "BOTH reachable statuses of `product-css`" and there are four, and it said
+// nothing at all about the exact-file side). `ops/resource-reader.ts#read` returns
+// `ready | missing | empty | unresolved`; `ops/resource-tree.ts#loadCssFiles` forwards that BEFORE judging
+// the CSS and adds `malformed`; `ops/resource-exact.ts#loadExactFiles` forwards it per demanded id.
+//   product-css  missing `mustRefuse[1]` · malformed `mustRefuse[2]` (#2294) · empty `mustRefuse[3]` (on
+//                `read`'s own empty arm, which never reaches the `malformed` test) · unresolved — a
+//                `runPolicyPass` pin in tests/tooling/verify/gates/css-home-topology-family.test.ts,
+//                because no proof row's STRING map can carry an invalid UTF-8 byte.
+//   exact-file   missing `mustRefuse[0]` · empty `mustRefuse[4]` (a present but zero-length anchor, which
+//                a text arm would otherwise read as "imports nothing") · unresolved — the same family-test
+//                pin, same reason. Its two OTHER refusal branches are unreachable from this policy BY
+//                CONSTRUCTION and take no pin: `ANCHOR_IDS` is a non-empty compile-time tuple
+//                `satisfies readonly ExactResourceId[]`, so neither "demanded for zero ids" (`empty`) nor
+//                "unknown exact resource id" (`unresolved`) can be produced from here.
+// Each family-test pin sits beside a HEALTHY TWIN on the same disk substrate; the receipt set is pinned in
+// that same file, which a row cannot express.
 //
 // DECLARED LIMITS: the CT-boot text arm above, pinned by `mustFlag[0]` and the clean `mustPass[1]`. Its
 // COMMENT-BLANKING narrowing — a commented-out import is not an import — is `mustPass[2]` (#2294; measured
@@ -501,6 +512,25 @@ export const gate = defineGate({
       // read.
       expect: { messageIncludes: "product-css is malformed: unsupported or malformed CSS in packages/ui/src/styles/theme.css" },
       why: "a product stylesheet the shared parser cannot read refuses the five-home identity at the population phase, rather than being walked as a truncated import graph",
+    },
+    {
+      mode: "resource",
+      files: { ...TOPOLOGY_FIXTURE, "packages/ui/src/styles/theme.css": "" },
+      // `product-css`'s THIRD reachable status (#2314). `loadCssFiles` forwards `reader.read`'s status
+      // before the CSS grammar is consulted, and `read` answers a zero-length file `empty` on its own arm,
+      // so it never reaches the `malformed` test. Here it would otherwise feed the graph walk a sheet with
+      // no statements — an "incomplete graph" verdict about a file nobody could read.
+      expect: { messageIncludes: "product-css is empty: resource file is empty: packages/ui/src/styles/theme.css" },
+      why: "a zero-length product stylesheet refuses on the reader's own empty arm, before the CSS grammar or the import graph is consulted",
+    },
+    {
+      mode: "resource",
+      files: { ...TOPOLOGY_FIXTURE, [CT_BOOT]: "" },
+      // The EXACT-FILE declaration's second reachable status (#2314). `ops/resource-exact.ts` forwards
+      // `reader.read`'s status for any demanded id, so a zero-length anchor is `empty`, not `missing` —
+      // and a text arm handed an empty boot would read as "imports nothing" rather than "could not judge".
+      expect: { messageIncludes: "is empty: exact resource ct-boot (playwright/index.tsx) is unavailable" },
+      why: "a present but ZERO-LENGTH CT boot refuses the whole exact-file fact rather than being read as a boot that imports nothing",
     },
   ],
 });

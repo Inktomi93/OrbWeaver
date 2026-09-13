@@ -11,8 +11,8 @@
 // `TOKEN_CONTRACT_PATHS` — the same seven paths in the same order, one member short being a REFUSAL in both.
 // There is no compiler population: `population: { of: "none" }`, and the module reads no `ctx.files`.
 //
-// THE REMOVAL RATCHET SURVIVED THE CONVERSION, AND THAT IS THE WHOLE INTERESTING PART (#2183, closing the
-// §5b audit's ledger row 18). The legacy `run` computed
+// THE REMOVAL RATCHET SURVIVED THE CONVERSION, AND THAT IS THE WHOLE INTERESTING PART (#2182, closing the
+// §5b audit's ledger row 18 — this cited #2183, the SIBLING pair's issue, until #2294/#2314). The legacy `run` computed
 // `historyRoot = resolve(ctx.root) === REPO_ROOT ? ctx.root : undefined` and handed it to
 // `validateTokenContract`, which shelled `git merge-base` + `git show` for the merge-base vault. A final
 // policy has NO root, NO filesystem and NO subprocess (§12.3), so the naive conversion would have dropped
@@ -56,10 +56,20 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A missing or unreadable bundle member makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create` runs
 // (guide §11 ruling 3), so this module owns no not-ready branch and reads through `readyResourceValue`.
-// BOTH reachable statuses of the one declaration are `mustRefuse` rows — `missing` (a member deleted) and
-// `empty` (a member present but zero-length, which `ops/resource-reader.ts` answers on its own arm) — and
-// the receipt PAIR is pinned in tests/tooling/verify/gates/token-contract-family.test.ts, which a row
-// cannot express.
+// THE REACHABLE STATUS SET IS A PROPERTY OF THE READER, so it is enumerated FROM the reader rather than
+// counted off the rows (#2314 — this sentence said "BOTH reachable statuses" and there are three).
+// `ops/resource-artifact.ts#loadTokenContract` FORWARDS `ops/resource-reader.ts#read`'s status for any
+// member it cannot read, and `read` returns exactly `ready | missing | empty | unresolved`
+// (`unavailable(...)` for ENOENT and zero-length, `failure(...)` for every other throw). There is no
+// `malformed`: that status belongs to `loadCssFiles`, not to this door. So three are reachable and each
+// has its pin:
+//   missing     `mustRefuse[0]` — a member deleted.
+//   empty       `mustRefuse[1]` — a member present but zero-length, on `read`'s own empty arm.
+//   unresolved  NOT expressible as a row (a proof row's `files` map is a JS STRING map and no string
+//               carries an invalid UTF-8 byte), so it is a `runPolicyPass` pin in
+//               tests/tooling/verify/gates/token-contract-family.test.ts — bytes `0x7b 0xff 0x7d` on a
+//               real `mkdtemp` root with NO overlay, beside a healthy twin on the same substrate.
+// The receipt PAIR is pinned in that same family test, which a row also cannot express.
 //
 // THE RECEIPT DENOMINATOR IS THE BUNDLE, NOT THE TOKEN CENSUS (#2292, and it was a live catch-regression
 // against the legacy gate). `members: result.scannedTokens` reads as the honest number and is 0 for

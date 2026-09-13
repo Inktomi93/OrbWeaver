@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -195,6 +197,36 @@ test("a DUPLICATE root in one list files exactly once", () => {
   ]);
 });
 
+/** THE THREE DELTA CLASSES THE HEADER LISTED AND NO TEST CARRIED (#2315). The module header enumerates
+ *  what the fold onto the shared facts changed against the frozen pre-fold TEXT reader (`680d66e7c^`);
+ *  a class named in prose and pinned by nothing is the same defect one layer out, and the verifier found
+ *  three of them — two WIDER reads the header claimed, plus the seed-in-seed drop it did not mention.
+ *  Each expectation below is the TIP side of a measured pair; the frozen side is in the header. */
+test("a final declaration with NO trailing semicolon is read — the frozen text reader dropped it", () => {
+  // FROZEN `hearth{--color-x}` (its `DECLARATION` regex required the `;`) → TIP also carries `--color-last`.
+  expect(palettesOf("@theme {\n  --color-x: oklch(0.5 0.1 50);\n  --color-last: oklch(0.2 0.1 50)\n}\n")).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-last", "--color-x"] },
+  ]);
+});
+
+test("a SECOND @theme block merges — the frozen text reader read only the first", () => {
+  // FROZEN `hearth{--color-x}` (its `THEME_BLOCK.exec` took the first match only) → TIP merges both.
+  expect(palettesOf("@theme {\n  --color-x: oklch(0.5 0.1 50);\n}\n@theme {\n  --color-second: oklch(0.3 0.1 50);\n}\n")).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-second", "--color-x"] },
+  ]);
+});
+
+test("a seed nested INSIDE a seed is dropped — the frozen text reader filed it into BOTH", () => {
+  // FROZEN `dusk{--color-n,x} | ember{--color-n,x}` — the balanced-body scan saw the inner opener and the
+  // outer body, so one declaration became two palettes' worth. At TIP the inner block's subject is not the
+  // parent (no `&`), so it falls on the descendant side of the one subject test and no `ember` is minted.
+  // NARROWER, deliberately: the generator emits flat blocks and nothing on the tree authors this shape.
+  expect(palettesOf(`${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n  [data-theme="ember"] {\n    --color-n: oklch(0.3 0.1 50);\n  }\n}\n`)).toEqual([
+    { name: "hearth", scheme: "dark", vars: ["--color-x"] },
+    { name: "dusk", scheme: "light", vars: ["--color-x"] },
+  ]);
+});
+
 test("an ordinary flat sheet is untouched by the ancestry read — the control", () => {
   const palettes = palettesOf(`${BASE}}\n[data-theme="dusk"] {\n  color-scheme: light;\n  --color-x: oklch(0.9 0.1 50);\n}\n`);
 
@@ -208,7 +240,8 @@ test("an ordinary flat sheet is untouched by the ancestry read — the control",
  *  pins `reviewedGrants: []`, so a reviewed-grant policy can prove nothing about consumption there.
  *
  *  This is the arm the conversion OWES, because the nine decorative-stroke rows were a gate-owned
- *  `ExemptionTable` until #2183 and §12.5 bans one. What the migration must not lose is the table's two-sided
+ *  `ExemptionTable` until #2182 (`2dabae9ce`'s own subject line; this cited #2183, the sibling pair's
+ *  issue, until #2294/#2314) and §12.5 bans one. What the migration must not lose is the table's two-sided
  *  ratchet: the row licenses exactly the ink it names, and a row whose ink stopped being painted goes STALE
  *  rather than sitting forever. Both directions are asserted below, plus the wrong-operation control that
  *  says the identity is the (carrier, ink) PAIR and not the file. */
@@ -272,6 +305,70 @@ test("a grant whose ink stopped being painted is STALE — the two-sided ratchet
 
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(result.authority.authorityAlarms.map(({ kind }) => kind)).toEqual(["stale-reviewed-grant"]);
+});
+
+/** `product-css`'s FOURTH reachable status, and the one no proof row can express (#2314).
+ *
+ *  The status set is a property of the READER: `ops/resource-tree.ts#loadCssFiles` forwards
+ *  `ops/resource-reader.ts#read`'s status BEFORE it can judge the CSS grammar, and `read` answers
+ *  `missing` · `empty` · `unresolved` (any throw that is not ENOENT — an invalid UTF-8 byte, a directory,
+ *  a refused symlink); `loadCssFiles` then adds `malformed` of its own. `missing`, `malformed` and `empty`
+ *  are `mustRefuse` ROWS in the module. `unresolved` cannot be: a row's `files` map is a JS STRING map and
+ *  no string carries an invalid UTF-8 byte (`Buffer.from("\uD800")` is the replacement character, which
+ *  decodes cleanly). So it is pinned here, on a real `mkdtemp` root, written as BYTES, with NO overlay —
+ *  an overlay string short-circuits the disk read (`resource-reader.ts` prefers `overlay.get(path)` over
+ *  `diskBytes`), which is exactly how this pin would otherwise pass for the wrong reason.
+ *
+ *  The HEALTHY TWIN uses the same helper on the same substrate, so a refusal produced by the harness
+ *  rather than by the planted byte cannot pass. The twin also supplies the COMPILER half: this policy is a
+ *  declared hybrid, and a root with no admitted `@client`/`@ui` source refuses with "candidate corpus is
+ *  empty" — a refusal about the harness wearing the resource refusal's clothes. */
+const DISK_CSS: Readonly<Record<string, string>> = {
+  "packages/ui/src/styles/theme.css": SEEDS,
+  "packages/ui/src/styles/globals.css": "@layer base {}\n",
+  "packages/ui/src/styles/tiers.css": "@layer utilities {}\n",
+  "packages/client/src/styles/globals.css": "@layer base {}\n",
+  "packages/client/src/features/app-shell/surfaces/shell.css": ".shell {}\n",
+};
+
+function passOnDisk(scratch: string, files: Readonly<Record<string, string>>, bytes: Readonly<Record<string, readonly number[]>>): PolicyPassResult {
+  for (const [path, content] of Object.entries(files)) {
+    mkdirSync(join(scratch, path, ".."), { recursive: true });
+    writeFileSync(join(scratch, path), content);
+  }
+  for (const [path, raw] of Object.entries(bytes)) {
+    mkdirSync(join(scratch, path, ".."), { recursive: true });
+    writeFileSync(join(scratch, path), Buffer.from(raw));
+  }
+  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  project.createSourceFile(join(scratch, CARRIER), OVERLAY[CARRIER], { overwrite: true });
+  return runPolicyPass({
+    knownPolicies: [seedThemeInkContrast],
+    policies: [seedThemeInkContrast],
+    root: scratch,
+    project,
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+}
+
+test("an UNREADABLE product stylesheet refuses as `unresolved` — the status no proof row can express", ({ scratch }) => {
+  const { "packages/ui/src/styles/theme.css": _sabotaged, ...intact } = DISK_CSS;
+  const result = passOnDisk(scratch, intact, { "packages/ui/src/styles/theme.css": [0x40, 0xff, 0x0a] });
+
+  expect(result.authority.withheldPolicyIds).toEqual(["seed-theme-ink-contrast"]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.policies.map(({ owner }) => owner.status)).toEqual(["incomplete"]);
+  expect(result.toolErrors.map(({ phase, message }) => [phase, message])).toEqual([
+    ["population", expect.stringContaining("resource declaration product-css is unresolved: The encoded data was not valid for encoding utf-8")],
+  ]);
+});
+
+test("the HEALTHY TWIN of that pin reaches a verdict on the same substrate", ({ scratch }) => {
+  const result = passOnDisk(scratch, DISK_CSS, {});
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
 });
 
 /** The nine migrated rows, held two-sided against the module they license. A row added for a policy that
