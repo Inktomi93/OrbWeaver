@@ -51,7 +51,7 @@ export function reactLookalikeProofModule(): string {
  *  carried a declared limit that an overloaded React export would flip these policies from their precise
  *  verdict to the LOUD `unreadable` finding, because `resolveModuleMemberOrigin` refused any multiply-declared
  *  export as `ambiguous`. The reader now resolves a same-file overload set to its one home
- *  (`reference-fact-module.ts#overloadHome`), so the limit is closed — and this module is what keeps it
+ *  (`reference-fact-overload.ts#overloadHome`), so the limit is closed — and this module is what keeps it
  *  closed: a proof row built on it asserts the DEPRECATION message, which the unreadable arm does not carry. */
 export function reactOverloadedProofModule(): string {
   return SURFACE.replace(

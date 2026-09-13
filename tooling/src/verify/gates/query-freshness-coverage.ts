@@ -36,9 +36,12 @@
 //
 // Registration: Core-Enforcement-Active-Gates.md (Layer 3) + the `__g_` fixture in
 // tests/tooling/check-gates.repo.int.test.ts. Seam: packages/client/src/data/invalidation.ts.
+// BINDING RESOLUTION (#2163): call-graph edges compare the shared lexical declaration first and the
+// canonical module origin second; the policy no longer walks Symbol declarations or import aliases.
 import type { Node, Project, SourceFile } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin } from "../lib/reference-fact.ts";
 
 // ── the two-map registry (keyed "<router>.<proc>") ───────────────────────────────────────────────────────
 // STATIC = a SANCTIONED uncovered key: a bus row is not warranted, and the entry says why (the datum does not
@@ -361,11 +364,12 @@ function referencesBinding(identifier: Node, binding: Node): boolean {
   if (!N.isIdentifier(identifier)) {
     return false;
   }
-  const symbol = identifier.getSymbol();
-  if (symbol === undefined) {
-    return false;
+  const lexical = resolveLexicalValueDeclaration(identifier);
+  if (lexical.kind === "resolved" && lexical.value === binding) {
+    return true;
   }
-  return (symbol.getAliasedSymbol() ?? symbol).getDeclarations().includes(binding);
+  const origin = resolveModuleMemberOrigin(identifier);
+  return origin.kind === "resolved" && origin.value.canonical.kind === "project" && origin.value.canonical.declaration === binding;
 }
 
 /** The filter rows reachable from `createInvalidation` — the closure over the seam's own helpers/maps, so a

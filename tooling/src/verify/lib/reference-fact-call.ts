@@ -12,7 +12,7 @@ import type {
 } from "../contract/reference-fact.ts";
 import { inspectBindingReassignment, readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin } from "./reference-fact.ts";
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
-import { overloadHome } from "./reference-fact-module.ts";
+import { overloadHome } from "./reference-fact-overload.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-writes.ts";
 
 const INVOCATION_WRAPPERS = new Set(["apply", "bind", "call"]);

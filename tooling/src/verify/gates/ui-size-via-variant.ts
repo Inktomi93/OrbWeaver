@@ -52,7 +52,7 @@
 // CrossfadeImage), whose geometry is the call site's datum by design.
 //
 // IN SCOPE since 2026-08-02: the Tailwind IMPORTANT modifier, BOTH spellings (`!size-6` and `size-6!`) —
-// see `IMPORTANT_MODIFIER_RE`. It was the gate's one live escape hatch, and the escape is the worse form of
+// see the shared `lib/tailwind-class-token.ts` normalizer. It was the gate's one live escape hatch, and the escape is the worse form of
 // the incident (an `!important` override wins by force instead of by stylesheet order).
 //
 // Survivor mechanism: `ALLOWLIST` holds the SANCTIONED files only (reason-cited, both-ways stale ratchet).
@@ -99,6 +99,7 @@ import type { JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-mo
 import { Node, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
+import { readTailwindClassToken, readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 /** UNSIZED-BOX `@orb/ui` modules — components with NO size of their own, whose geometry IS the call
  *  site's datum, so a call-site box utility cannot fight a variant (there is none) and is the intended
@@ -162,7 +163,6 @@ const UI_SPECIFIER_RE = /^@orb\/ui(?:\/|$)/u;
  *  inline-input sites walked straight past it. An `!important` size utility is not a lesser version of the
  *  incident, it is the WORSE one: the plain form resolves by stylesheet order (a coin flip), the `!` form
  *  wins by force and makes the primitive's variant unreachable. */
-const IMPORTANT_MODIFIER_RE = /^!|!$/gu;
 /** The scoped box utilities (terminal segment): h / min-h / size / w with a plain (non-bracket) value.
  *  The value class carries `-` since #169 — see the HYPHEN HOLE note in the header; without it every
  *  multi-segment sealed token (`h-control-sm`, `size-avatar-md`, `min-h-touch-target`) walked past. */
@@ -172,13 +172,12 @@ const KEYWORD_VALUE_RE = /^(?:full|fit|min|max|screen|[sld]v[hw])$/u;
 const FRACTION_VALUE_RE = /^\d+\/\d+$/u;
 const NUMERIC_VALUE_RE = /^(?:\d+(?:\.\d+)?|px)$/u;
 const CUSTOM_TOKEN_VALUE_RE = /^[a-z][a-z0-9-]*$/u;
-const WHITESPACE_RE = /\s+/u;
 
 /** Is this whitespace-split class token a banned size utility (terminal segment)? The variant chain is
  *  dropped first (`focus:h-9` → `h-9`), then the important modifier on whichever side it sits
  *  (`focus:!h-9` / `focus:h-9!` → `h-9`) — Tailwind puts `!` on the UTILITY, never before the variants. */
 function isBannedSizeToken(token: string): boolean {
-  const terminal = (token.split(":").at(-1) ?? token).replace(IMPORTANT_MODIFIER_RE, "");
+  const terminal = readTailwindClassToken(token).utility;
   const match = SIZE_UTILITY_RE.exec(terminal);
   if (match?.groups === undefined) {
     return false;
@@ -205,18 +204,7 @@ interface BannedToken {
 
 /** Every banned size token in a class-string node's text (quotes/backticks at [0] and [-1]). */
 function bannedSizeTokens(nodeText: string): BannedToken[] {
-  const stripped = nodeText.slice(1, -1);
-  const out: BannedToken[] = [];
-  const parts = stripped.split(WHITESPACE_RE);
-  let cursor = 0;
-  for (const part of parts) {
-    const at = stripped.indexOf(part, cursor);
-    cursor = at + part.length;
-    if (part.length > 0 && isBannedSizeToken(part)) {
-      out.push({ token: part, offset: at + 1 });
-    }
-  }
-  return out;
+  return readTailwindClassTokens(nodeText).filter((part) => isBannedSizeToken(part.token));
 }
 
 /** Per-file cache: the set of LOCAL names imported from `@orb/ui` / `@orb/ui/*` (named imports, alias

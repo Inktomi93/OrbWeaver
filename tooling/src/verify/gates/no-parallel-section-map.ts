@@ -27,8 +27,8 @@
 // `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]` is FOUR zones; the old direct-element reader saw ONE and
 // every `rail.*`-zoned parallel map escaped while the file scan stayed healthy.
 //
-// WHY THIS READER AND NOT `tupleVocabularyFact`, measured 2026-09-12 and the reason to leave this
-// paragraph alone: the shared FACT cannot serve two of these four vocabularies on the REAL tree. Its
+// WHY THIS READER ONCE COULD NOT BE `tupleVocabularyFact`, measured 2026-09-12: the shared FACT could not
+// serve two of these four vocabularies on the REAL tree. Its
 // authored-value reader refuses a composite whose binding has ANY invoked member
 // (`lib/static-authored-value.ts` `explicitCompositeRefusal` → `invokedMemberThroughAliases`, reason
 // `dynamic`), and `section-ids.ts:33` / `config-group-ids.ts:41` both call `.includes(v)` inside their own
@@ -48,9 +48,10 @@
 // `Array.prototype` member, so a binding consumed ONLY through `.includes(v)` is no longer `dynamic`.
 // The measured 0-members refusal above therefore describes a condition that no longer holds, and the
 // paragraph is kept for its MECHANISM rather than its number. What has NOT changed and is why this module
-// still reads through `readTupleDeclaration`: nothing has re-measured `tupleVocabularyFact` against the
-// real client tree since, and switching a live policy's vocabulary source on an unmeasured premise is the
-// exact class this header exists to record. Re-measure before proposing the switch.
+// now reads through `tupleVocabularyFact`: the INPUT changed and the shared reader re-measured all four
+// vocabularies through the real client corpus before this switch. The old ruling and its mechanism remain
+// here because widening the authored-value reader beyond proven read-only members would recreate the same
+// blindness class.
 //
 // AND A VOCABULARY THAT STOPS RESOLVING NOW WITHHOLDS THE VERDICT INSTEAD OF RETIRING ITS ARM. Legacy
 // skipped a vocabulary whose tuple read empty (`if (vocab.ids.size === 0) continue`), so a renamed or moved
@@ -76,7 +77,7 @@ import type { DefinitionSlot } from "../contract/registry-definition-home.ts";
 import { DEFINITION_SLOTS } from "../contract/registry-definition-home.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { isDefinitionHome } from "../lib/registry-definition-home.ts";
-import { readTupleDeclaration } from "../lib/tuple-read.ts";
+import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 
 /** ≥ this many vocabulary keys in one literal = a re-declared parallel map, not an incidental pair. */
 const MIN_KEYS = 2;
@@ -354,29 +355,6 @@ function judgeChromeArrays(candidates: Candidates, zones: ReadonlySet<string>, j
   }
 }
 
-/** The EXPORTED tuple declarations this invocation was delivered, by declared name. Built in `create`
- *  state from visited nodes, never from a project walk: a tuple is read BY SYMBOL (the
- *  path-keyed-gates-die-on-rename discipline), so a tuple that moves stays visible. */
-function exportedTupleIndex(candidates: Candidates): ReadonlyMap<string, readonly VariableDeclaration[]> {
-  const index = new Map<string, VariableDeclaration[]>();
-  for (const declaration of candidates.declarations) {
-    if (declaration.getVariableStatement()?.isExported() !== true) {
-      continue;
-    }
-    const name = declaration.getName();
-    index.set(name, [...(index.get(name) ?? []), declaration]);
-  }
-  return index;
-}
-
-/** One vocabulary's members, or undefined when the name is claimed by no exported declaration or by TWO.
- *  Both are blindness, never a narrowed vocabulary: the caller's receipt refuses and the pass withholds. */
-function readVocabularyMembers(index: ReadonlyMap<string, readonly VariableDeclaration[]>, tupleConst: string): ReadonlySet<string> | undefined {
-  const declarations = index.get(tupleConst) ?? [];
-  const declaration = declarations.length === 1 ? declarations[0] : undefined;
-  return declaration === undefined ? undefined : readTupleDeclaration(declaration).members;
-}
-
 const VOCAB_FIXTURES = {
   "packages/client/src/state/section-ids.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
   "packages/client/src/state/modal-slot-ids.ts": 'export const MODAL_SLOT_IDS = ["theme", "settings", "account"] as const;\n',
@@ -394,7 +372,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [],
+  facts: [tupleVocabularyFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -413,11 +391,11 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
-        const index = exportedTupleIndex(candidates);
+        const tuples = ctx.fact(tupleVocabularyFact);
         const read = (tupleConst: string): ReadonlySet<string> | undefined => {
-          const members = readVocabularyMembers(index, tupleConst);
-          ctx.receipt({ kind: "population", source: tupleConst, members: members?.size ?? 0, unresolved: members === undefined ? 1 : 0 });
-          return members;
+          const vocabulary = tuples.read(tupleConst);
+          ctx.receipt({ kind: "population", ...tupleVocabularyReceipt(vocabulary) });
+          return vocabulary.kind === "resolved" ? new Set(vocabulary.entries.map(({ value }) => value)) : undefined;
         };
         const vocabularies = VOCAB_SPECS.map((vocab) => ({ vocab, ids: read(vocab.tupleConst) }));
         const zones = read(CHROME_TUPLE);

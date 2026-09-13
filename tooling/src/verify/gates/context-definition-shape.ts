@@ -6,7 +6,7 @@
 //   2. a `defineContextTabs` call with `tabs: []` AND no `contributors` — a dead mint, no reachable
 //      content;
 //   3. O5 STRICT — a `defineContextTabs` call or a `ContextTabDef<…>` type-ref whose type argument is not
-//      `void` and not an identifier resolving to a type EXPORTED from `registry-contracts.ts` (an inline
+//      `void` and not a type reference resolving to a type EXPORTED from `registry-contracts.ts` (an inline
 //      literal / index signature / `any` / `unknown` escape re-opens the loose-projection hole O5 closed),
 //      and a call with NO explicit type argument at all (inference leaks an unpublished shape);
 //   4. the dead CONTEXT_SLOTS↔bodies split resurrected — a `bodies: Record<string, ReactNode>`-shaped JSX
@@ -118,7 +118,7 @@ function isMintFile(sourceFile: SourceFile): boolean {
   return REGISTRY_CONTRACTS_RE.test(sourceFile.getFilePath());
 }
 
-/** True when a type arg is `void` or an identifier whose declaration resolves to a type EXPORTED from
+/** True when a type arg is `void` or a reference whose declaration resolves to a type EXPORTED from
  *  `lib/registry-contracts.ts` (O5 strict — no any/unknown/inline literal/index signature escape). */
 function isStrictProjectionArg(typeArg: TypeNode): boolean {
   if (typeArg.getKind() === SyntaxKind.VoidKeyword) {
@@ -128,17 +128,14 @@ function isStrictProjectionArg(typeArg: TypeNode): boolean {
     return false;
   }
   const nameNode = typeArg.getTypeName();
-  if (!Node.isIdentifier(nameNode)) {
-    return false;
-  }
   const origin = resolveModuleMemberOrigin(nameNode);
-  const lexical = referenceResolutionServices.declarationOf(nameNode);
-  if ((origin.kind === "unresolved" && origin.reason === "ambiguous") || (lexical.kind === "unresolved" && lexical.reason === "ambiguous")) {
+  const lexical = Node.isIdentifier(nameNode) ? referenceResolutionServices.declarationOf(nameNode) : undefined;
+  if ((origin.kind === "unresolved" && origin.reason === "ambiguous") || (lexical?.kind === "unresolved" && lexical.reason === "ambiguous")) {
     // Declaration merging retains the published type; it is not an unreadable projection.
     const type = resolveTypeIdentityOrigin(typeArg);
     return type.kind === "resolved" && type.value.declarations.some((home) => REGISTRY_CONTRACTS_RE.test(home.getSourceFile().getFilePath()));
   }
-  let declaration = lexical.kind === "resolved" ? lexical.value : undefined;
+  let declaration = lexical?.kind === "resolved" ? lexical.value : undefined;
   if (origin.kind === "resolved" && origin.value.canonical.kind === "project") {
     declaration = origin.value.canonical.declaration;
   }
@@ -373,6 +370,20 @@ export const gate = defineGate({
           "});\n",
       },
       why: "THE PUBLICATION HALF of O5 strict: an `S` that is an identifier RESOLVING to a registry-contracts export, imported by a specifier that reaches a real file in this row's own map. Drop the shared declaration-origin home test and this row still passes — but drop the requirement that the home BE registry-contracts and mustFlag[2]'s second finding disappears, which is the direction that matters",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/lib/registry-contracts.ts": "export interface CharacterContextState { readonly characterId: string }\n",
+        "packages/client/src/features/character/lib/namespace-section.tsx":
+          'import type * as contracts from "../../../lib/registry-contracts.ts";\n' +
+          "declare function defineContextTabs<S>(spec: unknown): unknown;\n" +
+          "export const x = defineContextTabs<contracts.CharacterContextState>({\n" +
+          "  useContextState: () => null,\n" +
+          '  tabs: [{ id: "a", label: "A", body: () => null }],\n' +
+          "});\n",
+      },
+      why: "THE NAMESPACE-QUALIFIED PUBLICATION spelling: the projection still resolves to the registry-contracts export and remains strict",
     },
     {
       mode: "types",

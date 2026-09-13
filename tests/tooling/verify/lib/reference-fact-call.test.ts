@@ -107,7 +107,7 @@ test("an OVERLOAD SET is one home — the implementation — while a genuine mer
 
   // The MULTIPLICITY rule is not "one declaration": an overload set is several declarations of one
   // callable with one body, and refusing it as ambiguous is what cost three policy families their verdict
-  // on the module axis (`reference-fact-module.ts#overloadHome`, now shared with this lexical axis).
+  // on the module axis (`reference-fact-overload.ts#overloadHome`, now shared with this lexical axis).
   expect(overloaded.declaration.getKind()).toBe(SyntaxKind.FunctionDeclaration);
   expect(overloaded.body?.getText()).toContain("String(x)");
 
