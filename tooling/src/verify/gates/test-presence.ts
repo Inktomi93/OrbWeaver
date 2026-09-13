@@ -63,17 +63,15 @@
 //   `existsSync(tests/<pkg>/<base><suffix>)`  →  `mirrorIndex("package-test").testFiles`
 // Deltas, each deliberate: (1) a mirror under a non-authored segment or behind a symlink is no longer read
 // as a mirror (the authored reader refuses both, where `existsSync` accepted them); (2) findings anchor at
-// `line: 1, column: 1` rather than the legacy synthetic `line: 0`; (3) THE TRIPWIRE ANCHOR MOVED — see
-// below. Nothing else: the seven arms, their order, their messages and every SHAPE exemption are unchanged.
+// `line: 1, column: 1` rather than the legacy synthetic `line: 0`; (3) THE BLINDNESS TRIPWIRES REFUSE
+// evaluation — see below. Nothing else: the seven arms, their order, their messages and every SHAPE
+// exemption are unchanged.
 //
-// THE TRIPWIRE ANCHOR MOVE. Both blindness tripwires reported at this gate's OWN source file, which sits in
-// `tooling/` — outside this policy's population AND outside its resource population, so `ctx.report.file`
-// would THROW on it (guide §2.1's absent/foreign-subject class). They now anchor through
-// `lib/absent-subject-anchor.ts` `subjectAnchor` on the real-tree anchor they are already gated on, with
-// the diagnosis unchanged in the MESSAGE. §4.6 category 6 owes a marker receipt for an anchor move; the
-// live `@orb-gate-ignore test-presence` census is ZERO, measured with a planted positive control, so
-// nothing binds to the old position (RE-MEASURED 2026-09-13 at `5045a6a68`, planted control found, corpus
-// otherwise empty).
+// THE BLINDNESS REFUSALS. Both tripwires used to report at this gate's OWN source file, which sits in
+// `tooling/` — outside this policy's population AND outside its resource population. Once the real-tree
+// anchor arms either census, zero recognized domain or tier files means the path-keyed analysis did not
+// run. That is an evaluation refusal, not test debt: `mustRefuse` holds both diagnoses, and the coordinator
+// withholds the policy with no partial findings.
 //
 // §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS A POPULATION + OUTCOME RECEIPT, NOT CATCH
 // PARITY. The conversion `aecbc6c6c` landed a population/refusal receipt and never ran a findings
@@ -96,16 +94,19 @@
 // corpus this derivation is keyed on disappear?", which is a real question on the live tree and a false
 // alarm on any small fixture. The legacy guard was `fileLoaded(ctx, "packages/db/src/schema/index.ts")`;
 // it is now `mirrorIndex.sourceFiles.has(...)` — the same file, asked of a declared resource instead of the
-// run's fileset. `mustFlag[15]` is the one row that reaches the tier tripwire, by planting the anchor.
+// run's fileset. The two `mustRefuse` rows plant that anchor and independently reach each census failure.
 //
-// AUTHORITY `hard`. With the baseline gone the policy owns no exemption table, no marker grammar and no
-// private parser, and every finding is FILE-anchored with no position token, so under this contract no
-// ordinary door exists BY CONSTRUCTION. `hard` is the honest declaration.
+// AUTHORITY `hard`; TEMPORARY SEVERITY `warning`, owner #2346. With the baseline gone the policy owns no
+// exemption table, no marker grammar and no private parser, and every finding is FILE-anchored with no
+// position token. Findings therefore remain effective and unwaived even while they contribute zero to the
+// default blocking count. `--fail-on-warnings` promotes them to blocking. Gate-program closeout restores
+// `severity: "error"` and removes `workItem`; it does not add an ordinary door or an escape grant.
 //
-// WHERE A BROKEN RESOURCE REFUSES — not here. The policy reads the ready mirror through
-// `readyResourceValue`; the family `runPolicyPass` controls retain the complete runtime outcome for missing,
-// empty, and unresolved mirrors: no findings, a named population-phase tool error, an incomplete owner, and
-// this policy withheld. Healthy twins prove success and the unresolved-zero mirror receipt (§§3, 6.3).
+// WHERE A BROKEN RESOURCE REFUSES. A non-ready declared resource refuses at the POPULATION phase before
+// `create` runs. The two armed blindness diagnoses refuse during EVALUATION before findings are reported.
+// The family `runPolicyPass` controls retain both complete outcomes: no findings, a named tool error, an
+// incomplete owner, and this policy withheld. Healthy twins prove success and the unresolved-zero mirror
+// receipt (§§3, 6.3).
 // DECLARED LIMITS, each naming the row that holds it: the zero-logic `service.ts` / `context.ts` feature
 // roots (`mustPass[4]`, `[5]`), the error-declaration-only `contract/` file (`mustPass[6]`), the D58 stub
 // runner (`mustPass[2]`), the tier pass-through / DI-bundle / router-shell / curried-factory / `.d.ts`
@@ -143,7 +144,6 @@ import type { TestFamily } from "../../_shared/test-kinds.ts";
 import { TEST_KIND_DEFINITIONS } from "../../_shared/test-kinds.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { MirrorIndex } from "../contract/resource-mirror.ts";
-import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
 import { codeTextForScan } from "../lib/comment-spans.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
@@ -508,11 +508,9 @@ function blindnessMessage(state: ScanState): string | undefined {
 }
 
 /** The two §4.6 blindness tripwires, gated on the REAL-TREE ANCHOR: a conformance mini-project and a scoped
- *  run both legitimately carry neither the domain corpus nor the tier corpus, and judging either there would
- *  red the gate's own self-proof. The tripwire finding is ADDED to the arms' findings, never substituted for
- *  them — the legacy `run` reported every violation BEFORE its `return`, and clearing them here would make a
- *  blind derivation SUPPRESS the findings the sighted arms did produce. */
-function pushBlindness(state: ScanState, mirror: MirrorIndex, reportable: ReadonlySet<string>): void {
+ *  run both legitimately carry neither the domain corpus nor the tier corpus. Once armed, zero recognition is
+ *  an analysis failure, so it refuses evaluation and withholds every partial finding gathered before it. */
+function refuseBlindness(state: ScanState, mirror: MirrorIndex): void {
   if (!mirror.sourceFiles.has(REAL_TREE_ANCHOR)) {
     return;
   }
@@ -520,16 +518,15 @@ function pushBlindness(state: ScanState, mirror: MirrorIndex, reportable: Readon
   if (blind === undefined) {
     return;
   }
-  // The legacy arm reported at this gate's own source file, which is outside every population it declares.
-  const anchor = subjectAnchor(reportable, [REAL_TREE_ANCHOR]);
-  state.findings.push({ file: anchor(REAL_TREE_ANCHOR), message: blind });
+  throw new Error(blind);
 }
 
 export const gate = defineGate({
   id: "test-presence",
   family: "mirror-index",
   authority: "hard",
-  severity: "error",
+  severity: "warning",
+  workItem: 2346,
   population: ["@server", "@contracts"],
   analysis: "resource",
   execution: "entire-population",
@@ -557,7 +554,7 @@ export const gate = defineGate({
             pushContracts(mirror.testFiles, rel.slice(CONTRACTS_SRC.length), sourceFile, state.findings);
           }
         }
-        pushBlindness(state, mirror, new Set(ctx.resourcePaths));
+        refuseBlindness(state, mirror);
         for (const finding of state.findings) {
           ctx.report.file(finding.file, { line: 1, column: 1, message: finding.message });
         }
@@ -708,27 +705,6 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
-        "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((r) => r[0] ?? 0);\n",
-        "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
-      },
-      expect: { count: 1, messageIncludes: "the entry/transport scan matched ZERO files" },
-      why: "THE #773 ARM'S BLINDNESS TRIPWIRE (§4.6): a corpus that carries the real-tree anchor and a tested domain logic file but NO entry/transport file at all. The tier demand is keyed on two path prefixes, so a rename or a tier move would otherwise turn the whole arm into a silent ✓ over an unscanned corpus — this is the one row that reaches the tripwire, since a real run never has zero. THE ANCHOR MOVE is pinned here too: the finding reports at the db schema anchor, inside the declared resource population, never at the gate's own source file",
-    },
-    {
-      mode: "resource",
-      files: {
-        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
-        "packages/server/src/entry/http/frame-handle-store.ts":
-          "export function take(id: string): string | undefined {\n  const hit = STORE.get(id);\n  if (hit === undefined) {\n    return undefined;\n  }\n  return hit.doc;\n}\n",
-        "tests/server/entry/http/frame-handle-store.test.ts": "export const t = 1;\n",
-      },
-      expect: { count: 1, messageIncludes: "the domain scan matched ZERO files" },
-      why: "THE #767 ARM'S OWN TRIPWIRE, which the legacy suite held only in a scratch-tree test and no proof row ever reached: the anchor plus a TESTED tier corpus and no domain file at all — the shape a domain-tree move produces. Both tripwires return early, so each needs its own row or one masks the other",
-    },
-    {
-      mode: "resource",
-      files: {
         "packages/server/src/domain/chat/substrate/decides-access.ts":
           "export function shapeVia(ctx: Ctx, speaker: Speaker): Shaped {\n  return speaker.narrator ? shapeAll(ctx) : shapeOne(ctx, speaker);\n}\n",
         "tests/server/domain/chat/substrate/other.test.ts": "export {};\n",
@@ -792,6 +768,29 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "verb has no test" },
       why: "THE `mirror === \"module\"` FILTER in `hasTest` (#2254): a `.suite.test.ts` is a `unit`-family kind whose mirror is a SUITE — its name is the suite's, not the module's — so a file sitting at the demanded module path is a COINCIDENCE, not that module's coverage. Cutting the filter makes this suite name satisfy the verb demand and the row goes silent; the family filter alone cannot hold it, because `suite` kinds share `unit`/`integration` families with the module kinds",
+    },
+  ],
+  mustRefuse: [
+    {
+      mode: "resource",
+      files: {
+        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+        "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((r) => r[0] ?? 0);\n",
+        "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "the entry/transport scan matched ZERO files" },
+      why: "THE #773 ARM'S BLINDNESS REFUSAL (§4.6): once the real-tree anchor arms the census, a tested domain corpus with no entry/transport logic means the path-keyed analysis did not run and must withhold its verdict",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+        "packages/server/src/entry/http/frame-handle-store.ts":
+          "export function take(id: string): string | undefined {\n  const hit = STORE.get(id);\n  if (hit === undefined) {\n    return undefined;\n  }\n  return hit.doc;\n}\n",
+        "tests/server/entry/http/frame-handle-store.test.ts": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "the domain scan matched ZERO files" },
+      why: "THE #767 ARM'S BLINDNESS REFUSAL: the real-tree anchor plus a tested tier corpus and no domain logic is the shape a domain-tree move produces, so the owner becomes incomplete instead of emitting a warning",
     },
   ],
   mustPass: [

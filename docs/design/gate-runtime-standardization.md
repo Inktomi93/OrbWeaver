@@ -196,12 +196,19 @@ Central waiver/grant reconciliation runs only after every selected owner complet
 unresolved owner withholds its findings and its waiver/grant liveness result; no partial owner may make an exception
 look live or stale.
 
-Hard plus warning is invalid. Warning findings carry positive work items and are not converted into grants to clean a
-run. Warning promotion is opt-in and remains disabled at shipped entry points unless explicitly selected.
+Authority and severity are independent. `hard` + `warning` is valid only for an owner-authorized,
+time-bounded transition whose findings must remain unsuppressible; `ordinary` + `warning` is valid only
+when an actual waiver door is intended. Every warning carries a positive live `workItem`. Hard warning
+findings remain effective and cannot be waived or granted. Warning findings contribute zero to the shipped
+default blocking count and become blocking when `--fail-on-warnings` is selected; ordinary and
+reviewed-grant findings retain the suppression door their authority declares.
 
-A newly policed large class may transition as `ordinary` + `warning` with a live `workItem` over its whole declared population while
-its findings are retired in bounded chunks. At the final chunk it becomes `hard` + `error`. The transition never narrows
-population to manufacture a clean result, and does not authorize a permanent warning or waiver door.
+A newly policed large class may transition at warning severity over its whole declared population while
+its findings are retired in bounded chunks. Authority stays truthful to the allowed disposition: `hard`
+when no suppression is permitted, `ordinary` only when the central marker door is intended. At the final
+chunk it becomes `hard` + `error` and removes `workItem`. The transition never narrows population to
+manufacture a clean result, adds no grant or marker merely to clean the run, and does not authorize a
+permanent warning.
 
 Numeric ratchets are forbidden when the value is derivable from source, generated output, a tuple, registry, or native
 tool result. Hold derivable relationships directly. **LANDED 2026-09-13 (`284dedcee`, #2230 ARM B):** `ledgers:fresh`

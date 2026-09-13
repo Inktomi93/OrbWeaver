@@ -472,16 +472,8 @@ function assertDirectDescriptor(policy: Readonly<Record<string, unknown>>): void
 }
 
 function assertSeverityWorkItem(policy: Readonly<Record<string, unknown>>): void {
-  // #2025 (owner, 2026-09-12): `hard` asserts "no marker, no grant can settle this" and `warning` asserts "this
-  // never blocks" — a policy that is unsuppressible and non-blocking at once means neither word, and the three
-  // §5b enforcers that carried the pair reported their own worklist on the commit bar while stopping nothing.
-  // Warning debt lives under an authority whose findings a marker or grant can settle; a hard policy blocks.
-  if (policy["authority"] === "hard" && policy["severity"] === "warning") {
-    invalid(
-      'descriptor.severity "warning" contradicts authority "hard" (#2025): unsuppressible and non-blocking at once means neither — use severity "error", ' +
-        "or carry the debt under an authority whose findings a marker or grant can settle",
-    );
-  }
+  // Warning severity is temporary work debt regardless of authority. A hard warning remains effective and
+  // unwaivable; only its default contribution to the blocking count changes.
   if (policy["severity"] === "warning") {
     if (!Object.prototype.propertyIsEnumerable.call(policy, "workItem")) {
       invalid("descriptor.workItem must be an own enumerable property when severity is warning");
