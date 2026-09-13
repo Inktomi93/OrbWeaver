@@ -41,7 +41,7 @@ export const NODE_TYPES_HOME = "node_modules/@types/node/index.d.ts";
 /** A SECOND trusted ambient global carrying an `env` bag under a different NAME — the same-shape/different-name
  *  twin that pins a policy's `globalName` comparison on the env door. */
 export const NODE_LOOKALIKE_HOME = "node_modules/@types/node-lookalike/index.d.ts";
-export const ARGV_LOOKALIKE_HOME = "node_modules/@types/argv-lookalike/index.d.ts";
+const ARGV_LOOKALIKE_HOME = "node_modules/@types/argv-lookalike/index.d.ts";
 /** A trusted ambient global named exactly like a MODULE export a policy seals — the twin that differs in the
  *  resolved origin's KIND rather than in its name, so a policy whose arm keys on `target.kind === "module"`
  *  has a fixture that actually reaches that comparison. */

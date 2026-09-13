@@ -1,8 +1,4 @@
 // Shared isolated-project source for identity-policy self-proofs.
-import { ID_BRAND_HOME } from "../../lib/id-brand.ts";
-
-export const ID_BRAND_PROOF_PATH = ID_BRAND_HOME;
-
 const BRAND_BASE =
   "declare const brand: unique symbol;\nexport type Branded<B extends string> = string & { readonly [brand]: B };\nexport type TypeIdOf<P extends string> = Branded<P>;\n";
 

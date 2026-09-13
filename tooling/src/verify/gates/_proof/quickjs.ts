@@ -5,9 +5,9 @@
 // half of the fact. A file at `node_modules/quickjs-emscripten-core/index.d.ts` is resolved by the same
 // node module walk the real tree uses and puts the declaration in the same `/node_modules/…/` home the live
 // checker reports, so `declaredByPackage` is exercised for real rather than stubbed.
-export const QUICKJS_HOME = "node_modules/quickjs-emscripten-core/index.d.ts";
+const QUICKJS_HOME = "node_modules/quickjs-emscripten-core/index.d.ts";
 /** A second package declaring the same `dump` member — the same-SPELLING/different-ORIGIN twin. */
-export const QUICKJS_LOOKALIKE_HOME = "node_modules/not-quickjs/index.d.ts";
+const QUICKJS_LOOKALIKE_HOME = "node_modules/not-quickjs/index.d.ts";
 
 const SURFACE = [
   "export interface QuickJSHandle {",

@@ -5,8 +5,8 @@
 // uses, so a proof exercises `declaredByPackage` against an actual `/node_modules/<pkg>/` declaration home
 // rather than a stub. The LOOKALIKE twin exports the same member names from a different package — that pair
 // is the whole identity claim, and every policy here owes a row on both sides.
-export const TRPC_SERVER_HOME = "node_modules/@trpc/server/index.d.ts";
-export const RPC_LOOKALIKE_HOME = "node_modules/rpc-lookalike/index.d.ts";
+const TRPC_SERVER_HOME = "node_modules/@trpc/server/index.d.ts";
+const RPC_LOOKALIKE_HOME = "node_modules/rpc-lookalike/index.d.ts";
 
 const BUILDER = [
   "export interface ProcedureBuilder {",
