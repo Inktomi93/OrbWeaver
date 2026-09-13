@@ -665,9 +665,9 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   dangling reference `dangling-refs` cannot see** — `serde-core-seal.ts:15` cited the spacing family's
   gate-to-gate arrangement as its precedent and the commit that moved that arrangement into `lib/` reversed the
   referent while correctly leaving the citing module fenced (#2177). Grep the gates tree for the moved symbol's
-  NAME in comments, not only in code. And a renamed TRACKED spec is a TWO-SITE edit in the test-baseline
-  manifest: `testFiles` is monotonic, so a rename with no `deletions[path].why` leaves a ghost that
-  `ledgers:fresh` reports FRESH over (#2174's lane). `git diff --stat` after `git add -A` measures you against
+  NAME in comments, not only in code. (A renamed TRACKED spec used to be a two-site edit in the test-baseline
+  manifest; that manifest and `monotonic-tests` are DELETED — §"merge" above states it — so a rename now owes
+  nothing there, and #2174's ghost-entry hazard died with the ledger.) `git diff --stat` after `git add -A` measures you against
   your own staging; the control is `git diff HEAD`.
 - **A MERGE FENCE SAYS "NOTHING LANDS IN MAIN", NEVER "DO NOT MERGE / DO NOT REBASE"** (paid 2026-09-12, three
   briefs in one round). What a barrier protects is MAIN's checkout; a lane moving its OWN branch inside its worktree
