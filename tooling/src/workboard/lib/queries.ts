@@ -80,14 +80,17 @@ export function dependencyMutation(remove: boolean): string {
  *  subject, and its founding defect (#2153) crossed two ids that BOTH existed. Answering that needs the
  *  row's own text, so `title body` come back with it and the join is `lib/citation-subject.ts`. The
  *  `projectItems` slice answers the other half of "a BOARD row": an issue on no board is not one.
- *  Measured 2026-09-13: 2328 issues over 24 pages, ~125 KB and ~1 s per page. `first: 10` on projectItems
- *  is the fence — an issue is on Project 1 or it is not, and a truncated list would silently read
- *  "off-board", which the snapshot-level membership assertion in `fetchIssueStates` refuses. */
+ *  Measured 2026-09-13: 2328 issues over 24 pages, ~125 KB and ~1 s per page.
+ *
+ *  `projectItems` CARRIES ITS OWN `pageInfo` (N4, the 2026-09-13 security review). `first: 10` is a fence,
+ *  and a fence that truncates is indistinguishable from an honest "this issue is on no board" — which the
+ *  reader turns into a hard finding. So the wire says whether it truncated, and `fetchIssueStates` refuses
+ *  the row it could not decide rather than calling it off-board. */
 export const ISSUE_STATES_QUERY = `query WorkItemIssueStates($owner: String!, $repo: String!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
     issues(first: 100, after: $cursor, orderBy: { field: CREATED_AT, direction: ASC }) {
       pageInfo { hasNextPage endCursor }
-      nodes { number state title body projectItems(first: 10) { nodes { project { number } } } }
+      nodes { number state title body projectItems(first: 10) { pageInfo { hasNextPage } nodes { project { number } } } }
     }
   }
 }`;

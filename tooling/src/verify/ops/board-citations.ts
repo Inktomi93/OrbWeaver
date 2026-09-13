@@ -28,16 +28,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import type { BoardCitation, BoardStates, CitedDocument } from "../lib/board-citations.ts";
-import {
-  assertLedgerSource,
-  assertRosterSource,
-  assertSubjectJoinMeasured,
-  boardCitationsExit,
-  boardCitationsReport,
-  crossedCitations,
-  judgeBoardCitations,
-} from "../lib/board-citations.ts";
+import type { BoardStates } from "../lib/board-citations.ts";
+import { assertSubjectJoinMeasured, boardCitationsExit, boardCitationsReport, crossedCitations, judgeBoardCitations } from "../lib/board-citations.ts";
+import type { BoardCitation, CitedDocument } from "../lib/citation-sources.ts";
+import { assertLedgerSource, assertRosterSource } from "../lib/citation-sources.ts";
 import type { CitationSubject } from "../lib/citation-subject.ts";
 import { declaredSubjectKey, parseSubject } from "../lib/citation-subject.ts";
 import { loadMixedGateCorpus } from "../lib/loader.ts";
@@ -133,10 +127,12 @@ function plantedSubjectLedger({ issue, subject }: { readonly issue: number; read
     text: [
       "## THE LEDGER",
       "",
-      "| module | wave · `path:line` | state |",
-      "| - | - | - |",
-      `| control-subject-match | ${subject.family} ${subject.row} · \`control.ts:1\` | ${cell} |`,
-      `| control-subject-cross | ${subject.family} ${IMPOSSIBLE_ROW} · \`control.ts:1\` | ${cell} |`,
+      // THE PRODUCTION SCHEMA, header for header. A control document that is not admitted by the same
+      // rule as the real ledger proves nothing about the real ledger — which is the whole of N2.
+      "| module | wave · `path:line` | defect | state |",
+      "| - | - | - | - |",
+      `| control-subject-match | ${subject.family} ${subject.row} · \`control.ts:1\` | the matching arm | ${cell} |`,
+      `| control-subject-cross | ${subject.family} ${IMPOSSIBLE_ROW} · \`control.ts:1\` | the crossing arm | ${cell} |`,
       "",
     ].join("\n"),
   };

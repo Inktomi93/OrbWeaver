@@ -20,7 +20,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { vi } from "vitest";
 import type { BoardStates } from "../../../../tooling/src/verify/lib/board-citations.ts";
-import { assertLedgerSource, assertRosterSource } from "../../../../tooling/src/verify/lib/board-citations.ts";
+import { assertLedgerSource, assertRosterSource } from "../../../../tooling/src/verify/lib/citation-sources.ts";
 import { boardStates } from "../../../../tooling/src/verify/lib/workitem-board-reader.ts";
 import { CLOSED_CONTROL_ISSUE } from "../../../../tooling/src/verify/lib/workitem-liveness.ts";
 import { LEDGERS, ROSTERS, runControls } from "../../../../tooling/src/verify/ops/board-citations.ts";
@@ -86,7 +86,14 @@ test("the CONFIGURED production documents are admitted, and a renamed column on 
   for (const rel of LEDGERS) {
     const doc = { rel, text: readFileSync(join(repoRoot, rel), "utf8") };
     expect(assertLedgerSource(doc)).toBeGreaterThan(0);
-    expect(() => assertLedgerSource({ rel, text: doc.text.replaceAll("| state |", "| status |") })).toThrow(/no post-fence table with a `state` column/);
+    expect(() => assertLedgerSource({ rel, text: doc.text.replaceAll("| state |", "| status |") })).toThrow(/with NO `state` column/);
+    // THE PARTIAL DRIFT, on the real document's bytes: renaming the column in only SOME in-fence tables is
+    // the false exit 0 a count floor cannot see (150 of 399 admitted, serene receipt). Schema admission can.
+    const half = doc.text.split("| state | receipt |");
+    expect(half.length).toBeGreaterThan(2);
+    expect(() => assertLedgerSource({ rel, text: `${half[0] ?? ""}| status | receipt |${half.slice(1).join("| state | receipt |")}` })).toThrow(
+      /in-fence defect-row table\(s\) with NO `state` column/,
+    );
   }
   for (const rel of ROSTERS) {
     const doc = { rel, text: readFileSync(join(repoRoot, rel), "utf8") };

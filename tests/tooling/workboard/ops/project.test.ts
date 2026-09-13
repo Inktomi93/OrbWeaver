@@ -23,7 +23,10 @@ import { vi } from "vitest";
 import { fetchIssueStates } from "../../../../tooling/src/workboard/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const PROJECT_ONE = { nodes: [{ project: { number: 1 } }] };
+const PROJECT_ONE = { pageInfo: { hasNextPage: false }, nodes: [{ project: { number: 1 } }] };
+/** Ten OTHER projects and a truncated page — the `first: 10` fence hitting its limit. */
+const TRUNCATED = { pageInfo: { hasNextPage: true }, nodes: Array.from({ length: 10 }, (_, at) => ({ project: { number: at + 2 } })) };
+const OFF_BOARD = { pageInfo: { hasNextPage: false }, nodes: [] };
 
 /** One well-formed node; `extra` overrides exactly the field an arm is malforming. */
 function node(number: number, state: string, extra: Readonly<Record<string, unknown>> = {}): Readonly<Record<string, unknown>> {
@@ -38,9 +41,18 @@ function page(nodes: readonly unknown[], next: string | null): Readonly<Record<s
 /** A fake `gh` that answers `WorkItemIssueStates` from a page table indexed by cursor. `nice` is spawned by
  *  the shared proc door, so the system bin stays on PATH behind the fake. */
 function installFakeGh(scratch: string, pages: readonly unknown[]): void {
+  installFakeGhRaw(
+    scratch,
+    pages.map((issues) => ({ data: { repository: { issues } } })),
+  );
+}
+
+/** The same fake one layer lower: the WHOLE payload per call, so an arm can malform the envelope itself —
+ *  a null field, or a response carrying `data` AND `errors`. */
+function installFakeGhRaw(scratch: string, payloads: readonly unknown[]): void {
   const bin = join(scratch, "bin");
   mkdirSync(bin, { recursive: true });
-  writeFileSync(join(bin, "pages.json"), JSON.stringify(pages));
+  writeFileSync(join(bin, "pages.json"), JSON.stringify(payloads));
   writeFileSync(
     join(bin, "gh"),
     [
@@ -50,7 +62,7 @@ function installFakeGh(scratch: string, pages: readonly unknown[]): void {
       "const args = process.argv.slice(2);",
       "const cursorArg = args.find((arg) => arg.startsWith('cursor='));",
       "const index = cursorArg === undefined ? 0 : Number(cursorArg.slice('cursor='.length));",
-      "process.stdout.write(JSON.stringify({ data: { repository: { issues: pages[index] } } }));",
+      "process.stdout.write(JSON.stringify(pages[index]));",
       "",
     ].join("\n"),
     { mode: 0o755 },
@@ -62,7 +74,7 @@ test("every PAGE is merged, and each row carries the state, subject text and boa
   installFakeGh(scratch, [
     page([node(1, "CLOSED", { title: "the first row", body: "**Where:** cb-v-x L1" })], "1"),
     page([node(2, "OPEN")], "2"),
-    page([node(3, "CLOSED", { body: null, projectItems: { nodes: [] } })], null),
+    page([node(3, "CLOSED", { body: null, projectItems: OFF_BOARD })], null),
   ]);
 
   const states = fetchIssueStates();
@@ -132,7 +144,60 @@ test("the SAME number on two pages REFUSES — the pages do not describe one sna
 });
 
 test("a snapshot with NO Project-1 member at all REFUSES — membership is unmeasured, not absent", ({ scratch }) => {
-  installFakeGh(scratch, [page([node(1, "OPEN", { projectItems: { nodes: [] } }), node(2, "CLOSED", { projectItems: { nodes: [] } })], null)]);
+  installFakeGh(scratch, [page([node(1, "OPEN", { projectItems: OFF_BOARD }), node(2, "CLOSED", { projectItems: OFF_BOARD })], null)]);
 
   expect(() => fetchIssueStates()).toThrow(/NOT ONE is an item of Project 1/);
+});
+
+test("a TRUNCATED projectItems page REFUSES — an undecided membership must not read as off-board", ({ scratch }) => {
+  // N4, the provable half. `projectItems(first: 10)` is a fence, and `false` is a CLAIM the judge turns
+  // into a hard "this citation names no board row" finding. An issue on more than ten projects whose match
+  // is not in the page is UNDECIDED, and the wire now says so.
+  installFakeGh(scratch, [page([node(1, "OPEN"), node(2, "OPEN", { projectItems: TRUNCATED })], null)]);
+
+  expect(() => fetchIssueStates()).toThrow(/#2 is on MORE projects than the query asked for/);
+});
+
+test("a non-boolean projectItems pageInfo REFUSES — truncation must be decidable, not assumed", ({ scratch }) => {
+  installFakeGh(scratch, [page([node(1, "OPEN", { projectItems: { pageInfo: { hasNextPage: "no" }, nodes: [] } })], null)]);
+
+  expect(() => fetchIssueStates()).toThrow(/projectItems\.pageInfo\.hasNextPage is not a boolean/);
+});
+
+test("a null `repository` REFUSES rather than reading as an empty board", ({ scratch }) => {
+  installFakeGhRaw(scratch, [{ data: { repository: null } }]);
+
+  expect(() => fetchIssueStates()).toThrow(/Could not resolve the issues of/);
+});
+
+test("a payload carrying BOTH `data` AND `errors` REFUSES — a half-answer is not a verdict", ({ scratch }) => {
+  // GraphQL's own contract allows a field-level failure to null its field and report why alongside `data`.
+  // Keying only on `data !== undefined` accepted that as a complete read.
+  installFakeGhRaw(scratch, [
+    {
+      data: { repository: { issues: page([node(1, "OPEN")], null) } },
+      errors: [{ message: "Although you appear to have the correct authorization credentials, the `orbweaver` organization has an IP allow list enabled" }],
+    },
+  ]);
+
+  expect(() => fetchIssueStates()).toThrow(/GraphQL reported an error[\s\S]*IP allow list/);
+});
+
+test("the `gh` STDOUT CEILING refuses by NAME, and prints none of the response", ({ scratch }) => {
+  // N5. `execFileSync` KILLS the child at the ceiling rather than truncating, and the generic failure path
+  // built its message from the captured stdout — so our own limit read as "GitHub returned garbage" AND
+  // spilled every issue body in the page into stderr. The ceiling is a defaulted PARAMETER precisely so
+  // this control can plant it; production passes nothing and takes the 16 MiB default.
+  const secret = "SENTINEL-BODY-THAT-MUST-NOT-BE-PRINTED";
+  installFakeGh(scratch, [page([node(1, "OPEN", { body: secret.repeat(200) })], null)]);
+
+  let message = "";
+  try {
+    fetchIssueStates(1024);
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+  expect(message).toContain("1024-byte stdout ceiling");
+  expect(message).toContain("GitHub did not fail");
+  expect(message).not.toContain(secret);
 });

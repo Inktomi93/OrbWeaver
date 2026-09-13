@@ -18,7 +18,9 @@
 import { fetchIssueStates } from "#workboard";
 import type { BoardStates } from "./board-citations.ts";
 
-/** The production board snapshot. Throws rather than guessing — see the module header. */
-export function boardStates(): BoardStates {
-  return fetchIssueStates();
+/** The production board snapshot. Throws rather than guessing — see the module header. `maxBuffer` is the
+ *  `gh` door's stdout ceiling, defaulted there and passed through ONLY so a control can plant its overflow
+ *  refusal; production calls this with no argument. */
+export function boardStates(maxBuffer?: number): BoardStates {
+  return fetchIssueStates(maxBuffer);
 }

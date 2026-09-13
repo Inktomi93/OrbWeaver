@@ -12,23 +12,23 @@
 //     first time it ran, and an instrument whose red an operator has to ignore is an instrument bypassed.
 //   • THE DENOMINATORS. A class that silently stops matching (a renamed column, a changed cell shape) is
 //     invisible in a finding count, so `perClass` is asserted with the citations.
-//   • THE SUBJECT JOIN AND THE SOURCE-SCHEMA REFUSALS (added 2026-09-13 on codex's review). Resolution
-//     alone is blind to #2156's founding defect — #2153 crossed two ids that BOTH exist — and a renamed
-//     `state` column used to erase the whole ledger class while the run still exited 0. Both directions of
-//     each are below: the same-wave sibling CROSSES, the correct subject is SILENT, a different wave is
-//     ADVISORY, and a production-shaped document that loses its column, its fence or its citations THROWS.
+//   • THE SUBJECT JOIN (added 2026-09-13 on codex's review). Resolution alone is blind to #2156's founding
+//     defect — #2153 crossed two ids that BOTH exist. Both directions are below: the same-wave sibling
+//     CROSSES, the correct subject is SILENT, a different wave is ADVISORY.
+//
+// THE DOCUMENT READERS AND THEIR SOURCE-SCHEMA REFUSALS moved to `lib/citation-sources.ts` with the
+// 2026-09-13 security review's fence-span and schema-admission repairs; their pin is beside them. Every
+// fixture here carries the PRODUCTION schema (`defect` + `state`), because a fixture the real admission
+// rule would reject proves nothing about the real ledger.
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import type { BoardCitationsOutcome, BoardStates, CitedDocument } from "../../../../tooling/src/verify/lib/board-citations.ts";
+import type { BoardCitationsOutcome, BoardStates } from "../../../../tooling/src/verify/lib/board-citations.ts";
 import {
-  assertLedgerSource,
-  assertRosterSource,
   assertSubjectJoinMeasured,
   boardCitationsExit,
   boardCitationsReport,
   judgeBoardCitations,
-  ledgerCitations,
-  rosterCitations,
 } from "../../../../tooling/src/verify/lib/board-citations.ts";
+import type { CitedDocument } from "../../../../tooling/src/verify/lib/citation-sources.ts";
 import type { BoardIssueRow } from "../../../../tooling/src/workboard/contract/types.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -177,34 +177,6 @@ test("an EMPTY board snapshot refuses — every citation would read as dangling"
   );
 });
 
-test("the readers are column- and fence-aware: a non-state column and a pre-fence table contribute nothing", () => {
-  // The ledger's own sections do NOT share a schema (`p-suite-honesty`'s is `subject|defect|class|state|receipt`),
-  // so the state column is found BY NAME off each table's header; a table without one is not guessed at.
-  const noStateColumn: CitedDocument = { rel: "ledger.md", text: ["## THE LEDGER", "", "| module | receipt |", "| - | - |", "| m | #2187 |", ""].join("\n") };
-  expect(ledgerCitations(noStateColumn)).toEqual([]);
-
-  // Rows ABOVE `## THE LEDGER` are the summary and rollup tables, not defect rows.
-  const preFence: CitedDocument = {
-    rel: "ledger.md",
-    text: [
-      "| module | state |",
-      "| - | - |",
-      "| summary | **OPEN** #2187 |",
-      "",
-      "## THE LEDGER",
-      "",
-      "| module | state |",
-      "| - | - |",
-      "| real | **OPEN** #1584 |",
-      "",
-    ].join("\n"),
-  };
-  expect(ledgerCitations(preFence).map(({ citation }) => citation.issue)).toEqual([1584]);
-
-  // The roster reads EVERY cell — its citations sit in the `Enforces` prose, not in a dedicated column.
-  expect(rosterCitations(roster("| g | issue #2187 — origin, and #1584 the program |")).map(({ issue }) => issue)).toEqual([2187, 1584]);
-});
-
 test("THE SUBJECT ARM, both directions: the cited row's own subject is silent, a SAME-WAVE sibling is exit 1", () => {
   // #2156's founding defect verbatim (#2153): the ledger's `cb-v-parity-instruments L5` row closed citing
   // #2114, which owns L4. Both ids EXIST, so resolution alone reports zero — this is the arm that does not.
@@ -237,36 +209,6 @@ test("a cited row that DECLARES NO subject is counted, never judged — the resi
   expect(outcome.subject.undeclared).toBe(1);
   expect(outcome.subjectNotes).toEqual([]);
   expect(boardCitationsReport(outcome).join("\n")).toContain("undeclared 1");
-});
-
-test("assertLedgerSource REFUSES a production-shaped ledger whose `state` column was renamed", () => {
-  // The F2 failure verbatim: rename the column and the class drops to zero citations, `perClass` prints the
-  // zero, and the run exits 0 while the synthetic controls keep firing against their own document.
-  const renamed: CitedDocument = {
-    rel: "wave-ledger.md",
-    text: waveLedger(waveRow("cb-v-parity-instruments L5", SUBJECT_L5)).text.replace("| state |", "| status |"),
-  };
-
-  expect(ledgerCitations(renamed)).toEqual([]);
-  expect(() => assertLedgerSource(renamed)).toThrow(/no post-fence table with a `state` column/);
-  // The passing direction, so the arm is a control and not a fence: the untouched document is admitted.
-  expect(assertLedgerSource(waveLedger(waveRow("cb-v-parity-instruments L5", SUBJECT_L5)))).toBe(1);
-});
-
-test("assertLedgerSource REFUSES a ledger with no fence and one with no citations at all", () => {
-  const noFence: CitedDocument = { rel: "x.md", text: ["| module | state |", "| - | - |", "| m | **OPEN** (board #1584) |", ""].join("\n") };
-  expect(() => assertLedgerSource(noFence)).toThrow(/carries no `## THE LEDGER` fence/);
-
-  const noCitations: CitedDocument = {
-    rel: "x.md",
-    text: ["## THE LEDGER", "", "| module | state |", "| - | - |", "| m | **OPEN**, no row exists |", ""].join("\n"),
-  };
-  expect(() => assertLedgerSource(noCitations)).toThrow(/ZERO state-cell citations/);
-});
-
-test("assertRosterSource REFUSES a roster that parses to nothing, and admits one that does not", () => {
-  expect(() => assertRosterSource(roster("| g | no citation in this cell |"))).toThrow(/ZERO table-cell citations/);
-  expect(assertRosterSource(roster("| g | issue #1584 |"))).toBe(1);
 });
 
 test("assertSubjectJoinMeasured REFUSES a run whose subject join matched nothing", () => {
