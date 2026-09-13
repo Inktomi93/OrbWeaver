@@ -33,6 +33,17 @@
 //      `resolveCallableDeclaration`, which tries the module axis first and falls back to the lexical
 //      binding — so a local overload set resolves to its implementation instead of refusing, and a
 //      reassigned callee refuses instead of resolving. `mustPass[1]` is the module-local arm's pin.
+//      **LANDED 2026-09-13 (5c73621ea) claiming both deltas were "strictly stricter, never more
+//      permissive". THAT DIRECTION CLAIM WAS WRONG and is REFUTED (reviewer `cb-v-callable-reader`,
+//      reproduced here through the production proof runner).** In THIS policy an unresolvable segment IS
+//      the report verdict (`Segment = undefined` → `startsSafe` false → the junction reads as spliced), so
+//      RESOLVING MORE REPORTS LESS. The OVERLOAD delta is therefore PERMISSIVE — more accurate, because
+//      the finding it drops was a false positive on a factory whose returns genuinely lead with a space,
+//      but permissive, and a permissive change in an ordinary/error policy whose catch is invisible
+//      rendered geometry owes a row: `mustPass[12]` (0 findings here, 1 before the migration). Only the
+//      REASSIGNED-CALLEE delta is stricter, and its row is `mustFlag[5]` (1 finding here, 0 before).
+//      Restore the pre-#2163 two-half `calleeDeclaration` and exactly those two rows red, nothing else —
+//      which is what makes them the deltas' discriminators rather than decoration.
 //   2. THE FUNCTION-RETURN DESCENDANT WALK IS GONE. Legacy read a callee's returns with
 //      `decl.getDescendantsOfKind(SyntaxKind.ReturnStatement)` — one of §3's named bans, and recorded as
 //      such at `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:103`. ReturnStatement is now
@@ -382,6 +393,17 @@ export const gate = defineGate({
       expect: { count: 1, line: 3, token: "mutated" },
       why: "§4.1 — THE SHARED BINDING READER'S WRITE REFUSAL, pinned. A REASSIGNED binding has no single authored value, so `resolveStableExpression` refuses it and the junction lands on the UNSAFE arm. The legacy private resolver read the declaration's initializer and would have called this seam SAFE off the first assignment — a catch the conversion GAINS",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/ui/src/probe.tsx":
+          'function widthClass(c: boolean): string {\n  return c ? " w-avatar-hero" : "";\n}\n' +
+          'widthClass = (c: boolean): string => (c ? " w-avatar-hero" : "");\n' +
+          "const x = <div className={`shrink-0${widthClass(true)}`} />;\n",
+      },
+      expect: { count: 1, line: 5, token: "widthClass" },
+      why: "THE STRICTER HALF OF THE #2163 MIGRATION, pinned (and it had no row until the reviewer refuted the direction claim — `cb-v-callable-reader`, 2026-09-13). The CALLEE is a `function` declaration whose binding is REASSIGNED, so which body its returns come from is not decidable and `resolveCallableDeclaration` refuses with `write`; the junction then lands on the UNSAFE arm and reports. The pre-#2163 `lexicalReferenceSymbol(...).getDeclarations()` fallback saw exactly ONE declaration here, read the `function`'s returns, found every non-empty value leading with a space, and called the seam SAFE — 0 findings. So this row is 1-on-the-stack / 0-pre-stack and is the ONLY row that dies if the write refusal is dropped. The reassignment is TS2630 by design: the fixture's whole subject is a callee somebody reassigns, and a policy that trusts the first declaration paints nothing when the second one wins",
+    },
   ],
   mustPass: [
     {
@@ -462,6 +484,17 @@ export const gate = defineGate({
           "const x = <div className={`inset-${side}-0 p-2`} />;\n",
       },
       why: "THE ORDINARY IDENTITY ARM (§4.2): the correct central marker at the reported position — the INTERPOLATED EXPRESSION `side`, not the template, the className or the element — suppresses the twin of mustFlag[0]. One finding (the policy reports once per template, whatever the junction count), one marker, zero effective findings and zero authority alarms. A wrong position, a foreign policy id or an over-broad match each fail this row through `toolFailure`",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/probe.tsx":
+          "function widthClass(c: boolean): string;\n" +
+          "function widthClass(c: number): string;\n" +
+          'function widthClass(c: unknown): string {\n  return c ? " w-avatar-hero" : "";\n}\n' +
+          "const x = <div className={`shrink-0${widthClass(true)}`} />;\n",
+      },
+      why: "THE PERMISSIVE HALF OF THE #2163 MIGRATION, pinned — the reviewer's own counterexample fixture, landed as a row (`cb-v-callable-reader`, 2026-09-13). CARDINALITY: ZERO findings on the stack, ONE before it. A module-local OVERLOAD SET is one callable with one implementation body, and `resolveCallableDeclaration` resolves it there (`overloadHome`); the returns index yields the leading-space class beside the empty string, every non-empty value leads with a space, and the junction is genuinely safe. The pre-#2163 exactly-one-declaration fallback saw THREE declarations, refused, and `Segment = undefined` IS THE REPORT VERDICT here (`startsSafe(undefined)` is false), so it reported a splice that does not exist. That is the whole shape of the delta and the reason this row exists: in THIS policy resolving MORE reports LESS, so the overload change is PERMISSIVE — accurate, but permissive, and a permissive change in an `ordinary/error` policy whose catch is invisible rendered geometry owes a row. Its stricter twin is `mustFlag[5]`. A single-declaration `widthClass` passes on both sides and would prove nothing; the OVERLOAD is the discriminator",
     },
   ],
 });
