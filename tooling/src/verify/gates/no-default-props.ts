@@ -3,7 +3,7 @@
 // PropertyAccessExpression nodes and reads the member name, never file text, so a comment can neither
 // hide nor fake a violation. Singleton family — no other policy reads this member vocabulary.
 //
-// POPULATION NOTE: the legacy `scanRoot` matched `p.startsWith("packages/client/src")` (no trailing
+// POPULATION PORT: the legacy `scanRoot` matched `p.startsWith("packages/client/src")` (no trailing
 // slash), which would also admit a hypothetical sibling directory literally named
 // "packages/client/srcXYZ/…"; the final `@client`/`@ui`/`@server` roots are slash-anchored
 // ("packages/client/src/"). No real path on the tree exercises that difference — an intentional

@@ -1,5 +1,7 @@
 // The FAMILY test for the `mirror-index` family — `test-layout`, `test-presence` and
-// `test-presence-client`, converted from legacy `GateDescriptor`s at the child of 90bbeb04f (#2061/#2062).
+// `test-presence-client`, converted from legacy `GateDescriptor`s at `aecbc6c6c` (#2061/#2062). The legacy
+// tree is that conversion's PARENT, `6b1d01be0` — the sha the three modules' own header lines cite (#2136:
+// this line read "the child of 90bbeb04f", which is a different commit, `90c7be9e7`).
 // The three share ONE subject reader: `ops/resource-mirror.ts` `loadMirrorIndex`, reached through the
 // `mirrorIndex` host door. This lane is what WIRED that kind — it shipped frozen with zero gate consumers.
 //
