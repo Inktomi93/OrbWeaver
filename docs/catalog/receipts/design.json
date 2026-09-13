@@ -2219,14 +2219,31 @@
     {
       "path": "docs/design/resource-policy-contract.md",
       "assignedSha256": "afdadbcb0016abd25cc628d97a322c0b0da5dae0b0f09863f2a4ad6c7e351896",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "744d1b412068e3d11af070eaed2c161fa04fce2ab9edd70131dc42e4c38308da",
+      "verifiedCommit": "c8fccfa7c9d80dbb369179f32f47e4827c8f7922",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full revised document and load-bearing runtime read by independent reviewer; accepted after correcting receipt cardinality. Historical measurements remain dated. Root scoped docs formatting and comment Biome/ESLint passed; no runtime change."
+      ],
+      "summary": "Current resource-policy contract distinguishes pre-create populated acquisition from demand/installed doors, preserves each reachable refusal proof obligation, and describes shared selection and receipt semantics.",
+      "claims": [
+        {
+          "claim": "Current resource-policy contract distinguishes pre-create populated acquisition from demand/installed doors, preserves each reachable refusal proof obligation, and describes shared selection and receipt semantics.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:c8fccfa7c9d80dbb369179f32f47e4827c8f7922"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/rpg-extraction-one-call-spike.md",

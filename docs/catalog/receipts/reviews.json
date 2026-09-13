@@ -5275,6 +5275,35 @@
         }
       ],
       "summary": "Full CSS-unit second verifier report atf56e83d52. Ordinary policy conversions confirmed; five health/prose residues remain #2305. Does not close the complete CSS family."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-resource-selection-2026-09-13.md",
+      "assignedSha256": "5f40f2e3895ee92b60df9da1763c70ef7e9b88035b7ca2f0d83295f4af988bbc",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "5f40f2e3895ee92b60df9da1763c70ef7e9b88035b7ca2f0d83295f4af988bbc",
+      "verifiedCommit": "c8fccfa7c9d80dbb369179f32f47e4827c8f7922",
+      "verifiedAt": "2026-09-13",
+      "summary": "Full resource-selection builder report preserves its three defect rows, with accepted main integration and220/220 receipts; final BaseUI review remains distinct.",
+      "evidence": [
+        "Complete original report read by reconciliation lane; root checked actual LEDGER ROWS(3), rejecting an erroneous five-proof checklist as defect rows. Main57f7affdc includes accepted contract-home relocation; native tooling/root types and scopedlint passed. Selected no-inline-types leaves only the known product alias; no errors/withheld. Documentation reconciled in this commit."
+      ],
+      "claims": [
+        {
+          "claim": "Full resource-selection builder report preserves its three defect rows, with accepted main integration and220/220 receipts; final BaseUI review remains distinct.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:c8fccfa7c9d80dbb369179f32f47e4827c8f7922"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

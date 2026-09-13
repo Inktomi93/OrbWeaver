@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 25,
+    "pending": 24,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -14449,32 +14449,49 @@
       "path": "docs/design/resource-policy-contract.md",
       "lane": "design",
       "issue": 5,
-      "lines": 232,
-      "bytes": 23066,
-      "sha256": "afdadbcb0016abd25cc628d97a322c0b0da5dae0b0f09863f2a4ad6c7e351896",
+      "lines": 264,
+      "bytes": 26705,
+      "sha256": "744d1b412068e3d11af070eaed2c161fa04fce2ab9edd70131dc42e4c38308da",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-12"
+          "updated": "2026-09-13"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/resource-policy-contract.md",
         "assignedSha256": "afdadbcb0016abd25cc628d97a322c0b0da5dae0b0f09863f2a4ad6c7e351896",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "744d1b412068e3d11af070eaed2c161fa04fce2ab9edd70131dc42e4c38308da",
+        "verifiedCommit": "c8fccfa7c9d80dbb369179f32f47e4827c8f7922",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full revised document and load-bearing runtime read by independent reviewer; accepted after correcting receipt cardinality. Historical measurements remain dated. Root scoped docs formatting and comment Biome/ESLint passed; no runtime change."
+        ],
+        "summary": "Current resource-policy contract distinguishes pre-create populated acquisition from demand/installed doors, preserves each reachable refusal proof obligation, and describes shared selection and receipt semantics.",
+        "claims": [
+          {
+            "claim": "Current resource-policy contract distinguishes pre-create populated acquisition from demand/installed doors, preserves each reachable refusal proof obligation, and describes shared selection and receipt semantics.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:c8fccfa7c9d80dbb369179f32f47e4827c8f7922"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/rpg-extraction-one-call-spike.md",
@@ -41198,6 +41215,54 @@
           }
         ],
         "summary": "Full CSS-unit second verifier report atf56e83d52. Ordinary policy conversions confirmed; five health/prose residues remain #2305. Does not close the complete CSS family."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-resource-selection-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 298,
+      "bytes": 22894,
+      "sha256": "5f40f2e3895ee92b60df9da1763c70ef7e9b88035b7ca2f0d83295f4af988bbc",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-resource-selection-2026-09-13.md",
+        "assignedSha256": "5f40f2e3895ee92b60df9da1763c70ef7e9b88035b7ca2f0d83295f4af988bbc",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "5f40f2e3895ee92b60df9da1763c70ef7e9b88035b7ca2f0d83295f4af988bbc",
+        "verifiedCommit": "c8fccfa7c9d80dbb369179f32f47e4827c8f7922",
+        "verifiedAt": "2026-09-13",
+        "summary": "Full resource-selection builder report preserves its three defect rows, with accepted main integration and220/220 receipts; final BaseUI review remains distinct.",
+        "evidence": [
+          "Complete original report read by reconciliation lane; root checked actual LEDGER ROWS(3), rejecting an erroneous five-proof checklist as defect rows. Main57f7affdc includes accepted contract-home relocation; native tooling/root types and scopedlint passed. Selected no-inline-types leaves only the known product alias; no errors/withheld. Documentation reconciled in this commit."
+        ],
+        "claims": [
+          {
+            "claim": "Full resource-selection builder report preserves its three defect rows, with accepted main integration and220/220 receipts; final BaseUI review remains distinct.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:c8fccfa7c9d80dbb369179f32f47e4827c8f7922"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     }
