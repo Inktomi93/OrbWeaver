@@ -194,6 +194,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/features/a/x.tsx", operation: "custom-render-error" },
       files: {
         "packages/client/src/components/query-boundary.tsx":
           "export declare function QueryBoundary(props: { renderError?: unknown; children?: unknown }): unknown;\n",

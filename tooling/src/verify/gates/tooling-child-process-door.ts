@@ -130,6 +130,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "tooling/src/seed/ops/raw.ts", operation: "child-process-import" },
       files: { [PROC_HOME.path]: PROC_STUB(), "tooling/src/seed/ops/raw.ts": 'import { spawn } from "node:child_process";\nexport const s = spawn;\n' },
       expect: { count: 1, token: '"node:child_process"', messageIncludes: "Subject: tooling/src/seed/ops/raw.ts, operation: child-process-import" },
       why: "the founding shape — a direct child_process import outside proc.ts bypasses the nice -19 homelab floor (arm F); the position is the quoted specifier",

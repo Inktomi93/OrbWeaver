@@ -20,10 +20,8 @@
 // finding is re-anchored on the AUTHORED SLICE at its real column, which is what gives the ordinary door
 // a position an author can type.
 //
-// `EXPECTED_DIRECT_THEME_DECLARATIONS` IS UNTOUCHED AND STILL COMPARED. Its disposition is OWNER-PENDING
-// (#2230, `css-family-audit-2026-09-12.md` ledger rows 12/13: the constant IS derivable from
-// `tokens.build.ts#renderThemeCss`, and whether a hand-copied literal earns the name "generated-output
-// parity" is escalated, not settled). This lane READS it and moves nothing.
+// Generated theme freshness is a byte comparison against tokens.build.ts in ledgers:fresh (#2230).
+// This module owns namespace and seam vocabularies, never a copied generated declaration count.
 //
 // EVERY COUNT RATCHET IS RETIRED (audit ledger row 11 + #2305, §12.5 "no count ratchet"), and NO
 // CARDINALITY SURVIVES IN ANY FORM. The first leg deleted `fade: 12` and kept three expectations it called
@@ -73,14 +71,6 @@ const SOURCE_OWNERS = [
 // and why `text.body` got no coarse arm, the 48 unpassable findings that forced the
 // `--color-selection-quiet` pair) is design record nobody could reconstruct from the stylesheets.
 //
-// `EXPECTED_DIRECT_THEME_DECLARATIONS` SURVIVES THIS LEG, AND ITS SURVIVAL IS NOT AN ENDORSEMENT. The
-// same disposition classes it as generated-output PARITY rather than a current-population count. On the
-// tree it is still a hand-copied literal compared against a parsed count — the same SHAPE as the three
-// ratchets `css-var-defined` retired the same day, under a different word. Whether it must DERIVE from
-// the generator's input (tokens.json -> the emitted @theme block) to earn the name is ESCALATED and
-// deliberately undecided here (#2230); §7 of the design doc records the open ruling.
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 203;
-
 export const MESSAGE =
   "a declaration is inside a sanctioned CSS path but belongs to another semantic family (#951 / client-architecture-lockdown.md §4.3): legal path is not responsibility";
 

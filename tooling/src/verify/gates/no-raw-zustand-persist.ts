@@ -363,6 +363,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/features/x/store.ts", operation: "zustand-persist-mint" },
       files: {
         ...zustandProof(),
         ...REGISTRY_PROOF,

@@ -790,6 +790,14 @@ test.each([
   const consumer = (id: string): GatePolicy =>
     policy(id, {
       authority: "reviewed-grant",
+      mustFlag: [
+        {
+          mode: "source",
+          files: { "packages/client/src/proof.ts": "export const planted = true;\n" },
+          grant: { subject: "unused-subject", operation: "read" },
+          why: "the provider refusal must withhold grant liveness",
+        },
+      ],
       execution: "entire-population",
       facts: [provider],
       create: (ctx) => ({
@@ -945,7 +953,17 @@ test("central authority handles hard, ordinary, reviewed, and warning promotion"
       evaluate: () => ctx.report.file("packages/client/src/ordinary.ts", { line: 2, column: 14, token: "ordinary" }),
     }),
   });
-  const reviewed = anchored("reviewed-policy", "packages/client/src/reviewed.ts", { authority: "reviewed-grant" });
+  const reviewed = anchored("reviewed-policy", "packages/client/src/reviewed.ts", {
+    authority: "reviewed-grant",
+    mustFlag: [
+      {
+        mode: "source",
+        files: { "packages/client/src/reviewed.ts": "export const reviewed = 1;\n" },
+        grant: { subject: "packages/client/src/reviewed.ts", operation: "read" },
+        why: "the anchored finding binds the central grant",
+      },
+    ],
+  });
   const grants = [
     {
       id: "grant-reviewed",
@@ -1232,7 +1250,17 @@ test("ordinary waiver acquisition alarms stay blocking while unselected liveness
 
 test("reviewed grants validate against the full known roster without judging unselected liveness", () => {
   const selected = policy("selected-hard");
-  const unselectedReviewed = policy("unselected-reviewed", { authority: "reviewed-grant" });
+  const unselectedReviewed = policy("unselected-reviewed", {
+    authority: "reviewed-grant",
+    mustFlag: [
+      {
+        mode: "source",
+        files: { "packages/client/src/proof.ts": "export const planted = true;\n" },
+        grant: { subject: "subject", operation: "read" },
+        why: "the unselected owner must withhold liveness",
+      },
+    ],
+  });
   const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
   const knownPolicies = [selected, unselectedReviewed];
   const grant = {
@@ -1331,6 +1359,14 @@ test("declared resources without acquisition receipts cannot complete or reconci
   const gate = policy("unread-resource", {
     analysis: "resource",
     authority: "reviewed-grant",
+    mustFlag: [
+      {
+        mode: "resource",
+        files: { "package.json": "{}" },
+        grant: { subject: "package.json", operation: "read" },
+        why: "the missing receipt must withhold grant liveness",
+      },
+    ],
     population: { of: "none", why: "resource-only owner" },
   });
   const result = run([gate], projectOf({}), {

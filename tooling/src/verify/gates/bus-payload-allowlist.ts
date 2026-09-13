@@ -129,6 +129,22 @@ export const gate = defineGate({
       mode: "types",
       files: { [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; chatId: string; apiKey: string };\n' },
       expect: { count: 1, token: "apiKey", messageIncludes: "TYPE-LEVEL UNREPRESENTABLE" },
+      // THE REVIEWED-GRANT IDENTITY WITNESS (#2189, §4.3). This policy's whole exception door is the FIELD NAME
+      // as `subject` plus the one `bus-payload-field` `operation` — which is what makes the live `credentialId`
+      // row grantable at all — so the row proves that pair is bindable: the same fixture re-runs with one
+      // generated grant naming exactly these authored strings, and holds only at `grantedFindings` 1 /
+      // `effectiveFindings` 0 / `authorityAlarms` 0. Driven 2026-09-13 before it was written: this fixture's raw
+      // finding carries `subject: "apiKey"`, `operation: "bus-payload-field"`. The subject is `apiKey` rather
+      // than `credentialId` on purpose — the claim is that the policy's EMITTED identity can reach the central
+      // door, not that this particular field deserves a grant, which `why`/`endsWhen` and owner review own.
+      //
+      // BOTH STRINGS ARE AUTHORED LITERALS, AND `OPERATION` IS DELIBERATELY NOT REUSED HERE — measured by this
+      // row's own planted break (#2189, 2026-09-13). Written first as `operation: OPERATION`, the cut that
+      // renames the module constant moved the EMITTED and the AUTHORED value together and the row stayed GREEN,
+      // which is the same tautology as deriving the identity from the finding: the central table still spells
+      // `bus-payload-field`, so a rename would break every real grant while this proof reported success. With
+      // the literal, that cut reds.
+      grant: { subject: "apiKey", operation: "bus-payload-field" },
       why: "a ChatBusEvent member carrying `apiKey` — the exact D16 leak the firewall forbids",
     },
     {
@@ -236,8 +252,11 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { [CHAT_BUS]: "export interface MessageView {\n  cacheReadTokens: number;\n  maxOutputTokens: number;\n}\n" },
-      why: "MessageView is NOT a bus-union declaration name and nothing's identity reaches it — its `*Tokens` economics fields are out of scope, passes. The row that dies if the ROOT NAME dispatch is widened into a whole-file scan",
+      files: {
+        [CHAT_BUS]:
+          'export interface MessageView {\n  cacheReadTokens: number;\n  maxOutputTokens: number;\n}\nexport type ChatBusEvent = { type: "turnStarted"; chatId: string };\n',
+      },
+      why: "MessageView is NOT a bus-union declaration name and nothing's identity reaches it — its `*Tokens` economics fields stay out of scope beside a measured, safe bus root. The row dies if the ROOT NAME dispatch widens into a whole-file scan; an empty bus population is a refusal, not this passing control",
     },
     {
       mode: "types",
@@ -293,8 +312,22 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "packages/contracts/src/settings/index.ts": "export type SomeOtherThing = { apiKey: string };\n" },
-      why: "SCOPE: a non-bus contract file is inside the POPULATION (it must be — carriers live there) but declares no bus root, so nothing is scanned. The row that dies if the root dispatch is dropped and the population is mistaken for the subject set",
+      files: {
+        "packages/contracts/src/settings/index.ts": "export type SomeOtherThing = { apiKey: string };\n",
+        [CHAT_BUS]: 'export type ChatBusEvent = { type: "turnStarted"; chatId: string };\n',
+      },
+      why: "SCOPE: a non-bus contract file is inside the POPULATION (carriers live there) but contributes no bus fields. A safe bus root supplies the measured population; dropping root dispatch and treating every contract as the subject would expose SomeOtherThing.apiKey and fail this row",
+    },
+  ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        [CHAT_BUS]: "export interface MessageView {\n  cacheReadTokens: number;\n  maxOutputTokens: number;\n}\n",
+        "packages/contracts/src/settings/index.ts": "export type SomeOtherThing = { apiKey: string };\n",
+      },
+      expect: { messageIncludes: 'population "bus-payload-allowlist" resolved zero members' },
+      why: "Contract files and a bus home can be present while no bus root contributes a field. The policy must withhold its empty denominator; a clean pass here would claim a firewall verdict without measuring a wire field",
     },
   ],
 });

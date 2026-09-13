@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CaughtFailurePopulation, CaughtFailureRow } from "@orb/tooling/verify";
 import {
+  BASELINE_HELP,
   censusDrift,
   classRollupDrift,
   committedOtherClassCensus,
@@ -29,6 +30,8 @@ import {
   READ_FIRST_REL,
   REGISTRY,
   readFirstCostsDrift,
+  resolveSelection,
+  runBaseline,
   SNAP_FLAGS_INDEX_REL,
   snapFlagsIndexDrift,
   strayLedgerSections,
@@ -132,18 +135,16 @@ test("a derivation that comes back EMPTY is a TOOL ERROR (exit 2), never a fresh
   }
 });
 
-// ── the registry contract: static tier, and WHOLE-ONLY by absence ──
+// ── the registry contract: complete populations at whole tiers and selected-path triggers ──
 
-test("the stage runs at every whole-tree tier and DEFERS at a scoped one", () => {
-  const stage = REGISTRY.find((s) => s.name === STAGE);
-  expect(stage, `${STAGE} must be a registry row — an unregistered script is a forgotten one`).toBeDefined();
-  expect(stage?.tiers).toEqual(["static", "push", "full"]);
+test("the stage runs at every whole-tree tier and uses its complete argv for selected paths", () => {
+  const stage = REGISTRY.find((entry) => entry.name === STAGE);
+  expect(stage, `${STAGE} must be registered`).toBeDefined();
+  expect(stage?.tiers).toEqual(["changed", "static", "push", "full"]);
   expect(stage?.argv).toEqual(["pnpm", "check:ledgers-fresh"]);
-  // NO scopedArgv is the scope self-guard: ops/run.ts `planStage` maps its ABSENCE to mode "deferred" with
-  // the standard runs-at notice. A scoped fileset would derive a census of a different tree and call every
-  // row it did not walk stale.
-  expect(stage?.scopedArgv).toBeUndefined();
-  expect(stage?.tiers).not.toContain("changed");
+  // #2304's identity trigger changes when the stage runs, never the population it derives.
+  const selection = resolveSelection({ kind: "file", paths: ["README.md"] });
+  expect(stage?.scopedArgv?.(selection)).toEqual(stage?.argv);
 });
 
 test("a stale ledger never suppresses its sibling's verdict from the same run", () => {
@@ -159,19 +160,17 @@ test("a stale ledger never suppresses its sibling's verdict from the same run", 
   expect(lines).toContain("fresh  docs/reviews/caught-failure-ownership/population.json");
 });
 
-test("every generated ledger/config family carries a `baseline --check` arm", () => {
-  expect(Object.keys(LEDGER_CHECKS).sort((a, b) => a.localeCompare(b))).toEqual([
-    "caught-failure-population",
-    "read-first-costs",
-    "snap-flags-index",
-    "type-configs",
-  ]);
+test("baseline help derives every available freshness kind from the dispatch registry", () => {
+  for (const kind of Object.keys(LEDGER_CHECKS)) {
+    expect(BASELINE_HELP).toContain(kind);
+  }
 });
 
-test("generated type-config drift names the exact changed file and writer", ({ repoRoot }) => {
+test("generated type-config drift names the exact changed file and writer", async ({ repoRoot }) => {
   const result = typeConfigsDrift(repoRoot);
   expect(result.drift).toEqual([]);
   expect(result.regen).toContain("baseline type-configs");
+  expect(await runBaseline(repoRoot, ["type-configs", "--check"])).toBe(0);
   expect(result.derived).toBeGreaterThan(10);
 });
 

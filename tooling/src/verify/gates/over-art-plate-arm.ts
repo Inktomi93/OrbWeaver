@@ -50,7 +50,7 @@
 // must slice the authored text at its reported column — and that is also what makes the two subjects of one
 // rule separately waivable. Every translated marker's binding was verified on the real tree.
 //
-// THE RATCHET IS GONE, AND IT WAS NOT MY CALL — `severity: "warning"` + `workItem: 2024` REPLACES IT. The
+// THE RATCHET IS GONE, AND IT WAS NOT MY CALL — `severity: "warning"` + a live `workItem` REPLACES IT. The
 // conversion was first built with the ledger preserved behind a declared `ledger:ratchet-baselines`
 // resource, and `pnpm gate:contract` REFUSED it at the `.baseline.json` literal:
 //   `[baseline-ledger] gate-owned baseline ledgers are forbidden; use exact grants or warning debt`
@@ -63,6 +63,15 @@
 // `exception-authority-census.md:35,73` ("4 rows / 4 burnable findings … four current violations become
 // warning debt") and `ordinary-waiver-source-migration.md:80` ("the four live plate findings become
 // `workItem: 2024` warning debt").
+//
+// THE OWNER IS #2326 SINCE 2026-09-13, AND THE POINTER HAS NOW ROTTED TWICE — which is why the flip condition
+// below is stated as a COUNT and never as a date. #626 closed under the debt (`17a495fb8` repointed to #2024);
+// #2024 then closed the same day on the REPOINT RECEIPT while all four surfaces were still firing, so the debt
+// again had no live owner. #2070's barrier (`lib/workitem-liveness.ts`) is what MEASURES this now: it asks the
+// board whether this number is open and reds when it is not. FLIP CONDITION UNCHANGED: raise this policy to
+// `authority: "hard"` / `severity: "error"` and DELETE `workItem` in the commit that takes its own effective
+// count to zero — four findings on the real corpus today, and the count is readable off
+// `reports/check-structure.json`, so nobody has to remember it.
 //
 // THE COST IS REAL AND IS THE LANE'S ONE ESCALATION: this gate was `error` and is now `warning`, so a NEW
 // unpaired glass surface warns where it used to RED. That is a downgrade of an enforcement bar, not a
@@ -123,7 +132,7 @@ function liveMessage(site: Site): string {
 }
 
 /** The unpaired remainder, each at its own selector subject. WARNING DEBT, not a ratchet: the four surfaces
- *  alive at mint report every run and #2024 owns them (#626 was CLOSED — `17a495fb8`). */
+ *  alive at mint report every run and #2326 owns them (#626 and then #2024 both CLOSED under the debt). */
 function reportLive(ctx: GatePolicyContext, judged: Judgement): void {
   for (const [, site] of [...judged.live].sort(([a], [b]) => a.localeCompare(b))) {
     ctx.report.file(site.rel, { line: site.line, column: site.column, token: site.subject, message: liveMessage(site) });
@@ -157,7 +166,7 @@ export const gate = defineGate({
   family: "over-art-plate-arm",
   authority: "ordinary",
   severity: "warning",
-  workItem: 2024,
+  workItem: 2326,
   population: { of: "none", why: "CSS is a ResourceHost fact population, never a compiler population" },
   analysis: "resource",
   execution: "entire-population",

@@ -105,6 +105,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "tooling/src/ast/ops/load.ts", operation: "ts-morph-project-construction" },
       files: { "tooling/src/ast/ops/load.ts": 'import { Project } from "ts-morph";\nexport const p = new Project({});\n' },
       expect: { count: 1, token: "new Project", messageIncludes: "a second ts-morph loader" },
       why: "the founding shape — a second ts-morph loader, the fourth `new Project(` site the one-loader rule exists to prevent. `messageIncludes` names the PRECISE text, which the unreadable arm never emits, so this row proves the package door resolved rather than fail-closed",
@@ -124,7 +125,7 @@ export const gate = defineGate({
           'import { Project } from "ts-morph";\nexport const scratch = new Project({ useInMemoryFileSystem: true });\n',
       },
       expect: { count: 1, messageIncludes: "Subject: tooling/src/verify/lib/comment-spans.ts, operation: ts-morph-project-construction" },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a censused non-workspace parser reds like any other construction and is licensed by its exact grant row (`tooling-project-home:comment-spans`), so a new scratch parser is a finding until someone reviews it. A proof row cannot carry a grant; the family test proves the row consumes exactly this",
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a censused non-workspace parser reds like any other construction and is licensed by its exact grant row (`tooling-project-home:comment-spans`), so a new scratch parser is a finding until someone reviews it. The family test proves this real central grant consumes the identity; module witnesses independently prove the synthetic exact-grant door",
     },
     {
       mode: "types",

@@ -205,6 +205,7 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      grant: { subject: "packages/client/src/alias.ts", operation: "intl-formatter" },
       files: {
         "packages/client/src/alias.ts": "const I = Intl;\nexport const f = (): unknown => new I.DateTimeFormat('en-US');\n",
       },

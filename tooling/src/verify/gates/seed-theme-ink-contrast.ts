@@ -448,6 +448,7 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
+      grant: { subject: "packages/ui/src/charts/meter/variants.ts", operation: "ink:border" },
       files: {
         "packages/ui/src/styles/theme.css":
           "@theme {\n--color-background: oklch(0.98 0.004 75);\n--color-card: oklch(0.995 0.003 75);\n--color-popover: oklch(0.995 0.003 75);\n--color-surface-raised: oklch(0.965 0.005 75);\n--color-sidebar: oklch(0.955 0.006 72);\n--color-muted: oklch(0.95 0.006 70);\n--color-secondary: oklch(0.94 0.008 70);\n--color-accent: oklch(0.93 0.01 70);\n--color-border: oklch(0.2 0.01 60 / 0.12);\n}\n:root { color-scheme: light; }\n",

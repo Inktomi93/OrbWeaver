@@ -117,6 +117,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/transport/trpc/leak.ts", operation: "hidden-span-scrubber-construction" },
       files: {
         "packages/kit/src/content/index.ts":
           "export function createHiddenSpanStreamScrubber(): { readonly push: (text: string) => string } {\n  return { push: (text) => text };\n}\n",

@@ -36,6 +36,28 @@ export interface GatePolicyProofExpectation {
   readonly messageIncludes?: string;
 }
 
+/** THE AUTHORED REVIEWED-GRANT IDENTITY one `mustFlag` row's finding must bind (#2189, the policing audit's P7).
+ *
+ *  A `reviewed-grant` policy's whole exception door is the `(subject, operation)` pair its findings carry: the
+ *  central table (`lib/reviewed-grants.ts`) licenses exactly that pair, and `lib/gate-authority.ts#processReviewed`
+ *  grants nothing else. The engine and the real table are proven centrally, but until this key existed NOTHING
+ *  imposed a per-policy obligation that a given policy's EMITTED identity is bindable at all — a conversion could
+ *  ship an operation no grant row can ever name and every check stayed green (measured on the unmodified tree:
+ *  `verifyPolicyProofs` returns `[]` for a policy whose operation is a typo).
+ *
+ *  WHY AN ANNOTATION AND NOT A FOURTH ARM. The grant verdict is a SECOND verdict over a `mustFlag` row, not a new
+ *  input outcome: the same fixture must first flag with no authority, and then be licensed exactly once WITH it.
+ *  A `mustGrant` arm would duplicate the fixture and widen `POLICY_PROOF_ARMS`, every arm count, the loader
+ *  vocabulary and every proof-row sweep to express a relationship an annotation states directly.
+ *
+ *  THE VALUES ARE AUTHORED, NEVER DERIVED FROM THE FINDING THE RUN JUST PRODUCED — deriving them would make the
+ *  proof tautological, which is why `ops/policy-conformance.ts` builds its grant from THESE strings and why the
+ *  wrong-subject / wrong-operation controls are the load-bearing ones. */
+export interface GatePolicyProofGrant {
+  readonly subject: string;
+  readonly operation: string;
+}
+
 /** Explicit fixture substrate and file map; no population-derived path or live-tree anchor exists. */
 export interface GatePolicyProof {
   readonly mode: GatePolicyProofMode;
@@ -48,6 +70,10 @@ export interface GatePolicyProof {
    *  proof runtime that refused it could only ever demonstrate the arm that already passes. */
   readonly links?: Readonly<Record<string, string>>;
   readonly expect?: GatePolicyProofExpectation;
+  /** The reviewed-grant identity witness. `mustFlag` rows of a `reviewed-grant` policy ONLY; the validator
+   *  refuses it on `mustPass`/`mustRefuse` and on an `ordinary`/`hard` policy, where there is no grant door.
+   *  Every reviewed-grant policy must carry at least one witness. Additional valid witnesses stay legal. */
+  readonly grant?: GatePolicyProofGrant;
   readonly why: string;
 }
 
@@ -180,16 +206,45 @@ export type PolicyField = keyof typeof POLICY_FIELD_TABLE;
 
 /** The fields a descriptor may OMIT: `workItem` is required exactly when `severity` is `warning` (the union
  *  above), `fix` is owed by the ordinary door and read by a soundness arm rather than by the loader, and
- *  `mustRefuse` is the optional third proof arm (§4.5b). Everything else is required. */
-export const POLICY_OPTIONAL_FIELDS = ["workItem", "fix", "mustRefuse"] as const satisfies readonly PolicyField[];
+ *  `mustRefuse` is the optional third proof arm (§6.3). Everything else is required. The table is exhaustive
+ *  over optional properties of the descriptor type; accepting only valid field names would miss omissions. */
+type OptionalPolicyField = {
+  [Field in keyof GatePolicy]-?: object extends Pick<GatePolicy, Field> ? Field : never;
+}[keyof GatePolicy];
+const POLICY_OPTIONAL_FIELD_TABLE = {
+  workItem: true,
+  fix: true,
+  mustRefuse: true,
+} as const satisfies Record<OptionalPolicyField, true>;
+export const POLICY_OPTIONAL_FIELDS = keysOf(POLICY_OPTIONAL_FIELD_TABLE);
 
-/** The proof arms, in execution order. `mustRefuse` is optional on the descriptor (never empty when present). */
-export const POLICY_PROOF_ARMS = ["mustFlag", "mustPass", "mustRefuse"] as const satisfies readonly PolicyField[];
+/** The proof arrays, in authored execution order, held two-sided against the descriptor's proof-array fields.
+ *  `mustRefuse` is optional on the descriptor (never empty when present). */
+type PolicyProofField = {
+  [Field in keyof GatePolicy]-?: Exclude<GatePolicy[Field], undefined> extends readonly GatePolicyProof[] ? Field : never;
+}[keyof GatePolicy];
+const POLICY_PROOF_ARM_TABLE = {
+  mustFlag: true,
+  mustPass: true,
+  mustRefuse: true,
+} as const satisfies Record<PolicyProofField, true>;
+export const POLICY_PROOF_ARMS = keysOf(POLICY_PROOF_ARM_TABLE);
 export type PolicyProofArm = (typeof POLICY_PROOF_ARMS)[number];
 
-const POLICY_PROOF_KEY_TABLE = { mode: true, files: true, links: true, expect: true, why: true } as const satisfies Record<keyof GatePolicyProof, true>;
+const POLICY_PROOF_KEY_TABLE = {
+  mode: true,
+  files: true,
+  links: true,
+  expect: true,
+  grant: true,
+  why: true,
+} as const satisfies Record<keyof GatePolicyProof, true>;
 /** The keys of one proof row. */
 export const POLICY_PROOF_KEYS = keysOf(POLICY_PROOF_KEY_TABLE);
+
+const POLICY_PROOF_GRANT_KEY_TABLE = { subject: true, operation: true } as const satisfies Record<keyof GatePolicyProofGrant, true>;
+/** The keys of a reviewed-grant identity witness. */
+export const POLICY_PROOF_GRANT_KEYS = keysOf(POLICY_PROOF_GRANT_KEY_TABLE);
 
 const POLICY_EXPECTATION_KEY_TABLE = {
   count: true,

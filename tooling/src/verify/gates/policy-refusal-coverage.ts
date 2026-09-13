@@ -24,7 +24,13 @@
 // module reds ≤ 92 of 98 derived-population consumers; a `hard`/`error` landing would put 92 blocking findings on
 // the commit bar in one commit, which is not a burn-down, it is a stop.
 //
-// THE FLIP CONDITION IS AN EVENT, NOT AN ASPIRATION: flip to `hard` + `error` (and drop `workItem`) in the commit
+// THE OWNER IS #2327 SINCE 2026-09-13. This module was born pointing at #2184, the row that ORDERED it, and
+// #2184 closed on the module's LANDING receipt while 17 consumers were still to drain — so the debt sat with no
+// live owner until #2327 was minted for the burn-down itself. #2070's barrier
+// (`lib/workitem-liveness.ts`) is what MEASURES that now, asking the board whether this number is open.
+//
+// THE FLIP CONDITION IS AN EVENT, NOT AN ASPIRATION, AND IT IS UNCHANGED BY THE REPOINT: flip to `hard` +
+// `error` (and drop `workItem`) in the commit
 // that takes THIS POLICY'S OWN EFFECTIVE COUNT TO ZERO on a whole-corpus run. The count IS the burn-down, so the
 // condition is readable off `reports/check-structure.json` — nobody has to remember it. RE-MEASURED at `80b0693cb`
 // with the #2274 repair below: 60 → 17. The 43 that discharged were pinned all along by real family tests the dead
@@ -473,7 +479,7 @@ export const gate = defineGate({
   family: "policy-soundness",
   authority: "ordinary",
   severity: "warning",
-  workItem: 2184,
+  workItem: 2327,
   // The gate corpus PLUS the family tests that may carry the pin — the join is the whole verdict, which is the
   // same reason `policy-waiver-identity` spans both roots.
   population: {

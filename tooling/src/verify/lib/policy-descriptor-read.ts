@@ -39,6 +39,7 @@ import type {
   Node as MorphNode,
   ObjectLiteralExpression,
   PropertyAssignment,
+  ShorthandPropertyAssignment,
   SourceFile,
   TemplateExpression,
 } from "ts-morph";
@@ -47,6 +48,7 @@ import type { GateContractKind } from "../contract/gate-corpus.ts";
 import type { Discrimination, FinalRegistration, ProofRows, ReportSiteMessage, StaticSegments } from "../contract/policy-descriptor-read.ts";
 import { isCanonicalDefineGate, resolveCallableMember } from "./gate-contract-origin.ts";
 import { resolveStableExpression } from "./reference-fact.ts";
+import { resolveCallableDeclaration } from "./reference-fact-call.ts";
 
 const REPORT_SINK = "report";
 const REPORT_METHODS: ReadonlySet<string> = new Set(["node", "file"]);
@@ -148,9 +150,9 @@ export function descriptorValue(object: ObjectLiteralExpression, name: string): 
 }
 
 /** The property node itself — the report anchor for a finding about that property. */
-export function descriptorProperty(object: ObjectLiteralExpression, name: string): PropertyAssignment | undefined {
+export function descriptorProperty(object: ObjectLiteralExpression, name: string): PropertyAssignment | ShorthandPropertyAssignment | undefined {
   const property = object.getProperty(name);
-  return Node.isPropertyAssignment(property) ? property : undefined;
+  return Node.isPropertyAssignment(property) || Node.isShorthandPropertyAssignment(property) ? property : undefined;
 }
 
 /** Through immutable aliases to the terminal expression; a dynamic terminal (call, template, conditional…)
@@ -207,21 +209,12 @@ function concatSegments(left: StaticSegments, right: StaticSegments): StaticSegm
   return { segments: nonEmpty([...segments, ...rest]), complete: left.complete && right.complete };
 }
 
-/** The function a callee names, through an import alias: a `function` declaration, or a const bound to an arrow
- *  or function expression. A method, a computed callee and an overloaded/ambiguous symbol all read as none. */
+/** Authored text only comes from a stable callable declaration. Shared resolution keeps imported
+ *  arrows, local aliases and reassigned functions consistent with every other callable consumer. */
 function textFunctionOf(callee: MorphNode): ArrowFunction | FunctionDeclaration | FunctionExpression | undefined {
-  const symbol = Node.isIdentifier(callee) ? callee.getSymbol() : undefined;
-  const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
-  const declaration = declarations.length === 1 ? declarations[0] : undefined;
-  const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
-  const value = initializer === undefined ? undefined : unwrapExpression(initializer);
-  let fn: ArrowFunction | FunctionDeclaration | FunctionExpression | undefined;
-  if (Node.isFunctionDeclaration(declaration)) {
-    fn = declaration;
-  } else if (value !== undefined && (Node.isArrowFunction(value) || Node.isFunctionExpression(value))) {
-    fn = value;
-  }
-  return fn;
+  const fact = resolveCallableDeclaration(callee);
+  const declaration = fact.kind === "resolved" ? fact.value.declaration : undefined;
+  return Node.isFunctionDeclaration(declaration) || Node.isArrowFunction(declaration) || Node.isFunctionExpression(declaration) ? declaration : undefined;
 }
 
 /** The ONE expression a text function always returns: an expression-bodied arrow, or a body whose single

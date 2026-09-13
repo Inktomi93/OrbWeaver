@@ -376,7 +376,15 @@ test("hard + warning is refused at load as a contradiction (#2025); warning debt
   // The three admitted pairs, each the nearest legal shape one field away.
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "error" })).not.toThrow();
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "ordinary", severity: "warning", workItem: 2025 })).not.toThrow();
-  expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "reviewed-grant", severity: "warning", workItem: 2025 })).not.toThrow();
+  expect(() =>
+    assertGatePolicyDescriptor({
+      ...trunk,
+      authority: "reviewed-grant",
+      severity: "warning",
+      workItem: 2025,
+      mustFlag: [{ ...trunk.mustFlag[0], grant: { subject: "the-subject", operation: "the-operation" } }],
+    }),
+  ).not.toThrow();
   // The rule sits BEFORE the workItem shape rules: the contradiction is named even when the debt field is absent.
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "warning" })).toThrow(/contradicts authority "hard"/u);
 });
@@ -488,9 +496,16 @@ test("the mustRefuse arm is optional, never empty, and every row carries message
   expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: " " } }]))).toThrow(
     /messageIncludes must be a nonempty/i,
   );
-  for (const key of ["count", "line", "token"] as const) {
-    const forbidden = { ...REFUSE_ROW, expect: { messageIncludes: "BLINDNESS", [key]: key === "token" ? "x" : 1 } };
-    expect(() => assertGatePolicyDescriptor(refusingPolicy([forbidden]))).toThrow(new RegExp(`mustRefuse\\[0\\]\\.expect\\.${key} is forbidden`, "u"));
+  for (const [key, value] of [
+    ["count", 1],
+    ["countFrom", "MISSING_DRIVER"],
+    ["line", 1],
+    ["token", "x"],
+  ] as const) {
+    for (const supplied of [value, undefined]) {
+      const forbidden = { ...REFUSE_ROW, expect: { messageIncludes: "BLINDNESS", [key]: supplied } };
+      expect(() => assertGatePolicyDescriptor(refusingPolicy([forbidden]))).toThrow(new RegExp(`mustRefuse\\[0\\]\\.expect\\.${key} is forbidden`, "u"));
+    }
   }
   expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: "BLINDNESS" } }]))).not.toThrow();
 });
@@ -543,4 +558,220 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "exact-file", id: "ct-bootstrap" }))).toThrow(/id is unknown for exact-file/i);
   // An id on a kind that takes none is an unknown PROPERTY, never a silently ignored field.
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "documents", id: "docs" }))).toThrow(/unknown property/i);
+});
+
+// ── #2189 (P7): THE REVIEWED-GRANT IDENTITY WITNESS, at LOAD ────────────────────────────────────────────────
+//
+// Validate the annotation and its required presence through the descriptor and corpus loading entrypoints.
+// Removing the loader obligation must fail even if a standalone witness helper remains correct.
+
+const GRANT_WITNESS = { subject: "the-subject", operation: "the-operation" } as const;
+
+function grantTrunk(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: "grant-witness-trunk",
+    family: "grant-witness-trunk",
+    authority: "reviewed-grant",
+    severity: "error",
+    population: "@tooling",
+    analysis: "syntax",
+    execution: "selected-files",
+    facts: [],
+    resources: [],
+    message: "fixture policy",
+    fix: "add an exact reviewed grant row.",
+    create: () => ({ evaluate: () => undefined }),
+    mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, grant: GRANT_WITNESS, why: "founding defect" }],
+    mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
+    ...overrides,
+  };
+}
+
+const WITNESSLESS_FLAG = [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, why: "founding defect" }] as const;
+
+test("a reviewed-grant identity witness loads on a mustFlag row, and a SECOND valid witness stays legal", () => {
+  expect(() => assertGatePolicyDescriptor(grantTrunk())).not.toThrow();
+  // AT LEAST ONE, not exactly one: a policy proving a second emitted identity has supplied strictly more
+  // evidence, and refusing it would price honesty as a defect.
+  expect(() =>
+    assertGatePolicyDescriptor(
+      grantTrunk({
+        mustFlag: [
+          { mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, grant: GRANT_WITNESS, why: "founding defect" },
+          {
+            mode: "source",
+            files: { "tooling/src/second.ts": "export const planted = true;\n" },
+            grant: { subject: "another-subject", operation: "another-operation" },
+            why: "a second emitted identity",
+          },
+        ],
+      }),
+    ),
+  ).not.toThrow();
+});
+
+test("the witness is refused on every arm but mustFlag, on every authority but reviewed-grant, and blank", () => {
+  const row = { mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, grant: GRANT_WITNESS, why: "nearest legal shape" };
+  expect(() => assertGatePolicyDescriptor(grantTrunk({ mustPass: [row] }))).toThrow(/mustPass\[0\]\.grant is valid only for a mustFlag proof/u);
+  expect(() => assertGatePolicyDescriptor(grantTrunk({ mustRefuse: [{ ...row, expect: { messageIncludes: "fixture-specific refusal" } }] }))).toThrow(
+    /mustRefuse\[0\]\.grant is valid only for a mustFlag proof/u,
+  );
+
+  // `hard` has no suppression door at all and `ordinary` consumes markers — neither ever reaches `processReviewed`.
+  for (const authority of ["hard", "ordinary"] as const) {
+    expect(() => assertGatePolicyDescriptor(grantTrunk({ authority }))).toThrow(
+      new RegExp(`mustFlag\\[0\\]\\.grant is valid only for a reviewed-grant policy, and descriptor\\.authority is "${authority}"`, "u"),
+    );
+  }
+
+  for (const key of ["subject", "operation"] as const) {
+    expect(() =>
+      assertGatePolicyDescriptor(
+        grantTrunk({
+          mustFlag: [
+            { mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, grant: { ...GRANT_WITNESS, [key]: "  " }, why: "w" },
+          ],
+        }),
+      ),
+    ).toThrow(new RegExp(`mustFlag\\[0\\]\\.grant\\.${key} must be a nonempty control-free string`, "u"));
+  }
+
+  expect(() =>
+    assertGatePolicyDescriptor(
+      grantTrunk({
+        mustFlag: [
+          {
+            mode: "source",
+            files: { "tooling/src/proof.ts": "export const planted = true;\n" },
+            grant: { ...GRANT_WITNESS, why: "extra" },
+            why: "w",
+          },
+        ],
+      }),
+    ),
+  ).toThrow(/mustFlag\[0\]\.grant has unknown property "why"/u);
+});
+
+test("the GLOBAL witness obligation rejects a missing witness through descriptor and corpus loading", async ({ repoRoot, scratch }) => {
+  const witnessless = grantTrunk({ mustFlag: WITNESSLESS_FLAG });
+  expect(() => assertGatePolicyDescriptor(witnessless)).toThrow(/carries no grant identity witness.*"grant-witness-trunk".*reviewed-grant policy/su);
+  expect(() => assertGatePolicyDescriptor(grantTrunk())).not.toThrow();
+  for (const authority of ["hard", "ordinary"]) {
+    expect(() => assertGatePolicyDescriptor(grantTrunk({ authority, mustFlag: WITNESSLESS_FLAG }))).not.toThrow();
+  }
+
+  writeModules(scratch, {
+    "missing-witness.ts": moduleSource(repoRoot, "missing-witness", { authority: "reviewed-grant" }),
+  });
+  await expect(loadPolicyCorpus(scratch)).rejects.toThrow(/missing-witness.*no grant identity witness/su);
+});
+
+// ── #2189 (P7, L3): AN OWN KEY WITH AN UNDEFINED VALUE IS DECLARED, NEVER ABSENT ─────────────────────────────
+//
+// The descriptor boundary has exactly ONE notion of "the author declared this key": OWN-PROPERTY PRESENCE.
+// `exactKeys`, the mustRefuse expectation rule, the optional-arm rule and the `workItem` rule all read it that
+// way — so an admission rule reading the VALUE instead admitted the one shape its own arm forbids: an own
+// `grant: undefined` on a `mustPass`/`mustRefuse` row loaded silently where `grant: {…}` is refused by name.
+// Unreachable from a TYPED descriptor (`exactOptionalPropertyTypes`), reachable through the `as never` cast every
+// hand-built descriptor and fixture uses. The readers downstream (`proof.grant === undefined`, `proof.links ?? {}`,
+// `proof.expect?.…`) all treat an undefined value as absent, so the LOAD boundary is the only place the two
+// notions can be reconciled — and it reconciles them by refusing the declaration.
+
+/** One `mustPass`-shaped row that declares `key` with an undefined value. */
+function undefinedKeyRow(key: string, path = "tooling/src/proof.ts"): Record<string, unknown> {
+  return { mode: "source", files: { [path]: "export const clean = true;\n" }, [key]: undefined, why: "nearest legal shape" };
+}
+
+test("an own grant: undefined is DECLARED on every forbidden arm and authority, and is never a witness (#2189 L3)", () => {
+  // THE FORBIDDEN ARMS. `grant: undefined` binds nothing, so admitting it granted nothing today — but the arm rule
+  // exists to refuse the ANNOTATION, and a rule refusing `{subject, operation}` while admitting the same key
+  // spelled `undefined` is not the rule it states.
+  expect(() => assertGatePolicyDescriptor(grantTrunk({ mustPass: [undefinedKeyRow("grant")] }))).toThrow(
+    /mustPass\[0\]\.grant is valid only for a mustFlag proof/u,
+  );
+  expect(() =>
+    assertGatePolicyDescriptor(grantTrunk({ mustRefuse: [{ ...undefinedKeyRow("grant"), expect: { messageIncludes: "fixture-specific refusal" } }] })),
+  ).toThrow(/mustRefuse\[0\]\.grant is valid only for a mustFlag proof/u);
+
+  // THE FORBIDDEN AUTHORITIES — the mustFlag arm is legal there, the grant door is not.
+  for (const authority of ["hard", "ordinary"] as const) {
+    expect(() => assertGatePolicyDescriptor(grantTrunk({ authority, mustFlag: [{ ...undefinedKeyRow("grant"), why: "founding defect" }] }))).toThrow(
+      new RegExp(`mustFlag\\[0\\]\\.grant is valid only for a reviewed-grant policy, and descriptor\\.authority is "${authority}"`, "u"),
+    );
+  }
+
+  // ON ITS ONE LEGAL POSITION IT IS STILL NOT A WITNESS. `reviewedGrantWitnessFailure` filters on
+  // `proof.grant !== undefined`, so an undefined grant never counted toward the at-least-one obligation and must
+  // not start: the row is refused for its SHAPE before the witness rule is reached, whether or not a real witness
+  // sits beside it. (Witnessless, the old code refused too — via the witness rule — so there only the message
+  // discriminates; the two-row case below was ADMITTED.)
+  expect(() => assertGatePolicyDescriptor(grantTrunk({ mustFlag: [{ ...undefinedKeyRow("grant"), why: "founding defect" }] }))).toThrow(
+    /mustFlag\[0\]\.grant must be an object/u,
+  );
+  expect(() =>
+    assertGatePolicyDescriptor(
+      grantTrunk({
+        mustFlag: [
+          { mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, grant: GRANT_WITNESS, why: "founding defect" },
+          { ...undefinedKeyRow("grant", "tooling/src/second.ts"), why: "a second row, witness misspelled" },
+        ],
+      }),
+    ),
+  ).toThrow(/mustFlag\[1\]\.grant must be an object/u);
+
+  // POSITIVE CONTROL: a legitimately ABSENT grant on mustPass/mustRefuse still loads — the fix refuses a
+  // DECLARATION, never a silence.
+  expect(() =>
+    assertGatePolicyDescriptor(grantTrunk({ mustRefuse: [{ ...REFUSE_ROW, expect: { messageIncludes: "fixture-specific refusal" } }] })),
+  ).not.toThrow();
+});
+
+test("every other proof-row and descriptor admission rule reads own-property presence too (#2189 L3)", () => {
+  // The same asymmetry, at every site it had in this validator: a forbidden-here key fires its rule by name, an
+  // optional key fires its value rule.
+  expect(() => assertGatePolicyDescriptor(grantTrunk({ mustPass: [undefinedKeyRow("expect")] }))).toThrow(
+    /mustPass\[0\]\.expect is valid only for mustFlag proofs/u,
+  );
+  expect(() => assertGatePolicyDescriptor(grantTrunk({ mustFlag: [{ ...undefinedKeyRow("expect"), grant: GRANT_WITNESS, why: "founding defect" }] }))).toThrow(
+    /mustFlag\[0\]\.expect must be an object/u,
+  );
+  expect(() => assertGatePolicyDescriptor(grantTrunk({ mustPass: [undefinedKeyRow("links")] }))).toThrow(
+    /mustPass\[0\]\.links is valid only in resource mode/u,
+  );
+  for (const [key, message] of [
+    ["count", "mustFlag[0].expect.count must be a positive integer"],
+    ["line", "mustFlag[0].expect.line must be a positive integer"],
+    ["token", "mustFlag[0].expect.token must be a nonempty control-free string"],
+    ["countFrom", "mustFlag[0].expect.countFrom must be a nonempty control-free string"],
+    ["messageIncludes", "mustFlag[0].expect.messageIncludes must be a nonempty control-free string"],
+  ] as const) {
+    const row = {
+      mode: "source",
+      files: { "tooling/src/proof.ts": "export const planted = true;\n" },
+      expect: { [key]: undefined },
+      grant: GRANT_WITNESS,
+      why: "founding defect",
+    };
+    expect(() => assertGatePolicyDescriptor(grantTrunk({ mustFlag: [row] }))).toThrow(message);
+  }
+  // The descriptor's own optional field reads the same way.
+  expect(() => assertGatePolicyDescriptor(grantTrunk({ fix: undefined }))).toThrow(/descriptor\.fix must be a nonempty control-free string/u);
+
+  // POSITIVE CONTROLS: the trunk with those keys ABSENT, and with real values in them, both still load.
+  expect(() => assertGatePolicyDescriptor(grantTrunk())).not.toThrow();
+  expect(() =>
+    assertGatePolicyDescriptor(
+      grantTrunk({
+        mustFlag: [
+          {
+            mode: "source",
+            files: { "tooling/src/proof.ts": "export const planted = true;\n" },
+            expect: { count: 1, token: "planted", messageIncludes: "fixture policy" },
+            grant: GRANT_WITNESS,
+            why: "founding defect",
+          },
+        ],
+      }),
+    ),
+  ).not.toThrow();
 });

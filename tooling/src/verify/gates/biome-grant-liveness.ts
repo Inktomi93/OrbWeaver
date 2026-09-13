@@ -253,6 +253,7 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
+      grant: { subject: "packages/nonexistent/**", operation: "biome-glob-grant" },
       files: {
         "biome.json":
           '{\n  "overrides": [\n    {\n      "includes": ["packages/nonexistent/**", "packages/client/src/live.ts"],\n      "linter": { "rules": {} }\n    }\n  ]\n}\n',

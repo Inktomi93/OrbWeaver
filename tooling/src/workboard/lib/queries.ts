@@ -70,3 +70,27 @@ export function dependencyMutation(remove: boolean): string {
   const mutation = remove ? "removeBlockedBy" : "addBlockedBy";
   return `mutation WorkItemDependency($issueId: ID!, $blockingIssueId: ID!) { ${mutation}(input: { issueId: $issueId, blockingIssueId: $blockingIssueId }) { issue { id } } }`;
 }
+
+/** EVERY issue's number, state, SUBJECT and board membership, paged — the BULK door (#2156). The targeted
+ *  walks above answer one row richly; a citation census asks about hundreds of numbers at once and would
+ *  otherwise spend hundreds of calls (and the reviewer's patience) to learn one enum per row.
+ *
+ *  WHY IT IS NOT THE THINNEST SELECTION ANY MORE (codex review F1, 2026-09-13). `number state` alone can
+ *  only answer "does this id resolve"; #2156's filed contract is that the cited row NAMES the ledger row's
+ *  subject, and its founding defect (#2153) crossed two ids that BOTH existed. Answering that needs the
+ *  row's own text, so `title body` come back with it and the join is `lib/citation-subject.ts`. The
+ *  `projectItems` slice answers the other half of "a BOARD row": an issue on no board is not one.
+ *  Measured 2026-09-13: 2328 issues over 24 pages, ~125 KB and ~1 s per page.
+ *
+ *  `projectItems` CARRIES ITS OWN `pageInfo` (N4, the 2026-09-13 security review). `first: 10` is a fence,
+ *  and a fence that truncates is indistinguishable from an honest "this issue is on no board" — which the
+ *  reader turns into a hard finding. So the wire says whether it truncated, and `fetchIssueStates` refuses
+ *  the row it could not decide rather than calling it off-board. */
+export const ISSUE_STATES_QUERY = `query WorkItemIssueStates($owner: String!, $repo: String!, $cursor: String) {
+  repository(owner: $owner, name: $repo) {
+    issues(first: 100, after: $cursor, orderBy: { field: CREATED_AT, direction: ASC }) {
+      pageInfo { hasNextPage endCursor }
+      nodes { number state title body projectItems(first: 10) { pageInfo { hasNextPage } nodes { project { number } } } }
+    }
+  }
+}`;

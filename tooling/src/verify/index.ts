@@ -161,6 +161,7 @@ export type { AssetRefsCoverageInput } from "./ops/asset-refs-coverage.ts";
 export { AssetRefsCoverageRefusal, compareAssetRefsCoverage, runAssetRefsCoverage } from "./ops/asset-refs-coverage.ts";
 export { BASELINE_HELP, runBaseline } from "./ops/baseline.ts";
 export { ruleLivenessReport, runBiomeRuleLiveness } from "./ops/biome-rule-liveness.ts";
+export { runBoardCitations, runControls } from "./ops/board-citations.ts";
 export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from "./ops/boot-chunk-ratchet.ts";
 export { CONFIG_SNAPSHOT_HELP, runConfigSnapshot } from "./ops/config-snapshot.ts";
 export { verifyGateProofs } from "./ops/conformance.ts";

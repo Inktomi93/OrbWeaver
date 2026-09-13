@@ -20,6 +20,7 @@ import { pathToFileURL } from "node:url";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as baseuiRenderProp } from "../../../../tooling/src/verify/gates/baseui-render-prop-composition.ts";
 import { gate as routeImportsNoFeature } from "../../../../tooling/src/verify/gates/route-imports-no-feature.ts";
+import { policyGrantIdentityRowCount } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -30,6 +31,12 @@ const CLI_TIMEOUT_MS = scaledBudget(120_000);
  *  shimmed gate never has to find this file. */
 function proofRows(...policies: readonly GatePolicy[]): number {
   return policies.reduce((total, policy) => total + policy.mustFlag.length + policy.mustPass.length, 0);
+}
+
+/** The reviewed-grant identity witnesses the stage counts APART from the proof rows (#2189) — derived off the
+ *  policies for the same reason every other count here is, so annotating a shimmed gate never edits this file. */
+function identityRows(...policies: readonly GatePolicy[]): number {
+  return policies.reduce((total, policy) => total + policyGrantIdentityRowCount(policy), 0);
 }
 
 /** A minimal VALID legacy descriptor — the stage's non-subject. */
@@ -85,7 +92,7 @@ test("a corpus whose final policies all prove is CLEAN, and the summary names th
   // The real policy's OWN row count is the denominator; the legacy module is counted, never proven here. The
   // grant table is NOT part of this planted world, so only rows naming loaded policies are judged — none here.
   expect(res.stdout).toContain(
-    `policy-conformance: 1 final policies · ${String(proofRows(baseuiRenderProp))} proof rows · 0 refusal rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
+    `policy-conformance: 1 final policies · ${String(proofRows(baseuiRenderProp))} proof rows · 0 refusal rows · ${String(identityRows(baseuiRenderProp))} identity-proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
   );
   expect(res.stdout).toContain("(corpus: 2 module(s), 1 legacy proven by gate-conformance)");
 });
@@ -99,7 +106,9 @@ test("a planted root that carries a REVIEWED-GRANT target judges that policy's r
   });
   const judged = await runCli("verify", ["policy-conformance"], { cwd: partial, timeoutMs: CLI_TIMEOUT_MS });
   await expect(judged).toExitWith(0);
-  expect(judged.stdout).toContain(`1 final policies · ${String(proofRows(routeImportsNoFeature))} proof rows · 0 refusal rows · 0 failure(s) · `);
+  expect(judged.stdout).toContain(
+    `1 final policies · ${String(proofRows(routeImportsNoFeature))} proof rows · 0 refusal rows · ${String(identityRows(routeImportsNoFeature))} identity-proof rows · 0 failure(s) · `,
+  );
   expect(judged.stdout).toMatch(/· [1-9]\d* grant rows \(rows naming loaded policies\) · 0 invalid/u);
 
   // Arm 2 — THE WHOLE-TABLE CONTROL: the same one-policy corpus, but the table's own module is planted under the
@@ -135,7 +144,9 @@ test("a policy whose own proof fails is a TOOL ERROR naming policy, arm, row ind
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
-  expect(res.stdout).toContain(`2 final policies · ${String(proofRows(baseuiRenderProp) + BROKEN_PROOF_ROWS)} proof rows · 0 refusal rows · 1 failure(s)`);
+  expect(res.stdout).toContain(
+    `2 final policies · ${String(proofRows(baseuiRenderProp) + BROKEN_PROOF_ROWS)} proof rows · 0 refusal rows · ${String(identityRows(baseuiRenderProp))} identity-proof rows · 1 failure(s)`,
+  );
   expect(res.stdout).toContain(`✗ planted-broken · mustFlag[0] · ${BROKEN_WHY}`);
   expect(res.stdout).toContain("expected at least one effective finding but got 0");
   expect(res.stdout).toContain("the checker is broken, not the tree (exit 2)");
@@ -210,7 +221,7 @@ test("a mustRefuse row is COUNTED and PROVEN, and the same row goes RED when the
   const clean = await runCli("verify", ["policy-conformance"], { cwd: armed, timeoutMs: CLI_TIMEOUT_MS });
   await expect(clean).toExitWith(0);
   expect(clean.stdout).toContain(
-    `1 final policies · ${String(REFUSAL_PROOF_ROWS)} proof rows · ${String(REFUSAL_MUST_REFUSE.length)} refusal rows · 0 failure(s)`,
+    `1 final policies · ${String(REFUSAL_PROOF_ROWS)} proof rows · ${String(REFUSAL_MUST_REFUSE.length)} refusal rows · 0 identity-proof rows · 0 failure(s)`,
   );
 
   // NEGATIVE, on a BYTE-IDENTICAL row: without the branch the pass completes, the refusal never happens, and

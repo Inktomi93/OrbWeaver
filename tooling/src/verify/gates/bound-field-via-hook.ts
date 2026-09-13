@@ -131,6 +131,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/forms/editor/bound-fields/x-field.tsx", operation: "raw-field-context-read" },
       files: {
         ...HOME_PROOF,
         "packages/client/src/forms/editor/bound-fields/x-field.tsx":

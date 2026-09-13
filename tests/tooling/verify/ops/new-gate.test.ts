@@ -14,14 +14,14 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { isDefinedGatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
+import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
 import { runNewGate } from "../../../../tooling/src/verify/ops/new-gate.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const GATES_REL = "tooling/src/verify/gates";
 const NAME = "probe-scaffolded-gate";
-/** Every spelling the LEGACY descriptor contract owns. A scaffold emitting any of them is #2102 again. */
+/** Historical #2102 regression sentinels; the loader below owns complete contract validation. */
 const RETIRED_VOCABULARY = ["ExemptionTable", "GateDescriptor", "scanRoot", "scopeSafety", "docRow", "finalize", "fileLoaded", "REAL_TREE_ANCHOR"] as const;
 
 function scaffold(scratch: string): string {
@@ -53,13 +53,14 @@ test("what the scaffold emits LOADS as a final policy and its own proof rows pas
   // directory; pointing that ONE specifier at the real file is what lets this run outside the corpus,
   // and it is the production module, so the brand is the production brand.
   const contract = pathToFileURL(join(repoRoot, "tooling/src/verify/contract/policy.ts")).href;
-  const loadable = join(scratch, GATES_REL, `${NAME}.loadable.ts`);
+  const loadable = join(scratch, GATES_REL, `${NAME}.ts`);
   writeFileSync(loadable, emitted.replace('from "../contract/policy.ts"', `from ${JSON.stringify(contract)}`));
 
-  const module = (await import(pathToFileURL(loadable).href)) as Record<string, unknown>;
-  expect(isDefinedGatePolicy(module["gate"])).toBe(true);
+  const corpus = await loadPolicyCorpus(scratch);
+  expect(corpus.files).toEqual([`${GATES_REL}/${NAME}.ts`]);
+  expect(corpus.gates.map((gate) => gate.id)).toEqual([NAME]);
   // The scaffold is GREEN ON ARRIVAL: its placeholder predicate bites its own mustFlag fixture and leaves
   // its mustPass fixture alone, so `pnpm check:policy-conformance` stays a verdict about the author's work
   // rather than about the template's stub.
-  expect(verifyPolicyProofs([module["gate"] as Parameters<typeof verifyPolicyProofs>[0][number]])).toEqual([]);
+  expect(verifyPolicyProofs(corpus.gates)).toEqual([]);
 });

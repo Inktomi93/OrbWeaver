@@ -53,7 +53,7 @@ test("ignored missing, empty, and unresolved resources withhold owner grant reco
           },
         };
       },
-      mustFlag: [{ mode: "resource", files: { "package.json": "{}" }, why: "required metadata absent" }],
+      mustFlag: [{ mode: "resource", files: { "package.json": "{}" }, grant: { subject: "package.json", operation: "read" }, why: "required metadata absent" }],
       mustPass: [{ mode: "resource", files: { "package.json": "{}" }, why: "resource-only fixture mode" }],
     });
     const result = runPolicyPass({

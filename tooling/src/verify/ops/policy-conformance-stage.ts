@@ -3,8 +3,15 @@
 // and runs every FINAL policy's own `mustFlag`/`mustPass` rows through the production dispatcher
 // (`verifyPolicyProofs`), so a converted policy's bite is proven on every `pnpm check` whether or not a committed
 // family test imports it — the 21 modules no test imported at the fold are covered by construction. Family tests
-// keep the `runPolicyPass`-shaped proofs (identity arms, grant reconciliation, refusal pins) the proof rows cannot
-// express; this stage is the bite receipt.
+// keep the `runPolicyPass`-shaped proofs (the ORDINARY §4.2 identity arm, cross-policy grant reconciliation,
+// refusal pins) the proof rows cannot express; this stage is the bite receipt.
+//
+// SINCE #2189 IT IS ALSO THE REVIEWED-GRANT IDENTITY RECEIPT, and the sentence above shrank accordingly: the §4.3
+// identity arm IS expressible as a proof row, because a `mustFlag` row carrying `grant: { subject, operation }`
+// gets a SECOND run of the same fixture with one generated grant, and holds only at `grantedFindings` 1 /
+// `effectiveFindings` 0 / `authorityAlarms` 0 (`ops/policy-conformance.ts#grantIdentityFailure`). Those rows are
+// counted and printed APART from `proof rows` below — a second verdict folded into the first arm's total is a
+// total that reads unchanged while the arm is absent.
 //
 // A failure is a TOOL ERROR (exit 2), never a violation: the policy's claim about ITSELF is what broke, so every
 // structure verdict that policy took part in is untrustworthy (the house classification, contract/scoped.ts). Zero
@@ -28,7 +35,7 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { validateReviewedGrants } from "../lib/gate-authority-validation.ts";
 import { loadMixedGateCorpus } from "../lib/loader.ts";
-import { policyProofArmCounts } from "../lib/policy-proof-rows.ts";
+import { policyGrantIdentityRowCount, policyProofArmCounts } from "../lib/policy-proof-rows.ts";
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "./policy-conformance.ts";
 
@@ -42,7 +49,7 @@ export async function runPolicyConformance(root: string): Promise<number> {
   const corpus = await loadMixedGateCorpus(root);
   if (corpus.final.length === 0) {
     process.stdout.write(
-      `policy-conformance: 0 final policies · 0 proof rows · 0 refusal rows (corpus: ${corpus.files.length} module(s), ${corpus.legacy.length} legacy)\n`,
+      `policy-conformance: 0 final policies · 0 proof rows · 0 refusal rows · 0 identity-proof rows (corpus: ${corpus.files.length} module(s), ${corpus.legacy.length} legacy)\n`,
     );
     process.stderr.write(
       "policy-conformance: TOOL ERROR — the mixed loader resolved ZERO final policies, so this run proved nothing (a bare zero is not a conformance verdict)\n",
@@ -63,9 +70,13 @@ export async function runPolicyConformance(root: string): Promise<number> {
   const armCounts = corpus.final.map(policyProofArmCounts);
   const proofs = armCounts.reduce((n, counts) => n + counts.mustFlag + counts.mustPass, 0);
   const refusals = armCounts.reduce((n, counts) => n + counts.mustRefuse, 0);
+  // The reviewed-grant identity witnesses, counted APART for the same reason (#2189): each is a SECOND run over a
+  // row already inside `proof rows`, so a total that swallowed them would read unchanged while the whole identity
+  // arm was absent — a zero indistinguishable from "the arm never ran".
+  const identityProofs = corpus.final.reduce((n, policy) => n + policyGrantIdentityRowCount(policy), 0);
   const grantScope = tableInCorpus ? "whole table" : "rows naming loaded policies";
   process.stdout.write(
-    `policy-conformance: ${corpus.final.length} final policies · ${proofs} proof rows · ${refusals} refusal rows · ${failures.length} failure(s) · ${rows.length} grant rows (${grantScope}) · ${grants.errors.length} invalid · ${elapsedMs}ms (corpus: ${corpus.files.length} module(s), ${corpus.legacy.length} legacy proven by gate-conformance)\n`,
+    `policy-conformance: ${corpus.final.length} final policies · ${proofs} proof rows · ${refusals} refusal rows · ${identityProofs} identity-proof rows · ${failures.length} failure(s) · ${rows.length} grant rows (${grantScope}) · ${grants.errors.length} invalid · ${elapsedMs}ms (corpus: ${corpus.files.length} module(s), ${corpus.legacy.length} legacy proven by gate-conformance)\n`,
   );
   for (const failure of failures) {
     process.stdout.write(`  ✗ ${failure.policyId} · ${failure.arm}[${failure.exampleIndex}] · ${failure.why}\n      ${failure.detail}\n`);

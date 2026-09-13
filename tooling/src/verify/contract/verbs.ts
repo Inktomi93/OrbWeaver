@@ -24,6 +24,7 @@ export const VERIFY_VERBS = [
   "boot-chunk",
   "ledgers-fresh",
   "ledger-claims",
+  "board-citations",
   "debt",
   "ratchet-gate",
   "config-snapshot",

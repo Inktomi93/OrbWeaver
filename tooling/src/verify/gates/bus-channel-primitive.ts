@@ -132,6 +132,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/transport/trpc/probe-bus.ts", operation: "event-emitter-construction" },
       files: {
         "packages/server/src/transport/trpc/probe-bus.ts": 'import { EventEmitter } from "node:events";\nexport const bus = new EventEmitter();\n',
       },

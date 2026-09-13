@@ -95,6 +95,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/components/foo.tsx", operation: "color-token-inline-override" },
       files: { "packages/client/src/components/foo.tsx": "export const A = () => <div style={{ '--color-primary': 'red' }} />;\n" },
       expect: { count: 1, token: ATTRIBUTE },
       why: "the founding shape — an inline style overriding a color token outside the clamp",

@@ -180,6 +180,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/features/x/x.ts", operation: "raw-storage:localStorage" },
       files: { "packages/client/src/features/x/x.ts": 'export const read = (): string | null => localStorage.getItem("k");\n' },
       expect: { count: 1, token: "localStorage", messageIncludes: "outside the persistence doors" },
       why: "the founding shape — a raw localStorage read in a feature, outside both persistence doors. The `messageIncludes` pins WHICH ARM answers: an undeclared free identifier resolves as the ambient global, so the bare spelling takes the PRECISE verdict, not the fail-closed one. Measured, because the count alone cannot tell the two arms apart and this module's header used to claim the opposite",

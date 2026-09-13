@@ -104,6 +104,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/features/a/mutation.ts", operation: "inline-invalidate-queries" },
       files: {
         ...tanstackQueryProof(),
         "packages/client/src/features/a/mutation.ts":

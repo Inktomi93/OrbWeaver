@@ -3,8 +3,8 @@
 // capped at 200 lines because argv parse + dispatch is all it may ever hold (Core-Tooling-Law §2.5/§4.3).
 //
 // `baseline <kind>` WRITES; `baseline <kind> --check` derives and DIFFS, writing nothing (#817). Only the
-// two line-number/fileset-coupled ledgers carry a `--check` arm — the rest have no reader that could go
-// stale between regens, and a `--check` for a kind that has none is misuse, never a silent write.
+// kinds in LEDGER_CHECKS carry freshness arms; a `--check` for a kind that has none is misuse,
+// never a silent write.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import { generateBaseuiSurface } from "./gen/baseui-surface.ts";
@@ -14,6 +14,7 @@ import { generateDuplicateActionDoorsBaseline } from "./gen/duplicate-action-doo
 import { generateProseBaseline } from "./gen/prose.ts";
 import { generateReadFirstCosts } from "./gen/read-first-costs.ts";
 import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
+import { generateThemeCss, THEME_BASELINE } from "./gen/theme-css.ts";
 import { generateTypeConfigs } from "./gen/type-configs.ts";
 import { LEDGER_CHECKS } from "./ledgers-fresh.ts";
 
@@ -21,7 +22,7 @@ refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.t
 
 /** The committed baselines this tool is the SINGLE writer of. A `Record` rather than a switch: a new
  *  baseline generator is a row, and tsc requires the row to exist before the kind can be spelled. */
-const BASELINES: Readonly<Record<string, (root: string) => number>> = {
+const BASELINES: Readonly<Record<string, (root: string) => number | Promise<number>>> = {
   "baseui-surface": generateBaseuiSurface,
   // NOT a ratchet: a derived REVIEW RECORD no gate reads (#751). It rides the same single-writer door so
   // the census cannot be hand-edited into agreement with itself.
@@ -35,6 +36,7 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   "read-first-costs": generateReadFirstCosts,
   "snap-flags-index": generateSnapFlagsIndex,
   "type-configs": generateTypeConfigs,
+  [THEME_BASELINE]: generateThemeCss,
 };
 
 /** This verb's usage text — ONE home, read by the refusals here and by the front door's pre-dispatch
@@ -44,7 +46,7 @@ export const BASELINE_HELP =
   "  Regenerates a COMMITTED baseline — the single-writer door (GATE-AUTHORING §4.8). Never run on a shared tree mid-lane.\n" +
   `  --check derives and DIFFS instead of writing (exit 1 on drift); available for ${Object.keys(LEDGER_CHECKS).sort().join(", ")}.`;
 
-export function runBaseline(root: string, rest: readonly string[]): number {
+export function runBaseline(root: string, rest: readonly string[]): number | Promise<number> {
   const kind = rest[0];
   const generate = kind === undefined ? undefined : BASELINES[kind];
   if (kind === undefined || generate === undefined) {

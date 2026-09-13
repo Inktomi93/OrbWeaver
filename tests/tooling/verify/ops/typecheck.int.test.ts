@@ -31,6 +31,30 @@ function plant(root: string, files: Readonly<Record<string, string>>): void {
 
 const TIMEOUT = scaledBudget(30_000);
 
+test("an extended concrete parent still reports native diagnostics through discovery and explicit selection", { timeout: TIMEOUT }, async ({
+  runCli,
+  scratch,
+}) => {
+  plant(scratch, {
+    "package.json": JSON.stringify({ type: "module" }),
+    "tsconfig.base.json": BASE,
+    "tsconfig.json": JSON.stringify({ extends: "./tsconfig.base.json", files: ["bad.ts"] }),
+    "tsconfig.child.json": JSON.stringify({ extends: "./tsconfig.json", files: ["good.ts"] }),
+    "bad.ts": 'export const value: number = "wrong";\n',
+    "good.ts": "export const value = 1;\n",
+  });
+  const discovered = await runCli("verify", ["typecheck"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(discovered).toExitWith(1);
+  expect(discovered.stdout).toContain("FAIL tsconfig.json");
+  expect(discovered.stdout).toContain("PASS tsconfig.child.json");
+  expect(discovered.stdout).toContain("TS2322");
+  const explicit = await runCli("verify", ["typecheck", "--config", "tsconfig.json"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(explicit).toExitWith(1);
+  expect(explicit.stdout).toContain("FAIL tsconfig.json");
+  expect(explicit.stdout).toContain("TS2322");
+  expect(explicit.stdout).not.toContain("PASS tsconfig.child.json");
+});
+
 test("a newly discovered program with a native type error is checked without registration", { timeout: TIMEOUT }, async ({ runCli, scratch }) => {
   plant(scratch, {
     "package.json": JSON.stringify({ type: "module" }),

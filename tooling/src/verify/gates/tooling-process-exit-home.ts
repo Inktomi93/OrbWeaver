@@ -98,6 +98,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "tooling/src/ast/ops/bail.ts", operation: "process-exit" },
       files: { "tooling/src/ast/ops/bail.ts": 'import process from "node:process";\nexport function bail(): never {\n  process.exit(2);\n}\n' },
       expect: { count: 1, token: "process.exit", messageIncludes: "a bare process.exit" },
       why: "the founding shape through the `node:process` door (the live spelling): a bare exit outside run-tool — drops the pipe and dodges the exit-honesty runner (arm D). `messageIncludes` names the PRECISE text, which the unreadable arm never emits, so this row proves the door branch resolved rather than fail-closed",
@@ -120,7 +121,7 @@ export const gate = defineGate({
         "tooling/src/_shared/run-tool.ts": 'import process from "node:process";\nexport function crash(): never {\n  process.exit(process.exitCode ?? 2);\n}\n',
       },
       expect: { count: 1, messageIncludes: "Subject: tooling/src/_shared/run-tool.ts, operation: process-exit" },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the runner reds like any other site and is licensed by its exact grant row (`tooling-process-exit-home:run-tool`). A proof row cannot carry a grant; the family test proves the row consumes exactly this",
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the runner reds like any other site and is licensed by its exact grant row (`tooling-process-exit-home:run-tool`). The family test proves this real central grant consumes the identity; module witnesses independently prove the synthetic exact-grant door",
     },
     {
       mode: "types",
