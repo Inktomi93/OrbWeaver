@@ -41,13 +41,17 @@ const MESSAGE =
 const FIX =
   "wipe packages/db/src/migrations and rerun `pnpm --filter @orb/db db:generate` from a clean dir — the entire pre-launch schema is one regenerated baseline.";
 
+function isJsonRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function isSingleBaselineJournal(value: JsonValue): boolean {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+  if (!isJsonRecord(value)) {
     return false;
   }
   const entries = value["entries"];
   const entry = Array.isArray(entries) && entries.length === 1 ? entries[0] : undefined;
-  return typeof entry === "object" && entry !== null && !Array.isArray(entry) && entry["idx"] === 0 && entry["tag"] === BASELINE_TAG;
+  return isJsonRecord(entry) && entry["idx"] === 0 && entry["tag"] === BASELINE_TAG;
 }
 
 export const gate = defineGate({

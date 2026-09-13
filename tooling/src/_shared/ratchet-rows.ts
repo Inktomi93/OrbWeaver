@@ -177,7 +177,7 @@ export function rowProblemsFor(row: RatchetRow, citeExists: (path: string) => bo
 }
 
 /** Filesystem-backed compatibility door for debt/generator callers. Resource policies supply their own
- *  tracked-path predicate through {@link rowProblemsFor} and never receive the checkout root. */
+ *  authored-path identity predicate through {@link rowProblemsFor} and never receive the checkout root. */
 export function rowProblems(root: string, row: RatchetRow): readonly string[] {
   return rowProblemsFor(row, (path) => citeResolves(root, path));
 }
