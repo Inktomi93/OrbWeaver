@@ -5311,12 +5311,13 @@
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "5c666d87d30a1b19422673cb683140a038aa44e8a6d9a010d35da23c4832845f",
-      "verifiedCommit": "725fc340c2ce99b1e6a0100f61c63b2312c25450",
+      "verifiedSha256": "9e3e6de1699b7e53751de1d58e28fc4413b8f69d3c7384c24e543bca120621ca",
+      "verifiedCommit": "a8c522ee3abbc15efaa97a2195b252765578d17e",
       "verifiedAt": "2026-09-13",
       "summary": "Full two-leg vendor hook proof report with preserved historical evidence, explicit seven-hook correction, independent acceptance, and integrated 26/26 receipt. No new defect ledger rows.",
       "evidence": [
-        "Root read the complete preserved report and additive integration appendix; independent reviewer prepared the fold and confirmed zero source ledger rows. Scoped check:docs passed. B978 supplies terminal #2310 closure; broader program verification remains owed."
+        "Root read the complete preserved report and additive integration appendix; independent reviewer prepared the fold and confirmed zero source ledger rows. Scoped check:docs passed. B978 supplies terminal #2310 closure; broader program verification remains owed.",
+        "Catalog identified unsupported status final; normalized to active with an explicit appendix note preserving historical provenance. Root read the corrected metadata and appendix; check:docs passed."
       ],
       "claims": [
         {
@@ -5324,7 +5325,7 @@
           "evidence": [
             {
               "kind": "provenance",
-              "target": "git:725fc340c2ce99b1e6a0100f61c63b2312c25450"
+              "target": "git:a8c522ee3abbc15efaa97a2195b252765578d17e"
             },
             {
               "kind": "issue",
