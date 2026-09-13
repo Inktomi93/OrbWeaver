@@ -30670,9 +30670,9 @@
       "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1292,
-      "bytes": 536590,
-      "sha256": "0b5083f8959c5019ba5d8d5e57b8e9b4c03833cafa7b7ea566f2dab723cb40db",
+      "lines": 1299,
+      "bytes": 541623,
+      "sha256": "a87761c404f17426cee4a8cfd42224be8c67c61b521e8049a8eb567c9e385a1d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -30685,28 +30685,28 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md",
-        "assignedSha256": "0b5083f8959c5019ba5d8d5e57b8e9b4c03833cafa7b7ea566f2dab723cb40db",
+        "assignedSha256": "a87761c404f17426cee4a8cfd42224be8c67c61b521e8049a8eb567c9e385a1d",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "0b5083f8959c5019ba5d8d5e57b8e9b4c03833cafa7b7ea566f2dab723cb40db",
-        "verifiedCommit": "d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94",
+        "verifiedSha256": "a87761c404f17426cee4a8cfd42224be8c67c61b521e8049a8eb567c9e385a1d",
+        "verifiedCommit": "083276748443e1c99320081afac875d2f3efa487",
         "verifiedAt": "2026-09-13",
         "evidence": [
-          "Full read by Codex records_review; proposed receipt and limits reviewed by Codex-primary. Full document read at d7ceedfb1 against the integrated repair receipts and final reviews. Accepted as dated review evidence with the document’s stated scope, corrections, negative findings, and unverified boundaries preserved; no pending program debt was inferred complete."
+          "Full prior read plus exact cde165d7d..083276748 delta review. The current bytes preserve the dated finding text and fold eleven adjudicated state cells plus two report cross-references; the rollup is 515 total, 399 CLOSED, 80 OPEN, and 26 FIXED."
         ],
         "claims": [
           {
-            "claim": "At the integrated tree, this document is the dated review index of refutation findings and their recorded states; Project 1 remains authoritative for mutable ownership and open program debt remains open.",
+            "claim": "At 083276748, this dated ledger records 515 rows: 399 CLOSED, 80 OPEN, and 26 FIXED. Two hit-geometry rows remain FIXED pending current-main CT, and #2197 remains OPEN; these per-row states do not establish whole-program closure or freshness of every contributing report.",
             "evidence": [
               {
                 "kind": "provenance",
-                "target": "git:d7ceedfb1c8fec00130a9f4f762fd437b5a5ed94"
+                "target": "git:083276748443e1c99320081afac875d2f3efa487"
               }
             ]
           }
         ],
-        "summary": "Current dated refutation-ledger index through the integrated repair train, with per-row states, reconciliation receipts, rollup method, and extensive historical limitations."
+        "summary": "Current dated refutation ledger at 083276748, with 515 bounded row dispositions and explicit remaining OPEN and FIXED work; Project 1 still owns mutable lifecycle."
       },
       "receiptCurrent": true
     },
@@ -40985,9 +40985,9 @@
       "path": "docs/reviews/gate-runtime/x-hit-geometry-2026-09-13.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 203,
-      "bytes": 15838,
-      "sha256": "c6d74672f50cb40fd4db7e8f2ee5c5597e2eb87b84e2484ae06df9336e9c599b",
+      "lines": 383,
+      "bytes": 31888,
+      "sha256": "49bf527db5d023648329e03962e6f4d7f84c14540086be302a54f8b3965eb88e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -41000,28 +41000,28 @@
       },
       "receipt": {
         "path": "docs/reviews/gate-runtime/x-hit-geometry-2026-09-13.md",
-        "assignedSha256": "c6d74672f50cb40fd4db7e8f2ee5c5597e2eb87b84e2484ae06df9336e9c599b",
+        "assignedSha256": "49bf527db5d023648329e03962e6f4d7f84c14540086be302a54f8b3965eb88e",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "c6d74672f50cb40fd4db7e8f2ee5c5597e2eb87b84e2484ae06df9336e9c599b",
-        "verifiedCommit": "9162d7e87331f2c3f68cbbacf36549f10be61af9",
+        "verifiedSha256": "49bf527db5d023648329e03962e6f4d7f84c14540086be302a54f8b3965eb88e",
+        "verifiedCommit": "083276748443e1c99320081afac875d2f3efa487",
         "verifiedAt": "2026-09-13",
         "evidence": [
-          "Complete lane report read; root reviewed the integration append. Historical lane measurements remain attributed to their recorded checkout. Current-main receipts and remaining verification limits are explicit."
+          "Full report read through its integrated lane history and exact appended adjudication delta. Five historical geometry rows have sufficient integrated source, control, and prior current-main CT evidence to close; two later geometry rows have node controls but still await current-main CT."
         ],
         "claims": [
           {
-            "claim": "Preserves hit-geometry lane evidence and integrated 10-test node floor; current-main CT and rendered triage remain owed.",
+            "claim": "This report preserves the complete hit-geometry repair and review history and supports closing five named ledger defects. The two later raw-envelope geometry defects remain FIXED pending current-main CT because the cited 421/421 current-main CT receipt predates those repairs; rendered RAIL triage remains a separate obligation.",
             "evidence": [
               {
-                "kind": "issue",
-                "target": "#1584"
+                "kind": "provenance",
+                "target": "git:083276748443e1c99320081afac875d2f3efa487"
               }
             ]
           }
         ],
-        "summary": "Preserves hit-geometry lane evidence and integrated 10-test node floor; current-main CT and rendered triage remain owed."
+        "summary": "Full hit-geometry history and adjudication: five rows closed, two rows fixed with current-main CT still owed, and rendered RAIL triage kept separate."
       },
       "receiptCurrent": true
     },
@@ -42226,6 +42226,94 @@
           }
         ],
         "summary": "Dated aggregate producer/driver report with the final #2238 and #2225 corrective reviews and integrated main receipts."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/adj-ledger-receipt-reconciliation-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 169,
+      "bytes": 20328,
+      "sha256": "fe77b15174a00caf452ab9f7c26cc902bb06cf12c3acc1080b92fa29b0641b2b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/adj-ledger-receipt-reconciliation-2026-09-13.md",
+        "assignedSha256": "fe77b15174a00caf452ab9f7c26cc902bb06cf12c3acc1080b92fa29b0641b2b",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "fe77b15174a00caf452ab9f7c26cc902bb06cf12c3acc1080b92fa29b0641b2b",
+        "verifiedCommit": "083276748443e1c99320081afac875d2f3efa487",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full read of these byte-identical current bytes. The report proposes 22 bounded state changes, preserves thirteen #2097 binding-reader migrations as OPEN, and explicitly relies on prior receipts rather than a new behavioral run."
+        ],
+        "claims": [
+          {
+            "claim": "The report supports 22 bounded ledger state-cell proposals: thirteen #2097 binding-reader migrations remain OPEN, while only individually evidenced repaired rows close; it does not claim broader program closure or a fresh behavioral run.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:083276748443e1c99320081afac875d2f3efa487"
+              }
+            ]
+          }
+        ],
+        "summary": "Full-read reconciliation of named ledger rows, with thirteen #2097 migrations explicitly retained as open and prior-run limits preserved."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-refute-repairs-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 498,
+      "bytes": 42163,
+      "sha256": "7fcd5c4d5a06c44c0362547e32607f90b1fdbe68c97595f8285e8e69f6e4b0fb",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-refute-repairs-2026-09-13.md",
+        "assignedSha256": "7fcd5c4d5a06c44c0362547e32607f90b1fdbe68c97595f8285e8e69f6e4b0fb",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "7fcd5c4d5a06c44c0362547e32607f90b1fdbe68c97595f8285e8e69f6e4b0fb",
+        "verifiedCommit": "083276748443e1c99320081afac875d2f3efa487",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full prior read plus exact cde165d7d..083276748 delta review. The embedded independent correction remains authoritative, #2197 and #2142 remain OPEN, and the two report rows are now folded into the ledger so the footer records ledger rows OWED: 0."
+        ],
+        "claims": [
+          {
+            "claim": "The report supports bounded dispositions for #2259, #2270, and #2288 only with its embedded independent corrections; #2197 remains OPEN, #2142 and #1334 retain separate ownership, and its two report-to-ledger rows are now folded without implying broader program closure.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:083276748443e1c99320081afac875d2f3efa487"
+              }
+            ]
+          }
+        ],
+        "summary": "Corrected refutation-repair record with its two ledger rows folded and remaining #2197/#2142 limits preserved."
       },
       "receiptCurrent": true
     }
