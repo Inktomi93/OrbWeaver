@@ -131,3 +131,17 @@ rewrote both double-delimited endpoints to single delimiters while retaining the
 the narrow preservation hook, the focused suite passes 17/17, its second pass is clean,
 and the complete doc-catalog selection passes 70 runtime tests plus three type assertions. Scoped Biome,
 ESLint, and the native tooling TypeScript program pass.
+
+## Third corrective review leg
+
+Independent re-review found that the first serializer repair associated recognized nodes only while scanning
+the input; it restored their delimiters with a global first-match string replacement over the output. An
+earlier fenced block carrying the same minimized bytes captured that replacement, after which the generic
+fidelity guard refused the otherwise valid canonical prose. The global replacement is deleted.
+
+The replacement is an inline-code serializer handler keyed on the actual parent and sibling node identities.
+It follows the installed remark handler's delimiter, padding, unsafe-break, and GFM table-pipe behavior,
+changing only the minimum delimiter length for the two endpoint nodes of an exact inline-code / `${…}` text /
+inline-code triple. A fenced carrier with identical bytes remains untouched, and two identical canonical
+prose spans retain their own endpoints. The test pins both endpoint values, the intervening substitution,
+the unchanged fenced bytes, and an identical clean second pass.
