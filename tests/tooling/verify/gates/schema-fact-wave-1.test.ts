@@ -1,12 +1,16 @@
 import { Project } from "ts-morph";
 import { describe } from "vitest";
+import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import { gate as byteCheckCast } from "../../../../tooling/src/verify/gates/byte-check-cast.ts";
 import { gate as dbEnumFromTuple } from "../../../../tooling/src/verify/gates/db-enum-from-tuple.ts";
+import { gate as domainFreshnessPlane } from "../../../../tooling/src/verify/gates/domain-freshness-plane.ts";
 import { gate as fkColumnsIndexed } from "../../../../tooling/src/verify/gates/fk-columns-indexed.ts";
 import { gate as fkOnDeleteStated } from "../../../../tooling/src/verify/gates/fk-ondelete-stated.ts";
 import { gate as nullableColumnInequality } from "../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { gate as ownTablesOnly } from "../../../../tooling/src/verify/gates/own-tables-only.ts";
 import { gate as ownerIdRegistry } from "../../../../tooling/src/verify/gates/ownerid-registry.ts";
+import { gate as schemaBannedShapes } from "../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
 import { gate as schemaBranding } from "../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as tableExplicitPrimaryKey } from "../../../../tooling/src/verify/gates/table-explicit-primary-key.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -129,3 +133,128 @@ describe("the shared Drizzle fact's health is its CONSUMER's fail-closed read (s
     expect(result.policies[0]?.receipts).toEqual([expect.objectContaining({ kind: "population", source: "drizzle-schema", members: 2 })]);
   });
 });
+
+// ---------------------------------------------------------------------------------------------------
+// THE SAME GUARANTEE, PER CONSUMER (#2327 — the `policy-refusal-coverage` warning debt). The block above
+// proves the door on `schema-branding` alone, and a refusal pin binds to the module it DRIVES: every other
+// `drizzleSchemaFact` consumer in the `drizzle-schema` family carried no pin at all, so nothing
+// distinguished "this policy judged a complete census and found nothing" from "this policy never saw one".
+// That is #944's class, and it is the question `resource-policy-contract.md` §3.6 asks of a fact exactly as
+// it asks it of a resource: derive the statuses THIS supply can emit, and pin each REACHABLE one.
+//
+// THE FOUR MEMBERS THAT JOIN THIS FILE FROM OTHER WAVES all declare `family: "drizzle-schema"` and consume
+// this provider (`byte-check-cast`, `domain-freshness-plane`, `schema-banned-shapes` — the fourth,
+// `freeze-provenance-write-pairing-health`, belongs to the `freeze-provenance` family and keeps its pin in
+// its own conversion test, because its `empty` arm REPORTS rather than refusing). Their conversion tests
+// live under other names and drive nothing; the shared fact's health has ONE home and this is it.
+//
+// THE STATUS SET, derived from `lib/schema-fact.ts#buildSchema` rather than copied:
+//   • `empty`      — the schema population is readable and declares no canonical `sqliteTable`;
+//   • `unresolved` — a table call the reader cannot follow (the impostor-builder shape above);
+//   • `ready`      — the twin;
+//   • `missing`    — DECLARED UNCONSTRUCTIBLE through the dispatcher, and the receipt is the third arm
+//     below. `buildSchema` answers `missing` on `options.files.length === 0`, but a fact whose population
+//     admits zero authored paths is refused ONE PHASE EARLIER by the provider's own population resolution,
+//     which withholds every dependent before `evaluate` — so the consumer is never handed the `missing`
+//     status; it is handed nothing at all. The three consumers whose OWN population is disjoint from
+//     `packages/db/src/schema/**` are the only ones that can express that corpus (for the other seven,
+//     deleting the schema tree empties their own population first and the refusal changes owner), so they
+//     carry the fact-population arm and the other seven do not. Fixturing a `missing` status for them
+//     would be a fixture proving itself — #2274's lesson, which is the reason this comment is here.
+// ---------------------------------------------------------------------------------------------------
+
+/** The consumers whose population is disjoint from the schema tree need one file of their own, or their
+ *  OWN population refuses first and the arm under test never runs. */
+const DOMAIN_ANCHOR = "packages/server/src/domain/chat/persistence/write.ts";
+const ANCHORS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "own-tables-only": { [DOMAIN_ANCHOR]: "export const write = 1;\n" },
+  "domain-freshness-plane": { [DOMAIN_ANCHOR]: "export const write = 1;\n" },
+  "nullable-column-inequality": { [DOMAIN_ANCHOR]: "export const write = 1;\n" },
+};
+
+const NO_TABLE = "export const noSchemaTable = true;\n";
+const IMPOSTOR =
+  'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+  "const fake = { primaryKey: (value: unknown) => value };\n" +
+  'export const probe = sqliteTable("probe", { id: text("id") }, (t) => [fake.primaryKey({ columns: [t.id] })]);\n';
+const HEALTHY = 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const probe = sqliteTable("probe", { id: text("id").primaryKey() });\n';
+
+function consumerPass(policy: GatePolicy, files: Readonly<Record<string, string>>): PolicyPassResult {
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, content] of Object.entries(files)) {
+    project.createSourceFile(`${VIRTUAL_ROOT}/${path}`, content);
+  }
+  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: VIRTUAL_ROOT, project, reviewedGrants: [], failOnWarnings: false });
+}
+
+function schemaCorpus(policy: GatePolicy, probe: string): Readonly<Record<string, string>> {
+  return { [PROBE]: probe, ...(ANCHORS[policy.id] ?? {}) };
+}
+
+for (const policy of [
+  byteCheckCast,
+  dbEnumFromTuple,
+  domainFreshnessPlane,
+  fkColumnsIndexed,
+  fkOnDeleteStated,
+  nullableColumnInequality,
+  ownTablesOnly,
+  ownerIdRegistry,
+  schemaBannedShapes,
+  tableExplicitPrimaryKey,
+]) {
+  test(`${policy.id}: an EMPTY census refuses at evaluate — the fail-closed read, not a clean verdict`, () => {
+    const result = consumerPass(policy, schemaCorpus(policy, NO_TABLE));
+
+    expect(result.factErrors).toEqual([]);
+    expect(result.toolErrors).toEqual([
+      expect.objectContaining({
+        policyId: policy.id,
+        phase: "evaluate",
+        message: "drizzle schema fact empty: schema source population declares no Drizzle SQLite tables",
+      }),
+    ]);
+    expect(result.policies[0]?.owner.status).toBe("incomplete");
+    expect(result.authority.effectiveFindings).toEqual([]);
+  });
+
+  test(`${policy.id}: an UNRESOLVED census refuses too — a reader that could not follow the table is not an empty one`, () => {
+    const result = consumerPass(policy, schemaCorpus(policy, IMPOSTOR));
+
+    expect(result.factErrors).toEqual([]);
+    expect(result.toolErrors).toEqual([
+      expect.objectContaining({ policyId: policy.id, phase: "evaluate", message: expect.stringMatching(/^drizzle schema fact unresolved: /u) }),
+    ]);
+    expect(result.policies[0]?.owner.status).toBe("incomplete");
+    expect(result.authority.effectiveFindings).toEqual([]);
+  });
+
+  test(`${policy.id}: the healthy twin is handed the census and runs to a verdict, receipting what it judged`, () => {
+    const result = consumerPass(policy, schemaCorpus(policy, HEALTHY));
+
+    expect(result.factErrors).toEqual([]);
+    expect(result.toolErrors).toEqual([]);
+    expect(result.policies[0]?.owner.status).toBe("success");
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    // The consumer's OWN receipt is the census `recordReadySchemaFact` files — one table and its one
+    // column. It is the two-sided half of the refusals above: a withheld consumer files none at all, so a
+    // pin that only asserted the tool error could not tell a verdict from a silence.
+    expect(result.policies[0]?.receipts).toEqual([expect.objectContaining({ kind: "population", source: "drizzle-schema", members: 2 })]);
+  });
+}
+
+// THE FACT-POPULATION ARM — the `missing` status's real-world route, and the receipt for declaring the
+// status itself unconstructible. Only these three have a population disjoint from the schema tree, so only
+// they can express "no schema sources at all" without their own population refusing first.
+for (const policy of [domainFreshnessPlane, nullableColumnInequality, ownTablesOnly]) {
+  test(`${policy.id}: no schema sources at all withholds the consumer at the FACT phase, before evaluate`, () => {
+    const result = consumerPass(policy, { [DOMAIN_ANCHOR]: "export const write = 1;\n" });
+
+    expect(result.authority.effectiveFindings).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([policy.id]);
+    expect([...result.factErrors.map(({ factId }) => factId), ...result.toolErrors.map(({ message }) => message)].join(" | ")).toContain("drizzle-schema");
+    // No consumer receipt: `recordReadySchemaFact` never ran, which is the difference between this arm and
+    // the `empty` arm above — there the census was DELIVERED and the consumer refused ON it.
+    expect(result.policies[0]?.receipts ?? []).toEqual([]);
+  });
+}
