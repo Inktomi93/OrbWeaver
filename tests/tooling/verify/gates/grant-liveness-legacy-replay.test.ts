@@ -59,7 +59,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join, parse } from "node:path";
 import process from "node:process";
-import { exportProcessEnv, processEnvValue } from "../../../../tooling/src/_shared/process-env.ts";
+import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as biomeGrantLiveness } from "../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
 import { gate as biomeGrantLivenessHealth } from "../../../../tooling/src/verify/gates/biome-grant-liveness-health.ts";
@@ -758,32 +758,30 @@ test("§4.6 — the replay-root guard NAMES a non-directory root instead of fall
   expect(readdirSync(scratch).toSorted(), "the guard writes nothing").toEqual(["dangling-link", "not-a-directory"]);
 });
 
-test("§4.6 — a poisoned GIT_DIR in the parent environment does not steer the frozen read", ({ scratch }) => {
+test("§4.6 — a poisoned GIT_DIR in the parent environment does not steer the frozen read", async ({ scratch }) => {
   // LD-2319-9. The frozen blob is WRITTEN into scratch and `import()`ed, so the object store it resolves
   // against is the store whose code executes. A run inside a git HOOK is the case: git exports `GIT_DIR`
   // and `GIT_INDEX_FILE` to hooks, and `tests/tooling/**` runs on the `--full` tier.
+  //
+  // `withProcessEnv` is the door for the poison ITSELF: it restores a present key byte-for-byte and an
+  // absent one as actual ABSENCE in its own `finally`, so this control leaks nothing into the next test
+  // file sharing this pooled worker — and needs no `process.env` suppression to say so (LD-2319-11).
   const foreign = join(scratch, "foreign-repository");
   const pinned = join(scratch, "pinned");
   mkdirSync(foreign);
   mkdirSync(pinned);
   execFileSync("git", ["init", "--quiet", foreign]);
-  const restore = processEnvValue("GIT_DIR");
-  exportProcessEnv("GIT_DIR", join(foreign, ".git"));
-  try {
+  // BOTH READS HAPPEN INSIDE THE POISONED WINDOW — the control and the pinned one; only the assertions
+  // about the result are outside it. The callback is synchronous, so it hands its value back through a
+  // resolved promise rather than wearing an `async` modifier it would never use.
+  const closure = await withProcessEnv("GIT_DIR", join(foreign, ".git"), () => {
     // THE POSITIVE CONTROL — the poison is real: an UNPINNED read of the same ref fails under it.
     expect(
       () => execFileSync("git", ["show", `${LEGACY_BASE}:${BIOME_LEGACY}`], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }),
       "an unpinned `git show`",
     ).toThrow();
-    const closure = frozenClosureOf(pinned, LEGACY_BASE, BIOME_LEGACY);
-    expect(closure.extracted[0], "the PINNED read resolves against THIS repository under the same poison").toBe(BIOME_LEGACY);
-    expect(closure.extracted.length, "and the whole closure comes back").toBeGreaterThan(1);
-  } finally {
-    if (restore === undefined) {
-      // biome-ignore lint/style/noProcessEnv: REMOVING the ambient variable this control poisoned IS the cleanup, and `exportProcessEnv` (the sanctioned writer, used above) can set a key but not delete one. A leaked GIT_DIR would follow this pooled worker into the next test file.
-      Reflect.deleteProperty(process.env, "GIT_DIR");
-    } else {
-      exportProcessEnv("GIT_DIR", restore);
-    }
-  }
+    return Promise.resolve(frozenClosureOf(pinned, LEGACY_BASE, BIOME_LEGACY));
+  });
+  expect(closure.extracted[0], "the PINNED read resolves against THIS repository under the same poison").toBe(BIOME_LEGACY);
+  expect(closure.extracted.length, "and the whole closure comes back").toBeGreaterThan(1);
 });
