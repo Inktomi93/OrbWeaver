@@ -45,3 +45,10 @@ bytes were then restored. The restored integration file passed 3/3.
 
 The changes are test and evidence only. They do not alter artifact publication, range parsing, or capture
 limits. No whole-tree battery, lifecycle operation, catalog change, or browser test was run.
+
+## Review correction
+
+Independent behavioral review accepted all 14 tests and both proof controls, then found two comments beside
+the concurrency case that still described the retired 1.5-second sleep as the current mechanism. The
+comments now describe the actual acknowledgement protocol and its 50-second broken-child failsafe. No
+protocol, assertion, production source, or measured receipt changed in this correction.

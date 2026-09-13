@@ -157,8 +157,8 @@ async function leaderRunId(root: string, leading: Promise<CliResult>): Promise<s
   }
 }
 
-// EXPLICIT BUDGETS on all three: each case spawns real CLI children and the planted gate SLEEPS 1.5s to
-// force the overlap, which is past vitest's 5s default the moment the box carries sibling lanes.
+// EXPLICIT BUDGET: this case spawns two real CLI children, and a broken child can leave the leader in the
+// acknowledgement loop until its 50s failsafe. The timeout owns that failure path under sibling load.
 test("two concurrent `check:structure` runs both keep their verdict, and the pointer names a COMPLETE one", { timeout: scaledBudget(60_000) }, async ({
   plantedTree,
   runCli,
@@ -166,9 +166,9 @@ test("two concurrent `check:structure` runs both keep their verdict, and the poi
   const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-slow.ts`]: SLOW_GATE });
   // ORDERED, not raced (#2248 — see `leaderRunId`). The leader starts, and the follower starts only once
   // the leader's in-flight marker exists, which is the one fact `openRunSlot`'s racing census reads. The
-  // two are still genuinely CONCURRENT: SLOW_GATE sleeps 1.5s inside `runPass`, i.e. after the marker
-  // write, so the leader is provably still in flight — and `racing` keeps only markers whose pid is ALIVE,
-  // which is what makes the census below a real observation of a live sibling rather than of a leftover.
+  // two are still genuinely CONCURRENT: SLOW_GATE keeps the leader inside `runPass` until the follower
+  // acknowledges reaching its own post-scan hook. `racing` keeps only markers whose pid is ALIVE, which
+  // makes the census below a real observation of a live sibling rather than of a leftover.
   const leading = runCli("verify", ["structure"], { cwd: root });
   const leader = await leaderRunId(root, leading);
   const [a, b] = await Promise.all([leading, runCli("verify", ["structure"], { cwd: root })]);
