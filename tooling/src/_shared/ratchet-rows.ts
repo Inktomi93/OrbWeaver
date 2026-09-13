@@ -153,7 +153,7 @@ export function classOf(row: RatchetRow): RatchetClass {
 
 /** What a row PROMISES but does not deliver — the integrity gate's per-row arms, and the reason a hand-edit
  *  cannot mint a permanent admission without saying who ruled it. `root` resolves the cites. */
-export function rowProblems(root: string, row: RatchetRow): readonly string[] {
+export function rowProblemsFor(row: RatchetRow, citeExists: (path: string) => boolean): readonly string[] {
   const problems: string[] = [];
   if (row.ratified === 0) {
     return problems;
@@ -167,13 +167,19 @@ export function rowProblems(root: string, row: RatchetRow): readonly string[] {
     problems.push("ratified with an EMPTY `cite` — name the repo-relative site(s) or ruling document the ratification rests on");
   }
   for (const cite of row.cite) {
-    if (!citeResolves(root, cite)) {
+    if (!citeExists(citePath(cite))) {
       problems.push(
         `STALE WHY — cited site \`${cite}\` is not on the tree: the ratification outlived what justified it. Re-cite it, or drop the row back to debt`,
       );
     }
   }
   return problems;
+}
+
+/** Filesystem-backed compatibility door for debt/generator callers. Resource policies supply their own
+ *  tracked-path predicate through {@link rowProblemsFor} and never receive the checkout root. */
+export function rowProblems(root: string, row: RatchetRow): readonly string[] {
+  return rowProblemsFor(row, (path) => citeResolves(root, path));
 }
 
 /** The repo-relative PATH inside one cite token: a `§`/`#` suffix is prose (see the header's declared limit)
@@ -223,6 +229,21 @@ function sniffShape(parsed: unknown): RatchetLedgerShape {
   return isPlainObject(parsed) && isPlainObject(parsed["entries"]) ? "entries-map" : "budget-map";
 }
 
+/** Parse one already-acquired strict-JSON ledger. This is the shared semantic half used by ResourceHost
+ *  consumers; disk acquisition remains in {@link readRatchetLedger} for generators and debt commands. */
+export function parseRatchetLedger(rel: string, parsed: unknown): RatchetLedgerFile {
+  if (!isPlainObject(parsed)) {
+    throw new RatchetRowError(`${rel} is not a JSON object`);
+  }
+  const shape = sniffShape(parsed);
+  if (shape === "entries-map") {
+    const entries = isPlainObject(parsed["entries"]) ? parsed["entries"] : {};
+    const rows = Object.entries(entries).map(([subject, reason]) => parseEntriesRow(subject, reason));
+    return { rel, shape, rows, note: typeof parsed["note"] === "string" ? parsed["note"] : null };
+  }
+  return { rel, shape, rows: [...parseBudgetMap(parsed).values()], note: null };
+}
+
 /** Every row of one committed ledger, in both shapes. THROWS (never returns empty) on unreadable JSON. */
 export function readRatchetLedger(root: string, rel: string): RatchetLedgerFile {
   const path = join(root, rel);
@@ -235,16 +256,7 @@ export function readRatchetLedger(root: string, rel: string): RatchetLedgerFile 
   } catch (cause) {
     throw new RatchetRowError(`${rel} is unreadable or malformed — a debt ledger that cannot be parsed must never report zero rows`, { cause });
   }
-  if (!isPlainObject(parsed)) {
-    throw new RatchetRowError(`${rel} is not a JSON object`);
-  }
-  const shape = sniffShape(parsed);
-  if (shape === "entries-map") {
-    const entries = isPlainObject(parsed["entries"]) ? parsed["entries"] : {};
-    const rows = Object.entries(entries).map(([subject, reason]) => parseEntriesRow(subject, reason));
-    return { rel, shape, rows, note: typeof parsed["note"] === "string" ? parsed["note"] : null };
-  }
-  return { rel, shape, rows: [...parseBudgetMap(parsed).values()], note: null };
+  return parseRatchetLedger(rel, parsed);
 }
 
 /** An entries-map row: ONE membership, its reason as the `why`. Its class is DEBT by construction — the
