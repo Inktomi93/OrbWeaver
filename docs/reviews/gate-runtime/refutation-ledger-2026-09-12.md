@@ -620,8 +620,8 @@ is `--full`-only (#1842) and nothing runs `--full` on a cadence.
 | `lib/policy-pass-context.ts` | #2155 item 2 · `tooling/src/verify/lib/policy-pass-context.ts:249,257,280,347,354,396,411,415,418,421` | ten refusal sentences spelled by literal while `POLICY_PASS_REFUSALS` is their home (eight keys); `:236` has no key | one-home drift (fenced; ruled to compose AFTER this merge) | **CLOSED — VERIFIED ON MAIN** (specific #2155 item; separate resource-selection defect #2309 remains open) | composed by `ce429f3c4`; the hardened two-sided emitter census landed through `b718a0835`; current-main focused run at `765dcdd71` passed `policy-refusal-envelope.test.ts` 9/9 within 170/170 tests across the nine requested files (`reports/runs/test/main-4017828-2026-09-13T05-21-29-260Z/test-report.json`) |
 | `gate-modernization` | #2111 · `tooling/src/verify/gates/gate-modernization.ts:111` | `registrationOf` is a LOCAL duplicate of `finalRegistrationOf` + `gateRegistrationOf` | duplicate reader (legacy meta-gate) | OPEN — retire with the meta-gate at the cutover | §5U |
 | `own-tables-only` | #2111 · `…/own-tables-only.ts` `FILE_ALLOWLIST` | a name-vocabulary collection on a final module that reads as an exemption table by NAME; content unadjudicated | judgment (ARM B vocabulary vs a real fence list) | OPEN — verifier judgment | §STATE FOR RESUME (pre-compaction census) |
-| `verify-registry-parity` | #2111 · `…/verify-registry-parity.ts` `NON_STAGE_ALLOWLIST` | same class | judgment | OPEN — verifier judgment | same |
-| `vector-scope-derived` | #2111 · `…/vector-scope-derived.ts` `IMPORT_SANCTIONED` | same class | judgment | OPEN — verifier judgment | same |
+| `verify-registry-parity` | #2111 · `…/verify-registry-parity.ts` `NON_STAGE_ALLOWLIST` | Non-stage exceptions had no reverse subject-liveness check. | judgment | **CLOSED — #2340; a175779d0** | Independently reviewed reverse loop emits a distinct stale-exception finding, with membership derived from the registry and exception owner. Missing-subject red-first control and all-present twin retained. Main `main-2846955-2026-09-13T14-22-50-305Z` passed 12/12 across three suites; scoped lint and all 11 native programs passed. Root-host identity is recorded separately below. |
+| `vector-scope-derived` | #2111 · `…/vector-scope-derived.ts` `IMPORT_SANCTIONED` | Permanent architectural import roles were misclassified as expiring exception debt. | judgment | **CLOSED — #2328; a175779d0** | Active enforcement law and independent review establish role vocabulary; `IMPORT_ROLE_ROOTS` preserves all five paths and separate write/cosine restrictions. Each root-removal cut kills its corresponding proof. The strengthened actual-corpus test requires zero one-sided exemption accusations. Main three-suite 12/12, scoped lint and all 11 native programs passed. |
 | `ops/debt.ts` | #2111 · `tooling/src/verify/ops/debt.ts:51-52` | an OPS module imports two LEGACY gates' `BASELINE_REL` (`density-tier`, `duplicate-action-doors`) — outside the family's population, a legacy-baseline coupling that dies with the baselines | observation (legacy) | OPEN — note for the cutover checklist | census (`grep from "../gates/"` over `tooling/src/verify` minus `gates/`) |
 
 ### cb-v-ledger-reconcile — the 76 OPEN/UNADJUDICATED rows re-derived against `61cae0710` ([`v-ledger-reconcile-2026-09-12.md`](v-ledger-reconcile-2026-09-12.md)); 3 rows asserted. Its 48 paste-ready flips (40 CLOSED · 1 SUPERSEDED · 7 narrowed) were applied to the rows above in the same commit; the still-open remainder is chunked A–F in its §STILL OPEN
@@ -1086,6 +1086,14 @@ Current adjudication: the second independent lens confirms the two ordinary poli
 | - | - | - | - | - | - |
 | R-2319-1 | registry-definitions-legacy-replay.test.ts | Imported modal definition observed a common prefix and mislabeled its resolved placeholder arm as an anchor move. | other (proof blind spot) | **CLOSED** — #2338; `45d520e73` | Exact Placeholder body successor and same-coordinate wrong-arm control; independent source closing review confirmed; integrated 50/50 importer tests and scoped lint/docs passed. All 51 examples remain; four subsequent modules and whole #2319 completion remain outside this closure. |
 
+### Proof-message and declaration-census prevention — 2026-09-13; 3 rows
+
+| id | module | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| REGISTRY-HOST-IDENTITY-1 | verify-registry-parity | Missing `scripts.verify` disabled missing-stage and root-runtime-dependency checks despite canonical root resource identity. | other (false clean) | **CLOSED — #2340; a175779d0** | Distinct scope extension recorded on #2340 before closure. Removing the host guards makes missing verify, missing stage and a runtime dependency produce three independent findings; the new regression first failed with only one. Independent final review confirmed; actual-root paired overlay and main 12/12 importer floor passed, with lint and all 11 native programs. |
+| Q08-PROOF-MESSAGE-READABILITY | policy-proof-expectations | A present unreadable messageIncludes acquired the optional field's absence semantics. | other (false clean) | **CLOSED — #2230 checkpoint; 6373db80c** | Distinct unreadable diagnostic and canonical immutable derived-text reader; empty spans stay exact. Independent six-file review confirmed, and four precise cuts failed their intended controls with exact restoration. Main `main-2830974-2026-09-13T14-18-37-735Z` passed 64/64, lint six files and all 11 native programs. Source grammar/effect limits remain explicit; broader #2230 stays open. |
+| F3-REFUSAL-ARRAY-CENSUS | policy-refusal-coverage | Literal-only dependency/refusal arrays omit const/import aliases, credit empty spreads, and treat unreadable declarations as absent. | other (false clean / false accusation) | **OPEN — #2342** | Source predicate re-derived at 6373db80c; actual dispatcher red-first run `agent-a6646bc6706ca2732-2854023-2026-09-13T14-24-37-003Z` failed 13 intended verdict assertions with 12 controls passing and complete owners/no errors. Shared cardinality/effect repair, independently loaded live denominator and review are owed. #2327 separately owns remaining consumer debt and promotion; no severity flip or security-held substrate change is authorized here. |
+
 ## CLASS ROLLUP
 
 **REBUILT FROM THE BODY, 2026-09-11 (`v-ledger-sweep`, `64dfbf349`). The previous table read
@@ -1130,8 +1138,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 16 | 1 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 329 | 266 | 44 | 1 | 2 | 1 | 0 | 15 |
-| **TOTAL** | 525 | 439 | 56 | 6 | 3 | 1 | 0 | 20 |
+| **other** | 332 | 270 | 43 | 1 | 2 | 1 | 0 | 15 |
+| **TOTAL** | 528 | 443 | 55 | 6 | 3 | 1 | 0 | 20 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 
