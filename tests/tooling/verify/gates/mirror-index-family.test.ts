@@ -272,93 +272,136 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
   expect(names.filter((name) => name.endsWith(".ct.tsx")).length).toBeGreaterThan(0);
   expect(names.filter((name) => name.endsWith(".test.ts")).length).toBeGreaterThan(5);
 });
+/** THE PARKED `test-layout` POPULATION, HELD AS A CLASS (#2270; the park is #2142).
+ *
+ *  WHY NOT THE ENUMERATED ROSTER THIS REPLACES. `183e49714` pinned the whole live population as a 57-path
+ *  literal under `toEqual`. The 57 were correct and reconciled member-for-member against the park's 51 and
+ *  wave-8c's 53 (`docs/reviews/gate-runtime/v-wave-12b-2026-09-13.md` §2), but the INSTRUMENT was the
+ *  defect: this program mints one more member of this exact class PER CONVERSION — all six post-park
+ *  members landed on a single day, 2026-09-12 — so exact set equality makes a legitimate family-test
+ *  addition a RED PIN. That is guide §4.1's `countFrom` ruling one level up ("a literal `count` makes a
+ *  legitimate registry addition a RED PROOF"), and it reds where the author cannot see it: `pnpm check`
+ *  runs no tests and `tests/tooling/**` is `--full`-only (#1842). Planted control at the time of the
+ *  refutation: an `export {};` file at `tests/tooling/verify/gates/<name>-family.test.ts` took the drive
+ *  57 → 58 and broke the equality.
+ *
+ *  THE CLASS, derived from what the 57 have in common (drive of 2026-09-13, 57 findings, 0 tool errors).
+ *  Every member is BOTH:
+ *    (a) reported by the §4.7 TOOLING arm — `message` starts with `mirror miss — no source for tooling/src/`
+ *        — never the package arm (`… no source for packages/…`), never `unregistered test kind`, never
+ *        `wrong test home`, never `test outside a package mirror`; and
+ *    (b) a path under `tests/tooling/verify/gates/` — the conversion program's family/wave tests, which
+ *        drive SEVERAL converted policy modules through `runPolicyPass` and so have no single source
+ *        module to prefix-swap to. That is precisely the class #2142 froze behind the test-mirror revamp.
+ *  Both conjuncts are load-bearing and each has its own discriminating arm below: (b) alone would admit a
+ *  wrong-home or unregistered-kind defect sitting at a gates path, and (a) alone would admit a tooling
+ *  mirror miss anywhere else under `tests/tooling/`.
+ *
+ *  ANYTHING ELSE IS A NAMED EXCEPTION, EARNED PER MEMBER. Two exist, and neither is the family class — both
+ *  are CONCEPT-named tests whose subject is reached through a barrel or spans two modules, so a revamp
+ *  aimed at family tests would leave them behind. `git log --all --diff-filter=A` confirms no source has
+ *  ever existed at either mirror name.
+ *
+ *  THE TWO-SIDED HALF (#2270 asked that a parked member disappearing still be noticed). It is the
+ *  EXCEPTION rows, asserted live one by one: an exception is a claim about ONE path, so the moment that
+ *  path is fixed or renamed the row is stale and reds. A whole-population FLOOR COUNT was considered and
+ *  REFUSED — it re-introduces the refuted defect in the opposite direction (one legitimate rename inside
+ *  the class reds it, and the number then has to be hand-bumped), and a shrinking family class is not a
+ *  defect: it is the revamp arriving, which the emptiness arm below reports once, loudly, at the end.
+ *
+ *  RE-DERIVE, never hand-edit the exception rows: drive the policy exactly as `realTreeMisses` does and
+ *  read the printed list. The run costs ~1s because `test-layout` declares `population: { of: "none" }` —
+ *  it reads membership, never source text, so an EMPTY project is the honest corpus for it. */
+const PARKED_CLASS_PATH_PREFIX = "tests/tooling/verify/gates/";
+const PARKED_CLASS_MESSAGE_PREFIX = "mirror miss — no source for tooling/src/";
 
-/** THE PARKED `test-layout` POPULATION, PINNED ON BOTH SIDES (#2270; the park is #2142). The owner parked
- *  this policy's real-tree findings behind a test-mirror revamp — but a parked NUMBER that nothing
- *  re-measures is not a baseline: between the park (`78a411ab0`, 51 findings) and this commit it absorbed
- *  SIX new members in silence, and the wave that noticed read 53. The roster below is the whole live
- *  population, enumerated, so the next drift REDS in either direction: a new member fails the equality, and
- *  so does a member that gets fixed while the park still claims it.
- *
- *  WHAT THE SIX ARE, because "the park covers it" is a claim per member and five of the six earn it:
- *  `bus-payload-family`, `css-home-topology-family`, `real-corpus-liveness-family`, `seed-theme-ink-family`
- *  and `token-contract-family` are guide §4.5b/§4.9 FAMILY tests — a test that drives several converted
- *  policy modules through `runPolicyPass` has no single source module to prefix-swap to, which is the exact
- *  class the park froze and which this program mints one more of per conversion. `catalog-scope.test.ts`
- *  (`61cae0710`) is NOT that class: it is a CONCEPT-named unit test whose subject is
- *  `tooling/src/doc-catalog/ops/catalog.ts` reached through the package barrel, and no source named
- *  `catalog-scope.ts` has ever existed. A test-mirror revamp aimed at family tests would leave it behind,
- *  so it is named here rather than absorbed.
- *
- *  RE-DERIVE, never hand-edit: drive the policy exactly as below and take the printed list. The run costs
- *  ~1s because `test-layout` declares `population: { of: "none" }` — it reads membership, never source
- *  text, so an EMPTY project is the honest corpus for it rather than a saving. */
-const PARKED_TEST_LAYOUT_MISSES: readonly string[] = [
-  "tests/tooling/doc-catalog/ops/catalog-scope.test.ts",
-  "tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts",
-  "tests/tooling/verify/gates/bus-pair.test.ts",
-  "tests/tooling/verify/gates/bus-payload-family.test.ts",
-  "tests/tooling/verify/gates/callback-provenance-family.test.ts",
-  "tests/tooling/verify/gates/class-string-literal-wave.test.ts",
-  "tests/tooling/verify/gates/client-query-pair-conversion.test.ts",
-  "tests/tooling/verify/gates/contract-and-serde-seal-split.test.ts",
-  "tests/tooling/verify/gates/contract-shape-wave-1.test.ts",
-  "tests/tooling/verify/gates/css-home-topology-family.test.ts",
-  "tests/tooling/verify/gates/css-hook-provenance-family.test.ts",
-  "tests/tooling/verify/gates/disclosure-reservation-family.test.ts",
-  "tests/tooling/verify/gates/drizzle-registry-conversion.test.ts",
-  "tests/tooling/verify/gates/external-id-single-writer-family.test.ts",
-  "tests/tooling/verify/gates/freeze-provenance-conversion.test.ts",
-  "tests/tooling/verify/gates/grant-liveness-family.test.ts",
-  "tests/tooling/verify/gates/home-client-family.test.ts",
-  "tests/tooling/verify/gates/home-server-family.test.ts",
-  "tests/tooling/verify/gates/id-brand-flow.test.ts",
-  "tests/tooling/verify/gates/injected-op-caller-param-split.test.ts",
-  "tests/tooling/verify/gates/ledger-banned-shapes.test.ts",
-  "tests/tooling/verify/gates/mirror-index-family.test.ts",
-  "tests/tooling/verify/gates/mixed-hook-singletons-conversion.test.ts",
-  "tests/tooling/verify/gates/mixed-hook-singletons.test.ts",
-  "tests/tooling/verify/gates/ordinary-client-and-ct-wave.test.ts",
-  "tests/tooling/verify/gates/ordinary-visitors-family.test.ts",
-  "tests/tooling/verify/gates/origin-client-family.test.ts",
-  "tests/tooling/verify/gates/origin-server-family.test.ts",
-  "tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts",
-  "tests/tooling/verify/gates/port-parity-tier3.test.ts",
-  "tests/tooling/verify/gates/real-corpus-liveness-family.repo.int.test.ts",
-  "tests/tooling/verify/gates/registry-family.test.ts",
-  "tests/tooling/verify/gates/resource-layout-wave-1.test.ts",
-  "tests/tooling/verify/gates/resource-layout-wave-2.test.ts",
-  "tests/tooling/verify/gates/resource-layout-wave-3.test.ts",
-  "tests/tooling/verify/gates/schema-fact-parity.test.ts",
-  "tests/tooling/verify/gates/schema-fact-wave-1.test.ts",
-  "tests/tooling/verify/gates/seed-theme-ink-family.test.ts",
-  "tests/tooling/verify/gates/session-channel-family.test.ts",
-  "tests/tooling/verify/gates/simple-file-hooks.test.ts",
-  "tests/tooling/verify/gates/simple-visitors-1584.test.ts",
-  "tests/tooling/verify/gates/simple-visitors-wave-2.test.ts",
-  "tests/tooling/verify/gates/simple-visitors-wave-4.test.ts",
-  "tests/tooling/verify/gates/singleton-ordinary-policies.test.ts",
-  "tests/tooling/verify/gates/split-arm-parity.test.ts",
-  "tests/tooling/verify/gates/suppressions-family.test.ts",
-  "tests/tooling/verify/gates/tenancy-scope-family.test.ts",
-  "tests/tooling/verify/gates/testid-variant-split-family.test.ts",
-  "tests/tooling/verify/gates/text-citation-family.test.ts",
-  "tests/tooling/verify/gates/tier-home-health-family.int.test.ts",
-  "tests/tooling/verify/gates/tier3-close-by-rule.test.ts",
-  "tests/tooling/verify/gates/token-contract-family.test.ts",
-  "tests/tooling/verify/gates/tooling-front-door-family.test.ts",
-  "tests/tooling/verify/gates/tooling-plumbing-family.test.ts",
-  "tests/tooling/verify/gates/ui-token-surface-wave-1.test.ts",
-  "tests/tooling/verify/gates/unfenced-class-fragment-scanners.test.ts",
-  "tests/tooling/verify/gates/union-axis-family.test.ts",
-  "tests/tooling/verify/lib/bus-fact-relay.test.ts",
+interface ParkedException {
+  readonly file: string;
+  readonly why: string;
+}
+
+const PARKED_EXCEPTIONS: readonly ParkedException[] = [
+  {
+    file: "tests/tooling/doc-catalog/ops/catalog-scope.test.ts",
+    why: "`61cae0710` — a CONCEPT-named unit test whose subject is `tooling/src/doc-catalog/ops/catalog.ts` reached through the package barrel; no `catalog-scope.ts` has ever existed, and a family-test revamp would not absorb it.",
+  },
+  {
+    file: "tests/tooling/verify/lib/bus-fact-relay.test.ts",
+    why: "`d9ac09d58` — a CONCEPT-named fact-level control spanning `lib/bus-definition-fact.ts` and `lib/bus-fact.ts` through a locally defined probe policy; no `bus-fact-relay.ts` has ever existed, and its two subjects mean no prefix swap can name it.",
+  },
 ];
 
-test("test-layout's real-tree population is EXACTLY the parked roster — drift reds in both directions", ({ repoRoot }) => {
+function inParkedClass(finding: { readonly file: string; readonly message?: string }): boolean {
+  return finding.file.startsWith(PARKED_CLASS_PATH_PREFIX) && (finding.message ?? "").startsWith(PARKED_CLASS_MESSAGE_PREFIX);
+}
+
+/** The real-tree drive, shared by the three park arms. Asserts the run is a VERDICT before returning it —
+ *  a refusal here would make every arm below vacuously green on an empty finding list. */
+function realTreeMisses(repoRoot: string): readonly { readonly file: string; readonly message?: string }[] {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   const result = runPolicyPass({ knownPolicies: [testLayout], policies: [testLayout], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
 
   expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings.map(({ file }) => file).toSorted()).toEqual(PARKED_TEST_LAYOUT_MISSES);
-  expect(new Set(result.authority.effectiveFindings.map(({ message }) => (message ?? "").startsWith("mirror miss —")))).toEqual(new Set([true]));
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  return result.authority.effectiveFindings;
+}
+
+test("test-layout's real-tree population stays INSIDE the parked class — a member of another class reds", ({ repoRoot }) => {
+  const outsiders = realTreeMisses(repoRoot).filter((finding) => !inParkedClass(finding));
+
+  expect(outsiders.map(({ file }) => file).toSorted()).toEqual(PARKED_EXCEPTIONS.map(({ file }) => file).toSorted());
+  expect(outsiders.filter(({ message }) => !(message ?? "").startsWith(PARKED_CLASS_MESSAGE_PREFIX))).toEqual([]);
+});
+
+test("every NAMED parked exception is still live — a row that gets fixed goes stale and reds (the two-sided half)", ({ repoRoot }) => {
+  const files = new Set(realTreeMisses(repoRoot).map(({ file }) => file));
+
+  expect(PARKED_EXCEPTIONS.filter(({ file }) => !files.has(file))).toEqual([]);
+});
+
+test("the park is not empty — when the class empties, #2142's park and this pin retire together", ({ repoRoot }) => {
+  expect(realTreeMisses(repoRoot).filter(inParkedClass).length).toBeGreaterThan(0);
+});
+
+/** THE DISCRIMINATING ARMS. Each drives `test-layout` over an overlay whose only defect is the one named,
+ *  then asks `inParkedClass` about the finding the gate actually produced — so the class predicate is
+ *  judged against real gate output, never against a hand-written finding record. `PARKED_CLASS_TREE` is
+ *  the in-population ANCHOR set both mirror families need: a fixture that admits nothing comes back a
+ *  `[population]` TOOL ERROR rather than a finding (guide §12.4). */
+const PARKED_CLASS_TREE = {
+  "packages/ui/src/primitives/example.tsx": "export const example = 1;\n",
+  "tests/ui/primitives/example.ct.tsx": "export const x = 1;\n",
+  "tooling/src/verify/gates/example.ts": "export {};\n",
+  "tests/tooling/verify/gates/example.test.ts": "export const x = 1;\n",
+  "tooling/src/snapx/cli.ts": "export {};\n",
+  "tests/tooling/snapx/cli.test.ts": "export const x = 1;\n",
+} as const;
+
+/** Drive the overlay and return the findings paired with the class verdict, so each arm asserts BOTH that
+ *  the gate flagged what it was meant to and how the class reads it. */
+function classify(scratch: string, extra: Readonly<Record<string, string>>): readonly (readonly [string, boolean])[] {
+  const result = pass(testLayout, scratch, { ...PARKED_CLASS_TREE, ...extra });
+
+  expect(result.toolErrors).toEqual([]);
+  return result.authority.effectiveFindings.map((finding) => [finding.file, inParkedClass(finding)] as const);
+}
+
+test("PARKED CLASS: a legitimate new gates family test is IN the class — the addition this program makes daily", ({ scratch }) => {
+  expect(classify(scratch, { "tests/tooling/verify/gates/cb-example-family.test.ts": "export const x = 1;\n" })).toEqual([
+    ["tests/tooling/verify/gates/cb-example-family.test.ts", true],
+  ]);
+});
+
+test("PARKED CLASS: a tooling mirror miss OUTSIDE tests/tooling/verify/gates/ is NOT in the class", ({ scratch }) => {
+  expect(classify(scratch, { "tests/tooling/snapx/ghost.test.ts": "export const x = 1;\n" })).toEqual([["tests/tooling/snapx/ghost.test.ts", false]]);
+});
+
+test("PARKED CLASS: a PACKAGE-side mirror miss is NOT in the class — wrong ownership, not the parked space", ({ scratch }) => {
+  expect(classify(scratch, { "tests/ui/primitives/ghost.ct.tsx": "export const x = 1;\n" })).toEqual([["tests/ui/primitives/ghost.ct.tsx", false]]);
+});
+
+test("PARKED CLASS: a wrong-HOME defect at a gates path is NOT in the class — the message conjunct earns its keep", ({ scratch }) => {
+  expect(classify(scratch, { "tests/tooling/verify/gates/ghost.spec.ts": "export const x = 1;\n" })).toEqual([
+    ["tests/tooling/verify/gates/ghost.spec.ts", false],
+  ]);
 });
