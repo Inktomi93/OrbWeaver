@@ -187,38 +187,54 @@ function spawnCt(root: string, rest: readonly string[], lease: { readonly cacheD
   return ct.status ?? EXIT.toolError;
 }
 
-/** THE RUNTIME-ONLY DOOR (#2232). A scoped node run passed NO config-mode flag, so `vitest-supervised.mjs`
- *  took the ROOT config — which carries the two `types-*` typecheck projects — and every `pnpm test:scoped`
- *  invocation ran a cold ts7 typecheck of the whole `tsconfig.json` program beside the tests the caller
- *  named. Two costs, one of them a lie: every scoped run paid the pass, and a PARSE ERROR anywhere in that
- *  program exited the run 1 with every named test GREEN — a red verdict about a file the caller never
- *  mentioned, wearing the caller's own exit code. `test:node` and `test:tooling` already passed
- *  `--runtime-only`; the scoped door was the one that did not.
+/** THE CONFIG-MODE DOOR (#2232). A scoped node run passed NO config-mode flag, so `vitest-supervised.mjs`
+ *  took the ROOT config — which carries both `types-*` typecheck projects — and every `pnpm test:scoped`
+ *  invocation carried them whether the caller had claimed a type test or not. The cost of an unclaimed
+ *  typecheck project is not the ts7 pass (a project with ZERO matched files is instantiated and never runs
+ *  the checker); it is that the project's WHOLE PROGRAM becomes part of the run's verdict, so a parse error
+ *  in a file the caller never named exits the run 1 with every named test green. `test:node` and
+ *  `test:tooling` already passed `--runtime-only`; this door was the one that did not.
  *
  *  THE SELECTION IS READ, NEVER GUESSED. `collected` is the vitest listing's own per-file `projectName`
  *  attribution, so a DIRECTORY operand holding a `.test-d.ts` is classified by the same authority that
- *  would run it — a filename test would have missed exactly that case. Three arms:
+ *  would run it — a filename test would have missed exactly that case. Four arms:
  *
- *  - no `types-*` project in the selection → `--runtime-only`. The typecheck projects are absent BEFORE
- *    any `--project` filter applies, which is why `--project=!types-*` is not the same thing (vitest
- *    UNIONS a negative selector with the positives and widens the run).
- *  - the selection is ENTIRELY `types-*` → the claimed projects by name, and NO `--runtime-only`: the two
- *    are mutually exclusive by construction (the runtime config has no typecheck project to select).
- *  - MIXED → neither flag. Today's behaviour, deliberately: the caller named both halves and narrowing
- *    either one would drop tests they claimed.
+ *  - THE CALLER ALREADY FILTERED (`--project` / `--project=…` anywhere in `rest`) → emit NOTHING. Their
+ *    filter is authoritative and `--runtime-only` would silently contradict it: the runtime config has no
+ *    typecheck project to select, so `test:scoped --project=types-node -t x` died
+ *    `No projects matched the filter "types-node"` on an invocation that worked before the door existed
+ *    (the #2232 rework's own regression, caught by cb-v-verify-lib-4).
+ *  - `--related` → `--runtime-only`. Its operands are SOURCE files and the type-assertion lane has its own
+ *    door (`pnpm test:types`). A caller wanting a source's type-test dependents runs that.
+ *  - no `types-*` in the attribution (including an EMPTY attribution — a bare `--grep` claims nothing) →
+ *    `--runtime-only`. The typecheck projects are absent BEFORE any `--project` filter applies, which is
+ *    why `--project=!types-*` is not the same thing: vitest UNIONS a negative selector with the positives
+ *    and widens the run.
+ *  - otherwise → the UNION of the attributed projects, `--project=<each>`. This is the one arm that answers
+ *    the row, and it covers the pure-type and the MIXED case with the same rule: it drops nothing the
+ *    caller claimed and excludes the typecheck project they did NOT. The first draft emitted NOTHING for
+ *    MIXED, which left both typecheck projects riding on every directory operand — the founding case, and
+ *    the arm every lane's floor spelling actually goes through.
  *
- *  `--related` is runtime-only unconditionally: its operands are SOURCE files, and the type-assertion lane
- *  has its own door (`pnpm test:types` → the `types-*` projects). A caller wanting a source's type-test
- *  dependents runs that. */
-export function nodeConfigModeArgs(collectedProjects: readonly string[], mode: "run" | "related"): readonly string[] {
-  if (mode === "related") {
+ *  WHAT THIS DOOR DOES NOT FIX, stated because the founding command still reproduces through it. A
+ *  typecheck project the caller DID claim brings its whole program with it, so a parse error anywhere in
+ *  `tsconfig.json` still reds `test:scoped <a directory holding a .test-d.ts>`. That is vitest's
+ *  `ignoreSourceErrors` default reporting a source error as a run failure, one lever over from this one,
+ *  and narrowing it here would mean dropping a type test the caller named. */
+export function nodeConfigModeArgs(collectedProjects: readonly string[], mode: "run" | "related", callerFilteredProjects: boolean): readonly string[] {
+  if (callerFilteredProjects) {
+    return [];
+  }
+  if (mode === "related" || !collectedProjects.some((name) => name.startsWith(VITEST_TYPECHECK_GROUP_PREFIX))) {
     return [RUNTIME_ONLY];
   }
-  const typeProjects = collectedProjects.filter((name) => name.startsWith(VITEST_TYPECHECK_GROUP_PREFIX));
-  if (typeProjects.length === 0) {
-    return [RUNTIME_ONLY];
-  }
-  return typeProjects.length === collectedProjects.length ? typeProjects.map((name) => `--project=${name}`) : [];
+  return collectedProjects.map((name) => `--project=${name}`);
+}
+
+/** Did the caller supply their OWN project filter? Both spellings vitest accepts, so a door that reads only
+ *  `--project=x` would still contradict `--project x`. */
+export function hasCallerProjectFilter(rest: readonly string[]): boolean {
+  return rest.some((arg) => arg === "--project" || arg.startsWith("--project="));
 }
 
 /** The node run always enters the watchdog supervisor. Related-source emptiness is explicit and local to
@@ -227,7 +243,13 @@ function spawnNode(root: string, rest: readonly string[], mode: "run" | "related
   const nodeArgs = mode === "related" ? ["related", ...rest, "--run", "--passWithNoTests"] : ["run", ...rest];
   const node = runNicedSync(
     process.execPath,
-    [join(root, "scripts", "vitest-supervised.mjs"), ...nodeArgs, ...nodeConfigModeArgs(collectedProjects, mode), "--reporter=default", "--reporter=json"],
+    [
+      join(root, "scripts", "vitest-supervised.mjs"),
+      ...nodeArgs,
+      ...nodeConfigModeArgs(collectedProjects, mode, hasCallerProjectFilter(rest)),
+      "--reporter=default",
+      "--reporter=json",
+    ],
     { cwd: root, stdio: "inherit" },
   );
   return node.status ?? EXIT.toolError;

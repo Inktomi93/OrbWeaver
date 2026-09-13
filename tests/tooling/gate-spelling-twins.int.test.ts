@@ -43,12 +43,11 @@
 //     FALSE. A `mustFlag` can only ever make a gate LOUDER, so it structurally cannot pin an ACQUITTAL;
 //     the row's own `why` says exactly that ("cut it and no mustFlag row moves, while this row reds"). The
 //     commit credited with the repair, `eb51d4313`, never touched THIS file (4-file stat) — its last
-//     toucher `a7d88287b` predates it — which is how a shrink receipt kept naming the wrong proof.
-//
-// THIS SUITE IS LEGACY BY REQUIREMENT AND RETIRES AT THE #1584 CUTOVER, not at the next conversion. It calls
-// `loadGates()`, which returns `corpus.legacy` ALONE, so every conversion SHRINKS its subject; re-pointing it
-// forever would be maintaining a census of a set the program exists to empty. Fix its receipts while it
-// lives (a false receipt is a false receipt), and delete it with the legacy loader.
+//     toucher `a7d88287b` predates it — which is how a shrink receipt kept naming the wrong proof.** The
+//     same hunk first added a paragraph claiming this suite calls `loadGates()` and so shrinks with every
+//     conversion; it calls `loadMixedGateCorpus` at `:100` and the census drives BOTH engines. Deleted
+//     2026-09-13 — the header 26 lines above already states the true premise, and a comment-honesty fix
+//     that ships a new false comment is the disease.
 //   • `owner-scoped-upserts` ["bracket","namespace"] → ["bracket"] — the SAME reader change, inherited: the
 //     upsert half calls the same `tableTargetOf`. It was not a subject of the fix and is recorded here so the
 //     shrink is not read as an unexplained disappearance.
