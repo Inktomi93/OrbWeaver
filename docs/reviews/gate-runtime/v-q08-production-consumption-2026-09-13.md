@@ -112,10 +112,14 @@ This repair does not expand the graph's guarantee beyond possible source reach a
 
 ## Independent closing review
 
-Pending the existing independent reviewer's warm follow-up over the immutable repair checkpoint. The author results above are not an independent closing verdict.
+### Independent closing review — `241fa7030`
+
+**CONFIRMED.** Independent review at `241fa70301d74c7d812b498ad2d4c2f80f00a38f` found the #2337 repair correctly scoped. `policyProductionDependencies` roots a method-form `create` at its `MethodDeclaration`, while `descriptorValue` still accepts only property assignments and shorthand assignments. The reader control pins both sides of that boundary, and the new `policy-family-readers` `mustPass[0]` sends two same-family method-form descriptors through the production policy path; both consume the same canonical imported reader declaration.
+
+Independent command: `pnpm test:scoped tests/tooling/verify/lib/policy-descriptor-read.test.ts tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts`, exit 0, 40/40 tests passed (25 reader, 15 family), report `reports/runs/test/agent-a6646bc6706ca2732-2508587-2026-09-13T13-15-41-532Z/test-report.json`. The author cut was also inspected: removing only the method-root branch fails exactly `policy-family-readers:mustPass[0]` with two findings and restores the source SHA. This closes `Q08-METHOD-ROOT` at the author checkpoint; integration verification remains coordinator-owned. The graph's stated limit remains source reach and canonical identity, not semantic fitness or branch execution. Q06/#2333 is outside this review.
 
 ## LEDGER ROWS (1 row)
 
 | id | module | wave · path | defect | class | state | receipt |
 | - | - | - | - | - | - | - |
-| Q08-METHOD-ROOT | `policy-descriptor-read` / `policy-family-readers` | Q08 independent review · `policy-descriptor-read.ts:142-149,273-280` | At `fd2970553`, valid method-form `create() { ... }` starts from no production node and falsely reports both members of an otherwise shared-reader family | other (false positive / legal descriptor form) | **OPEN — #2337; author repair verified, independent closing review pending** | Initial source refutation above; actual two-member policy red/green and discriminating cut, reader control and 40-test floor; no claim of main integration |
+| Q08-METHOD-ROOT | `policy-descriptor-read` / `policy-family-readers` | Q08 independent review · `policy-descriptor-read.ts:142-149,273-280` | At `fd2970553`, valid method-form `create() { ... }` starts from no production node and falsely reports both members of an otherwise shared-reader family | other (false positive / legal descriptor form) | **CONFIRMED — #2337 author checkpoint 241fa7030; root integration still owed** | Initial source refutation above; actual two-member policy red/green and discriminating cut, reader control and 40-test floor; no claim of main integration |
