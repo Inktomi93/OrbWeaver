@@ -173,7 +173,16 @@ function physicalProject(root: string, files: Readonly<Record<string, string>>):
   return project;
 }
 
-function normalizedVerdict(findings: readonly { readonly token?: string; readonly message?: string }[]): readonly string[] {
+const OCCURRENCE_MESSAGES = {
+  z: "raw z-N or unknown semantic z-index outside the reviewed implementation tier — use a governed z-(--z-*) token.",
+  skin: "a static string outside packages/ui/src/lib/ hand-spells a homed skin fragment — compose the lib constant instead.",
+  pointer: "pointer/hover capability variant in a feature string — device capability lives at the token or shell layer.",
+} as const;
+
+function normalizedVerdict(
+  findings: readonly { readonly file: string; readonly line: number; readonly token?: string; readonly message?: string; readonly policyId?: string }[],
+  legacyMessageReplacement?: string,
+): readonly string[] {
   return findings
     .map((finding) => {
       const message = finding.message ?? "";
@@ -189,10 +198,84 @@ function normalizedVerdict(findings: readonly { readonly token?: string; readonl
       if (home !== undefined) {
         return `HEALTH home ${home}`;
       }
-      return `OCCURRENCE ${waivableCoordinate(finding.token ?? "") ?? finding.token ?? "<none>"}`;
+      return JSON.stringify({
+        file: finding.file,
+        line: finding.line,
+        token: waivableCoordinate(finding.token ?? "") ?? finding.token ?? "<none>",
+        message: legacyMessageReplacement ?? message,
+        policyId: finding.policyId,
+      });
     })
     .toSorted();
 }
+
+// Health findings move from gate/self or historical anchors to admitted source anchors. Each frozen
+// row names that transition explicitly; category parity below is supplementary, never identity proof.
+const HEALTH_TRANSITIONS: Readonly<
+  Record<
+    string,
+    readonly {
+      file: string;
+      line: number;
+      column: number;
+      token: string;
+      message: string;
+      policyId: string;
+    }[]
+  >
+> = {
+  "z:mustFlag:4": [
+    {
+      file: "packages/ui/src/layout/__differential.ts",
+      line: 1,
+      column: 1,
+      token: "export",
+      policyId: "z-index-tier-health",
+      message:
+        "z-index vocabulary drift: expected [base, modal, overlay, popover, raised, toast, tooltip], found [base, modal, overlay, popover, raised, toast]",
+    },
+  ],
+  "z:mustFlag:5": [
+    {
+      file: "packages/ui/src/layout/__differential.ts",
+      line: 1,
+      column: 1,
+      token: "export",
+      policyId: "z-index-tier-health",
+      message: "missing reviewed z-index home: packages/ui/src/markdown/",
+    },
+  ],
+  "skin:mustFlag:3": [
+    {
+      file: "packages/ui/src/primitives/toast/variants.ts",
+      line: 1,
+      column: 1,
+      token: "export",
+      policyId: "skin-fragment-tier-health",
+      message: "missing reviewed skin-fragment home: packages/ui/src/lib/",
+    },
+  ],
+  "pointer:mustFlag:3": [
+    {
+      file: "packages/client/src/main.tsx",
+      line: 1,
+      column: 1,
+      token: "export",
+      policyId: "pointer-capability-tier-health",
+      message: "feature-root census is blind: packages/client/src/features/ resolved zero files",
+    },
+  ],
+  "pointer:mustFlag:4": [
+    {
+      file: "packages/client/src/features/rpg/components/x.tsx",
+      line: 1,
+      column: 1,
+      token: "export",
+      policyId: "pointer-capability-tier-health",
+      message: "missing reviewed pointer-capability home: packages/client/src/features/app-shell/",
+    },
+  ],
+};
 
 function classifierAdmits(kind: LegacyFamily["kind"], path: string): boolean {
   if (kind === "z") {
@@ -232,8 +315,26 @@ test("the three-policy unions reproduce every frozen legacy example with classif
           failOnWarnings: false,
         });
         expect(after.toolErrors, `${family.kind} ${arm}[${index}] final`).toEqual([]);
-        expect(normalizedVerdict(after.authority.effectiveFindings), `${family.kind} ${arm}[${index}] ${example.why}`).toEqual(
-          normalizedVerdict((before.gates[0]?.findings ?? []).map((finding) => ({ token: finding.token, message: finding.message ?? legacy.message }))),
+        expect(after.factErrors, `${family.kind} ${arm}[${index}] facts`).toEqual([]);
+        expect(
+          after.authority.effectiveFindings
+            .filter(({ policyId }) => policyId.endsWith("-health"))
+            .map(({ file, line, column, token, message, policyId }) => ({ file, line, column, token, message, policyId })),
+          `${family.kind} ${arm}[${index}] explicit health identity transition`,
+        ).toEqual(HEALTH_TRANSITIONS[`${family.kind}:${arm}:${index}`] ?? []);
+        expect(
+          normalizedVerdict(
+            after.authority.effectiveFindings.map((finding) => ({
+              ...finding,
+              message: finding.message ?? family.policies.find((policy) => policy.id === finding.policyId)?.message,
+            })),
+          ),
+          `${family.kind} ${arm}[${index}] ${example.why}`,
+        ).toEqual(
+          normalizedVerdict(
+            (before.gates[0]?.findings ?? []).map((finding) => ({ ...finding, message: finding.message ?? legacy.message, policyId: family.policies[0]?.id })),
+            OCCURRENCE_MESSAGES[family.kind],
+          ),
         );
         const expectedStale = reviewedGrantsFor(family.policies).filter((grant) => !Object.keys(files).some((path) => path.startsWith(grant.subject))).length;
         expect(

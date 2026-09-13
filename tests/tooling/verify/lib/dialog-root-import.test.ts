@@ -137,7 +137,9 @@ test("the classified union maps all two flag and three pass legacy rows", async 
   let row = 0;
   for (const arm of ["mustFlag", "mustPass"] as const) {
     for (const example of legacy[arm]) {
-      const files = exampleFiles(example);
+      // The old stale-table row contains only its UI anchor. Admit one inert client source on BOTH
+      // sides so the final owner executes instead of an empty-population refusal masquerading as zero.
+      const files = { ...exampleFiles(example), "packages/client/src/__dialog_replay.ts": "export const replay = true;" };
       const legacyProject = project(files, scratch);
       const before = runPass([legacy], {
         root: scratch,
@@ -148,6 +150,9 @@ test("the classified union maps all two flag and three pass legacy rows", async 
       });
       const after = run(files);
       const mapping = expected[row++];
+      expect(before.toolErrors, mapping?.classification).toEqual([]);
+      expect(after.toolErrors, mapping?.classification).toEqual([]);
+      expect(after.factErrors, mapping?.classification).toEqual([]);
       expect(before.gates[0]?.findings, mapping?.classification).toHaveLength(mapping?.before ?? -1);
       expect(
         after.authority.effectiveFindings.filter(({ policyId }) => policyId === ordinary.id),
@@ -157,6 +162,36 @@ test("the classified union maps all two flag and three pass legacy rows", async 
         after.authority.effectiveFindings.filter(({ policyId }) => policyId === debt.id),
         mapping?.classification,
       ).toHaveLength(mapping?.afterWarning ?? -1);
+      const finalIdentity = after.authority.effectiveFindings.map(({ file, line, token, message, policyId }) => ({
+        file,
+        line,
+        token,
+        message: message ?? POLICIES.find((policy) => policy.id === policyId)?.message,
+        policyId,
+      }));
+      // Row 0 changes remediation prose, preserving the legacy import location and token.
+      const identities = [
+        (before.gates[0]?.findings ?? []).map(({ file, line, token }) => ({
+          file,
+          line,
+          token,
+          policyId: "dialog-via-composite",
+          message: "a features/** file imports the raw `Dialog` root from @orb/ui/dialog — use FormDialog for a form/prompt or ConfirmDialog for an alert.",
+        })),
+        [],
+        [],
+        [],
+        [
+          {
+            file: "packages/client/src/features/chat/components/rename-chat-dialog.tsx",
+            line: 1,
+            token: "Dialog",
+            policyId: "dialog-via-composite-debt",
+            message: "a temporary chat-lane raw Dialog remains pending migration to a composite (#2350).",
+          },
+        ],
+      ];
+      expect(finalIdentity, mapping?.classification).toEqual(identities[row - 1]);
     }
   }
   expect(row).toBe(5);
