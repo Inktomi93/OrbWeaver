@@ -8,7 +8,7 @@
 // message a refusal RAISES (thrown, or pushed into the array a throw joins) is composed from the table FRAGMENT
 // by fragment, or is one of the declared caller-error invariants. Three false cleans in its first version, all
 // three now permanent controls; the block comment above the census states each with its measurement.
-import type { Node, SourceFile, VariableDeclaration } from "ts-morph";
+import type { BinaryExpression, Node, SourceFile, VariableDeclaration } from "ts-morph";
 import { Project, SyntaxKind, Node as TsNode, VariableDeclarationKind } from "ts-morph";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import { GATE_AUTHORITY_ALARM_KINDS, GATE_AUTHORITY_TOOL_ERROR_KINDS } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -340,6 +340,30 @@ function carriesAuthoredText(node: Node): boolean {
  *  census reds loudly rather than crediting text nobody classified. */
 const unreadable = (text: string): Fragments => ({ statics: [`<UNREADABLE ${text}>`], slots: [], text: `<UNREADABLE ${text}>` });
 
+/** Both values a value-selecting expression can emit. Unlike `+`, these operands are alternatives rather
+ *  than adjacent text; retaining both static sets keeps a literal fallback visible without pretending a
+ *  comparison operand is message text. */
+function alternativeFragments(left: Fragments, right: Fragments): Fragments {
+  return {
+    statics: [...left.statics, ...right.statics],
+    slots: [...left.slots, ...right.slots],
+    text: `${left.text}|${right.text}`,
+  };
+}
+
+function binaryFragments(expression: BinaryExpression, hops: number, runtime: Fragments): Fragments {
+  const operator = expression.getOperatorToken().getKind();
+  if (operator === SyntaxKind.PlusToken) {
+    return joinFragments(slotFragments(expression.getLeft(), hops), slotFragments(expression.getRight(), hops));
+  }
+  if (operator === SyntaxKind.BarBarToken || operator === SyntaxKind.AmpersandAmpersandToken || operator === SyntaxKind.QuestionQuestionToken) {
+    return alternativeFragments(slotFragments(expression.getLeft(), hops), slotFragments(expression.getRight(), hops));
+  }
+  // Equality, comparison and arithmetic operators emit a boolean/number runtime value. A string literal
+  // used as their operand is not itself message text.
+  return runtime;
+}
+
 /** One interpolation, classified. A table member and any runtime value stay SLOTS; resolved authored text
  *  becomes STATIC fragments; a text-carrying binding this reader cannot resolve is a loud `<UNREADABLE …>`. */
 function slotFragments(expression: Node, hops: number): Fragments {
@@ -352,15 +376,11 @@ function slotFragments(expression: Node, hops: number): Fragments {
     const literal = expression.getLiteralText();
     fragments = { statics: [literal], slots: [], text: literal };
   } else if (TsNode.isBinaryExpression(expression)) {
-    fragments = joinFragments(slotFragments(expression.getLeft(), hops), slotFragments(expression.getRight(), hops));
+    fragments = binaryFragments(expression, hops, slot);
   } else if (TsNode.isConditionalExpression(expression)) {
     const whenTrue = slotFragments(expression.getWhenTrue(), hops);
     const whenFalse = slotFragments(expression.getWhenFalse(), hops);
-    fragments = {
-      statics: [...whenTrue.statics, ...whenFalse.statics],
-      slots: [...whenTrue.slots, ...whenFalse.slots],
-      text: `${whenTrue.text}|${whenFalse.text}`,
-    };
+    fragments = alternativeFragments(whenTrue, whenFalse);
   } else if (TsNode.isIdentifier(expression)) {
     const initializer = immutableDeclarationOf(expression)?.getInitializer();
     if (initializer === undefined) {
@@ -407,7 +427,10 @@ function fragmentsOf(argument: Node): Fragments {
       { statics: [head], slots: [], text: head },
     );
   } else if (TsNode.isBinaryExpression(argument)) {
-    fragments = joinFragments(fragmentsOf(argument.getLeft()), fragmentsOf(argument.getRight()));
+    fragments =
+      argument.getOperatorToken().getKind() === SyntaxKind.PlusToken
+        ? joinFragments(fragmentsOf(argument.getLeft()), fragmentsOf(argument.getRight()))
+        : slotFragments(argument, RESOLVE_HOPS);
   } else {
     fragments = slotFragments(argument, RESOLVE_HOPS);
   }
@@ -733,4 +756,36 @@ test("the census PLANTED CONTROLS, leg 3: an identifier suffix and an aliased pu
   );
   expect(escapedSinks(escaping)).toEqual(["collect(failures)"]);
   expect(escapedSinks(aliasPushed)).toEqual([]);
+});
+
+test("the bounded const reader distinguishes concatenation from runtime and value-selecting binary operators", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+
+  // Equality produces a BOOLEAN. Its string operand is a comparison value, never text emitted into the
+  // refusal; treating every BinaryExpression as concatenation invents a static `failed` fragment and reds
+  // correct code.
+  const equality = project.createSourceFile(
+    "/planted/runtime-equality.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\nconst FAILED = "ready" === "failed";\n' +
+      "export function refuse(): never {\n  throw new Error(`${POLICY_PASS_REFUSALS.factFailed}: ${FAILED}`);\n}\n",
+  );
+  expect(unaccountedRefusals(equality)).toEqual([]);
+
+  // Logical/coalescing operators can return either operand, so a literal fallback/suffix remains authored
+  // refusal text and must not disappear with the equality correction.
+  for (const [operator, literal] of [
+    ["||", "authored fallback"],
+    ["&&", "authored suffix"],
+    ["??", "authored default"],
+  ] as const) {
+    const selecting = project.createSourceFile(
+      `/planted/value-selecting-${operator.charCodeAt(0)}.ts`,
+      `import { POLICY_PASS_REFUSALS } from "./table.ts";\ndeclare const runtime: string | undefined;\nconst TEXT = runtime ${operator} "${literal}";\n` +
+        "export function refuse(): never {\n  throw new Error(`${POLICY_PASS_REFUSALS.factFailed}: ${TEXT}`);\n}\n",
+    );
+    expect(
+      unaccountedRefusals(selecting).some((message) => message.includes(literal)),
+      operator,
+    ).toBe(true);
+  }
 });
