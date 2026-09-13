@@ -42,7 +42,6 @@ Static member reads with known names delegate to `findObjectProperties`, the exi
 | `tooling/src/verify/lib/static-class-expression.ts` | Public evaluation surfaces remain byte-compatible and policy-neutral. |
 | `tooling/src/verify/lib/static-class-jsx.ts` | Existing `findObjectProperties` consumer inherits the corrected unknown-spread semantics. |
 | `tests/tooling/verify/lib/static-class-expression.test.ts` | Permanent adversarial controls for all three cold failures and preservation of prior controls. |
-| `docs/test-baseline/manifest.json` | No path change or new test file, so no manifest mutation. |
 | #951/#954 consumers | Deferred by ownership; they consume the repaired API after #961 graduates. |
 
 Current symbol census (`pnpm ast refs`, 6,301 scanned files) finds the four public evaluator surfaces consumed only by their focused test on `main`; internal `findObjectProperties` has three live production callers inside the substrate. No API rename or import move is required.

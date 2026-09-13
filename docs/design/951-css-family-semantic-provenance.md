@@ -93,7 +93,7 @@ Every resulting TypeScript module stays below 450 lines.
 The implementation touches these coupled sites and no product CSS:
 
 1. prerequisite substrate commits `397e805f5` and repair `0952cc462`, including their focused evaluator
-   test and test-baseline manifest row;
+   test (their test-baseline manifest row went with that manifest, #2217);
 2. the gate descriptor/proof catalog;
 3. the extracted census, selector, source-provenance, policy, and shared-contract modules;
 4. this durable design, replacing the lane-root scratch dotfile;

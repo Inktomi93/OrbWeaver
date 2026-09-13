@@ -237,7 +237,7 @@ Coupled sites: `contract/gate.ts` (the row type), `ops/conformance.ts` (export `
 
 ### 7.2 Slice B — the three one-line honesty fixes (no config)
 
-Delete `gate-ignore-inventory`'s `scanRoot` and fix its twice-false header (§5). Fix `GATE-AUTHORING.md`'s "\~16 multi-clause predicates" (real: 68 of 187) and its `monotonic-tests.ts` `allow-skip` citation (that gate contains zero `allow-skip` and says it has TWO teeth). Fix `contract/stage.ts`'s dangling `GATE-AUTHORING §"no warn tier"` citation — that section does not exist; the ruling lives in the 2026-08-22 gate-stance census §A5. All four are the fix-tools-as-we-find-them-lying rule; none needs this design.
+Delete `gate-ignore-inventory`'s `scanRoot` and fix its twice-false header (§5). Fix `GATE-AUTHORING.md`'s "\~16 multi-clause predicates" (real: 68 of 187) (its `monotonic-tests.ts` `allow-skip` citation is MOOT — that gate was deleted whole in #2217.) Fix `contract/stage.ts`'s dangling `GATE-AUTHORING §"no warn tier"` citation — that section does not exist; the ruling lives in the 2026-08-22 gate-stance census §A5. All four are the fix-tools-as-we-find-them-lying rule; none needs this design.
 
 ### 7.3 Slice C — the report and the off-tree diff
 

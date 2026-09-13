@@ -123,10 +123,11 @@ specs, drafted ledger entries and owner-facing copy land under `docs/…` and yo
 - **Gates land on a FIXED tree (owner law):** fix the live violations your new gate finds, in the same
   lane. Allowlists are for PERMANENT deliberate exemptions with a reason string and a stale-arm, never
   debt parking; out-of-scope violations are a SendMessage fork, not a silent allowlist row.
-- **Deleting an exemption row, and re-creating a test file at a previously-deleted path, are both
-  COUPLED-SITE edits** — the row's `mustFlag`/`mustPass` conformance rows are vitest (invisible to
-  `pnpm check`), and the test-baseline `deletions` ledger becomes a lie that pre-authorizes the next
-  delete (only `check:structure` sees it). Retarget the proofs in the same commit.
+- **Deleting an exemption row is a COUPLED-SITE edit** — the row's `mustFlag`/`mustPass` conformance rows
+  are vitest (invisible to `pnpm check`). Retarget the proofs in the same commit. **Re-creating a test file
+  at a previously-deleted path is NO LONGER the second half of this rule** (#2217, owner ruling): the
+  test-baseline manifest and its `deletions` ledger are DELETED, so there is nothing to re-ledger and
+  nothing to regenerate — test presence is DERIVED (`test-presence` / `test-layout`).
 - **Shared-box hygiene:** never `pkill` by process name (kill your own PGID; if you hit a sibling,
   message the orchestrator with the timestamp); probes live in the session scratchpad, NEVER in the tree;
   anything over ~10 min launches OUTSIDE the task manager (`setsid nohup … </dev/null & disown`) with its

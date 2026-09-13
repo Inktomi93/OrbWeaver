@@ -38,8 +38,8 @@ refusal), `instruments-lie-verify-the-verifier.md`, `gate-blind-spots-are-spelli
   fences), and the scratch file is `rmSync`'d in a `finally`.
 - **Coupled sites every group touches:** the roster (`docs/architecture/core/Core-Enforcement-Active-Gates.md`
   — one row rewritten per converted module, one row ADDED per split sibling, and the declared count line,
-  277 at the base), `docs/test-baseline/manifest.json` (regenerated in this worktree after every new spec is
-  `git add`ed), and any `tests/tooling/**` suite naming the id as a string literal (measured per group below).
+  277 at the base) and any `tests/tooling/**` suite naming the id as a string literal (measured per group
+  below). (The third site was `docs/test-baseline/manifest.json`, DELETED with `monotonic-tests` (#2217) — nothing to regenerate; test presence is DERIVED.)
 - **Floor per group:** the family test(s); `pnpm check:policy-conformance` (base: 179 policies · 1,898 rows ·
   0 failures); `pnpm gate:contract` (base: 714 findings across 277 modules; converted modules at zero);
   scoped biome + eslint; `pnpm typecheck --config tsconfig.json --config tooling/tsconfig.json`;
@@ -217,7 +217,6 @@ refusal) and is asserted as such; position delta on every file-level finding: le
 | `tests/tooling/verify/gates/session-channel-family.test.ts` | NEW: conformance, §4.2, §4.5, §4.6 |
 | `tests/tooling/verify/gates/tooling-ops-direct-invocation.test.ts` | NEW: conformance, §4.5 pins, §4.6 |
 | `docs/architecture/core/Core-Enforcement-Active-Gates.md` | two rows rewritten, one row added, count 277 → 278 |
-| `docs/test-baseline/manifest.json` | regenerated after the two new specs are staged |
 | `tests/tooling/_shared/entrypoint.int.test.ts` | unchanged; its "one home" comment stays true through `moduleScopeCalls` |
 
 Marker reconciliation: no private grammar and zero live central markers for either id — nothing to translate.
@@ -355,7 +354,6 @@ what the legacy guarded on and is the honest subject).
 | `tests/tooling/_shared/entrypoint.int.test.ts` | derives the governed argv entries from `REVIEWED_GRANTS` instead of importing the gate's table door |
 | roster | 2 rows rewritten, 2 rows added, count +2 |
 | `Core-Tooling-Law.md` §4.2 / §4.9 | mechanism sentences truth-repaired (rows → grants, stale sweep → central liveness, arm C → `-health`) |
-| `docs/test-baseline/manifest.json` | regenerated (+1 spec, 1 deletion ledgered) |
 
 ### 2.5 Group 2 measured (2026-09-12, this worktree)
 
@@ -491,7 +489,6 @@ anchored arm D on the gate module's own path.
 | `tests/tooling/check-gates.repo.int.test.ts` | the two `__g_` fixture blocks deleted |
 | `tests/tooling/verify/gates/disclosure-reservation-family.test.ts` | NEW: conformance ×4, §4.2 arms (both real carrier shapes), the real-site binding pin, retired-arm successor pins, §4.5 deferral pins, §4.6 differentials ×2 |
 | roster | 2 rows rewritten (the false `tests/` claim corrected), 2 added, count +2 |
-| `docs/test-baseline/manifest.json` | regenerated (+1 spec) |
 
 ### 3.5 Group 3 measured (2026-09-12, this worktree)
 
@@ -613,7 +610,6 @@ honest declaration, and it names the reader rather than a topic.
 | `docs/architecture/core/Core-Tooling-Law.md` §4.4 | mechanism sentences truth-repaired |
 | `tests/tooling/verify/gates/tooling-plumbing-family.test.ts` | NEW: conformance ×10, §4.2 arm for the clock policy, §4.3 grant identity per grant policy, §4.5 pins (home receipts, exact-file refusals, deferral), §4.6 differential over all 36 legacy examples through the union, plus the real-tree replay of the 12-finding baseline |
 | `tests/tooling/gate-spelling-twins.baseline.json` | untouched — a legacy-roster ledger that retires at cutover (already red for 54 converted gates; its `tooling-shared-plumbing` row is one more) |
-| `docs/test-baseline/manifest.json` | regenerated (+1 spec) |
 
 ### 4.4 What was built (2026-09-12) — deviations from §4.2 recorded
 
@@ -769,7 +765,6 @@ lie rather than a harmless extra. Same shape as `sub-floor-disclosure-health` (�
 | `tests/tooling/check-gates.repo.int.test.ts` | the `__g_testidlive` fixture block deleted |
 | `tests/tooling/verify/gates/testid-variant-split-family.test.ts` | NEW (shared with group 6): conformance ×4, §4.2 arms ×2 + the dead-position discrimination control, the measured population-port equality, §4.5 refusal/deferral pins, §4.6 differentials ×2 |
 | roster | 1 row rewritten, 1 added, count 285 → 287 (with group 6) |
-| `docs/test-baseline/manifest.json` | regenerated (+1 spec) |
 
 ### 5.4 Group 5 measured (`testid-liveness` half, 2026-09-12, this worktree)
 

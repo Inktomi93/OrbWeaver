@@ -403,8 +403,8 @@ markers apply; conformance rows retargeted when any exemption row moves).
 6. Client: `NON_DURABLE_EXEMPT` (renamed set) + `BUS_FILTERS.roomEntityChanged` + reducer arm +
    widened `chatOpened` row.
 7. Tests (the floor names them): `tests/server/entry/compose/room-reach.int.test.ts` (per-kind reach:
-   seated/left/anchor/junction rows; the old `emit-character-updated.int.test.ts` retargets — a
-   previously-deleted-path recreation is a coupled site, check the test-baseline deletions ledger);
+   seated/left/anchor/junction rows; the old `emit-character-updated.int.test.ts` retargets — the
+   previously-deleted-path coupled site died with the test-baseline deletions ledger, #2217);
    `tests/server/transport/trpc/stream/sources/chat.int.test.ts` gains live-only arms (delivered to
    member, withheld from kicked, cursor NOT advanced, dedup NOT tripped); seq-guard unit arms;
    `tests/client` invalidation-map rows; the G-B coverage specs for the two new domain-event members.

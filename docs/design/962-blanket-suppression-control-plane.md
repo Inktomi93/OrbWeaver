@@ -207,8 +207,8 @@ Decision procedure, applied mechanically and recorded per file in the report:
 
 Gate: the module · `check-gates.int` `__g_` fixture · `Core-Enforcement-Active-Gates.md` row + the
 registered-gate count · GATE-AUTHORING §1 `markerImmune` occupants + `contract/gate.ts` comment ·
-`tests/tooling/verify/gates/<gate>.int.test.ts` (a new tracked spec → `docs/test-baseline/manifest.json`
-regenerated in this worktree) · `comment-spans.ts` (the CSS/JSON lexer) · `_shared/proc.ts` (`input`).
+`tests/tooling/verify/gates/<gate>.int.test.ts` (a new tracked spec regenerates NOTHING since #2217 —
+the test-baseline manifest is deleted) · `comment-spans.ts` (the CSS/JSON lexer) · `_shared/proc.ts` (`input`).
 Ledger (REPLACED 2026-09-12 — the ratchet retired at `a33b2e339`, which converted `suppressions` to
 reviewed-grant authority and deleted its count ratchet; `ops/gen/suppressions.ts`,
 `suppressions.residual.test.ts`, `suppressions.baseline.json` and `lib/debt.ts` are all gone, so the
