@@ -4334,7 +4334,7 @@
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::10",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 351,
+      "line": 371,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4342,7 +4342,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a slot removed by a CONCURRENT publisher's prune between the listing and this stat is the expected racing case, and `null` is the answer its one caller acts on — the row is dropped, because a slot that is already gone is nothing to prune. Ends if the caller starts needing to distinguish a vanished slot from an unreadable one (a permission error worth reporting).",
-      "markerLine": 348
+      "markerLine": 368
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::2",
@@ -4399,7 +4399,7 @@
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::6",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 264,
+      "line": 274,
       "column": 5,
       "grammar": "empty",
       "position": "catch",
@@ -4407,12 +4407,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition \"this slot is no longer in flight\" holds either way. Ends if publishing twice must become an error.",
-      "markerLine": 261
+      "markerLine": 271
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::7",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 300,
+      "line": 320,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4420,12 +4420,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an absent or unparseable manifest means \"this slot published nothing a pointer could still resolve into\" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish \"never published\" from \"manifest lost\".",
-      "markerLine": 297
+      "markerLine": 317
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::8",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 315,
+      "line": 335,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4433,12 +4433,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a removed or replaced alias is the NEGATIVE answer to \"does this pointer still resolve into that slot?\" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable.",
-      "markerLine": 309
+      "markerLine": 329
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::catch::9",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 334,
+      "line": 354,
       "column": 5,
       "grammar": "default",
       "position": "catch",
@@ -4446,7 +4446,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable.",
-      "markerLine": 330
+      "markerLine": 350
     },
     {
       "siteId": "tooling/src/_shared/browser-capture.ts::wire::1",
