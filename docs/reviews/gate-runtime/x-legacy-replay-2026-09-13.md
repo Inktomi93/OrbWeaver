@@ -210,6 +210,104 @@ re-run (probe by `cp f f.bak` → mutate → `mv f.bak f`; `git status --short` 
    or tool error`. **This is the important one** — it proves the successor proof is an independent check
    and not a decoration on top of the count assertions.
 
+## 5b. FAMILY 2 — `policy-soundness`, which is ONE replayable module and NINE refusals
+
+`tests/tooling/verify/gates/policy-soundness-legacy-replay.test.ts`.
+
+### 5b.1 THE PRE-CHECK, now standard for every family (orchestrator ruling, 2026-09-13)
+
+Before any replay, ask whether a legacy descriptor ever existed:
+
+```
+git log --oneline -S "gate: GateDescriptor" -- <the family's module paths>
+git log --oneline -S "gate: GateDescriptor" -- <a KNOWN conversion>   # the positive control
+```
+
+For `policy-soundness` the answer is **NINE of ten were BORN FINAL**. Every one was ADDED as
+`export const gate = defineGate` (`fe8c9cc84` ×4 · `575e48d5a` ×2 · `6eadf5d3a` · `d334dd5ca` ·
+`b2c6a8553`, all 2026-09-11/12) and no commit in history ever introduced or removed a
+`gate: GateDescriptor` at any of their paths. **The control fires in the same query shape** — the same
+search over `diagnostic-legibility.ts` + `biome-grant-liveness.ts` returns four commits — so the zero is
+an absence, not a broken search. Both halves are a COMMITTED arm in the test, not prose.
+
+**A §4.6 differential over those nine is structurally impossible, not merely unwritten.** That is the
+deliverable for them; recording it is the work.
+
+### 5b.2 The one conversion, and why it is NOT on the tmpdir door
+
+`diagnostic-legibility`, converted at `1e81658b4`, legacy base `d07338082`. Its frozen descriptor carries
+ZERO filesystem-reach spellings and no `fsBacked` — a pure AST reader — so it goes through the
+PRE-EXISTING in-memory `frozenLegacyGate` + `createDifferential`, and the tmpdir door's wrong-door refusal
+would correctly turn it away. **Routing is a measured property of the BLOB, never of the family.**
+
+**Self-scanning immunity, stated per row rather than assumed:** this gate's `scanRoot` IS
+`tooling/src/verify/gates/` — the `pd-citation-integrity` shape §4.6 warns about, and the same family that
+holds the 33 `defineGate({` fixture strings. The fixture-level method is immune BY CONSTRUCTION: each
+example's file map lands on its own virtual root, so the real corpus is never in scope. **The receipt is
+the population column — 1 on both sides for every row, the single file the example plants.** An unfenced
+real-corpus replay would have read 319.
+
+### 5b.3 The table — 6 legacy examples, both engines
+
+Populations are 1 source on both sides for every row; tool errors 0 both sides throughout (the classifier
+THROWS on any shape, so a refusal could not be silently absorbed).
+
+| # | Legacy example | Legacy | Final | Class | Successor (matched) |
+| -: | - | -: | -: | - | - |
+| 0 | bare `message:` with no pointer | 1 @ `x.ts:1` token `-` | 1 @ `x.ts:1` token `message` | **anchor-move** | `x.ts:1 \| message` |
+| 1 | `message:` through a same-file const | 1 @ `x.ts:2` token `-` | 1 @ `x.ts:2` token `message` | **anchor-move** | `x.ts:2 \| message` |
+| 2 | pointerless `const MSG` table value | 1 @ `x.ts:1` token `-` | 1 @ `x.ts:1` token `verb` | **anchor-move** | `x.ts:1 \| verb` |
+| 3 | a concrete code-home pointer | 0 | 0 | vacuous-both-zero | — |
+| 4 | the `// terse-ok:` escape | 0 | **1 raw → 0 ported** | **stronger-reader** (marker port) | `terse.ts:3 \| message`, ported twin silent |
+| 5 | `tooling/` IS a code home | 0 | 0 | vacuous-both-zero | — |
+
+### 5b.4 What the table settles
+
+- **THREE ANCHOR MOVES (§4.6 category 6), receipted rather than bucketed.** Same file, same line, same
+  catch — the finding GAINED its position token. The module's header records why: the legacy finding was a
+  synthetic `{file, line, column: 0}` that `locateFinding` (`lib/ordinary-waiver.ts:394`) could not bind,
+  so **the legacy gate had no working waiver door at all**, and the final re-anchors on the property
+  assignment. **Nothing was orphaned by the move because nothing could bind to the old anchor** — which is
+  exactly the receipt category 6 owes and could not be given without running both engines.
+- **ONE MARKER VOCABULARY PORT (§4.6 category 3), declared with BOTH numbers.** The private `// terse-ok:`
+  grammar is retired under §12.5. The legacy `mustPass` fixture carrying it now REPORTS (raw 1) and the
+  PORTED twin — the same bytes plus `// @orb-waive diagnostic-legibility(message): …` — is silent (0).
+  `runScenarios` proves the port is INERT on the legacy side, so the twin is the same example and not a
+  different one. A second test drives the raw/ported pair directly, so the port is visible without reading
+  the scenario table. Never a silent port.
+- **The header's own census holds:** zero live `terse-ok` sites on the tree at conversion, so no product
+  file was left behind by the retirement.
+
+### 5b.5 Floor executed (family 2)
+
+| Check | Result |
+| - | - |
+| `pnpm test:scoped tests/tooling/verify/gates/policy-soundness-legacy-replay.test.ts` | **3 passed** |
+| both replays + every suite importing the shared harness (6 files) | **27 tests passed** |
+| `pnpm check:structure --check diagnostic-legibility --check policy-soundness --check policy-waiver-identity --check policy-waiver-spelling` | exit 1: `diagnostic-legibility` reports **92** pre-existing findings on the real tree. **ZERO of the 92 are in a file this lane touched** (measured: 92 total finding lines, 0 matching `biome-grant-liveness.ts` / `tsconfig-entry-liveness.ts` / `legacy-differential`, with `bus-belt-total.ts` as the control returning 2). Whole-tree debt, red by construction under the #1584 posture; reported, not claimed. The other three are clean. |
+| `pnpm exec biome check` · `pnpm exec eslint` on the two touched files | clean · exit 0 |
+| `pnpm typecheck --config tsconfig.json` | `PASS tsconfig.json` |
+
+**Planted positive controls, three, all RED and restored via `cp`/`mv`:**
+
+1. **Anchor-token control** — row 2's expected token `verb` → `message`. RED:
+   `#2 … — FINAL findings: expected [… | verb | …] to deeply equal [… | message | …]`. This is the one
+   that matters here: it proves the table measures the ANCHOR, which is what three of six rows claim moved.
+2. **Successor control** — row 4's `successor` → `"a-successor-nothing-carries"`, numbers untouched. RED:
+   `#4 the declared SUCCESSOR "a-successor-nothing-carries" appears in no final finding or tool error`.
+3. **Born-final control** — `biome-grant-liveness.ts` added to the nine-path list. RED:
+   `expected [ '97e68be91', '05e4ae30c' ] to deeply equal []`. The refusal arm cannot pass by looking in
+   the wrong place.
+
+### 5b.6 The §3 correction this family forces
+
+**§3's "199 ports" is an UPPER BOUND with a newly measured error class.** The census keys on the
+`POPULATION PORT` header spelling, which matches even when the line reads *"POPULATION PORT: **NONE** — no
+legacy population exists to port, because this module was BORN FINAL."* Family 2 shrinks **10 → 1**, a 90%
+over-count in this family alone. The §3a family table is therefore a DISPATCH plan, never a work estimate,
+and every family's report now opens with the `git log -S` pre-check above. The whole §3 band should be
+re-derived with that pre-check once the families drain; the real backlog is likely well under 130.
+
 ## 6. Reproducing the §3 derivation
 
 ```
@@ -221,16 +319,21 @@ rg --files-with-matches "createDifferential|createTmpdirDifferential|frozenLegac
 
 The family grouping joins the third and fourth by gate id against each module's declared `family:`.
 
-## LEDGER ROWS (2 rows)
+## LEDGER ROWS (4 rows)
 
 | id | class | module | what | state |
 | - | - | - | - | - |
-| `LD-2319-1` | instrument-blind | `tests/support/legacy-differential.ts` | `shimHeaderImports` rewrote a NODE BUILTIN specifier into `file:///node:fs` (`createRequire.resolve` returns `node:fs` unchanged), so any frozen descriptor importing `node:*` died at import. Unreachable through the in-memory door, which refuses every disk-reading blob — the refusal hid a defect in the code path the refusal made unreachable. | **FIXED** this commit; `resolveSpecifier` returns `null` for a `node:` specifier |
-| `LD-2319-2` | instrument-blind | `tests/support/legacy-differential.ts` | `shimHeaderImports` treated a MULTI-LINE named import's opening brace as the first BODY line, so the `} from "…"` carrying the specifier was never shimmed and the frozen module failed to resolve. Any wrapped import block (7+ names) hits it. | **FIXED** this commit; `IMPORT_BLOCK_OPEN`/`IMPORT_BLOCK_CLOSE` |
+| `LD-2319-1` | instrument-blind | `tests/support/legacy-differential.ts` | `shimHeaderImports` rewrote a NODE BUILTIN specifier into `file:///node:fs` (`createRequire.resolve` returns `node:fs` unchanged), so any frozen descriptor importing `node:*` died at import. Unreachable through the in-memory door, which refuses every disk-reading blob — the refusal hid a defect in the code path the refusal made unreachable. | **FIXED** in `df2cda4c8`; `resolveSpecifier` returns `null` for a `node:` specifier |
+| `LD-2319-2` | instrument-blind | `tests/support/legacy-differential.ts` | `shimHeaderImports` treated a MULTI-LINE named import's opening brace as the first BODY line, so the `} from "…"` carrying the specifier was never shimmed and the frozen module failed to resolve. Any wrapped import block (7+ names) hits it. | **FIXED** in `df2cda4c8`; `IMPORT_BLOCK_OPEN`/`IMPORT_BLOCK_CLOSE` |
+| `LD-2319-3` | drifted-count | `tooling/src/verify/gates/diagnostic-legibility.ts:31` | The header reads *"CONVERSION rather than a module born final; **the other eight** have no legacy population and say so."* The tree says **NINE**: the `policy-soundness` family has ten members and nine are born final (`rg 'family: "policy-soundness"'` → 10 files; the `git log -S` receipt in §5b.1). A tenth member joined after the sentence was written. | **OPEN** — one-line header fix, deliberately NOT taken by this lane (orchestrator ruling 2026-09-13: the row is the deliverable, the fix is a routed follow-up) |
+| `LD-2319-4` | census-blind | this report §3 | The replay-owed census keys on the `POPULATION PORT` header spelling, which MATCHES a module whose line reads *"POPULATION PORT: NONE — BORN FINAL"*. So "199 ports" counts born-final modules as replay-owed. Measured in family 2: 10 → 1, a 90% over-count in one family. | **OPEN, MITIGATED** — every family report now opens with the `git log -S "gate: GateDescriptor"` pre-check + positive control (§5b.1), and §5b.6 states the band is an upper bound. A full re-derivation of §3 with the pre-check is owed once the families drain. |
 
-**ledger rows OWED: 0** — both defects are this lane's own instrument, found and fixed in the same commit
-with the executed receipt above. The `gate-modernization` finding in §5 is pre-existing and belongs to
-whoever owns `vector-scope-derived.ts`; it is reported, not claimed.
+**ledger rows OWED: 0.** Rows 1-2 are this lane's own instrument, found and fixed with executed receipts.
+Row 3 is a drifted count this lane MEASURED and is routed rather than fixed, per the orchestrator's
+ruling. Row 4 is this report's own census, mitigated in the same commit that found it. Two findings are
+reported and NOT claimed because they belong to other owners: the `gate-modernization` red on
+`vector-scope-derived.ts:42` (§5) and `diagnostic-legibility`'s 92 real-tree findings (§5b.5), neither of
+which touches a file this lane wrote.
 
 ## Proposed lessons (report text — the orchestrator owns the memory write)
 
@@ -244,5 +347,13 @@ whoever owns `vector-scope-derived.ts`; it is reported, not claimed.
 - **`defineGate greps overcount by the fixture strings`** — measured 300 literal vs 267 real call sites
   (33, not the read-first doc's 2), because `policy-soundness` and `gate-modernization` embed
   `defineGate({` in authored fixture source.
+- **`ask whether a legacy descriptor EVER existed before scoping a replay`** — the standard pre-check is
+  `git log -S "gate: GateDescriptor" -- <the family's paths>` WITH a known-conversion positive control.
+  Family 2 was dispatched as ten modules and is one: nine were born final, and a §4.6 differential over a
+  born-final module is structurally impossible rather than unwritten. A header-word census cannot tell the
+  two apart — `POPULATION PORT: NONE` matches a `POPULATION PORT` grep.
+- **`a differential can only measure an anchor if it compares the anchor`** — three of family 2's six rows
+  are pure anchor moves: same file, same line, same catch, a token where there was none. A count-only
+  table calls all three "identical" and misses that the legacy gate had no bindable waiver position at all.
 - **`the substrate decides which bug can exist`** — already §4.6 law for verdicts; it is also true of the
   HARNESS. Both defects above are the in-memory substrate's shadow.
