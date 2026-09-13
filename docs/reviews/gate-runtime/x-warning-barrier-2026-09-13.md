@@ -540,17 +540,102 @@ integrator normalises it; and the `caught-failure-ownership` population ledger, 
 commit re-stales by one line in `tooling/src/workboard/ops/project.ts` (a new import above its `markerLine`)
 and which the barrier re-derives on the merged tree.
 
-## LEDGER ROWS (4 rows)
+### 6.10 THE SECOND REPAIR PASS (lane `cb-x-barrier-repair`, 2026-09-13, on `cb-sec-barrier-review`)
+
+The independent security review of `376f64337`
+(`docs/reviews/gate-runtime/sec-barrier-review-2026-09-13.md`) CONFIRMED F1-F4 by driving the production
+door in both directions against a fake `gh` replaying the real 2332-row board, and filed six new rows. This
+section is what landed for them. **Every count in §6.9 above was true of `376f64337` and is superseded
+here:** the fence repair removes the rollup section's citations, so on this tree the barrier now reads
+`356 ledger citations · 671 total · 76 advisory · 4 verdictless · undeclared 297`, with
+`matched 54 · crossed 0 · cross-family 4 · unkeyed 1` UNCHANGED — the join reads exactly what it read
+before, over a population that no longer contains prose.
+
+**N1 — the fence was a START marker with no END.** `ledgerSpan` now bounds it at the next `## `, both ends
+exclusive, and the 0-based/1-based off-by-one is gone with it. The owed control did not exist and now does:
+`tests/tooling/verify/lib/citation-sources.test.ts` plants the SAME table byte-for-byte on both sides of
+the closing heading and asserts only the in-fence one is read.
+
+**N2 — every non-vacuity guard was a floor of ONE.** Admission is now by SCHEMA (`defect` + `state`), and
+an in-fence table carrying exactly one of the pair THROWS naming it — so the evasive partial rename that
+admitted 150 of 399 citations at exit 0 is refused, in BOTH rename directions, with no baseline number and
+no threshold. The five synthetic fixtures and BOTH planted control documents were moved to the production
+schema: a control document the real admission rule would reject proves nothing about the real ledger.
+
+**N5 — the `gh` door declared no stdout ceiling.** 16 MiB, declared, named in its own refusal, and NOT
+printing the response. The pin plants a 1024-byte ceiling and asserts the sentinel body does not appear in
+the message.
+
+**N4 — the wire contract, adjudicated rather than thresholded.** The review's suggested fix was an
+implausible-off-board-FRACTION refusal; that is REFUSED here, because an empty membership population is
+legitimate data on a repository that uses no project and a threshold would be a number nobody can derive.
+What is provable is repaired instead: a payload carrying BOTH `data` and a GraphQL `errors` array refuses
+(GraphQL's own contract allows a field-level failure to null its field and report why beside `data`, and
+keying on `data !== undefined` accepted that half-answer); a null `repository` already refused and is now
+pinned; and `projectItems` carries its own `pageInfo` so a TRUNCATED membership page is UNDECIDED rather
+than off-board. **What remains is a source-integrity assumption, listed as one below, not a defect closed.**
+
+**N6 — this report's own `## LEDGER ROWS` block** declared four rows and carried three: the fourth was
+appended after a blank line with a remark-escaped leading pipe, so it serialised as a PARAGRAPH
+(`reportLedgerRows` → `{"rows":3,"declared":4}`). It is a real table row now, and the heading counts the
+seven rows the block actually carries.
+
+**N3 — NOT a code change, and the reason the no-backfill ruling is load-bearing.** The hard subject arm
+("same family, different row = crossed") collides with class 2's own premise that one board row legitimately
+spans several ledger cells. The review measured the collision: **8 board rows are each cited by 2-5 ledger
+rows of the SAME wave** (#2106, #2148, #2236, #2240, #2217, #2067, #2218, #2228) and **all 8 declare no
+`**Where:**` subject today**, which is the only reason the arm is silent. Backfilling them — the closure
+path §6.9 describes — would produce **13 false crossings** with no exemption grammar and no way to answer
+them except editing a board body, and #2153's real crossing is byte-for-byte the same shape as a legitimate
+two-cell pointer, so there is no discriminator in the data. The subject check is NOT weakened for it and the
+backfill is NOT performed: the constraint is recorded on #2156 instead, as its own ledger row above.
+
+#### 6.10.1 Confirmed defects REPAIRED in this pass
+
+1. **N1** the ledger fence annexed every later section (`lib/citation-sources.ts`) — closed, with its control.
+2. **N2** partial input loss was invisible where total loss refused (`lib/citation-sources.ts`) — closed, schema-driven.
+3. **N5** the `gh` stdout ceiling was undeclared and its refusal dumped issue bodies (`ops/gh.ts`) — closed.
+4. **N4a** a GraphQL payload carrying `data` AND `errors` was accepted as a complete read (`ops/gh.ts`) — closed.
+5. **N4b** a truncated `projectItems` page read as honestly off-board (`ops/project.ts`, `lib/queries.ts`) — closed.
+6. **N6** this report declared four ledger rows and carried three — closed.
+
+#### 6.10.2 SOURCE-INTEGRITY ASSUMPTIONS — not defects, and not closable with a control
+
+These are inputs where successful-looking data is indistinguishable from honest data at this boundary. Each
+one is stated because a control cannot be written for it, not because it was judged unimportant. **None of
+them is a false exit 0:** each produces a false exit 1 (a finding an operator must adjudicate) or is bounded
+by a refusal above it.
+
+1. **A fabricated empty `projectItems.nodes` with `hasNextPage: false`** for an issue that IS on the board is
+   indistinguishable from an honest off-board issue — nothing in the protocol separates them. Effect: one
+   false "an item of NO project" finding per affected row, exit 1. Bounded, not closed: the snapshot-level
+   "NOT ONE is on Project 1" refusal covers total loss, the truncation arm covers the `first: 10` fence, and
+   a scope/permission error nulls the field, which already throws. A fraction threshold was considered and
+   REFUSED — see N4 above.
+2. **A page that stops early while claiming `hasNextPage: false`** is a complete-looking snapshot by
+   construction. The review caught its own instance INCIDENTALLY (no declaring row survived in the prefix,
+   so the subject control could not be planted → exit 2), which is luck, not coverage.
+3. **A partially nulled `body` field** shrinks the subject join's `matched` denominator silently; only zero
+   refuses. The ledger has no `defect`/`state`-style invariant on the board side to key a schema clause off.
+4. **An in-fence ledger table whose `defect` AND `state` headers BOTH drift** is indistinguishable from
+   prose — there is no in-band invariant left. Stated in the module header rather than thresholded.
+5. **The subject join trusts the issue BODY as authored data, not as a credential.** Anyone with write
+   access can edit a `**Where:**` line. It is an integrity check on our own documentation, never
+   tamper-evidence.
+
+## LEDGER ROWS (7 rows)
 
 | Family | Where | Defect | Class | State | Receipt |
 | - | - | - | - | - | - |
 | warning debt | cb-x-warning-barrier · `tooling/src/verify/gates/over-art-plate-arm.ts:169`, `tooling/src/verify/gates/policy-refusal-coverage.ts:429` | BOTH warning carriers named CLOSED rows and neither was settleable: the ruled promotion needs a zero effective count and the measured counts were 4 and 17, while no OPEN row owned either debt (#2024 closed on the repoint receipt with all four a11y surfaces still firing; #2184 closed on the module landing with 17 consumers still to drain) | other (warning debt ownership) | **CLOSED** — `c40752560` (board #2070; owners #2326 / #2327 minted from these receipts) | `pnpm check:structure --check over-art-plate-arm --check policy-refusal-coverage --check policy-family-readers` exit 0: `effective 32 (0 error, 32 warning)`, 4 · 17 · 11; judge drive before/after: exit 1 (2 closed) → exit 0, and a `cp`/`mv` re-close probe back to #2024 → exit 1 again |
 | board citations | cb-x-warning-barrier · `docs/architecture/core/Core-Enforcement-Active-Gates.md` (whole roster) | #2156's class 3 as filed — "every roster `#N` must resolve to a CLOSED row" — is REFUTED by the roster's own text: all 292 citations / 149 distinct ids sit in the `Enforces` column and name the issue the gate IMPLEMENTS, 70 point at not-Done rows and 40+ of those are the LIVE epic #1584; the deferred roster's 20 are the #2008/#2217 rows that made those cells correct. Shipping the filed rule would have been ~89 day-one false positives | other (premise refuted) | **CLOSED** — `beea8b1f4` (board #2156; orchestrator-ruled 2026-09-13, resolution-only shipped instead, green with a planted-absent control) | the counts above, re-derived on `ce8e5174f` with `markdownTables` over both rosters; `pnpm check:board-citations` exit 0, `roster-reference 312 · 0 crossed` |
 | board citations | cb-x-warning-barrier · `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` (72 cells, listed in `docs/reviews/gate-runtime/x-warning-barrier-2026-09-13.md` §6.7) | 72 ledger state cells and the board rows they track DISAGREE (a `**CLOSED**` cell tracking an OPEN row, or the reverse). Under the grammar this is not automatically a defect — the `(board #N)` is a tracking pointer and the sha carries the closure — but nothing has adjudicated them, and at least the #2010 / #2115 / #2181 cells read as a board that never caught up | other (ledger/board reconciliation) | **OPEN** (board #2156 — a ledger/board pass; the lane is fenced out of sweeping a shared multi-lane file) | `pnpm check:board-citations` exit 0 prints the census every run: `362 ledger citations · 0 crossed · 72 advisory disagreement(s) · 5 cell(s) whose verdict claims nothing` |
+| board citations | cb-x-barrier-repair · `tooling/src/verify/lib/citation-subject.ts` · `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` (297 citations over 131 distinct board rows) | #2156's filed contract — "every `#N` in a ledger state cell resolves to a row whose title or body names the row's module and wave" — is only COVERED for the 59 citations whose cited row declares a `**Where:** <wave> L<n>` subject. The other 297, over 131 distinct rows, declare none, and a mandatory one-subject-per-issue key would be FALSE for the thematic rows among them (#2041 is cited by four ledger rows across waves 8-10, #1978 by five). The barrier therefore ships as resolution + openness + declared-subject and #2156 is NOT closed by it | other (citation) | **OPEN** (board #2156 — the backfill contract and its cost are stated in `docs/reviews/gate-runtime/x-warning-barrier-2026-09-13.md` §6.9; orchestrator ruled 2026-09-13 NOT to backfill) | `pnpm check:board-citations` exit 0 prints the residue every run: `subject join (class 2) — matched 54 · crossed 0 · cross-family 4 · unkeyed 1 · undeclared 297`; red-first with #2153's pair replanted in the real ledger: unmodified judge `crossed: 0`, repaired judge `crossed: 2` |
+| board citations | cb-x-barrier-repair L2 · `tooling/src/verify/lib/citation-sources.ts:82-91` | the `## THE LEDGER` fence was a START marker with no END, so every table row from the heading to EOF entered the class-2 population — the `## CLASS ROLLUP` cross-cutting table's PROSE mentions ("#2000's §4.6 differential") were judged for resolution and BOARD MEMBERSHIP like real `(board #N)` pointers, and the first unminted or off-board number in a rollup sentence would have been a hard exit 1 on a non-citation. The comparison was also 0-based `findIndex` against 1-based `row.line`, admitting the row immediately ABOVE the heading. The ledger's own §4 and the sibling `lib/gate-program-docs.ts#ledgerSections` both define the fence as `## THE LEDGER` → the next `##` | other (population fence) | **CLOSED** — this commit (board #2156; found by `cb-sec-barrier-review` L1) | span-bounded reader on the configured ledger: `ledger-closure 362 → 356`, total `677 → 671`, advisory `81 → 76`, verdictless `5 → 4`, `matched/crossed/cross-family/unkeyed` unchanged at 54/0/4/1; `pnpm check:board-citations` exit 0. Red-first with the end bound removed: the span arm and the below-the-rollup control both red, 6 other arms stay green |
+| board citations | cb-x-barrier-repair L3 · `tooling/src/verify/lib/citation-sources.ts:160-196` | every non-vacuity guard was a floor of ONE, so PARTIAL loss of a configured input was invisible where TOTAL loss refused: renaming `\| state \|` in only the tables holding no declaring row admitted 150 of 399 citations, printed a serene source receipt and EXITED 0 with 249 unread. Admission is now SCHEMA-driven (`defect` + `state`, the sibling reader's `isLedgerRowTable` rule) and an in-fence table carrying exactly one of the pair THROWS naming it, so the rename is caught in BOTH directions with no baseline number and no threshold | other (fail-open residue) | **CLOSED** — this commit (board #2156; found by `cb-sec-barrier-review` L2) | the partial rename now throws "in-fence defect-row table(s) with NO state column", driven both on a production-shaped fixture and on the REAL ledger's bytes in `tests/tooling/verify/ops/board-citations.test.ts`; measured on the configured ledger: 63 in-fence tables, all carrying both, zero carrying one |
+| board citations | cb-x-barrier-repair L4 · `tooling/src/workboard/ops/gh.ts:53-92` · `tooling/src/workboard/ops/project.ts:263-289` | three wire-contract holes at the `gh` door, all of them successful-looking data becoming a verdict: (a) no `maxBuffer`, so node's implicit ~1 MiB applied and `execFileSync` KILLED the child, with `ghFailure` then building its message from the captured stdout — the refusal read as "GitHub returned garbage" and spilled every issue body in the page into stderr; (b) `graphql()` keyed only on `data !== undefined`, accepting a payload carrying BOTH `data` AND a GraphQL `errors` array as a complete read; (c) `projectItems(first: 10)` could TRUNCATE, and a truncated membership list read as an honest "on no board", which the judge turns into a hard finding | other (wire contract) | **CLOSED** — this commit (board #2156; found by `cb-sec-barrier-review` L5 + the N4 adjudication) | a declared 16 MiB ceiling named in its own concise refusal (pinned with a 1024-byte planted ceiling asserting the sentinel body is NOT printed); an `errors`-beside-`data` refusal capped at the first message; `projectItems.pageInfo.hasNextPage` on the wire and an UNDECIDED-membership throw. Red-first against `376f64337`: exactly those four new arms red, all 12 pre-existing arms green |
 
-\| board citations | cb-x-barrier-repair · `tooling/src/verify/lib/citation-subject.ts` · `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` (303 citations over 133 distinct board rows) | #2156's filed contract — "every `#N` in a ledger state cell resolves to a row whose title or body names the row's module and wave" — is only COVERED for the 59 citations whose cited row declares a `**Where:** <wave> L<n>` subject. The other 303, over 133 distinct rows, declare none, and a mandatory one-subject-per-issue key would be FALSE for the thematic rows among them (#2041 is cited by four ledger rows across waves 8-10, #1978 by five). The barrier therefore ships as resolution + openness + declared-subject and #2156 is NOT closed by it | other (citation) | **OPEN** (board #2156 — the backfill contract and its cost are stated in `docs/reviews/gate-runtime/x-warning-barrier-2026-09-13.md` §6.9; orchestrator ruled 2026-09-13 NOT to backfill) | `pnpm check:board-citations` exit 0 prints the residue every run: `subject join (class 2) — matched 54 · crossed 0 · cross-family 4 · unkeyed 1 · undeclared 303`; red-first with #2153's pair replanted in the real ledger: unmodified judge `crossed: 0`, repaired judge `crossed: 2` |
-
-ledger rows OWED: 0 — **and the reconciliation the previous footer owed:** the four rows above are NEW
+ledger rows OWED: 0 — **and the reconciliation the previous footer owed:** the seven rows above are NEW
 rows for the integrator to APPEND (`## LEDGER ROWS (N rows)` is the append block, and the integrator asserts
 N), while `ledger rows OWED` counts EXISTING cells whose flip this lane owes. This lane flipped no existing
 cell and edited no ledger, so both statements are true at once — the earlier report said `OWED: 0` beside one

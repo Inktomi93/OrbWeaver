@@ -250,12 +250,49 @@ function boardIssueRow(node: unknown, index: number): BoardIssueRow {
   if (body !== null && body !== undefined && typeof body !== "string") {
     throw new Error(`${REPOSITORY} issue-state page: #${String(number)} has a non-string body — the citation subject join has nothing to read`);
   }
-  const items = wireObject(raw["projectItems"], `#${String(number)} projectItems`)["nodes"];
-  if (!Array.isArray(items)) {
+  return { number, state, title, body: body ?? "", onBoard: onBoard(raw["projectItems"], number) };
+}
+
+/** BOARD MEMBERSHIP, WITH ITS OWN TRUNCATION REFUSED (N4). `false` is a CLAIM — the judge turns it into a
+ *  hard "this citation names no board row" finding — so it may only be returned when the wire actually
+ *  enumerated every project this issue is on. A `projectItems` page that says `hasNextPage` without the
+ *  match in its prefix is UNDECIDED, not off-board, and an undecided row is the exit-2 class.
+ *
+ *  WHAT THIS STILL CANNOT SEE, because nothing in the protocol distinguishes it: a wire that returns an
+ *  HONEST-LOOKING empty list (`nodes: []`, `hasNextPage: false`) for an issue that IS on the board. That is
+ *  successful-but-false data, it produces one false finding per row at exit 1 rather than a false clean,
+ *  and it is recorded as a source-integrity assumption rather than papered over with a fraction threshold
+ *  (an empty membership population is legitimate data on a repository that uses no project). */
+function onBoard(raw: unknown, number: number): boolean {
+  const items = wireObject(raw, `#${String(number)} projectItems`);
+  const nodes = items["nodes"];
+  if (!Array.isArray(nodes)) {
     throw new Error(`${REPOSITORY} issue-state page: #${String(number)} projectItems.nodes is not a list — board membership is unmeasured, not absent`);
   }
-  const onBoard = items.some((item) => wireObject(wireObject(item, `#${String(number)} project item`)["project"], "project")["number"] === PROJECT_NUMBER);
-  return { number, state, title, body: body ?? "", onBoard };
+  if (nodes.some((item) => wireObject(wireObject(item, `#${String(number)} project item`)["project"], "project")["number"] === PROJECT_NUMBER)) {
+    return true;
+  }
+  const truncated = wireObject(items["pageInfo"], `#${String(number)} projectItems.pageInfo`)["hasNextPage"];
+  if (typeof truncated !== "boolean") {
+    throw new Error(
+      `${REPOSITORY} issue-state page: #${String(number)} projectItems.pageInfo.hasNextPage is not a boolean — this run cannot tell a truncated membership list from a complete one`,
+    );
+  }
+  if (truncated) {
+    throw new Error(
+      `${REPOSITORY} issue-state page: #${String(number)} is on MORE projects than the query asked for and Project ${String(PROJECT_NUMBER)} was not in the page. ` +
+        "Its membership is UNDECIDED, and reading that as off-board would make every citation of it a hard finding. Raise the projectItems page size in lib/queries.ts.",
+    );
+  }
+  return false;
+}
+
+/** One raw page. The stdout ceiling is a PARAMETER so its overflow refusal is plantable; production passes
+ *  nothing and takes the door's declared default (`ops/gh.ts#GH_MAX_BUFFER_BYTES`). */
+function fetchStatesPage(cursor: string | undefined, maxBuffer: number | undefined): unknown {
+  const base = { owner: PROJECT_OWNER, repo: REPO_NAME };
+  const variables: GraphqlVariables = cursor === undefined ? base : { ...base, cursor };
+  return maxBuffer === undefined ? graphql<unknown>(ISSUE_STATES_QUERY, variables) : graphql<unknown>(ISSUE_STATES_QUERY, variables, maxBuffer);
 }
 
 /** EVERY issue in the repository, number → row, in ONE paged walk (#2156's bulk door).
@@ -277,14 +314,12 @@ function boardIssueRow(node: unknown, index: number): BoardIssueRow {
  *  reports every id in the missing suffix as a dangling citation (a flood of false exit-1 findings) or,
  *  when the prefix happens to hold them all, exits 0 while knowing nothing. Both are unmeasurable runs, so
  *  both throw here rather than becoming a verdict downstream. */
-export function fetchIssueStates(): ReadonlyMap<number, BoardIssueRow> {
+export function fetchIssueStates(maxBuffer?: number): ReadonlyMap<number, BoardIssueRow> {
   const rows = new Map<number, BoardIssueRow>();
   const seenCursors = new Set<string>();
   let cursor: string | undefined;
   do {
-    const base = { owner: PROJECT_OWNER, repo: REPO_NAME };
-    const variables: GraphqlVariables = cursor === undefined ? base : { ...base, cursor };
-    const page = issueStatesPage(graphql<unknown>(ISSUE_STATES_QUERY, variables));
+    const page = issueStatesPage(fetchStatesPage(cursor, maxBuffer));
     for (const [index, node] of page.nodes.entries()) {
       const row = boardIssueRow(node, index);
       if (rows.has(row.number)) {

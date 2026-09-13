@@ -47,19 +47,27 @@
 //      now CROSSED. The 303 citations whose target declares nothing stay a counted residue — #2156 is NOT
 //      closed by this module; see the residue note in `docs/reviews/gate-runtime/x-warning-barrier-2026-09-13.md`.
 //   B. BOARD MEMBERSHIP — a citation names a BOARD row. An issue that is an item of no Project is not one.
-//   C. SOURCE GRAMMAR (`assertLedgerSource`/`assertRosterSource`) — renaming the ledger's `state` column
-//      used to erase the whole class and still exit 0, because the synthetic control document kept its own
-//      header. A configured source that loses its fence, its state column, or its citations now THROWS.
+//   C. SOURCE GRAMMAR (`assertLedgerSource`/`assertRosterSource`, now in `lib/citation-sources.ts`) —
+//      renaming the ledger's `state` column used to erase the whole class and still exit 0, because the
+//      synthetic control document kept its own header. A configured source that loses its fence, its
+//      schema, or its citations now THROWS.
 //   D. JOIN NON-VACUITY (`assertSubjectJoinMeasured`) — zero matched subjects means the join stopped
 //      reading, never that the tree is clean.
+//
+// THE DOCUMENT READERS LIVE IN `lib/citation-sources.ts` (split out 2026-09-13 at the 450-line cap, with
+// the security review's N1/N2 repairs). That module owns the citation SHAPE, the ledger fence as a SPAN
+// (`## THE LEDGER` → the next `##`, which is what stopped the class rollup entering the population) and
+// SCHEMA-driven admission (`defect` + `state`, so a partial column rename refuses instead of quietly
+// halving the class). This module owns the judgment: what a citation CLAIMS, what contradicts it, and how
+// the run reports and exits.
 
 import type { BoardIssueRow } from "#workboard";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import type { GatePolicy } from "../contract/policy.ts";
+import type { BoardCitation, CitationClass, CitedDocument } from "./citation-sources.ts";
+import { CITATION_CLASSES, ledgerCitations, rosterCitations } from "./citation-sources.ts";
 import type { SubjectVerdict } from "./citation-subject.ts";
-import { declaredSubjectKey, subjectKey, subjectVerdict } from "./citation-subject.ts";
-import type { MarkdownTable } from "./markdown-tables.ts";
-import { markdownTables } from "./markdown-tables.ts";
+import { declaredSubjectKey, subjectVerdict } from "./citation-subject.ts";
 import type { BoardIssueState } from "./workitem-liveness.ts";
 import { warningWorkItems } from "./workitem-liveness.ts";
 
@@ -67,26 +75,6 @@ import { warningWorkItems } from "./workitem-liveness.ts";
  *  contracts need (state · board membership · the row's own text). A number ABSENT from this map names no
  *  row — never "the read failed", which throws in the reader long before this map exists. */
 export type BoardStates = ReadonlyMap<number, BoardIssueRow>;
-
-export const CITATION_CLASSES = ["policy-workitem", "ledger-closure", "roster-reference"] as const;
-export type CitationClass = (typeof CITATION_CLASSES)[number];
-
-/** What a site's own grammar claims about the row it names — see the class table in the header. `open` is
- *  claimed by exactly one class; the other two claim only that the row EXISTS. */
-export type CitationClaim = "open" | "exists";
-
-export interface BoardCitation {
-  readonly citationClass: CitationClass;
-  /** `path:line` for a document site, the policy id for a descriptor site. */
-  readonly site: string;
-  readonly issue: number;
-  readonly claim: CitationClaim;
-  /** The authored text the citation was read out of, trimmed for the report. */
-  readonly context: string;
-  /** The citing row's OWN subject key — class 2 only, and only where the row's table carries a
-   *  `wave`/`lane` column. Present means "join this against what the cited row declares". */
-  readonly subjectKey?: string;
-}
 
 /** A citation whose claim the board contradicts — the exit-1 population. */
 export interface CrossedCitation {
@@ -133,18 +121,6 @@ export interface BoardCitationsOutcome {
   readonly verdictless: number;
 }
 
-/** A document handed to the judge: its repo-relative path and its text. */
-export interface CitedDocument {
-  readonly rel: string;
-  readonly text: string;
-}
-
-/** One ledger state-cell citation with the cell's verdict word — the reader's row shape. */
-export interface LedgerCitation {
-  readonly citation: BoardCitation;
-  readonly verdict: string | undefined;
-}
-
 export interface BoardCitationsInput {
   readonly policies: readonly GatePolicy[];
   readonly ledgers: readonly CitedDocument[];
@@ -152,108 +128,9 @@ export interface BoardCitationsInput {
   readonly states: BoardStates;
 }
 
-const ISSUE_REF = /#(\d{2,5})/g;
-/** The ledger's own verdict vocabulary, read as the FIRST such word in the cell. */
-const LEDGER_VERDICT = /\b(CLOSED|FIXED|OPEN|PARTIAL|UNADJUDICATED|SUPERSEDED|RETIRED|DROPPED)\b/;
 /** Verdicts that track a live-or-done position, so a disagreement is worth printing. The rest assert nothing. */
 const TRACKING_VERDICTS = new Set(["CLOSED", "FIXED", "OPEN", "PARTIAL", "UNADJUDICATED"]);
 const CLOSED_VERDICTS = new Set(["CLOSED", "FIXED"]);
-/** Where the ledger's defect rows start. Sections after the enclosing `##` carry tables of their own (the
- *  class rollup, the ranked list) and are not defect rows — the same fence `lib/gate-program-docs.ts` uses. */
-const LEDGER_FENCE = "## THE LEDGER";
-/** The header of the column carrying a ledger row's own subject — authored as "wave · path:line", and
- *  "lane · …" in the sections a fix lane appended. Matched on the leading word so the trailing path:line
- *  spelling can drift without unhooking the join. */
-const SUBJECT_COLUMN = /^(wave|lane)\b/iu;
-const CONTEXT_MAX = 160;
-
-function context(text: string): string {
-  const flat = text.replaceAll(/\s+/gu, " ").trim();
-  return flat.length > CONTEXT_MAX ? `${flat.slice(0, CONTEXT_MAX)}…` : flat;
-}
-
-function issuesIn(cell: string): readonly number[] {
-  return [...cell.matchAll(ISSUE_REF)].map((match) => Number(match[1]));
-}
-
-/** Every `#N` in a ledger's STATE cells, under the ledger fence, with the cell's verdict word.
- *
- *  The state column is found BY NAME off each table's header (`markdownTables` reads columns by shape), so a
- *  section whose schema differs — and they do differ — contributes nothing rather than misreading column 4. */
-export function ledgerCitations(doc: CitedDocument): readonly LedgerCitation[] {
-  const lines = doc.text.split("\n");
-  const fence = lines.findIndex((line) => line.startsWith(LEDGER_FENCE));
-  return markdownTables(lines, 1).flatMap((table) => ledgerTableCitations(doc, table, fence));
-}
-
-/** One table's post-fence citations. The state column is found BY NAME off the header (`markdownTables`
- *  reads columns by shape), and the row's own SUBJECT lives in the `wave · path:line` column — spelled
- *  `lane · …` in the sections a fix lane appended. A table missing either contributes accordingly: no
- *  state column means no citations at all, no subject column means citations that carry no subject. */
-function ledgerTableCitations(doc: CitedDocument, table: MarkdownTable, fence: number): readonly LedgerCitation[] {
-  const column = table.columns.findIndex((name) => name.toLowerCase() === "state");
-  if (column < 0) {
-    return [];
-  }
-  const subjectColumn = table.columns.findIndex((name) => SUBJECT_COLUMN.test(name));
-  const rows = table.rows.filter((row) => fence < 0 || row.line >= fence);
-  return rows.flatMap((row) => {
-    const cell = row.cells[column] ?? "";
-    const verdict = LEDGER_VERDICT.exec(cell)?.[1];
-    const key = subjectColumn < 0 ? undefined : subjectKey(row.cells[subjectColumn] ?? "");
-    return issuesIn(cell).map((issue) => ({
-      citation: {
-        citationClass: "ledger-closure" as const,
-        site: `${doc.rel}:${String(row.line)}`,
-        issue,
-        claim: "exists" as const,
-        context: context(cell),
-        ...(key === undefined ? {} : { subjectKey: key }),
-      },
-      verdict,
-    }));
-  });
-}
-
-/** REFUSE A CONFIGURED LEDGER THIS RUN CANNOT READ (codex review F2). Renaming the `state` column used to
- *  drop the whole class to zero and still exit 0 — `perClass` printed the zero and nothing enforced it,
- *  while the same-invocation controls kept firing against their own synthetic document, which proves the
- *  ALGORITHM and says nothing about whether the PRODUCTION source was admitted. Each clause names the
- *  thing that stopped being true; every one of them is the exit-2 class at the CLI. */
-export function assertLedgerSource(doc: CitedDocument): number {
-  const lines = doc.text.split("\n");
-  if (!lines.some((line) => line.startsWith(LEDGER_FENCE))) {
-    throw new Error(`board-citations: ${doc.rel} carries no \`${LEDGER_FENCE}\` fence, so every defect row would be read as pre-fence summary and skipped.`);
-  }
-  const fence = lines.findIndex((line) => line.startsWith(LEDGER_FENCE));
-  const stated = markdownTables(lines, 1).filter(
-    (table) => table.columns.some((name) => name.toLowerCase() === "state") && table.rows.some((row) => row.line >= fence),
-  );
-  if (stated.length === 0) {
-    throw new Error(
-      `board-citations: ${doc.rel} has no post-fence table with a \`state\` column. The class reads the state column BY NAME, so a renamed column is not a clean ledger — it is a ledger this run cannot read.`,
-    );
-  }
-  const count = ledgerCitations(doc).length;
-  if (count === 0) {
-    throw new Error(
-      `board-citations: ${doc.rel} yielded ZERO state-cell citations across ${String(stated.length)} state-bearing table(s). A configured ledger with no citations is a parser that stopped matching, not a ledger with nothing to check.`,
-    );
-  }
-  return count;
-}
-
-/** The same source-specific non-vacuity for a configured roster: an existing but rewritten document whose
- *  citations no longer parse used to succeed with a printed zero. */
-export function assertRosterSource(doc: CitedDocument): number {
-  const count = rosterCitations(doc).length;
-  if (count === 0) {
-    throw new Error(
-      `board-citations: ${doc.rel} yielded ZERO table-cell citations. A configured roster with no citations is a parser that stopped matching, not a roster with nothing to check.`,
-    );
-  }
-  return count;
-}
 
 /** The join's own denominator (codex review F1's fail-closed half). Every declaring row spells its subject
  *  the same way; if not one citation MATCHED, the grammar moved and the hard subject arm is silently
@@ -264,21 +141,6 @@ export function assertSubjectJoinMeasured(outcome: BoardCitationsOutcome): void 
       "board-citations: the subject join matched ZERO citations. Either no cited row declares a `**Where:**` subject any more, or the ledger's wave column moved — a join that reads nothing cannot report a crossed citation, so this run is not a verdict.",
     );
   }
-}
-
-/** Every `#N` in a roster's table rows. Resolution only — the openness half is refused (header, class 3). */
-export function rosterCitations(doc: CitedDocument): readonly BoardCitation[] {
-  const citations: BoardCitation[] = [];
-  for (const table of markdownTables(doc.text.split("\n"), 1)) {
-    for (const row of table.rows) {
-      for (const cell of row.cells) {
-        for (const issue of issuesIn(cell)) {
-          citations.push({ citationClass: "roster-reference", site: `${doc.rel}:${String(row.line)}`, issue, claim: "exists", context: context(cell) });
-        }
-      }
-    }
-  }
-  return citations;
 }
 
 /** The warning-policy citations, class 1 — the ONE claim of openness on the tree. */
