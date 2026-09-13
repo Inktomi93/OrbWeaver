@@ -308,3 +308,76 @@ Floor: `pnpm test:scoped tests/support/iso/hit-extent-walk.test.ts tests/tooling
 → **13 passed** (nothing lost; slot `reports/runs/test/agent-a384c9bc64477f381-246117-2026-09-13T06-24-48-648Z`)
 · `pnpm exec biome check` + `pnpm exec eslint` on the file → clean ·
 `pnpm typecheck --config tsconfig.json --config tooling/tsconfig.json` → 2 runnable, 2 PASS. No CT.
+
+## Independent ledger reconciliation at db6e5bbd6
+
+# Exact hit-geometry ledger adjudication
+
+Snapshot: clean main `db6e5bbd6d0220746a24f21e67b7ce45e9637499`. Scope is only ledger rows 903–904, 988–991, and 994. I read the complete current `x-hit-geometry-2026-09-13.md` and `v-hit-geometry-2026-09-13.md`, the full current walker/iso implementations and tests, the two repaired CT files, Button CT, touch-floor helper, Button variants, and token vault. No tests or CT were run.
+
+## Proposed state-cell replacements
+
+| Row | Original | Proposed |
+| -: | - | - |
+| 903 | **OPEN** (board #2301) | **CLOSED — SOURCE/MAIN-CT VERIFIED** (#2301; `815741e6c`..`765dcdd71`, CT at `99acf985d`) |
+| 904 | **OPEN** (board #2301) | **CLOSED — MAIN-CT VERIFIED** (#2301; `765dcdd71`, CT at `99acf985d`) |
+| 988 | **OPEN — B hit lane assigned** | **FIXED — NODE CONTROL VERIFIED; CURRENT-MAIN CT PENDING** (#2300; `0e0c3adab` + `06ebd7298`) |
+| 989 | **OPEN — #2311; Codex owned** | **CLOSED — MAIN-CT + MUTATION VERIFIED** (#2311; `99acf985d`) |
+| 990 | **OPEN — #2311; Codex owned** | **CLOSED — MAIN-CT + SOURCE VERIFIED** (#2311; `99acf985d`) |
+| 991 | **OPEN — B hit lane assigned** | **FIXED — NODE CONTROL VERIFIED; CURRENT-MAIN CT PENDING** (#2300; `0e0c3adab` + `06ebd7298`) |
+| 994 | **OPEN — #2313; Codex owned** | **CLOSED — SOURCE/GENERATION/MAIN-CT VERIFIED** (#2313; `99acf985d`) |
+
+Rows 988 and 991 should not be marked CLOSED until a main CT run containing the later `0e0c3adab`/`06ebd7298` geometry changes completes. The existing 421/421 main CT receipt is at `99acf985d`; ancestry confirms the initial hit implementation (`815741e6c..765dcdd71`) precedes it, but the two later proof/fence commits do not.
+
+## Evidence by row
+
+### 903 — stale `::after`/live-hazard prose
+
+The current walker header describes Button hit areas as `::before`, records that they were `::after` before #1843, and says the probe reads both pseudo homes. Its old live-hazard paragraph is now explicitly labeled the defect report and explains why wrapper credit manufactured a target. The parallel touch-floor header also names `::before`; the fixture/story prose was corrected in the same initial train. This is the exact comment-only defect.
+
+The initial lane CT passed 105 changed-instrument cases; the later main twelve-file CT at `99acf985d` passed **421/421**, zero failed/flaky/skipped (`reports/runs/ct/main-311860-2026-09-13T06-34-55-378Z/integration-command.log`). That main run contains `815741e6c..765dcdd71`, so it is valid evidence for this row.
+
+### 904 — missing `inline` hit-test pin
+
+The initial train added default/primary/ghost inline Button hit-test arms with inside and one-pixel-outside assertions, alongside the existing glyph-xs arms. `x-hit-geometry` §3/§6 records the positive and negative intent matrix and the lane's 105-pass CT. The 421/421 main CT at `99acf985d` includes `tests/ui/primitives/button/button.ct.tsx` after `765dcdd71`, so the exact missing browser pin is exercised on main. This row can close.
+
+### 988 — clause-2 discriminator and exact envelope proof
+
+Current `hit-extent.int.test.ts` contains four ancestor-credit stages where clause 2 can decide: capped, clipped, pointer-unreachable, and self-reporting control. It evaluates the product walker string and the iso implementation against the same DOM, pins each home's measured outputs, and compares raw finite envelope coordinates structurally. Current headers describe those exact controls rather than claiming equal published extents.
+
+The tracked report preserves discriminating controls:
+
+- reverting the walker to existence-only kills `credit-capped`;
+- deleting pointer-events refusal kills `credit-unreachable`;
+- disabling kit credit kills `credit-clipped`;
+- a one-sided `+0.001` edge mutation passes the superseded rounded comparison but fails the final raw comparison.
+
+The final focused node floor passed 13/13. This proves the original false pin is repaired. It does **not** supply current-main browser evidence because `0e0c3adab` and `06ebd7298` postdate the 421/421 main CT receipt. Retain a pending state until root runs the current-main CT train.
+
+### 989 — setting-teach live red
+
+Current `setting-teach-row.ct.tsx:350-359` imports `beforeHitBox`, explicitly reads the `::before` hit area, refuses nonfinite geometry through the shared helper, derives the live touch-floor token, and hit-tests a point inside the pseudo but outside the visible box. The lane's dead-pseudo mutation changed the helper to `::after` and produced exactly one failure in this setting-teach assertion (66 pass/1 fail), then exact restoration returned 67/67. Independent source review accepted the helper and row after the final comment correction.
+
+The integrated main CT at `99acf985d` passed 421/421 and includes this file. The predicted permanent poll red is therefore repaired and main-verified.
+
+### 990 — params-deck blinded fallback
+
+The five repeated local `getComputedStyle(..., "::after")`/`|| 0` paths are gone. Current `params-deck.ct.tsx` uses the shared touch-floor geometry contract; its header states the effective box is the union of border box and `::before`, while malformed small-control pseudo readings refuse instead of falling back silently. The implementation keeps the legitimate case where the border box already clears the floor, so the helper does not invent a pseudo requirement for a naturally large control.
+
+Independent review accepted the source behavior and the same 421/421 integrated main CT contains the params-deck suite. This closes both the blinded assertion and stale explanation.
+
+### 991 — transformed coordinate mix and adjacent refusal fence
+
+Both current homes reject geometry when post-transform `getBoundingClientRect()` dimensions differ from transform-free `offsetWidth`/`offsetHeight`, when no offset box exists, and when the pseudo has `visibility: collapse` or `display: contents`. The iso unit control preserves the original 0.5-scale over-credit `{111.25,...,153.75}` and expects `null` after the fence; removing the scale refusal kills that row. The product/iso raw envelope comparison detects sub-centipixel drift.
+
+This is a complete source/node repair of the original row, including its adjacent limits, with the same 13/13 focused receipt. Because the later geometry commits have no current-main CT receipt, retain **FIXED/PENDING**, matching row 988.
+
+### 994 — token description
+
+`packages/ui/src/tokens/tokens.json:1027` now says the glyph hit floor is carried by Button's `glyph-*` `::before` pseudo. `packages/ui/src/primitives/button/variants.ts:11-23,105-113` says the same and explains the #1843 split from the CTA ring's `::after`. The token build/generation verification was part of the accepted #2313 lane; the additive variants comment corrected the sole independent-review blocker. The 421/421 main CT at integrated `99acf985d` exercises the generated/current Button behavior. This row can close.
+
+## Limits and exact owed floor
+
+- The 421/421 main CT receipt proves rows 903, 904, 989, 990, and 994 because their integrated source is at or before `99acf985d`.
+- It does not prove the later `0e0c3adab`/`06ebd7298` clause-2, raw-envelope, and transform-refusal changes. Rows 988 and 991 need the current-main hit-target CT train before CLOSED. Their focused node controls are already sufficient to call the implementation fixed.
+- Rendered RAIL tap-target triage is a separate UX follow-up, not acceptance of these seven defect rows.
