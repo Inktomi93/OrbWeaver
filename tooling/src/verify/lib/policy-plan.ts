@@ -3,6 +3,7 @@
 import type { GateFact } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
+import type { PolicySelectionDisposition } from "../contract/policy-effective-population.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type {
   PlannedFact,
@@ -18,6 +19,7 @@ import type {
 import type { PolicyScopeResolution, PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { ResourceHostOptions } from "../contract/resource-host.ts";
 import { parsePolicyCommand } from "./policy-command.ts";
+import { resolveEffectivePopulation } from "./policy-effective-population.ts";
 import { runPolicyPass } from "./policy-pass.ts";
 import { resolvePolicyScope } from "./policy-scope.ts";
 import { refuseSelection } from "./policy-selection.ts";
@@ -217,34 +219,32 @@ function semanticSelectionTouchesPolicy(
   );
 }
 
+const DEFERRED_REASON = "entire-population policy requires its complete declared population";
+
 interface PlanModeInput {
   readonly policy: GatePolicy;
-  readonly requestedPaths: readonly string[] | null;
+  readonly disposition: PolicySelectionDisposition;
   readonly semanticPaths: readonly PolicySemanticPath[] | null;
   readonly resources: readonly string[];
   readonly factPaths: ReadonlySet<string>;
-  readonly declaredCount: number;
-  readonly effectiveCount: number;
 }
 
-function planMode({
-  policy,
-  requestedPaths,
-  semanticPaths,
-  resources,
-  factPaths,
-  declaredCount,
-  effectiveCount,
-}: PlanModeInput): Pick<PlannedPolicy, "mode" | "reason"> {
-  if (requestedPaths !== null && effectiveCount === 0) {
-    return policy.execution === "entire-population" && semanticSelectionTouchesPolicy(policy, semanticPaths, resources, factPaths)
-      ? { mode: "deferred", reason: "entire-population policy requires its complete declared population" }
-      : { mode: "skipped", reason: "requested scope has an empty policy intersection" };
+/** The planner's only selection judgement of its own: which of the two `not-applicable` dispositions an
+ *  entire-population policy gets when the scope reaches NONE of its declared paths. A DELETED or RENAMED
+ *  identity is not in `currentPaths` and so cannot be selected, but it did name this policy's population —
+ *  that is a deferral (the whole run owes the verdict), not a skip. The dispatcher cannot make this call (it
+ *  never sees the semantic statuses) and does not have to: `applyOwnerPlan` carries the plan's reason onto a
+ *  dispatcher owner that is already `not-applicable` for the emptier reason. */
+function planMode({ policy, disposition, semanticPaths, resources, factPaths }: PlanModeInput): Pick<PlannedPolicy, "mode" | "reason"> {
+  if (disposition === "run") {
+    return { mode: "run", reason: null };
   }
-  if (policy.execution === "entire-population" && effectiveCount < declaredCount) {
-    return { mode: "deferred", reason: "entire-population policy requires its complete declared population" };
+  if (disposition === "deferred") {
+    return { mode: "deferred", reason: DEFERRED_REASON };
   }
-  return { mode: "run", reason: null };
+  return policy.execution === "entire-population" && semanticSelectionTouchesPolicy(policy, semanticPaths, resources, factPaths)
+    ? { mode: "deferred", reason: DEFERRED_REASON }
+    : { mode: "skipped", reason: "requested scope has an empty policy intersection" };
 }
 
 function planOne({ policy, sourceCandidates, requestedPaths, semanticPaths, currentPaths, resources, facts }: PlanOneInput): PlannedPolicy {
@@ -258,33 +258,19 @@ function planOne({ policy, sourceCandidates, requestedPaths, semanticPaths, curr
   if (explicitNone(policy) && declaredSourcePaths.length > 0) {
     throw new Error(`resource-only policy ${policy.id} unexpectedly resolved source files`);
   }
-  const effectiveSourcePaths = requestedPaths === null ? declaredSourcePaths : declaredSourcePaths.filter((path) => currentPaths.has(path));
-  const effectiveResourcePaths = requestedPaths === null ? resources : resources.filter((path) => currentPaths.has(path));
   const factPaths = new Set(facts.flatMap(({ population }) => [...population.declaredSourcePaths, ...population.declaredResourcePaths]));
-  const requiredPaths = new Set([...declaredSourcePaths, ...resources, ...factPaths]);
-  const effectiveRequiredPaths = requestedPaths === null ? requiredPaths : new Set([...requiredPaths].filter((path) => currentPaths.has(path)));
-  const { mode, reason } = planMode({
-    policy,
-    requestedPaths,
-    semanticPaths,
-    resources,
-    factPaths,
-    declaredCount: requiredPaths.size,
-    effectiveCount: effectiveRequiredPaths.size,
+  // THE ONE SELECTION CALCULATION (#2309), shared verbatim with the dispatcher. `current` is `currentPaths`
+  // here because these declared paths come from the SCOPE MANIFEST's program membership, which still lists a
+  // deleted file — see `PolicyRequestedSelection`.
+  const selection = resolveEffectivePopulation({
+    execution: policy.execution,
+    declaredSourcePaths,
+    declaredResourcePaths: resources,
+    dependencyPaths: [...factPaths],
+    requested: requestedPaths === null ? null : { identity: requestedPaths, current: currentPaths },
   });
-  return {
-    policyId: policy.id,
-    family: policy.family,
-    mode,
-    reason,
-    population: {
-      declaredSourcePaths,
-      declaredResourcePaths: resources,
-      requestedPaths,
-      effectiveSourcePaths,
-      effectiveResourcePaths,
-    },
-  };
+  const { mode, reason } = planMode({ policy, disposition: selection.disposition, semanticPaths, resources, factPaths });
+  return { policyId: policy.id, family: policy.family, mode, reason, population: selection.population };
 }
 
 function resourceRecord(

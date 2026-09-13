@@ -188,12 +188,32 @@ test.describe("final policy planner", () => {
     });
     const corpus = { gates: [gate], families: [gate.family] };
 
+    // REWRITTEN AT #2309: this narrowed arm asserted `deferred`, and the DISPATCHER disagreed. A consumed
+    // fact is resolved over its FULL declared population (`resolveFactRuns` ignores `requestedPaths`), so a
+    // consumer's census is never partial and can never be its reason to defer — the planner counted the
+    // fact's `b.ts` in its completeness denominator anyway, while `resolveRun` counted only source+resources
+    // and resolved the same owner `success`. `applyOwnerPlan` turns that disagreement into a thrown tool
+    // error, which is why the arm now EXECUTES rather than only planning: agreement is the assertion.
     const narrowed = planPolicyCommand({
       request: runRequest({ scope: { kind: "file", paths: ["tooling/src/a.ts"] } }),
       corpus,
       scope: scope(["tooling/src/a.ts"], "file"),
     });
-    expect(narrowed).toMatchObject({ ok: true, plan: { policies: [{ mode: "deferred" }], facts: [] } });
+    expect(narrowed).toMatchObject({
+      ok: true,
+      plan: { policies: [{ mode: "run", population: { effectiveSourcePaths: ["tooling/src/a.ts"] } }], facts: [{ factId: "planned-fact" }] },
+    });
+    if (!narrowed.ok || narrowed.plan.mode !== "run") {
+      throw new Error("narrowed fact fixture plan did not resolve");
+    }
+    const narrowedProject = new Project({ useInMemoryFileSystem: true });
+    narrowedProject.createSourceFile("/repo/tooling/src/a.ts", "export const a = 1;\n");
+    narrowedProject.createSourceFile("/repo/tooling/src/b.ts", "export const b = 1;\n");
+    expect(executePolicyPlan({ root: "/repo", project: narrowedProject, corpus, plan: narrowed.plan, reviewedGrants: [] })).toMatchObject({
+      ok: true,
+      exitCode: 0,
+      pass: { policies: [{ id: "fact-policy", owner: { status: "success" } }] },
+    });
 
     const planned = planPolicyCommand({ request: runRequest({ scope: { kind: "whole" } }), corpus, scope: scope(PROGRAM.files) });
     expect(planned).toMatchObject({
@@ -291,6 +311,12 @@ test.describe("final policy planner", () => {
     ).toMatchObject({ ok: true, plan: { policyIds: [selected.id], resourcePathsByPolicy: {} } });
   });
 
+  // REWRITTEN AT #2309, INTENT PRESERVED. The generic hybrid still pins that a compiler-member `.mts` is a
+  // RESOURCE identity and never a SOURCE one, in every scope kind. What it used to pin BESIDE that was the
+  // defect: under the three narrowed kinds it asserted `effectiveSourcePaths: []` with `mode: "run"` — a
+  // policy scheduled to render a verdict over zero subjects because its resource identity alone was selected.
+  // The corrected semantics say a changed declared RESOURCE reselects the full declared SOURCE population and
+  // hands the owner its complete resource declaration, so all four kinds now agree on both fields.
   test.each([
     ["whole", { kind: "whole" }],
     ["file", { kind: "file", paths: ["tooling/src/module.mts"] }],
@@ -333,8 +359,8 @@ test.describe("final policy planner", () => {
             population: {
               declaredSourcePaths: ["tooling/src/a.ts"],
               declaredResourcePaths: ["tooling/src/a.ts", "tooling/src/module.mts"],
-              effectiveSourcePaths: request.kind === "whole" ? ["tooling/src/a.ts"] : [],
-              effectiveResourcePaths: request.kind === "whole" ? ["tooling/src/a.ts", "tooling/src/module.mts"] : ["tooling/src/module.mts"],
+              effectiveSourcePaths: ["tooling/src/a.ts"],
+              effectiveResourcePaths: ["tooling/src/a.ts", "tooling/src/module.mts"],
             },
           },
         ],
