@@ -25,9 +25,26 @@
 //   CHANGED a `--color-*` under a nested CONDITIONAL at-rule becomes its own ARM (`<palette> @ <prelude>`)
 //           instead of being merged last-wins into the palette — both arms are judged, where the old scan
 //           REPLACED the unconditional value and hid the base arm;
-//   NARROWER a `--color-*` under a nested PLAIN SELECTOR is EXCLUDED — its subject is a descendant
-//           element, never the seed root, and the old scan counting it was a defect of the balanced-body
+//   NARROWER a `--color-*` whose SUBJECT is a descendant or sibling is EXCLUDED — the seed's own text
+//           never resolves against it, and the old scan counting it was a defect of the balanced-body
 //           read rather than a capability.
+//
+// AND THE SUBJECT RULE IS DECIDED PER COMPLEX SELECTOR, OFF THE SUBJECT COMPOUND (#2293 leg 3). Leg 2
+// built the descendant exclusion only for the NESTED spelling: the flattened `[data-theme="x"] .a` (and
+// `[data-theme="x"] + .b`) still matched the unanchored `SEED_SELECTOR` against the whole selector LIST
+// and was absorbed as the seed, so the same CSS got two answers depending on authoring style. Membership
+// now runs `splitSelectorList` → `selectorSubject` — the SHARED reader (`lib/css-rules.ts`,
+// `over-art-plate.ts` is the other consumer), not a new one, and not `^…$` anchoring, which would have
+// thrown away every legitimate compound root. Four shapes, each pinned:
+//   ROOT  `[data-theme="x"].foo` · `html[data-theme="x"]` · `[data-theme="x"]:where(.a, .b)` — the subject
+//         IS the seed element; a qualifier narrows WHICH elements carry the seed, not what the palette is,
+//         so it MERGES into that seed rather than forking an arm (declared limit, pinned).
+//   ARM   `.card &` — the subject is still the seed, under an ANCESTOR condition, so it is an arm exactly
+//         like a conditional at-rule. Leg 2's prose called this a descendant subject and DROPPED it; a
+//         dropped reachable arm is the blindness this gate exists to refuse, and that sentence is retired.
+//   NONE  `& .x` · `& > .y` · `[data-theme="x"] .a` · `[data-theme="x"] + .b` — the subject is another
+//         element.
+//   LIST  a selector list is decided arm by arm, never by matching the list text.
 // Parity receipt on the real `packages/ui/src/styles/theme.css` (which exercises none of the four): three
 // palettes (hearth/dark, light/light, mocha/dark), 81 `--color-*` each, byte-identical values.
 //
@@ -45,7 +62,7 @@ import type { Rgb } from "../../_shared/wcag.ts";
 import { contrastRatio } from "../../_shared/wcag.ts";
 import type { CssDeclarationFact } from "../contract/resource-css.ts";
 import type { AuthoredCssFile } from "../contract/resource-tree.ts";
-import { atRulesContaining, rulesContaining } from "./css-rules.ts";
+import { atRulesContaining, rulesContaining, selectorSubject, splitSelectorList } from "./css-rules.ts";
 import type { StaticClassCandidate } from "./static-class-expression.ts";
 
 /** One shipped seed palette: a name, its inherited color-scheme, and its resolved `--color-*` values. */
@@ -70,11 +87,15 @@ export interface InkUse {
 const LIGHT_DARK = /^light-dark\(\s*(.+?)\s*,\s*(.+?)\s*\)$/u;
 /** The BASE palette's home: Tailwind's `@theme` block, read off the declaration fact's at-rule owner. */
 const THEME_AT_RULE = /^@theme\b/u;
-/** A shipped seed's home: `[data-theme="x"]`, read off the declaration fact's selector list. Unanchored,
- *  exactly as the retired text scan was — a seed authored under a compound selector is still that seed. */
+/** A shipped seed's home: `[data-theme="x"]`. Deliberately UNANCHORED, and it is only ever run against a
+ *  SUBJECT COMPOUND (`seedRootOf`), never against a selector list — that pairing is the whole rule. Left
+ *  unanchored so a compound root (`html[data-theme="x"]`, `[data-theme="x"].foo`) still resolves; the
+ *  descendant/sibling exclusion comes from the SUBJECT, not from anchoring the pattern (#2293 leg 3). */
 const SEED_SELECTOR = /\[data-theme="([a-z0-9-]+)"\]/u;
 const COLOR_PREFIX = "--color-";
 const COLOR_SCHEME = "color-scheme";
+/** CSS nesting's parent reference. In a SUBJECT compound it means "this rule still styles the parent". */
+const NESTING_SELECTOR = "&";
 /** `text-primary`, but never `text-primary-foreground` — a pair ink is judged on its own fill, not here. */
 const TEXT_UTILITY = /^text-([a-z][a-z0-9-]*)$/u;
 const SELF_TINT_UTILITY = /^bg-([a-z][a-z0-9-]*)\/(\d{1,3})$/u;
@@ -134,13 +155,53 @@ function blockChain(file: AuthoredCssFile, offset: number): readonly Block[] {
   return [...rules, ...atRules].toSorted((left, right) => left.start - right.start);
 }
 
+/**
+ * THE SEED A SELECTOR LIST IS A ROOT FOR — decided per COMPLEX SELECTOR, off its SUBJECT compound, never
+ * off the list text (#2293 leg 3).
+ *
+ * Testing the whole `selectorList` made a FLATTENED descendant a root: `[data-theme="dusk"] .x` matched
+ * and its `--color-*` was absorbed into the dusk palette, while the byte-equivalent NESTED spelling
+ * (`[data-theme="dusk"] { & .x { … } }`) was excluded by the ancestry read — the same CSS, two answers,
+ * decided by authoring style. `[data-theme="dusk"] + .y` was absorbed the same way one combinator over.
+ *
+ * The rule is CSS's own: a declaration belongs to a palette when the SUBJECT of the complex selector —
+ * its last compound, what the rule actually styles — is the seed element. `selectorSubject` is the shared
+ * reader that answers it and it is REUSED, not re-minted: anchoring `SEED_SELECTOR` to `^…$` instead
+ * would have thrown away every legitimate compound root (`html[data-theme="x"]`, `[data-theme="x"].foo`,
+ * `[data-theme="x"]:where(.a, .b)`), each of which still styles the seed element itself.
+ *
+ * A COMPOUND QUALIFIER ON THE SUBJECT KEEPS IT A ROOT and does not become an arm: it narrows WHICH
+ * elements carry the seed, not what the palette is, so two blocks resolving to one seed merge last-wins
+ * exactly as two bare `[data-theme="x"]` blocks do. An ANCESTOR relation is the other thing entirely and
+ * is an ARM — see `placementOf`.
+ */
+function seedRootOf(selectorList: string): string | undefined {
+  let found: string | undefined;
+  for (const complex of splitSelectorList(selectorList)) {
+    const name = SEED_SELECTOR.exec(selectorSubject(complex))?.[1];
+    if (name !== undefined) {
+      found = name;
+      break;
+    }
+  }
+  return found;
+}
+
 /** The index of the block that OWNS a palette — the `@theme` at-rule or a `[data-theme="…"]` selector —
  *  and the palette's name, or `undefined` when the chain reaches neither. */
 function rootName(block: Block): string | undefined {
   if (block.kind === "style-rule") {
-    return SEED_SELECTOR.exec(block.selectorList)?.[1];
+    return seedRootOf(block.selectorList);
   }
   return THEME_AT_RULE.test(block.prelude) ? HEARTH : undefined;
+}
+
+/** Does this nested block still style the PARENT element? CSS nesting puts the parent in the subject
+ *  compound as `&` — `.card &` and `&.dense` style the parent under a context, `& .x` and `& > .y` style
+ *  a DESCENDANT. A nested rule with no `&` at all is relative-descendant by construction (`.x` means
+ *  `& .x`), so its subject is not the parent either and the same answer falls out. */
+function stylesTheParent(selectorList: string): boolean {
+  return splitSelectorList(selectorList).some((complex) => selectorSubject(complex).includes(NESTING_SELECTOR));
 }
 
 function rootOf(chain: readonly Block[]): { readonly index: number; readonly name: string } | undefined {
@@ -165,19 +226,30 @@ function rootOf(chain: readonly Block[]): { readonly index: number; readonly nam
  *    the product paints. It is NOT merged into the unconditional palette either: the retired text scan
  *    absorbed it last-wins, which REPLACED the unconditional value and hid the base arm instead. Both arms
  *    are judged, which is the only reading under which neither is invisible.
- *  - Under a nested PLAIN SELECTOR (`& .x`, `.card &`) inside a seed → NOT the palette, deliberately. Its
- *    subject is a descendant element, not the seed root, so a `text-<token>` resting on the seed never
- *    resolves against it. The retired scan counted these too — that was a defect of the balanced-body read,
- *    not a capability, and it is not restored.
+ *  - Under a nested selector whose SUBJECT IS STILL THE SEED (`.card &`, `&.dense`) → the palette's
+ *    CONDITIONAL ARM, exactly like a conditional at-rule (#2293 leg 3, and it CORRECTS this paragraph's
+ *    own earlier text, which called `.card &` a descendant subject and silently dropped it). The seed
+ *    element really does take that value inside a `.card`, and this gate's job is every ground an ink can
+ *    rest on — dropping a reachable arm is the blindness the module exists to refuse.
+ *  - Under a nested selector whose SUBJECT IS A DESCENDANT OR SIBLING (`& .x`, `& > .y`, a bare `.x`) →
+ *    NOT the palette, deliberately: a `text-<token>` resting on the seed never resolves against it. The
+ *    retired scan counted these — a defect of the balanced-body read, not a capability, and not restored.
+ *
+ * The two nested cases are the SAME QUESTION the root asks, one level down — whose element does this
+ * block style — so `stylesTheParent` and `seedRootOf` are the same subject read with different targets. A
+ * seed nested inside another seed falls on the descendant side of it; the generator emits flat blocks and
+ * no fixture reaches that shape, so it is recorded here rather than special-cased.
  */
 function placementOf(file: AuthoredCssFile, offset: number): Placement | undefined {
   const chain = blockChain(file, offset);
   const root = rootOf(chain);
   const inner = root === undefined ? [] : chain.slice(root.index + 1);
-  if (root === undefined || inner.some((block) => block.kind === "style-rule")) {
+  if (root === undefined || inner.some((block) => block.kind === "style-rule" && !stylesTheParent(block.selectorList))) {
     return;
   }
-  const conditions = [...chain.slice(0, root.index), ...inner].flatMap((block) => (block.kind === "at-rule" ? [block.prelude] : []));
+  // An inner block is a CONDITION whichever kind it is: an at-rule contributes its prelude, a
+  // still-styling-the-parent selector contributes its own text (`dusk @ .card &`).
+  const conditions = [...chain.slice(0, root.index), ...inner].map((block) => (block.kind === "at-rule" ? block.prelude : block.selectorList));
   return { root: root.name, condition: conditions.join(CONDITION_JOIN) };
 }
 
