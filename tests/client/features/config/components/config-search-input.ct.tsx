@@ -13,7 +13,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { resolveSpacingPx } from "../../../../support/browser/touch-floor.ts";
+import { hitExtent, resolveSpacingPx } from "../../../../support/browser/touch-floor.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
@@ -252,6 +252,29 @@ test("nothing modified ⇒ no marks anywhere, and @modified is an honest empty",
 // minimum. Nothing structural stops this box from being squashed; only the measurement says it is not.
 test.describe("coarse pointer", () => {
   test.use({ hasTouch: true, viewport: { width: 430, height: 932 } });
+
+  test("#2317: the filter funnel keeps the effective touch floor under compact density", async ({ mount, page }) => {
+    await stub(page);
+    // Density is a bare inherited attribute in tiers.css. Mount the production host inside that real
+    // carrier so the failing compact arm is present on first paint rather than mutated after layout.
+    const component = await mount(
+      <div data-density="compact">
+        <ConfigHostStory />
+      </div>,
+    );
+    await expect(component).toHaveAttribute("data-density", "compact");
+    const funnel = component.getByRole("button", { name: "Add a search filter" });
+    await expect(funnel).toBeVisible();
+
+    const floor = await resolveSpacingPx(page, "--spacing-touch-target");
+    expect(floor, "the coarse-pointer token arm is active").toBeGreaterThanOrEqual(44);
+    await expect.poll(() => hitExtent(funnel, "x"), "the horizontal hit extent reaches the resolved floor").toBeGreaterThanOrEqual(floor);
+    await expect.poll(() => hitExtent(funnel, "y"), "the vertical hit extent reaches the resolved floor").toBeGreaterThanOrEqual(floor);
+
+    // The same production action still opens the token menu; geometry cannot replace the behavior pin.
+    await funnel.click();
+    await expect(component.getByRole("option", { name: /@modified/ })).toBeVisible();
+  });
 
   test("#1215: the settings search meets the coarse touch floor — the root box AND the input inside it", async ({ mount, page }) => {
     await stub(page);
