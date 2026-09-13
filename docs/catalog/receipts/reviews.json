@@ -6040,6 +6040,146 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-fix-wave-1-2026-09-12.md",
+      "assignedSha256": "a31810bb52b41b161c09a52ad65b5c80febd546c9206533b1887138899325c06",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "a31810bb52b41b161c09a52ad65b5c80febd546c9206533b1887138899325c06",
+      "verifiedCommit": "4eae5329427b2fa4f593f777a859509d1a4c6b65",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full-read by codex-15af-2049-wave12, lines 1-99 (18,402 bytes), for #2049. Raw SHA-256 and exact committed-byte equality were verified at 4eae5329427b2fa4f593f777a859509d1a4c6b65; latest path commit 6c983149eb2e48af4a8dfe05abf741c955cfe23d and every cited subject commit resolve and are ancestors of the verification commit.",
+        "The report's six OPEN cells are dated 2026-09-12 evidence. Current refutation-ledger rows 520-525 mark them CLOSED/FIXED and explicitly correct parts of L3 and L6; preserve the report bytes and use the current ledger and board for current state.",
+        "The report contains no Markdown destination links and has no direct filename citers in the inspected tooling/packages/scripts/tests source. Its code-span paths and measurements are historical coordinates. No behavioral or structure rerun was performed; this receipt attests the dated record and its limits, not current implementation acceptance."
+      ],
+      "claims": [
+        {
+          "claim": "The document records the 2026-09-12 independent wave-1 verification at 0060ec324050822c23517206c1a5ff440c5658a5, including row-level confirmations and refutations, six newly reported findings, and explicit limitations; later ledger reconciliation owns current disposition.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:0060ec324050822c23517206c1a5ff440c5658a5"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:6c983149eb2e48af4a8dfe05abf741c955cfe23d"
+            },
+            {
+              "kind": "issue",
+              "target": "#2049"
+            }
+          ]
+        }
+      ],
+      "summary": "Historical wave-1 verification record. Preserve its dated confirmations, partial refutation, OPEN findings, and limits; current lifecycle and acceptance must be read from the live ledger, board, and current runs."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-fix-wave-2-2026-09-12.md",
+      "assignedSha256": "11e8ef11ac784ba527ccbf02b6f36a48fd5398b08da68411dc37a60362bc5710",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "11e8ef11ac784ba527ccbf02b6f36a48fd5398b08da68411dc37a60362bc5710",
+      "verifiedCommit": "4eae5329427b2fa4f593f777a859509d1a4c6b65",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full-read by codex-15af-2049-wave12, lines 1-191 (19,750 bytes), for #2049. Raw SHA-256 and exact committed-byte equality were verified at 4eae5329427b2fa4f593f777a859509d1a4c6b65; latest path commit 8cc956626d6aff059b25fe74ca2db223d253f934 and every cited subject commit resolve and are ancestors of the verification commit.",
+        "The report's five additional findings remain OPEN in current refutation-ledger rows 531-535, but its runs and structure verdict are anchored to d9d1e352401536e775eeaab98f27a1fe41951c70. The current ledger and board own present disposition; this dated report cannot establish current acceptance.",
+        "The report contains no Markdown destination links and has no direct filename citers in the inspected tooling/packages/scripts/tests source. Its code-span paths and measurements are historical coordinates. No behavioral or structure rerun was performed; this receipt attests the dated record and its limits, not current implementation acceptance."
+      ],
+      "claims": [
+        {
+          "claim": "The document records the 2026-09-12 independent wave-2 verification at d9d1e352401536e775eeaab98f27a1fe41951c70, including the partial refutation of #2107, scoped confirmations, five additional findings, and explicit limitations.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:d9d1e352401536e775eeaab98f27a1fe41951c70"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:8cc956626d6aff059b25fe74ca2db223d253f934"
+            },
+            {
+              "kind": "issue",
+              "target": "#2049"
+            }
+          ]
+        }
+      ],
+      "summary": "Historical wave-2 verification record. Preserve its dated partial refutation, scoped confirmations, OPEN findings, and limits; current lifecycle and acceptance must be read from the live ledger, board, and current runs."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-fix-wave-3-2026-09-12.md",
+      "assignedSha256": "00d5008a1d65d27488670c2a18cf73bf8de3d08e6002a358eb8fba5be4a40890",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "00d5008a1d65d27488670c2a18cf73bf8de3d08e6002a358eb8fba5be4a40890",
+      "verifiedCommit": "4eae5329427b2fa4f593f777a859509d1a4c6b65",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full-read by codex-15af-2049 main reader, lines 1-113, 16053 bytes, for #2049. Raw SHA-256 and exact committed-byte equality verified at 4eae5329427b2fa4f593f777a859509d1a4c6b65; report subject/tip commits resolve and are ancestors.",
+        "Six OPEN cells are the 2026-09-12 findings; current refutation-ledger dispositions differ and remain their own authority. The absent handover patch and arm-specific test path existed at the report tip; the cited missing source is the deliberate mirror-miss subject.",
+        "No Markdown destination links; explicit repository-path references checked at the dated report tip and current review tip. No behavioral test or structure rerun; receipt attests the dated record and its limitations, not present implementation acceptance."
+      ],
+      "claims": [
+        {
+          "claim": "The document records the 2026-09-12 independent review at 4789d30ef of b254138ab and a5abe00d7, including four scoped confirmations, six additional findings, and named verification limits.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:4789d30ef1d2aeeb65719942f899989b150f2e5c"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:4f024d366bf284ee0d8114058c9eeab3d48b85f0"
+            },
+            {
+              "kind": "issue",
+              "target": "#2049"
+            }
+          ]
+        }
+      ],
+      "summary": "Historical wave-3 verification record; preserve dated findings and measurements. Current lifecycle and acceptance must be re-derived from the refutation ledger, board, and new runs."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-suite-honesty-2026-09-12.md",
+      "assignedSha256": "9aa77334ed611737e08008876d41bf74b5df7d090d83fb7e0ef4207213c0c1ef",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "9aa77334ed611737e08008876d41bf74b5df7d090d83fb7e0ef4207213c0c1ef",
+      "verifiedCommit": "4eae5329427b2fa4f593f777a859509d1a4c6b65",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full-read by codex-15af-2049 main reader, lines 1-139, 12974 bytes, for #2049. Raw SHA-256 and exact committed-byte equality verified at 4eae5329427b2fa4f593f777a859509d1a4c6b65; report subject/tip commits resolve and are ancestors.",
+        "Structure/marker assertions use main-2930600, subsequently identified as a fixture-mode non-verdict in v-fix-wave-3 and v-instruments-2; those assertions are not accepted as current or trustworthy real-tree verification. Historical test and formatter measurements were not rerun.",
+        "No Markdown destination links; explicit repository-path references checked at the dated report tip and current review tip. No behavioral test or structure rerun; receipt attests the dated record and its limitations, not present implementation acceptance."
+      ],
+      "claims": [
+        {
+          "claim": "The document records the 2026-09-12 review at 90c7be9e7 of 91d9a2ab7 and 90bbeb04f, including partial formatter verification and three findings; its structure/marker evidence used a subsequently invalidated fixture-mode slot.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:90c7be9e7d5bc1f069806935da4201aa47654358"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:d2315031518b859f3355c931ac158c2e32951249"
+            },
+            {
+              "kind": "issue",
+              "target": "#2049"
+            }
+          ]
+        }
+      ],
+      "summary": "Historical suite-honesty review with a subsequently invalidated structure evidence source. Preserve the original confirmations/refutations as dated author claims; this receipt does not certify the slot or current gates."
     }
   ]
 }
