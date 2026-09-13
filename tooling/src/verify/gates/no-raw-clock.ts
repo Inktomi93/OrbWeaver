@@ -135,6 +135,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/domain/feature/logic.ts", operation: "ambient-clock-read" },
       files: { "packages/server/src/domain/feature/logic.ts": "export function doThing(): number {\n  return Date.now();\n}\n" },
       expect: { count: 1, messageIncludes: "packages/server/src/domain/feature/logic.ts" },
       why: "the founding shape — an ambient `Date.now()` on a production path, with the exact grant SUBJECT in the message",

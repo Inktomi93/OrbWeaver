@@ -109,6 +109,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "tooling/src/snap/ops/capture.ts", operation: "browser-launch" },
       files: { "tooling/src/snap/ops/capture.ts": 'import { chromium } from "@playwright/test";\nexport const b = chromium.launch({ headless: true });\n' },
       expect: { count: 1, token: "chromium.launch", messageIncludes: "Subject: tooling/src/snap/ops/capture.ts, operation: browser-launch" },
       why: "a second Playwright bootstrap outside _shared/browser.ts (arm B). The message names the LAUNCH operation, so this row proves the door resolved and the verb was classified, not fail-closed",
@@ -136,7 +137,7 @@ export const gate = defineGate({
           'import { chromium } from "@playwright/test";\nexport const b = chromium.launch({ headless: true });\nexport const a = chromium.connectOverCDP("http://127.0.0.1:9222");\n',
       },
       expect: { count: 2, messageIncludes: "Subject: tooling/src/_shared/browser.ts, operation: browser-launch" },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the home reds like any other site — TWO findings, one per licensed act, because a grant licenses one `(subject, operation)` and the home performs two — and is licensed by its two exact grant rows. A proof row cannot carry a grant; the family test proves both rows consume exactly this",
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the home reds like any other site — TWO findings, one per licensed act, because a grant licenses one `(subject, operation)` and the home performs two — and is licensed by its two exact grant rows. The module witness uses synthetic authority; the family test proves both actual central rows consume exactly this",
     },
     {
       mode: "types",

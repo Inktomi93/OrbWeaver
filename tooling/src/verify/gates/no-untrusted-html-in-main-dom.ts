@@ -67,6 +67,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
+      grant: { subject: "packages/client/src/components/foo.tsx", operation: "raw-html-injection" },
       files: { "packages/client/src/components/foo.tsx": "export const A = () => <div dangerouslySetInnerHTML={{ __html: 'x' }} />;\n" },
       expect: { count: 1, token: ATTRIBUTE },
       why: "the founding shape — raw HTML injected into the app document",

@@ -82,6 +82,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "resource",
+      grant: { subject: "packages/client/src/styles/globals.css", operation: "direct-client-mechanism:slot:dialog-popup" },
       files: {
         ...OWNERSHIP_FIXTURE,
         [CLIENT_GLOBALS]: 'html [data-slot="dialog-popup"] { border-radius: 1rem; }\n',

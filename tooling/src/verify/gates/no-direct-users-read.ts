@@ -104,6 +104,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/domain/billing/x.ts", operation: "users-table-reference" },
       files: {
         "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
         "packages/server/src/domain/billing/x.ts": 'import { users } from "../../../../db/src/schema/users.ts";\nexport const u = users;\n',

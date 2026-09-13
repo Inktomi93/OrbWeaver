@@ -121,6 +121,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "tooling/src/codemod/lib/diagnostics.ts", operation: "process-argv-read" },
       files: { "tooling/src/codemod/lib/diagnostics.ts": 'import process from "node:process";\nexport const limit = process.argv.slice(2).length;\n' },
       expect: { count: 1, token: "process.argv", messageIncludes: "a second argv reader" },
       why: "the founding shape — a LIBRARY helper reading the global argv through the `node:process` door (the live spelling), so its behaviour depends on how the process was started and no caller can drive it. `messageIncludes` names the PRECISE text, which the unreadable arm never emits, so this row proves the door branch resolved rather than fail-closed",
@@ -155,7 +156,7 @@ export const gate = defineGate({
       mode: "types",
       files: { "tooling/src/stack/ops/engines.ts": 'import process from "node:process";\nexport const d = process.argv.includes("--detach");\n' },
       expect: { count: 1, messageIncludes: "Subject: tooling/src/stack/ops/engines.ts, operation: process-argv-read" },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a reviewed bash-fronted entry reds like any other reader and is licensed by its exact grant row (`tooling-argv-front-door:stack-engines`), so a new entry is a finding until someone reviews it. A proof row cannot carry a grant; the family test proves the row consumes exactly this",
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a reviewed bash-fronted entry reds like any other reader and is licensed by its exact grant row (`tooling-argv-front-door:stack-engines`), so a new entry is a finding until someone reviews it. The family test proves this real central grant consumes the identity; module witnesses independently prove the synthetic exact-grant door",
     },
     {
       mode: "types",

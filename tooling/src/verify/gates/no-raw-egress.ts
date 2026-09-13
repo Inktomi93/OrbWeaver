@@ -159,6 +159,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/domain/hub/verbs/browse.ts", operation: "raw-fetch" },
       files: { "packages/server/src/domain/hub/verbs/browse.ts": 'export const load = async (): Promise<unknown> => await fetch("https://x");\n' },
       expect: { count: 1, token: FETCH },
       why: "the founding shape — a bare fetch in an unsanctioned server zone, the SSRF/exfil hole B5a closes",

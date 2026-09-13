@@ -3,9 +3,9 @@
 // ROW can express now lives in their own `mustFlag`/`mustPass` rows and runs on the static bar through
 // `structure:policy-conformance`. This file carries ONLY what a row structurally cannot:
 //
-//   §4.3 GRANT IDENTITY — a proof row runs under `reviewedGrants: []`, so no row can prove that the central
-//   `credentialId` grant is consumed exactly once, that a wrong OPERATION leaves the finding effective, or
-//   that a renamed SUBJECT alarms. Those three are the whole successor to the legacy gate-owned
+//   §4.3 CENTRAL GRANT IDENTITY — module rows prove an authored identity against a synthetic grant. This
+//   family also proves that the actual central `credentialId` row is consumed exactly once, that a wrong
+//   OPERATION leaves its finding effective, and that a renamed SUBJECT alarms. Those three replace the legacy
 //   `SANCTIONED_FIELDS` table and its hand-rolled two-sided stale sweep, so they are pinned in all three
 //   directions here.
 //

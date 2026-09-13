@@ -85,6 +85,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "t.widgetId", operation: "soft-reference" },
       files: {
         "packages/db/src/schema/x.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { widgetId: text("widget_id") });\n',

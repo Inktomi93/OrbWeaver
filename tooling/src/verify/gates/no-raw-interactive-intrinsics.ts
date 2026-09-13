@@ -103,6 +103,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
+      grant: { subject: "packages/client/src/features/demo/thing.tsx", operation: "raw-interactive-intrinsic:button" },
       files: { "packages/client/src/features/demo/thing.tsx": 'export const G = (): unknown => <button type="button">Go</button>;\n' },
       expect: { count: 1, token: "button" },
       why: "the founding shape — a hand-rolled control in a feature, which must be an @orb/ui Button",

@@ -91,6 +91,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
+      grant: { subject: "packages/client/src/routes/some-route.tsx", operation: "feature-front-door-import:#features/chat" },
       files: {
         "packages/client/src/routes/some-route.tsx": 'import { X } from "#features/chat";\nexport const G = X;\n',
       },

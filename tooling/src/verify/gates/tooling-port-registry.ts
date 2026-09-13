@@ -81,6 +81,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
+      grant: { subject: "tooling/src/stack/ops/up.ts", operation: "port-literal" },
       files: { "tooling/src/stack/ops/up.ts": "export const p = 8788;\n" },
       expect: { count: 1, token: "8788", messageIncludes: "Subject: tooling/src/stack/ops/up.ts, operation: port-literal" },
       why: "a RESERVED registry port respelled as a literal — the dev pair was the exact respell #1271 spent (stage-plan.ts + fixture.ts held four of them)",
@@ -113,7 +114,7 @@ export const gate = defineGate({
       mode: "source",
       files: { "tooling/src/_shared/ports.ts": "export const DEV_PORTS = { server: 8788, vite: 5173 };\n" },
       expect: { count: 1, messageIncludes: "Subject: tooling/src/_shared/ports.ts, operation: port-literal" },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the registry reds like any other site — scanned, never population-excluded, so the day it moves it reds at its new path — and is licensed by its exact grant row (`tooling-port-registry:ports`). A proof row cannot carry a grant; the family test proves the row consumes exactly this",
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the registry reds like any other site — scanned, never population-excluded, so the day it moves it reds at its new path — and is licensed by its exact grant row (`tooling-port-registry:ports`). The family test proves this real central grant consumes the identity; module witnesses independently prove the synthetic exact-grant door",
     },
   ],
   mustPass: [

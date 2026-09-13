@@ -125,6 +125,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/domain/chat/verbs/assemble.ts", operation: "chat-content-part-reference" },
       files: {
         "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
         "packages/server/src/domain/chat/verbs/assemble.ts":

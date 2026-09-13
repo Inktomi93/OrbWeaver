@@ -169,6 +169,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/contracts/src/x.ts", operation: "error-issues-read" },
       files: {
         "node_modules/zod/index.d.ts":
           "export interface ZodError {\n  readonly issues: readonly { readonly path: readonly string[]; readonly message: string }[];\n}\n",

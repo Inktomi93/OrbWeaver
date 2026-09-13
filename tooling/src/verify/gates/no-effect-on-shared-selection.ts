@@ -327,6 +327,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/features/chat/hooks/x.ts", operation: "effect-on-shared-selection" },
       files: {
         [REACT_TYPES_HOME]: reactProofModule(),
         "packages/client/src/state/index.ts": SELECTION_BARREL,

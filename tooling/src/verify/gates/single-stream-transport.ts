@@ -145,6 +145,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/transport/trpc/routers/probe.ts", operation: "sse-subscription:live" },
       files: {
         ...trpcServerProof(),
         "packages/server/src/transport/trpc/routers/probe.ts":

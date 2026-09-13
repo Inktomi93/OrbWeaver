@@ -107,6 +107,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/features/some-feature/surfaces/surface.tsx", operation: "cache-surgery:invalidateQueries" },
       files: {
         ...tanstackQueryProof(),
         "packages/client/src/features/some-feature/surfaces/surface.tsx":

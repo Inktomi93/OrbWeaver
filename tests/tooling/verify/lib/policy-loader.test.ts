@@ -2,10 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
-import { defineGate, REVIEWED_GRANT_WITNESS_REQUIRED } from "../../../../tooling/src/verify/contract/policy.ts";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
 import { refusalEnvelope } from "../../../../tooling/src/verify/lib/policy-refusal-envelope.ts";
-import { assertGateFactDescriptor, assertGatePolicyDescriptor, reviewedGrantWitnessFailure } from "../../../../tooling/src/verify/lib/policy-validation.ts";
+import { assertGateFactDescriptor, assertGatePolicyDescriptor } from "../../../../tooling/src/verify/lib/policy-validation.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function writeModules(root: string, modules: Readonly<Record<string, string>>): void {
@@ -376,7 +376,15 @@ test("hard + warning is refused at load as a contradiction (#2025); warning debt
   // The three admitted pairs, each the nearest legal shape one field away.
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "error" })).not.toThrow();
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "ordinary", severity: "warning", workItem: 2025 })).not.toThrow();
-  expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "reviewed-grant", severity: "warning", workItem: 2025 })).not.toThrow();
+  expect(() =>
+    assertGatePolicyDescriptor({
+      ...trunk,
+      authority: "reviewed-grant",
+      severity: "warning",
+      workItem: 2025,
+      mustFlag: [{ ...trunk.mustFlag[0], grant: { subject: "the-subject", operation: "the-operation" } }],
+    }),
+  ).not.toThrow();
   // The rule sits BEFORE the workItem shape rules: the contradiction is named even when the debt field is absent.
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "warning" })).toThrow(/contradicts authority "hard"/u);
 });
@@ -488,9 +496,16 @@ test("the mustRefuse arm is optional, never empty, and every row carries message
   expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: " " } }]))).toThrow(
     /messageIncludes must be a nonempty/i,
   );
-  for (const key of ["count", "line", "token"] as const) {
-    const forbidden = { ...REFUSE_ROW, expect: { messageIncludes: "BLINDNESS", [key]: key === "token" ? "x" : 1 } };
-    expect(() => assertGatePolicyDescriptor(refusingPolicy([forbidden]))).toThrow(new RegExp(`mustRefuse\\[0\\]\\.expect\\.${key} is forbidden`, "u"));
+  for (const [key, value] of [
+    ["count", 1],
+    ["countFrom", "MISSING_DRIVER"],
+    ["line", 1],
+    ["token", "x"],
+  ] as const) {
+    for (const supplied of [value, undefined]) {
+      const forbidden = { ...REFUSE_ROW, expect: { messageIncludes: "BLINDNESS", [key]: supplied } };
+      expect(() => assertGatePolicyDescriptor(refusingPolicy([forbidden]))).toThrow(new RegExp(`mustRefuse\\[0\\]\\.expect\\.${key} is forbidden`, "u"));
+    }
   }
   expect(() => assertGatePolicyDescriptor(refusingPolicy([{ ...REFUSE_ROW, expect: { messageIncludes: "BLINDNESS" } }]))).not.toThrow();
 });
@@ -547,11 +562,8 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
 
 // ── #2189 (P7): THE REVIEWED-GRANT IDENTITY WITNESS, at LOAD ────────────────────────────────────────────────
 //
-// The annotation's three premises, each refused by name (`lib/policy-validation.ts#assertProofGrant`), plus the
-// GATED global obligation pinned in BOTH positions: `reviewedGrantWitnessFailure` called directly is the
-// gated-ON verdict, and `assertGatePolicyDescriptor` accepting the same witness-less policy is the gated-OFF
-// one. Pinning only the rule would leave "is it wired to the loader yet" unanswered; pinning only the loader
-// would leave the rule itself unproven until the flip.
+// Validate the annotation and its required presence through the descriptor and corpus loading entrypoints.
+// Removing the loader obligation must fail even if a standalone witness helper remains correct.
 
 const GRANT_WITNESS = { subject: "the-subject", operation: "the-operation" } as const;
 
@@ -640,18 +652,16 @@ test("the witness is refused on every arm but mustFlag, on every authority but r
   ).toThrow(/mustFlag\[0\]\.grant has unknown property "why"/u);
 });
 
-test("the GLOBAL witness obligation reds when called and is not yet wired to the loader", () => {
+test("the GLOBAL witness obligation rejects a missing witness through descriptor and corpus loading", async ({ repoRoot, scratch }) => {
   const witnessless = grantTrunk({ mustFlag: WITNESSLESS_FLAG });
-  assertGatePolicyDescriptor(witnessless);
+  expect(() => assertGatePolicyDescriptor(witnessless)).toThrow(/carries no grant identity witness.*"grant-witness-trunk".*reviewed-grant policy/su);
+  expect(() => assertGatePolicyDescriptor(grantTrunk())).not.toThrow();
+  for (const authority of ["hard", "ordinary"]) {
+    expect(() => assertGatePolicyDescriptor(grantTrunk({ authority, mustFlag: WITNESSLESS_FLAG }))).not.toThrow();
+  }
 
-  // GATED ON — the rule itself, invoked directly, names the policy and the missing key.
-  expect(reviewedGrantWitnessFailure(witnessless)).toMatch(/carries no grant identity witness.*"grant-witness-trunk".*reviewed-grant policy/su);
-  // …and says nothing about a policy that carries one, or about an authority with no grant door.
-  expect(reviewedGrantWitnessFailure(grantTrunk() as never)).toBeNull();
-  expect(reviewedGrantWitnessFailure(grantTrunk({ authority: "hard", mustFlag: WITNESSLESS_FLAG }) as never)).toBeNull();
-
-  // GATED OFF — the loader still accepts the witness-less policy, which is why 45 un-annotated reviewed-grant
-  // modules load today. The flip commit deletes REVIEWED_GRANT_WITNESS_REQUIRED and this line inverts.
-  expect(REVIEWED_GRANT_WITNESS_REQUIRED).toBe(false);
-  expect(() => assertGatePolicyDescriptor(witnessless)).not.toThrow();
+  writeModules(scratch, {
+    "missing-witness.ts": moduleSource(repoRoot, "missing-witness", { authority: "reviewed-grant" }),
+  });
+  await expect(loadPolicyCorpus(scratch)).rejects.toThrow(/missing-witness.*no grant identity witness/su);
 });

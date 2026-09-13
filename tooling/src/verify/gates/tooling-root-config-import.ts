@@ -19,8 +19,9 @@
 // `entire-population` because grant liveness is only sound after a COMPLETE owner run: a narrowed request
 // DEFERS this policy, which is what retires the legacy defect the retired int test pinned (a scoped run's
 // `visit` never saw the row's consumer and called the live row stale — measured 2026-08-30) and the
-// legacy `fileLoaded(exit-contract)` anchor guard with it. A proof row cannot carry a grant, so the knip
-// import below is a `mustFlag`; its licensing by the real row is proven in the family test (§4.3).
+// legacy `fileLoaded(exit-contract)` anchor guard with it. The knip import retains its ungranted `mustFlag`
+// baseline; an authored module witness proves synthetic exact-grant consumption, and the family test proves
+// the real central row (§4.3).
 //
 // THE OPERATION CARRIES THE RESOLVED TARGET (`root-config-import:knip.ts`), so a grant licenses one
 // consumer reading ONE config: a second root config imported by the same file is a second finding.
@@ -87,6 +88,7 @@ export const gate = defineGate({
     },
     {
       mode: "source",
+      grant: { subject: "tooling/src/aa/ops/x.ts", operation: "root-config-import:knip.ts" },
       files: {
         "tooling/src/aa/ops/x.ts": 'import cfg from "../../../../knip.ts";\nexport const x = cfg;\n',
         "knip.ts": "export default { workspaces: {} };\n",
