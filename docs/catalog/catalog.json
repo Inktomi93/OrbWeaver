@@ -41056,6 +41056,150 @@
         "summary": "Preserves the full independent CSS verifier report measured at3c685ce6a, with six original rows and a dated integration appendix that leaves unresolved dependencies open."
       },
       "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-css-train-4-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 384,
+      "bytes": 34130,
+      "sha256": "3d2f5f76c0d00926d5e45eace6dfe882151e4eca6c35949771a5a108df364290",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-css-train-4-2026-09-13.md",
+        "assignedSha256": "3d2f5f76c0d00926d5e45eace6dfe882151e4eca6c35949771a5a108df364290",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "3d2f5f76c0d00926d5e45eace6dfe882151e4eca6c35949771a5a108df364290",
+        "verifiedCommit": "c901edee5ca4296a25e6933d1b5ff84383170714",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Independent reconciliation lane read the complete original report and supplied a full preserved fold; root reviewed all17 combined ledger rows, forward state mappings and dated appendices. Repository formatting normalized; historical findings retained. Scoped document format checks passed. Whole program barrier and ledger rollup remain outstanding."
+        ],
+        "claims": [
+          {
+            "claim": "Full final CSS-train verifier report at61fb1b8ef. Original #2292/#2293 defects confirmed; new refusal/status/prose residues remain #2294/#2314/#2315. Five rows preserved.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:c901edee5ca4296a25e6933d1b5ff84383170714"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ],
+        "summary": "Full final CSS-train verifier report at61fb1b8ef. Original #2292/#2293 defects confirmed; new refusal/status/prose residues remain #2294/#2314/#2315. Five rows preserved."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-hit-geometry-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 340,
+      "bytes": 30032,
+      "sha256": "1b55dc201b961b489cc68b3f09213fea3f2d769f1569316e6dbab6473ee83c3b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-hit-geometry-2026-09-13.md",
+        "assignedSha256": "1b55dc201b961b489cc68b3f09213fea3f2d769f1569316e6dbab6473ee83c3b",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "1b55dc201b961b489cc68b3f09213fea3f2d769f1569316e6dbab6473ee83c3b",
+        "verifiedCommit": "c901edee5ca4296a25e6933d1b5ff84383170714",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Independent reconciliation lane read the complete original report and supplied a full preserved fold; root reviewed all17 combined ledger rows, forward state mappings and dated appendices. Repository formatting normalized; historical findings retained. Scoped document format checks passed. Whole program barrier and ledger rollup remain outstanding."
+        ],
+        "claims": [
+          {
+            "claim": "Full hit-geometry verifier report at765dcdd71. Seven rows preserved; #2312 closed with selected199-doc gate and exact-blob catalog receipts. Geometry and browser repairs remain subject to their independent/integrated verification.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:c901edee5ca4296a25e6933d1b5ff84383170714"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ],
+        "summary": "Full hit-geometry verifier report at765dcdd71. Seven rows preserved; #2312 closed with selected199-doc gate and exact-blob catalog receipts. Geometry and browser repairs remain subject to their independent/integrated verification."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-css-unit-2-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 441,
+      "bytes": 39599,
+      "sha256": "3bd3de62abef5a8f001f761a87af3c4b07a2bfcd1d4149009988b967141596d7",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-css-unit-2-2026-09-13.md",
+        "assignedSha256": "3bd3de62abef5a8f001f761a87af3c4b07a2bfcd1d4149009988b967141596d7",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "3bd3de62abef5a8f001f761a87af3c4b07a2bfcd1d4149009988b967141596d7",
+        "verifiedCommit": "c901edee5ca4296a25e6933d1b5ff84383170714",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Independent reconciliation lane read the complete original report and supplied a full preserved fold; root reviewed all17 combined ledger rows, forward state mappings and dated appendices. Repository formatting normalized; historical findings retained. Scoped document format checks passed. Whole program barrier and ledger rollup remain outstanding."
+        ],
+        "claims": [
+          {
+            "claim": "Full CSS-unit second verifier report atf56e83d52. Ordinary policy conversions confirmed; five health/prose residues remain #2305. Does not close the complete CSS family.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:c901edee5ca4296a25e6933d1b5ff84383170714"
+              },
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ],
+        "summary": "Full CSS-unit second verifier report atf56e83d52. Ordinary policy conversions confirmed; five health/prose residues remain #2305. Does not close the complete CSS family."
+      },
+      "receiptCurrent": true
     }
   ]
 }
