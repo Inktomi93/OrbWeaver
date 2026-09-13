@@ -21,6 +21,10 @@ import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 // under a load-scaled child `timeout` that throws a SELF-IDENTIFYING ORB-LOAD-KILL when contention (not a
 // missing guard) is the cause, and the test carries a load-scaled wall-clock. Solo (factor 1) is unchanged.
 const CENSUS_TEST_BUDGET = scaledBudget(15_000, 4);
+// The fleet census below spawns every tooling ops module (242 when #1833 measured ~1.16s per child at
+// load 65). Its cost grows with that derived population, so the 180s quiet ceiling needs the same
+// load-scaling contract as each child rather than becoming an opaque Vitest timeout under contention.
+const FLEET_CENSUS_TEST_BUDGET = scaledBudget(180_000, 4);
 const PER_CHILD_BUDGET = scaledBudget(5000, 4);
 
 const OPS_DIR = join("tooling", "src", "verify", "ops");
@@ -95,27 +99,31 @@ function allOpsModules(repoRoot: string): readonly string[] {
   return out.sort((a, b) => a.localeCompare(b));
 }
 
-test("EVERY tooling ops module in the FLEET refuses when RUN — one law, sixteen tools", ({ repoRoot }) => {
-  // The #527 widening. The verify-only census above was the class's first home; the same lie is available
-  // in snap/ast/ui-audit/… ops, and `tooling/src/verify/ops/gen/*` (nine baseline WRITERS) were the loudest
-  // instance: running one printed nothing, wrote no baseline and exited 0, while four gate messages told the
-  // reader to do exactly that. Spawn-based on purpose — the structural half is the gate; this is the half
-  // that answers "does the process actually refuse?".
-  const all = allOpsModules(repoRoot);
-  const programs = realEntries(repoRoot, all);
-  // A fleet with NO derived program is the derivation silently failing, not a fleet of libraries.
-  expect(programs.size).toBeGreaterThan(0);
-  const modules = all.filter((rel) => !programs.has(rel));
-  const bad = modules.filter((rel) => {
-    const run = spawnSync("node", [rel], { cwd: repoRoot, encoding: "utf8" });
-    return run.status !== EXIT_TOOL_ERROR || !run.stderr.includes("direct invocation") || run.stdout !== "";
-  });
+test(
+  "EVERY tooling ops module in the FLEET refuses when RUN — one law, sixteen tools",
+  ({ repoRoot }) => {
+    // The #527 widening. The verify-only census above was the class's first home; the same lie is available
+    // in snap/ast/ui-audit/… ops, and `tooling/src/verify/ops/gen/*` (nine baseline WRITERS) were the loudest
+    // instance: running one printed nothing, wrote no baseline and exited 0, while four gate messages told the
+    // reader to do exactly that. Spawn-based on purpose — the structural half is the gate; this is the half
+    // that answers "does the process actually refuse?".
+    const all = allOpsModules(repoRoot);
+    const programs = realEntries(repoRoot, all);
+    // A fleet with NO derived program is the derivation silently failing, not a fleet of libraries.
+    expect(programs.size).toBeGreaterThan(0);
+    const modules = all.filter((rel) => !programs.has(rel));
+    const bad = modules.filter((rel) => {
+      const run = spawnSync("node", [rel], { cwd: repoRoot, encoding: "utf8" });
+      return run.status !== EXIT_TOOL_ERROR || !run.stderr.includes("direct invocation") || run.stdout !== "";
+    });
 
-  expect(bad).toEqual([]);
-  // The walk-fence tripwire: a zero from an empty census would be a false clean. 130 modules across 16 tools
-  // at the widening; the floor only proves the walk read the fleet, not just one tool's dir.
-  expect(modules.length).toBeGreaterThan(opsModules(repoRoot).length);
-}, 180_000);
+    expect(bad).toEqual([]);
+    // The walk-fence tripwire: a zero from an empty census would be a false clean. 130 modules across 16 tools
+    // at the widening; the floor only proves the walk read the fleet, not just one tool's dir.
+    expect(modules.length).toBeGreaterThan(opsModules(repoRoot).length);
+  },
+  FLEET_CENSUS_TEST_BUDGET,
+);
 
 test("running an ops module DIRECTLY refuses loudly — exit 2, naming the real entry", ({ repoRoot }) => {
   const run = spawnSync("node", [join(OPS_DIR, "structure.ts")], { cwd: repoRoot, encoding: "utf8" });
