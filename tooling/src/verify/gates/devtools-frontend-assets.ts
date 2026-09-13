@@ -117,7 +117,7 @@ function fixtureFiles(broken: ClosureFixtureBreak): Readonly<Record<string, stri
   };
   const manifest = {
     schemaVersion: 1,
-    resources: broken.duplicateUrl === true ? [resource, { ...resource, file: `assets/serve_rev/@${REVISION}/duplicate.html` }] : [resource],
+    resources: broken.duplicateUrl === true ? [resource, { ...resource }] : [resource],
   };
   const manifestText = canonical(manifest);
   const pin = canonical({
