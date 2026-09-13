@@ -60,6 +60,23 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
       "the BARRIER check on `flipped ledger rows:` / `ledger rows OWED:` commit claims (#2195, playbook §5) — takes an operator-stated `--since <rev> [--until <rev>]`, so there is no argument-free whole-tree form: a defaulted base is either a permanent red on history or an empty range that measures nothing",
   },
   {
+    name: "structure:board-citations",
+    group: "structure",
+    // THE BARRIER RECONCILIATION of every tree→board citation (#2156, folding #2070), and `manual` BY
+    // NATURE for the same reason as `structure:ledger-claims` above rather than for cost: it needs the
+    // NETWORK and `gh` auth. A tier row would turn every offline `pnpm check` into an exit-2 and make the
+    // commit bar depend on GitHub being up — and the owner-approved forge ruling on #2070 already places
+    // it "at the quiet barrier beside `ledgers:fresh`", which is an operator act, not a tier. Our OWN
+    // 0/1/2/3-speaking op (ops/board-citations.ts): a board it cannot read, a cited document that has been
+    // renamed, an empty snapshot, or a per-class control that does not fire all THROW ⇒ exit 2, because
+    // each of them produces a citation set that reads exactly like a clean bar.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:board-citations"],
+    classify: ownScheme,
+    manualReason:
+      "reconciles every tree→board citation (warning-policy `workItem` openness · ledger and roster `#N` resolution) against the board — needs `gh` auth, so it is an operator act at a quiet barrier beside `ledgers:fresh`, never a tier that would make the commit bar depend on GitHub",
+  },
+  {
     name: "browser:e2e-live",
     group: "browser",
     tiers: ["manual"],

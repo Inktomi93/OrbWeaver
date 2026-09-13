@@ -1,64 +1,27 @@
-// The PIN for warning-debt `workItem` liveness (#2070). What each arm defends:
+// The PIN for the warning-debt `workItem` DERIVATION (#2070). The judgement that consumes it — the three
+// citation classes, the controls and the exit contract — is pinned beside `lib/board-citations.ts`.
 //
-//   • THE DERIVATION IS THE LOADER, never a roster. The founding defect grew while a hand-maintained list
-//     would have looked complete: #2070's body knows only about `over-art-plate-arm`, and a SECOND carrier
-//     (`policy-refusal-coverage`, `workItem: 2184`) went closed unnoticed. So the population arm drives the
-//     REAL `loadMixedGateCorpus` over a planted fixture corpus — a warning policy naming a closed row is
-//     reported because the loader saw it, not because anyone listed it.
-//   • THE THREE OUTCOMES, each separately: every citation OPEN is 0, a CLOSED citation is 1 naming its
-//     policy and its number, and a reader that cannot answer THROWS out of the judge (the exit-2 class at
-//     the caller) instead of contributing a silent OPEN.
-//   • THE POSITIVE CONTROL IS ASKED IN THE SAME INVOCATION AS THE GREEN. The call-log arm is the one that
-//     matters most: a green run that never asked about the control would be a green run that proved nothing
-//     about the reader, which is exactly the "bare zero" shape #2070 was filed against.
-//   • THE CONTROL'S OWN FAILURE ARM. A control that comes back OPEN means either the row was reopened or the
-//     reader is stuck; both refuse, and the message says which constant to move.
+// WHAT THIS FILE DEFENDS: the population is DERIVED FROM A REAL CORPUS LOAD, never a roster. The founding
+// defect GREW while a hand-maintained list would have looked complete — #2070's body knows only about
+// `over-art-plate-arm`, and a SECOND carrier (`policy-refusal-coverage`, `workItem: 2184`) had gone closed
+// unnoticed by the time it was adjudicated a day later. So the arm below plants gate modules and drives
+// the production loader over them; a warning policy is picked up because the loader saw it.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { vi } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { loadMixedGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
-import { boardIssueState } from "../../../../tooling/src/verify/lib/workitem-board-reader.ts";
-import type { BoardIssueState } from "../../../../tooling/src/verify/lib/workitem-liveness.ts";
-import {
-  CLOSED_CONTROL_ISSUE,
-  judgeWorkItemLiveness,
-  warningWorkItems,
-  workItemLivenessExit,
-  workItemLivenessReport,
-} from "../../../../tooling/src/verify/lib/workitem-liveness.ts";
+import { CLOSED_CONTROL_ISSUE, warningWorkItems } from "../../../../tooling/src/verify/lib/workitem-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-/** The planted fixture's `workItem`, well outside any real row so a stale reader cannot answer it by luck.
- *  A CONST rather than a literal key: a separator-bearing numeric key reads as a non-camelCase identifier to
- *  biome, and dropping the separator trips `useNumericSeparators` — a computed key satisfies both. */
-const PLANTED_WORK_ITEM = 424_242;
-/** A citation whose row resolves to nothing — the reader's "not found" arm. */
-const ABSENT_WORK_ITEM = 999_999;
-
-/** A reader over a fixed table that RECORDS what it was asked — the call log is what proves the control ran
- *  in the same invocation as the verdict. An unlisted number throws, the way the real door does. */
-function tableReader(table: Readonly<Record<number, BoardIssueState>>): { readState: (issue: number) => BoardIssueState; asked: number[] } {
-  const asked: number[] = [];
-  return {
-    asked,
-    readState: (issue: number): BoardIssueState => {
-      asked.push(issue);
-      const state = table[issue];
-      if (state === undefined) {
-        throw new Error(`#${String(issue)} was not found in Inktomi93/orbweaver`);
-      }
-      return state;
-    },
-  };
-}
-
-/** A descriptor with only the fields the judge reads; the LOADER arm below uses real modules instead. */
+/** A descriptor carrying only the fields the derivation reads; the corpus arm above uses real modules. */
 function policy(id: string, workItem?: number): GatePolicy {
   const severity = workItem === undefined ? { severity: "error" as const } : { severity: "warning" as const, workItem };
   return { id, ...severity } as GatePolicy;
 }
+
+/** The planted fixture's `workItem`, well outside any real row so a stale reader cannot answer it by luck. */
+const PLANTED_WORK_ITEM = 424_242;
 
 interface PlantedModule {
   readonly root: string;
@@ -85,7 +48,7 @@ function writeModule({ root, repoRoot, name, id, tier }: PlantedModule): void {
   );
 }
 
-test("the warning population is DERIVED from a real corpus load — a planted warning policy naming a closed row is reported", async ({ repoRoot, scratch }) => {
+test("the warning population is DERIVED from a real corpus load — an error policy contributes nothing", async ({ repoRoot, scratch }) => {
   writeModule({
     root: scratch,
     repoRoot,
@@ -97,63 +60,8 @@ test("the warning population is DERIVED from a real corpus load — a planted wa
   const corpus = await loadMixedGateCorpus(scratch);
   expect(corpus.final).toHaveLength(2);
 
-  const { readState } = tableReader({ [CLOSED_CONTROL_ISSUE]: "CLOSED", [PLANTED_WORK_ITEM]: "CLOSED" });
-  const outcome = judgeWorkItemLiveness({ policies: corpus.final, readState });
-
-  // The error policy contributes no citation — `workItem` exists only on the warning arm of the union.
-  expect(outcome.citations).toEqual([{ policy: "planted-warning", workItem: PLANTED_WORK_ITEM }]);
-  expect(outcome.corpus).toBe(2);
-  expect(workItemLivenessExit(outcome)).toBe(1);
-  expect(workItemLivenessReport(outcome).join("\n")).toContain("planted-warning carries `workItem: 424242` and #424242 is CLOSED");
-});
-
-test("every citation OPEN is exit 0, and the control was asked in the SAME invocation", () => {
-  const { readState, asked } = tableReader({ [CLOSED_CONTROL_ISSUE]: "CLOSED", 2187: "OPEN", 2188: "OPEN" });
-  const outcome = judgeWorkItemLiveness({ policies: [policy("a", 2187), policy("b", 2188), policy("c")], readState });
-
-  expect(outcome.closed).toEqual([]);
-  expect(workItemLivenessExit(outcome)).toBe(0);
-  // THE ANTI-BARE-ZERO ARM: the green above is only worth something because this run also proved the reader
-  // can SAY closed. Drop the control from the judge and this expectation fails while every other arm passes.
-  expect(asked).toContain(CLOSED_CONTROL_ISSUE);
-  expect(outcome.control).toEqual({ issue: CLOSED_CONTROL_ISSUE, state: "CLOSED" });
-  expect(workItemLivenessReport(outcome)[0]).toContain(`control #${String(CLOSED_CONTROL_ISSUE)} reported CLOSED in this run`);
-});
-
-test("a CLOSED citation is exit 1 and the report names the policy, the number and both settlements", () => {
-  const { readState } = tableReader({ [CLOSED_CONTROL_ISSUE]: "CLOSED", 2024: "CLOSED", 2187: "OPEN" });
-  const outcome = judgeWorkItemLiveness({ policies: [policy("over-art-plate-arm", 2024), policy("policy-family-readers", 2187)], readState });
-
-  expect(outcome.closed).toEqual([{ policy: "over-art-plate-arm", workItem: 2024 }]);
-  expect(workItemLivenessExit(outcome)).toBe(1);
-  const report = workItemLivenessReport(outcome).join("\n");
-  expect(report).toContain("over-art-plate-arm: workItem #2024 — CLOSED");
-  expect(report).toContain("policy-family-readers: workItem #2187 — OPEN");
-  expect(report).toContain("Repoint it at the row that owns the remaining work");
-  expect(report).toContain("`hard`/`error`");
-});
-
-test("a reader that cannot answer THROWS out of the judge — an unreachable board is never a clean bar", () => {
-  const offline = (): BoardIssueState => {
-    throw new Error("gh: could not resolve host: api.github.com");
-  };
-  expect(() => judgeWorkItemLiveness({ policies: [policy("a", 2187)], readState: offline })).toThrow(/could not resolve host/);
-
-  // A citation whose row does not resolve is the same class: the board answered nothing about it.
-  const { readState } = tableReader({ [CLOSED_CONTROL_ISSUE]: "CLOSED" });
-  expect(() => judgeWorkItemLiveness({ policies: [policy("a", ABSENT_WORK_ITEM)], readState })).toThrow(/#999999 was not found/);
-});
-
-test("the control's own failure arms refuse: a reopened control, and an empty corpus", () => {
-  const { readState } = tableReader({ 7: "OPEN", 2187: "OPEN" });
-  expect(() => judgeWorkItemLiveness({ policies: [policy("a", 2187)], readState, controlIssue: 7 })).toThrow(
-    /positive control #7 came back OPEN, not CLOSED[\s\S]*CLOSED_CONTROL_ISSUE/,
-  );
-
-  const live = tableReader({ [CLOSED_CONTROL_ISSUE]: "CLOSED" });
-  expect(() => judgeWorkItemLiveness({ policies: [], readState: live.readState })).toThrow(/corpus came back EMPTY/);
-  // The empty-corpus refusal precedes the board entirely: nothing was asked, so nothing was claimed.
-  expect(live.asked).toEqual([]);
+  // `workItem` exists only on the `warning` arm of the descriptor union, so this is total by construction.
+  expect(warningWorkItems(corpus.final)).toEqual([{ policy: "planted-warning", workItem: PLANTED_WORK_ITEM }]);
 });
 
 test("warningWorkItems keeps corpus order and reads the number off the warning arm only", () => {
@@ -163,10 +71,9 @@ test("warningWorkItems keeps corpus order and reads the number off the warning a
   ]);
 });
 
-test("the PRODUCTION door refuses rather than guessing — with no `gh` reachable it throws, it does not return OPEN", () => {
-  // The one property of `lib/workitem-board-reader.ts` that a unit can prove offline, and it is the property
-  // the whole design rests on: a reader that answered a default on failure would make every run green. Driven
-  // by emptying the child's PATH rather than by a mock, so the assertion is about the real door.
-  vi.stubEnv("PATH", "");
-  expect(() => boardIssueState(CLOSED_CONTROL_ISSUE)).toThrow(/ENOENT/);
+test("the closed control is a real, permanently-closed row rather than a magic number", () => {
+  // Issue #1 — the repository's first row. The arm exists so a lane that "tidies" the constant to 0 or to a
+  // live row has to answer for it here; the RUNTIME half (that the board still reports it CLOSED) is the
+  // control inside every real invocation, which is where a reopened row is caught.
+  expect(CLOSED_CONTROL_ISSUE).toBe(1);
 });

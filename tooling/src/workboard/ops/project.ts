@@ -3,8 +3,19 @@
 // on disk — stable but not immortal, so any stale-looking failure earns exactly ONE refetch-and-retry.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { EncodedWrite, Field, FieldChange, Issue, IssueContext, ItemState, ProjectContext, RawFieldNode, RawIssueNode } from "../contract/types.ts";
-import { ADD_QUERY, BLOCKERS_QUERY, CONTEXT_QUERY, dependencyMutation, ISSUE_ID_QUERY, PROJECT_QUERY } from "../lib/queries.ts";
+import type {
+  EncodedWrite,
+  Field,
+  FieldChange,
+  GraphqlVariables,
+  Issue,
+  IssueContext,
+  ItemState,
+  ProjectContext,
+  RawFieldNode,
+  RawIssueNode,
+} from "../contract/types.ts";
+import { ADD_QUERY, BLOCKERS_QUERY, CONTEXT_QUERY, dependencyMutation, ISSUE_ID_QUERY, ISSUE_STATES_QUERY, PROJECT_QUERY } from "../lib/queries.ts";
 import { CACHE_DIR, CACHE_FILE, PROJECT_NUMBER, PROJECT_OWNER, REPO_NAME, REPOSITORY, STALE_CONTEXT_RE } from "../lib/vocab.ts";
 import { applyLocally, buildFieldMutation, currentValue, encodeWrite, itemFields, pendingChange } from "../lib/writes.ts";
 import { graphql } from "./gh.ts";
@@ -174,4 +185,43 @@ export function blockerIssueId(number: number): string {
 
 export function mutateDependency(issueId: string, blockingIssueId: string, remove: boolean): void {
   graphql(dependencyMutation(remove), { issueId, blockingIssueId });
+}
+
+/** EVERY issue in the repository, number → state, in ONE paged walk (#2156's bulk door).
+ *
+ *  WHY IT IS BULK AND NOT A LOOP OVER `fetchIssueContext`. The board-citation census asks about hundreds of
+ *  numbers per run — the refutation ledger alone cites 326 — and the targeted walk pulls a body, 100
+ *  comments and every project item per call. This selection is two scalar fields, so the whole repository
+ *  fits in ~24 pages. It REFUSES an empty first page rather than returning an empty map: a map with nothing
+ *  in it answers "OPEN? unknown" for every citation, which reads to a caller exactly like a clean board.
+ *
+ *  IT ANSWERS THE ISSUE'S OWN FIELD, never the Project `Status`. The two disagree on the live tree (a row
+ *  whose work landed can still sit `Running` until a lane transitions it), and a citation's claim is about
+ *  the ISSUE. `list`'s Status stays the lifecycle view; this is the state view. */
+export function fetchIssueStates(): ReadonlyMap<number, "OPEN" | "CLOSED"> {
+  const states = new Map<number, "OPEN" | "CLOSED">();
+  let cursor: string | undefined;
+  do {
+    const base = { owner: PROJECT_OWNER, repo: REPO_NAME };
+    const variables: GraphqlVariables = cursor === undefined ? base : { ...base, cursor };
+    const page = graphql<{
+      readonly repository?: {
+        readonly issues: {
+          readonly pageInfo: { readonly hasNextPage: boolean; readonly endCursor: string | null };
+          readonly nodes: readonly { readonly number: number; readonly state: "OPEN" | "CLOSED" }[];
+        };
+      } | null;
+    }>(ISSUE_STATES_QUERY, variables).repository?.issues;
+    if (page === undefined) {
+      throw new Error(`Could not resolve the issues of ${REPOSITORY}`);
+    }
+    for (const node of page.nodes) {
+      states.set(node.number, node.state);
+    }
+    cursor = page.pageInfo.hasNextPage && typeof page.pageInfo.endCursor === "string" ? page.pageInfo.endCursor : undefined;
+  } while (cursor !== undefined);
+  if (states.size === 0) {
+    throw new Error(`${REPOSITORY} reported ZERO issues — an empty state map answers every citation "unknown", which is not a verdict`);
+  }
+  return states;
 }

@@ -18,6 +18,8 @@
 //   check:orphan-ratchet     → cli.ts orphan-ratchet [--update]
 //   check:boot-chunk         → cli.ts boot-chunk
 //   check:ledgers-fresh      → cli.ts ledgers-fresh  (the committed-ledger freshness tripwire, #817)
+//   check:board-citations    → cli.ts board-citations  (the BARRIER reconciliation of every tree→board
+//                              citation against the board, #2156/#2070 — network, so manual tier)
 //   check:ledger-claims      → cli.ts ledger-claims --since <rev> [--until <rev>]  (the BARRIER check on
 //                              commit-message ledger claims, #2195 — an operator-stated range, never a default)
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
@@ -40,6 +42,7 @@ import {
   runAssetRefsCoverage,
   runBaseline,
   runBiomeRuleLiveness,
+  runBoardCitations,
   runBootChunkRatchet,
   runConfigSnapshot,
   runDbBaselineParity,
@@ -108,6 +111,8 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "ledgers-fresh":
     "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census and its siblings) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
   "ledger-claims": LEDGER_CLAIMS_HELP,
+  "board-citations":
+    "usage: node tooling/src/verify/cli.ts board-citations\n  Reconciles every tree\u2192board citation against the board: a warning policy's workItem must be OPEN, and every ledger/roster #N must resolve to a real row. Ledger state disagreements are an ADVISORY census, never a verdict. Needs `gh` auth; a board it cannot read is exit 2, never a clean zero.",
   debt: "usage: node tooling/src/verify/cli.ts debt [--gate <substr>] [--age]\n  A LENS over the ratchet ledgers — reports parked rows, oldest first with --age.",
   "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
   "config-snapshot": CONFIG_SNAPSHOT_HELP,
@@ -169,6 +174,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runBootChunkRatchet(root);
     case "ledgers-fresh":
       return runLedgersFresh(root);
+    case "board-citations":
+      return await runBoardCitations(root);
     case "ledger-claims":
       return runLedgerClaims(root, rest);
     case "biome-rule-liveness":
