@@ -720,3 +720,15 @@ test("an imported export-name alias does not invent a local warnings accumulator
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "warning-code-coverage", token: '"provider_ok"' }]);
 });
+
+test("an unrenamed warnings import does not invent a local warnings accumulator", () => {
+  const result = warningPassOf({
+    [PROVIDER_HOME]: PROVIDER_TUPLE,
+    [CHAT_HOME]: CHAT_TUPLE,
+    [CHAT_EMIT]: CHAT_PUSH,
+    "packages/server/src/infra/providers/foreign.ts": "export const warnings: unknown[] = [];",
+    [PROVIDER_EMIT]: 'import { warnings } from "./foreign.ts"; warnings.push({ code: "provider_ok", message: "elsewhere" });',
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "warning-code-coverage", token: '"provider_ok"' }]);
+});
