@@ -46,6 +46,49 @@
 // SAME 14 today and is strictly broader by construction: a config authored anywhere else is now judged
 // instead of being invisible. That widening is the intentional correction, recorded per §8.5.
 //
+// §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS CATEGORY 5 WITH A ZERO LEGACY SIDE, SO IT IS
+// A LIVENESS-AND-OUTCOME RECEIPT AND NOT CATCH PARITY. The conversion commit `97e68be91` states no
+// differential and lands none as a test, and §4.6 (#2000) stopped accepting silence; this is the record it
+// owes, all three axes named separately, driven on ONE corpus at `ce8e5174f`.
+//   · FINDINGS. FINAL side through `runPolicyPass` over the real root: raw 8, granted 8, effective 0,
+//     owner `success`/`complete`, `authorityAlarms []` — the empty alarm set measured with a planted stale
+//     grant (`probe:never-matches` → one `stale-reviewed-grant`), so it is a measurement and not a silence.
+//     The eight are one per GRANT IDENTITY: `**/__g_*`, `**/__g_*/**`, `**/node_modules`,
+//     `scripts/**/*.mts`, `scripts/**/*.cts`, `tests/**/*.cts`, `scripts/**/*.tsx` and
+//     `scripts/probes/st-goldens/sillytavern-runtime`, each consumed EXACTLY once.
+//     LEGACY side: the frozen descriptor at `c97de9d2f`, header-import-shimmed into a scratch module
+//     OUTSIDE `gates/` and driven through `runPass` over the SAME real root — **0 findings, 0 tool
+//     errors**, declaring 106 candidates / 46 scanned / `{glob-live: 20, glob-ratified: 40}`.
+//     THE PLANTED POSITIVE CONTROL for that zero: the same frozen source with `EXEMPT` and `RATIFIED`
+//     emptied (each cut anchor asserted to occur exactly once in the file) reports **36** — 34 dead globs
+//     plus 2 dead file-exacts. So the legacy reader was LIVE and its zero came from the EXEMPTION
+//     SUBTRACTION, which is guide §4.6 **category 5, EXEMPTION-MECHANISM MOVE**, the exemption-table twin
+//     of vacuity shape 2. Catch parity is NOT proven and is not claimed.
+//     THE 36 → 8 ACCOUNTING, which is what category 5's own falsifier asks ("did every hidden site become
+//     exactly ONE live, consumed row"): the 36 sites carry 8 DISTINCT subjects — `**/__g_*` and
+//     `**/__g_*/**` in 11 configs each, `**/node_modules` in 8, `sillytavern-runtime` in 2, and one each
+//     for the four `scripts`/`tests` dialect roots — and `reportCandidates` reports one finding per
+//     subject by design. 8 subjects → 8 raw → 8 grants → 0 effective. ANSWERED YES.
+//   · POPULATION. `{ of: "none" }` on both sides in effect: the legacy `scanRoot` was `() => false` and
+//     the final declares it. The SUBJECT set is 14 configs both ways — the legacy `readdirSync` walk and
+//     today's `authored-text#1` receipt (`resources: 14, unresolved: 0`) — beside `tracked-files` 9,707
+//     (`unresolved: 0`), which is the existence oracle the legacy `existsSync` used to be.
+//   · TOOL ERRORS. 0 on the final side. The legacy descriptor could emit none by construction (its reads
+//     had no refusal shape); that capability is what the conversion bought, and the `-health` sibling is
+//     where its refusals are proven.
+//   · THE NINTH GRANT IS NOT A LOST CATCH. `cb-v-wave-8b` measured raw 9 on `50e31c534`; it is 8 here
+//     because `tsconfig-entry-liveness:tests-iso-helpers` was DELETED at `815741e6c` when the first
+//     `tests/support/iso` source landed and its glob went live — the two-sided ratchet working, named
+//     path-by-path rather than absorbed into a count.
+//
+// THE NON-VACUOUS ARM DOES NOT EXIST THROUGH THE SHARED HARNESS, and that is pinned rather than argued.
+// `tests/support/legacy-differential.ts` replays on an IN-MEMORY project and REFUSES a legacy gate that
+// touches disk (#2119) — this one is `readdirSync` + `existsSync` + `readFileSync`, which is exactly what
+// the conversion retired. `tests/tooling/verify/gates/grant-liveness-family.test.ts`'s §4.6 arm drives
+// `filesystemReach` over both frozen blobs with controls in both directions, so a later lane cannot
+// "add the missing replay" by relaxing that scan. A fixture-level replay here needs a REAL-TMPDIR harness
+// (§4.6's own guidance for a filesystem-reading legacy gate); that residual is board row #2319.
+//
 // COMMENT POSTURE: comment-SAFE — a tsconfig is JSONC and the reader parses it as such, so a comment is
 // structurally out of the scanned unit rather than being stripped by this module.
 import type { GatePolicyContext } from "../contract/policy.ts";
