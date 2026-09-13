@@ -93,9 +93,11 @@ test("the policy's own call carries the baseline — a token dropped from the li
   expect(result.authority.effectiveFindings.map(({ token }) => token)).toContain("removed.unrecorded");
 });
 
-test("the policy reaches a verdict on the real bundle and receipts the tokens it measured", ({ scratch }) => {
-  // A resource fixture carrying the real bundle: the policy's verdict is clean, the receipt names the token
-  // census the validator scanned, and the single declaration is consumed exactly once.
+test("the policy reaches a verdict on the real bundle and receipts the seven DOCUMENTS it walked", ({ scratch }) => {
+  // A resource fixture carrying the real bundle: the policy's verdict is clean, the single declaration is
+  // consumed exactly once, and the population receipt's `members` is the BUNDLE — seven documents — never
+  // the token census (#2292). The census is still published, in the receipt SOURCE, where a zero is data
+  // rather than the `resolved zero members` refusal that used to eat this gate's loudest finding.
   const overlay = Object.fromEntries(Object.entries(TOKEN_CONTRACT_PATHS).map(([field, path]) => [path, CANONICAL[field as keyof typeof CANONICAL]]));
   for (const [path, content] of Object.entries(overlay)) {
     mkdirSync(join(scratch, path, ".."), { recursive: true });
@@ -115,5 +117,7 @@ test("the policy reaches a verdict on the real bundle and receipts the tokens it
   expect(result.authority.effectiveFindings).toEqual([]);
   const receipts = result.policies.flatMap(({ receipts: rows }) => rows);
   expect(receipts.filter((receipt) => receipt.kind === "resource")).toEqual([{ kind: "resource", source: "token-contract", resources: 7, unresolved: 0 }]);
-  expect(receipts.filter((receipt) => receipt.kind === "population").map(({ source }) => source)).toEqual(["tokens-contract"]);
+  expect(receipts.filter((receipt) => receipt.kind === "population")).toEqual([
+    { kind: "population", source: expect.stringMatching(/^tokens-contract \[tokens scanned=[1-9]\d*\]$/u), members: 7, unresolved: 0 },
+  ]);
 });
