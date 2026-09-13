@@ -15,7 +15,7 @@ whole reads. Everything else is selected by the question in front of you.
 | -: | - | -: | - |
 | 1 | `gate-runtime-standardization.md` | **30 KB** | read in full; standing contract and proof law |
 | 2 | `gate-runtime-orchestrator-playbook.md` | **17 KB** | read in full when orchestrating or executing a conversion |
-| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **632 KB** · 535 defect rows | read open rows relevant to the task; never front-to-back |
+| 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **633 KB** · 536 defect rows | read open rows relevant to the task; never front-to-back |
 | 4 | `docs/reviews/gate-runtime/resource-gate-access-patterns.md`; `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md`; `docs/reviews/gate-runtime/exception-authority-census.md`; `docs/reviews/gate-runtime/ordinary-waiver-source-migration.md` | **157 KB** · 4 files | read the relevant complete mechanism and linked constraints |
 | 5 | `docs/reviews/gate-runtime/shared-semantic-readers.md`; `docs/reviews/gate-runtime/checkpoint-2026-09-05.md` | **76 KB** · 2 files | read the relevant complete section; revalidate work leads |
 | 5b | `tooling/src/verify/contract/*.ts` headers | **294 KB** · 82 files | read the headers governing the contract question |

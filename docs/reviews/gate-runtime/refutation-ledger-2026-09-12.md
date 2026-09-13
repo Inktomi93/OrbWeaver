@@ -1114,6 +1114,12 @@ Independent review refuted the intermediate repair before landing: stop-command 
 | - | - | - | - | - |
 | `tooling/src/cpu-profile/ops/boot-trace.ts`; `tooling/src/snap/ops/arms/boot-trace.ts`; boot/plumbing tests | Bound command plus completion, retain raw events and ordered failures, govern both clocks, and classify raw completeness after retention instead of at allocation. | instrument failure and evidence honesty | **CLOSED** — #2345 repair committed and independently confirmed at `2dc9ec7e9` | Stop/presentation controls failed before repair. Real CLI metadata red: `main-3724011-2026-09-13T17-28-01-617Z`. Final boot 10/10: `reports/runs/test/main-3744749-2026-09-13T17-33-10-854Z/test-report.json`; combined boot/plumbing 27/27: `reports/runs/test/main-3734344-2026-09-13T17-30-31-835Z/test-report.json`. Real manifests prove stop-failure raw traces unknown/partial, successful and no-LCP-refused captures complete, all with exact retained counts. Five-file lint and both native programs pass. Cleanup transport itself has no separate deadline claim. |
 
+### Board-citation control witness — #2347, 2026-09-13
+
+| module | defect | class | state | receipt |
+| - | - | - | - | - |
+| `tooling/src/verify/ops/board-citations.ts` | A missing or off-board closed-control issue produced one generic crossing, falsely certifying that the board reader had observed CLOSED. | control non-vacuity / false attestation | **CLOSED** — repair `182f7ecbf` (board #2347); independently confirmed exact source/test snapshot | Production controls red 2 failed / 6 passed: `main-3798222-2026-09-13T17-49-13-460Z`; green 8/8: `main-3801327-2026-09-13T17-49-49-715Z`. Require existence, board membership, CLOSED state and the actual openness crossing. Healthy twins restore only the control row. Two-file lint and root/tooling native programs pass. Live board snapshot passed all four controls with actual CLOSED #1, OPEN #13, absent #2348 and declaring #2077. Full barrier and #2156 subject residue remain separate. |
+
 ## CLASS ROLLUP
 
 **REBUILT FROM THE BODY, 2026-09-11 (`v-ledger-sweep`, `64dfbf349`). The previous table read
@@ -1158,8 +1164,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 17 | 0 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 339 | 306 | 10 | 1 | 3 | 1 | 0 | 18 |
-| **TOTAL** | 535 | 486 | 15 | 6 | 4 | 1 | 0 | 23 |
+| **other** | 340 | 307 | 10 | 1 | 3 | 1 | 0 | 18 |
+| **TOTAL** | 536 | 487 | 15 | 6 | 4 | 1 | 0 | 23 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 
