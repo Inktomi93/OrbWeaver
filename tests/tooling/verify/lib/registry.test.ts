@@ -12,7 +12,7 @@
 // rather than a prose table.
 import type { StageDef, Tier } from "../../../../tooling/src/verify/contract/stage.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
-import { WHOLE_COMMAND_PATH_TRIGGERS } from "../../../../tooling/src/verify/lib/registry-triggers.ts";
+import { applyPathTriggers, WHOLE_COMMAND_PATH_TRIGGERS } from "../../../../tooling/src/verify/lib/registry-triggers.ts";
 import { stageLine } from "../../../../tooling/src/verify/lib/run-render.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -107,6 +107,17 @@ test("structure:policy-conformance runs every final policy's proofs at STATIC, w
   expect(stagesForTier("push").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
   expect(stagesForTier("full").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
   expect(stagesForTier("changed").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
+});
+
+test("#2303 — every whole-only static stage must have an explicit trigger-table decision", () => {
+  const unaccounted: StageDef = {
+    name: "structure:unaccounted",
+    group: "structure",
+    tiers: ["static"],
+    argv: ["pnpm", "check:unaccounted"],
+    classify: () => 0,
+  };
+  expect(() => applyPathTriggers([unaccounted])).toThrow("whole-only static stage is absent from WHOLE_COMMAND_PATH_TRIGGERS: structure:unaccounted");
 });
 
 test("mutation:arid is a discoverable manual report-input tool, never an automatic tier", () => {

@@ -365,10 +365,9 @@ export default tseslint.config(
       // `.claude/worktrees/<id>/tooling/src/x.ts` matches no surface at all — but the default-linted
       // extensions still land: of the 15,994 files ESLint ADMITTED on main, **7,896 were other lanes'
       // worktrees**, about half the population, every one of them a file no rule could usefully judge.
-      // THE REASON IS CORRECTNESS, NOT COST, and the distinction was paid for: the cost claim was measured
-      // and REFUTED (246.7 s unfenced vs 226 s fenced, ~8% — these files were only ever enumerated, never
-      // type-checked; #2281 carries the retraction). What the fence removes is the stage's inability to
-      // return a VERDICT — a lane swept mid-run, which is routine, turns an enumerated path into ENOENT and
+      // THE REASON IS CORRECTNESS, NOT COST. Whole-run timings were load-confounded and did not reproduce;
+      // discovery itself changes materially with the live worktree count. What the fence removes is the
+      // stage's inability to return a VERDICT — a lane swept mid-run, which is routine, turns an enumerated path into ENOENT and
       // the stage exits 2, the tool-error class, never a verdict (reproduced live on
       // `agent-afe8e5ce74da79230`). That is exactly the concurrent-lifecycle phantom `**/__g_*` above was
       // reasoned through for, never carried across to the larger, more frequently mutated case.

@@ -183,6 +183,8 @@ test("#1983 — a whole-tree run WITHOUT the battery names when it last ran, in 
   expect(lines).toContain("last RAN at bbb2222");
   expect(lines, "distance is in RUNS — the store has no clock and a wall-clock claim would be invented").toContain("1 verify run(s) ago");
   expect(lines, "and the ruling it is measuring against is named, not implied").toContain("ONCE PER MERGE TRAIN");
+  expect(lines).toContain("Cadence enforcement remains the quiescent-barrier procedure");
+  expect(lines).toContain("cannot identify a merge train or prove a prior pass");
   // LIMIT 1, IN THE RENDERED TEXT: history records a stage's MODE and DURATION, never its exit. The line
   // may not be read as "the battery was green", and saying so is part of the advisory rather than a
   // comment only this file can see.
