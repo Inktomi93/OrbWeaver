@@ -192,6 +192,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
           <CommandAuxiliaryButton
             aria-label="Add a search filter"
             onClick={(): void => setConfigSearchQuery(applyConfigToken(query, "@"))}
+            size="icon-sm"
             title="Add a search filter"
           >
             <Icon icon={SlidersHorizontal} size="sm" />
