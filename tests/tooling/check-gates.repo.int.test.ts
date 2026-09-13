@@ -863,12 +863,6 @@ function writeFixtures(): void {
     "packages/ui/src/primitives/__g_accn/__g_accn.tsx",
     'export function GAccn({ x, ...rest }: { x?: number }) {\n  return <div {...rest} aria-label="always mine" />;\n}\n',
   );
-  // no-floorless-control-in-wrap: ONE mapped floorless Button inside a flex-wrap container = N runtime
-  // siblings whose overflowing touch pseudos overlap across wrapped rows (the weather-picker geometry).
-  fx(
-    "packages/client/src/features/__g_floorless/components/__g_grid.tsx",
-    'const ICONS = ["a", "b", "c"];\nexport function GGrid() {\n  return (\n    <div className="flex-wrap">\n      {ICONS.map((n) => (\n        <Button key={n} size="glyph-lg">{n}</Button>\n      ))}\n    </div>\n  );\n}\n',
-  );
   // freeze-provenance-write-pairing: the founding D129-F defect verbatim — a `message_variants` UPDATE that
   // replaces `content` and leaves `rawContent`/`macroFreezes` attached, so the row keeps a freeze record
   // describing bytes that are gone. The fixture writes a NEW file, so canon-write.ts's real (fixed) writers

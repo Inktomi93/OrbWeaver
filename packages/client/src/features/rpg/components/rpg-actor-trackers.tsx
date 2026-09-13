@@ -329,6 +329,7 @@ export function ConditionChips({
             <Button
               aria-label={trackerActionName(`Remove ${cond.name}`, "from", subject)}
               intent="ghost"
+              // @orb-waive no-floorless-control-in-wrap(glyph-xs): owner ruling 2026-08-07: CHIP_TOUCH_FLOOR_AT_COARSE floors the chip around its remove control; retain the measured geometric remedy.
               size="glyph-xs"
               onClick={(): void => onRemove(cond.name)}
               title={trackerActionName(`Remove ${cond.name}`, "from", subject)}
