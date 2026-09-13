@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-12
+updated: 2026-09-13
 ---
 
 # READ FIRST — the #1584 session onboarding list
@@ -47,7 +47,7 @@ findings were already CLOSED. Do not repeat that.
 | # | Read | Size | Stop rule |
 | -: | - | -: | - |
 | 1 | `gate-runtime-standardization.md` — the LAW | **216 KB** | in full, always |
-| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **86 KB** | in full, always. §2b is where you decide what is next |
+| 2 | `gate-runtime-orchestrator-playbook.md` — what YOU do | **89 KB** | in full, always. §2b is where you decide what is next |
 | 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **402 KB** · 405 defect rows | **the WORK QUEUE — read its OPEN rows only, never front-to-back.** Re-run its counting method first (per-table print, `UNBINNED` reported), then read the rows whose state cell is `OPEN`/`PARTIAL`/`UNADJUDICATED`; a `CLOSED` row is a receipt, not reading. It is appended to by every verifier report (`## LEDGER ROWS (N rows)`) and by every fix lane's commit, so its size and counts on any given day are measured, never quoted (2026-09-12 evening: 165 rows / 20 tables / 44 open; **2026-09-12 20:40Z, after the fold and the first drain: 303 rows / 31 tables / 83 OPEN · 200 CLOSED · 13 FIXED**, of which ~47 open are the policing matrix's migration rows already inside running lanes; the count here is a dated SAMPLE the SIZE column cannot regenerate — the prose is hand-kept and rots between edits, which is #2207's family) |
 | 4 | the four LIVE-LAW review docs: `resource-gate-access-patterns` · `uncovered-gate-conversion-census` · `exception-authority-census` · `ordinary-waiver-source-migration` | **155 KB** · 4 files | **in full. ALWAYS. There is no conditional here and a session that invented one paid for it** (2026-09-12: skipped three of the four, then briefed a lane on readers the first doc explicitly calls *not the new fact boundary*). The ONLY skippable span in the whole tier is `ordinary-waiver-source-migration`'s **791 bare `path:line` bullets** — and **NOT the ~60 lines after them**, which are the METHOD receipts: the exact marker-form opener fence, the instrument-control rule, the closed-universe control, and the importer counts that name the Phase F deletion set. An earlier version of this row said "skip the 1,600-line appendix" and was WRONG in exactly that way |
 | 5 | `shared-semantic-readers.md` + `checkpoint-2026-09-05.md` | **76 KB** · 2 files | in full. The checkpoint's **§"Resume order"** is a live work list that has been skipped for days — item 2 is still open |
@@ -134,12 +134,16 @@ errors above were sitting. Reading those documents END TO END is not the same ac
 
 ## 2. What NOT to re-derive, because it is already measured
 
-- **The corpus is 298 modules** (**238 final / 60 legacy**, re-derived 2026-09-12 from
+- **The corpus is 303 modules** (**250 final / 53 legacy**, re-derived 2026-09-13 01:38Z from
   `pnpm check:policy-conformance`, which is the roster — this partition is NOT derivable from any document
   and is deliberately outside the generated SIZE column, so re-run the command rather than trusting it) and the roster is a **PAIR**: the active half plus 28
   deferred + 2 prebuilt + 3 dropped. The deferred half is one-sided (#2008). **This bullet read
-  275 / 171 / 104 until 2026-09-12** — a stale count inside the section titled *what NOT to re-derive*, which
-  is the reason every count here now carries its date and its command.
+  275 / 171 / 104 until 2026-09-12 and 298 / 238 / 60 until 2026-09-13** — a stale count inside the section
+  titled *what NOT to re-derive*, twice, which is the reason every count here now carries its date and its
+  command. The 2026-09-13 correction's receipt: `250 final policies · 2985 proof rows · 9 refusal rows ·
+  0 failure(s) · 206 grant rows (whole table) · 0 invalid`, `corpus: 303 module(s), 53 legacy proven by
+  gate-conformance`, exit 0 on `97aeec7c2` — and it agrees with the independent `loadMixedGateCorpus` census
+  in `v-wave-8b-2026-09-13.md` §1, which is the first time two methods have been stated together here.
 - **The remaining legacy count understates its work.** A conversion can SPLIT — one authority, one severity,
   one execution per policy. **§12.6's 13 mixed-hook modules are now CONVERTED**, so the largest known
   multiplier is already spent and the old "~123 policies from 104 modules" pricing no longer applies.

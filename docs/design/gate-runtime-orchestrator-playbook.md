@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-12
+updated: 2026-09-13
 ---
 
 # Gate-runtime orchestrator playbook — how a fresh session runs #1584
@@ -450,6 +450,30 @@ session's cgroup fences it to 8 cores (`cpu-fence.sh`, `CPUQuota=800%`), and the
 doing heavy work — not "serialized against structure legs" but with the box genuinely idle — and its budget is NEVER
 widened (300 s is what surfaced the 257 s; a wider number hides the next regression) and its kill path is never
 carved (its self-identifying text is the only reason a load kill and a real child exit 2 could be told apart tonight).
+(The `CPUQuota=800%` in that sentence is the dated figure; **RAISED to 1600% at `39bbd86fc`** — the amendment is in
+the LOAD paragraph above. The quiet-box requirement is unchanged by it: this step wants an IDLE box, not a share of one.)
+
+**AND A KILLED PLANTER IS WORSE THAN A FINISHED ONE — DO NOT KILL ONE, AND DO NOT START ONE WHERE YOU WOULD WANT TO
+(paid 2026-09-13 by primary; the whole incident ran twelve minutes).** `check-gates.repo.int` PLANTS `__g_` fixtures
+and removes them in `afterAll`, so a kill skips the cleanup and leaves them in the working tree. **They are gitignored
+in THREE places** — `.gitignore`, `**/__g_*` in `eslint.config.js`, `(^|/)__g_` in `.dependency-cruiser.cjs` — so
+**`git status` reads CLEAN while the tree carries planted violations**: 277 of them across `packages/**` (219),
+`tests/**` (16) and `tooling/**` (10), invisible to the one check either account runs by reflex, and inflating every
+subsequent gate count in the direction that looks like a real finding. This is the #2069 non-verdict shape except the
+planter LEAKED rather than merely overlapping, so it poisons every reader on the box rather than the one killed run.
+
+**The cleanup receipt is `find` PLUS the `git ls-files` control** — `git ls-files | grep -E '(^|/)__(g|dc)_'` must
+be **0** before deleting anything, or a TRACKED fixture is about to go — deleting deepest-path-first, stating that
+nothing under `.claude/worktrees/` was touched (another lane's tree is never yours to clean), and leaving
+`.stryker-tmp` alone (a regenerated sandbox; deleting inside it can break a live stryker run and buys nothing).
+Then announce the **CONTAMINATION WINDOW by timestamp** to the other account: a lane that DROVE a policy inside it
+owes a re-drive, and only a worktree-rooted drive is safe by construction.
+
+**The decision trap is that killing LOOKS like it frees the box.** It does not — it converts a run you would have
+discarded into a tree everyone else must distrust, and the discard was the only thing you actually gained. Let a
+started planter finish. The way to never face the choice is the rule above it: **the barrier tail runs ONCE, on the
+tree that will stand** — which by definition does not exist while a lane is live or the other account has a save in
+flight. Both were true here, and the run was started before this section had been read.
 **And the EXPENSIVE HALF of the barrier (`check:structure` → `structure-delta` → the `tests/tooling/**` battery →
 the `lint:eslint` tier → SIZE → `format:docs`) runs ONCE, on the tree that will stand:** fold the waiting lanes
 first, fix any red the post-fold planters surface (a warm leg on the lane that authored it, before the tail), then run
@@ -745,6 +769,15 @@ this field. Refuted back to Ready. A row at Verify that nothing re-checked is th
   the formatter normalises away is a deadlock between two doors, and the pin that catches it lives in the
   generator's suite, run twice with the second byte-identical — otherwise the regression surfaces in a docs lane
   that has never heard of the generator, which is how `check:agents` sat red after class 1.
+- **A CLEANLINESS CLAIM ABOUT AN IGNORED CLASS OWES `find`, NEVER `git status` — and this generalises past the
+  planter** (paid 2026-09-13; the planter instance and its receipt are in §2b). `git status` reports the INDEX
+  against tracked content, so every gitignored class is invisible to it BY DESIGN: `__g_`/`__dc_` fixtures, the
+  sanctioned `features/__probe/` scratch idiom, `reports/`, `.cache/`. The failure is not that the state is hidden —
+  it is that **`git status --short` empty is this program's standing receipt for "my tree is clean"**, cited in §L.2,
+  in every lane report and in the teardown containment test, and it answers a narrower question than the one every
+  reader takes it for. So a claim that a tree carries no planted or scratch state names the class and runs `find`
+  over it; and the inverse control matters just as much, because `git ls-files` is the only thing that tells a
+  leaked fixture from a committed one before you delete 277 files.
 - Fix the source, not the lane: a correction issued twice means the rule file is wrong.
 - **CLAIM AT DISPATCH. It bit TWICE on 2026-09-11 and the second time was after I had already named it.** A row
   dispatched without `claim` sits at **Ready with no Lane while an agent builds it** — invisible in-flight work, and
