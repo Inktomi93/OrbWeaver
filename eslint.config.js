@@ -287,10 +287,18 @@ const NODE_TEST_DIRS = NON_BROWSER_PACKAGES.map((name) => `tests/${name}/**/*.ts
 // These two trees are exactly what tsconfig.tests-dom.json claims wholesale (#1243), so the escapee
 // parser already has their program; no tsconfig moves with this.
 const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts", "tests/client/**/*.ts", "tests/ui/**/*.ts"];
-// Every TS program that ROOTS a file under tests/**: the node world and the browser-tests world (type-worlds
-// program, #1351 — the package programs check nothing under tests/ any more). The escapee parser is handed
-// both and uses whichever one owns the file, so no block here ever restates a tsconfig's include list.
-const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json"];
+// Every TS program that ROOTS a file under tests/**: the node world, the browser-tests world (type-worlds
+// program, #1351 — the package programs check nothing under tests/ any more), and the ISOMORPHIC helper
+// world. The escapee parser is handed all of them and uses whichever one owns the file, so no block here
+// ever restates a tsconfig's include list.
+//
+// `tsconfig.tests-iso.json` joined the list on 2026-09-13 (#2300), and its absence was invisible until
+// then for one reason: `tests/support/iso/` was a DECLARED world with no files in it (a tsconfig, a
+// dep-cruiser direction rule, a helper-world root — and an empty directory). The first module landed
+// there and its sibling test answered `Parsing error: … The file was not found in any of the provided
+// project(s)`, because a helper module that something imports is pulled into the importer's program while
+// a test that nothing imports is rooted only by its own world.
+const TEST_TREE_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
 const PROJECT_SERVICE_SURFACE = [TOOLING_SRC, TOOLING_TESTS, ...NODE_TEST_DIRS];
 // Every file the async-safety + dispatch + deprecation rules apply to.
 const SAFETY_SURFACE = [...PROJECT_SERVICE_SURFACE, ...TESTS_DOM_OWNED];

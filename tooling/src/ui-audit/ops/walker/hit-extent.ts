@@ -31,8 +31,9 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe ────────────────────────────────────────────────────────────
   // THE HIT AREA IS NOT THE BOX (2026-08-16 — 10 of 13 "sub-target" findings in one audit were this).
   // @orb/ui Button's size="inline"/size="glyph-*" variants carry a pointer-conditional touch-target
-  // ::after (packages/ui/src/primitives/button/variants.ts:16-20, :76-82), so a 25x15 border box can own
-  // a 45x45 hit area. Probe what the COMPOSITOR says: sample points on the ring the ::after would cover
+  // ::before (packages/ui/src/primitives/button/variants.ts glyphBox + the inline arm; it was an ::after
+  // until #1843 moved it off the CTA ring's layer — this probe reads BOTH), so a 25x15 border box can own
+  // a 45x45 hit area. Probe what the COMPOSITOR says: sample points on the ring the pseudo would cover
   // and ask elementFromPoint whether this control still owns them. The measured extent is what WCAG
   // 2.5.5/2.5.8 are about — "target size", not "border-box size".
   // THE LADDER MUST BE ABLE TO CONFIRM EVERY FLOOR THIS RULE JUDGES (#1067). The walk publishes
@@ -93,23 +94,10 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // plain containment clause below OR sharedCompositeOwns — is legitimate for exactly two shapes, both of
   // which have NO paintable box of their own at the probed point, so the ancestor is the only thing that
   // CAN answer (and #807 then narrows WHICH hit may answer — see hitForwards):
-  //   · PSEUDO-CARRIED: an overflowing ::after/::before touch-target pseudo (the @orb/ui Button glyph
+  //   · PSEUDO-CARRIED: an overflowing ::before/::after touch-target pseudo (the @orb/ui Button glyph
   //     ramp — packages/ui/src/primitives/button/variants.ts glyphBox, content-[''] + absolute
-  //     positioning) has no DOM node at all.
-  //     THE MECHANISM HERE WAS MIS-STATED UNTIL #1829 and the correction matters, because it decides which
-  //     controls this clause is still load-bearing for. This comment used to read "MEASURED (2026-08-30)
-  //     elementFromPoint inside one does NOT return the originating element either — it returns the
-  //     wrapper underneath", as a fact about pseudo-elements. It is not one. A pseudo DOES self-report:
-  //     measured 2026-09-06 in the CT browser, an @orb/ui Checkbox's \`::before\` answers \`checkbox-root\`
-  //     on every point it covers at both pointers, and a real mouse click there toggles the control. What
-  //     the 2026-08-30 reading actually measured was \`pointer-events: none\` — its subject was a
-  //     \`data-cta\` Button, whose CTA gradient ring (packages/ui/src/styles/globals.css,
-  //     \`[data-slot=button][data-cta]::after\`) claims THE SAME \`::after\` as glyphBox's hit area and sets
-  //     \`pointer-events: none\` on it. Side by side, same mount, same size: \`intent="primary"\` answers
-  //     \`div\` (the wrapper) 11px out, \`intent="ghost"\` answers \`button\` out to 13.5px.
-  //     So the clause stays — an un-hittable pseudo is a real shape on this tree and the ancestor is the
-  //     only thing that can answer for it — but it is credit for a pseudo that does NOT take the hit, not
-  //     for pseudos in general.
+  //     positioning) has no DOM node at all, so where an ancestor's overflow CLIPS its outward edge the
+  //     box painting underneath is the only thing that can answer for it.
   //   · VISUALLY-HIDDEN: Base UI's native range input inside a Slider Thumb (isVisuallyHidden, core.ts —
   //     a collapsed clip-path) paints nothing; elementFromPoint on its own centre already resolves to
   //     the Thumb div that visually represents it (verified live: the input's own rect sits UNDER the
@@ -119,14 +107,74 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // of ownership for it: this is the #662/#665 hole, and it is refused before either ancestor path runs.
   // (A FORWARDING LABEL is the third shape and is deliberately NOT in this predicate — see
   // forwardingLabelOwns: it is not ancestor credit, it is a per-element activation fact.)
-  function pseudoCarriesFloor(el) {
-    function extendsOutward(style) {
-      return style.content !== "none" && style.content !== "normal" && (style.position === "absolute" || style.position === "fixed");
-    }
-    return extendsOutward(getComputedStyle(el, "::after")) || extendsOutward(getComputedStyle(el, "::before"));
+  //
+  // THE CREDIT IS GEOMETRY-SCOPED, AND THE 2026-09-06 MEASUREMENT THAT USED TO SIT HERE WAS THE DEFECT
+  // REPORT, NOT THE RATIONALE (#2300). This comment recorded — as a reason to KEEP an existence-only
+  // predicate — that a \`data-cta\` glyph "answers \`div\` (the wrapper) 11px out" while its ghost twin
+  // "answers \`button\` out to 13.5px", i.e. that the two intents of ONE control measured differently
+  // because a CTA gradient ring (globals.css \`[data-slot=button][data-cta]::after\`) had eaten the hit
+  // area and set \`pointer-events: none\` on it. That divergence was #1843, and crediting the wrapper for
+  // it did not measure a target — it MANUFACTURED one. Replayed through the CT kit's twin of this
+  // predicate, the pre-#1843 shape published 161x161 in an isolated stage for a control whose real target
+  // was 26x26, and published the SAME 161x161 after the fix, when the truth was 56x56.
+  // So the two clauses stay and the credit is now BOUNDED BY THE PSEUDO'S OWN MEASURED RECT: a pseudo
+  // must be able to take a pointer at all (pointer-events), must resolve to a rect that reaches PAST the
+  // border box (the ring's \`inset: 0\` reaches nowhere), and credit is granted only at points INSIDE that
+  // rect. The identical clauses are mirrored in the CT kit (tests/support/iso/hit-extent-walk.ts), which
+  // cannot be shared with this file in either direction — this is raw JS inside a template literal, above
+  // the test tree in the layer cake — so the two are pinned EQUAL on shared fixtures by
+  // tests/tooling/ui-audit/ops/walker/hit-extent.int.test.ts, which runs the kit's rule inside the page
+  // this walker is judging, in the SAME run. Change one and that proof reds.
+  var PURE_TRANSLATE = "matrix(1, 0, 0, 1, ";
+  function translateAlong(token, basis) {
+    if (token === undefined) return 0;
+    return token.charAt(token.length - 1) === "%" ? (parseFloat(token) / 100) * basis : parseFloat(token);
   }
-  function ancestorCreditAllowed(el) {
-    return pseudoCarriesFloor(el) || isVisuallyHidden(el);
+  // ONE pseudo's outward hit rect in viewport px, or null when it carries no tap surface. The rect needs
+  // no width: for an absolutely positioned box the resolved left/right ARE the used distances from the
+  // containing block's padding edges (measured in Chrome 2026-09-13: a 25px glyph box under a 55px
+  // ::before answers left 12.5px / right -42.5px), so an \`auto\` inset makes the rect unmeasurable rather
+  // than needing a fallback. A \`fixed\` pseudo and a STATIC element are refused for the same class of
+  // reason — the containing block is then something this arithmetic cannot name — and refusing
+  // under-reports, which is the safe direction (see the declared limits below).
+  function pseudoHitRect(el, own, border, which) {
+    var s = getComputedStyle(el, which);
+    if (s.content === "none" || s.content === "normal") return null;
+    if (s.position !== "absolute" || own.position === "static") return null;
+    if (s.pointerEvents === "none" || s.visibility === "hidden" || s.display === "none") return null;
+    if (s.rotate !== "none" || s.scale !== "none") return null;
+    if (s.transform !== "none" && s.transform.indexOf(PURE_TRANSLATE) !== 0) return null;
+    var matrix = s.transform === "none" ? [] : s.transform.slice(PURE_TRANSLATE.length, -1).split(", ");
+    var moved = s.translate === "none" ? [] : s.translate.split(" ");
+    var left = border.left + parseFloat(own.borderLeftWidth) + parseFloat(s.left);
+    var right = border.right - parseFloat(own.borderRightWidth) - parseFloat(s.right);
+    var top = border.top + parseFloat(own.borderTopWidth) + parseFloat(s.top);
+    var bottom = border.bottom - parseFloat(own.borderBottomWidth) - parseFloat(s.bottom);
+    var dx = translateAlong(moved[0], right - left) + (matrix.length === 0 ? 0 : parseFloat(matrix[0]));
+    var dy = translateAlong(moved[1], bottom - top) + (matrix.length === 0 ? 0 : parseFloat(matrix[1]));
+    var rect = { left: left + dx, top: top + dy, right: right + dx, bottom: bottom + dy };
+    if (!isFinite(rect.left + rect.top + rect.right + rect.bottom)) return null;
+    var outward = rect.left < border.left - 0.5 || rect.top < border.top - 0.5 || rect.right > border.right + 0.5 || rect.bottom > border.bottom + 0.5;
+    return outward ? rect : null;
+  }
+  function pseudoHitEnvelope(el) {
+    var own = getComputedStyle(el);
+    var border = el.getBoundingClientRect();
+    var before = pseudoHitRect(el, own, border, "::before");
+    var after = pseudoHitRect(el, own, border, "::after");
+    if (before === null) return after;
+    if (after === null) return before;
+    return {
+      left: Math.min(before.left, after.left),
+      top: Math.min(before.top, after.top),
+      right: Math.max(before.right, after.right),
+      bottom: Math.max(before.bottom, after.bottom),
+    };
+  }
+  function ancestorCreditAt(el, x, y) {
+    if (isVisuallyHidden(el)) return true;
+    var env = pseudoHitEnvelope(el);
+    return env !== null && x >= env.left && x < env.right && y >= env.top && y < env.bottom;
   }
   // ANOTHER ELEMENT'S TEXT IS NOT THIS CONTROL'S TARGET (owner ruling 2026-08-30, #807: credit only a
   // FORWARDING ancestor). Measured live on Settings→Plugins at --mobile, the capability control's ring is
@@ -196,11 +244,15 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
     }
     return false;
   }
-  // DECLARED LIMIT (narrowed by #807): a lone pseudo-carried or visually-hidden control inside a larger
-  // non-interactive wrapper within COMPOSITE_WALK_MAX levels is STILL credited with that wrapper's
-  // extent — the wrapper has no content of its own at the probed point, so nothing else can answer, and
-  // that direction is the accepted trade against the FP class this probe exists for. What #807 removed is
-  // narrower and is the whole finding: the credit no longer reaches a hit that is another element's TEXT.
+  // DECLARED LIMIT (narrowed by #807, then BOUNDED by #2300): a lone pseudo-carried or visually-hidden
+  // control inside a larger non-interactive wrapper within COMPOSITE_WALK_MAX levels is still credited
+  // with that wrapper's extent — the wrapper has no content of its own at the probed point, so nothing
+  // else can answer, and that direction is the accepted trade against the FP class this probe exists for.
+  // #807 removed the credit for a hit that is another element's TEXT; #2300 stopped it at the pseudo's own
+  // measured rect, so "the wrapper's extent" now means "the wrapper, where the pseudo actually reaches".
+  // The VISUALLY-HIDDEN arm keeps the unbounded form: it has no pseudo to measure, its whole shape is a
+  // collapsed clip-path standing in for the box that represents it, and the Slider thumb it exists for is
+  // the one control whose real target genuinely IS the ancestor's row.
   //
   // DECLARED LIMIT (#807, the un-provable half of the ruling): an ancestor that forwards through a JS
   // click handler rather than a <label> reads as UN-OWNED. React handlers are invisible to the DOM, the
@@ -218,7 +270,7 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
     if (hit === null) return false;
     if (hit === el || el.contains(hit)) return true;
     if (forwardingLabelOwns(el, hit)) return true;
-    if (!ancestorCreditAllowed(el)) return false;
+    if (!ancestorCreditAt(el, x, y)) return false;
     if (!hitForwards(el, hit)) return false;
     if (hit.contains(el)) return true;
     return sharedCompositeOwns(el, hit);

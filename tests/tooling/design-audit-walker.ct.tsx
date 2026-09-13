@@ -1,6 +1,6 @@
 // The hit-area arithmetic of the design-audit in-page fact walker (tooling/src/ui-audit/ops/walker.ts).
 // The walker is a raw JS STRING evaluated in the probe page, so a real browser is the only tier that can
-// prove it: `elementFromPoint`, layout geometry and pointer-conditional `::after` touch targets do not
+// prove it: `elementFromPoint`, layout geometry and pointer-conditional `::before` touch targets do not
 // exist in jsdom, and a stubbed DOM would be a lying proof.
 //
 // WHAT IS PINNED (2026-08-16, the walker's last known false-positive class): ownership is per COMPOSITE,
@@ -178,30 +178,51 @@ test("#662/#665: a box-carried control alone in a padded wrapper measures its OW
   expect(measured, "a plain 16px button must not borrow its padded wrapper's extent").toBeLessThan(FINE_POINTER_FLOOR);
 });
 
-test("#662/#665: an overflowing ::after pseudo still carries the floor when its control is isolated", async ({ mount, page }) => {
+test("#662/#665: an overflowing ::before pseudo still carries the floor when its control is isolated", async ({ mount, page }) => {
   await mount(<WalkerPseudoCarriedIsolatedGlyphStory />);
   const measured = smallestSide(await tapTargets(page), "pseudo-carried-isolated");
 
   // The ancestor clause's MINTED purpose (the pseudo has no DOM node of its own) must survive the fix —
   // this is the one shape ancestor-credit exists for, and closing #662/#665 must not also close this.
-  expect(measured, "a glyph button's overflowing ::after must still reach the coarse touch floor").toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
+  expect(measured, "a glyph button's overflowing ::before must still reach the fine-pointer floor").toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
 });
 
 // ── #807: credit only FORWARDING ancestors (owner ruling 2026-08-30) ─────────────────────────────
 // The composite/pseudo ancestor credit published a 44x44 target for the Settings→Plugins capability
 // control while the compositor said a PARAGRAPH owned the right-hand ring point and the row did not
 // toggle. A pseudo-carried control needs no ancestor to speak for it — elementFromPoint inside an
-// overflowing ::after returns its ORIGINATING element — so the credit only ever added the lie.
-test("#807: a lone control whose outward ring is owned by non-forwarding prose loses the composite credit", async ({ mount, page }) => {
+// overflowing hit pseudo returns its ORIGINATING element — so the credit only ever added the lie.
+//
+// THE DISCRIMINATING ARM MOVED AT #2300, and the reason is the finding. With ancestor credit scoped to
+// the pseudo's MEASURED rect, the live geometry this story was built from (prose at the row's +30px) no
+// longer discriminates: those pixels are past the glyph's real reach at every root scale, so the
+// row-wrapped glyph and the isolated one now measure the SAME — which is the truth, and which used to be
+// hidden because the isolated arm was inflated by wrapper credit rather than the row-wrapped one being
+// deflated by prose. Both facts are asserted: the live arm must EQUAL the isolated one, and a tight arm
+// whose prose actually covers pixels the pseudo reaches must cap BELOW it. Dropping the second would
+// leave #807's ruling with no arm that can fail.
+test("#807: a control whose outward ring is owned by non-forwarding prose loses the composite credit", async ({ mount, page }) => {
+  await mount(<WalkerRowWrappedGlyphStory />);
+  const targets = await tapTargets(page);
+  const alone = smallestSide(targets, "glyph-alone");
+  const tight = smallestSide(targets, "glyph-in-tight-row");
+
+  expect(
+    tight,
+    `the capability-row shape must measure the pixels it OWNS, not the row's — the prose over its ring forwards nothing. alone=${alone} tight=${tight}`,
+  ).toBeLessThan(alone);
+});
+
+test("#2300: prose BEYOND the pseudo's measured reach takes nothing away — the live +30px arm equals the isolated one", async ({ mount, page }) => {
   await mount(<WalkerRowWrappedGlyphStory />);
   const targets = await tapTargets(page);
   const alone = smallestSide(targets, "glyph-alone");
   const inRow = smallestSide(targets, "glyph-in-row");
 
-  expect(
-    inRow,
-    `the capability-row shape must measure the pixels it OWNS, not the row's — the prose column at +30px forwards nothing. alone=${alone} inRow=${inRow}`,
-  ).toBeLessThan(alone);
+  // Before geometry-scoped credit these differed — and the difference was the isolated arm's fabrication,
+  // not the row's loss. A probe that reports a smaller target for a control nothing overlaps is measuring
+  // its wrapper.
+  expect(inRow, `alone=${alone} inRow=${inRow}`).toBe(alone);
 });
 
 test("#807 does not disarm the probe: an isolated pseudo-carried glyph keeps its full extent", async ({ mount, page }) => {
@@ -210,7 +231,7 @@ test("#807 does not disarm the probe: an isolated pseudo-carried glyph keeps its
   // must not turn every glyph button back into a bare-box sub-target.
   expect(
     smallestSide(await tapTargets(page), "glyph-alone"),
-    "a glyph button alone with its overflowing ::after still reaches the fine-pointer floor",
+    "a glyph button alone with its overflowing ::before still reaches the fine-pointer floor",
   ).toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
 });
 
