@@ -1,0 +1,64 @@
+import { defineGate } from "../contract/policy.ts";
+import type { JsonValue } from "../contract/resource-json.ts";
+import { readyResourceValue } from "../lib/resource-declaration.ts";
+import { liveHomeFiles, readUiTierFacts, UI_TIER_HOMES, uiTierPermissionFact, Z_TOKEN_NAMES } from "../lib/ui-tier-permissions.ts";
+
+function isJsonObject(value: JsonValue | undefined): value is { readonly [key: string]: JsonValue } {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+export const gate = defineGate({
+  id: "z-index-tier-health",
+  family: "ui-z-index-tier",
+  authority: "hard",
+  severity: "error",
+  population: ["@client", "@ui"],
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [uiTierPermissionFact],
+  resources: [{ kind: "json", id: "tokens" }],
+  message: "the reviewed z-index home set or governed token vocabulary is unhealthy.",
+  create: (ctx) => ({
+    evaluate: () => {
+      const facts = readUiTierFacts(ctx);
+      const anchor = facts.files[0];
+      if (anchor === undefined) {
+        return;
+      }
+      for (const { path } of UI_TIER_HOMES["z-index"]) {
+        if (liveHomeFiles(facts, path).length === 0) {
+          ctx.report.node(anchor, { message: `missing reviewed z-index home: ${path}` });
+        }
+      }
+      const value = readyResourceValue(ctx.resources.json("tokens")).value;
+      const z = isJsonObject(value) ? value["z"] : undefined;
+      const live = isJsonObject(z) ? Object.keys(z).toSorted() : [];
+      const expected = [...Z_TOKEN_NAMES].toSorted();
+      if (live.join("\n") !== expected.join("\n")) {
+        ctx.report.node(anchor, { message: `z-index vocabulary drift: expected [${expected.join(", ")}], found [${live.join(", ")}]` });
+      }
+    },
+  }),
+  mustFlag: [
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/src/x.ts": "export const x = 1;",
+        "packages/ui/src/layout/x.ts": "export const l = 1;",
+        "packages/ui/src/tokens/tokens.json": `{"z":{${Z_TOKEN_NAMES.map((name) => `"${name}":{}`).join(",")}}}`,
+      },
+      expect: { messageIncludes: "packages/ui/src/markdown/" },
+      why: "a missing reviewed home is a hard finding",
+    },
+  ],
+  mustPass: [
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/src/layout/x.ts": "export const l = 1;",
+        "packages/ui/src/markdown/x.ts": "export const m = 1;",
+        "packages/ui/src/tokens/tokens.json": `{"z":{${Z_TOKEN_NAMES.map((name) => `"${name}":{}`).join(",")}}}`,
+      },
+      why: "both homes and the governed vocabulary are healthy",
+    },
+  ],
+});

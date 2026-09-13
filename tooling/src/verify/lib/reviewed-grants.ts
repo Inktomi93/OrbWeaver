@@ -1951,6 +1951,38 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze([
     why: "the same write-guard RE-EMIT for `entryMetadataWriteSchema`, whose header cites the persona rationale verbatim — issues forwarded structurally with their paths, never flattened to a display string.",
     endsWhen: "the entry write guard stops re-emitting inner issues (the inner schema is composed directly into the outer one).",
   },
+  {
+    id: "z-index-tier-permission:layout",
+    policyId: "z-index-tier-permission",
+    subject: "packages/ui/src/layout/",
+    operation: "spell-z-index-tier",
+    why: "layout primitives implement the shared stacking vocabulary and must remain able to author its raw representation.",
+    endsWhen: "layout primitives stop implementing stacking or move to a different structural home.",
+  },
+  {
+    id: "z-index-tier-permission:markdown",
+    policyId: "z-index-tier-permission",
+    subject: "packages/ui/src/markdown/",
+    operation: "spell-z-index-tier",
+    why: "the markdown renderer maps prose surfaces onto the shared stacking vocabulary at this reviewed home.",
+    endsWhen: "markdown uses token-only composition or moves to a different structural home.",
+  },
+  {
+    id: "skin-fragment-tier-permission:lib",
+    policyId: "skin-fragment-tier-permission",
+    subject: "packages/ui/src/lib/",
+    operation: "spell-skin-fragment-tier",
+    why: "this is the canonical definition home for shared focus, scrim, arrow, touch-target and disabled fragments.",
+    endsWhen: "the shared fragments move to a different canonical definition home.",
+  },
+  {
+    id: "pointer-capability-tier-permission:app-shell",
+    policyId: "pointer-capability-tier-permission",
+    subject: "packages/client/src/features/app-shell/",
+    operation: "spell-pointer-capability-tier",
+    why: "app-shell is the reviewed feature home that owns device-capability adaptation for the product shell.",
+    endsWhen: "device-capability adaptation moves completely into shared tokens or a different shell home.",
+  },
 ]);
 
 /** The rows a partial invocation may pass: a grant naming a policy the run does not know is a tool error by
