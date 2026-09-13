@@ -56,7 +56,19 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A missing or unreadable bundle member makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and withholds this owner before `create` runs
 // (guide §11 ruling 3), so this module owns no not-ready branch and reads through `readyResourceValue`.
-// `mustRefuse[0]` pins it; the receipt is pinned in tests/tooling/verify/gates/token-contract-family.test.ts.
+// BOTH reachable statuses of the one declaration are `mustRefuse` rows — `missing` (a member deleted) and
+// `empty` (a member present but zero-length, which `ops/resource-reader.ts` answers on its own arm) — and
+// the receipt PAIR is pinned in tests/tooling/verify/gates/token-contract-family.test.ts, which a row
+// cannot express.
+//
+// THE RECEIPT DENOMINATOR IS THE BUNDLE, NOT THE TOKEN CENSUS (#2292, and it was a live catch-regression
+// against the legacy gate). `members: result.scannedTokens` reads as the honest number and is 0 for
+// precisely the input this contract exists to reject: an unparseable member scans no tokens, so
+// `receiptFailures`' `count === 0` withheld the whole policy and printed `policy receipt refused:
+// population "tokens-contract" resolved zero members` INSTEAD of the `json.parse` finding the legacy
+// descriptor reported. §12.3: a receipt states what was MEASURED — the seven documents walked — never what
+// was FOUND. `mustFlag[2]` is the row that holds it (red before the change, green after); the token census
+// rides the receipt SOURCE, where a zero is data rather than a refusal.
 //
 // DECLARED LIMITS: exactly one, and it is a substrate limit rather than a policy one — the removal ratchet
 // is unreachable from a proof ROW (the paragraph above), so the row that holds it is a `runPolicyPass` pin in
@@ -115,7 +127,20 @@ export const gate = defineGate({
     evaluate: () => {
       const contract = readyResourceValue(ctx.resources.tokenContract());
       const result = validateTokenContractTexts(contract.texts, contract.removalBaseline);
-      ctx.receipt({ kind: "population", source: "tokens-contract", members: result.scannedTokens, unresolved: 0 });
+      // THE RECEIPT STATES WHAT WAS MEASURED — the SEVEN bundle documents this policy walked — never what
+      // the validator FOUND in them (#2292). `receiptFailures` reds on `count === 0`, and the token census
+      // is 0 for exactly the input this gate exists to catch: an unparseable member scans no tokens, so
+      // receipting `scannedTokens` withheld the policy and replaced its `json.parse` finding with
+      // `policy receipt refused: population "tokens-contract" resolved zero members`. `contract.paths.length`
+      // cannot be zero past the provider's own guard (one member short is a population REFUSAL), which is
+      // §12.3's rule and the same denominator `loadTokenContract` receipts on its side. The token census is
+      // still published — it rides the receipt SOURCE, where a zero is data rather than a refusal.
+      ctx.receipt({
+        kind: "population",
+        source: `tokens-contract [tokens scanned=${String(result.scannedTokens)}]`,
+        members: contract.paths.length,
+        unresolved: 0,
+      });
       for (const item of result.diagnostics) {
         ctx.report.file(findingFile(item.path), {
           line: 1,
@@ -149,6 +174,18 @@ export const gate = defineGate({
       expect: { count: 1, token: "removed.schema", messageIncludes: 'Unrecognized key: "$schema"' },
       why: "the removed-token ledger is a closed document; an unrecognised key in it is a finding rather than a tolerated extension",
     },
+    {
+      mode: "resource",
+      files: fixtureFiles({ ...CANONICAL, base: "{not json" }),
+      // THE GATE'S LOUDEST FINDING, and the row that pins the receipt denominator above (#2292). An
+      // unparseable bundle member is the failure mode this contract exists to catch, and the validator
+      // answers it with `scannedTokens: 0` — so a receipt of the TOKEN census turned this very finding into
+      // `policy receipt refused: population "tokens-contract" resolved zero members`, a withheld policy whose
+      // message named the receipt rather than the vault. The legacy descriptor reported it. Measured red on
+      // this row before the denominator changed, green after.
+      expect: { count: 1, token: "json.parse", messageIncludes: "[json.parse] src/tokens/tokens.json" },
+      why: "an unparseable vault is REPORTED as a json.parse finding at the vault, never withheld as a receipt refusal — the §12.3 rule that a receipt states what was MEASURED (the seven documents), never what was FOUND (the token census, which is 0 for exactly this input)",
+    },
   ],
   mustPass: [
     {
@@ -171,6 +208,17 @@ export const gate = defineGate({
       // report a clean vault over a missing schema.
       expect: { messageIncludes: "token-contract is missing" },
       why: "a bundle missing one of its seven documents refuses at the population phase instead of validating the other six",
+    },
+    {
+      mode: "resource",
+      files: { ...fixtureFiles(CANONICAL), [TOKEN_CONTRACT_PATHS.resolverSchema]: "" },
+      // THE SECOND REACHABLE STATUS of the one declaration (§4.5 / `resource-policy-contract.md` §3.6 asks
+      // one pin per declared resource per reachable status). `ops/resource-reader.ts` answers a
+      // zero-length member `empty`, not `missing`, and the two travel different arms of the same union — a
+      // pin on one says nothing about the other. The needle carries the door's OWN sentence (the member it
+      // could not read) beside the status, so it sits inside no generic refusal envelope member.
+      expect: { messageIncludes: "token-contract is empty: the token contract member resolverSchema" },
+      why: "a bundle whose Resolver schema is present but EMPTY refuses at the population phase naming that member, rather than validating six sevenths of the contract against a zero-byte schema",
     },
   ],
 });
