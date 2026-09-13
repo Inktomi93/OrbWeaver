@@ -1,62 +1,79 @@
 // Declaration-level hook ownership. This module selects real rendering/DOM terminals; the neutral static
 // class evaluator owns value flow, composer identity, wrapper transparency, spreads, and overwrite order.
+//
+// THIS MODULE IS THE `css-hook-provenance` FACT PROVIDER — the ONE entry point the #1584 conversion left
+// standing, and the home of the state that used to be a module-global.
+//
+// WHAT THE LEGACY SHAPE WAS, AND WHY IT COULD NOT BECOME `create` STATE. `let hookPass` at module scope was
+// opened by `beginHookOwnerCollection(ctx)` from BOTH `css-selector-has-a-writer` and
+// `css-family-ownership`, and the second call was a deliberate no-op — its own comment said "the sibling
+// CSS gate reuses the still-open state". That sharing is the whole point: the pass builds one
+// `StaticClassCollector` over `@ui` + `@client` and walks it once (measured on the real tree at
+// `1692583d6`: 23.9s of gate-hook time for the selector gate's visit, 16.7s for the ownership gate's
+// finalize, ONE collector between them). The final contract owns state in `create`, which is PER POLICY —
+// and this module now has FIVE consumers (`css-selector-has-a-writer` + `-health`, `css-family-ownership`
+// + `-health`, `css-family-direct-client-mechanism`), so `create`-owned state would build the collector
+// three times over and triple the walk that the legacy sharing existed to avoid.
+//
+// §12.3 names the home for exactly this: "Shared whole-population work is a branded `defineFact` provider
+// with its own id, population, analysis, resources, collector, finish hook, receipts, timing and errors …
+// the dispatcher instantiates each unique provider once, feeds it in the same physical walk, and finishes
+// it before policy evaluation." That is a description of `beginHookOwnerCollection`'s contract, written
+// down. So the pass state moved INTO `create` — the fact's `create`, which runs once per INVOCATION rather
+// than once per policy — and the `ctx.passIdentity` guard that hand-rolled lifecycle identity is deleted
+// with the global it protected.
+//
+// THE PROVIDER RECEIPTS WHAT IT MEASURED, NEVER WHAT IT FOUND (§12.3). `members` is the authored source
+// count its population admitted; the hook census rides the receipt SOURCE string. A provider that receipted
+// its census would turn an empty corpus into a fact TOOL ERROR and preempt the `-health` policies whose job
+// is reporting exactly that (`receiptFailures` reds on `members === 0`).
+//
+// WHY IT DECLARES `product-css`. Spreads cannot be evaluated until the authored data-attribute NAMES are
+// known — `evaluateObjectProperties` takes the name set — and those names come from the CSS census. The
+// provider therefore reads the same closed identity its consumers do, one phase earlier.
 import type { SourceFile, Type } from "ts-morph";
 import { Node } from "ts-morph";
-import type { GateRunCtx } from "../contract/gate.ts";
+import type { GateFactContext } from "../contract/fact.ts";
+import { defineFact } from "../contract/fact.ts";
 import type { RuntimeClassPrefix, StaticClassCandidate, StaticClassEvaluation, StaticClassSegment } from "../contract/static-class-expression.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import type { HookOwners } from "./css-family-census.ts";
 import { recordClassTokens, recordOwner, sourceOwner } from "./css-family-census.ts";
-import type { StaticClassCollector } from "./static-class-expression.ts";
-import { StaticClassCollector as ClassCollector } from "./static-class-expression.ts";
+import type { SelectorWriterCensus, SelectorWriterPass } from "./css-selector-writers.ts";
+import { createSelectorWriterPass } from "./css-selector-writers.ts";
+import { readStaticString } from "./reference-fact.ts";
+import { readyResourceValue } from "./resource-declaration.ts";
+import type { StaticClassCollector, StaticClassWork } from "./static-class-expression.ts";
+import { StaticClassCollector as ClassCollector, STATIC_CLASS_KINDS } from "./static-class-expression.ts";
 
 type SourceOwner = "ui" | "client";
-
-interface HookOwnerPass {
-  readonly passIdentity: object;
-  readonly project: GateRunCtx["project"];
-  readonly files: GateRunCtx["files"];
-  readonly collector: StaticClassCollector;
-  readonly owners: Map<string, HookOwners>;
-  readonly dataShellNames: Set<string>;
-  readonly spreads: Array<{ readonly spread: import("ts-morph").JsxSpreadAttribute; readonly owner: SourceOwner }>;
-  readonly terminals: Array<{ readonly node: Node; readonly owner: SourceOwner }>;
-  readonly visited: WeakSet<Node>;
-  result?: ReadonlyMap<string, HookOwners>;
-}
-
-let hookPass: HookOwnerPass | undefined;
-
-/** Open one exact dispatcher lifecycle; the sibling CSS gate reuses the still-open state. */
-export function beginHookOwnerCollection(ctx: GateRunCtx): void {
-  if (ctx.passIdentity === undefined) {
-    throw new Error("hook-owner collection requires a dispatcher pass identity");
-  }
-  if (hookPass?.passIdentity === ctx.passIdentity && hookPass.project === ctx.project && hookPass.files === ctx.files) {
-    return;
-  }
-  const files = ctx.files.filter((source) => ownerForPath(source.getFilePath().replaceAll("\\", "/")) !== undefined);
-  hookPass = {
-    passIdentity: ctx.passIdentity,
-    project: ctx.project,
-    files: ctx.files,
-    collector: new ClassCollector(files),
-    owners: new Map(),
-    dataShellNames: new Set(),
-    spreads: [],
-    terminals: [],
-    visited: new WeakSet(),
-  };
-}
 
 const CLASS_LIST_MUTATORS = new Set(["add", "remove", "toggle", "replace"]);
 const CLASS_NAME_ASSIGNMENT_OPERATORS = new Set(["=", "+=", "&&=", "||=", "??="]);
 const TYPESCRIPT_DOM_LIB = "/typescript/lib/lib.dom.d.ts";
+const CLASS_PREFIX_LENGTH = "class:".length;
+
+/** Everything one invocation learned about who WRITES the hooks the product stylesheets select. */
+export interface CssHookProvenance {
+  /** `class:x` / `slot:x` / `attr:data-shell-x` → which package's live terminals emit it. */
+  readonly owners: ReadonlyMap<string, HookOwners>;
+  /** Exact class and `data-*` writers from rendering/DOM terminals. */
+  readonly writers: SelectorWriterCensus;
+  /** Authored sources the collector walked — the denominator, not the census. */
+  readonly sources: number;
+  /** The shared evaluator's own work counters. Published because ONE collector per invocation is the whole
+   *  reason this is a fact rather than `create` state, and `evaluators: 1` is how a test says so
+   *  (`tests/tooling/static-class-collection.int.test.ts`). */
+  readonly work: StaticClassWork;
+}
 
 function normalizedPath(node: Node): string {
   return node.getSourceFile().getFilePath().replaceAll("\\", "/");
 }
 
+/** WHICH PACKAGE authored this path — a semantic classifier, not a scope predicate: the population already
+ *  decided membership, and this decides which SIDE of the `@ui` / `@client` dependency direction a hook
+ *  came from, which is the whole subject of the ownership policies. */
 function ownerForPath(path: string): SourceOwner | undefined {
   const packagesAt = path.indexOf("/packages/");
   return sourceOwner(packagesAt === -1 ? path : path.slice(packagesAt + 1));
@@ -154,6 +171,9 @@ function jsxValue(attribute: import("ts-morph").JsxAttribute): Node | undefined 
   return Node.isJsxExpression(initializer) ? initializer.getExpression() : initializer;
 }
 
+/** A property NAME in every authored spelling. The computed arm reads its expression through the shared
+ *  stable-binding resolver (`lib/reference-fact.ts`), so `{ [DATA_SHELL_RAIL]: true }` is the same fact as
+ *  `{ "data-shell-rail": true }` — a widening over the legacy `unwrapExpression`-only strip. */
 function propertyName(node: Node): string | undefined {
   if (Node.isIdentifier(node) || Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
     return Node.isIdentifier(node) ? node.getText() : node.getLiteralText();
@@ -161,8 +181,8 @@ function propertyName(node: Node): string | undefined {
   if (!Node.isComputedPropertyName(node)) {
     return;
   }
-  const expression = unwrapExpression(node.getExpression());
-  return Node.isStringLiteral(expression) || Node.isNoSubstitutionTemplateLiteral(expression) ? expression.getLiteralText() : undefined;
+  const fact = readStaticString(node.getExpression());
+  return fact.kind === "unresolved" ? undefined : fact.value;
 }
 
 function recordDirectJsxAttribute(
@@ -212,6 +232,7 @@ function recordJsxSpread(
   }
 }
 
+/** The accessed member name in either spelling; the computed arm resolves through the shared reader. */
 function accessedPropertyName(node: Node): string | undefined {
   if (Node.isPropertyAccessExpression(node)) {
     return node.getName();
@@ -220,10 +241,11 @@ function accessedPropertyName(node: Node): string | undefined {
     return;
   }
   const argument = node.getArgumentExpression();
-  const unwrapped = argument === undefined ? undefined : unwrapExpression(argument);
-  return unwrapped !== undefined && (Node.isStringLiteral(unwrapped) || Node.isNoSubstitutionTemplateLiteral(unwrapped))
-    ? unwrapped.getLiteralText()
-    : undefined;
+  if (argument === undefined) {
+    return;
+  }
+  const fact = readStaticString(argument);
+  return fact.kind === "unresolved" ? undefined : fact.value;
 }
 
 function accessReceiver(node: Node): Node | undefined {
@@ -271,6 +293,9 @@ function recordAssignment(
   owner: SourceOwner,
   collector: StaticClassCollector,
 ): void {
+  // The STRUCTURAL strip stays `unwrapExpression`: an assignment TARGET is a member access, never a value,
+  // and `resolveStableExpression` correctly refuses one as a dynamic terminal. This is the same layering
+  // `reference-fact.ts` itself uses — it calls `unwrapExpression` and then resolves.
   const left = unwrapExpression(binary.getLeft());
   const receiver = accessReceiver(left);
   if (
@@ -283,74 +308,128 @@ function recordAssignment(
   }
 }
 
-/** Accumulate hook terminals during pass.ts's shared walk; spreads wait until every data-shell key is known. */
-export function visitHookOwnerNode(node: Node, source: SourceFile, ctx: GateRunCtx): void {
-  const state = hookPass;
-  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
-    throw new Error("hook-owner visit ran outside its begin lifecycle");
+/** Drive the accumulated terminals through the shared evaluator, then record what each one owns. Split out
+ *  of the pass's `finish` so the closure stays a lifecycle rather than an algorithm. */
+function recordTerminals(
+  owners: Map<string, HookOwners>,
+  collector: StaticClassCollector,
+  terminals: readonly { readonly node: Node; readonly owner: SourceOwner }[],
+): void {
+  for (const { node } of terminals) {
+    collector.visit(node);
   }
-  state.collector.index(node);
-  if (state.visited.has(node)) {
-    return;
-  }
-  state.visited.add(node);
-  const owner = ownerForPath(normalizedPath(source));
-  if (owner === undefined) {
-    return;
-  }
-  if (Node.isPropertyAssignment(node)) {
-    const name = propertyName(node.getNameNode());
-    if (name?.startsWith("data-shell-") === true) {
-      state.dataShellNames.add(name);
-    }
-  }
-  if (Node.isJsxSpreadAttribute(node)) {
-    state.spreads.push({ spread: node, owner });
-  }
-  state.terminals.push({ node, owner });
-}
-
-/** Collect only hooks that reach JSX, a declaration-proven class composer, or a DOM class terminal. */
-export function collectHookOwners(ctx: GateRunCtx): ReadonlyMap<string, HookOwners> {
-  const state = hookPass;
-  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
-    throw new Error("hook-owner reconciliation ran outside its begin lifecycle");
-  }
-  if (state.result !== undefined) {
-    return state.result;
-  }
-  for (const { node } of state.terminals) {
-    state.collector.visit(node);
-  }
-  recordWalkedClassCarriers(state.owners, state.collector);
-  for (const { node, owner } of state.terminals) {
+  recordWalkedClassCarriers(owners, collector);
+  for (const { node, owner } of terminals) {
     if (Node.isJsxAttribute(node)) {
-      recordDirectJsxAttribute(state.owners, node, owner, state.collector);
+      recordDirectJsxAttribute(owners, node, owner, collector);
     } else if (Node.isCallExpression(node)) {
-      recordCall(state.owners, node, owner, state.collector);
+      recordCall(owners, node, owner, collector);
     } else if (Node.isBinaryExpression(node)) {
-      recordAssignment(state.owners, node, owner, state.collector);
+      recordAssignment(owners, node, owner, collector);
     }
   }
-  for (const { spread, owner } of state.spreads) {
-    recordJsxSpread(state.owners, spread, { owner, collector: state.collector }, [...state.dataShellNames]);
-  }
-  state.result = state.owners;
-  return state.result;
 }
 
-export function hookOwnerWork(ctx: GateRunCtx): StaticClassCollector["work"] {
-  const state = hookPass;
-  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
-    throw new Error("hook-owner work receipt ran outside its begin lifecycle");
-  }
-  return state.collector.work;
+interface HookOwnerPass {
+  readonly visit: (node: Node, source: SourceFile) => void;
+  readonly finish: () => ReadonlyMap<string, HookOwners>;
 }
 
-export function hookOwnerCollector(ctx: GateRunCtx): StaticClassCollector {
-  const state = hookPass;
-  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
-    throw new Error("hook-owner collector requested outside its begin lifecycle");
-  }
-  return state.collector;
+/** Accumulate hook terminals during the dispatcher's shared walk; spreads wait until every data-shell key
+ *  is known. The object IS the state — nothing survives the invocation that created it. */
+function createHookOwnerPass(collector: StaticClassCollector): HookOwnerPass {
+  const owners = new Map<string, HookOwners>();
+  const dataShellNames = new Set<string>();
+  const spreads: Array<{ readonly spread: import("ts-morph").JsxSpreadAttribute; readonly owner: SourceOwner }> = [];
+  const terminals: Array<{ readonly node: Node; readonly owner: SourceOwner }> = [];
+  const visited = new WeakSet<Node>();
+  let result: ReadonlyMap<string, HookOwners> | undefined;
+  return {
+    visit: (node, source): void => {
+      if (result !== undefined) {
+        throw new Error("hook-owner pass received a node after its result was read");
+      }
+      collector.index(node);
+      if (visited.has(node)) {
+        return;
+      }
+      visited.add(node);
+      const owner = ownerForPath(source.getFilePath().replaceAll("\\", "/"));
+      if (owner === undefined) {
+        return;
+      }
+      if (Node.isPropertyAssignment(node)) {
+        const name = propertyName(node.getNameNode());
+        if (name?.startsWith("data-shell-") === true) {
+          dataShellNames.add(name);
+        }
+      }
+      if (Node.isJsxSpreadAttribute(node)) {
+        spreads.push({ spread: node, owner });
+      }
+      terminals.push({ node, owner });
+    },
+    finish: (): ReadonlyMap<string, HookOwners> => {
+      if (result !== undefined) {
+        return result;
+      }
+      recordTerminals(owners, collector, terminals);
+      for (const { spread, owner } of spreads) {
+        recordJsxSpread(owners, spread, { owner, collector }, [...dataShellNames]);
+      }
+      result = owners;
+      return result;
+    },
+  };
 }
+
+/** Close the invocation: the hook owners, then the data-attribute names the CSS census demands, then the
+ *  writer census, then the provider receipt. Split out of `create` so the descriptor stays a declaration. */
+function finishProvenance(
+  ctx: GateFactContext,
+  ownerPass: HookOwnerPass,
+  writerPass: SelectorWriterPass,
+  collectorWork: () => StaticClassWork,
+): CssHookProvenance {
+  const owners = ownerPass.finish();
+  const classes = new Set([...owners.keys()].filter((hook) => hook.startsWith("class:")).map((hook) => hook.slice(CLASS_PREFIX_LENGTH)));
+  const hooks = readyResourceValue(ctx.resources.cssInventory("product")).selectorHooks;
+  const dataNames = [...new Set(hooks.flatMap((hook) => (hook.kind === "data" ? [hook.name] : [])))];
+  const writers = writerPass.finish(classes, dataNames);
+  // THE RECEIPT STATES WHAT IT MEASURED. `members` is the authored source count this provider walked; the
+  // census rides the SOURCE string. Receipting the census would make an empty corpus a fact TOOL ERROR and
+  // preempt the `-health` policies whose job is reporting exactly that (§12.3).
+  ctx.receipt({
+    kind: "population",
+    source: `css-hook-provenance [hooks=${String(owners.size)}; classes=${String(classes.size)}; data=${String(writers.data.size)}]`,
+    members: ctx.files.length,
+    unresolved: 0,
+  });
+  return { owners, writers, sources: ctx.files.length, work: collectorWork() };
+}
+
+/** THE ONE ENTRY POINT. One collector, one walk, five consumers — the sharing the module-global `hookPass`
+ *  hand-rolled, expressed as the contract's own mechanism. */
+export const cssHookProvenanceFact = defineFact({
+  id: "css-hook-provenance",
+  population: { in: ["@client", "@ui"] },
+  analysis: "resource",
+  resources: [{ kind: "product-css" }],
+  create: (ctx) => {
+    const collector = new ClassCollector(ctx.files);
+    const ownerPass = createHookOwnerPass(collector);
+    const writerPass = createSelectorWriterPass(collector);
+    return {
+      visitors: [
+        {
+          kinds: STATIC_CLASS_KINDS,
+          visit: (node, source): void => {
+            ownerPass.visit(node, source);
+            writerPass.visit(node);
+          },
+        },
+      ],
+      finish: (): CssHookProvenance => finishProvenance(ctx, ownerPass, writerPass, () => collector.work),
+    };
+  },
+});

@@ -1087,13 +1087,16 @@ function writeFixtures(): void {
 // live vault; its bite is `structure:policy-conformance` running its own three arms plus
 // tests/tooling/verify/gates/token-contract-family.test.ts, which pins the Git removal ratchet the legacy
 // descriptor gated on a real-tree anchor no fixture could ever satisfy.
-// css-family-ownership reads the five exact sanctioned product stylesheets and derives live TS/TSX hook
-// ownership from the whole source graph. A `__g_` stylesheet is deliberately outside that closed set, while
-// mutating a canonical home would race every CSS/CT consumer. Its mustFlag/mustPass rows prove each wall,
-// including the fs-backed declaration census and both dependency directions.
-// css-selector-has-a-writer reads the same five exact homes and reconciles them against the whole source
-// graph plus installed vendor artifacts. Its dedicated fs-backed conformance pin drives historical inert
-// class/data spellings, exact-value drift, supported spreads, zero population, and both vendor stale arms.
+// css-family-ownership and css-selector-has-a-writer CONVERTED 2026-09-13 (#2181, #2182) and their rows are
+// GONE from the set below, for the same reason the config-liveness pair's and tokens-contract's are: a final
+// policy is partitioned out by the mixed roster, so a row naming one fails the two-sided arm. Each SPLIT by
+// authority, so the two names became five ids — `css-family-ownership` + `-health` +
+// `css-family-direct-client-mechanism`, and `css-selector-has-a-writer` + `-health` — under one family
+// (`css-hook-provenance`). Their unfixturability was never about the `__g_` sentinel: a final policy's
+// `mode: "resource"` rows materialise their own temp repository carrying the whole five-home CSS identity,
+// the installed vendor surface and the committed Base UI manifest, which is exactly the substrate the legacy
+// harness could not give them. Their bite is `structure:policy-conformance` running every declared arm plus
+// tests/tooling/verify/gates/css-hook-provenance-family.test.ts.
 // playwright-css-topology CONVERTED 2026-09-13 (#2183) and its row is GONE from the set below, for the same
 // reason the config-liveness pair's is: a final policy is partitioned out by the mixed roster, so a row
 // naming one fails the two-sided arm. Its unfixturability was never about the `__g_` sentinel either — a
@@ -1121,9 +1124,9 @@ const UNFIXTURABLE_GATES = new Set([
   // orchestrator-only (it plants `__g_` fixtures and is not concurrency-safe with itself), so the lane
   // correctly did not run it, and nothing else reads this set. **A conversion that edits this file owes the
   // ENTRY deletion, not just the comment** — and the entry is the half the arm checks.
+  // "css-family-ownership" + "css-selector-has-a-writer" removed 2026-09-13 (#2181, #2182) for the same
+  // reason, with their comment block above: both converted and SPLIT into five final ids.
   "knob-wire-coverage",
-  "css-family-ownership",
-  "css-selector-has-a-writer",
 ]);
 
 let registry = new Set<string>();

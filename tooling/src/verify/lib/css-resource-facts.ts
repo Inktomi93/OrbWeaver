@@ -157,6 +157,9 @@ function hookFacts(selector: CssSelectorFact, sourceText: string): readonly CssS
     ...position(sourceText, selector.file, selector.offset + hook.offset),
     kind: "class" as const,
     name: hook.name,
+    // The exact slice at the published offset: the dot plus the name `classNameAt` bounded. It is the
+    // WAIVER POSITION, so it is published rather than re-derived by each consumer (`resource-css.ts`).
+    authored: selector.authored.slice(hook.offset, hook.offset + ".".length + hook.name.length),
   }));
   const data = selectorDataAttributes(selector.authored).map((hook) => ({
     ...position(sourceText, selector.file, selector.offset + hook.open),
@@ -164,6 +167,8 @@ function hookFacts(selector: CssSelectorFact, sourceText: string): readonly CssS
     name: hook.name,
     operator: hook.operator,
     value: hook.value,
+    // Bracket to bracket, inclusive — the CLOSE offset is the half a consumer cannot recover from the fact.
+    authored: selector.authored.slice(hook.open, hook.close + 1),
   }));
   return [...classes, ...data];
 }

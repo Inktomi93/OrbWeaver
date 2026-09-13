@@ -1,30 +1,191 @@
-// The six-home declaration policy. Parsing, source provenance, and selector provenance stay in their
-// dedicated modules so this layer only decides whether a proven declaration/hook is in the right home.
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import type { ProductStylesheet } from "../contract/css-family.ts";
+// The six-home declaration policy, as three PURE arm sets over one already-narrowed CSS inventory.
+//
+// WHAT MOVED IN THE #1584 CONVERSION.
+//   * NO FILESYSTEM. `readCensus(ctx.root)` and `existsSync(join(ctx.root, "package.json"))` are gone; the
+//     subject arrives as `CssFacts` from the closed `product-css` identity, and the real-tree ANCHOR that
+//     existed to tell a fixture from a gutted checkout retires with them — an unloadable product identity
+//     is a population-phase REFUSAL, which is a louder and earlier answer than a guard.
+//   * NO SYNTHETIC COORDINATES. Every ordinary finding is anchored on the AUTHORED SLICE at its own line
+//     and column (the selector arm, the declaration's property name), because `locateFinding` re-reads the
+//     token out of comment-blanked source and a `cssFamilyFinding`-style `column: 1` composite binds
+//     nowhere. Where a value carries a parenthesis the grammar admits none of, the COORDINATE is its
+//     leading paren-free run and the whole text rides the MESSAGE (#2107 arm c).
+//   * THREE AUTHORITIES, THREE POLICIES. The arms below are grouped by who may absolve them, which is what
+//     guide §3 makes the split criterion: an author re-homes a declaration (ORDINARY), nobody absolves a
+//     blind instrument (HARD), and a reviewer licenses a bounded direct-skin recipe (REVIEWED-GRANT).
 import { AUTHORED_STYLESHEETS, CLIENT_GLOBALS, PRODUCT_STYLESHEETS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
-import type { GateRunCtx } from "../contract/gate.ts";
+import type { CssDeclarationFact, CssFacts, CssSelectorFact } from "../contract/resource-css.ts";
+import type { AuthoredCssFile } from "../contract/resource-tree.ts";
 import { blankCssComments } from "./comment-spans.ts";
-import type { DirectDeclaration, HookOwners, StylesheetCensus } from "./css-family-census.ts";
+import type { HookOwners } from "./css-family-census.ts";
 import {
   CLIENT_BLUR_FILL,
   CLIENT_COLORIZATION,
   DENSITY_SELECTORS,
   DENSITY_SPACING,
-  EXPECTED_DIRECT_CLIENT_UI_MECHANISMS,
   EXPECTED_DIRECT_THEME_DECLARATIONS,
   EXPECTED_RUNTIME_WRITERS,
-  cssFamilyFinding as finding,
-  KNOWN_DENSITY_FLOOR,
   LOCAL_FADE_STOP_RE,
   lineAt,
-  readCensus,
-  reportDensityArmCompleteness,
+  MESSAGE,
   themeFamilyPrefixes,
 } from "./css-family-census.ts";
-import { actualLayerOffsets, hasClientMechanismCarrier, isShellSelector, selectorHooks } from "./css-family-selector-provenance.ts";
-import { collectHookOwners } from "./css-family-source-provenance.ts";
+import { actualLayerOffsets, hasClientMechanismCarrier, isShellSelector, selectorHookSites } from "./css-family-selector-provenance.ts";
+import { waivableCoordinate } from "./waivable-coordinate.ts";
+
+/** The report sink a policy hands in. Deliberately the narrow shape `ctx.report.file` already has, so a
+ *  reader cannot smuggle a node anchor into a CSS verdict. */
+export type CssFamilyReport = (
+  file: string,
+  details: {
+    readonly line: number;
+    readonly column: number;
+    readonly token?: string;
+    readonly subject?: string;
+    readonly operation?: string;
+    readonly message: string;
+  },
+) => void;
+
+export interface CssFamilyInput {
+  readonly inventory: CssFacts;
+  readonly report: CssFamilyReport;
+}
+
+export interface CssOwnershipInput extends CssFamilyInput {
+  readonly owners: ReadonlyMap<string, HookOwners>;
+}
+
+/** One product stylesheet, with the two derived quantities the ownership arms ask for. */
+interface SheetCensus {
+  readonly rel: string;
+  readonly file: AuthoredCssFile;
+  /** Declarations authored DIRECTLY in the generated `@theme` block — custom properties only, the exact
+   *  predicate the retired hand parser implemented (`^\s*(--[\w-]+)\s*:`). Measured byte-identical at 203. */
+  readonly directTheme: readonly CssDeclarationFact[];
+  readonly declarations: number;
+}
+
+/** The direct `@theme` declarations, from the FACTS rather than from the file — the per-declaration `file`
+ *  test below is the whole fence, so an outer `file.path !== THEME` guard was mutually redundant with it
+ *  (cut f24: deleting it killed zero rows, and no fixture can distinguish the two). */
+function themeBlockDeclarations(facts: readonly CssDeclarationFact[]): readonly CssDeclarationFact[] {
+  return facts.filter(
+    (declaration) =>
+      declaration.file === THEME && declaration.owner.kind === "at-rule" && declaration.owner.prelude === "@theme" && declaration.property.startsWith("--"),
+  );
+}
+
+function census(inventory: CssFacts): readonly SheetCensus[] {
+  return inventory.files.map((file) => {
+    const directTheme = file.path === THEME ? themeBlockDeclarations(inventory.declarations) : [];
+    return {
+      rel: file.path,
+      file,
+      directTheme,
+      // The DENOMINATOR is every declaration the shared parser read in this sheet, rules and at-rule
+      // bodies alike. The retired reader counted at-rule bodies for `theme.css` ALONE, so a `@layer base
+      // { --x: 1 }` in another home read as zero and could have made the blindness arm fire on a sheet
+      // that is not blind. The correction can only ever make the tripwire quieter, never louder.
+      declarations: inventory.declarations.filter((declaration) => declaration.file === file.path).length,
+    };
+  });
+}
+
+function selectorsOf(inventory: CssFacts, rel: string): readonly CssSelectorFact[] {
+  return inventory.selectors.filter((selector) => selector.file === rel);
+}
+
+function declarationsOf(inventory: CssFacts, rel: string): readonly CssDeclarationFact[] {
+  return inventory.declarations.filter((declaration) => declaration.file === rel);
+}
+
+/** The COORDINATE for a selector-level finding: the selector's own authored text when the marker grammar
+ *  can hold it, else its leading paren-free run (`:is`, `:where`). A selector with no anchorable head at
+ *  all refuses LOUDLY rather than minting a finding no author could ever answer. */
+function selectorCoordinate(selector: CssSelectorFact): string {
+  const coordinate = waivableCoordinate(selector.authored);
+  if (coordinate === undefined) {
+    throw new Error(`CSS selector has no anchorable coordinate: ${selector.authored}`);
+  }
+  return coordinate;
+}
+
+function reportAuthoredLayers(sheet: SheetCensus, report: CssFamilyReport): void {
+  if (!(AUTHORED_STYLESHEETS as readonly string[]).includes(sheet.rel)) {
+    return;
+  }
+  const blanked = blankCssComments(sheet.file.text);
+  for (const offset of actualLayerOffsets(sheet.file.text)) {
+    const line = lineAt(blanked, offset);
+    report(sheet.rel, {
+      line,
+      column: offset - blanked.lastIndexOf("\n", offset - 1),
+      token: "@layer",
+      message: `authored CSS contains an @layer block; the unlayered cascade is the mechanism and must remain global. ${MESSAGE}`,
+    });
+  }
+}
+
+function reportDensityPlacement(sheet: SheetCensus, inventory: CssFacts, report: CssFamilyReport): void {
+  if (sheet.rel === TIERS) {
+    return;
+  }
+  for (const selector of selectorsOf(inventory, sheet.rel)) {
+    if (selector.selectorList.includes("[data-density")) {
+      report(sheet.rel, {
+        line: selector.line,
+        column: selector.column,
+        token: selectorCoordinate(selector),
+        message: `density mapping belongs in tiers.css, never another sanctioned stylesheet. ${MESSAGE}`,
+      });
+    }
+    if (selector.selectorList.includes("[data-surface-tier")) {
+      report(sheet.rel, {
+        line: selector.line,
+        column: selector.column,
+        token: selectorCoordinate(selector),
+        message: `surface-tier mapping belongs in tiers.css, never another sanctioned stylesheet. ${MESSAGE}`,
+      });
+    }
+  }
+  for (const declaration of declarationsOf(inventory, sheet.rel)) {
+    if (declaration.property.startsWith("--orb-tier-")) {
+      report(sheet.rel, {
+        line: declaration.line,
+        column: declaration.column,
+        token: declaration.property,
+        message: `private --orb-tier-* mapping belongs in tiers.css. ${MESSAGE}`,
+      });
+    }
+  }
+}
+
+/** THE CLOSED RUNTIME-WRITER SEAMS, as a table rather than a chain: the keys ARE the vocabulary
+ *  `EXPECTED_RUNTIME_WRITERS` derives its cardinalities from, so a seam cannot be added to one and
+ *  forgotten in the other. */
+const RUNTIME_WRITER_SEAMS: Readonly<
+  Record<"density" | "blur" | "colorization", (rel: string, selectorList: string, declaration: CssDeclarationFact) => boolean>
+> = {
+  density: (rel, selectorList, declaration) => rel === TIERS && DENSITY_SELECTORS.has(selectorList) && DENSITY_SPACING.has(declaration.property),
+  blur: (rel, selectorList, declaration) => rel === CLIENT_GLOBALS && selectorList === ":root" && CLIENT_BLUR_FILL.has(declaration.property),
+  colorization: (rel, selectorList, declaration) =>
+    rel === CLIENT_GLOBALS &&
+    selectorList.includes("[data-theme-colorization]") &&
+    CLIENT_COLORIZATION.has(declaration.property) &&
+    declaration.value.startsWith("color-mix("),
+};
+
+function runtimeWriter(rel: string, selectorList: string, declaration: CssDeclarationFact): string | undefined {
+  return Object.entries(RUNTIME_WRITER_SEAMS).find(([, matches]) => matches(rel, selectorList, declaration))?.[0];
+}
+
+/** THE LOCAL FADE-STOP SEAM. It is still a sanctioned runtime writer and still acquits; what retired is the
+ *  hand-spelled `fade: 12` COUNT beside it, which was a current-population ratchet §12.5 bans and which no
+ *  proof row ever reached (audit cut f08: `12 → 13` killed nothing). */
+function isLocalFadeStop(rel: string, declaration: CssDeclarationFact): boolean {
+  return (rel === UI_GLOBALS || rel === CLIENT_GLOBALS) && LOCAL_FADE_STOP_RE.test(declaration.property);
+}
 
 function isGeneratedFamily(prop: string, prefixes: ReadonlySet<string>): boolean {
   for (const prefix of prefixes) {
@@ -35,222 +196,122 @@ function isGeneratedFamily(prop: string, prefixes: ReadonlySet<string>): boolean
   return false;
 }
 
-function runtimeWriter(rel: ProductStylesheet, selector: string, declaration: DirectDeclaration): "density" | "blur" | "colorization" | "fade" | undefined {
-  if (rel === TIERS && DENSITY_SELECTORS.has(selector) && DENSITY_SPACING.has(declaration.prop)) {
-    return "density";
-  }
-  if (rel === CLIENT_GLOBALS && selector === ":root" && CLIENT_BLUR_FILL.has(declaration.prop)) {
-    return "blur";
-  }
-  if (
-    rel === CLIENT_GLOBALS &&
-    selector.includes("[data-theme-colorization]") &&
-    CLIENT_COLORIZATION.has(declaration.prop) &&
-    declaration.value.startsWith("color-mix(")
-  ) {
-    return "colorization";
-  }
-  return (rel === UI_GLOBALS || rel === CLIENT_GLOBALS) && LOCAL_FADE_STOP_RE.test(declaration.prop) ? "fade" : undefined;
+interface GeneratedWriterScan {
+  readonly inventory: CssFacts;
+  readonly prefixes: ReadonlySet<string>;
+  readonly runtimeCounts: Map<string, number>;
+  readonly report: CssFamilyReport;
 }
 
-function isTierSelector(selector: string): boolean {
-  return selector.includes("[data-surface-tier") || DENSITY_SELECTORS.has(selector) || selector === KNOWN_DENSITY_FLOOR;
+function reportGeneratedWriters(sheet: SheetCensus, scan: GeneratedWriterScan): void {
+  const { inventory, prefixes, runtimeCounts, report } = scan;
+  if (sheet.rel === THEME) {
+    return;
+  }
+  for (const declaration of declarationsOf(inventory, sheet.rel)) {
+    if (!isGeneratedFamily(declaration.property, prefixes)) {
+      continue;
+    }
+    const selectorList = declaration.owner.kind === "style-rule" ? declaration.owner.selectorList : declaration.owner.prelude;
+    const writer = runtimeWriter(sheet.rel, selectorList, declaration);
+    if (writer !== undefined) {
+      runtimeCounts.set(writer, (runtimeCounts.get(writer) ?? 0) + 1);
+      continue;
+    }
+    if (isLocalFadeStop(sheet.rel, declaration)) {
+      continue;
+    }
+    report(sheet.rel, {
+      line: declaration.line,
+      column: declaration.column,
+      token: declaration.property,
+      message: `${declaration.property} mints or rewrites a generated token family outside theme.css without one of the closed runtime writer seams (density, reduced-transparency, colorization, local fade stops). ${MESSAGE}`,
+    });
+  }
 }
 
-function reportUiDependencyDirection(census: StylesheetCensus, owners: ReadonlyMap<string, HookOwners>, ctx: GateRunCtx): void {
+function reportUiDependencyDirection(inventory: CssFacts, owners: ReadonlyMap<string, HookOwners>, report: CssFamilyReport): void {
   const reported = new Set<string>();
-  for (const rule of census.rules) {
-    for (const selector of rule.selectors) {
-      for (const hook of selectorHooks(selector)) {
-        const owner = owners.get(hook);
-        if (owner?.client !== true || owner.ui || reported.has(hook)) {
-          continue;
-        }
-        reported.add(hook);
-        ctx.report(
-          finding(
-            UI_GLOBALS,
-            rule.line,
-            hook,
-            `UI globals selects ${hook}, but live TS/TSX producers exist only under packages/client/src — move the mechanism to client globals or move a genuinely universal driver into @orb/ui`,
-          ),
-        );
+  for (const selector of selectorsOf(inventory, UI_GLOBALS)) {
+    for (const site of selectorHookSites(selector.authored)) {
+      const owner = owners.get(site.hook);
+      if (owner?.client !== true || owner.ui || reported.has(site.hook)) {
+        continue;
       }
+      reported.add(site.hook);
+      report(UI_GLOBALS, {
+        line: selector.line,
+        column: selector.column + site.offset,
+        token: site.authored,
+        message: `UI globals selects ${site.hook}, but live TS/TSX producers exist only under packages/client/src — move the mechanism to client globals or move a genuinely universal driver into @orb/ui. ${MESSAGE}`,
+      });
     }
   }
 }
 
-function bareUiSlots(selector: string, owners: ReadonlyMap<string, HookOwners>): readonly string[] {
-  if (hasClientMechanismCarrier(selector)) {
-    return [];
-  }
-  return selectorHooks(selector).filter((hook) => {
-    const owner = owners.get(hook);
-    return hook.startsWith("slot:") && owner?.ui === true && !owner.client;
-  });
-}
-
-function isDirectClientUiMechanism(hook: string, selector: string): boolean {
+/** THE THREE BOUNDED DIRECT-SKIN RECIPES. Membership is the PARTITION between the ordinary policy and its
+ *  reviewed-grant sibling, not an exemption inside either: a hook this admits is reported by
+ *  `css-family-direct-client-mechanism` under a grant identity, and by nothing else. */
+export function isDirectClientUiMechanism(hook: string, selectorList: string): boolean {
   if (hook === "slot:message-list-scroll") {
     return true;
   }
-  return (hook === "slot:dialog-popup" || hook === "slot:alert-dialog-popup") && selector.startsWith("html ");
+  return (hook === "slot:dialog-popup" || hook === "slot:alert-dialog-popup") && selectorList.startsWith("html ");
 }
 
-function reportClientComponentSkins(
-  census: StylesheetCensus,
-  owners: ReadonlyMap<string, HookOwners>,
-  directClientCounts: Map<string, number>,
-  ctx: GateRunCtx,
-): void {
-  for (const rule of census.rules) {
-    for (const selector of rule.selectors) {
-      for (const hook of bareUiSlots(selector, owners)) {
-        if (isDirectClientUiMechanism(hook, selector)) {
-          directClientCounts.set(hook, (directClientCounts.get(hook) ?? 0) + 1);
-          continue;
-        }
-        ctx.report(
-          finding(
-            CLIENT_GLOBALS,
-            rule.line,
-            hook,
-            `client globals directly skins UI-only ${hook} without a client appearance/capability/shell carrier — put the component look in its @orb/ui tv() variant`,
-          ),
-        );
+interface BareUiSlot {
+  readonly hook: string;
+  readonly selector: CssSelectorFact;
+  readonly offset: number;
+  readonly authored: string;
+}
+
+/** Every UI-only `data-slot` a client-globals selector skins directly, with its authored position. */
+function bareUiSlots(inventory: CssFacts, owners: ReadonlyMap<string, HookOwners>): readonly BareUiSlot[] {
+  const out: BareUiSlot[] = [];
+  for (const selector of selectorsOf(inventory, CLIENT_GLOBALS)) {
+    if (hasClientMechanismCarrier(selector.authored)) {
+      continue;
+    }
+    for (const site of selectorHookSites(selector.authored)) {
+      const owner = owners.get(site.hook);
+      if (site.hook.startsWith("slot:") && owner?.ui === true && !owner.client) {
+        out.push({ hook: site.hook, selector, offset: site.offset, authored: site.authored });
       }
     }
   }
+  return out;
 }
 
-function reportGeneratedWriters(census: StylesheetCensus, prefixes: ReadonlySet<string>, runtimeCounts: Map<string, number>, ctx: GateRunCtx): void {
-  for (const rule of census.rules) {
-    for (const declaration of rule.declarations) {
-      if (!isGeneratedFamily(declaration.prop, prefixes)) {
-        continue;
-      }
-      const writer = runtimeWriter(census.rel, rule.selectorList, declaration);
-      if (writer !== undefined) {
-        runtimeCounts.set(writer, (runtimeCounts.get(writer) ?? 0) + 1);
-        continue;
-      }
-      ctx.report(
-        finding(
-          census.rel,
-          declaration.line,
-          declaration.prop,
-          `${declaration.prop} mints or rewrites a generated token family outside theme.css without one of the closed runtime writer seams (density, reduced-transparency, colorization, local fade stops)`,
-        ),
-      );
+const SKIN_MESSAGE = (hook: string): string =>
+  `client globals directly skins UI-only ${hook} without a client appearance/capability/shell carrier — put the component look in its @orb/ui tv() variant. ${MESSAGE}`;
+
+function reportClientComponentSkins(inventory: CssFacts, owners: ReadonlyMap<string, HookOwners>, report: CssFamilyReport): void {
+  for (const slot of bareUiSlots(inventory, owners)) {
+    if (isDirectClientUiMechanism(slot.hook, slot.selector.selectorList)) {
+      continue;
     }
+    report(CLIENT_GLOBALS, {
+      line: slot.selector.line,
+      column: slot.selector.column + slot.offset,
+      token: slot.authored,
+      message: SKIN_MESSAGE(slot.hook),
+    });
   }
 }
 
-function fullHomeSet(census: readonly StylesheetCensus[]): boolean {
-  return census.length === PRODUCT_STYLESHEETS.length && PRODUCT_STYLESHEETS.every((rel) => census.some((row) => row.rel === rel));
-}
-
-/** THE BLINDNESS ARM, and since #2181 it is the ONLY thing this function asks. The per-sheet count
- *  ratchet it used to carry retired with `EXPECTED_DECLARATION_CENSUS` (the recorded disposition at
- *  `exception-authority-census.md:178`); this arm never read that constant and is untouched by its
- *  removal — a sheet the parser cannot read makes every ownership verdict below it vacuous. */
-function reportHomeCensus(row: StylesheetCensus, ctx: GateRunCtx): void {
-  if (row.declarations === 0) {
-    ctx.report(finding(row.rel, 0, "zero-declarations", `${row.rel} produced a zero declaration census — ownership verdict would be vacuous`));
-  }
-}
-
-function reportExactCensus(census: readonly StylesheetCensus[], ctx: GateRunCtx): void {
-  if (!fullHomeSet(census)) {
-    return;
-  }
-  for (const row of census) {
-    reportHomeCensus(row, ctx);
-  }
-}
-
-function reportDirectThemeCensus(theme: StylesheetCensus | undefined, complete: boolean, ctx: GateRunCtx): readonly DirectDeclaration[] {
-  const themeDirect = theme?.directTheme ?? [];
-  if (theme !== undefined && themeDirect.length === 0) {
-    ctx.report(
-      finding(THEME, 0, "zero-theme-values", "the generated @theme block produced zero direct declarations — token-family ownership cannot be derived"),
-    );
-  }
-  if (complete && themeDirect.length !== EXPECTED_DIRECT_THEME_DECLARATIONS) {
-    ctx.report(
-      finding(
-        THEME,
-        1,
-        "census:theme-direct",
-        `the generated @theme block contains ${themeDirect.length} direct declarations; the generated-output manifest expects ${EXPECTED_DIRECT_THEME_DECLARATIONS}`,
-      ),
-    );
-  }
-  return themeDirect;
-}
-
-function reportCensusHealth(census: readonly StylesheetCensus[], ctx: GateRunCtx): readonly DirectDeclaration[] {
-  const total = census.reduce((sum, row) => sum + row.declarations, 0);
-  const complete = fullHomeSet(census);
-  ctx.scan({ unit: "declaration", candidates: total, scanned: total });
-  reportExactCensus(census, ctx);
-  return reportDirectThemeCensus(
-    census.find((row) => row.rel === THEME),
-    complete,
-    ctx,
-  );
-}
-
-function reportAuthoredLayers(row: StylesheetCensus, ctx: GateRunCtx): void {
-  if (!(AUTHORED_STYLESHEETS as readonly string[]).includes(row.rel)) {
-    return;
-  }
-  const blanked = blankCssComments(row.raw);
-  for (const offset of actualLayerOffsets(row.raw)) {
-    ctx.report(
-      finding(
-        row.rel,
-        lineAt(blanked, offset),
-        "@layer",
-        "authored CSS contains an @layer block; the unlayered cascade is the mechanism and must remain global",
-      ),
-    );
-  }
-}
-
-function reportDensityPlacement(row: StylesheetCensus, ctx: GateRunCtx): void {
-  if (row.rel === TIERS) {
-    return;
-  }
-  for (const rule of row.rules) {
-    if (rule.selectorList.includes("[data-density")) {
-      ctx.report(finding(row.rel, rule.line, "data-density", "density mapping belongs in tiers.css, never another sanctioned stylesheet"));
+function reportShellRootRule(sheet: SheetCensus, inventory: CssFacts, report: CssFamilyReport): void {
+  for (const declaration of declarationsOf(inventory, sheet.rel)) {
+    if (declaration.owner.kind !== "style-rule" || declaration.owner.selectorList !== ":root") {
+      continue;
     }
-    if (rule.selectorList.includes("[data-surface-tier")) {
-      ctx.report(finding(row.rel, rule.line, "data-surface-tier", "surface-tier mapping belongs in tiers.css, never another sanctioned stylesheet"));
-    }
-    for (const declaration of rule.declarations) {
-      if (declaration.prop.startsWith("--orb-tier-")) {
-        ctx.report(finding(row.rel, declaration.line, declaration.prop, "private --orb-tier-* mapping belongs in tiers.css"));
-      }
-    }
-  }
-}
-
-function reportShellRootRule(rule: StylesheetCensus["rules"][number], ctx: GateRunCtx): void {
-  if (rule.selectorList !== ":root") {
-    return;
-  }
-  for (const declaration of rule.declarations) {
-    if (declaration.prop !== "view-transition-name" || declaration.value !== "none") {
-      ctx.report(
-        finding(
-          SHELL,
-          declaration.line,
-          declaration.prop,
-          "shell.css's document-root seam is only the exact view-transition-name:none reset; other document mechanisms belong in a global sheet",
-        ),
-      );
+    if (declaration.property !== "view-transition-name" || declaration.value !== "none") {
+      report(SHELL, {
+        line: declaration.line,
+        column: declaration.column,
+        token: declaration.property,
+        message: `shell.css's document-root seam is only the exact view-transition-name:none reset; other document mechanisms belong in a global sheet. ${MESSAGE}`,
+      });
     }
   }
 }
@@ -259,129 +320,170 @@ function isShellStructuralHook(hook: string): boolean {
   return hook.startsWith("class:shell-") || hook.startsWith("attr:data-shell-");
 }
 
-interface ShellProvenanceContext {
-  readonly ctx: GateRunCtx;
-  readonly owners: ReadonlyMap<string, HookOwners>;
-  readonly reported: Set<string>;
+function reportShellGrammar(sheet: SheetCensus, inventory: CssFacts, owners: ReadonlyMap<string, HookOwners>, report: CssFamilyReport): void {
+  if (sheet.rel !== SHELL) {
+    return;
+  }
+  reportShellRootRule(sheet, inventory, report);
+  const reported = new Set<string>();
+  for (const selector of selectorsOf(inventory, SHELL)) {
+    if (!isShellSelector(selector.authored)) {
+      report(SHELL, {
+        line: selector.line,
+        column: selector.column,
+        token: selectorCoordinate(selector),
+        message: `shell.css contains a rule not rooted in shell structure, a view transition, or a keyframe step: \`${selector.authored}\`. ${MESSAGE}`,
+      });
+    }
+    for (const site of selectorHookSites(selector.authored)) {
+      if (!isShellStructuralHook(site.hook) || owners.get(site.hook)?.client === true || reported.has(site.hook)) {
+        continue;
+      }
+      reported.add(site.hook);
+      report(SHELL, {
+        line: selector.line,
+        column: selector.column + site.offset,
+        token: site.authored,
+        message: `shell.css selects ${site.hook}, but no live packages/client JSX, canonical class producer, or DOM class writer emits it. ${MESSAGE}`,
+      });
+    }
+  }
 }
 
-function reportShellProvenance(selector: string, line: number, audit: ShellProvenanceContext): void {
-  const { owners, reported, ctx } = audit;
-  for (const hook of selectorHooks(selector)) {
-    if (!isShellStructuralHook(hook) || owners.get(hook)?.client === true || reported.has(hook)) {
+function isTierSelector(selector: string): boolean {
+  return (
+    selector.includes("[data-surface-tier") || DENSITY_SELECTORS.has(selector) || selector === '[data-slot="list-row-subtitle"][data-subtitle-step="label"]'
+  );
+}
+
+function reportTierGrammar(sheet: SheetCensus, inventory: CssFacts, report: CssFamilyReport): void {
+  if (sheet.rel !== TIERS) {
+    return;
+  }
+  for (const selector of selectorsOf(inventory, TIERS)) {
+    if (!isTierSelector(selector.authored)) {
+      report(TIERS, {
+        line: selector.line,
+        column: selector.column,
+        token: selectorCoordinate(selector),
+        message: `tiers.css contains a selector outside the closed density carrier/slot grammar: \`${selector.authored}\`. ${MESSAGE}`,
+      });
+    }
+  }
+}
+
+/** THE ORDINARY ARMS: every verdict an AUTHOR settles by moving a declaration to its semantic home. */
+export function reportCssFamilyOwnership({ inventory, owners, report }: CssOwnershipInput): number {
+  const sheets = census(inventory);
+  const prefixes = themeFamilyPrefixes(sheets.find((sheet) => sheet.rel === THEME)?.directTheme ?? []);
+  const runtimeCounts = new Map<string, number>();
+  for (const sheet of sheets) {
+    reportAuthoredLayers(sheet, report);
+    reportDensityPlacement(sheet, inventory, report);
+    reportTierGrammar(sheet, inventory, report);
+    reportShellGrammar(sheet, inventory, owners, report);
+    reportGeneratedWriters(sheet, { inventory, prefixes, runtimeCounts, report });
+  }
+  reportUiDependencyDirection(inventory, owners, report);
+  reportClientComponentSkins(inventory, owners, report);
+  return sheets.reduce((total, sheet) => total + sheet.declarations, 0);
+}
+
+/** THE REVIEWED-GRANT ARM: the three bounded recipes a client global may skin directly. Each is reported
+ *  ONCE per `(carrier sheet, hook)` so the grant that licenses it is 1:1 by construction (§12.5) — a grant
+ *  matching two candidates licenses NEITHER and alarms over-broad. */
+export function reportDirectClientMechanisms({ inventory, owners, report }: CssOwnershipInput): number {
+  const seen = new Set<string>();
+  let candidates = 0;
+  for (const slot of bareUiSlots(inventory, owners)) {
+    if (!isDirectClientUiMechanism(slot.hook, slot.selector.selectorList) || seen.has(slot.hook)) {
       continue;
     }
-    reported.add(hook);
-    ctx.report(
-      finding(SHELL, line, hook, `shell.css selects ${hook}, but no live packages/client JSX, canonical class producer, or DOM class writer emits it`),
-    );
+    seen.add(slot.hook);
+    candidates += 1;
+    report(CLIENT_GLOBALS, {
+      line: slot.selector.line,
+      column: slot.selector.column + slot.offset,
+      token: slot.authored,
+      subject: CLIENT_GLOBALS,
+      operation: `direct-client-mechanism:${slot.hook}`,
+      message: `${SKIN_MESSAGE(slot.hook)} This one is a REVIEWED recipe: a row in lib/reviewed-grants.ts licenses it, and the row goes stale the moment the recipe stops being painted.`,
+    });
   }
+  return candidates;
 }
 
-function reportTierGrammar(row: StylesheetCensus, ctx: GateRunCtx): void {
-  if (row.rel !== TIERS) {
-    return;
-  }
-  for (const rule of row.rules) {
-    for (const selector of rule.selectors) {
-      if (!isTierSelector(selector)) {
-        ctx.report(finding(TIERS, rule.line, selector, "tiers.css contains a selector outside the closed density carrier/slot grammar"));
-      }
+/** The seam census re-counts what the ordinary policy counted, and reports NOTHING while it does: the two
+ *  policies are separate owners and each computes its own denominator. */
+const NO_REPORT: CssFamilyReport = () => {
+  // intentionally silent: this pass counts runtime-writer seams and owns no verdict.
+};
+
+const BLIND_SHEET = (rel: string): string =>
+  `${rel} produced a ZERO declaration census — every ownership verdict about this home below it is vacuous, which is instrument blindness rather than a clean sheet.`;
+
+/** THE HARD ARMS: verdicts about the INSTRUMENT and about generated-output parity. No author absolves one. */
+export function reportCssFamilyHealth({ inventory, report }: CssFamilyInput): number {
+  const sheets = census(inventory);
+  // THE `fullHomeSet` GUARD IS GONE, and its deletion is the conversion's answer to audit cut f04. Under the
+  // legacy filesystem walk it existed because a missing sheet read as "not the real tree"; under the closed
+  // `product-css` identity a corpus short of a home REFUSES at the population phase, so the guard is
+  // unreachable — cut f20 killed zero rows and no fixture can reach the false arm. The parity arm below
+  // keeps its own `complete` test only because it is ALSO the empty-namespace question.
+  for (const sheet of sheets) {
+    if (sheet.declarations === 0) {
+      report(sheet.rel, { line: 1, column: 1, message: BLIND_SHEET(sheet.rel) });
     }
   }
+  const complete = sheets.length === PRODUCT_STYLESHEETS.length && PRODUCT_STYLESHEETS.every((rel) => sheets.some((sheet) => sheet.rel === rel));
+  const theme = sheets.find((sheet) => sheet.rel === THEME);
+  if (theme !== undefined && theme.directTheme.length === 0) {
+    report(THEME, {
+      line: 1,
+      column: 1,
+      message:
+        "the generated @theme block produced ZERO direct declarations — token-family ownership cannot be derived, so every generated-namespace verdict is vacuous.",
+    });
+  }
+  if (complete && theme !== undefined && theme.directTheme.length !== EXPECTED_DIRECT_THEME_DECLARATIONS) {
+    report(THEME, {
+      line: 1,
+      column: 1,
+      message: `the generated @theme block contains ${String(theme.directTheme.length)} direct declarations; the generated-output manifest expects ${String(EXPECTED_DIRECT_THEME_DECLARATIONS)}.`,
+    });
+  }
+  reportClosedSeamDrift(sheets, inventory, complete, report);
+  return sheets.length;
 }
 
-function reportShellGrammar(row: StylesheetCensus, owners: ReadonlyMap<string, HookOwners>, ctx: GateRunCtx): void {
-  if (row.rel !== SHELL) {
+/** THE CLOSED RUNTIME-WRITER SEAMS, held at their DERIVED cardinality. Each expectation is the product of
+ *  this policy's own declared vocabularies, so the arm states "every declared seam × every declared
+ *  selector is written exactly once" — a completeness claim, not the current-population count §12.5 bans. */
+function reportClosedSeamDrift(sheets: readonly SheetCensus[], inventory: CssFacts, complete: boolean, report: CssFamilyReport): void {
+  if (!complete) {
     return;
   }
-  const audit: ShellProvenanceContext = { owners, reported: new Set(), ctx };
-  for (const rule of row.rules) {
-    reportShellRootRule(rule, ctx);
-    for (const selector of rule.selectors) {
-      if (!isShellSelector(selector)) {
-        ctx.report(finding(SHELL, rule.line, selector, "shell.css contains a rule not rooted in shell structure, a view transition, or a keyframe step"));
-      }
-      reportShellProvenance(selector, rule.line, audit);
-    }
-  }
-}
-
-function reportHomeGrammar(row: StylesheetCensus, owners: ReadonlyMap<string, HookOwners>, ctx: GateRunCtx): void {
-  reportTierGrammar(row, ctx);
-  reportShellGrammar(row, owners, ctx);
-}
-
-interface StylesheetAuditContext {
-  readonly prefixes: ReadonlySet<string>;
-  readonly owners: ReadonlyMap<string, HookOwners>;
-  readonly runtimeCounts: Map<string, number>;
-  readonly directClientCounts: Map<string, number>;
-  readonly ctx: GateRunCtx;
-}
-
-function auditStylesheet(row: StylesheetCensus, audit: StylesheetAuditContext): void {
-  const { prefixes, owners, runtimeCounts, directClientCounts, ctx } = audit;
-  reportAuthoredLayers(row, ctx);
-  reportDensityPlacement(row, ctx);
-  reportDensityArmCompleteness(row, ctx);
-  reportHomeGrammar(row, owners, ctx);
-  if (row.rel !== THEME) {
-    reportGeneratedWriters(row, prefixes, runtimeCounts, ctx);
-  }
-  if (row.rel === UI_GLOBALS) {
-    reportUiDependencyDirection(row, owners, ctx);
-  } else if (row.rel === CLIENT_GLOBALS) {
-    reportClientComponentSkins(row, owners, directClientCounts, ctx);
-  }
-}
-
-function reportClosedSeamDrift(
-  census: readonly StylesheetCensus[],
-  runtimeCounts: ReadonlyMap<string, number>,
-  directClientCounts: ReadonlyMap<string, number>,
-  ctx: GateRunCtx,
-): void {
-  if (!(fullHomeSet(census) && existsSync(join(ctx.root, "package.json")))) {
+  const prefixes = themeFamilyPrefixes(sheets.find((sheet) => sheet.rel === THEME)?.directTheme ?? []);
+  // A SEAM COUNT IS MEANINGLESS WITHOUT A GENERATED NAMESPACE. `reportGeneratedWriters` only ever counts a
+  // declaration inside a minted token family, so a corpus whose `@theme` block resolved nothing counts ZERO
+  // for every seam \u2014 three findings that all say "there is no generated output", which the
+  // `zero-theme-values` arm above already said once and precisely. The fence is the row that dies without
+  // it: `mustFlag[1]` (a theme.css with no `@theme` block) reports 2 with it and 5 without.
+  if (prefixes.size === 0) {
     return;
+  }
+  const runtimeCounts = new Map<string, number>();
+  for (const sheet of sheets) {
+    reportGeneratedWriters(sheet, { inventory, prefixes, runtimeCounts, report: NO_REPORT });
   }
   for (const [writer, expected] of Object.entries(EXPECTED_RUNTIME_WRITERS)) {
     const actual = runtimeCounts.get(writer) ?? 0;
     if (actual !== expected) {
-      ctx.report(
-        finding(
-          "tooling/src/verify/gates/css-family-ownership.ts",
-          1,
-          `runtime-writer:${writer}`,
-          `runtime writer seam ${writer} matched ${actual}, expected ${expected}; either a sanctioned runtime mechanism moved or the executable exception is stale`,
-        ),
-      );
+      report(THEME, {
+        line: 1,
+        column: 1,
+        message: `runtime writer seam ${writer} matched ${String(actual)} declarations, and its declared vocabulary requires exactly ${String(expected)}; either a sanctioned runtime mechanism moved or the seam is incomplete.`,
+      });
     }
   }
-  for (const [hook, expected] of Object.entries(EXPECTED_DIRECT_CLIENT_UI_MECHANISMS)) {
-    const actual = directClientCounts.get(hook) ?? 0;
-    if (actual !== expected) {
-      ctx.report(
-        finding(
-          "tooling/src/verify/gates/css-family-ownership.ts",
-          1,
-          `direct-client-mechanism:${hook}`,
-          `direct client UI-mechanism seam ${hook} matched ${actual}, expected ${expected}; either the bounded recipe moved or this exception is stale`,
-        ),
-      );
-    }
-  }
-}
-
-export function auditCssFamilies(ctx: GateRunCtx): void {
-  const census = readCensus(ctx.root);
-  const themeDirect = reportCensusHealth(census, ctx);
-  const prefixes = themeFamilyPrefixes(themeDirect);
-  const owners = collectHookOwners(ctx);
-  const runtimeCounts = new Map<string, number>();
-  const directClientCounts = new Map<string, number>();
-  for (const row of census) {
-    auditStylesheet(row, { prefixes, owners, runtimeCounts, directClientCounts, ctx });
-  }
-  reportClosedSeamDrift(census, runtimeCounts, directClientCounts, ctx);
 }

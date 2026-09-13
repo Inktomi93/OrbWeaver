@@ -1,15 +1,37 @@
 // Semantic selector writers. The shared static-class evaluator owns value flow; this module only chooses
 // rendering/DOM terminals and records their exact data-attribute identities.
+//
+// WHAT THE #1584 CONVERSION CHANGED HERE, and why each half moved:
+//
+//   1. NO MODULE-GLOBAL PASS. The `let writerPass` slot plus `beginSelectorWriterCollection(ctx)` was the
+//      legacy dispatcher's one shared lifecycle, keyed on `ctx.passIdentity`. The final contract owns state
+//      in `create`, so this module exports a PASS FACTORY and the caller holds the object. There is exactly
+//      one caller: `css-family-source-provenance.ts#cssHookProvenanceFact`.
+//   2. THE COLLECTOR IS HANDED IN, NOT FETCHED. `hookOwnerCollector(ctx)` reached back into the sibling
+//      module's global, which is what made the import graph a cycle the moment either side became a
+//      factory. The shared `StaticClassCollector` is now a constructor argument, so this module imports
+//      only `static-class-expression.ts` and the dependency runs one way.
+//   3. NO `isProductSource` FENCE. It tested `/packages/{ui,client}/src/` against the node's absolute path,
+//      which is `@ui` + `@client` byte for byte (`contract/population.ts#POPULATION_ROOTS`). Under the
+//      declared population the fence is MUTUALLY REDUNDANT with the population itself and is deleted rather
+//      than kept as decoration — the `server-layout` precedent (resource-policy-contract.md §7).
+//   4. NO BASE UI. `readManifest`/`readInstalledSurface`/`readInstalledStateAttributeValues` were
+//      `ctx.root` FILESYSTEM reads, and a final policy has no root. The committed-vs-installed
+//      reconciliation is not a question about authored WRITERS anyway, so it moved to the policy that
+//      declares the doors (`json:baseui-manifest` + `installed-package{base-ui,ast}`).
+//   5. VALUE READS GO THROUGH THE SHARED FACT BOUNDARY. `accessedName`'s element-access argument and the
+//      HAST `properties` initializer are VALUES, and `shared-semantic-readers.md:33` rules `ast-read.ts`
+//      "not the new fact boundary" — they now resolve through `lib/reference-fact.ts`
+//      (`readStaticString` / `resolveStableExpression`), which follows a stable const binding as well as
+//      stripping wrappers. That is a WIDENING, not a rename: `el["data-x"]` still resolves and
+//      `el[DATA_X]` now resolves too. `unwrapExpression` survives ONLY where the strip is structural
+//      (a parenthesized assignment target), which is the same layering `reference-fact.ts` itself uses.
 import type { Type } from "ts-morph";
 import { Node } from "ts-morph";
-import type { GateRunCtx } from "../contract/gate.ts";
-import { unwrapExpression } from "./ast-read.ts";
-import { readInstalledStateAttributeValues, readInstalledSurface, readManifest } from "./baseui-read.ts";
-import { collectHookOwners, hookOwnerCollector, visitHookOwnerNode } from "./css-family-source-provenance.ts";
+import { readStaticString, resolveStableExpression } from "./reference-fact.ts";
 import type { StaticClassCollector } from "./static-class-expression.ts";
 
 const DOM_LIB = "/typescript/lib/lib.dom.d.ts";
-const CLASS_PREFIX_LENGTH = "class:".length;
 
 interface DataWriter {
   readonly values: ReadonlySet<string>;
@@ -21,18 +43,10 @@ export interface SelectorWriterCensus {
   readonly data: ReadonlyMap<string, DataWriter>;
   readonly opaque: number;
   readonly unresolved: number;
-  readonly baseUiAttributes: ReadonlyMap<string, ReadonlySet<string>>;
-  readonly baseUiManifestOnly: readonly string[];
-  readonly baseUiInstalledOnly: readonly string[];
 }
 
 function pathOf(node: Node): string {
   return node.getSourceFile().getFilePath().replaceAll("\\", "/");
-}
-
-function isProductSource(node: Node): boolean {
-  const path = pathOf(node);
-  return path.includes("/packages/ui/src/") || path.includes("/packages/client/src/");
 }
 
 function jsxValue(attribute: import("ts-morph").JsxAttribute): Node | undefined {
@@ -77,6 +91,8 @@ function propertyName(node: Node): string | undefined {
   return Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node) ? node.getLiteralText() : undefined;
 }
 
+/** The accessed member name in either spelling. The computed arm reads its argument through the shared
+ *  stable-binding resolver, so `el[DATA_SLOT]` resolves exactly as `el["data-slot"]` does. */
 function accessedName(node: Node): string | undefined {
   if (Node.isPropertyAccessExpression(node)) {
     return node.getName();
@@ -85,8 +101,11 @@ function accessedName(node: Node): string | undefined {
     return;
   }
   const argument = node.getArgumentExpression();
-  const value = argument === undefined ? undefined : unwrapExpression(argument);
-  return value !== undefined && (Node.isStringLiteral(value) || Node.isNoSubstitutionTemplateLiteral(value)) ? value.getLiteralText() : undefined;
+  if (argument === undefined) {
+    return;
+  }
+  const fact = readStaticString(argument);
+  return fact.kind === "unresolved" ? undefined : fact.value;
 }
 
 function accessReceiver(node: Node): Node | undefined {
@@ -112,29 +131,6 @@ function isDomAttributeReceiver(node: Node): boolean {
   );
 }
 
-interface StateSurface {
-  readonly components: Readonly<Record<string, { readonly parts: Readonly<Record<string, { readonly state: readonly string[] }>> }>>;
-}
-
-function stateAttributes(surface: StateSurface | undefined): ReadonlySet<string> {
-  const out = new Set<string>();
-  if (surface === undefined) {
-    return out;
-  }
-  for (const component of Object.values(surface.components)) {
-    for (const part of Object.values(component.parts)) {
-      for (const state of part.state) {
-        out.add(`data-${state.toLowerCase()}`);
-      }
-    }
-  }
-  return out;
-}
-
-function difference(left: ReadonlySet<string>, right: ReadonlySet<string>): readonly string[] {
-  return [...left].filter((value) => !right.has(value)).sort();
-}
-
 interface WriterAccumulator {
   readonly data: Map<string, { values: Set<string>; sites: number }>;
   opaque: number;
@@ -144,33 +140,6 @@ interface WriterAccumulator {
 interface WriterContext {
   readonly state: WriterAccumulator;
   readonly collector: StaticClassCollector;
-}
-
-interface SelectorWriterPass {
-  readonly passIdentity: object;
-  readonly project: GateRunCtx["project"];
-  readonly files: GateRunCtx["files"];
-  readonly state: WriterAccumulator;
-  readonly spreads: import("ts-morph").JsxSpreadAttribute[];
-  readonly visited: WeakSet<Node>;
-  processedSpreads: boolean;
-}
-
-let writerPass: SelectorWriterPass | undefined;
-
-export function beginSelectorWriterCollection(ctx: GateRunCtx): void {
-  if (ctx.passIdentity === undefined) {
-    throw new Error("selector-writer collection requires a dispatcher pass identity");
-  }
-  writerPass = {
-    passIdentity: ctx.passIdentity,
-    project: ctx.project,
-    files: ctx.files,
-    state: { data: new Map(), opaque: 0, unresolved: 0 },
-    spreads: [],
-    visited: new WeakSet(),
-    processedSpreads: false,
-  };
 }
 
 function record(state: WriterAccumulator, name: string, values: readonly string[]): void {
@@ -232,6 +201,18 @@ function recordDomCall(call: import("ts-morph").CallExpression, context: WriterC
   }
 }
 
+/** The HAST element's `properties` object, resolved through the shared stable-binding reader so a shared
+ *  const (`properties: CODE_BLOCK_PROPS`) is a writer exactly as an inline literal is. */
+function hastPropertiesObject(property: import("ts-morph").PropertyAssignment): import("ts-morph").ObjectLiteralExpression | undefined {
+  const raw = property.getInitializer();
+  if (raw === undefined) {
+    return;
+  }
+  const fact = resolveStableExpression(raw);
+  const resolved = fact.kind === "unresolved" ? undefined : fact.value;
+  return resolved !== undefined && Node.isObjectLiteralExpression(resolved) ? resolved : undefined;
+}
+
 function recordHastObject(property: import("ts-morph").PropertyAssignment, context: WriterContext): void {
   const parent = property.getParent();
   if (!Node.isObjectLiteralExpression(parent)) {
@@ -249,9 +230,8 @@ function recordHastObject(property: import("ts-morph").PropertyAssignment, conte
   if (!Node.isStringLiteral(typeInitializer) || typeInitializer.getLiteralText() !== "element") {
     return;
   }
-  const rawInitializer = property.getInitializer();
-  const initializer = rawInitializer === undefined ? undefined : unwrapExpression(rawInitializer);
-  if (initializer === undefined || !Node.isObjectLiteralExpression(initializer)) {
+  const initializer = hastPropertiesObject(property);
+  if (initializer === undefined) {
     return;
   }
   for (const child of initializer.getProperties()) {
@@ -271,55 +251,49 @@ function recordHastProperty(property: import("ts-morph").PropertyAssignment, con
   }
 }
 
-export function visitSelectorWriterNode(node: Node, source: import("ts-morph").SourceFile, ctx: GateRunCtx): void {
-  visitHookOwnerNode(node, source, ctx);
-  const state = writerPass;
-  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
-    throw new Error("selector-writer visit ran outside its begin lifecycle");
-  }
-  if (!isProductSource(source) || state.visited.has(node)) {
-    return;
-  }
-  state.visited.add(node);
-  const context = { state: state.state, collector: hookOwnerCollector(ctx) };
-  if (Node.isJsxAttribute(node)) {
-    recordJsxAttribute(node, context);
-  } else if (Node.isJsxSpreadAttribute(node)) {
-    state.spreads.push(node);
-  } else if (Node.isCallExpression(node)) {
-    recordDomCall(node, context);
-  } else if (Node.isPropertyAssignment(node)) {
-    recordHastProperty(node, context);
-  }
+/** One invocation's selector-writer accumulation. The caller owns the object; nothing here is module state. */
+export interface SelectorWriterPass {
+  /** Accumulate one dispatched node. Spreads are deferred until the CSS data-attribute names are known. */
+  readonly visit: (node: Node) => void;
+  /** Close the pass. `classes` comes from the hook-owner half; `dataNames` from the authored CSS census. */
+  readonly finish: (classes: ReadonlySet<string>, dataNames: readonly string[]) => SelectorWriterCensus;
 }
 
 /** Collect exact class/data writers from live terminals; arbitrary object properties and prose are inert. */
-export function collectSelectorWriters(ctx: GateRunCtx, dataNames: readonly string[]): SelectorWriterCensus {
-  const classOwners = collectHookOwners(ctx);
-  const classes = new Set([...classOwners.keys()].filter((hook) => hook.startsWith("class:")).map((hook) => hook.slice(CLASS_PREFIX_LENGTH)));
-  const pass = writerPass;
-  if (pass === undefined || pass.passIdentity !== ctx.passIdentity || pass.project !== ctx.project || pass.files !== ctx.files) {
-    throw new Error("selector-writer reconciliation ran outside its begin lifecycle");
-  }
-  if (!pass.processedSpreads) {
-    const context = { state: pass.state, collector: hookOwnerCollector(ctx) };
-    for (const spread of pass.spreads) {
-      recordJsxSpread(spread, context, dataNames);
-    }
-    pass.processedSpreads = true;
-  }
-  const manifestAttributes = stateAttributes(readManifest(ctx.root));
-  const installedAttributes = stateAttributes(readInstalledSurface(ctx.root));
-  const installedValues = readInstalledStateAttributeValues(ctx.root);
+export function createSelectorWriterPass(collector: StaticClassCollector): SelectorWriterPass {
+  const state: WriterAccumulator = { data: new Map(), opaque: 0, unresolved: 0 };
+  const context: WriterContext = { state, collector };
+  const spreads: import("ts-morph").JsxSpreadAttribute[] = [];
+  const visited = new WeakSet<Node>();
+  let census: SelectorWriterCensus | undefined;
   return {
-    classes,
-    data: pass.state.data,
-    opaque: pass.state.opaque,
-    unresolved: pass.state.unresolved,
-    baseUiAttributes: new Map(
-      [...manifestAttributes].filter((name) => installedAttributes.has(name)).map((name) => [name, installedValues.get(name) ?? new Set<string>()]),
-    ),
-    baseUiManifestOnly: difference(manifestAttributes, installedAttributes),
-    baseUiInstalledOnly: difference(installedAttributes, manifestAttributes),
+    visit: (node): void => {
+      if (census !== undefined) {
+        throw new Error("selector-writer pass received a node after its census was read");
+      }
+      if (visited.has(node)) {
+        return;
+      }
+      visited.add(node);
+      if (Node.isJsxAttribute(node)) {
+        recordJsxAttribute(node, context);
+      } else if (Node.isJsxSpreadAttribute(node)) {
+        spreads.push(node);
+      } else if (Node.isCallExpression(node)) {
+        recordDomCall(node, context);
+      } else if (Node.isPropertyAssignment(node)) {
+        recordHastProperty(node, context);
+      }
+    },
+    finish: (classes, dataNames): SelectorWriterCensus => {
+      if (census !== undefined) {
+        return census;
+      }
+      for (const spread of spreads) {
+        recordJsxSpread(spread, context, dataNames);
+      }
+      census = { classes, data: state.data, opaque: state.opaque, unresolved: state.unresolved };
+      return census;
+    },
   };
 }
