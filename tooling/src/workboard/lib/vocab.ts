@@ -26,13 +26,10 @@ export const STALE_CONTEXT_RE = /could not resolve|no field named|no option name
 export const CREATE_OPTION_COUNT = 4;
 export const MS_PER_SECOND = 1000;
 
-// GitHub's ProjectV2 text-column write REJECTS anything past 1024 chars server-side (UNPROCESSABLE,
-// "Column value must be a valid value for text column" — no length is documented; this was measured
-// live 2026-08-24 against a scratch project: 1024 writes clean, 1025 fails, message never mentions the
-// number). Evidence is written to that column (writeFields → ProjectV2Field "Evidence"), so a bare
-// over-cap `--evidence` used to reach GitHub and come back as a generic tool error indistinguishable
-// from a lifecycle-state refusal — both exit 2. Enforcing the SAME number at parse time turns it into a
-// misuse refusal (exit 3) with the limit and the actual length named, before any network call.
+// GitHub's ProjectV2 Evidence column caps UTF-8 BYTES, not JavaScript code units.
+// Measured 2026-09-13 on scratch #2336: 1024 ASCII bytes, 512 é, and 256 emoji pass;
+// one more of each fails UNPROCESSABLE. evidenceText budgets both prefix and pointer
+// against this limit; the full receipt remains in an issue comment.
 export const EVIDENCE_MAX_LENGTH = 1024;
 
 export const LIFECYCLE_FIELDS = new Set(["status", "evidence", "lane", "wake condition", "disposition", "dod"]);

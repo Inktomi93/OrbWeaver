@@ -170,6 +170,8 @@ if (args[0] === "api" && args[1] === "rate_limit") {
         if (!option) fail("The single select option does not belong to field '" + field.name + "'");
         item[field.name] = option.name;
       } else {
+        // Measured against GitHub on #2336: this is a UTF-8 BYTE limit, not JS length.
+        if (Buffer.byteLength(raw, "utf8") > 1024) fail("Column value must be a valid value for text column");
         item[field.name] = raw;
       }
     }
@@ -526,7 +528,7 @@ defineTest("review gates verification and rejects blocked work", () => {
 defineTest(
   "over-column evidence auto-splits (#923 P2): the field gets a head + pointer, the comment gets the full text, and done still matches",
   () => {
-    // GitHub's ProjectV2 text column rejects anything past 1024 chars (measured live 2026-08-24, #664).
+    // GitHub's ProjectV2 text column rejects anything past 1024 UTF-8 bytes (#1920; live probe #2336).
     // The old shape REFUSED over-cap evidence; owner-approved P2 replaces the refusal with the split —
     // the transform is pure and identical on verify and done, so the same-receipt rule holds.
     const overCap = `head-${"x".repeat(1500)}`;
@@ -534,7 +536,7 @@ defineTest(
     const inFlight = drive(reviewed, "verify", "11", "--evidence", overCap);
     expect(inFlight.status).toBe(0);
     const field = fieldValue(reviewed, EVIDENCE_FIELD) ?? "";
-    expect(field.length).toBeLessThanOrEqual(1024);
+    expect(Buffer.byteLength(field, "utf8")).toBeLessThanOrEqual(1024);
     expect(field).toContain("full receipt in issue comment");
     const overflow = targetIssue(reviewed).comments.find((body) => body.includes("Full verification receipt"));
     expect(overflow).toContain(overCap);
@@ -558,6 +560,27 @@ defineTest(
     const prematureVerify = drive(createState("Running"), "verify", "11", "--evidence", "short receipt");
     expect(prematureVerify.status).toBe(TOOL_ERROR_EXIT);
     expect(prematureVerify.stderr).toContain("must be Review before Verify");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+defineTest(
+  "multibyte evidence splits below 1024 code units and retries without duplicate comments",
+  () => {
+    const receipt = "é🙂".repeat(200);
+    const state = createState("Review");
+    expect(receipt.length).toBeLessThan(1024);
+    expect(drive(state, "verify", "11", "--evidence", receipt).status).toBe(0);
+    const field = fieldValue(state, EVIDENCE_FIELD) ?? "";
+    expect(Buffer.byteLength(field, "utf8")).toBeLessThanOrEqual(1024);
+    expect(field.isWellFormed()).toBe(true);
+    expect(targetIssue(state).comments).toHaveLength(1);
+    expect(targetIssue(state).comments[0]).toContain(receipt);
+    expect(drive(state, "verify", "11", "--evidence", receipt).status).toBe(0);
+    expect(targetIssue(state).comments).toHaveLength(1);
+    expect(drive(state, "land", "11", "--evidence", receipt).status).toBe(0);
+    expect(fieldValue(state, EVIDENCE_FIELD)).toBe(field);
+    expect(targetIssue(state).state).toBe("CLOSED");
   },
   TABLE_DRIVEN_TIMEOUT_MS,
 );
@@ -1168,7 +1191,7 @@ defineTest(
     const split = drive(overColumn, "land", "11", "--lane", "x", "--evidence", "x".repeat(1025));
     expect(split.status).toBe(0);
     expect(targetIssue(overColumn).state).toBe("CLOSED");
-    expect((fieldValue(overColumn, EVIDENCE_FIELD) ?? "").length).toBeLessThanOrEqual(1024);
+    expect(Buffer.byteLength(fieldValue(overColumn, EVIDENCE_FIELD) ?? "", "utf8")).toBeLessThanOrEqual(1024);
     expect(targetIssue(overColumn).comments.some((body) => body.includes("Full verification receipt"))).toBe(true);
     const absurd = drive(createState("Ready"), "land", "11", "--lane", "x", "--evidence", "x".repeat(60_001));
     expect(absurd.status).toBe(MISUSE_EXIT);
