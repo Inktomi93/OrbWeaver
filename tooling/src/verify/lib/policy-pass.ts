@@ -700,7 +700,7 @@ function withholdFactDependents(runs: readonly PolicyRun[], errors: PolicyToolEr
     const failed = run.policy.facts.find((fact) => values.get(fact)?.status === "failed");
     if (failed !== undefined) {
       const value = values.get(failed);
-      const message = value?.status === "failed" ? value.message : "unknown fact failure";
+      const message = value?.status === "failed" ? value.message : POLICY_PASS_REFUSALS.factFailedUnknown;
       markIncomplete(run, "evaluate", new Error(`${POLICY_PASS_REFUSALS.factFailed}: ${failed.id}: ${message}`), errors);
     }
   }
