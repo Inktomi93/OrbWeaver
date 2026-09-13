@@ -14,7 +14,7 @@ name the claim being tested.
 **The tree moved under this run and the movement is disjoint from the subjects.** Measurements began at
 `main` = `4f121ffb3` and finished at `011233309`; the three intervening commits
 (`5dd925273`, `64dfbf349`, `011233309`) touch `docs/design/gate-runtime-standardization.md`,
-`docs/test-baseline/manifest.json`, `tests/tooling/verify/cli.int.test.ts`,
+the former `docs/test-baseline/manifest.json`, `tests/tooling/verify/cli.int.test.ts`,
 `tests/tooling/verify/ops/warning-promotion.suite.int.test.ts`, `tooling/src/verify/cli.ts`,
 `tooling/src/verify/index.ts`, `tooling/src/verify/lib/policy-command.ts`,
 `tooling/src/verify/lib/verb-tail.ts`, `tooling/src/verify/ops/scoped.ts` and
@@ -162,7 +162,7 @@ e.test.ts (named   helper):   LEGACY asserts=false -> legacy FLAGS
 ```
 
 and the final policy driven through `runPolicyPass` over the same corpus FLAGS `d.test.ts`
-(`tests/tooling/d.test.ts:2:1:test`, message "this test callback contains no `expect(...)`"). Legacy
+(a fixture finding tuple — there is no `tests/tooling/d.test.ts` on the real tree — printed as `d.test.ts:2:1:test`, message "this test callback contains no `expect(...)`"). Legacy
 passes it; final flags it. That is a catch-differential the §4.6 record does not name, and **no proof row
 pins the guard**: all 17 of this module's rows were read in full and none uses `import * as`, so cutting
 the guard reds nothing.

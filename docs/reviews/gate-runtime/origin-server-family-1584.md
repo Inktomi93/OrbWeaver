@@ -103,7 +103,7 @@ Final: one `runPolicyPass` over `getWorkspace({types: true})` with the FULL 66-p
 
 ### Why the legacy N+1 regex missed seven real sites
 
-`DB_QUERY_RE` needed `db.` or `tx.` ADJACENT to a verb in the expression's own text. Three ways that failed
+The former `DB_QUERY_RE` needed `db.` or `tx.` ADJACENT to a verb in the expression's own text. Three ways that failed
 on the live tree, all of them formatting or vocabulary rather than semantics:
 
 - `db.selectDistinct(…)` — the pattern's `select\b` has no word boundary before `D`;
@@ -206,8 +206,8 @@ identity row pass by FAIL-CLOSURE rather than by identity — a lying proof that
 Within the fourteen, 5 unresolved specifiers remain and all five are the deliberate `./missing*.ts`
 fail-closed rows.
 The same sweep found two pre-existing unresolved specifiers in another lane's rows,
-`no-raw-id mustPass[0]` (`packages/contracts/src/x.ts` → `../../../kit/src/ids/index`, three ups from a
-three-segment directory) and `no-mint-via-cast mustPass[2]` (`tests/server/x.test.ts` →
+`no-raw-id mustPass[0]` (a fixture path — there is no `packages/contracts/src/x.ts` on the real tree —  → `../../../kit/src/ids/index`, three ups from a
+three-segment directory) and `no-mint-via-cast mustPass[2]` (a fixture path — there is no `tests/server/x.test.ts` on the real tree —  →
 `../../../packages/kit/src/ids/index`). Neither is fixed here — they are not this lane's files — but
 `no-raw-id`'s row is the one that claims the canonical kit schema is RECOGNIZED, and it cannot currently
 prove that.

@@ -27,7 +27,7 @@ the tripwire is the central table's own zero-consumption alarm.
 | `no-raw-clock` | converted | reviewed-grant / error | `ambient-determinism` | entire-population | the ambient `Date` bound from TypeScript's lib declarations | 2 | classified (3,374 → 3,367) |
 | `no-raw-random` | converted | reviewed-grant / error | `ambient-determinism` | entire-population | the ambient `Math` bound from TypeScript's lib declarations | 1 | classified (4,384 → 4,377) |
 | `owner-role-split` | converted | reviewed-grant / error | `role-vocabulary` | entire-population | `USER_ROLES` at its declaring module + the read's own TYPE | 5 | exact (1,488) |
-| `scrubber-home` | converted | reviewed-grant / error | `scrubber-home` | entire-population | the factory's canonical declaration in `kit/src/content/` | 1 | classified (3,368 → 3,367) |
+| `scrubber-home` | converted | reviewed-grant / error | `scrubber-home` | entire-population | the factory's canonical declaration in `packages/kit/src/content/` | 1 | classified (3,368 → 3,367) |
 | `scrubber-factory-home` | **NEW sibling** | hard / error | `scrubber-home` | entire-population | the content home's own exported declaration | 0 | `@kit` (61) |
 | `single-stream-transport` | converted | reviewed-grant / error | singleton | entire-population | the `subscription` method declared by `@trpc/server` (`resolveTypeMemberOrigin`) | 2 | exact (27) |
 | `sole-env-reader` | converted | reviewed-grant / error | singleton | entire-population | the ambient `process` global OR the `node:process` default export | 9 | exact (1,488) |

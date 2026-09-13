@@ -1486,7 +1486,14 @@ no name-based dispatch, no false-clean receipt, no undocumented behavior differe
       families). **#2097** → gate-local binding/origin resolution is FORBIDDEN; ~25 sites migrate to the shared
       readers (§12.3). **#2142** → `test-layout`'s 51 real findings PARKED behind a test-mirror revamp the owner
       wants first. **#2144** → the docs formatter AND its guards widen to every tracked markdown file, class by
-      class, rules and agents first. **#2146** → the trailing-unnamed-column arm is BUILT and the ~19 tables it reds
+      class, rules and agents first. **ADMITTING A CLASS ASKS FOUR QUESTIONS, NOT THREE (#2175, #2161):** is the file
+      hand-authored · is it VENDORED · is it GENERATED · **and is it a SOURCE A GENERATOR READS.** The fourth is the one
+      that bites, because a generator's INPUT looks hand-authored at every door: reformatting `.claude/agents/*.md`
+      staled their `.codex/agents/*.toml` mirrors and left `check:agents` (`registry.ts:170`) RED on main from
+      `e6994a62f` to `f46be1ebe`. A class whose files feed a generator is admitted only together with that generator's
+      emitter — root `AGENTS.md` needed `agents:sync` taught to emit the two blank lines the formatter wants
+      (`b4fc76e62`) before its `GENERATED_BLOCK` deadlock fence could be deleted and the file admitted WHOLE to both
+      doors. **#2146** → the trailing-unnamed-column arm is BUILT and the ~19 tables it reds
       are narrowed in one barrier-window commit (width only, never content; the leading-label idiom admitted). And
       the policing matrix lane (#2111, an owner-authorized forge) owns every enforcement gap it names, with its
       `policy-legacy-imports` arm ruled `hard`/`error` — nine final modules red by design, their tables retiring

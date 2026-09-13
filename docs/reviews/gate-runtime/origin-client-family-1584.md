@@ -42,7 +42,7 @@ and the fork was raised rather than a grant row invented.
 
 **The review ruled that intent RIGHT and the delivered condition WRONG, and it is repaired here.** A name
 test with FILE scope is a self-exemption door: a planted
-`packages/client/src/features/hack/self-exempt.ts` exporting its own `estimateTokens` silenced both
+the proof-tree fixture path (there is no `packages/client/src/features/hack/self-exempt.ts` on the real tree) exporting its own `estimateTokens` silenced both
 divisions in that file (reproduced at 0 findings, and 2 with the export renamed). The condition is now an
 IDENTITY test — the file's exported symbol must RESOLVE, through any re-export, to the canonical declaration
 in `packages/kit/src/tokens/index.ts`. That keeps the rename-proof intent (the home is still a SYMBOL, and a

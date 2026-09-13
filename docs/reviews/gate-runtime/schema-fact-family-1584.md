@@ -226,7 +226,7 @@ policies import their own partition:
 - **`contract-banned-shapes`** (new id, singleton family) — authored `@orb/contracts` declarations.
   `Principal.kind` (D60) and `appSettingsSchema.guidedActions` (D33), the latter read by walking the Zod
   builder chain for shape KEYS only, through `object`/`extend`/`merge` and past preserving operations.
-- **D12** (`@orb/contracts/sessions`) is a plain module-specifier ban, which Biome's native
+- **D12** is a plain module-specifier ban — there is no `@orb/contracts/sessions` subpath, and that absence IS the rule, which Biome's native
   `style/noRestrictedImports` owns completely (GATE-AUTHORING §10). It is a `patterns` row in `biome.json`,
   pinned hermetically by `tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts`: the real binary over a
   copy of the real config, three planted importers proving reach into `packages/`, `tooling/` AND `tests/`,
@@ -335,7 +335,7 @@ The one live `@nullable-cmp-ok` marker is translated to
 
 ### `ownerid-registry` (D23/D30/D21/D49)
 
-`hard`. `OWNERID_ALLOWLIST` is renamed `OWNERID_CLASSIFICATIONS` and typed locally rather than through the
+`hard`. The former `OWNERID_ALLOWLIST` is renamed `OWNERID_CLASSIFICATIONS` and typed locally rather than through the
 legacy `ExemptionTable` — that type intentionally conflates allowlists, sanctioned homes and deferred debt,
 and the exception census rules these 27 rows authoritative D23 classification data. The stamp arm reports on
 the column declaration; the stale arm reports on the schema barrel.

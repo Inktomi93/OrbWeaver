@@ -110,10 +110,10 @@ second opinion (`^export const gate = defineGate(` per file — the guide's own 
 | - | - |
 | `tooling/src/verify/gates/policy-{soundness,proof-expectations,waiver-identity,waiver-spelling}.ts` | new final policies; auto-discovered by the mixed loader |
 | `tooling/src/verify/lib/policy-descriptor-read.ts` | the family's shared reader |
-| `tests/tooling/verify/gates/policy-soundness-family.test.ts` | conformance + refusal pins + real-corpus control |
+| `tests/tooling/verify/gates/policy-soundness-family.repo.int.test.ts` | conformance + refusal pins + real-corpus control |
 | `tests/tooling/verify/lib/policy-descriptor-read.test.ts` | the segment reader's own controls (join boundaries, conditional branches, dynamic spans) |
 | `docs/architecture/core/Core-Enforcement-Active-Gates.md` | four Layer-3 ACTIVE rows beside `gate-modernization`'s; the count line 271 → 275 (`enforcement-registry-parity` reads both) |
-| `docs/test-baseline/manifest.json` | two new tracked specs — regenerated in this worktree after `git add` |
+| the former `docs/test-baseline/manifest.json` | two new tracked specs — regenerated in this worktree after `git add` |
 | `structure:policy-conformance` totals | 167 → 171 policies; rows grow by this family's declared rows |
 | doc catalog | this doc + the roster edit are NOT re-attested, like every 2026-09-11/12 gate-runtime doc landing (`check:doc-catalog` is baseline red, guide §2) |
 

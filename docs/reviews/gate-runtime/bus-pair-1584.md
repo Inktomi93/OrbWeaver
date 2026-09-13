@@ -188,7 +188,7 @@ descriptor may fake and the roster derives — and the FINDING is the retirement
   loaded gun, and a refusal cannot be written as a proof row, so it is pinned through `runPolicyPass` in
   `tests/tooling/verify/gates/bus-pair.test.ts`;
 - the member is declared and unproduced ⇒ silent, and `user-bus-coverage` is silent too because it
-  imports `USER_BUS_DEFERRED_MEMBERS` from this module. That import is the retirement mechanism: deleting
+  imports the former `USER_BUS_DEFERRED_MEMBERS` from this module. That import is the retirement mechanism: deleting
   the debt module when #1822 lands makes the sibling own the member in the same edit, and `tsc` refuses
   any half of it.
 
@@ -213,7 +213,7 @@ longer launders ownership.
 
 ### The consumer belt widened, and that is a ruling
 
-The retired `SERVER_INTERNAL_REACH` row licensed the server-guard arm for `DomainEvent` ALONE and carried
+The former `SERVER_INTERNAL_REACH` row licensed the server-guard arm for `DomainEvent` ALONE and carried
 a two-sided stale arm ("a reach-lane union that grows a client map is RED"). The derivation widens it: ANY
 belted union may satisfy the consumer belt with an exhaustive server dispatch. That is deliberate, and the
 stale arm has no successor because it has nothing to be stale about — there is no permission row to rot,
@@ -267,7 +267,7 @@ than a stale permission, and the census above is where it will show.
   a name check REDs the homonym row; ownership widened to "any descriptor that reaches the identity" REDs
   the warning-debt-sibling row; ownership read from the FILE again REDs the unused-const row.
 
-- **Type programs** — the program this lane ran is TOOLING TS7 (`scripts/ts7.cjs -p tooling/tsconfig.json`),
+- **Type programs** — the program this lane ran is TOOLING TS7 (`scripts/ts7.cjs` with `-p tooling/tsconfig.json`),
   clean. `types:graph` (the root `tsconfig.json` program) is RED on this tree with 12 errors in five files
   — `tests/tooling/verify/lib/{policy-loader,policy-plan,render.int,resource-declaration}.test.ts` and
   `tests/tooling/verify/ops/scoped.int.test.ts` — and every one of them is the known-red legacy-loader

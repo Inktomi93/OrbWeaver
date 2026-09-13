@@ -531,7 +531,7 @@ building; an undated one reads as current.
 2. `git -C <wt> rebase main` (repeat if `main` moved), then from `main`: `git -c core.hooksPath=/dev/null merge --ff-only <branch>`.
 3. Run the lane's named floor on `main`; `pnpm gate:contract` for the delta; **`pnpm check:policy-conformance` whole
    after EVERY merge that touches a gate module** (it is the bar the bypassed hooks would have run: three arms plus
-   the grant table, exit 2 = broken checker); **`docs/test-baseline/manifest.json` and `monotonic-tests` are DELETED (#2217, `3f4bf19ef`, owner ruling 2026-09-12) —
+   the grant table, exit 2 = broken checker); **the former `docs/test-baseline/manifest.json` and `monotonic-tests` are DELETED (#2217, `3f4bf19ef`, owner ruling 2026-09-12) —
    there is no manifest to regenerate; test presence is DERIVED (`test-presence` / `test-layout` / the `mirror-index` kind)
    and a deleted spec is judged by those, never by a count.** Any remaining instruction to regenerate that manifest is a
    dead citer: fix it on sight (INSTRUCTION lines only — past-tense RECORDS in design docs stay as history). The

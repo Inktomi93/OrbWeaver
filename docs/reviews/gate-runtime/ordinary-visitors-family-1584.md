@@ -128,7 +128,7 @@ The legacy numbers are POST-suppression (the legacy dispatcher honours `@orb-gat
 `no-inline-types` reads 15 there and 20 raw here: the same five marked sites, translated.
 
 **Two legacy allowlist rows were DELETED with receipts.** `persistence-boundary`'s
-`RAW_STORAGE_ALLOWLIST` licensed the two persist factories themselves
+The former `RAW_STORAGE_ALLOWLIST` licensed the two persist factories themselves
 (`create-persisted-store.ts`, `create-entity-draft-store.ts`), and neither performs a licensed operation:
 both go through the `durable-local.ts` namespace, which has its own row. A row consumed zero times is
 STALE by contract, so copying them would have shipped two dead rows.

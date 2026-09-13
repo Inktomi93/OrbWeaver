@@ -186,7 +186,7 @@ built and run:
 Unmodified: **PASSES.** With `enclosingBody` falling back to the source file: **RED.** Two further
 unenforced fences in the same module, both with built falsifiers: the member-name set (`form.reset()` beside
 `handleSubmit()` — PASS → RED when the `ARRAY_OPS`/`SUBMIT` filter is cut) and the `features/**` population
-(the founding fixture moved to `packages/client/src/forms/editor/flush.ts` — PASS → RED when `under` is cut;
+(the founding fixture moved to a proof-tree path — there is no `packages/client/src/forms/editor/flush.ts` on the real tree — PASS → RED when `under` is cut;
 this row needs a SECOND admitted file or the run is a `[population]` tool error rather than a finding).
 
 The module's header documents its OTHER declared limits carefully (the nested-function rule has its own

@@ -387,7 +387,16 @@ const STRIKETHROUGH_RE = /~~[^~\n]*~~/gu;
 // `X`", "there is no `X`" — the mention IS the claim of absence). A WHOLE LINE carrying one of these is
 // deliberately describing dead/purged/absent machinery as history, structurally (§9 GATE-AUTHORING:
 // precision over recall, err quiet) — never a symbol/path fix target.
-const RIDER_LINE_RE = /rider|truth[- ]audit|purged|\bdead\b|\bdied\b|the (former|old) `|\bnot an? `|there is no `/iu;
+//
+// NARROWED 2026-09-13 (#2068), and the DIRECTION is the point: `dead` is admitted only in the
+// DEAD-MACHINERY sense ("`X` is dead", "dead code"), never in the REACHABILITY idiom "a dead end" /
+// "dead-end" / "dead ends". The two senses are unrelated: "this reference reads as a dead end" is a
+// claim about a code PATH and says nothing about whether the symbol beside it still exists, so the
+// unnarrowed alternative silently forgave live phantom cites — `Core-Tooling-Law.md` cites
+// `PROJECT_SITES` on a line whose only rider trigger is the words "a dead end", and the gate went quiet
+// on it rather than reporting it. The narrowing is a LOOKAHEAD on the idiom only; every other `dead`
+// still escapes, which is what the two committed proof rows below fix in BOTH directions.
+const RIDER_LINE_RE = /rider|truth[- ]audit|purged|\bdead\b(?![-\s]ends?\b)|\bdied\b|the (former|old) `|\bnot an? `|there is no `/iu;
 // A non-literal token (glob/brace/placeholder/ellipsis-elided-path) is a prose pattern, not a literal cite.
 const NON_LITERAL_TOKEN_RE = /[*{}<>]|\.\.\.|…/u;
 // A HEAD RIDER: several core docs carry a blockquote near the top declaring the WHOLE file (or "rows
@@ -833,13 +842,16 @@ const GITIGNORED_ABSENT: ExemptionTable<AbsentByDesign> = {
       "quoting the .dockerignore entry.",
     cite: ".dockerignore",
   },
-  "scripts/probes/st-goldens/sillytavern-runtime": {
-    why:
-      "a GITIGNORED captured SillyTavern install — present on a full checkout, absent by design on a clean one. " +
-      "Judging it with existsSync makes the verdict environment-dependent (#775: phantom RED in every worktree, " +
-      "silent on main). Delete this row the day scripts/probes/st-goldens stops shipping a gitignored runtime subtree.",
-    cite: "scripts/probes/st-goldens/README.md",
-  },
+  // DELETED 2026-09-13 (#2068): the row for `scripts/probes/st-goldens/sillytavern-runtime`. Its own
+  // third side — the resolution-agnostic "docs stopped referencing it" arm — reported it: no core doc
+  // carries a live backtick path-cite of that subtree any more, so the exemption was forgiving a
+  // reference that no longer exists, and the gate's own UNREFERENCED_MSG prescribes this deletion. The
+  // table stays two-sided: should a core doc cite the subtree again, the cite reds as a phantom path on
+  // a clean checkout and the row comes back with a fresh `cite`. NOTE FOR THE NEXT READER: the SAME
+  // gitignored directory is the subject of #2282, where `p-eslint-fence` fences it out of `lint:eslint`
+  // (ESLint cannot read `.gitignore`; the rule is `.gitignore:121`). One directory, two instruments,
+  // two independent mechanisms — neither change blocks the other, and they should not be discovered as
+  // a surprise.
 };
 
 /** Is `path` named by a literal `.gitignore` rule? Read literally — a rule this reader cannot prove is a
@@ -1059,8 +1071,27 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "resolved ZERO living law/design documents" },
       why: "the derived corpus must fail LOUD when its census comes back empty — a silently empty derivation is the blind-gate placebo, not a clean tree",
     },
+    {
+      files: {
+        // THE NARROWED `dead` ESCAPE, CAUGHT SIDE (#2068, 2026-09-13). "a dead end" is a REACHABILITY
+        // idiom about a code PATH; it asserts nothing about whether the symbol on the same line still
+        // exists. Before the narrowing this line was rider-skipped whole and the phantom went unreported
+        // — the real instance was `Core-Tooling-Law.md`'s `PROJECT_SITES` cite.
+        "docs/architecture/core/__probe_dead_end.md": "---\nkind: law\n---\n\nA message navigating a reader to `GHOST_DEADEND_CONST` read as a dead end.\n",
+      },
+      expect: { messageIncludes: "has no declaration" },
+      why: "the `dead` rider is narrowed to the DEAD-MACHINERY sense: the 'dead end' idiom must NOT escape a live phantom cite sharing its line",
+    },
   ],
   mustPass: [
+    {
+      files: {
+        // THE SAME NARROWING, ESCAPED SIDE — the DIRECTION control. `dead` in its machinery sense still
+        // rides the rider convention, so the narrowing above cannot have widened into the real class.
+        "docs/architecture/core/__probe_dead_sense.md": "---\nkind: law\n---\n\n`GHOST_DEAD_MACHINERY_CONST` is dead — the loader stopped reading it.\n",
+      },
+      why: "the `dead` rider's SURVIVING half: a deliberately-dead symbol named as history is still exempt structurally — the two rows pin the narrowing in both directions",
+    },
     {
       // SELF-CONTAINED: every doc the passing gate-stub cites is PLANTED here — the conformance harness
       // materializes examples into a SYNTHETIC tree, so a cite of a real-tree doc would flag where it must pass.
