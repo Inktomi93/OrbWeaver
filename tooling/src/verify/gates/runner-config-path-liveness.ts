@@ -6,11 +6,10 @@
 // and the heaviest file in the repo (17.6 min) ran in the PARALLEL lane — the load bomb that row exists to
 // prevent. This is eslint-grant-liveness's shape on the RUNNER configs, which are CODE: kind globs and named
 // selector arrays hide behind imports, calls and spreads, so a bare-StringLiteral reader finds almost
-// nothing. Arms: DEAD · OUTSIDE · INCLUDE-NOT-FILE · UNRESOLVED-IDENTITY · NO-ROWS (the blindness tripwire)
-// · the two-sided EXEMPT arms.
+// nothing. Arms: DEAD · OUTSIDE · INCLUDE-NOT-FILE · UNRESOLVED-IDENTITY · NO-ROWS (the blindness tripwire).
 //
 // FAMILY: `grant-liveness`, with `depcruise-grant-liveness` and `eslint-grant-liveness`. The shared readers,
-// as module AND function: `lib/grant-liveness.ts` `livenessFindings` (the DEAD arm + both EXEMPT arms) and
+// as module AND function: `lib/grant-liveness.ts` `deadExactFindings` (the DEAD arm) and
 // the executable-config subject readers behind the ResourceHost — `native-config` (vitest, through Vitest's
 // public `resolveConfig` across the config-snapshot process boundary) and `static-config` (both Playwright
 // configs, through `lib/config-static-read.ts`'s preserved evaluator). No reader is private to this module.
@@ -43,8 +42,9 @@
 // tests/e2e/support/modes.ts, so it is a PATTERN axis by construction and carries no file-exact row;
 // (3) reporter/output paths (`outputDir`, `outputFile`, a custom reporter module) are NOT judged — a
 // missing reporter module fails the runner LOUDLY at start-up, and the silent class this gate exists for is
-// file SELECTION; (4) a deliberately-absent-on-a-clean-checkout path takes an EXEMPT row, as
-// `tsconfig-entry-liveness` does; (5) the UNRESOLVED-IDENTITY arm is REACHABLE BUT UNPROVABLE BY FIXTURE:
+// file SELECTION; (4) a deliberately-absent-on-a-clean-checkout class is expressed with the runner's
+// pattern syntax rather than a dead exact selector; (5) the UNRESOLVED-IDENTITY arm is REACHABLE BUT
+// UNPROVABLE BY FIXTURE:
 // `ops/resource-path.ts` returns `unresolved` for a tree node that is neither file nor directory (a socket,
 // FIFO or device node) or for a `stat` failure behind a link, and the proof runtime can create only files
 // and symlinks (`GatePolicyProof.files` / `.links`). The arm is fail-closed and carries its own message; no
@@ -62,8 +62,6 @@
 //     2026-09-12; the cut came back clean only because EVERY row then in the module went through `configs()`,
 //     which plants two exact playwright `testDir` values and so never reaches the zero-exact branch the anchor
 //     guards. The clean cut measured THE HELPER, not the fence (guide §6.1) — `mustPass[5]` stops using it.
-//     (`EXEMPT`'s two arms also read the anchor; that table is an empty #1922 carry-forward tracked
-//     separately and is NOT part of this row's claim.)
 // MEASURED INTERACTION worth knowing before you write a fixture: a TRACKED symlink whose target escapes the
 // repository makes `readPolicyRepositoryInventory` throw ("resolves outside repository"), which refuses
 // every `native-config` consumer at the population phase. So the OUTSIDE-through-a-symlink finding is
@@ -71,13 +69,11 @@
 // for that reason — the loud upstream refusal covers the tracked case.
 // COMMENT POSTURE: comment-SAFE — extraction is pure AST/native-loader observation over config values.
 import type { ConfigSnapshotField } from "../contract/config-snapshot.ts";
-import type { ExemptionTable, Finding } from "../contract/gate.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { StaticConfigResourceId } from "../contract/resource-config.ts";
 import type { AuthoredPathIdentity } from "../contract/resource-path.ts";
-import type { GrantExemption, LivenessMessages } from "../lib/grant-liveness.ts";
-import { isFileExact, livenessFindings } from "../lib/grant-liveness.ts";
+import { deadExactFindings, isFileExact } from "../lib/grant-liveness.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 /** Every runner config carrying a file-SELECTION list. Findings with no config of their own anchor on the
@@ -96,27 +92,12 @@ const PLAYWRIGHT_CONFIGS: readonly (readonly [StaticConfigResourceId, string])[]
  *  over the exact ones, so it can guard the very arm that judges the exact/glob classifier. */
 const REAL_CONFIG_MIN_CANDIDATES = 40;
 
-/** Empty but ARMED at mint — every file-exact runner path resolves today (#1012 repointed the last dead
- *  one). The two-sided machinery is shared (lib/grant-liveness.ts) and proven by the sibling gates' pins;
- *  a row added here inherits both arms automatically. */
-const EXEMPT: ExemptionTable<GrantExemption> = {};
-
-const MESSAGES: LivenessMessages = {
-  dead:
-    "a FILE-EXACT path in a test-runner config's `include`/`exclude`/`testDir`/`globalSetup` names nothing " +
-    "on the tree — the row is DEAD, and a runner never says so: vitest silently drops a non-matching entry, " +
-    "so the file it was routing runs in the WRONG LANE (or not at all) and nothing goes red. #1018's " +
-    "founding case: a SERIAL_INT row left behind by a rename put the repo's heaviest suite (17.6 min) into " +
-    "the parallel lane for months. The finding token is the dead path — see tooling/src/verify/gates/runner-config-path-liveness.ts.",
-  staleExempt:
-    "a runner-config-path-liveness EXEMPT row forgives a path no runner config carries any more — a standing " +
-    "exemption for a row that is gone is a LOADED GUN. Delete the row from EXEMPT in " +
-    "tooling/src/verify/gates/runner-config-path-liveness.ts.",
-  deadCite:
-    "a runner-config-path-liveness EXEMPT row's `cite` no longer resolves — the producer that justified the " +
-    "exemption moved or was deleted. Re-derive the cite, or delete the row from EXEMPT in " +
-    "tooling/src/verify/gates/runner-config-path-liveness.ts.",
-};
+const MESSAGE_DEAD =
+  "a FILE-EXACT path in a test-runner config's `include`/`exclude`/`testDir`/`globalSetup` names nothing " +
+  "on the tree — the row is DEAD, and a runner never says so: vitest silently drops a non-matching entry, " +
+  "so the file it was routing runs in the WRONG LANE (or not at all) and nothing goes red. #1018's " +
+  "founding case: a SERIAL_INT row left behind by a rename put the repo's heaviest suite (17.6 min) into " +
+  "the parallel lane for months. The finding token is the dead path — see tooling/src/verify/gates/runner-config-path-liveness.ts.";
 
 const MSG_NO_ROWS =
   "the test-runner configs resolved but ZERO file-exact rows were derived from an anchor-sized value set — " +
@@ -234,9 +215,8 @@ interface Resolved {
 /** Judge each row's IDENTITY through the `authored-path` door, reporting the two verdicts that are not a
  *  liveness question (containment, and an identity the door could not decide) plus the field-specific
  *  file-vs-directory rule, and hand the rest to the shared reconciler. */
-function resolveRows(ctx: GatePolicyContext, rows: readonly RunnerRow[], cites: readonly string[]): Resolved {
-  const demanded = [...rows.map((row) => row.selector), ...cites];
-  const index = readyResourceValue(ctx.resources.authoredPaths(demanded));
+function resolveRows(ctx: GatePolicyContext, rows: readonly RunnerRow[]): Resolved {
+  const index = readyResourceValue(ctx.resources.authoredPaths(rows.map((row) => row.selector)));
   const bySelector = new Map<string, AuthoredPathIdentity>(index.identities.map((identity) => [identity.selector, identity]));
   const present = new Set(
     index.identities
@@ -273,32 +253,27 @@ function resolveRows(ctx: GatePolicyContext, rows: readonly RunnerRow[], cites: 
   return { live, present };
 }
 
-function reportLiveness(ctx: GatePolicyContext, live: Resolved["live"], present: ReadonlySet<string>, anchorOk: boolean): void {
-  const findings: readonly Finding[] = livenessFindings({
+function reportLiveness(ctx: GatePolicyContext, live: Resolved["live"], present: ReadonlySet<string>): void {
+  const findings = deadExactFindings({
     exact: live.map((row) => ({ file: row.file, path: row.path, line: row.line })),
-    exempt: EXEMPT,
-    exemptAnchorFile: VITEST_REL,
-    anchorOk,
-    messages: MESSAGES,
+    message: MESSAGE_DEAD,
     exists: (path) => present.has(path),
   });
   // The DEAD findings come back in `exact` order, so they are consumed IN ORDER against the same predicate
   // the shared reader applied. A lookup BY PATH would be wrong on the shape this gate exists for: one named
   // const spread into two execution groups produces two findings with the SAME path, and both would inherit
   // the first site's provenance — a message telling the reader to repair the wrong row.
-  const deadRows = live.filter((row) => EXEMPT[row.path] === undefined && !present.has(row.path));
+  const deadRows = live.filter((row) => !present.has(row.path));
   let deadIndex = 0;
   for (const finding of findings) {
-    if (finding.message !== MESSAGES.dead) {
-      ctx.report.file(finding.file, { line: 1, column: 1, token: finding.token ?? "", message: finding.message ?? MESSAGES.dead });
-      continue;
-    }
     const row = deadRows[deadIndex];
     deadIndex += 1;
-    if (row === undefined) {
-      throw new Error(`the shared liveness reader produced more dead rows than this policy derived (${String(findings.length)} vs ${String(deadRows.length)})`);
+    if (row === undefined || finding.token !== row.path) {
+      throw new Error(
+        `the shared liveness reader's dead-row identity/order disagrees with this policy (${String(findings.length)} findings vs ${String(deadRows.length)} rows)`,
+      );
     }
-    reportRow(ctx, row, withProvenance(MESSAGES.dead, row));
+    reportRow(ctx, row, withProvenance(MESSAGE_DEAD, row));
   }
 }
 
@@ -354,13 +329,12 @@ export const gate = defineGate({
     { kind: "static-config", id: "ct" },
     { kind: "authored-path" },
   ],
-  message: MESSAGES.dead,
+  message: MESSAGE_DEAD,
   fix:
     "re-point the row at the file's new path (a rename is a COUPLED SITE: the runner config moves with the " +
     "file), or delete it if the file is gone. A named const may spread the same path into several execution " +
-    "groups, so repair every reported site. If a path is legitimately absent on a clean checkout, add a row to " +
-    "EXEMPT in tooling/src/verify/gates/runner-config-path-liveness.ts with its `why` + END CONDITION and " +
-    "the `cite` that proves it.",
+    "groups, so repair every reported site. If a path is deliberately absent on a clean checkout, express the " +
+    "intended population with the runner's supported pattern syntax rather than a dead exact selector.",
   create: (ctx) => ({
     evaluate: () => {
       const candidates = collectCandidates(ctx);
@@ -375,9 +349,8 @@ export const gate = defineGate({
         readyResourceValue(ctx.resources.authoredPaths([VITEST_REL]));
         return;
       }
-      const cites = Object.values(EXEMPT).map((row) => row.cite);
-      const resolved = resolveRows(ctx, candidates.exact, cites);
-      reportLiveness(ctx, resolved.live, resolved.present, anchorOk);
+      const resolved = resolveRows(ctx, candidates.exact);
+      reportLiveness(ctx, resolved.live, resolved.present);
     },
   }),
   mustFlag: [

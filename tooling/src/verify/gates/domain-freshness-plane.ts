@@ -67,7 +67,6 @@
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionRow } from "../contract/gate.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumnIdentity, SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
@@ -77,6 +76,11 @@ import { drizzleSchemaFact } from "../lib/schema-fact.ts";
  *  other value names the plane and, for a plane whose PRODUCER lives in another domain, says whose. */
 type FreshnessPlane = "chat-bus" | `user-bus:${string}` | `own-bus:${string}` | "domain-events" | "workload-events" | "notifications-inbox" | "none";
 
+/** A cited freshness classification and the condition that ends it. */
+interface FreshnessRationale {
+  readonly why: string;
+}
+
 /** The OTHER audience plane: whether an owner-plane edit of this domain's entities reaches the ROOMS those
  *  entities are seated in (the entity→room bridge, `docs/design/entity-room-member-freshness-bridge.md`).
  *  Three arms, and the SEATED derivation decides which are legal for a given domain:
@@ -85,14 +89,14 @@ type FreshnessPlane = "chat-bus" | `user-bus:${string}` | `own-bus:${string}` | 
  *    • `seated-exempt` — the schema DOES seat this domain's rows in rooms, and there is a cited reason no
  *      room fan is owed. Legal ONLY for a domain the SEATED derivation finds; a stale one is RED.
  *    • `none` — not room-seated at all. Illegal for a seatable domain: that is SEATED-red, the whole point.
- *  `why` carries the cite AND the end condition on both non-bridge arms (`ExemptionRow`, widened never
- *  re-spelled); the `bridge` arm needs none — its receipt is the resolver the tsc belt forces to exist. */
-type RoomReach = { readonly lane: "bridge"; readonly entity: RoomEntityKind } | (ExemptionRow & { readonly lane: "seated-exempt" | "none" });
+ *  `why` carries the cite AND the end condition on both non-bridge arms; the `bridge` arm needs none — its
+ *  receipt is the resolver the tsc belt forces to exist. */
+type RoomReach = { readonly lane: "bridge"; readonly entity: RoomEntityKind } | (FreshnessRationale & { readonly lane: "seated-exempt" | "none" });
 
 /** A row is `{ plane, roomReach, why }` — `why` is the CITE (the emit site, or the reason a write needs no
- *  plane, with the condition that would end it). `ExemptionRow` is widened by intersection, never
- *  re-spelled. `roomReach` is REQUIRED: every one of the rows below had to declare on the day it landed. */
-type FreshnessRow = ExemptionRow & { readonly plane: FreshnessPlane; readonly roomReach: RoomReach };
+ *  plane, with the condition that would end it). `roomReach` is REQUIRED: every one of the rows below had
+ *  to declare on the day it landed. */
+type FreshnessRow = FreshnessRationale & { readonly plane: FreshnessPlane; readonly roomReach: RoomReach };
 
 /** THE REGISTRY. Every mutating domain, its plane, and the receipt. Derived rows were read off the tree
  *  2026-08-14 (`emitUserEvent`/`emitChatEvent`/`emitWiEvent`/`emitBus`/`emit` call sites per domain). */
@@ -364,7 +368,7 @@ const ROOM_DOMAIN = "chat";
 /** Schema files whose tables a chat-anchored table FKs but which have NO same-named domain, so the seating
  *  cannot be attributed. TOTAL: an unrowed one is RED (never silently un-seatable), and a row whose file is
  *  no longer referenced from a chat-anchored table is RED too. */
-const UNSEATABLE_SCHEMA: Readonly<Record<string, ExemptionRow>> = {
+const UNSEATABLE_SCHEMA: Readonly<Record<string, FreshnessRationale>> = {
   users: {
     why:
       "`chat_participants`/`chats`/`messages`/… all FK `users.id`, but the identity root has NO member-visible " +

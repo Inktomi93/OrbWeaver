@@ -85,8 +85,24 @@ export interface LivenessInput {
   readonly messages: LivenessMessages;
 }
 
-function existenceOracle(input: Pick<LivenessInput, "root" | "exists">): (path: string) => boolean {
+interface ExistenceInput {
+  readonly root?: string;
+  readonly exists?: (path: string) => boolean;
+}
+
+function existenceOracle(input: ExistenceInput): (path: string) => boolean {
   return input.exists ?? ((path): boolean => existsSync(join(input.root ?? "", path)));
+}
+
+interface DeadExactInput extends ExistenceInput {
+  readonly exact: readonly ExactRow[];
+  readonly message: string;
+}
+
+/** DEAD findings for already-extracted file-exact rows, with no exemption domain. */
+export function deadExactFindings(input: DeadExactInput): Finding[] {
+  const exists = existenceOracle(input);
+  return input.exact.filter((row) => !exists(row.path)).map((row) => ({ file: row.file, line: row.line, column: 0, token: row.path, message: input.message }));
 }
 
 /** The two-sided EXEMPT arms — runs only when the caller's real-tree anchor holds (`input.anchorOk`). */
@@ -112,11 +128,13 @@ function exemptionArms(input: LivenessInput, exactPaths: ReadonlySet<string>): F
  *  against the whole exact set (a row exact in ANY scanned config keeps its exemption live). */
 export function livenessFindings(input: LivenessInput): Finding[] {
   const { exact, exempt, anchorOk, messages } = input;
-  const exists = existenceOracle(input);
   const exactPaths = new Set(exact.map((r) => r.path));
-  const dead: Finding[] = exact
-    .filter((r) => exempt[r.path] === undefined && !exists(r.path))
-    .map((r) => ({ file: r.file, line: r.line, column: 0, token: r.path, message: messages.dead }));
+  const dead = deadExactFindings({
+    ...(input.root === undefined ? {} : { root: input.root }),
+    ...(input.exists === undefined ? {} : { exists: input.exists }),
+    exact: exact.filter((row) => exempt[row.path] === undefined),
+    message: messages.dead,
+  });
   return [...dead, ...(anchorOk ? exemptionArms(input, exactPaths) : [])];
 }
 
