@@ -55,11 +55,16 @@
 // THROW at the POPULATION phase, withholding this owner before `create` runs (guide §11 ruling 3). That is
 // the honest successor of the legacy `existsSync(MAIN)` early return AND of its "CSS topology anchor
 // missing" arm, both of which answered a gutted tree with a silent clean. This module therefore owns no
-// not-ready branch and reads through `readyResourceValue`. `mustRefuse` pins the two reachable shapes; the
-// receipt set is pinned in tests/tooling/verify/gates/css-home-topology-family.test.ts, which a row cannot
-// express.
+// not-ready branch and reads through `readyResourceValue`. `mustRefuse` pins THREE shapes — a vanished
+// `exact-file` anchor, and BOTH reachable statuses of `product-css`: `missing` (a product stylesheet gone)
+// and `malformed` (one the shared parser refuses before parsing, #2294; a half-read sheet would otherwise
+// feed the graph walk a truncated statement set and the arm would report an incomplete graph about a sheet
+// nobody could read). The receipt set is pinned in
+// tests/tooling/verify/gates/css-home-topology-family.test.ts, which a row cannot express.
 //
-// DECLARED LIMITS: the CT-boot text arm above, pinned by `mustFlag[0]` and the clean `mustPass[1]`.
+// DECLARED LIMITS: the CT-boot text arm above, pinned by `mustFlag[0]` and the clean `mustPass[1]`. Its
+// COMMENT-BLANKING narrowing — a commented-out import is not an import — is `mustPass[2]` (#2294; measured
+// unenforced by cut p12 before that row existed, and the row dies under it).
 import { posix } from "node:path";
 import type { SourceFile } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
@@ -454,6 +459,17 @@ export const gate = defineGate({
       files: TOPOLOGY_FIXTURE,
       why: "one shared ordered entry reaches all five CSS homes, derives a product source root, and adds only tests for CT",
     },
+    {
+      mode: "resource",
+      files: { ...TOPOLOGY_FIXTURE, [CT_BOOT]: `import "${CT_STYLES_SPECIFIER}";\n// import "../packages/client/src/styles/globals.css";\n` },
+      // THE §4.1 PIN FOR `textSpecifiers`' COMMENT BLANKING, which the fresh verifier measured UNENFORCED
+      // (cut p12, `blankTsCommentsInText(text)` → `text`: 0 rows died) while the function's own doc comment
+      // claims "a commented-out import is never a specifier". Nothing else in the proof set carries a
+      // comment in the CT boot, so no row could reach the narrowing. This is the arm the TEXT-arm limit
+      // rests on: the boot is read as bytes, so what counts as an import is this module's decision, and a
+      // reader that took a commented import literally would report a compliant boot.
+      why: "a COMMENTED-OUT product stylesheet import in the CT boot is not an import — the narrowing the text arm's honesty rests on, and the row that dies when the blanker is cut",
+    },
   ],
   mustRefuse: [
     {
@@ -473,6 +489,18 @@ export const gate = defineGate({
       // incomplete".
       expect: { messageIncludes: "product-css is missing" },
       why: "a missing product stylesheet refuses the five-home identity instead of being reported as an incomplete graph",
+    },
+    {
+      mode: "resource",
+      files: { ...TOPOLOGY_FIXTURE, "packages/ui/src/styles/theme.css": ":root {\n" },
+      // `product-css`'s SECOND reachable status (#2294). `ops/resource-tree.ts#blockProblem` refuses a sheet
+      // the shared parser cannot read BEFORE parsing it, so an unclosed rule block is `malformed`, not
+      // `missing` — a different arm of the same union, and a pin on one says nothing about the other. It
+      // matters here because the graph walk reads STATEMENT facts: a half-parsed sheet would contribute a
+      // truncated `@import` set and the arm would report an "incomplete graph" about a sheet nobody could
+      // read.
+      expect: { messageIncludes: "product-css is malformed: unsupported or malformed CSS in packages/ui/src/styles/theme.css" },
+      why: "a product stylesheet the shared parser cannot read refuses the five-home identity at the population phase, rather than being walked as a truncated import graph",
     },
   ],
 });
