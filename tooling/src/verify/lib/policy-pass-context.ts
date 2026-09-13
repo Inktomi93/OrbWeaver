@@ -11,6 +11,7 @@ import type {
   GatePolicyNodeFindingDetails,
 } from "../contract/policy.ts";
 import type { PolicyFactValueRegistry, PolicySemanticReceipt } from "../contract/policy-pass.ts";
+import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { GatePolicyReceipt } from "../contract/policy-primitives.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
@@ -233,7 +234,7 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     files.map((candidate) => {
       const path = input.paths.get(candidate.compilerNode);
       if (path === undefined) {
-        throw new Error(`source file is outside the policy root: ${candidate.getFilePath()}`);
+        throw new Error(`${POLICY_PASS_REFUSALS.sourceOutsidePolicyRoot}: ${candidate.getFilePath()}`);
       }
       return [candidate.compilerNode, path];
     }),
@@ -246,7 +247,7 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
   const relativePath = (candidate: SourceFile): string => {
     const path = pathByIdentity.get(candidate.compilerNode);
     if (path === undefined) {
-      throw new Error(`source file is outside the effective population: ${candidate.getFilePath()}`);
+      throw new Error(`${POLICY_PASS_REFUSALS.sourceOutsidePopulation}: ${candidate.getFilePath()}`);
     }
     return path;
   };
@@ -254,7 +255,7 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     assertRepoPathIdentity(path, "sourceFile path");
     const found = paths.get(path);
     if (found === undefined) {
-      throw new Error(`sourceFile path is absent or outside the effective population: ${path}`);
+      throw new Error(`${POLICY_PASS_REFUSALS.sourcePathOutsidePopulation}: ${path}`);
     }
     return found;
   };
@@ -277,7 +278,7 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     sourceFile,
     checker: () => {
       if (input.analysis === "syntax") {
-        throw new Error(`syntax owner ${input.ownerId} cannot access the type checker`);
+        throw new Error(`syntax owner ${input.ownerId} ${POLICY_PASS_REFUSALS.syntaxOwnerChecker}`);
       }
       return input.checker();
     },
@@ -356,14 +357,14 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const relativePath = (candidate: SourceFile): string => {
     const home = declarationHome(capability.context, candidate);
     if (!deliveredPaths.has(home)) {
-      throw new Error(`source file is outside the effective population: ${candidate.getFilePath()}${factWidening(home, POPULATION_DOOR.relativePath)}`);
+      throw new Error(`${POLICY_PASS_REFUSALS.sourceOutsidePopulation}: ${candidate.getFilePath()}${factWidening(home, POPULATION_DOOR.relativePath)}`);
     }
     return capability.context.relativePath(candidate);
   };
   const sourceFile = (path: string): SourceFile => {
     assertRepoPathIdentity(path, "sourceFile path");
     if (!deliveredPaths.has(path)) {
-      throw new Error(`sourceFile path is absent or outside the effective population: ${path}${factWidening(path, POPULATION_DOOR.sourceFile)}`);
+      throw new Error(`${POLICY_PASS_REFUSALS.sourcePathOutsidePopulation}: ${path}${factWidening(path, POPULATION_DOOR.sourceFile)}`);
     }
     return capability.context.sourceFile(path);
   };
@@ -405,7 +406,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   const reportFile = (path: string, rawDetails?: GatePolicyFileFindingDetails): void => {
     assertRepoPathIdentity(path, "finding file");
     if (!effectivePaths.has(path)) {
-      throw new Error(`finding file is outside the effective population: ${path}${factWidening(path, POPULATION_DOOR.reportFile)}`);
+      throw new Error(`${POLICY_PASS_REFUSALS.findingOutsidePopulation}: ${path}${factWidening(path, POPULATION_DOOR.reportFile)}`);
     }
     const details = rawDetails ?? {};
     exactKeys(details, FILE_DETAIL_KEYS, "file finding");
@@ -420,17 +421,17 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   };
   const fact = <Fact extends GateFact>(provider: Fact): GateFactValue<Fact> => {
     if (!input.policy.facts.includes(provider)) {
-      throw new Error(`policy ${input.policy.id} requested undeclared fact ${provider.id}`);
+      throw new Error(`policy ${input.policy.id} ${POLICY_PASS_REFUSALS.factUndeclared} ${provider.id}`);
     }
     const value = input.factValues.get(provider);
     if (value === undefined) {
-      throw new Error(`declared fact is absent from this pass: ${provider.id}`);
+      throw new Error(`${POLICY_PASS_REFUSALS.factAbsent}: ${provider.id}`);
     }
     if (value.status === "pending") {
-      throw new Error(`declared fact is not finished: ${provider.id}`);
+      throw new Error(`${POLICY_PASS_REFUSALS.factNotFinished}: ${provider.id}`);
     }
     if (value.status === "failed") {
-      throw new Error(`declared fact failed: ${provider.id}: ${value.message}`);
+      throw new Error(`${POLICY_PASS_REFUSALS.factFailed}: ${provider.id}: ${value.message}`);
     }
     consumedFacts.add(provider);
     return value.value as GateFactValue<Fact>;

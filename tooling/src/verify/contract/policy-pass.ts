@@ -19,7 +19,15 @@ export type GateFactPhase = (typeof GATE_FACT_PHASES)[number];
  *  `messageIncludes` is nothing but one of them — a row naming `"resolved zero members"` holds on EVERY receipt
  *  refusal of every policy and discriminates nothing (§4.5b). The policy-AUTHORED slots (a receipt source, a fact
  *  id, a resource identity, a path) are what a row must name, and they are deliberately not here. Same bytes as
- *  before the extraction: every test asserting these by literal still holds. */
+ *  before the extraction: every test asserting these by literal still holds.
+ *
+ *  THE EMITTER LIST ABOVE WAS A CLAIM BEFORE IT WAS A FACT (#2155 item 2). `lib/policy-pass-context.ts` was
+ *  named here while holding ZERO references to this table — eleven refusal sentences spelled by literal beside
+ *  it, one of them (`source file is outside the policy root`) with no key at all and a twin in
+ *  `lib/policy-pass.ts`. Both now compose, the missing sentence is `sourceOutsidePolicyRoot`, and the claim is
+ *  held by a census rather than by this sentence: `tests/tooling/verify/lib/policy-refusal-envelope.test.ts`
+ *  requires every `throw new Error(...)` in that pair to be composed from this table or one of its declared
+ *  INVARIANT refusals, two-sided, with a planted literal as the control. Add a sentence here, compose it there. */
 export const POLICY_PASS_REFUSALS = Object.freeze({
   populationUnresolved: "population has not resolved",
   emptyIntersection: "requested selection has an empty policy intersection",
@@ -44,6 +52,10 @@ export const POLICY_PASS_REFUSALS = Object.freeze({
   resourcesUnconsumedPaths: "declared resource population has unconsumed paths",
   resourcesUnconsumedRequests: "declared resource population has unconsumed requests",
   policyReceiptRefused: "policy receipt refused",
+  /** The ROOT door, one layer below the population door beside it: a file the pass never mapped at all,
+   *  refused identically by the dispatcher (`lib/policy-pass.ts`) and by the capability context. Keyed at #2155
+   *  because two emitters spelled the same sentence and neither read this table. */
+  sourceOutsidePolicyRoot: "source file is outside the policy root",
   sourceOutsidePopulation: "source file is outside the effective population",
   sourcePathOutsidePopulation: "sourceFile path is absent or outside the effective population",
   findingOutsidePopulation: "finding file is outside the effective population",
