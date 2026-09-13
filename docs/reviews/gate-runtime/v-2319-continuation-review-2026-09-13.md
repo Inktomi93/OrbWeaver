@@ -131,6 +131,21 @@ The chrome and home continuation also holds under full source comparison with th
 - `git diff --name-only b072f59fa` lists only the replay test and its report. The shared differential harness and gate
   implementations are unchanged.
 
+## Checkpoint correction and C4 warm recheck
+
+The source-only **CONFIRMED** verdict above was incomplete and is **superseded for checkpoint `7cad620a9`** by
+R-2319-1 / #2338. `MODAL_ROWS[1]` observed only the common 46-character policy-message prefix and classified the
+imported modal-body example as `anchor-move`. The frozen reader actually reports an unreadable imported initializer,
+while the final reader resolves that initializer and reports the `Placeholder body` arm. The correct semantic
+classification is `stronger-reader`; the shared prefix hid that arm change.
+
+The current uncommitted C4 repair is **CONFIRMED in source**. Both modal-body final rows now use the closed
+`armLabel` vocabulary. Row 0 remains an anchor move on the same placeholder catch; row 1 names `Placeholder body` and
+declares a stronger-reader successor. A constructed wrong-arm control preserves the same file, line and token while
+changing the initializer to an unresolved builder, proves that the former 46-character label aliases the two arms,
+and proves that the exact successor rejects `Unreadable definition`. No runtime test was executed in this recheck;
+the primary retains that floor.
+
 ## Precise limits
 
 This reviewer did not independently run tests because the primary retained the serial verification floor. I read the

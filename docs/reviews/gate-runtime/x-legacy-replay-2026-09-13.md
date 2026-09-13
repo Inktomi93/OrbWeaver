@@ -428,17 +428,30 @@ withheld receipt on the final ORIGINAL side throughout, which is the point of th
 | # | Legacy example | Legacy | Final on twin | Pop L → twin | Class | Successor |
 | -: | - | -: | -: | - | - | - |
 | 0 | `mustFlag[0]` function body rendering `<SectionPlaceholder>` | 1 @ `theme-modal.tsx:1` token `"themeModal"` | 1 @ `:3` token `themeModal` | 1 → 3 | **anchor-move** | `themeModal` |
-| 1 | `mustFlag[1]` the #944 control — body in an IMPORTED object | 1 @ `x-modal.tsx:2`, whole reason in the token | 1 @ `:4` token `xModal` | 1 → 4 | **anchor-move** | `xModal` |
+| 1 | `mustFlag[1]` the #944 control — body in an IMPORTED object | 1 @ `x-modal.tsx:2`, unreadable definition in the token | 1 @ `:4` token `xModal`, **Placeholder body** arm | 1 → 4 | **stronger-reader** | `Placeholder body` |
 | 2 | `mustPass[0]` DECLARED-PLANNED (object literal, not a function) | 0 | 0 | 1 → 3 | vacuous-both-zero | — |
 | 3 | `mustPass[1]` a REAL body, no placeholder | 0 | 0 | 1 → 3 | vacuous-both-zero | — |
 | 4 | `mustPass[2]` SAME-FILE indirection | 0 | 0 | 1 → 3 | vacuous-both-zero | — |
 | 5 | `mustPass[3]` a whole-literal `satisfies` wrapper | 0 | 0 | 1 → 3 | vacuous-both-zero | — |
 
-**Both catches are CARRIED.** The classification is `anchor-move` and the receipt distinguishes its two
-components honestly: **the LINE delta (1 → 3, 2 → 4) is the twin's own two-line prepend and is NOT a
-conversion anchor move**; the TOKEN change is. The legacy descriptor synthesised a quoted `"themeModal"`
-and packed row 1's entire explanation into the token; the final policy anchors on the bare identifier and
-puts the reason in the message.
+**Both rows still report, but their arms differ.** Row 0 carries the placeholder catch with a declared-name
+anchor. Row 1 is **stronger-reader**: legacy cannot read the imported definition, while final resolves the
+object and judges its actual placeholder body. Root's independent integration review caught the previous
+`anchor-move` misclassification at `7cad620a9`; the shared 46-character message prefix hid the arm change.
+The token change remains a secondary anchor delta. **The line delta (1 → 3, 2 → 4) is the twin's own
+two-line prepend, not a conversion anchor move.**
+
+The table now asserts the exact **Placeholder body** arm. A permanent discriminating control replaces only
+the imported initializer with a declared builder: final still reports once at the same file, line and token,
+with the same old message prefix, but its arm is **Unreadable definition**. The exact label distinguishes
+the two results and the checked `Placeholder body` successor rejects the builder result. This is a constructed
+cut, not another legacy example; all six original rows and their inertness assertions remain intact.
+
+**#2338 repair receipts (2026-09-13):** focused replay **13/13**; the planted builder cut in the replay's
+final-side input failed exactly row 1 at its final-arm assertion (**1 failed, 12 passed**), preserving count,
+file, line, token and the former prefix; restored seven-importer floor **7 files / 50 tests**. Logs:
+`/tmp/codex-2319-c4-green.log`, `/tmp/codex-2319-c4-wrong-arm-red.log`, and
+`/tmp/codex-2319-c4-seven.log`. The permanent arm-discrimination control passed in both green runs.
 
 **Two controls per row, both asserted:** the twin is INERT on the legacy side (unlined), and the twin
 ALONE reports nothing — here STRONGER than "no findings", because without the subject it cannot resolve a

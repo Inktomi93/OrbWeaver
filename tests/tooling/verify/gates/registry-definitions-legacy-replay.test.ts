@@ -114,7 +114,6 @@ function modalTwin(files: Files): { readonly add: Files; readonly prepend: Reado
 const SUBJECT_THEME = "packages/client/src/features/settings/lib/theme-modal.tsx";
 const SUBJECT_X = "packages/client/src/features/x/lib/x-modal.tsx";
 const LEGACY_MSG = "a ModalDefinition is unreadable or dishonest: ";
-const FINAL_MSG = "a ModalDefinition is unreadable or dishonest: ";
 
 /** One row of the module's table: the legacy verdict on the ORIGINAL bytes, the final verdict on the TWIN,
  *  both populations, the classification and its successor. */
@@ -132,7 +131,7 @@ const MODAL_ROWS: readonly ModalRow[] = [
     why: "mustFlag[0] a ModalDefinition function body rendering <SectionPlaceholder> — the founding catch",
     legacy: [`legacy | ${SUBJECT_THEME}:1 | "themeModal" | ${LEGACY_MSG}`],
     legacyPopulation: 1,
-    finalOnTwin: [`modal-body-not-placeholder | ${SUBJECT_THEME}:3 | themeModal | ${FINAL_MSG}`],
+    finalOnTwin: [`modal-body-not-placeholder | ${SUBJECT_THEME}:3 | themeModal | Placeholder body`],
     twinPopulation: 3,
     // THE CATCH IS CARRIED — same file, same subject, and the TOKEN moved from the quoted `"themeModal"` the
     // legacy descriptor synthesised to the bare identifier the final policy anchors on. The LINE delta (1 → 3)
@@ -145,11 +144,12 @@ const MODAL_ROWS: readonly ModalRow[] = [
       `legacy | ${SUBJECT_X}:2 | "xModal" — unreadable definition: the identifier \`def\` (not an object literal declared in this file — an imported or re-exported definition) | ${LEGACY_MSG}`,
     ],
     legacyPopulation: 1,
-    finalOnTwin: [`modal-body-not-placeholder | ${SUBJECT_X}:4 | xModal | ${FINAL_MSG}`],
+    finalOnTwin: [`modal-body-not-placeholder | ${SUBJECT_X}:4 | xModal | Placeholder body`],
     twinPopulation: 4,
-    // Carried, and the fail-closed arm still fires. The legacy descriptor packed its whole explanation into
-    // the TOKEN; the final policy puts the identity in the token and the reason in the message.
-    claim: { classification: "anchor-move", successor: "xModal" },
+    // Legacy could not read the imported definition. Final resolves it and reaches the actual placeholder
+    // body: a stronger reader, not the same fail-closed arm. The token change is a secondary anchor delta;
+    // the two-line import prepend is solely a twin artifact.
+    claim: { classification: "stronger-reader", successor: "Placeholder body" },
   },
   {
     why: "mustPass[0] the DECLARED-PLANNED arm (object literal, not a function) — silent on both engines",
@@ -221,7 +221,7 @@ test("§4.6 — modal-body-not-placeholder: every legacy example replayed agains
     expect(alone.toolErrors.length, `${tag} — and it cannot even resolve a population without the subject`).toBeGreaterThan(0);
 
     // THE FINAL SIDE, on the twin.
-    const after = differential.finalReplay([modalBodyNotPlaceholder], twin, label);
+    const after = differential.finalReplay([modalBodyNotPlaceholder], twin, armLabel);
     expect(after.findings, `${tag} — FINAL findings on the twin`).toEqual(row.finalOnTwin);
     expect(after.population, `${tag} — FINAL population: the subject plus the twin's declared prerequisites`).toBe(row.twinPopulation);
     expect(after.toolErrors, `${tag} — the twin resolves the population, so the final side is NOT withheld`).toEqual([]);
@@ -231,6 +231,36 @@ test("§4.6 — modal-body-not-placeholder: every legacy example replayed agains
       `${tag} — the "${row.claim.classification}" label and its successor`,
     ).toEqual([]);
   }
+});
+
+test("§4.6 — imported modal body distinguishes a resolved placeholder from an unreadable definition at the same position", {
+  timeout: scaledBudget(300_000),
+}, async ({ scratch }) => {
+  const differential = createDifferential("/registry-modal-body-arm", toolErrorCode);
+  const legacy = await frozenLegacyGate(scratch, MODAL_BASE, MODAL_PATH);
+  const base = legacyScenarios(legacy, FALLBACK)[1] as Files;
+  const twin = repairedFiles(base, modalTwin(base));
+  const wrongArm: Files = {
+    ...twin,
+    [SUBJECT_X]: `${(twin[SUBJECT_X] as string).replace("= def;", "= buildModal();")}declare function buildModal(): ModalDefinition;\n`,
+  };
+  const before = differential.legacyReplay(legacy, base, label);
+  const resolved = differential.finalReplay([modalBodyNotPlaceholder], twin, armLabel);
+  const unreadable = differential.finalReplay([modalBodyNotPlaceholder], wrongArm, armLabel);
+  expect(resolved.toolErrors).toEqual([]);
+  expect(unreadable.toolErrors).toEqual([]);
+  expect(resolved.findings).toEqual([`modal-body-not-placeholder | ${SUBJECT_X}:4 | xModal | Placeholder body`]);
+  expect(unreadable.findings).toEqual([`modal-body-not-placeholder | ${SUBJECT_X}:4 | xModal | Unreadable definition`]);
+  // The old 46-character label makes these different verdicts indistinguishable, even at identical count,
+  // file, line and token. The exact arm and checked successor must reject this otherwise invisible cut.
+  expect(differential.finalReplay([modalBodyNotPlaceholder], twin, label).findings).toEqual(
+    differential.finalReplay([modalBodyNotPlaceholder], wrongArm, label).findings,
+  );
+  const claim: DifferentialClaim = { classification: "stronger-reader", successor: "Placeholder body" };
+  expect(differentialViolations(claim, inMemorySide(before), inMemorySide(resolved))).toEqual([]);
+  expect(differentialViolations(claim, inMemorySide(before), inMemorySide(unreadable))).toEqual([
+    'the declared SUCCESSOR "Placeholder body" appears in no final finding or tool error',
+  ]);
 });
 
 // ── SUB-CHUNK 2 — `modal-registry-completeness` and `placeholder-copy-registry`, TABLED ───────────────
@@ -250,6 +280,7 @@ test("§4.6 — modal-body-not-placeholder: every legacy example replayed agains
 
 /** The arms each final policy can report, as the vocabulary the table is written in. */
 const FINAL_ARMS: readonly string[] = [
+  "Placeholder body:",
   "Not co-located:",
   "Definition outside its home:",
   "Unreadable definition:",
