@@ -36,18 +36,20 @@ test("missing and empty roots are distinct and virtual directories need no disk 
   expect(reader.tree("virtual")).toMatchObject({ status: "ready", members: 2, paths: ["virtual/a", "virtual/a/b.ts"] });
 });
 
-test("raw byte and NUL counts do not depend on UTF8 text decoding", ({ scratch }) => {
+test("raw byte NUL counts and one-based occurrence lines do not depend on UTF8 text decoding", ({ scratch }) => {
   mkdirSync(join(scratch, "bytes"));
-  writeFileSync(join(scratch, "bytes/raw.bin"), Buffer.from([255, 0, 10, 0]));
+  writeFileSync(join(scratch, "bytes/raw.bin"), Buffer.from([255, 0, 0, 10, 0]));
   writeFileSync(join(scratch, "bytes/empty.txt"), "");
   const reader = createResourceReader({ root: scratch });
   expect(reader.tree("bytes")).toMatchObject({
     status: "ready",
     value: [
-      { path: "bytes/empty.txt", bytes: 0, lines: 1, nulBytes: 0 },
-      { path: "bytes/raw.bin", bytes: 4, lines: 2, nulBytes: 2 },
+      { path: "bytes/empty.txt", bytes: 0, lines: 1, nulBytes: 0, nulLines: [] },
+      { path: "bytes/raw.bin", bytes: 5, lines: 2, nulBytes: 3, nulLines: [1, 1, 2] },
     ],
   });
+  const tree = reader.tree("bytes");
+  expect(tree.status === "ready" && tree.value.every((entry) => Object.isFrozen(entry.nulLines))).toBe(true);
   expect(reader.read("bytes/raw.bin").status).toBe("unresolved");
   expect(reader.read("bytes/empty.txt").status).toBe("empty");
 });

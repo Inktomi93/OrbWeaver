@@ -20,6 +20,7 @@ export const AUTHORED_TREE_PATHS = {
   // parasitic on an acquiring declaration and has no population of its own (`resource-text.ts`).
   docs: "docs",
   scripts: "scripts",
+  tooling: "tooling",
 } as const;
 
 export type AuthoredTreeId = keyof typeof AUTHORED_TREE_PATHS;
