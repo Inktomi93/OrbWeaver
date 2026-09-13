@@ -282,18 +282,24 @@ test("detached-work-traced-health: an ABSENT derivation source refuses rather th
 // THE MEASUREMENT THAT RETIRED AN ARM, kept as a pin so the next reader inherits the fact rather than the
 // assumption. `audit-client-tests` shipped a draft out-of-population REFUSAL for a helper whose body lives
 // outside the policy's population. Running it showed the branch UNREACHABLE: an imported identifier's
-// symbol declares an `ImportSpecifier`, which has no body, so `resolveCalleeBody` never leaves the calling
-// file — in the final policy AND in the legacy gate, neither of which calls `getAliasedSymbol`. The arm was
-// deleted; what is actually true is pinned here and as the policy's own `mustPass[9]`.
-test("audit-client-tests: an IMPORTED assertion helper is not followed — the declared limit, measured", () => {
+// symbol declared an `ImportSpecifier`, which has no body, so `resolveCalleeBody` never left the calling
+// file — in the final policy AND in the legacy gate, neither of which called `getAliasedSymbol`.
+//
+// THE MECHANISM CHANGED AND THE VERDICT DID NOT (#2163, the shared-reader migration). `resolveCalleeBody`
+// now asks `lib/reference-fact-call.ts#resolveCallableDeclaration`, which DOES follow the import to
+// `outside.ts` and returns its body; the policy declines it at an explicit source-file FENCE, because a
+// cross-file body would make a `selected-files` verdict depend on a file the request need not contain.
+// So the same one finding is asserted here for a different reason, and the fence — unlike the reader
+// weakness it replaced — is falsifiable: the policy's own `mustFlag[8]` reds when it is cut.
+test("audit-client-tests: an IMPORTED assertion helper is not followed — the declared limit, now a FENCE", () => {
   const result = passOf(auditClientTests, {
     "tests/support/outside.ts": "export function expectOk(x: number): void {\n  expect(x).toBeGreaterThan(0);\n}\n",
     "tests/tooling/helper-outside.test.ts": 'import { expectOk } from "../support/outside.ts";\ntest("asserts elsewhere", () => {\n  expectOk(1);\n});\n',
   });
 
   // No refusal, and no silence either: the policy renders its ordinary verdict, which is that this test
-  // carries no assertion it can see. A future widening (the alias hop) turns this green and owes a
-  // successor proof.
+  // carries no assertion it is willing to look at. A future widening (dropping the fence) turns this
+  // green and owes a successor proof.
   expect(result.toolErrors).toEqual([]);
   expect(result.policies[0]?.findings).toHaveLength(1);
   expect(result.policies[0]?.findings[0]?.token).toBe("test");
