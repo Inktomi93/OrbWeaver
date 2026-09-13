@@ -40479,6 +40479,62 @@
         "summary": "Full-read current review; lane p-doc-catalog-truth attestation. Nine Verify rows re-verified with fresh eyes (#1331, #1335, #1949, #1996, #2086, #2152, #2145, #2161, #2164), all CONFIRMED, plus eleven ledger rows — L9 is the format --write escape-delta loss this lane fixed. The report is deliberately left UNFORMATTED."
       },
       "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/law-doc-split-proposal-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 140,
+      "bytes": 8767,
+      "sha256": "5df552cf0e499e3645edf031bece5f7cae096452534a2a623fe5410dfe088d43",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/law-doc-split-proposal-2026-09-13.md",
+        "assignedSha256": "5df552cf0e499e3645edf031bece5f7cae096452534a2a623fe5410dfe088d43",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "5df552cf0e499e3645edf031bece5f7cae096452534a2a623fe5410dfe088d43",
+        "verifiedCommit": "c59b72f59d51625f1ba4917bab54fed8031a7366",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "docs/reviews/gate-runtime/law-doc-split-proposal-2026-09-13.md:1",
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+          "docs/design/gate-runtime-standardization.md:49-68,1136-1175,1302-1444,1987-2011 — the four move candidates, line spans measured by this lane",
+          "docs/design/gate-runtime-standardization.md:1167-1174 — the LAW paragraph sitting inside the board-state section, the carve-out this document exists to record"
+        ],
+        "claims": [
+          {
+            "claim": "#2071's 'target well under 800 lines' is unreachable without compressing protections: the movable archaeology, board state and procedure total 228 lines against 2,148, and the only larger spans are the two sections the row itself says the LAW doc keeps.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#2071"
+              }
+            ]
+          },
+          {
+            "claim": "Deleting section 6 as a unit silently strips a live routing rule, because lines 1167-1174 are law inside a section otherwise made of board state.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ],
+        "summary": "Full-read current review; lane p-docs-residue. The #2071 split PLANNED and not executed (no quiet barrier): a 49-sentence dated-worked-case census with its signature, four move candidates with line spans and destinations — three verified, 12.6 explicitly UNVERIFIED with what must be read first — the arithmetic 2,148 - 228 = 1,920, and the 800-line target measured and refused with its reason."
+      },
+      "receiptCurrent": true
     }
   ]
 }
