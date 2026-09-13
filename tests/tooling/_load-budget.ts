@@ -113,7 +113,19 @@ export interface ChildBudgetOpts {
  *  - the child exits 1 (a gate verdict) → its stdout is returned so the caller can read the report;
  *  - the child exits 2/3 (tool failure/misuse) → the fatal status and stderr are thrown, never flattened;
  *  - the child is KILLED by the timeout (contention) → a `loadKillError` is THROWN, so the kill is legible.
- *  Fatal exits throw ordinary errors while timeout kills alone carry LOAD_KILL_MARKER. */
+ *  Fatal exits throw ordinary errors while timeout kills alone carry LOAD_KILL_MARKER.
+ *
+ *  WHERE THE COMMITTED PINS ARE, stated because a verifier receipt has already claimed there are none
+ *  (#2197; the claim was *"Nothing under `tests/` exercises `runCommandWithBudget`'s error path"* on the
+ *  strength of a grep that returns three hits). All four outcomes are pinned in
+ *  `tests/tooling/load-budget.int.test.ts`: the finish arm at `:67-70`, the exit-1 arm at `:76-80`, the
+ *  kill arm at `:54-65`, and the exit-2 arm at `:82-86` — which drives
+ *  `process.stderr.write('fatal'); process.exit(2)` through `runNodeWithBudget` and asserts
+ *  `/exit 2.*fatal/su` against the thrown message, so it can only pass if the child's stderr reaches the
+ *  message. DECLARED LIMIT, so the next reader does not overclaim either: the
+ *  exit-2 arm pins the THROW's text, not the `stdio` triple above it, because node's default already
+ *  captures stderr; deleting the triple leaves that suite green. A pin on the echo suppression would need
+ *  a parent-stream assertion and does not exist. */
 interface CommandBudget {
   readonly command: string;
   readonly args: readonly string[];
@@ -131,11 +143,18 @@ function runCommandWithBudget(run: CommandBudget): string {
       encoding: "utf8",
       maxBuffer: opts.maxBuffer,
       timeout: budgetMs,
-      // #2197: execFileSync's DEFAULT leaves the child's stderr inherited by the parent, so `err.stderr` is
-      // null and the generic-status throw below reports a bare `child exit 2` with the reason discarded into
-      // the vitest stream. A tool error that prints its number and drops its cause is an instrument lying by
-      // omission — it cost a barrier step in archaeology on 2026-09-12. Piping puts the child's own words
-      // into the assertion message; stdout is already piped because the callers read the report from it.
+      // #2197 — THE TRIPLE STAYS; ITS ORIGINAL STATED REASON DID NOT SURVIVE MEASUREMENT (corrected
+      // 2026-09-13, node v26.5.0). This comment used to say *"execFileSync's DEFAULT leaves the child's
+      // stderr inherited by the parent, so `err.stderr` is null"*. It is false: the default is
+      // `["pipe","pipe","pipe"]`, so `err.stderr` is ALREADY a populated string with no `stdio` option at
+      // all, and only `stdio: "inherit"` — which this call site never used — nulls it. Measured three
+      // shapes against one child writing both streams and exiting 2: default → `"fatal-words"` (string),
+      // this triple → `"fatal-words"` (string), `"inherit"` → `null`.
+      // WHAT THE TRIPLE ACTUALLY BUYS, and both are real: `"ignore"` isolates the child's stdin, and
+      // piping fd 2 suppresses node's ECHO of the child's stderr into the vitest stream (visible in the
+      // same measurement — the default run printed `fatal-words` to the parent, this one did not). The
+      // legibility half the row was filed for is the `${label} child exit ${status}: ${stderr}` throw
+      // below, which is what puts the child's own words into the assertion message.
       stdio: ["ignore", "pipe", "pipe"],
     });
   } catch (err) {

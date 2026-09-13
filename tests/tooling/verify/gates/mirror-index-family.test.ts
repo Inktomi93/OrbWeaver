@@ -314,7 +314,41 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
  *
  *  RE-DERIVE, never hand-edit the exception rows: drive the policy exactly as `realTreeMisses` does and
  *  read the printed list. The run costs ~1s because `test-layout` declares `population: { of: "none" }` —
- *  it reads membership, never source text, so an EMPTY project is the honest corpus for it. */
+ *  it reads membership, never source text, so an EMPTY project is the honest corpus for it.
+ *
+ *  THE POST-PARK RECORD (#2270's naming half, written here 2026-09-13 because the class deliberately does
+ *  NOT red on an in-class addition, so growth is auditable ONLY if it is written down). #2142 parked 51
+ *  members at `78a411ab0`; wave-8c measured 53 at `50e31c534`; wave-12b's roster was 57 at `9ad17fb5a`;
+ *  and `pnpm check:structure --check test-layout` at `204607e84` reads **59** (`raw 59 = effective 59`,
+ *  0 tool errors, 0 withheld). The six that took 51 → 57 are named below with the commit that ADDED each
+ *  (`git log --diff-filter=A`), so the +6 is attributable per member rather than through a report that
+ *  ages. All six landed 2026-09-12 — one day — which is the measurement that killed the exact-set pin:
+ *    `a196a35d7`  tests/tooling/verify/gates/bus-payload-family.test.ts
+ *    `2dabae9ce`  tests/tooling/verify/gates/seed-theme-ink-family.test.ts
+ *    `a97454714`  tests/tooling/verify/gates/token-contract-family.test.ts
+ *    `17a59099b`  tests/tooling/verify/gates/css-home-topology-family.test.ts
+ *    `ae7a40e0b`  tests/tooling/verify/gates/real-corpus-liveness-family.repo.int.test.ts
+ *    `61cae0710`  tests/tooling/doc-catalog/ops/catalog-scope.test.ts  — NOT in the class; it is the first
+ *                 `PARKED_EXCEPTIONS` row below, and it is the member that vindicates the roster argument:
+ *                 a bare count would have absorbed it silently.
+ *  So five of the six are the family-test class this program mints per conversion and one is an exception.
+ *  The per-member `git cat-file -e` reconciliation of 51 / 53 / 57 across those three shas is in
+ *  `docs/reviews/gate-runtime/v-wave-12b-2026-09-13.md` §2 and is not restated here.
+ *
+ *  AND IT KEPT GROWING WHILE THIS RECORD WAS BEING WRITTEN, which is the record's own best argument. The
+ *  57 → 59 delta, derived by diffing the roster literal `183e49714` shipped against the tip drive above
+ *  (the literal also carried three overlay FIXTURE paths — `use-thing`, `start-chat`, `snapx/cli` — which
+ *  are not members, so 60 tokens is 57 members):
+ *    `9104f718f`  tests/tooling/verify/gates/css-hook-provenance-family.test.ts   (2026-09-12)
+ *    `158dbdd96`  tests/tooling/verify/gates/no-color-literals-parity.test.ts     (2026-09-13)
+ *  Both are in-class, both entered SILENTLY under the class invariant, and neither reds anything. An
+ *  exact-set pin would have reported them as two red proofs on the lanes that landed them.
+ *
+ *  WHAT THIS RECORD IS NOT: it is not a pin. Nothing above reds when the sixtieth member lands — by design
+ *  (that is the whole point of the class), and the honest consequence is that the next reader RE-DERIVES
+ *  the number with the command named above rather than trusting the one written here. #2142's own body
+ *  still reads 51; a park whose number nothing re-measures is exactly what #2270 was filed for, and
+ *  closing that residue is a board edit, not a code one. */
 const PARKED_CLASS_PATH_PREFIX = "tests/tooling/verify/gates/";
 const PARKED_CLASS_MESSAGE_PREFIX = "mirror miss — no source for tooling/src/";
 
