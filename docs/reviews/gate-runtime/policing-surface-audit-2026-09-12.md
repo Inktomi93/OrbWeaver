@@ -6,6 +6,13 @@ updated: 2026-09-12
 
 # The policing-surface audit — every rule the final contract states × the enforcer that holds it (#2111, #1584)
 
+**Later reconciliation at `4efca6b25` (2026-09-13):** the historical OPEN binding rows for
+`audit-client-tests`, `class-token-splice`, and `plugin-dump-guard` are now CLOSED in
+[the refutation ledger](refutation-ledger-2026-09-12.md). Their shared-reader adoption and discriminating
+controls landed through `46f233e25`; integrated focused suites passed 30/30 and native tooling/root
+programs passed. The original measurements below retain their dated meaning. The separate callable
+module-axis defect and the remaining binding migrations are not closed by this update.
+
 Lane `cb-forge-policing-audit` (forge, owner-authorized 2026-09-12). The owner's question, verbatim: *"make sure that
 one, we have something that is ENFORCING our modern gates to not do anything not in contract, and if it does have
 something that needs added then it gets added; and then our policers that police are set to enforce the various arms

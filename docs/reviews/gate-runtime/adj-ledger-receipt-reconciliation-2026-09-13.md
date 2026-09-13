@@ -6,6 +6,13 @@ updated: 2026-09-13
 
 # Ledger receipt reconciliation at da3f25f63
 
+**Later reconciliation at `4efca6b25` (2026-09-13):** the historical OPEN binding rows for
+`audit-client-tests`, `class-token-splice`, and `plugin-dump-guard` are now CLOSED in
+[the refutation ledger](refutation-ledger-2026-09-12.md). Their shared-reader adoption and discriminating
+controls landed through `46f233e25`; integrated focused suites passed 30/30 and native tooling/root
+programs passed. The original measurements below retain their dated meaning. The separate callable
+module-axis defect and the remaining binding migrations are not closed by this update.
+
 Root read both independent reports below in full and accepted their 22 exact state-cell proposals. No new behavioral run is claimed. The thirteen remaining binding-reader migrations stay OPEN; the hard enforcer is not their repair. Historical ledger defect and receipt cells are preserved. Board delivery and final combined verification remain separate.
 
 # Exact ledger adjudication — #2097, #2267, #2109, #1988, #2287

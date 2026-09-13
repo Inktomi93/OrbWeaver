@@ -592,8 +592,8 @@ is `--full`-only (#1842) and nothing runs `--full` on a cadence.
 | `spacing-tier-home-health` | #2096 · `…/spacing-tier-home-health.ts:27` | imported `SANCTIONED_HOMES` from `no-raw-spacing-in-features.ts` | gate→gate import | CLOSED at `3420a81e9` (`lib/raw-spacing-tier.ts`) | ARM B finding on `61cae0710`; 0 on `5e2b8af98` |
 | `typography-tier-home-health` | #2096 · `…/typography-tier-home-health.ts:9` | imported `SANCTIONED_HOMES` from `no-raw-typography-in-features.ts` | gate→gate import | CLOSED at `3420a81e9` (`lib/raw-typography-tier.ts`) | ARM B finding on `61cae0710`; 0 on `5e2b8af98` |
 | `playwright-css-topology` | #2096 · `…/playwright-css-topology.ts:9` | imports `SANCTIONED_CSS_HOMES` from the LEGACY sibling `sanctioned-css-homes.ts` — itself a LEGACY module, so out of the arm's scope until converted | gate→gate import (legacy pair) | **CLOSED** — `ebfe88146` (board #2162): the legacy pair resolved with the last four (zero gate→gate imports corpus-wide); confirmed by cb-v-migrations-wave on 9e14a5d93 (v-migrations-wave-2026-09-12.md) | census only (not a live finding: legacy) |
-| `audit-client-tests` | #2097 · `…/audit-client-tests.ts:221` | `Symbol#getDeclarations()` chain | local binding resolution | OPEN → `p-binding-readers` | `policy-binding-resolution` live finding |
-| `class-token-splice` | #2097 · `…/class-token-splice.ts:149` | `lexicalReferenceSymbol(callee)?.getDeclarations()` — a `lib/` reader returning a `Symbol` invites the gate to finish the chain; the reader should answer the declaration question itself | local binding resolution | OPEN → `p-binding-readers` (+ a `lib/reference-fact-writes.ts` API note) | same |
+| `audit-client-tests` | #2097 · `…/audit-client-tests.ts:221` | `Symbol#getDeclarations()` chain | local binding resolution | **CLOSED — `ddf1adf53`** (#2163): shared callable reader adopted; independent reconciliation at `4efca6b25` confirms this exact chain removed. Integrated callable/callback/class-string suites 30/30; native tooling/root pass. The separate module-axis defect remains OPEN. | `policy-binding-resolution` live finding |
+| `class-token-splice` | #2097 · `…/class-token-splice.ts:149` | `lexicalReferenceSymbol(callee)?.getDeclarations()` — a `lib/` reader returning a `Symbol` invites the gate to finish the chain; the reader should answer the declaration question itself | local binding resolution | **CLOSED — `dadb46390 + 8fe92bbe7`** (#2163): shared callable reader adopted; independent reconciliation at `4efca6b25` confirms this exact chain removed. Integrated callable/callback/class-string suites 30/30; native tooling/root pass. The separate module-axis defect remains OPEN. | same |
 | `context-definition-shape` | #2097 · `…/context-definition-shape.ts:134` | `nameNode.getDefinitionNodes()` | local binding resolution | OPEN → `p-binding-readers` | same |
 | `ct-no-oneshot-live-read-assert` | #2097 · `…/ct-no-oneshot-live-read-assert.ts:197` | `identifier.getDefinitionNodes()` | local binding resolution | OPEN → `p-binding-readers` | same |
 | `evaluate-no-scope-capture` | #2097 · `…/evaluate-no-scope-capture.ts:227`, `:249` | `getAliasedSymbol()` / `getValueDeclaration()` chains | local binding resolution | OPEN → `p-binding-readers` | same |
@@ -601,7 +601,7 @@ is `--full`-only (#1842) and nothing runs `--full` on a cadence.
 | `no-context-returntype` | #2097 · `…/no-context-returntype.ts:41` | `node.getSymbol()?.getDeclarations()` | local binding resolution | OPEN → `p-binding-readers` | same |
 | `no-manual-token-estimate` | #2097 · `…/no-manual-token-estimate.ts:57` | `(symbol.getAliasedSymbol() ?? symbol).getDeclarations()` | local binding resolution | OPEN → `p-binding-readers` | same |
 | `no-raw-zustand-persist` | #2097 · `…/no-raw-zustand-persist.ts:343` | same chain | local binding resolution | OPEN → `p-binding-readers` | same |
-| `plugin-dump-guard` | #2097 · `…/plugin-dump-guard.ts:89` | `callee.getSymbol()?.getDeclarations()` | local binding resolution | OPEN → `p-binding-readers` | same |
+| `plugin-dump-guard` | #2097 · `…/plugin-dump-guard.ts:89` | `callee.getSymbol()?.getDeclarations()` | local binding resolution | **CLOSED — `0c5b1e0bb`** (#2163): shared callable reader adopted; independent reconciliation at `4efca6b25` confirms this exact chain removed. Integrated callable/callback/class-string suites 30/30; native tooling/root pass. The separate module-axis defect remains OPEN. | same |
 | `registry-context-via-mint` | #2097 · `…/registry-context-via-mint.ts:65-66` | `getAliasedSymbol()` + `getDeclarations()` | local binding resolution | OPEN → `p-binding-readers` | same |
 | `section-factory-contribution-bundle` | #2097 · `…/section-factory-contribution-bundle.ts:85` | `type?.getSymbol()?.getDeclarations()` | local binding resolution | OPEN → `p-binding-readers` | same |
 | `warning-code-coverage` | #2097 · `…/warning-code-coverage.ts:98` | `node.getSymbol()?.getDeclarations()[0]` | local binding resolution | OPEN → `p-binding-readers` | same |
@@ -1096,8 +1096,8 @@ verification receipts so the historical defect can be joined to its disposition.
 | **§5b.7** | 10 | 8 | 2 | 0 | 0 | 0 | 0 | 0 |
 | **§12.3** | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
 | **roster** | 17 | 16 | 1 | 0 | 0 | 0 | 0 | 0 |
-| **other** | 320 | 240 | 57 | 1 | 2 | 1 | 0 | 19 |
-| **TOTAL** | 516 | 408 | 74 | 6 | 3 | 1 | 0 | 24 |
+| **other** | 320 | 243 | 54 | 1 | 2 | 1 | 0 | 19 |
+| **TOTAL** | 516 | 411 | 71 | 6 | 3 | 1 | 0 | 24 |
 
 **DATED HAND CENSUS — 2026-09-12 (taken at the 23:01Z barrier, `64fd349e8`), not re-derived since.** The sub-table below is a historical partition of the `other` bin by hand-read phrases. Its rows sum to its snapshot TOTAL (176); it makes no current-population claim. The current derived population is the CLASS ROLLUP table above.
 
