@@ -95,8 +95,8 @@ function removeSources(project: Project): void {
   }
 }
 
-/** ONE MATERIALIZED FIXTURE, N PASSES — the reason the substrate runners take a LIST of grant sets and return a
- *  LIST of runs (#2189). The reviewed-grant identity verdict is a SECOND pass over the SAME input with a grant
+/** ONE MATERIALIZED FIXTURE, LAZY PASSES — the substrate stays alive until its caller finishes judging the row
+ *  (#2189). The reviewed-grant identity verdict is a SECOND pass over the SAME input with a grant
  *  supplied, and "the same input" has to mean the same bytes on the same substrate: a re-materialized `resource`
  *  root is a different directory with a different git index, so two verdicts taken across two roots would be two
  *  verdicts about two inputs. {@link NO_GRANTS} — one pass, no grants — is the default every unannotated row
@@ -124,14 +124,14 @@ function runPass({ policy, root, project, resourceOptions }: PassTarget, reviewe
   });
 }
 
-function runPasses(target: PassTarget, grantSets: GrantSets): ExampleRun[] {
-  return grantSets.map((reviewedGrants) => {
+function* runPasses(target: PassTarget, grantSets: GrantSets): Generator<ExampleRun, void> {
+  for (const reviewedGrants of grantSets) {
     try {
-      return { result: runPass(target, reviewedGrants), root: target.root };
+      yield { result: runPass(target, reviewedGrants), root: target.root };
     } catch (error) {
-      return { thrown: messageOf(error), root: target.root };
+      yield { thrown: messageOf(error), root: target.root };
     }
-  });
+  }
 }
 
 /** One example's whole request: which policy, which row, on which shared project, at which sequence, under which
@@ -145,22 +145,22 @@ interface ExampleInput {
   readonly grantSets?: GrantSets;
 }
 
-function runVirtualExample({ policy, proof, shared, sequence, grantSets = NO_GRANTS }: ExampleInput): ExampleRun[] {
+function* runVirtualExample({ policy, proof, shared, sequence, grantSets = NO_GRANTS }: ExampleInput): Generator<ExampleRun, void> {
   removeSources(shared);
   const root = `${VIRTUAL_ROOT}-${sequence}`;
   try {
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {
       shared.createSourceFile(`${root}/${path}`, content);
     }
-    return runPasses({ policy, root, project: shared }, grantSets);
+    yield* runPasses({ policy, root, project: shared }, grantSets);
   } catch (error) {
-    return [{ thrown: messageOf(error), root }];
+    yield { thrown: messageOf(error), root };
   } finally {
     removeSources(shared);
   }
 }
 
-function runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<ExampleInput, "shared" | "sequence">): ExampleRun[] {
+function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<ExampleInput, "shared" | "sequence">): Generator<ExampleRun, void> {
   const root = mkdtempSync(join(tmpdir(), POLICY_CONFORMANCE_TEMP_PREFIX));
   try {
     const project = new Project({ skipAddingFilesFromTsConfig: true });
@@ -200,18 +200,17 @@ function runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<Examp
       overlay,
       parseSource: (path, text) => parser.createSourceFile(`${root}/${path}`, text, { overwrite: true }),
     };
-    return runPasses({ policy, root, project, resourceOptions }, grantSets);
+    yield* runPasses({ policy, root, project, resourceOptions }, grantSets);
   } catch (error) {
-    return [{ thrown: messageOf(error), root }];
+    yield { thrown: messageOf(error), root };
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 }
 
-/** Every pass the row asked for, in grant-set order, all over ONE materialization. A materialization that throws
- *  yields a SINGLE thrown run whatever was asked for — the fixture never existed, so there is no second verdict to
- *  report about it, and the caller reads the first run's throw as the whole row's failure. */
-function runExample(input: ExampleInput): ExampleRun[] {
+/** Advancing the iterator runs one verdict. Closing it releases the same substrate on success, refusal, or a
+ *  baseline expectation failure, without executing an identity pass whose baseline did not hold. */
+function runExample(input: ExampleInput): Generator<ExampleRun, void> {
   const { policy, proof, grantSets } = input;
   return proof.mode === "resource" ? runResourceExample({ policy, proof, ...(grantSets === undefined ? {} : { grantSets }) }) : runVirtualExample(input);
 }
@@ -362,11 +361,9 @@ function identityProofGrant(policy: GatePolicy, identity: GatePolicyProofGrant):
  *  Accepting any of those alone is the failure mode this exists to prevent: "one granted" without "zero
  *  effective" is satisfiable by a policy emitting a second unlicensable finding, and "zero effective" without
  *  "one granted" is satisfiable by a policy that stopped flagging at all. */
-function grantIdentityFailure(input: ProofRunInput, identity: GatePolicyProofGrant): string | null {
-  const { policy, proof, shared, sequence } = input;
+function grantIdentityFailure(input: ProofRunInput, identity: GatePolicyProofGrant, run: ExampleRun | undefined): string | null {
+  const { policy, proof } = input;
   const grant = identityProofGrant(policy, identity);
-  const runs = runExample({ policy, proof, shared, sequence, grantSets: [[grant]] });
-  const run = runs[0];
   if (run === undefined) {
     return "grant identity run: the substrate produced no run";
   }
@@ -388,13 +385,14 @@ function grantIdentityFailure(input: ProofRunInput, identity: GatePolicyProofGra
     : `grant identity run: expected ZERO effective findings once the authored identity is granted but got ${effective.length}: ${formatFindingMessages(effective, policy.message)}`;
 }
 
-function mustFlagFailure(input: ProofRunInput, result: PolicyPassResult): string | null {
+function mustFlagFailure(input: ProofRunInput, result: PolicyPassResult, runs: Iterator<ExampleRun, void>): string | null {
   const { policy, proof } = input;
   const detail = countFromFailure(policy, proof.expect) ?? expectationFailure(result.authority.effectiveFindings, proof.expect, policy.message);
   if (detail !== null || proof.grant === undefined) {
     return detail;
   }
-  return grantIdentityFailure(input, proof.grant);
+  const identityRun = runs.next();
+  return grantIdentityFailure(input, proof.grant, identityRun.done === true ? undefined : identityRun.value);
 }
 
 function mustPassFailure(findings: readonly CoordinatedGateFinding[], policyMessage: string): string | null {
@@ -403,22 +401,28 @@ function mustPassFailure(findings: readonly CoordinatedGateFinding[], policyMess
 
 function proofFailure(input: ProofRunInput): PolicyConformanceFailure | null {
   const { policy, arm, proof, exampleIndex, sequence, shared } = input;
-  const runs = runExample({ policy, proof, shared, sequence });
-  const run = runs[0] ?? { thrown: "the substrate produced no run", root: VIRTUAL_ROOT };
-  let detail: string | null;
-  if (arm === "mustRefuse") {
-    detail = refusalFailure(run, policy, proof);
-  } else if (run.thrown !== undefined) {
-    detail = `${POLICY_REFUSAL_PREFIXES.passThrew} ${run.thrown}`;
-  } else {
-    const result = run.result as PolicyPassResult;
-    detail = toolFailure(result, policy, proofIdentities(proof));
-    if (detail === null) {
-      const findings = result.authority.effectiveFindings;
-      detail = arm === "mustFlag" ? mustFlagFailure(input, result) : mustPassFailure(findings, policy.message);
+  const grantSets: GrantSets = proof.grant === undefined ? NO_GRANTS : [[], [identityProofGrant(policy, proof.grant)]];
+  const runs = runExample({ policy, proof, shared, sequence, grantSets });
+  try {
+    const first = runs.next();
+    const run = first.done === true ? { thrown: "the substrate produced no run", root: VIRTUAL_ROOT } : first.value;
+    let detail: string | null;
+    if (arm === "mustRefuse") {
+      detail = refusalFailure(run, policy, proof);
+    } else if (run.thrown !== undefined) {
+      detail = `${POLICY_REFUSAL_PREFIXES.passThrew} ${run.thrown}`;
+    } else {
+      const result = run.result as PolicyPassResult;
+      detail = toolFailure(result, policy, proofIdentities(proof));
+      if (detail === null) {
+        const findings = result.authority.effectiveFindings;
+        detail = arm === "mustFlag" ? mustFlagFailure(input, result, runs) : mustPassFailure(findings, policy.message);
+      }
     }
+    return detail === null ? null : { policyId: policy.id, arm, exampleIndex, why: proof.why, detail: sanitizeProofRoot(detail, run.root) };
+  } finally {
+    runs.return();
   }
-  return detail === null ? null : { policyId: policy.id, arm, exampleIndex, why: proof.why, detail: sanitizeProofRoot(detail, run.root) };
 }
 
 function invocationPolicies(policies: readonly GatePolicy[]): readonly GatePolicy[] {

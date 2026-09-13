@@ -205,6 +205,7 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      grant: { subject: "packages/server/src/domain/hub/door.ts", operation: "process-env-read:OWNER_HANDLES" },
       files: { "packages/server/src/domain/hub/door.ts": 'import process from "node:process";\nexport const x = process.env["OWNER_HANDLES"];\n' },
       expect: { count: 1, messageIncludes: "process-env-read:OWNER_HANDLES" },
       why: 'THE LIVE SPELLING: every reader on this tree imports `process` from `node:process`, which is a MODULE default export and not the ambient global. The legacy `getText() === "process"` test happened to pass it; the identity reader proves it',

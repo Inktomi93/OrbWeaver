@@ -123,6 +123,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/features/chat/components/turn.tsx", operation: "chat-stream-write-handle" },
       files: {
         ...HOME_PROOF,
         "packages/client/src/features/chat/components/turn.tsx":

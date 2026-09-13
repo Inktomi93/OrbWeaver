@@ -183,6 +183,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/features/b/components/orphan-section.tsx", operation: "config-anchor-stamp" },
       files: {
         "packages/client/src/state/config-section-registry.ts":
           "export interface ConfigSectionContribution { readonly id: string }\nexport function configAnchorId(group: string, sub: string): string {\n  return `${group}-${sub}`;\n}\n",

@@ -241,6 +241,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "resource",
+      grant: { subject: "packages/client/src/gone.ts", operation: "tsconfig-exact-entry" },
       files: { "tsconfig.json": '{\n  "exclude": ["packages/client/src/gone.ts"]\n}\n' },
       expect: { count: 1, token: "packages/client/src/gone.ts", line: 2 },
       why: "the founding shape — a file-exact EXCLUDE whose file is GONE (mode B: nothing ever visits it, so nothing examines the promise). The line pins that `readCompilerConfigEntries` carries real position identity.",

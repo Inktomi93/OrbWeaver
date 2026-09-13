@@ -72,8 +72,7 @@ export interface GatePolicyProof {
   readonly expect?: GatePolicyProofExpectation;
   /** The reviewed-grant identity witness. `mustFlag` rows of a `reviewed-grant` policy ONLY; the validator
    *  refuses it on `mustPass`/`mustRefuse` and on an `ordinary`/`hard` policy, where there is no grant door.
-   *  AT LEAST ONE witness per reviewed-grant policy (extra valid witnesses on other rows stay legal); the global
-   *  obligation is gated by {@link REVIEWED_GRANT_WITNESS_REQUIRED} until the census reaches zero missing. */
+   *  Every reviewed-grant policy must carry at least one witness. Additional valid witnesses stay legal. */
   readonly grant?: GatePolicyProofGrant;
   readonly why: string;
 }
@@ -228,22 +227,6 @@ export const POLICY_PROOF_KEYS = keysOf(POLICY_PROOF_KEY_TABLE);
 const POLICY_PROOF_GRANT_KEY_TABLE = { subject: true, operation: true } as const satisfies Record<keyof GatePolicyProofGrant, true>;
 /** The keys of a reviewed-grant identity witness. */
 export const POLICY_PROOF_GRANT_KEYS = keysOf(POLICY_PROOF_GRANT_KEY_TABLE);
-
-/** THE P7 GLOBAL OBLIGATION'S GATE (#2189) — is "every `reviewed-grant` policy carries at least one witness row"
- *  enforced at load yet?
- *
- *  `false` while the census runs: 45 reviewed-grant policies exist and adoption lands by coherent family, so a
- *  loader that refused every un-annotated one today would red the whole corpus for work not yet done. The rule
- *  itself is built and directly callable (`lib/policy-validation.ts#reviewedGrantWitnessFailure`), so both
- *  positions are pinned rather than one being a promise.
- *
- *  THE FLIP COMMIT DELETES THIS CONSTANT and makes the call unconditional. A `= true` left standing here would be
- *  exactly the backward-compatibility toggle this program forbids: a knob whose other position is dead code.
- *
- *  Typed `boolean` rather than left as the literal `false` deliberately: under the literal type `tsc` narrows the
- *  guarded call to unreachable and the branch stops being compiled as live code, which is a second way for the
- *  rule to rot while reading as built. */
-export const REVIEWED_GRANT_WITNESS_REQUIRED: boolean = false;
 
 const POLICY_EXPECTATION_KEY_TABLE = {
   count: true,

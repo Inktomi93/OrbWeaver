@@ -96,6 +96,14 @@ test("every producible prefix is the text a REAL refusal starts with, driven thr
   });
   const reviewed = sourcePolicy("bad-reviewed-finding", {
     authority: "reviewed-grant",
+    mustFlag: [
+      {
+        mode: "source",
+        files: { "packages/client/src/proof.ts": "export const planted = true;\n" },
+        grant: { subject: "the-subject", operation: "the-operation" },
+        why: "the finding omits its required identity",
+      },
+    ],
     create: (ctx) => ({ evaluate: () => ctx.report.file("packages/client/src/proof.ts") }),
   });
   const mismatch = sourcePolicy("population-mismatch", { population: "@server" });

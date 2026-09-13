@@ -16,7 +16,6 @@ import {
   POLICY_PROOF_ARMS,
   POLICY_PROOF_GRANT_KEYS,
   POLICY_PROOF_KEYS,
-  REVIEWED_GRANT_WITNESS_REQUIRED,
 } from "../contract/policy.ts";
 import type { GatePolicyAnalysis } from "../contract/policy-primitives.ts";
 import { GATE_POLICY_ANALYSES } from "../contract/policy-primitives.ts";
@@ -162,7 +161,7 @@ function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: strin
 }
 
 /** The `mustRefuse` expectation is the INVERSE of the other two arms': the pass produces no findings at all,
- *  so `count`/`line`/`token` have nothing to describe, and `messageIncludes` is the only thing that can
+ *  so finding counts and coordinates have nothing to describe, and `messageIncludes` is the only thing that can
  *  discriminate a fired refusal from an unreachable branch. Requiring it here — at load, for every row — is
  *  what stops the arm becoming the sanctioned home for a proof that passes either way (#1977).
  *
@@ -175,8 +174,8 @@ function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: strin
 function assertRefusalExpectation(value: unknown, label: string): void {
   const expectation = record(value, label);
   exactKeys(expectation, EXPECT_KEYS, label);
-  for (const key of ["count", "line", "token"] as const) {
-    if (expectation[key] !== undefined) {
+  for (const key of POLICY_EXPECTATION_KEYS) {
+    if (key !== "messageIncludes" && Object.hasOwn(expectation, key)) {
       invalid(`${label}.${key} is forbidden for a mustRefuse proof; a refusal reports no finding to describe`);
     }
   }
@@ -275,16 +274,9 @@ function assertProofArm(value: unknown, analysis: GatePolicyAnalysis, label: Pol
   }
 }
 
-/** THE GLOBAL P7 OBLIGATION (#2189), directly callable so BOTH of its positions are pinnable: a `reviewed-grant`
- *  policy owes AT LEAST ONE `mustFlag` row carrying a grant identity witness. At-least-one, not exactly-one
- *  (owner ruling relayed 2026-09-13): a second valid witness on another row proves a second emitted identity and
- *  is strictly more evidence, so refusing it would price honesty as a defect.
- *
- *  `assertGatePolicyDescriptor` calls this only while {@link REVIEWED_GRANT_WITNESS_REQUIRED} is true; the flip
- *  commit deletes the constant and the guard with it.
- *  @public consumed by the descriptor assert below and by the gated-on pin in
- *  `tests/tooling/verify/lib/policy-loader.test.ts`; the corpus flip is the only other future caller. */
-export function reviewedGrantWitnessFailure(policy: GatePolicy): string | null {
+/** Every reviewed-grant policy owes at least one mustFlag identity witness. Additional witnesses prove
+ *  additional identities and remain legal. Called by the descriptor validator at every loading boundary. */
+function reviewedGrantWitnessFailure(policy: GatePolicy): string | null {
   if (policy.authority !== "reviewed-grant") {
     return null;
   }
@@ -538,15 +530,10 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
     }
     assertProofArm(policy[arm], policy["analysis"] as GatePolicyAnalysis, arm, policy["authority"] as GateAuthority);
   }
-  // THE GATED GLOBAL RULE (#2189). Every per-row rule above is live today; only the corpus-wide obligation waits
-  // for the census, and it waits in ONE guard — deleted with its constant at the flip.
   assertReviewedGrantWitness(value as GatePolicy);
 }
 
 function assertReviewedGrantWitness(policy: GatePolicy): void {
-  if (!REVIEWED_GRANT_WITNESS_REQUIRED) {
-    return;
-  }
   const witnessFailure = reviewedGrantWitnessFailure(policy);
   if (witnessFailure !== null) {
     invalid(witnessFailure);

@@ -94,6 +94,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "tooling/src/snap/ops/out.ts", operation: "reports-path-literal" },
       files: { "tooling/src/snap/ops/out.ts": 'import { join } from "node:path";\nexport const d = join("/root", "reports", "snaps");\n' },
       expect: { count: 1, token: '"reports"', messageIncludes: "a hand-rolled reports/<kind> path" },
       why: "the founding shape — a hand-rolled reports/<kind> path outside _shared/artifacts.ts, the artifact-dir respell (arm C). `messageIncludes` names the PRECISE text, which the unreadable arm never emits, so this row proves the path door resolved rather than fail-closed",
@@ -134,7 +135,7 @@ export const gate = defineGate({
           'import { join } from "node:path";\nexport function reportsPath(root: string, ...segments: readonly string[]): string {\n  return join(root, "reports", ...segments);\n}\n',
       },
       expect: { count: 1, messageIncludes: "Subject: tooling/src/_shared/artifacts.ts, operation: reports-path-literal" },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the home reds like any other site and is licensed by its exact grant row (`tooling-artifact-path-home:artifacts`). A proof row cannot carry a grant; the family test proves the row consumes exactly this",
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: the home reds like any other site and is licensed by its exact grant row (`tooling-artifact-path-home:artifacts`). The family test proves this real central grant consumes the identity; module witnesses independently prove the synthetic exact-grant door",
     },
     {
       mode: "types",

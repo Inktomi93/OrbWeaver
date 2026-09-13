@@ -173,6 +173,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/domain/rpg/verbs/patch-actor.ts", operation: "enforcement-role-comparison" },
       files: {
         "packages/contracts/src/identity/index.ts":
           'export const PARTICIPANT_ROLES = ["host", "member"] as const;\nexport type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];\n',

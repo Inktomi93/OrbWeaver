@@ -107,6 +107,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/domain/hub/x.ts", operation: "global-role-comparison" },
       files: {
         "packages/contracts/src/identity/index.ts":
           'export const USER_ROLES = ["owner", "admin", "user"] as const;\nexport type UserRole = (typeof USER_ROLES)[number];\n',

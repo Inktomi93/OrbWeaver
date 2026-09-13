@@ -145,6 +145,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/state/x-selection-store.ts", operation: "raw-gated-store-mint" },
       files: {
         ...DOOR_PROOF,
         "packages/client/src/state/x-selection-store.ts":

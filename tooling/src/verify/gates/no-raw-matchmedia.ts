@@ -203,6 +203,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/client/src/features/x/x.tsx", operation: "raw-match-media" },
       files: {
         "packages/client/src/features/x/x.tsx": 'export const G = (): unknown => globalThis.matchMedia("(prefers-reduced-motion: reduce)");\n',
       },

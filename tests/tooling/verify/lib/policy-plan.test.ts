@@ -802,7 +802,18 @@ test.describe("final policy planner", () => {
   test("execution carries the full known roster into ordinary-waiver adjudication", () => {
     const selected = policy("selected-hard");
     const unselected = defineGate({ ...policy("known-ordinary"), authority: "ordinary" });
-    const reviewed = defineGate({ ...policy("known-reviewed"), authority: "reviewed-grant" });
+    const reviewed = defineGate({
+      ...policy("known-reviewed"),
+      authority: "reviewed-grant",
+      mustFlag: [
+        {
+          mode: "source",
+          files: { "tooling/src/a.ts": "export const a = 1;\n" },
+          grant: { subject: "subject", operation: "read" },
+          why: "the known unselected owner must withhold grant liveness",
+        },
+      ],
+    });
     const corpus = { gates: [selected, unselected, reviewed], families: [selected.family, unselected.family, reviewed.family] };
     const planned = planPolicyCommand({
       request: runRequest({ selector: { kind: "check", names: [selected.id] } }),

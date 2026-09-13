@@ -252,8 +252,11 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { [CHAT_BUS]: "export interface MessageView {\n  cacheReadTokens: number;\n  maxOutputTokens: number;\n}\n" },
-      why: "MessageView is NOT a bus-union declaration name and nothing's identity reaches it — its `*Tokens` economics fields are out of scope, passes. The row that dies if the ROOT NAME dispatch is widened into a whole-file scan",
+      files: {
+        [CHAT_BUS]:
+          'export interface MessageView {\n  cacheReadTokens: number;\n  maxOutputTokens: number;\n}\nexport type ChatBusEvent = { type: "turnStarted"; chatId: string };\n',
+      },
+      why: "MessageView is NOT a bus-union declaration name and nothing's identity reaches it — its `*Tokens` economics fields stay out of scope beside a measured, safe bus root. The row dies if the ROOT NAME dispatch widens into a whole-file scan; an empty bus population is a refusal, not this passing control",
     },
     {
       mode: "types",
@@ -309,8 +312,22 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "packages/contracts/src/settings/index.ts": "export type SomeOtherThing = { apiKey: string };\n" },
-      why: "SCOPE: a non-bus contract file is inside the POPULATION (it must be — carriers live there) but declares no bus root, so nothing is scanned. The row that dies if the root dispatch is dropped and the population is mistaken for the subject set",
+      files: {
+        "packages/contracts/src/settings/index.ts": "export type SomeOtherThing = { apiKey: string };\n",
+        [CHAT_BUS]: 'export type ChatBusEvent = { type: "turnStarted"; chatId: string };\n',
+      },
+      why: "SCOPE: a non-bus contract file is inside the POPULATION (carriers live there) but contributes no bus fields. A safe bus root supplies the measured population; dropping root dispatch and treating every contract as the subject would expose SomeOtherThing.apiKey and fail this row",
+    },
+  ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        [CHAT_BUS]: "export interface MessageView {\n  cacheReadTokens: number;\n  maxOutputTokens: number;\n}\n",
+        "packages/contracts/src/settings/index.ts": "export type SomeOtherThing = { apiKey: string };\n",
+      },
+      expect: { messageIncludes: 'population "bus-payload-allowlist" resolved zero members' },
+      why: "Contract files and a bus home can be present while no bus root contributes a field. The policy must withhold its empty denominator; a clean pass here would claim a firewall verdict without measuring a wire field",
     },
   ],
 });

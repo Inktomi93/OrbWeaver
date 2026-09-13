@@ -249,6 +249,7 @@ test("tool failures, authority failures, bad receipts, and population mismatch f
   });
   const reviewed = sourcePolicy("bad-reviewed-finding", {
     authority: "reviewed-grant",
+    mustFlag: [{ ...SOURCE_FLAG, grant: { subject: "the-subject", operation: "the-operation" } }],
     create: (ctx) => ({ evaluate: () => ctx.report.file("packages/client/src/proof.ts") }),
   });
   const mismatch = sourcePolicy("population-mismatch", { population: "@server" });
@@ -910,10 +911,63 @@ function reviewedPolicy(id: string, options: ReviewedPolicyOptions = {}): GatePo
 
 const MATCHING_GRANT = { subject: GRANT_SUBJECT, operation: GRANT_OPERATION } as const;
 
-test("an annotated row proves its emitted identity binds a grant, and an unannotated row is unchanged", () => {
-  expect(verifyPolicyProofs([reviewedPolicy("grant-identity-valid", { grant: MATCHING_GRANT })])).toEqual([]);
-  // The SAME policy with no annotation also passes — the arm is opt-in and adds no verdict where it is absent.
-  expect(verifyPolicyProofs([reviewedPolicy("grant-identity-absent")])).toEqual([]);
+test("a resource grant witness reuses one materialization and skips its second pass when the baseline fails", () => {
+  const paths: string[] = [];
+  const sources: unknown[] = [];
+  const policy = sourcePolicy("grant-resource-identity", {
+    authority: "reviewed-grant",
+    analysis: "resource",
+    resources: [{ kind: "authored-tree", id: "client-source" }],
+    create: (ctx) => ({
+      evaluate: () => {
+        const tree = ctx.resources.authoredTree("client-source");
+        if (tree.status !== "ready") {
+          throw new Error(tree.reason);
+        }
+        const source = ctx.sourceFile(GRANT_FLAG_FILE);
+        paths.push(source.getFilePath());
+        sources.push(source);
+        if (source.getFullText().includes("planted")) {
+          ctx.report.file(GRANT_FLAG_FILE, MATCHING_GRANT);
+        }
+      },
+    }),
+    mustFlag: [{ ...SOURCE_FLAG, mode: "resource", expect: { count: 1 }, grant: MATCHING_GRANT }],
+    mustPass: [{ ...SOURCE_PASS, mode: "resource" }],
+  });
+
+  expect(verifyPolicyProofs([policy])).toEqual([]);
+  expect(paths).toHaveLength(3);
+  expect(paths[0]).toBe(paths[1]);
+  expect(sources[0]).toBe(sources[1]);
+  expect(paths[2]).not.toBe(paths[0]);
+  expect(paths.every((path) => !existsSync(path))).toBe(true);
+
+  paths.length = 0;
+  sources.length = 0;
+  const miscounted = defineGate({
+    ...policy,
+    mustFlag: policy.mustFlag.map((proof) => ({ ...proof, expect: { count: 7 } })),
+  });
+  const failures = verifyPolicyProofs([miscounted]);
+  expect(failures.map(({ detail }) => detail)).toEqual(["expected effective finding count=7 but got 1"]);
+  expect(paths).toHaveLength(2);
+  expect(paths[0]).not.toBe(paths[1]);
+  expect(paths.every((path) => !existsSync(path))).toBe(true);
+});
+
+test("conformance requires a witness while additional unannotated detection rows remain legal", () => {
+  const annotated = reviewedPolicy("grant-identity-valid", { grant: MATCHING_GRANT });
+  expect(verifyPolicyProofs([annotated])).toEqual([]);
+  expect(() => verifyPolicyProofs([reviewedPolicy("grant-identity-absent")])).toThrow(/no grant identity witness/u);
+  expect(
+    verifyPolicyProofs([
+      defineGate({
+        ...annotated,
+        mustFlag: [...annotated.mustFlag, SOURCE_FLAG],
+      }),
+    ]),
+  ).toEqual([]);
 });
 
 test("the identity run uses the AUTHORED pair — a wrong subject or operation stales the grant and reds", () => {

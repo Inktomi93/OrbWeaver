@@ -1,6 +1,6 @@
 // Gate: package-layout (Core-0-Architecture-and-Structure.md §7 / D15). A package src root contains
 // only index.ts plus module directories. ResourceHost owns tree acquisition; the TS source population
-// remains declared so an ordinary waiver can bind to the exact loose file occurrence.
+// remains declared so findings retain the exact loose file identity a reviewed grant names.
 // A broken declared resource refuses one phase EARLIER than this module: `resolveResourceDeclarations`
 // (`lib/resource-declaration.ts:182`) throws during the POPULATION phase and the receipt phase withholds
 // every consumer, both before `create`/`evaluate` (guide §3's acquisition-refusal rule). So the read goes through
@@ -57,6 +57,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "resource",
+      grant: { subject: "packages/kit/src/loose.ts", operation: "loose-package-root-module" },
       files: { "packages/kit/src/loose.ts": "export const x = 1;\n" },
       expect: { count: 1 },
       why: "a loose .ts at packages/kit/src root must become a directory with index.ts",

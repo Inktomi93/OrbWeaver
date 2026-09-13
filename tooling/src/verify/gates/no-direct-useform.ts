@@ -138,6 +138,7 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      grant: { subject: "packages/client/src/forms/editor/use-app-form.ts", operation: "tanstack-form-mint:createFormHook" },
       files: {
         ...tanstackReactFormProof(),
         "packages/client/src/forms/editor/use-app-form.ts":

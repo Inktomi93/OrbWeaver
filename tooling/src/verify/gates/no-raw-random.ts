@@ -117,6 +117,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      grant: { subject: "packages/server/src/domain/feature/logic.ts", operation: "ambient-entropy-draw" },
       files: { "packages/server/src/domain/feature/logic.ts": "export function rollDice(): number {\n  return Math.random();\n}\n" },
       expect: { count: 1, messageIncludes: "packages/server/src/domain/feature/logic.ts" },
       why: "the founding shape — an ambient draw on a production path, with the exact grant SUBJECT in the message",

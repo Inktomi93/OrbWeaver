@@ -76,7 +76,14 @@ function makePolicy(): GatePolicy {
         },
       ],
     }),
-    mustFlag: [{ mode: "types", files: filesFor("{ enabled: false } as const"), why: "canonical origin and authored options compose at the visitor" }],
+    mustFlag: [
+      {
+        mode: "types",
+        files: filesFor("{ enabled: false } as const"),
+        grant: { subject: "packages/client/src/subject.ts", operation: "disabled-record" },
+        why: "canonical origin and authored options compose at the visitor",
+      },
+    ],
     mustPass: [{ mode: "types", files: filesFor("{ enabled: true } as const"), why: "a resolved enabled record is legal" }],
   });
 }

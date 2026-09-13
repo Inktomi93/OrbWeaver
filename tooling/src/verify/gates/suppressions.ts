@@ -212,6 +212,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
+      grant: { subject: "lint/foo", operation: "source" },
       files: { "packages/kit/src/x.ts": "// biome-ignore lint/foo: reason\nexport const a = 1;\n" },
       expect: { count: 1, line: 1, messageIncludes: "Subject: lint/foo, operation: source, site(s): packages/kit/src/x.ts:1 (biome-ignore)." },
       why: "THE FOUNDING SHAPE, carried from the legacy descriptor: a `biome-ignore` comment marker under packages/*/src is a suppression. The `messageIncludes` is the CONVERSION's identity — the legacy row pinned only the token `biome-ignore`, which says nothing about which RULE CLASS the finding is now keyed on. `Subject:`/`operation:` ARE the grant identity central reconciliation matches on, so this row pins the exact pair a grant row must spell",
