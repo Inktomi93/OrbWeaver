@@ -142,6 +142,7 @@ export type { Parsed } from "./lib/run-argv.ts";
 export { parse } from "./lib/run-argv.ts";
 export { failReason, printSummary } from "./lib/run-render.ts";
 export { resolveSelection } from "./lib/selection.ts";
+export { STRUCTURE_USAGE } from "./lib/structure-tail.ts";
 export { refuseVerbTail } from "./lib/verb-tail.ts";
 export type { AssetRefsCoverageInput } from "./ops/asset-refs-coverage.ts";
 export { AssetRefsCoverageRefusal, compareAssetRefsCoverage, runAssetRefsCoverage } from "./ops/asset-refs-coverage.ts";
@@ -185,7 +186,7 @@ export { auditedExit, auditLine, auditOf, noticesIn, runVerify } from "./ops/run
 export { runScopedCli, runScopedPass, SCOPED_USAGE } from "./ops/scoped.ts";
 export { runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
-export { runStructure, STRUCTURE_USAGE } from "./ops/structure.ts";
+export { runStructure } from "./ops/structure.ts";
 export { runStructureDelta, STRUCTURE_DELTA_USAGE } from "./ops/structure-delta.ts";
 export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership, unclassifiedVitestProjects } from "./ops/tests-execution-membership.ts";
 export { classifyMembership, compareRoutingParity, findEscapees, findTripleSlashLibLeaks, runTestsTypeMembership } from "./ops/tests-type-membership.ts";

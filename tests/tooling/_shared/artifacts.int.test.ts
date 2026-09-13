@@ -20,13 +20,44 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesS
 import { join } from "node:path";
 import process from "node:process";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
+import type { CliResult } from "../../support/tool-fixtures.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
-/** A valid descriptor whose `run` SLEEPS, so two children are provably in flight at the same time (a
- *  0.5s run pair could otherwise serialize by luck and prove nothing). `Atomics.wait` blocks without
- *  burning CPU — a busy-wait on a co-hosted box is a load bomb for a timing fixture. */
-const SLOW_GATE = `export const gate = {
+/** A valid descriptor whose `run` is a RENDEZVOUS: it blocks until TWO run slots hold an in-flight marker,
+ *  so two children are provably in flight at the same moment.
+ *
+ *  IT USED TO SLEEP A FLAT 1.5s, AND THAT IS THE #2248 DEFECT. The census this fixture asserts needs a
+ *  CONJUNCTION — the leader's marker written BEFORE the follower's slot scan, and the leader still in
+ *  flight (`racing` keeps only markers whose pid is ALIVE) UNTIL that scan. A duration cannot state either
+ *  half. The old `Promise.all` pair got the first by luck and the second from this sleep, which is why the
+ *  case was green solo and red in a loaded batch: under contention both children could scan before either
+ *  wrote. Waiting on the OTHER RUN'S MARKER states both halves directly and needs no duration at all —
+ *  the leader cannot leave `runPass` (and so cannot publish and unlink its marker) until the follower has
+ *  opened its slot, and the follower cannot have opened one without first taking its census of the leader.
+ *
+ *  `Atomics.wait` yields between checks without burning CPU — a busy-wait on a co-hosted box is a load
+ *  bomb for a timing fixture. The slice budget is a FAILSAFE against a hang, never the mechanism: on
+ *  expiry the gate returns and the case's own assertions fail loudly instead of the suite wedging. */
+const SLOW_GATE = `import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+const SLICE_MS = 25;
+// 50s of slices — a FAILSAFE against wedging the suite, deliberately far above any plausible sibling boot
+// and just under the case's own 60s budget, so the assertions are what fail. It must NOT be tuned down to
+// "about how long a boot takes": that would re-create the #2248 defect one layer in, with the leader giving
+// up under load exactly when the follower is slowest. Measured cost of the whole case when it works: ~16s.
+const MAX_SLICES = 2000;
+
+const inflight = (root) => {
+  const base = join(root, "reports", "runs", "structure");
+  if (!existsSync(base)) {
+    return 0;
+  }
+  return readdirSync(base).filter((name) => existsSync(join(base, name, ".inflight"))).length;
+};
+
+export const gate = {
   name: "planted-slow",
   docRow: "Core-Enforcement-Active-Gates.md",
   status: "active",
@@ -34,8 +65,10 @@ const SLOW_GATE = `export const gate = {
   message: "the planted concurrency control gate — see tooling/src/_shared/artifacts.ts (#1029)",
   scanRoot: () => true,
   visitFile: () => undefined,
-  run: () => {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1500);
+  run: (ctx) => {
+    for (let i = 0; i < MAX_SLICES && inflight(ctx.root) < 2; i += 1) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, SLICE_MS);
+    }
     return [];
   },
   mustFlag: [{ files: "export const a = 1;\\n" }],
@@ -71,6 +104,68 @@ function published(root: string): RunView {
   return (JSON.parse(readFileSync(join(root, "reports", REPORT), "utf8")) as { run: RunView }).run;
 }
 
+/** How long to wait between checks for the leader's marker. It bounds the SPIN, never the wait: the loop
+ *  below ends on the CONDITION and the case's own `scaledBudget` timeout is what can fail it. The file's
+ *  SLOW_GATE comment already rules out a busy-wait here ("a load bomb for a timing fixture"). */
+const MARKER_POLL_MS = 10;
+
+/** The run id of the first slot carrying an in-flight marker, or null while none does. */
+function inflightRunId(root: string): string | null {
+  const base = slotDir(root);
+  if (!existsSync(base)) {
+    return null;
+  }
+  for (const name of readdirSync(base)) {
+    const marker = join(base, name, ".inflight");
+    if (existsSync(marker)) {
+      return (JSON.parse(readFileSync(marker, "utf8")) as { runId: string }).runId;
+    }
+  }
+  return null;
+}
+
+/** BLOCK until the leading child has WRITTEN its in-flight marker, and hand back the run id it wrote.
+ *
+ *  THIS IS THE ORDERING THE RACING CENSUS REQUIRES, AND NOTHING IN THIS FIXTURE USED TO PROVIDE IT (#2248).
+ *  `openRunSlot` (tooling/src/_shared/artifacts.ts) computes `racing` by scanning the other slots' markers
+ *  and only THEN writes its own — so a second run can name the first if and only if it opens its slot after
+ *  the first's marker is on disk. `SLOW_GATE` sleeps inside `runPass`, which is strictly AFTER that window,
+ *  so it widens the two runs' OVERLAP and orders nothing: `runs.some((r) => r.concurrent.length > 0)` was
+ *  green solo, where two `Promise.all` children happen to stagger, and red under batch load, where both can
+ *  scan before either writes. A fixture that claims determinism owes the ordering, not a wider budget.
+ *
+ *  Waiting on the marker is waiting on THE SIGNAL ITSELF, which is the distinction from the fix this must
+ *  not be: a fixed delay before the assertion hopes the ordering happened and still passes when it did not.
+ *  This returns only once the ordering is a FACT, and a leader that dies without writing one is a loud
+ *  failure naming its own stderr rather than a silent fall-through to a green `some`. */
+async function leaderRunId(root: string, leading: Promise<CliResult>): Promise<string> {
+  // A BOX, not a bare `let`: the assignment happens in a callback, so a plain local narrows to `null` at
+  // its declaration and the liveness check below reads as `never`. The property read re-widens across the
+  // loop's await, which is exactly the shape this needs.
+  const leader: { exited: CliResult | null } = { exited: null };
+  leading.then(
+    (result) => {
+      leader.exited = result;
+    },
+    (error: unknown) => {
+      leader.exited = { code: null, stdout: "", stderr: String(error), timedOut: false };
+    },
+  );
+  for (;;) {
+    const runId = inflightRunId(root);
+    if (runId !== null) {
+      return runId;
+    }
+    const exited = leader.exited;
+    if (exited !== null) {
+      throw new Error(
+        `the leading \`verify structure\` child exited (code ${exited.code}) before writing an in-flight marker — there is no ordering to wait on.\n${exited.stderr}`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, MARKER_POLL_MS));
+  }
+}
+
 // EXPLICIT BUDGETS on all three: each case spawns real CLI children and the planted gate SLEEPS 1.5s to
 // force the overlap, which is past vitest's 5s default the moment the box carries sibling lanes.
 test("two concurrent `check:structure` runs both keep their verdict, and the pointer names a COMPLETE one", { timeout: scaledBudget(60_000) }, async ({
@@ -78,7 +173,14 @@ test("two concurrent `check:structure` runs both keep their verdict, and the poi
   runCli,
 }) => {
   const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-slow.ts`]: SLOW_GATE });
-  const [a, b] = await Promise.all([runCli("verify", ["structure"], { cwd: root }), runCli("verify", ["structure"], { cwd: root })]);
+  // ORDERED, not raced (#2248 — see `leaderRunId`). The leader starts, and the follower starts only once
+  // the leader's in-flight marker exists, which is the one fact `openRunSlot`'s racing census reads. The
+  // two are still genuinely CONCURRENT: SLOW_GATE sleeps 1.5s inside `runPass`, i.e. after the marker
+  // write, so the leader is provably still in flight — and `racing` keeps only markers whose pid is ALIVE,
+  // which is what makes the census below a real observation of a live sibling rather than of a leftover.
+  const leading = runCli("verify", ["structure"], { cwd: root });
+  const leader = await leaderRunId(root, leading);
+  const [a, b] = await Promise.all([leading, runCli("verify", ["structure"], { cwd: root })]);
   expect([a.code, b.code]).toEqual([0, 0]);
 
   // BOTH runs' artifacts survive, under DISTINCT identities — the half the fixed path could not give.
@@ -96,8 +198,18 @@ test("two concurrent `check:structure` runs both keep their verdict, and the poi
   expect(pointer.complete).toBe(true);
   expect(runs.map((r) => r.runId)).toContain(pointer.runId);
 
-  // Whichever started second SAW the first and said so — a race is named, never silently last-write-wins.
-  expect(runs.some((r) => r.concurrent.length > 0)).toBe(true);
+  // THE FOLLOWER SAW THE LEADER AND SAID SO — a race is named, never silently last-write-wins. Asserted as
+  // the exact census now the ordering is enforced (#2248): `runs.some((r) => r.concurrent.length > 0)` was
+  // the whole pin, and "at least one of them saw somebody" is satisfied by either child in either
+  // direction, so it could only ever be as strong as the ordering underneath it — which was none.
+  //
+  // Both halves are load-bearing and only ONE of them is about the follower. The leader took its census
+  // before the follower's slot existed, so an EMPTY `concurrent` on the leader is the correct answer and
+  // asserting it is what stops this passing on a run that named everything it could see.
+  const followers = runs.filter((r) => r.runId !== leader);
+  expect(followers).toHaveLength(1);
+  expect(followers[0]?.concurrent.join(" ")).toContain(leader);
+  expect(runs.find((r) => r.runId === leader)?.concurrent).toEqual([]);
 });
 
 test("a run names the LIVE sibling holding a slot — the racing-writer census, deterministically", { timeout: scaledBudget(60_000) }, async ({

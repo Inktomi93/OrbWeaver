@@ -27,6 +27,13 @@ import type { PassTiming, PopulationAlarm, ToolError } from "./pass.ts";
 import type { GateFactOwnerResult, GateFactToolError, PolicyPassTiming, PolicySemanticReceipt, PolicyTiming, PolicyToolError } from "./policy-pass.ts";
 import type { RunManifest } from "./run-manifest.ts";
 
+/** THE ARTIFACT'S OWN NAME — the basename inside every run slot AND the basename of the published pointer
+ *  (#1029). It is part of this shape's contract, not a per-reader detail, so it is homed beside the shape:
+ *  the writer (ops/structure.ts), the reader (ops/show.ts), the delta (ops/structure-delta.ts) and the debt
+ *  view (ops/debt.ts) each carried their OWN copy of the literal until 2026-09-12, which is four places a
+ *  rename has to land and four chances for a reader to go looking at a path nobody writes. */
+export const STRUCTURE_REPORT_NAME = "check-structure.json";
+
 /** A `PolicyPopulationReceipt` reduced to its sizes; `requestedPaths` is null at whole scope. */
 export interface PopulationCounts {
   readonly declaredSourcePaths: number;

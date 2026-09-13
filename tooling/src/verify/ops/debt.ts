@@ -48,6 +48,7 @@ import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { RatchetRow } from "@orb/tooling/_shared/ratchet-rows";
 import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "@orb/tooling/_shared/ratchet-rows";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
+import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
 import { BASELINE_REL as DENSITY_BASELINE_REL } from "../gates/density-tier.ts";
 import { BASELINE_REL as DOORS_BASELINE_REL } from "../gates/duplicate-action-doors.ts";
 import { BASELINE_REL as CT_UNFED_BASELINE_REL } from "./ct-unfed-ratchet.ts";
@@ -96,9 +97,6 @@ export const LEDGERS: readonly Ledger[] = [
     why: "one CT mount that requests a tRPC procedure nobody stubbed, so the pipeline behind it runs INERT and a regression inside it is invisible to that file (#629/#637). Ends per row when the read is FED at every routeTrpc site in the file and the row is deleted — the ratchet REDs a row whose read is gone, so the shrink cannot be skipped.",
   },
 ];
-
-/** The artifact the single-pass writes — the ONE source of the LIVE admitted counts (never a re-run). */
-const STRUCTURE_REPORT = "check-structure.json";
 
 interface GateScanView {
   readonly admitted?: number;
@@ -179,11 +177,11 @@ function manifestRefusal(run: NonNullable<StructureReportView["run"]>): string |
 }
 
 export function liveAdmitted(root: string): LiveAdmission {
-  const path = reportsPath(root, STRUCTURE_REPORT);
+  const path = reportsPath(root, STRUCTURE_REPORT_NAME);
   if (!existsSync(path)) {
     return {
       ok: false,
-      why: `no ${reportsRelPath(STRUCTURE_REPORT)} — nothing has published a structure verdict in this checkout. Run \`pnpm check:structure\`.`,
+      why: `no ${reportsRelPath(STRUCTURE_REPORT_NAME)} — nothing has published a structure verdict in this checkout. Run \`pnpm check:structure\`.`,
     };
   }
   let report: StructureReportView;
@@ -193,7 +191,7 @@ export function liveAdmitted(root: string): LiveAdmission {
   } catch (error) {
     return {
       ok: false,
-      why: `${reportsRelPath(STRUCTURE_REPORT)} is UNPARSEABLE — ${error instanceof Error ? error.message : String(error)}. Re-run \`pnpm check:structure\`.`,
+      why: `${reportsRelPath(STRUCTURE_REPORT_NAME)} is UNPARSEABLE — ${error instanceof Error ? error.message : String(error)}. Re-run \`pnpm check:structure\`.`,
     };
   }
   const run = report.run;
@@ -362,7 +360,7 @@ export function runDebtWalk(root: string, argv: readonly string[]): number {
   print("DEBT WALK — every committed ratchet baseline's ADMITTED rows, SPLIT into burnable DEBT and ruled-permanent RATIFIED (#569)");
   print(
     live.ok
-      ? `live admission: ${reportsRelPath(STRUCTURE_REPORT)}, run ${live.runId}`
+      ? `live admission: ${reportsRelPath(STRUCTURE_REPORT_NAME)}, run ${live.runId}`
       : `live admission: UNAVAILABLE — ${live.why} Budgets below are the COMMITTED allowance, never a live reading.`,
   );
   let rows = 0;

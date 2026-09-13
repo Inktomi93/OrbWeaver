@@ -44,7 +44,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { parseArgs } from "node:util";
 import type { RunSlot } from "@orb/tooling/_shared/artifacts";
 import { checkoutName, closeRunSlot, openRunSlot, publishRunSlot, reportsPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
@@ -58,19 +57,20 @@ import type { GatePolicy } from "../contract/policy.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { PolicySelector } from "../contract/policy-plan.ts";
 import type { RunManifest } from "../contract/run-manifest.ts";
-import type { FinalPolicyRow, LegacyGateRow, StructurePolicyReport, StructureReport } from "../contract/structure-report.ts";
+import type { FinalPolicyRow, LegacyGateRow, StructureReport } from "../contract/structure-report.ts";
+import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
 import { loadMixedGateCorpus } from "../lib/loader.ts";
 import { projectCtx, runPass, stripProbeFindings, stripProbePolicyFindings, zeroScanGates } from "../lib/pass.ts";
 import { nonVerdictReason, notQuietReasons, plantedPaths } from "../lib/planted-fixtures.ts";
-import { buildSelector, CHECK_FLAG, FAIL_ON_WARNINGS_FLAG, FAMILY_FLAG, isSelectionRefusal, refuseDuplicateOptions } from "../lib/policy-command.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyPassExitCode } from "../lib/policy-plan.ts";
 import { isSelectionFailure, resolveMixedSelection } from "../lib/policy-selection.ts";
 import { populationAlarms } from "../lib/population.ts";
-import { renderPass, renderPolicyPass } from "../lib/render.ts";
 import { reviewedGrantsFor } from "../lib/reviewed-grants.ts";
-import { finalToolErrorCount, policyReport, policyRows } from "../lib/structure-report.ts";
-import { policyTimingAlarms, policyTimingLine, timingAlarms, timingLine } from "../lib/timing.ts";
+import { structureConsole } from "../lib/structure-console.ts";
+import { finalSide, finalToolErrorCount } from "../lib/structure-report.ts";
+import { parseStructureTail, tailRefusal, VOID_FLAG } from "../lib/structure-tail.ts";
+import { policyTimingAlarms, timingAlarms } from "../lib/timing.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -109,13 +109,10 @@ function reconcile(corpus: MixedGateCorpus, selected: SelectedGateCorpus, pass: 
   return out;
 }
 
-/** The artifact's name — inside this run's slot, and the published pointer's basename (#1029). */
-const REPORT_NAME = "check-structure.json";
-
 /** Write into THIS RUN'S slot. Never the published path: `reports/check-structure.json` is a symlink
  *  publishRunSlot swaps in at completion, so no in-flight write can ever be read as somebody's verdict. */
 function writeReport(slot: RunSlot, report: StructureReport): void {
-  writeFileSync(join(slot.dir, REPORT_NAME), `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(join(slot.dir, STRUCTURE_REPORT_NAME), `${JSON.stringify(report, null, 2)}\n`);
 }
 
 /** The IN-FLIGHT stub (#410). Written BEFORE the walk, so a run killed mid-pass leaves an artifact whose
@@ -170,7 +167,7 @@ function startManifest(root: string, slot: RunSlot, selection: PolicySelector): 
 function announceRacing(slot: RunSlot): void {
   if (slot.racing.length > 0) {
     process.stderr.write(`[check:structure] CONCURRENT RUN(S) of this instrument on this checkout: ${slot.racing.join(", ")}\n`);
-    process.stderr.write(`[check:structure] this run writes to ${slot.relDir} and publishes reports/${REPORT_NAME} only if it finishes last.\n`);
+    process.stderr.write(`[check:structure] this run writes to ${slot.relDir} and publishes reports/${STRUCTURE_REPORT_NAME} only if it finishes last.\n`);
   }
 }
 
@@ -213,19 +210,6 @@ function runFinalPass(
   return keepProbeFindings() ? raw : stripProbePolicyFindings(raw);
 }
 
-interface FinalSide {
-  readonly result: PolicyPassResult | null;
-  readonly rows: readonly FinalPolicyRow[];
-  readonly report: StructurePolicyReport | null;
-}
-
-function finalSide(selectedFinal: readonly GatePolicy[], result: PolicyPassResult | null): FinalSide {
-  if (result === null) {
-    return { result, rows: [], report: null };
-  }
-  return { result, rows: policyRows(result, selectedFinal), report: policyReport(result) };
-}
-
 /** THE EXPLICIT VOID (#2167 clause 2). The operator knows a published slot is not evidence — it overlapped a
  *  planter, it was taken under a load kill, its premise died — and no re-derivation from the artifact alone
  *  can say so. This writes that judgement INTO the slot, which is the only place a future reader will look.
@@ -236,7 +220,7 @@ function finalSide(selectedFinal: readonly GatePolicy[], result: PolicyPassResul
  *  bearing for `abandonedRuns`. A slot that does not exist is MISUSE (exit 3): the operator named the wrong
  *  run, and silently succeeding would leave them believing a void happened. */
 function tombstoneSlot(root: string, request: { readonly slot: string; readonly reason: string }): number {
-  const file = reportsPath(root, "runs", "structure", request.slot, REPORT_NAME);
+  const file = reportsPath(root, "runs", "structure", request.slot, STRUCTURE_REPORT_NAME);
   let report: StructureReport;
   try {
     report = JSON.parse(readFileSync(file, "utf8")) as StructureReport;
@@ -312,9 +296,14 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
     // A corpus with no final policy owes no final ledger; one WITH a final policy owes the whole one.
     ...(final.result === null ? [] : policyTimingAlarms(final.rows, final.result.timing)),
   ];
+  // ANNOTATED LOCAL, not a bare `final.result`: biome's type service resolves the imported `FinalSide`'s
+  // nullable member as always-present and reds every `?.`/`??` below as an unnecessary condition, while tsc
+  // reads the same union correctly. Re-stating the type here restores the union for both readers without a
+  // suppression and without weakening the guard (the house answer for biome's cross-module narrowing).
+  const finalResult: PolicyPassResult | null = final.result;
   const legacyRows = toLegacyRows(pass, gatesByName);
   const legacyTotal = legacyRows.reduce((n, g) => n + g.violations.length, 0);
-  const finalBlocking = final.result?.authority.verdict.blocking ?? 0;
+  const finalBlocking = finalResult?.authority.verdict.blocking ?? 0;
   const total = legacyTotal + finalBlocking;
   const scanAlarms = zeroScanGates(pass);
   const populations = populationAlarms(pass);
@@ -335,11 +324,12 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
     active: legacyActive + selected.final.length,
     ran: pass.gates.length + final.rows.length,
     legacy: { registered: selected.legacy.length, active: legacyActive, ran: pass.gates.length },
-    final: { registered: selected.final.length, ran: final.rows.length, withheld: final.result?.authority.withheldPolicyIds.length ?? 0 },
+    final: { registered: selected.final.length, ran: final.rows.length, withheld: finalResult?.authority.withheldPolicyIds.length ?? 0 },
     incompleteReasons,
   };
 
-  renderConsole({ pass, gatesByName, selected, final, run, slotRelDir: slot.relDir });
+  // THE ONE console write — the text is composed in lib/structure-console.ts and lands here, once.
+  process.stdout.write(structureConsole({ pass, gatesByName, selected, final, run, slotRelDir: slot.relDir }));
 
   const legacyBroken = pass.toolErrors.length > 0 || scanAlarms.length > 0 || populations.length > 0 || incompleteReasons.length > 0;
   const finalBroken = final.result !== null && finalToolErrorCount(final.result) > 0;
@@ -390,7 +380,7 @@ export async function runStructure(root: string, argv: readonly string[]): Promi
  *  (N=32): 17 slots carried a marker, 13 of them FINISHED fixture-mode runs. */
 function finishSlot(root: string, slot: RunSlot, selection: PolicySelector, run: RunManifest): void {
   if (selection.kind === "all" && run.verdict === "verdict") {
-    publishRunSlot(root, slot, [{ alias: REPORT_NAME, target: REPORT_NAME }]);
+    publishRunSlot(root, slot, [{ alias: STRUCTURE_REPORT_NAME, target: STRUCTURE_REPORT_NAME }]);
     return;
   }
   closeRunSlot(root, slot);
@@ -402,167 +392,4 @@ function legacyExit(broken: boolean, violations: number): number {
     return EXIT.toolError;
   }
   return violations > 0 ? EXIT.violations : EXIT.clean;
-}
-
-/** What the operator asked for. `selection.kind === "all"` is the shipped default and the ONLY shape that
- *  publishes the pointer; `failOnWarnings` DEFAULTS FALSE (runFinalPass's header). */
-interface StructureRequest {
-  readonly failOnWarnings: boolean;
-  readonly selection: PolicySelector;
-  /** Present when the operator asked to TOMBSTONE an existing slot instead of running anything (#2167). */
-  readonly tombstone: { readonly slot: string; readonly reason: string } | null;
-}
-
-const TAIL_OPTIONS = {
-  "fail-on-warnings": { type: "boolean" },
-  check: { type: "string", multiple: true },
-  family: { type: "string", multiple: true },
-  void: { type: "string" },
-  reason: { type: "string" },
-} as const;
-/** `--check`/`--family` are the repeatable pair; `--fail-on-warnings` twice stays misuse (the grammar is zero
- *  or one), which is exactly `refuseDuplicateOptions`'s contract. */
-const REPEATABLE_TAIL_OPTIONS: ReadonlySet<string> = new Set(["check", "family"]);
-
-/** THIS VERB'S WHOLE TAIL GRAMMAR (lib/verb-tail.ts rules it "own"): zero or one `--fail-on-warnings`, plus a
- *  repeatable `--check` OR `--family` selection.
- *
- *  Every token is imported from `lib/policy-command.ts`, the final-policy grammar that already owns them —
- *  this door is a second REACH, never a second spelling, and the selector rules (ambiguity, nonempty,
- *  duplicate, kebab-case) come from that module's `buildSelector` rather than being re-decided here. Anything
- *  else is misuse (exit 3) refused BEFORE the run slot opens, so a typo can never leave an in-flight artifact
- *  behind: the whole point of #1117 is that a verb which swallows an unread tail reports a verdict nobody
- *  asked for, and the verdicts here are opposite in two directions (promoted warnings block; a SELECTED run
- *  is not the corpus verdict at all). */
-function parseStructureTail(argv: readonly string[]): StructureRequest {
-  const duplicate = refuseDuplicateOptions(argv, REPEATABLE_TAIL_OPTIONS);
-  if (duplicate !== null) {
-    throw new UsageError(tailRefusal(duplicate));
-  }
-  let values: {
-    readonly "fail-on-warnings"?: boolean;
-    readonly check?: readonly string[];
-    readonly family?: readonly string[];
-    readonly void?: string;
-    readonly reason?: string;
-  };
-  try {
-    values = parseArgs({ args: [...argv], options: TAIL_OPTIONS, strict: true, allowPositionals: false }).values;
-  } catch (error) {
-    throw new UsageError(tailRefusal(error instanceof Error ? error.message : String(error)), { cause: error });
-  }
-  const selection = buildSelector(values.check, values.family);
-  if (isSelectionRefusal(selection)) {
-    throw new UsageError(tailRefusal(selection.message));
-  }
-  const tombstone = voidRequest(values);
-  if (tombstone !== null && (values["fail-on-warnings"] === true || selection.kind !== "all")) {
-    throw new UsageError(tailRefusal(`${VOID_FLAG} tombstones an EXISTING slot and runs nothing — it cannot carry a run's flags`));
-  }
-  return { failOnWarnings: values["fail-on-warnings"] === true, selection, tombstone };
-}
-
-const VOID_FLAG = "--void";
-const REASON_FLAG = "--reason";
-
-/** `--void <slot> --reason <why>` — BOTH or NEITHER. A tombstone without a reason is a refusal nobody can
- *  act on, and `--reason` alone is an operator who thinks they voided something and did not. */
-function voidRequest(values: { readonly void?: string; readonly reason?: string }): { readonly slot: string; readonly reason: string } | null {
-  const slot = values.void?.trim() ?? "";
-  const reason = values.reason?.trim() ?? "";
-  if (slot.length === 0 && reason.length === 0) {
-    return null;
-  }
-  if (slot.length === 0 || reason.length === 0) {
-    throw new UsageError(tailRefusal(`${VOID_FLAG} and ${REASON_FLAG} are used together — a tombstone without a stated reason is a refusal nobody can act on`));
-  }
-  return { slot, reason };
-}
-
-/** ONE refusal shape for every way this tail can be wrong. It LEADS with the whole grammar rather than with
- *  `parseArgs`'s bare "Unknown option", because an operator who typed the near-miss needs the legal set — and
- *  because the sentence `structure takes at most --fail-on-warnings` is the literal the #1117 pins were
- *  written against (tests/tooling/verify/cli.int.test.ts, ops/warning-promotion.suite.int.test.ts): it stays
- *  true and stays a prefix as the grammar grows, so widening the tail never silently retires those pins. */
-function tailRefusal(reason: string): string {
-  return `structure takes at most ${FAIL_ON_WARNINGS_FLAG}, ${CHECK_FLAG} <id> or ${FAMILY_FLAG} <name> — ${reason}\n${STRUCTURE_USAGE}`;
-}
-
-/** This verb's usage line — ONE home, read by the tail refusal above and by the front door's pre-dispatch
- *  `--help` answer (cli.ts VERB_HELP, #809). */
-export const STRUCTURE_USAGE =
-  `usage: node tooling/src/verify/cli.ts structure [${FAIL_ON_WARNINGS_FLAG}] [${CHECK_FLAG} <id>]... | [${FAMILY_FLAG} <name>]...\n` +
-  `       node tooling/src/verify/cli.ts structure ${VOID_FLAG} <slot> ${REASON_FLAG} "<why>"   (tombstone an existing slot; runs nothing)\n` +
-  "  Runs every structural gate in one ts-morph pass; writes reports/check-structure.json (read it with `show`).\n" +
-  `  ${FAIL_ON_WARNINGS_FLAG} promotes final \`severity: "warning"\` findings into the blocking count (exit 1). It is OFF by default: a warning is reported, counted, and blocks nothing.\n` +
-  `  ${CHECK_FLAG} <id> runs ONLY the named gate(s) — a legacy gate name or a final policy id — over the SAME whole real tree. ${FAMILY_FLAG} <name> does the same for a final policy family; the two are mutually exclusive.\n` +
-  "  A selected run is NOT the corpus verdict: it reports only what it was asked about and does NOT republish reports/check-structure.json, so read the slot path it prints.\n" +
-  `  ${VOID_FLAG} <slot> ${REASON_FLAG} "<why>" TOMBSTONES a published slot — every reader then refuses it and prints the reason. It runs no gates and carries no run flags.`;
-
-interface ConsoleInput {
-  readonly pass: PassResult;
-  readonly gatesByName: ReadonlyMap<string, GateDescriptor>;
-  readonly selected: SelectedGateCorpus;
-  readonly final: FinalSide;
-  readonly run: RunManifest;
-  readonly slotRelDir: string;
-}
-
-/** THE NON-VERDICT BANNER (#2167), printed at BOTH ends of the console write (#2222).
- *
- *  It used to print once, between the rosters and the counts. Its own comment said "BEFORE the counts, not
- *  after … a reader must not meet the roster before the disclaimer" — and the code did the opposite of the
- *  second half: the two rosters are hundreds of lines and they printed FIRST, so a reader scrolling from the
- *  top consumed a full gate roster about planted `__g_` props with nothing telling them so. That is the exact
- *  #2167 incident repeating one layer out.
- *
- *  The old placement's RATIONALE survives — a `tail` reader must still meet it — so the fix is not a move, it
- *  is BOTH: the head placement is what stops the roster being read as real-tree, the tail placement is what a
- *  truncated read still sees. A banner is cheap; a roster mistaken for a verdict is not. */
-function nonVerdictBanner(run: RunManifest): string {
-  return `\n‼ THIS RUN IS NOT A VERDICT — ${run.nonVerdictReason ?? "no reason recorded"}\n`;
-}
-
-/** The ONE console write, in the order a reader scans: the non-verdict banner when there is one, the two
- *  rosters, the banner again, then what the run WAS, then cost.
- *
- *  `zeroScanAlarm` is set HERE and nowhere else — this is the only entrypoint whose fileset is the real whole
- *  tree, so it is the only one where "this gate read nothing" means the checker is blind. */
-function renderConsole({ pass, gatesByName, selected, final, run, slotRelDir }: ConsoleInput): void {
-  if (run.nonVerdictReason !== null) {
-    process.stdout.write(nonVerdictBanner(run));
-  }
-  process.stdout.write(renderPass(pass, gatesByName, { zeroScanAlarm: true }));
-  if (final.report !== null) {
-    process.stdout.write(`\n${renderPolicyPass(final.rows, final.report, selected.final)}`);
-  }
-  if (run.nonVerdictReason !== null) {
-    process.stdout.write(nonVerdictBanner(run));
-  }
-  process.stdout.write(`\n${completenessLine(run)}\n`);
-  process.stdout.write(`${timingLine(pass.timing, pass.gates, `${slotRelDir}/${REPORT_NAME}`)}\n`);
-  if (final.result !== null) {
-    process.stdout.write(`${policyTimingLine(final.result.timing, final.rows)}\n`);
-  }
-}
-
-/** The visible half of the #410 guarantee: the console says how many of the corpus actually ran, per contract. */
-function completenessLine(run: RunManifest): string {
-  const split = `${run.legacy.ran}/${run.legacy.active} legacy · ${run.final.ran}/${run.final.registered} final`;
-  if (run.selection.kind !== "all") {
-    // A selected run's own line says what it is NOT, in the same place a reader looks for the verdict.
-    return [
-      `single-pass: SELECTED RUN (--${run.selection.kind} ${run.selection.names.join(`, --${run.selection.kind} `)}) — ran ${run.ran}/${run.active} selected gate(s) (${split}) of ${run.corpusFiles} corpus file(s)`,
-      `  this is NOT a whole-corpus verdict and reports/${REPORT_NAME} was NOT republished — read ${run.artifactDir}/${REPORT_NAME}`,
-      ...(run.incompleteReasons.length === 0 ? [] : ["  the SELECTED run is itself INCOMPLETE:", ...run.incompleteReasons.map((r) => `  ‼ ${r}`)]),
-    ].join("\n");
-  }
-  if (run.incompleteReasons.length === 0) {
-    return `single-pass: ran ${run.ran}/${run.active} active gate(s) (${split}) of ${run.corpusFiles} corpus file(s) — run COMPLETE (run ${run.runId} → ${run.artifactDir}/${REPORT_NAME})`;
-  }
-  return [
-    `single-pass: run INCOMPLETE — the report is NOT a verdict (run ${run.runId}; ${split}):`,
-    ...run.incompleteReasons.map((r) => `  ‼ ${r}`),
-    "  See tooling/src/verify/contract/run-manifest.ts (#410).",
-  ].join("\n");
 }
