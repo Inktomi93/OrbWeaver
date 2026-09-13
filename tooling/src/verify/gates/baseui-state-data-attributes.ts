@@ -163,8 +163,9 @@ export const gate = defineGate({
   family: "baseui-read",
   authority: "ordinary",
   severity: "error",
-  // Per-FILE verdicts: this file's JSX, this file's hook bindings, and the committed ledger are everything the
-  // answer needs, so a scoped run over the changed seals is correct for those seals.
+  // Per-FILE verdicts compose: one seal file's JSX and hook bindings plus the complete declared manifest
+  // are everything this answer needs. A source-only request visits that selected subset; touching the
+  // manifest reselects all declared @ui sources so a changed state surface is checked against every seal.
   population: "@ui",
   analysis: "resource",
   execution: "selected-files",

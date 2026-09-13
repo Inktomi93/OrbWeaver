@@ -85,6 +85,9 @@ export const gate = defineGate({
   severity: "error",
   population: "@ui",
   analysis: "resource",
+  // Per-FILE verdicts compose: one seal file plus the complete declared manifest is everything this
+  // answer needs. A source-only request visits that selected subset; touching the manifest reselects all
+  // declared @ui sources so a changed shared surface is checked against every seal.
   execution: "selected-files",
   facts: [],
   resources: [{ kind: "json", id: "baseui-manifest" }],
