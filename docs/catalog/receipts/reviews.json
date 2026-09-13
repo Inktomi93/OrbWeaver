@@ -5304,6 +5304,35 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-vendor-hooks-pins-2026-09-13.md",
+      "assignedSha256": "5c666d87d30a1b19422673cb683140a038aa44e8a6d9a010d35da23c4832845f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "5c666d87d30a1b19422673cb683140a038aa44e8a6d9a010d35da23c4832845f",
+      "verifiedCommit": "725fc340c2ce99b1e6a0100f61c63b2312c25450",
+      "verifiedAt": "2026-09-13",
+      "summary": "Full two-leg vendor hook proof report with preserved historical evidence, explicit seven-hook correction, independent acceptance, and integrated 26/26 receipt. No new defect ledger rows.",
+      "evidence": [
+        "Root read the complete preserved report and additive integration appendix; independent reviewer prepared the fold and confirmed zero source ledger rows. Scoped check:docs passed. B978 supplies terminal #2310 closure; broader program verification remains owed."
+      ],
+      "claims": [
+        {
+          "claim": "Full two-leg vendor hook proof report with preserved historical evidence, explicit seven-hook correction, independent acceptance, and integrated 26/26 receipt. No new defect ledger rows.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:725fc340c2ce99b1e6a0100f61c63b2312c25450"
+            },
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
