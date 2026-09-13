@@ -1,4 +1,4 @@
-import { ACCENT_HOVER, CHIP_BOX, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, FOCUS_RING_ON_SELECTED, tv } from "#lib";
+import { ACCENT_HOVER, CHIP_BOX, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, FOCUS_RING_ON_SELECTED, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
 // Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
 // holds by construction; button adds `icon`, `media`, `wrap`, `inline` and the four-step `glyph-*` ramp on
@@ -8,19 +8,22 @@ import { ACCENT_HOVER, CHIP_BOX, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NA
 // registered, so a second height resolves LAST-WINS and a call-site class silently beats the sealed box.
 // Unresolvable then, silently overridable now — a size still belongs on this axis, with the
 // `ui-size-via-variant` gate as the enforcer. The two arms that step OUTSIDE the control ramp (`inline`, `glyph-*`)
-// therefore owe their own hit-area ::after — the box shrinks, the touch target does not.
+// therefore owe their own hit-area ::before — the box shrinks, the touch target does not.
 /** One step of the `glyph-*` ramp: a square display box (never a control height, never pointer-narrowed)
- *  plus the hit-area ::after that carries the pointer-conditional touch floor the box itself is under.
+ *  plus the hit-area ::before that carries the pointer-conditional touch floor the box itself is under.
  *  `shrink-0` is part of the SIZE promise, not a call-site layout choice — every one of these lives in a
  *  flex row, and a square that shrinks is no longer the box the token names. The step class is passed as a
- *  WHOLE literal from each arm below so Tailwind's scanner still sees it (it never assembles class names). */
+ *  WHOLE literal from each arm below so Tailwind's scanner still sees it (it never assembles class names).
+ *
+ *  THE HIT AREA IS `::before`, AND IT HAD TO MOVE (#1843). It was an `::after`, and so is the primary CTA's
+ *  gradient ring (`globals.css [data-slot="button"][data-cta]::after`) — which is UNLAYERED, so it beat
+ *  these utilities outright: on a `data-cta` glyph button the one `::after` painted the ring at `inset: 0`
+ *  with `pointer-events: none`, and the touch target vanished entirely (measured: a 16px hit at a fine
+ *  pointer where the ghost twin kept 28). One pseudo cannot be both a brand mark and a tap surface.
+ *  `::before` is the house home for this anyway — `TOUCH_TARGET_PSEUDO` (lib/selection-control.ts) has
+ *  always lifted checkbox/radio/switch there, and Button was the outlier. */
 function glyphBox(box: string): string[] {
-  return [
-    box,
-    "relative shrink-0 p-0",
-    "after:absolute after:top-1/2 after:left-1/2 after:size-touch-target",
-    "after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']",
-  ];
+  return [box, "relative shrink-0 p-0", TOUCH_TARGET_PSEUDO];
 }
 
 export const buttonVariants = tv({
@@ -99,14 +102,16 @@ export const buttonVariants = tv({
       // place that knows what the datum sits in.
       // Padding is the call site's — px-field/py-row/none — and needs no `!` because nothing fights it.
       // TOUCH FLOOR BY CONSTRUCTION: a text-height button is ~18px tall, so the arm carries its own hit-area
-      // pseudo (the TOUCH_TARGET_PSEUDO idea, ::after and stretched to the button's own width) sized on
-      // `--spacing-touch-target` — the POINTER-CONDITIONAL token: ≥44px on coarse/unknown pointers, 28px on
-      // fine. Layout-neutral (absolutely positioned), so the datum's box is unchanged. Pinned by COMPUTED
-      // box in tests/ui/primitives/button/button.ct.tsx.
+      // pseudo (the TOUCH_TARGET_PSEUDO idea on `::before`, stretched to the button's own width rather than
+      // square) sized on `--spacing-touch-target` — the POINTER-CONDITIONAL token: ≥44px on coarse/unknown
+      // pointers, 28px on fine. Layout-neutral (absolutely positioned), so the datum's box is unchanged.
+      // It is `::before` for the #1843 reason spelled out on `glyphBox` above: the CTA ring owns `::after`
+      // unlayered, so an `inline` PRIMARY button's hit area was being replaced by a ring that cannot be
+      // clicked. Pinned by COMPUTED box in tests/ui/primitives/button/button.ct.tsx.
       inline: [
         "relative h-auto min-h-0 justify-start font-normal text-label leading-label",
-        "after:absolute after:top-1/2 after:left-1/2 after:h-touch-target after:w-full after:min-w-touch-target",
-        "after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']",
+        "before:absolute before:top-1/2 before:left-1/2 before:h-touch-target before:w-full before:min-w-touch-target",
+        "before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
       ],
       // GLYPH: the SQUARE ICON-ONLY MICRO-BUTTON ramp — the `icon` size's sub-control twin. `icon` is a full
       // `control-md` box (a toolbar button that happens to hold a glyph); a glyph button rides INSIDE a dense

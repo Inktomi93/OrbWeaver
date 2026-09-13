@@ -14,13 +14,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
-
-export interface ManualTarget {
-  readonly field: RefineryRewriteField["field"];
-  readonly greetingIndex?: number | undefined;
-  /** The working text the edit starts from (the same overlay the model's rewrite would see). */
-  readonly text: string;
-}
+import type { ManualTarget } from "../lib/manual-targets.ts";
 
 export interface ManualRewriteDialogProps {
   readonly open: boolean;

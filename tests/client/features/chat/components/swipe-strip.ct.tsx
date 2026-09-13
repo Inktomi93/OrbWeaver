@@ -178,6 +178,50 @@ test("COLD LOAD step-FORWARD: the right chevron selects an already-generated sib
   await expect.poll(() => trpc.count("chat.swipe")).toBe(0);
 });
 
+// #1874 Finding B — THE BACK EDGE WRAPS, THE FORWARD EDGE DOES NOT, and the asymmetry is the point.
+// Owner-reported: "you can't hit left swipe arrow when at 1 out of X to loop back around to X." Both ends
+// used to be hard-stopped (`current > 1` / `current < total`), so at `1 / X` the ‹ was disabled — a control
+// the reader is reaching for that refuses to move.
+//
+// Wrapping FORWARD would be the wrong symmetry and must stay unbuilt: at `X / X` the › is the GENERATE
+// verb, so a forward wrap would silently replace "make a new variant" with "jump back to variant 1". These
+// two tests are a PAIR — the second is what stops a later "fix the other end for consistency".
+test("#1874: at 1 / X the back chevron WRAPS to the last variant instead of sitting dead", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.selectVariant": () => ({ ok: true }),
+    "chat.swipe": () => ({ ok: true }),
+    "chat.listMessageVariants": () => TWO_VARIANT_LIST,
+  });
+
+  const component = await mount(<SwipeStripStory message={backAtIdx0Of2} />);
+  await expect(component.getByText("1 / 2")).toBeVisible();
+
+  const prev = component.getByRole("button", { name: "Previous variant" });
+  await expect(prev).toBeEnabled();
+  await prev.click();
+
+  await expect.poll(() => trpc.count("chat.selectVariant"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.lastInput("chat.selectVariant")).toMatchObject({ messageId: MESSAGE_ID, variantId: VARIANT_1 });
+  // A WRAP, NEVER A GENERATE: stepping back off the first variant must not cost a model call.
+  await expect.poll(() => trpc.count("chat.swipe")).toBe(0);
+});
+
+test("#1874: the FORWARD edge still generates at the tip — the wrap is back-only", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.selectVariant": () => ({ ok: true }),
+    "chat.swipe": () => ({ ok: true }),
+    "chat.listMessageVariants": () => TWO_VARIANT_LIST,
+  });
+
+  const component = await mount(<SwipeStripStory message={atTipOf2} />);
+  await expect(component.getByText("2 / 2")).toBeVisible();
+
+  await component.getByRole("button", { name: "Next variant" }).click();
+
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.count("chat.selectVariant")).toBe(0);
+});
+
 test("ArrowRight/ArrowLeft drive the same navigation as the chevrons", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.swipe": () => ({ ok: true }),

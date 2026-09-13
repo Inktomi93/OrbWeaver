@@ -148,7 +148,7 @@ test("the hint trigger's touch pseudo clears the label text, so its near edge is
       throw new Error("no hint trigger rendered");
     }
     const rect = trigger.getBoundingClientRect();
-    const reach = Number.parseFloat(getComputedStyle(trigger, "::after").width) / 2;
+    const reach = Number.parseFloat(getComputedStyle(trigger, "::before").width) / 2;
     // One pixel INSIDE the pseudo's near edge — the widest point the trigger can still claim.
     const hit = document.elementFromPoint(rect.left + rect.width / 2 - (reach - 1), rect.top + rect.height / 2);
     return {
