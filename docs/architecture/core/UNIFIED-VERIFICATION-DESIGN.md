@@ -370,16 +370,14 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   (the thin runtime config omits the typecheck projects BEFORE any `--project` filter applies, which is why
   `--project=!types-*` is not the same thing: vitest unions a negative selector with the positives and
   widens the run); anything else narrows to the UNION of the attributed projects.
-  **WHAT THIS DOES NOT FIX, measured rather than assumed (#2232, cb-v-verify-lib-4).** A typecheck project
-  with ZERO matched files is instantiated and never runs tsc, so an UNCLAIMED one can never reach a verdict
-  and excluding it changes none. The founding symptom — `pnpm test:scoped <a directory holding a
-  .test-d.ts>` exiting 1 on a parse error in a file the caller never named, with every named test green —
-  comes from the typecheck project the caller DID claim, whose whole tsconfig program joins the run:
-  driven on `tests/tooling/doc-catalog`, a plant in `tsconfig.json` is exit 1 both before and after, and a
-  plant in `tsconfig.tests-dom.json` is exit 0 both before and after. No arrangement of `--project` reaches
-  it, since dropping the claimed project would drop a type test the caller named. Its real lever is
-  `typecheck.ignoreSourceErrors` on the two typecheck projects — source typechecking is `types:native`'s
-  stage, not the assertion lane's — and that is an open decision, not something this door does.
+  **Source diagnostics and type assertions have separate owners (#2232).** Project selection alone cannot
+  isolate source diagnostics: a claimed typecheck project reads its whole tsconfig program, while a project
+  with zero matched type tests never runs the checker. Both typecheck projects therefore set
+  `typecheck.ignoreSourceErrors: true` in `vitest.config.ts`. The assertion lane still judges the caller's
+  `.test-d.ts` assertions; `types:native` owns source diagnostics. The landed change removed the unrelated
+  source-error failure from `pnpm test:scoped tests/tooling/doc-catalog`; the same planted error must still
+  fail `pnpm typecheck --config tsconfig.json`. A scoped assertion pass never substitutes for that native
+  compiler verdict.
   Git-derived changes
   use native `--changed`; explicit test paths pass native collection preflight; explicit source or mixed
   inputs use native `related`. Folder inputs expand to current authored files from Git's tracked and
