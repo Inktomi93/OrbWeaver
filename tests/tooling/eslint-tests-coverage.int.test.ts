@@ -24,6 +24,14 @@ import { scaledBudget } from "./_load-budget.ts";
 /** Below this the derivation stopped reading (a moved tree, a broken `git ls-files`) — a bare zero census
  *  would read exactly like "everything is covered", which is the failure mode this pin exists to name. */
 const MIN_CENSUS_FILES = 1000;
+/** The quiet-box ceiling for one census arm, and it is deliberately the VITEST DEFAULT these four arms
+ *  already ran under (5 s) — the fix here is the SCALING, not a widening (#2218). Measured quiet on this
+ *  box: the `tests/**` walk 1.45 s, the package walk 0.33 s, the other two under the print threshold. Each
+ *  one is a ~2700-file SEQUENTIAL `calculateConfigForFile` census, so a contended box multiplies the whole
+ *  walk while the code it judges is unchanged — the exact "a wall clock written for a quiet box reads as a
+ *  false RED on a contended one" class `_shared/load-budget.ts` owns. Their one sibling below already
+ *  scaled; these four were the reason the file could red on load alone. */
+const CENSUS_BASE_MS = 5000;
 const LS_FILES_MAX_BUFFER = 268_435_456;
 
 /** Every tracked `tests/**` TS/TSX file, as repo-relative posix paths (sorted). */
@@ -51,7 +59,9 @@ async function uncoveredFiles(root: string, files: readonly string[]): Promise<r
   return out;
 }
 
-test("every tracked tests/** TS/TSX file resolves to a real eslint config block — zero `File ignored`", async ({ repoRoot }) => {
+test("every tracked tests/** TS/TSX file resolves to a real eslint config block — zero `File ignored`", { timeout: scaledBudget(CENSUS_BASE_MS) }, async ({
+  repoRoot,
+}) => {
   const census = testCensus(repoRoot);
   expect(census.length).toBeGreaterThan(MIN_CENSUS_FILES);
 
@@ -64,7 +74,9 @@ test("every tracked tests/** TS/TSX file resolves to a real eslint config block 
   ).toEqual([]);
 });
 
-test("every tracked root/package-root/direct-script Node tool resolves to a real eslint config block", async ({ repoRoot }) => {
+test("every tracked root/package-root/direct-script Node tool resolves to a real eslint config block", { timeout: scaledBudget(CENSUS_BASE_MS) }, async ({
+  repoRoot,
+}) => {
   const census = execSync("git ls-files -- '*.ts' '*.mts' '*.cts'", { cwd: repoRoot, maxBuffer: LS_FILES_MAX_BUFFER })
     .toString()
     .split("\n")
@@ -74,7 +86,9 @@ test("every tracked root/package-root/direct-script Node tool resolves to a real
   expect(await uncoveredFiles(repoRoot, census)).toEqual([]);
 });
 
-test("generated sandboxes and caches are excluded while authored JavaScript remains linted", async ({ repoRoot }) => {
+test("generated sandboxes and caches are excluded while authored JavaScript remains linted", { timeout: scaledBudget(CENSUS_BASE_MS) }, async ({
+  repoRoot,
+}) => {
   const eslint = new ESLint({ cwd: repoRoot });
   expect(await eslint.isPathIgnored(".stryker-tmp/sandbox-probe/stryker-setup-0.js")).toBe(true);
   expect(await eslint.isPathIgnored(".cache/eslint-discovery-probe.mjs")).toBe(true);
@@ -85,7 +99,7 @@ test("generated sandboxes and caches are excluded while authored JavaScript rema
   expect(results[0]?.messages.some(({ message }) => message.includes("Unused eslint-disable directive"))).toBe(true);
 });
 
-test("every tracked non-browser package source resolves to a real eslint config block", async ({ repoRoot }) => {
+test("every tracked non-browser package source resolves to a real eslint config block", { timeout: scaledBudget(CENSUS_BASE_MS) }, async ({ repoRoot }) => {
   const packagePrefixes = Object.keys(PACKAGE_WORLDS)
     .filter((name) => !BROWSER_PACKAGES.has(name))
     .map((name) => `packages/${name}/src/`);
