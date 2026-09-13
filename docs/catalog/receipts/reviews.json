@@ -5948,6 +5948,31 @@
         }
       ],
       "summary": "Full #2302 repair, independent review, ledger fold, and current-main 49/49 focused receipt with broader barriers explicitly retained as owed."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-ledger-adjudication-2026-09-13.md",
+      "assignedSha256": "7b1a0f077561ca533a3e4c8c75861e1bdf2695e312a0792a3d646158e39871c3",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "7b1a0f077561ca533a3e4c8c75861e1bdf2695e312a0792a3d646158e39871c3",
+      "verifiedCommit": "0460b158997bc14fc40f5ab75e71e0d91b223437",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "docs/reviews/gate-runtime/v-ledger-adjudication-2026-09-13.md:1 (full report and subsequent correction reads by codex-primary; scoped check:docs passed; explicit set partition independently recomputed)"
+      ],
+      "claims": [
+        {
+          "claim": "Records bounded adjudication at b1a23e534; proposed ledger transitions are not applied state, and unverified FIXED rows remain qualified.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:0460b158997bc14fc40f5ab75e71e0d91b223437"
+            }
+          ]
+        }
+      ],
+      "summary": "Independent gate-ledger adjudication with exhaustive 101-row selection partition, qualified evidence, and a conserved proposed rollup; remaining unverified claims explicitly retained."
     }
   ]
 }
