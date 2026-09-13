@@ -1104,8 +1104,12 @@ function writeFixtures(): void {
 // final policy's resource proofs materialise their own temp repository with the whole front-door topology
 // in it, which is exactly the substrate the legacy harness could not give it. Its bite is
 // `structure:policy-conformance` running thirteen `mustFlag` rows (including the ORDER, PRESENCE and
-// TARGET clauses of the CT config, and the unresolvable-@import arm #2231 found structurally dead), two
-// `mustRefuse` rows, and tests/tooling/verify/gates/css-home-topology-family.test.ts.
+// TARGET clauses of the CT config, and the unresolvable-@import arm #2231 found structurally dead), three
+// `mustPass` rows (one of which pins that a COMMENTED-OUT import in the CT boot is not an import), THREE
+// `mustRefuse` rows — a vanished `exact-file` anchor plus BOTH reachable statuses of `product-css`,
+// `missing` and `malformed` (#2294 added the third; this sentence said "two" until then) — and
+// tests/tooling/verify/gates/css-home-topology-family.test.ts. Counts re-derived from the module's own
+// arrays, never carried forward: `gate.mustFlag/mustPass/mustRefuse.length` = 13 / 3 / 3.
 // devtools-frontend-assets CONVERTED 2026-09-13 (#1584) and its row is GONE from the set below, for the
 // same reason the tokens-contract and config-liveness rows are: a final policy is partitioned out by the
 // mixed roster, so a row naming one fails the two-sided arm. Its unfixturability was never about the `__g_`

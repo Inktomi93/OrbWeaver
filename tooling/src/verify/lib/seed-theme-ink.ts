@@ -9,11 +9,26 @@
 // TEXT — repository CSS reading behind `defineGate`, in a one-importer `lib/` file, answering a question
 // the consumer's own declared `product-css` resource already answers. `CssDeclarationFact` carries the
 // property, the collapsed value and the OWNER (`@theme` as an at-rule prelude, `[data-theme="x"]` as a
-// style-rule selector list), which is the whole input the derivation needed. Three deltas, all in the
-// widening direction and none reachable by the shipped sheet: a final declaration with no `;` before its
-// `}` is now READ (the old regex required the semicolon); every `@theme` block merges rather than only the
-// first; and a declaration nested inside an at-rule WITHIN `@theme` is attributed to that inner at-rule
-// instead of to the theme block. Parity receipt on the real `packages/ui/src/styles/theme.css`: three
+// style-rule selector list); the ENCLOSING blocks come from the two shared ancestry readers
+// (`css-rules.ts#rulesContaining` / `#atRulesContaining`), because an owner names only the INNERMOST
+// block.
+//
+// THE FIRST FOLD CLAIMED "three deltas, all widening" AND THAT WAS FALSE (#2293 leg 2, caught in source
+// review). Reading only the owner NARROWED the reader: a `--color-*` nested one level inside `@theme` or
+// inside a seed belongs to the inner block, so it silently left the palette. The live `theme.css` has no
+// such nesting, which is exactly why a real-sheet parity twin could not see it — a parity receipt over a
+// subject that never exercises the changed code path is not a measurement of the change. The four deltas,
+// each measured against the frozen pre-fold reader and each pinned in
+// tests/tooling/verify/gates/seed-theme-ink-family.test.ts:
+//   WIDER   a final declaration with no `;` before its `}` is now READ (the old regex required it);
+//   WIDER   every `@theme` block merges rather than only the first;
+//   CHANGED a `--color-*` under a nested CONDITIONAL at-rule becomes its own ARM (`<palette> @ <prelude>`)
+//           instead of being merged last-wins into the palette — both arms are judged, where the old scan
+//           REPLACED the unconditional value and hid the base arm;
+//   NARROWER a `--color-*` under a nested PLAIN SELECTOR is EXCLUDED — its subject is a descendant
+//           element, never the seed root, and the old scan counting it was a defect of the balanced-body
+//           read rather than a capability.
+// Parity receipt on the real `packages/ui/src/styles/theme.css` (which exercises none of the four): three
 // palettes (hearth/dark, light/light, mocha/dark), 81 `--color-*` each, byte-identical values.
 //
 // WHY theme.css AND NOT the DTCG sources: the light-dark() composition (base $value = the dark arm,
@@ -29,6 +44,8 @@ import { parseCssColorToSrgb } from "@orb/kit/safe-color";
 import type { Rgb } from "../../_shared/wcag.ts";
 import { contrastRatio } from "../../_shared/wcag.ts";
 import type { CssDeclarationFact } from "../contract/resource-css.ts";
+import type { AuthoredCssFile } from "../contract/resource-tree.ts";
+import { atRulesContaining, rulesContaining } from "./css-rules.ts";
 import type { StaticClassCandidate } from "./static-class-expression.ts";
 
 /** One shipped seed palette: a name, its inherited color-scheme, and its resolved `--color-*` values. */
@@ -77,29 +94,94 @@ function polarityArm(value: string, scheme: "light" | "dark"): string {
 /** One seed under construction: its scheme is a declaration inside the same block and may be authored
  *  before or after the colours, so both are accumulated and the palette is built at the end. */
 interface SeedDraft {
-  scheme: "light" | "dark";
+  /** `undefined` until the block DECLARES its own `color-scheme`, which is what lets a conditional arm
+   *  INHERIT its palette's polarity instead of silently reverting to the base's. */
+  scheme: "light" | "dark" | undefined;
   readonly vars: Map<string, string>;
 }
 
+/** ONE enclosing block of a declaration, as the shared ancestry readers hand it back. `start` is what
+ *  orders the chain: proper nesting means ascending start is outermost-first. */
+type Block =
+  | { readonly start: number; readonly kind: "style-rule"; readonly selectorList: string }
+  | { readonly start: number; readonly kind: "at-rule"; readonly prelude: string };
+
+/** WHERE a declaration sits, in palette terms. `root` is the palette it belongs to (`hearth` for the
+ *  `@theme` base, else the seed name); `condition` is the joined preludes of the at-rules between the root
+ *  and the declaration — empty for an unconditional declaration. `undefined` means "no palette owns it". */
+interface Placement {
+  readonly root: string;
+  readonly condition: string;
+}
+
+/** One CONDITIONAL ARM under construction: the palette it modifies, the joined at-rule preludes that gate
+ *  it, and the declarations authored inside. */
+interface Arm {
+  readonly root: string;
+  readonly condition: string;
+  readonly draft: SeedDraft;
+}
+
+const HEARTH = "hearth";
+const CONDITION_JOIN = " · ";
+
+/** Every block containing `offset`, outermost first — BOTH halves of the ancestry, through the two shared
+ *  readers. The innermost entry is the declaration's own `owner`; everything before it is a true ancestor,
+ *  which is the half `CssDeclarationFact.owner` structurally cannot express. */
+function blockChain(file: AuthoredCssFile, offset: number): readonly Block[] {
+  const rules: Block[] = rulesContaining(file.rules, offset).map((rule) => ({ start: rule.braceStart, kind: "style-rule", selectorList: rule.selectorList }));
+  const atRules: Block[] = atRulesContaining(file.atRules, offset).map((atRule) => ({ start: atRule.offset, kind: "at-rule", prelude: atRule.prelude }));
+  return [...rules, ...atRules].toSorted((left, right) => left.start - right.start);
+}
+
+/** The index of the block that OWNS a palette — the `@theme` at-rule or a `[data-theme="…"]` selector —
+ *  and the palette's name, or `undefined` when the chain reaches neither. */
+function rootName(block: Block): string | undefined {
+  if (block.kind === "style-rule") {
+    return SEED_SELECTOR.exec(block.selectorList)?.[1];
+  }
+  return THEME_AT_RULE.test(block.prelude) ? HEARTH : undefined;
+}
+
+function rootOf(chain: readonly Block[]): { readonly index: number; readonly name: string } | undefined {
+  let found: { readonly index: number; readonly name: string } | undefined;
+  for (const [index, block] of chain.entries()) {
+    const name = rootName(block);
+    if (name !== undefined) {
+      found = { index, name };
+      break;
+    }
+  }
+  return found;
+}
+
 /**
- * Every shipped seed palette, derived from the THEME SHEET'S OWN DECLARATION FACTS: the `@theme` at-rule
- * carries the base (Hearth — `:root { color-scheme: dark }`), and each `[data-theme="…"]` style rule
- * overrides it, taking its scheme from its own `color-scheme` declaration. A base value that is still
- * `light-dark(…)` collapses to the arm that palette's scheme selects.
+ * WHICH PALETTE, IF ANY, A DECLARATION BELONGS TO — the adjudication this reader exists to make, and the
+ * three cases are decided rather than inherited (#2293 leg 2, red-first delta table in the lane report):
  *
- * The caller passes the declarations of ONE sheet (`facts.declarations.filter(d => d.file === theme)`);
- * this function never reads a path and never parses text — see the header on the parser it replaced.
- *
- * CUSTOM user themes are deliberately OUT OF SCOPE: they are runtime `<ThemeScope>` values clamped by
- * packages/ui/src/content/theme-scope/clamp.ts and swept by its own suite. This reads what WE ship.
+ *  - UNCONDITIONAL, directly in `@theme` or in a seed's own block → the palette itself. Unchanged.
+ *  - Under a nested at-rule (`@supports`, `@media`, `@container`) inside either → the palette's CONDITIONAL
+ *    ARM. It is a value the shipped pixel really takes, so an instrument that drops it goes blind on an arm
+ *    the product paints. It is NOT merged into the unconditional palette either: the retired text scan
+ *    absorbed it last-wins, which REPLACED the unconditional value and hid the base arm instead. Both arms
+ *    are judged, which is the only reading under which neither is invisible.
+ *  - Under a nested PLAIN SELECTOR (`& .x`, `.card &`) inside a seed → NOT the palette, deliberately. Its
+ *    subject is a descendant element, not the seed root, so a `text-<token>` resting on the seed never
+ *    resolves against it. The retired scan counted these too — that was a defect of the balanced-body read,
+ *    not a capability, and it is not restored.
  */
-function absorbSeedDeclaration(seeds: Map<string, SeedDraft>, selectorList: string, property: string, value: string): void {
-  const name = SEED_SELECTOR.exec(selectorList)?.[1];
-  if (name === undefined) {
+function placementOf(file: AuthoredCssFile, offset: number): Placement | undefined {
+  const chain = blockChain(file, offset);
+  const root = rootOf(chain);
+  const inner = root === undefined ? [] : chain.slice(root.index + 1);
+  if (root === undefined || inner.some((block) => block.kind === "style-rule")) {
     return;
   }
-  const draft = seeds.get(name) ?? { scheme: "dark", vars: new Map<string, string>() };
-  seeds.set(name, draft);
+  const conditions = [...chain.slice(0, root.index), ...inner].flatMap((block) => (block.kind === "at-rule" ? [block.prelude] : []));
+  return { root: root.name, condition: conditions.join(CONDITION_JOIN) };
+}
+
+function absorb(draft: SeedDraft, property: string, value: string): void {
   if (property === COLOR_SCHEME) {
     draft.scheme = value.startsWith("light") ? "light" : "dark";
   } else if (property.startsWith(COLOR_PREFIX)) {
@@ -107,28 +189,98 @@ function absorbSeedDeclaration(seeds: Map<string, SeedDraft>, selectorList: stri
   }
 }
 
-export function readSeedPalettes(declarations: readonly CssDeclarationFact[]): readonly SeedPalette[] {
-  const base = new Map<string, string>();
-  const seeds = new Map<string, SeedDraft>();
-  for (const { owner, property, value } of declarations) {
-    if (owner.kind === "at-rule") {
-      if (THEME_AT_RULE.test(owner.prelude) && property.startsWith(COLOR_PREFIX)) {
-        base.set(property, value);
-      }
-    } else {
-      absorbSeedDeclaration(seeds, owner.selectorList, property, value);
+function draftFor(drafts: Map<string, SeedDraft>, key: string): SeedDraft {
+  const existing = drafts.get(key);
+  if (existing !== undefined) {
+    return existing;
+  }
+  const created: SeedDraft = { scheme: undefined, vars: new Map<string, string>() };
+  drafts.set(key, created);
+  return created;
+}
+
+/**
+ * Every shipped seed palette, derived from ONE SHEET'S declaration facts and the SHARED ANCESTRY READERS:
+ * the `@theme` at-rule carries the base (Hearth — `:root { color-scheme: dark }`), each `[data-theme="…"]`
+ * style rule overrides it taking its scheme from its own `color-scheme`, and a conditional at-rule nested
+ * inside either contributes an extra ARM named `<palette> @ <prelude>`. A value that is still
+ * `light-dark(…)` collapses to the arm that palette's scheme selects.
+ *
+ * The caller passes the sheet's `AuthoredCssFile` (for ancestry — `rulesContaining` / `atRulesContaining`)
+ * and the declaration FACTS for that same file. Nothing here reads a path or parses text.
+ *
+ * CUSTOM user themes are deliberately OUT OF SCOPE: they are runtime `<ThemeScope>` values clamped by
+ * packages/ui/src/content/theme-scope/clamp.ts and swept by its own suite. This reads what WE ship.
+ */
+interface Sheet {
+  readonly base: Map<string, string>;
+  readonly seeds: Map<string, SeedDraft>;
+  readonly arms: Map<string, Arm>;
+}
+
+/** File one declaration into the base map, a seed draft, or a conditional arm — the dispatch `placementOf`
+ *  has already decided. A `color-scheme` reaching the base is dropped: Hearth's polarity is the `:root`
+ *  declaration outside `@theme`, and the base map holds colours only. */
+function fileDeclaration(sheet: Sheet, placement: Placement, property: string, value: string): void {
+  if (placement.condition !== "") {
+    const key = `${placement.root}${CONDITION_JOIN}${placement.condition}`;
+    absorb(sheet.arms.get(key)?.draft ?? registerArm(sheet.arms, key, placement), property, value);
+  } else if (placement.root === HEARTH) {
+    if (property.startsWith(COLOR_PREFIX)) {
+      sheet.base.set(property, value);
+    }
+  } else {
+    absorb(draftFor(sheet.seeds, placement.root), property, value);
+  }
+}
+
+export function readSeedPalettes(file: AuthoredCssFile, declarations: readonly CssDeclarationFact[]): readonly SeedPalette[] {
+  const sheet: Sheet = { base: new Map<string, string>(), seeds: new Map<string, SeedDraft>(), arms: new Map<string, Arm>() };
+  const { base, seeds, arms } = sheet;
+  for (const declaration of declarations) {
+    const placement = placementOf(file, declaration.offset);
+    if (placement !== undefined) {
+      fileDeclaration(sheet, placement, declaration.property, declaration.value);
     }
   }
-  // A sheet with no `--color-*` in its `@theme` block resolves ZERO palettes, which is the consumer's
-  // zero-palette blindness tripwire — the same verdict the retired "no `@theme` block at all" arm gave.
+  // A sheet with no unconditional `--color-*` in its `@theme` block resolves ZERO palettes, which is the
+  // consumer's zero-palette blindness tripwire — the verdict the retired "no `@theme` block at all" arm
+  // gave. A conditional-only base is deliberately on this side of the line: there is no arm the product
+  // paints unconditionally, so the honest answer is "I could not measure", not a palette built from one
+  // `@supports` branch.
   if (base.size === 0) {
     return [];
   }
-  const palettes: SeedPalette[] = [{ name: "hearth", scheme: "dark", vars: collapse(base, "dark") }];
+  const palettes: SeedPalette[] = [{ name: HEARTH, scheme: "dark", vars: collapse(base, "dark") }];
   for (const [name, draft] of seeds) {
-    palettes.push({ name, scheme: draft.scheme, vars: collapse(new Map([...base, ...draft.vars]), draft.scheme) });
+    // A seed with no `color-scheme` of its own inherits Hearth's polarity, which is the `:root` default.
+    const scheme = draft.scheme ?? "dark";
+    palettes.push({ name, scheme, vars: collapse(new Map([...base, ...draft.vars]), scheme) });
+  }
+  for (const [, arm] of arms) {
+    const parent = arm.root === HEARTH ? undefined : seeds.get(arm.root);
+    // AN ARM INHERITS ITS PALETTE'S POLARITY unless the conditional block declares its own: a
+    // `@media (prefers-contrast: more)` inside a LIGHT seed is still light, and taking the base default
+    // there would collapse every `light-dark()` value to the wrong arm — measured, and it is why
+    // `SeedDraft.scheme` is optional rather than pre-filled.
+    const scheme = arm.draft.scheme ?? parent?.scheme ?? "dark";
+    palettes.push({
+      name: `${arm.root} @ ${arm.condition}`,
+      scheme,
+      // The arm is the parent palette OVERRIDDEN, never the conditional block alone: a `@media` declaring
+      // one token still paints every other token the palette carries. It composes the RAW maps and
+      // collapses ONCE under the arm's own scheme — re-collapsing the parent's already-collapsed values
+      // would silently freeze them on the parent's polarity.
+      vars: collapse(new Map([...base, ...(parent?.vars ?? []), ...arm.draft.vars]), scheme),
+    });
   }
   return palettes;
+}
+
+function registerArm(arms: Map<string, Arm>, key: string, placement: Placement): SeedDraft {
+  const draft: SeedDraft = { scheme: undefined, vars: new Map<string, string>() };
+  arms.set(key, { root: placement.root, condition: placement.condition, draft });
+  return draft;
 }
 
 function collapse(vars: ReadonlyMap<string, string>, scheme: "light" | "dark"): ReadonlyMap<string, string> {

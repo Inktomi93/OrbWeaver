@@ -109,10 +109,16 @@ test("authored CSS shares the client/ui trees, reads CSS only, and preserves par
   expect(readCalls).toEqual([client, ui]);
   expect(loaded).toMatchObject({ status: "ready", paths: [client, ui], members: 2 });
   const files = readyValue(loaded);
+  // THIS `toEqual` WAS RED AT HEAD, and `tests/tooling/**` being `--full`-only is why nobody saw it: the
+  // statement at-rule fact (#2183, `17a59099b`) added `statements` to every `AuthoredCssFile` and this
+  // whole-object assertion never learned the key, so the suite has been failing on `+ "statements": []`
+  // since that commit. Found by the #2293-leg-2 control (both files restored to HEAD, still red) rather
+  // than caused by it; both missing keys land together here.
   expect(files[0]).toEqual({
     path: client,
     text: "/* ignored { } */\n.x, :not(.a, .b) {\n  color: red;\n}\n",
     atRules: [],
+    statements: [],
     rules: [
       {
         selectorList: ".x, :not(.a, .b)",
@@ -120,6 +126,10 @@ test("authored CSS shares the client/ui trees, reads CSS only, and preserves par
         line: 2,
         preludeStart: 0,
         braceStart: 35,
+        // BOTH ENDS of the block are published (#2293 leg 2). The at-rule half always was; the style-rule
+        // half was not, so "which selector encloses this offset" was unanswerable and `rulesContaining`
+        // could not exist. This is a whole-object `toEqual`, which is why the field lands here too.
+        end: 51,
         declarations: [{ prop: "color", value: "red", rawValue: "red", line: 3, column: 3, offset: 39, valueOffset: 46 }],
       },
     ],

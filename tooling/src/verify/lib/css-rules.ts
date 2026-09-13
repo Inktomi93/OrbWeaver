@@ -36,6 +36,13 @@ export interface CssRule {
   readonly preludeStart: number;
   /** Offset of the rule's `{`. */
   readonly braceStart: number;
+  /** Zero-based offset of the `}` that closes this rule's block — the STYLE-RULE twin of
+   *  {@link CssAtRule.end}, and it exists for the same reason: a consumer must be able to ask ANCESTRY
+   *  ("which selector encloses this offset") without re-counting braces over the raw text. Publishing only
+   *  the at-rule end made half of that question askable and the other half invisible, which silently
+   *  dropped a `--color-*` written inside a `@media` nested in a `[data-theme]` block from the seed palette
+   *  it belongs to (#2293 leg 2). The parser already knew both ends; only the at-rule half was published. */
+  readonly end: number;
   readonly declarations: readonly CssDeclaration[];
 }
 
@@ -205,6 +212,7 @@ function toRule(scan: Scan, frame: Frame, closeAt: number): CssRule | undefined 
     line: scan.lines[frame.preludeStart + leading] ?? 1,
     preludeStart: frame.preludeStart,
     braceStart: frame.braceStart,
+    end: closeAt,
     declarations: readDeclarations(scan, frame.braceStart + 1, closeAt),
   };
 }
@@ -279,6 +287,18 @@ export function quotedStatementArgument(statement: CssStatementAtRule): string |
  *  Containment is offset-based and therefore exact: the parser recorded both ends of every block. */
 export function atRulesContaining(atRules: readonly CssAtRule[], offset: number): readonly CssAtRule[] {
   return atRules.filter((atRule) => atRule.offset <= offset && offset <= atRule.end);
+}
+
+/** The STYLE-RULE ancestors of one offset, outermost first — the twin of {@link atRulesContaining}, and it
+ *  completes the ancestry question rather than answering half of it. A declaration written
+ *  `[data-theme="dusk"] { @media (…) { --color-x: … } }` is OWNED by the `@media` at-rule, so a consumer
+ *  reading `owner` (or only the at-rule ancestry) never learns which SELECTOR the declaration sits under —
+ *  which is how the seed-palette reader lost a conditional token in #2293 leg 2. Containment is
+ *  offset-based and therefore exact: the parser records both ends of every block. A rule always contains
+ *  ITSELF, so the innermost entry of `[...rulesContaining, ...atRulesContaining]` sorted by start is the
+ *  declaration's own owner and everything before it is a true ancestor. */
+export function rulesContaining(rules: readonly CssRule[], offset: number): readonly CssRule[] {
+  return rules.filter((rule) => rule.braceStart <= offset && offset <= rule.end);
 }
 
 /** Compatibility view for policy helpers that need only style rules. */
