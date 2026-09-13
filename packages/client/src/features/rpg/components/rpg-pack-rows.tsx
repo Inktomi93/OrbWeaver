@@ -53,6 +53,7 @@ function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; reado
           aria-label={`${itemName}: use the ${name} icon`}
           key={name}
           intent="ghost"
+          // @orb-waive no-floorless-control-in-wrap(glyph-lg): owner ruling 2026-08-07: PICKER_GAP_AT_COARSE supplies the measured 44px pitch; the boxed-size alternative was declined.
           size="glyph-lg"
           title={`${itemName}: use the ${name} icon`}
           onClick={(): void => onPick(name)}
