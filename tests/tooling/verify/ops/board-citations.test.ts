@@ -68,6 +68,19 @@ test("a reader that cannot say CLOSED REFUSES the run — the whole point of #20
   expect(() => runControls(blind)).toThrow(/CLOSED_CONTROL_ISSUE|not a verdict/);
 });
 
+test.each(["missing", "off-board"] as const)("a %s closed-control row refuses instead of certifying CLOSED", (condition) => {
+  const snapshot = new Map(HEALTHY);
+  if (condition === "missing") {
+    snapshot.delete(CLOSED_CONTROL_ISSUE);
+  } else {
+    snapshot.set(CLOSED_CONTROL_ISSUE, { ...row(CLOSED_CONTROL_ISSUE, "CLOSED"), onBoard: false });
+  }
+  expect(() => runControls(snapshot)).toThrow(/policy-workitem control[\s\S]*not a verdict/);
+  // Restoring only the control's board membership/state restores the same invocation's evidence.
+  snapshot.set(CLOSED_CONTROL_ISSUE, row(CLOSED_CONTROL_ISSUE, "CLOSED"));
+  expect(runControls(snapshot)[0]?.proved).toContain(`#${String(CLOSED_CONTROL_ISSUE)} reported CLOSED`);
+});
+
 test("a snapshot with no OPEN row at all refuses rather than skipping the advisory control", () => {
   const allClosed = states([row(CLOSED_CONTROL_ISSUE, "CLOSED"), row(2024, "CLOSED")]);
   expect(() => runControls(allClosed)).toThrow(/no OPEN row at all[\s\S]*board read to distrust/);
