@@ -1,7 +1,7 @@
 ---
 kind: design
 status: superseded
-updated: 2026-09-04
+updated: 2026-09-13
 ---
 
 # Gate configuration — the dispatch fence
@@ -265,7 +265,7 @@ Coupled sites for slice D, all five in-tool consumers plus the tier nobody liste
 | `tests/tooling/**` | **31 `scanRoot` occurrences across 9 test files** construct or assert descriptors, and `tests:node` is invisible to `pnpm check` — a rename lands green at the commit bar and REDs at the push barrier. Name them in the verification floor |
 | `Core-Enforcement-Active-Gates.md` | a row plus the `(N registered gates)` count line per new gate, or `enforcement-registry-parity` REDs |
 | `_shared/ratchet-rows.ts` shape | the `census.totals` shrink arm for `caught-failure-ownership` |
-| `ops/ledgers-fresh.ts` | the fence-hash ledger; note `ledgerFreshness`/`runLedgersFresh` are SYNC while `loadGateCorpus` is async — the whole chain and its re-export must become async |
+| `ops/ledgers-fresh.ts` | the proposed fence-hash ledger remains part of this superseded design. **CORRECTED 2026-09-13 (`284dedcee`, #2230 ARM B):** `ledgerFreshness`/`runLedgersFresh` and baseline dispatch now support async canonical theme derivation; the earlier sync-to-async prerequisite is complete. This does not implement the proposed fence-hash ledger |
 
 Every migrating gate whose admitted set moves owes Core-Tooling-Law §3.2's four-step FENCE-or-EMBRACE protocol, mechanized by the §7.3 diff. That was cited once and never priced in the prior drafts.
 
