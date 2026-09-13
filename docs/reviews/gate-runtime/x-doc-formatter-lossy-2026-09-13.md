@@ -108,3 +108,26 @@ The same review found that the side-eye repair weakened exact operational spelli
 preserves `styleAndLayoutStart > 0`, `blockingDuration > 50ms`, `compositorClean:false`, `0s`, and
 `transition-duration` as code values with valid delimiters and spacing; `agents:sync` regenerated the Codex
 mirror from that corrected source.
+
+## Second corrective review leg
+
+The first corrective fixture gave the intentional three-fragment spelling the wrong remedy: one outer
+double-delimited span renders the template's inner backticks as content. That is correct for the malformed
+outer-expression case and wrong for an author who intended code / template substitution / code. The
+three-fragment canonical form now widens each endpoint independently:
+
+```markdown
+``left``${VALUE}``right``
+```
+
+Exact endpoint assertions prove the two code spans retain values `left`
+and `right`, the substitution stays between them, and removing only the delimiters yields
+`left${VALUE}right`; byte idempotence remains a separate assertion. The
+refusal diagnostic now asks for longer delimiters that make the intended boundaries explicit, allowing
+either valid remedy without guessing which rendering the author intended.
+
+Serializer control: before `preserveAdjacentTemplateBoundaries`, the focused test failed because remark
+rewrote both double-delimited endpoints to single delimiters while retaining the same render tree. With
+the narrow preservation hook, the focused suite passes 17/17, its second pass is clean,
+and the complete doc-catalog selection passes 70 runtime tests plus three type assertions. Scoped Biome,
+ESLint, and the native tooling TypeScript program pass.

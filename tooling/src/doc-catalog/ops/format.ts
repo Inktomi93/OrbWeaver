@@ -509,8 +509,54 @@ function ambiguousTemplateLiteralRefusal(tree: MarkdownNode, source: string): st
     ? null
     : [
         "single-backtick code delimiters contain a JavaScript template literal, so the inner backticks terminate the Markdown span (#2067)",
-        ...[...lines].toSorted((a, b) => a - b).map((line) => `    line ${String(line)}: wrap the whole expression in a longer backtick delimiter`),
+        ...[...lines]
+          .toSorted((a, b) => a - b)
+          .map((line) => `    line ${String(line)}: use longer backtick delimiters to make the intended span boundaries explicit`),
       ].join("\n");
+}
+
+/** Keep an author's explicit longer delimiters on the one shape whose ordinary serialization would
+ * recreate the ambiguous spelling refused above. Both endpoint values and the middle substitution remain
+ * separate nodes; only their delimiter runs are retained. Every other inline-code node uses remark's
+ * ordinary shortest-delimiter serialization. */
+function preserveAdjacentTemplateBoundaries(tree: MarkdownNode, source: string, serialized: string): string {
+  let output = serialized;
+  const walk = (node: MarkdownNode): void => {
+    const children = node.children ?? [];
+    for (let index = 0; index + 2 < children.length; index += 1) {
+      const left = children[index];
+      const middle = children[index + 1];
+      const right = children[index + 2];
+      const leftStart = left?.position?.start?.offset;
+      const leftEnd = left?.position?.end?.offset;
+      const rightStart = right?.position?.start?.offset;
+      const rightEnd = right?.position?.end?.offset;
+      const middleValue = middle?.type === "text" && typeof middle.value === "string" ? middle.value : "";
+      if (
+        left?.type !== "inlineCode" ||
+        right?.type !== "inlineCode" ||
+        typeof left.value !== "string" ||
+        typeof right.value !== "string" ||
+        leftStart === undefined ||
+        leftEnd === undefined ||
+        rightStart === undefined ||
+        rightEnd === undefined ||
+        !/^\$\{[^}\n]+\}$/u.test(middleValue) ||
+        !/^``[^`\n]+``$/u.test(source.slice(leftStart, leftEnd)) ||
+        !/^``[^`\n]+``$/u.test(source.slice(rightStart, rightEnd))
+      ) {
+        continue;
+      }
+      const minimized = `\`${left.value}\`${middleValue}\`${right.value}\``;
+      const explicit = source.slice(leftStart, rightEnd);
+      output = output.replace(minimized, explicit);
+    }
+    for (const child of children) {
+      walk(child);
+    }
+  };
+  walk(tree);
+  return output;
 }
 
 /**
@@ -608,7 +654,7 @@ export function formatMarkdown(input: string): { readonly output: string; readon
   if (overflow !== null) {
     return { output: input, refusal: overflow };
   }
-  const output = String(processor.processSync(input));
+  const output = preserveAdjacentTemplateBoundaries(parsed, input, String(processor.processSync(input)));
   // Before the generic re-parse guard, for the same reason the overflow census runs before it: the
   // escape delta is a SPECIFIC diagnosis with a named site and a named repair. It is also the only one
   // of the three that compares against the SOURCE — the re-parse guard structurally cannot see a loss

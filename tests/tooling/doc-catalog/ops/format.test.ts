@@ -147,11 +147,19 @@ test("SOURCE FIDELITY: contiguous code-template-code fragments are conservativel
   expect(refused.outcome.refused.map((entry) => entry.file)).toStrictEqual([join(scratch, "adjacent-template-fragments.md")]);
   expect(refused.outcome.refused[0]?.reason).toContain("longer backtick delimiter");
 
-  const canonical = `${FRONTMATTER}The pieces are \`\`left\`${"${NAME}"}\`right\`\`.\n`;
+  const canonical = `${FRONTMATTER}The pieces are \`\`left\`\`${"${NAME}"}\`\`right\`\`.\n`;
   const accepted = format(scratch, "adjacent-template-fragments-ok.md", canonical);
 
   expect(accepted.outcome.refused).toStrictEqual([]);
   expect(accepted.bytes).toBe(canonical);
+  const content = accepted.bytes.slice(FRONTMATTER.length);
+  expect([...content.matchAll(/``([^`]+)``/gu)].map((match) => match[1])).toEqual(["left", "right"]);
+  expect(content).toBe("The pieces are ``left``${NAME}``right``.\n");
+  expect(content.replaceAll("``", "")).toBe("The pieces are left${NAME}right.\n");
+  const second = format(scratch, "adjacent-template-fragments-ok.md", accepted.bytes);
+  expect(second.outcome.refused).toStrictEqual([]);
+  expect(second.outcome.dirty).toStrictEqual([]);
+  expect(second.bytes).toBe(accepted.bytes);
 });
 
 test("FROZEN ARCHAEOLOGY: a doc in EITHER history tree is never written and never judged", () => {
