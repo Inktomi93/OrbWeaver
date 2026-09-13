@@ -53,25 +53,31 @@
 // numerically overlap, so a shared list would let file B's `expect` satisfy file A's stub.
 //
 // DECLARED LIMIT: helper resolution is SAME-FILE ONLY — and since #2163 it is a FENCE, not a reader
-// weakness. THE HISTORY MATTERS, because the same sentence used to mean the opposite thing: the legacy
-// gate and the first converted shape both asked the callee identifier for its symbol's declarations, and
-// for an IMPORTED helper those are the `ImportSpecifier`, a declaration with no body — so no cross-file
-// helper was followed BECAUSE THE READER COULD NOT, not because the policy declined. (That is also why
-// this module's first draft shipped an out-of-population REFUSAL arm and had to delete it: running the
-// probe showed the branch unreachable.)
+// weakness. THE HISTORY MATTERS, and it is not one story for every import spelling: the legacy gate and
+// the first converted shape both asked the callee for its symbol's declarations. For a NAMED import
+// (`import { expectOk }`) those are the `ImportSpecifier`, a declaration with no body, so that helper was
+// not followed. For a NAMESPACE-qualified call (`import * as h` … `h.expectOk(1)`) the member symbol's
+// declaration IS the other file's `FunctionDeclaration` — the legacy gate FOLLOWED it (#2036, measured),
+// which refuted the conversion's claim that no cross-file body was reachable. So the fence is a §4.6
+// NARROWING against legacy for the namespace spelling, not a restatement of what legacy did. (The first
+// draft's out-of-population REFUSAL arm was deleted on that same unverified reachability claim.)
 //
-// The owner ruling on #2097 replaced that chain with the shared `resolveCallableDeclaration`, which DOES
-// follow an import, an import rename and a re-export rename to the declaring file. The limit is therefore
-// re-stated as a deliberate one and lives in exactly one place — `resolveCalleeBody`'s source-file test —
-// for a reason the reader change makes concrete: a cross-file body would make this verdict depend on a
+// #2097's owner ruling moved binding/origin resolution to shared readers; the migration lane for #2163
+// (`ddf1adf53`) replaced the chain with `resolveCallableDeclaration`, which follows a named import, an
+// import rename, a re-export rename and a namespace member to the declaring file, and that LANE kept the
+// same-file limit as an explicit fence. No ruling decides the fence itself: #2036's arm 1 (drop the fence
+// and restore following) versus arm 2 (keep it as a declared narrowing) is UNADJUDICATED, and this module
+// carries arm 2's shape until it is. The fence lives in exactly one place — `resolveCalleeBody`'s
+// source-file test — for the reason that lane gave: a cross-file body would make this verdict depend on a
 // file a `selected-files` request need not contain, so `--changed` and the whole run would disagree.
 // AND THE FENCE OWES A ROW THAT DIES WITHOUT IT (§4.1) — which `mustFlag[7]` is NOT, measured rather
 // than assumed. Cutting the source-file test with only `mustFlag[7]` present reads CLEAN, because that
 // fixture's test file carries no matcher expect for the followed body's OFFSET RANGE to capture: an
 // unenforced FIXTURE, not an unenforced fence. `mustFlag[8]` is the constructed falsifier — a support
-// helper whose body spans offsets 42-249 beside a test file whose own `expect(1).toBe(1)` spans 173-190,
+// helper whose body spans offsets 42-243 beside a test file whose own `expect(1).toBe(1)` spans 173-190,
 // so an unfenced cross-file body satisfies a stub that asserts nothing. Cut receipts: fence removed →
-// `mustFlag[7]` green, `mustFlag[8]` RED; restored → both green. Measured on the real corpus at
+// `mustFlag[7]` green, `mustFlag[8]` RED; restored → both green. `mustFlag[9]` is the same falsifier through
+// the namespace spelling (#2036) and reds under the same cut. Measured on the real corpus at
 // conversion: zero tests assert only through an imported helper, so the limit still costs nothing today
 // (the §4.6 differential is 0/0).
 //
@@ -467,7 +473,7 @@ export const gate = defineGate({
           "});\n",
       },
       expect: { count: 1, line: 2, token: "test", messageIncludes: "no `expect(...).<matcher>()`" },
-      why: "THE SAME-FILE FENCE'S FALSIFIER (§4.1), and it is the row mustFlag[7] canNOT be. Since the shared `resolveCallableDeclaration` landed, `resolveCalleeBody` really does receive the IMPORTED helper's body, and the containment reconciliation is by NUMERIC OFFSET against the TEST file's index — so a body in another file whose range happens to contain the test file's own matcher expect would satisfy a stub that asserts nothing. The offsets here are MEASURED, not hoped for: the helper body spans 42-249 and this file's `expect(1).toBe(1)` spans 173-190. With the fence the first test flags (this row); cut `resolveCalleeBody`'s `sourceFile === call.getSourceFile()` test and the count is 0. mustFlag[7]'s test file carries no matcher expect at all, so the same cut reads CLEAN there — an unenforced FIXTURE, not an unenforced fence",
+      why: "THE SAME-FILE FENCE'S FALSIFIER (§4.1), and it is the row mustFlag[7] canNOT be. Since the shared `resolveCallableDeclaration` landed, `resolveCalleeBody` really does receive the IMPORTED helper's body, and the containment reconciliation is by NUMERIC OFFSET against the TEST file's index — so a body in another file whose range happens to contain the test file's own matcher expect would satisfy a stub that asserts nothing. The offsets here are MEASURED, not hoped for: the helper body spans 42-243 and this file's `expect(1).toBe(1)` spans 173-190. With the fence the first test flags (this row); cut `resolveCalleeBody`'s `sourceFile === call.getSourceFile()` test and the count is 0. mustFlag[7]'s test file carries no matcher expect at all, so the same cut reads CLEAN there — an unenforced FIXTURE, not an unenforced fence",
     },
     {
       mode: "types",
@@ -488,7 +494,7 @@ export const gate = defineGate({
           "});\n",
       },
       expect: { count: 1, line: 2, token: "test", messageIncludes: "no `expect(...).<matcher>()`" },
-      why: "THE NAMESPACE-IMPORT SPELLING OF THE SAME-FILE FENCE (#2036). The conversion's first guard was justified by the claim that a helper could never leave the calling file; `import * as h` REFUTED it — the shared `resolveCallableDeclaration` follows `h.expectOk` to the other file's declaration — and no row used the spelling, so the divergence was unpinned in both directions. The fence is now the #2097 ruling's deliberate `selected-files` boundary (header), and this row states it for the namespace door exactly as mustFlag[8] does for the named one: the helper body spans offsets 42-249 and this file's `expect(1).toBe(1)` spans 169-186, so cutting `resolveCalleeBody`'s source-file test lets the followed body satisfy the stub and the count drops to 0",
+      why: "THE NAMESPACE-IMPORT SPELLING OF THE SAME-FILE FENCE (#2036). The conversion's first guard was justified by the claim that a helper could never leave the calling file; `import * as h` REFUTED it — the shared `resolveCallableDeclaration` follows `h.expectOk` to the other file's declaration — and no row used the spelling, so the divergence was unpinned in both directions. The fence is a narrowing kept by the #2163 migration lane (`ddf1adf53`) for the `selected-files` reason in the header — no ruling decides it, and #2036's arm 1 vs arm 2 stays UNADJUDICATED — and this row states it for the namespace door exactly as mustFlag[8] does for the named one: the helper body spans offsets 42-243 and this file's `expect(1).toBe(1)` spans 169-186, so cutting `resolveCalleeBody`'s source-file test lets the followed body satisfy the stub and the count drops to 0",
     },
   ],
   mustPass: [
