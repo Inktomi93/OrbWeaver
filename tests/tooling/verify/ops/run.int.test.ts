@@ -4,7 +4,7 @@
 // supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -18,6 +18,7 @@ import {
   asViolations,
   eslintScheme,
   failReason,
+  failuresWorstFirst,
   noticesIn,
   ownScheme,
   parse,
@@ -25,12 +26,15 @@ import {
   REGISTRY,
   readCompilerPrograms,
   resolveSelection,
+  resolveStageCommand,
   stagesForTier,
+  unresolvableCommandTranscript,
+  workspaceBinPath,
 } from "../../../../tooling/src/verify/index.ts";
 import { HOST_POOL_ROOT_ENV } from "../../../../tooling/src/verify/lib/host-slots.ts";
 import { workingChangeClassification } from "../../../../tooling/src/verify/lib/selection.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
-import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
+import { nonRunningStageResult, planStage, unrunnableRegistryRows } from "../../../../tooling/src/verify/ops/run.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -1174,4 +1178,153 @@ test("a second whole run QUEUES behind a live holder and says whose pid it is be
   expect(third?.slot, "once the holder releases, the slot is free again").toBe(1);
   third?.release();
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+// ── #2220 / #2225: A STAGE'S argv[0] AND THE VERDICT IT OWES ────────────────────────────────────────
+//
+// THE DEFECT. `ops/run.ts` resolved argv[0] through `PATH_RESOLVED = new Set(["pnpm","node"])`, sending
+// every other name to `node_modules/.bin/<cmd>`. The `lint:hook-syntax` row's argv[0] is `bash`, so it
+// resolved to a `.bin/bash` that does not exist; `spawnNicedTranscript` existence-checks a path-shaped
+// command and returns `code: null`, which every classifier maps to 2. The stage exited TOOL ERROR on every
+// static run from the day it landed and NEVER produced a verdict — while the file it guards is the
+// PreToolUse Bash guard, whose own syntax error makes the hook exit non-zero with no JSON, which the hook
+// contract reads as a NON-BLOCKING error. Unguarded Bash in every session, behind a green push bar.
+//
+// THE CLASS (#2225). A registered stage that can never produce a verdict is invisible to its tier. So the
+// pins below are in two layers: the resolver's rungs (what argv[0] IS, from evidence), and the two
+// remedies — `--list` REFUSES an unrunnable row instead of printing it as runnable, and the run summary
+// prints exit-2 stages FIRST.
+
+// biome-ignore lint/style/noProcessEnv: the resolver's input IS the PATH a stage child would be spawned with — reading the parent's PATH here IS the measurement, not app config.
+const PHSV_PATH = process.env["PATH"] ?? "";
+/** Spawn options for the `lint:hook-syntax` arms: a resolvable PATH for `nice` + the loop's own `node`,
+ *  and NO_COLOR so a planted SyntaxError arrives as greppable plain text (run.ts composes the same pair). */
+function phsvSpawnOpts(cwd: string): { readonly cwd: string; readonly env: Record<string, string>; readonly timeoutMs: number } {
+  return {
+    cwd,
+    env: Object.fromEntries([
+      ["PATH", PHSV_PATH],
+      ["NO_COLOR", "1"],
+    ]),
+    timeoutMs: scaledBudget(60_000),
+  };
+}
+
+test("resolveStageCommand: the WORKSPACE BIN wins over a system program of the same name — that is the version pin", ({ scratch }) => {
+  const bin = join(scratch, "node_modules", ".bin");
+  mkdirSync(bin, { recursive: true });
+  const system = join(scratch, "sysdir");
+  mkdirSync(system, { recursive: true });
+  // The same NAME in both places. The workspace copy is the one this repo installed and pinned.
+  writeFileSync(join(bin, "phsv-tool"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  writeFileSync(join(system, "phsv-tool"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+
+  const resolved = resolveStageCommand(scratch, "phsv-tool", system);
+  expect(resolved.kind).toBe("workspace-bin");
+  expect(resolved.kind === "workspace-bin" && resolved.command).toBe(join(bin, "phsv-tool"));
+});
+
+test("resolveStageCommand: a SYSTEM program resolves off PATH with no allowlist — the #2220 arm", ({ scratch }) => {
+  const system = join(scratch, "sysdir");
+  mkdirSync(system, { recursive: true });
+  writeFileSync(join(system, "phsv-sys"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  // No node_modules/.bin at all, and "phsv-sys" is in no allowlist anywhere. Evidence is the whole test.
+  const resolved = resolveStageCommand(scratch, "phsv-sys", system);
+  expect(resolved.kind).toBe("system-program");
+  expect(resolved.kind === "system-program" && resolved.command).toBe(join(system, "phsv-sys"));
+
+  // A NON-EXECUTABLE file of the same name is not a program — the rung must not stop on it.
+  const other = join(scratch, "sysdir2");
+  mkdirSync(other, { recursive: true });
+  writeFileSync(join(other, "phsv-sys"), "not a program\n", { mode: 0o644 });
+  expect(resolveStageCommand(scratch, "phsv-sys", `${other}:${system}`).kind).toBe("system-program");
+  expect(resolveStageCommand(scratch, "phsv-sys", other).kind, "a readable-but-not-executable file resolves NOTHING").toBe("unresolvable");
+});
+
+test("resolveStageCommand: an UNRESOLVABLE argv[0] refuses, and the refusal NAMES both places it looked", ({ scratch }) => {
+  const resolved = resolveStageCommand(scratch, "phsv-absent-tool", join(scratch, "empty-path-dir"));
+  expect(resolved.kind).toBe("unresolvable");
+  if (resolved.kind !== "unresolvable") {
+    throw new Error("unreachable");
+  }
+  const transcript = unresolvableCommandTranscript("lint:phsv", resolved);
+  expect(transcript).toContain('REFUSED to run stage "lint:phsv"');
+  expect(transcript).toContain("phsv-absent-tool");
+  expect(transcript, "the workspace-bin path it checked").toContain(workspaceBinPath(scratch, "phsv-absent-tool"));
+  expect(transcript, "and that PATH was searched").toContain("PATH director");
+  // THE EXIT CONTRACT, not a courtesy: a refusal is a TOOL ERROR (2) — "the run is not a verdict" — and
+  // never a violation (1). #2225's whole point is that a refusal wearing a finding's costume is the same
+  // lie. `code: null` is what runOneStage settles the un-spawned stage with; every classifier maps it to 2.
+  expect(stage("lint:hook-syntax").classify(null)).toBe(2);
+  expect(stage("lint:eslint").classify(null)).toBe(2);
+  expect(stage("types:native").classify(null)).toBe(2);
+});
+
+test("EVERY registry row's whole-scope argv[0] resolves on this checkout — the #2225 --list refusal, with its planted control", () => {
+  // The real answer first: nothing in the registry is unrunnable here.
+  expect(unrunnableRegistryRows(process.cwd(), PHSV_PATH)).toStrictEqual([]);
+  // PLANTED POSITIVE CONTROL — a zero above is only evidence if a non-zero is reachable. Hand it a PATH
+  // that resolves nothing and a root with no node_modules: every row must come back unrunnable, named.
+  const blind = unrunnableRegistryRows(join(process.cwd(), "no-such-root-phsv"), "");
+  expect(blind.length).toBe(REGISTRY.length);
+  expect(blind.map((r) => r.name)).toContain("lint:hook-syntax");
+});
+
+test("lint:hook-syntax RUNS and produces a real verdict — clean on the tree, RED on a planted syntax error", async ({ scratch }) => {
+  const row = stage("lint:hook-syntax");
+  const [cmd, ...args] = row.argv;
+  const resolved = resolveStageCommand(process.cwd(), cmd, PHSV_PATH);
+  expect(resolved.kind, "#2220: argv[0] `bash` used to resolve to a nonexistent node_modules/.bin/bash").toBe("system-program");
+  if (resolved.kind === "unresolvable") {
+    throw new Error("unreachable");
+  }
+
+  // ARM 1 — the REAL repo: the stage executes and returns a VERDICT (0 or 1), never a tool error.
+  const live = await spawnNicedTranscript(resolved.command, args, phsvSpawnOpts(process.cwd()));
+  expect(row.classify(live.code), `the stage must MEASURE, not error: ${live.transcript}`).not.toBe(2);
+  expect(row.classify(live.code), "and the repo's hooks parse").toBe(0);
+
+  // ARM 2 — the detector actually detects. A scratch tree shaped like the glob: a COPY of the live hook
+  // (never the real file — it gates this session's own Bash calls and a syntax error there fails OPEN)
+  // plus one deliberately broken sibling.
+  const hooks = join(scratch, ".claude", "hooks");
+  mkdirSync(hooks, { recursive: true });
+  cpSync(join(process.cwd(), ".claude", "hooks", "tool-guard.mjs"), join(hooks, "tool-guard.mjs"));
+  const control = await spawnNicedTranscript(resolved.command, args, phsvSpawnOpts(scratch));
+  expect(row.classify(control.code), "control: a copy of the real hook is clean").toBe(0);
+
+  writeFileSync(join(hooks, "phsv-broken.mjs"), "export function guard( {\n  return 1;\n");
+  const planted = await spawnNicedTranscript(resolved.command, args, phsvSpawnOpts(scratch));
+  expect(row.classify(planted.code), "a syntax error in ANY .claude/hooks/*.mjs is a VIOLATION (1)").toBe(1);
+  expect(planted.transcript).toContain("SyntaxError");
+
+  rmSync(join(hooks, "phsv-broken.mjs"));
+  const restored = await spawnNicedTranscript(resolved.command, args, phsvSpawnOpts(scratch));
+  expect(row.classify(restored.code), "and it goes green again when the plant is removed").toBe(0);
+});
+
+test("the summary prints TOOL ERRORS first and leaves report.stages in registry order (#2225)", () => {
+  const failing = (name: string, exitCode: 1 | 2 | 3): StageResult => ({
+    name,
+    group: "lint",
+    mode: "full",
+    ok: false,
+    exitCode,
+    durationMs: 1,
+    logFile: `reports/verify/${name}.log`,
+    failureExcerpt: null,
+    runsAt: null,
+    notices: [],
+  });
+  // Registry order puts the violation first and the tool error last — the shape that hid #2220 among
+  // thirty rows. A reader scanning the first failing line must meet "nothing was measured" before "your
+  // code has a lint finding".
+  const stages = [failing("lint:biome", 1), failing("lint:eslint", 1), failing("lint:hook-syntax", 2), failing("types:native", 3)];
+  expect(failuresWorstFirst(stages).map((s) => s.name)).toStrictEqual(["lint:hook-syntax", "types:native", "lint:biome", "lint:eslint"]);
+  // STABLE within a severity: the two violations keep registry order, never an arbitrary shuffle.
+  const sorted = failuresWorstFirst(stages);
+  expect(sorted.slice(2).map((r) => r.name)).toStrictEqual(["lint:biome", "lint:eslint"]);
+  // AND THE RECORD IS UNTOUCHED. The artifact is read by other instruments and by later runs; a reporter
+  // may reorder what it PRINTS and must never reorder what it RECORDS.
+  expect(stages.map((s) => s.name)).toStrictEqual(["lint:biome", "lint:eslint", "lint:hook-syntax", "types:native"]);
 });
