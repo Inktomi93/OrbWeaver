@@ -51,6 +51,40 @@ const CANONICAL_HEAD = 'import { defineGate } from "../contract/policy.ts";\n';
  *  reading the test's own strings as unfinished templates. */
 const OPEN = ["$", "{"].join("");
 
+test("static text derives canonical frozen keys in JavaScript order through imported value aliases", () => {
+  const project = projectOf({
+    "tooling/src/verify/lib/words.ts":
+      'const DEFINITION = { zebra: "a", 10: "ten", 2: "two", alpha: "first", ["alpha"]: "last", "01": "padded" };\nexport const WORDS = Object.freeze(Object.keys(DEFINITION));\n',
+    "tooling/src/verify/gates/probe.ts":
+      'import { WORDS as imported } from "../lib/words.ts";\nconst alias = imported;\nconst separator = "|";\nconst result = alias.join(separator);\n',
+  });
+  const source = project.getSourceFileOrThrow("/repo/tooling/src/verify/gates/probe.ts");
+  expect(staticText(initializer(source, "result"))).toBe("2|10|zebra|alpha|01");
+  expect(messageAlternatives(initializer(source, "result"))).toEqual([{ segments: ["2|10|zebra|alpha|01"], complete: true }]);
+  const producer = project.getSourceFileOrThrow("/repo/tooling/src/verify/lib/words.ts");
+  producer.replaceWithText(`${producer.getFullText()}\nArray.prototype.join = () => "changed";\n`);
+  expect(staticText(initializer(source, "result"))).toBeUndefined();
+});
+
+test("an empty derived sequence is a known empty template span, not unreadable text", () => {
+  const source = moduleOf(`const result = \`before ${OPEN}Object.freeze([]).join(",")} after\`;`);
+  expect(staticText(initializer(source, "result"))).toBe("before  after");
+  expect(messageAlternatives(initializer(source, "result"))).toEqual([{ segments: ["before  after"], complete: true }]);
+});
+
+test.each([
+  'const values = ["a", "b"]; values.push("c"); const result = values.join(",");',
+  'declare function mutate(value: unknown): void; const values = ["a", "b"]; mutate(values); const result = Object.freeze(values).join(",");',
+  'declare function mutate(value: unknown): void; const definition = { a: "x" }; mutate(definition); const result = Object.freeze(Object.keys(definition)).join(",");',
+  'const Object = { keys: () => ["wrong"], freeze: (value: unknown) => value }; const result = Object.freeze(Object.keys({ a: "x" })).join(",");',
+  'const values = { join: () => "wrong" }; const result = values.join(",");',
+  'declare const separator: string; const result = Object.freeze(["a", "b"]).join(separator);',
+  'declare const key: string; const result = Object.freeze(Object.keys({ [key]: "x" })).join(",");',
+  'const left = right; const right = left; const result = Object.freeze(left).join(",");',
+])("derived text refuses unstable identity or effects: %s", (source) => {
+  expect(staticText(initializer(moduleOf(`export {};\n${source}`), "result"))).toBeUndefined();
+});
+
 test("finalDescriptorOf reads a canonical import and refuses a local lookalike and a legacy object", () => {
   const canonical = moduleOf(`${CANONICAL_HEAD}export const gate = defineGate({ id: "probe" });\n`);
   expect(finalDescriptorOf(canonical)?.getText()).toBe('{ id: "probe" }');

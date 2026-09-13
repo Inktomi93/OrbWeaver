@@ -18,6 +18,8 @@
 // `JSON.stringify`, a callee with statements — yields the empty incomplete read, which every consumer treats as
 // UNREADABLE rather than as absent text. And because a HIT is certain while an ABSENCE is not, `complete` is
 // load-bearing at the verdict: see `discriminationOf`.
+// The bounded exception is lib/static-derived-text.ts: canonical freeze/keys and string-sequence join over
+// proven inert inputs yield exact text. Its alias/effect refusals apply before either text query admits it.
 //
 // TWO READS, NOT ONE, AND THE DIFFERENCE IS THE CONDITIONAL (#2055). `staticSegments` answers "which pieces of
 // text are CERTAIN in this expression" and folds a conditional's branches into one record — right for judging
@@ -49,6 +51,7 @@ import type { Discrimination, FinalRegistration, ProofRows, ReportSiteMessage, S
 import { isCanonicalDefineGate, resolveCallableMember } from "./gate-contract-origin.ts";
 import { resolveModuleMemberOrigin, resolveStableExpression } from "./reference-fact.ts";
 import { resolveCallableDeclaration } from "./reference-fact-call.ts";
+import { staticDerivedText } from "./static-derived-text.ts";
 
 const REPORT_SINK = "report";
 const REPORT_METHODS: ReadonlySet<string> = new Set(["node", "file"]);
@@ -313,7 +316,7 @@ function templateSegments(node: TemplateExpression, seen: Set<object>): StaticSe
     const part = staticSegments(span.getExpression(), seen);
     const tail = span.getLiteral().getLiteralText();
     const last = segments.length - 1;
-    if (part.complete && part.segments.length === 1) {
+    if (part.complete && part.segments.length <= 1) {
       segments[last] = `${segments[last] ?? ""}${part.segments[0] ?? ""}${tail}`;
     } else {
       complete = false;
@@ -365,6 +368,10 @@ function returnExpressionOf(fn: ArrowFunction | FunctionDeclaration | FunctionEx
  *  value formatter like `JSON.stringify`, a callee with statements before its return, a cycle) yields the empty
  *  incomplete read: "I could not read this", which the census counts as an unreadable SOURCE, never as absence. */
 function callSegments(call: CallExpression, seen: Set<object>): StaticSegments {
+  const derived = staticDerivedText(call);
+  if (derived !== undefined) {
+    return { segments: nonEmpty([derived]), complete: true };
+  }
   const fn = textFunctionOf(unwrapExpression(call.getExpression()));
   const returned = fn === undefined ? undefined : returnExpressionOf(fn);
   const identity: object | undefined = fn?.compilerNode;
@@ -410,7 +417,10 @@ export function staticSegments(expression: MorphNode, seen: Set<object> = new Se
       result = staticSegments(fact.value, seen);
     } else if (
       fact.reason === "dynamic" &&
-      (Node.isTemplateExpression(fact.node) || Node.isBinaryExpression(fact.node) || Node.isConditionalExpression(fact.node))
+      (Node.isTemplateExpression(fact.node) ||
+        Node.isBinaryExpression(fact.node) ||
+        Node.isConditionalExpression(fact.node) ||
+        Node.isCallExpression(fact.node))
     ) {
       result = staticSegments(fact.node, seen);
     }
@@ -423,7 +433,7 @@ function appendSpan(base: StaticSegments, part: StaticSegments, tail: string): S
   const segments = [...base.segments];
   const last = segments.length - 1;
   let complete = base.complete;
-  if (part.complete && part.segments.length === 1) {
+  if (part.complete && part.segments.length <= 1) {
     segments[last] = `${segments[last] ?? ""}${part.segments[0] ?? ""}${tail}`;
   } else {
     complete = false;
@@ -456,6 +466,10 @@ function templateAlternatives(node: TemplateExpression, seen: Set<object>): read
 /** A call's alternatives: the callee's single return expression, read in place under the same cycle fence and
  *  the same "arguments are not substituted" rule `callSegments` uses. */
 function callAlternatives(call: CallExpression, seen: Set<object>): readonly StaticSegments[] {
+  const derived = staticDerivedText(call);
+  if (derived !== undefined) {
+    return [{ segments: nonEmpty([derived]), complete: true }];
+  }
   const fn = textFunctionOf(unwrapExpression(call.getExpression()));
   const returned = fn === undefined ? undefined : returnExpressionOf(fn);
   const identity: object | undefined = fn?.compilerNode;
@@ -476,7 +490,7 @@ function identifierAlternatives(node: Identifier, seen: Set<object>): readonly S
     result = messageAlternatives(fact.value, seen);
   } else if (
     fact.reason === "dynamic" &&
-    (Node.isTemplateExpression(fact.node) || Node.isBinaryExpression(fact.node) || Node.isConditionalExpression(fact.node))
+    (Node.isTemplateExpression(fact.node) || Node.isBinaryExpression(fact.node) || Node.isConditionalExpression(fact.node) || Node.isCallExpression(fact.node))
   ) {
     result = messageAlternatives(fact.node, seen);
   }
@@ -520,7 +534,7 @@ export function messageAlternatives(expression: MorphNode, seen: Set<object> = n
 /** The ONE whole static string an expression evaluates to, or undefined when any part is dynamic. */
 export function staticText(expression: MorphNode | undefined): string | undefined {
   const read = expression === undefined ? undefined : staticSegments(expression);
-  return read?.complete === true && read.segments.length === 1 ? read.segments[0] : undefined;
+  return read?.complete === true && read.segments.length <= 1 ? (read.segments[0] ?? "") : undefined;
 }
 
 interface RowCollector {
