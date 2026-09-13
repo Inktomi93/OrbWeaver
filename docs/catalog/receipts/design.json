@@ -1105,14 +1105,27 @@
     {
       "path": "docs/design/gate-config-system.md",
       "assignedSha256": "7babcc1649ec7a452a2077f3f8169569d6768c590a81102e75c655ef19ffce6b",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "superseded",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "ba81c07e60a476865fc95ba69cd2159977de89a7c68a5963d764956dc815b641",
+      "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "docs/design/gate-config-system.md:1-295 read in full for #2067 first-review receipt; the document marks itself superseded by gate-runtime-standardization.md and retains its measurements and rejected dispatch-fence design as historical design input."
+      ],
+      "claims": [
+        {
+          "claim": "This is a superseded dispatch-fence proposal: its measurements, limits, and rejected alternatives remain design evidence, while gate-runtime-standardization.md owns the current program.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Superseded design for a declarative gate dispatch fence. Retained for its measured scope taxonomy, explicit limits, and rejected alternatives; it is not current runtime law."
     },
     {
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
@@ -1464,10 +1477,11 @@
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
-      "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
-      "verifiedAt": "2026-09-05",
+      "verifiedSha256": "08abbd013cf4e080c6bf709798abb91551b56a26e428b1977dcbcd7981c67f40",
+      "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+      "verifiedAt": "2026-09-13",
       "evidence": [
+        "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
         "Read in full by the orchestrator at the fold: frozen review evidence of v2; its P0s are absent from v3 and its coupled-site list is what commit 2 followed (isPushingGroup split not flipped, clear()'s entry rung, the landing as the keyed host)."
       ],
       "claims": [
@@ -1791,10 +1805,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "9d2a74b1b25a41d4dcddd0eb0549e5615c3c65e174184f838e351f5ed1ce39a9",
-      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "94ec4067a2cdf5d77e34c59c12ec4b1612bbca9b50af62d1ab74e7f63253b32c",
+      "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+      "verifiedAt": "2026-09-13",
       "evidence": [
+        "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
         "docs/design/note-token-intent-history.md:1 (design; unheaded)",
         "git log --oneline -1 -- docs/design/note-token-intent-history.md: be00fe738 docs(investigate): {{note}} intent history — warn-never-block was INHERITED not decided; divergence from {{entry}} is stale classification, one real counter-precedent (:::card)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
@@ -1970,10 +1985,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "ba64418ec539a817dbaf286d9908465046f98a072f0cfada99bf585a08fb173c",
-      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "0aa1e88f41cea3ae89ffae5885b1b74a87e9ad6f10ab9715c53cbcf681a41bed",
+      "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+      "verifiedAt": "2026-09-13",
       "evidence": [
+        "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
         "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
         "git log --oneline -1 -- docs/design/parked-options-config-port.md: c91162bfc docs(investigate): config-port parked-options — presets-into-rail is a seam migration not an array edit; JSON-card already server-built (client submenu only)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"

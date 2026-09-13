@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 24,
+    "pending": 22,
     "missingFrontmatter": 0,
-    "invalidFrontmatter": 0,
+    "invalidFrontmatter": 1,
     "malformedFrontmatter": 0
   },
   "documents": [
@@ -12690,8 +12690,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 295,
-      "bytes": 41199,
-      "sha256": "75b7faf694ba81d097d69a3c80d69f39deab5262c5c8a77ac31c67f3e8104f9d",
+      "bytes": 41148,
+      "sha256": "ba81c07e60a476865fc95ba69cd2159977de89a7c68a5963d764956dc815b641",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12705,16 +12705,29 @@
       "receipt": {
         "path": "docs/design/gate-config-system.md",
         "assignedSha256": "7babcc1649ec7a452a2077f3f8169569d6768c590a81102e75c655ef19ffce6b",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "superseded",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "ba81c07e60a476865fc95ba69cd2159977de89a7c68a5963d764956dc815b641",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "docs/design/gate-config-system.md:1-295 read in full for #2067 first-review receipt; the document marks itself superseded by gate-runtime-standardization.md and retains its measurements and rejected dispatch-fence design as historical design input."
+        ],
+        "claims": [
+          {
+            "claim": "This is a superseded dispatch-fence proposal: its measurements, limits, and rejected alternatives remain design evidence, while gate-runtime-standardization.md owns the current program.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1584"
+              }
+            ]
+          }
+        ],
+        "summary": "Superseded design for a declarative gate dispatch fence. Retained for its measured scope taxonomy, explicit limits, and rejected alternatives; it is not current runtime law."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
@@ -13315,7 +13328,7 @@
       "issue": 5,
       "lines": 221,
       "bytes": 46333,
-      "sha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
+      "sha256": "08abbd013cf4e080c6bf709798abb91551b56a26e428b1977dcbcd7981c67f40",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13332,10 +13345,11 @@
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "a37de24febc3710377662741fbc46a3e007822704e190eff7ca22d71098671bb",
-        "verifiedCommit": "626a061215e5e023c26ed0ca0790c5fdb9071519",
-        "verifiedAt": "2026-09-05",
+        "verifiedSha256": "08abbd013cf4e080c6bf709798abb91551b56a26e428b1977dcbcd7981c67f40",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
         "evidence": [
+          "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
           "Read in full by the orchestrator at the fold: frozen review evidence of v2; its P0s are absent from v3 and its coupled-site list is what commit 2 followed (isPushingGroup split not flipped, clear()'s entry rung, the landing as the keyed host)."
         ],
         "claims": [
@@ -13829,8 +13843,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 264,
-      "bytes": 18303,
-      "sha256": "9d2a74b1b25a41d4dcddd0eb0549e5615c3c65e174184f838e351f5ed1ce39a9",
+      "bytes": 18302,
+      "sha256": "94ec4067a2cdf5d77e34c59c12ec4b1612bbca9b50af62d1ab74e7f63253b32c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13847,10 +13861,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "9d2a74b1b25a41d4dcddd0eb0549e5615c3c65e174184f838e351f5ed1ce39a9",
-        "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "94ec4067a2cdf5d77e34c59c12ec4b1612bbca9b50af62d1ab74e7f63253b32c",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
         "evidence": [
+          "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
           "docs/design/note-token-intent-history.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/note-token-intent-history.md: be00fe738 docs(investigate): {{note}} intent history — warn-never-block was INHERITED not decided; divergence from {{entry}} is stale classification, one real counter-precedent (:::card)",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
@@ -14084,8 +14099,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 220,
-      "bytes": 15572,
-      "sha256": "ba64418ec539a817dbaf286d9908465046f98a072f0cfada99bf585a08fb173c",
+      "bytes": 15570,
+      "sha256": "0aa1e88f41cea3ae89ffae5885b1b74a87e9ad6f10ab9715c53cbcf681a41bed",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14102,10 +14117,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "ba64418ec539a817dbaf286d9908465046f98a072f0cfada99bf585a08fb173c",
-        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "0aa1e88f41cea3ae89ffae5885b1b74a87e9ad6f10ab9715c53cbcf681a41bed",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
         "evidence": [
+          "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
           "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
           "git log --oneline -1 -- docs/design/parked-options-config-port.md: c91162bfc docs(investigate): config-port parked-options — presets-into-rail is a seam migration not an array edit; JSON-card already server-built (client submenu only)",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
@@ -29912,8 +29928,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 254,
-      "bytes": 60547,
-      "sha256": "b2abd0a2984650fdfaa6477ffc722845b008be8581c61f65368ab6555f2c72d9",
+      "bytes": 60542,
+      "sha256": "6df1047dbf7c2013311a32aa752b93ebaac4dc48f1284ef17c5487002c23498c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29927,16 +29943,29 @@
       "receipt": {
         "path": "docs/reviews/gate-runtime/checkpoint-2026-09-05.md",
         "assignedSha256": "b2abd0a2984650fdfaa6477ffc722845b008be8581c61f65368ab6555f2c72d9",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "6df1047dbf7c2013311a32aa752b93ebaac4dc48f1284ef17c5487002c23498c",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "docs/reviews/gate-runtime/checkpoint-2026-09-05.md:1-254 read in full for #2067 first-review receipt; the file explicitly preserves an incomplete emergency-fold snapshot and warns that committed WIP is not conversion credit or verification evidence."
+        ],
+        "claims": [
+          {
+            "claim": "The report is an emergency-fold snapshot at b32797507 that deliberately includes incomplete and red work; it is provenance for recovery, not evidence of the current implementation.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:b3279750718fd372e75432b2757a671af6f871b3"
+              }
+            ]
+          }
+        ],
+        "summary": "Historical emergency-fold checkpoint for the gate-runtime program. It preserves recovery state, incomplete work, and limitations and must not be read as current acceptance."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/exception-authority-census.md",
@@ -30265,8 +30294,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 465,
-      "bytes": 41894,
-      "sha256": "662891117955154939a7d9178b1c6646563c0f748607c37417acc6f127195bbe",
+      "bytes": 41887,
+      "sha256": "51379892132561f40adaf7ec2f007a5d3c16fea3ed755617e54c9db51ace5cdd",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -30283,10 +30312,11 @@
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "662891117955154939a7d9178b1c6646563c0f748607c37417acc6f127195bbe",
-        "verifiedCommit": "94b1b5199e14af079635c45e1ec6c077a9483ee9",
-        "verifiedAt": "2026-09-11",
+        "verifiedSha256": "51379892132561f40adaf7ec2f007a5d3c16fea3ed755617e54c9db51ace5cdd",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
         "evidence": [
+          "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
           "docs/reviews/gate-runtime/mixed-runtime-front-door.md:1 (authored and read in full by lane p-mixed-runtime — the design-first record and receipts for #1584 §5 items 1–6, #1941, #1948; every count in §11 read off the named runs)"
         ],
         "claims": [
@@ -31569,7 +31599,7 @@
       "issue": 7,
       "lines": 501,
       "bytes": 36386,
-      "sha256": "f400f4330c97b1b421610c5001dfd1b86712c92b1085dc340a6a0975c8570f29",
+      "sha256": "230e5d3257180f94ea39fb116764963e1bbb2117e8bf8653ae05918a32252ef9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31580,8 +31610,32 @@
         },
         "errors": []
       },
-      "receipt": null,
-      "receiptCurrent": false
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-night-conversions-2026-09-12.md",
+        "assignedSha256": "230e5d3257180f94ea39fb116764963e1bbb2117e8bf8653ae05918a32252ef9",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "230e5d3257180f94ea39fb116764963e1bbb2117e8bf8653ae05918a32252ef9",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-night-conversions-2026-09-12.md:1-501 read in full for #2067 first-review receipt; current as a dated read-only verifier report over seven conversion commits, preserving negative findings, mutation limits, marker arithmetic, and owed coverage."
+        ],
+        "claims": [
+          {
+            "claim": "At tree ee6dab949, this review records the tested and untested bounds of seven night-conversion commits, including lost-marker and unenforced-proof findings; its observations remain dated review evidence rather than present-tree verdicts.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:ee6dab949898ddac6f3b0a2d7023c03486c2dc3d"
+              }
+            ]
+          }
+        ],
+        "summary": "Dated independent verifier report for seven gate-conversion commits, retaining confirmed findings, retractions, mutation evidence, and explicit noncoverage. It is review authority, not current runtime law."
+      },
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/gate-runtime/v-wave-2026-09-13.md",
@@ -32562,8 +32616,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 485,
-      "bytes": 36541,
-      "sha256": "21c32d118cbe612bc885588ff305a255f33a0903c3940d14d4d464342080db60",
+      "bytes": 36536,
+      "sha256": "2c9557381e488133218b9aa6fdea53e1925700de8cf3061d4b3e8cfcd3d5a46e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -32580,10 +32634,11 @@
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "21c32d118cbe612bc885588ff305a255f33a0903c3940d14d4d464342080db60",
-        "verifiedCommit": "2e341aabb22da103fa2dd09a5514b58c0a6617da",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "2c9557381e488133218b9aa6fdea53e1925700de8cf3061d4b3e8cfcd3d5a46e",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
         "evidence": [
+          "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
           "docs/reviews/research/2026-08-30-vocab-roster-cast.md:1-486 read in full by the orchestrator (claude-b) before commit; lane cb-vocab-deep — the roster/cast/party census: 737 hit files enumerated, 19 read end-to-end, positive controls at scannedFileCount=2459 on every negative claim, declared limits stated in §6"
         ],
         "claims": [
@@ -33257,8 +33312,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 447,
-      "bytes": 34373,
-      "sha256": "7ff01ea1e2eea524400d9f3262ae3917790428937eb45b1a22a78eee3f24f38f",
+      "bytes": 34379,
+      "sha256": "23e7dbf91ba790f6bd8b814d4e2252ee21bd93a98b33cd8b3efb9b3fe49423a7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -33275,10 +33330,11 @@
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "fb5b1e8ad9a20cb970d5fba0ee5bd5acc545aafb557760b6b11b811f44c3a1fc",
-        "verifiedCommit": "a87073b991b52944835ec15a56419f6ac039f1f1",
-        "verifiedAt": "2026-08-29",
+        "verifiedSha256": "23e7dbf91ba790f6bd8b814d4e2252ee21bd93a98b33cd8b3efb9b3fe49423a7",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
         "evidence": [
+          "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
           "docs/reviews/side-eye/2026-08-29-saved-casts-rules.md:1-450 read in full by the orchestrator (claude-b) before commit; lane cb-se-casts live pass over the merged B10 rules rider (3ff8bfe4b) on an isolated stage + the restored :5173, principal Traveler, own fixtures; two retractions published in §6; findings filed as #810-#816"
         ],
         "claims": [
@@ -33302,7 +33358,7 @@
         ],
         "summary": "side-eye of B10 saved casts +rules: SHIP WITH FIXES — the rider's mechanism proven with stored data (non-default knob captured, re-minted, enabled; re-apply idempotent); two P1s (mobile CastRow erases the name and the rules badge overlaps Start; the Start door applies rules silently, discarding rulesSkipped reasons), a rules-as-count cluster, editor/picker polish, two stumbled-on B2 defects, and a design-audit blind spot (0px label + 48px overlap passed clean)."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/side-eye/2026-08-30-bracket-verify.md",
@@ -41621,6 +41677,102 @@
             ]
           }
         ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/v-migrations-wave-2026-09-12.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 253,
+      "bytes": 25185,
+      "sha256": "ec9cd5620acdcc87280b9827d754cccf3a4ac5921eed78bf7db0a204f7d1b39a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-12"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/v-migrations-wave-2026-09-12.md",
+        "assignedSha256": "ec9cd5620acdcc87280b9827d754cccf3a4ac5921eed78bf7db0a204f7d1b39a",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "ec9cd5620acdcc87280b9827d754cccf3a4ac5921eed78bf7db0a204f7d1b39a",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "docs/reviews/gate-runtime/v-migrations-wave-2026-09-12.md:1-253 read in full for #2067 first-review receipt; current as a dated independent review of five migration commits, including its red controls, unverified areas, retractions, and ledger rows."
+        ],
+        "claims": [
+          {
+            "claim": "At tree 9e14a5d93, this review independently evaluated the five named migration commits and records both confirmed controls and explicit unverified or refuted claims; its run counts are dated receipts, not present-tree fleet counts.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:9e14a5d93eefc1164948e133fa44a25a9a9658a0"
+              }
+            ]
+          }
+        ],
+        "summary": "Dated independent review of five 2026-09-12 gate migrations. Current as review evidence with its stated limits and retractions; not a current implementation specification."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-doc-formatter-lossy-2026-09-13.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 168,
+      "bytes": 13945,
+      "sha256": "f65b2e9b4e8168da905bb88ca375b297ae8c98f16025a561f2ed820738958ec3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "evidence",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": ["docs/reviews/gate-runtime/x-doc-formatter-lossy-2026-09-13.md: invalid frontmatter kind evidence"]
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/x-doc-formatter-lossy-2026-09-13.md",
+        "assignedSha256": "f65b2e9b4e8168da905bb88ca375b297ae8c98f16025a561f2ed820738958ec3",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "f65b2e9b4e8168da905bb88ca375b297ae8c98f16025a561f2ed820738958ec3",
+        "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Root read the full repair report and independent corrective reviews; the integrated census covers 367 tracked targets with explicit historical/literal dispositions and the separate 149-file canonical-format backlog."
+        ],
+        "claims": [
+          {
+            "claim": "The report records the bounded #2067 source-fidelity repair, its corrective review history and integrated receipts; it explicitly does not claim whole-population canonical formatting.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1584"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/doc-catalog/ops/format.test.ts:1"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:a0f648df2ebdd1491690355e2a5e7ff333fb2b6d"
+              }
+            ]
+          }
+        ],
+        "summary": "Reviewed formatter repair and current-population census, preserving rejected intermediate approaches and the remaining canonical-format backlog."
       },
       "receiptCurrent": true
     }
