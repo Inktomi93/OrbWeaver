@@ -435,7 +435,27 @@ export interface TmpdirDifferential {
  *  test cannot tell a carried arm from a lost one on a fixture whose 30 filler globs light up a newly
  *  live arm, and filing a differential under a category its own evidence contradicts is exactly how
  *  `ordinary-visitors-family-1584.md` swept four split arms into one `0 | 0 | 0` cell. */
-const CLASSIFICATION_CLAIMS: Record<DifferentialClass, (before: TmpdirReplay, after: TmpdirReplay) => readonly string[]> = {
+/** What a classification check reads. Structural rather than `TmpdirReplay`, because the IN-MEMORY door's
+ *  `Replay` carries only the effective findings — so a caller on that door adapts with
+ *  `{ ...replay, raw: replay.findings, granted: [], thrown: undefined }`, and an `exemption-mechanism-move`
+ *  claim then CORRECTLY fails there: the in-memory door cannot observe a consumed grant, so a category-5
+ *  differential is not expressible on it and must not be claimable. */
+export interface DifferentialSide {
+  readonly findings: readonly string[];
+  readonly raw: readonly string[];
+  readonly granted: readonly string[];
+  readonly toolErrors: readonly string[];
+  readonly thrown: string | undefined;
+}
+
+/** The label plus its successor proof, without the per-row numbers a scenario also declares. */
+export interface DifferentialClaim {
+  readonly classification: DifferentialClass;
+  readonly successor: string | null;
+  readonly retiredWhy?: string;
+}
+
+const CLASSIFICATION_CLAIMS: Record<DifferentialClass, (before: DifferentialSide, after: DifferentialSide) => readonly string[]> = {
   identical: (before, after) => [
     ...(before.findings.length > 0 ? [] : ['"identical" claims CATCH PARITY, so the LEGACY side must be non-empty']),
     ...(after.findings.length === before.findings.length ? [] : ['"identical" requires the same finding COUNT on both sides']),
@@ -460,21 +480,29 @@ const CLASSIFICATION_CLAIMS: Record<DifferentialClass, (before: TmpdirReplay, af
 };
 
 /** Every check the label and the successor proof together owe, as ONE list so the assertion is
- *  unconditional and a failure names every broken claim rather than the first. */
-function scenarioViolations(scenario: TmpdirScenario, before: TmpdirReplay, after: TmpdirReplay): readonly string[] {
+ *  unconditional and a failure names every broken claim rather than the first. Exported because BOTH doors
+ *  answer to it: the tmpdir runner calls it per scenario, and a caller on the in-memory door calls it
+ *  beside `runScenarios` with an adapted side — one home for what a classification means. */
+export function differentialViolations(claim: DifferentialClaim, before: DifferentialSide, after: DifferentialSide): readonly string[] {
   const carriers = [...after.findings, ...after.toolErrors, after.thrown ?? ""].join("\n");
   return [
-    ...CLASSIFICATION_CLAIMS[scenario.classification](before, after),
-    ...(scenario.successor !== null && !carriers.includes(scenario.successor)
-      ? [`the declared SUCCESSOR ${JSON.stringify(scenario.successor)} appears in no final finding or tool error`]
+    ...CLASSIFICATION_CLAIMS[claim.classification](before, after),
+    ...(claim.successor !== null && !carriers.includes(claim.successor)
+      ? [`the declared SUCCESSOR ${JSON.stringify(claim.successor)} appears in no final finding or tool error`]
       : []),
-    ...(scenario.successor === null && before.findings.length > 0 && scenario.retiredWhy === undefined
+    ...(claim.successor === null && before.findings.length > 0 && claim.retiredWhy === undefined
       ? ["the legacy side CAUGHT something and no successor is declared — say WHY nothing here carries it"]
       : []),
-    ...(scenario.successor === null && before.findings.length === 0 && scenario.retiredWhy !== undefined
+    ...(claim.successor === null && before.findings.length === 0 && claim.retiredWhy !== undefined
       ? ["`retiredWhy` explains a retired CATCH, and this example's legacy side caught nothing"]
       : []),
   ];
+}
+
+/** Adapt an IN-MEMORY `Replay` to the classification checker's side. See `DifferentialSide` on why a
+ *  category-5 claim correctly cannot hold on that door. */
+export function inMemorySide(replay: Replay): DifferentialSide {
+  return { findings: replay.findings, raw: replay.findings, granted: [], toolErrors: replay.toolErrors, thrown: undefined };
 }
 
 function materialize(files: Files): { readonly root: string; readonly project: Project } {
@@ -659,7 +687,7 @@ export function createTmpdirDifferential(classifyToolError: ClassifyToolError): 
       expect(after.subjects, `${tag} — FINAL subjects`).toEqual(sorted(scenario.finalSubjects));
       expect(after.toolErrors, `${tag} — FINAL tool errors`).toEqual(sorted(scenario.finalErrors ?? []));
       expect(
-        scenarioViolations(scenario, before, after),
+        differentialViolations(scenario, before, after),
         `${tag} — the "${scenario.classification}" label and its successor proof must agree with the evidence`,
       ).toEqual([]);
     }
