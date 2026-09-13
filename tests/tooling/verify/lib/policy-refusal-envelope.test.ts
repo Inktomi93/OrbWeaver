@@ -351,6 +351,33 @@ function alternativeFragments(left: Fragments, right: Fragments): Fragments {
   };
 }
 
+/** Operators whose result kind is fixed regardless of a string literal operand. This is deliberately an
+ *  allowlist, not a claim that every remaining JavaScript operator returns authored text: an unmodelled
+ *  text-bearing binary shape is unreadable below, while one with no text remains a runtime slot. */
+const RUNTIME_RESULT_BINARY_OPERATORS = new Set<SyntaxKind>([
+  SyntaxKind.AsteriskToken,
+  SyntaxKind.AsteriskAsteriskToken,
+  SyntaxKind.SlashToken,
+  SyntaxKind.PercentToken,
+  SyntaxKind.MinusToken,
+  SyntaxKind.LessThanLessThanToken,
+  SyntaxKind.GreaterThanGreaterThanToken,
+  SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+  SyntaxKind.AmpersandToken,
+  SyntaxKind.BarToken,
+  SyntaxKind.CaretToken,
+  SyntaxKind.EqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsToken,
+  SyntaxKind.EqualsEqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsEqualsToken,
+  SyntaxKind.LessThanToken,
+  SyntaxKind.LessThanEqualsToken,
+  SyntaxKind.GreaterThanToken,
+  SyntaxKind.GreaterThanEqualsToken,
+  SyntaxKind.InstanceOfKeyword,
+  SyntaxKind.InKeyword,
+]);
+
 function binaryFragments(expression: BinaryExpression, hops: number, runtime: Fragments): Fragments {
   const operator = expression.getOperatorToken().getKind();
   if (operator === SyntaxKind.PlusToken) {
@@ -359,9 +386,12 @@ function binaryFragments(expression: BinaryExpression, hops: number, runtime: Fr
   if (operator === SyntaxKind.BarBarToken || operator === SyntaxKind.AmpersandAmpersandToken || operator === SyntaxKind.QuestionQuestionToken) {
     return alternativeFragments(slotFragments(expression.getLeft(), hops), slotFragments(expression.getRight(), hops));
   }
-  // Equality, comparison and arithmetic operators emit a boolean/number runtime value. A string literal
-  // used as their operand is not itself message text.
-  return runtime;
+  if (RUNTIME_RESULT_BINARY_OPERATORS.has(operator)) {
+    return runtime;
+  }
+  // Assignment and comma are examples that can return an authored RHS string. The bounded reader does not
+  // model their evaluation; if the expression carries text, fail closed instead of calling it runtime.
+  return carriesAuthoredText(expression) ? unreadable(expression.getText()) : runtime;
 }
 
 /** One interpolation, classified. A table member and any runtime value stay SLOTS; resolved authored text
@@ -770,6 +800,28 @@ test("the bounded const reader distinguishes concatenation from runtime and valu
       "export function refuse(): never {\n  throw new Error(`${POLICY_PASS_REFUSALS.factFailed}: ${FAILED}`);\n}\n",
   );
   expect(unaccountedRefusals(equality)).toEqual([]);
+
+  const inequality = project.createSourceFile(
+    "/planted/runtime-inequality.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\nconst FAILED = "ready" !== "failed";\n' +
+      "export function refuse(): never {\n  throw new Error(`${POLICY_PASS_REFUSALS.factFailed}: ${FAILED}`);\n}\n",
+  );
+  expect(unaccountedRefusals(inequality)).toEqual([]);
+
+  for (const [name, expression] of [
+    ["assignment", '(runtime = "authored assignment")'],
+    ["comma", '(runtime, "authored comma")'],
+  ] as const) {
+    const unmodelled = project.createSourceFile(
+      `/planted/text-bearing-${name}.ts`,
+      `import { POLICY_PASS_REFUSALS } from "./table.ts";\nlet runtime = "";\nconst TEXT = ${expression};\n` +
+        "export function refuse(): never {\n  throw new Error(`${POLICY_PASS_REFUSALS.factFailed}: ${TEXT}`);\n}\n",
+    );
+    expect(
+      unaccountedRefusals(unmodelled).some((message) => message.includes("<UNREADABLE") && message.includes(`authored ${name}`)),
+      name,
+    ).toBe(true);
+  }
 
   // Logical/coalescing operators can return either operand, so a literal fallback/suffix remains authored
   // refusal text and must not disappear with the equality correction.
