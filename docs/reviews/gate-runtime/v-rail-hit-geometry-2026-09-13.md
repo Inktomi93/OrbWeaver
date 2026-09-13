@@ -6,7 +6,7 @@ updated: 2026-09-13
 
 # RAIL hit-geometry rendered consequence review — 2026-09-13
 
-**VERDICT: SHIP.** The #2300/#2301 scorer repair survives a two-direction live control across every canonical RAIL section and exposes one real P2 product defect. File that Settings defect as a product follow-up; it does not weaken the evidence for shipping the instrument repair.
+**VERDICT: SHIP.** The #2300/#2301 scorer repair survives a two-direction live control across every canonical RAIL section and exposes one real P2 tap-target product defect. The broader audit also stumbled over one real P1 accessibility defect in Extensions: its programmatic arrival-focus target is unnamed. File both as product follow-ups; neither weakens the evidence for shipping the hit-geometry instrument repair.
 
 ## Scope and provenance
 
@@ -30,6 +30,20 @@ Home and Characters have whole-run `population-verdict=NO-VERDICT` for unrelated
 
 ## Confirmed findings
 
+### \[P1] Extensions moves arrival focus to an unnamed generic wrapper
+
+**What.** `ExtensionsSwitcherSurface` calls `useFocusOnMount(surfaceRef)` and puts that ref on `<Container tabIndex={-1}>` without a role or accessible name. On a real section navigation, that wrapper is the element focus moves to. The child `button "Card Atlas"` is correctly named, but a descendant's name does not name the focused wrapper.
+
+**Why it hurts.** A screen-reader user entering Extensions can be moved to a generic node that announces no section or region identity. They learn where they landed only after moving focus again.
+
+**Fix.** `clarify: the Extensions arrival-focus target — give the focused container the appropriate region role and a stable "Extensions list" accessible name, following the Presets list precedent.` Preserve the existing child row name and focus behavior.
+
+**Owner/source.** `packages/client/src/features/plugin/surfaces/extensions-switcher-surface.tsx:92-95`. The direct precedent is `packages/client/src/features/preset/surfaces/preset-library-surface.tsx:55-60`, whose header explains why a `useFocusOnMount` target needs a role/name. The walker intentionally retains generic `tabindex=-1` programmatic focus wrappers in its accessibility census at `tests/tooling/design-audit-walker.ct.tsx:659-676`; this is not an instrument false positive.
+
+**Regression proof to add.** Exercise a real rail bounce into Extensions, assert `document.activeElement` is the named region, and read its browser-computed role/name. Preserve the named `Card Atlas` child and natural Tab progression.
+
+**Receipts.** Initial finding: `reports/runs/snap/main-348505-2026-09-13T06-42-29-931Z/run.json`. Dedicated browser ARIA/map/DOM receipt: `reports/runs/snap/main-388851-2026-09-13T06-51-27-188Z/run.json`; it proves the wrapper is `DIV`, `tabindex=-1`, with no role, `aria-label`, or `aria-labelledby`, while the child is a separate named button.
+
 ### \[P2] Settings filter button has a 36px coarse-pointer width
 
 **What.** The icon-only `Add a search filter` button renders `36x60` in the account and compact appearances and `40px` wide in defaults. Maximal and reading reach at least 44px and do not fire. The failing user-facing states violate the coarse-pointer floor in `docs/architecture/core/UI-Architecture-and-Layout.md:382`.
@@ -50,20 +64,22 @@ The detector caught what my eye forgave: the Settings funnel looks like a large 
 
 The tiny visible glyphs in Chats, Characters, Databank, and Refinery were not defects. Their effective compositor targets passed; a small drawing is deliberate decoration inside a compliant target.
 
-I retract the raw Extensions `aria-name` P1 from `main-348505-2026-09-13T06-42-29-931Z`. The reported `[data-testid="extensions-switcher"]` is a `div tabindex="-1"`, not the actionable owner. It contains the focusable `button "Card Atlas"`, and both the browser ARIA tree and selector map expose that named button. Receipt: `reports/runs/snap/main-388851-2026-09-13T06-51-27-188Z/run.json`.
+I retract my earlier **retraction** of the Extensions `aria-name` P1. The wrong retraction treated the child `button "Card Atlas"` as the only accessibility owner. Source proves the reported wrapper itself is the `useFocusOnMount` target, and the walker's committed control deliberately keeps this exact `tabindex=-1` focus-wrapper class in the accessibility census. The original P1 stands. Receipts: `packages/client/src/features/plugin/surfaces/extensions-switcher-surface.tsx:92-95`, `tests/tooling/design-audit-walker.ct.tsx:659-676`, and `reports/runs/snap/main-388851-2026-09-13T06-51-27-188Z/run.json`.
 
 I also retract my first visual note that the Presets search field was clipped. Re-reading the immutable original-resolution PNG shows the full `Search presets` field; the apparent clipping came from the earlier image presentation, not the rendered surface. Receipt: `reports/runs/snap/main-351505-2026-09-13T06-43-05-710Z/snaps/rail-2300-presets.png`.
 
 ## ARIA navigability
 
-No confirmed ARIA defect remains in this bounded review. The Settings button has the correct browser-computed name, `Add a search filter`, and is focusable; its defect is geometry only. The Extensions list row is exposed as `button "Card Atlas"`; no label or role should be added to its inert wrapper.
+Extensions has one confirmed ARIA/focus defect: `[data-testid="extensions-switcher"]` is the programmatic arrival-focus node and needs an appropriate region role plus the stable accessible name `Extensions list`. The child row remains correctly exposed as `button "Card Atlas"`; its name must stay on that button as a separate fact.
+
+The Settings button has the correct browser-computed name, `Add a search filter`, and is focusable; its defect is geometry only.
 
 Keyboard order, focus-ring visibility, and skip-link landing were outside the tap-geometry brief and were not rated.
 
 ## Persona reads
 
 - **Casey, one-handed mobile:** 214 product controls survive the 44px coarse-pointer sampler. The Settings funnel is the single confirmed miss and is sensitive to appearance density.
-- **Sam, keyboard/screen reader/low vision:** the confirmed target is correctly named and the suspected Extensions naming defect retracts under browser ARIA. This run did not perform a full Tab walk or contrast battery.
+- **Sam, keyboard/screen reader/low vision:** the Settings target is correctly named, while Extensions moves programmatic arrival focus to an unnamed generic wrapper. This run did not perform a full Tab walk or contrast battery.
 - **Riley, stress:** the route populations ranged from 9 to 37 visible product controls and all accounting closed. The sweep covered current fixture populations and landing states, not thousand-row, modal, or error-state populations.
 
 ## Taste and flow verdict
@@ -73,7 +89,7 @@ Keyboard order, focus-ring visibility, and skip-link landing were outside the ta
 - **Characters:** usable but cramped. The topbar truncates its own title to `Charac...` while four controls compete on one line. This is ugly, though it is outside the hit-geometry finding.
 - **Corpus:** coherent and task-focused; the empty state gives a next step.
 - **Settings:** serviceable but busy. Teaching prose, search, filters, and disclosures compete in a short viewport. The orange funnel visually conceals the narrow horizontal target.
-- **Extensions:** looks unfinished. A lone `Card Atlas` row sits over a large empty field without teaching copy or an obvious next step; a cold first-timer cannot distinguish idle, loading, and awaiting selection.
+- **Extensions:** sparse but legible as a one-item page switcher: the topbar says `Extensions · 1` and the single `Card Atlas` row is the next step. The programmatic focus target still lacks that visible region identity for a screen-reader user.
 - **Databank:** clear empty state, but `+ Add` and `Add a document` duplicate the same action in one view.
 - **Presets:** readable and intact after the clipping retraction. Row controls are compact but their targets pass.
 - **Refinery:** clean and understandable; the bare plus glyph is visually ambiguous but its target passes.
@@ -85,7 +101,7 @@ Cross-surface, the mobile shell is coherent. Sheet-only sections leave a sparse 
 
 1. The repaired sampler distinguishes small artwork from small hit areas: visually tiny rail/list glyphs pass while the Settings button fails.
 2. Every tap population closes with no withheld, capped, collapsed, or off-viewport subjects, and the 20x20 control fires ten times.
-3. Target selectors and browser ARIA are usable for the only real finding; the result points to a concrete call site and an existing component-test home.
+3. Target selectors, source ownership, and browser ARIA distinguish the two product defects from the deliberate small-glyph controls and the initial Extensions mis-triage.
 
 ## Single biggest opportunity
 
@@ -154,3 +170,7 @@ Browser-free report copies are retained at `/tmp/rail-rendered-review-2300/conso
 ## Integration disposition
 
 Root read the complete independent review. The confirmed Settings target defect is filed and claimed as #2317, with a focused implementation lane and independent rendered remeasurement owed. This is a product consequence exposed by the repaired instrument; it does not retract the instrument SHIP verdict. The integrated twelve-file component train passed 421/421 with zero failures, flakes, or skips; its command and terminal summary are preserved in `reports/runs/ct/main-311860-2026-09-13T06-34-55-378Z/integration-command.log`. The separate non-tap observations and whole-scan withholdings remain explicitly unadjudicated where the review says so. No whole-program acceptance is claimed.
+
+## Follow-up correction and ownership
+
+The reviewer corrected the original Extensions retraction after tracing the actual focus owner; root independently confirmed the source and the Presets precedent. That product accessibility defect is now #2321. Settings #2317 is repaired in `b5b93c151` with a compact-density hit-test regression and passing client/root native checks; independent live remeasurement remains owed. The broader observation dispositions are preserved in `v-rail-followup-disposition-2026-09-13.md`. The earlier report version remains in `aec0ffb55` as explicit provenance for the overturned judgment.
