@@ -8,6 +8,24 @@ import type { GatePolicy } from "../contract/policy.ts";
 import type { GateFactOwnerResult, PolicyOwnerResult, PolicyPassResult, PolicyPopulationReceipt } from "../contract/policy-pass.ts";
 import type { FinalPolicyRow, PopulationCounts, StructureFactRow, StructurePolicyReport } from "../contract/structure-report.ts";
 
+/** The FINAL side of one mixed run, in the THREE shapes its consumers need — the raw pass result (the exit
+ *  rule and the timing ledger read it), the artifact's rows, and the artifact's aggregate. Homed here rather
+ *  than in the front door because the artifact writer and the console renderer both take it, which is this
+ *  file's stated reason to exist; `null` throughout is the honest answer for a corpus holding no final
+ *  policy (a planted legacy-only tree), never an empty report that claims a final side ran. */
+export interface FinalSide {
+  readonly result: PolicyPassResult | null;
+  readonly rows: readonly FinalPolicyRow[];
+  readonly report: StructurePolicyReport | null;
+}
+
+export function finalSide(selectedFinal: readonly GatePolicy[], result: PolicyPassResult | null): FinalSide {
+  if (result === null) {
+    return { result, rows: [], report: null };
+  }
+  return { result, rows: policyRows(result, selectedFinal), report: policyReport(result) };
+}
+
 export function populationCounts(population: PolicyPopulationReceipt): PopulationCounts {
   return {
     declaredSourcePaths: population.declaredSourcePaths.length,

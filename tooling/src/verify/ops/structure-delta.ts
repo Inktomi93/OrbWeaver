@@ -43,6 +43,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { RunManifest } from "../contract/run-manifest.ts";
 import type { FinalPolicyRow, StructureReport } from "../contract/structure-report.ts";
+import { STRUCTURE_REPORT_NAME } from "../contract/structure-report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure-delta");
 
@@ -63,7 +64,6 @@ type SlotReport = Omit<StructureReport, "run"> & { readonly run?: SlotRun };
  *  spelled ONCE, in `_shared/artifacts.ts#reportsPath` (#1164): a second `"reports"` literal fed to a path call
  *  is a second answer to "where do runs live", and the #1029 run-slot layout would never see it move. */
 const SLOT_SEGMENTS = ["runs", "structure"] as const;
-const REPORT_NAME = "check-structure.json";
 
 /** One slot's artifact plus the id it came from, so every refusal can name WHICH run it is refusing. */
 interface Slot {
@@ -76,7 +76,7 @@ function slotDir(root: string): string {
 }
 
 function readSlot(root: string, id: string): Slot {
-  const file = join(slotDir(root), id, REPORT_NAME);
+  const file = join(slotDir(root), id, STRUCTURE_REPORT_NAME);
   let report: SlotReport;
   try {
     report = JSON.parse(readFileSync(file, "utf8")) as SlotReport;
@@ -99,7 +99,7 @@ function slotIds(root: string): readonly string[] {
     throw new DeltaRefusal(`no ${reportsRelPath(...SLOT_SEGMENTS)} directory — nothing has published a structure slot in this checkout`);
   }
   return readdirSync(dir)
-    .filter((id) => existsSync(join(dir, id, REPORT_NAME)))
+    .filter((id) => existsSync(join(dir, id, STRUCTURE_REPORT_NAME)))
     .toSorted()
     .toReversed();
 }
@@ -129,9 +129,9 @@ function resolveAfter(root: string, requested: string | undefined): Slot {
   if (requested !== undefined) {
     return readSlot(root, requested);
   }
-  const pointer = reportsPath(root, REPORT_NAME);
+  const pointer = reportsPath(root, STRUCTURE_REPORT_NAME);
   if (!existsSync(pointer)) {
-    throw new DeltaRefusal(`no published reports/${REPORT_NAME} — run \`pnpm check:structure\` first, or name a slot with --after`);
+    throw new DeltaRefusal(`no published reports/${STRUCTURE_REPORT_NAME} — run \`pnpm check:structure\` first, or name a slot with --after`);
   }
   const report = JSON.parse(readFileSync(pointer, "utf8")) as SlotReport;
   return { id: report.run?.runId ?? "(unidentified)", report };
