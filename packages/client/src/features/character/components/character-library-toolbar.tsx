@@ -72,6 +72,7 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
             selected label and the search — the row's PRIMARY control — grows into everything left. */}
         <Select
           aria-label="Sort characters"
+          // @orb-waive ui-size-via-variant(w-auto): content-width Select leaves the row slack to its filter; auto overrides the standard w-full deterministically.
           className="w-auto"
           items={SORT_ITEMS}
           onValueChange={(value): void => {

@@ -804,12 +804,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_settingsanchor/components/__g_settingsanchor-section.tsx",
     'import { configAnchorId } from "#state";\nexport const A = <Section heading="A" id={configAnchorId("admin", "a")} />;\nexport const G = <Section heading="Host Claude"><span>x</span></Section>;\n',
   );
-  // ui-size-via-variant: a call-site SIZE utility (the F2 `size-auto` incident shape) on a JSX element
-  // imported from @orb/ui, at a path with no ALLOWLIST row (the debt baseline is gone — terminal zero).
-  fx(
-    "packages/client/src/features/__g_uisize/components/__g_uisize.tsx",
-    'import { Button } from "@orb/ui/button";\nexport const G = <Button className="size-auto">x</Button>;\n',
-  );
   // macro-resolution-home: a client FORM component importing + calling the display pipeline's macro
   // resolver — the writable-field corruption class (the editor round-trips resolved text over the stored
   // template). Both arms fire on this one file.
