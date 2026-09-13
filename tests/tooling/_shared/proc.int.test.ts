@@ -8,14 +8,20 @@
 //      so a command that forks descendants left them RUNNING after the caller had already seen
 //      `timedOut: true` — orphans that go on to pollute a later run's measurements.
 //
-// Every child here is a `node -e` hang in its own group, torn down in `finally`; nothing touches the dev
-// stack, a port, or the engines.
+// SINCE #2197 IT ALSO HOLDS THE SYNC DOORS' CAPTURE PINS (bottom of the file) — `execNicedSync` /
+// `execNicedSyncBuffer`. Same reason those live here rather than in `proc.test.ts`: that file MOCKS
+// `node:child_process` wholesale to pin signal ownership, so `execFileSync` there is a `vi.fn()` returning
+// undefined and no capture behaviour is observable through it. A real child that writes to stderr and exits
+// non-zero is the only subject these properties have.
+//
+// Every child here is a `node -e` hang or a one-line write in its own group, torn down in `finally` where
+// one is left behind; nothing touches the dev stack, a port, or the engines.
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import { execNicedSync, execNicedSyncBuffer, spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
@@ -155,4 +161,141 @@ test("spawnNiced: a child that beats its timeout keeps its own exit code (#1508 
   expect(result.timedOut).toBe(false);
   expect(result.code).toBe(3);
   expect(result.stdout).toBe("ok");
+});
+
+// ── THE SYNC DOORS' CAPTURE CONTRACT (#2197 / #2211) ──────────────────────────────────────────────────
+//
+// WHAT NODE ALREADY DOES, MEASURED BEFORE ANYTHING WAS WRITTEN HERE — because the row that sent this work
+// asserted the opposite and a pin built on its letter would have been a fence wearing a defect proof's
+// clothes. Three shapes, `withCapturedStderr` live vs. deleted, counting how many times the child's own
+// stderr text appears in the THROWN MESSAGE:
+//
+//   shape                                  helper deleted   helper live
+//   execNicedSync,       plain exit 2            1               2
+//   execNicedSyncBuffer, plain exit 2            1               2
+//   execNicedSync,       ENOBUFS kill            0               1
+//
+// So on an ordinary non-zero exit node's own `checkExecSyncError` already builds
+// `Command failed: <argv>\n<stderr>` — for a Buffer stderr too — and the helper's append DUPLICATES it.
+// On an **ENOBUFS kill** node throws a different error whose message carries no stderr at all, and the
+// helper is the only reason the diagnosis is in the text. That kill is exactly the #2211/#2212 incident
+// shape (the ceiling that made the whole-repo lint tier unobtainable), so the helper is right to exist and
+// its general application is redundant. Both halves are pinned below, each labelled for what it is.
+//
+// WHY THE MESSAGE AND NOT `err.stderr`: node populates the PROPERTY in every shape (`execFileSync`'s
+// default stdio is `['pipe','pipe','pipe']`; only an explicit `stdio: "inherit"` nulls it). What an
+// assertion, a log line and a thrown-error report all print is the MESSAGE — so a diagnosis that lives only
+// on a property nobody reads has been discarded in every way that matters.
+//
+// WHY THESE LIVE HERE AND NOT IN `proc.test.ts`: that file mocks `node:child_process` wholesale, so
+// `execFileSync` there is a `vi.fn()` and no capture behaviour is observable through it.
+
+/** THE MARKERS ARE SPLIT ACROSS A CONCATENATION, and that is load-bearing rather than decoration.
+ *
+ *  Node's failure message is `Command failed: <the whole argv>` — and for a `node -e` child the argv IS the
+ *  source text, so a marker spelled contiguously inside it appears in the message NO MATTER WHAT the door
+ *  does with the streams. The first draft of these arms did exactly that and passed against a deliberately
+ *  neutered helper: they were matching the argv echo, not the capture. Assembling the marker only at
+ *  RUNTIME (`"orb-probe-" + "diagnosis-2197"`) keeps it out of the command line, so a match is the capture
+ *  and nothing else. The negative control below is what caught this. */
+const DIAGNOSIS = "orb-probe-diagnosis-2197";
+const ON_STDOUT = "orb-probe-stdout-2197";
+const SPLIT_DIAGNOSIS = '"orb-probe-" + "diagnosis-2197"';
+const SPLIT_ON_STDOUT = '"orb-probe-" + "stdout-2197"';
+/** A child that writes to BOTH streams and exits non-zero. */
+const FAILING_CHILD = `process.stdout.write(${SPLIT_ON_STDOUT}); process.stderr.write(${SPLIT_DIAGNOSIS}); process.exit(2);`;
+/** The same exit with NOTHING on stderr — the negative control for the append. */
+const SILENT_FAILING_CHILD = `process.stdout.write(${SPLIT_ON_STDOUT}); process.exit(2);`;
+
+function messageOf(run: () => unknown): string {
+  try {
+    run();
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  throw new Error("the failing child did not throw — these doors THROW on a non-zero status by contract");
+}
+
+function occurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+// A payload comfortably past a planted tiny ceiling and comfortably under node's own ~1MiB default, so the
+// arms differ ONLY by the ceiling the caller named.
+const TINY_CEILING = 1024;
+const PAYLOAD_BYTES = 64 * 1024;
+const LOUD_FAILING_CHILD = `process.stderr.write(${SPLIT_DIAGNOSIS}); process.stdout.write("x".repeat(${PAYLOAD_BYTES}));`;
+const LOUD_CHILD = `process.stdout.write("x".repeat(${PAYLOAD_BYTES}));`;
+
+test("#2211 THE DEFECT PROOF — on an ENOBUFS kill the diagnosis reaches the MESSAGE, which node alone never does", () => {
+  // THE ONE SHAPE `withCapturedStderr` IS LOAD-BEARING ON, and it is the shape the incident had: the child
+  // is TERMINATED at the ceiling, node throws `ENOBUFS` rather than a completed non-zero exit, and its
+  // message carries the argv and nothing else. Deleting the append takes this arm from 1 to 0 — measured.
+  let thrown: unknown;
+  try {
+    execNicedSync(process.execPath, ["-e", LOUD_FAILING_CHILD], { maxBuffer: TINY_CEILING });
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect((thrown as { code?: string }).code, "the tiny ceiling must KILL rather than truncate").toBe("ENOBUFS");
+  expect(occurrences(String((thrown as Error).message), DIAGNOSIS)).toBe(1);
+});
+
+test("#2211 — the caller's maxBuffer is FORWARDED: without it the ceiling is node's, not the caller's", () => {
+  // `execFileSync` does not truncate at `maxBuffer`, it TERMINATES the child — so a door that silently
+  // drops the caller's ceiling turns a large-payload verdict into a kill, and one that drops it the other
+  // way lets a payload the caller fenced sail through. Under a dropped forwarding this call succeeds.
+  let thrown: unknown;
+  try {
+    execNicedSync(process.execPath, ["-e", LOUD_CHILD], { maxBuffer: TINY_CEILING });
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect(thrown, "a 64KiB payload under a 1KiB ceiling must not come back as a value").toBeInstanceOf(Error);
+  expect((thrown as { code?: string }).code).toBe("ENOBUFS");
+});
+
+test("#2211 NEGATIVE CONTROL — the SAME payload under a generous ceiling comes back WHOLE", () => {
+  // The arm above would pass against a door that always threw. This proves the ceiling is the variable and
+  // that raising it delivers the bytes rather than truncating them.
+  const out = execNicedSync(process.execPath, ["-e", LOUD_CHILD], { maxBuffer: PAYLOAD_BYTES * 2 });
+
+  expect(out).toHaveLength(PAYLOAD_BYTES);
+});
+
+test("#2197 FENCE (not a defect proof) — a plain non-zero exit carries its stderr in the message, string door", () => {
+  // HONEST LABEL: this passes with `withCapturedStderr` DELETED, because node builds the text itself. It is
+  // a fence on the PROPERTY — "the reason is in the message" — not evidence for the helper, and the table
+  // in the section header is why it says so out loud rather than reading as a repair's receipt.
+  const message = messageOf(() => execNicedSync(process.execPath, ["-e", FAILING_CHILD]));
+
+  expect(message).toContain(DIAGNOSIS);
+  expect(message).toContain("Command failed");
+  // AT LEAST once, deliberately not EXACTLY once: the helper currently doubles it and that duplication is
+  // an accident of two appenders, not a contract. Pinning the 2 would make a future de-duplication look
+  // like a regression; pinning >=1 keeps the property and leaves the accident free to be fixed.
+  expect(occurrences(message, DIAGNOSIS)).toBeGreaterThanOrEqual(1);
+});
+
+test("#2197 FENCE — the BUFFER door carries the same property; a Buffer stderr is not the quiet one", () => {
+  // Same honest label. Worth a fence anyway: the twin exists for callers that need raw bytes, and node's
+  // own append works on a Buffer stderr too — which is itself a fact nothing else on the tree records.
+  const message = messageOf(() => execNicedSyncBuffer(process.execPath, ["-e", FAILING_CHILD]));
+
+  expect(message).toContain(DIAGNOSIS);
+});
+
+test("#2197 NEGATIVE CONTROL — a child that fails SILENTLY gets no appended noise", () => {
+  // Without this the arms above would pass against an implementation that appended something
+  // unconditionally — a placeholder, a bare newline, the stdout. The append is the child's OWN words or
+  // nothing. It is also the arm that caught the first draft matching the argv echo.
+  const message = messageOf(() => execNicedSync(process.execPath, ["-e", SILENT_FAILING_CHILD]));
+
+  expect(message).toContain("Command failed");
+  expect(message).not.toContain(DIAGNOSIS);
+  // stdout is NOT the diagnosis channel: a door that swept it in would make every gate verdict's report
+  // body part of its own error text. (The marker is absent from the argv by construction — see above.)
+  expect(message).not.toContain(ON_STDOUT);
 });
