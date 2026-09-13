@@ -8,8 +8,8 @@
 // message a refusal RAISES (thrown, or pushed into the array a throw joins) is composed from the table FRAGMENT
 // by fragment, or is one of the declared caller-error invariants. Three false cleans in its first version, all
 // three now permanent controls; the block comment above the census states each with its measurement.
-import type { Node, SourceFile } from "ts-morph";
-import { Project, SyntaxKind, Node as TsNode } from "ts-morph";
+import type { Node, SourceFile, VariableDeclaration } from "ts-morph";
+import { Project, SyntaxKind, Node as TsNode, VariableDeclarationKind } from "ts-morph";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import { GATE_AUTHORITY_ALARM_KINDS, GATE_AUTHORITY_TOOL_ERROR_KINDS } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -294,8 +294,102 @@ const joinFragments = (left: Fragments, right: Fragments): Fragments => ({
   text: `${left.text}${right.text}`,
 });
 
+const TABLE = "POLICY_PASS_REFUSALS.";
+/** How deep the const-alias walk goes: a const initialised from another const is read, and the hop after that
+ *  is UNREADABLE. Bounded on purpose — this is a census, not a dataflow engine (#2155 leg 3). */
+const RESOLVE_HOPS = 2;
+
+/** The same-file, immutable declaration an identifier names, or undefined for anything else (a parameter, an
+ *  import, a `let`, a binding declared elsewhere). `getSymbol()` rather than the name, so a shadowing local is
+ *  the one that resolves. */
+function immutableDeclarationOf(node: Node): VariableDeclaration | undefined {
+  const declarations = TsNode.isIdentifier(node) ? (node.getSymbol()?.getDeclarations() ?? []) : [];
+  const declaration = declarations.find(
+    (candidate) =>
+      TsNode.isVariableDeclaration(candidate) &&
+      candidate.getSourceFile() === node.getSourceFile() &&
+      candidate.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const,
+  );
+  return TsNode.isVariableDeclaration(declaration) ? declaration : undefined;
+}
+
+/** THE AUTHORED-TEXT RESOLUTION (#2155 leg 3, GAP 1). A same-file `const` holding a string literal is AUTHORED
+ *  TEXT wearing an identifier — `${SUFFIX}` read as a slot and slipped an unlisted sentence past the fragment
+ *  rule, which is the gap this closes. Resolution is deliberately tiny and bounded (`RESOLVE_HOPS`): literals,
+ *  `+` concatenations, conditionals, and one hop through another `const`.
+ *
+ *  THE THREE-WAY VERDICT MATTERS, and getting it wrong in either direction is a defect of its own. A binding
+ *  whose subtree holds NO string literal cannot smuggle authored text — a parameter, an import, a call result,
+ *  a property access — so it is a RUNTIME slot, not a refusal to read. A binding that DOES hold authored text
+ *  but is not a shape this reader resolves exactly is UNREADABLE: it becomes a static fragment nothing declares
+ *  and the census reds loudly, because the alternative is crediting text nobody classified. A conditional is
+ *  neither all-text nor all-runtime — it decomposes, branch by branch, which is how the live
+ *  `value?.status === "failed" ? value.message : POLICY_PASS_REFUSALS.factFailedUnknown` at
+ *  `policy-pass.ts:703` reads as one slot plus one table member. */
+function carriesAuthoredText(node: Node): boolean {
+  return (
+    TsNode.isStringLiteral(node) ||
+    TsNode.isNoSubstitutionTemplateLiteral(node) ||
+    TsNode.isTemplateExpression(node) ||
+    node.getDescendantsOfKind(SyntaxKind.StringLiteral).length > 0 ||
+    node.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral).length > 0
+  );
+}
+
+/** A text-carrying binding this reader cannot resolve exactly: a static fragment nothing declares, so the
+ *  census reds loudly rather than crediting text nobody classified. */
+const unreadable = (text: string): Fragments => ({ statics: [`<UNREADABLE ${text}>`], slots: [], text: `<UNREADABLE ${text}>` });
+
+/** One interpolation, classified. A table member and any runtime value stay SLOTS; resolved authored text
+ *  becomes STATIC fragments; a text-carrying binding this reader cannot resolve is a loud `<UNREADABLE …>`. */
+function slotFragments(expression: Node, hops: number): Fragments {
+  const text = expression.getText();
+  const slot: Fragments = { statics: [], slots: [text], text: "…" };
+  let fragments: Fragments;
+  if (text.startsWith(TABLE)) {
+    fragments = slot;
+  } else if (TsNode.isStringLiteral(expression) || TsNode.isNoSubstitutionTemplateLiteral(expression)) {
+    const literal = expression.getLiteralText();
+    fragments = { statics: [literal], slots: [], text: literal };
+  } else if (TsNode.isBinaryExpression(expression)) {
+    fragments = joinFragments(slotFragments(expression.getLeft(), hops), slotFragments(expression.getRight(), hops));
+  } else if (TsNode.isConditionalExpression(expression)) {
+    const whenTrue = slotFragments(expression.getWhenTrue(), hops);
+    const whenFalse = slotFragments(expression.getWhenFalse(), hops);
+    fragments = {
+      statics: [...whenTrue.statics, ...whenFalse.statics],
+      slots: [...whenTrue.slots, ...whenFalse.slots],
+      text: `${whenTrue.text}|${whenFalse.text}`,
+    };
+  } else if (TsNode.isIdentifier(expression)) {
+    const initializer = immutableDeclarationOf(expression)?.getInitializer();
+    if (initializer === undefined) {
+      fragments = slot;
+    } else if (hops <= 0) {
+      fragments = unreadable(text);
+    } else {
+      fragments = slotFragments(initializer, hops - 1);
+    }
+  } else if (TsNode.isCallExpression(expression)) {
+    // A CALL is a runtime value, but a DIRECT string-literal argument of it is authored text that lands in the
+    // message — `failures.join("; ")` puts `"; "` between every pushed sentence, and the leg-2 census called
+    // that a slot. The call is the slot; its literal arguments are fragments and must be declared like any
+    // other. Deliberately DIRECT literals only: recursing into an arbitrary argument reaches a predicate's own
+    // strings (`ids.find((id) => …{ kind: "exact-file" }…)`), which are not message text, and reading them as
+    // authored text made one live site unreadable for a reason that had nothing to do with its message.
+    const literals = expression
+      .getArguments()
+      .filter((argument) => TsNode.isStringLiteral(argument) || TsNode.isNoSubstitutionTemplateLiteral(argument))
+      .map((argument) => (TsNode.isStringLiteral(argument) || TsNode.isNoSubstitutionTemplateLiteral(argument) ? argument.getLiteralText() : ""));
+    fragments = { statics: literals, slots: slot.slots, text: slot.text };
+  } else {
+    fragments = carriesAuthoredText(expression) ? unreadable(text) : slot;
+  }
+  return fragments;
+}
+
 /** Split a message expression into its authored fragments. A template's head/middle/tail are STATIC; every
- *  interpolation is a SLOT; a `+` concatenation is both sides in order; anything else is one opaque slot. */
+ *  interpolation is classified by `slotFragments`; a `+` concatenation is both sides in order. */
 function fragmentsOf(argument: Node): Fragments {
   let fragments: Fragments;
   if (TsNode.isStringLiteral(argument) || TsNode.isNoSubstitutionTemplateLiteral(argument)) {
@@ -305,37 +399,42 @@ function fragmentsOf(argument: Node): Fragments {
     const head = argument.getHead().getLiteralText();
     fragments = argument.getTemplateSpans().reduce<Fragments>(
       (accumulated, span) =>
-        joinFragments(accumulated, {
+        joinFragments(joinFragments(accumulated, slotFragments(span.getExpression(), RESOLVE_HOPS)), {
           statics: [span.getLiteral().getLiteralText()],
-          slots: [span.getExpression().getText()],
-          text: `…${span.getLiteral().getLiteralText()}`,
+          slots: [],
+          text: span.getLiteral().getLiteralText(),
         }),
       { statics: [head], slots: [], text: head },
     );
   } else if (TsNode.isBinaryExpression(argument)) {
     fragments = joinFragments(fragmentsOf(argument.getLeft()), fragmentsOf(argument.getRight()));
   } else {
-    fragments = { statics: [], slots: [argument.getText()], text: "…" };
+    fragments = slotFragments(argument, RESOLVE_HOPS);
   }
   return fragments;
 }
 
-const TABLE = "POLICY_PASS_REFUSALS.";
 /** THE CLOSED SET OF COMPOSITION FRAGMENTS — every piece of static text a COMPOSED refusal is allowed to carry
- *  beside its table member, measured across all five emitters and held two-sided below. Two kinds, and nothing
- *  else: JOINERS (punctuation between a member and a slot) and SUBJECT LABELS (the noun naming what the refusal
- *  is about, which the table's sentences deliberately do not carry). A fragment outside this set is a new
- *  SENTENCE, and a new sentence belongs in the table. */
+ *  beside its table member, measured across all five emitters and held two-sided below. Three kinds and nothing
+ *  else: JOINERS (punctuation between a member and a slot), SUBJECT LABELS (the noun naming what the refusal is
+ *  about, which the table's sentences deliberately do not carry), and the RECEIPT COUNT WORDS, which reach a
+ *  message through a same-file `const` holding a conditional between two literals and are authored text exactly
+ *  like the rest. A fragment outside this set is a new SENTENCE, and a new sentence belongs in the table. */
 const COMPOSITION_FRAGMENTS: readonly string[] = [
   " ",
-  // NO `", "`: the review's example listed it, and the two-sided pin below refused it — every comma-joined list
-  // in these emitters is `…join(", ")`, which is a SLOT expression, never authored static text. A declared
-  // fragment nothing uses is a widened door, so it is not declared.
+  // THE LIST SEPARATORS, and the leg-2 comment here was WRONG in a way only the leg-3 reader could show. It
+  // said `", "` is "a SLOT expression, never authored static text", because the census then stopped at the
+  // call: `unconsumed.join(", ")` looked like runtime. It is not — the separator is authored text that lands
+  // between every element of the rendered message, and reading a call's ARGUMENTS is what makes it visible.
+  // Both separators are declared, and the two-sided pin now holds them from the other side.
+  ", ",
+  "; ",
   ": ",
   " candidate(s)",
   " is ",
   "authored text ",
   "fact ",
+  "members",
   "non-resource policy ",
   "policy ",
   "resource ",
@@ -343,21 +442,57 @@ const COMPOSITION_FRAGMENTS: readonly string[] = [
   "resource request exact-file:",
   "resource-only fact ",
   "resource-only policy ",
+  "resources",
   "syntax owner ",
 ];
 
-/** Every message expression a module RAISES: a `new Error(...)` argument, and — the indirect half — a
- *  `<sink>.push(...)` argument whose receiver is an identifier some `new Error(...)` argument in the same file
- *  reads. That is how `policy-pass.ts` builds a receipt refusal: push the sentences, join them into one throw. */
-function refusalSites(sourceFile: SourceFile): readonly Node[] {
-  const thrown = sourceFile
+/** THE REFUSAL ACCUMULATORS of one module: the arrays whose contents a refusal message JOINS
+ *  (`failures.join("; ")` inside a `new Error(...)` argument), plus — GAP 2 of the leg-3 review — the same-file
+ *  `const` ALIASES of those (`const out = failures`), resolved through the declaration rather than by name.
+ *
+ *  KEYED ON THE JOIN, not on "every identifier a message mentions". The leg-2 reader used the latter, which is
+ *  why it saw the pushes at all — but as the escape arm below shows, that set also holds `run`, `path`, `value`
+ *  and every other word in a message, and a prohibition over THAT set flags a hundred ordinary calls. The join
+ *  is the precise tell: an array whose elements are rendered into a refusal is a refusal sink, and nothing else
+ *  in these modules is. Name-keyed after the alias hop on purpose — the accumulator in `receiptFailures` is a
+ *  DIFFERENT symbol from the one `evaluateRuns` throws, the sentences it pushes are the same vocabulary, and a
+ *  purely symbol-scoped rule would silently drop the eleven pushed sentences leg 2 added. */
+function refusalAccumulators(sourceFile: SourceFile, thrown: readonly Node[]): ReadonlySet<string> {
+  const joined = new Set(
+    thrown.flatMap((argument) =>
+      argument.getDescendantsOfKind(SyntaxKind.CallExpression).flatMap((call) => {
+        const callee = call.getExpression();
+        return TsNode.isPropertyAccessExpression(callee) && callee.getName() === "join" ? [callee.getExpression().getText()] : [];
+      }),
+    ),
+  );
+  for (const declaration of sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+    const initializer = declaration.getInitializer();
+    if (initializer !== undefined && TsNode.isIdentifier(initializer) && joined.has(initializer.getText())) {
+      joined.add(declaration.getName());
+    }
+  }
+  return joined;
+}
+
+/** The `new Error(...)` arguments of one module — the direct half of the sites, and the input both the
+ *  accumulator reader and the escape arm derive from. */
+function thrownArguments(sourceFile: SourceFile): readonly Node[] {
+  return sourceFile
     .getDescendantsOfKind(SyntaxKind.NewExpression)
     .filter((expression) => expression.getExpression().getText() === "Error")
     .flatMap((expression) => {
       const argument = expression.getArguments()[0];
       return argument === undefined ? [] : [argument];
     });
-  const sinks = new Set(thrown.flatMap((argument) => argument.getDescendantsOfKind(SyntaxKind.Identifier).map((identifier) => identifier.getText())));
+}
+
+/** Every message expression a module RAISES: a `new Error(...)` argument, and — the indirect half — a
+ *  `<sink>.push(...)` argument whose receiver is a refusal sink. That is how `policy-pass.ts` builds a receipt
+ *  refusal: push the sentences, join them into one throw. */
+function refusalSites(sourceFile: SourceFile): readonly Node[] {
+  const thrown = thrownArguments(sourceFile);
+  const sinks = refusalAccumulators(sourceFile, thrown);
   const pushed = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).flatMap((call) => {
     const callee = call.getExpression();
     if (!(TsNode.isPropertyAccessExpression(callee) && callee.getName() === "push" && sinks.has(callee.getExpression().getText()))) {
@@ -367,6 +502,23 @@ function refusalSites(sourceFile: SourceFile): readonly Node[] {
     return argument === undefined ? [] : [argument];
   });
   return [...thrown, ...pushed];
+}
+
+/** THE BOUNDED PROHIBITION beside the alias hop, and the reason both exist. The alias hop follows
+ *  `const out = failures` because that is a rename this reader can prove. It CANNOT follow the accumulator into
+ *  a helper — `collect(failures)` hands the sink to a function whose pushes live somewhere else — and a census
+ *  that quietly gave up there would be the same false clean one level out. So handing a sink to a call is
+ *  BANNED in an emitter module and reported here: push on the sink directly, or make the helper RETURN its
+ *  sentences the way `factReceiptFailures` already does. Method calls ON the sink (`failures.join("; ")`) are
+ *  untouched — the sink is the receiver, not an argument. */
+function escapedSinks(sourceFile: SourceFile): readonly string[] {
+  const sinks = refusalAccumulators(sourceFile, thrownArguments(sourceFile));
+  return sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).flatMap((call) => {
+    const callee = call.getExpression();
+    const isSinkMethod = TsNode.isPropertyAccessExpression(callee) && sinks.has(callee.getExpression().getText());
+    const escaping = call.getArguments().filter((argument) => TsNode.isIdentifier(argument) && sinks.has(argument.getText()));
+    return isSinkMethod || escaping.length === 0 ? [] : [`${callee.getText()}(${escaping.map((argument) => argument.getText()).join(", ")})`];
+  });
 }
 
 /** Is this message COMPOSED from the table? It must read a member AND carry no static text outside the declared
@@ -473,6 +625,11 @@ test("every refusal the emitters raise is COMPOSED from the table or a declared 
   );
   expect(sorted([...used])).toEqual(sorted(COMPOSITION_FRAGMENTS));
 
+  // NO SINK ESCAPES on the tree: the accumulator is never handed to a function, so the alias hop plus the
+  // `.push` rule sees every sentence that reaches a refusal. This is the arm that keeps the census honest as
+  // the emitters change — the day someone writes `collect(failures)`, this reds instead of going quiet.
+  expect(modules.flatMap((sourceFile) => escapedSinks(sourceFile))).toEqual([]);
+
   // And every sentence the emitters DO compose from is an envelope member — the derivation, checked from the
   // emitter side rather than from the table side.
   const composedKeys = modules.flatMap((sourceFile) =>
@@ -530,4 +687,50 @@ test("the census PLANTED CONTROLS: an appended sentence and an indirect pushed l
       "  if (paths.length === 0) {\n    throw new Error(POLICY_PASS_REFUSALS.factsNoReceipt);\n  }\n  return paths;\n}\n",
   );
   expect(unaccountedRefusals(unrelated)).toEqual([]);
+});
+
+test("the census PLANTED CONTROLS, leg 3: an identifier suffix and an aliased push are both unaccounted (#2155 review)", () => {
+  // TWO MORE FALSE CLEANS THE LEG-2 CENSUS SHIPPED, reproduced on the real emitters before the fix and kept
+  // here as rows. Both are ways of putting authored text into a refusal that a reader stopping at the syntax
+  // in front of it cannot see.
+  const project = new Project({ useInMemoryFileSystem: true });
+
+  // (e) GAP 1 — a same-file `const` holding a sentence, interpolated as if it were runtime data. Measured on
+  // `policy-pass-context.ts`: the leg-2 census stayed GREEN 7/7 with this planted.
+  const suffixed = project.createSourceFile(
+    "/planted/suffix.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\nconst SUFFIX = " and an authored sentence";\n' +
+      "export function refuse(): never {\n  throw new Error(`${POLICY_PASS_REFUSALS.factAbsent}${SUFFIX}`);\n}\n",
+  );
+  expect(unaccountedRefusals(suffixed)).toEqual(["… and an authored sentence"]);
+
+  // (f) THE CONTROL'S CONTROL: a same-file `const` that holds a TABLE MEMBER resolves as composed, so (e) is
+  // not passing because const resolution refuses every identifier it meets.
+  const aliasedMember = project.createSourceFile(
+    "/planted/aliased-member.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\nconst SENTENCE = POLICY_PASS_REFUSALS.factAbsent;\n' +
+      "export function refuse(id: string): never {\n  throw new Error(`${SENTENCE}: ${id}`);\n}\n",
+  );
+  expect(unaccountedRefusals(aliasedMember)).toEqual([]);
+
+  // (g) GAP 2 — the accumulator RENAMED, then pushed through the alias. Measured on `policy-pass.ts`: the
+  // leg-2 census stayed GREEN 7/7 with a runtime-inert version of this planted.
+  const aliasPushed = project.createSourceFile(
+    "/planted/alias-push.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\nexport function refuse(bad: boolean): void {\n' +
+      '  const failures: string[] = [];\n  const out = failures;\n  if (bad) {\n    out.push("generic refusal");\n  }\n' +
+      '  if (failures.length > 0) {\n    throw new Error(`${POLICY_PASS_REFUSALS.policyReceiptRefused}: ${failures.join("; ")}`);\n  }\n}\n',
+  );
+  expect(unaccountedRefusals(aliasPushed)).toEqual(["generic refusal"]);
+
+  // (h) THE BOUNDED PROHIBITION: handing the accumulator to a helper is what neither the join nor the alias can
+  // follow, so it is BANNED and reported — while a method call ON the sink is untouched.
+  const escaping = project.createSourceFile(
+    "/planted/escape.ts",
+    'import { POLICY_PASS_REFUSALS } from "./table.ts";\ndeclare function collect(into: string[]): void;\n' +
+      "export function refuse(): void {\n  const failures: string[] = [];\n  collect(failures);\n" +
+      '  if (failures.length > 0) {\n    throw new Error(`${POLICY_PASS_REFUSALS.policyReceiptRefused}: ${failures.join("; ")}`);\n  }\n}\n',
+  );
+  expect(escapedSinks(escaping)).toEqual(["collect(failures)"]);
+  expect(escapedSinks(aliasPushed)).toEqual([]);
 });

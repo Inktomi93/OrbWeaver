@@ -60,6 +60,11 @@ export const POLICY_PASS_REFUSALS = Object.freeze({
   factUnconsumedRequests: "declared fact resource population has unconsumed requests",
   factReceiptRefused: "fact receipt refused",
   factFailed: "declared fact failed",
+  /** The message a failed fact carries when it carried NONE — authored text that reached a refusal through a
+   *  same-file `const` conditional (`lib/policy-pass.ts:703`) and was therefore invisible to #2155's first two
+   *  censuses. Found by the leg-3 reader that resolves those constants; it is a refusal sentence like the rest,
+   *  so it lives here rather than in the test's fragment table. */
+  factFailedUnknown: "unknown fact failure",
   factsNotConsumed: "declared facts were not consumed",
   factsNoReceipt: "declared facts produced no semantic receipt",
   resourcesNoReceipt: "declared resource population produced no resource receipt",
