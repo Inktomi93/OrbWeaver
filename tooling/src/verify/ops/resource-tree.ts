@@ -75,7 +75,7 @@ function loadCssFiles(reader: ResourceReader, paths: readonly string[]): Resourc
       return unavailable("malformed", `unsupported or malformed CSS in ${path}: ${unsupported}`, paths, files.length);
     }
     const parsed = parseCssStylesheet(loaded.value);
-    files.push(Object.freeze({ path, text: loaded.value, rules: parsed.rules, atRules: parsed.atRules }));
+    files.push(Object.freeze({ path, text: loaded.value, rules: parsed.rules, atRules: parsed.atRules, statements: parsed.statements }));
   }
   return { status: "ready", value: Object.freeze(files), paths, members: files.length };
 }

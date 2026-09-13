@@ -710,11 +710,13 @@ function writeFixtures(): void {
   // fragment (the OVERLAY_ARROW diamond) by hand — the derive-W2 G25 seal. scanRoot covers ui/src sans
   // lib/, so a __g_ primitive variants file trips the real-tree scan.
   fx("packages/ui/src/primitives/__g_skinfrag/variants.ts", 'export const gArrow = "size-row rotate-45 border border-border bg-popover";\n');
-  // sanctioned-css-homes: both false-negative directions — a feature-local stylesheet and an extra
-  // stylesheet beside an approved UI home. Reads via fs.globSync, not ts-morph, so the real-tree fixtures
-  // are picked up regardless of tsconfig excludes.
-  fx("packages/client/src/features/__g_featurecss/lib/__g_featurecss.css", ".g { color: red; }\n");
-  fx("packages/ui/src/styles/__g_extra_home.css", ".g { color: red; }\n");
+  // sanctioned-css-homes: NO fixture. It CONVERTED 2026-09-13 (#2183) into a final `defineGate` policy on
+  // `authored-tree:packages` under the `css-home-topology` family, so the mixed roster partitions it out and
+  // a `__g_` stylesheet planted for it would be a working-tree fixture no legacy owner reads. Its bite is
+  // `structure:policy-conformance` running its own three arms — five `mustFlag` rows covering both
+  // false-negative directions the two fixtures here used to plant (a feature-local stylesheet and an extra
+  // stylesheet beside an approved UI home), a `mustRefuse` row for the absent tree, and the receipt pair in
+  // tests/tooling/verify/gates/css-home-topology-family.test.ts.
   // feature-owns-definition: a features/* dir with only a non-definition file (no lib/*-{section,modal,
   // group,chrome}.tsx) — the O2 empty-dir rule (client-architecture-lockdown.md §3/§18 O2). Reads via
   // node:fs, not ts-morph, so the real-tree fixture is picked up regardless of tsconfig excludes.
@@ -1076,6 +1078,14 @@ function writeFixtures(): void {
 // css-selector-has-a-writer reads the same five exact homes and reconciles them against the whole source
 // graph plus installed vendor artifacts. Its dedicated fs-backed conformance pin drives historical inert
 // class/data spellings, exact-value drift, supported spreads, zero population, and both vendor stale arms.
+// playwright-css-topology CONVERTED 2026-09-13 (#2183) and its row is GONE from the set below, for the same
+// reason the config-liveness pair's is: a final policy is partitioned out by the mixed roster, so a row
+// naming one fails the two-sided arm. Its unfixturability was never about the `__g_` sentinel either — a
+// final policy's resource proofs materialise their own temp repository with the whole front-door topology
+// in it, which is exactly the substrate the legacy harness could not give it. Its bite is
+// `structure:policy-conformance` running thirteen `mustFlag` rows (including the ORDER, PRESENCE and
+// TARGET clauses of the CT config, and the unresolvable-@import arm #2231 found structurally dead), two
+// `mustRefuse` rows, and tests/tooling/verify/gates/css-home-topology-family.test.ts.
 // devtools-frontend-assets reads the exact generated closure under tooling/src/snap/lib/devtools-frontend.
 // A __g file cannot perturb that manifest/pin/license/resource tuple without mutating the live vendored root;
 // its dedicated fs-backed conformance pin drives the same validator through exact red and green temp roots.
@@ -1088,8 +1098,6 @@ const UNFIXTURABLE_GATES = new Set([
   "css-family-ownership",
   "css-selector-has-a-writer",
   "devtools-frontend-assets",
-  // The unit is the canonical production/CT front doors; a __g file cannot perturb their exact graph.
-  "playwright-css-topology",
 ]);
 
 let registry = new Set<string>();

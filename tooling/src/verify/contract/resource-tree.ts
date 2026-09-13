@@ -1,4 +1,4 @@
-import type { CssAtRule, CssRule } from "../lib/css-rules.ts";
+import type { CssAtRule, CssRule, CssStatementAtRule } from "../lib/css-rules.ts";
 
 /** Closed authored roots used by high-fanout resource policies. */
 export const AUTHORED_TREE_PATHS = {
@@ -30,4 +30,8 @@ export interface AuthoredCssFile {
   readonly text: string;
   readonly rules: readonly CssRule[];
   readonly atRules: readonly CssAtRule[];
+  /** BLOCKLESS at-rules — `@import`, `@source`, `@charset`, a `;`-terminated `@layer`. Carried beside the
+   *  block at-rules because a sheet's IMPORT TOPOLOGY is not expressible in either of the other two fields,
+   *  and every consumer that wanted it owned a private regex (`css-rules.ts#CssStatementAtRule`). */
+  readonly statements: readonly CssStatementAtRule[];
 }

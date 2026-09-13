@@ -34,6 +34,15 @@ export type CssSelectorHookFact =
       readonly value: string | undefined;
     });
 
+/** ONE BLOCKLESS at-rule, positioned in its sheet — the sheet's `@import`/`@source`/`@charset` topology.
+ *  `name` is the at-keyword lowercased without `@`; `prelude` is the whole collapsed statement text, the
+ *  same spelling `CssDeclarationFact.owner` uses for a BLOCK at-rule. Resolution is deliberately absent: a
+ *  specifier is text here, and turning it into a repo path is the consuming policy's judgment. */
+export interface CssStatementAtRuleFact extends CssSourcePosition {
+  readonly name: string;
+  readonly prelude: string;
+}
+
 export interface CssCustomPropertyDefinitionFact extends CssSourcePosition {
   readonly name: string;
 }
@@ -51,6 +60,7 @@ export interface CssFactPopulation {
   readonly declarations: number;
   readonly selectors: number;
   readonly selectorHooks: number;
+  readonly statements: number;
   readonly customPropertyDefinitions: number;
   readonly customPropertyReferences: number;
 }
@@ -61,6 +71,7 @@ export interface CssFacts {
   readonly declarations: readonly CssDeclarationFact[];
   readonly selectors: readonly CssSelectorFact[];
   readonly selectorHooks: readonly CssSelectorHookFact[];
+  readonly statements: readonly CssStatementAtRuleFact[];
   readonly customPropertyDefinitions: readonly CssCustomPropertyDefinitionFact[];
   readonly customPropertyReferences: readonly CssCustomPropertyReferenceFact[];
   readonly population: CssFactPopulation;
