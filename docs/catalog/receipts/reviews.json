@@ -4958,40 +4958,28 @@
     },
     {
       "path": "docs/reviews/gate-runtime/x-css-train-fixes-2026-09-13.md",
-      "assignedSha256": "83a1061a46345372e700e4b2293c4d4053bf071aec4c3d40696adf27eddc82e8",
+      "assignedSha256": "561549d398c4ed39e9963c233e4727388330f5740ef4f67e33c4ffd898c46bfe",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "83a1061a46345372e700e4b2293c4d4053bf071aec4c3d40696adf27eddc82e8",
-      "verifiedCommit": "711e207d670f587ca24ead8f73c7aacfc733aff4",
+      "verifiedSha256": "561549d398c4ed39e9963c233e4727388330f5740ef4f67e33c4ffd898c46bfe",
+      "verifiedCommit": "9162d7e87331f2c3f68cbbacf36549f10be61af9",
       "verifiedAt": "2026-09-13",
       "evidence": [
-        "Full report read by gate_doc_consistency; command and test results are retained as the report author’s evidence and were not independently rerun by this catalog lane."
+        "Complete lane report read; root reviewed the integration append. Historical lane measurements remain attributed to their recorded checkout. Current-main receipts and remaining verification limits are explicit."
       ],
       "claims": [
         {
-          "claim": "The report records the fix lane’s evidence for #2292, #2293, and #2294, including its focused floor, whole-tree baseline failures, the unrun planter suite, and the separate #2297 coupled-site regression.",
+          "claim": "Preserves all five CSS repair legs and retractions; records independent source review, integrated 75-test floor, and selected production result with the existing legacy finding distinguished.",
           "evidence": [
             {
               "kind": "issue",
-              "target": "#2292"
-            },
-            {
-              "kind": "issue",
-              "target": "#2293"
-            },
-            {
-              "kind": "issue",
-              "target": "#2294"
-            },
-            {
-              "kind": "issue",
-              "target": "#2297"
+              "target": "#1584"
             }
           ]
         }
       ],
-      "summary": "Full-read CSS train fix report preserved as reported evidence for #2292–#2294, with the author’s verification receipts, declared baseline failures and exclusions, and the separate #2297 regression left open."
+      "summary": "Preserves all five CSS repair legs and retractions; records independent source review, integrated 75-test floor, and selected production result with the existing legacy finding distinguished."
     },
     {
       "path": "docs/reviews/gate-runtime/v-wave-12a-2026-09-13.md",
@@ -5067,6 +5055,81 @@
         }
       ],
       "summary": "Records the mirror class, workspace population and explicit Biome probe fences, including reported planted controls and two unresolved follow-up defects. Current-main runtime verification is explicitly owed."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-baseui-rework-2026-09-13.md",
+      "assignedSha256": "cc032b92f84b33c3a5bc177a35eb07c917d047a4cc9ccef7d5e899c23a356abf",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "cc032b92f84b33c3a5bc177a35eb07c917d047a4cc9ccef7d5e899c23a356abf",
+      "verifiedCommit": "9162d7e87331f2c3f68cbbacf36549f10be61af9",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Complete lane report read; root reviewed the integration append. Historical lane measurements remain attributed to their recorded checkout. Current-main receipts and remaining verification limits are explicit."
+      ],
+      "claims": [
+        {
+          "claim": "Preserves BaseUI repair evidence and explicit metadata fixture port; integrated 39-test floor is recorded and resource-selection repair plus final review remain owed.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Preserves BaseUI repair evidence and explicit metadata fixture port; integrated 39-test floor is recorded and resource-selection repair plus final review remain owed."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-hit-geometry-2026-09-13.md",
+      "assignedSha256": "c6d74672f50cb40fd4db7e8f2ee5c5597e2eb87b84e2484ae06df9336e9c599b",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "c6d74672f50cb40fd4db7e8f2ee5c5597e2eb87b84e2484ae06df9336e9c599b",
+      "verifiedCommit": "9162d7e87331f2c3f68cbbacf36549f10be61af9",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Complete lane report read; root reviewed the integration append. Historical lane measurements remain attributed to their recorded checkout. Current-main receipts and remaining verification limits are explicit."
+      ],
+      "claims": [
+        {
+          "claim": "Preserves hit-geometry lane evidence and integrated 10-test node floor; current-main CT and rendered triage remain owed.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Preserves hit-geometry lane evidence and integrated 10-test node floor; current-main CT and rendered triage remain owed."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/x-eslint-grant-pin-2026-09-13.md",
+      "assignedSha256": "ed91922de3d82c57b458f2858d4df904c8b1c7aa0e6729057bd6304fe3432a3a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ed91922de3d82c57b458f2858d4df904c8b1c7aa0e6729057bd6304fe3432a3a",
+      "verifiedCommit": "9162d7e87331f2c3f68cbbacf36549f10be61af9",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Complete lane report read; root reviewed the integration append. Historical lane measurements remain attributed to their recorded checkout. Current-main receipts and remaining verification limits are explicit."
+      ],
+      "claims": [
+        {
+          "claim": "Records two positional regression proofs, corrected seven-key accounting, independent source review and integrated 7-test floor.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1584"
+            }
+          ]
+        }
+      ],
+      "summary": "Records two positional regression proofs, corrected seven-key accounting, independent source review and integrated 7-test floor."
     }
   ]
 }
