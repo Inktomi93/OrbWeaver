@@ -20,7 +20,6 @@
 import type { ReturnStatement, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { firstAnchor } from "../lib/caught-failure.ts";
 import { resolveStableExpression } from "../lib/reference-fact.ts";
 
 const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
@@ -205,7 +204,7 @@ export const gate = defineGate({
           }
           const name = jsxElementName(root);
           if (!ROW_ROOT_NAMES.has(name)) {
-            ctx.report.node(root, { ...firstAnchor(root, [name]), message: MESSAGE });
+            ctx.report.node(root, { token: name, offset: 1, message: MESSAGE });
           }
         }
       },
