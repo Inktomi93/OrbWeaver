@@ -276,3 +276,35 @@ row's fence-completeness half) are refused too, in both homes.
 including the `collapse`/`contents` half). Its rows 2 and 3 (`setting-teach-row.ct.tsx:353-360` and
 `params-deck.ct.tsx`'s `|| 0`-blinded reads) are the same #2301 class and are NOT touched here — they are
 CT-tier work and this leg was told to run no CT.
+
+#### Leg 3 — the envelope comparison was rounded, so "exact" was not a claim it could make
+
+Review of `11f21436a` accepted the geometry and the clause-2 discrimination and named one proof blocker:
+`ENVELOPE_AGREEMENT_EVAL` printed `Math.round(n * 100) / 100` for each coordinate, so the arm compared
+CENTIPIXELS while its own comment claimed exact equality. A one-sided drift under 0.005px — the shape a
+coordinate-space or unit mistake actually produces, which is precisely what ledger row 4 was — would pass.
+
+Fixed: the page prints RAW coordinates (`String(double)` round-trips a JS number exactly), the test parses
+them into numbers, requires every field FINITE (so a malformed pair fails loudly rather than matching
+another malformed one — `"NaN" === "NaN"` is true where `NaN === NaN` is not), and compares the two
+envelopes STRUCTURALLY with `toEqual`. Rounding survives only inside the failure message.
+
+Both receipts, same mutation — `+ 0.001` on ONE edge of the walker's `pseudoHitRect` rect literal
+(`right: right + dx` → `right: right + dx + 0.001`), cp-backed and restored in a `trap`:
+
+| judged by | result |
+| - | - |
+| the arm as it shipped in `11f21436a` (rounded compare, restored via `git show 11f21436a:<path>`) | **13 passed — the FALSE CLEAN** (`xhit-l3-rounded.log`) |
+| the arm after this commit (raw structural compare) | **RED** (`xhit-l3-raw.log`): `credit-capped: … walker [135, 135, 165, 165] vs kit [135, 135, 165, 165] (raw: 135,135,165.001,165 vs 135,135,165,165): expected [ 135, 135, 165.001, 165 ] to deeply equal [ 135, 135, 165, 165 ]` |
+
+The failure message is itself the demonstration: its rounded halves are IDENTICAL and only the raw pair
+shows the drift, which is exactly why the comparison may not be the rounded one. `git status --short` after
+each probe showed only the intended file; the walker was byte-restored both times.
+
+The walker-rung vs kit-1px EXTENT difference is untouched — this leg is about the shared credit ENVELOPE
+only, and the extents remain pinned per home to their own measured values (`30/60/20/44`).
+
+Floor: `pnpm test:scoped tests/support/iso/hit-extent-walk.test.ts tests/tooling/ui-audit/ops/walker/hit-extent.int.test.ts`
+→ **13 passed** (nothing lost; slot `reports/runs/test/agent-a384c9bc64477f381-246117-2026-09-13T06-24-48-648Z`)
+· `pnpm exec biome check` + `pnpm exec eslint` on the file → clean ·
+`pnpm typecheck --config tsconfig.json --config tooling/tsconfig.json` → 2 runnable, 2 PASS. No CT.
