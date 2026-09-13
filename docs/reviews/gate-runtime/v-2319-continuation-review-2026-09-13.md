@@ -195,22 +195,66 @@ tooling and root TypeScript configurations passed
 (`/tmp/codex-2319-next-two-types-final.log`). I read these logs and their explicit exit-status receipts in full but
 did not execute their commands.
 
+## Config and section split follow-up
+
+**CONFIRMED after one repaired grant-metadata defect.** The current replay test preserves all 30
+`config-group-completeness` examples from `dd862e988` and all 16 `section-registry-completeness` examples
+from `e18bce01e` in descriptor order. The shared harness and the four final policies are unchanged.
+
+The config twin completes the group, collection, host, contribution and stamper denominators without replacing
+the frozen subject; its import prepends and the host-reader re-point are declared line/anchor artifacts. It
+registers each lifecycle collection by resolved module identity, keeps the legacy twin
+inert, and asserts the source-sorted missing denominators on every original fixture. The 21 flags and nine
+passes retain their semantic arms. In particular, imported collection and group definitions are classified as
+stronger readers because the final owner resolves their objects and reports the outside-home arm. The imported
+contribution refusal at frozen flag 20 is instead retired: its completed twin is clean, while the separate
+resolved-stamper control proves the final registration dependency and its wrong-module cut reports the real
+stamper. The split sibling statement credits only the two accusing anchor rows, two registered rows and the
+host-reader exemption; the other 25 rows claim no direct sibling coverage. Its alias, same-name-module,
+unreadable member and local-decoy controls independently exercise the final identity boundaries. The host
+reader's raw finding is consumed only by a fixture-local exact grant, so this is not presented as a live
+repository permission.
+
+The section twin similarly completes the `SectionDefinition` and route populations without manufacturing a
+finding on its own, preserves legacy behavior after importing the canonical type, and asserts the exact
+original withholding receipts. All eleven flags and five passes are retained. The definition owner carries
+co-location, planned-body, duplicate-id, imported-definition, factory and route god-map arms; the feature-door
+row moves to `route-imports-no-feature`. Only frozen rows 5 and 13 claim direct route-sibling coverage, leaving
+the other 14 explicit. Constructed controls prove that a new auth route remains accused, imports outside the
+route scope remain clean, registry mounts remain clean, and one app-shell grant cannot license a second chat
+door. `APP_ROOT_GRANT` is byte-for-byte the shipped app-shell grant. The second chat grant is now explicitly
+fixture-scoped in its `why` and `endsWhen` as well as its replay id, so it cannot be read as a live permission.
+
+The primary's author-run receipts corroborate the source review. The config-only replay passed 18/18
+(`/tmp/codex-2319-config-second.log`); the combined config and section replay passed 22/22 with 133 frozen rows
+(`/tmp/codex-2319-splits-first.log`). Removing the config or section prerequisite export produced the expected
+targeted failures, and changing the host grant operation preserved its raw finding while consuming no grant
+(`/tmp/codex-2319-splits-prereq-red.log`, `/tmp/codex-2319-splits-grant-section-red.log`). I read these logs in
+full but did not execute their commands. After two type-only narrowing repairs, both TypeScript configurations
+passed (`/tmp/codex-2319-splits-types-final.log`), and the seven importer suites passed 7 files / 59 tests
+(`/tmp/codex-2319-splits-seven.log`). The exact current replay then passed 22/22
+(`/tmp/codex-2319-splits-final.log`), while final ESLint exited zero and Biome reported no diagnostic. Section
+10 of the owner report accurately records the row totals, classifications, direct sibling coverage, grant
+scopes, planted controls and final parent-owned floors. I also compared its original eleven-row ledger block
+with `b072f59fa`; the two blocks are byte-for-byte equal.
+
 ## Precise limits
 
 This reviewer did not independently run tests because the primary retained the serial verification floor. Parent-run
 green and planted-control logs are corroboration rather than independent execution evidence. This review confirms the
 repaired source proofs and their discriminating assertions; it does not independently certify the primary's suite,
 lint, typecheck, documentation, or real-tree gate commands. It does not review the shared replay-harness repair commits
-preceding `ade6f50ed`, either split owner, the two remaining assigned modules, ledger states outside #2319, or product
-behavior.
+preceding `ade6f50ed`, owner-report sections other than the config/section account in section 10, ledger states outside
+\#2319, or product behavior.
 
-## LEDGER ROWS (3 rows)
+## LEDGER ROWS (4 rows)
 
 | id | class | module | finding | state |
 | - | - | - | - | - |
 | `V-2319-C1` | proof-blind | `registry-definitions-legacy-replay.test.ts` | Broad regex accepts any unclassified reason despite the exact-name claim. | **REPAIRED — source verified in warm follow-up** |
 | `V-2319-C2` | stale-procedure | `x-legacy-replay-2026-09-13.md` | Recipe mandates prepend although the working family recipe also repoints existing imports. | **REPAIRED — source verified in warm follow-up** |
 | `V-2319-C3` | fixture-artifact | modal opener replay | Unresolved `#state` import is classified as stronger-reader; the completed dependency proves `0 -> 0`. | **REPAIRED — source verified in warm follow-up** |
+| `V-2319-S1` | authority-metadata | route sibling control | Synthetic chat grant copied the shipped app-shell rationale despite licensing a different operation. | **REPAIRED — source verified in warm follow-up** |
 
 ## Issue summaries
 
@@ -227,3 +271,8 @@ import, otherwise prepend. **REPAIRED:** current recipe step 4 states that condi
 unreachable-modal finding `stronger-reader`. Its own completed dependency returns zero findings. Complete the twin,
 prove legacy inertness, require zero errors, and classify the row `vacuous-both-zero`. **REPAIRED:** the current row
 and its separate incomplete-fixture control establish both sides of that prerequisite boundary.
+
+**V-2319-S1** — REFUTED. The constructed chat grant changed only the shipped app-shell grant's id and operation,
+leaving a `why` and `endsWhen` that described the app shell rather than `#features/chat`. A typed grant's rationale
+belongs to its exact permission identity even in a fixture. **REPAIRED:** the current control states that the chat
+grant exists only to exercise the two-door replay, grants no live repository permission, and ends with that control.

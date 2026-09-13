@@ -1067,3 +1067,68 @@ otherwise empty successful ESLint output. Documentation checks are recorded with
 
 Remaining assigned work: config-group-completeness and section-registry-completeness, including their
 split siblings' per-example coverage, explicit zero-legacy coverage and constructed successor proofs.
+
+## 10. Codex continuation: both split owners
+
+The config and section splits add **46 original examples**, bringing the complete nine-parent replay to
+**133 legacy rows**. Every row retains its frozen findings and file population, named original-byte
+withholding, unlined legacy inertness, prerequisite-only result, exact final findings and file population,
+and checked classification. The shared harness and all production gates remain unchanged.
+
+| Parent / frozen base | Legacy rows | Classified outcome |
+| - | -: | - |
+| config-group-completeness / dd862e988 | 30 (21 flag, 9 pass) | Sixteen anchor moves, two stronger-reader verdicts, two sibling splits, one retired syntax-refusal proxy, eight zero/zero rows, one consumed fixture grant |
+| section-registry-completeness / e18bce01e | 16 (11 flag, 5 pass) | Nine anchor moves, one stronger-reader verdict, one sibling split, four zero/zero rows, one consumed app-root grant |
+
+The config twin supplies exported group, collection and contribution targets from the final owners'
+`mustFlag[0]` fixtures. Its clean host, registered base collection/group and registered anchor witness
+complete only absent populations. Target collections are registered by an imported group so an unrelated
+orphan cannot masquerade as the intended lifecycle catch. Existing component and collection references
+are resolved through explicit imports. The host-reader row uses a one-hop re-export bridge: a direct
+`../../` import would itself trigger both generations' host-import arm and fail inertness. Subject import
+prepends are line artifacts; the synthetic-token changes are the conversion's actual anchor moves.
+
+Config `mustFlag[18]` and `[19]` now resolve imported definitions outside their permitted home. Those are
+stronger-reader verdicts. `mustFlag[20]` is different: the anchor sibling resolves the imported contribution
+and its JSX provenance, so the former imported-initializer refusal retires. A separate constructed
+successor adds a real canonical stamp to that imported component and proves it is registered; repointing
+the JSX import to a same-named component in another module accuses the actual stamp. This construction
+changes the original and is never represented as an inert twin.
+
+| Split sibling | Original examples with actual sibling coverage | Explicit zero-legacy coverage | Constructed successor evidence |
+| - | - | - | - |
+| config-anchor-in-registry | Flag 8 and 9 accuse stamps; pass 3 and 4 register stamps; pass 5 is the former host exemption | All other 25 examples, including the retired imported-initializer proxy; clean prerequisite witnesses add no legacy coverage | Aliased mint, wrong module with same component name, opaque dot and bracket calls, local mint decoy, imported contribution registration and its wrong-module cut |
+| route-imports-no-feature | Flag 5 accuses a feature import; pass 2 is the former app-root exemption | All other 14 examples; adding a clean route supplies admission only | New auth route remains raw red, feature-tree import stays out of scope, registry mount stays green, two route imports consume separate exact operations |
+
+The section twin supplies the exported canonical section target and a clean route, or a clean admitted
+section when the original already is a route. Its definition expectations distinguish co-location,
+planned reason, planned real body, duplicate id and imported-home verdicts. The route `sections` map stays
+with the parent; the feature-import occurrence moves to the reviewed-grant sibling. Both original
+withholding identities remain explicit on definition-only examples.
+
+Grant-bearing rows run the existing temporary-disk grant door after the ordinary in-memory raw replay.
+They assert identical raw occurrences, zero effective findings and the exact consumed grant id. The
+config host grant is **fixture-specific**, not a claim that today's production host still owns the old
+permission. The app-root app-shell grant copies the shipped row. A constructed chat permission has its
+own fixture rationale and end condition; independent review caught and corrected the initial copied
+app-shell rationale. One app-shell grant leaves the chat finding intact; two distinct operation grants
+license exactly the two occurrences. Neither test writes a live grant.
+
+The completed tables and controls passed **22/22** before deliberate cuts
+(`/tmp/codex-2319-splits-first.log`). Removing the config target export failed its admission assertion and
+the imported-successor named receipt (**2 failed, 20 passed**, `splits-prereq-red.log`). Removing the
+section target export and changing the host grant operation failed the section final-finding assertion
+and the host raw/effective/consumed-grant assertion (**2 failed, 20 passed**,
+`splits-grant-section-red.log`). Both cut logs use `/tmp/codex-2319-`; all cuts were restored. Final scoped
+floors and independent review are recorded below before this checkpoint is committed.
+
+Final restored floor: **7 importer files / 59 tests**, followed by the exact-file **22/22** run. Native
+`tooling/tsconfig.json` and `tsconfig.json` both passed after explicit row/file-map types repaired two test
+inference errors. Biome and ESLint passed. Logs use `/tmp/codex-2319-splits-` with suffixes `seven.log`,
+`final.log`, `types-final.log`, `biome-check.log` and `eslint-final.log`; adjacent receipt files record the
+command and terminal exit. The independent warm source review is in
+`v-2319-continuation-review-2026-09-13.md`; its execution evidence is explicitly author-run corroboration.
+The original eleven-row ledger block remains byte-for-byte equal to imported checkpoint `b072f59fa`.
+Primary still owns consolidated whole-tree verification, integration, board lifecycle and ledger/catalog
+updates under the coordinated #1584 exception. This lane's assigned replay queue is complete; it does not
+close #2319 or certify the gate program.
