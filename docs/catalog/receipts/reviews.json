@@ -6184,16 +6184,17 @@
     },
     {
       "path": "docs/reviews/gate-runtime/v-2319-continuation-review-2026-09-13.md",
-      "assignedSha256": "a3ecd71db1a22b2375f30c5feac724b2181d3ec3180a38db91916d168a2b5954",
+      "assignedSha256": "a9853d047d6d958fbe24b995215e11d1b5712bab529b23724edb0a74f55fcfe7",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "a3ecd71db1a22b2375f30c5feac724b2181d3ec3180a38db91916d168a2b5954",
-      "verifiedCommit": "628765a4136a723a50e1a0b67b40e2ebc1cb0b5e",
+      "verifiedSha256": "a9853d047d6d958fbe24b995215e11d1b5712bab529b23724edb0a74f55fcfe7",
+      "verifiedCommit": "f902e79ef4a0cca0f80134994b2eca833524c22b",
       "verifiedAt": "2026-09-13",
       "evidence": [
         "Full immutable report read through 282249728 plus exact 282249728..628765a41 frontmatter-only comparison by Codex docs_consolidation_receipt for #2049. Only status changed from invalid `confirmed` to allowed `active`; the report body preserves its original C1-C3 refutations, their source-verified repairs, and the later R-2319-1 supersession. Its no-runtime language is retained: author and primary logs corroborate the source review but are not recast as this reviewer’s execution.",
-        "Current-main verification supplied by Codex-primary: the seven importing suites passed 7 files / 50 tests in report main-2520958-2026-09-13T13-17-05-683Z; lint and docs passed; all eleven native policies passed after Q08. These are primary-run receipts, separate from the report author's source-only review and bounded to cf1b426a4505d796dd8e9c80960f2d6b40a28888."
+        "Current-main verification supplied by Codex-primary: the seven importing suites passed 7 files / 50 tests in report main-2520958-2026-09-13T13-17-05-683Z; lint and docs passed; all eleven native policies passed after Q08. These are primary-run receipts, separate from the report author's source-only review and bounded to cf1b426a4505d796dd8e9c80960f2d6b40a28888.",
+        "2026-09-13: Full continuation report read at integrated f902e79ef4a0cca0f80134994b2eca833524c22b, including the no-parallel/factory follow-up integrated by 97f8db3d3 from 8b4682e87. Retain original C1-C3 refutations, repaired-source findings and R-2319-1 supersession. The new section reviews all 21 no-parallel and 15 factory examples; it attributes 17/17 focused, 7 files / 54 tests importer, discriminating prerequisite/arm cuts and lint/typecheck results to primary-run logs read by that reviewer. This receipt refresh reads the report and ancestry, not those logs or runtime commands, and does not independently certify their execution. The two remaining split modules and whole-program acceptance remain outside the report verdict; prior receipts remain dated to their original trees."
       ],
       "claims": [
         {
@@ -6210,7 +6211,7 @@
           ]
         }
       ],
-      "summary": "Independent continuation review preserving C1-C3 refutations, their source-level repairs, the later R-2319-1 correction, and explicit runtime and whole-program limits."
+      "summary": "Independent continuation review preserving C1-C3 refutations and repairs, R-2319-1 correction, and subsequent no-parallel/factory source review. Primary-run logs are corroboration; independent runtime execution, the two remaining split modules and whole-program acceptance are not claimed."
     },
     {
       "path": "docs/reviews/gate-runtime/v-2319-integration-review-2026-09-13.md",
