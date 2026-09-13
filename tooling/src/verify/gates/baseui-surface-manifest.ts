@@ -40,7 +40,12 @@
 // replaces AND it deletes the anchor heuristic, which existed only because the legacy substrate could not
 // tell "the package is not installed" from "this example is about something else". No proof row can
 // express a refusal (guide §4.5b); the pins are `runPolicyPass` drives in
-// `tests/tooling/verify/gates/baseui-family.test.ts`.
+// `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` — the LEDGER's three reachable
+// non-ready statuses (missing · unparseable · empty, all population-phase withholds, in the loop over this
+// family's four ledger consumers) and the INSTALLED doors' three (the whole package missing, `metadata`
+// unresolved, `ast` unresolved, all `[evaluate]` tool errors), beside the complete run asserting one
+// `unresolved: 0` receipt per declared resource. The path this paragraph named until 2026-09-13 —
+// `baseui-family.test.ts` — never existed on the tree (`v-conversions-11-2026-09-13.md`, board #2297).
 //
 // BUT THE TWO REFUSALS ARRIVE AT DIFFERENT PHASES, AND THE DIFFERENCE IS NOT COSMETIC — it was MEASURED by
 // this conversion's §4.6 differential, after this header first claimed both were population-phase
@@ -79,9 +84,11 @@
 // fixture can produce that: `ops/resource-installed.ts:137-143` collects the paths by walking DOWN from
 // the directory it just resolved for that very package, so every path it returns is under it by
 // construction, and a package it cannot resolve comes back `missing` (a refusal, one phase earlier). The
-// branch is pinned one tier down instead, at the reader, in `baseui-family.test.ts` — `installedSurfaceFrom`
-// handed an anchorless path set returns `undefined`, and handed the real set minus one component's
-// `index.d.ts` loses exactly that component.
+// branch is pinned one tier down instead, at the reader, in
+// `tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts` under "§4.5 — the
+// installed-surface READER's own blindness, which no proof row can reach": `installedSurfaceFrom` handed an
+// anchorless path set returns `undefined`, and handed the real set minus one component's `index.d.ts` loses
+// exactly that component.
 //
 // COMMENT POSTURE: comment-BLIND — every subject is a declared resource artifact (parsed JSON, installed
 // `.d.ts` declarations); this policy reads no authored source and no comment.
@@ -228,12 +235,26 @@ const INSTALLED_ONE_PART: Readonly<Record<string, string>> = {
   [`${PKG}/select/root/SelectRoot.d.ts`]: "export interface SelectRootProps {\n  items?: readonly string[] | undefined;\n}\n",
 };
 
-function manifestJson(parts: string): string {
-  return `{\n  "version": "9.9.9",\n  "components": {\n    "Select": {\n      "module": "@base-ui/react/select",\n      "namespaced": true,\n      "parts": {${parts}}\n    }\n  }\n}\n`;
+/** The ledger for the one-part installed package. `version` is a PARAMETER because the version comparison
+ *  is an arm in its own right and its falsifier differs from the ordinary fixture in that field alone. */
+function manifestJson(parts: string, version = "9.9.9"): string {
+  return `{\n  "version": "${version}",\n  "components": {\n    "Select": {\n      "module": "@base-ui/react/select",\n      "namespaced": true,\n      "parts": {${parts}}\n    }\n  }\n}\n`;
 }
 
 const ROOT_ENTRY = (disposition: string, why: string, props = '"items"', inherits = ""): string =>
   `\n        "Root": { "kind": "part", "symbol": "SelectRoot", "from": "./root/SelectRoot.js", "props": [${props}], "inherits": [${inherits}], "disposition": "${disposition}", "why": "${why}" }\n      `;
+
+/** A manifest entry for a part the installed package does NOT publish — the vanished-PART direction's
+ *  subject. It carries neither props nor heritage because a part that is gone upstream has no shape left to
+ *  record, which is also why this fixture necessarily produces arm D's blind-part finding beside the drift
+ *  one (see the row's `why`). */
+const GHOST_PART_ENTRY =
+  '\n        "Separator": { "kind": "part", "symbol": "SelectSeparator", "from": "./separator/SelectSeparator.js", "props": [], "inherits": [], "disposition": "exposed", "why": "" }\n      ';
+
+/** A ledger naming a whole COMPONENT the installed package does not publish, beside an agreeing `Select`.
+ *  `Dialog.Root` declares a prop on purpose: a propless, heritage-less entry would trip arm D as well and
+ *  the row would assert a count it does not mean (the "isolate ONE arm" rule). */
+const MANIFEST_GHOST_COMPONENT = `{\n  "version": "9.9.9",\n  "components": {\n    "Select": {\n      "module": "@base-ui/react/select",\n      "namespaced": true,\n      "parts": {${ROOT_ENTRY("exposed", "")}}\n    },\n    "Dialog": {\n      "module": "@base-ui/react/dialog",\n      "namespaced": true,\n      "parts": {\n        "Root": { "kind": "part", "symbol": "DialogRoot", "from": "./root/DialogRoot.js", "props": ["open"], "inherits": [], "disposition": "exposed", "why": "" }\n      }\n    }\n  }\n}\n`;
 
 /** The same installed package with a root declaring NO props, so a manifest entry carrying no props and no
  *  heritage AGREES with it. Arm D's two rows are about the manifest ROW being empty, not about drift; with
@@ -322,7 +343,25 @@ export const gate = defineGate({
         [MANIFEST_PATH]: manifestJson(ROOT_ENTRY("exposed", "")),
       },
       expect: { count: 1, messageIncludes: "changed shape" },
-      why: "ARM A's STATE half, and the row that dies when `part.state` is cut from `identity()`: the installed part gains a `<Part>State` key while its props, alias target and heritage are byte-identical to the manifest's. `<Part>State` is what Base UI mirrors onto the DOM as `data-*`, so it is the surface `baseui-state-data-attributes` judges seals against — a bump that moved it silently moved what that policy enforces. The legacy tuple omitted `state` entirely and this fixture was green against it",
+      why: "ARM A's STATE half, and the row that dies when `part.state` is cut from `identity()`: the installed part gains a `<Part>State` key while its props, alias target and heritage are byte-identical to the manifest's. `<Part>State` is what Base UI mirrors onto the DOM as `data-*`, so it is the surface `baseui-state-data-attributes` judges seals against — a bump that moved it silently moved what that policy enforces. The legacy tuple omitted `state` entirely and this fixture was green against it. It is also the surviving owner of the aggregate attribute-NAME comparison the css-hook-provenance conversion RETIRED into this tuple (`x-css-family-unit-2026-09-13.md` deviation 3), so cutting `state` now blinds two families rather than one",
+    },
+    {
+      mode: "resource",
+      files: { ...INSTALLED_ONE_PART, [MANIFEST_PATH]: manifestJson(`${ROOT_ENTRY("exposed", "")},${GHOST_PART_ENTRY}`) },
+      expect: { count: 2, messageIncludes: "`Select.Separator` vanished from the installed package" },
+      why: "ARM A's VANISHED-PART direction, and the row that dies when the second `diffParts` loop's membership test is failed OPEN: upstream DELETED an anatomy part the ledger still rules on, which is the same adjudication debt as an appearance and was enforced by nothing. The count is 2 and it is exact rather than sloppy: a manifest entry for a part that is gone has neither props nor heritage left to record, so arm D's blind-part tripwire necessarily fires beside the drift finding — a fixture that avoided it would have to give the ghost entry a shape the installed package cannot corroborate",
+    },
+    {
+      mode: "resource",
+      files: { ...INSTALLED_ONE_PART, [MANIFEST_PATH]: MANIFEST_GHOST_COMPONENT },
+      expect: { count: 1, messageIncludes: "component `Dialog` vanished from the installed package" },
+      why: "ARM A one level up, and the row that dies when the second `diffSurface` loop's membership test is failed OPEN: a whole COMPONENT namespace vanished upstream and its rulings are still in the ledger. Distinct from the row above because the two loops are separate code and the part-level one cannot reach a component that no longer exists at all",
+    },
+    {
+      mode: "resource",
+      files: { ...INSTALLED_ONE_PART, [MANIFEST_PATH]: manifestJson(ROOT_ENTRY("exposed", ""), "9.9.8") },
+      expect: { count: 1, messageIncludes: "the manifest describes 9.9.8" },
+      why: "THE HEADLINE CLAIM, and until this row nothing proved it: this module's first paragraph calls itself \"the version-bump tripwire\", and the version comparison in `diffSurface` was enforced by no proof row at all — failed OPEN it left every other row green. The fixture differs from `mustPass[0]` in the manifest's `version` field ALONE, which is why the count is 1: the anatomy still agrees",
     },
     {
       mode: "resource",
