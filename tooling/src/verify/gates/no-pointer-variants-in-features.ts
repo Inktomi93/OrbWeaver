@@ -81,7 +81,7 @@ export const gate: GateDescriptor = {
       return;
     }
     for (const hit of readTailwindClassTokens(node.getText()).filter(({ token }) => POINTER_VARIANT_RE.test(token) || CAPABILITY_MEDIA_RE.test(token))) {
-      ctx.report(node, hit); // token-anchored ⇒ honours @orb-gate-ignore
+      ctx.report(node, { token: hit.token, offset: hit.offset }); // token-anchored ⇒ honours @orb-gate-ignore
     }
   },
 
