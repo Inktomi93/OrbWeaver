@@ -115,8 +115,6 @@ test("source and types proofs receive their exact files and relative imports res
 
 test("mustFlag precision uses effective warnings and finding or descriptor messages", () => {
   const warning = sourcePolicy("warning-precision", {
-    // `ordinary`: `hard` + `warning` is the #2025 contradiction the loader refuses; the precision under test is the same.
-    authority: "ordinary",
     severity: "warning",
     workItem: 1584,
     message: "descriptor fallback message",

@@ -411,3 +411,24 @@ test("warning promotion changes blocking without rewriting severity", () => {
   expect(promoted.verdict).toEqual({ errors: 0, warnings: 1, blocking: 1, failOnWarnings: true });
   expect(promoted.effectiveFindings[0]?.severity).toBe("warning");
 });
+
+test("a hard warning stays effective and unwaived while promotion alone changes blocking", () => {
+  const hardWarning = { id: "hard-warning", authority: "hard", severity: "warning" } as const;
+  const run = (failOnWarnings: boolean): GateAuthorityBatchResult =>
+    coordinate({
+      knownPolicies: [hardWarning],
+      selectedPolicies: [hardWarning],
+      ownerResults: [owner(hardWarning.id, [finding("missing-test.ts")])],
+      ordinaryWaiverSources: ordinarySources({ "missing-test.ts": "export const missing = true;\n" }),
+      failOnWarnings,
+    });
+
+  const unpromoted = run(false);
+  const promoted = run(true);
+  expect(unpromoted.effectiveFindings).toMatchObject([{ policyId: hardWarning.id, severity: "warning" }]);
+  expect(unpromoted.waivedFindings).toEqual([]);
+  expect(unpromoted.authorityAlarms).toEqual([]);
+  expect(unpromoted.verdict).toEqual({ errors: 0, warnings: 1, blocking: 0, failOnWarnings: false });
+  expect(promoted.effectiveFindings).toEqual(unpromoted.effectiveFindings);
+  expect(promoted.verdict).toEqual({ errors: 0, warnings: 1, blocking: 1, failOnWarnings: true });
+});

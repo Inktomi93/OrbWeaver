@@ -25,8 +25,7 @@ interface ModuleOptions {
   readonly extra?: string;
   readonly prototype?: string;
   readonly severity?: "error" | "warning";
-  /** Defaults to `hard` — except under `warning`, where `hard` is the #2025 contradiction and the fixture lands
-   *  under the nearest settleable authority instead; the pair itself is pinned by its own test below. */
+  /** Defaults to `hard`; warning fixtures therefore prove that severity does not open a suppression door. */
   readonly authority?: "hard" | "ordinary" | "reviewed-grant";
   readonly secondDescriptor?: boolean;
   readonly resources?: string;
@@ -42,7 +41,7 @@ function moduleSource(repoRoot: string, id: string, options: ModuleOptions = {})
   const fields = `{
     id: ${JSON.stringify(id)},
     family: ${JSON.stringify(options.family ?? id)},
-    authority: ${JSON.stringify(options.authority ?? (options.severity === "warning" ? "ordinary" : "hard"))},
+    authority: ${JSON.stringify(options.authority ?? "hard")},
     severity: ${JSON.stringify(options.severity ?? "error")},
     population: ${population},
     analysis: ${JSON.stringify(analysis)},
@@ -355,7 +354,7 @@ test("the loader refuses prototype-supplied warning ownership", async ({ repoRoo
   await expect(loadPolicyCorpus(scratch)).rejects.toThrow(/descriptor.*direct plain object|prototype/i);
 });
 
-test("hard + warning is refused at load as a contradiction (#2025); warning debt under a settleable authority and hard + error are admitted", () => {
+test("hard + warning is admitted only with positive warning ownership, alongside the other authority/severity pairs", () => {
   const trunk = {
     id: "authority-severity",
     family: "authority-severity",
@@ -369,11 +368,7 @@ test("hard + warning is refused at load as a contradiction (#2025); warning debt
     mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
   };
-  // The contradiction: unsuppressible AND non-blocking. The message names the ruling and both exits.
-  expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "warning", workItem: 2025 })).toThrow(
-    /severity "warning" contradicts authority "hard" \(#2025\)/u,
-  );
-  // The three admitted pairs, each the nearest legal shape one field away.
+  expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "warning", workItem: 2346 })).not.toThrow();
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "error" })).not.toThrow();
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "ordinary", severity: "warning", workItem: 2025 })).not.toThrow();
   expect(() =>
@@ -385,8 +380,7 @@ test("hard + warning is refused at load as a contradiction (#2025); warning debt
       mustFlag: [{ ...trunk.mustFlag[0], grant: { subject: "the-subject", operation: "the-operation" } }],
     }),
   ).not.toThrow();
-  // The rule sits BEFORE the workItem shape rules: the contradiction is named even when the debt field is absent.
-  expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "warning" })).toThrow(/contradicts authority "hard"/u);
+  expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "warning" })).toThrow(/workItem.*warning|warning.*workItem/u);
 });
 
 test("direct descriptor validation requires own enumerable contract fields", () => {

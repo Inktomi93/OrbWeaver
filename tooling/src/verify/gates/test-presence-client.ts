@@ -65,17 +65,23 @@
 //     `authored-text#1` 46 demanded paths — the store corpus plus the stories module.
 //   · TOOL ERRORS. 0 on the final side; the legacy `existsSync` arms could emit none by construction.
 //
-// AUTHORITY `hard`. The legacy gate declared no `ExemptionTable`, no baseline and no marker grammar — its
+// AUTHORITY `hard`; TEMPORARY SEVERITY `warning`, owner #2346. The legacy gate declared no `ExemptionTable`,
+// no baseline and no marker grammar — its
 // `CLIENT_EXCLUDE_FILES` list (DELETED at #2103, below) and its surviving `UI_LOGIC_GROUPS` list were
 // POPULATION VOCABULARY, not grants — and every finding is FILE-anchored with no position token, so under
-// this contract no ordinary door exists BY CONSTRUCTION. `hard` is the honest declaration.
+// this contract no ordinary door exists BY CONSTRUCTION. Findings stay effective and unwaived while their
+// default blocking contribution is zero; `--fail-on-warnings` promotes them. Gate-program closeout restores
+// `severity: "error"` and removes `workItem` without minting a marker or grant path.
 //
-// WHERE A BROKEN RESOURCE REFUSES — not here. A non-ready declared resource makes
+// WHERE A BROKEN RESOURCE REFUSES. A non-ready declared resource makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and the owner is withheld before `create`
-// runs (§3); this module owns no not-ready branch and reads through `readyResourceValue`. The family
+// runs (§3); this module owns no not-ready branch and reads through `readyResourceValue`. Clause C also
+// refuses during EVALUATION when its declared mirror paths yield no readable corpus, because action
+// coverage cannot be judged from empty bytes. The family
 // `runPolicyPass` controls retain the full runtime outcome beyond refusal-text matching: an absent mirror
 // produces no findings, a named population-phase tool error, an incomplete owner, and this policy withheld;
-// the healthy twin pins both the mirror receipt and per-call `authored-text` receipt (§6.3).
+// the evaluation-refusal row likewise produces no findings and withholds the owner. The healthy twin pins
+// both the mirror receipt and per-call `authored-text` receipt (§6.3).
 //
 // DECLARED LIMIT ON THE `authored-text` DECLARATION (#2130): it has NO pinnable non-ready status, and the
 // reason is structural rather than an unwritten test. Every subject this policy demands comes out of
@@ -327,8 +333,7 @@ function judgeStores(stores: readonly StoreSubject[], texts: ReadonlyMap<string,
     const file = `${CLIENT_SRC}${store.rel}`;
     const mirrorText = store.mirrors.map((path) => texts.get(path) ?? "").join("");
     if (mirrorText.trim() === "") {
-      findings.push({ file, message: MSG_STATE_UNREADABLE });
-      continue;
+      throw new Error(MSG_STATE_UNREADABLE);
     }
     const corpus = mirrorText + stories;
     for (const action of store.actions) {
@@ -353,7 +358,8 @@ export const gate = defineGate({
   id: "test-presence-client",
   family: "mirror-index",
   authority: "hard",
-  severity: "error",
+  severity: "warning",
+  workItem: 2346,
   population: { in: ["@client", "@ui"], notNamed: ["index.ts"] },
   analysis: "resource",
   execution: "entire-population",
@@ -525,23 +531,25 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
+        "packages/ui/src/markdown/policy.ts": "export function build(): number {\n  return 1;\n}\n",
+        "tests/ui/markdown/markdown.test-d.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "non-primitive @orb/ui logic module" },
+      why: "THE REGISTERED-KIND FILTER inside `hasDirTest` (#2133): clause B is dir-level, which is exactly why the KIND still has to be a runtime one — a mirror directory holding only a `.test-d.ts` proves types, never that the group runs. Cutting the filter counts any member and this row goes silent, the same shape `mustFlag[0]` holds for clause A's per-file question",
+    },
+  ],
+  mustRefuse: [
+    {
+      mode: "resource",
+      files: {
         "packages/client/src/state/gpresempty-store.ts":
           'import { createGatedStore } from "./create-gated-store";\n' +
           'const useX = createGatedStore<{ n: number }>("g-presempty", () => ({ n: 0 }));\n' +
           'export function gPresEmptyAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n',
         "tests/client/state/gpresempty-store.test.ts": "\n",
       },
-      expect: { count: 1, messageIncludes: "could not read ANY corpus" },
-      why: "§4.6: a mirror that yields NO corpus leaves every action unjudged — the clause must say so, not report clean (the #619 class, generalized). The count pins that it does NOT additionally masquerade as per-action coverage debt",
-    },
-    {
-      mode: "resource",
-      files: {
-        "packages/ui/src/markdown/policy.ts": "export function build(): number {\n  return 1;\n}\n",
-        "tests/ui/markdown/markdown.test-d.ts": "export {};\n",
-      },
-      expect: { count: 1, messageIncludes: "non-primitive @orb/ui logic module" },
-      why: "THE REGISTERED-KIND FILTER inside `hasDirTest` (#2133): clause B is dir-level, which is exactly why the KIND still has to be a runtime one — a mirror directory holding only a `.test-d.ts` proves types, never that the group runs. Cutting the filter counts any member and this row goes silent, the same shape `mustFlag[0]` holds for clause A's per-file question",
+      expect: { messageIncludes: "could not read ANY corpus" },
+      why: "§4.6: a mirror that yields no readable corpus leaves every action unjudged, so clause C refuses evaluation instead of reporting warning debt or a clean result",
     },
   ],
   mustPass: [

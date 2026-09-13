@@ -44,29 +44,45 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [testLayout, testPresence, testPresenceClient] as const;
 
+test("presence policies are temporary hard warnings while layout remains a hard error", () => {
+  expect(
+    policies.map((policy) => ({
+      id: policy.id,
+      authority: policy.authority,
+      severity: policy.severity,
+      workItem: "workItem" in policy ? policy.workItem : null,
+    })),
+  ).toEqual([
+    { id: "test-layout", authority: "hard", severity: "error", workItem: null },
+    { id: "test-presence", authority: "hard", severity: "warning", workItem: 2346 },
+    { id: "test-presence-client", authority: "hard", severity: "warning", workItem: 2346 },
+  ]);
+});
+
 // This one assertion serially drives three policies' complete proof sets, including each resource row's
 // isolated filesystem, Git index and parser setup. It measured 2.8s alone and 8.5s under load (#2308).
 test("the mirror-index family keeps its two-sided proofs", { timeout: scaledBudget(15_000) }, () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 
-function pass(policy: GatePolicy, root: string, overlay: Readonly<Record<string, string>>): PolicyPassResult {
+function pass(policy: GatePolicy, root: string, overlay: Readonly<Record<string, string>>, failOnWarnings = false): PolicyPassResult {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   for (const [path, content] of Object.entries(overlay)) {
     if (path.endsWith(".ts") || path.endsWith(".tsx")) {
       project.createSourceFile(`${root}/${path}`, content);
     }
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root, project, resourceOptions: { overlay }, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root, project, resourceOptions: { overlay }, reviewedGrants: [], failOnWarnings });
 }
 
-/** The shape every refusal shares: a population-phase tool error naming the declaration and its status
- *  word, the owner incomplete and withheld, and NO finding — the four facts that together say "this run is
- *  not a verdict" rather than "the tree is clean". Asserted as one object so a refusal that drifted on ONE
- *  axis (a finding leaking through, an owner completing) fails with the whole shape in the diff. */
+/** The shape every refusal shares: a named tool error, the owner incomplete and withheld, and NO raw OR
+ *  effective finding — the facts that together say "this run is not a verdict" rather than "the tree is
+ *  clean". Both finding surfaces are load-bearing: authority correctly withholds an incomplete owner, but
+ *  callers can also inspect its raw policy result, which must not expose a partial evaluation. */
 function refusalShape(result: PolicyPassResult): Record<string, unknown> {
   return {
-    findings: result.authority.effectiveFindings,
+    rawFindings: result.policies.flatMap(({ findings }) => findings),
+    effectiveFindings: result.authority.effectiveFindings,
     toolErrors: result.toolErrors.map(({ policyId, phase, message }) => ({ policyId, phase, message })),
     owners: result.policies.map(({ id, owner }) => [id, owner.status]),
     withheld: result.authority.withheldPolicyIds,
@@ -75,8 +91,19 @@ function refusalShape(result: PolicyPassResult): Record<string, unknown> {
 
 function populationRefusal(policyId: string, fragment: string): Record<string, unknown> {
   return {
-    findings: [],
+    rawFindings: [],
+    effectiveFindings: [],
     toolErrors: [{ policyId, phase: "population", message: expect.stringContaining(fragment) }],
+    owners: [[policyId, "incomplete"]],
+    withheld: [policyId],
+  };
+}
+
+function evaluateRefusal(policyId: string, fragment: string): Record<string, unknown> {
+  return {
+    rawFindings: [],
+    effectiveFindings: [],
+    toolErrors: [{ policyId, phase: "evaluate", message: expect.stringContaining(fragment) }],
     owners: [[policyId, "incomplete"]],
     withheld: [policyId],
   };
@@ -184,6 +211,80 @@ const PRESENCE_TREE = {
   "tests/server/domain/chat/verbs/start-chat.test.ts": "export const t = 1;\n",
 } as const;
 
+const MISSING_SERVER_TEST_TREE = {
+  "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = () => 1;\n",
+  "tests/server/domain/chat/verbs/other.test.ts": "export const t = 1;\n",
+} as const;
+
+test("test-presence: a missing server test is an unsuppressible warning that blocks only under promotion", ({ scratch }) => {
+  const unpromoted = pass(testPresence, scratch, MISSING_SERVER_TEST_TREE);
+  const promoted = pass(testPresence, scratch, MISSING_SERVER_TEST_TREE, true);
+
+  expect(unpromoted.policies[0]?.findings).toHaveLength(1);
+  expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence", severity: "warning" }]);
+  expect(unpromoted.authority.waivedFindings).toEqual([]);
+  expect(unpromoted.authority.authorityAlarms).toEqual([]);
+  expect(unpromoted.authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 0, failOnWarnings: false });
+  expect(promoted.authority.effectiveFindings).toEqual(unpromoted.authority.effectiveFindings);
+  expect(promoted.authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 1, failOnWarnings: true });
+});
+
+test("test-presence: a marker cannot suppress the hard warning", ({ scratch }) => {
+  const attempted = pass(testPresence, scratch, {
+    ...MISSING_SERVER_TEST_TREE,
+    "packages/server/src/domain/chat/verbs/start-chat.ts":
+      "// @orb-waive test-presence(export): hard warning must reject this marker.\nexport const createStartChat = () => 1;\n",
+  });
+
+  expect(attempted.authority.effectiveFindings).toHaveLength(1);
+  expect(attempted.authority.waivedFindings).toEqual([]);
+  expect(attempted.authority.authorityAlarms.map(({ message }) => message)).toContainEqual(
+    expect.stringContaining("targets non-ordinary policy test-presence"),
+  );
+});
+
+test("test-presence: each blindness diagnosis discards a prior potential warning from raw and effective results", ({ scratch }) => {
+  const cases = [
+    {
+      message: "the entry/transport scan matched ZERO files",
+      missingFile: "packages/server/src/domain/chat/verbs/start-chat.ts",
+      refusing: {
+        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+        "packages/server/src/domain/chat/verbs/start-chat.ts": "export function createStartChat(): number {\n  const id = 1;\n  return id;\n}\n",
+        "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((row) => row[0] ?? 0);\n",
+        "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
+        "tests/server/domain/chat/verbs/other.test.ts": "export const t = 1;\n",
+      },
+      seeing: {
+        "packages/server/src/entry/http/health.ts": "export function health(): number {\n  const status = 200;\n  return status;\n}\n",
+        "tests/server/entry/http/health.test.ts": "export const t = 1;\n",
+      },
+    },
+    {
+      message: "the domain scan matched ZERO files",
+      missingFile: "packages/server/src/entry/http/frame-handle-store.ts",
+      refusing: {
+        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+        "packages/server/src/entry/http/frame-handle-store.ts": "export function take(): number {\n  const hit = 1;\n  return hit;\n}\n",
+        "tests/server/entry/http/other.test.ts": "export const t = 1;\n",
+      },
+      seeing: {
+        "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((row) => row[0] ?? 0);\n",
+        "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
+      },
+    },
+  ] as const;
+  for (const { message, missingFile, refusing, seeing } of cases) {
+    expect(refusalShape(pass(testPresence, scratch, refusing))).toEqual(evaluateRefusal("test-presence", message));
+
+    const sighted = pass(testPresence, scratch, { ...refusing, ...seeing });
+    expect(sighted.toolErrors).toEqual([]);
+    expect(sighted.authority.withheldPolicyIds).toEqual([]);
+    expect(sighted.policies.flatMap(({ findings }) => findings)).toMatchObject([{ file: missingFile }]);
+    expect(sighted.authority.effectiveFindings).toMatchObject([{ file: missingFile, severity: "warning" }]);
+  }
+});
+
 test("test-presence: a complete mirror population reaches a verdict and files its one receipt", ({ scratch }) => {
   const result = pass(testPresence, scratch, PRESENCE_TREE);
 
@@ -244,6 +345,56 @@ const CLIENT_TREE = {
   "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
   "tests/client/data/use-thing.test.ts": "export const t = 1;\n",
 } as const;
+
+const MISSING_CLIENT_TEST_TREE = {
+  "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
+  "tests/client/data/other.test.ts": "export const t = 1;\n",
+} as const;
+
+test("test-presence-client: a missing client test is an unsuppressible warning that blocks only under promotion", ({ scratch }) => {
+  const unpromoted = pass(testPresenceClient, scratch, MISSING_CLIENT_TEST_TREE);
+  const promoted = pass(testPresenceClient, scratch, MISSING_CLIENT_TEST_TREE, true);
+
+  expect(unpromoted.policies[0]?.findings).toHaveLength(1);
+  expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence-client", severity: "warning" }]);
+  expect(unpromoted.authority.waivedFindings).toEqual([]);
+  expect(unpromoted.authority.authorityAlarms).toEqual([]);
+  expect(unpromoted.authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 0, failOnWarnings: false });
+  expect(promoted.authority.effectiveFindings).toEqual(unpromoted.authority.effectiveFindings);
+  expect(promoted.authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 1, failOnWarnings: true });
+});
+
+test("test-presence-client: a marker cannot suppress the hard warning", ({ scratch }) => {
+  const attempted = pass(testPresenceClient, scratch, {
+    ...MISSING_CLIENT_TEST_TREE,
+    "packages/client/src/data/use-thing.ts":
+      "// @orb-waive test-presence-client(export): hard warning must reject this marker.\nexport const useThing = () => 1;\n",
+  });
+
+  expect(attempted.authority.effectiveFindings).toHaveLength(1);
+  expect(attempted.authority.waivedFindings).toEqual([]);
+  expect(attempted.authority.authorityAlarms.map(({ message }) => message)).toContainEqual(
+    expect.stringContaining("targets non-ordinary policy test-presence-client"),
+  );
+});
+
+test("test-presence-client: an unreadable store mirror discards a prior potential warning from raw and effective results", ({ scratch }) => {
+  const refusing = {
+    ...MISSING_CLIENT_TEST_TREE,
+    "packages/client/src/state/example-store.ts":
+      'import { createGatedStore } from "./create-gated-store";\nconst store = createGatedStore<{ n: number }>("example", () => ({ n: 0 }));\nexport function setExample(): void {\n  store.setState({ n: 1 });\n}\n',
+    "tests/client/state/example-store.test.ts": "\n",
+  } as const;
+  const result = pass(testPresenceClient, scratch, refusing);
+
+  expect(refusalShape(result)).toEqual(evaluateRefusal("test-presence-client", "could not read ANY corpus"));
+
+  const readable = pass(testPresenceClient, scratch, { ...refusing, "tests/client/state/example-store.test.ts": "setExample();\n" });
+  expect(readable.toolErrors).toEqual([]);
+  expect(readable.authority.withheldPolicyIds).toEqual([]);
+  expect(readable.policies.flatMap(({ findings }) => findings)).toMatchObject([{ file: "packages/client/src/data/use-thing.ts" }]);
+  expect(readable.authority.effectiveFindings).toMatchObject([{ file: "packages/client/src/data/use-thing.ts", severity: "warning" }]);
+});
 
 test("test-presence-client: a complete population files the mirror receipt AND the per-call demand receipt", ({ scratch }) => {
   const result = pass(testPresenceClient, scratch, CLIENT_TREE);

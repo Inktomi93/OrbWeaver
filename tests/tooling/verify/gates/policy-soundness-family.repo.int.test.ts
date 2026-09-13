@@ -534,6 +534,58 @@ test("policy-waiver-identity REFUSES a corpus in which it recognises no final mo
   expect(legacyOnly.authority.effectiveFindings).toEqual([]);
 });
 
+/** Keep the binding-resolution detector live after production finishes migrating its last violation. The
+ *  control joins the real typed project, so it exercises the same contract identity, population resolver and
+ *  ts-morph declarations as the live-corpus pass instead of a parallel fixture universe. */
+async function assertLiveBindingResolution(project: Project, repoRoot: string, populationCount: number): Promise<void> {
+  const { final: knownPolicies } = await loadMixedGateCorpus(repoRoot);
+  const path = `${GATES_DIR}dangling-refs.ts`;
+  const subject = project.getSourceFileOrThrow(`${repoRoot}/${path}`);
+  const original = subject.getFullText();
+  const drive = (expected: readonly { readonly token: string }[]): void => {
+    const result = runPolicyPass({
+      knownPolicies,
+      policies: [policyBindingResolution],
+      root: repoRoot,
+      project,
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.factErrors).toEqual([]);
+    expect(result.toolErrors).toEqual([]);
+    expect(result.authority.toolErrors).toEqual([]);
+    expect(result.authority.authorityAlarms).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    expect(result.authority.waivedFindings).toEqual([]);
+    expect(result.authority.grantedFindings).toEqual([]);
+    const owner = result.policies.find(({ id }) => id === policyBindingResolution.id);
+    expect(owner?.owner).toEqual({ status: "success", population: "complete" });
+    expect(owner?.receipts).toEqual([]);
+    expect(owner?.population.requestedPaths).toBeNull();
+    expect(owner?.population.effectiveSourcePaths).toHaveLength(populationCount);
+    expect(owner?.population.effectiveSourcePaths).toContain(path);
+    expect(result.authority.effectiveFindings.filter(({ file }) => file === path).map(({ token }) => ({ token }))).toEqual(expected);
+  };
+  try {
+    subject.addImportDeclaration({ namedImports: ["defineGate"], moduleSpecifier: "../contract/policy.ts" });
+    const registration = subject.getVariableDeclarationOrThrow("gate");
+    registration.setInitializer(`defineGate(${registration.getInitializerOrThrow().getText()})`);
+    drive([{ token: "getDefinitionNodes" }]);
+    subject.addImportDeclaration({ namedImports: ["resolveStableExpression"], moduleSpecifier: "../lib/reference-fact.ts" });
+    const localWalk = subject.getDescendantsOfKind(SyntaxKind.CallExpression).find((call) => {
+      const callee = call.getExpression();
+      return Node.isPropertyAccessExpression(callee) && callee.getName() === "getDefinitionNodes";
+    });
+    if (localWalk === undefined) {
+      throw new Error("binding-resolution control lost its local getDefinitionNodes call");
+    }
+    localWalk.replaceWithText("resolveStableExpression(n)");
+    drive([]);
+  } finally {
+    subject.replaceWithText(original);
+  }
+}
+
 /** Exercise the production root boundary on the live project's real contract and module resolver.
  *  These sources exist only in the ts-morph project and are removed in finally; no checkout file is written.
  *  The two expected finding paths are authored controls, not a second graph or a current-policy roster. */
@@ -653,7 +705,13 @@ test(
     expect(unambiguous.filter((path) => !resolutionAccused.includes(path))).toEqual([]);
     expect(resolutionAccused.filter((path) => !anySpelling.has(path))).toEqual([]);
     expect(resolutionAccused.length).toBeGreaterThanOrEqual(unambiguous.length);
-    expect(unambiguous.length).toBeGreaterThan(0);
+    const bindingOwner = result.policies.find(({ id }) => id === policyBindingResolution.id);
+    if (bindingOwner === undefined) {
+      throw new Error("policy-binding-resolution produced no owner result");
+    }
+    expect(bindingOwner.population.requestedPaths).toBeNull();
+    expect(bindingOwner.population.effectiveSourcePaths).toEqual(bindingOwner.population.declaredSourcePaths);
+    await assertLiveBindingResolution(project, repoRoot, bindingOwner.population.effectiveSourcePaths.length);
     // And the family's own modules are CLEAN under the resolution arm: the enforcer never reds its host (#2097 —
     // `policy-soundness`'s three former chains read through the shared readers now).
     expect(resolutionAccused.filter((path) => FAMILY.some((policy) => path === `${GATES_DIR}${policy.id}.ts`))).toEqual([]);
