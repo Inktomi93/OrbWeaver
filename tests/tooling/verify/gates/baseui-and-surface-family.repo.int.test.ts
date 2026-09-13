@@ -517,3 +517,94 @@ describe("the real tree — marker translation, and the conversion differential"
     expect(texts.map((text) => text.split("\n").filter((line) => line.trimStart().startsWith("// @surface-focus-elsewhere")).length)).toEqual([0, 0]);
   });
 });
+
+// ── §2309 — THE SCOPED-SELECTION CONTROL, on both live consumers of the ledger ───────────────────────
+//
+// The production control for the shared selection calculation (`lib/policy-effective-population.ts`), whose
+// pure truth table is `tests/tooling/verify/lib/policy-effective-population.test.ts`. It is HERE because the
+// defect was only ever visible through a real consumer: both `baseui-derives-not-respells` siblings declare
+// `population: "@ui"`, `execution: "selected-files"` and `json:baseui-manifest`, so a changed-mode request
+// can name the LEDGER without naming a single seal — and the ledger is exactly the input whose meaning
+// decides every seal's verdict.
+//
+// MEASURED AT `028e278ee`, BEFORE THE FIX, with this same fixture pair:
+//   · request = [the ledger]  → both siblings `mode: "run"`, `owner: success`, `effectiveSourcePaths: []`,
+//     `findings: []`, `toolErrors: []` — a SUCCESSFUL CLEAN over zero subjects, while the identical tree at
+//     whole scope reported one finding each;
+//   · request = [the seal]    → both siblings `[create] resource request json:baseui-manifest is undeclared`,
+//     owner `incomplete`, WITHHELD — the narrowed resource population withdrew the door the policy declares.
+// Neither arm can be a proof row: a row supplies a fixture, never a narrowed REQUEST.
+describe("§2309 — a changed LEDGER re-judges every seal, and a changed SEAL still gets the whole ledger", () => {
+  /** The same seal under both siblings' arms: `items` is the ordinary DATA re-spelling, `onValueChange` the
+   *  hard HANDLER one. Its verdict is decided entirely by what the ledger says a `Select.Root` exposes. */
+  const DerivesSealPath = "packages/ui/src/primitives/select/probe-select.tsx";
+  const DerivesSealSource =
+    'import type { SelectRootProps } from "@base-ui/react/select";\nimport { Select as BaseSelect } from "@base-ui/react/select";\nexport interface SealProps {\n  items?: readonly string[];\n  onValueChange?: (value: string) => void;\n}\nexport const Seal = (p: SealProps) => <BaseSelect.Root {...p} />;\n';
+  /** THE SEMANTIC EDIT, and the only thing that differs between the two arms below: a `Select.Root` that
+   *  exposes NEITHER member leaves the seal above legal under both siblings. `DERIVES_MANIFEST_JSON` exposes
+   *  both, and the unchanged seal is then a re-spelling twice over. */
+  const LedgerBefore =
+    '{ "version": "9.9.9", "components": { "Select": { "module": "@base-ui/react/select", "namespaced": true, "parts": {' +
+    '"Root": { "kind": "part", "symbol": "SelectRoot", "from": "./root/SelectRoot.js", "props": [], "handlers": {}, "state": [], "inherits": [], "disposition": "exposed", "why": "" }' +
+    "} } } }\n";
+
+  function scopedPass(policy: GatePolicy, root: string, ledger: string, requestedPaths: readonly string[]): PolicyPassResult {
+    const files = { [MANIFEST_REL]: ledger, [DerivesSealPath]: DerivesSealSource };
+    const project = new Project({ skipAddingFilesFromTsConfig: true });
+    project.createSourceFile(`${root}/${DerivesSealPath}`, DerivesSealSource, { overwrite: true });
+    return runPolicyPass({
+      knownPolicies: [policy],
+      policies: [policy],
+      root,
+      project,
+      requestedPaths,
+      resourceOptions: { overlay: files },
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+  }
+
+  for (const policy of [derivesNotRespells, derivesNotRespellsHealth]) {
+    test(`${policy.id}: a request naming ONLY the ledger re-judges the whole declared seal population`, ({ scratch }) => {
+      // THE CONTROL FIRST — the same request against the ledger the seal is legal under. It must be a clean
+      // that JUDGED: an empty `effectiveSourcePaths` would make the flagged arm below unfalsifiable, since a
+      // run over zero subjects is clean whatever the ledger says.
+      const before = scopedPass(policy, scratch, LedgerBefore, [MANIFEST_REL]);
+      expect(before.toolErrors).toEqual([]);
+      expect(before.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
+      expect(before.policies[0]?.population.effectiveSourcePaths).toEqual([DerivesSealPath]);
+      expect(before.authority.effectiveFindings).toEqual([]);
+
+      // THE ARM: only the ledger changed, and the seal nobody named is now a violation.
+      const after = scopedPass(policy, scratch, DERIVES_MANIFEST_JSON, [MANIFEST_REL]);
+      expect(after.toolErrors).toEqual([]);
+      expect(after.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
+      expect(after.policies[0]?.population.effectiveSourcePaths).toEqual([DerivesSealPath]);
+      expect(after.authority.withheldPolicyIds).toEqual([]);
+      expect(after.authority.effectiveFindings).toMatchObject([{ policyId: policy.id, file: DerivesSealPath }]);
+    });
+
+    test(`${policy.id}: a request naming ONLY the seal keeps the ledger readable and the selection exact`, ({ scratch }) => {
+      const result = scopedPass(policy, scratch, DERIVES_MANIFEST_JSON, [DerivesSealPath]);
+
+      // No `[create] … is undeclared`: the declared resource is data, and a narrowed scope does not withdraw it.
+      expect(result.toolErrors).toEqual([]);
+      expect(result.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
+      expect(result.policies[0]?.population).toMatchObject({
+        effectiveSourcePaths: [DerivesSealPath],
+        effectiveResourcePaths: [MANIFEST_REL],
+      });
+      expect(result.policies[0]?.receipts).toMatchObject([{ kind: "resource", source: "json:baseui-manifest", unresolved: 0 }]);
+      expect(result.authority.effectiveFindings).toMatchObject([{ policyId: policy.id, file: DerivesSealPath }]);
+    });
+
+    test(`${policy.id}: a request naming neither axis is still not-applicable — availability is not applicability`, ({ scratch }) => {
+      const result = scopedPass(policy, scratch, DERIVES_MANIFEST_JSON, ["docs/architecture/core/AGENTS.md"]);
+
+      expect(result.toolErrors).toEqual([]);
+      expect(result.policies[0]?.owner).toMatchObject({ status: "not-applicable" });
+      expect(result.policies[0]?.population.effectiveResourcePaths).toEqual([]);
+      expect(result.authority.effectiveFindings).toEqual([]);
+    });
+  }
+});

@@ -8,6 +8,7 @@ import type { GateOwnerCompletion, RawGateFinding } from "../contract/gate-autho
 import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { GatePolicy, GatePolicyHooks } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
+import type { PolicyRequestedSelection } from "../contract/policy-effective-population.ts";
 import type {
   GateFactOwnerResult,
   GateFactPhase,
@@ -25,10 +26,10 @@ import type {
 } from "../contract/policy-pass.ts";
 import { GATE_FACT_PHASES, POLICY_OWNER_PLAN_MODES, POLICY_PASS_REFUSALS, POLICY_PHASES } from "../contract/policy-pass.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
-import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
+import { resolveEffectivePopulation } from "./policy-effective-population.ts";
 import { makeFactContext, makePolicyContext } from "./policy-pass-context.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import {
@@ -248,16 +249,25 @@ function assertSelectedPoliciesAreLoaded(knownPolicies: readonly GatePolicy[], s
   }
 }
 
-/** Which declarations survive into the run's DECLARED set — the fence `bindPolicyResources` checks.
+/** WHICH DECLARATIONS SURVIVE INTO THE RUN'S DECLARED SET — and why there is no longer a filter here (#2309).
  *
- *  A populated request survives only if at least one of its paths is still in the effective population: a
- *  narrowed scope that excludes a resource must also withdraw permission to read it. An UNPOPULATED request
- *  resolves zero paths by construction, so that test drops it every time and the policy is then refused at
- *  its own declared door — which surfaces as "undeclared", a message pointing at the descriptor rather than
- *  at this filter. Same conflation as the empty-fact rule in `resource-declaration.ts`, one layer up. */
-function requestStaysDeclared(host: ResourceHost, request: GateResourceRequest, effectiveResources: ReadonlySet<string>): boolean {
-  return isGateResourceUnpopulatedKind(request.kind) || resolveResourceDeclarations(host, [request]).some((path) => effectiveResources.has(path));
-}
+ *  This position held `requestStaysDeclared`, whose rule was *"a narrowed scope that excludes a resource must
+ *  also withdraw permission to read it"*: a populated request survived only if one of its paths was still in
+ *  the effective resource population. THE RULING SURVIVES; ITS INPUT CHANGED. What a run may read is still
+ *  exactly its effective resource population — `bindPolicyResources` fences both the declaration and every
+ *  acquired path against it, unchanged — but a RUNNING owner's effective resource population is now its
+ *  COMPLETE declaration (`lib/policy-effective-population.ts` rule 1), so the filter had become a tautology:
+ *  `resolveResourceDeclarations` throws at the population phase on any non-ready or empty populated fact, so
+ *  a surviving owner's every populated request resolved at least one path and every such path is in the set
+ *  the filter tested against. An unpopulated kind was already admitted by name. It is deleted rather than
+ *  left as decoration, and the fact side — which never narrowed at all (`resolveFactRuns` sets effective =
+ *  declared) — had been running the same tautology since it was written.
+ *
+ *  What the narrowing COST while it was live, measured at `028e278ee`: both `baseui-derives-not-respells`
+ *  siblings answered `[create] resource request json:baseui-manifest is undeclared` — withheld, exit 2 — on
+ *  any `--changed` run naming a `@ui` seal, because the message this filter produces points at the
+ *  descriptor, not at the filter. That misdirection is the reason it is documented here rather than removed
+ *  silently. */
 
 function newRun(policy: GatePolicy): PolicyRun {
   return {
@@ -300,11 +310,12 @@ interface ResolutionInput {
   readonly run: PolicyRun;
   readonly candidates: readonly string[];
   readonly sourceFiles: ReadonlyMap<string, SourceFile>;
-  readonly requestedPaths: readonly string[] | null;
+  readonly requested: PolicyRequestedSelection | null;
   readonly resources: readonly string[];
+  readonly dependencyPaths: readonly string[];
 }
 
-function resolveRun({ run, candidates, sourceFiles, requestedPaths, resources }: ResolutionInput): void {
+function resolveRun({ run, candidates, sourceFiles, requested, resources, dependencyPaths }: ResolutionInput): void {
   const declared = resolvePopulation(run.policy.population, candidates).paths;
   if (run.policy.analysis !== "resource" && resources.length > 0) {
     throw new Error(`non-resource policy ${run.policy.id} ${POLICY_PASS_REFUSALS.nonResourceReceivedResources}`);
@@ -312,29 +323,27 @@ function resolveRun({ run, candidates, sourceFiles, requestedPaths, resources }:
   if (isExplicitNone(run.policy) && resources.length === 0) {
     throw new Error(`resource-only policy ${run.policy.id} ${POLICY_PASS_REFUSALS.resourceOnlyNoPaths}`);
   }
-  const requestedSet = requestedPaths === null ? null : new Set(requestedPaths);
-  const effectiveSourcePaths = requestedSet === null ? declared : declared.filter((path) => requestedSet.has(path));
-  const effectiveResourcePaths = requestedSet === null ? resources : resources.filter((path) => requestedSet.has(path));
-  run.population = {
+  // THE ONE SELECTION CALCULATION (#2309), shared verbatim with the planner: an input is never narrowed, a
+  // changed input reselects every subject, and applicability stays the raw scope intersection.
+  const { population, disposition } = resolveEffectivePopulation({
+    execution: run.policy.execution,
     declaredSourcePaths: declared,
     declaredResourcePaths: resources,
-    requestedPaths,
-    effectiveSourcePaths,
-    effectiveResourcePaths,
-  };
-  const effectiveTotal = effectiveSourcePaths.length + effectiveResourcePaths.length;
-  const declaredTotal = declared.length + resources.length;
-  run.files = effectiveSourcePaths.map((path) => {
+    dependencyPaths,
+    requested,
+  });
+  run.population = population;
+  run.files = population.effectiveSourcePaths.map((path) => {
     const sourceFile = sourceFiles.get(path);
     if (sourceFile === undefined) {
       throw new Error(`resolved source population path has no SourceFile: ${path}`);
     }
     return sourceFile;
   });
-  run.effectivePathSet = new Set([...effectiveSourcePaths, ...effectiveResourcePaths]);
-  if (requestedSet !== null && effectiveTotal === 0) {
+  run.effectivePathSet = new Set([...population.effectiveSourcePaths, ...population.effectiveResourcePaths]);
+  if (disposition === "empty-intersection") {
     run.owner = { status: "not-applicable", population: "complete", reason: POLICY_PASS_REFUSALS.emptyIntersection };
-  } else if (run.policy.execution === "entire-population" && effectiveTotal < declaredTotal) {
+  } else if (disposition === "deferred") {
     run.owner = { status: "not-applicable", population: "complete", reason: POLICY_PASS_REFUSALS.entireDeferred };
   } else {
     run.owner = { status: "success", population: "complete" };
@@ -383,6 +392,29 @@ function assertOwnerPlans(input: PolicyPassInput): void {
   }
 }
 
+/** A consumed fact's DECLARED population, per fact id — the dependency half of the shared selection input.
+ *
+ *  It is resolved here rather than read off `resolveFactRuns`, which runs one phase later and only over the
+ *  facts of already-successful owners: the selection that decides which owners succeed cannot depend on it.
+ *  A fact whose own population will not resolve contributes NO dependency path and is not reported here — its
+ *  `FactRun` raises that refusal at its own population phase and `withholdFactDependents` withholds every
+ *  consumer, so swallowing it moves no verdict and keeps the error attributed to the fact rather than to a
+ *  policy that merely declared it. */
+function factDependencyPaths(policies: readonly GatePolicy[], candidates: readonly string[], resources: ResourceHost): ReadonlyMap<string, readonly string[]> {
+  const byId = new Map<string, readonly string[]>();
+  for (const fact of policies.flatMap(({ facts }) => facts)) {
+    if (byId.has(fact.id)) {
+      continue;
+    }
+    try {
+      byId.set(fact.id, [...resolvePopulation(fact.population, candidates).paths, ...resolveResourceDeclarations(resources, fact.resources)]);
+    } catch {
+      byId.set(fact.id, []);
+    }
+  }
+  return byId;
+}
+
 function resolveRuns(
   input: PolicyPassInput,
   resources: ResourceHost,
@@ -401,14 +433,20 @@ function resolveRuns(
   }
   const candidates = [...sourceFiles.keys()].toSorted();
   const requestedPaths = input.requestedPaths === undefined ? null : normalizePathSet(input.requestedPaths, "requested path");
+  // The dispatcher's `current` is the identity set itself: `declared` below is resolved from the Project's own
+  // source files and from the ResourceHost, so a deleted identity is already absent from both and cannot
+  // survive the intersection. The planner, whose declared source paths come from the SCOPE MANIFEST's program
+  // membership (which still lists a deleted file), must filter — see `PolicyRequestedSelection`.
+  const requested = requestedPaths === null ? null : { identity: requestedPaths, current: new Set(requestedPaths) };
+  const dependencies = factDependencyPaths(input.policies, candidates, resources);
   const runs = input.policies.map(newRun);
   for (const run of runs) {
     try {
       charge(run.timing, "population", () => {
         const declaredResources = resolveResourceDeclarations(resources, run.policy.resources);
-        resolveRun({ run, candidates, sourceFiles, requestedPaths, resources: declaredResources });
-        const effectiveResources = new Set(run.population.effectiveResourcePaths);
-        run.resourceRequests = run.policy.resources.filter((request) => requestStaysDeclared(resources, request, effectiveResources));
+        const dependencyPaths = run.policy.facts.flatMap(({ id }) => dependencies.get(id) ?? []);
+        resolveRun({ run, candidates, sourceFiles, requested, resources: declaredResources, dependencyPaths });
+        run.resourceRequests = run.policy.resources;
         const ownerPlan = input.ownerPlansByPolicy?.get(run.policy.id);
         if (ownerPlan !== undefined) {
           applyOwnerPlan(run, ownerPlan);
@@ -474,8 +512,7 @@ function resolveFactRuns({ facts, sourceFiles, resources, control }: ResolveFact
           return sourceFile;
         });
         run.effectivePathSet = new Set([...declaredSourcePaths, ...declaredResourcePaths]);
-        const effectiveResources = new Set(declaredResourcePaths);
-        run.resourceRequests = fact.resources.filter((request) => requestStaysDeclared(resources, request, effectiveResources));
+        run.resourceRequests = fact.resources;
         run.status = "success";
         run.error = null;
       });

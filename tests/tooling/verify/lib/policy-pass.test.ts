@@ -258,6 +258,15 @@ test("an empty selected intersection is not-applicable and missing source popula
   ]);
 });
 
+// REWRITTEN AT #2309, TITLE AND SUBJECT PRESERVED: a resource identity still JOINS the requested selection —
+// naming one is what makes this policy applicable at all, and the skip arm below is the other side of that.
+// What it used to pin beside it was the defect: the owner received ONLY the resource its request named, so a
+// two-resource policy under a one-resource request was handed a hole. `bindPolicyResources` then throws
+// `is undeclared` on the withdrawn door (`requestStaysDeclared` drops it) or `is outside the effective
+// resource population` on a fact whose paths outran the narrowed set — a TOOL ERROR on the ordinary
+// `--changed` path, measured on both `baseui-derives-not-respells` siblings at `028e278ee`. A RUNNING owner
+// now receives its COMPLETE declared resource population; the fixture reads both, as obligation 1 of
+// `docs/design/resource-policy-contract.md` requires of every resource policy.
 test("resource identities join requested selection and resource-only findings are file-anchored", () => {
   const project = projectOf({ "packages/server/src/unrelated.ts": "export const unrelated = true;\n" });
   let seenResources: readonly string[] = [];
@@ -271,8 +280,9 @@ test("resource identities join requested selection and resource-only findings ar
     create: (ctx) => ({
       evaluate: () => {
         seenResources = ctx.resourcePaths;
+        ctx.resources.packageMetadata("root");
         ctx.resources.packageMetadata("ui");
-        ctx.report.file(ctx.resourcePaths[0] as string, { message: "resource finding" });
+        ctx.report.file("packages/ui/package.json", { message: "resource finding" });
       },
     }),
     mustFlag: [{ mode: "resource", files: { "package.json": "{}" }, why: "founding defect" }],
@@ -284,14 +294,28 @@ test("resource identities join requested selection and resource-only findings ar
     resourceOptions: { overlay: { "package.json": '{"name":"orb"}', "packages/ui/package.json": '{"name":"@orb/ui"}' } },
   });
 
-  expect(seenResources).toEqual(["packages/ui/package.json"]);
+  expect(result.toolErrors).toEqual([]);
+  expect(seenResources).toEqual(["package.json", "packages/ui/package.json"]);
   expect(result.policies[0]?.population).toMatchObject({
     declaredSourcePaths: [],
     declaredResourcePaths: ["package.json", "packages/ui/package.json"],
-    effectiveResourcePaths: ["packages/ui/package.json"],
+    effectiveResourcePaths: ["package.json", "packages/ui/package.json"],
   });
-  expect(result.policies[0]?.receipts).toEqual([{ kind: "resource", source: "package:ui", resources: 1, unresolved: 0 }]);
+  expect(result.policies[0]?.receipts).toEqual([
+    { kind: "resource", source: "package:root", resources: 1, unresolved: 0 },
+    { kind: "resource", source: "package:ui", resources: 1, unresolved: 0 },
+  ]);
   expect(result.authority.effectiveFindings).toMatchObject([{ file: "packages/ui/package.json", line: 1, column: 1, policyId: gate.id }]);
+
+  // THE OTHER SIDE, and the arm that keeps "complete availability" from meaning "always applicable": a
+  // request naming NEITHER declared resource selects nothing, and the owner is not-applicable rather than
+  // silently clean over data it was handed anyway.
+  const untouched = run([gate], project, {
+    requestedPaths: ["packages/server/src/unrelated.ts"],
+    resourceOptions: { overlay: { "package.json": '{"name":"orb"}', "packages/ui/package.json": '{"name":"@orb/ui"}' } },
+  });
+  expect(untouched.policies[0]?.owner).toMatchObject({ status: "not-applicable", reason: expect.stringMatching(/empty policy intersection/u) });
+  expect(untouched.policies[0]?.population.effectiveResourcePaths).toEqual([]);
 });
 
 test("a hybrid policy consumes one TS identity through both source and resource axes", () => {
