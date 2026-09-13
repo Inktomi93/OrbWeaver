@@ -115,7 +115,7 @@ test.describe("the page switcher", () => {
     // outside the CT mount root so mounting the destination cannot erase it back to <body> first.
     await page.evaluate(() => {
       const origin = document.createElement("button");
-      origin.dataset.focusOrigin = "extensions";
+      origin.dataset["focusOrigin"] = "extensions";
       document.body.append(origin);
       origin.focus();
     });
