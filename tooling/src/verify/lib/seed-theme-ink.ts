@@ -44,7 +44,13 @@
 //         dropped reachable arm is the blindness this gate exists to refuse, and that sentence is retired.
 //   NONE  `& .x` · `& > .y` · `[data-theme="x"] .a` · `[data-theme="x"] + .b` — the subject is another
 //         element.
-//   LIST  a selector list is decided arm by arm, never by matching the list text.
+//   LIST  a selector list is decided arm by arm, never by matching the list text — and it resolves to a
+//         SET of roots, so `[data-theme="light"], [data-theme="mocha"] { … }` files into BOTH palettes and
+//         a nested `@media` under it forks an ARM PER ROOT, each inheriting its own seed's polarity.
+//         Duplicate roots in one list collapse and file once. Leg 3 wrote this sentence while the code
+//         `break`ed on the first match and dropped `mocha` outright (#2293 leg 4) — the pins now cover two
+//         distinct roots, the two-root arm, root-beside-descendant, and the duplicate, because the shape
+//         nobody fixtures is the shape the prose is free to lie about.
 // Parity receipt on the real `packages/ui/src/styles/theme.css` (which exercises none of the four): three
 // palettes (hearth/dark, light/light, mocha/dark), 81 `--color-*` each, byte-identical values.
 //
@@ -174,26 +180,33 @@ function blockChain(file: AuthoredCssFile, offset: number): readonly Block[] {
  * elements carry the seed, not what the palette is, so two blocks resolving to one seed merge last-wins
  * exactly as two bare `[data-theme="x"]` blocks do. An ANCESTOR relation is the other thing entirely and
  * is an ARM — see `placementOf`.
+ *
+ * IT RETURNS EVERY DISTINCT ROOT, NOT THE FIRST (#2293 leg 4). Leg 3 said "decided per complex selector"
+ * and then `break`ed on the first match, so `[data-theme="light"], [data-theme="mocha"] { … }` updated
+ * `light` and SILENTLY DROPPED `mocha` — one shipped seed judged against a value it does not have, and
+ * the prose exceeding the code by exactly the arm nobody had written a fixture for. A list is a set of
+ * complex selectors and the declaration reaches every subject in it, so the answer is a SET. Duplicates
+ * collapse (`[data-theme="x"], [data-theme="x"].y` is one root, filed once), which is what keeps a
+ * receipt's census honest.
  */
-function seedRootOf(selectorList: string): string | undefined {
-  let found: string | undefined;
+function seedRootsOf(selectorList: string): readonly string[] {
+  const roots = new Set<string>();
   for (const complex of splitSelectorList(selectorList)) {
     const name = SEED_SELECTOR.exec(selectorSubject(complex))?.[1];
     if (name !== undefined) {
-      found = name;
-      break;
+      roots.add(name);
     }
   }
-  return found;
+  return [...roots];
 }
 
-/** The index of the block that OWNS a palette — the `@theme` at-rule or a `[data-theme="…"]` selector —
- *  and the palette's name, or `undefined` when the chain reaches neither. */
-function rootName(block: Block): string | undefined {
+/** Every palette this block OWNS — `hearth` for the `@theme` at-rule, or each distinct seed its selector
+ *  list styles. Empty when the block owns none. */
+function rootNames(block: Block): readonly string[] {
   if (block.kind === "style-rule") {
-    return seedRootOf(block.selectorList);
+    return seedRootsOf(block.selectorList);
   }
-  return THEME_AT_RULE.test(block.prelude) ? HEARTH : undefined;
+  return THEME_AT_RULE.test(block.prelude) ? [HEARTH] : [];
 }
 
 /** Does this nested block still style the PARENT element? CSS nesting puts the parent in the subject
@@ -204,12 +217,13 @@ function stylesTheParent(selectorList: string): boolean {
   return splitSelectorList(selectorList).some((complex) => selectorSubject(complex).includes(NESTING_SELECTOR));
 }
 
-function rootOf(chain: readonly Block[]): { readonly index: number; readonly name: string } | undefined {
-  let found: { readonly index: number; readonly name: string } | undefined;
+/** The OUTERMOST block that owns a palette, with EVERY palette it owns. */
+function rootOf(chain: readonly Block[]): { readonly index: number; readonly names: readonly string[] } | undefined {
+  let found: { readonly index: number; readonly names: readonly string[] } | undefined;
   for (const [index, block] of chain.entries()) {
-    const name = rootName(block);
-    if (name !== undefined) {
-      found = { index, name };
+    const names = rootNames(block);
+    if (names.length > 0) {
+      found = { index, names };
       break;
     }
   }
@@ -240,17 +254,21 @@ function rootOf(chain: readonly Block[]): { readonly index: number; readonly nam
  * seed nested inside another seed falls on the descendant side of it; the generator emits flat blocks and
  * no fixture reaches that shape, so it is recorded here rather than special-cased.
  */
-function placementOf(file: AuthoredCssFile, offset: number): Placement | undefined {
+function placementsOf(file: AuthoredCssFile, offset: number): readonly Placement[] {
   const chain = blockChain(file, offset);
   const root = rootOf(chain);
   const inner = root === undefined ? [] : chain.slice(root.index + 1);
   if (root === undefined || inner.some((block) => block.kind === "style-rule" && !stylesTheParent(block.selectorList))) {
-    return;
+    return [];
   }
   // An inner block is a CONDITION whichever kind it is: an at-rule contributes its prelude, a
   // still-styling-the-parent selector contributes its own text (`dusk @ .card &`).
   const conditions = [...chain.slice(0, root.index), ...inner].map((block) => (block.kind === "at-rule" ? block.prelude : block.selectorList));
-  return { root: root.name, condition: conditions.join(CONDITION_JOIN) };
+  const condition = conditions.join(CONDITION_JOIN);
+  // ONE PLACEMENT PER DISTINCT ROOT. The condition chain is shared — a `@media` inside
+  // `[data-theme="light"], [data-theme="mocha"]` is an arm of BOTH seeds, each with its own inherited
+  // polarity — so the arms fork here and nowhere else.
+  return root.names.map((name) => ({ root: name, condition }));
 }
 
 function absorb(draft: SeedDraft, property: string, value: string): void {
@@ -310,8 +328,10 @@ export function readSeedPalettes(file: AuthoredCssFile, declarations: readonly C
   const sheet: Sheet = { base: new Map<string, string>(), seeds: new Map<string, SeedDraft>(), arms: new Map<string, Arm>() };
   const { base, seeds, arms } = sheet;
   for (const declaration of declarations) {
-    const placement = placementOf(file, declaration.offset);
-    if (placement !== undefined) {
+    // ONE DECLARATION, N PLACEMENTS — a selector list styling two seeds files into BOTH (#2293 leg 4).
+    // `placementsOf` has already deduplicated identical roots, so a list naming one seed twice files once
+    // and no census double-counts it.
+    for (const placement of placementsOf(file, declaration.offset)) {
       fileDeclaration(sheet, placement, declaration.property, declaration.value);
     }
   }
