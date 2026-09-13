@@ -1,7 +1,7 @@
 import type { CallExpression, Expression, Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode, VariableDeclarationKind } from "ts-morph";
 import type { GateContractCode, GateContractFinding, GateContractReport } from "../contract/gate-contract.ts";
-import { readExpressionString } from "./config-static-read.ts";
+import { readExpressionString, readExpressionStrings } from "./config-static-read.ts";
 import {
   isBindCreationCall,
   isBuiltinMutator,
@@ -274,22 +274,25 @@ function inspectModuleState(sf: SourceFile, root: string, out: GateContractFindi
 }
 
 function inspectBaselines(sf: SourceFile, root: string, out: GateContractFinding[]): void {
-  const candidates: Node[] = [
+  const descendants: Node[] = [
     ...sf.getDescendantsOfKind(SyntaxKind.StringLiteral),
     ...sf.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral),
     ...sf.getDescendantsOfKind(SyntaxKind.TemplateExpression),
     ...sf.getDescendantsOfKind(SyntaxKind.BinaryExpression).filter((binary) => binary.getOperatorToken().getKind() === SyntaxKind.PlusToken),
   ];
-  for (const candidate of candidates) {
+  const candidates = descendants.filter((candidate) => {
     const parent = candidate.getParent();
-    if (
+    return !(
       (TsNode.isBinaryExpression(parent) && parent.getOperatorToken().getKind() === SyntaxKind.PlusToken) ||
       TsNode.isTemplateExpression(parent) ||
       TsNode.isTemplateSpan(parent)
-    ) {
+    );
+  });
+  for (const [index, read] of readExpressionStrings(candidates).entries()) {
+    const candidate = candidates[index];
+    if (candidate === undefined) {
       continue;
     }
-    const read = readExpressionString(candidate);
     if (read.unresolved.length === 0 && read.values.some((value) => value.endsWith(BASELINE_SUFFIX))) {
       out.push(location(root, candidate, "baseline-ledger", "gate-owned baseline ledgers are forbidden; use exact grants or warning debt"));
     }
