@@ -5973,6 +5973,35 @@
         }
       ],
       "summary": "Independent gate-ledger adjudication with exhaustive 101-row selection partition, qualified evidence, and a conserved proposed rollup; remaining unverified claims explicitly retained."
+    },
+    {
+      "path": "docs/reviews/gate-runtime/docs-preservation-map-2071.md",
+      "assignedSha256": "bd6d61dfc57bd71d55d6cda107c9aa6fb52769de4922607160672297154efb8a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "bd6d61dfc57bd71d55d6cda107c9aa6fb52769de4922607160672297154efb8a",
+      "verifiedCommit": "d71bd65545a2ff09534eeb6ae8050b41435379d9",
+      "verifiedAt": "2026-09-13",
+      "evidence": [
+        "Full document read by docs-preservation lane; committed bytes at d71bd65545a2ff09534eeb6ae8050b41435379d9; #2071. Exact parent spans and preservation comparisons are in docs/reviews/gate-runtime/docs-preservation-map-2071.md. No whole-corpus acceptance or lifecycle closure attested."
+      ],
+      "summary": "Bounded #2071 preservation repair map: exact parent coordinates, D1-D7 destinations, explicit U adjudication, inherited independent evidence distinguished from current author reads, and 404 history-bearing paragraph dispositions. Independent closing review remains primary-owned.",
+      "claims": [
+        {
+          "claim": "The map records a documentation repair and explicit historical dispositions for independent closing review, without certifying current gate behavior or closing #2071.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#2071"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:d71bd65545a2ff09534eeb6ae8050b41435379d9"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

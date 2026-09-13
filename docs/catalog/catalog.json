@@ -12733,9 +12733,9 @@
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
       "lane": "design",
       "issue": 5,
-      "lines": 152,
-      "bytes": 10094,
-      "sha256": "5336e1d8173ce61deab71d7f4ce42c4de9b4409a088c3570ef2d1ec0f3b29c5a",
+      "lines": 219,
+      "bytes": 17173,
+      "sha256": "e2b91ad932fecf9824277f31007002928ba551a553114b086071974417d566a5",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12748,16 +12748,17 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-orchestrator-playbook.md",
-        "assignedSha256": "5336e1d8173ce61deab71d7f4ce42c4de9b4409a088c3570ef2d1ec0f3b29c5a",
+        "assignedSha256": "e2b91ad932fecf9824277f31007002928ba551a553114b086071974417d566a5",
         "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "5336e1d8173ce61deab71d7f4ce42c4de9b4409a088c3570ef2d1ec0f3b29c5a",
-        "verifiedCommit": "46f233e25afb95787c0249fa76249762a2f294bc",
+        "verifiedSha256": "e2b91ad932fecf9824277f31007002928ba551a553114b086071974417d566a5",
+        "verifiedCommit": "d71bd65545a2ff09534eeb6ae8050b41435379d9",
         "verifiedAt": "2026-09-13",
         "evidence": [
-          "Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
-          "2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete."
+          "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
+          "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: 2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete.",
+          "2026-09-13 preservation checkpoint d71bd65545a2ff09534eeb6ae8050b41435379d9: full author reads and scoped four-document check:docs passed; native read-first-costs regenerated after checkpoint. Fresh-context Sol/high conservation review confirmed after restoring ignored-class filesystem checks and staged-diff inspection. Whole ledgers:fresh was not run by this lane; primary closing review and consolidated acceptance remain owed."
         ],
         "summary": "Consolidated gate-program law, procedure and bounded reading guidance. Historical examples retain provenance; remaining enforcement work and program acceptance require separate current evidence.",
         "claims": [
@@ -12790,9 +12791,9 @@
       "path": "docs/design/gate-runtime-read-first.md",
       "lane": "design",
       "issue": 5,
-      "lines": 55,
-      "bytes": 4086,
-      "sha256": "977c541c8281921d448318127607834a77e6916f05064ccdef5becf8b873e720",
+      "lines": 57,
+      "bytes": 4315,
+      "sha256": "97118519180a1e59b6b629d4998ac8eaddf8dd67c8213cab9be3a50ebbc33fbb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12805,16 +12806,17 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-read-first.md",
-        "assignedSha256": "977c541c8281921d448318127607834a77e6916f05064ccdef5becf8b873e720",
+        "assignedSha256": "97118519180a1e59b6b629d4998ac8eaddf8dd67c8213cab9be3a50ebbc33fbb",
         "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "977c541c8281921d448318127607834a77e6916f05064ccdef5becf8b873e720",
-        "verifiedCommit": "46f233e25afb95787c0249fa76249762a2f294bc",
+        "verifiedSha256": "97118519180a1e59b6b629d4998ac8eaddf8dd67c8213cab9be3a50ebbc33fbb",
+        "verifiedCommit": "d71bd65545a2ff09534eeb6ae8050b41435379d9",
         "verifiedAt": "2026-09-13",
         "evidence": [
-          "Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
-          "2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete."
+          "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
+          "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: 2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete.",
+          "2026-09-13 preservation checkpoint d71bd65545a2ff09534eeb6ae8050b41435379d9: full author reads and scoped four-document check:docs passed; native read-first-costs regenerated after checkpoint. Fresh-context Sol/high conservation review confirmed after restoring ignored-class filesystem checks and staged-diff inspection. Whole ledgers:fresh was not run by this lane; primary closing review and consolidated acceptance remain owed."
         ],
         "summary": "Consolidated gate-program law, procedure and bounded reading guidance. Historical examples retain provenance; remaining enforcement work and program acceptance require separate current evidence.",
         "claims": [
@@ -12847,9 +12849,9 @@
       "path": "docs/design/gate-runtime-standardization.md",
       "lane": "design",
       "issue": 5,
-      "lines": 361,
-      "bytes": 27720,
-      "sha256": "40c988c50be7d944c3faf9c2cc939680c0dd3cdff70df2a1a0ae1d44464d0daf",
+      "lines": 375,
+      "bytes": 29358,
+      "sha256": "9b6062180f0425fe3c0c81cc86e6477b22d6811397a7c02897a1ee6445a78a72",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12862,12 +12864,12 @@
       },
       "receipt": {
         "path": "docs/design/gate-runtime-standardization.md",
-        "assignedSha256": "40c988c50be7d944c3faf9c2cc939680c0dd3cdff70df2a1a0ae1d44464d0daf",
+        "assignedSha256": "9b6062180f0425fe3c0c81cc86e6477b22d6811397a7c02897a1ee6445a78a72",
         "disposition": "repaired",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "40c988c50be7d944c3faf9c2cc939680c0dd3cdff70df2a1a0ae1d44464d0daf",
-        "verifiedCommit": "46f233e25afb95787c0249fa76249762a2f294bc",
+        "verifiedSha256": "9b6062180f0425fe3c0c81cc86e6477b22d6811397a7c02897a1ee6445a78a72",
+        "verifiedCommit": "d71bd65545a2ff09534eeb6ae8050b41435379d9",
         "verifiedAt": "2026-09-13",
         "claims": [
           {
@@ -12894,9 +12896,10 @@
         ],
         "summary": "Consolidated gate-program law, procedure and bounded reading guidance. Historical examples retain provenance; remaining enforcement work and program acceptance require separate current evidence.",
         "evidence": [
-          "Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
-          "2026-09-13 follow-up: independent full runtime-source reads distinguish populated pre-create refusal from unpopulated call-site acquisition, and domain health inside ready values from top-level resource failure. Corrected the conflicting paragraph and example comment; scoped check:docs passed. Removed the load-confounded speed percentage in dd00ebb78. Aggregate ledger freshness and final barrier remain owed; earlier green receipts above describe their earlier trees.",
-          "2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete."
+          "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: Full three-document reads in this session, followed by review of intervening changes and the current contradiction-repair diff. Scoped check:docs passed; read-first-costs and ledgers:fresh passed. Independent Sol review identified residual table instructions, corrected before this receipt. No claim of full gate implementation or #2071 completion.",
+          "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: 2026-09-13 follow-up: independent full runtime-source reads distinguish populated pre-create refusal from unpopulated call-site acquisition, and domain health inside ready values from top-level resource failure. Corrected the conflicting paragraph and example comment; scoped check:docs passed. Removed the load-confounded speed percentage in dd00ebb78. Aggregate ledger freshness and final barrier remain owed; earlier green receipts above describe their earlier trees.",
+          "Prior receipt at 46f233e25afb95787c0249fa76249762a2f294bc: 2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete.",
+          "2026-09-13 preservation checkpoint d71bd65545a2ff09534eeb6ae8050b41435379d9: full author reads and scoped four-document check:docs passed; native read-first-costs regenerated after checkpoint. Fresh-context Sol/high conservation review confirmed after restoring ignored-class filesystem checks and staged-diff inspection. Whole ledgers:fresh was not run by this lane; primary closing review and consolidated acceptance remain owed."
         ]
       },
       "receiptCurrent": true
@@ -42422,6 +42425,87 @@
           }
         ],
         "summary": "Independent gate-ledger adjudication with exhaustive 101-row selection partition, qualified evidence, and a conserved proposed rollup; remaining unverified claims explicitly retained."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/history/gate-runtime-worked-cases-2026-09.md",
+      "lane": "history",
+      "issue": 9,
+      "lines": 385,
+      "bytes": 39860,
+      "sha256": "cd33cadb2416ce4e11c06b4cbc4cabb3623e34a56a0f7159e715135c7dba2575",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "history",
+          "status": "archived",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/history/gate-runtime-worked-cases-2026-09.md",
+        "assignedSha256": "cd33cadb2416ce4e11c06b4cbc4cabb3623e34a56a0f7159e715135c7dba2575",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "cd33cadb2416ce4e11c06b4cbc4cabb3623e34a56a0f7159e715135c7dba2575",
+        "verifiedCommit": "d71bd65545a2ff09534eeb6ae8050b41435379d9",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full document read by docs-preservation lane; committed bytes at d71bd65545a2ff09534eeb6ae8050b41435379d9; #2071. Exact parent spans and preservation comparisons are in docs/reviews/gate-runtime/docs-preservation-map-2071.md. No whole-corpus acceptance or lifecycle closure attested."
+        ],
+        "summary": "Dated gate-runtime worked cases: exact thirteen-module ruling and world-program guarantee archive, with explicit resource and chronology summaries. Not present implementation or mutable work authority."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/gate-runtime/docs-preservation-map-2071.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 314,
+      "bytes": 36401,
+      "sha256": "bd6d61dfc57bd71d55d6cda107c9aa6fb52769de4922607160672297154efb8a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-13"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/gate-runtime/docs-preservation-map-2071.md",
+        "assignedSha256": "bd6d61dfc57bd71d55d6cda107c9aa6fb52769de4922607160672297154efb8a",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "bd6d61dfc57bd71d55d6cda107c9aa6fb52769de4922607160672297154efb8a",
+        "verifiedCommit": "d71bd65545a2ff09534eeb6ae8050b41435379d9",
+        "verifiedAt": "2026-09-13",
+        "evidence": [
+          "Full document read by docs-preservation lane; committed bytes at d71bd65545a2ff09534eeb6ae8050b41435379d9; #2071. Exact parent spans and preservation comparisons are in docs/reviews/gate-runtime/docs-preservation-map-2071.md. No whole-corpus acceptance or lifecycle closure attested."
+        ],
+        "summary": "Bounded #2071 preservation repair map: exact parent coordinates, D1-D7 destinations, explicit U adjudication, inherited independent evidence distinguished from current author reads, and 404 history-bearing paragraph dispositions. Independent closing review remains primary-owned.",
+        "claims": [
+          {
+            "claim": "The map records a documentation repair and explicit historical dispositions for independent closing review, without certifying current gate behavior or closing #2071.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#2071"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:d71bd65545a2ff09534eeb6ae8050b41435379d9"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     }
