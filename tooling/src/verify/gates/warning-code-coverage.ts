@@ -102,9 +102,7 @@ function isWarningsSink(node: MorphNode): boolean {
   if (!Node.isIdentifier(node)) {
     return false;
   }
-  if (namesAccumulator(node)) {
-    return true;
-  }
+  // Inspect the binding before its spelling: an unrenamed import is not the local accumulator.
   const binding = resolveStableExpression(node);
   for (const declaration of binding.trace.declarations) {
     if (Node.isImportSpecifier(declaration)) {
