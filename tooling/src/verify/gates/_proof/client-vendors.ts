@@ -5,12 +5,12 @@
 // uses, so a proof exercises `declaredByPackage` against an actual `/node_modules/<pkg>/` declaration home
 // rather than a stub. Each surface has a LOOKALIKE twin exporting the same member names from a different
 // package — that pair is the whole identity claim, and every policy here owes a row on both sides.
-export const QUERY_CORE_HOME = "node_modules/@tanstack/query-core/index.d.ts";
-export const REACT_QUERY_HOME = "node_modules/@tanstack/react-query/index.d.ts";
-export const FORM_CORE_HOME = "node_modules/@tanstack/form-core/index.d.ts";
+const QUERY_CORE_HOME = "node_modules/@tanstack/query-core/index.d.ts";
+const REACT_QUERY_HOME = "node_modules/@tanstack/react-query/index.d.ts";
+const FORM_CORE_HOME = "node_modules/@tanstack/form-core/index.d.ts";
 /** The form TOOLKIT door — the three mints `no-direct-useform` seals to `packages/client/src/forms/`. */
-export const REACT_FORM_HOME = "node_modules/@tanstack/react-form/index.d.ts";
-export const TRPC_PROXY_HOME = "node_modules/@trpc/tanstack-react-query/index.d.ts";
+const REACT_FORM_HOME = "node_modules/@tanstack/react-form/index.d.ts";
+const TRPC_PROXY_HOME = "node_modules/@trpc/tanstack-react-query/index.d.ts";
 export const LOOKALIKE_HOME = "node_modules/vendor-lookalike/index.d.ts";
 
 const QUERY_CORE = [

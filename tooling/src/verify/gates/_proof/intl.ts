@@ -20,8 +20,8 @@
 // before either comparison runs, so the branch decides only WHETHER a `GlobalMemberOrigin` exists, never
 // what its `globalName` or `memberPath` are. The live `Intl` read these rows fence resolves through
 // `lib.*.d.ts`; the augmentation plant merges into that same symbol and does not move it.
-export const INTL_LOOKALIKE_HOME = "node_modules/@types/intl-lookalike/index.d.ts";
-export const INTL_NESTED_HOME = "node_modules/@types/intl-nested/index.d.ts";
+const INTL_LOOKALIKE_HOME = "node_modules/@types/intl-lookalike/index.d.ts";
+const INTL_NESTED_HOME = "node_modules/@types/intl-nested/index.d.ts";
 
 /** A DIFFERENT trusted ambient global carrying a member named exactly `DateTimeFormat`. Nothing but the
  *  resolved global NAME separates `Formats.DateTimeFormat` from `Intl.DateTimeFormat` — the member path is

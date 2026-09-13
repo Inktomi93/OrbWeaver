@@ -4,9 +4,9 @@
 // These are REAL package doors in the proof workspace, resolved by the same node module walk the live tree
 // uses, so a proof exercises the declaration home rather than a stub. The lookalike twin exports the same
 // names from a different package — that pair is the whole identity claim.
-export const ZUSTAND_HOME = "node_modules/zustand/index.d.ts";
-export const ZUSTAND_MIDDLEWARE_HOME = "node_modules/zustand/middleware.d.ts";
-export const ZUSTAND_LOOKALIKE_HOME = "node_modules/store-lookalike/index.d.ts";
+const ZUSTAND_HOME = "node_modules/zustand/index.d.ts";
+const ZUSTAND_MIDDLEWARE_HOME = "node_modules/zustand/middleware.d.ts";
+const ZUSTAND_LOOKALIKE_HOME = "node_modules/store-lookalike/index.d.ts";
 
 const STORE_API = [
   "export declare class StoreApi<T> {",
