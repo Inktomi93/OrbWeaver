@@ -18,6 +18,7 @@ export type {
 } from "./contract/baseui.ts";
 export type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureTotals, CaughtFailureVerdict } from "./contract/caught-failure.ts";
 export { CAUGHT_FAILURE_VERDICTS } from "./contract/caught-failure.ts";
+export type { LiveAdmission } from "./contract/debt.ts";
 export type { GateFact, GateFactContext, GateFactHooks, GateFactValue } from "./contract/fact.ts";
 export { defineFact } from "./contract/fact.ts";
 export type {
@@ -36,7 +37,7 @@ export type { GateContractCode, GateContractFinding, GateContractReport } from "
 export { GATE_CONTRACT_CODES } from "./contract/gate-contract.ts";
 export type { GateContractKind, GateCorpus, GatePolicyCorpus, GateRosterEntry, MixedGateCorpus } from "./contract/gate-corpus.ts";
 export { GATE_CONTRACT_KINDS } from "./contract/gate-corpus.ts";
-export type { Check, CheckContext, GateResult, Violation } from "./contract/harness.ts";
+export type { CheckContext, GateResult, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { HostSlotHolder, HostSlotLease, HostSlotPool } from "./contract/host-slots.ts";
 export type { ContractBannedShape, SchemaBannedShape } from "./contract/ledger-banned-shapes.ts";
@@ -91,7 +92,7 @@ export type {
 export type { ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
 export { SCOPED_TEST_RUNNERS } from "./contract/scoped-test.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
-export type { ScopedArgv, StageDef, StageGroup, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "./contract/stage.ts";
+export type { ScopedArgv, StageCommand, StageDef, StageGroup, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "./contract/stage.ts";
 export type { MembershipOutcome, MembershipReport, MembershipRow } from "./contract/tests-type-membership.ts";
 export { MEMBERSHIP_OUTCOMES } from "./contract/tests-type-membership.ts";
 export type { TypecheckExecutionResult, TypecheckProgramResult, TypecheckProgramStatus } from "./contract/typecheck.ts";
@@ -153,7 +154,6 @@ export type { Parsed } from "./lib/run-argv.ts";
 export { parse } from "./lib/run-argv.ts";
 export { failReason, failuresWorstFirst, printSummary } from "./lib/run-render.ts";
 export { resolveSelection } from "./lib/selection.ts";
-export type { StageCommand } from "./lib/stage-command.ts";
 export { refuseUnrunnableRows, resolveStageCommand, unresolvableCommandTranscript, unrunnableRegistryRows, workspaceBinPath } from "./lib/stage-command.ts";
 export { STRUCTURE_USAGE } from "./lib/structure-tail.ts";
 export { refuseVerbTail } from "./lib/verb-tail.ts";
@@ -165,7 +165,7 @@ export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from 
 export { CONFIG_SNAPSHOT_HELP, runConfigSnapshot } from "./ops/config-snapshot.ts";
 export { verifyGateProofs } from "./ops/conformance.ts";
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";
-export type { Ledger, LiveAdmission } from "./ops/debt.ts";
+export type { Ledger } from "./ops/debt.ts";
 export { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
 export { runEslint } from "./ops/eslint.ts";
 export { runGateContract } from "./ops/gate-contract.ts";

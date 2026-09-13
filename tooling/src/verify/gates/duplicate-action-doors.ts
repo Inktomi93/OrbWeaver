@@ -40,6 +40,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { RatchetAdmission, RatchetRow } from "../../_shared/ratchet-rows.ts";
 import { citePath, classNote, readBudgetRows, writeBudgetLedger } from "../../_shared/ratchet-rows.ts";
 import { DOORS_BASELINE_REL, mutationProcedures } from "../../_shared/trpc-doors.ts";
+import type { PairVerdict } from "../contract/duplicate-action-doors.ts";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
@@ -246,15 +247,6 @@ function judgeBlindness(ctx: GateRunCtx, planes: ReadonlyMap<string, string>): v
 function ruledDoors(row: RatchetRow | undefined): ReadonlySet<string> {
   return new Set((row?.cite ?? []).map(citePath).filter((path) => path !== ""));
 }
-
-/** What one plane/procedure pair is, judged against its ruling. `unruled-pair` is the shape with NO ruling
- *  at all: nothing there identifies a new door, so the class is the pair itself — which is why that arm
- *  keeps the whole-list diagnostic and the `new-doors` arm does not need it. */
-export type PairVerdict =
-  | { readonly kind: "below-floor" }
-  | { readonly kind: "admitted" }
-  | { readonly kind: "unruled-pair"; readonly doors: readonly string[] }
-  | { readonly kind: "new-doors"; readonly doors: readonly string[] };
 
 /** The growth decision, pure and total. `live` is the pair's door set from the census; `row` is its ruling. */
 export function judgePair(live: ReadonlySet<string>, row: RatchetRow | undefined): PairVerdict {

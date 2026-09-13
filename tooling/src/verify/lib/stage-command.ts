@@ -32,16 +32,10 @@ import { delimiter, isAbsolute, join, resolve, sep } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import type { StageCommand } from "../contract/stage.ts";
 import { REGISTRY } from "./registry.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify");
-
-/** How a stage's `argv[0]` resolved, WITH the evidence — `kind` is the rung that answered, `command` is
- *  what the runner will hand `spawnNicedTranscript`. `unresolvable` carries no command, only where we
- *  looked, because there is nothing to spawn and the refusal has to name both attempts. */
-export type StageCommand =
-  | { readonly kind: "path-literal" | "workspace-bin" | "system-program"; readonly command: string }
-  | { readonly kind: "unresolvable"; readonly requested: string; readonly workspaceBin: string; readonly pathDirs: number };
 
 /** Executable-file test WITHOUT a throw: `statSync`'s `throwIfNoEntry: false` answers "absent" as
  *  `undefined`, so the resolver owns no caught failure. Mode bits (not `access(X_OK)`) because the question

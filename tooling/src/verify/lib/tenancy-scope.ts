@@ -63,37 +63,7 @@
 //   are deliberately not merged.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import type { ReadySchemaFact, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
-
-/** The derived facts one `sqliteTable(…)` declaration exposes — read off the shared `drizzleSchemaFact`
- *  model instead of a second hand-rolled AST walk over the raw column object literal. */
-export interface TableShape {
-  readonly hasOwnerId: boolean;
-  readonly hasChatId: boolean;
-  readonly fkCount: number;
-}
-
-/** How a caller's tenancy reaches a row. The classes are ordered strongest-predicate first; a table that
- *  satisfies two takes the one whose predicate an authorization check actually spells. */
-export type ScopingClass =
-  /** (a) carries an `ownerId` column — `fetchOwned(id, principal.userId)` / an ownerId in the WHERE. */
-  | "ownerId"
-  /** (b) chat-anchored — authority is `chat_participants` membership on the row's own `chatId` (D18). */
-  | "membership"
-  /** (c) a pure LINK row between two independently-scoped entities — BOTH parents must be reachable. */
-  | "junction"
-  /** (d) scope inherits ONE owning FK; the read joins up to the parent (derive-don't-stamp, D23). */
-  | "parent"
-  /** (e) no tenancy: a system/global table (config, the identity root, transport state, the audit log). */
-  | "global";
-
-/** One registry row: the SQL table name as a VALUE, its class, and the mandatory reason. Deliberately not
- *  a reusable "exemption" shape (the own-tables-only `OwnershipRuling` precedent): this decides whether a
- *  table's scope predicate IS what the row says, never whether an existing finding is suppressed. */
-export interface ScopingRow {
-  readonly table: string;
-  readonly scope: ScopingClass;
-  readonly why: string;
-}
+import type { ScopingRow, TableShape } from "../contract/tenancy-scope.ts";
 
 /** EVERY table in `packages/db/src/schema/**`, classified. TOTAL and TWO-SIDED: an unlisted table is RED,
  *  a listed table the schema no longer declares is RED. The (a) rows mirror `ownerid-registry`'s

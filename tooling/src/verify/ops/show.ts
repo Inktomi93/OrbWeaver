@@ -24,9 +24,9 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
+import type { GateReport, GateScanView, StructureReport, Violation } from "../contract/show-artifact.ts";
 import type { StructurePolicyReport } from "../contract/structure-report.ts";
 import { nearCapAdvisories } from "../lib/near-cap.ts";
-import type { GateReport, GateScanView, StructureReport, Violation } from "../lib/show-artifact.ts";
 import {
   brokenEvidenceCount,
   describeRun,
