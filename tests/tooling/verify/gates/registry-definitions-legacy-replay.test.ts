@@ -42,14 +42,8 @@
 // `@client`, and an unfenced real-corpus drive would eat the whole client tree).
 //
 // ── SCOPE ─────────────────────────────────────────────────────────────────────────────────────────────
-// TABLED: `modal-body-not-placeholder` (6 examples), `modal-registry-completeness` (13) and
-// `placeholder-copy-registry` (8). UNDECLARED: the four remaining non-split members, each of which needs
-// its own prerequisite read off its own final `mustFlag` fixture — inventing them from the pattern would be
-// exactly the guesswork the `SectionPlaceholder` measurement above disproves, and the three tabled modules
-// already need TWO different twin shapes between them. The withheld-by-population arm covers those four so
-// none of them reads as a clean zero in the meantime. The two SPLIT members (`config-group-completeness`
-// `58370d705`, `section-registry-completeness` `dd862e988`) are last by dispatch order and carry a
-// per-example coverage statement when they land.
+// The two remaining non-split members retain their original-byte withholding receipts. Split siblings
+// require per-example coverage statements and constructed controls for arms their legacy corpus never ran.
 import { posix } from "node:path";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as chromeRegistryCompleteness } from "../../../../tooling/src/verify/gates/chrome-registry-completeness.ts";
@@ -58,6 +52,7 @@ import { gate as modalBodyNotPlaceholder } from "../../../../tooling/src/verify/
 import { gate as modalRegistryCompleteness } from "../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
 import { gate as noParallelSectionMap } from "../../../../tooling/src/verify/gates/no-parallel-section-map.ts";
 import { gate as placeholderCopyRegistry } from "../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
+import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import type { DifferentialClaim, Files, Label, Replay } from "../../../support/legacy-differential.ts";
 import {
@@ -268,6 +263,12 @@ const FINAL_ARMS: readonly string[] = [
   "Unreadable copy:",
   "Empty copy:",
   "Duplicate copy:",
+  "Unknown zone ",
+  "Unreadable zone:",
+  "Missing mobile fate:",
+  "declares an empty `reason`",
+  "declares no `teaser`",
+  "declares an `action`",
 ];
 
 /** TOTAL, like `toolErrorCode`: a final finding whose ARM this table cannot name is a row no reader can
@@ -323,6 +324,8 @@ interface ReplayRow {
   readonly twinPopulation: number;
   /** Non-empty only where the twin cannot admit a member without CHANGING the example. */
   readonly twinErrors?: readonly string[];
+  readonly originalErrors?: readonly string[];
+  readonly completeOpener?: boolean;
   readonly verdict: RowVerdict;
 }
 
@@ -333,6 +336,7 @@ interface Table {
   readonly typeName: string;
   readonly target: string;
   readonly rows: readonly ReplayRow[];
+  readonly prepare?: (files: Files) => { readonly add: Files; readonly twin: Files };
 }
 
 /** The verdict's own checks, as ONE list so the row asserts unconditionally: a CHECKED classification, or a
@@ -341,7 +345,7 @@ function verdictViolations(verdict: RowVerdict, before: Replay, after: Replay): 
   if (verdict.kind === "classified") {
     return differentialViolations(verdict.claim, inMemorySide(before), inMemorySide(after));
   }
-  return /^UNCLASSIFIED-[A-Z-]+$/u.test(verdict.label) ? [] : [`an unclassified row must NAME its reason: ${verdict.label}`];
+  return verdict.label === "UNCLASSIFIED-POPULATION-UNADMITTABLE" ? [] : [`unrecognised unclassified reason: ${verdict.label}`];
 }
 
 /** Every row's five assertions (spec step 5), plus the verdict. One driver so the two tables cannot drift
@@ -355,7 +359,9 @@ async function driveTable(scratch: string, table: Table): Promise<number> {
   for (const [index, row] of table.rows.entries()) {
     const base = examples[index] as Files;
     const tag = `${table.id} #${String(index)} ${row.why}`;
-    const { add, twin } = sharedTargetTwin(base, table.typeName, table.target);
+    const repair = table.prepare?.(base) ?? sharedTargetTwin(base, table.typeName, table.target);
+    const add = row.completeOpener === true ? { ...repair.add, ...OPENER_PREREQUISITE } : repair.add;
+    const twin = row.completeOpener === true ? resolvedOpenerTwin(repair.twin) : repair.twin;
 
     const before = differential.legacyReplay(legacy, base, armLabel);
     expect(before.findings, `${tag} — LEGACY findings on the ORIGINAL bytes`).toEqual(row.legacy);
@@ -365,7 +371,7 @@ async function driveTable(scratch: string, table: Table): Promise<number> {
     expect(
       differential.finalReplay([table.policy], base, armLabel).toolErrors,
       `${tag} — on the ORIGINAL bytes the final policy is WITHHELD, so its zero is not a differential`,
-    ).toEqual([`${table.policy.id}/receipt: zero-member population(s): ${table.typeName}`]);
+    ).toEqual(row.originalErrors ?? [`${table.policy.id}/receipt: zero-member population(s): ${table.typeName}`]);
 
     expect(differential.legacyReplay(legacy, twin, unlined).findings, `${tag} — the twin is INERT on the legacy side`).toEqual(
       differential.legacyReplay(legacy, base, unlined).findings,
@@ -386,6 +392,17 @@ async function driveTable(scratch: string, table: Table): Promise<number> {
     ).toEqual([]);
   }
   return table.rows.length;
+}
+
+const OPENER_PREREQUISITE: Files = {
+  "packages/client/src/state/shell-store.ts": "export function openModal(id: string): void { void id; }\n",
+};
+
+function resolvedOpenerTwin(files: Files): Files {
+  return repairedFiles(files, {
+    add: OPENER_PREREQUISITE,
+    replace: { "packages/client/src/features/x/components/opener.tsx": [["'#state'", '"../../../state/shell-store.ts"']] },
+  });
 }
 
 const MODAL_REGISTRY = "packages/client/src/features";
@@ -496,21 +513,11 @@ const MODAL_REGISTRY_ROWS: readonly ReplayRow[] = [
     why: "mustPass[2] a `surface` modal WITH an `openModal('x')` opener — the opener-grammar row",
     legacy: [],
     legacyPopulation: 2,
-    finalOnTwin: [`modal-registry-completeness | ${MODAL_REGISTRY}/x/lib/x-modal.tsx:2 | xModal | Unreachable surface modal`],
-    twinPopulation: 3,
-    // THE MECHANISM, so a later reader cannot read `legacy 0 → final 1` as either a lost catch or a false
-    // positive. The final FAILS CLOSED on an opener whose ORIGIN does not resolve: the fixture's opener is
-    // `import { openModal } from '#state'`, and `#state` has no target in the fixture map and is not a real
-    // specifier on this tree (every live opener imports `state/shell-store.ts` or the `state/index.ts`
-    // barrel). Legacy `collectOpenModalCallSites` (f5b222e10:117-129) TEXT-matched the callee identifier and
-    // resolved nothing; final `openedSlotId` (:96-110) requires `resolveCallableOrigin` to land on a module
-    // whose canonical export is `openModal`. That narrowing is the DESIGN, pinned by the final module's own
-    // `mustFlag[8]` (a LOCAL function named `openModal` must NOT satisfy the arm) and `mustPass[2]` (an
-    // aliased import through a barrel MUST) — and the constructed row below reproduces the second pin on
-    // THESE bytes: give the same example a resolvable canonical opener and the final reports nothing.
-    // MEASURED, not argued: dropping the twin's prepend from `opener.tsx` ALONE leaves this finding exactly
-    // where it is, so it is not a twin artefact. Real-tree `--check` is 0 effective over 11 members.
-    verdict: { kind: "classified", claim: { classification: "stronger-reader", successor: "Unreachable surface modal" } },
+    finalOnTwin: [],
+    twinPopulation: 4,
+    completeOpener: true,
+    // The intended opener needs a resolvable origin; the incomplete twin is a prerequisite control below.
+    verdict: { kind: "classified", claim: { classification: "vacuous-both-zero", successor: null } },
   },
   {
     why: "mustPass[3] SAME-FILE indirection — resolved and judged by both engines",
@@ -653,14 +660,14 @@ test("§4.6 — the two modal-registry rows a replay CANNOT settle, settled by c
   // (2) THE OPENER COVERAGE STATEMENT for `mustPass[2]`. Same bytes, same twin, one change: the opener's
   // unresolvable `'#state'` specifier now names a module that really exports the canonical `openModal`.
   const opener = sharedTargetTwin(examples[legacy.mustFlag.length + 2] as Files, "ModalDefinition", target);
-  const resolvableOpener = repairedFiles(opener.twin, {
-    add: { "packages/client/src/state/shell-store.ts": "export function openModal(id: string): void { void id; }\n" },
-    replace: { "packages/client/src/features/x/components/opener.tsx": [["'#state'", '"../../../state/shell-store.ts"']] },
-  });
-  expect(
-    differential.finalReplay([modalRegistryCompleteness], resolvableOpener, armLabel).findings,
-    "the reachability arm accuses an UNRESOLVABLE opener origin, never a real one — so the row above is a stronger reader, not a false positive",
-  ).toEqual([]);
+  const incomplete = differential.finalReplay([modalRegistryCompleteness], opener.twin, armLabel);
+  expect(incomplete.toolErrors).toEqual([]);
+  expect(incomplete.findings, "an unresolved opener cannot establish reachability").toEqual([
+    `modal-registry-completeness | ${MODAL_REGISTRY}/x/lib/x-modal.tsx:2 | xModal | Unreachable surface modal`,
+  ]);
+  const completed = differential.finalReplay([modalRegistryCompleteness], resolvedOpenerTwin(opener.twin), armLabel);
+  expect(completed.findings, "the completed canonical opener keeps the legacy pass").toEqual([]);
+  expect(completed.toolErrors, "clean means judged, never withheld").toEqual([]);
 });
 
 test("§4.6 — placeholder-copy-registry: all 8 legacy examples against the target-alone twin", { timeout: scaledBudget(300_000) }, async ({ scratch }) => {
@@ -715,13 +722,270 @@ test("§4.6 — the #944 placeholder row is a DISSOLVED refusal, not a lost catc
   ).toEqual([`placeholder-copy-registry | ${SECTION_A}:3 | aSection | Unreadable definition`]);
 });
 
-// ── THE REMAINING FOUR, kept as the withheld receipt so none of them reads as a clean zero ────────────
+const CHROME_TARGET = "packages/client/src/state/__replay-chrome-target.ts";
+const CHROME_HOME = "packages/client/src/state/chrome-registry.ts";
+const SECTION_HOME = "packages/client/src/state/section-registry.ts";
+const CHROME_PREFIX = "a chrome widget is dishonest: a ChromeEntry no";
+const FEATURE_ROOT = "packages/client/src/features";
 
-test("§4.6 — the other four non-split members are WITHHELD on their descriptor-era examples, by named population", { timeout: scaledBudget(300_000) }, async ({
+function chromeTwin(files: Files): { readonly add: Files; readonly twin: Files } {
+  const repair = sharedTargetTwin(files, "ChromeEntry", CHROME_TARGET);
+  // These are already authored prerequisites, including the intentionally renamed tuple in its refusal row.
+  const add = { ...repair.add, [CHROME_HOME]: files[CHROME_HOME] as string, [SECTION_HOME]: files[SECTION_HOME] as string };
+  return { add, twin: repair.twin };
+}
+
+const CHROME_ROWS: readonly ReplayRow[] = [
+  {
+    why: "mustFlag[0] co-location; one prepended import shifts the line, the synthetic token becomes the declared name",
+    legacy: [`legacy | ${FEATURE_ROOT}/x/lib/not-a-chrome-file.ts:1 | not co-located: xChrome | ${CHROME_PREFIX}`],
+    legacyPopulation: 3,
+    finalOnTwin: [`chrome-registry-completeness | ${FEATURE_ROOT}/x/lib/not-a-chrome-file.ts:2 | xChrome | Not co-located`],
+    twinPopulation: 4,
+    verdict: { kind: "classified", claim: { classification: "anchor-move", successor: "Not co-located" } },
+  },
+  {
+    why: "mustFlag[1] duplicate id; prepend artifact + declared-name anchor",
+    legacy: [
+      `legacy | ${FEATURE_ROOT}/b/lib/b-chrome.tsx:1 | duplicate id "dup" (bChrome) — first claimed by "aChrome" (${FEATURE_ROOT}/a/lib/a-chrome.tsx) | ${CHROME_PREFIX}`,
+    ],
+    legacyPopulation: 4,
+    finalOnTwin: [`chrome-registry-completeness | ${FEATURE_ROOT}/b/lib/b-chrome.tsx:2 | bChrome | Duplicate id`],
+    twinPopulation: 5,
+    verdict: { kind: "classified", claim: { classification: "anchor-move", successor: "Duplicate id" } },
+  },
+  ...["mustFlag[2] unknown zone", "mustFlag[3] wrapped unknown zone"].map(
+    (why): ReplayRow => ({
+      why: `${why}; prepend artifact + declared-name anchor`,
+      legacy: [`legacy | ${FEATURE_ROOT}/x/lib/x-chrome.tsx:1 | zone "sidebar.top" (xChrome) | ${CHROME_PREFIX}`],
+      legacyPopulation: 3,
+      finalOnTwin: [`chrome-registry-completeness | ${FEATURE_ROOT}/x/lib/x-chrome.tsx:2 | xChrome | Unknown zone`],
+      twinPopulation: 4,
+      verdict: { kind: "classified", claim: { classification: "anchor-move", successor: "Unknown zone" } },
+    }),
+  ),
+  {
+    why: "mustFlag[4] rail mobile fate; prepend artifact + declared-name anchor",
+    legacy: [`legacy | ${FEATURE_ROOT}/x/lib/rail-chrome.tsx:1 | missing mobile (railChrome, zone "rail.nav") | ${CHROME_PREFIX}`],
+    legacyPopulation: 3,
+    finalOnTwin: [`chrome-registry-completeness | ${FEATURE_ROOT}/x/lib/rail-chrome.tsx:2 | railChrome | Missing mobile fate`],
+    twinPopulation: 4,
+    verdict: { kind: "classified", claim: { classification: "anchor-move", successor: "Missing mobile fate" } },
+  },
+  {
+    why: "mustFlag[5] renamed vocabulary: the runtime refuses both named denominators; constructed control isolates the zone refusal",
+    legacy: ["legacy | tooling/src/verify/gates/chrome-registry-completeness.ts:1 | - | packages/client/src/state/chrome-registry.ts i"],
+    legacyPopulation: 2,
+    finalOnTwin: [],
+    twinPopulation: 3,
+    originalErrors: ["chrome-registry-completeness/receipt: zero-member population(s): CHROME_ZONES, ChromeEntry"],
+    twinErrors: ["chrome-registry-completeness/receipt: zero-member population(s): CHROME_ZONES, ChromeEntry"],
+    verdict: { kind: "classified", claim: { classification: "runtime-refusal", successor: "CHROME_ZONES" } },
+  },
+  {
+    why: "mustFlag[6] imported definition: final judges its resolved home; one prepended import shifts line two to three",
+    legacy: [
+      `legacy | ${FEATURE_ROOT}/x/lib/x-chrome.tsx:2 | unreadable definition: xChrome — the identifier \`xDef\` (not an object literal declared in this file — an imported or re-exported definition) | ${CHROME_PREFIX}`,
+    ],
+    legacyPopulation: 4,
+    finalOnTwin: [`chrome-registry-completeness | ${FEATURE_ROOT}/x/lib/x-chrome.tsx:3 | xChrome | Definition outside its home`],
+    twinPopulation: 5,
+    verdict: { kind: "classified", claim: { classification: "stronger-reader", successor: "Definition outside its home" } },
+  },
+  ...[
+    "mustPass[0] imported-spread brand zone",
+    "mustPass[1] topbar mobile allowed",
+    "mustPass[2] full topbar",
+    "mustPass[3] rail nav mobile",
+    "mustPass[4] rail end mobile",
+  ].map(
+    (why): ReplayRow => ({
+      why,
+      legacy: [],
+      legacyPopulation: 3,
+      finalOnTwin: [],
+      twinPopulation: 4,
+      verdict: { kind: "classified", claim: { classification: "vacuous-both-zero", successor: null } },
+    }),
+  ),
+  ...["mustPass[5] factory/local-array assembler", "mustPass[6] top-level array assembler"].map(
+    (why): ReplayRow => ({
+      why: `${why}: no ChromeEntry subject; constructed positive neighbour proves the boundary`,
+      legacy: [],
+      legacyPopulation: 3,
+      finalOnTwin: [],
+      twinPopulation: 4,
+      twinErrors: ["chrome-registry-completeness/receipt: zero-member population(s): ChromeEntry"],
+      verdict: { kind: "unclassified", label: "UNCLASSIFIED-POPULATION-UNADMITTABLE" },
+    }),
+  ),
+  {
+    why: "mustPass[7] same-file indirection",
+    legacy: [],
+    legacyPopulation: 3,
+    finalOnTwin: [],
+    twinPopulation: 4,
+    verdict: { kind: "classified", claim: { classification: "vacuous-both-zero", successor: null } },
+  },
+];
+
+test("§4.6 — chrome-registry-completeness: every legacy example and both denominator failures", { timeout: scaledBudget(300_000) }, async ({ scratch }) => {
+  const driven = await driveTable(scratch, {
+    id: "chrome-registry-completeness",
+    base: "577d03d63",
+    policy: chromeRegistryCompleteness,
+    typeName: "ChromeEntry",
+    target: CHROME_TARGET,
+    prepare: chromeTwin,
+    rows: CHROME_ROWS,
+  });
+  expect(driven).toBe(15);
+});
+
+test("§4.6 — chrome vocabulary refusal and assembler exclusion have constructed controls", { timeout: scaledBudget(300_000) }, async ({ scratch }) => {
+  const differential = createDifferential("/registry-chrome-constructed", toolErrorCode);
+  const legacy = await frozenLegacyGate(scratch, "577d03d63", "tooling/src/verify/gates/chrome-registry-completeness.ts");
+  const examples = legacyScenarios(legacy, FALLBACK);
+  const member: Files = {
+    [`${FEATURE_ROOT}/control/lib/control-chrome.ts`]: `import type { ChromeEntry } from "../../../state/__replay-chrome-target.ts";\nexport const controlChrome: ChromeEntry = { id: "control", zone: "rail.nav" };\n`,
+  };
+  const renamed = chromeTwin(examples[5] as Files);
+  const refused = differential.finalReplay([chromeRegistryCompleteness], { ...renamed.twin, ...member }, armLabel);
+  expect(refused.findings).toEqual([]);
+  expect(refused.toolErrors, "the zone denominator independently withholds a populated entry owner").toEqual([
+    "chrome-registry-completeness/receipt: zero-member population(s): CHROME_ZONES",
+  ]);
+  for (const index of [12, 13]) {
+    const twin = chromeTwin(examples[index] as Files).twin;
+    const run = differential.finalReplay([chromeRegistryCompleteness], { ...twin, ...member }, armLabel);
+    expect(run.toolErrors).toEqual([]);
+    expect(run.findings, "assembler stays excluded while the adjacent real entry fires").toEqual([
+      `chrome-registry-completeness | ${FEATURE_ROOT}/control/lib/control-chrome.ts:2 | controlChrome | Missing mobile fate`,
+    ]);
+  }
+});
+
+const TILE_TARGET = "packages/client/src/state/__replay-tile-target.ts";
+const TILE_PREFIX = "a home tile is dishonest: a HomeTileContribution".slice(0, 46);
+const TILE_ROWS: readonly ReplayRow[] = [
+  {
+    why: "mustFlag[0] co-location; one-line import prepend is an artifact, token moves to the declared name",
+    legacy: [`legacy | ${FEATURE_ROOT}/x/lib/not-a-tile-file.ts:1 | not co-located: strayTile | ${TILE_PREFIX}`],
+    legacyPopulation: 1,
+    finalOnTwin: [`home-tile-registry-completeness | ${FEATURE_ROOT}/x/lib/not-a-tile-file.ts:2 | strayTile | Not co-located`],
+    twinPopulation: 2,
+    verdict: { kind: "classified", claim: { classification: "anchor-move", successor: "Not co-located" } },
+  },
+  ...[
+    ["mustFlag[1] empty reason", "dormant empty reason (xTile)", "declares an empty `reason`"],
+    ["mustFlag[2] absent teaser", "dormant empty teaser (xTile)", "declares no `teaser`"],
+    ["mustFlag[3] doorway action", "dormant with action (xTile)", "declares an `action`"],
+  ].map(
+    ([why, token, arm]): ReplayRow => ({
+      why: `${why}; one-line prepend artifact, exact dormant subarm retained`,
+      legacy: [`legacy | ${FEATURE_ROOT}/x/lib/x-tile.tsx:1 | ${token} | ${TILE_PREFIX}`],
+      legacyPopulation: 1,
+      finalOnTwin: [`home-tile-registry-completeness | ${FEATURE_ROOT}/x/lib/x-tile.tsx:2 | xTile | ${arm}`],
+      twinPopulation: 2,
+      verdict: { kind: "classified", claim: { classification: "anchor-move", successor: arm as string } },
+    }),
+  ),
+  {
+    why: "mustFlag[4] duplicate id; one-line prepend artifact, declared-name anchor",
+    legacy: [
+      `legacy | ${FEATURE_ROOT}/b/lib/b-tile.tsx:1 | duplicate id "dup" (bTile) — first claimed by "aTile" (${FEATURE_ROOT}/a/lib/a-tile.tsx) | ${TILE_PREFIX}`,
+    ],
+    legacyPopulation: 2,
+    finalOnTwin: [`home-tile-registry-completeness | ${FEATURE_ROOT}/b/lib/b-tile.tsx:2 | bTile | Duplicate id`],
+    twinPopulation: 3,
+    verdict: { kind: "classified", claim: { classification: "anchor-move", successor: "Duplicate id" } },
+  },
+  {
+    why: "mustFlag[5] anti-god-map has moved to registry-assembly-at-door-only; no tile subject exists in these bytes",
+    legacy: [`legacy | ${FEATURE_ROOT}/home/lib/compose-tiles.ts:1 | second home-tiles assembly | ${TILE_PREFIX}`],
+    legacyPopulation: 1,
+    finalOnTwin: [],
+    twinPopulation: 2,
+    twinErrors: ["home-tile-registry-completeness/receipt: zero-member population(s): HomeTileContribution"],
+    verdict: { kind: "unclassified", label: "UNCLASSIFIED-POPULATION-UNADMITTABLE" },
+  },
+  ...["mustPass[0] full renderer with action", "mustPass[1] honest dormant doorway"].map(
+    (why): ReplayRow => ({
+      why,
+      legacy: [],
+      legacyPopulation: 1,
+      finalOnTwin: [],
+      twinPopulation: 2,
+      verdict: { kind: "classified", claim: { classification: "vacuous-both-zero", successor: null } },
+    }),
+  ),
+  {
+    why: "mustPass[2] assembly at the main door; no tile subject exists in these bytes",
+    legacy: [],
+    legacyPopulation: 1,
+    finalOnTwin: [],
+    twinPopulation: 2,
+    twinErrors: ["home-tile-registry-completeness/receipt: zero-member population(s): HomeTileContribution"],
+    verdict: { kind: "unclassified", label: "UNCLASSIFIED-POPULATION-UNADMITTABLE" },
+  },
+];
+
+test("§4.6 — home-tile-registry-completeness: every legacy example preserves its declared dormant subarm", { timeout: scaledBudget(300_000) }, async ({
   scratch,
 }) => {
+  const driven = await driveTable(scratch, {
+    id: "home-tile-registry-completeness",
+    base: "614b2cb55",
+    policy: homeTileRegistryCompleteness,
+    typeName: "HomeTileContribution",
+    target: TILE_TARGET,
+    rows: TILE_ROWS,
+  });
+  expect(driven).toBe(9);
+});
+
+test("§4.6 — home-tile anti-god-map and legal door are exercised by their successor", { timeout: scaledBudget(300_000) }, async ({ scratch }) => {
+  const differential = createDifferential("/registry-tile-successor", toolErrorCode);
+  const legacy = await frozenLegacyGate(scratch, "614b2cb55", "tooling/src/verify/gates/home-tile-registry-completeness.ts");
+  const examples = legacyScenarios(legacy, FALLBACK);
+  const registryHome = "packages/client/src/lib/registry.ts";
+  const prerequisites = registryAssemblyAtDoorOnly.mustFlag[0].files[registryHome];
+  expect(prerequisites, "the successor's actual canonical factory prerequisite").toBeTypeOf("string");
+  for (const [index, subject, expected] of [
+    [
+      5,
+      `${FEATURE_ROOT}/home/lib/compose-tiles.ts`,
+      [
+        `registry-assembly-at-door-only | ${FEATURE_ROOT}/home/lib/compose-tiles.ts:2 | createContributorRegistry | createRegistry()/createContributorRegistry() m`,
+      ],
+    ],
+    [8, "packages/client/src/main.tsx", []],
+  ] as const) {
+    const base = examples[index] as Files;
+    const add = { [registryHome]: prerequisites as string };
+    const twin = repairedFiles(base, {
+      add,
+      prepend: { [subject]: `import { createContributorRegistry } from "${targetSpecifier(subject, registryHome)}";\n` },
+    });
+    expect(differential.legacyReplay(legacy, twin, unlined).findings).toEqual(differential.legacyReplay(legacy, base, unlined).findings);
+    const alone = differential.finalReplay([registryAssemblyAtDoorOnly], add, label);
+    expect(alone.toolErrors).toEqual([]);
+    expect(alone.findings).toEqual([]);
+    const run = differential.finalReplay([registryAssemblyAtDoorOnly], twin, label);
+    expect(run.toolErrors).toEqual([]);
+    expect(run.findings, `legacy example ${index}: moved assembly arm, including its door exclusion`).toEqual(expected);
+  }
+});
+
+// ── REMAINING MEMBERS retain their original-byte withheld receipt ───────────────────────────────────
+
+test("§4.6 — the two remaining non-split members are WITHHELD on their descriptor-era examples, by named population", {
+  timeout: scaledBudget(300_000),
+}, async ({ scratch }) => {
   const witnessed: string[] = [];
-  for (const [id, base, policy, populations] of MEMBERS.slice(3)) {
+  for (const [id, base, policy, populations] of MEMBERS.filter(
+    ([memberId]) => memberId === "section-factory-contribution-bundle" || memberId === "no-parallel-section-map",
+  )) {
     const differential = createDifferential(`/registry-${id}`, toolErrorCode);
     const legacy = await frozenLegacyGate(scratch, base, `tooling/src/verify/gates/${id}.ts`);
     const files = legacyScenarios(legacy, FALLBACK)[0];
@@ -734,7 +998,9 @@ test("§4.6 — the other four non-split members are WITHHELD on their descripto
     ]);
     witnessed.push(id);
   }
-  expect(witnessed, "all four, so the blocker is the FAMILY's shape and not one awkward module").toEqual(MEMBERS.slice(3).map(([id]) => id));
+  expect(witnessed, "both remaining members, so the blocker is the FAMILY's shape and not one awkward module").toEqual(
+    MEMBERS.filter(([memberId]) => memberId === "section-factory-contribution-bundle" || memberId === "no-parallel-section-map").map(([id]) => id),
+  );
 });
 
 // ── THE FROZEN-CLOSURE CONTROLS, both directions ──────────────────────────────────────────────────────

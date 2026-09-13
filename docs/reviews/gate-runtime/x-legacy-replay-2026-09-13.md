@@ -480,14 +480,14 @@ Follow this in order. Steps 2 and 3 are the two that were paid for.
    reader needs. **Do not copy another module's twin** — measured: `modal-body-not-placeholder` needs the
    `ModalDefinition` target AND the canonical `SectionPlaceholder`, while `modal-registry-completeness` and
    `placeholder-copy-registry` need the target ALONE. Same family, different prerequisites.
-4. **Build the twin as `add` + `prepend`.**
+4. **Build the twin as `add` plus delivery derived from the legacy imports.**
    - The registry type must be an EXPORTED interface/type alias (`isExportedType`). **A global unexported
      script-file declaration is REFUTED** — the target stays unresolved and the population is still zero.
    - **ONE shared target per example, never one per directory.** Two declarations of the same registry type
      make `targetFact` AMBIGUOUS, which is unresolved, which is a zero population again. Place the target at
      one path and compute each subject's specifier with `posix.relative(posix.dirname(subject), target)`,
      prefixing `./` when it does not already start with `.`.
-   - The target being a MODULE forces the subject to IMPORT it, so the twin PREPENDS. That shifts lines.
+   - Repoint an existing unresolved import at the shared module; prepend only when the subject has no import. Record the actual line delta per example. Complete other reader prerequisites, including callable origins, before classifying the twin.
 5. **Assert five things per row**: the legacy verdict on the ORIGINAL bytes; the WITHHELD receipt on those
    same bytes by NAMED denominator (this is what stops a `legacy N → final 0` row being mis-filed as a
    retired arm); INERTNESS, compared UNLINED; TWIN-ALONE (the prerequisites without the subject — expect a
@@ -586,7 +586,7 @@ every row; every twin is INERT unlined; every twin ALONE refuses for want of a p
 | 7 | `mustFlag[7]` the #944 imported initializer | 1 @ `x-modal.tsx:2` | 1 @ `:3` `xModal` · **Definition outside its home** | 2 → 3 | **stronger-reader** | `Definition outside its home` |
 | 8 | `mustPass[0]` a full co-located modal | 0 | 0 | 1 → 2 | vacuous-both-zero | — |
 | 9 | `mustPass[1]` a declared-planned surface modal | 0 | 0 | 1 → 2 | vacuous-both-zero | — |
-| 10 | `mustPass[2]` a surface modal WITH an opener | 0 | **1** @ `x-modal.tsx:2` `xModal` · Unreachable surface modal | 2 → 3 | **stronger-reader** | `Unreachable surface modal` |
+| 10 | `mustPass[2]` a surface modal WITH an opener | 0 | 0, with canonical opener import completed | 2 → 4 | vacuous-both-zero | — |
 | 11 | `mustPass[3]` same-file indirection | 0 | 0 | 1 → 2 | vacuous-both-zero | — |
 | 12 | `mustPass[4]` whole-literal `satisfies` | 0 | 0 | 1 → 2 | vacuous-both-zero | — |
 
@@ -626,32 +626,12 @@ declares no modal, so the twin's target resolves and the MEMBER denominator is s
 `receiptFailures` withholds the owner before the god-map arm is ever consulted, and the row asserts that
 tool error rather than an empty finding list. Admitting a member means ADDING a definition, at which point
 these are no longer the legacy example's bytes, so the row is labelled `UNCLASSIFIED-POPULATION-UNADMITTABLE`
-and the test asserts that label BY NAME (`/^UNCLASSIFIED-[A-Z-]+$/`) instead of filing a category. The
+and the test asserts that exact label instead of filing a category. The incoming regex-only check was rejected by independent review and replaced with exact equality. The
 successor is then CONSTRUCTED from the arm's own trigger conditions — the legacy route bytes UNCHANGED plus
 one live `aModal` definition — and the arm fires: `some-route.tsx:1 | modals | A route declares a modals={{…}} prop`,
 with the owner no longer withheld. The arm is carried; the legacy EXAMPLE simply cannot show it.
 
-**2. `modal-registry-completeness mustPass[2]` (the opener) — `stronger-reader`, and it is neither a lost
-catch nor a false positive.** Three runs, one differential:
-
-| run | fixture | final |
-| - | - | -: |
-| A | twin prepend on EVERY file, `opener.tsx` included | 1 · Unreachable surface modal |
-| B | prepend dropped from `opener.tsx` ALONE | **the same 1** |
-| C | the same bytes with a RESOLVABLE canonical opener | **0** |
-
-B REFUTES the twin-artefact hypothesis. C names the mechanism: the final FAILS CLOSED on an opener whose
-ORIGIN does not resolve. The legacy fixture's opener is `import { openModal } from '#state'`, and `#state`
-has no target in the fixture map and **is not a real specifier on this tree** (no `imports` map in
-`packages/client/package.json`; every live opener imports `state/shell-store.ts` or the `state/index.ts`
-barrel — `state/{imagery,plugin-dialog,active-chat}-store.ts`). The grammar difference by line: legacy
-`collectOpenModalCallSites` (`f5b222e10:…/modal-registry-completeness.ts:117-129`) TEXT-matches the callee
-identifier and resolves nothing; final `openedSlotId` (`:96-110`) requires `resolveCallableOrigin` to land on
-a MODULE whose canonical export is `openModal`. **That narrowing is the DESIGN, pinned by the final module's
-own rows** — `mustFlag[8]` (a LOCAL function named `openModal` must NOT satisfy the arm) and `mustPass[2]`
-(an aliased import through a barrel MUST) — and run C is that second pin reproduced on the legacy bytes, so
-it is committed as the row's coverage statement. Mitigating fact, unchanged: real-tree
-`--check modal-registry-completeness` is 0 effective over 11 `ModalDefinition` members. **No ledger row.**
+**2. `modal-registry-completeness mustPass[2]` (the opener) — completed dependency, not a stronger-reader differential.** Independent review rejected the original classification: the legacy fixture's `#state` opener import has no target, and the first twin left it unresolved. The resulting unreachable-modal finding establishes an incomplete prerequisite, not preservation or a changed identity branch (standing law §6.5). The completed twin adds one canonical `shell-store.ts` export and repoints the existing import, preserving its line. The table requires legacy inertness, zero final findings and zero tool errors. The incomplete twin remains a separate positive prerequisite control. This row is `vacuous-both-zero`; it claims no catch preservation. The policy's local-function and aliased-import proofs separately own semantic identity.
 
 **3. `placeholder-copy-registry mustFlag[3]` (the #944 unreadable control) — a DISSOLVED refusal, not a lost
 catch.** `retired-arm` with `successor: null` and a `retiredWhy` that names two committed controls rather
@@ -1010,3 +990,18 @@ lane wrote.
   table calls all three "identical" and misses that the legacy gate had no bindable waiver position at all.
 - **`the substrate decides which bug can exist`** — already §4.6 law for verdicts; it is also true of the
   HARNESS. Both defects above are the in-memory substrate's shadow.
+
+## 8. Codex continuation: chrome and home-tile replay
+
+Source base `1ef220c20`; only continuation commits `ade6f50ed`, `b9b51f43d`, `808caf154` imported as `164dac031`, `a39f39a61`, `b072f59fa`. Independent review rejected three claims in that continuation; the exact-name check, import-delivery recipe and modal opener twin are repaired above. The shared replay harness is unchanged. The original eleven ledger rows remain intact; main ledger, board and catalog integration belong to primary.
+
+| Owner / frozen base | Legacy rows | Result on completed twin |
+| - | -: | - |
+| chrome-registry-completeness / 577d03d63 | 15 (7 flag, 8 pass) | Five carried anchor moves, one imported-definition stronger-reader result, one runtime refusal, six zero/zero rows, two assembler rows explicitly population-unadmittable |
+| home-tile-registry-completeness / 614b2cb55 | 9 (6 flag, 3 pass) | Five carried anchor moves with separate reason/teaser/action identity, two zero/zero rows, two assembly-only rows explicitly population-unadmittable in this owner |
+
+Chrome's legacy fixtures already declare their zone tuple. The twin adds one shared exported `ChromeEntry` target and imports it where the annotation is used. It preserves existing tuple bytes, including the deliberately renamed tuple. The original-byte receipt names `ChromeEntry`, and additionally `CHROME_ZONES` on the rename row. A constructed adjacent entry isolates the zone refusal; two adjacent-entry controls prove the assembler examples stay excluded while a real entry reports its missing mobile fate. The import prepend shifts subject lines by one; synthetic token changes are the actual anchor moves.
+
+Home-tile's twin likewise adds one shared exported target. Its dormant expectations distinguish empty reason, missing teaser and forbidden action, rather than accepting the common policy message. The two assembly-only examples contain no tile definition: their original and parent-twin withholding remains explicit. A separately completed factory import drives their actual successor, `registry-assembly-at-door-only`, proving one prohibited assembly and a clean main-door assembly, each without tool errors and with legacy inertness. Prerequisites alone also complete cleanly and manufacture no finding.
+
+Validation is recorded in the continuation commit; scoped suite baseline is twelve passing tests. The next queue members are no-parallel-section-map, section-factory-contribution-bundle, config-group-completeness and section-registry-completeness. This checkpoint is not completion of #2319 or the gate program.
