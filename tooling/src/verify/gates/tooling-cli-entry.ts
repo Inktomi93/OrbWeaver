@@ -30,6 +30,18 @@
 //
 // Legacy descriptor: `2c1a1d37c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm E). No private
 // marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at conversion.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `tooling-shared-plumbing` descriptor at daf3444358fc10c2b0a3bc3377c62abe23e82c63, the parent of the conversion
+// `7b80f66a4`; this module did not exist there, so it is measured against the module it was carved from,
+// `tooling-shared-plumbing` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `2c1a1d37c` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// citations resolve to this source. Over the SAME 7,464 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,617 and final `population` admits 16.
+// legacy − final = 1,601 — every scanned path other than `tooling/src/*/cli.ts` and the runner home: arm E judged the
+// cli shape by regex inside `visitFile`. final − legacy = ∅. Controls: inside: no virtual sibling fits the exact-path
+// population, so the real shared member `tooling/src/_shared/run-tool.ts` is the control, admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";

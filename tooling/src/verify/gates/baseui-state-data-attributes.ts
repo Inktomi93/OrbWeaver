@@ -62,6 +62,16 @@
 // (`className={cn("data-open:x", open && "y")}`) rather than on the binding. The position is now the
 // identifier NODE's own offset through `firstAnchor`, so the caret and the waiver both name the read. Zero
 // live markers name this policy in either grammar, so no translation is owed.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `baseui-state-data-attributes` descriptor at fc5cad14c0f060ce35d257d96955d778e756d605, the parent of the conversion
+// `ff07e1302` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `854c81c80`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,458 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 366.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/ui/src/art/art-bleed/__cbbhr_in_art-bleed.tsx`
+// (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import type { JsxAttributeLike, JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { SurfaceManifest } from "../contract/baseui.ts";

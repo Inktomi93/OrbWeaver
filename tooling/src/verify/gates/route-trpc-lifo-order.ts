@@ -36,6 +36,16 @@
 // §4.6 differential: fixture-level replay of that descriptor over every row's own file map — see the
 // conversion commit. Real-corpus replay is VACUOUS in both directions (the legacy side is zero because
 // the tree has no live inversion), so the fixture-level method is the one that reaches catch parity.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `route-trpc-lifo-order` descriptor at a4ed280d18da42e55be62960b8ce1aec1f76ff32, the parent of the conversion
+// `5f8347dca` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `174cc2961`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 491 and final `population` admits 491.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `tests/client/a11y/__cbbhr_in_accessible-name-quality.suite.ct.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Block, CallExpression, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

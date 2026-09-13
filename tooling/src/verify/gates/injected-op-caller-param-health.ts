@@ -9,6 +9,10 @@
 // imported FROM THE SIBLING GATE MODULE — the shape the owner banned on 2026-09-12 (#2091/#2096: a gate
 // module never imports another gate module; a shared predicate moves to `lib/<family>.ts`). Recorded as
 // what it is rather than as a `lib/` reader that does not exist; the move is code work, not a header edit.
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "TODAY those are imported FROM THE SIBLING
+// GATE MODULE" is REFUTED by this module's own import list — the #2096 move LANDED, and the shared computation now
+// comes from `lib/injected-op-caller-param.ts#deriveEntityIdTypes`, which the occurrence sibling imports too
+// (`callerFreeOps` and `deriveEntityIdTypes`). FAMILY reader: `lib/injected-op-caller-param.ts#deriveEntityIdTypes`.
 // POPULATION PORT: a CORRECTION, inherited — no legacy descriptor of its own, so the port is the parent's.
 // Legacy `scanRoot` was `packages/server/src/domain/*/contract/` OR the one `@orb/kit/ids` module; the
 // declaration above is `["@server", "@kit", "@db"]`. Re-derived 2026-09-12 over the same 7,537-path
@@ -16,6 +20,17 @@
 // only by legacy — a pure WIDENING, which is the direction a two-sided ratchet needs: it must see every
 // op declaration AND every caller, not only the contract directories the legacy predicate named.
 // LEGACY SHA: (f693a27a9^) — the parent of the commit that split this policy out.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `injected-op-caller-param` descriptor at 7993f264c43f96f5b3595d184919d4cdee253a43, the parent of the conversion
+// `f693a27a9`; this module did not exist there, so it is measured against the module it was carved from,
+// `injected-op-caller-param` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
+// Over the SAME 7,365 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
+// legacy `scanRoot` admits 178 and final `population` admits 1,596. legacy − final = ∅. final − legacy = 1,418 —
+// `@server` beyond `domain/*/contract/` (1,316), `@kit` beyond `ids` (60) and all of `@db` (42): the recorded pure
+// widening. Controls: inside: no virtual sibling fits the exact-path population, so the real shared member
+// `packages/kit/src/ids/index.ts` is the control, admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { TypeAliasDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

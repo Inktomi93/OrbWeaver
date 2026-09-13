@@ -60,6 +60,18 @@
 //     version string — its own header names that the sanctioned call for this family. An anchorless
 //     declaration set (its `undefined`) is a REFUSAL here rather than an empty surface, because this
 //     policy uses the surface to ACQUIT: going blind silently would accuse every vendor-written selector.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `css-selector-has-a-writer` descriptor at 5545f9ccf12c19cdeafe81d41378ce7eb511e6ee, the parent of the conversion
+// `9104f718f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
+// filter — lib/css-family-source-provenance.ts `ownerForPath` (via lib/css-selector-writers.ts `isProductSource`),
+// `packages/{ui,client}/src/`. Over the SAME 7,567 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,686 and the final `population` admits 1,686 (the bare harness
+// dispatch was 7,567). legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { installedStateAttributeValuesFrom, installedSurfaceFrom, surfaceManifestFrom } from "../lib/baseui-read.ts";

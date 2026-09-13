@@ -6,6 +6,23 @@
 // every consumer, both before `create`/`evaluate` (guide §3's acquisition-refusal rule). So the read goes through
 // `readyResourceValue` — a loud assertion that the runtime's refusal held — and never through an in-module
 // not-ready branch, which would be unreachable and would model a silent return as the right answer.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `package-layout` descriptor at e6394c8ac9124d2ba175554f6ffb8d90f58bb463, the parent of the conversion `96e103fe4`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,046 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no
+// `scanRoot` — dispatched 7,046, and the final `population` admits 1,854; the subject is the declared package
+// `authored-tree`s (the TS population is the loose-file identity carrier). legacy − final = 5,192 — `@server` (1,466,
+// whose root is `server-layout`'s) and every `tests`/`tooling`/`scripts` source: the legacy walk read only
+// `packages/{kit,contracts,client,db,ui}/src` top-level `.ts` names. final − legacy = ∅. Controls (virtual paths fed
+// to both predicates): inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` admitted by both; outside
+// `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+//
+// FAMILY: a declared SINGLETON under its own id. It reads no `lib/` reader except `readyResourceValue`, and no
+// sibling judges a package `src` root's loose files (`server-layout` owns the server root).
 
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";

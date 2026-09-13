@@ -41,6 +41,20 @@
 // (`mustPass[2]`); the absent-`exports`-key verdict cannot be told from an authored empty map — that is the
 // provider's normalization above, not this policy's (`mustFlag[5]`). UNFALSIFIABLE fences are named at
 // their function rather than pinned by a row that would not discriminate (guide §6.1's structurally-unfalsifiable classification).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `ui-exports-map-complete` descriptor at eb5fc2fabcf0251deaf3a1921762fd0ff9b13a69, the parent of the conversion
+// `05e595f33` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,047 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
+// — no `scanRoot` — dispatched 7,047, and the final `population` admits 0; the subject is the declared
+// `authored-tree:packages` + `package-metadata:ui`. legacy − final = all 7,047 harness candidates — dispatched to the
+// legacy `run`, which read none of them (its subject came off disk through a two-level `readdirSync` of
+// `packages/ui/src` plus `existsSync` exports targets); retired with that read. final − legacy = ∅. Controls: the
+// legacy side is non-empty and the final side is empty by declaration, so equality cannot pass vacuously; outside
+// `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";

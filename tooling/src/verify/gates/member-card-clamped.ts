@@ -3,6 +3,24 @@
 // `clampMemberCard`/`resolveCardVisibility` (domain/chat/substrate/auth/clamp.ts). PD-111 found the
 // character domain had grown a second, divergent clamp (`getRosterCardView`) — deleted, chat's canonical.
 // Three freezes: no `MemberCardView` declaration outside packages/contracts/; no clamp declaration outside domain/chat/substrate/auth/; `getRosterCardView` banned in server src.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `member-card-clamped` descriptor at 99b7429e2b0377aa5a6ae62341f9a22aa40de94c, the parent of the conversion
+// `7be684811` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,353 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy harness
+// dispatch (no `scanRoot`) admits 7,353 and final `population` admits 7,353. legacy − final = ∅. final − legacy = ∅.
+// Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+// CONVERSION-COMMIT PORT (verifier cb-v-header-residue L5): the figures above resolve TODAY'S declaration. The
+// conversion `7be684811` itself declared `@authored`: legacy 7,353 vs final 7,352, legacy − final =
+// {`packages/showcase-plugins/src/index.ts`}, final − legacy = ∅. Later change, recorded separately: `03dd7329e`
+// widened it to `{ in: ["@authored", "@showcase"] }` (#1980), restoring that file and giving the ∅/∅ above.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+//
+// FAMILY: a declared SINGLETON under its own id. It imports nothing from `lib/`: its three freezes are
+// declaration-home and identifier-spelling tests owned here, and no sibling judges the member-card clamp.
 import type { Node } from "ts-morph";
 import { Node as NodeGuards, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";

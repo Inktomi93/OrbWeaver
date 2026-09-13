@@ -31,6 +31,19 @@
 // express a refusal (guide §6.3).
 // DECLARED LIMITS: none beyond the vocabulary itself — `mustPass[0]` is the complete legal root, and every
 // arm is pinned by a row whose count the §4.1 cut moves.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `server-layout` descriptor at 05e595f33a483879860210e24a1b88231c3bae7f, the parent of the conversion `d59803f7f`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,047 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no
+// `scanRoot` — dispatched 7,047, and the final `population` admits 0; the subject is the declared
+// `authored-tree:server`. legacy − final = all 7,047 harness candidates — dispatched to the legacy `run`, which read
+// none of them (its subject came off disk through `readdirSync(packages/server/src)`); retired with that read.
+// final − legacy = ∅. Controls: the legacy side is non-empty and the final side is empty by declaration, so equality
+// cannot pass vacuously; outside `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";

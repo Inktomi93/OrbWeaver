@@ -30,6 +30,20 @@
 // asymmetry (the clock's predicate fenced `tooling/` out because tools measure the real wall clock, this
 // one never did) — the difference between the two siblings is deliberate and `mustFlag[4]` pins it. The two
 // halves differ only where the legacy complement admitted a path outside `packages/*/src` and `tooling/src`.
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "differ only where the legacy complement
+// admitted a path outside `packages/*/src` and `tooling/src`" is REFUTED. Measured over the harness candidates at
+// `9808b93c0^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, a path INSIDE `packages/*/src` that
+// `@packages` does not admit (#1980); final − legacy = ∅.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-raw-random` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion `9808b93c0`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,383
+// and final `population` admits 4,382. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the one source
+// of an authored package outside the declared composite roots (`@showcase` is not in `@authored`/`@packages`, #1980,
+// `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { AmbientSource } from "../contract/ambient-determinism.ts";

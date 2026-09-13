@@ -28,6 +28,18 @@
 // The legacy `no-raw-spacing-in-features` descriptor (d6f36904fa6946238678e61760888aaf62ba0c93) ran a
 // hand-rolled allowlist sweep before this migration moved the raw-CSS-literal-in-features family onto
 // the shared `lib/sanctioned-home.ts` reader.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-raw-spacing-in-features` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the conversion
+// `99b7429e2` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,351 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 1,685 and final `population` admits 1,685. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY `raw-spacing-tier` — a two-member SPLIT family with `spacing-tier-home-health`: the shared READER is
+// `lib/sanctioned-home.ts` (`sanctionedHome` here) and the shared TABLE is
+// `lib/raw-spacing-tier.ts#SANCTIONED_HOMES`, both imported by the tripwire twin.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

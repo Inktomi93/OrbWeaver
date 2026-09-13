@@ -33,6 +33,17 @@
 // MARKER CENSUS 0 = 0 = 0 (measured 2026-09-12, N=7,725 tracked files, positive control 1,196 — the §5b
 // audit's own invocation). The legacy bare `@orb-gate-ignore css-family-ownership:` door existed and does
 // not survive the conversion; nothing used it.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `css-family-ownership` descriptor at 5545f9ccf12c19cdeafe81d41378ce7eb511e6ee, the parent of the conversion
+// `9104f718f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
+// filter — lib/css-family-source-provenance.ts `ownerForPath` → `sourceOwner`, admitting `packages/{ui,client}/src/`.
+// Over the SAME 7,567 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it
+// admits 1,686 and the final `population` admits 1,686 (the bare harness dispatch was 7,567). legacy − final = ∅.
+// final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by
+// both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 
 import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 import { defineGate } from "../contract/policy.ts";

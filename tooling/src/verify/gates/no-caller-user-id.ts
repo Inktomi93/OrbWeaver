@@ -4,6 +4,17 @@
 // `loadUserSettings`). tsc cannot catch a NEWLY-INTRODUCED forbidden name, so this gate does — before the
 // turn-running/engine chunks accrete. AST identifiers only: comments, quoted/computed keys, and string literals are exempt;
 // every identifier position is judged, including property names, destructuring, and locally shadowed bindings.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-caller-user-id` descriptor at 073520068d3305dfedbb481153cadfef6b30f847, the parent of the conversion
+// `45743d76d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,006 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 6,751 and final `population` admits 6,751. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `tooling/src/verify/gates/__cbbhr_out_agent-bridge-lock.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. It imports nothing from `lib/`; one banned identifier spelling has
+// no shared computation and no sibling.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

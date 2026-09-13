@@ -14,6 +14,14 @@
 // `packages/server/src/domain/**` and `packages/server/src/entry/**` minus every `*.test.ts`/`*.test.tsx`
 // basename, with `infra/` deliberately outside. The final `SIDE_GEN_POPULATION` is that set, and BOTH of its
 // clauses now own a mustPass row (the `infra/` wire translator, and a co-located spec).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-hardcoded-side-gen-sampling` descriptor at ef22519578607c76a03196f343fb025520c796a5, the parent of the
+// conversion `0d83d99f1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 1,229 and final `population` admits 1,229. legacy − final = ∅. final − legacy = ∅. Controls:
+// inside `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

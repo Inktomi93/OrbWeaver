@@ -17,6 +17,17 @@
 // symbol, so there is nothing to alias, re-export or shadow. DECLARED LIMIT with its own row: prop injection
 // through a SPREAD (`<div {...{ dangerouslySetInnerHTML: html }} />`) carries no attribute node and is not
 // seen — the same limit the legacy gate carried and the census recorded.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-untrusted-html-in-main-dom` descriptor at 256682e4aa17a2555c99834c468905fa53ae5500, the parent of the
+// conversion `47fc0ae01` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,224 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 1,671 and final `population` admits 1,671. legacy − final = ∅. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. Its one `lib/` call is the reviewed-grant sink
+// `reportReviewedGrantCandidates`; the subject is React's reserved attribute and no sibling judges it.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";

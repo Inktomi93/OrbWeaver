@@ -127,6 +127,14 @@
 // biome rule repository-wide, not about any one file; keyed per file it would need 284 grant rows each
 // carrying a count's worth of meaning, which is the per-file ratchet re-minted as grants and exactly what
 // `exception-authority-census.md:177` says cannot be translated one-for-one.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `suppressions` descriptor at d2315031518b859f3355c931ac158c2e32951249, the parent of the conversion `a33b2e339`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,497 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,497
+// and final `population` admits 7,497. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
 import { defineGate } from "../contract/policy.ts";
 import type { GovernedScope } from "../contract/suppressions.ts";
 import type { ReviewedGrantFileCandidate } from "../lib/reviewed-grant-findings.ts";

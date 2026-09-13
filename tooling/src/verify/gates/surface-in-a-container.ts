@@ -63,6 +63,18 @@
 // container of its own (`mustPass[1]`); ANY anchor container in the feature is the feature-level wrapper proof
 // (`mustPass[2]`); a surfaces file exporting no component has no authored position and is therefore silent
 // (`mustPass[4]`).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `surface-in-a-container` descriptor at fc5cad14c0f060ce35d257d96955d778e756d605, the parent of the conversion
+// `ff07e1302` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `854c81c80`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
+// filter — scan: `FEATURE_FILE_RE = /^packages\/client\/src\/features\/([^/]+)\/(surfaces|anchors)\/[^/]+\.tsx$/`
+// then `if (SHELL_EXEMPT.has(feature)) continue` with SHELL_EXEMPT = {app-shell}. Over the SAME 7,458 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 43 and the final
+// `population` admits 43 (the bare harness dispatch was 7,458). legacy − final = ∅. final − legacy = ∅. Controls:
+// inside `packages/client/src/features/auth/anchors/__cbbhr_in_login-shell-anchor.tsx` (virtual) admitted by both;
+// outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import type { SourceFile } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { exportedComponentAnchor, rendersLayoutContainer, rendersStructuralRoot } from "../lib/surface-composition.ts";

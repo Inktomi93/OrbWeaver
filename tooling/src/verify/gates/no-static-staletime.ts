@@ -13,6 +13,23 @@
 //
 // THREE ANSWERS: a query-options `staleTime` set to "static" is the finding; the same value on an unrelated
 // object passes; a "static" whose contextual owner cannot be placed is REPORTED (GATE-AUTHORING §5, #944).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-static-staletime` descriptor at 7ed48eca86ea8b82234cefa42dfc128e01874448, the parent of the conversion
+// `cf2ec7dc1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,197 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 5,195 and final `population` admits 5,194. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
+// one source of an authored package outside the declared composite roots (`@showcase` is not in
+// `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `tests/client/agent-nav/__cbbhr_out_index.test.ts` (virtual) rejected by both.
+//
+// FAMILY `tanstack-query-origin` — the shared `lib/` reader reached from `create` is `lib/type-member-origin.ts`
+// (`declaredByPackage`, with `resolveContextualMemberOrigin`), the same package-member identity test
+// `no-multiplexed-mutation-error` imports; `no-inline-optimistic-in-surface` joins the family through
+// `lib/project-home-origin.ts#classifyPackageMemberOrigin` instead. Each member shares a canonical production
+// dependency with at least one sibling (§2); the three local `QUERY_CORE` spellings and the
+// `_proof/client-vendors.ts` plants are not that dependency.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

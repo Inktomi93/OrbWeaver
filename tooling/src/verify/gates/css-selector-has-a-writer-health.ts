@@ -60,6 +60,22 @@
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here (`mustRefuse[0]`); the runtime withholds this owner at the
 // population phase and the module owns no not-ready branch.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `css-selector-has-a-writer` descriptor at 5545f9ccf12c19cdeafe81d41378ce7eb511e6ee, the parent of the conversion
+// `9104f718f`; this module did not exist there, so it is measured against the module it was carved from,
+// `css-selector-has-a-writer` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
+// The `1692583d6` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// citations resolve to this source. Over the SAME 7,567 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,567, and the final
+// `population` admits 0; the subject is the declared `product-css` + `vendor-css-surface`. legacy − final = all 7,567
+// harness candidates — dispatched to the legacy `run`, which read none of them (its subject came off disk through
+// `ctx.root` filesystem reads of the CSS identity and the installed vendor surface); retired with that read.
+// final − legacy = ∅. Controls: the legacy side is non-empty and the final side is empty by declaration, so equality
+// cannot pass vacuously; outside `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { PRODUCT_STYLESHEETS, THEME } from "../contract/css-family.ts";
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";

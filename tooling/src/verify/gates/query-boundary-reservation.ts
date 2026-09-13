@@ -30,6 +30,16 @@
 // the central engine's foreign-grammar fixture) — an empty grammar, deleted; nothing to reconcile.
 //
 // Legacy descriptor: `370243fe7` (`tooling/src/verify/gates/query-boundary-reservation.ts`).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `query-boundary-reservation` descriptor at e2b183b809625973be3060bdca51755317d42f3c, the parent of the conversion
+// `6563946a0` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `370243fe7`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,450 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
+// (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { hasStaticCount, jsxAttributeNamed, QUERY_BOUNDARY, RESERVE_KEY, skeletonFallback } from "../lib/query-boundary-vocabulary.ts";

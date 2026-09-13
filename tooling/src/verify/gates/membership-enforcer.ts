@@ -11,6 +11,14 @@
 //
 // POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^` (`scanRoot: (p) => CHAT_SCOPE.test(\`/\${p}\`)`);
 // the final expression beside the population const admits exactly that set.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `membership-enforcer` descriptor at 509671ae2e013b6d07fe6f7e9e744e0d7cbac946, the parent of the conversion
+// `e5a7a8a8c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,183 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 138 and final `population` admits 138. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/domain/chat/__cbbhr_in_active-turns.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { readMemberReference } from "../lib/reference-fact.ts";

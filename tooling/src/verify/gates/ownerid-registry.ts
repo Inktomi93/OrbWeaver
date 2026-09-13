@@ -24,6 +24,14 @@
 // module's own conversion commit `e847189f7`, verified 2026-09-12 to hold a `GateDescriptor` with the
 // `scanRoot` quoted above) resolved schema columns through the legacy `_shared/schema-read.ts` reader
 // (`columnProperties`, `schemaScan`) before this conversion moved it onto the shared Drizzle schema fact.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `ownerid-registry` descriptor at 66d28b1272c9dc255545a073276a3b159eddf85a, the parent of the conversion `e847189f7`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,141 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 30 and
+// final `population` admits 30. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaModel } from "../contract/schema-fact.ts";

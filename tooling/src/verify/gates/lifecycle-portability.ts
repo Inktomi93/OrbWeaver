@@ -48,6 +48,17 @@
 // the final expression that the legacy body would have read and ignored. Compiled both spellings over
 // `git ls-files '*.ts' '*.tsx'`: legacy 7,394 / final 74 / finalOnly 0, with four planted controls (schema
 // ✓, router ✓, http ✓, a server domain file ✗).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `lifecycle-portability` descriptor at 7183b7abaee141b0e2e85cb79e939878bd482f77, the parent of the conversion
+// `472bc940c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
+// `SCHEMA_FILE_RE.test(rel) && rel !== SCHEMA_BARREL` + `fileLoaded(ctx, SCHEMA_BARREL)`; readDoorCorpus:
+// `rel.startsWith(ROUTER_DIR)` / `rel.startsWith(HTTP_DIR)`. Over the SAME 7,377 harness candidates at that tree
+// (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 74 and the final `population` admits 74 (the
+// bare harness dispatch was 7,377). legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_KINDS } from "@orb/contracts/portability";
 import { Node, SyntaxKind } from "ts-morph";

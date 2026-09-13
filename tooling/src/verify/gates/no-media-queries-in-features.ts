@@ -34,6 +34,14 @@
 // (`md:flex-row`), never the whole string and never the bare variant. `fix` states the spelling. On a
 // substituted template the offset is relative to the span token that carries the text, which is the node the
 // finding anchors on — so the waiver position stays the class token either way.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-media-queries-in-features` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the conversion
+// `99b7429e2` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,351 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 1,621 and final `population` admits 1,621. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/client/src/features/app-shell/anchors/__cbbhr_out_region-anchor.tsx` (virtual) rejected by both.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

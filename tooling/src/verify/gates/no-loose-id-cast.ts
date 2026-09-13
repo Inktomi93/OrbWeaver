@@ -20,6 +20,23 @@
 // selected — `scanRoot: (p) => !(p.includes("tests/") || p.includes("tools/") || p.includes("scripts/") ||
 // TEST_FILE_REGEX.test(p))` — so it also judged `tooling/src`, which `@packages` does not. The surviving half
 // of that subtraction is stated positively by the `tests are outside this policy population` mustPass row.
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "an intentional NARROWING" states one
+// direction of a port that moves in BOTH. Measured over the harness candidates at `1ee6bb982^`: legacy − final = 986
+// `tooling/src` paths plus `packages/showcase-plugins/src/index.ts` (the narrowing stated), and final − legacy = 13
+// production server files the legacy SUBSTRING subtraction wrongly excluded — `domain/regex/verbs/scripts/*` (10,
+// matched `scripts/`) and `domain/rpg/tools/*` (3, matched `tools/`). That widening was unrecorded; it repairs a
+// legacy blind spot.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-loose-id-cast` descriptor at d10462449bb3b00307033eece47312f45455ca74, the parent of the conversion `1ee6bb982`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,132 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,324
+// and final `population` admits 3,350. legacy − final = 987 — `tooling/src/**` (986), which the legacy SUBTRACTING
+// `scanRoot` admitted and `@packages` does not, plus the showcase file; the recorded narrowing. final − legacy = 13
+// production server files the legacy substring subtraction WRONGLY excluded — `domain/regex/verbs/scripts/*` (10,
+// matched `scripts/`) and `domain/rpg/tools/*` (3, matched `tools/`); an UNRECORDED widening that repairs a legacy
+// blind spot. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both;
+// outside `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { canonicalIdBrand, ID_BRAND_HOME } from "../lib/id-brand.ts";

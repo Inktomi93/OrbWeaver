@@ -17,6 +17,14 @@
 // are gone and the admitted set was re-derived against the real tree before the change landed: 4,440 of
 // 7,394 candidates under the old spelling and under the new, with a zero-length diff in both directions.
 // LEGACY SHA: (45743d76d^) — the conversion's parent.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-if-is-group` descriptor at 073520068d3305dfedbb481153cadfef6b30f847, the parent of the conversion `45743d76d`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,006 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,252
+// and final `population` admits 4,252. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/server/src/domain/regex/verbs/scripts/__cbbhr_out_bulk-remove.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

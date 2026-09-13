@@ -24,6 +24,24 @@
 // every consumer, both before `create`/`evaluate` run (guide §3's acquisition-refusal rule). This module owns no not-ready
 // branch: it reads the domain tree through `readyResourceValue`, whose throw is an assertion that the
 // runtime's own refusal already held.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `feature-structure` descriptor at 7b739d9b5cd5ed752f6c38065dfa34e242695d48, the parent of the conversion
+// `941d730cc` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,354 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
+// — no `scanRoot` — dispatched 7,354, and the final `population` admits 0; the subject is the declared
+// `server-domain` tree. legacy − final = all 7,354 harness candidates — dispatched to the legacy `run`, which read
+// none of them (its subject came off disk through `readdirSync`/`existsSync`/`statSync` over
+// `packages/server/src/domain`); retired with that read. final − legacy = ∅. Controls: the legacy side is non-empty
+// and the final side is empty by declaration, so equality cannot pass vacuously; outside
+// `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+//
+// FAMILY: a declared SINGLETON under its own id. It judges the server per-feature 8-slot template off the
+// `server-domain` tree and consumes no `lib/` reader beyond the resource-consumption primitive `readyResourceValue`;
+// `server-layout` judges the server ROOT vocabulary, a different subject, through its own tree read.
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";

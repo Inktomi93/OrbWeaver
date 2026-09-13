@@ -67,6 +67,19 @@
 // the complete runtime outcome beyond refusal-text matching: no effective findings, an exact policy/phase/
 // message tool error, an incomplete owner, and this policy withheld. The complete-population twin also
 // pins every declared receipt (proof law §6.3).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `dangling-doc-cite` descriptor at 80b81a3471b24c88ef503f8896c4796831474a4f, the parent of the conversion
+// `ff3eacb44` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1f5e25c00`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,435 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy harness dispatch (no `scanRoot`) admits 7,435 and final
+// `population` admits 7,435. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import type { SourceFile } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { blankTsComments } from "../lib/comment-spans.ts";

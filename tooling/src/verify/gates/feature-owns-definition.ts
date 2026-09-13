@@ -6,6 +6,24 @@
 // every consumer, both before `create`/`evaluate` (guide §3's acquisition-refusal rule). So the read goes through
 // `readyResourceValue` — a loud assertion that the runtime's refusal held — and never through an in-module
 // not-ready branch, which would be unreachable and would model a silent return as the right answer.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `feature-owns-definition` descriptor at e6394c8ac9124d2ba175554f6ffb8d90f58bb463, the parent of the conversion
+// `96e103fe4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,046 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
+// — no `scanRoot` — dispatched 7,046, and the final `population` admits 0; the subject is the declared
+// `client-feature` tree. legacy − final = all 7,046 harness candidates — dispatched to the legacy `run`, which read
+// none of them (its subject came off disk through `readdirSync(packages/client/src/features)` + each `lib/` listing);
+// retired with that read. final − legacy = ∅. Controls: the legacy side is non-empty and the final side is empty by
+// declaration, so equality cannot pass vacuously; outside `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+//
+// FAMILY: a declared SINGLETON under its own id. Its only shared `lib/` dependency is the corpus-wide
+// resource-consumption primitive `lib/resource-declaration.ts#readyResourceValue`; `client-structure` reads the same
+// `client-feature` tree for a different verdict (slice shape, not definition ownership) and shares no computation
+// with this module beyond that primitive.
 
 import { defineGate } from "../contract/policy.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";

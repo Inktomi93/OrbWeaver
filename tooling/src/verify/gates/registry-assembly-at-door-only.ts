@@ -28,10 +28,28 @@
 // `family` string over a wider population. The two share no `lib/` reader deliberately — that arm resolves
 // nothing while this one resolves a factory callee's identity — and the family string is what keeps them
 // visible as one law. Nothing else judges where a registry is assembled.
+// §2 REPAIR CANDIDATE (lane cb-b-header-residue, 2026-09-13; verifier cb-v-header-residue L1/L4), the text above
+// kept: measured, the two members share NO production dependency in `lib/` — `no-mutating-register-api` imports
+// nothing from `lib/`. Standardization §2 now reads "Each multi-member policy shares a canonical declaration with at
+// least one sibling" and "A singleton names why no meaningful shared dependency exists", so the "split family"
+// sanction cited here does not satisfy it. This is a family-classification repair candidate under the ledger's
+// existing owning rows (`registry-assembly-at-door-only` w5, #2005; the split-family census reading, #2187),
+// preserving §2; the family string is code and is not changed by this header note.
 // POPULATION PORT: an INTENTIONAL CORRECTION, stated above. The legacy `scanRoot:
 // (p) => p.startsWith("packages/client/src/")` (68c8f42d6) becomes `@client` MINUS the door, because the
 // door is a structural class the law itself names and carrying it as a run-time check would have kept the
 // composition root inside a population it can never legally violate.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `registry-assembly-at-door-only` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the
+// conversion `4885cde80` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `68c8f42d6` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// citations resolve to this source. Over the SAME 7,263 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,313 and final `population` admits 1,308.
+// legacy − final = 5 — `packages/client/src/main.tsx` and the four `compose/` modules: the door, moved from the
+// visitor into the population. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";

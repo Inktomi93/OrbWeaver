@@ -23,12 +23,26 @@
 // moves to `lib/<family>.ts`), and the shape `contract-derives-not-respells-health` was already repaired
 // for. Recorded as what it is rather than restated as a `lib/` reader it is not: the move is code work,
 // outside a header lane, and a FAMILY line naming a `lib/` module here would be a citation to nowhere.
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "TODAY those are imported FROM THE SIBLING
+// GATE MODULE" is REFUTED by this module's own import list — the #2096 move LANDED, and the shared computation now
+// comes from `lib/ct-poll-schedule-and-paint.ts`, which the occurrence sibling imports too (`barrierNames`,
+// `isMotionPoll`, `isUntrustedTrigger` and `pollOptionsArg`). FAMILY reader: `lib/ct-poll-schedule-and-paint.ts`.
 // POPULATION PORT: BYTE-IDENTICAL, inherited — no legacy descriptor of its own, so the port is the
 // parent's: legacy `scanRoot: (p) => p.startsWith("tests/")` is exactly `@tests`, which this policy then
 // narrows to the one founding file.
 // Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
 // compiler-source candidate set: 2,928 (the parent's port) admitted on both sides, symmetric difference ZERO in both directions.
 // LEGACY SHA: (47c35b61c^) — the parent of the commit that split this policy out.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `ct-poll-schedule-and-paint` descriptor at bd56189bacbd0b4c79103fc10fe94d5499d9f3fd, the parent of the conversion
+// `47c35b61c`; this module did not exist there, so it is measured against the module it was carved from,
+// `ct-poll-schedule-and-paint` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
+// Over the SAME 7,360 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
+// legacy `scanRoot` admits 2,869 and final `population` admits 1. legacy − final = 2,868 `tests/**` sources other
+// than the founding file — the arm counted only `tests/client/lib/motion-stats.ct.tsx`. final − legacy = ∅. Controls:
+// inside `tests/client/lib/__cbbhr_in/motion-stats.ct.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

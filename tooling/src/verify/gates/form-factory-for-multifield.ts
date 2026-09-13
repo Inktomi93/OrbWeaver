@@ -50,6 +50,16 @@
 // `#forms/editor`. The bare `#forms` spelling is a stale old-path permission and MUST NOT be restored.
 //
 // LEGACY SHA: b849e7add (`git show b849e7add:tooling/src/verify/gates/form-factory-for-multifield.ts`).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `form-factory-for-multifield` descriptor at a4ed280d18da42e55be62960b8ce1aec1f76ff32, the parent of the conversion
+// `5f8347dca` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `b849e7add`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 620 and final `population` admits 620.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { JsxAttribute, Node as MorphNode, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GatePolicyReportSink } from "../contract/policy.ts";

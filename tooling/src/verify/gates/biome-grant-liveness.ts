@@ -133,6 +133,14 @@
 // running checkout is refused) so a frozen `existsSync` arm can never answer about this repository.
 //
 // COMMENT POSTURE: n/a — the scanned unit is STRICT JSON, which has no comment syntax.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `biome-grant-liveness` descriptor at c97de9d2faeebb319b6195017905c1ccd91a8de0, the parent of the conversion
+// `97e68be91` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the 7,495
+// harness candidates at that tree the legacy `scanRoot: () => false` admits 0 and the final
+// `population: { of: "none" }` admits 0, both by declaration: legacy − final = ∅, final − legacy = ∅. That equality
+// is VACUOUS BY CONSTRUCTION — neither side ever had a TypeScript subject — and the subject comparison is the
+// resource paragraph above (`json:biome` + `tracked-files` + `authored-text`); no inside control exists to plant.
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ConfigGrantCandidate, ConfigGrantRow } from "../lib/config-grant-rows.ts";

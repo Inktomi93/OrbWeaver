@@ -16,6 +16,17 @@
 // condition). The `fileLoaded`/`ctx.scope.kind` guard is now subsumed by population resolution itself: a
 // population resolving to zero admitted paths from a nonempty candidate set is a TOOL ERROR at
 // resolve-time (guide §2/§4), a LOUDER signal than the legacy silent no-op.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `public-route-body-cap` descriptor at d2d0f644c46ee75c2ac44d962d22d18a97a375fe, the parent of the conversion
+// `04e455f4d`; this module did not exist there, so it is measured against the module it was carved from,
+// `public-route-body-cap` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `86ce80b6c` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// citations resolve to this source. Over the SAME 7,455 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 17 and final `population` admits 17.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/server/src/entry/http/__cbbhr_in_auth-meta.ts`
+// (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { findEnclosingRouteArg, isBodyReadCall, isRawBodyPropertyAccess, routeMethod } from "../lib/http-route-body.ts";

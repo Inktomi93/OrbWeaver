@@ -41,6 +41,14 @@
 // `[0-9a-f]{7,40}` pattern with a "contains a digit AND a letter" filter — the filter that correctly
 // rejects `defaced` — DROPS `774231540`, which is all digits, so a census reads this header as carrying no
 // sha at all; and a census that found it would have counted a NON-PORT citation as satisfying the field.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `session-channel-boundary` descriptor at 01123330987d1f22a088bcf5a57ef280942d30e7, the parent of the conversion
+// `f1bbc34e7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,441 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 1,319 and final `population` admits 1,319. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { classifyBroadcastChannelConstruction, SESSION_CHANNEL_HOME } from "../lib/broadcast-channel-origin.ts";

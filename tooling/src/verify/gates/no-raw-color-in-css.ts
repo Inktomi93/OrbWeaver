@@ -40,6 +40,19 @@
 // DIFFERENT functions on one line stay separately waivable, and so do two hex values. The pre-existing
 // collision (the identical value twice on one line) is unchanged. The author's repair is to put the two
 // declarations on separate lines, which the alarm names.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-raw-color-in-css` descriptor at 5c55b1d9cf3f2330daf90519327ee72ea07d256d, the parent of the conversion
+// `b32797507` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,034 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
+// — no `scanRoot` — dispatched 7,034, and the final `population` admits 0; the subject is the declared
+// `authored-css`. legacy − final = all 7,034 harness candidates — dispatched to the legacy `run`, which read none of
+// them (its subject came off disk through `globSync("packages/{ui,client}/src/**/*.css")`); retired with that read.
+// final − legacy = ∅. Controls: the legacy side is non-empty and the final side is empty by declaration, so equality
+// cannot pass vacuously; outside `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { defineGate } from "../contract/policy.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";

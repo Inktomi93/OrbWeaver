@@ -15,6 +15,18 @@
 // THREE ANSWERS: two proven form-api calls in one body are the finding; a proven different receiver passes;
 // a call the checker cannot place counts as its op and carries the unreadable message (§5, #944) — the
 // fail-closed direction, because a body that MIGHT hold the retired flush is what this gate exists to catch.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-manual-autosave-flush` descriptor at 7ed48eca86ea8b82234cefa42dfc128e01874448, the parent of the conversion
+// `cf2ec7dc1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,197 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 1,000 and final `population` admits 1,000. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. `lib/type-member-origin.ts`, `lib/reference-fact.ts` and
+// `lib/origin-verdict.ts` are corpus-wide identity primitives; no sibling judges a structural array op beside
+// `handleSubmit`.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

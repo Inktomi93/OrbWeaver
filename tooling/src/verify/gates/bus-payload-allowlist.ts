@@ -66,6 +66,17 @@
 // array literal is refused rather than resolved; (4) a distributed template's indexed access into a NAMED
 // map contributes the field name and stops (`mustPass[6]`). Reversing (1) or (4) is the whole-graph-crawler
 // ruling #948 declined.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `bus-payload-allowlist` descriptor at c810fee0749e37333042645e1a061b257e289627, the parent of the conversion
+// `a196a35d7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 8 and final `population` admits 105.
+// legacy − final = ∅. final − legacy = 97 `@contracts` sources beyond the eight `BUS_FILES` — carrier files a finding
+// may now anchor in; the dispatch roots stay the eight. Controls: inside: no virtual sibling fits the exact-path
+// population, so the real shared member `packages/contracts/src/automation/index.ts` is the control, admitted by
+// both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { defineGate } from "../contract/policy.ts";
 import { busPayloadFact, smellToken } from "../lib/bus-payload-fact.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";

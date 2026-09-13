@@ -97,6 +97,17 @@
 // (`mustFlag[8]`). The third was measured UNENFORCED because every other fixture completes its grounds on
 // purpose, so nothing could ever reach it; the row makes exactly one ground unresolvable in an otherwise
 // clean corpus, and cutting `for (const miss of unresolved)` turns it green.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `seed-theme-ink-contrast` descriptor at a9745471429558128b7953bc59e52dc59ae62828, the parent of the conversion
+// `2dabae9ce` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `eba8ef526`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
+// filter — `INK_SOURCES = ["packages/ui/src/", "packages/client/src/"]`, `file.getFilePath().includes(`/${root}`)`.
+// Over the SAME 7,556 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it
+// admits 1,685 and the final `population` admits 1,685 (the bare harness dispatch was 7,556). legacy − final = ∅.
+// final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by
+// both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 
 import { NORMAL_MIN_RATIO } from "../../_shared/wcag.ts";
 import { THEME } from "../contract/css-family.ts";

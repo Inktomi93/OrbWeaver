@@ -50,6 +50,20 @@
 // `ChatBusEvent`'s producer coverage by name before this conversion retired it plus five siblings
 // (`automation-bus-coverage`, `bus-coverage-owner`, `domain-events-coverage`, `rpg-bus-coverage`,
 // `user-bus-coverage`) into this one roster-quantified policy.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `bus-coverage` descriptor at f287dc6dbb2dc4959a0bf4bd5698fea70fa03df8, the parent of `bus-coverage`'s own
+// conversion `83d6cf316` (at this module's birth `8f671bf27` that module was already final); the other five retired
+// descriptors are not replayed here (blob read from git with no working-tree plant: a `GateDescriptor`, no
+// `defineGate`). The legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter —
+// bus-coverage SPEC: contractsFile `/packages/contracts/src/chat/bus.ts`, emitScope
+// `/packages/server/src/(?:domain|transport|entry/compose)/`. Over the SAME 7,026 harness candidates at that tree
+// (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,220 and the final `population` admits 1,570
+// (the bare harness dispatch was 7,026). legacy − final = ∅. final − legacy = 350 — every other `@contracts` source
+// (103) and the `@server` tiers outside `domain|transport|entry/compose` (247): the emit-scope regex left the
+// population for the shared `busProducerFact` (the 5→1 consolidation above). Controls: inside: the real shared member
+// `packages/contracts/src/chat/bus.ts` admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import type { BusDeclarationIdentity, BusRecord } from "../contract/bus-fact.ts";
 import { recordReadyBusFact } from "../contract/bus-fact.ts";

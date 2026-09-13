@@ -42,6 +42,16 @@
 // files off disk and proves 0 effective / 2 waived / 0 alarms.
 //
 // Legacy descriptor: `4e1bdb87e` (`tooling/src/verify/gates/sub-floor-disclosure.ts`).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `sub-floor-disclosure` descriptor at e2b183b809625973be3060bdca51755317d42f3c, the parent of the conversion
+// `6563946a0` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `4e1bdb87e`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,450 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
+// (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { subFloorSizeLiteral } from "../lib/collapsible-size-vocabulary.ts";

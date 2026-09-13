@@ -41,6 +41,17 @@
 // marker grammar; zero live `@orb-gate-ignore tooling-ops-direct-invocation` markers at conversion (rg over
 // packages/, tests/, tooling/, scripts/), so no translation was owed. Behavioral twin:
 // `tests/tooling/_shared/entrypoint.int.test.ts` RUNS every ops module and asserts exit 2.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `tooling-ops-direct-invocation` descriptor at 01123330987d1f22a088bcf5a57ef280942d30e7, the parent of the
+// conversion `f1bbc34e7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `36bf5fa74` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// citations resolve to this source. Over the SAME 7,441 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 270 and final `population` admits 272.
+// legacy − final = ∅. final − legacy = {`tooling/src/_shared/entrypoint.ts`, `tooling/src/_shared/run-tool.ts`} — the
+// two vocabulary homes added so `ctx.files` carries them. Controls: inside
+// `tooling/src/agent-sync/ops/__cbbhr_in_render.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { SourceFile } from "ts-morph";
 import { moduleScopeCalls } from "../../_shared/ts-workspace.ts";
 import { defineGate } from "../contract/policy.ts";

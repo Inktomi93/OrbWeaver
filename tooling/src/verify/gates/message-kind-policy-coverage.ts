@@ -35,6 +35,25 @@
 // legacy walk could judge, and `@client` is HALF THE LEGACY READER SCOPE rather than a new third root. The
 // one legacy-visited file now outside the population is `packages/db/src/schema/index.ts`, the mode-B
 // REAL-TREE ANCHOR; it left with the mode-B arm, whose successor is the zero-member receipt above.
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "admits exactly the files the legacy walk
+// could judge" is REFUTED. In `@contracts` the legacy walk judged only the HOME. Measured over the harness candidates
+// at `307640dae^` against the legacy in-run scope (`READER_SCOPE_RE` plus HOME plus the anchor): legacy − final =
+// {`packages/db/src/schema/index.ts`}, the retired anchor, and final − legacy = 104 other `@contracts` sources,
+// admitted by the root and never judged.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `message-kind-policy-coverage` descriptor at ef18f3a14925c17dd34a43829a64b985901b4f5f, the parent of the conversion
+// `307640dae` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// descriptor had no `scanRoot`, so its effective population is its in-run path filter — readers:
+// `READER_SCOPE_RE = /(?:^|\/)packages\/(?:server|client)\/src\//`, plus HOME
+// `packages/contracts/src/chat/participants.ts` and the mode-B REAL_TREE_ANCHOR `packages/db/src/schema/index.ts`.
+// Over the SAME 7,144 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it
+// admits 2,784 and the final `population` admits 2,887 (the bare harness dispatch was 7,144). legacy − final =
+// {`packages/db/src/schema/index.ts`} — the mode-B real-tree anchor, retired with that arm. final − legacy = 104
+// `@contracts` sources other than the home — admitted by the `@contracts` root and never judged (the reader census
+// still asks only `@server`/`@client` files plus the home). Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/db/src/client/__cbbhr_out_index.ts` rejected by both.
 import type { InterfaceDeclaration, Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

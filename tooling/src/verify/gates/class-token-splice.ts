@@ -81,6 +81,16 @@
 // interpolation inside a class token; `no-hover-display-swap`, `scroll-container-positioned`,
 // `no-off-token-radius-shadow` and `ui-size-via-variant` all judge WHOLE authored tokens and none of them
 // looks at a seam.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `class-token-splice` descriptor at 2241d52b80eedf94a6de8c6cfa29027bfc7364eb, the parent of the conversion
+// `e8e4d85b7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `68c8f42d6`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,432 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
+// (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

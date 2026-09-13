@@ -19,6 +19,18 @@
 // the canonical SectionDefinition TYPE. A section declared outside its co-located home still owes distinct
 // copy — whether it is co-located at all is `section-registry-completeness`'s arm, not this one's, and
 // filtering by FILENAME here let an uncolocated section duplicate another's copy unseen.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `placeholder-copy-registry` descriptor at f5b222e10d2ffc5d8a364eaf0694e31fdc5b8823, the parent of the conversion
+// `577d03d63` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
+// `if (!SECTION_FILE_RE.test(sf.getFilePath())) continue` with lib/section-defs.ts SECTION_FILE_RE =
+// /\/features\/[^/]+\/lib\/[^/]+-section\.tsx?$/. Over the SAME 7,141 harness candidates at that tree (`git ls-tree`
+// ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 53 and the final `population` admits 1,302 (the bare harness
+// dispatch was 7,141). legacy − final = ∅. final − legacy = 1,249 `@client` sources outside `*-section.{ts,tsx}`
+// files — the recorded intentional widening from the filename fence to the canonical type. Controls: inside
+// `packages/client/src/features/app-shell/lib/__cbbhr_in_appearance-background-section.tsx` (virtual) admitted by
+// both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 import type { ObjectLiteralExpression } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";

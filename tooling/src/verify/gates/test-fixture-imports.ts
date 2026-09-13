@@ -27,6 +27,15 @@
 // POPULATION PORT: byte-identical, legacy at `ef2251957^`
 // (`scanRoot: (p) => p.includes("tests/") && !p.includes("tests/e2e/") && !p.includes("tests/support/") && !p.endsWith(".test-d.ts")`);
 // the final `TEST_POPULATION` is that expression, and each of its three exclusions now owns a mustPass row.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `test-fixture-imports` descriptor at e8d06378079aecba08a27a033ef707794f1e625c, the parent of the conversion
+// `ef2251957` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `519242add`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,186 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 2,627 and final `population` admits 2,627.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual)
+// admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { FixtureDoor } from "../contract/test-runner-door.ts";

@@ -121,6 +121,16 @@
 // disposition is the fix rather than a grant: `tests/client/data/trpc.test.ts` now pins the three wire
 // behaviours a node lane can reach, and the file is judged by clause A like every other direct child. No
 // path key was carried forward.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `test-presence-client` descriptor at 6b1d01be054c113c68595540f3a6a28c9f7d1744, the parent of the conversion
+// `aecbc6c6c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// descriptor had no `scanRoot`, so its effective population is its in-run path filter —
+// `CLIENT_SRC = "/packages/client/src/"`, `UI_SRC = "/packages/ui/src/"`, `sf.getBaseName() === "index.ts"` skipped.
+// Over the SAME 7,487 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it
+// admits 1,555 and the final `population` admits 1,555 (the bare harness dispatch was 7,487). legacy − final = ∅.
+// final − legacy = ∅. Controls: inside `packages/client/src/agent-nav/__cbbhr_in_panel-request.ts` (virtual) admitted
+// by both; outside `packages/client/src/agent-handles/__cbbhr_out/index.ts` rejected by both.
 import { dirname } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";

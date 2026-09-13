@@ -16,6 +16,19 @@
 // (`scanRoot: (p) => !(p.includes(".test.") || p.startsWith("tests/"))` over the whole harness corpus); the
 // final `PRODUCTION_POPULATION` is that expression, and each of its two exclusion clauses owns its own
 // mustPass row rather than sharing one.
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "byte-identical" is REFUTED. Measured over
+// the harness candidates at `e5a7a8a8c^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, which the
+// legacy complement admitted and `@authored` does not (#1980), and final − legacy = ∅ — a one-file narrowing.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-await-db-in-loop` descriptor at 509671ae2e013b6d07fe6f7e9e744e0d7cbac946, the parent of the conversion
+// `e5a7a8a8c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,183 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 4,404 and final `population` admits 4,403. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
+// one source of an authored package outside the declared composite roots (`@showcase` is not in
+// `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `tests/client/a11y/__cbbhr_out__ct-stories.tsx` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyNodeFindingDetails } from "../contract/policy.ts";

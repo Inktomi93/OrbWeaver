@@ -21,6 +21,26 @@
 // drop `under: ["packages/server/src/domain/**"]` and they are the rows that die (measured 2026-09-12).
 // The only deltas are tool errors: a fixture holding nothing but a type HOME admits zero paths, which the
 // final runtime reports rather than scanning silently. No catch changed.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-inline-types` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the conversion `4885cde80`;
+// this module did not exist there, so it is measured against the module it was carved from, `no-inline-types` (blob
+// read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,263 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,263
+// and final `population` admits 971. legacy − final = 6,292 — every harness source outside
+// `packages/server/src/domain/**` minus `contract/` dirs and `contract.ts`/test names: the legacy `scanRoot` was
+// `() => true` and the interface arm returned early off `isDomainFeature`. final − legacy = ∅. Controls: inside
+// `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
+// `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+//
+// FAMILY `no-inline-types` — a two-member SPLIT family (split by POPULATION), and the string is NOT backed by a
+// shared `lib/` dependency: measured, this module imports nothing from `lib/`, and `no-inline-types` imports only
+// corpus-wide primitives (`lib/reference-fact.ts`). §2 requires a shared canonical dependency for a multi-member
+// family, so this is the `policy-family-readers` finding shape (#2187), recorded here rather than dressed as a
+// reader.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 

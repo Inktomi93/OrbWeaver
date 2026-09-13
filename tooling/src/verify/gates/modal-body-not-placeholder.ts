@@ -17,6 +17,15 @@
 // THE REPORTED POSITION is the definition's DECLARED NAME (`themeModal`), supplied by `definitionAnchor` —
 // never derived, because the runtime's deriver would return the `export` keyword and every finding in the
 // family would then share one position (that module's own header states why). `fix` states the spelling.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `modal-body-not-placeholder` descriptor at f5b222e10d2ffc5d8a364eaf0694e31fdc5b8823, the parent of the conversion
+// `577d03d63` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,141 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 11 and final `population` admits 1,302. legacy − final = ∅. final − legacy = 1,291 `@client` sources outside
+// `*-modal.{ts,tsx}` files — the subject is now the canonical `ModalDefinition` type from the shared registry fact,
+// not a filename. Controls: inside `packages/client/src/features/app-shell/lib/__cbbhr_in_you-modal.tsx` (virtual)
+// admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

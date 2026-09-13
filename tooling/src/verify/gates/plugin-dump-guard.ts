@@ -24,6 +24,18 @@
 // The ordering/dominance analysis is unchanged: the guard must precede the dump statement in the same
 // helper body, must be negated, must judge the SAME context and handle, and every unsafe path through its
 // consequent must terminate.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `plugin-dump-guard` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the conversion
+// `4885cde80` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,263 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 9 and final `population` admits 9. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/server/src/infra/plugin-host/__cbbhr_in_budgets.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. `lib/reference-fact-call.ts#resolveCallableDeclaration`,
+// `lib/reference-fact.ts` and `lib/type-member-origin.ts` are corpus-wide primitives; no sibling judges the QuickJS
+// dump guard.
 import type { CallExpression, FunctionDeclaration, Node as MorphNode, SourceFile, Statement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

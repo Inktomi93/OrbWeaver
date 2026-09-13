@@ -19,6 +19,13 @@
 // singleton with its reason) do not cover a split, which §3's plane table sanctions as its own shape; what
 // creates it is §12.1's one-authority-one-severity-per-policy rule meeting two different populations. The
 // family STRING is what keeps the two visible as one law, and it is correct on both modules.
+// §2 REPAIR CANDIDATE (lane cb-b-header-residue, 2026-09-13; verifier cb-v-header-residue L1/L4), the text above
+// kept: measured, the two members share NO production dependency in `lib/` — `no-mutating-register-api` imports
+// nothing from `lib/`. Standardization §2 now reads "Each multi-member policy shares a canonical declaration with at
+// least one sibling" and "A singleton names why no meaningful shared dependency exists", so the "split family"
+// sanction cited here does not satisfy it. This is a family-classification repair candidate under the ledger's
+// existing owning rows (`registry-assembly-at-door-only` w5, #2005; the split-family census reading, #2187),
+// preserving §2; the family string is code and is not changed by this header note.
 // POPULATION PORT: `@client`, whole — deliberately WITHOUT the sibling's `main.tsx`/`compose/` subtraction,
 // which is the entire reason for the split above (mustFlag[3] is that site). The `@client` root is itself a
 // narrowing and is pinned by the `@server` mustPass row, which is the only row that dies without it.
@@ -35,6 +42,16 @@
 // CONSTRUCTED and measured against the frozen legacy descriptor, which judged them through its all-client
 // `scanRoot`. Narrow this population to the sibling's door-subtracting one and they are the rows that die
 // (measured 2026-09-12). Populations equal; no finding and no tool-error delta on this arm.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `registry-assembly-at-door-only` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the
+// conversion `4885cde80`; this module did not exist there, so it is measured against the module it was carved from,
+// `registry-assembly-at-door-only` (blob read from git with no working-tree plant: a `GateDescriptor`, no
+// `defineGate`). Over the SAME 7,263 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,313 and final `population` admits 1,313.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
+// (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
+// both.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

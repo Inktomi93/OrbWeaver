@@ -31,6 +31,22 @@
 //
 // CATCH DELTA: none. The condition, the exempted name and the two-sidedness are identical; only the anchor
 // and the guard mechanism moved, and both are stated above.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `surface-in-a-container` descriptor at fc5cad14c0f060ce35d257d96955d778e756d605, the parent of the conversion
+// `ff07e1302`; this module did not exist there, so it is measured against the module it was carved from,
+// `surface-in-a-container` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `854c81c80` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// citations resolve to this source. Over the SAME 7,458 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,458, and the final
+// `population` admits 0; the subject is the declared `client-feature` tree + `package-metadata:client`.
+// legacy − final = all 7,458 harness candidates — dispatched to the legacy `run`, which read none of them (its
+// subject came off disk through the parent's `SHELL_EXEMPT` directory check guarded by `ANCHOR_FEATURE`); retired
+// with that read. final − legacy = ∅. Controls: the legacy side is non-empty and the final side is empty by
+// declaration, so equality cannot pass vacuously; outside `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { defineGate } from "../contract/policy.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";

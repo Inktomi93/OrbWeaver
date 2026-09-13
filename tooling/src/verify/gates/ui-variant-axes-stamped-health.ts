@@ -28,6 +28,18 @@
 // construction and the census measured ZERO live markers for this id.
 //
 // Legacy descriptor: `da01f7eb9` (`tooling/src/verify/gates/ui-variant-axes-stamped.ts`, arm A5).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `ui-variant-axes-stamped` descriptor at ccd404f6feb0cdb84adce3d978522f138baadaab, the parent of the conversion
+// `aebf416fc`; this module did not exist there, so it is measured against the module it was carved from,
+// `ui-variant-axes-stamped` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `da01f7eb9` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// citations resolve to this source. Over the SAME 7,461 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 1.
+// legacy − final = 365 `@ui` sources other than `lib/variant-attrs.ts` — the axis home is this arm's whole
+// population. final − legacy = ∅. Controls: inside: no virtual sibling fits the exact-path population, so the real
+// shared member `packages/ui/src/lib/variant-attrs.ts` is the control, admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { defineGate } from "../contract/policy.ts";
 import { AXIS_HOME_REL, AXIS_TUPLE_NAME, readStampedAxes, STAMP_DOOR, stampDoorPresent } from "../lib/variant-axis-stamp.ts";
 

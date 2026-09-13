@@ -79,6 +79,12 @@
 // which is the capability the refusal turns on (`mustPass[1]` pins that a comment mention is not a
 // consumer); a census spelling used for an unrelated purpose inside `under` reports as a NEW consumer, and
 // that polarity is correct for a snapshot tripwire — the finding says re-derive, not convert.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). NONE:
+// this module was BORN FINAL at `03dd7329e` —
+// `git cat-file -e 03dd7329e^:tooling/src/verify/gates/conversion-refusal-liveness.ts` fails at its parent
+// `8c7ca5e9f`, and no legacy descriptor was carved into it — so there is no legacy population to compare, no set
+// difference, and no legacy SHA to record.
 
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";

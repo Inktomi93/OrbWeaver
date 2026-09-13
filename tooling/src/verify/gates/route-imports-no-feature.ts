@@ -13,6 +13,21 @@
 // The split follows the design's own `tooling-front-door` ruling — an ordinary import-boundary policy plus
 // a reviewed grant policy — because a descriptor carries exactly one authority. The definition arms of the
 // same doc row live in `section-registry-completeness`.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `section-registry-completeness` descriptor at e18bce01edaa15a30220d7a34c96a2c5228a1646, the parent of the
+// conversion `dd862e988`; this module did not exist there, so it is measured against the module it was carved from,
+// `section-registry-completeness` (blob read from git with no working-tree plant: a `GateDescriptor`, no
+// `defineGate`). The legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter —
+// parent run: `if (!path.includes(CLIENT_SRC)) continue`. Over the SAME 7,143 harness candidates at that tree
+// (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,302 and the final `population` admits 1,302
+// (the bare harness dispatch was 7,143). legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. It imports nothing from `lib/`; it was split from
+// `section-registry-completeness` by AUTHORITY, and the two share no production dependency, so they are not one
+// family.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

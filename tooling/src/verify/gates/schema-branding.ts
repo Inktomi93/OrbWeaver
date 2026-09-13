@@ -9,6 +9,16 @@
 // (`/packages/db/src/schema/`), so it loaded the whole harness project to judge one directory. The final
 // declares the PROVIDER'S OWN `DRIZZLE_SCHEMA_POPULATION`, whose admitted set is that same directory —
 // recorded once at that constant in `lib/schema-fact.ts`, with its one-path delta and positive control.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `schema-branding` descriptor at fa56128359a0a5e107d1dde042dfe5c95001ec2f, the parent of the conversion `32b66931e`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy descriptor had no
+// `scanRoot`, so its effective population is its in-run path filter — collectColumns:
+// `if (!path.includes(SCHEMA_DIR)) continue` with SCHEMA_DIR = "/packages/db/src/schema/". Over the SAME 7,130
+// harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 30 and the final
+// `population` admits 30 (the bare harness dispatch was 7,130). legacy − final = ∅. final − legacy = ∅. Controls:
+// inside `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumn, SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";

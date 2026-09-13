@@ -26,6 +26,18 @@
 // the census measured ZERO live markers for this id.
 //
 // Legacy descriptor: `9e2eca320` (`tooling/src/verify/gates/testid-liveness.ts`, arm A3).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `testid-liveness` descriptor at ccd404f6feb0cdb84adce3d978522f138baadaab, the parent of the conversion `aebf416fc`;
+// this module did not exist there, so it is measured against the module it was carved from, `testid-liveness` (blob
+// read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `9e2eca320` cited above is an
+// ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this source.
+// Over the SAME 7,461 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
+// legacy `scanRoot` admits 6,297 and final `population` admits 1. legacy − final = 6,296 `packages/*/src` +
+// `tests/**` sources other than `lib/test-ids.ts` — the shared liveness `scanRoot` this arm rode. final − legacy = ∅.
+// Controls: inside: no virtual sibling fits the exact-path population, so the real shared member
+// `packages/client/src/lib/test-ids.ts` is the control, admitted by both; outside
+// `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { TESTID_REGISTRY_CONST, TESTID_REGISTRY_HOME, testIdRegistryRow } from "../lib/testid-registry.ts";

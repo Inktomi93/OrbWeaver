@@ -17,6 +17,10 @@
 // (`p.includes("packages/") && p.includes("/src/")`) — the same six `packages/*/src/` roots.
 // `packages/showcase-plugins/` has no `src/` and was outside both. `tests/**` stays outside (its own
 // mustPass row): a pin PROVING this defect must seed the broken row by hand.
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "a byte-identical port" and
+// "`packages/showcase-plugins/` has no `src/` and was outside both" are REFUTED. At the conversion parent
+// `5c17068b7^` `packages/showcase-plugins/src/index.ts` exists and the legacy predicate admits it: legacy − final =
+// that one file, final − legacy = ∅ — the one-package narrowing the POPULATION PORT paragraph below records.
 //
 // PORT CORRECTIONS, each deliberate:
 //   · IDENTITY replaces the two corpus-derivation nets. Legacy derived an alias set and a builder-name set
@@ -52,6 +56,16 @@
 // LEGACY SHA `5c17068b7^`, by the three-question test: `git log -S 'defineGate({' --reverse -- <this file>`
 // gives `5c17068b7`, the cited sha is its parent by construction, and the blob there has `defineGate`
 // count 0.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `freeze-provenance-write-pairing` descriptor at ef334c050af962f304d72e0295f7d15d3a5aacd4, the parent of the
+// conversion `5c17068b7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,388 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 3,387 and final `population` admits 3,386. legacy − final =
+// {`packages/showcase-plugins/src/index.ts`} — the one source of an authored package outside the declared composite
+// roots (`@showcase` is not in `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING.
+// final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by
+// both; outside `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

@@ -84,6 +84,18 @@
 // is unreachable from a proof ROW (the paragraph above), so the row that holds it is a `runPolicyPass` pin in
 // the family test. Every other arm the module owns is carried by a row whose count the §4.1 cut moves
 // (t01 findingFile → 2 rows die; t03 the diagnostic-code token → 2 rows die).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13).
+// HAND-DERIVED: the scratch replay cannot import this legacy module (its import-time reads resolve against the
+// archive root and throw), so the sets were derived by reading the blob. Legacy `tokens-contract` descriptor at
+// 17a59099b73a500463ed1460ea30d5602fb045e2, the parent of the conversion `a97454714` (blob read with `git show`: no
+// `scanRoot`, `fsBacked: true`, no `defineGate`); the `eba8ef526` cited above is an ancestor carrying a
+// byte-identical blob (`git rev-parse` of both). With no `scanRoot` the legacy harness dispatched all 7,555 harness
+// candidates at that tree and its `run` read none of them — its subject came from `readFileSync` of the seven
+// canonical documents plus `git merge-base`/`git show`; the final `population` is `{ of: "none" }` and the subject is
+// the declared `token-contract` resource. legacy − final = all 7,555 dispatched-and-unread candidates, retired with
+// that read. final − legacy = ∅. Controls: equality cannot pass vacuously — the legacy side is non-empty and the
+// final side is empty by declaration, and the resource subject has its own refusal pins.
 import type { TokenContractTexts } from "@orb/ui/token-contract";
 import { readTokenContractTexts, validateTokenContractTexts } from "@orb/ui/token-contract";
 import { defineGate } from "../contract/policy.ts";

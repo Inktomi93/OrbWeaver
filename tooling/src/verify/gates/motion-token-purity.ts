@@ -45,6 +45,21 @@
 // THROW during the POPULATION phase, and the receipt phase withholds every consumer, both before
 // `create`/`evaluate` run (guide §3's acquisition-refusal rule). This module owns no not-ready branch: it reads the CSS
 // inventory through `readyResourceValue`, whose throw asserts the runtime's own refusal already held.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `motion-token-purity` descriptor at 89851ec5eae1f7d6f17384fe48946087c73a7308, the parent of the conversion
+// `a0807ce47` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `a4206c511`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,435 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,435, and the final
+// `population` admits 0; the subject is the declared `authored-css`. legacy − final = all 7,435 harness candidates —
+// dispatched to the legacy `run`, which read none of them (its subject came off disk through
+// `globSync("packages/{ui,client}/src/**/*.css")`); retired with that read. final − legacy = ∅. Controls: the legacy
+// side is non-empty and the final side is empty by declaration, so equality cannot pass vacuously; outside
+// `docs/__cbbhr_out_control.ts` rejected by both.
+// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
+// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
+// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 import { defineGate } from "../contract/policy.ts";
 import type { CssDeclarationFact } from "../contract/resource-css.ts";
 import type { AuthoredCssFile } from "../contract/resource-tree.ts";

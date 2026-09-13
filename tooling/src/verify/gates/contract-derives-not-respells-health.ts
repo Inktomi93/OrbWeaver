@@ -25,6 +25,17 @@
 // `@db` beyond the two legacy subdirectories). The widening is what the `@db`/`@server` roots buy; the
 // narrowing drops a package no arm of this family reads.
 // LEGACY SHA: (bd56189ba^) — the parent of the commit that split this policy out.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `contract-derives-not-respells` descriptor at 534c1327f682be2578e1dee7c7a2bfa488fb672a, the parent of the
+// conversion `bd56189ba`; this module did not exist there, so it is measured against the module it was carved from,
+// `contract-derives-not-respells` (blob read from git with no working-tree plant: a `GateDescriptor`, no
+// `defineGate`). Over the SAME 7,358 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,283 and final `population` admits 1,535.
+// legacy − final = 105 `packages/contracts/src/**` — the tripwire's table rows are domain-contract shapes, never
+// contracts files. final − legacy = 357 — `@server` outside `domain/` (345) and `@db` outside `schema/` (12).
+// Controls: inside `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { defineGate } from "../contract/policy.ts";
 import { ALLOWLIST, DOMAIN_CONTRACT_RE, handWrittenShapes, matchedTable, tableNames } from "../lib/contract-derives-not-respells.ts";
 

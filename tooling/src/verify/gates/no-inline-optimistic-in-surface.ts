@@ -9,6 +9,20 @@
 //
 // THREE ANSWERS: the query-core method is the finding; a proven different member passes; a member the
 // checker cannot place is REPORTED as unreadable (GATE-AUTHORING §5, #944).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-inline-optimistic-in-surface` descriptor at 7ed48eca86ea8b82234cefa42dfc128e01874448, the parent of the
+// conversion `cf2ec7dc1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,197 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 66 and final `population` admits 66. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/features/app-shell/surfaces/__cbbhr_in_app-shell.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY `tanstack-query-origin` — the shared `lib/` reader reached from `create` is
+// `lib/project-home-origin.ts#classifyPackageMemberOrigin`, the package-member identity call
+// `client-cache-surgery-only-in-data` and `no-inline-invalidate-outside-seam` also make;
+// `no-multiplexed-mutation-error` and `no-static-staletime` join the family through
+// `lib/type-member-origin.ts#declaredByPackage`.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

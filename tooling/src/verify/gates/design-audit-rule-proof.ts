@@ -47,6 +47,16 @@
 // (`lib/reference-fact-writes.ts` READ_ONLY_MEMBERS, both directions pinned in
 // `tests/tooling/verify/lib/static-authored-value.test.ts`). Every fixture below resolved through the
 // refusal because none of them declared a consumer beside the array — which is why `mustPass[3]` now does.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `design-audit-rule-proof` descriptor at c19da53c3baa600b50c3a569830b77d2037b45fb, the parent of the conversion
+// `ac0085c91` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `250c9eb60`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. Over the SAME 7,476 harness candidates at that tree (`git ls-tree` ∩
+// `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 43 and final `population` admits 43.
+// legacy − final = ∅. final − legacy = ∅. Controls: inside: no virtual sibling fits the exact-path population, so the
+// real shared member `tests/tooling/design-audit-walker.ct.tsx` is the control, admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

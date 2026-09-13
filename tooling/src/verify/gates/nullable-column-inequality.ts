@@ -14,6 +14,16 @@
 // The legacy `nullable-column-inequality` descriptor is 521780ac67160db90e8ff0a0bab4fad850443c6c, the
 // PARENT of this module's own conversion commit `66d28b127` (verified 2026-09-12 to hold a
 // `GateDescriptor` carrying the `scanRoot` quoted at that population constant).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `nullable-column-inequality` descriptor at 521780ac67160db90e8ff0a0bab4fad850443c6c, the parent of the conversion
+// `66d28b127` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,141 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 6,114 and final `population` admits 6,113. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
+// one source of an authored package outside the declared composite roots (`@showcase` is not in
+// `@authored`/`@packages`, #1980, `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls:
+// inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
+// `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

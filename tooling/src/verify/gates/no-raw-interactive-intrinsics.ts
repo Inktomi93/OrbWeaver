@@ -22,6 +22,18 @@
 // policy resolves nothing and says so rather than performing a resolution that could only ever agree.
 //
 // DECLARED NARROWING (its own mustPass rows): an `<a>` with no `href` is an anchor TARGET, not a control.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `no-raw-interactive-intrinsics` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the
+// conversion `4885cde80` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// the SAME 7,263 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
+// `scanRoot` admits 620 and final `population` admits 620. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+//
+// FAMILY: a declared SINGLETON under its own id. Its one `lib/` call is the reviewed-grant sink
+// `lib/reviewed-grant-findings.ts#reportReviewedGrantCandidates`, a primitive every reviewed-grant policy uses; the
+// subject is a JSX intrinsic spelling and no sibling judges it.
 import type { JsxOpeningElement, JsxSelfClosingElement, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

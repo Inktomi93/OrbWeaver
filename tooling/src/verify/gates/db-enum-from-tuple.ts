@@ -23,6 +23,14 @@
 // fail-closed arm is not a count away from the ordinary one, so every row reaching it pins
 // `messageIncludes: "CANNOT be established"` (guide §6.1's fail-closed third-answer rule); `MESSAGE` and
 // `UNREADABLE` are deliberately DISJOINT strings so that fragment can discriminate at all.
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `db-enum-from-tuple` descriptor at 1bf7ff7d9f5b9320217a3abf6dfedc08bf10db3a, the parent of the conversion
+// `521780ac6` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// 7,141 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
+// admits 30 and final `population` admits 30. legacy − final = ∅. final − legacy = ∅. Controls: inside
+// `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
+// `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

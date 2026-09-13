@@ -76,6 +76,20 @@
 // DECLARED LIMITS: the CT-boot text arm above, pinned by `mustFlag[0]` and the clean `mustPass[1]`. Its
 // COMMENT-BLANKING narrowing — a commented-out import is not an import — is `mustPass[2]` (#2294; measured
 // unenforced by cut p12 before that row existed, and the row dies under it).
+//
+// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
+// `playwright-css-topology` descriptor at 865e7050cae7e489f86ac7177621c4e6dc03ebb7, the parent of the conversion
+// `17a59099b` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `eba8ef526`
+// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
+// resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
+// filter — directCtCssImports: `ctx.files` filtered
+// `rel !== CT_BOOT && (rel.startsWith("playwright/") || rel.startsWith("tests/"))`. Over the SAME 7,554 harness
+// candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 2,940 and the final
+// `population` admits 4,259 (the bare harness dispatch was 7,554). legacy − final = ∅. final − legacy = 1,319
+// `@client` sources — the compiler half now reads the three production anchors' ImportDeclarations through
+// `ctx.files`, where the legacy read `MAIN`/`APP_SHELL`/`CSS_ENTRY` off disk. Controls: inside
+// `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside
+// `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
 import { posix } from "node:path";
 import type { SourceFile } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
