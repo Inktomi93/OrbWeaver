@@ -176,10 +176,18 @@ export function rowProblems(root: string, row: RatchetRow): readonly string[] {
   return problems;
 }
 
+/** The repo-relative PATH inside one cite token: a `§`/`#` suffix is prose (see the header's declared limit)
+ *  and is stripped here, at the ONE place that knows the token's grammar. `citeResolves` asks whether that
+ *  path exists; a consumer that needs the path ITSELF — `duplicate-action-doors` matches a ruled DOOR set
+ *  against its live census — reads it through this door rather than re-spelling the strip. */
+export function citePath(cite: string): string {
+  return (cite.split("#")[0] ?? cite).split("§")[0]?.trim() ?? "";
+}
+
 /** Does one cite token name something that still exists? A cite is a repo-relative PATH; a `§`/`#` suffix is
  *  prose and is stripped before the check (see the header's declared limit). */
 export function citeResolves(root: string, cite: string): boolean {
-  const path = (cite.split("#")[0] ?? cite).split("§")[0]?.trim() ?? "";
+  const path = citePath(cite);
   if (path === "" || isAbsolute(path)) {
     return false;
   }
