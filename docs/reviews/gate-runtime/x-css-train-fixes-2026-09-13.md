@@ -241,3 +241,290 @@ the malformed-vault row came back RED (a live defect the fix closes), the `empty
 GREEN (a real gap, nothing broken). Reporting the second as a fixed defect, or the first as merely a missing
 pin, both misprice the row. Index line:
 `[red-first separates a gap from a defect](red-first-tells-a-gap-from-a-catch-regression.md) — write the new row against the old source before you fix anything`.
+
+## LEG 2 — the fold's NARROWING, found by primary's source review (`53d3d74ec`)
+
+One commit on top of `75b99ea89`, no rebase (a live integration review owns the branch).
+
+**The finding held.** `e8593887a` kept only declarations whose IMMEDIATE owner is the `@theme` at-rule or a
+seed selector list, and the shared reader assigns a nested declaration to its INNER block, so a `--color-*`
+one level down vanished from the palette. My leg-1 parity twin ran over the live `theme.css`, whose only
+conditional is a TOP-LEVEL `@media` at `:224` — it never exercised the changed path. **A parity receipt
+over a subject that does not reach the changed code is not a measurement of the change**, and the header's
+"three deltas, all widening" was false on exactly that gap.
+
+### Red-first delta table (frozen `e8593887a^` reader vs the folded one, same fixture bytes)
+
+| case | LEGACY | NEW at `75b99ea89` | NEW at `53d3d74ec` |
+| - | - | - | - |
+| (a) `@supports` inside `@theme` | `hearth{x,y}` | `hearth{x}` — **`--color-y` LOST** | `hearth{x}` + `hearth @ @supports (color: oklch(0 0 0)){x,y}` |
+| (b) `@media` inside `[data-theme=dusk]` | `dusk{x,z}` | `dusk{x}` — **`--color-z` LOST** | `dusk{x}` + `dusk @ @media (prefers-contrast: more){x,z}`, scheme `light` |
+| (c) `& .x` inside `[data-theme=dusk]` | `dusk{x,w}` | `dusk{x}` | `dusk{x}` — excluded ON PURPOSE |
+| control (flat seed override) | `dusk{x=0.9}` | identical | identical |
+
+Real-sheet parity re-run after the repair: `palettes=3 hearth/dark/81 light/light/81 mocha/dark/81`,
+`IDENTICAL_TO_OLD_PARSER=true` — the shipped sheet exercises none of the four deltas, which is now stated
+in the header instead of being offered as the whole receipt.
+
+### Adjudication, per case
+
+- **(a) + (b) a conditional at-rule is an ARM of its palette**, `<palette> @ <prelude>`, built as the
+  palette OVERRIDDEN — so BOTH the unconditional and the conditional value are judged. Legacy's last-wins
+  merge is NOT restored: it replaced the unconditional value and hid the base arm, which is the opposite
+  blindness. An arm INHERITS its palette's polarity unless the block declares its own `color-scheme`
+  (case (b)'s arm is `light`; taking the base default there would collapse every `light-dark()` to the
+  wrong side — measured, and the reason `SeedDraft.scheme` is now optional), and it composes the RAW maps
+  so the collapse happens ONCE under the arm's own scheme.
+- **(c) a nested PLAIN SELECTOR is NOT the palette.** Its subject is a descendant element, so a
+  `text-<token>` resting on the seed never resolves against it. Legacy counted it — a defect of the
+  balanced-body read, not a capability. The pin asserts the ABSENCE, so the exclusion is a claim.
+
+### The capability, and a REFUSAL with its receipt
+
+**Half of the ancestry already existed and I did not re-invent it:** `lib/css-rules.ts:280`
+`atRulesContaining` is the shared at-rule ancestry reader, and two gates already ask ancestry through it
+(`motion-token-purity.ts:167`, `rest-transform-grid.ts:286`, both with header prose saying `owner` cannot
+answer). What did NOT exist is the STYLE-RULE half: `CssRule` published `braceStart` and no `end`, so
+"which selector encloses this offset" was unanswerable by ANY consumer. Landed on the resource, additively:
+`CssRule.end` (the parser already knew it at `closeFrame`) + `rulesContaining()` beside its twin.
+`CssDeclarationFact`'s shape is UNTOUCHED, so the three other fact consumers are unchanged — checked with
+`pnpm ast refs CssDeclarationFact` (17 hits / 6 files) and `refs CssRule` (11 hits / 3 files; `toRule` is
+the only constructor in source, and the one hand-built literal is the test below).
+
+### A pre-existing RED the control found
+
+`tests/tooling/verify/ops/resource-tree.test.ts`'s whole-object `toEqual` never learned the `statements`
+key that `17a59099b` (#2183) added to every `AuthoredCssFile`. **That suite has been failing on main since
+that commit**, invisible because `tests/tooling/**` is `--full`-only. Proven, not assumed: both files
+restored to HEAD (`cp` + `git show`, restored by `mv`, `git status` verified) and re-run — still red,
+`+ "statements": []`. Both missing keys land in this commit.
+
+### Floor (scoped only; a whole-tree structure baseline is live on main)
+
+| Check | Result |
+| - | - |
+| `verifyPolicyProofs` ×3 (seed · playwright-css-topology · sanctioned-css-homes) | `FAILURES=0` each |
+| `pnpm test:scoped` seed-family · css-rules · resource-tree · css-home-topology-family · token-contract-family · motion-token-purity · integer-line-boxes · over-art-plate-arm | **8 files, 52/52, exit 0** |
+| bounded `runPolicyPass(seed-theme-ink-contrast)` on the real tree (3,388 files) | `toolErrors=[] withheld=[] effective=0 granted=9`; receipts `[ink×ground×seed pairs=5856] members:3` + `css-inventory:product 3035/0` — identical to the pre-leg `check:structure --check` receipt. (The harness drives ONE policy against the WHOLE waiver table, so its `ordinary-waiver` alarms are unknown-policy noise by construction, not a verdict; `check:structure` reported `0 alarm(s)` for this policy at leg 1.) |
+| `pnpm exec biome check` + `pnpm exec eslint`, 7 touched code/test files | exit 0 |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | exit 0 |
+| `doc-catalog format --check` on the roster | RED — pre-existing whole-file drift, controlled in §3: the file reads "not formatted" restored to HEAD too |
+| `tests/tooling/check-gates.repo.int.test.ts` | **REFUSED, with receipt.** It is one of the four `__g_` PLANTERS, and `gate-runtime-read-first.md` §4 makes a planting suite and a `check:structure` on main mutually exclusive in BOTH directions — the brief's own premise is that a whole-tree baseline is running. Running it would void that baseline. My change to it is a COMMENT. |
+
+### LEDGER ROWS (2 rows)
+
+| module | wave · `path:line` | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| `seed-theme-ink-contrast` | x-css-train-fixes leg 2 · `tooling/src/verify/lib/seed-theme-ink.ts:110` (at `75b99ea89`) | The fold onto the shared declaration facts read only each declaration's IMMEDIATE owner, so a `--color-*` nested one level inside `@theme` or inside a `[data-theme]` seed left the palette — a NARROWING the module header denied ("three deltas, all in the widening direction"). Invisible to the real-sheet parity twin because the shipped `theme.css` has no such nesting | §4.6 catch-regression · false header claim | **CLOSED (`53d3d74ec`)** | frozen `e8593887a^` reader vs the folded one on the same bytes: case (a) lost `--color-y`, case (b) lost `--color-z`. Repaired via `CssRule.end` + `rulesContaining()` on the shared reader; four cases pinned in `seed-theme-ink-family.test.ts`, reader pinned both directions in `css-rules.test.ts` |
+| `tests/tooling/verify/ops/resource-tree.test.ts` | x-css-train-fixes leg 2 · `tests/tooling/verify/ops/resource-tree.test.ts:112` | Its whole-object `toEqual` over an `AuthoredCssFile` never learned the `statements` key `17a59099b` added, so the suite has been RED on main since #2183 — unobservable because `tests/tooling/**` is `--full`-only | stale coupled literal · silent suite red | **CLOSED (`53d3d74ec`)** | both files restored to HEAD and re-run: still `1 failed \| 4 passed`, `+ "statements": []`. Not caused by this lane; found by its control |
+
+`ledger rows OWED: 2`
+
+### Proposed lesson (report text — the orchestrator owns the memory write)
+
+**A PARITY RECEIPT IS ONLY AS GOOD AS THE SUBJECT'S COVERAGE OF THE CHANGED PATH.** The leg-1 fold shipped
+with a byte-identical palette comparison over the real `theme.css` and a header claiming every delta
+widened; the real sheet has no nested conditional, so the twin could not reach the narrowing at all and the
+claim was false the day it was written. When a fold replaces a reader, the parity subject must be chosen to
+EXERCISE the difference — enumerate the input shapes the old reader accepted (here: nesting, missing
+semicolons, repeated blocks) and build a fixture per shape, THEN run the real corpus as a regression check
+rather than as the proof. Index line:
+`[parity needs a subject that reaches the change](parity-receipt-needs-a-covering-subject.md) — a byte-identical real-corpus diff proves nothing about a path the corpus never takes`.
+
+## LEG 3 — the subject rule, and the half-built exclusion (`4552bdf24`)
+
+One commit on top of `53d3d74ec`, no rebase. The independent review of leg 2 held: the descendant
+exclusion was built for the NESTED spelling only, because `rootName` ran the unanchored `SEED_SELECTOR`
+over the whole `selectorList` rather than over what the rule STYLES.
+
+### Red-first shape matrix (live reader, before → after)
+
+| shape | BEFORE (`53d3d74ec`) | AFTER (`4552bdf24`) | verdict |
+| - | - | - | - |
+| `[data-theme="dusk"] .x` — flattened descendant | **absorbed `--color-w`** | excluded | DEFECT, closed |
+| `[data-theme="dusk"] { & .x { … } }` — nested twin | excluded | excluded | the two spellings now AGREE |
+| `[data-theme="dusk"] + .y` — SIBLING subject | **absorbed `--color-s`** | excluded | same defect, one combinator over — NOT in the finding |
+| `[data-theme="dusk"].foo` | root | root | positive control, unchanged |
+| `html[data-theme="dusk"]` | root | root | positive control, unchanged |
+| `[data-theme="dusk"]:where(.a, .b)` | root | root | positive control, unchanged |
+| `[data-theme="dusk"] { .card & { … } }` | **silently DROPPED** | ARM `dusk @ .card &`, scheme `light` | reachable arm restored |
+| `[data-theme="dusk"], [data-theme="dusk"] .x` | contributes (accident of the regex) | contributes (per complex selector) | outcome preserved, now deliberate |
+
+Subject reads behind those rows, printed in the same invocation:
+`subject([data-theme="dusk"] .x) = .x` · `subject([data-theme="dusk"].foo) = [data-theme="dusk"].foo` ·
+`subject(html[data-theme="dusk"]) = html[data-theme="dusk"]` ·
+`subject([data-theme="dusk"]:where(.a, .b)) = [data-theme="dusk"]:where(.a, .b)` ·
+`subject(.card &) = &` · `subject(& .x) = .x` · `subject([data-theme="dusk"] + .y) = .y`.
+
+### Adjudication, per shape
+
+| shape | verdict | why (CSS subject semantics) |
+| - | - | - |
+| flattened descendant `[data-theme="x"] .a` | NOT the palette | the subject is `.a`; the seed's own text never resolves against it. Byte-equivalent to the nested `& .a`, so the two spellings must agree |
+| sibling `[data-theme="x"] + .b` | NOT the palette | same test, subject `.b` |
+| `[data-theme="x"].foo` · `html[data-theme="x"]` · `[data-theme="x"]:where(.a, .b)` | ROOT, MERGED into the seed | the subject IS the seed element. A qualifier narrows WHICH elements carry the seed, not what the palette is — so it merges last-wins exactly as a second bare `[data-theme="x"]` block does. Recorded as a declared limit and pinned |
+| `.card &` | **ARM** `<seed> @ .card &` | the subject is still the seed, under an ANCESTOR condition — the same shape as a conditional at-rule. The seed element really takes that value inside a card, and this gate's job is every ground an ink can rest on. Leg 2's prose called it a descendant subject and DROPPED it; that sentence is named as retired in the header, not edited away |
+| selector list with several complex selectors | decided ARM BY ARM | one list can carry both a seed subject and a descendant subject; the seed genuinely receives the value, so the palette carries it — but by per-selector decision, never by matching the list text |
+
+### The capability — a REFUSAL with its receipt
+
+The brief allowed adding a subject helper to the shared reader "if nothing yields the subject". **Nothing
+needed to be added.** `lib/css-selector-writers.ts` is a TS-side writer census
+(`collectSelectorWriters`/`visitSelectorWriterNode`) and `lib/css-family-selector-provenance.ts` yields
+class/data HOOKS (`selectorClassHooks`, `selectorDataAttributes`, `selectorHooks`) — neither splits a list
+into complex selectors nor yields a subject. `lib/css-rules.ts` already does both:
+`splitSelectorList` (`:290`) and `selectorSubject` (`:379` — "the SUBJECT of a complex selector — its LAST
+compound, i.e. what the rule actually styles", combinators recognised at bracket depth 0 so
+`:where(.a, .b)` and `[attr="a b"]` stay attached), with `over-art-plate.ts:145` as its existing consumer.
+Both are reused as-is; **no new helper, and `SEED_SELECTOR` was deliberately NOT anchored** — `^…$` would
+have killed all three compound roots, which is why they are pinned as positive controls.
+
+### Floor
+
+| Check | Result |
+| - | - |
+| `verifyPolicyProofs` ×3 (seed · playwright-css-topology · sanctioned-css-homes) | `FAILURES=0` each |
+| `pnpm test:scoped`, the same 8 suites as leg 2 | **8 files, 57/57, exit 0** (52 + the 5 new pins) |
+| bounded `runPolicyPass(seed-theme-ink-contrast)`, real tree, 3,388 files | UNCHANGED — `toolErrors=[] withheld=[] effective=0 granted=9`; receipts `[ink×ground×seed pairs=5856] members:3` + `css-inventory:product 3035/0` |
+| real-sheet palette parity | 3 palettes, `IDENTICAL_TO_OLD_PARSER=true` |
+| `pnpm exec biome check` + `pnpm exec eslint`, both touched files | exit 0 |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | exit 0 |
+| `check-gates.repo.int.test.ts` | not run, not touched this leg (planter — leg 2's refusal stands) |
+
+### LEDGER ROWS (1 row)
+
+| module | wave · `path:line` | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| `seed-theme-ink-contrast` | x-css-train-fixes leg 3 · `tooling/src/verify/lib/seed-theme-ink.ts:139-144` (at `53d3d74ec`) | `rootName` matched the unanchored `SEED_SELECTOR` against the whole `selectorList`, so a FLATTENED descendant (`[data-theme="x"] .a`) and a SIBLING (`[data-theme="x"] + .b`) were absorbed as the seed root while their nested twins were excluded — the same CSS answered two ways by authoring style. Separately, `.card &` was silently DROPPED as a "descendant subject" although its subject is the seed under an ancestor condition, losing a reachable palette arm | half-built narrowing · dropped arm · false header prose | **CLOSED (`4552bdf24`)** | before/after matrix over 8 shapes through the live reader (table above); membership now `splitSelectorList` → `selectorSubject` (shared, reused); 5 new pins in `seed-theme-ink-family.test.ts` incl. flattened-EQUALS-nested and the three compound-root controls; real-tree verdict and receipts unchanged |
+
+`ledger rows OWED: 1`
+
+### Proposed lesson (report text — the orchestrator owns the memory write)
+
+**AN EXCLUSION BUILT ON ONE AUTHORING SPELLING IS HALF A RULE.** Leg 2 excluded the descendant subject
+through the nesting ANCESTRY and never noticed the FLATTENED spelling of the same selector was still
+matching a list-level regex — one CSS meaning, two code paths, opposite answers. When a rule is about what
+a selector MEANS, decide it on the parsed meaning (the subject compound) rather than on the text of
+whichever form the fixture happened to use, and pin the two spellings ASSERTED EQUAL so the agreement
+itself is the claim. The companion tell: the repair that anchors the pattern (`^…$`) is almost always
+throwing away legitimate members — write the positive controls FIRST and the lazy repair becomes
+unlandable. Index line:
+`[one meaning, two spellings](exclusion-built-on-one-authoring-spelling.md) — decide a selector rule on the parsed subject, and pin the flattened and nested forms equal`.
+
+## LEG 4 — a selector list is a SET of roots (`893d44b49`)
+
+One commit on top of `4552bdf24`, no rebase. The review's blocker held on re-derivation
+(`seed-theme-ink.ts:178-187` at that sha): `seedRootOf` `break`ed on the first matching root and
+`rootOf`/`Placement` carried ONE name, so a list naming two shipped seeds updated one and dropped the
+other. Leg 3's mixed-list pin used one root plus its DESCENDANT, so it could not see this — **the shape
+nobody fixtures is the shape the prose is free to lie about.**
+
+### Red-first receipt (all four shapes, one invocation)
+
+| shape | BEFORE `4552bdf24` | AFTER `893d44b49` |
+| - | - | - |
+| (a) `[data-theme="light"], [data-theme="mocha"]` | `light{--color-q,--color-x}` · **`mocha{--color-x}` — value DROPPED** | `light{--color-q,--color-x}` · `mocha{--color-q,--color-x}` |
+| (b) same list wrapping `@media (prefers-contrast: more)` | ONE arm: `light @ …`/light | `light @ …`/**light** · `mocha @ …`/**dark** |
+| (c) `[data-theme="light"], [data-theme="mocha"] .x` | `light{--color-d}`, mocha clean | unchanged — mocha still clean |
+| (d) `[data-theme="light"], [data-theme="light"].x` | files once | unchanged — files once |
+
+### The four cases, adjudicated
+
+| case | verdict | why |
+| - | - | - |
+| (a) two distinct valid roots | BOTH palettes carry the value | a list is a set of complex selectors and the declaration reaches every subject in it; the answer is a SET, not a first match |
+| (b) conditional arm under several roots | one ARM PER ROOT, each with its own inherited polarity | the condition chain is shared and computed once, the arms fork at filing — a single shared arm would collapse both seeds onto whichever `color-scheme` was read first (`light`/light vs `mocha`/dark is the discriminating cell) |
+| (c) valid root beside another seed's descendant | only the root contributes | the rule is "every root the list's SUBJECTS name", never "every seed the list mentions" — this row is what stops the fix over-firing |
+| (d) duplicate root in one list | files exactly once | `Set`-deduplicated in `seedRootsOf`, so no census double-counts a seed a list names twice |
+
+### The change
+
+`seedRootOf` → `seedRootsOf` (Set-deduplicated, first-appearance order) · `rootName` → `rootNames` ·
+`rootOf` carries `names` · `placementOf` → `placementsOf`, one `Placement` per root over a SHARED
+condition chain · the filing loop iterates placements. Same `splitSelectorList` / `selectorSubject` — no
+parser fork, no second reader, nothing else moved.
+
+### Floor
+
+| Check | Result |
+| - | - |
+| `verifyPolicyProofs` ×3 (seed · playwright-css-topology · sanctioned-css-homes) | `FAILURES=0` each |
+| `pnpm test:scoped`, the same 8 suites | **8 files, 61/61, exit 0** (57 + the 4 new pins) |
+| bounded `runPolicyPass(seed-theme-ink-contrast)`, real tree, 3,388 files | UNCHANGED — `toolErrors=[] withheld=[] effective=0 granted=9`; receipts `[ink×ground×seed pairs=5856] members:3` + `css-inventory:product 3035/0` |
+| real-sheet parity | 3 palettes, `IDENTICAL_TO_OLD_PARSER=true` |
+| was the defect reachable on today's sheet? | **NO, and here is the receipt:** `theme.css`'s only seed selectors are the bare `[data-theme="light"]` (`:244`) and `[data-theme="mocha"]` (`:290`); a grep for a comma-bearing seed rule returns **0**. It becomes reachable the moment the generator emits a shared block for two seeds |
+| `pnpm exec biome check` + `pnpm exec eslint`, both touched files | exit 0 |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` | exit 0 |
+| CT · conformance stage · `check-gates` planter | not run — excluded by the brief (browser slot and whole-tree consumers in use elsewhere) |
+
+### LEDGER ROWS (1 row)
+
+| module | wave · `path:line` | defect | class | state | receipt |
+| - | - | - | - | - | - |
+| `seed-theme-ink-contrast` | x-css-train-fixes leg 4 · `tooling/src/verify/lib/seed-theme-ink.ts:178-187` (at `4552bdf24`) | `seedRootOf` returned on the FIRST matching root and `Placement` carried one name, so a selector list naming two shipped seeds filed into one and silently dropped the other — including the conditional-arm path, where only one seed got an arm. The header claimed "decided per complex selector"; the code decided once | half-built rule · prose exceeds behaviour | **CLOSED (`893d44b49`)** | before/after over four shapes (table above): (a) mocha gains the value, (b) two arms with `light`/`dark` polarity, (c) the descendant still excluded, (d) the duplicate still files once. 4 new pins in `seed-theme-ink-family.test.ts`; real-tree verdict, receipts and sheet parity all unchanged; the live sheet has no multi-root list (0 comma-bearing seed rules) so the defect was latent |
+
+`ledger rows OWED: 1`
+
+### Proposed lesson (report text — the orchestrator owns the memory write)
+
+**A "PER-X" CLAIM OWES A FIXTURE WITH TWO VALID X, NOT ONE X PLUS A NEAR-MISS.** Leg 3 wrote "decided per
+complex selector" and pinned a list carrying one valid root beside a DESCENDANT — a near-miss, which the
+first-match code answers identically to the correct code. The defect needed two things the rule must treat
+as PEERS. Same shape as the plural-vs-singular class generally: when a function's contract turns a
+container into an answer, the discriminating fixture has ≥2 qualifying members, and the near-miss belongs
+in a SECOND row so over-firing is caught too (here case (c)). Index line:
+`[per-X needs two valid X](per-x-claims-need-two-qualifying-members.md) — a fixture with one valid member plus a near-miss cannot tell a first-match implementation from a per-member one`.
+
+## LEG 5 — REFUSED with receipt: already fixed in leg 2, no commit owed
+
+The row (measured on `dd00ebb78`) names `seed-theme-ink-contrast.ts:35,52` spelling the retired marker
+opener WITH its `@`. **That is exactly the defect leg 2 closed** — `e8593887a`, whose subject is *"its
+header was tripping a LIVE gate"* — and `dd00ebb78` is NOT an ancestor of this branch
+(`git merge-base --is-ancestor dd00ebb78 HEAD` → exit 1), so the row was measured on a tree that does not
+carry the fix. At `e8593887a^` the file did carry it at **exactly `:35` and `:52`**, which is what makes
+the row a true reading of that tree and a stale one of this branch.
+
+Re-derived here, not remembered — `pnpm check:structure --check finding-overload-provenance` on
+`893d44b49`: **3 violations, and NONE in `seed-theme-ink-contrast.ts`** —
+`baseui-derives-not-respells.ts:15:0` and `baseui-derives-not-respells-health.ts:22:0` (#2297, primary's
+lane; this lane was ruled OFF them in leg 2 and they are still red on this branch because that fix is not
+on it) plus the pre-existing `css-var-defined.ts:294:18`. Before = after = 3; my file's contribution is 0
+both ways. The two mentions now sit at `:43` and `:60`, bare (`grep -n "@finding-overload-ok"` → no match,
+exit 1; fence-wide across all six of this lane's files → no match). Editing them again would have been a
+no-op commit asserting a fix that already exists three commits down.
+
+Floor on the unchanged tree: `pnpm exec biome check` exit 0 · `pnpm exec eslint` exit 0 ·
+`pnpm test:scoped tests/tooling/verify/gates/seed-theme-ink-family.test.ts` 18/18 exit 0. HEAD stays
+`893d44b49`; `ledger rows OWED: 0`.
+
+**Note for the integrator:** the row is not wrong, it is *unmerged*. It closes when this branch lands —
+its evidence is `e8593887a`, not a new commit.
+
+## Integration provenance (2026-09-13)
+
+The six implementation commits above were integrated onto main without runtime changes under new commit
+identities:
+
+| Lane commit | Main commit |
+| - | - |
+| `3c18e88db` | `aef37aced` |
+| `e8593887a` | `680d66e7c` |
+| `75b99ea89` | `5a3a914d6` |
+| `53d3d74ec` | `4e6580704` |
+| `4552bdf24` | `8425837e6` |
+| `893d44b49` | `b8af78b29` |
+
+The ten runtime implementation/test blobs are byte-identical between the lane and integrated commits. The
+planter file differs only in prose because main retained newer bus-family edits; the active-gates catalog
+reconciliation carries only the `tokens-contract` row update. Independent source review accepted the final
+selector-list repair at `893d44b49`, including distinct-root preservation, per-root conditional polarity,
+descendant exclusion, and `Set`-based duplicate collapse.
+
+The integrated focused CSS battery passed **75 tests across nine requested files** at `b8af78b29`; machine-readable receipt:
+`reports/runs/test/main-4074155-2026-09-13T05-35-37-661Z/test-report.json`. This is focused integration evidence,
+not final program acceptance. The five-policy production drive completed at the same commit: four final
+policies ran with nine raw findings, all nine granted, zero effective findings, alarms, tool errors or
+withheld policies. The selected legacy `finding-overload-provenance` gate reported one existing finding at
+`css-var-defined.ts:294:18`, so the overall command exited 1. Both BaseUI and seed header-marker pairs are
+absent from that finding list. Receipt: `reports/runs/structure/main-4076777-2026-09-13T05-36-11-077Z/check-structure.json`.
+Board and program closure remain separate lifecycle decisions.
