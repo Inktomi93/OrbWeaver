@@ -346,3 +346,94 @@ a stat of its own commit cannot be written into the file it commits without bein
   `execFileSync` KILLS the child at ~1 MiB and the thrown error carries the truncated payload as its message,
   so the refusal is unreadable and spills content into the log. Declare `maxBuffer` and name it in the
   refusal (`ops/ledger-claims.ts` / `ops/eslint.ts` are the house shapes).
+
+## Recheck (`3a7021d99`) — 2026-09-13
+
+The security owner's grouped repair, cherry-picked into THIS worktree as `8d2766f25` (conflict-free, on top
+of the five-commit stack on current main; their tree untouched). Everything below is re-driven with the same
+harness — a fake `gh` replaying the real 2332-row snapshot in the NEW wire shape (`projectItems` now carries
+its own `pageInfo`), plus real-file `cp`/`mv` probes restored and verified byte-identical.
+
+**Floor on the merged tree:** the six specs **49/49** (`board-citations` 11 · `citation-sources` 8 ·
+`citation-subject` 5 · `workitem-liveness` 3 · `ops/board-citations` 6 · `workboard/ops/project` 16) ·
+`biome` 0 on 12 files · `eslint` 0 on 11 files · `pnpm typecheck --config tooling/tsconfig.json --config
+tsconfig.json` PASS 2/2 · `pnpm check:docs` 0. Sizes under the 450 cap and matching the claim:
+`board-citations.ts` 292 · `citation-sources.ts` 229 · `project.ts` 349 · `gh.ts` 122 ·
+`ops/board-citations.ts` 236.
+
+### The verdicts
+
+| Item | Verdict | Receipt on THIS base |
+| - | - | - |
+| **N1** fence END + off-by-one | **CONFIRMED REPAIRED** | `ledgerSpan` is 1-based and exclusive at both ends. Real barrier run: **`ledger-closure` 393 · total 708 · advisory 33 · verdictless 7 · undeclared 333**, `matched 54 / crossed 0 / cross-family 5 / unkeyed 1` unchanged — the exact shape §4 N1 predicted for my base. (The author's 356/671/76/4/297 are THEIR base's ledger; both are right, and the difference is 47 commits of ledger growth, not a disagreement.) |
+| **N1** the owed control | **CONFIRMED, and re-driven on the REAL document** | Their pin (`citation-sources.test.ts:49`) moves the same table byte-for-byte across the closing `##` and asserts `[1584]` vs `[1584, 9001]` — a real two-direction control, not a fence. Independently: planting one `defect`+`state` table citing absent **#99999** into the real ledger reads **394 citations, #99999 read once** when it sits above `## CLASS ROLLUP` and **393, read 0 times** when it sits below it. |
+| **N1** #2153 still caught | **CONFIRMED** | The pair replanted in the real ledger (`cp`/`mv`, restored): CLI **exit 1, 2 crossed**, both named with the subject each cited row declares. |
+| **N1** the arm is still what catches it | **CONFIRMED (both layers survive)** | Judge with `crossings()`' subject arm cut: **exit 0 / crossed 0** on the same planted pair; the CLI with the same cut: **exit 2**, the subject control naming `matched 1 (expected 1) and crossed 0 (expected 1)`. |
+| **N2** schema admission | **CONFIRMED REPAIRED** | The exact bytes that admitted **150 of 399 and exited 0** now exit **2**: *"carries 40 in-fence defect-row table(s) with NO `state` column — first at line 572, columns `module \| wave · path:line \| defect \| class \| status \| receipt`"*. The MIRROR direction refuses too (`defect` → `finding`, same 40, names the missing `defect`). Untouched: ledger 393, rosters 292 and 20 admitted. Fence loss still refuses by name. |
+| **N4** the three provable arms | **CONFIRMED REPAIRED** | Driven through `fetchIssueStates`: a truncated `projectItems` page (`hasNextPage: true`, Project 1 not in the prefix) → throw naming #2326 and "UNDECIDED"; a non-boolean `projectItems.pageInfo` → throw; `data` beside `errors` → throw quoting only the first message; `repository: null` → throw. No fraction threshold was introduced, which is the right call. |
+| **N5** ceiling + named refusal | **CONFIRMED REPAIRED** | A **17.29 MiB** page through the production door → throw of **363 characters** naming `16777216-byte stdout ceiling`, `GH_MAX_BUFFER_BYTES`, ENOBUFS and "the response is deliberately NOT printed" — where the pre-repair door returned ~1 MiB of issue bodies as its message. The ceiling is a defaulted parameter so the pin can plant 1024 bytes and assert a sentinel body is absent. Today's largest page is 313.5 KiB = **1.9%** of the new ceiling. |
+| **N6** report rows | **CONFIRMED REPAIRED** | `reportLedgerRows(x-warning-barrier-2026-09-13.md)` → **`{"rows":7,"declared":7}`**; zero escaped leading-pipe lines in the file. |
+| **The split** vs `tooling-size` | **CONFIRMED** | 292 / 229 / 349 / 122 / 236, all under 450; one direction only (`board-citations.ts` imports `citation-sources.ts`, never the reverse). |
+| **F1–F4 re-run** | **CONFIRMED — nothing re-opened** | Faithful replay → exit 0 with the receipt above. `hasNextPage`+null cursor → 2 · empty-string cursor → 2 · repeated cursor → 2 (terminates) · `"STALE"` on #2326 → 2 · wire-CLOSED #2326 → **exit 1** naming `over-art-plate-arm` · roster ids stripped → throw · subject-join-zero → 2. |
+| **N3** | **UNCHANGED BY DESIGN, and correctly recorded** | Still 8 board rows cited by 2–5 ledger rows of one wave, all still declaring no subject, so `crossed 0` holds only because the populations stay disjoint. The repair records it as a #2156 constraint rather than pretending to fix it, which is the honest disposition. |
+
+### The five source-integrity assumptions — two of them ARE controllable
+
+The list is honestly written and correctly separated from the confirmed defects. Three of the five hold as
+stated; **two claim "no control possible" where a cheap in-band control exists**, and both are verified live
+against this repository (read-only, 2026-09-13):
+
+1. **A fabricated empty `projectItems.nodes` with `hasNextPage: false` (indistinguishable from honest
+   off-board)** — **PARTLY REFUTED.** Indistinguishable *in that response*, yes; not unmeasurable. The
+   project side answers the same question independently:
+   `user(login:"Inktomi93"){ projectV2(number:1){ items(first:1){ totalCount } } }` → **2334**. A walk that
+   marked 3 rows on-board against a project holding 2334 items is a contradiction, not a threshold. Re-driven
+   post-repair, this arm still produces **706 false findings at exit 1** (was 712; the 6 fewer are N1's rollup
+   citations), so the cost of leaving it is real. Cheapest honest form: one extra query, and refuse when the
+   on-board count is a small fraction of the project's own `totalCount`.
+2. **An early-stopping page claiming `hasNextPage: false`** — **REFUTED as "no control possible".** The same
+   connection already exposes the denominator:
+   `repository(...){ issues(first:1){ totalCount } }` → **2334**. Adding `totalCount` to
+   `ISSUE_STATES_QUERY` and refusing when `rows.size` is SHORT of the first page's `totalCount` turns the one
+   truncation shape nothing else can see into a hard exit 2, deterministically and with no flake on a
+   concurrent mint (a mint during the walk makes the walk LONGER, never shorter). This is the strongest
+   single addition still available to this reader.
+3. **A partially nulled `body` shrinking `matched` silently** — **HOLDS.** A null body now only survives a
+   response with no `errors`, and there is no in-band invariant separating "legitimately empty" from
+   "nulled"; a magnitude guard would need a committed baseline, i.e. a ratchet. Correctly declared.
+4. **An in-fence table with BOTH headers drifted reads as prose** — **HOLDS as stated, with a cheap
+   narrowing available.** The owner's own measurement (63 in-fence tables, all carrying both, zero carrying
+   neither) means "an in-fence table naming NEITHER column" is today an empty population, so refusing it
+   would cost nothing and close the last silent under-read. It needs one owner judgment — whether a future
+   non-defect table inside the fence is legitimate — which is why I do not call it a defect.
+5. **Issue BODIES are authored data the join trusts** — **HOLDS, and it is the right boundary.** Anyone who
+   can edit a board row's body can move its declared subject. The blast radius is bounded and worth stating
+   in one line: it can manufacture a false CROSS (exit 1, loud) or mask a subject mismatch, and it cannot
+   produce a false clean of the resolution or openness arms, which read only `state` and Project membership.
+
+**One new observation, not a row:** `ISSUE_REF` is `/#(\d{2,5})/g`, so a six-digit `#123456` parses as
+**#12345** — a silently mis-read citation rather than a refusal. Latent only: `#[0-9]{6,}` occurs **0 times**
+across all three configured documents today, and the board is at 2334. It is worth a `(?!\d)` when the file is
+next touched; it is not worth a landing.
+
+### Proposed state cells for the six rows above — REPAIRED, not flipped
+
+The `## LEDGER ROWS (6 rows)` table above is left exactly as filed: these are the cells the INTEGRATOR
+substitutes once the repair lands on main and its own sha exists. No row is closed here.
+
+| Row | Proposed `state` cell |
+| - | - |
+| L1 fence END | **REPAIRED at `3a7021d99`** — the integrator substitutes the merged sha (board #2156): `ledgerSpan` bounds the section at the next `## `, both ends exclusive, with the two-direction control this row asked for; independently re-driven at 393/708/33/7 on current main |
+| L2 floors of ONE | **REPAIRED at `3a7021d99`** for the LEDGER half (board #2156): admission is by the `defect`+`state` schema and half a pair throws, so the 150-of-399 false exit 0 is now exit 2 in both rename directions. The ROSTER and BODY halves remain floors of one and are declared as such in the module |
+| L3 multi-cell collision | **OPEN** (board #2156) — unchanged and correctly so; recorded as a constraint on any `**Where:**` backfill, verified still latent (8 rows, all undeclared, `crossed 0`) |
+| L4 partial membership | **REPAIRED at `3a7021d99`** for the DECIDABLE half (board #2156): a truncated `projectItems` page, a non-boolean membership `pageInfo`, a null `repository` and `data`-beside-`errors` all throw. The FABRICATED-empty half stays open as a source-integrity assumption — and see the recheck's assumption 1: `projectV2.items.totalCount` (2334, live) is an available independent oracle |
+| L5 stdout ceiling | **REPAIRED at `3a7021d99`** (board #2156): a declared 16 MiB `GH_MAX_BUFFER_BYTES`, a 363-character refusal naming the ceiling and printing none of the response, and a plantable ceiling so the refusal has a pin |
+| L6 report rows | **REPAIRED at `3a7021d99`** (board #2156): `reportLedgerRows` → rows 7 / declared 7, no escaped leading-pipe row |
+
+### Verdict
+
+**INTEGRABLE.** The six-commit barrier stack (`8ebe65dc3` · `c40752560` · `beea8b1f4` · `c38d396a9` ·
+`376f64337` · `3a7021d99`) is sound on this tree: F1–F4 stay closed, N1/N2/N4-decidable/N5/N6 are repaired
+with two-direction controls, N3 is recorded rather than papered over, and every refusal I could construct
+lands on exit 2 or a named exit 1. The two assumption corrections above (`repository.issues.totalCount` and
+`projectV2.items.totalCount`) are follow-on rows, not integration blockers. #2156 stays OPEN.
