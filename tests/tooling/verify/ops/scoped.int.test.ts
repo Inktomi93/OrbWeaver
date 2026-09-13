@@ -19,9 +19,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Node, Project, SyntaxKind } from "ts-morph";
-import { gate as noManualMemoGate } from "../../../../tooling/src/verify/gates/no-manual-memo.ts";
 import type { GateDescriptor, GateRunCtx, Scope } from "../../../../tooling/src/verify/index.ts";
 import { runPass, runScopedPass } from "../../../../tooling/src/verify/index.ts";
+import { fileLoaded } from "../../../../tooling/src/verify/lib/pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -200,9 +200,41 @@ const MEMO_EXEMPTED: Readonly<Record<string, string>> = {
 /** The scoped folder: in the gate's scanRoot, and NOT any exemption row's path. */
 const MEMO_SCOPE_FOLDER = "packages/ui/src/primitives/button";
 
+// The real memo policy has converted; this fixture keeps the legacy runner's #505
+// fileLoaded contract independently testable until that runner itself retires.
+const seenMemoRows = new Set<string>();
+const staleScopeGate: GateDescriptor = {
+  name: "test-stale-scope",
+  docRow: "test-owned",
+  status: "active",
+  scopeSafety: "incremental-safe",
+  message: "stale row",
+  scanRoot: (path) => path.includes("packages/ui/src/"),
+  begin: () => {
+    seenMemoRows.clear();
+  },
+  visitFile: (source) => {
+    if (source.getFullText().includes("useMemo")) {
+      seenMemoRows.add(source.getFilePath().slice(ROOT.length + 1));
+    }
+  },
+  finalize: (ctx) => {
+    if (!fileLoaded(ctx, MEMO_ANCHOR)) {
+      return;
+    }
+    for (const path of Object.keys(MEMO_EXEMPTED)) {
+      if (!seenMemoRows.has(path)) {
+        ctx.report({ file: path, line: 1, column: 1, message: `stale row: ${path}` });
+      }
+    }
+  },
+  mustFlag: [PROOF],
+  mustPass: [PROOF],
+};
+
 function memoStaleFindings(base: Omit<GateRunCtx, "report" | "scan">, selection?: { scope: Scope; inScope: (rel: string) => boolean }): string[] {
-  const { pass } = selection === undefined ? { pass: runPass([noManualMemoGate], base) } : runScopedPass([noManualMemoGate], base, selection);
-  const findings = pass.gates.find((g) => g.name === "no-manual-memo")?.findings ?? [];
+  const { pass } = selection === undefined ? { pass: runPass([staleScopeGate], base) } : runScopedPass([staleScopeGate], base, selection);
+  const findings = pass.gates.find((g) => g.name === "test-stale-scope")?.findings ?? [];
   return findings
     .filter((f) => f.message?.includes("stale row") === true)
     .map((f) => f.message ?? "")

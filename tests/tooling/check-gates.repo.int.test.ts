@@ -222,9 +222,6 @@ function writeFixtures(): void {
     "packages/db/src/schema/__g_nopk.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gNoPk = sqliteTable("g_no_pk", { label: text("label") });\n',
   );
-  // baseline-single-migration: an extra migration .sql alongside 0000_baseline.sql (the
-  // squash-not-incremental law) — real migrations/ dir already exists, this just adds a stray file.
-  fx("packages/db/src/migrations/__g_0001_fake.sql", "-- fake incremental migration\n");
   // enforcement-registry-parity: NO fixture — the contract-form gate reconciles the DISCOVERED DESCRIPTOR
   // SET vs the doc; the old "gate file missing from the registry" arm is STRUCTURALLY RETIRED (the loader's
   // fail-closed assertDescriptor makes an unwired/invalid gate file a load-time RED, §7). A `__g_` fixture
@@ -287,10 +284,6 @@ function writeFixtures(): void {
     "packages/contracts/src/__g_dcite/index.ts",
     `// per ${["D", "998"].join("")} — a dangling D-citation, no anchor, above the ceiling.\nexport const gDcite = 1;\n`,
   );
-  // no-nul-bytes-in-source: a RAW NUL byte in a source file. Assembled via fromCharCode so the byte is
-  // never present in THIS file's own source — the gate scans tests/ too, and a literal NUL here would make
-  // the suite's own file a permanent violation (and diff as `Bin`).
-  fx("packages/server/src/__g_nulbyte.ts", `export const sep = "${String.fromCharCode(0)}";\n`);
   // wire-schema-vocab-one-home: a second JSON-Schema keyword table outside the one scrub engine. Two
   // DISTINCT keywords clears the fence (one alone is ordinary English).
   fx("packages/server/src/__g_wirevocab.ts", 'export const drop = new Set(["minLength", "maxLength"]);\n');
@@ -403,13 +396,6 @@ function writeFixtures(): void {
   // component-size-ui: the @orb/ui twin (activated 2026-07-17) — a ui source over the 450-line cap,
   // in its own __g_ dir at the src root (the __g_motion/__g_defprops placement precedent).
   fx("packages/ui/src/__g_oversize/__g_oversize.ts", "// pad line\n".repeat(451));
-  // no-interactive-role-in-features: a feature file forging an interactive widget via a layout-kit
-  // role= passthrough. `Row` is a local `declare` — the gate matches the JSX
-  // `role="button"` attribute by AST, so the fixture parses standalone without importing @orb/ui.
-  fx(
-    "packages/client/src/features/__g_role/components/__g_role.tsx",
-    'declare function Row(props: { role?: string; children?: unknown }): unknown;\nexport const G = <Row role="button">hi</Row>;\n',
-  );
   // no-arbitrary-tw-values: a scoped-utility (w-) arbitrary-value class, off-token, not in ALLOWLIST.
   fx("packages/client/src/features/__g_arbtw/components/__g_arbtw.tsx", 'export const G = <div className="w-[137px]" />;\n');
   // no-off-token-radius-shadow: a default-scale shadow utility in a real className site, off-token,
@@ -703,12 +689,6 @@ function writeFixtures(): void {
   // with no emit site across the real home + emit scope). An injected `__g_` file can neither match its
   // fixed tuple-home path nor REMOVE a real emit, so it cannot be driven from an isolated fixture. It is a
   // FINAL policy now, partitioned out of the anti-drift arm below; its bite is `structure:policy-conformance`.
-  // list-row-adoption: a LIST-surface file (imports LibrarySurfaceShell) whose `.map()` row roots in a
-  // plain interactive <div>, not ListRow/LibraryRow (client-architecture-lockdown.md §16 G6).
-  fx(
-    "packages/client/src/features/__g_listrow/surfaces/__g_listrow-surface.tsx",
-    'import { LibrarySurfaceShell } from "#components";\ndeclare const items: { id: string; name: string }[];\ndeclare function select(item: unknown): void;\nexport const G = () => (\n  <LibrarySurfaceShell>\n    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n  </LibrarySurfaceShell>\n);\n',
-  );
   // ui-skin-fragment-purity: a variants file OUTSIDE packages/ui/src/lib/ re-spelling a homed skin
   // fragment (the OVERLAY_ARROW diamond) by hand — the derive-W2 G25 seal. scanRoot covers ui/src sans
   // lib/, so a __g_ primitive variants file trips the real-tree scan.
@@ -763,14 +743,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_formeffect/components/__g_c.tsx",
     "declare function useEffect(fn: () => void, deps: unknown[]): void;\nexport function C(form: { state: { values: unknown } }): void {\n  useEffect(() => {}, [form.state.values]);\n}\n",
   );
-  // no-manual-memo: a hand-written memo hook imported from react in compiled client code. The path is a
-  // __g_ dir at the ui/src root (the __g_oversize / __g_motion / __g_defprops placement precedent) and is
-  // NOT in the gate's EXEMPTIONS table, so its budget is zero.
-  fx("packages/ui/src/__g_manualmemo/__g_manualmemo.ts", 'import { useMemo } from "react";\nexport const v = useMemo(() => 1, []);\n');
-  // no-legacy-react-api: a legacy react import (arm 1). The gate's escape marker is NOT spelled anywhere in
-  // this file — its stale-marker arm scans the shared project, tests/ included, so a literal marker here
-  // would make this suite's own source a permanent violation (the __g_det / __g_fab self-reference dodge).
-  fx("packages/ui/src/__g_legacyreact/__g_legacyreact.ts", 'import { cloneElement } from "react";\nexport const c = cloneElement;\n');
   // ── the baseui-* family (docs/history/design/baseui-crunch.md item 4) ─────────────────────────────────────
   // All five fixturable baseui gates read the COMMITTED surface manifest, which is present on the real
   // tree — so a `__g_` seal that imports @base-ui/react as a value is enough to drive each of them.
@@ -816,11 +788,6 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_ptrvar/components/__g_c.tsx", 'export const C = () => <div className="pointer-coarse:hidden" />;\n');
   // no-mint-via-cast: minting an id by laundering a fresh UUID through castId (assembled).
   fx(`${D}/__g_mintcast/x.ts`, `export const a = castId(crypto.${["random", "UUID"].join("")}());\n`);
-  // platform-spellings (node-26 program §8): a hand-rolled `new Promise(setTimeout)` sleep — the ARM SLEEP
-  // shape W4.1 burned down. A packages/** path (scanRoot is `packages/`), outside client/ui so the browser
-  // carve-out does not exempt it. The other three arms (DEFERRED→withResolvers and SPREAD-SORT, both landed
-  // by the W4.5/W4.2 burn-down; ESCAPE-MINT) are proven by conformance.
-  fx(`${D}/hub/__g_platspell.ts`, "export const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));\n");
   // no-raw-container-widths + css-length-tokens: a raw content-width utility on a container element. The
   // latter consumes #961's class provenance, so this one producer-anchored fixture proves both gates are
   // live without mutating the canonical shell.css home during a whole-tree fixture run.
