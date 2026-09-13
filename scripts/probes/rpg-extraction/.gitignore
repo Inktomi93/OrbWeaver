@@ -1,6 +1,12 @@
 # Spike results — large transcripts + per-turn JSON. On disk, not in git.
 # Ignore-all-then-unignore-sources, so a NEW sweep dir can never be committed by accident just because
 # nobody remembered to add its prefix here (out2-medium/, f1-none-1/, … each needed a new rule otherwise).
+#
+# THE BIOME FENCE FOR THIS DIRECTORY IS NOT HERE (#2299, 2026-09-13). `!*.ts` below never re-included these
+# files for biome — biome reads nested ignore files but does NOT honour their negations — so the directory
+# was silently outside the shipping gate's scope while the edit hook linted it anyway. That fence is now
+# explicit: `!scripts/probes/rpg-extraction` in `biome.json` `files.includes`, with its reason and END
+# CONDITION as data in `tests/tooling/biome-scripts-probe-scope.int.test.ts`. The rules below are GIT only.
 */
 !.gitignore
 !*.md

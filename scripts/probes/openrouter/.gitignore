@@ -1,8 +1,12 @@
 # Scratch output dirs stay on disk; `results/` (the committed JSONL evidence) is re-included.
-# NOTE — this file has a SECOND effect on purpose: biome.json runs with `vcs.useIgnoreFile: true` and does
-# not honour the negations, so a directory-local ignore file takes the whole probe dir out of biome's
-# scope. That is how `scripts/probes/rpg-extraction/` is already exempt, and why these throwaway harnesses
-# may use `process.env` + raw wire literals (the constitution excepts throwaway scripts + dev tooling from
-# the architecture rigor). Nothing here ships.
+#
+# THIS FILE NO LONGER OWNS THE BIOME FENCE (#2299, 2026-09-13). It used to, as a documented SIDE EFFECT:
+# biome runs with `vcs.useIgnoreFile: true`, reads nested ignore files, and does not honour their
+# negations, so `*/` took the whole directory out of biome's scope. That was invisible to every instrument
+# and the EDIT HOOK disagreed with it — `tooling/biome.edit.jsonc`'s `experimentalScannerIgnores` suppresses
+# nested ignore-file discovery, so the hook linted these files and reported 15 errors on `_kit.ts` that the
+# shipping gate never saw. The fence is now an explicit `!scripts/probes/openrouter` in `biome.json`'s
+# `files.includes`, which `biome.edit.jsonc` inherits by `extends`, and its reason plus END CONDITION are
+# data in `tests/tooling/biome-scripts-probe-scope.int.test.ts`. Change the fence THERE, not here.
 */
 !results/
