@@ -134,6 +134,13 @@ test("structure: a warning finding blocks NOTHING by default and blocks with --f
   await expect(off).toExitWith(0);
   const offReport = readArtifact(root);
   expect(policyOf(offReport).authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 0, failOnWarnings: false });
+  expect(offReport.reconciliation).toEqual({
+    legacyFindings: 0,
+    finalEffectiveFindings: 1,
+    nonblockingWarnings: 1,
+    authorityAlarms: 0,
+    blocking: 0,
+  });
   expect(offReport.total).toBe(0);
   expect(offReport.ok).toBe(true);
   // the row still SAYS it found something — non-blocking is not invisible
@@ -147,6 +154,13 @@ test("structure: a warning finding blocks NOTHING by default and blocks with --f
   await expect(on).toExitWith(1);
   const onReport = readArtifact(root);
   expect(policyOf(onReport).authority.verdict).toEqual({ errors: 0, warnings: 1, blocking: 1, failOnWarnings: true });
+  expect(onReport.reconciliation).toEqual({
+    legacyFindings: 0,
+    finalEffectiveFindings: 1,
+    nonblockingWarnings: 0,
+    authorityAlarms: 0,
+    blocking: 1,
+  });
   expect(onReport.total).toBe(1);
   expect(onReport.ok).toBe(false);
   // no tool error on either side: the promoted warning is a verdict about the TREE, not about the checker

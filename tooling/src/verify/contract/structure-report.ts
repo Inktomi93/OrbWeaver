@@ -100,6 +100,17 @@ export interface StructurePolicyReport {
   readonly timing: PolicyPassTiming;
 }
 
+/** The arithmetic behind `total`, materialized so an artifact reader can reconcile the headline without
+ *  knowing the authority engine's warning/alarm rules. Final effective findings include warnings; only
+ *  warnings left unpromoted by `failOnWarnings` are subtracted, while every authority alarm adds a blocker. */
+export interface StructureCountReconciliation {
+  readonly legacyFindings: number;
+  readonly finalEffectiveFindings: number;
+  readonly nonblockingWarnings: number;
+  readonly authorityAlarms: number;
+  readonly blocking: number;
+}
+
 /** The artifact. `policy` is null when the corpus holds no final policy (a planted legacy-only tree). */
 export interface StructureReport {
   readonly run: RunManifest;
@@ -113,6 +124,7 @@ export interface StructureReport {
   /** The legacy pass's own cost ledger (#1107); the final pass's is `policy.timing`. */
   readonly timing: PassTiming;
   readonly policy: StructurePolicyReport | null;
+  readonly reconciliation: StructureCountReconciliation;
   /** Legacy violations + final BLOCKING effective findings + authority alarms — what exit 1 counts. */
   readonly total: number;
   readonly ok: boolean;

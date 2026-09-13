@@ -38,6 +38,7 @@ const LEGACY = "probe-legacy-module-state";
 const ORDINARY = "baseui-render-prop-composition";
 const REVIEWED = "no-raw-matchmedia";
 const HARD_RESOURCE = "verify-registry-parity";
+const WARNING = "over-art-plate-arm";
 
 function shim(repoRoot: string, id: string): string {
   return `export { gate } from ${JSON.stringify(pathToFileURL(join(repoRoot, GATES, `${id}.ts`)).href)};\n`;
@@ -93,6 +94,8 @@ const GRANT_SUBJECT = "packages/ui/src/lib/coarse-pointer-now.ts";
 const STRAY_READ = "packages/client/src/features/probe/x.tsx";
 const CLIENT_STRAY_FILE = "packages/client/src/features/probe/y.ts";
 const MATCH_MEDIA_LINE = 'export const G = (): unknown => globalThis.matchMedia("(prefers-reduced-motion: reduce)");\n';
+const PLATELESS_COMPOSER =
+  'html[data-blur-composer] [data-slot="composer"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n';
 
 function readArtifact(root: string): StructureReport {
   return JSON.parse(readFileSync(join(root, "reports", "check-structure.json"), "utf8")) as StructureReport;
@@ -200,6 +203,46 @@ test("one invocation runs both dispatchers and lands both contracts in one roste
   // total = legacy violations + final blocking; ok false
   expect(report.total).toBe(1 + 7);
   expect(report.ok).toBe(false);
+});
+
+test("the artifact and both readers reconcile mixed legacy findings, final warnings, and authority alarms", { timeout: RUN_TIMEOUT_MS }, async ({
+  plantedTree,
+  repoRoot,
+  runCli,
+}) => {
+  const root = await plantedTree({
+    ...mixedTree(repoRoot, {
+      [SERVER_CACHE]: MAP_LINE,
+      [UI_MENU]: AS_CHILD_LINE,
+      [STRAY_READ]: MATCH_MEDIA_LINE,
+      "packages/client/src/styles/probe.css": PLATELESS_COMPOSER,
+      "packages/ui/src/styles/keep.css": ".keep { color: var(--color-foreground); }\n",
+    }),
+    [`${GATES}/${WARNING}.ts`]: shim(repoRoot, WARNING),
+  });
+
+  const run = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(run).toExitWith(1);
+  const report = readArtifact(root);
+  const finalEffective = report.gates.filter((row) => row.contract === "final").reduce((count, row) => count + row.violations.length, 0);
+  const warnings = policyOf(report).authority.verdict.warnings;
+  const alarms = policyOf(report).authority.alarms.length;
+
+  expect(warnings).toBeGreaterThan(0);
+  expect(alarms).toBeGreaterThan(0);
+  expect(report.reconciliation).toEqual({
+    legacyFindings: 1,
+    finalEffectiveFindings: finalEffective,
+    nonblockingWarnings: warnings,
+    authorityAlarms: alarms,
+    blocking: report.total,
+  });
+  const equation = `${report.total} blocking = 1 legacy + ${finalEffective} final effective - ${warnings} nonblocking warning(s) + ${alarms} authority alarm(s)`;
+  expect(run.stdout).toContain(equation);
+
+  const shown = await runCli("verify", ["show", "--errors-only"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
+  await expect(shown).toExitWith(1);
+  expect(shown.stdout).toContain(equation);
 });
 
 // ── 5-7. routing: legacy markers → legacy owners only; @orb-waive → final ordinary only; grants → reviewed-grant only ─
@@ -404,7 +447,7 @@ test("check:show reads the mixed artifact: a final row in its own vocabulary, a 
   const legacyShown = await runCli("verify", ["show", "--gate", LEGACY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   expect(legacyShown.stdout).toContain(`✗ ${LEGACY} (1 violation)`);
   expect(legacyShown.stdout).toContain("scanned ");
-  expect(legacyShown.stdout).not.toContain("final ");
+  expect(legacyShown.stdout).not.toContain("final ordinary/error");
   const all = await runCli("verify", ["show", "--errors-only"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(all).toExitWith(1);
   expect(all.stdout).toContain("AUTHORITY ALARM");

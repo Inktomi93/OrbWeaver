@@ -38,6 +38,7 @@ import {
   refuseIncomplete,
 } from "../lib/show-artifact.ts";
 import { failedHeaderLine, finalBlockLines, finalBrokenEvidenceCount, finalRowHeader, passLine, violationLine } from "../lib/show-policy.ts";
+import { structureCountLine } from "../lib/structure-report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:show");
 
@@ -276,6 +277,9 @@ export function runShow(root: string, argv: readonly string[]): number {
   // WHOSE run this is, always — the pointer is a `latest` alias under concurrency (#1029), so a reader who
   // does not know the run identity does not know whether the verdict is theirs.
   print(ANSI.dim(`(run ${describeRun(report.run)})`));
+  if (report.reconciliation !== undefined) {
+    print(ANSI.dim(`finding count: ${structureCountLine(report.reconciliation)}`));
+  }
   const filtersActive = filter.gate !== null || filter.file !== null;
   const evidenceBroken = brokenEvidenceCount(report) > 0;
 
