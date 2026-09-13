@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-10
+updated: 2026-09-12
 ---
 
 # Orbweaver — Spine: Testing
@@ -102,9 +102,15 @@ tests/
 The domain arm is DEMAND-BY-DEFAULT (#767, 2026-08-28): it was an enumerated slot list, the template outgrew
 it, and 127 files with runtime logic — 54 in `substrate/`, the second-largest slot in the tree — sat outside
 the demand with no violation and no exemption record. The demand is now the RESIDUAL, so a slot the template
-grows is demanded the day it appears. The residual population that widening exposed rides a shrink-only DEBT
-ratchet (`tooling/src/verify/gates/test-presence.baseline.json`, enumerable with `pnpm debt`); it is another
-lane's named burn-down, never a permanent pass.
+grows is demanded the day it appears. **The residual population that widening exposed is CLOSED, and the
+ratchet that held it is retired (#2062, 2026-09-12):** the baseline, its single writer and its `pnpm debt`
+row are deleted, and the policy carries no ledger of any kind. Its last two rows were neither burned down
+nor waived — both subjects were pure spread-forwarding DI bridges, the shape the `entry/`/`transport/` arm
+below has always exempted because the behaviour is the target's and is demanded THERE, and the only test
+expressible over one either asserts that a forwarder forwards (the §5 tautology) or mocks an internal module
+(§3, banned). The exemption was widened to cover them by SHAPE, so there is no row to rot: a forwarder that
+grows a guard, a second statement or a computed argument is demanded again the day it does, which the
+policy's own `mustPass[15]` / `mustFlag[17]` hold from both sides.
 
 The `entry/` + `transport/` TIER arm (#773, 2026-08-30) is the same widening applied to the two tiers the old
 demand never reached: 94 of their files carry runtime logic, 65 were already tested and merely undemanded, and

@@ -22,7 +22,7 @@
 // (server/contracts). `contract/resource-mirror.ts:17-18` publishes `testsByDirectory` because THIS policy
 // "needs the LISTING of one mirror directory" — the kind was designed around clause B.
 //
-// POPULATION PORT — legacy at 90bbeb04f (the parent of this conversion), a `GateDescriptor` with
+// POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), a `GateDescriptor` with
 // `scopeSafety: "whole-project"` and `fsBacked: true`. The legacy corpus was
 // `project.getSourceFiles()` filtered by `path.indexOf("/packages/client/src/")` /
 // `"/packages/ui/src/"` with `sf.getBaseName() === "index.ts"` skipped — i.e. the harness globs ∩ those two
@@ -53,9 +53,9 @@
 // with a planted positive control, so nothing binds to the old position and nothing is orphaned.
 //
 // AUTHORITY `hard`. The legacy gate declared no `ExemptionTable`, no baseline and no marker grammar — its
-// `CLIENT_EXCLUDE_FILES` / `UI_LOGIC_GROUPS` lists are POPULATION VOCABULARY, not
-// grants — and every finding is FILE-anchored with no position token, so under this contract no ordinary
-// door exists BY CONSTRUCTION. `hard` is the honest declaration.
+// `CLIENT_EXCLUDE_FILES` list (DELETED at #2103, below) and its surviving `UI_LOGIC_GROUPS` list were
+// POPULATION VOCABULARY, not grants — and every finding is FILE-anchored with no position token, so under
+// this contract no ordinary door exists BY CONSTRUCTION. `hard` is the honest declaration.
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. A non-ready declared resource makes
 // `resolveResourceDeclarations` THROW at the POPULATION phase and the owner is withheld before `create`
@@ -67,10 +67,27 @@
 // `tests/tooling/verify/gates/mirror-index-family.test.ts` (guide §4.5b: no proof row can express a
 // refusal).
 //
+// DECLARED LIMIT ON THE `authored-text` DECLARATION (#2130): it has NO pinnable non-ready status, and the
+// reason is structural rather than an unwritten test. Every subject this policy demands comes out of
+// `mirror.testFiles` — a store's own mirrors, the stories module when it is a live member, else the lowest
+// test-space member — and the mirror walk READS THE BYTES of every member it indexes
+// (`ops/resource-reader.ts` `fileEntry`), so a subject that is absent, symlinked or unreadable has already
+// refused the whole `mirror-index` declaration at the POPULATION phase, before the demand door is reached.
+// The door's own zero-path refusal is equally out of reach: `evaluate` always passes at least one path.
+//
 // DECLARED LIMITS, each naming the row that holds it: a NESTED bucket (`data/bus/`,
 // `forms/editor/bound-fields/`) is not a direct child of any owner and keeps its shared CT home
 // (`mustPass[5]`, the direct-child fence); bare `primitives/` belong to `ui-primitive-structure`
 // (`mustPass[8]`).
+//
+// FOUR NARROWINGS WENT UNHELD UNTIL 2026-09-12 AND NOW CARRY ROWS (#2133, cut one at a time and measured):
+// the `notNamed: ["index.ts"]` population fence (`mustPass[14]` — the fixture carries a SECOND, admitted
+// client file, because a population falsifier that admits nothing comes back a tool error rather than a
+// finding), clause C's `TYPE_ARGS` span (`mustPass[15]`, the generic-call shape whose absence would have
+// shipped four false REDs at #619 and which nothing was proving), `hasDirTest`'s registered-kind filter
+// (`mustFlag[11]` — a mirror directory holding ONLY a type test is not dir-level presence) and clause C's
+// `use*` exclusion on the CONST arm (`mustPass[16]`; `mustFlag[6]`'s count held only the function-decl
+// twin).
 //
 // THE `data/trpc.ts` EXCLUSION IS GONE, AND ITS STATED REASON WAS FALSE (#2103, 2026-09-12). A
 // `CLIENT_EXCLUDE_FILES` list subtracted that ONE file by name from a population it otherwise belongs to
@@ -500,6 +517,15 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "could not read ANY corpus" },
       why: "§4.6: a mirror that yields NO corpus leaves every action unjudged — the clause must say so, not report clean (the #619 class, generalized). The count pins that it does NOT additionally masquerade as per-action coverage debt",
     },
+    {
+      mode: "resource",
+      files: {
+        "packages/ui/src/markdown/policy.ts": "export function build(): number {\n  return 1;\n}\n",
+        "tests/ui/markdown/markdown.test-d.ts": "export {};\n",
+      },
+      expect: { count: 1, messageIncludes: "non-primitive @orb/ui logic module" },
+      why: "THE REGISTERED-KIND FILTER inside `hasDirTest` (#2133): clause B is dir-level, which is exactly why the KIND still has to be a runtime one — a mirror directory holding only a `.test-d.ts` proves types, never that the group runs. Cutting the filter counts any member and this row goes silent, the same shape `mustFlag[0]` holds for clause A's per-file question",
+    },
   ],
   mustPass: [
     {
@@ -637,6 +663,40 @@ export const gate = defineGate({
         "tests/client/state/gprescomm-store.test.ts": "export const t = 1;\n",
       },
       why: "COMMENT POSTURE (issue #117/#132), clause C, the FALSE-POSITIVE direction: a `state/*.ts` whose COMMENT names a factory door mints no store, so demanding mirror coverage for actions it has none of would be an invented finding. `isStoreFile` reads CODE",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/client/src/data/index.ts": "export const build = () => 1;\n",
+        "packages/client/src/data/parse.ts": "export function parse(): boolean {\n  return true;\n}\n",
+        "tests/client/data/parse.test.ts": "export {};\n",
+      },
+      why: 'THE `notNamed: ["index.ts"]` POPULATION FENCE (#2133): a client barrel is a re-export surface, not a composed seal, and clause A must never reach it — dropping the fence admits `data/index.ts` and reds this row. `data/parse.ts` is here as the IN-POPULATION ANCHOR: a population falsifier whose only file is the excluded one admits nothing, and an empty population comes back a `[population]` TOOL ERROR rather than the finding the cut is supposed to produce',
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/client/src/state/gprestypeargs-store.ts":
+          'import { createGatedStore } from "./create-gated-store";\n' +
+          'const useX = createGatedStore<{ n: number }>("g-prestypeargs", () => ({ n: 0 }));\n' +
+          'export function gPresTypeArgsAction<T>(value: T): T {\n  useX.setState({ n: 1 }, false, "x/set");\n  return value;\n}\n',
+        "tests/client/state/gprestypeargs-store.test.ts":
+          'import { gPresTypeArgsAction } from "@orb/client/state";\nexport const t = gPresTypeArgsAction<number>(1);\n',
+      },
+      why: "THE `TYPE_ARGS` SPAN of clause C (#2133): a generic action is driven as `NAME<T>(…)`, and a bare `NAME\\(` matcher is blind to every one of them — the blindness that would have shipped four false REDs when #619 widened the clause, credited in the header and held by nothing until now. Cutting the span reds this row",
+    },
+    {
+      mode: "resource",
+      files: {
+        "packages/client/src/state/gpresconsthook-store.ts":
+          'import { createGatedStore } from "./create-gated-store";\n' +
+          'const useX = createGatedStore<{ n: number }>("g-presconsthook", () => ({ n: 0 }));\n' +
+          "export const useGPresConstHook = (): number => useX((s) => s.n);\n" +
+          'export function gPresConstHookAction(): void {\n  useX.setState({ n: 1 }, false, "x/set");\n}\n',
+        "tests/client/state/gpresconsthook-store.test.ts":
+          'import { gPresConstHookAction } from "@orb/client/state";\ngPresConstHookAction();\nexport const t = 1;\n',
+      },
+      why: "THE `use*` EXCLUSION ON THE CONST ARM (#2133): a read-hook is a selector, not a write, so clause C never demands it be DRIVEN — and the hook here is an exported arrow, the arm `mustFlag[6]`'s count does not reach (that row's `useGPresClient` is a function declaration). Cutting the const arm's prefix test demands `useGPresConstHook` and reds this row",
     },
   ],
 });

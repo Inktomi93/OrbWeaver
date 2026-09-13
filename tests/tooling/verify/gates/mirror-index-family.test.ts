@@ -17,8 +17,18 @@
 // withheld before `create` runs. The pins below are the two-sided proof of that: the SAME overlay minus one
 // space flips a green pass into a named refusal, which is what rules out "the fixture simply had nothing to
 // find". No specifier-resolution control is owed — resource rows import nothing.
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
+//
+// THE MATRIX IS ONE PIN PER DECLARATION PER REACHABLE STATUS (`docs/design/resource-policy-contract.md`
+// obligation 6), and three cells were missing until #2130: `unresolved` on BOTH `mirror-index` declarations
+// and `empty` on `package-test`. Those three are the arms that cannot be built from an overlay — an overlay
+// entry is text, so it is never a symlink, and it cannot make a directory EXIST while staying empty — so
+// they plant a real tree under the `scratch` `mkdtemp` root and pass an empty overlay. The fourth cell,
+// `authored-text` non-ready, is a DECLARED LIMIT rather than a missing pin: every demanded subject is drawn
+// from `mirror.testFiles`, and the mirror walk reads each member's BYTES, so an unreadable subject refuses
+// the mirror declaration at the population phase and the demand door is never reached. The argument and its
+// mechanism live in `test-presence-client.ts`'s header beside the declaration.
+import { mkdirSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -65,6 +75,17 @@ function populationRefusal(policyId: string, fragment: string): Record<string, u
     owners: [[policyId, "incomplete"]],
     withheld: [policyId],
   };
+}
+
+/** Write an overlay-shaped map to REAL DISK under the scratch root. The `unresolved` and tree-`empty`
+ *  statuses are the two refusals no overlay can express — an overlay entry is text, so it can never be a
+ *  symlink, and an overlay-free directory cannot be made to exist. Those arms plant the tree instead and
+ *  pass an EMPTY overlay, which is why this helper exists beside `pass`. */
+function plant(root: string, files: Readonly<Record<string, string>>): void {
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(join(root, dirname(path)), { recursive: true });
+    writeFileSync(join(root, path), text);
+  }
 }
 
 /** A complete, legal overlay for `test-layout`: both mirror families have members in both spaces, and every
@@ -118,6 +139,39 @@ test("test-layout: an EMPTY tests/tooling half refuses with the family's own bou
   expect(refusalShape(result)).toEqual(populationRefusal("test-layout", "mirror family tooling-test has an empty space"));
 });
 
+/** `unresolved` — the THIRD reachable status, declared in all three module headers ("a symlink anywhere on
+ *  the walked path makes the tree `unresolved` — a REFUSAL") and pinned by nothing until #2130. It is the
+ *  status that distinguishes "I read this tree and it holds no mirror" from "I could not read this tree",
+ *  which is the entire capability the conversion bought, so leaving it unpinned left the strongest claim in
+ *  the family resting on prose. Both declarations get their own arm: neither is privileged, and a reader
+ *  who only saw the `package-test` arm could not tell whether the second declaration refuses at all. */
+test("test-layout: the SAME tree planted on disk with no symlink reaches a verdict — the control for both arms below", ({ scratch }) => {
+  plant(scratch, LAYOUT_TREE);
+  const result = pass(testLayout, scratch, {});
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+});
+
+test("test-layout: a SYMLINK on the walked TEST path refuses `unresolved` on the package declaration", ({ scratch }) => {
+  plant(scratch, LAYOUT_TREE);
+  symlinkSync("example.ct.tsx", join(scratch, "tests/ui/primitives/linked.ct.tsx"));
+  const result = pass(testLayout, scratch, {});
+
+  expect(refusalShape(result)).toEqual(populationRefusal("test-layout", "mirror-index:package-test is unresolved"));
+  expect(result.toolErrors[0]?.message).toContain("authored resource traverses a symbolic link: tests/ui/primitives/linked.ct.tsx");
+});
+
+test("test-layout: a SYMLINK under tooling/src refuses `unresolved` on the SECOND declaration, package-test staying ready", ({ scratch }) => {
+  plant(scratch, LAYOUT_TREE);
+  symlinkSync("cli.ts", join(scratch, "tooling/src/snapx/linked.ts"));
+  const result = pass(testLayout, scratch, {});
+
+  expect(refusalShape(result)).toEqual(populationRefusal("test-layout", "mirror-index:tooling-test is unresolved"));
+  expect(result.toolErrors[0]?.message).toContain("authored resource traverses a symbolic link: tooling/src/snapx/linked.ts");
+});
+
 /** `test-presence`'s one declaration. A complete corpus reaches a verdict and files ONE resource receipt;
  *  removing either bounded space of the SAME family flips it into a named population-phase refusal. */
 const PRESENCE_TREE = {
@@ -143,6 +197,21 @@ test("test-presence: an absent test tree REFUSES rather than accusing every sour
 
   expect(refusalShape(result)).toEqual(populationRefusal("test-presence", "resource declaration mirror-index:package-test is missing"));
   expect(result.toolErrors[0]?.message).toContain("mirror family package-test");
+});
+
+/** `empty` on the PACKAGE family, the status its `tooling-test` twin above pins and this one did not
+ *  (#2130). The two are not the same shape: `tooling-test`'s empty arm is reached by a `tests/` tree that
+ *  HAS members but none under its narrower `tests/tooling` root, while `package-test`'s test root IS the
+ *  tree, so the only way in is a test tree that EXISTS and is empty — a state no overlay can build, and
+ *  exactly the tree a wiped `tests/` leaves behind. Under `existsSync` this was indistinguishable from a
+ *  complete corpus and would have accused every source file on the tree. */
+test("test-presence: a tests/ tree that EXISTS and is empty refuses `empty` rather than accusing the corpus", ({ scratch }) => {
+  plant(scratch, { "packages/server/src/domain/chat/verbs/start-chat.ts": "export const createStartChat = () => 1;\n" });
+  mkdirSync(join(scratch, "tests"), { recursive: true });
+  const result = pass(testPresence, scratch, {});
+
+  expect(refusalShape(result)).toEqual(populationRefusal("test-presence", "resource declaration mirror-index:package-test is empty"));
+  expect(result.toolErrors[0]?.message).toContain("resource tree has no members: tests");
 });
 
 /** `test-presence-client`'s TWO declarations, including the `authored-text` DEMAND door — which owns no
