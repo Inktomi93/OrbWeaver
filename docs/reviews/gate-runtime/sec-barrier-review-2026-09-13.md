@@ -16,16 +16,22 @@ main, the ledger, the catalog or the author's worktree.
 
 ## 1. Verdict
 
-**F1–F4 are REPAIRED and each one is CONFIRMED by driving the production door in both directions. Six new
-defects are named below; none of them re-opens F1–F4, and none of them is a false-green of the kind codex
-refuted. Integrate `376f64337` with N1 and N6 fixed in the same landing** (N1 is ~10 lines and zero pin
-churn; N6 is one un-escaped table row), and file N2–N5 as rows. #2156 stays OPEN, correctly.
+**F1–F4 are REPAIRED and each one is CONFIRMED by driving the production door in both directions, and none
+of the six new defects below re-opens any of them. Integrate `376f64337` with N1 and N6 fixed in the same
+landing** (N1 is ~10 lines and zero pin churn; N6 is one un-escaped table row), and file N2–N5 as rows.
+\#2156 stays OPEN, correctly.
 
-The barrier's exit contract holds under every arm I could construct: **0 only when it measured; 1 when it
-crossed; 2 whenever it could not measure.** I did not find an input that produces a false 0. Two of the six
-new findings (N2, N4) are the same shape as F2 one notch down — *every non-vacuity guard in this design is
-a floor of ONE*, so TOTAL loss of an input refuses while PARTIAL loss of the same input is invisible or
-becomes a false exit 1.
+**The no-false-exit-0 claim is SCOPED, and N2 is the exception — stated here rather than in a footnote.**
+For the four input classes codex's refutation names — a crossed-but-existing citation, TOTAL loss of a
+configured document's grammar, a truncated or malformed board page, and an unvalidated wire value — I could
+construct no input that exits 0: every one of them came back 1 (crossed) or 2 (could not measure), driven,
+in §3. **N2 IS a false exit 0** and I measured it: a PARTIAL `state`-column loss on the real ledger admitted
+**150 of 399** citations, printed a serene source receipt and **exited 0** with 249 citations unread. It is
+the F2 class one notch down and the F2 repair does not reach it. N4 is the same shape wearing the other
+exit: a PARTIAL membership loss becomes 712 false findings at exit 1 rather than the exit 2 it owes. So the
+honest summary of the exit contract is: **TOTAL loss of any input refuses; PARTIAL loss of the same input is
+either invisible at exit 0 (N2) or a false exit 1 (N4)** — *every non-vacuity guard in this design is a
+floor of ONE*.
 
 ## 2. Method, and the two board reads it cost
 
