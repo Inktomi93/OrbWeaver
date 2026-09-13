@@ -198,7 +198,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     ledger: keyed<LedgerId, LedgerFacts>("ledger", (id) => loadLedger(reader, id)) as ResourceHost["ledger"],
     exactFiles,
     vendorCssSurface: cached("vendor-css-surface", () => loadVendorCssSurface(reader, root)),
-    tokenContract: cached("token-contract", () => loadTokenContract(reader)),
+    tokenContract: cached("token-contract", () => loadTokenContract(reader, root)),
     devtoolsClosure: cached("devtools-closure", () => loadDevToolsClosure(reader)),
     authoredPaths: demanded("authored-path", (selectors) => loadAuthoredPaths(root, selectors)),
     authoredText: demanded("authored-text", (paths) => loadAuthoredText(paths)),

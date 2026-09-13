@@ -13,7 +13,7 @@ import {
 } from "@orb/ui/token-contract";
 import { describe } from "vitest";
 import { gate as tokensContractGate } from "../../tooling/src/verify/gates/tokens-contract.ts";
-import { verifyGateProofs } from "../../tooling/src/verify/index.ts";
+import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../packages/ui");
@@ -196,8 +196,12 @@ describe("official schema controls", () => {
 });
 
 describe("Orb semantic controls", () => {
-  test("the fs-backed canonical gate proof stays green without weakening the real-worktree removal ratchet", () => {
-    expect(verifyGateProofs([tokensContractGate])).toEqual([]);
+  // CONVERTED 2026-09-13 (#2183): `tokens-contract` is a final `defineGate` policy, so its rows run through
+  // the POLICY runner rather than the legacy `verifyGateProofs`, and the real-worktree removal ratchet is no
+  // longer a `ctx.root` conditional — it is the `token-contract` resource's `removalBaseline`, read by the
+  // provider and pinned in tests/tooling/verify/gates/token-contract-family.test.ts.
+  test("the canonical policy proof stays green without weakening the real-worktree removal ratchet", () => {
+    expect(verifyPolicyProofs([tokensContractGate])).toEqual([]);
   });
 
   test("comma-packed font members, alias cycles, and terminal type mismatches are refused", () => {

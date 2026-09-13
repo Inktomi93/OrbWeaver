@@ -2,6 +2,7 @@
 // byte census. Both fail closed — a partially-read contract is not a contract.
 import { createHash } from "node:crypto";
 import type { TokenContractTexts } from "@orb/ui/token-contract";
+import { readTokenRemovalBaseline } from "@orb/ui/token-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ResourceLoad, ResourceReader } from "../contract/resource.ts";
 import type { DevToolsClosure, DevToolsClosureFile, TokenContractResource } from "../contract/resource-artifact.ts";
@@ -19,7 +20,7 @@ type TokenContractField = keyof TokenContractTexts;
 
 const TOKEN_CONTRACT_FIELDS = Object.keys(TOKEN_CONTRACT_PATHS) as readonly TokenContractField[];
 
-export function loadTokenContract(reader: ResourceReader): ResourceLoad<TokenContractResource> {
+export function loadTokenContract(reader: ResourceReader, root: string): ResourceLoad<TokenContractResource> {
   const paths = TOKEN_CONTRACT_FIELDS.map((field) => TOKEN_CONTRACT_PATHS[field]).toSorted((left, right) => left.localeCompare(right));
   const texts: Partial<Record<TokenContractField, string>> = {};
   for (const field of TOKEN_CONTRACT_FIELDS) {
@@ -41,7 +42,15 @@ export function loadTokenContract(reader: ResourceReader): ResourceLoad<TokenCon
   // The narrowing is sound by CONSTRUCTION rather than by assertion-flavoured optimism: the loop above is
   // total over `TOKEN_CONTRACT_FIELDS` (which is `keyof TokenContractTexts`) and returns on the first member
   // it could not read, so reaching this line means every field is populated.
-  const value: TokenContractResource = { texts: Object.freeze(texts) as TokenContractTexts, paths: Object.freeze(paths) };
+  // THE RATCHET'S OTHER SIDE, acquired HERE because a policy has no root and no subprocess. It is read
+  // unconditionally and its `unavailable` arm is DATA rather than an absence, so a fixture root (no `.git`)
+  // and a real worktree take the same path through the validator and neither can read as "no removals".
+  // `readTokenRemovalBaseline` owns the git invocation; this door owns only the decision to make it.
+  const value: TokenContractResource = {
+    texts: Object.freeze(texts) as TokenContractTexts,
+    paths: Object.freeze(paths),
+    removalBaseline: readTokenRemovalBaseline(root),
+  };
   // `members` is what the door MEASURED — the seven bundle documents — never the token census inside them.
   return { status: "ready", value, paths, members: paths.length };
 }

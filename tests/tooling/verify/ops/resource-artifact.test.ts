@@ -14,7 +14,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 const ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 
 function tokens(root: string, overlay: Readonly<Record<string, string | null>> = {}): ResourceLoad<TokenContractResource> {
-  return loadTokenContract(createResourceReader({ root, overlay }));
+  return loadTokenContract(createResourceReader({ root, overlay }), root);
 }
 
 function closure(root: string, overlay: Readonly<Record<string, string | null>> = {}): ResourceLoad<DevToolsClosure> {
