@@ -76,6 +76,31 @@ test("missing or changed reviewed home identity stays hard and stales the centra
   expect(changedResult.authority.authorityAlarms.map(({ kind }) => kind)).toContain("stale-reviewed-grant");
 });
 
+test("health findings anchor inside their owner when the shared fact also admits the other world", () => {
+  for (const [policy, files] of [
+    [
+      skinHealth,
+      {
+        "packages/client/src/a.ts": "export const client = true;",
+        "packages/ui/src/primitives/x.ts": "export const ui = true;",
+      },
+    ],
+    [
+      pointerHealth,
+      {
+        "packages/ui/src/a.ts": "export const ui = true;",
+        "packages/client/src/main.ts": "export const client = true;",
+      },
+    ],
+  ] as const) {
+    const result = run([policy], files, []);
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.effectiveFindings).toHaveLength(1);
+    expect(result.authority.effectiveFindings[0]?.policyId).toBe(policy.id);
+  }
+});
+
 test("a narrowed request defers every whole-population owner", () => {
   const files = { "packages/ui/src/lib/x.ts": "export const x = true;", "packages/ui/src/primitives/y.ts": "export const y = true;" };
   for (const policy of SKIN) {
