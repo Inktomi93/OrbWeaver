@@ -519,6 +519,30 @@ function scanClasses(ctx: GateRunCtx): void {
   });
 }
 
+// Independent fixture bytes name every currently reviewed subject. Do not derive this healthy twin
+// from the permission tables: deleting a permission must accuse these unchanged authored bytes (#2181).
+const LENGTH_PROOF_FILES: Readonly<Record<string, string>> = {
+  "packages/ui/src/tokens/index.ts": "export const anchor = 1;\n",
+  "packages/client/src/features/app-shell/surfaces/shell.css":
+    '.shell-grid { --list-track: 0px; }\n.shell-grid { --context-track: 0px; }\n.shell-grid { height: 100vh; }\n.shell-grid { height: calc(100dvh - var(--orb-keyboard-inset, 0px)); }\n.shell-grid { --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))); }\n.shell-grid { --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)); }\n.shell-content-primacy-sentinel { block-size: 1px; }\n.shell-panel[data-panel-mode="docked"], .shell-panel[data-panel-mode="overlay"], .shell-panel[data-panel-mode="collapsed"] { width: 100dvw; }\n.shell-panel[data-panel-side="list"][data-panel-mode="overlay"], .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"], .shell-panel[data-panel-side="context"][data-panel-mode="overlay"], .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] { width: 100dvw; }\n.shell-panel[data-panel-side="list"][data-panel-mode="docked"] { width: 100dvw; }\n@supports (backdrop-filter: blur(1px)) {\n}\n@container shell-main (max-width: 30rem) {\n}\n@media (max-width: 48rem) {\n}\n',
+  "packages/client/src/features/chat/lib/pager-chrome.ts":
+    'export const props = { className: "@max-[12rem]/pager:sr-only @max-[13rem]/pager:gap-tight @max-[13rem]/pager:[word-spacing:-1ch]" };\n',
+  "packages/client/src/features/character/components/character-create-actions.tsx":
+    'export const Proof = <div className="@max-[19rem]:hidden @[19rem]:hidden" />;\n',
+  "packages/ui/src/markdown/markdown.tsx": 'export const Proof = <div className="max-h-[60cqh]" />;\n',
+  "packages/ui/src/layout/variants.ts":
+    'export const props = { className: "@md:grid-cols-[repeat(auto-fill,8.5rem)] @min-[100rem]:grid-cols-[1.5fr_1.05fr] @min-[100rem]:grid-cols-2 grid-cols-[repeat(auto-fit,minmax(min(5rem,100%),1fr))] grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))] grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))] grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]" };\n',
+};
+
+/** Remove exactly one authored subject while retaining every sibling and the real-tree anchor. */
+function withoutLengthSubject(file: string, subject: string): Readonly<Record<string, string>> {
+  const source = LENGTH_PROOF_FILES[file];
+  if (source === undefined || source.split(subject).length !== 2) {
+    throw new Error(`length proof must remove exactly one authored subject: ${file} :: ${subject}`);
+  }
+  return { ...LENGTH_PROOF_FILES, [file]: source.replace(subject, "") };
+}
+
 export const gate: GateDescriptor = {
   name: "css-length-tokens",
   docRow: "client-architecture-lockdown.md §4.3/§4.4 (#955)",
@@ -555,14 +579,24 @@ export const gate: GateDescriptor = {
         [SHELL]:
           ".shell-grid { --list-track: 0px; --context-track: 0px; height: 100vh; height: calc(100dvh - var(--orb-keyboard-inset, 0px)); --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))); --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)); }\n@supports (backdrop-filter: blur(1px)) {\n}\n@container shell-main (max-width: 30rem) {\n}\n",
       },
-      expect: { token: "@media (max-width: 48rem) {" },
-      why: "THE GUARDED LIVENESS ARMS' ONLY PROOF (#2198), and it is not optional: once both arms sit behind the real-tree anchor NOTHING else reaches them, and a guarded arm with no control is how an arm goes vacuous — the failure the header's last measured line (`the liveness test INVERTED -> 10`) exists to refuse. The token is the QUERY liveness arm's and only its: the declaration arm emits `<selector> { <prop>: <value> }` and the class arm emits file paths, so no other arm can produce it. MEASURED CARDINALITY, stated because this row does NOT isolate one finding: planting the anchor necessarily also switches on the sibling arms it guards, so this fixture yields NINE — this one, the three panel + one sentinel declaration rows no fixture can carry without production selectors, and the STRUCTURAL_CLASS_CANDIDATES rows that need real client files. That is the guard working on all three arms at once. THE EXACT CARDINALITY MOVED WITH #2181 and is deliberately NOT restated as a number here: the four per-file rows became thirteen `(file, candidate)` rows, so the count this fixture yields changed, and a LEGACY gate’s proof rows are visible ONLY to the planter (`gate-conformance.repo.int`) — `check:policy-conformance` walks the FINAL roster and cannot see them. A number nobody in this lane can measure is the rotting-count shape, so the MECHANISM is stated and the planter owns the figure. THE FALSIFIER IS THE ANCHOR: drop `REAL_TREE_ANCHOR` from this row's file map and the identical stylesheet yields ZERO (measured 2026-09-12), which is the guard itself cut in the direction that matters",
+      expect: { count: 18, token: "@media (max-width: 48rem) {" },
+      why: "The original guarded joint fixture retains all its authored bytes. Its complete result is thirteen absent class identities, four absent declaration identities, and the absent media query: eighteen findings. The exact total pins all three arms; the query token distinguishes its own finding. Dedicated missing-subject rows below separately pin every class and declaration identity (#2181).",
     },
     {
       files: { [REAL_TREE_ANCHOR]: "export const x = 1;\n" },
       expect: { token: "missing-shell" },
       why: "the real-tree anchor without the required sanctioned shell home fails loud",
     },
+    ...STRUCTURAL_CLASS_CANDIDATES.map((row) => ({
+      files: withoutLengthSubject(row.file, row.candidate),
+      expect: { count: 1, token: `${row.file} :: ${row.candidate}`, messageIncludes: "structural length allowlist row drifted" },
+      why: `#2181 class liveness: removing only ${row.file} :: ${row.candidate} must report its unused permission; suppressing the class-liveness arm loses this finding`,
+    })),
+    ...STRUCTURAL_DECLARATIONS.map((row) => ({
+      files: withoutLengthSubject(SHELL, `${row.selector} { ${row.prop}: ${row.value}; }`),
+      expect: { count: 1, token: `${row.selector} { ${row.prop}: ${row.value} }`, messageIncludes: "allowlist row is UNUSED" },
+      why: `#2181 declaration liveness: removing only ${row.selector} { ${row.prop}: ${row.value} } must report its unused permission; suppressing declaration liveness loses this finding`,
+    })),
   ],
   mustPass: [
     {
@@ -576,6 +610,10 @@ export const gate: GateDescriptor = {
       files: 'export const G = <div className="w-(--dimension-rail) gap-row" />;\n',
       at: "packages/ui/src/x.tsx",
       why: "token-backed class carriers contain no raw length and pass",
+    },
+    {
+      files: LENGTH_PROOF_FILES,
+      why: "#2181 independent complete healthy twin: every declaration, query and class permission has a real authored subject. Deleting any permission (including the original c02 Markdown row) accuses these unchanged bytes; liveness is enabled and every sibling remains present",
     },
   ],
 };

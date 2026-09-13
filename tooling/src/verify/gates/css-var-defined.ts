@@ -164,6 +164,7 @@ function reportBlindness(ctx: GateRunCtx, what: string): void {
     file: GATE_SELF,
     line: 0,
     column: 0,
+    fix: "Restore the named source/definition/reference/class-root population or repair its reader; zero coverage cannot establish a clean tree.",
     message: `css-var-defined scanned zero ${what} — instrument blindness, not a clean tree (tooling/src/verify/gates/css-var-defined.ts)`,
   });
 }
@@ -200,6 +201,7 @@ function checkVendorContract(ctx: GateRunCtx, vendor: VendorContract): void {
         file: GATE_SELF,
         line: 0,
         column: 0,
+        fix: "Refresh the committed Base UI mirror against the installed package version and prove their CssVars contract agrees.",
         message: `Base UI mirror/package version mismatch: mirror=${vendor.mirrorVersion ?? "missing"}, installed=${vendor.version ?? "missing"} (tooling/src/verify/gates/css-var-defined.ts)`,
       });
     }
@@ -208,6 +210,7 @@ function checkVendorContract(ctx: GateRunCtx, vendor: VendorContract): void {
         file: GATE_SELF,
         line: 0,
         column: 0,
+        fix: "Reconcile the committed API-table property names with installed CssVars declarations before changing vendor allowances.",
         message:
           "Base UI API-table custom properties and installed CssVars declarations differ — refresh/prove the mirror before changing runtime allowances (tooling/src/verify/gates/css-var-defined.ts)",
       });
@@ -221,6 +224,7 @@ function reportVendorBlindness(ctx: GateRunCtx, what: string): void {
     line: 0,
     column: 0,
     token: what,
+    fix: "Restore the named Base UI mirror/property/reference population and its input paths before accepting the vendor census.",
     message: `css-var-defined measured zero ${what} on the real tree — the Base UI contract is unreadable, which is instrument blindness rather than a clean vendor surface (tooling/src/verify/gates/css-var-defined.ts)`,
   });
 }
@@ -249,6 +253,7 @@ function checkRealTreeVendor(ctx: GateRunCtx, vendor: VendorContract, vendorUse:
         line: 0,
         column: 0,
         token: name,
+        fix: "Prove the new Base UI property use against the installed contract, then review its exact EXPECTED_VENDOR_USE entry.",
         message: `${name} is a Base UI runtime property this tree now uses and no reviewed row allows — prove the use and add it to EXPECTED_VENDOR_USE (tooling/src/verify/gates/css-var-defined.ts)`,
       });
     }
@@ -260,6 +265,7 @@ function checkRealTreeVendor(ctx: GateRunCtx, vendor: VendorContract, vendorUse:
         line: 0,
         column: 0,
         token: name,
+        fix: "Delete the unused EXPECTED_VENDOR_USE entry after confirming that the property is no longer referenced.",
         message: `${name} is an allowed Base UI runtime property no file uses any more — delete its stale row (tooling/src/verify/gates/css-var-defined.ts)`,
       });
     }
@@ -282,6 +288,7 @@ function checkRealTreeRuntime(ctx: GateRunCtx, inventory: CssVariableInventory):
         line: 0,
         column: 0,
         token: name,
+        fix: "Review the live property and its exact CSSProperties writer; add its (file, property) row only when no static value can serve.",
         message: `${name} is set at runtime and read by this tree, and no producer row names it — every live property needs an exact CSSProperties writer with a reviewed row (tooling/src/verify/gates/css-var-defined.ts)`,
       });
     }
@@ -296,6 +303,7 @@ function checkRealTreeRuntime(ctx: GateRunCtx, inventory: CssVariableInventory):
         line: site.line,
         column: site.column,
         token: site.name,
+        fix: "Review this exact writer and add its (file, property) row with the reason no static value can serve.",
         message: `${site.name} is written here and no reviewed producer row names this writer — add the (file, property) row with the reason no static value can serve (tooling/src/verify/gates/css-var-defined.ts)`,
       });
     }
@@ -307,6 +315,7 @@ function checkRealTreeRuntime(ctx: GateRunCtx, inventory: CssVariableInventory):
         line: 0,
         column: 0,
         token: producerKey(row.file, row.property),
+        fix: "Delete the stale producer row or review and repoint it to the actual writer; do not restore an obsolete write just to satisfy the row.",
         message: `${row.file} no longer writes ${row.property} — delete its stale producer row or re-point it at the writer that moved (tooling/src/verify/gates/css-var-defined.ts)`,
       });
     }
@@ -329,6 +338,40 @@ function run(ctx: GateRunCtx): void {
     candidates: inventory.references.length,
     scanned: inventory.references.length,
   });
+}
+
+// Independent authored fixtures retain every approved vendor name and runtime writer. These are proof
+// inputs, never a second production permission table; dropping a reviewed row must leave its witness.
+const VARIABLE_PROOF_FILES: Readonly<Record<string, string>> = {
+  "tooling/src/verify/gates/css-var-defined.ts": "export const proofAnchor = 1;\n",
+  "packages/ui/src/styles/theme.css":
+    ":root { --known: 1px; }\n.proof { width: var(--known); width: var(--accordion-panel-height, 0px); width: var(--active-tab-left, 0px); width: var(--active-tab-width, 0px); width: var(--anchor-width, 0px); width: var(--available-height, 0px); width: var(--available-width, 0px); width: var(--collapsible-panel-height, 0px); width: var(--drawer-snap-point-offset, 0px); width: var(--drawer-swipe-movement-x, 0px); width: var(--drawer-swipe-movement-y, 0px); width: var(--toast-swipe-movement-x, 0px); width: var(--toast-swipe-movement-y, 0px); width: var(--transform-origin, 0px); height: var(--width-shell-content); height: var(--orb-weave-hub-x); height: var(--orb-weave-hub-y); height: var(--orb-ws-pitch); height: var(--orb-ws-glow); height: var(--orb-web-spiral-length); }\n",
+  "packages/client/src/features/proof.tsx": 'export const Proof = <div className="block" />;\n',
+  "docs/vendor/base-ui/INDEX.md": "# Base UI docs mirror \u2014 v1.7.0\n",
+  "docs/vendor/base-ui/components/proof.md":
+    "| `--accordion-panel-height` | `number` | proof |\n| `--active-tab-left` | `number` | proof |\n| `--active-tab-width` | `number` | proof |\n| `--anchor-width` | `number` | proof |\n| `--available-height` | `number` | proof |\n| `--available-width` | `number` | proof |\n| `--collapsible-panel-height` | `number` | proof |\n| `--drawer-snap-point-offset` | `number` | proof |\n| `--drawer-swipe-movement-x` | `number` | proof |\n| `--drawer-swipe-movement-y` | `number` | proof |\n| `--toast-swipe-movement-x` | `number` | proof |\n| `--toast-swipe-movement-y` | `number` | proof |\n| `--transform-origin` | `number` | proof |\n",
+  "packages/ui/node_modules/@base-ui/react/package.json": '{"version":"1.7.0"}',
+  "packages/ui/node_modules/@base-ui/react/proof/ProofCssVars.d.ts":
+    'export enum ProofCssVars { v0 = "--accordion-panel-height", v1 = "--active-tab-left", v2 = "--active-tab-width", v3 = "--anchor-width", v4 = "--available-height", v5 = "--available-width", v6 = "--collapsible-panel-height", v7 = "--drawer-snap-point-offset", v8 = "--drawer-swipe-movement-x", v9 = "--drawer-swipe-movement-y", v10 = "--toast-swipe-movement-x", v11 = "--toast-swipe-movement-y", v12 = "--transform-origin" }\n',
+  "packages/client/src/features/app-shell/surfaces/app-shell.tsx": 'export const style: CSSProperties = { "--width-shell-content": 1 };\n',
+  "packages/ui/src/art/web-weave/web-weave.tsx": 'export const style: CSSProperties = { "--orb-weave-hub-x": 1, "--orb-weave-hub-y": 1 };\n',
+  "packages/ui/src/charts/meter/waystone-layers.tsx": 'export const style: CSSProperties = { "--orb-ws-pitch": 1, "--orb-ws-glow": 1 };\n',
+  "packages/ui/src/primitives/spinner/spinner.tsx": 'export const style: CSSProperties = { "--orb-web-spiral-length": 1 };\n',
+};
+const PROOF_CSS = "packages/ui/src/styles/theme.css";
+const PROOF_VENDOR_DOC = "docs/vendor/base-ui/components/proof.md";
+const PROOF_VENDOR_TYPES = "packages/ui/node_modules/@base-ui/react/proof/ProofCssVars.d.ts";
+
+function variableProofFiles(overrides: Readonly<Record<string, string>> = {}, omitted: readonly string[] = []): Readonly<Record<string, string>> {
+  return { ...Object.fromEntries(Object.entries(VARIABLE_PROOF_FILES).filter(([file]) => !omitted.includes(file))), ...overrides };
+}
+
+function variableProofText(file: string): string {
+  const text = VARIABLE_PROOF_FILES[file];
+  if (text === undefined) {
+    throw new Error(`missing variable proof input: ${file}`);
+  }
+  return text;
 }
 
 export const gate: GateDescriptor = {
@@ -375,6 +418,84 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "scanned zero source files" },
       why: "wrong scope or an empty source population is instrument blindness, never a clean verdict",
     },
+    {
+      files: variableProofFiles({ [PROOF_VENDOR_TYPES]: "" }, ["docs/vendor/base-ui/INDEX.md", PROOF_VENDOR_DOC]),
+      expect: { count: 16, token: "Base UI mirror files", messageIncludes: "measured zero Base UI mirror files" },
+      why: "#2181 no mirror: three vendor zero-population findings plus thirteen stale reviewed names; fallback references prevent undefined-value noise",
+    },
+    {
+      files: variableProofFiles({ [PROOF_VENDOR_DOC]: "# No property table\n", [PROOF_VENDOR_TYPES]: "" }),
+      expect: { count: 15, token: "documented Base UI properties", messageIncludes: "measured zero documented Base UI properties" },
+      why: "#2181 an existing mirror with no properties loses documented and membership populations plus thirteen reviewed names; the mirror-file tripwire stays quiet",
+    },
+    {
+      files: variableProofFiles({
+        [PROOF_CSS]: variableProofText(PROOF_CSS).replace(
+          /width: var\(--(?:accordion|active|anchor|available|collapsible|drawer|toast|transform)[^;]+; /gu,
+          "",
+        ),
+      }),
+      expect: { count: 14, token: "Base UI reference-site memberships", messageIncludes: "measured zero Base UI reference-site memberships" },
+      why: "#2181 documented and installed vendor names remain, but no authored use remains: one membership tripwire and thirteen stale names",
+    },
+    {
+      files: variableProofFiles({
+        [PROOF_CSS]: variableProofText(PROOF_CSS) + ".extra { width: var(--unreviewed-vendor); }\n",
+        [PROOF_VENDOR_DOC]: variableProofText(PROOF_VENDOR_DOC) + "| `--unreviewed-vendor` | `number` | proof |\n",
+        [PROOF_VENDOR_TYPES]: variableProofText(PROOF_VENDOR_TYPES) + 'export enum ExtraCssVars { extra = "--unreviewed-vendor" }\n',
+      }),
+      expect: { count: 1, token: "--unreviewed-vendor", messageIncludes: "is a Base UI runtime property this tree now uses" },
+      why: "#2181 a proved vendor property newly used outside the reviewed vocabulary reports its exact identity once",
+    },
+    {
+      files: variableProofFiles({ [PROOF_CSS]: variableProofText(PROOF_CSS).replace("width: var(--anchor-width, 0px); ", "") }),
+      expect: { count: 1, token: "--anchor-width", messageIncludes: "is an allowed Base UI runtime property no file uses" },
+      why: "#2181 one reviewed vendor name loses its sole use while every sibling remains live",
+    },
+    {
+      files: variableProofFiles({ "packages/ui/node_modules/@base-ui/react/package.json": '{"version":"9.0.0"}' }),
+      expect: { count: 1, messageIncludes: "Base UI mirror/package version mismatch" },
+      why: "#2181 the vendor name sets agree but their versions do not; the remedy must repair the mirror/package pairing",
+    },
+    {
+      files: variableProofFiles({
+        [PROOF_CSS]: variableProofText(PROOF_CSS) + ".extra { width: var(--new-runtime); }\n",
+        "packages/ui/src/proof-writer.ts": 'export const style: CSSProperties = { "--new-runtime": 1 };\n',
+      }),
+      expect: { count: 2, token: "--new-runtime", messageIncludes: "is set at runtime and read by this tree" },
+      why: "#2181 a new runtime property has both an unreviewed vocabulary identity and an unreviewed exact writer; both findings are required",
+    },
+    {
+      files: variableProofFiles({ "packages/ui/src/proof-writer.ts": 'export const style: CSSProperties = { "--width-shell-content": 1 };\n' }),
+      expect: { count: 1, token: "--width-shell-content", messageIncludes: "is written here and no reviewed producer row names this writer" },
+      why: "#2181 an already reviewed property gains a second unreviewed writer; property identity alone cannot authorize the new file",
+    },
+    ...RUNTIME_PRODUCER_ROWS.map((row) => ({
+      files: variableProofFiles({ [PROOF_CSS]: variableProofText(PROOF_CSS).replace(`height: var(${row.property}); `, "") }),
+      expect: { count: 1, token: producerKey(row.file, row.property), messageIncludes: "— delete its stale producer row or re-point it" },
+      why: `#2181 stale runtime writer: ${row.file} :: ${row.property} loses its only live reference; sibling writer rows remain live`,
+    })),
+    {
+      files: {
+        [PROOF_CSS]: ".proof { width: var(--optional, 1px); }",
+        "packages/client/src/features/proof.tsx": 'export const Proof = <div className="block" />;',
+      },
+      expect: { count: 1, messageIncludes: "scanned zero custom-property definitions" },
+      why: "#2181 definitions alone are empty: source, reference-with-fallback and class-root populations are nonempty",
+    },
+    {
+      files: {
+        [PROOF_CSS]: ":root { --known: 1px; }",
+        "packages/client/src/features/proof.tsx": 'export const Proof = <div className="block" />;',
+      },
+      expect: { count: 1, messageIncludes: "scanned zero custom-property references" },
+      why: "#2181 references alone are empty: definitions, sources and a literal class root remain",
+    },
+    {
+      files: { [PROOF_CSS]: ":root { --known: 1px; width: var(--known); }" },
+      expect: { count: 1, messageIncludes: "scanned zero static class roots" },
+      why: "#2181 class roots alone are empty: authored CSS supplies source, definition and reference populations",
+    },
   ],
   mustPass: [
     {
@@ -410,6 +531,10 @@ export const gate: GateDescriptor = {
         "packages/ui/node_modules/@base-ui/react/x/XCssVars.d.ts": 'export enum XCssVars { width = "--anchor-width" }\n',
       },
       why: "a runtime property in both the committed API table and installed CssVars type is proved",
+    },
+    {
+      files: VARIABLE_PROOF_FILES,
+      why: "#2181 independent complete healthy twin reaches guarded vendor/runtime reconciliation with all approved identities and all nonzero populations; dropping either guard cannot hide a probe throw",
     },
   ],
 };
