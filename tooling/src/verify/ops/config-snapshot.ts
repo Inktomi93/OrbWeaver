@@ -18,6 +18,7 @@ import type {
   EslintConfigSnapshot,
   EslintSelectorSnapshot,
   EslintSelectorValue,
+  EslintTrackedPopulation,
   VitestConfigSnapshot,
   VitestConfigSnapshotField,
 } from "../contract/config-snapshot.ts";
@@ -571,11 +572,27 @@ function localSelectorSnapshots(root: string, trackedPaths: readonly string[], m
   return [...files, ...ignores];
 }
 
-function eslintTrackedPaths(root: string, supplied?: readonly string[]): readonly string[] {
-  if (supplied === undefined) {
-    return readPolicyRepositoryInventory(root).trackedPaths;
-  }
-  return supplied.map((path) => {
+/** ONE rule for both callers. Git tracks SYMLINKS AS ORDINARY PATHS and `lib/policy-repo-inventory.ts`
+ *  admits every one of them (`currentAuthoredFile` returns a symlink's path without asking what it points
+ *  at), so a tracked symlink-to-DIRECTORY — `.agents/skills` on this tree — is a legitimate member of the
+ *  very list both callers read. It is not a lintable file, so it is EXCLUDED and NAMED in the snapshot; a
+ *  path that leaves the transaction still REFUSES, because that is a containment question and not a
+ *  file-kind one.
+ *
+ *  THE TWO BRANCHES USED TO DISAGREE ABOUT THAT ONE LIST (#2302, 2026-09-13): the inventory branch returned
+ *  it unvalidated, while the SUPPLIED branch — taken only under an overlay, and built by
+ *  `lib/config-snapshot.ts` from the identical `readPolicyRepositoryInventory(root).trackedPaths` call —
+ *  threw `is not a contained transaction file` on the symlink. So the overlay door, the only door through
+ *  which a counterfactual of the REAL `eslint.config.js` can be observed, was unusable at the real
+ *  repository root; nothing noticed because every other overlay caller is a `mode: "resource"` tmpdir
+ *  fixture with no symlinks in it. Measured on this tree before unifying: every selector row is
+ *  byte-identical either way and `trackedFiles` moves by exactly the excluded count, which is why the
+ *  exclusion is REPORTED rather than silently dropped. */
+function eslintTrackedPaths(root: string, supplied?: readonly string[]): EslintTrackedPopulation {
+  const candidates = supplied ?? readPolicyRepositoryInventory(root).trackedPaths;
+  const paths: string[] = [];
+  const excludedNonFilePaths: string[] = [];
+  for (const path of candidates) {
     assertPolicyRepoPath(path, "config-snapshot ESLint tracked path");
     const target = resolve(root, path);
     if (!existsSync(target)) {
@@ -583,17 +600,18 @@ function eslintTrackedPaths(root: string, supplied?: readonly string[]): readonl
     }
     const canonical = realpathSync(target);
     const rel = relative(root, canonical);
-    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel) || !statSync(canonical).isFile()) {
+    if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
       throw new Error(`config-snapshot ESLint tracked path is not a contained transaction file: ${path}`);
     }
-    return path;
-  });
+    (statSync(canonical).isFile() ? paths : excludedNonFilePaths).push(path);
+  }
+  return { paths, excludedNonFilePaths };
 }
 
 export async function snapshotEslintConfig(root: string, config: string, suppliedTrackedPaths?: readonly string[]): Promise<EslintConfigSnapshot> {
   const [loaded, defaultConfig] = await Promise.all([loadEslintConfig(root, config), loadEslintDefaultConfig()]);
   const model = nativeEslintModel(root, loaded, defaultConfig, config);
-  const trackedPaths = eslintTrackedPaths(root, suppliedTrackedPaths);
+  const { paths: trackedPaths, excludedNonFilePaths } = eslintTrackedPaths(root, suppliedTrackedPaths);
   if (trackedPaths.length === 0) {
     throw new Error("ESLint selector population has zero tracked files");
   }
@@ -601,7 +619,7 @@ export async function snapshotEslintConfig(root: string, config: string, supplie
   if (selectors.length === 0) {
     throw new Error(`${config} resolved zero ESLint selector values`);
   }
-  return { version: 1, runner: "eslint", config, trackedFiles: trackedPaths.length, entries: model.configs.length, selectors };
+  return { version: 1, runner: "eslint", config, trackedFiles: trackedPaths.length, excludedNonFilePaths, entries: model.configs.length, selectors };
 }
 
 /** Resolve an already-enumerated path set through ESLint's native flat-config selectors and ignores. */

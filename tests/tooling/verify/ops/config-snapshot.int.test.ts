@@ -460,6 +460,58 @@ test("matches ESLint for a local ignores-and-rules entry without files", async (
   expect((await eslint.calculateConfigForFile(join(scratch, "src/live.test.js")))?.rules?.semi).toBeUndefined();
 });
 
+// ── The ESLint candidate population is ONE rule for both callers (#2302, 2026-09-13) ──────────────────
+// Git tracks a SYMLINK TO A DIRECTORY as an ordinary path and `lib/policy-repo-inventory.ts` admits every
+// symlink, so such a path is a member of the list BOTH `eslintTrackedPaths` callers read. It used to be
+// admitted unvalidated by the inventory branch and REFUSED by the supplied branch (taken only under an
+// overlay), which made the overlay door unusable at the real repository root — the only door through which
+// a counterfactual of the real `eslint.config.js` can be observed. These three arms pin the repair on a
+// PLANTED fixture, so they do not depend on which symlinks the live tree happens to carry: the founding
+// live case is `.agents/skills` -> `../.claude/skills`, and `.codex/hooks` is its twin.
+async function plantSymlinkedEslintRepo(root: string): Promise<void> {
+  await plantEslintRepo(root, {
+    [ESLINT_CONFIG_REL]: 'export default [{ files: ["src/**/*.js"] }];\n',
+    "src/live.js": "export const live = 1;\n",
+    "target/inside.js": "export const inside = 1;\n",
+  });
+  symlinkSync("../target", join(root, "src/linked-dir"));
+  execFileSync("git", ["add", "-A"], { cwd: root });
+}
+
+test("a tracked symlink-to-DIRECTORY leaves the ESLint candidate population BY NAME, on both caller branches", async ({ scratch }) => {
+  await plantSymlinkedEslintRepo(scratch);
+  const tracked = execFileSync("git", ["ls-files"], { cwd: scratch, encoding: "utf8" }).split("\n").filter(Boolean);
+  expect(tracked, "the planted symlink must be a TRACKED path or this arm proves nothing").toContain("src/linked-dir");
+
+  const supplied = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL, tracked);
+  const inventory = await snapshotEslintConfig(scratch, ESLINT_CONFIG_REL);
+
+  expect(supplied.excludedNonFilePaths).toEqual(["src/linked-dir"]);
+  expect(supplied.trackedFiles).toBe(tracked.length - 1);
+  // THE DEFECT WAS THE DISAGREEMENT, so the pin is the equality, not either number on its own.
+  expect(inventory.excludedNonFilePaths).toEqual(supplied.excludedNonFilePaths);
+  expect(inventory.trackedFiles).toBe(supplied.trackedFiles);
+  expect(inventory.selectors).toEqual(supplied.selectors);
+});
+
+test("relaxing the file-kind refusal did NOT relax containment: a symlink out of the transaction still refuses", async ({ scratch }) => {
+  await plantSymlinkedEslintRepo(scratch);
+  symlinkSync("..", join(scratch, "escape"));
+
+  await expect(snapshotEslintConfig(scratch, ESLINT_CONFIG_REL, ["src/live.js", "escape"])).rejects.toThrow("is not a contained transaction file");
+  await expect(snapshotEslintConfig(scratch, ESLINT_CONFIG_REL, ["src/live.js", "src/gone.js"])).rejects.toThrow("is absent from the transaction");
+});
+
+test("the private population manifest carries the exclusion across the worker's process boundary", async ({ scratch }) => {
+  await plantSymlinkedEslintRepo(scratch);
+
+  const read = readConfigSnapshot(scratch, "eslint", ESLINT_CONFIG_REL, {
+    overlay: { [ESLINT_CONFIG_REL]: 'export default [{ name: "overlay", files: ["src/**/*.js"] }];\n' },
+  });
+
+  expect(read.kind === "ok" ? read.snapshot.excludedNonFilePaths : read.detail).toEqual(["src/linked-dir"]);
+});
+
 test("keeps local-ignore counterfactuals from widening universal selectors or unrelated no-files entries", async ({ scratch }) => {
   await plantEslintRepo(scratch, {
     [ESLINT_CONFIG_REL]: `export default [
