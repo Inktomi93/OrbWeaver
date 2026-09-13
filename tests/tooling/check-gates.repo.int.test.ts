@@ -1053,12 +1053,23 @@ function writeFixtures(): void {
 // a throwaway `__g_` file can't add a member to the real union/interface/schema, and the STALE/ORPHAN arms
 // need a real registry edit. Its bite is proven by gate-conformance (per-arm mustFlag + STALE + the
 // paired-anchor tripwire mustFlag) + its live run on the real tree with the founding registry.
-// baseui-surface-manifest: it compares two ARTIFACTS — the installed `@base-ui/react` under
-// packages/ui/node_modules and the committed surface manifest — and neither is something a `__g_`
-// source file can perturb. Its bite is proven by six conformance mustFlag examples that materialize a
-// synthetic installed package + manifest into a real temp dir (a new part, a new prop, an `unresolved`
-// disposition, a reason-less `sealed-away`, the package missing entirely, and the reader's own
-// learned-nothing tripwire), plus its live run on the real tree at the founding 1.7.0 surface.
+// baseui-surface-manifest CONVERTED 2026-09-13 (#1584) and its row is GONE from the set below: a final
+// policy is partitioned out by the mixed roster, so a row naming one fails the two-sided arm at the end of
+// this file. It still compares two ARTIFACTS — the installed `@base-ui/react` and the committed surface
+// manifest — neither of which a `__g_` source file can perturb; that was never about the `__g_` sentinel
+// either, because a final policy's `mode: "resource"` proofs materialise their OWN temp repository with a
+// synthetic installed package planted where node's resolver finds it, which is exactly the substrate the
+// legacy harness could not give it. Its bite is `structure:policy-conformance` running seven `mustFlag`
+// rows (a new part, a new prop, a new STATE key, an `unresolved` disposition, a reason-less `sealed-away`,
+// the reader's learned-nothing tripwire and its truncation twin, and a ledger that is valid JSON and is not
+// a ledger) plus tests/tooling/verify/gates/baseui-and-surface-family.repo.int.test.ts, which pins the two
+// refusals a proof row cannot express — the missing ledger and the uninstalled package, which the legacy
+// descriptor reported as its own findings behind a hand-rolled real-tree anchor.
+// baseui-anatomy-completeness and baseui-derives-not-respells converted in the same commit, and the latter
+// SPLIT (the `hard` handler arm is `baseui-derives-not-respells-health`). Neither was ever in the set below
+// — both are fixturable and both still fire on the `__g_` seals planted above, which is why those fixtures
+// stay: a `__g_` file is ambient corpus for every gate in the pass, not a per-gate input, and deleting one
+// because its author's gate converted is how a sibling's only fixture disappears.
 // biome-grant-liveness and tsconfig-entry-liveness CONVERTED 2026-09-12 (#2021) and their names are GONE
 // from the set below, for the same reason runner-config-path-liveness's is: a final policy is partitioned
 // out by the mixed roster, so a row naming one fails the two-sided arm. Each became a PAIR (the policy plus
@@ -1103,7 +1114,6 @@ function writeFixtures(): void {
 // tests/tooling/verify/gates/devtools-frontend-assets.int.test.ts, which pins the real-corpus liveness the
 // legacy descriptor held with a `tooling/src/snap/cli.ts` anchor no fixture could satisfy.
 const UNFIXTURABLE_GATES = new Set([
-  "baseui-surface-manifest",
   "enforcement-registry-parity",
   "bus-payload-allowlist",
   "knob-wire-coverage",
