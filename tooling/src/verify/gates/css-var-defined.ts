@@ -73,8 +73,9 @@
 // §4.6 blindness arms that belong in a `css-var-defined-health` sibling; a LEGACY `GateDescriptor` has no
 // family and no authority to split into, so they land here as arms now and move at the conversion.
 import type { ExemptionRow, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import type { CssVariableInventory, CssVariableSite, VendorContract } from "../lib/css-var-resolution.ts";
+import type { CssVariableInventory, CssVariableSite } from "../lib/css-var-resolution.ts";
 import { inventoryCssVariables, readVendorContract } from "../lib/css-var-resolution.ts";
+import type { VendorContract } from "../lib/vendor-css-contract.ts";
 
 const CSS_HOMES = [
   "packages/ui/src/styles/theme.css",
